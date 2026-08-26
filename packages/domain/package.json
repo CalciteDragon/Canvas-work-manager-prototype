@@ -10,9 +10,12 @@
     }
   },
   "scripts": {
-    "lint": "tsc --noEmit"
+    "test": "vitest run",
+    "lint": "tsc --noEmit && node scripts/check-no-direct-date.mjs"
   },
   "devDependencies": {
-    "typescript": "~6.0.2"
+    "@types/node": "^24.10.1",
+    "typescript": "~6.0.2",
+    "vitest": "^4.0.8"
   }
 }

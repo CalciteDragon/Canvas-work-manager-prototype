@@ -169,6 +169,8 @@ store and retrieve, nothing more.
 
 ### Slice 4 — Seeds, personas, clock, reset
 
+**Status:** in progress — plan: [docs/plans/04-seeds-personas-clock-reset.md](docs/plans/04-seeds-personas-clock-reset.md)
+
 **Goal:** Any workspace state is one command away.
 
 **Spec:** §16, §17, §45, §76
