@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rename as renameFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PrototypeDocumentSchema } from '@cwm/contracts';
@@ -289,6 +289,16 @@ describe('runUnitOfWork', () => {
     expect(await repository.find(newProject().id)).toBeNull();
   });
 
+  it('reports a malformed final document as a DocumentIntegrityError', async () => {
+    const store = new TrackingStore(validDocument());
+    const repository = new JsonProjectRepository(store);
+
+    await expect(store.runUnitOfWork(() => repository.insert({ id: 'malformed' } as never))).rejects.toBeInstanceOf(
+      DocumentIntegrityError,
+    );
+    expect(store.persistCalls).toBe(0);
+  });
+
   it('rolls memory back when persistence fails', async () => {
     const store = new TrackingStore(validDocument());
     store.failPersistence = true;
@@ -325,6 +335,30 @@ describe('runUnitOfWork', () => {
     await store.runUnitOfWork(() => repository.update({ ...newProject(), name: 'Later' }));
     expect(store.persistCalls).toBe(2);
   });
+
+  it('hides provisional state from outside readers and rejects outside writes', async () => {
+    const store = new TrackingStore(validDocument());
+    const repository = new JsonProjectRepository(store);
+    let release!: () => void;
+    let entered!: () => void;
+    const hasEntered = new Promise<void>((resolve) => (entered = resolve));
+    const blocker = new Promise<void>((resolve) => (release = resolve));
+    const operation = store.runUnitOfWork(async () => {
+      await repository.insert(newProject());
+      expect(await repository.find(newProject().id)).not.toBeNull();
+      entered();
+      await blocker;
+    });
+    await hasEntered;
+
+    expect(await repository.find(newProject().id)).toBeNull();
+    await expect(repository.insert({ ...newProject(), id: 'outside' as never })).rejects.toBeInstanceOf(
+      UnitOfWorkInProgressError,
+    );
+    release();
+    await operation;
+    expect(await repository.find(newProject().id)).not.toBeNull();
+  });
 });
 
 const temporaryDirectories: string[] = [];
@@ -333,6 +367,16 @@ afterEach(async () => {
 });
 
 describe('JsonDataStore', () => {
+  it('reports malformed JSON and schema-invalid files as DocumentIntegrityError', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-repositories-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
+    await writeFile(path, '{not json', 'utf8');
+    await expect(JsonDataStore.load(path)).rejects.toBeInstanceOf(DocumentIntegrityError);
+    await writeFile(path, JSON.stringify({ schemaVersion: 1 }), 'utf8');
+    await expect(JsonDataStore.load(path)).rejects.toBeInstanceOf(DocumentIntegrityError);
+  });
+
   it('loads and atomically round-trips a real contract-valid file', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'cwm-repositories-'));
     temporaryDirectories.push(directory);
@@ -348,49 +392,138 @@ describe('JsonDataStore', () => {
   });
 
   it('keeps live disk and memory intact when writing the temporary snapshot fails', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-repositories-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
     const original = `${JSON.stringify(validDocument())}\n`;
+    await writeFile(path, original, 'utf8');
     const order: string[] = [];
     const operations: FileOperations = {
-      readFile: vi.fn(async () => original),
-      writeFile: vi.fn(async () => {
+      readFile,
+      writeFile: vi.fn(async (writePath, data, encoding) => {
         order.push('write');
+        await writeFile(writePath, data.slice(0, 20), encoding);
         throw new Error('partial write');
       }),
       rename: vi.fn(async () => {
         order.push('rename');
       }),
     };
-    const store = await JsonDataStore.load('data.json', operations);
+    const store = await JsonDataStore.load(path, operations);
     const repository = new JsonProjectRepository(store);
 
     await expect(store.runUnitOfWork(() => repository.insert(newProject()))).rejects.toThrow('partial write');
     expect(order).toEqual(['write']);
+    expect(operations.writeFile).toHaveBeenCalledWith(`${path}.tmp`, expect.any(String), 'utf8');
+    expect(operations.rename).not.toHaveBeenCalled();
     expect(await repository.find(newProject().id)).toBeNull();
-    expect(await operations.readFile('data.json', 'utf8')).toBe(original);
+    expect(await readFile(path, 'utf8')).toBe(original);
   });
 
   it('writes a complete temp snapshot first and keeps live disk and memory intact when rename fails', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-repositories-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
     const original = `${JSON.stringify(validDocument())}\n`;
+    await writeFile(path, original, 'utf8');
     const order: string[] = [];
-    let temp = '';
     const operations: FileOperations = {
-      readFile: vi.fn(async () => original),
-      writeFile: vi.fn(async (_path, data) => {
+      readFile,
+      writeFile: vi.fn(async (writePath, data, encoding) => {
         order.push('write');
-        temp = data;
+        await writeFile(writePath, data, encoding);
       }),
-      rename: vi.fn(async () => {
+      rename: vi.fn(async (_from, _to) => {
         order.push('rename');
         throw new Error('rename failed');
       }),
     };
-    const store = await JsonDataStore.load('data.json', operations);
+    const store = await JsonDataStore.load(path, operations);
     const repository = new JsonProjectRepository(store);
 
     await expect(store.runUnitOfWork(() => repository.insert(newProject()))).rejects.toThrow('rename failed');
     expect(order).toEqual(['write', 'rename']);
+    expect(operations.writeFile).toHaveBeenCalledWith(`${path}.tmp`, expect.any(String), 'utf8');
+    expect(operations.rename).toHaveBeenCalledWith(`${path}.tmp`, path);
+    const temp = await readFile(`${path}.tmp`, 'utf8');
     expect(PrototypeDocumentSchema.parse(JSON.parse(temp)).projects).toContainEqual(newProject());
     expect(await repository.find(newProject().id)).toBeNull();
-    expect(await operations.readFile('data.json', 'utf8')).toBe(original);
+    expect(await readFile(path, 'utf8')).toBe(original);
+  });
+
+  it('rejects a callback descendant that writes while persistence is delayed', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-repositories-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
+    await writeFile(path, `${JSON.stringify(validDocument())}\n`, 'utf8');
+    let releaseWrite!: () => void;
+    let writeEntered!: () => void;
+    const writeStarted = new Promise<void>((resolve) => (writeEntered = resolve));
+    const writeBlocker = new Promise<void>((resolve) => (releaseWrite = resolve));
+    let releaseLateWrite!: () => void;
+    const lateWriteBlocker = new Promise<void>((resolve) => (releaseLateWrite = resolve));
+    const operations: FileOperations = {
+      readFile,
+      writeFile: vi.fn(async (writePath, data, encoding) => {
+        writeEntered();
+        await writeBlocker;
+        await writeFile(writePath, data, encoding);
+      }),
+      rename: renameFile,
+    };
+    const store = await JsonDataStore.load(path, operations);
+    const repository = new JsonProjectRepository(store);
+    let lateWrite: Promise<void> | undefined;
+    let lateProbe: Promise<void> | undefined;
+    let lateVisibleProject: Awaited<ReturnType<typeof repository.find>> | undefined;
+    const operation = store.runUnitOfWork(async () => {
+      await repository.insert(newProject());
+      lateWrite = (async () => {
+        await lateWriteBlocker;
+        await repository.update({ ...newProject(), name: 'Too late' });
+      })();
+      lateProbe = (async () => {
+        await lateWriteBlocker;
+        lateVisibleProject = await repository.find(newProject().id);
+        await store.persist();
+      })();
+    });
+    await writeStarted;
+
+    releaseLateWrite();
+    await expect(lateWrite).rejects.toBeInstanceOf(UnitOfWorkInProgressError);
+    await expect(lateProbe).rejects.toBeInstanceOf(UnitOfWorkInProgressError);
+    expect(lateVisibleProject).toBeNull();
+    expect(operations.writeFile).toHaveBeenCalledTimes(1);
+    releaseWrite();
+    await operation;
+    expect(await repository.find(newProject().id)).toEqual(newProject());
+    const reloaded = await JsonDataStore.load(path);
+    expect(await new JsonProjectRepository(reloaded).find(newProject().id)).toEqual(newProject());
+  });
+
+  it('rejects a stale callback descendant released after commit', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-repositories-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
+    await writeFile(path, `${JSON.stringify(validDocument())}\n`, 'utf8');
+    const store = await JsonDataStore.load(path);
+    const repository = new JsonProjectRepository(store);
+    let releaseLateWrite!: () => void;
+    const lateWriteBlocker = new Promise<void>((resolve) => (releaseLateWrite = resolve));
+    let lateWrite: Promise<void> | undefined;
+    await store.runUnitOfWork(async () => {
+      await repository.insert(newProject());
+      lateWrite = (async () => {
+        await lateWriteBlocker;
+        await repository.update({ ...newProject(), name: 'Stale write' });
+      })();
+    });
+
+    releaseLateWrite();
+    await expect(lateWrite).rejects.toBeInstanceOf(UnitOfWorkInProgressError);
+    expect(await repository.find(newProject().id)).toEqual(newProject());
+    const reloaded = await JsonDataStore.load(path);
+    expect(await new JsonProjectRepository(reloaded).find(newProject().id)).toEqual(newProject());
   });
 });

@@ -1,4 +1,5 @@
 import { readFile, rename, writeFile } from 'node:fs/promises';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { PrototypeDocumentSchema, type PrototypeDocument } from '@cwm/contracts';
 import { DocumentIntegrityError, UnitOfWorkInProgressError } from './errors';
 
@@ -15,12 +16,49 @@ export interface DataStore {
 }
 
 const documents = new WeakMap<DataStore, PrototypeDocument>();
+type OperationContext = { token: symbol; document: PrototypeDocument; role: 'callback' | 'persist' | 'closed' };
+const operationContexts = new AsyncLocalStorage<Map<DataStore, OperationContext>>();
+const activeOperationTokens = new WeakMap<DataStore, symbol>();
+
+const inheritedContext = (store: DataStore): OperationContext | undefined => operationContexts.getStore()?.get(store);
 
 /** Package-internal repository capability; intentionally omitted from the public barrel. */
 export const getActiveDocument = (store: DataStore): PrototypeDocument => {
-  const document = documents.get(store);
+  const context = inheritedContext(store);
+  const activeToken = activeOperationTokens.get(store);
+  const document =
+    context !== undefined && context.token === activeToken && context.role !== 'closed'
+      ? context.document
+      : documents.get(store);
   if (document === undefined) throw new TypeError('repository received an unsupported data store');
   return document;
+};
+
+/** Package-internal write guard; repositories in the active async operation may proceed. */
+export const assertCanMutateDataStore = (store: DataStore): void => {
+  const context = inheritedContext(store);
+  const activeToken = activeOperationTokens.get(store);
+  if (context !== undefined) {
+    if (activeToken === undefined || context.token !== activeToken || context.role !== 'callback') {
+      throw new UnitOfWorkInProgressError();
+    }
+    return;
+  }
+  if (activeToken !== undefined) {
+    throw new UnitOfWorkInProgressError();
+  }
+};
+
+const assertCanPersistDataStore = (store: DataStore): void => {
+  const context = inheritedContext(store);
+  const activeToken = activeOperationTokens.get(store);
+  if (context !== undefined) {
+    if (activeToken === undefined || context.token !== activeToken || context.role !== 'persist') {
+      throw new UnitOfWorkInProgressError();
+    }
+    return;
+  }
+  if (activeToken !== undefined) throw new UnitOfWorkInProgressError();
 };
 
 const fail = (message: string): never => {
@@ -37,7 +75,12 @@ const uniqueMap = <T extends { id: string }>(collection: string, values: T[]): M
 };
 
 export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => {
-  const document = PrototypeDocumentSchema.parse(input);
+  let document: PrototypeDocument;
+  try {
+    document = PrototypeDocumentSchema.parse(input);
+  } catch (cause) {
+    throw new DocumentIntegrityError('document does not match PrototypeDocumentSchema', cause);
+  }
   const users = uniqueMap('users', document.users);
   const workspaces = uniqueMap('workspaces', document.workspaces);
   const projects = uniqueMap('projects', document.projects);
@@ -145,8 +188,6 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
 };
 
 abstract class BaseDataStore implements DataStore {
-  private unitOfWorkActive = false;
-
   protected constructor(document: unknown) {
     documents.set(this, structuredClone(validateDocumentIntegrity(document)));
   }
@@ -156,24 +197,34 @@ abstract class BaseDataStore implements DataStore {
   }
 
   async persist(): Promise<void> {
+    assertCanPersistDataStore(this);
     validateDocumentIntegrity(getActiveDocument(this));
   }
 
   async runUnitOfWork<T>(fn: () => T | Promise<T>): Promise<T> {
-    if (this.unitOfWorkActive) throw new UnitOfWorkInProgressError();
-    this.unitOfWorkActive = true;
-    const previous = getActiveDocument(this);
-    documents.set(this, structuredClone(previous));
+    if (activeOperationTokens.has(this) || inheritedContext(this) !== undefined) {
+      throw new UnitOfWorkInProgressError();
+    }
+    const token = Symbol('unit-of-work');
+    activeOperationTokens.set(this, token);
+    const context: OperationContext = { token, document: structuredClone(documents.get(this)!), role: 'callback' };
+    const parentContexts = operationContexts.getStore();
+    const contexts = new Map(parentContexts === undefined ? [] : parentContexts);
+    contexts.set(this, context);
     try {
-      const result = await fn();
-      documents.set(this, validateDocumentIntegrity(getActiveDocument(this)));
-      await this.persist();
-      return result;
-    } catch (error) {
-      documents.set(this, previous);
-      throw error;
+      return await operationContexts.run(contexts, async () => {
+        const result = await fn();
+        context.role = 'closed';
+        const validated = validateDocumentIntegrity(context.document);
+        const persistContext: OperationContext = { token, document: validated, role: 'persist' };
+        const persistContexts = new Map(contexts);
+        persistContexts.set(this, persistContext);
+        await operationContexts.run(persistContexts, () => this.persist());
+        documents.set(this, validated);
+        return result;
+      });
     } finally {
-      this.unitOfWorkActive = false;
+      if (activeOperationTokens.get(this) === token) activeOperationTokens.delete(this);
     }
   }
 }
@@ -197,10 +248,17 @@ export class JsonDataStore extends BaseDataStore {
 
   static async load(path: string, fileOperations: FileOperations = nodeFileOperations): Promise<JsonDataStore> {
     const source = await fileOperations.readFile(path, 'utf8');
-    return new JsonDataStore(JSON.parse(source) as unknown, path, fileOperations);
+    let document: unknown;
+    try {
+      document = JSON.parse(source) as unknown;
+    } catch (cause) {
+      throw new DocumentIntegrityError(`data file "${path}" is not valid JSON`, cause);
+    }
+    return new JsonDataStore(document, path, fileOperations);
   }
 
   override async persist(): Promise<void> {
+    assertCanPersistDataStore(this);
     const document = validateDocumentIntegrity(getActiveDocument(this));
     const temporaryPath = `${this.path}.tmp`;
     await this.fileOperations.writeFile(temporaryPath, `${JSON.stringify(document, null, 2)}\n`, 'utf8');

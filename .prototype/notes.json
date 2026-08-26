@@ -47,6 +47,14 @@
       "projectId": null,
       "slice": 2,
       "note": "Packages-as-source has a resolution tax that only shows up at the consumer. `pnpm --filter @cwm/contracts test` and every tsc pass were green while `apps/web`'s vitest run failed to resolve `zod` — the Angular builder inlines the contracts source into the app's own module graph, so the transitive dependency has to be a direct dependency of `apps/web`. Expect the same for every future package dependency, and check the web suite, not just the package's own."
+    },
+    {
+      "id": "note-2026-08-26-007",
+      "createdAt": "2026-08-26T23:26:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 3,
+      "note": "The real JsonDataStore exercise could verify a realistic document, a two-repository unit of work, atomic replacement, and reload, but not the actual host/UI path: Slice 4 owns the first reusable seeds and Slice 5 owns host wiring. That boundary makes Slice 3's §77 hands-on check necessarily storage-level; the temporary scenario reloaded two projects and a completed task successfully, with no leftover temp file."
     }
   ]
 }

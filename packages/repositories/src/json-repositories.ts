@@ -3,7 +3,7 @@ import type {
   Project, ProjectId, ProjectQuery, ProjectSection, PrototypeDocument, Reflection,
   ReflectionId, SectionId, Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
-import { type DataStore, getActiveDocument } from './data-store';
+import { assertCanMutateDataStore, type DataStore, getActiveDocument } from './data-store';
 import { RepositoryConflictError, RepositoryNotFoundError } from './errors';
 import type {
   ActivityRepository, AgentConnectionRepository, MilestoneRepository, ProjectRepository,
@@ -33,6 +33,7 @@ abstract class JsonCollectionRepository<T extends StoredEntity> {
   }
 
   async insert(entity: T): Promise<void> {
+    assertCanMutateDataStore(this.store);
     if (this.values().some((value) => value.id === entity.id)) {
       throw new RepositoryConflictError(this.collection, entity.id);
     }
@@ -40,6 +41,7 @@ abstract class JsonCollectionRepository<T extends StoredEntity> {
   }
 
   async update(entity: T): Promise<void> {
+    assertCanMutateDataStore(this.store);
     const index = this.values().findIndex((value) => value.id === entity.id);
     if (index === -1) throw new RepositoryNotFoundError(this.collection, entity.id);
     this.values()[index] = structuredClone(entity);

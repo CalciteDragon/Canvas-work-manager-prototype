@@ -1,6 +1,6 @@
 # Slice 3 — JSON persistence + repositories
 
-**Status:** in progress
+**Status:** done
 
 ## Goal
 
@@ -201,3 +201,11 @@ interfaces without coupling them to JSON.
 - Round 3: added workspace consistency for owners and for every activity target,
   project, and user/agent actor; renamed the general validation failure to
   `DocumentIntegrityError` because it covers more than dangling references.
+- Round 4: no substantive plan findings remained.
+- Implementation review: isolated provisional documents with async-operation contexts;
+  added per-operation lifecycle tokens so outside and stale descendant writes reject;
+  replaced mocked atomicity claims with real-file temp-write and rename failure tests;
+  normalized malformed JSON/schema failures to `DocumentIntegrityError`; and added the
+  query-semantics decision entry. The storage-level exercise reloaded the committed
+  project/task changes and confirmed no temp file remained; host/UI/MCP use is not yet
+  applicable because Slices 4, 5, and 15 own those paths.

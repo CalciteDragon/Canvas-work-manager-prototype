@@ -137,7 +137,7 @@ schemas and types from one entrypoint.
 
 ### Slice 3 — JSON persistence + repositories
 
-**Status:** in progress — plan: [docs/plans/03-json-persistence-repositories.md](docs/plans/03-json-persistence-repositories.md)
+**Status:** done — plan: [docs/plans/03-json-persistence-repositories.md](docs/plans/03-json-persistence-repositories.md) — async units of work isolate provisional state and reject outside/stale writes; document integrity includes duplicate, reference, and workspace-scope checks.
 
 **Goal:** Data can be loaded, mutated in memory, and persisted atomically.
 
