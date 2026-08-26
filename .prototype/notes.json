@@ -1,0 +1,44 @@
+{
+  "notes": [
+    {
+      "id": "note-2026-08-26-001",
+      "createdAt": "2026-08-26T21:30:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 1,
+      "note": "Angular 22's CLI hard-refuses Node 24.13 (needs ^22.22.3 || ^24.15 || >=26) with an error that names the requirement but not the fix. A cold start on a slightly stale Node loses several minutes here. The root package.json now declares `engines`, but pnpm only warns; consider `engine-strict` if this bites again."
+    },
+    {
+      "id": "note-2026-08-26-002",
+      "createdAt": "2026-08-26T21:31:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 1,
+      "note": "pnpm 11 fails `pnpm install` outright with ERR_PNPM_IGNORED_BUILDS rather than warning, and rewrites pnpm-workspace.yaml with `allowBuilds` placeholders that must be edited by hand. Anyone cloning this repo will hit it once. Worth a line in the README if a second person ever sets this up."
+    },
+    {
+      "id": "note-2026-08-26-003",
+      "createdAt": "2026-08-26T21:32:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 1,
+      "note": "Two review rounds on the plan and one on the diff each found a real defect that the previous round had introduced or missed — most sharply, the shutdown test was vacuous twice in a row for two different reasons. Verifying a test by mutation (delete the line it claims to cover, watch it fail) took about a minute and was the only thing that actually settled it. Worth doing routinely for tests that guard a failure path."
+    },
+    {
+      "id": "note-2026-08-26-005",
+      "createdAt": "2026-08-26T21:42:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 1,
+      "note": "A `tsx watch` from an earlier session outlived its parent and kept port 4310, so the next `pnpm dev` printed the EADDRINUSE message and the host died while `ng serve` carried on. The error path did its job — the message named the port and the cause — but on Windows an orphaned watcher is easy to leave behind and the symptom (web up, host silently absent) is confusing. If this recurs, `netstat -ano | findstr :4310` then Stop-Process is the fix."
+    },
+    {
+      "id": "note-2026-08-26-004",
+      "createdAt": "2026-08-26T21:33:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 1,
+      "note": "`pnpm -r` interleaves and prefixes output, so a truncated view of `pnpm test` can look like only one workspace ran. Cost a few minutes of false alarm. Not worth fixing; worth remembering when reading CI logs."
+    }
+  ]
+}

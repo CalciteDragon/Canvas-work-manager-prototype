@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@cwm/contracts": ["./packages/contracts/src/index.ts"],
+      "@cwm/domain": ["./packages/domain/src/index.ts"],
+      "@cwm/repositories": ["./packages/repositories/src/index.ts"],
+      "@cwm/mcp-tools": ["./packages/mcp-tools/src/index.ts"],
+      "@cwm/prototype-data": ["./packages/prototype-data/src/index.ts"]
+    }
+  }
+}
