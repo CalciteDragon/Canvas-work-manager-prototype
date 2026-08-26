@@ -10,9 +10,15 @@
     }
   },
   "scripts": {
+    "test": "vitest run",
     "lint": "tsc --noEmit"
   },
+  "dependencies": {
+    "@cwm/contracts": "workspace:*"
+  },
   "devDependencies": {
-    "typescript": "~6.0.2"
+    "@types/node": "^24.10.1",
+    "typescript": "~6.0.2",
+    "vitest": "^4.0.8"
   }
 }

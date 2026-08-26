@@ -1,0 +1,333 @@
+import {
+  PrototypeDocumentSchema,
+  type ActivityEvent,
+  type AgentConnection,
+  type Milestone,
+  type Project,
+  type ProjectSection,
+  type Reflection,
+  type Task,
+  type User,
+} from '@cwm/contracts';
+import { describe, expect, it } from 'vitest';
+import { InMemoryDataStore } from './data-store';
+import { RepositoryConflictError, RepositoryNotFoundError } from './errors';
+import {
+  JsonActivityRepository,
+  JsonAgentConnectionRepository,
+  JsonMilestoneRepository,
+  JsonProjectRepository,
+  JsonReflectionRepository,
+  JsonSectionRepository,
+  JsonTaskRepository,
+  JsonUserRepository,
+} from './json-repositories';
+
+const at = '2026-08-26T10:00:00.000Z';
+
+const baseDocument = () =>
+  PrototypeDocumentSchema.parse({
+    schemaVersion: 1,
+    users: [
+      {
+        id: 'user-1',
+        name: 'Owner',
+        workspaceId: 'workspace-1',
+        preferences: { theme: 'dark', dashboardWidgets: [] },
+        createdAt: at,
+      },
+    ],
+    workspaces: [{ id: 'workspace-1', name: 'Workspace', ownerUserId: 'user-1', createdAt: at }],
+    projects: [
+      {
+        id: 'project-1',
+        workspaceId: 'workspace-1',
+        name: 'Alpha Launch',
+        description: 'First project',
+        status: 'active',
+        projectLayoutMode: 'flow',
+        createdAt: at,
+        updatedAt: at,
+      },
+    ],
+    sections: [],
+    tasks: [],
+    milestones: [],
+    reflections: [],
+    activityEvents: [],
+    agentConnections: [],
+  });
+
+const project = (id: string, overrides: Partial<Project> = {}): Project =>
+  PrototypeDocumentSchema.shape.projects.element.parse({
+    id,
+    workspaceId: 'workspace-1',
+    name: `Project ${id}`,
+    status: 'planning',
+    projectLayoutMode: 'flow',
+    createdAt: at,
+    updatedAt: at,
+    ...overrides,
+  });
+
+const task = (id: string, overrides: Partial<Task> = {}): Task =>
+  PrototypeDocumentSchema.shape.tasks.element.parse({
+    id,
+    projectId: 'project-1',
+    title: `Task ${id}`,
+    status: 'todo',
+    priority: 'medium',
+    createdAt: at,
+    updatedAt: at,
+    ...overrides,
+  });
+
+type CrudCase<T extends { id: string }> = {
+  name: string;
+  create: (store: InMemoryDataStore) => {
+    insert(entity: T): Promise<void>;
+    list(): Promise<T[]>;
+    update(entity: T): Promise<void>;
+    find(id: T['id']): Promise<T | null>;
+  };
+  original: T;
+  updated: T;
+};
+
+const section: ProjectSection = PrototypeDocumentSchema.shape.sections.element.parse({
+  id: 'section-1',
+  projectId: 'project-1',
+  type: 'task-list',
+  position: 0,
+  columnSpan: 12,
+  collapsed: false,
+  config: { filters: ['open'] },
+  createdAt: at,
+  updatedAt: at,
+});
+const milestone: Milestone = PrototypeDocumentSchema.shape.milestones.element.parse({
+  id: 'milestone-1',
+  projectId: 'project-1',
+  title: 'Milestone',
+  status: 'upcoming',
+  createdAt: at,
+  updatedAt: at,
+});
+const reflection: Reflection = PrototypeDocumentSchema.shape.reflections.element.parse({
+  id: 'reflection-1',
+  projectId: 'project-1',
+  body: 'Learned something',
+  createdAt: at,
+  updatedAt: at,
+});
+const agent: AgentConnection = PrototypeDocumentSchema.shape.agentConnections.element.parse({
+  id: 'agent-1',
+  userId: 'user-1',
+  name: 'Local agent',
+  permissions: ['tasks.read'],
+  revoked: false,
+  createdAt: at,
+});
+const user: User = PrototypeDocumentSchema.shape.users.element.parse({
+  id: 'user-2',
+  name: 'Second user',
+  workspaceId: 'workspace-1',
+  preferences: { theme: 'light', dashboardWidgets: [] },
+  createdAt: at,
+});
+const activity: ActivityEvent = PrototypeDocumentSchema.shape.activityEvents.element.parse({
+  id: 'activity-1',
+  workspaceId: 'workspace-1',
+  actor: 'user',
+  actorUserId: 'user-1',
+  action: 'project.updated',
+  entityType: 'project',
+  entityId: 'project-1',
+  projectId: 'project-1',
+  summary: 'Updated Alpha Launch',
+  createdAt: at,
+});
+
+const crudCases: CrudCase<any>[] = [
+  {
+    name: 'project',
+    create: (store) => new JsonProjectRepository(store),
+    original: project('project-2'),
+    updated: project('project-2', { name: 'Renamed' }),
+  },
+  {
+    name: 'task',
+    create: (store) => new JsonTaskRepository(store),
+    original: task('task-1'),
+    updated: task('task-1', { title: 'Renamed' }),
+  },
+  {
+    name: 'section',
+    create: (store) => new JsonSectionRepository(store),
+    original: section,
+    updated: { ...section, title: 'Renamed' },
+  },
+  {
+    name: 'milestone',
+    create: (store) => new JsonMilestoneRepository(store),
+    original: milestone,
+    updated: { ...milestone, title: 'Renamed' },
+  },
+  {
+    name: 'reflection',
+    create: (store) => new JsonReflectionRepository(store),
+    original: reflection,
+    updated: { ...reflection, body: 'Changed' },
+  },
+  {
+    name: 'activity',
+    create: (store) => new JsonActivityRepository(store),
+    original: activity,
+    updated: { ...activity, summary: 'Changed' },
+  },
+  {
+    name: 'agent connection',
+    create: (store) => new JsonAgentConnectionRepository(store),
+    original: agent,
+    updated: { ...agent, name: 'Renamed' },
+  },
+  {
+    name: 'user',
+    create: (store) => new JsonUserRepository(store),
+    original: user,
+    updated: { ...user, name: 'Renamed' },
+  },
+];
+
+describe.each(crudCases)('Json $name repository', ({ create, original, updated }) => {
+  it('supports insert, list, update, and find', async () => {
+    const repository = create(new InMemoryDataStore(baseDocument()));
+
+    await repository.insert(original);
+    expect(await repository.list()).toContainEqual(original);
+    await repository.update(updated);
+    expect(await repository.find(original.id)).toEqual(updated);
+    expect(await repository.find('missing')).toBeNull();
+  });
+
+  it('rejects duplicate inserts and missing updates', async () => {
+    const repository = create(new InMemoryDataStore(baseDocument()));
+    await repository.insert(original);
+
+    await expect(repository.insert(original)).rejects.toBeInstanceOf(RepositoryConflictError);
+    await expect(repository.update({ ...updated, id: 'missing' })).rejects.toBeInstanceOf(RepositoryNotFoundError);
+  });
+});
+
+describe('repository value ownership', () => {
+  it('deeply detaches caller values on insert and update', async () => {
+    const repository = new JsonSectionRepository(new InMemoryDataStore(baseDocument()));
+    const inserted = structuredClone(section);
+    await repository.insert(inserted);
+    (inserted.config as { filters: string[] }).filters.push('caller-mutation');
+    expect(await repository.find(section.id)).toEqual(section);
+
+    const updated = structuredClone({ ...section, config: { filters: ['done'] } });
+    await repository.update(updated);
+    (updated.config as { filters: string[] }).filters.push('caller-mutation');
+    expect(await repository.find(section.id)).toEqual({ ...section, config: { filters: ['done'] } });
+  });
+
+  it('deeply detaches values returned by find and list', async () => {
+    const repository = new JsonAgentConnectionRepository(new InMemoryDataStore(baseDocument()));
+    await repository.insert(agent);
+    const found = await repository.find(agent.id);
+    const listed = await repository.list();
+    found?.permissions.push('tasks.write');
+    listed[0]?.permissions.push('projects.read');
+
+    expect(await repository.find(agent.id)).toEqual(agent);
+  });
+});
+
+describe('JsonProjectRepository.list', () => {
+  it('applies workspace, parent, status, and trimmed case-insensitive search filters with AND', async () => {
+    const repository = new JsonProjectRepository(new InMemoryDataStore(baseDocument()));
+    await repository.insert(
+      project('project-2', {
+        parentProjectId: project('project-1').id,
+        name: 'Beta Roadmap',
+        description: 'CUSTOMER launch',
+        status: 'planning',
+      }),
+    );
+
+    expect(
+      await repository.list({
+        workspaceId: project('project-1').workspaceId,
+        parentProjectId: project('project-1').id,
+        status: ['planning', 'on_hold'],
+        search: ' customer ',
+      }),
+    ).toEqual([expect.objectContaining({ id: 'project-2' })]);
+    expect(await repository.list({ status: ['active'], search: 'beta' })).toEqual([]);
+    expect(await repository.list({ search: '   ' })).toHaveLength(2);
+  });
+});
+
+describe('JsonTaskRepository.list', () => {
+  it('applies every query field, exclusive due bounds, missing-date exclusion, and AND composition', async () => {
+    const repository = new JsonTaskRepository(new InMemoryDataStore(baseDocument()));
+    await repository.insert(
+      task('task-parent', { title: 'Parent' }),
+    );
+    await repository.insert(
+      task('task-match', {
+        parentTaskId: task('task-parent').id,
+        title: 'Prepare Release',
+        description: 'CUSTOMER handoff',
+        status: 'blocked',
+        priority: 'high',
+        dueAt: '2026-08-27T12:00:00.000Z',
+      }),
+    );
+    await repository.insert(task('task-boundary', { dueAt: '2026-08-28T00:00:00.000Z' }));
+    await repository.insert(task('task-undated'));
+
+    expect(
+      await repository.list({
+        projectId: project('project-1').id,
+        parentTaskId: task('task-parent').id,
+        status: ['blocked', 'done'],
+        priority: ['high'],
+        dueAfter: '2026-08-27T00:00:00.000Z',
+        dueBefore: '2026-08-28T00:00:00.000Z',
+        search: ' customer ',
+      }),
+    ).toEqual([expect.objectContaining({ id: 'task-match' })]);
+    expect(await repository.list({ dueBefore: '2026-08-28T00:00:00.000Z' })).not.toContainEqual(
+      expect.objectContaining({ id: 'task-boundary' }),
+    );
+    expect(await repository.list({ dueAfter: '2026-08-28T00:00:00.000Z' })).not.toContainEqual(
+      expect.objectContaining({ id: 'task-boundary' }),
+    );
+    expect(await repository.list({ dueBefore: '2026-08-30T00:00:00.000Z' })).not.toContainEqual(
+      expect.objectContaining({ id: 'task-undated' }),
+    );
+    expect(await repository.list({ search: '   ' })).toHaveLength(4);
+  });
+});
+
+describe('InMemoryDataStore.snapshot', () => {
+  it('returns a detached public snapshot', async () => {
+    const store = new InMemoryDataStore(baseDocument());
+    const repository = new JsonUserRepository(store);
+    const snapshot = store.snapshot();
+    snapshot.users[0]!.preferences.dashboardWidgets.push({
+      id: 'widget-1',
+      type: 'today',
+      position: 0,
+      size: 'small',
+      config: {},
+      hidden: false,
+    });
+
+    expect((await repository.find(snapshot.users[0]!.id))?.preferences.dashboardWidgets).toEqual([]);
+    expect(store.snapshot().users[0]?.preferences.dashboardWidgets).toEqual([]);
+  });
+});

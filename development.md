@@ -137,6 +137,8 @@ schemas and types from one entrypoint.
 
 ### Slice 3 — JSON persistence + repositories
 
+**Status:** in progress — plan: [docs/plans/03-json-persistence-repositories.md](docs/plans/03-json-persistence-repositories.md)
+
 **Goal:** Data can be loaded, mutated in memory, and persisted atomically.
 
 **Spec:** §13, §14, §15, §74

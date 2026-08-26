@@ -1,2 +1,5 @@
-/** Slice 1 placeholder. Repository interfaces and the JSON store (spec §13) land in Slice 3. */
-export const REPOSITORIES_PACKAGE = '@cwm/repositories';
+export { InMemoryDataStore, JsonDataStore } from './data-store';
+export type { DataStore, FileOperations } from './data-store';
+export * from './errors';
+export * from './interfaces';
+export * from './json-repositories';
