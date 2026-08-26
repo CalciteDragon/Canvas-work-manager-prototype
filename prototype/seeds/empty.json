@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "users": [
+    {
+      "id": "user-demo",
+      "name": "Demo User",
+      "avatar": "🧭",
+      "workspaceId": "workspace-demo",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-demo-today",
+            "type": "today",
+            "position": 0,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-projects",
+            "type": "active_projects",
+            "position": 1,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-alex",
+      "name": "Alex",
+      "avatar": "🌤️",
+      "workspaceId": "workspace-alex",
+      "preferences": {
+        "theme": "light",
+        "dashboardWidgets": [
+          {
+            "id": "widget-alex-upcoming",
+            "type": "upcoming",
+            "position": 0,
+            "size": "full",
+            "config": {
+              "days": 14
+            },
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-sam",
+      "name": "Sam",
+      "avatar": "🌱",
+      "workspaceId": "workspace-sam",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-sam-calendar",
+            "type": "calendar",
+            "position": 0,
+            "size": "medium",
+            "config": {},
+            "hidden": true
+          },
+          {
+            "id": "widget-sam-digest",
+            "type": "daily_digest",
+            "position": 1,
+            "size": "small",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "workspace-demo",
+      "name": "Demo User Workspace",
+      "ownerUserId": "user-demo",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-alex",
+      "name": "Alex Workspace",
+      "ownerUserId": "user-alex",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-sam",
+      "name": "Sam Workspace",
+      "ownerUserId": "user-sam",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "projects": [],
+  "sections": [],
+  "tasks": [],
+  "milestones": [],
+  "reflections": [],
+  "activityEvents": [],
+  "agentConnections": []
+}

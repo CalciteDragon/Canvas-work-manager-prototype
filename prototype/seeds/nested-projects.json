@@ -1,0 +1,238 @@
+{
+  "schemaVersion": 1,
+  "users": [
+    {
+      "id": "user-demo",
+      "name": "Demo User",
+      "avatar": "🧭",
+      "workspaceId": "workspace-demo",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-demo-today",
+            "type": "today",
+            "position": 0,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-projects",
+            "type": "active_projects",
+            "position": 1,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-alex",
+      "name": "Alex",
+      "avatar": "🌤️",
+      "workspaceId": "workspace-alex",
+      "preferences": {
+        "theme": "light",
+        "dashboardWidgets": [
+          {
+            "id": "widget-alex-upcoming",
+            "type": "upcoming",
+            "position": 0,
+            "size": "full",
+            "config": {
+              "days": 14
+            },
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-sam",
+      "name": "Sam",
+      "avatar": "🌱",
+      "workspaceId": "workspace-sam",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-sam-calendar",
+            "type": "calendar",
+            "position": 0,
+            "size": "medium",
+            "config": {},
+            "hidden": true
+          },
+          {
+            "id": "widget-sam-digest",
+            "type": "daily_digest",
+            "position": 1,
+            "size": "small",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "workspace-demo",
+      "name": "Demo User Workspace",
+      "ownerUserId": "user-demo",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-alex",
+      "name": "Alex Workspace",
+      "ownerUserId": "user-alex",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-sam",
+      "name": "Sam Workspace",
+      "ownerUserId": "user-sam",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "project-renovation",
+      "workspaceId": "workspace-demo",
+      "name": "Home renovation",
+      "icon": "🏗️",
+      "status": "active",
+      "targetDate": "2026-12-15",
+      "projectLayoutMode": "flow",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "project-kitchen",
+      "workspaceId": "workspace-demo",
+      "parentProjectId": "project-renovation",
+      "name": "Kitchen",
+      "icon": "🍳",
+      "status": "active",
+      "projectLayoutMode": "flow",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "project-cabinets",
+      "workspaceId": "workspace-demo",
+      "parentProjectId": "project-kitchen",
+      "name": "Cabinets",
+      "icon": "🗄️",
+      "status": "active",
+      "projectLayoutMode": "flow",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "project-garden",
+      "workspaceId": "workspace-demo",
+      "parentProjectId": "project-renovation",
+      "name": "Garden",
+      "icon": "🌿",
+      "status": "active",
+      "projectLayoutMode": "flow",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "sections": [
+    {
+      "id": "section-project-renovation-tasks",
+      "projectId": "project-renovation",
+      "type": "task-list",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-kitchen-tasks",
+      "projectId": "project-kitchen",
+      "type": "task-list",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-cabinets-tasks",
+      "projectId": "project-cabinets",
+      "type": "task-list",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-garden-tasks",
+      "projectId": "project-garden",
+      "type": "task-list",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-renovation-budget",
+      "projectId": "project-renovation",
+      "title": "Confirm renovation budget",
+      "status": "todo",
+      "priority": "high",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-kitchen-appliances",
+      "projectId": "project-kitchen",
+      "title": "Choose appliance finishes",
+      "status": "todo",
+      "priority": "medium",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-cabinets-samples",
+      "projectId": "project-cabinets",
+      "title": "Order cabinet samples",
+      "status": "todo",
+      "priority": "medium",
+      "dueAt": "2026-08-28T20:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-garden-plan",
+      "projectId": "project-garden",
+      "title": "Sketch autumn planting plan",
+      "status": "todo",
+      "priority": "low",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "milestones": [],
+  "reflections": [],
+  "activityEvents": [],
+  "agentConnections": []
+}

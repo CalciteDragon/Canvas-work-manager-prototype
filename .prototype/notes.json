@@ -55,6 +55,14 @@
       "projectId": null,
       "slice": 3,
       "note": "The real JsonDataStore exercise could verify a realistic document, a two-repository unit of work, atomic replacement, and reload, but not the actual host/UI path: Slice 4 owns the first reusable seeds and Slice 5 owns host wiring. That boundary makes Slice 3's §77 hands-on check necessarily storage-level; the temporary scenario reloaded two projects and a completed task successfully, with no leftover temp file."
+    },
+    {
+      "id": "note-2026-08-26-008",
+      "createdAt": "2026-08-26T23:45:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 4,
+      "note": "Building the first real section fixtures exposed that `SectionColumnSpanSchema = z.literal([12, 8, 6, 4])` is a Zod overload for the union 12|8|6|4, not an array-shaped column span. The schema is correct and the seed failure was useful, but the declaration is visually misleading enough to re-check before writing future section literals."
     }
   ]
 }

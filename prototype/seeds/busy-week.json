@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "users": [
+    {
+      "id": "user-demo",
+      "name": "Demo User",
+      "avatar": "🧭",
+      "workspaceId": "workspace-demo",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-demo-today",
+            "type": "today",
+            "position": 0,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-projects",
+            "type": "active_projects",
+            "position": 1,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-alex",
+      "name": "Alex",
+      "avatar": "🌤️",
+      "workspaceId": "workspace-alex",
+      "preferences": {
+        "theme": "light",
+        "dashboardWidgets": [
+          {
+            "id": "widget-alex-upcoming",
+            "type": "upcoming",
+            "position": 0,
+            "size": "full",
+            "config": {
+              "days": 14
+            },
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-sam",
+      "name": "Sam",
+      "avatar": "🌱",
+      "workspaceId": "workspace-sam",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-sam-calendar",
+            "type": "calendar",
+            "position": 0,
+            "size": "medium",
+            "config": {},
+            "hidden": true
+          },
+          {
+            "id": "widget-sam-digest",
+            "type": "daily_digest",
+            "position": 1,
+            "size": "small",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "workspace-demo",
+      "name": "Demo User Workspace",
+      "ownerUserId": "user-demo",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-alex",
+      "name": "Alex Workspace",
+      "ownerUserId": "user-alex",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-sam",
+      "name": "Sam Workspace",
+      "ownerUserId": "user-sam",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "project-launch",
+      "workspaceId": "workspace-demo",
+      "name": "Website launch",
+      "description": "Ship the refreshed product site this week.",
+      "icon": "🚀",
+      "status": "active",
+      "targetDate": "2026-08-28",
+      "projectLayoutMode": "grid",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "project-home",
+      "workspaceId": "workspace-demo",
+      "name": "Home reset",
+      "description": "Small maintenance and organization jobs.",
+      "icon": "🧰",
+      "status": "active",
+      "targetDate": "2026-09-05",
+      "projectLayoutMode": "flow",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "project-course",
+      "workspaceId": "workspace-demo",
+      "name": "TypeScript course",
+      "description": "Finish the advanced modules before September.",
+      "icon": "📚",
+      "status": "active",
+      "targetDate": "2026-08-31",
+      "projectLayoutMode": "flow",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "sections": [
+    {
+      "id": "section-project-launch-tasks",
+      "projectId": "project-launch",
+      "type": "task-list",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-home-tasks",
+      "projectId": "project-home",
+      "type": "task-list",
+      "position": 1,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-course-tasks",
+      "projectId": "project-course",
+      "type": "task-list",
+      "position": 2,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-launch-copy",
+      "projectId": "project-launch",
+      "title": "Approve homepage copy",
+      "status": "done",
+      "priority": "high",
+      "dueAt": "2026-08-21T20:00:00.000Z",
+      "completedAt": "2026-08-21T18:30:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-launch-qa",
+      "projectId": "project-launch",
+      "title": "Run launch QA",
+      "status": "in_progress",
+      "priority": "high",
+      "startAt": "2026-08-24T16:00:00.000Z",
+      "dueAt": "2026-08-25T23:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-launch-analytics",
+      "projectId": "project-launch",
+      "title": "Verify analytics events",
+      "status": "blocked",
+      "priority": "medium",
+      "dueAt": "2026-08-23T23:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-home-filter",
+      "projectId": "project-home",
+      "title": "Replace air filter",
+      "status": "todo",
+      "priority": "medium",
+      "dueAt": "2026-08-27T02:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-home-donate",
+      "projectId": "project-home",
+      "title": "Drop off donation box",
+      "status": "todo",
+      "priority": "low",
+      "dueAt": "2026-08-29T19:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-course-module",
+      "projectId": "project-course",
+      "title": "Complete type-system module",
+      "status": "in_progress",
+      "priority": "high",
+      "startAt": "2026-08-22T17:00:00.000Z",
+      "dueAt": "2026-08-24T22:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-course-exercises",
+      "projectId": "project-course",
+      "title": "Submit practice exercises",
+      "status": "todo",
+      "priority": "medium",
+      "dueAt": "2026-08-26T22:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-course-notes",
+      "projectId": "project-course",
+      "title": "Organize module notes",
+      "status": "todo",
+      "priority": "low",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "milestones": [],
+  "reflections": [],
+  "activityEvents": [],
+  "agentConnections": []
+}

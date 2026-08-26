@@ -1,0 +1,219 @@
+{
+  "schemaVersion": 1,
+  "users": [
+    {
+      "id": "user-demo",
+      "name": "Demo User",
+      "avatar": "🧭",
+      "workspaceId": "workspace-demo",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-demo-today",
+            "type": "today",
+            "position": 0,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-projects",
+            "type": "active_projects",
+            "position": 1,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-alex",
+      "name": "Alex",
+      "avatar": "🌤️",
+      "workspaceId": "workspace-alex",
+      "preferences": {
+        "theme": "light",
+        "dashboardWidgets": [
+          {
+            "id": "widget-alex-upcoming",
+            "type": "upcoming",
+            "position": 0,
+            "size": "full",
+            "config": {
+              "days": 14
+            },
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-sam",
+      "name": "Sam",
+      "avatar": "🌱",
+      "workspaceId": "workspace-sam",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-sam-calendar",
+            "type": "calendar",
+            "position": 0,
+            "size": "medium",
+            "config": {},
+            "hidden": true
+          },
+          {
+            "id": "widget-sam-digest",
+            "type": "daily_digest",
+            "position": 1,
+            "size": "small",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "workspace-demo",
+      "name": "Demo User Workspace",
+      "ownerUserId": "user-demo",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-alex",
+      "name": "Alex Workspace",
+      "ownerUserId": "user-alex",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-sam",
+      "name": "Sam Workspace",
+      "ownerUserId": "user-sam",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "project-client-migration",
+      "workspaceId": "workspace-demo",
+      "name": "Client migration",
+      "description": "A deliberately stressed workspace for overdue and blocked-state design.",
+      "icon": "🚨",
+      "status": "active",
+      "targetDate": "2026-08-21",
+      "projectLayoutMode": "flow",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "project-admin",
+      "workspaceId": "workspace-demo",
+      "name": "Life admin",
+      "icon": "📬",
+      "status": "active",
+      "targetDate": "2026-08-31",
+      "projectLayoutMode": "flow",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "sections": [
+    {
+      "id": "section-project-client-migration-tasks",
+      "projectId": "project-client-migration",
+      "type": "task-list",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-admin-tasks",
+      "projectId": "project-admin",
+      "type": "task-list",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-chaos-export",
+      "projectId": "project-client-migration",
+      "title": "Export legacy records",
+      "status": "in_progress",
+      "priority": "high",
+      "dueAt": "2026-08-18T23:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-chaos-map",
+      "projectId": "project-client-migration",
+      "title": "Finish field mapping",
+      "status": "blocked",
+      "priority": "high",
+      "dueAt": "2026-08-19T23:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-chaos-review",
+      "projectId": "project-client-migration",
+      "title": "Review rejected rows",
+      "status": "todo",
+      "priority": "medium",
+      "dueAt": "2026-08-20T23:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-chaos-notify",
+      "projectId": "project-client-migration",
+      "title": "Notify stakeholders",
+      "status": "todo",
+      "priority": "high",
+      "dueAt": "2026-08-21T18:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-chaos-backup",
+      "projectId": "project-client-migration",
+      "title": "Verify backup",
+      "status": "done",
+      "priority": "medium",
+      "dueAt": "2026-08-17T18:00:00.000Z",
+      "completedAt": "2026-08-17T17:30:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-admin-insurance",
+      "projectId": "project-admin",
+      "title": "Renew renter insurance",
+      "status": "todo",
+      "priority": "medium",
+      "dueAt": "2026-08-27T20:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "milestones": [],
+  "reflections": [],
+  "activityEvents": [],
+  "agentConnections": []
+}
