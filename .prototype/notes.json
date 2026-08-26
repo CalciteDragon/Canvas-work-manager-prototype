@@ -39,6 +39,14 @@
       "projectId": null,
       "slice": 1,
       "note": "`pnpm -r` interleaves and prefixes output, so a truncated view of `pnpm test` can look like only one workspace ran. Cost a few minutes of false alarm. Not worth fixing; worth remembering when reading CI logs."
+    },
+    {
+      "id": "note-2026-08-26-006",
+      "createdAt": "2026-08-26T22:20:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 2,
+      "note": "Packages-as-source has a resolution tax that only shows up at the consumer. `pnpm --filter @cwm/contracts test` and every tsc pass were green while `apps/web`'s vitest run failed to resolve `zod` — the Angular builder inlines the contracts source into the app's own module graph, so the transitive dependency has to be a direct dependency of `apps/web`. Expect the same for every future package dependency, and check the web suite, not just the package's own."
     }
   ]
 }

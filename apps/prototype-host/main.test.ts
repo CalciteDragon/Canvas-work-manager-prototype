@@ -1,6 +1,6 @@
 import { connect, type AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
-import { CONTRACTS_PACKAGE } from '@cwm/contracts';
+import { SCHEMA_VERSION } from '@cwm/contracts';
 import { start, stop } from './main.ts';
 
 const started: Array<Awaited<ReturnType<typeof start>>> = [];
@@ -63,6 +63,6 @@ describe('the prototype host', () => {
   }, 10_000);
 
   it('resolves the @cwm/contracts workspace package at runtime', () => {
-    expect(CONTRACTS_PACKAGE).toBe('@cwm/contracts');
+    expect(SCHEMA_VERSION).toBeGreaterThan(0);
   });
 });

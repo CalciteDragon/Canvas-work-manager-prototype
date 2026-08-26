@@ -1,0 +1,123 @@
+import { describe, expect, it } from 'vitest';
+import {
+  CreateProjectInputSchema,
+  CreateReflectionInputSchema,
+  CreateTaskInputSchema,
+  ProjectQuerySchema,
+  TaskQuerySchema,
+  UpdateProjectInputSchema,
+  UpdateReflectionInputSchema,
+  UpdateTaskInputSchema,
+} from './inputs';
+
+describe('CreateTaskInputSchema', () => {
+  it('accepts §11 example verbatim', () => {
+    const parsed = CreateTaskInputSchema.parse({
+      projectId: 'project-a',
+      title: 'Configure deployment',
+      dueAt: '2026-08-27T17:00:00.000Z',
+      priority: 'high',
+    });
+    expect(parsed).toMatchObject({ title: 'Configure deployment', priority: 'high' });
+  });
+
+  it('accepts the minimum: a project and a title', () => {
+    expect(CreateTaskInputSchema.parse({ projectId: 'project-a', title: 'Ship it' }).status).toBeUndefined();
+  });
+
+  it('rejects an empty title', () => {
+    expect(CreateTaskInputSchema.safeParse({ projectId: 'project-a', title: '' }).success).toBe(false);
+  });
+
+  it('ignores fields the caller does not get to set', () => {
+    const parsed = CreateTaskInputSchema.parse({
+      projectId: 'project-a',
+      title: 'Ship it',
+      id: 'task-mine',
+      createdAt: '2020-01-01T00:00:00.000Z',
+    });
+    expect(parsed).not.toHaveProperty('id');
+    expect(parsed).not.toHaveProperty('createdAt');
+  });
+});
+
+describe('UpdateTaskInputSchema', () => {
+  it('treats null as clear and undefined as leave alone (§11)', () => {
+    expect(UpdateTaskInputSchema.parse({ dueAt: null }).dueAt).toBeNull();
+    // toStrictEqual, not toEqual: toEqual treats an undefined-valued key as absent, which
+    // is exactly the distinction under test.
+    expect(UpdateTaskInputSchema.parse({ status: 'done' })).toStrictEqual({ status: 'done' });
+  });
+
+  it('accepts an empty patch — a no-op is legal here, not an error', () => {
+    expect(UpdateTaskInputSchema.parse({})).toEqual({});
+  });
+
+  it('rejects a title that has been emptied rather than left alone', () => {
+    expect(UpdateTaskInputSchema.safeParse({ title: '' }).success).toBe(false);
+  });
+});
+
+describe('project inputs', () => {
+  it('accepts a create and a nested create', () => {
+    expect(CreateProjectInputSchema.parse({ workspaceId: 'workspace-a', name: 'Work Manager' }).name).toBe(
+      'Work Manager',
+    );
+    expect(
+      CreateProjectInputSchema.parse({
+        workspaceId: 'workspace-a',
+        name: 'Child',
+        parentProjectId: 'project-a',
+        targetDate: '2026-09-30',
+      }).parentProjectId,
+    ).toBe('project-a');
+  });
+
+  it('clears a target date with null and rejects an unknown status', () => {
+    expect(UpdateProjectInputSchema.parse({ targetDate: null }).targetDate).toBeNull();
+    expect(UpdateProjectInputSchema.safeParse({ status: 'paused' }).success).toBe(false);
+  });
+
+  it('rejects a create with no name', () => {
+    expect(CreateProjectInputSchema.safeParse({ workspaceId: 'workspace-a' }).success).toBe(false);
+  });
+});
+
+describe('reflection inputs', () => {
+  it('accepts a body-only reflection and rejects an empty one', () => {
+    expect(CreateReflectionInputSchema.parse({ projectId: 'project-a', body: 'Slow week.' }).title).toBeUndefined();
+    expect(CreateReflectionInputSchema.safeParse({ projectId: 'project-a', body: '' }).success).toBe(false);
+    expect(UpdateReflectionInputSchema.parse({ title: null }).title).toBeNull();
+    expect(UpdateReflectionInputSchema.safeParse({ body: '' }).success).toBe(false);
+  });
+});
+
+describe('TaskQuerySchema', () => {
+  it('accepts the filters §61 GET /api/tasks has to answer', () => {
+    const parsed = TaskQuerySchema.parse({
+      projectId: 'project-a',
+      parentTaskId: 'task-1',
+      status: ['todo', 'in_progress'],
+      priority: ['high'],
+      dueBefore: '2026-08-30T00:00:00.000Z',
+      dueAfter: '2026-08-26T00:00:00.000Z',
+      search: 'deploy',
+    });
+    expect(parsed.status).toEqual(['todo', 'in_progress']);
+  });
+
+  it('accepts an empty query — list everything', () => {
+    expect(TaskQuerySchema.parse({})).toEqual({});
+  });
+
+  it('rejects an unknown status inside the filter array', () => {
+    expect(TaskQuerySchema.safeParse({ status: ['todo', 'archived'] }).success).toBe(false);
+  });
+});
+
+describe('ProjectQuerySchema', () => {
+  it('accepts the §61 GET /api/projects filters and rejects a bad status', () => {
+    expect(ProjectQuerySchema.parse({ workspaceId: 'workspace-a', status: ['active'] }).status).toEqual(['active']);
+    expect(ProjectQuerySchema.safeParse({ status: ['paused'] }).success).toBe(false);
+  });
+});

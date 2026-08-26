@@ -1,7 +1,18 @@
 /**
- * Slice 1 placeholder. The Zod schemas and inferred types for every entity land here
- * in Slice 2 (spec §11). This constant exists only so that the `@cwm/contracts`
- * specifier is resolved for real — by the type-checker, by tsx, by vitest, and by the
- * Angular builder — rather than merely configured.
+ * The one place every entity in the prototype is defined (§11). Angular forms, the
+ * prototype API, MCP tool schemas, tests and seed validation all import from here —
+ * there is no second definition of any of these shapes anywhere in the repository.
  */
-export const CONTRACTS_PACKAGE = '@cwm/contracts';
+export * from './activity';
+export * from './agent';
+export * from './common';
+export * from './dashboard';
+export * from './document';
+export * from './ids';
+export * from './inputs';
+export * from './milestone';
+export * from './project';
+export * from './reflection';
+export * from './section';
+export * from './task';
+export * from './user';

@@ -90,6 +90,20 @@ a real keypress in a real terminal.
 
 ### Slice 2 — Contracts package
 
+**Status:** done — plan: [docs/plans/02-contracts-package.md](docs/plans/02-contracts-package.md)
+Where the schemas had to decide something the spec leaves open, the choice is flagged
+rather than settled — the ones that matter, with the rest in the plan: `schemaVersion`
+starts at `1` (§14's `4` is illustrative);
+§17's `userId`/`workspace` are spelled `id`/`workspaceId` like every other entity;
+`ActivityAction` is an open `entity.verb` string, not an enum, because §57 names no action
+list and every later slice adds verbs; `ProjectStatus`, `MilestoneStatus` and `TaskPriority`
+values are starting guesses (§83 leaves the first open, §35 and §33 name the fields without
+values); dashboard widgets live on `UserPreferences`, since §14 gives them no collection.
+The last two are logged in `docs/decisions/`.
+Consuming packages as source (Slice 1's deviation) also has a cost this slice paid: `zod`
+must be a direct dependency of `apps/web` for the Angular builder to resolve it through the
+path alias, and the initial-bundle warning budget moved 500kB → 700kB.
+
 **Goal:** One place that defines every entity, with runtime validation.
 
 **Spec:** §11, §14, §25, §33, §35, §52
