@@ -208,7 +208,7 @@ small feature before broadening.
 
 ### Slice 5 — Domain services + first HTTP API
 
-**Status:** in progress — plan: [docs/plans/05-domain-services-http-api.md](docs/plans/05-domain-services-http-api.md)
+**Status:** done — plan: [docs/plans/05-domain-services-http-api.md](docs/plans/05-domain-services-http-api.md) — `curl` creates a project and a task, completes it, and reads the resulting activity, with the work surviving a host restart; verified by `pnpm --filter @cwm/prototype-host acceptance`. Two additions beyond the slice text: task archive is an `archivedAt` field rather than a reused status, and `GET /api/tasks/:id` + `POST /api/tasks/:id/archive` ship now because §9's `TaskGateway` pins them. Move-to-project is refused until Slice 20. Using the API surfaced a frozen host clock, fixed with `SimulatedClock`.
 
 **Goal:** Projects and tasks are real behavior, reachable over HTTP.
 

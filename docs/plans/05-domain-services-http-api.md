@@ -1,6 +1,6 @@
 # Slice 5 — Domain services + first HTTP API
 
-**Status:** in progress
+**Status:** done
 
 ## Goal
 
@@ -666,3 +666,45 @@ could pass a mismatched pair, and today that is caught only at commit by
     `ProjectQuery.parentProjectId` asymmetry is stated rather than left for the next
     reviewer; `api/context.ts` fails loudly on a document with no users; acceptance item
     5's rationale no longer over-claims a lost-update that `runUnitOfWork` would reject.
+
+## Outcome
+
+Every acceptance item passes. `pnpm test` is 279 tests green across six packages;
+`pnpm lint` is clean, including the two domain scanners.
+
+**Deviations from the plan, and why:**
+
+- **`main.test.ts` did not need changing.** The plan said it would. `start` took a
+  default `routes = healthRoutes` parameter instead of a required one, so the existing
+  start/stop and port-in-use tests kept working untouched. A default beat editing tests.
+- **`SimulatedClock` was added, which the plan did not foresee.** Driving the API by hand
+  showed every timestamp in a session was identical: `PrototypeClock` is frozen by design,
+  which is right for a test and wrong for a host. The frozen clock stays for tests; the
+  host got one that flows. This is the defect AGENTS §3 Step 4 exists to catch.
+- **`main.ts` gained a `PORT` override.** The acceptance script needs a second host beside
+  a live `pnpm dev`, and hardcoding 4310 would have made the two collide.
+- **Three persist-count assertions were relaxed to behavioural ones.** A no-op mutation
+  still calls `persist()`, because `runUnitOfWork` persists unconditionally. The
+  observable contract — no duplicate event, unchanged `updatedAt` — is what matters, and
+  asserting on disk writes was over-specifying an implementation detail of a store §71
+  calls disposable. A redundant whole-file write per no-op is acceptable at prototype
+  scale; if Slice 7's optimistic UI makes it noisy, the fix is a pre-check.
+- **The concurrency test was rewritten after it proved vacuous.** See below.
+- **Four decision entries, not three.** Workspace scoping earned its own once two review
+  rounds found two separate leaks in it.
+
+**On test-first.** The contracts, repositories and `unitOfWorkFor` were driven test-first
+and watched fail. The three services were not — implementation came first, then tests.
+To compensate, the seven load-bearing rules were verified by mutation: each was broken in
+turn and a named test caught it. That found a real defect the green suite had hidden — the
+five-concurrent-writes test passed with serialization removed, because an in-memory store
+never actually overlaps. It now runs over a real file, where it fails as intended.
+
+**Open for the next slice:**
+
+- Slice 6 needs `GET /api/tasks/:id` (shipped) and a `WorkManagerGateway` whose shape
+  matches §9. The route list is otherwise complete for projects and tasks.
+- Slice 12 should decide whether loading a seed also sets the clock to that seed's
+  `SEED_NOW` — seed scenarios decay against real time (see `.prototype/notes.json`).
+- Slice 13 will decide whether the activity feed renders `summary` or composes from the
+  event's parts, which is the open half of the summary-ownership entry.

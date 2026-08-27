@@ -41,3 +41,34 @@ Medium. The behavior is coherent and fully tested, but no UI has exercised it ye
 
 Slice 5 exposes list queries through domain services and HTTP; Slice 11 builds due-date
 dashboard views; and Slice 21 tests whether simple substring search remains useful.
+
+---
+
+## Amendment — Slice 5: `includeArchived` and `ActivityQuery`
+
+Slice 5 added two filters and, in doing so, tested the rule this entry set: query
+semantics belong to the repository, not to the caller of the repository.
+
+The first draft of the plan had `TaskQuery.includeArchived` on the contract but filtered
+it in `TaskService`. That is the failure this entry exists to prevent —
+`taskRepository.list({ includeArchived: true })` would type-check and lie, and a future
+`PostgresTaskRepository` would implement it while the JSON one silently ignored it. It is
+now a predicate in `JsonTaskRepository.list`, alongside the others.
+
+`ActivityRepository.list()` took no query at all, which would have forced the same split
+for the new `ActivityQuery`. Its signature was widened to `list(query?)` rather than
+making activity the exception.
+
+**Semantics**
+
+- `includeArchived` — archived tasks (`archivedAt` set) are **excluded** unless this is
+  `true`. It composes with every other filter by AND, like the rest.
+- `ActivityQuery.projectId` — exact match on the event's `projectId`.
+- `ActivityQuery.limit` — applied **last**, after filtering, so it truncates the result
+  rather than the collection. Capped at 200 in the schema because it arrives off a query
+  string. `ActivityService.list` re-applies it after workspace scoping and sorting, for
+  the same reason: a limit pushed down would truncate before the rows the caller can
+  actually see are known.
+
+**Revisit when** unchanged, plus: Slice 13, when the activity feed needs paging rather
+than a bare limit.
