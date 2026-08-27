@@ -21,7 +21,7 @@
       (change)="changePriority($any($event.target).value)"
     >
       @for (priority of priorities; track priority) {
-        <option [value]="priority">{{ priority }}</option>
+        <option [value]="priority" [selected]="priority === task().priority">{{ priority }}</option>
       }
     </select>
   </label>

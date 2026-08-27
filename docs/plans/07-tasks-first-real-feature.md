@@ -46,7 +46,7 @@ Run `pnpm test` and `pnpm lint`, then load the `busy-week` seed and open `/tasks
 - `apps/web/src/app/features/tasks/tasks-page.html` — quick-create form, project chooser, task rows, empty/loading/error states, and adjacent drawer.
 - `apps/web/src/app/features/tasks/tasks-page.scss` — token-only responsive workspace layout.
 - `apps/web/src/app/features/tasks/tasks-page.spec.ts` — verify page/store wiring for initial load, quick create, completion, selection, and visible rollback errors.
-- `docs/decisions/2026-08-task-list-interaction-details.md` — record the date-only-to-datetime encoding and other product choices made while exercising the under-specified task interactions.
+- `docs/decisions/2026-08-task-date-only-due-time.md` — record the date-only-to-datetime encoding chosen for the drawer.
 - `.prototype/notes.json` — record friction found in the real-browser Slice 7 exercise.
 
 ## Test plan
@@ -78,7 +78,7 @@ Write each test before its implementation and observe the intended failure.
 - Full workspace tests and lint.
 - Real HTTP/browser acceptance sequence above against `busy-week`.
 - Inspect `.prototype/data.json` after successful and failed mutations.
-- Confirm `docs/decisions/2026-08-task-list-interaction-details.md`, `development.md`, and `.prototype/notes.json` describe the behavior actually exercised.
+- Confirm `docs/decisions/2026-08-task-date-only-due-time.md`, `development.md`, and `.prototype/notes.json` describe the behavior actually exercised.
 
 ## Boundaries touched
 
@@ -95,7 +95,7 @@ Write each test before its implementation and observe the intended failure.
 - No start-date editor; due date is the Slice 7 detail field exercised here, while broader scheduling arrives with later project/calendar slices.
 - No project page or reusable Task List section; Slice 8 owns both.
 - No event stream or cross-client refresh; Slice 16 owns live updates.
-- No failure-injection development panel; Slice 12 owns it. Switching the browser offline after the page loads is this slice's executable failure path.
+- No failure-injection development panel; Slice 12 owns it. Making the already-loaded page's host unavailable is this slice's executable failure path.
 - No Storybook setup or stories; Slice 17 owns the Design Lab/Storybook milestone.
 - No global store, persistence in components, new backend endpoint, or new contract.
 
@@ -108,3 +108,16 @@ None that changes the shape of the slice. The temporary all-task page will inclu
 - Initial plan written from the Slice 7 text, §§4, 19, 33, 34, 63, and 69, and the existing gateway/contracts/routes/test idioms.
 - Review round 1 made the real optimistic-timing check observable through browser network controls, added stale-success reconciliation coverage, completed the six-state TaskRow matrix, and made the due-date decision log unconditional.
 - Review round 2 aligned the failure-path non-goal with the browser-offline acceptance procedure.
+- Diff review added same-field write ordering, distinct no-project/load-failure states, and keyboard focus/name behavior for inline title editing; all three follow-up reviews then returned no substantive findings.
+- The real-browser pass found that `[value]` on a dynamic priority `<select>` displayed its first option even when the task was `medium`. A failing component test now pins the selected value and each option explicitly reflects the task priority.
+
+## Acceptance evidence
+
+- `pnpm test` passed across contracts, repositories, web, prototype data, domain, and host; `pnpm lint` and the token checker passed.
+- With `busy-week` loaded before host startup, `/tasks` rendered eight seeded tasks and three projects over HTTP.
+- Quick create produced `Slice 7 acceptance task` in `Website launch`; inline editing renamed it to `Slice 7 accepted task`, and the drawer set priority `high` plus due date `2026-09-10`. After reload, the row still rendered the new title, high priority, and due date.
+- A temporary localhost-only proxy held the completion response for `Run launch QA`. During the hold the row was `task-row--completed` with `aria-busy="true"`; after the response it remained completed with `aria-busy="false"`.
+- With the host stopped and the loaded page still open, the same delayed failure path made `Verify analytics events` paint completed/busy first, then restore its overdue/blocked presentation and show `could not reach the prototype host — Failed to fetch`.
+- `.prototype/data.json` recorded `Run launch QA` and `Slice 7 accepted task` as `done`. The acceptance task retained `high` and `2026-09-10T23:59:59.999Z`; `Verify analytics events` remained `blocked` with no `completedAt`.
+
+The browser controller did not expose a network-offline switch, so the failure check used the slice's own *Done when* procedure—stop the host after load—behind the same response delay used to make the optimistic state observable. This changed the plan's mechanism, not the behavior under test.

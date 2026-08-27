@@ -191,6 +191,22 @@
       "projectId": null,
       "slice": 6,
       "note": "Two boundary classes, written an hour apart, disagreed about the same job: the gateway read the host's {error, message} envelope, and the identity provider mapped every status to internal_error and threw the message away. Same shape as Slice 5's ProjectService/TaskService archive-guard divergence (note-007). The pattern is now clear enough to name: whenever a rule or a translation has two entry points, the second one gets a worse version of it. The fix is not vigilance, it is one function both call — toGatewayError now lives in gateway-error.ts."
+    },
+    {
+      "id": "note-2026-08-27-017",
+      "createdAt": "2026-08-27T10:16:00.000Z",
+      "route": "/tasks",
+      "projectId": "project-launch",
+      "slice": 7,
+      "note": "The first real-browser create found a contract/UI disagreement all component tests had missed: the host returned the new task with medium priority, but the detail drawer's native select visibly chose low. Angular applied the select value before the dynamic options existed, so the browser kept the first option. Adding an assertion for the selected control value failed exactly the same way in jsdom; explicit option selection fixed both. A select test that only fires change events proves writes, not what the user initially sees."
+    },
+    {
+      "id": "note-2026-08-27-018",
+      "createdAt": "2026-08-27T10:18:00.000Z",
+      "route": "/tasks",
+      "projectId": null,
+      "slice": 7,
+      "note": "The temporary /tasks workspace is intentionally not linked from the shell, so the feature is undiscoverable without knowing its URL. That is acceptable for Slice 7's exercise route, but it makes the transition in Slice 8 load-bearing: project Task List sections must replace this route's discoverability rather than merely duplicate its behavior. Do not preserve /tasks as a second permanent task surface by inertia."
     }
   ]
 }

@@ -271,7 +271,7 @@ Diverged from the build list in one place, deliberately: `WorkManagerGateway` de
 
 ### Slice 7 — Tasks: the first real feature
 
-**Status:** in progress — plan: [docs/plans/07-tasks-first-real-feature.md](docs/plans/07-tasks-first-real-feature.md)
+**Status:** done — plan: [docs/plans/07-tasks-first-real-feature.md](docs/plans/07-tasks-first-real-feature.md) — `/tasks` loads the `busy-week` seed over HTTP and creates, inline-renames, reprioritizes, dates, and completes persisted tasks. A delayed localhost response proved the row becomes completed while the write is still pending; stopping the host proved the same optimistic paint reverts to the prior blocked state with a visible error and no `completedAt` in `data.json`. The real-browser pass also caught and fixed a drawer select that displayed `low` for a newly created `medium` task. Verified by `pnpm test`, `pnpm lint`, and the plan's recorded browser/data acceptance sequence.
 
 **Goal:** Tasks can be created, completed, and edited in the UI.
 

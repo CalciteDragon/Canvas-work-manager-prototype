@@ -33,6 +33,7 @@ describe('TaskDetailDrawer', () => {
     expect(drawer?.getAttribute('aria-labelledby')).toBe('task-drawer-title');
     expect(element.querySelector('#task-drawer-title')?.textContent).toContain(value.title);
     expect(element.querySelector('[data-task-description]')?.textContent).toContain('research notes');
+    expect(element.querySelector<HTMLSelectElement>('[data-task-priority]')?.value).toBe('medium');
     expect(element.querySelector<HTMLInputElement>('[data-task-due-date]')?.value).toBe('2026-09-03');
   });
 
