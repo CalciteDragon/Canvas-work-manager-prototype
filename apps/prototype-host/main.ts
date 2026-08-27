@@ -1,9 +1,18 @@
 import { createServer, type Server } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { resolve as resolvePath } from 'node:path';
-import { handleRequest } from './router.ts';
+import { createRequestHandler, healthRoutes, type RouteTable } from './router.ts';
+import { createApiRouteTable } from './api/services.ts';
+import { loadPersistence } from './persistence/store.ts';
 
 export const DEFAULT_PORT = 4310;
+
+/** `PORT` lets a second host (the acceptance script) run beside a live `pnpm dev`. */
+export const configuredPort = (): number => {
+  const value = process.env['PORT'];
+  const port = value === undefined ? Number.NaN : Number(value);
+  return Number.isInteger(port) && port >= 0 && port <= 65535 ? port : DEFAULT_PORT;
+};
 
 /**
  * Localhost only. The prototype's agent tokens have no security value (spec §51), so
@@ -14,11 +23,13 @@ export const HOST = '127.0.0.1';
 /**
  * Starts the host and resolves once it is listening. Rejects — rather than exiting the
  * process — when the port is taken, so tests and callers can observe the failure.
- * Pass 0 for an ephemeral port.
+ * Pass 0 for an ephemeral port. `routes` defaults to the health route alone, so a test
+ * can start the host without touching a data file; the real entrypoint below adds §61's
+ * API on top.
  */
-export function start(port: number = DEFAULT_PORT): Promise<Server> {
+export function start(port: number = DEFAULT_PORT, routes: RouteTable = healthRoutes): Promise<Server> {
   return new Promise((resolve, reject) => {
-    const server = createServer(handleRequest);
+    const server = createServer(createRequestHandler(routes));
     let listening = false;
 
     // Kept for the server's whole life: without it, any error after a successful
@@ -58,8 +69,12 @@ const isDirectRun =
 
 if (isDirectRun) {
   try {
-    const server = await start();
-    console.log(`prototype-host listening on http://${HOST}:${DEFAULT_PORT}`);
+    // Loading the data file first means a broken or missing document fails the start,
+    // loudly, rather than surfacing as a 500 on the first request.
+    const persistence = await loadPersistence();
+    const port = configuredPort();
+    const server = await start(port, { ...healthRoutes, ...createApiRouteTable(persistence) });
+    console.log(`prototype-host listening on http://${HOST}:${port} — data ${persistence.path}`);
 
     let stopping = false;
     for (const signal of ['SIGINT', 'SIGTERM'] as const) {
@@ -85,7 +100,7 @@ if (isDirectRun) {
     }
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    console.error(`prototype-host failed to start on ${HOST}:${DEFAULT_PORT} — ${reason}`);
+    console.error(`prototype-host failed to start on ${HOST}:${configuredPort()} — ${reason}`);
     process.exit(1);
   }
 }

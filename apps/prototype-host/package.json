@@ -8,10 +8,15 @@
     "start": "tsx main.ts",
     "build": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "acceptance": "node scripts/acceptance.mjs"
   },
   "dependencies": {
-    "@cwm/contracts": "workspace:*"
+    "@cwm/contracts": "workspace:*",
+    "@cwm/domain": "workspace:*",
+    "@cwm/prototype-data": "workspace:*",
+    "@cwm/repositories": "workspace:*",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

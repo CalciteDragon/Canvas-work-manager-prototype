@@ -20,6 +20,18 @@ importers:
       '@cwm/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@cwm/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@cwm/prototype-data':
+        specifier: workspace:*
+        version: link:../../packages/prototype-data
+      '@cwm/repositories':
+        specifier: workspace:*
+        version: link:../../packages/repositories
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@types/node':
         specifier: ^24.10.1
