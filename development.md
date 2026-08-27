@@ -208,6 +208,8 @@ small feature before broadening.
 
 ### Slice 5 — Domain services + first HTTP API
 
+**Status:** in progress — plan: [docs/plans/05-domain-services-http-api.md](docs/plans/05-domain-services-http-api.md)
+
 **Goal:** Projects and tasks are real behavior, reachable over HTTP.
 
 **Spec:** §8, §9, §12, §33, §57, §61

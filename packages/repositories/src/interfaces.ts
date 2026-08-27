@@ -1,8 +1,16 @@
 import type {
-  ActivityEvent, ActivityEventId, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
+  ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
   Project, ProjectId, ProjectQuery, ProjectSection, Reflection, ReflectionId, SectionId,
   Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
+
+/**
+ * §15's operation boundary, named so domain services can depend on it without depending
+ * on a store, a file, or JSON. `DataStore` implements it through `unitOfWorkFor`.
+ */
+export interface UnitOfWork {
+  run<T>(fn: () => T | Promise<T>): Promise<T>;
+}
 
 export interface ProjectRepository {
   find(id: ProjectId): Promise<Project | null>;
@@ -41,7 +49,7 @@ export interface ReflectionRepository {
 
 export interface ActivityRepository {
   find(id: ActivityEventId): Promise<ActivityEvent | null>;
-  list(): Promise<ActivityEvent[]>;
+  list(query?: ActivityQuery): Promise<ActivityEvent[]>;
   insert(event: ActivityEvent): Promise<void>;
   update(event: ActivityEvent): Promise<void>;
 }

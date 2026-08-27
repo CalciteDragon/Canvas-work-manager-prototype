@@ -60,3 +60,19 @@ describe('TaskPrioritySchema', () => {
     expect(TaskSchema.safeParse({ ...task, priority: 'critical' }).success).toBe(false);
   });
 });
+
+describe('TaskSchema archivedAt', () => {
+  it('accepts an archived task', () => {
+    expect(TaskSchema.parse({ ...task, archivedAt: '2026-08-26T11:32:00.000Z' }).archivedAt).toBe(
+      '2026-08-26T11:32:00.000Z',
+    );
+  });
+
+  it('leaves archivedAt absent on a live task', () => {
+    expect(TaskSchema.parse(task).archivedAt).toBeUndefined();
+  });
+
+  it('rejects a date-only archivedAt — it is an instant like the other timestamps', () => {
+    expect(TaskSchema.safeParse({ ...task, archivedAt: '2026-08-26' }).success).toBe(false);
+  });
+});

@@ -313,6 +313,63 @@ describe('JsonTaskRepository.list', () => {
   });
 });
 
+describe('JsonTaskRepository archived filtering', () => {
+  it('hides archived tasks unless includeArchived asks for them', async () => {
+    const repository = new JsonTaskRepository(new InMemoryDataStore(baseDocument()));
+    await repository.insert(task('task-live'));
+    await repository.insert(task('task-filed', { archivedAt: '2026-08-26T11:00:00.000Z' }));
+
+    expect(await repository.list()).toEqual([expect.objectContaining({ id: 'task-live' })]);
+    expect(await repository.list({ includeArchived: false })).toHaveLength(1);
+    expect((await repository.list({ includeArchived: true })).map((found) => found.id)).toEqual([
+      'task-live',
+      'task-filed',
+    ]);
+  });
+
+  it('composes the archived filter with the other query fields', async () => {
+    const repository = new JsonTaskRepository(new InMemoryDataStore(baseDocument()));
+    await repository.insert(task('task-filed-high', { priority: 'high', archivedAt: '2026-08-26T11:00:00.000Z' }));
+
+    expect(await repository.list({ priority: ['high'] })).toEqual([]);
+    expect(await repository.list({ priority: ['high'], includeArchived: true })).toHaveLength(1);
+  });
+});
+
+describe('JsonActivityRepository.list', () => {
+  const event = (id: string, projectId: string) =>
+    PrototypeDocumentSchema.shape.activityEvents.element.parse({
+      id,
+      workspaceId: 'workspace-1',
+      actor: 'user',
+      actorUserId: 'user-1',
+      action: 'task.created',
+      entityType: 'project',
+      entityId: projectId,
+      projectId,
+      summary: `Created ${id}`,
+      createdAt: at,
+    });
+
+  it('filters by project and applies limit last, after filtering', async () => {
+    const store = new InMemoryDataStore(baseDocument());
+    await new JsonProjectRepository(store).insert(project('project-2'));
+    const repository = new JsonActivityRepository(store);
+    await repository.insert(event('activity-1', 'project-1'));
+    await repository.insert(event('activity-2', 'project-2'));
+    await repository.insert(event('activity-3', 'project-1'));
+
+    expect((await repository.list({ projectId: project('project-1').id })).map((found) => found.id)).toEqual([
+      'activity-1',
+      'activity-3',
+    ]);
+    expect((await repository.list({ projectId: project('project-1').id, limit: 1 })).map((found) => found.id)).toEqual([
+      'activity-1',
+    ]);
+    expect(await repository.list()).toHaveLength(3);
+  });
+});
+
 describe('InMemoryDataStore.snapshot', () => {
   it('returns a detached public snapshot', async () => {
     const store = new InMemoryDataStore(baseDocument());

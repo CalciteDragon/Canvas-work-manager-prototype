@@ -81,6 +81,8 @@ export const TaskQuerySchema = z.object({
   dueAfter: IsoDateTimeSchema.optional(),
   /** Simple in-memory matching (§40). No ranking here — that is the search feature's job. */
   search: z.string().optional(),
+  /** Archived tasks are excluded unless this is true. */
+  includeArchived: z.boolean().optional(),
 });
 export type TaskQuery = z.infer<typeof TaskQuerySchema>;
 
@@ -92,3 +94,10 @@ export const ProjectQuerySchema = z.object({
   search: z.string().optional(),
 });
 export type ProjectQuery = z.infer<typeof ProjectQuerySchema>;
+
+/** Filters for the activity feed (§57). Capped because `limit` arrives off a query string. */
+export const ActivityQuerySchema = z.object({
+  projectId: ProjectIdSchema.optional(),
+  limit: z.number().int().positive().max(200).optional(),
+});
+export type ActivityQuery = z.infer<typeof ActivityQuerySchema>;

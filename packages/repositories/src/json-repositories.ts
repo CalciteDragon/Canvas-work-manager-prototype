@@ -1,5 +1,5 @@
 import type {
-  ActivityEvent, ActivityEventId, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
+  ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
   Project, ProjectId, ProjectQuery, ProjectSection, PrototypeDocument, Reflection,
   ReflectionId, SectionId, Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
@@ -92,6 +92,7 @@ export class JsonTaskRepository extends JsonCollectionRepository<Task> implement
         (query.priority === undefined || query.priority.includes(task.priority)) &&
         (after === undefined || (due !== undefined && due > after)) &&
         (before === undefined || (due !== undefined && due < before)) &&
+        (query.includeArchived === true || task.archivedAt === undefined) &&
         matchesSearch(query.search, task.title, task.description)
       );
     });
@@ -119,6 +120,14 @@ export class JsonReflectionRepository extends JsonCollectionRepository<Reflectio
 
 export class JsonActivityRepository extends JsonCollectionRepository<ActivityEvent> implements ActivityRepository {
   constructor(store: DataStore) { super(store, 'activityEvents'); }
+
+  /** `limit` applies last, so it truncates the filtered result rather than the collection. */
+  override async list(query: ActivityQuery = {}): Promise<ActivityEvent[]> {
+    const events = await super.list();
+    const filtered = events.filter((event) => query.projectId === undefined || event.projectId === query.projectId);
+    return query.limit === undefined ? filtered : filtered.slice(0, query.limit);
+  }
+
   override find(id: ActivityEventId): Promise<ActivityEvent | null> { return super.find(id); }
 }
 

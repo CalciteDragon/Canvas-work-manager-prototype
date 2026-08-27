@@ -2,6 +2,7 @@ import { readFile, rename, writeFile } from 'node:fs/promises';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { PrototypeDocumentSchema, type PrototypeDocument } from '@cwm/contracts';
 import { DocumentIntegrityError, UnitOfWorkInProgressError } from './errors';
+import type { UnitOfWork } from './interfaces';
 
 export interface FileOperations {
   readFile(path: string, encoding: 'utf8'): Promise<string>;
@@ -228,6 +229,54 @@ abstract class BaseDataStore implements DataStore {
     }
   }
 }
+
+const unitOfWorkAdapters = new WeakMap<DataStore, UnitOfWork>();
+const openUnitStores = new AsyncLocalStorage<Set<DataStore>>();
+
+/**
+ * The §15 operation boundary as a `UnitOfWork` a domain service can hold.
+ *
+ * Not a pass-through. `runUnitOfWork` rejects both overlap and re-entry, and this
+ * adapter is what a Node HTTP server ends up calling concurrently, so it:
+ *
+ * - **serializes** independent callers on a promise chain — a global write lock, which
+ *   is what keeps two interleaved requests from turning into `UnitOfWorkInProgressError`.
+ *   Reads never queue: with no unit open, `getActiveDocument` returns the committed
+ *   document.
+ * - **joins** a nested call to the unit already open on this async stack. Queueing it
+ *   would park the inner call behind the outer unit that is awaiting it — a permanent
+ *   hang rather than an error.
+ * - is **memoized per store**, because two adapters over one store are two chains that
+ *   overlap, which is the bug serialization exists to prevent.
+ */
+export const unitOfWorkFor = (store: DataStore): UnitOfWork => {
+  const existing = unitOfWorkAdapters.get(store);
+  if (existing !== undefined) return existing;
+
+  let tail: Promise<unknown> = Promise.resolve();
+  const adapter: UnitOfWork = {
+    // `async` so a synchronous throw from `fn` rejects rather than escaping `run`.
+    async run<T>(fn: () => T | Promise<T>): Promise<T> {
+      if (openUnitStores.getStore()?.has(store) === true) return fn();
+
+      const next = tail.then(() => {
+        const open = new Set(openUnitStores.getStore() ?? []);
+        open.add(store);
+        // An empty operation context: a queued unit must not inherit a stale one from
+        // whichever caller happened to be at the head of the chain.
+        return openUnitStores.run(open, () => operationContexts.run(new Map(), () => store.runUnitOfWork(fn)));
+      });
+      tail = next.then(
+        () => undefined,
+        () => undefined,
+      );
+      return next;
+    },
+  };
+
+  unitOfWorkAdapters.set(store, adapter);
+  return adapter;
+};
 
 export class InMemoryDataStore extends BaseDataStore {
   constructor(document: unknown) {

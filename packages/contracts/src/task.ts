@@ -17,7 +17,12 @@ export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export const TaskPrioritySchema = z.enum(['low', 'medium', 'high']);
 export type TaskPriority = z.infer<typeof TaskPrioritySchema>;
 
-/** Exactly §33's shape. Nothing §33 does not name. */
+/**
+ * §33's shape, plus `archivedAt`. §33 says "Start flexible", and archiving needs its own
+ * field: folding it into `cancelled` would make the prototype unable to tell "the user
+ * gave up on this" from "the user filed it away", which is exactly the signal §83 wants
+ * about whether all five statuses earn their place.
+ */
 export const TaskSchema = z.object({
   id: TaskIdSchema,
   projectId: ProjectIdSchema,
@@ -33,6 +38,8 @@ export const TaskSchema = z.object({
   startAt: IsoDateTimeSchema.optional(),
   dueAt: IsoDateTimeSchema.optional(),
   completedAt: IsoDateTimeSchema.optional(),
+  /** Set when the task is archived; archived tasks are excluded from lists by default. */
+  archivedAt: IsoDateTimeSchema.optional(),
 
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,

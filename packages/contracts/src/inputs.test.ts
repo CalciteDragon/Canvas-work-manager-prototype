@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ActivityQuerySchema,
   CreateProjectInputSchema,
   CreateReflectionInputSchema,
   CreateTaskInputSchema,
@@ -119,5 +120,34 @@ describe('ProjectQuerySchema', () => {
   it('accepts the §61 GET /api/projects filters and rejects a bad status', () => {
     expect(ProjectQuerySchema.parse({ workspaceId: 'workspace-a', status: ['active'] }).status).toEqual(['active']);
     expect(ProjectQuerySchema.safeParse({ status: ['paused'] }).success).toBe(false);
+  });
+});
+
+describe('TaskQuerySchema includeArchived', () => {
+  it('accepts the flag that opts archived tasks back in', () => {
+    expect(TaskQuerySchema.parse({ includeArchived: true }).includeArchived).toBe(true);
+  });
+
+  it('leaves it absent by default — archived tasks are excluded', () => {
+    expect(TaskQuerySchema.parse({}).includeArchived).toBeUndefined();
+  });
+});
+
+describe('ActivityQuerySchema', () => {
+  it('accepts the two filters GET /api/activity answers', () => {
+    expect(ActivityQuerySchema.parse({ projectId: 'project-a', limit: 20 })).toEqual({
+      projectId: 'project-a',
+      limit: 20,
+    });
+  });
+
+  it('accepts an empty query', () => {
+    expect(ActivityQuerySchema.parse({})).toEqual({});
+  });
+
+  it('rejects a limit that is zero, negative, fractional, or past the cap', () => {
+    for (const limit of [0, -1, 1.5, 201]) {
+      expect(ActivityQuerySchema.safeParse({ limit }).success).toBe(false);
+    }
   });
 });

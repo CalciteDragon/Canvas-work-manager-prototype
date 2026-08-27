@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PrototypeDocumentSchema } from '@cwm/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { type FileOperations, InMemoryDataStore, JsonDataStore } from './data-store';
+import { type FileOperations, InMemoryDataStore, JsonDataStore, unitOfWorkFor } from './data-store';
 import { DocumentIntegrityError, UnitOfWorkInProgressError } from './errors';
 import { JsonProjectRepository } from './json-repositories';
 
@@ -525,5 +525,92 @@ describe('JsonDataStore', () => {
     expect(await repository.find(newProject().id)).toEqual(newProject());
     const reloaded = await JsonDataStore.load(path);
     expect(await new JsonProjectRepository(reloaded).find(newProject().id)).toEqual(newProject());
+  });
+});
+
+describe('unitOfWorkFor', () => {
+  const secondProject = () =>
+    PrototypeDocumentSchema.shape.projects.element.parse({
+      id: 'project-3',
+      workspaceId: 'workspace-1',
+      name: 'Third project',
+      status: 'planning',
+      projectLayoutMode: 'flow',
+      createdAt: at,
+      updatedAt: at,
+    });
+
+  it('returns the same adapter for the same store', () => {
+    const store = new TrackingStore(validDocument());
+
+    expect(unitOfWorkFor(store)).toBe(unitOfWorkFor(store));
+    expect(unitOfWorkFor(store)).not.toBe(unitOfWorkFor(new TrackingStore(validDocument())));
+  });
+
+  it('serializes overlapping units of work instead of rejecting the second', async () => {
+    const store = new TrackingStore(validDocument());
+    const repository = new JsonProjectRepository(store);
+    const unit = unitOfWorkFor(store);
+    let release = () => {};
+    const blocker = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const order: string[] = [];
+
+    const first = unit.run(async () => {
+      await blocker;
+      await repository.insert(newProject());
+      order.push('first');
+    });
+    const second = unit.run(async () => {
+      await repository.insert(secondProject());
+      order.push('second');
+    });
+
+    release();
+    await Promise.all([first, second]);
+
+    expect(order).toEqual(['first', 'second']);
+    expect(store.persistCalls).toBe(2);
+    expect(await repository.find(newProject().id)).not.toBeNull();
+    expect(await repository.find(secondProject().id)).not.toBeNull();
+  });
+
+  it('joins a nested run to the caller unit instead of deadlocking', async () => {
+    const store = new TrackingStore(validDocument());
+    const repository = new JsonProjectRepository(store);
+    const unit = unitOfWorkFor(store);
+
+    await unit.run(async () => {
+      await repository.insert(newProject());
+      // The await matters: a queued nested call would wait on the unit awaiting it.
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      await unit.run(() => repository.insert(secondProject()));
+    });
+
+    expect(store.persistCalls).toBe(1);
+    expect(await repository.find(newProject().id)).not.toBeNull();
+    expect(await repository.find(secondProject().id)).not.toBeNull();
+  });
+
+  it('rejects a synchronous throw rather than letting it escape run', async () => {
+    const unit = unitOfWorkFor(new TrackingStore(validDocument()));
+
+    const result = unit.run(() => {
+      throw new Error('sync boom');
+    });
+
+    await expect(result).rejects.toThrow('sync boom');
+  });
+
+  it('does not let a failed unit poison the queue', async () => {
+    const store = new TrackingStore(validDocument());
+    const repository = new JsonProjectRepository(store);
+    const unit = unitOfWorkFor(store);
+
+    await expect(unit.run(() => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
+    await unit.run(() => repository.insert(newProject()));
+
+    expect(await repository.find(newProject().id)).not.toBeNull();
   });
 });
