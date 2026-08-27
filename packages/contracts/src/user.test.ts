@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ThemeSchema, UserSchema, WorkspaceSchema } from './user';
+import { PrototypeDocumentSchema } from './document';
+import { IdentitySchema, ThemeSchema, UserSchema, WorkspaceSchema } from './user';
 
 const user = {
   id: 'user-a',
@@ -46,5 +47,21 @@ describe('WorkspaceSchema', () => {
   it('rejects one with no owner', () => {
     const { ownerUserId, ...ownerless } = workspace;
     expect(WorkspaceSchema.safeParse(ownerless).success).toBe(false);
+  });
+});
+
+describe('IdentitySchema', () => {
+  it('composes the persona and their workspace (§18)', () => {
+    const parsed = IdentitySchema.parse({ user, workspace });
+    expect(parsed.user.id).toBe('user-a');
+    expect(parsed.workspace.id).toBe('workspace-a');
+  });
+
+  it('rejects a bare user', () => {
+    expect(IdentitySchema.safeParse(user).success).toBe(false);
+  });
+
+  it('is a response composite, not a stored collection (§14)', () => {
+    expect(Object.keys(PrototypeDocumentSchema.shape)).not.toContain('identities');
   });
 });

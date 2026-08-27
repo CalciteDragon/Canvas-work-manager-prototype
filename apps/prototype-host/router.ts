@@ -100,9 +100,48 @@ const readBody = async (request: IncomingMessage): Promise<string> => {
   return Buffer.concat(chunks).toString('utf8');
 };
 
+/**
+ * §10 has the Angular gateway calling `:4310` from `:4200`, so the browser needs CORS.
+ * Localhost only — the prototype's tokens have no security value (§51) and nothing here
+ * may be usable from a real page.
+ *
+ * The origin is reflected rather than wildcarded, which makes the response vary by origin;
+ * `Vary` says so. `x-prototype-user` is a non-simple header, so *every* gateway call
+ * preflights — `Max-Age` is what stops that from doubling the request count.
+ */
+const ALLOWED_ORIGINS = new Set([
+  'http://localhost:4200',
+  'http://127.0.0.1:4200',
+]);
+
+const corsHeaders = (origin: string | undefined): Record<string, string> => {
+  if (origin === undefined || !ALLOWED_ORIGINS.has(origin)) return {};
+  return {
+    'access-control-allow-origin': origin,
+    'access-control-allow-methods': 'GET, POST, PATCH, OPTIONS',
+    'access-control-allow-headers': 'content-type, x-prototype-user',
+    'access-control-max-age': '600',
+    vary: 'Origin',
+  };
+};
+
 export function createRequestHandler(routes: RouteTable) {
   return async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
+    const cors = corsHeaders(request.headers.origin);
+
+    // Preflight is answered before the route table, not through it: `match()` requires the
+    // pattern's method to equal the request's, and no pattern is OPTIONS — so a preflight
+    // would 404, and with it every gateway call the browser ever makes. The cost is that
+    // an unknown path also preflights 204; acceptable for a disposable host (§71).
+    // The unconsumed request body needs no drain — Node dumps it on response finish, and
+    // a browser preflight carries none.
+    if (request.method === 'OPTIONS') {
+      response.writeHead(204, cors);
+      response.end();
+      return;
+    }
+
     let result: RouteResult;
     try {
       const raw = await readBody(request);
@@ -116,7 +155,10 @@ export function createRequestHandler(routes: RouteTable) {
       result = toErrorResult(error);
     }
 
-    response.writeHead(result.status, { 'content-type': result.contentType });
+    // CORS goes on every response, errors included: a 404 or 409 without them reaches
+    // the browser as a CORS failure, and the gateway reports a real domain error as
+    // 'unreachable'.
+    response.writeHead(result.status, { ...cors, 'content-type': result.contentType });
     response.end(JSON.stringify(result.body));
   };
 }

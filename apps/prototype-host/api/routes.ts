@@ -11,7 +11,7 @@ import {
 } from '@cwm/contracts';
 import type { ActivityService, ProjectService, TaskService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
-import { resolveActor } from './context.ts';
+import { resolveActor, resolveUser } from './context.ts';
 import type { RouteRequest, RouteResult, RouteTable } from '../router.ts';
 
 export interface ApiDependencies {
@@ -64,6 +64,18 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
   const taskId = (request: RouteRequest) => TaskIdSchema.parse(request.params['id']);
 
   return {
+    // §18's identity, composed rather than stored: there is no workspace repository, and
+    // `resolveActor` above already reads the same snapshot.
+    'GET /api/me': async (request) => {
+      const document = store.snapshot();
+      const user = resolveUser(document, request);
+      const workspace = document.workspaces.find(({ id }) => id === user.workspaceId);
+      // The store validates referential integrity at load, so a missing workspace here is
+      // the host being broken rather than a caller mistake.
+      if (workspace === undefined) throw new Error(`user "${user.id}" has no workspace`);
+      return ok({ user, workspace });
+    },
+
     'GET /api/projects': async (request) =>
       ok(
         await projects.list(

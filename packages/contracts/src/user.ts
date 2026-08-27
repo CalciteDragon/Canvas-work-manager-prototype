@@ -35,3 +35,18 @@ export const UserSchema = z.object({
   createdAt: IsoDateTimeSchema,
 });
 export type User = z.infer<typeof UserSchema>;
+
+/**
+ * Who the application is acting as (§18). `IdentityProvider.getCurrentIdentity()` returns
+ * this; the prototype host serves it from `GET /api/me`.
+ *
+ * A **response composite**, not a stored record: §14's document has no `identities`
+ * collection and must not grow one. The workspace travels with the user because it is
+ * derived from them — a caller cannot ask for another persona's workspace — and because
+ * every write input that names a workspace (`CreateProjectInput`) needs it.
+ */
+export const IdentitySchema = z.object({
+  user: UserSchema,
+  workspace: WorkspaceSchema,
+});
+export type Identity = z.infer<typeof IdentitySchema>;

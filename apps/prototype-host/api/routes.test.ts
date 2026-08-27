@@ -1,4 +1,4 @@
-import { PrototypeDocumentSchema, SCHEMA_VERSION, ProjectSchema, TaskSchema } from '@cwm/contracts';
+import { IdentitySchema, PrototypeDocumentSchema, SCHEMA_VERSION, ProjectSchema, TaskSchema } from '@cwm/contracts';
 import { ActivityService, PrototypeClock, PrototypeIdGenerator, ProjectService, TaskService } from '@cwm/domain';
 import {
   InMemoryDataStore,
@@ -263,5 +263,27 @@ describe('empty workspace', () => {
     expect((await call(routes, 'GET', '/api/projects')).body).toEqual([]);
     expect((await call(routes, 'GET', '/api/tasks')).body).toEqual([]);
     expect((await call(routes, 'GET', '/api/activity')).body).toEqual([]);
+  });
+});
+
+describe('identity route', () => {
+  it('serves the default persona and their workspace (§18)', async () => {
+    const result = await call(buildRoutes(), 'GET', '/api/me');
+
+    expect(result.status).toBe(200);
+    expect(IdentitySchema.parse(result.body).user.id).toBe(PERSONAS[0]!.user.id);
+    expect(IdentitySchema.parse(result.body).workspace.id).toBe(PERSONAS[0]!.workspace.id);
+  });
+
+  it('takes the workspace from the resolved user, never from the request', async () => {
+    const result = await call(buildRoutes(), 'GET', '/api/me', { user: PERSONAS[1]!.user.id });
+
+    expect(IdentitySchema.parse(result.body).workspace.id).toBe(PERSONAS[1]!.workspace.id);
+  });
+
+  it('answers 404 for a persona that no longer exists', async () => {
+    const result = await call(buildRoutes(), 'GET', '/api/me', { user: 'user-nobody' });
+
+    expect(result.status).toBe(404);
   });
 });

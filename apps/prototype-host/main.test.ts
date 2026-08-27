@@ -1,12 +1,14 @@
 import { connect, type AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SCHEMA_VERSION } from '@cwm/contracts';
+import { DomainRuleError } from '@cwm/domain';
 import { start, stop } from './main.ts';
+import { healthRoutes, type RouteTable } from './router.ts';
 
 const started: Array<Awaited<ReturnType<typeof start>>> = [];
 
-async function startOnEphemeralPort() {
-  const server = await start(0);
+async function startOnEphemeralPort(extraRoutes: RouteTable = {}) {
+  const server = await start(0, { ...healthRoutes, ...extraRoutes });
   started.push(server);
   return { server, port: (server.address() as AddressInfo).port };
 }
@@ -64,5 +66,71 @@ describe('the prototype host', () => {
 
   it('resolves the @cwm/contracts workspace package at runtime', () => {
     expect(SCHEMA_VERSION).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * §10 has the Angular gateway calling `:4310` directly from `:4200`, so the browser needs
+ * CORS. These run against a real server rather than `resolveRoute`, because the headers
+ * live in `createRequestHandler` and are invisible to the route table.
+ */
+describe('CORS for the Angular dev server', () => {
+  const WEB = 'http://localhost:4200';
+
+  it('answers a preflight with 204 and the allow headers', async () => {
+    const { port } = await startOnEphemeralPort();
+
+    const response = await fetch(`http://127.0.0.1:${port}/api/projects`, {
+      method: 'OPTIONS',
+      headers: { origin: WEB, 'access-control-request-method': 'GET' },
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get('access-control-allow-origin')).toBe(WEB);
+    expect(response.headers.get('access-control-allow-methods')).toContain('PATCH');
+    expect(response.headers.get('access-control-allow-headers')).toContain('x-prototype-user');
+    expect(response.headers.get('vary')).toBe('Origin');
+    expect(response.headers.get('content-type')).toBeNull();
+    expect(await response.text()).toBe('');
+  });
+
+  it('carries the headers on a real response too', async () => {
+    const { port } = await startOnEphemeralPort();
+
+    const response = await fetch(`http://127.0.0.1:${port}/prototype/health`, { headers: { origin: WEB } });
+
+    expect(response.headers.get('access-control-allow-origin')).toBe(WEB);
+    expect(response.headers.get('vary')).toBe('Origin');
+  });
+
+  it('does not reflect an origin outside localhost', async () => {
+    const { port } = await startOnEphemeralPort();
+
+    const response = await fetch(`http://127.0.0.1:${port}/prototype/health`, {
+      headers: { origin: 'https://example.test' },
+    });
+
+    expect(response.headers.get('access-control-allow-origin')).toBeNull();
+  });
+
+  // Without this the browser hides the body of every failure, and the gateway reports a
+  // real domain error as `unreachable`. The route table is purpose-built: these tests are
+  // about headers, and loadPersistence() would seed and mutate the developer's data file.
+  it('carries the headers on error responses', async () => {
+    const { port } = await startOnEphemeralPort({
+      'GET /boom': () => {
+        throw new DomainRuleError('nope');
+      },
+    });
+
+    for (const [path, status] of [
+      ['/nothing-here', 404],
+      ['/boom', 409],
+    ] as const) {
+      const response = await fetch(`http://127.0.0.1:${port}${path}`, { headers: { origin: WEB } });
+
+      expect(response.status).toBe(status);
+      expect(response.headers.get('access-control-allow-origin')).toBe(WEB);
+    }
   });
 });
