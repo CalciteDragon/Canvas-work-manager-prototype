@@ -303,6 +303,8 @@ This is the central product experience (§26) and where most learning happens.
 
 ### Slice 8 — Project page + section registry
 
+**Status:** in progress — plan: [docs/plans/08-project-page-and-section-registry.md](docs/plans/08-project-page-and-section-registry.md)
+
 **Goal:** Sections are modular and render inside a common frame.
 
 **Spec:** §26, §29, §30, §31, §66

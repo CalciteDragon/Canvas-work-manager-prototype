@@ -1,6 +1,6 @@
 import type {
   ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
-  Project, ProjectId, ProjectQuery, ProjectSection, Reflection, ReflectionId, SectionId,
+  Project, ProjectId, ProjectQuery, ProjectSection, Reflection, ReflectionId, SectionId, SectionQuery,
   Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
 
@@ -28,9 +28,15 @@ export interface TaskRepository {
 
 export interface SectionRepository {
   find(id: SectionId): Promise<ProjectSection | null>;
-  list(): Promise<ProjectSection[]>;
+  list(query?: SectionQuery): Promise<ProjectSection[]>;
   insert(section: ProjectSection): Promise<void>;
   update(section: ProjectSection): Promise<void>;
+  /**
+   * The one repository that deletes. A section is view configuration with no independent
+   * history, so §31's remove control is a real delete rather than a flag — which would
+   * need a contracts change §30 argues against.
+   */
+  remove(id: SectionId): Promise<void>;
 }
 
 export interface MilestoneRepository {

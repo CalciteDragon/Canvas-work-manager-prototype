@@ -1,0 +1,29 @@
+.rich-text {
+  display: block;
+}
+
+.rich-text__label {
+  position: absolute;
+  width: var(--border-hairline);
+  height: var(--border-hairline);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.rich-text__body {
+  display: block;
+  width: 100%;
+  max-width: var(--layout-reading-width);
+  padding: var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.rich-text__body:focus-visible {
+  outline: var(--border-focus) solid var(--color-accent);
+}

@@ -9,6 +9,16 @@ import { ProjectIdSchema, SectionIdSchema } from './ids';
 export const SectionColumnSpanSchema = z.literal([12, 8, 6, 4]);
 export type SectionColumnSpan = z.infer<typeof SectionColumnSpanSchema>;
 
+/**
+ * Opaque to this package, but an **object**: §29 gives the shape to the section
+ * definition's `createDefaultConfig`, while the write inputs replace a config whole. A
+ * bare `z.unknown()` let storage hold `[]`, `"text"` or `null` — values no input schema
+ * can produce or edit — and made "absent" and "explicitly undefined" the same thing.
+ * See docs/decisions/2026-08-section-config-ownership.md.
+ */
+export const SectionConfigSchema = z.record(z.string(), z.unknown());
+export type SectionConfig = z.infer<typeof SectionConfigSchema>;
+
 export const ProjectSectionSchema = z.object({
   id: SectionIdSchema,
   projectId: ProjectIdSchema,
@@ -24,8 +34,8 @@ export const ProjectSectionSchema = z.object({
   position: PositionSchema,
   columnSpan: SectionColumnSpanSchema,
   collapsed: z.boolean(),
-  /** Shape belongs to the section definition (§29's `createDefaultConfig`). */
-  config: z.unknown(),
+  /** Keys belong to the section definition (§29's `createDefaultConfig`). */
+  config: SectionConfigSchema,
 
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,

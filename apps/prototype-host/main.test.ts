@@ -88,6 +88,9 @@ describe('CORS for the Angular dev server', () => {
     expect(response.status).toBe(204);
     expect(response.headers.get('access-control-allow-origin')).toBe(WEB);
     expect(response.headers.get('access-control-allow-methods')).toContain('PATCH');
+    // Removing a section is the one DELETE the gateway makes; without it advertised here
+    // the browser rejects the preflight and the remove control silently never fires.
+    expect(response.headers.get('access-control-allow-methods')).toContain('DELETE');
     expect(response.headers.get('access-control-allow-headers')).toContain('x-prototype-user');
     expect(response.headers.get('vary')).toBe('Origin');
     expect(response.headers.get('content-type')).toBeNull();

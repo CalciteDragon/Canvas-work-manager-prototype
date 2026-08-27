@@ -116,10 +116,23 @@
   ],
   "sections": [
     {
-      "id": "section-personal-tasks",
+      "id": "section-project-personal-brief",
+      "projectId": "project-personal",
+      "type": "rich-text",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "Keep this light. One or two things a week is plenty."
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-personal-tasks",
       "projectId": "project-personal",
       "type": "task-list",
-      "position": 0,
+      "position": 1,
       "columnSpan": 12,
       "collapsed": false,
       "config": {},

@@ -3,11 +3,15 @@ import {
   ActivityQuerySchema,
   CreateProjectInputSchema,
   CreateReflectionInputSchema,
+  CreateSectionInputSchema,
   CreateTaskInputSchema,
+  MoveSectionInputSchema,
   ProjectQuerySchema,
+  SectionQuerySchema,
   TaskQuerySchema,
   UpdateProjectInputSchema,
   UpdateReflectionInputSchema,
+  UpdateSectionInputSchema,
   UpdateTaskInputSchema,
 } from './inputs';
 
@@ -149,5 +153,41 @@ describe('ActivityQuerySchema', () => {
     for (const limit of [0, -1, 1.5, 201]) {
       expect(ActivityQuerySchema.safeParse({ limit }).success).toBe(false);
     }
+  });
+});
+
+describe('the §31 section write inputs', () => {
+  it('creates with a registry type alone, leaving the rest to the service', () => {
+    expect(CreateSectionInputSchema.parse({ type: 'rich-text' })).toEqual({ type: 'rich-text' });
+  });
+
+  it('rejects an empty type and a column span outside the §27 presets', () => {
+    expect(CreateSectionInputSchema.safeParse({ type: '' }).success).toBe(false);
+    expect(CreateSectionInputSchema.safeParse({ type: 'rich-text', columnSpan: 7 }).success).toBe(false);
+  });
+
+  it('clears a frame title override with null and leaves it alone when absent', () => {
+    expect(UpdateSectionInputSchema.parse({ title: null }).title).toBeNull();
+    expect(UpdateSectionInputSchema.parse({}).title).toBeUndefined();
+  });
+
+  it('replaces a config whole and refuses a config that is not an object', () => {
+    expect(UpdateSectionInputSchema.parse({ config: { text: 'hello' } }).config).toEqual({ text: 'hello' });
+    // `null` would be ambiguous between "clear it" and "a legitimate config value".
+    for (const config of [null, 'text', []]) {
+      expect(UpdateSectionInputSchema.safeParse({ config }).success).toBe(false);
+    }
+  });
+
+  it('moves to a dense zero-based position only', () => {
+    expect(MoveSectionInputSchema.parse({ position: 0 }).position).toBe(0);
+    for (const position of [-1, 1.5]) {
+      expect(MoveSectionInputSchema.safeParse({ position }).success).toBe(false);
+    }
+  });
+
+  it('filters sections by project', () => {
+    expect(SectionQuerySchema.parse({ projectId: 'project-a' }).projectId).toBe('project-a');
+    expect(SectionQuerySchema.parse({})).toEqual({});
   });
 });

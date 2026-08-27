@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import type { CreateTaskInput, Identity, ProjectId, TaskId } from '@cwm/contracts';
+import type { CreateTaskInput, Identity, ProjectId, SectionId, TaskId } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { IDENTITY_PROVIDER, type IdentityProvider } from '../identity/identity-provider';
@@ -25,6 +25,18 @@ const project = {
   name: 'Personal workspace',
   status: 'active',
   projectLayoutMode: 'flow',
+  createdAt: at,
+  updatedAt: at,
+};
+
+const projectSection = {
+  id: 'section-1',
+  projectId: 'project-1',
+  type: 'rich-text',
+  position: 0,
+  columnSpan: 12,
+  collapsed: false,
+  config: { text: 'Kickoff' },
   createdAt: at,
   updatedAt: at,
 };
@@ -101,6 +113,65 @@ describe('PrototypeWorkManagerGateway — projects', () => {
     await gateway().projects.get('project-1' as ProjectId);
 
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1');
+  });
+});
+
+describe('PrototypeWorkManagerGateway — sections (§31)', () => {
+  it('lists a project’s sections under the project', async () => {
+    fetchMock.mockImplementation(jsonResponse([projectSection]));
+
+    const sections = await gateway().sections.list('project-1' as ProjectId);
+
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/sections');
+    expect(sections[0]?.type).toBe('rich-text');
+  });
+
+  it('creates with a JSON body and accepts 201', async () => {
+    fetchMock.mockImplementation(jsonResponse(projectSection, 201));
+
+    await gateway().sections.create('project-1' as ProjectId, { type: 'rich-text', config: { text: '' } });
+
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/sections');
+    expect(lastCall().init.method).toBe('POST');
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({ type: 'rich-text', config: { text: '' } });
+  });
+
+  it('updates through PATCH, addressing the section directly', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...projectSection, collapsed: true }));
+
+    const updated = await gateway().sections.update('section-1' as SectionId, { collapsed: true });
+
+    expect(lastCall().url).toBe('http://host.test/api/sections/section-1');
+    expect(lastCall().init.method).toBe('PATCH');
+    expect(updated.collapsed).toBe(true);
+  });
+
+  it('duplicates with no body and accepts 201', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...projectSection, id: 'section-2', position: 1 }, 201));
+
+    const copy = await gateway().sections.duplicate('section-1' as SectionId);
+
+    expect(lastCall().url).toBe('http://host.test/api/sections/section-1/duplicate');
+    expect(lastCall().init.body).toBeUndefined();
+    expect(copy.id).toBe('section-2');
+  });
+
+  it('removes through DELETE and tolerates the host’s empty 204', async () => {
+    // Reading `.json()` off a 204 throws; the remove path must not go looking for a body.
+    fetchMock.mockImplementation(() => new Response(null, { status: 204 }));
+
+    await expect(gateway().sections.remove('section-1' as SectionId)).resolves.toBeUndefined();
+
+    expect(lastCall().url).toBe('http://host.test/api/sections/section-1');
+    expect(lastCall().init.method).toBe('DELETE');
+  });
+
+  it('rejects a section body that is not its contract (§11)', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...projectSection, columnSpan: 7 }));
+
+    await expect(gateway().sections.update('section-1' as SectionId, { columnSpan: 6 })).rejects.toBeInstanceOf(
+      GatewayError,
+    );
   });
 });
 

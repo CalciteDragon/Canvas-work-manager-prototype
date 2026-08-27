@@ -148,13 +148,39 @@
   ],
   "sections": [
     {
-      "id": "section-project-renovation-tasks",
+      "id": "section-project-renovation-brief",
       "projectId": "project-renovation",
-      "type": "task-list",
+      "type": "rich-text",
       "position": 0,
       "columnSpan": 12,
       "collapsed": false,
+      "config": {
+        "text": "Whole-house plan. Kitchen first, garden in the spring."
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-tasks",
+      "projectId": "project-renovation",
+      "type": "task-list",
+      "position": 1,
+      "columnSpan": 12,
+      "collapsed": false,
       "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-kitchen-brief",
+      "projectId": "project-kitchen",
+      "type": "rich-text",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "Appliances and finishes before cabinets are ordered."
+      },
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -162,7 +188,7 @@
       "id": "section-project-kitchen-tasks",
       "projectId": "project-kitchen",
       "type": "task-list",
-      "position": 0,
+      "position": 1,
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
@@ -170,13 +196,15 @@
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
     {
-      "id": "section-project-cabinets-tasks",
-      "projectId": "project-cabinets",
-      "type": "task-list",
+      "id": "section-project-garden-brief",
+      "projectId": "project-garden",
+      "type": "rich-text",
       "position": 0,
       "columnSpan": 12,
       "collapsed": false,
-      "config": {},
+      "config": {
+        "text": "Autumn planting only. Structural work waits for next year."
+      },
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -184,7 +212,7 @@
       "id": "section-project-garden-tasks",
       "projectId": "project-garden",
       "type": "task-list",
-      "position": 0,
+      "position": 1,
       "columnSpan": 12,
       "collapsed": false,
       "config": {},

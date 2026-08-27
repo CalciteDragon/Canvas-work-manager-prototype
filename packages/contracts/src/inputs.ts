@@ -1,7 +1,8 @@
 import { z } from 'zod';
-import { IsoDateSchema, IsoDateTimeSchema } from './common';
+import { IsoDateSchema, IsoDateTimeSchema, PositionSchema } from './common';
 import { ProjectIdSchema, TaskIdSchema, WorkspaceIdSchema } from './ids';
 import { ProjectLayoutModeSchema, ProjectStatusSchema } from './project';
+import { SectionColumnSpanSchema, SectionConfigSchema } from './section';
 import { TaskPrioritySchema, TaskStatusSchema } from './task';
 
 /**
@@ -57,6 +58,40 @@ export const UpdateProjectInputSchema = z.object({
 });
 export type UpdateProjectInput = z.infer<typeof UpdateProjectInputSchema>;
 
+/**
+ * §31's frame affordances, as writes. `projectId` is not a member of either input: it
+ * comes from the route the section is created under, and a section never moves between
+ * projects (§30 makes a section a property of its project's canvas).
+ *
+ * `config` is replaced whole rather than merged — the section definition owns its keys
+ * (§29), so this package has no basis for deciding which of them a partial write meant to
+ * keep. Absence means leave alone; there is no "clear", because an absent config and an
+ * empty one are not different states.
+ */
+export const CreateSectionInputSchema = z.object({
+  /** A `SECTION_REGISTRY` key (§29). Open, for the same reason `ProjectSection.type` is. */
+  type: z.string().min(1),
+  title: z.string().min(1).optional(),
+  columnSpan: SectionColumnSpanSchema.optional(),
+  config: SectionConfigSchema.optional(),
+});
+export type CreateSectionInput = z.infer<typeof CreateSectionInputSchema>;
+
+export const UpdateSectionInputSchema = z.object({
+  /** Nullable because the title is an *override* — clearing it falls back to the registry. */
+  title: z.string().min(1).nullable().optional(),
+  columnSpan: SectionColumnSpanSchema.optional(),
+  collapsed: z.boolean().optional(),
+  config: SectionConfigSchema.optional(),
+});
+export type UpdateSectionInput = z.infer<typeof UpdateSectionInputSchema>;
+
+/** Reordering is its own operation: it renumbers siblings, which a field patch cannot. */
+export const MoveSectionInputSchema = z.object({
+  position: PositionSchema,
+});
+export type MoveSectionInput = z.infer<typeof MoveSectionInputSchema>;
+
 export const CreateReflectionInputSchema = z.object({
   projectId: ProjectIdSchema,
   title: z.string().optional(),
@@ -94,6 +129,12 @@ export const ProjectQuerySchema = z.object({
   search: z.string().optional(),
 });
 export type ProjectQuery = z.infer<typeof ProjectQuerySchema>;
+
+/** Filters for `GET /api/projects/:projectId/sections`. */
+export const SectionQuerySchema = z.object({
+  projectId: ProjectIdSchema.optional(),
+});
+export type SectionQuery = z.infer<typeof SectionQuerySchema>;
 
 /** Filters for the activity feed (§57). Capped because `limit` arrives off a query string. */
 export const ActivityQuerySchema = z.object({

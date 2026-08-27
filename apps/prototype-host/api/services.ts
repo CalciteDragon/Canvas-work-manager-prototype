@@ -1,4 +1,4 @@
-import { ActivityService, PrototypeIdGenerator, ProjectService, SimulatedClock, TaskService } from '@cwm/domain';
+import { ActivityService, PrototypeIdGenerator, ProjectService, SectionService, SimulatedClock, TaskService } from '@cwm/domain';
 import type { Persistence } from '../persistence/store.ts';
 import { createApiRoutes, type ApiDependencies } from './routes.ts';
 
@@ -11,7 +11,7 @@ import { createApiRoutes, type ApiDependencies } from './routes.ts';
 export const createApi = (persistence: Persistence): ApiDependencies => {
   const clock = new SimulatedClock();
   const ids = new PrototypeIdGenerator();
-  const { store, projects, tasks, activities, unitOfWork } = persistence;
+  const { store, projects, sections, tasks, activities, unitOfWork } = persistence;
   const activity = new ActivityService({ activities, clock, ids });
 
   return {
@@ -19,6 +19,7 @@ export const createApi = (persistence: Persistence): ApiDependencies => {
     activity,
     projects: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, activity, clock, ids, unitOfWork }),
+    sections: new SectionService({ sections, projects, activity, clock, ids, unitOfWork }),
   };
 };
 

@@ -140,13 +140,39 @@
   ],
   "sections": [
     {
-      "id": "section-project-launch-tasks",
+      "id": "section-project-launch-brief",
       "projectId": "project-launch",
-      "type": "task-list",
+      "type": "rich-text",
       "position": 0,
       "columnSpan": 12,
       "collapsed": false,
+      "config": {
+        "text": "Launch week. Copy is signed off; QA and analytics are the risk."
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-launch-tasks",
+      "projectId": "project-launch",
+      "type": "task-list",
+      "position": 1,
+      "columnSpan": 12,
+      "collapsed": false,
       "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-home-brief",
+      "projectId": "project-home",
+      "type": "rich-text",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "Small household jobs. Nothing here is urgent."
+      },
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -162,10 +188,23 @@
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
     {
+      "id": "section-project-course-brief",
+      "projectId": "project-course",
+      "type": "rich-text",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "Two modules left before the end of the month."
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
       "id": "section-project-course-tasks",
       "projectId": "project-course",
       "type": "task-list",
-      "position": 2,
+      "position": 1,
       "columnSpan": 12,
       "collapsed": false,
       "config": {},

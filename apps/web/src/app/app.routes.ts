@@ -5,7 +5,6 @@ import { ProjectPage } from './features/projects/project-page';
 import { SearchPage } from './features/search/search-page';
 import { AgentConnectionsPage } from './features/settings/agents/agent-connections-page';
 import { SettingsPage } from './features/settings/settings-page';
-import { TasksPage } from './features/tasks/tasks-page';
 import { DesignLabPage } from './prototype/design-lab/design-lab-page';
 import { StateInspectorPage } from './prototype/dev-panel/state-inspector-page';
 import { NotFoundPage } from './shared/components/placeholder-page/not-found-page';
@@ -24,8 +23,6 @@ export const routes: Routes = [
   { path: 'search', component: SearchPage },
   { path: 'settings', component: SettingsPage },
   { path: 'settings/agents', component: AgentConnectionsPage },
-  // Slice 7's temporary whole-workspace exercise route; project task lists replace it in Slice 8.
-  { path: 'tasks', component: TasksPage },
   { path: 'prototype/design', component: DesignLabPage },
   { path: 'prototype/state', component: StateInspectorPage },
   { path: '**', component: NotFoundPage },

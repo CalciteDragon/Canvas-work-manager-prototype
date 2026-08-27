@@ -33,6 +33,15 @@ describe('ProjectSectionSchema', () => {
     expect([...SectionColumnSpanSchema.values]).toEqual([12, 8, 6, 4]);
   });
 
+  it('rejects a config that is not an object', () => {
+    // §29 leaves the config's *keys* to the section definition, not its kind. A bare
+    // `unknown` let storage hold values no write input could ever produce.
+    for (const config of [null, 'text', [], 3]) {
+      expect(ProjectSectionSchema.safeParse({ ...section, config }).success).toBe(false);
+    }
+    expect(ProjectSectionSchema.safeParse({ ...section, config: undefined }).success).toBe(false);
+  });
+
   it('rejects an empty section type', () => {
     expect(ProjectSectionSchema.safeParse({ ...section, type: '' }).success).toBe(false);
   });

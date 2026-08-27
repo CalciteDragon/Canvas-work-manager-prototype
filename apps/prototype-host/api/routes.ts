@@ -1,15 +1,19 @@
 import {
   ActivityQuerySchema,
   CreateProjectInputSchema,
+  CreateSectionInputSchema,
   CreateTaskInputSchema,
+  MoveSectionInputSchema,
   ProjectIdSchema,
   ProjectQuerySchema,
+  SectionIdSchema,
   TaskIdSchema,
   TaskQuerySchema,
   UpdateProjectInputSchema,
+  UpdateSectionInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, ProjectService, TaskService } from '@cwm/domain';
+import type { ActivityService, ProjectService, SectionService, TaskService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveUser } from './context.ts';
 import type { RouteRequest, RouteResult, RouteTable } from '../router.ts';
@@ -18,11 +22,14 @@ export interface ApiDependencies {
   store: DataStore;
   projects: ProjectService;
   tasks: TaskService;
+  sections: SectionService;
   activity: ActivityService;
 }
 
 const ok = (body: unknown): RouteResult => ({ status: 200, contentType: 'application/json', body });
 const created = (body: unknown): RouteResult => ({ status: 201, contentType: 'application/json', body });
+/** A removed section has nothing left to describe, so the response carries no body. */
+const noContent = (): RouteResult => ({ status: 204, contentType: 'application/json', body: undefined });
 
 /**
  * Query strings are all strings, so the contract schemas need the shapes they expect:
@@ -58,10 +65,12 @@ const queryObject = (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, tasks, activity } = dependencies;
+  const { store, projects, tasks, sections, activity } = dependencies;
   const actorFor = (request: RouteRequest) => resolveActor(store.snapshot(), request);
   const projectId = (request: RouteRequest) => ProjectIdSchema.parse(request.params['id']);
   const taskId = (request: RouteRequest) => TaskIdSchema.parse(request.params['id']);
+  const sectionId = (request: RouteRequest) => SectionIdSchema.parse(request.params['id']);
+  const sectionProjectId = (request: RouteRequest) => ProjectIdSchema.parse(request.params['projectId']);
 
   return {
     // §18's identity, composed rather than stored: there is no workspace repository, and
@@ -97,6 +106,49 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
           UpdateProjectInputSchema.parse(request.body),
         ),
       ),
+
+    // §31's frame affordances. Sections are nested under their project on read and create
+    // — a section only exists on one project's canvas — and addressed directly for the
+    // rest, because the frame has the id and nothing else needs re-stating.
+    'GET /api/projects/:projectId/sections': async (request) =>
+      ok(await sections.list(actorFor(request), sectionProjectId(request))),
+
+    'POST /api/projects/:projectId/sections': async (request) =>
+      created(
+        await sections.add(
+          actorFor(request),
+          sectionProjectId(request),
+          CreateSectionInputSchema.parse(request.body),
+        ),
+      ),
+
+    'PATCH /api/sections/:id': async (request) =>
+      ok(
+        await sections.update(
+          actorFor(request),
+          sectionId(request),
+          UpdateSectionInputSchema.parse(request.body),
+        ),
+      ),
+
+    // Reordering renumbers every sibling, so it is its own route rather than a `position`
+    // field on PATCH — the response describes one section, but the write touched more.
+    'POST /api/sections/:id/move': async (request) =>
+      ok(
+        await sections.move(
+          actorFor(request),
+          sectionId(request),
+          MoveSectionInputSchema.parse(request.body).position,
+        ),
+      ),
+
+    'POST /api/sections/:id/duplicate': async (request) =>
+      created(await sections.duplicate(actorFor(request), sectionId(request))),
+
+    'DELETE /api/sections/:id': async (request) => {
+      await sections.remove(actorFor(request), sectionId(request));
+      return noContent();
+    },
 
     'GET /api/tasks': async (request) =>
       ok(

@@ -1,19 +1,23 @@
 import { Injectable, inject } from '@angular/core';
 import {
   ProjectSchema,
+  ProjectSectionSchema,
   TaskSchema,
+  type CreateSectionInput,
   type CreateTaskInput,
   type ProjectId,
   type ProjectQuery,
+  type SectionId,
   type TaskId,
   type TaskQuery,
+  type UpdateSectionInput,
   type UpdateTaskInput,
 } from '@cwm/contracts';
 import { z } from 'zod';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
-import type { ProjectGateway, TaskGateway, WorkManagerGateway } from './work-manager-gateway';
+import type { ProjectGateway, SectionGateway, TaskGateway, WorkManagerGateway } from './work-manager-gateway';
 
 /**
  * The §10 adapter: Angular → `localhost:4310`. Everything transport-shaped lives here —
@@ -34,6 +38,20 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
     get: (id: ProjectId) => this.send('GET', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema),
   };
 
+  readonly sections: SectionGateway = {
+    list: (projectId: ProjectId) =>
+      this.send('GET', `/api/projects/${encodeURIComponent(projectId)}/sections`, ProjectSectionSchema.array()),
+    create: (projectId: ProjectId, input: CreateSectionInput) =>
+      this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/sections`, ProjectSectionSchema, input),
+    update: (id: SectionId, input: UpdateSectionInput) =>
+      this.send('PATCH', `/api/sections/${encodeURIComponent(id)}`, ProjectSectionSchema, input),
+    duplicate: (id: SectionId) =>
+      this.send('POST', `/api/sections/${encodeURIComponent(id)}/duplicate`, ProjectSectionSchema),
+    // The host answers 204 with no body, so there is nothing to validate — unlike
+    // `tasks.archive`, which discards a body it still checks.
+    remove: (id: SectionId) => this.sendWithoutBody('DELETE', `/api/sections/${encodeURIComponent(id)}`),
+  };
+
   readonly tasks: TaskGateway = {
     list: (query) =>
       matchesNothing(query)
@@ -52,6 +70,27 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
   };
 
   private async send<T>(method: string, path: string, schema: z.ZodType<T>, body?: unknown): Promise<T> {
+    const response = await this.request(method, path, body);
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new GatewayError('invalid_response', 0, `${method} ${path} did not answer JSON`);
+    }
+
+    const parsed = schema.safeParse(payload);
+    if (!parsed.success) {
+      throw new GatewayError('invalid_response', 0, `${method} ${path} answered a body that is not its contract`);
+    }
+    return parsed.data;
+  }
+
+  /** For the one route that answers 204: reading `.json()` off an empty body would throw. */
+  private async sendWithoutBody(method: string, path: string): Promise<void> {
+    await this.request(method, path);
+  }
+
+  private async request(method: string, path: string, body?: unknown): Promise<Response> {
     // The persona comes from the resolved identity, never from storage: the provider heals
     // a stale one, and reading the key here would let the two drift apart.
     const { user } = await this.identity.getCurrentIdentity();
@@ -71,21 +110,8 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
     }
 
     if (!response.ok) throw await toGatewayError(response, `${method} ${path}`);
-
-    let payload: unknown;
-    try {
-      payload = await response.json();
-    } catch {
-      throw new GatewayError('invalid_response', 0, `${method} ${path} did not answer JSON`);
-    }
-
-    const parsed = schema.safeParse(payload);
-    if (!parsed.success) {
-      throw new GatewayError('invalid_response', 0, `${method} ${path} answered a body that is not its contract`);
-    }
-    return parsed.data;
+    return response;
   }
-
 }
 
 /**

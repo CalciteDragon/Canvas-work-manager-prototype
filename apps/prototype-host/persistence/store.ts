@@ -5,6 +5,7 @@ import {
   JsonActivityRepository,
   JsonDataStore,
   JsonProjectRepository,
+  JsonSectionRepository,
   JsonTaskRepository,
   unitOfWorkFor,
   type DataStore,
@@ -37,6 +38,7 @@ export interface Persistence {
   path: string;
   store: DataStore;
   projects: JsonProjectRepository;
+  sections: JsonSectionRepository;
   tasks: JsonTaskRepository;
   activities: JsonActivityRepository;
   unitOfWork: ReturnType<typeof unitOfWorkFor>;
@@ -51,6 +53,7 @@ export const loadPersistence = async (path = dataFilePath()): Promise<Persistenc
     path,
     store,
     projects: new JsonProjectRepository(store),
+    sections: new JsonSectionRepository(store),
     tasks: new JsonTaskRepository(store),
     activities: new JsonActivityRepository(store),
     unitOfWork: unitOfWorkFor(store),

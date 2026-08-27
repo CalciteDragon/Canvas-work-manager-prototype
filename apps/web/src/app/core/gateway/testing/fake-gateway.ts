@@ -1,6 +1,15 @@
-import type { Identity, Project, ProjectId, Task, TaskId } from '@cwm/contracts';
+import type {
+  Identity,
+  Project,
+  ProjectId,
+  ProjectSection,
+  SectionId,
+  Task,
+  TaskId,
+  UpdateSectionInput,
+} from '@cwm/contracts';
 import { GatewayError } from '../gateway-error';
-import type { ProjectGateway, TaskGateway, WorkManagerGateway } from '../work-manager-gateway';
+import type { ProjectGateway, SectionGateway, TaskGateway, WorkManagerGateway } from '../work-manager-gateway';
 
 /**
  * The gateway every component and store spec runs against. Its existence is what makes
@@ -10,6 +19,7 @@ import type { ProjectGateway, TaskGateway, WorkManagerGateway } from '../work-ma
  */
 export interface FakeGatewayOptions {
   projects?: Project[];
+  sections?: ProjectSection[];
   tasks?: Task[];
   /** Rejects every call with this instead of answering — the failure path a shell needs. */
   failWith?: GatewayError;
@@ -24,6 +34,22 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
   readonly projects: ProjectGateway = {
     list: (query) => this.answer('projects.list', query, this.options.projects ?? []),
     get: (id: ProjectId) => this.answer('projects.get', id, this.find(this.options.projects, id, 'project')),
+  };
+
+  readonly sections: SectionGateway = {
+    list: (projectId: ProjectId) =>
+      this.answer(
+        'sections.list',
+        projectId,
+        (this.options.sections ?? []).filter((section) => section.projectId === projectId),
+      ),
+    // The write answers echo the request over the first seeded section, which is enough for
+    // a store spec: what matters is the argument that reached the boundary, not the body.
+    create: (projectId, input) =>
+      this.answer('sections.create', { projectId, input }, { ...this.firstSection(), ...input, projectId }),
+    update: (id, input) => this.answer('sections.update', { id, input }, applyUpdate(this.sectionFor(id), input)),
+    duplicate: (id) => this.answer('sections.duplicate', id, { ...this.sectionFor(id), id: `${id}-copy` as SectionId }),
+    remove: (id) => this.answer('sections.remove', id, undefined),
   };
 
   readonly tasks: TaskGateway = {
@@ -46,6 +72,16 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     return found;
   }
 
+  private firstSection(): ProjectSection {
+    const [section] = this.options.sections ?? [];
+    if (section === undefined) throw new Error('the fake gateway was given no sections to answer with');
+    return section;
+  }
+
+  private sectionFor(id: SectionId): ProjectSection {
+    return this.find(this.options.sections, id, 'section');
+  }
+
   private firstTask(): Task {
     const [task] = this.options.tasks ?? [];
     if (task === undefined) throw new Error('the fake gateway was given no tasks to answer with');
@@ -56,6 +92,21 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     return this.calls.find((call) => call.method === method)?.argument;
   }
 }
+
+/**
+ * The host's `null` clears / `undefined` leaves alone rule, so a spec that clears a frame
+ * title override sees what the real adapter would answer rather than a `null` the contract
+ * forbids.
+ */
+const applyUpdate = (section: ProjectSection, input: UpdateSectionInput): ProjectSection => {
+  const next = { ...section };
+  for (const [key, value] of Object.entries(input)) {
+    if (value === undefined) continue;
+    if (value === null) delete next[key as keyof ProjectSection];
+    else Object.assign(next, { [key]: value });
+  }
+  return next;
+};
 
 /** An `IdentityProvider` that answers whatever the spec hands it. */
 export const fakeIdentityProvider = (identity: Identity | GatewayError) => ({

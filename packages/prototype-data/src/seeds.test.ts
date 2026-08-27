@@ -269,3 +269,45 @@ describe('seed file writer', () => {
     expect(await readFile(`${targetPath}.tmp`, 'utf8')).toBe(serialized(buildSeed('busy-week')));
   });
 });
+
+describe('seeded project canvases (§30)', () => {
+  const sectionsByProject = (document: PrototypeDocument) => {
+    const grouped = new Map<string, typeof document.sections>();
+    for (const section of document.sections) {
+      grouped.set(section.projectId, [...(grouped.get(section.projectId) ?? []), section]);
+    }
+    return grouped;
+  };
+
+  it.each(['personal-workspace', 'busy-week', 'nested-projects', 'overdue-chaos'] as const)(
+    '%s gives every seeded canvas a rich-text brief above its task list',
+    (seedName) => {
+      const document = buildSeed(seedName);
+
+      expect(document.sections.length).toBeGreaterThan(0);
+      for (const sections of sectionsByProject(document).values()) {
+        expect(sections.map((section) => [section.type, section.position])).toEqual([
+          ['rich-text', 0],
+          ['task-list', 1],
+        ]);
+      }
+    },
+  );
+
+  it.each(SEED_NAMES)('%s numbers sections densely within each project', (seedName) => {
+    for (const sections of sectionsByProject(buildSeed(seedName)).values()) {
+      // A gap or a repeat has no meaning the canvas could render.
+      expect([...sections].map((section) => section.position).sort()).toEqual(sections.map((_, index) => index));
+    }
+  });
+
+  it('leaves one nested project without a canvas, so the empty state is reachable', () => {
+    const document = buildSeed('nested-projects');
+
+    const withoutSections = document.projects.filter(
+      (project) => !document.sections.some((section) => section.projectId === project.id),
+    );
+
+    expect(withoutSections.map((project) => project.name)).toEqual(['Cabinets']);
+  });
+});

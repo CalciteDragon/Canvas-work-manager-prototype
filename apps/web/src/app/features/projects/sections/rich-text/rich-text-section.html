@@ -1,0 +1,12 @@
+<label class="rich-text">
+  <span class="rich-text__label">Notes</span>
+  <textarea
+    data-rich-text-body
+    class="rich-text__body"
+    rows="4"
+    [value]="text()"
+    [attr.aria-label]="'Notes for ' + (section().title ?? 'this section')"
+    placeholder="What is this project about?"
+    (blur)="save($any($event.target).value)"
+  ></textarea>
+</label>

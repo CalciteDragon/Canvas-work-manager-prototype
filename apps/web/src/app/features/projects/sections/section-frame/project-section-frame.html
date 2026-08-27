@@ -1,0 +1,88 @@
+<section
+  data-section-frame
+  class="section-frame"
+  [attr.data-section-type]="section().type"
+  [attr.data-column-span]="section().columnSpan"
+  [class.section-frame--collapsed]="section().collapsed"
+  [attr.aria-labelledby]="'section-title-' + section().id"
+>
+  <header class="section-frame__header">
+    <!-- Presentational in Slice 8. Slice 9 attaches Angular CDK drag-drop to it (§32). -->
+    <span data-section-drag-handle class="section-frame__handle" aria-hidden="true">⠿</span>
+
+    <button
+      data-section-collapse
+      class="section-frame__collapse"
+      type="button"
+      [attr.aria-expanded]="!section().collapsed"
+      [attr.aria-label]="(section().collapsed ? 'Expand ' : 'Collapse ') + title()"
+      (click)="toggleCollapsed()"
+    >
+      {{ section().collapsed ? '▸' : '▾' }}
+    </button>
+
+    <h2 [id]="'section-title-' + section().id" class="section-frame__title">
+      <span class="section-frame__icon" aria-hidden="true">{{ definition().icon }}</span>
+      {{ title() }}
+    </h2>
+
+    <div class="section-frame__controls">
+      <label class="section-frame__size">
+        <span>Size</span>
+        <select
+          data-section-size
+          [value]="section().columnSpan"
+          [attr.aria-label]="'Width of ' + title()"
+          (change)="resize($any($event.target).value)"
+        >
+          @for (span of columnSpans; track span) {
+            <option [value]="span" [selected]="span === section().columnSpan">{{ span }}</option>
+          }
+        </select>
+      </label>
+
+      <button
+        data-section-config
+        type="button"
+        [attr.aria-expanded]="configOpen()"
+        [attr.aria-label]="'Settings for ' + title()"
+        (click)="toggleConfig()"
+      >
+        Settings
+      </button>
+      <button
+        data-section-duplicate
+        type="button"
+        [attr.aria-label]="'Duplicate ' + title()"
+        (click)="duplicateRequested.emit(section().id)"
+      >
+        Duplicate
+      </button>
+      <button
+        data-section-remove
+        class="section-frame__remove"
+        type="button"
+        [attr.aria-label]="'Remove ' + title()"
+        (click)="removeRequested.emit(section().id)"
+      >
+        Remove
+      </button>
+    </div>
+  </header>
+
+  @if (configOpen()) {
+    <div data-section-inspector class="section-frame__inspector">
+      @if (definition().inspectorComponent; as inspector) {
+        <ng-container [ngComponentOutlet]="inspector" [ngComponentOutletInputs]="contentInputs()" />
+      } @else {
+        <p data-section-no-settings class="section-frame__muted">This section has no settings.</p>
+      }
+    </div>
+  }
+
+  @if (!section().collapsed) {
+    <div data-section-content class="section-frame__content">
+      <ng-container [ngComponentOutlet]="definition().component" [ngComponentOutletInputs]="contentInputs()" />
+    </div>
+  }
+</section>

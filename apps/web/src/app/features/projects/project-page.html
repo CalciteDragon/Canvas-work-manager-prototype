@@ -1,0 +1,118 @@
+@if (store.loading()) {
+  <p data-project-loading class="project-page__muted">Loading project…</p>
+} @else if (store.error(); as error) {
+  <section class="project-page__notice" aria-labelledby="project-error-heading">
+    <h1 id="project-error-heading">Project unavailable</h1>
+    <p data-project-error role="alert">{{ error }}</p>
+  </section>
+} @else if (store.project(); as project) {
+  <article class="project-page">
+    <!-- §26's header: icon, name, status, progress, target date, quick add, more. -->
+    <header class="project-header">
+      <span data-project-icon class="project-header__icon" aria-hidden="true">{{ project.icon ?? '📁' }}</span>
+
+      <div class="project-header__identity">
+        <h1 data-project-name class="project-header__name">{{ project.name }}</h1>
+        @if (project.description; as description) {
+          <p class="project-header__description">{{ description }}</p>
+        }
+      </div>
+
+      <dl class="project-header__facts">
+        <div>
+          <dt>Status</dt>
+          <dd data-project-status class="project-header__status">{{ project.status.replace('_', ' ') }}</dd>
+        </div>
+        <div>
+          <dt>Progress</dt>
+          <dd data-project-progress>
+            @if (store.progress(); as progress) {
+              {{ progress }}% complete
+            } @else {
+              <span data-project-progress-unavailable>Not available</span>
+            }
+          </dd>
+        </div>
+        <div>
+          <dt>Target date</dt>
+          <dd data-project-target-date>
+            @if (project.targetDate; as targetDate) {
+              <time [attr.datetime]="targetDate">{{ targetDate }}</time>
+            } @else {
+              No target date
+            }
+          </dd>
+        </div>
+      </dl>
+
+      <div class="project-header__actions">
+        <button
+          data-project-quick-add
+          type="button"
+          class="project-header__quick-add"
+          [attr.aria-expanded]="addOpen()"
+          (click)="toggleAdd()"
+        >
+          Quick add
+        </button>
+        <!-- §26 names a "More" control. It opens nothing yet: project edit and archive
+             arrive with the slice that builds them, and a menu of disabled items is worse
+             than a control that is honestly inert. -->
+        <button data-project-more type="button" disabled aria-label="More project actions (not built yet)">⋯</button>
+      </div>
+
+      @if (addOpen()) {
+        <ul data-add-section-menu class="project-header__add-menu">
+          @for (definition of registry; track definition.type) {
+            <li>
+              <button data-add-section type="button" [attr.data-section-type]="definition.type" (click)="add(definition.type)">
+                <span aria-hidden="true">{{ definition.icon }}</span> {{ definition.displayName }}
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </header>
+
+    @if (store.sectionError(); as sectionError) {
+      <p data-section-error class="project-page__error" role="alert">{{ sectionError }}</p>
+    }
+
+    <div data-section-canvas class="section-canvas">
+      @if (store.sections().length === 0) {
+        <p data-empty-canvas class="project-page__muted">
+          This canvas is empty. Use Quick add to put a section on it.
+        </p>
+      } @else {
+        @for (section of store.sections(); track section.id) {
+          @if (definitionFor(section.type); as definition) {
+            <app-project-section-frame
+              [section]="section"
+              [definition]="definition"
+              (collapseToggled)="collapse($event)"
+              (resized)="resize($event)"
+              (configChanged)="saveConfig($event)"
+              (duplicateRequested)="store.duplicateSection($event)"
+              (removeRequested)="store.removeSection($event)"
+            />
+          } @else {
+            <!-- `data.json` is hand-editable and outlives any one registry, so an unknown
+                 type gets a card the user can read and remove — not a blank space, and not
+                 something they are stuck with. -->
+            <section data-unknown-section class="unknown-section">
+              <h2>Unrecognised section</h2>
+              <p>Nothing in this build knows how to render a “{{ section.type }}” section.</p>
+              <button
+                data-unknown-section-remove
+                type="button"
+                (click)="store.removeSection(section.id)"
+              >
+                Remove it
+              </button>
+            </section>
+          }
+        }
+      }
+    </div>
+  </article>
+}

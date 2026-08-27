@@ -1,7 +1,7 @@
 import type {
   ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
   Project, ProjectId, ProjectQuery, ProjectSection, PrototypeDocument, Reflection,
-  ReflectionId, SectionId, Task, TaskId, TaskQuery, User, UserId,
+  ReflectionId, SectionId, SectionQuery, Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
 import { assertCanMutateDataStore, type DataStore, getActiveDocument } from './data-store';
 import { RepositoryConflictError, RepositoryNotFoundError } from './errors';
@@ -45,6 +45,20 @@ abstract class JsonCollectionRepository<T extends StoredEntity> {
     const index = this.values().findIndex((value) => value.id === entity.id);
     if (index === -1) throw new RepositoryNotFoundError(this.collection, entity.id);
     this.values()[index] = structuredClone(entity);
+  }
+
+  /**
+   * Only sections expose this. A hard delete is safe for a section — it is view
+   * configuration with no history of its own (§31 offers no undo) — but it is not safe in
+   * general: `validateDocumentIntegrity` resolves every activity event's target, so
+   * deleting anything the feed points at would fail the next unit of work to close.
+   */
+  protected async delete(id: T['id']): Promise<void> {
+    assertCanMutateDataStore(this.store);
+    const values = this.values();
+    const index = values.findIndex((value) => value.id === id);
+    if (index === -1) throw new RepositoryNotFoundError(this.collection, id);
+    values.splice(index, 1);
   }
 }
 
@@ -105,7 +119,15 @@ export class JsonTaskRepository extends JsonCollectionRepository<Task> implement
 
 export class JsonSectionRepository extends JsonCollectionRepository<ProjectSection> implements SectionRepository {
   constructor(store: DataStore) { super(store, 'sections'); }
+
+  override async list(query: SectionQuery = {}): Promise<ProjectSection[]> {
+    const sections = await super.list();
+    return sections.filter((section) => query.projectId === undefined || section.projectId === query.projectId);
+  }
+
   override find(id: SectionId): Promise<ProjectSection | null> { return super.find(id); }
+
+  remove(id: SectionId): Promise<void> { return this.delete(id); }
 }
 
 export class JsonMilestoneRepository extends JsonCollectionRepository<Milestone> implements MilestoneRepository {

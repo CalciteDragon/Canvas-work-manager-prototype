@@ -1,12 +1,5 @@
 import { Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
-import type {
-  Project,
-  ProjectId,
-  Task,
-  TaskId,
-  TaskPriority,
-  UpdateTaskInput,
-} from '@cwm/contracts';
+import type { ProjectId, Task, TaskId, TaskPriority, UpdateTaskInput } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 
 type MutableTaskField = keyof Pick<
@@ -17,17 +10,20 @@ type MutableTaskField = keyof Pick<
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /**
- * §19's feature-scoped state for the temporary task workspace. Components send intent
- * here; this is the only tasks feature class that knows a gateway exists.
+ * §19's feature-scoped state for one project's tasks. Components send intent here; this is
+ * the only tasks feature class that knows a gateway exists.
+ *
+ * Scoped to a project since Slice 8: the workspace-wide list and its project chooser were
+ * Slice 7's temporary `/tasks` page, and every real task list now belongs to a project's
+ * canvas. `ProjectPage` provides the single instance and is the only caller of `load`.
  */
 @Injectable()
 export class TaskListStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
 
-  private readonly projectsState = signal<Project[]>([]);
   private readonly tasksState = signal<Task[]>([]);
-  private readonly selectedProjectIdState = signal<ProjectId | null>(null);
+  private readonly projectIdState = signal<ProjectId | null>(null);
   private readonly selectedTaskIdState = signal<TaskId | null>(null);
   private readonly loadingState = signal(false);
   private readonly errorState = signal<string | null>(null);
@@ -37,9 +33,8 @@ export class TaskListStore {
   private readonly fieldRevisions = new Map<TaskId, Map<MutableTaskField, number>>();
   private readonly fieldQueues = new Map<string, Promise<void>>();
 
-  readonly projects = this.projectsState.asReadonly();
   readonly tasks = this.tasksState.asReadonly();
-  readonly selectedProjectId = this.selectedProjectIdState.asReadonly();
+  readonly projectId = this.projectIdState.asReadonly();
   readonly selectedTaskId = this.selectedTaskIdState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
@@ -49,37 +44,26 @@ export class TaskListStore {
     return id === null ? null : (this.tasksState().find((task) => task.id === id) ?? null);
   });
 
-  load(): Promise<void> {
+  /** Archived tasks stay out — they are also outside the project header's progress count. */
+  load(projectId: ProjectId): Promise<void> {
     return this.track(async () => {
+      this.projectIdState.set(projectId);
       this.loadingState.set(true);
       this.errorState.set(null);
       try {
-        const [projects, tasks] = await Promise.all([
-          this.gateway.projects.list({}),
-          this.gateway.tasks.list({ includeArchived: false }),
-        ]);
-        this.projectsState.set(projects);
+        const tasks = await this.gateway.tasks.list({ projectId, includeArchived: false });
         this.tasksState.set(tasks);
-        const selected = this.selectedProjectIdState();
-        if (selected === null || !projects.some(({ id }) => id === selected)) {
-          this.selectedProjectIdState.set(projects[0]?.id ?? null);
-        }
         const selectedTask = this.selectedTaskIdState();
         if (selectedTask !== null && !tasks.some(({ id }) => id === selectedTask)) {
           this.selectedTaskIdState.set(null);
         }
       } catch (error) {
-        this.projectsState.set([]);
         this.tasksState.set([]);
         this.errorState.set(messageOf(error));
       } finally {
         this.loadingState.set(false);
       }
     });
-  }
-
-  chooseProject(id: ProjectId): void {
-    if (this.projectsState().some((project) => project.id === id)) this.selectedProjectIdState.set(id);
   }
 
   selectTask(id: TaskId | null): void {
@@ -89,13 +73,13 @@ export class TaskListStore {
   create(rawTitle: string): Promise<boolean> {
     return this.track(async () => {
       const title = rawTitle.trim();
-      const projectId = this.selectedProjectIdState();
+      const projectId = this.projectIdState();
       if (title === '') {
         this.errorState.set('A task title is required.');
         return false;
       }
       if (projectId === null) {
-        this.errorState.set('Choose a project before creating a task.');
+        this.errorState.set('Tasks cannot be created before the project loads.');
         return false;
       }
 

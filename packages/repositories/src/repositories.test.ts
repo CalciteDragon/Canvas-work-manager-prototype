@@ -10,8 +10,8 @@ import {
   type User,
 } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import { InMemoryDataStore } from './data-store';
-import { RepositoryConflictError, RepositoryNotFoundError } from './errors';
+import { InMemoryDataStore, unitOfWorkFor } from './data-store';
+import { RepositoryConflictError, RepositoryNotFoundError, UnitOfWorkInProgressError } from './errors';
 import {
   JsonActivityRepository,
   JsonAgentConnectionRepository,
@@ -386,5 +386,68 @@ describe('InMemoryDataStore.snapshot', () => {
 
     expect((await repository.find(snapshot.users[0]!.id))?.preferences.dashboardWidgets).toEqual([]);
     expect(store.snapshot().users[0]?.preferences.dashboardWidgets).toEqual([]);
+  });
+});
+
+describe('JsonSectionRepository', () => {
+  const otherProject: ProjectSection = PrototypeDocumentSchema.shape.sections.element.parse({
+    ...section,
+    id: 'section-2',
+    projectId: 'project-2',
+    position: 0,
+  });
+
+  const populated = async () => {
+    const repository = new JsonSectionRepository(new InMemoryDataStore(baseDocument()));
+    await repository.insert(section);
+    await repository.insert(otherProject);
+    return repository;
+  };
+
+  it('filters sections by project, and answers every section without a query', async () => {
+    const repository = await populated();
+
+    expect(await repository.list({ projectId: section.projectId })).toEqual([section]);
+    expect(await repository.list()).toHaveLength(2);
+  });
+
+  it('removes a section, leaving its siblings alone', async () => {
+    const repository = await populated();
+
+    await repository.remove(section.id);
+
+    expect(await repository.find(section.id)).toBeNull();
+    expect(await repository.list()).toEqual([otherProject]);
+  });
+
+  it('raises not-found removing a section twice', async () => {
+    const repository = await populated();
+    await repository.remove(section.id);
+
+    await expect(repository.remove(section.id)).rejects.toBeInstanceOf(RepositoryNotFoundError);
+  });
+
+  it('refuses to remove from outside the unit of work that is open', async () => {
+    const store = new InMemoryDataStore(baseDocument());
+    const repository = new JsonSectionRepository(store);
+    await repository.insert(section);
+
+    // The same guard `insert` and `update` carry: a caller outside the open operation must
+    // not write into a document that operation is midway through committing.
+    let entered!: () => void;
+    let release!: () => void;
+    const hasEntered = new Promise<void>((resolve) => (entered = resolve));
+    const blocker = new Promise<void>((resolve) => (release = resolve));
+    const operation = unitOfWorkFor(store).run(async () => {
+      entered();
+      await blocker;
+    });
+    await hasEntered;
+
+    await expect(repository.remove(section.id)).rejects.toBeInstanceOf(UnitOfWorkInProgressError);
+
+    release();
+    await operation;
+    expect(await repository.find(section.id)).not.toBeNull();
   });
 });

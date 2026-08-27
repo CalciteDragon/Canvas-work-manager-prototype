@@ -1,0 +1,72 @@
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { NgComponentOutlet } from '@angular/common';
+import {
+  SectionColumnSpanSchema,
+  type ProjectSection,
+  type SectionColumnSpan,
+  type SectionConfig,
+  type SectionId,
+} from '@cwm/contracts';
+import type { SectionContentInputs } from '../section-contract';
+import type { SectionDefinition } from '../registry';
+
+/**
+ * §31's frame: drag handle, title, collapse, configuration, size, duplicate, remove. Every
+ * section renders inside this, and the content component handles only its own feature.
+ *
+ * The frame is **chrome only** — it emits intent and never touches a gateway, which is what
+ * lets one component carry the affordances for every section type.
+ *
+ * The controls are visible unconditionally. §32's Edit Layout Mode is what will hide them,
+ * and that mode arrives in Slice 9; gating on a mode that does not exist is unbuildable.
+ */
+@Component({
+  selector: 'app-project-section-frame',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [NgComponentOutlet],
+  templateUrl: './project-section-frame.html',
+  styleUrl: './project-section-frame.scss',
+})
+export class ProjectSectionFrame {
+  readonly section = input.required<ProjectSection>();
+  readonly definition = input.required<SectionDefinition>();
+
+  readonly collapseToggled = output<{ id: SectionId; collapsed: boolean }>();
+  readonly resized = output<{ id: SectionId; columnSpan: SectionColumnSpan }>();
+  readonly duplicateRequested = output<SectionId>();
+  readonly removeRequested = output<SectionId>();
+  readonly configChanged = output<{ id: SectionId; config: SectionConfig }>();
+
+  readonly configOpen = signal(false);
+  readonly columnSpans = [...SectionColumnSpanSchema.values];
+  readonly title = computed(() => this.section().title ?? this.definition().displayName);
+
+  /**
+   * A class-property arrow, so its identity never changes. `NgComponentOutlet` applies its
+   * inputs from `ngDoCheck` and calls `setInput` for each key on every change-detection
+   * pass; only `setInput`'s `Object.is` check stops that from marking the content component
+   * dirty every cycle, and an inline arrow would defeat it.
+   */
+  private readonly emitConfig = (config: SectionConfig): void => {
+    this.configChanged.emit({ id: this.section().id, config });
+  };
+
+  /** Computed for the same reason: an object literal in the template is a new identity too. */
+  readonly contentInputs = computed<SectionContentInputs>(() => ({
+    section: this.section(),
+    onConfigChange: this.emitConfig,
+  }));
+
+  toggleCollapsed(): void {
+    this.collapseToggled.emit({ id: this.section().id, collapsed: !this.section().collapsed });
+  }
+
+  toggleConfig(): void {
+    this.configOpen.update((open) => !open);
+  }
+
+  resize(value: string): void {
+    const columnSpan = SectionColumnSpanSchema.safeParse(Number(value));
+    if (columnSpan.success) this.resized.emit({ id: this.section().id, columnSpan: columnSpan.data });
+  }
+}

@@ -61,6 +61,13 @@ const setup = (options: {
       list: vi.fn(async () => projects),
       get: vi.fn(async () => projects[0]!),
     },
+    sections: {
+      list: vi.fn(async () => []),
+      create: vi.fn(),
+      update: vi.fn(),
+      duplicate: vi.fn(),
+      remove: vi.fn(async () => undefined),
+    } as unknown as WorkManagerGateway['sections'],
     tasks: {
       list: vi.fn(async () => tasks),
       get: vi.fn(async () => tasks[0]!),
@@ -80,21 +87,20 @@ const setup = (options: {
 };
 
 describe('TaskListStore', () => {
-  it('loads projects and unarchived tasks and chooses the first project for quick create', async () => {
+  it('loads one project’s unarchived tasks, and only that project’s', async () => {
     const { store, gateway } = setup();
 
-    await store.load();
+    await store.load(project('project-b').id);
 
-    expect(store.projects().map(({ name }) => name)).toEqual(['Project A', 'Project B']);
     expect(store.tasks().map(({ title }) => title)).toEqual(['Write the first draft']);
-    expect(store.selectedProjectId()).toBe('project-a');
-    expect(gateway.tasks.list).toHaveBeenCalledWith({ includeArchived: false });
+    expect(store.projectId()).toBe('project-b');
+    // Archived tasks stay out, which is also what keeps them out of the header's progress.
+    expect(gateway.tasks.list).toHaveBeenCalledWith({ projectId: 'project-b', includeArchived: false });
   });
 
-  it('creates a trimmed task in the chosen project and selects the server result', async () => {
+  it('creates a trimmed task in the loaded project and selects the server result', async () => {
     const { store, gateway } = setup();
-    await store.load();
-    store.chooseProject(project('project-b').id);
+    await store.load(project('project-b').id);
 
     expect(await store.create('  New task  ')).toBe(true);
 
@@ -103,9 +109,17 @@ describe('TaskListStore', () => {
     expect(store.selectedTask()?.id).toBe('task-created');
   });
 
+  it('refuses to create before a project has loaded', async () => {
+    const { store, gateway } = setup();
+
+    expect(await store.create('New task')).toBe(false);
+    expect(gateway.tasks.create).not.toHaveBeenCalled();
+    expect(store.error()).toContain('project');
+  });
+
   it('rejects a blank quick-create title without calling the gateway', async () => {
     const { store, gateway } = setup();
-    await store.load();
+    await store.load(project().id);
 
     expect(await store.create('   ')).toBe(false);
     expect(gateway.tasks.create).not.toHaveBeenCalled();
@@ -122,7 +136,7 @@ describe('TaskListStore', () => {
       }),
     );
     const { store } = setup({ update });
-    await store.load();
+    await store.load(project().id);
 
     await store.updateTitle(task().id, '  Revised title  ');
     await store.updatePriority(task().id, 'high');
@@ -147,7 +161,7 @@ describe('TaskListStore', () => {
   it('marks completion immediately while the gateway is pending, then reconciles its status fields', async () => {
     const result = deferred<Task>();
     const { store } = setup({ complete: vi.fn(() => result.promise) });
-    await store.load();
+    await store.load(project().id);
 
     const completion = store.complete(task().id);
 
@@ -165,7 +179,7 @@ describe('TaskListStore', () => {
     const before = task({ title: 'Keep every field', priority: 'high' });
     const result = deferred<Task>();
     const { store } = setup({ tasks: [before], complete: vi.fn(() => result.promise) });
-    await store.load();
+    await store.load(project().id);
 
     const completion = store.complete(before.id);
     result.reject(new GatewayError('unreachable', 0, 'could not reach the prototype host'));
@@ -178,7 +192,7 @@ describe('TaskListStore', () => {
   it('does not let an older failed completion overwrite a newer title mutation', async () => {
     const result = deferred<Task>();
     const { store } = setup({ complete: vi.fn(() => result.promise) });
-    await store.load();
+    await store.load(project().id);
 
     const completion = store.complete(task().id);
     await store.updateTitle(task().id, 'Newer title');
@@ -191,7 +205,7 @@ describe('TaskListStore', () => {
   it('does not let an older successful completion response overwrite a newer title mutation', async () => {
     const result = deferred<Task>();
     const { store } = setup({ complete: vi.fn(() => result.promise) });
-    await store.load();
+    await store.load(project().id);
 
     const completion = store.complete(task().id);
     await store.updateTitle(task().id, 'Newer title');
@@ -209,7 +223,7 @@ describe('TaskListStore', () => {
       .mockImplementationOnce(() => first.promise)
       .mockImplementationOnce(() => second.promise);
     const { store } = setup({ update });
-    await store.load();
+    await store.load(project().id);
 
     const older = store.updateTitle(task().id, 'Persisted title');
     const newer = store.updateTitle(task().id, 'Rejected title');

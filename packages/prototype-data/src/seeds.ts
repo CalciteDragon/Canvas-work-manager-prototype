@@ -78,18 +78,28 @@ const task = (
     updatedAt: UPDATED_AT,
   });
 
-const taskListSection = (id: string, projectId: string, position = 0) =>
+const section = (id: string, projectId: string, type: string, position: number, config: object = {}) =>
   ProjectSectionSchema.parse({
     id,
     projectId,
-    type: 'task-list',
+    type,
     position,
     columnSpan: 12,
     collapsed: false,
-    config: {},
+    config,
     createdAt: CREATED_AT,
     updatedAt: UPDATED_AT,
   });
+
+/**
+ * The canvas every seeded project gets: a Rich Text brief above its Task List (§30's first
+ * two section types). Positions are dense *within a project* — the canvas orders by
+ * `position`, and a gap or a repeat has no meaning any renderer could use.
+ */
+const projectCanvas = (projectId: string, brief: string) => [
+  section(`section-${projectId}-brief`, projectId, 'rich-text', 0, { text: brief }),
+  section(`section-${projectId}-tasks`, projectId, 'task-list', 1),
+];
 
 const document = (collections: Partial<PrototypeDocument> = {}): PrototypeDocument =>
   PrototypeDocumentSchema.parse({
@@ -118,7 +128,7 @@ const personalWorkspace = (): PrototypeDocument => {
   ];
   return document({
     projects,
-    sections: [taskListSection('section-personal-tasks', projects[0]!.id)],
+    sections: projectCanvas(projects[0]!.id, 'Keep this light. One or two things a week is plenty.'),
     tasks: [
       task('task-personal-plan', projects[0]!.id, 'Plan the week', {
         status: 'in_progress',
@@ -156,7 +166,11 @@ const busyWeek = (): PrototypeDocument => {
   ];
   return document({
     projects,
-    sections: projects.map((item, position) => taskListSection(`section-${item.id}-tasks`, item.id, position)),
+    sections: [
+      ...projectCanvas(projects[0]!.id, 'Launch week. Copy is signed off; QA and analytics are the risk.'),
+      ...projectCanvas(projects[1]!.id, 'Small household jobs. Nothing here is urgent.'),
+      ...projectCanvas(projects[2]!.id, 'Two modules left before the end of the month.'),
+    ],
     tasks: [
       task('task-launch-copy', projects[0]!.id, 'Approve homepage copy', {
         status: 'done',
@@ -207,7 +221,14 @@ const nestedProjects = (): PrototypeDocument => {
   ];
   return document({
     projects,
-    sections: projects.map((item) => taskListSection(`section-${item.id}-tasks`, item.id)),
+    // `project-cabinets` deliberately gets no sections: an empty canvas is a state the
+    // project page has to handle, and a leaf sub-project nobody has set up yet is the most
+    // honest place to find one.
+    sections: [
+      ...projectCanvas(projects[0]!.id, 'Whole-house plan. Kitchen first, garden in the spring.'),
+      ...projectCanvas(projects[1]!.id, 'Appliances and finishes before cabinets are ordered.'),
+      ...projectCanvas(projects[3]!.id, 'Autumn planting only. Structural work waits for next year.'),
+    ],
     tasks: [
       task('task-renovation-budget', projects[0]!.id, 'Confirm renovation budget', { priority: 'high' }),
       task('task-kitchen-appliances', projects[1]!.id, 'Choose appliance finishes'),
@@ -230,7 +251,10 @@ const overdueChaos = (): PrototypeDocument => {
   ];
   return document({
     projects,
-    sections: projects.map((item) => taskListSection(`section-${item.id}-tasks`, item.id)),
+    sections: [
+      ...projectCanvas(projects[0]!.id, 'Behind on every milestone. Triage before adding anything new.'),
+      ...projectCanvas(projects[1]!.id, 'The pile of things that have no other home.'),
+    ],
     tasks: [
       task('task-chaos-export', projects[0]!.id, 'Export legacy records', {
         status: 'in_progress',

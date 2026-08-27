@@ -1,9 +1,10 @@
-import { IdentitySchema, PrototypeDocumentSchema, SCHEMA_VERSION, ProjectSchema, TaskSchema } from '@cwm/contracts';
-import { ActivityService, PrototypeClock, PrototypeIdGenerator, ProjectService, TaskService } from '@cwm/domain';
+import { IdentitySchema, ProjectSectionSchema, PrototypeDocumentSchema, SCHEMA_VERSION, ProjectSchema, TaskSchema } from '@cwm/contracts';
+import { ActivityService, PrototypeClock, PrototypeIdGenerator, ProjectService, SectionService, TaskService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
   JsonProjectRepository,
+  JsonSectionRepository,
   JsonTaskRepository,
   unitOfWorkFor,
 } from '@cwm/repositories';
@@ -46,6 +47,7 @@ const buildRoutes = (withProjects = true): RouteTable => {
   const clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'));
   const ids = new PrototypeIdGenerator();
   const projects = new JsonProjectRepository(store);
+  const sections = new JsonSectionRepository(store);
   const tasks = new JsonTaskRepository(store);
   const activities = new JsonActivityRepository(store);
   const activity = new ActivityService({ activities, clock, ids });
@@ -56,6 +58,7 @@ const buildRoutes = (withProjects = true): RouteTable => {
     activity,
     projects: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, activity, clock, ids, unitOfWork }),
+    sections: new SectionService({ sections, projects, activity, clock, ids, unitOfWork }),
   });
 };
 
@@ -285,5 +288,99 @@ describe('identity route', () => {
     const result = await call(buildRoutes(), 'GET', '/api/me', { user: 'user-nobody' });
 
     expect(result.status).toBe(404);
+  });
+});
+
+describe('section routes', () => {
+  const newSection = async (routes: RouteTable, body: unknown = { type: 'rich-text' }, projectId = MINE) =>
+    ProjectSectionSchema.parse((await call(routes, 'POST', `/api/projects/${projectId}/sections`, { body })).body);
+
+  it('lists, creates, updates, moves, duplicates and removes a section', async () => {
+    const routes = buildRoutes();
+
+    const empty = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
+    expect(empty).toMatchObject({ status: 200, body: [] });
+
+    const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, {
+      body: { type: 'rich-text', config: { text: 'Kickoff' } },
+    });
+    expect(created.status).toBe(201);
+    const section = ProjectSectionSchema.parse(created.body);
+    expect(section).toMatchObject({ projectId: MINE, type: 'rich-text', position: 0, config: { text: 'Kickoff' } });
+
+    const collapsed = await call(routes, 'PATCH', `/api/sections/${section.id}`, { body: { collapsed: true } });
+    expect(ProjectSectionSchema.parse(collapsed.body).collapsed).toBe(true);
+
+    const sibling = await newSection(routes, { type: 'task-list' });
+    const moved = await call(routes, 'POST', `/api/sections/${section.id}/move`, { body: { position: 1 } });
+    expect(ProjectSectionSchema.parse(moved.body).position).toBe(1);
+
+    const duplicated = await call(routes, 'POST', `/api/sections/${section.id}/duplicate`, {});
+    expect(duplicated.status).toBe(201);
+    expect(ProjectSectionSchema.parse(duplicated.body)).toMatchObject({ type: 'rich-text', position: 2 });
+
+    const removed = await call(routes, 'DELETE', `/api/sections/${sibling.id}`);
+    expect(removed.status).toBe(204);
+    const remaining = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
+    expect(ProjectSectionSchema.array().parse(remaining.body).map((item) => item.position)).toEqual([0, 1]);
+  });
+
+  it('answers the project’s sections in position order', async () => {
+    const routes = buildRoutes();
+    const first = await newSection(routes, { type: 'rich-text' });
+    await newSection(routes, { type: 'task-list' });
+    await call(routes, 'POST', `/api/sections/${first.id}/move`, { body: { position: 1 } });
+
+    const result = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
+
+    expect(ProjectSectionSchema.array().parse(result.body).map((item) => item.type)).toEqual([
+      'task-list',
+      'rich-text',
+    ]);
+  });
+
+  it('answers 404 for the sections of a project in another workspace', async () => {
+    const routes = buildRoutes();
+
+    expect((await call(routes, 'GET', `/api/projects/${THEIRS}/sections`)).status).toBe(404);
+    expect(
+      (await call(routes, 'POST', `/api/projects/${THEIRS}/sections`, { body: { type: 'rich-text' } })).status,
+    ).toBe(404);
+  });
+
+  it.each([
+    ['PATCH', (id: string) => `/api/sections/${id}`, { collapsed: true }],
+    ['DELETE', (id: string) => `/api/sections/${id}`, undefined],
+    ['POST', (id: string) => `/api/sections/${id}/move`, { position: 0 }],
+    ['POST', (id: string) => `/api/sections/${id}/duplicate`, undefined],
+  ])('answers 404 when %s names a section the caller cannot see', async (method, path, body) => {
+    const routes = buildRoutes();
+    const section = await newSection(routes);
+
+    // Not-found rather than forbidden: a 409 would confirm the section exists.
+    expect((await call(routes, method, path(section.id), { body, user: ALEX })).status).toBe(404);
+    expect((await call(routes, method, path('section-nope'), { body })).status).toBe(404);
+  });
+
+  it('answers 404 for a section that was already removed', async () => {
+    const routes = buildRoutes();
+    const section = await newSection(routes);
+    await call(routes, 'DELETE', `/api/sections/${section.id}`);
+
+    expect((await call(routes, 'DELETE', `/api/sections/${section.id}`)).status).toBe(404);
+  });
+
+  it('answers 400 for a column span outside the §27 presets and for a config that is not an object', async () => {
+    const routes = buildRoutes();
+    const section = await newSection(routes);
+
+    expect(
+      (await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', columnSpan: 7 } }))
+        .status,
+    ).toBe(400);
+    expect((await call(routes, 'PATCH', `/api/sections/${section.id}`, { body: { config: null } })).status).toBe(400);
+    expect((await call(routes, 'POST', `/api/sections/${section.id}/move`, { body: { position: -1 } })).status).toBe(
+      400,
+    );
   });
 });

@@ -127,10 +127,23 @@
   ],
   "sections": [
     {
+      "id": "section-project-client-migration-brief",
+      "projectId": "project-client-migration",
+      "type": "rich-text",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "Behind on every milestone. Triage before adding anything new."
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
       "id": "section-project-client-migration-tasks",
       "projectId": "project-client-migration",
       "type": "task-list",
-      "position": 0,
+      "position": 1,
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
@@ -138,10 +151,23 @@
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
     {
+      "id": "section-project-admin-brief",
+      "projectId": "project-admin",
+      "type": "rich-text",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "The pile of things that have no other home."
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
       "id": "section-project-admin-tasks",
       "projectId": "project-admin",
       "type": "task-list",
-      "position": 0,
+      "position": 1,
       "columnSpan": 12,
       "collapsed": false,
       "config": {},

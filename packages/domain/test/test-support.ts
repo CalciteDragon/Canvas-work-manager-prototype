@@ -1,11 +1,12 @@
 import { PrototypeDocumentSchema, SCHEMA_VERSION, type Project, type ProjectId, type PrototypeDocument, type UserId, type WorkspaceId } from '@cwm/contracts';
 import { PERSONAS, SEED_NOW } from '@cwm/prototype-data';
-import { InMemoryDataStore, JsonActivityRepository, JsonProjectRepository, JsonTaskRepository, unitOfWorkFor } from '@cwm/repositories';
+import { InMemoryDataStore, JsonActivityRepository, JsonProjectRepository, JsonSectionRepository, JsonTaskRepository, unitOfWorkFor } from '@cwm/repositories';
 import type { ActorContext } from '../src/actor';
 import { PrototypeClock } from '../src/clock';
 import type { IdGenerator } from '../src/ids';
 import { ActivityService } from '../src/activity-service';
 import { ProjectService } from '../src/project-service';
+import { SectionService } from '../src/section-service';
 import { TaskService } from '../src/task-service';
 
 /** `data-store.test.ts`'s tracking store is test-local; several tests here count persists. */
@@ -75,6 +76,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument())
   const ids = new CountingIdGenerator();
   const unitOfWork = unitOfWorkFor(store);
   const projects = new JsonProjectRepository(store);
+  const sections = new JsonSectionRepository(store);
   const tasks = new JsonTaskRepository(store);
   const activities = new JsonActivityRepository(store);
   const activity = new ActivityService({ activities, clock, ids });
@@ -84,6 +86,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument())
     clock,
     ids,
     projects,
+    sections,
     tasks,
     activities,
     activity,
@@ -91,5 +94,6 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument())
     other: actorFor(1),
     projectService: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
     taskService: new TaskService({ tasks, projects, activity, clock, ids, unitOfWork }),
+    sectionService: new SectionService({ sections, projects, activity, clock, ids, unitOfWork }),
   };
 };
