@@ -200,4 +200,32 @@ describe('TaskListStore', () => {
 
     expect(store.tasks()[0]).toMatchObject({ title: 'Newer title', status: 'done' });
   });
+
+  it('keeps an older successful same-field edit when the queued newer edit fails', async () => {
+    const first = deferred<Task>();
+    const second = deferred<Task>();
+    const update = vi
+      .fn<WorkManagerGateway['tasks']['update']>()
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(() => second.promise);
+    const { store } = setup({ update });
+    await store.load();
+
+    const older = store.updateTitle(task().id, 'Persisted title');
+    const newer = store.updateTitle(task().id, 'Rejected title');
+    await Promise.resolve();
+    const callsWhileOlderPending = update.mock.calls.length;
+
+    first.resolve(task({ title: 'Persisted title' }));
+    await older;
+    await Promise.resolve();
+    const callsAfterOlderSettled = update.mock.calls.length;
+
+    second.reject(new GatewayError('unreachable', 0, 'newer edit failed'));
+    await newer;
+    expect(callsWhileOlderPending).toBe(1);
+    expect(callsAfterOlderSettled).toBe(2);
+    expect(store.tasks()[0]?.title).toBe('Persisted title');
+    expect(store.error()).toContain('newer edit failed');
+  });
 });

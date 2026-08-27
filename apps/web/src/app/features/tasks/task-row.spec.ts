@@ -53,9 +53,11 @@ describe('TaskRow', () => {
     const emitted = vi.fn();
     component.titleEdited.subscribe(emitted);
 
-    element.querySelector<HTMLElement>('[data-task-title]')?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    element.querySelector<HTMLButtonElement>('[data-task-title]')?.click();
     await fixture.whenStable();
     const editor = element.querySelector<HTMLInputElement>('[data-task-title-editor]')!;
+    expect(document.activeElement).toBe(editor);
+    expect(editor.getAttribute('aria-label')).toContain('Write the first draft');
     editor.value = '  Revised title  ';
     editor.dispatchEvent(new Event('input', { bubbles: true }));
     editor.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
@@ -70,7 +72,7 @@ describe('TaskRow', () => {
     const emitted = vi.fn();
     component.titleEdited.subscribe(emitted);
 
-    element.querySelector<HTMLElement>('[data-task-title]')?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    element.querySelector<HTMLButtonElement>('[data-task-title]')?.click();
     await fixture.whenStable();
     const editor = element.querySelector<HTMLInputElement>('[data-task-title-editor]')!;
     editor.value = '   ';

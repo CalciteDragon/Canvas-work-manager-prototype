@@ -36,6 +36,10 @@
     <div class="task-list" [attr.aria-busy]="store.loading()">
       @if (store.loading()) {
         <p data-tasks-loading class="tasks-page__muted">Loading tasks…</p>
+      } @else if (store.error() !== null && store.projects().length === 0 && store.tasks().length === 0) {
+        <p data-task-load-failed class="tasks-page__muted">Tasks could not be loaded. Try reloading when the host is available.</p>
+      } @else if (store.projects().length === 0) {
+        <p data-no-projects class="tasks-page__muted">Load a seed with a project before adding tasks.</p>
       } @else if (store.tasks().length === 0) {
         <p data-tasks-empty class="tasks-page__muted">No tasks yet. Add the first one above.</p>
       } @else {

@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import type { Task, TaskId } from '@cwm/contracts';
 
 @Component({
@@ -22,6 +32,7 @@ export class TaskRow {
   readonly editing = signal(false);
   readonly draftTitle = signal('');
   readonly titleError = signal<string | null>(null);
+  private readonly titleEditor = viewChild<ElementRef<HTMLInputElement>>('titleEditor');
 
   readonly completed = computed(() => this.task().status === 'done');
   readonly overdue = computed(() => {
@@ -41,6 +52,14 @@ export class TaskRow {
       !this.selected() &&
       !this.compact(),
   );
+
+  constructor() {
+    // Editing swaps a button for an input. Moving focus with that swap makes the same
+    // interaction work for keyboard and assistive-technology users, not only a mouse.
+    effect(() => {
+      if (this.editing()) this.titleEditor()?.nativeElement.focus();
+    });
+  }
 
   requestCompletion(): void {
     if (!this.completed() && !this.pending()) this.completionRequested.emit(this.task().id);

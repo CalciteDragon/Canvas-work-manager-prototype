@@ -35,6 +35,7 @@ export class TaskListStore {
 
   private revision = 0;
   private readonly fieldRevisions = new Map<TaskId, Map<MutableTaskField, number>>();
+  private readonly fieldQueues = new Map<string, Promise<void>>();
 
   readonly projects = this.projectsState.asReadonly();
   readonly tasks = this.tasksState.asReadonly();
@@ -163,17 +164,37 @@ export class TaskListStore {
     input: UpdateTaskInput,
     fields: MutableTaskField[],
   ): Promise<boolean> {
-    return this.track(async () => {
-      this.errorState.set(null);
-      const operationRevision = this.claim(id, fields);
-      try {
-        const updated = await this.gateway.tasks.update(id, input);
-        this.patchCurrent(id, updated, fields, operationRevision);
-        return true;
-      } catch (error) {
-        this.errorState.set(messageOf(error));
-        return false;
-      }
+    // Edits to one field are ordered. Otherwise a newer failed title write can retain
+    // ownership forever and suppress an older successful response, leaving the UI stale
+    // until reload. Different fields still run independently (for example, title editing
+    // does not wait behind a slow optimistic completion).
+    const queueKey = `${id}:${fields[0]}`;
+    return this.track(() =>
+      this.enqueue(queueKey, async () => {
+        this.errorState.set(null);
+        const operationRevision = this.claim(id, fields);
+        try {
+          const updated = await this.gateway.tasks.update(id, input);
+          this.patchCurrent(id, updated, fields, operationRevision);
+          return true;
+        } catch (error) {
+          this.errorState.set(messageOf(error));
+          return false;
+        }
+      }),
+    );
+  }
+
+  private enqueue<T>(key: string, operation: () => Promise<T>): Promise<T> {
+    const previous = this.fieldQueues.get(key) ?? Promise.resolve();
+    const result = previous.then(operation);
+    const tail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.fieldQueues.set(key, tail);
+    return result.finally(() => {
+      if (this.fieldQueues.get(key) === tail) this.fieldQueues.delete(key);
     });
   }
 

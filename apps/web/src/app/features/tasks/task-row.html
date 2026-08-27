@@ -23,8 +23,10 @@
     @if (editing()) {
       <input
         data-task-title-editor
+        #titleEditor
         class="task-row__title-editor"
         [value]="draftTitle()"
+        [attr.aria-label]="'Edit title for ' + task().title"
         [attr.aria-invalid]="titleError() !== null"
         (input)="updateDraft($any($event.target).value)"
         (blur)="commitTitle()"
@@ -35,7 +37,7 @@
         <span data-title-error class="task-row__error">{{ error }}</span>
       }
     } @else {
-      <button data-task-title class="task-row__title" type="button" (dblclick)="beginEditing()">
+      <button data-task-title class="task-row__title" type="button" (click)="beginEditing()">
         {{ task().title }}
       </button>
     }

@@ -38,11 +38,20 @@ const deferred = <T>() => {
   return { promise, resolve, reject };
 };
 
-const render = async (complete?: WorkManagerGateway['tasks']['complete']) => {
+const render = async (
+  options: {
+    complete?: WorkManagerGateway['tasks']['complete'];
+    projects?: Project[];
+    projectLoadError?: GatewayError;
+  } = {},
+) => {
   let current = makeTask();
   const gateway: WorkManagerGateway = {
     projects: {
-      list: vi.fn(async () => [project]),
+      list: vi.fn(async () => {
+        if (options.projectLoadError !== undefined) throw options.projectLoadError;
+        return options.projects ?? [project];
+      }),
       get: vi.fn(async () => project),
     },
     tasks: {
@@ -57,7 +66,8 @@ const render = async (complete?: WorkManagerGateway['tasks']['complete']) => {
         });
         return current;
       }),
-      complete: complete ?? vi.fn(async () => (current = makeTask({ ...current, status: 'done', completedAt: AT }))),
+      complete:
+        options.complete ?? vi.fn(async () => (current = makeTask({ ...current, status: 'done', completedAt: AT }))),
       archive: vi.fn(async () => undefined),
     },
   };
@@ -94,7 +104,7 @@ describe('TasksPage', () => {
   it('wires inline title editing, detail selection, priority, and due date to the store', async () => {
     const { fixture, element, gateway } = await render();
 
-    element.querySelector<HTMLElement>('[data-task-title]')?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    element.querySelector<HTMLButtonElement>('[data-task-title]')?.click();
     await fixture.whenStable();
     const title = element.querySelector<HTMLInputElement>('[data-task-title-editor]')!;
     title.value = 'Revised title';
@@ -121,7 +131,7 @@ describe('TasksPage', () => {
 
   it('renders optimistic completion, then rollback and a visible error when persistence fails', async () => {
     const result = deferred<Task>();
-    const { fixture, element } = await render(vi.fn(() => result.promise));
+    const { fixture, element } = await render({ complete: vi.fn(() => result.promise) });
 
     element.querySelector<HTMLInputElement>('[data-task-complete]')?.click();
     fixture.detectChanges();
@@ -132,5 +142,23 @@ describe('TasksPage', () => {
 
     expect(element.querySelector('[data-task-row]')?.classList.contains('task-row--completed')).toBe(false);
     expect(element.querySelector('[data-tasks-error]')?.textContent).toContain('could not reach the prototype host');
+  });
+
+  it('explains that quick create needs a project when the seed has none', async () => {
+    const { element } = await render({ projects: [] });
+
+    expect(element.querySelector('[data-no-projects]')?.textContent).toContain('seed with a project');
+    expect(element.querySelector<HTMLButtonElement>('[data-quick-create] button')?.disabled).toBe(true);
+    expect(element.querySelector('[data-tasks-empty]')).toBeNull();
+  });
+
+  it('renders a distinct load failure instead of an impossible empty-state instruction', async () => {
+    const { element } = await render({
+      projectLoadError: new GatewayError('unreachable', 0, 'could not reach the prototype host'),
+    });
+
+    expect(element.querySelector('[data-task-load-failed]')?.textContent).toContain('Try reloading');
+    expect(element.querySelector('[data-no-projects]')).toBeNull();
+    expect(element.querySelector('[data-tasks-empty]')).toBeNull();
   });
 });
