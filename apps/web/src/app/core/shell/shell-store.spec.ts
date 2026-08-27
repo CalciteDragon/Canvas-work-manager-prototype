@@ -81,13 +81,16 @@ describe('ShellStore', () => {
     expect(store.projectTree().map((node) => node.project.name).sort()).toEqual(['A', 'B']);
   });
 
+  // The expected list is written out rather than recomputed from ProjectStatusSchema:
+  // restating the expression under test would pass however that expression drifts.
   it('asks for every project status except archived', async () => {
     const { store, gateway } = storeWith();
 
     await store.load();
 
     const query = gateway.argumentTo('projects.list') as ProjectQuery;
-    expect(query.status).toEqual(ProjectStatusSchema.options.filter((status) => status !== 'archived'));
+    expect(query.status).toEqual(['planning', 'active', 'on_hold', 'completed']);
+    expect(query.status).toHaveLength(ProjectStatusSchema.options.length - 1);
   });
 
   it('settles into an error state when the projects call fails', async () => {
@@ -107,5 +110,39 @@ describe('ShellStore', () => {
 
     expect(store.error()).not.toBeNull();
     expect(store.loading()).toBe(false);
+  });
+});
+
+// Found in review: the first cycle guard dropped the edge for any node *downstream* of a
+// cycle, not just the nodes in it — so `a → b`, where b self-parents, detached a valid,
+// renderable edge and made `a` a sibling of its own parent.
+describe('ShellStore — a corrupt parent chain', () => {
+  it('keeps a valid edge into a self-parenting project', async () => {
+    const { store } = storeWith({
+      projects: [project('project-a', 'A', 'project-b'), project('project-b', 'B', 'project-b')],
+    });
+
+    await store.load();
+
+    const [root] = store.projectTree();
+    expect(root?.project.name).toBe('B');
+    expect(root?.children.map((child) => child.project.name)).toEqual(['A']);
+  });
+
+  it('drops only the edges inside a two-node cycle, and keeps a child hanging off it', async () => {
+    const { store } = storeWith({
+      projects: [
+        project('project-a', 'A', 'project-b'),
+        project('project-b', 'B', 'project-a'),
+        project('project-c', 'C', 'project-a'),
+      ],
+    });
+
+    await store.load();
+
+    const names = store.projectTree().map((node) => node.project.name).sort();
+    expect(names).toEqual(['A', 'B']);
+    const a = store.projectTree().find((node) => node.project.name === 'A');
+    expect(a?.children.map((child) => child.project.name)).toEqual(['C']);
   });
 });

@@ -1,11 +1,27 @@
-// One fixture per rule, so the self-test can name what it expects rather than count.
+// One fixture per rule and per closed bypass, so the self-test can name what it expects
+// rather than count. Every line below was, at some point, something this checker missed.
 .hex { color: #ff0000; }
 .rgb { background: rgba(0, 0, 0, 0.4); }
 .hsl { border-color: hsl(210 40% 50%); }
+.modern { color: oklch(70% 0.1 200); }
 .named { color: crimson; }
-.length { padding: 12px; }
+.rare-name { border-color: rebeccapurple; }
+.px { padding: 12px; }
+.rem { max-width: 40rem; }
+.em { letter-spacing: 0.04em; }
+.private-palette { --my-accent: #00ff00; }
+.after-nested {
+  &:hover { color: var(--color-text); }
+  border-radius: 6px;
+}
+.transform { transform: translateY(24px); }
 
 // Controls: these must NOT be reported.
 .hairline { border: 1px solid var(--color-border); }
 .tokens { padding: var(--space-3); color: var(--color-text); }
-.content-word { grid-template-areas: 'side workspace'; }
+.fills { height: 100vh; width: 100%; grid-template-columns: var(--layout-sidebar-width) 1fr; }
+.zero { margin: 0; }
+.words { grid-template-areas: 'side workspace'; }
+.quoted-content { content: "hex #fff means white"; }
+.svg-reference { fill: url(#face); }
+.typefaces { font-family: Gold, Tan, Sienna, sans-serif; }

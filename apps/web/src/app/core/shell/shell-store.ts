@@ -78,30 +78,47 @@ const toTree = (projects: Project[]): ProjectTreeNode[] => {
   const nodes = new Map<string, ProjectTreeNode>(
     projects.map((project) => [project.id, { project, children: [] }]),
   );
+  const inCycle = cycleMembers(nodes);
 
   const roots: ProjectTreeNode[] = [];
   for (const node of nodes.values()) {
-    const parent = parentOf(node, nodes);
+    const parentId = node.project.parentProjectId;
+    // A node *inside* a cycle is cut loose; a node merely pointing at one keeps its edge.
+    // The first version cut both, so a project whose parent happened to self-reference
+    // was rendered as its own parent's sibling.
+    const parent = parentId === undefined || inCycle.has(node.project.id) ? undefined : nodes.get(parentId);
     if (parent === undefined) roots.push(node);
     else parent.children.push(node);
   }
   return roots;
 };
 
-/** The node's parent, or `undefined` if it has none, it is unknown, or it is a cycle. */
-const parentOf = (
-  node: ProjectTreeNode,
-  nodes: ReadonlyMap<string, ProjectTreeNode>,
-): ProjectTreeNode | undefined => {
-  const parentId = node.project.parentProjectId;
-  if (parentId === undefined) return undefined;
+/**
+ * Every id that sits on a parent cycle. One pass with a shared `settled` set, so the whole
+ * walk is O(n) rather than a fresh ancestor climb per node.
+ */
+const cycleMembers = (nodes: ReadonlyMap<string, ProjectTreeNode>): ReadonlySet<string> => {
+  const cyclic = new Set<string>();
+  const settled = new Set<string>();
 
-  const visited = new Set<string>([node.project.id]);
-  let ancestorId: string | undefined = parentId;
-  while (ancestorId !== undefined) {
-    if (visited.has(ancestorId)) return undefined;
-    visited.add(ancestorId);
-    ancestorId = nodes.get(ancestorId)?.project.parentProjectId;
+  for (const start of nodes.keys()) {
+    if (settled.has(start)) continue;
+
+    const path: string[] = [];
+    const onPath = new Set<string>();
+    let current: string | undefined = start;
+
+    while (current !== undefined && !settled.has(current) && !onPath.has(current)) {
+      path.push(current);
+      onPath.add(current);
+      current = nodes.get(current)?.project.parentProjectId;
+    }
+
+    // Stopping on a node already on this path means everything from it onward is the loop.
+    if (current !== undefined && onPath.has(current)) {
+      for (const id of path.slice(path.indexOf(current))) cyclic.add(id);
+    }
+    for (const id of path) settled.add(id);
   }
-  return nodes.get(parentId);
+  return cyclic;
 };

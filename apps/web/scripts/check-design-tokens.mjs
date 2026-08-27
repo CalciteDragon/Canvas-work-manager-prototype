@@ -7,7 +7,12 @@
 //
 // Rules apply to **declaration values only**, never to whole files. A file-wide regex
 // would flag `class="surface-tan"`, the word "Silver" in body copy, and `<svg width="24">`
-// — and a checker with false positives gets worked around instead of fixed.
+// — and a checker with false positives gets worked around instead of fixed. Scoping to
+// values is also what makes an exhaustive named-color list safe.
+//
+// The first version of this checker passed a probe file containing eleven deliberate
+// literals. Each hole it had is now a fixture in `scripts/fixtures/violations/`, because a
+// lint you have not watched fail on every violation form is a lint you are guessing about.
 
 import { readdir, readFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -24,37 +29,92 @@ const sourceRoot = resolve(
 const TOKENS_FILE = resolve(sourceRoot, 'styles', '_tokens.scss');
 
 /**
- * CSS named colors. Only the ones a person would plausibly type — the full 148 add false
- * positives (`tan`, `linen`, `plum`) for values nobody reaches for by accident.
+ * Every CSS named color. Exhaustive is safe now that rules only see declaration values —
+ * a `.surface-tan` selector and the word "Silver" in body copy are both out of scope, and
+ * quoted strings inside a value (`grid-template-areas: 'side workspace'`) are stripped
+ * before this runs.
  */
-const NAMED_COLORS = [
-  'aqua', 'azure', 'beige', 'black', 'blue', 'brown', 'coral', 'crimson', 'cyan', 'fuchsia',
-  'gold', 'gray', 'green', 'grey', 'indigo', 'ivory', 'khaki', 'lavender', 'lime', 'magenta',
-  'maroon', 'navy', 'olive', 'orange', 'orchid', 'pink', 'purple', 'red', 'salmon', 'silver',
-  'skyblue', 'teal', 'tomato', 'turquoise', 'violet', 'white', 'yellow',
-];
+const NAMED_COLORS = `aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue
+blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan
+darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange
+darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise
+darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia
+gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory
+khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow
+lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray
+lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue
+mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred
+midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid
+palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple
+rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue
+slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat
+white whitesmoke yellow yellowgreen`
+  .split(/\s+/)
+  .filter(Boolean);
 
-/** Properties whose lengths must be tokens. `1px` is exempt — a hairline border is not a scale. */
+/**
+ * Properties whose lengths must be tokens. §22 names "spacing density", "radius",
+ * "font scale" and "sidebar width" as Design Lab controls — every one of them is a length
+ * a component would otherwise hardcode.
+ */
 const LENGTH_PROPERTIES = [
   'padding', 'margin', 'gap', 'inset', 'top', 'right', 'bottom', 'left',
-  'border-radius', 'box-shadow', 'width', 'height', 'font-size',
+  'border-radius', 'box-shadow', 'width', 'height', 'font-size', 'letter-spacing',
+  'text-indent', 'translate', 'flex-basis', 'transform',
 ];
+
+/**
+ * Units that express a *scale* and must therefore come from a token. Fractions of the
+ * viewport or the container do not: `height: 100vh` on the shell grid and `width: 100%`
+ * are layout, not design values, and no Design Lab control would ever move them.
+ */
+const SCALE_UNIT = /(-?\d*\.?\d+)(px|rem|em|ch|ex|pt|pc|cm|mm|in|q)\b/gi;
 
 const RULES = [
   { name: 'hex-color', test: (value) => /#[0-9a-f]{3,8}\b/i.test(value) },
   { name: 'rgb-color', test: (value) => /\brgba?\(/i.test(value) },
   { name: 'hsl-color', test: (value) => /\bhsla?\(/i.test(value) },
+  // oklch/lab/lch/hwb and color()/color-mix() are as literal as a hex triplet.
+  { name: 'modern-color', test: (value) => /\b(?:oklch|oklab|lab|lch|hwb|color|color-mix)\(/i.test(value) },
   {
     name: 'named-color',
+    // Skipped for `font-family`/`font`: Gold, Tan, Sienna, Linen, Snow and Thistle are all
+    // real typefaces, and an exhaustive colour list turns every one of them into noise.
+    skipFor: (property) => property === 'font-family' || property === 'font',
     test: (value) => new RegExp(`(^|[\\s:,(])(${NAMED_COLORS.join('|')})($|[\\s,;)])`, 'i').test(value),
   },
 ];
 
-/** `padding: 12px` fails; `padding: var(--space-3)` and `border: 1px solid …` do not. */
+/**
+ * What a rule is allowed to see. Quoted text is content, not styling
+ * (`content: "hex #fff means white"`, `grid-template-areas: 'side workspace'`), and
+ * `url(#face)` is an SVG fragment reference — a paint server or a filter, not a colour.
+ * Both were false positives, and a checker that cries wolf gets worked around, not fixed.
+ */
+const styleValue = (value) => value.replaceAll(/'[^']*'|"[^"]*"/g, ' ').replaceAll(/\burl\([^)]*\)/gi, ' ');
+
+/**
+ * `padding: 12px` and `max-width: 40rem` fail; `padding: var(--space-3)`,
+ * `border: 1px solid …` (a hairline is not a scale) and `height: 100vh` do not.
+ */
 const lengthViolation = (property, value) => {
-  if (!LENGTH_PROPERTIES.some((name) => property === name || property.startsWith(`${name}-`))) return false;
-  return [...value.matchAll(/(-?\d*\.?\d+)px\b/g)].some((match) => Math.abs(Number(match[1])) > 1);
+  const matches = LENGTH_PROPERTIES.some(
+    (name) =>
+      property === name ||
+      property.startsWith(`${name}-`) ||
+      property.endsWith(`-${name}`) || // max-width, min-height, row-gap
+      property === `inline-size` ||
+      property === `block-size`,
+  );
+  return matches && hasScaleLength(value);
 };
+
+/** Any length that expresses a scale, ignoring `0` and a `1px` hairline. */
+const hasScaleLength = (value) =>
+  [...value.matchAll(SCALE_UNIT)].some(([, size, unit]) => {
+    const magnitude = Math.abs(Number(size));
+    return magnitude !== 0 && !(unit.toLowerCase() === 'px' && magnitude <= 1);
+  });
 
 // Comments become spaces of the same length, with newlines kept: positions in the stripped
 // text then still line up with the source, so a reported line number is the real one.
@@ -63,46 +123,77 @@ const stripComments = (text) =>
   text.replaceAll(/\/\*[\s\S]*?\*\//g, blank).replaceAll(/(^|\s)\/\/[^\n]*/g, (match) => blank(match));
 
 /**
- * Every `property: value` in a stylesheet, with the line and column of the value. Custom
- * property *definitions* (`--color-accent: #14161a`) are skipped — defining a token is the
- * point; using a literal instead of one is not.
+ * Every `property: value` in a stylesheet, with the line and column of the value.
+ *
+ * `}` is in the anchor as well as `{` and `;`: without it, the first declaration after a
+ * nested Sass block is invisible, which is a very ordinary thing to write.
+ *
+ * Custom property definitions are checked like any other declaration. The tokens file is
+ * skipped whole; everywhere else `--my-accent: #ff0000` in a component is exactly the
+ * scattered literal §21 forbids — a private palette wearing a token's clothes.
  */
-function* declarations(css, lineOffset = 0, columnOffset = 0) {
-  const pattern = /(^|[{;])\s*(--)?([a-z-]+)\s*:\s*([^;{}]+)/gi;
+function* declarations(css, { lineOffset = 0 } = {}) {
+  const pattern = /(^|[{;}])\s*(--)?([a-z-]+)\s*:\s*([^;{}]+)/gi;
   const scanned = stripComments(css);
   for (const match of scanned.matchAll(pattern)) {
     const [, , custom, property, value] = match;
-    if (custom !== undefined) continue;
-    const before = scanned.slice(0, match.index);
+    // Measured from the property, not from the match start: the anchor may be a `}` on
+    // the previous line, and a finding should point at the declaration itself.
+    const before = scanned.slice(0, match.index + match[0].indexOf(property));
     const line = before.split('\n').length;
     yield {
-      property: property.toLowerCase(),
+      property: (custom ?? '') + property.toLowerCase(),
       value,
       line: line + lineOffset,
-      column: (line === 1 ? columnOffset : 0) + (match.index - before.lastIndexOf('\n')),
+      column: before.length - before.lastIndexOf('\n'),
     };
   }
 }
 
-const checkCss = (css, file, lineOffset = 0) => {
+const checkCss = (css, file, options = {}) => {
   const findings = [];
-  for (const { property, value, line, column } of declarations(css, lineOffset)) {
-    for (const rule of RULES) if (rule.test(value)) findings.push({ file, line, column, rule: rule.name });
-    if (lengthViolation(property, value)) findings.push({ file, line, column, rule: 'literal-length' });
+  for (const { property, value, line, column } of declarations(css, options)) {
+    const scanned = styleValue(value);
+    const bare = property.replace(/^--/, '');
+    for (const rule of RULES) {
+      if (rule.skipFor?.(bare)) continue;
+      if (rule.test(scanned)) findings.push({ file, line, column, rule: rule.name });
+    }
+    if (lengthViolation(bare, scanned)) findings.push({ file, line, column, rule: 'literal-length' });
   }
   return findings;
 };
 
-/** In markup only `style="…"` and `<style>` blocks are styling. Everything else is content. */
+/**
+ * In markup, only styling positions are checked. That means the plain `style` attribute in
+ * either quote style, **and** Angular's binding forms — `[style.color]`, `[style]` and
+ * `[ngStyle]` are how a component would most naturally sneak a literal past a checker that
+ * only knew about `style="…"`.
+ */
 const checkMarkup = (markup, file) => {
   const findings = [];
-  for (const match of markup.matchAll(/\sstyle\s*=\s*"([^"]*)"/gi)) {
-    const line = markup.slice(0, match.index).split('\n').length;
-    findings.push(...checkCss(`x{${match[1]}}`, file, line - 1));
+  const at = (index) => markup.slice(0, index).split('\n').length - 1;
+
+  for (const match of markup.matchAll(/\sstyle\s*=\s*(["'])([^"']*)\1/gi)) {
+    findings.push(...checkCss(`x{${match[2]}}`, file, { lineOffset: at(match.index) }));
+  }
+  // [style.color]="'#f00'", [style]="…", [ngStyle]="{background: '#123456'}".
+  // These get their own pass rather than going through `checkCss`: a bound style value is
+  // *made of* quoted strings, so the quote-stripping that keeps `content: "…"` from being
+  // a false positive would hide the literal entirely. Quotes and braces are removed and
+  // every rule runs against what is left, with lengths always checked — there is no
+  // property name to decide by.
+  for (const match of markup.matchAll(/\[(?:style(?:\.[a-z-]+)?|ngStyle)\]\s*=\s*(["'])([\s\S]*?)\1/gi)) {
+    const expression = match[2].replaceAll(/['"{}]/g, ' ');
+    const line = at(match.index) + 1;
+    const column = match.index - markup.slice(0, match.index).lastIndexOf('\n');
+    for (const rule of RULES) {
+      if (rule.test(expression)) findings.push({ file, line, column, rule: rule.name });
+    }
+    if (hasScaleLength(expression)) findings.push({ file, line, column, rule: 'literal-length' });
   }
   for (const match of markup.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)) {
-    const line = markup.slice(0, match.index).split('\n').length;
-    findings.push(...checkCss(match[1], file, line - 1));
+    findings.push(...checkCss(match[1], file, { lineOffset: at(match.index) }));
   }
   return findings;
 };
@@ -115,14 +206,11 @@ const checkTypeScript = (source, file) => {
 
   const visit = (node) => {
     if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name)) {
-      const text = node.name.text;
-      if (text === 'styles' || text === 'template') {
-        for (const literal of stringLiterals(node.initializer)) {
-          findings.push(
-            ...(text === 'styles'
-              ? checkCss(literal.text, file, lineOf(literal))
-              : checkMarkup(literal.text, file).map((finding) => ({ ...finding, line: finding.line + lineOf(literal) }))),
-          );
+      const kind = node.name.text;
+      if (kind === 'styles' || kind === 'template') {
+        for (const { text, node: literal } of styleTexts(node.initializer)) {
+          const found = kind === 'styles' ? checkCss(text, file) : checkMarkup(text, file);
+          findings.push(...found.map((finding) => ({ ...finding, line: finding.line + lineOf(literal) })));
         }
       }
     }
@@ -132,9 +220,20 @@ const checkTypeScript = (source, file) => {
   return findings;
 };
 
-function* stringLiterals(node) {
-  if (ts.isStringLiteralLike(node) || ts.isNoSubstitutionTemplateLiteral(node)) yield node;
-  else if (ts.isArrayLiteralExpression(node)) for (const element of node.elements) yield* stringLiterals(element);
+/**
+ * The text of a `styles`/`template` initializer. Template *expressions* count: a single
+ * `${…}` anywhere in the string made the entire block invisible to the first version of
+ * this checker. Interpolations are replaced by a placeholder so the surrounding CSS still
+ * parses as declarations.
+ */
+function* styleTexts(node) {
+  if (ts.isStringLiteralLike(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    yield { text: node.text, node };
+  } else if (ts.isTemplateExpression(node)) {
+    yield { text: node.head.text + node.templateSpans.map((span) => `EXPR${span.literal.text}`).join(''), node };
+  } else if (ts.isArrayLiteralExpression(node)) {
+    for (const element of node.elements) yield* styleTexts(element);
+  }
 }
 
 const collectFiles = async (directory) => {
@@ -152,11 +251,13 @@ const collectFiles = async (directory) => {
 
 const findings = [];
 for (const path of await collectFiles(sourceRoot)) {
-  if (resolve(path) === TOKENS_FILE) continue;
+  const isTokensFile = resolve(path) === TOKENS_FILE;
   const source = await readFile(path, 'utf8');
   const file = relative(sourceRoot, path).replaceAll('\\', '/');
-  if (/\.(?:scss|css)$/.test(path)) findings.push(...checkCss(source, file));
-  else if (path.endsWith('.html')) findings.push(...checkMarkup(source, file));
+  if (/\.(?:scss|css)$/.test(path)) {
+    if (isTokensFile) continue;
+    findings.push(...checkCss(source, file));
+  } else if (path.endsWith('.html')) findings.push(...checkMarkup(source, file));
   else findings.push(...checkTypeScript(source, file));
 }
 

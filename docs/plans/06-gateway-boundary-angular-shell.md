@@ -659,3 +659,51 @@ inside Home renovation; `empty` renders its empty state; every §68 route loads 
 unknown path renders `NotFoundPage`; and the theme toggle changes exactly two things in
 the DOM — `data-theme` on `<html>` and the toggle's own label — while every surface
 repaints.
+
+## What the diff review changed
+
+Two review subagents ran against the diff (AGENTS §3 Step 4) — one on boundaries and spec
+conformance, one on correctness and whether the tests prove what they claim. Every finding
+below was reproduced against the code before it was acted on.
+
+**The token lint was mostly theatre, again.** Both reviewers independently probed it, and a
+file of eleven deliberate literals passed clean: a component defining its own
+`--my-accent` palette, the first declaration after a nested Sass block, every non-`px` unit,
+`oklch()`/`lab()`, single-quoted `style='…'`, Angular's `[style.x]` and `[ngStyle]`
+bindings, and any `styles` string containing a `${}`. Two violations were already live in
+shipped code (`max-width: 40rem`, `letter-spacing: 0.04em`), now tokens. The self-test was
+real, but its fixtures were all single-line rules — the one shape where the anchor bug and
+the off-by-one cancel out. Every hole is now a committed fixture, and the fixtures carry a
+second set of **controls** that must never fire: `content: "hex #fff means white"`,
+`fill: url(#face)`, `font-family: Gold, Tan, Sienna`, `height: 100vh`, a `1fr` track. All
+three of those were false positives introduced by the hardening pass, and the fix for them
+silently broke binding detection — a bound style value *is* a quoted string — which only
+the retained probe caught. `.prototype/notes.json` carries the lesson.
+
+**A filter that matched nothing matched everything.** `projects.list({ status: [] })`
+serialized to no query parameter; the host read that as no filter and returned every
+project — the inverse of the request, and the opposite of what the same query does
+in-process. The adapter now answers `[]` without a request.
+
+**Two boundary classes disagreed about one job.** The gateway read the host's
+`{ error, message }` envelope; the identity provider mapped every status to
+`internal_error` and discarded the message. Same shape as Slice 5's archive-guard
+divergence. `toGatewayError` now lives in `gateway-error.ts` and both call it — and the
+test that appeared to cover this was a tautology, stubbing `{error:'internal_error'}` and
+asserting `internal_error`.
+
+**Smaller, all verified before acting:** `localStorage` throws on *access* in private
+browsing, and the unguarded read would have escaped as a raw DOMException past the very
+mapping that file exists to provide; the cycle guard detached nodes merely *downstream* of
+a cycle rather than only those in it, and the ancestor walk is now one O(n) pass;
+`Vary: Origin` was omitted on exactly the responses that get no allow-origin;
+`tasks.archive`'s "validate, then discard" was asserted by nothing (swapping in
+`z.unknown()` left it green); `testIdentity` cast past the branded contract it was meant to
+honour; and the sidebar status assertion restated the expression under test.
+
+Not acted on: `GET /api/me` reading `store.snapshot()` rather than a `UserRepository`. The
+precedent is `resolveActor`'s, it predates this slice, there is no `WorkspaceRepository` for
+the other half, and §71 calls the host disposable. Noted rather than churned.
+
+Final state: **369 tests**, `pnpm lint` and `pnpm build` clean, and the browser run repeated
+afterwards — three levels still nest, and the theme toggle still changes exactly two nodes.

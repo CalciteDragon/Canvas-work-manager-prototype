@@ -12,21 +12,8 @@ import {
 import { z } from 'zod';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
-import { GatewayError, type GatewayErrorCode } from './gateway-error';
+import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
 import type { ProjectGateway, TaskGateway, WorkManagerGateway } from './work-manager-gateway';
-
-const ERROR_CODES: readonly GatewayErrorCode[] = [
-  'not_found',
-  'rule_violation',
-  'invalid_request',
-  'conflict',
-  'busy',
-  'internal_error',
-];
-
-/** The host's error envelope. Anything else is a transport that is not the host. */
-const isErrorCode = (value: unknown): value is GatewayErrorCode =>
-  typeof value === 'string' && (ERROR_CODES as readonly string[]).includes(value);
 
 /**
  * The §10 adapter: Angular → `localhost:4310`. Everything transport-shaped lives here —
@@ -40,12 +27,18 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
   private readonly identity = inject(IDENTITY_PROVIDER);
 
   readonly projects: ProjectGateway = {
-    list: (query) => this.send('GET', `/api/projects${queryString(projectQueryParams(query))}`, ProjectSchema.array()),
+    list: (query) =>
+      matchesNothing(query)
+        ? Promise.resolve([])
+        : this.send('GET', `/api/projects${queryString(projectQueryParams(query))}`, ProjectSchema.array()),
     get: (id: ProjectId) => this.send('GET', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema),
   };
 
   readonly tasks: TaskGateway = {
-    list: (query) => this.send('GET', `/api/tasks${queryString(taskQueryParams(query))}`, TaskSchema.array()),
+    list: (query) =>
+      matchesNothing(query)
+        ? Promise.resolve([])
+        : this.send('GET', `/api/tasks${queryString(taskQueryParams(query))}`, TaskSchema.array()),
     get: (id: TaskId) => this.send('GET', `/api/tasks/${encodeURIComponent(id)}`, TaskSchema),
     create: (input: CreateTaskInput) => this.send('POST', '/api/tasks', TaskSchema, input),
     update: (id: TaskId, input: UpdateTaskInput) =>
@@ -74,10 +67,10 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
     } catch (error) {
-      throw new GatewayError('unreachable', 0, `could not reach the prototype host — ${describe(error)}`);
+      throw toUnreachableError(error);
     }
 
-    if (!response.ok) throw await this.toGatewayError(response);
+    if (!response.ok) throw await toGatewayError(response, `${method} ${path}`);
 
     let payload: unknown;
     try {
@@ -93,23 +86,19 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
     return parsed.data;
   }
 
-  /** The host's `{ error, message }` envelope, or the status alone when it did not send one. */
-  private async toGatewayError(response: Response): Promise<GatewayError> {
-    let envelope: unknown;
-    try {
-      envelope = await response.json();
-    } catch {
-      envelope = undefined;
-    }
-
-    const body = envelope as { error?: unknown; message?: unknown } | undefined;
-    const code = isErrorCode(body?.error) ? body.error : 'internal_error';
-    const message = typeof body?.message === 'string' ? body.message : `the host answered ${response.status}`;
-    return new GatewayError(code, response.status, message);
-  }
 }
 
-const describe = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+/**
+ * An empty array filter means "match none of these", and a query carrying one can be
+ * answered without asking the host at all.
+ *
+ * It has to be answered *here*, because an empty array serializes to no parameter, the
+ * host then parses `status: undefined`, and the repository reads that as "no filter" — so
+ * `list({ status: [] })` would come back with **every** project, the exact inverse of the
+ * request, and the opposite of what the same query returns in-process.
+ */
+const matchesNothing = (query: { status?: unknown[]; priority?: unknown[] }): boolean =>
+  query.status?.length === 0 || query.priority?.length === 0;
 
 const queryString = (params: URLSearchParams): string => {
   const serialized = params.toString();

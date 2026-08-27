@@ -1,5 +1,5 @@
 .placeholder {
-  max-width: 40rem;
+  max-width: var(--layout-reading-width);
   padding: var(--space-6);
   border: var(--border-hairline) dashed var(--color-border);
   border-radius: var(--radius-lg);

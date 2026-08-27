@@ -129,10 +129,34 @@ describe('PrototypeIdentityProvider — failures the UI has to see', () => {
     await expect(subject.getCurrentIdentity()).rejects.toMatchObject({ code: 'invalid_response', status: 0 });
   });
 
-  it('reports a non-404 status as a GatewayError carrying it', async () => {
-    fetchMock.mockImplementation(jsonResponse({ error: 'internal_error' }, 500));
+  it('reports the host’s own error code and message, not a flattened internal_error', async () => {
+    fetchMock.mockImplementation(jsonResponse({ error: 'busy', message: 'a write is in progress' }, 503));
     const subject = provider();
 
-    await expect(subject.getCurrentIdentity()).rejects.toMatchObject({ code: 'internal_error', status: 500 });
+    // Not just *a* GatewayError: the host's own code and message, the same as the gateway
+    // would produce. A version of this mapped every status to internal_error.
+    await expect(subject.getCurrentIdentity()).rejects.toMatchObject({
+      code: 'busy',
+      status: 503,
+      message: 'a write is in progress',
+    });
+  });
+});
+
+// Found in review: `localStorage` throws a SecurityError on *access* — not just on write —
+// in Safari private browsing, with site data disabled, and in a sandboxed iframe. Since
+// `fetchIdentity` is async, an unguarded throw becomes a rejection that sails past the
+// careful mapping below it and reaches the sidebar as a raw DOMException.
+describe('PrototypeIdentityProvider — when localStorage is unavailable', () => {
+  it('still resolves the host default rather than failing the app', async () => {
+    const denied = () => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    };
+    vi.stubGlobal('localStorage', { getItem: denied, setItem: denied, removeItem: denied });
+    fetchMock.mockImplementation(jsonResponse(identity));
+    const subject = provider();
+
+    expect((await subject.getCurrentIdentity()).user.id).toBe('user-demo');
+    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).headers).toEqual({});
   });
 });

@@ -46,9 +46,12 @@
   --font-size-md: 0.9375rem;
   --font-size-lg: 1.125rem;
   --font-size-xl: 1.5rem;
+  --letter-spacing-wide: 0.04em;
 
   // §22 names sidebar width as a Design Lab control, so it is a token from the start.
   --layout-sidebar-width: 15rem;
+  // The comfortable measure a block of prose is held to.
+  --layout-reading-width: 40rem;
   --layout-top-bar-height: 3rem;
   --border-hairline: 1px;
 }

@@ -1,6 +1,6 @@
 import type { EnvironmentProviders, Provider } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import type { Identity } from '@cwm/contracts';
+import { IdentitySchema, type Identity } from '@cwm/contracts';
 import { IDENTITY_PROVIDER } from '../../identity/identity-provider';
 import { WORK_MANAGER_GATEWAY } from '../work-manager-gateway';
 import type { GatewayError } from '../gateway-error';
@@ -8,9 +8,16 @@ import { FakeWorkManagerGateway, fakeIdentityProvider, type FakeGatewayOptions }
 
 const AT = '2026-08-01T16:00:00.000Z';
 
-/** A persona to render a shell around. Overridable so a spec can pick the light theme. */
+/**
+ * A persona to render a shell around. Overridable so a spec can pick the light theme.
+ *
+ * Parsed rather than cast: `as unknown as Identity` would defeat the branded ids and let
+ * every shell spec keep compiling against a fixture the real host could never produce.
+ * This is the one place in `apps/web` where a contracts shape is written out by hand, so
+ * it is the one place that has to fail loudly when the contract moves.
+ */
 export const testIdentity = (theme: 'dark' | 'light' = 'dark'): Identity =>
-  ({
+  IdentitySchema.parse({
     user: {
       id: 'user-demo',
       name: 'Demo User',
@@ -20,7 +27,7 @@ export const testIdentity = (theme: 'dark' | 'light' = 'dark'): Identity =>
       createdAt: AT,
     },
     workspace: { id: 'workspace-demo', name: 'Demo User Workspace', ownerUserId: 'user-demo', createdAt: AT },
-  }) as unknown as Identity;
+  });
 
 /**
  * What every shell-level spec needs, in one place so `app.spec.ts`, `app-shell.spec.ts`

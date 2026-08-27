@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { IdentitySchema, type Identity } from '@cwm/contracts';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
-import { GatewayError } from '../gateway/gateway-error';
+import { GatewayError, toGatewayError, toUnreachableError } from '../gateway/gateway-error';
 import type { IdentityProvider } from './identity-provider';
 
 /**
@@ -10,6 +10,29 @@ import type { IdentityProvider } from './identity-provider';
  * user" — §17's "Switch Persona" without a switcher.
  */
 export const PROTOTYPE_PERSONA_STORAGE_KEY = 'cwm.prototype.persona';
+
+/**
+ * `localStorage` throws a `SecurityError` on *access*, not just on write, in Safari
+ * private browsing, with site data disabled, and inside a sandboxed iframe. Unguarded,
+ * that rejection sails straight past the error mapping below and reaches the sidebar as a
+ * raw DOMException — the exact failure this file exists to prevent. No stored persona is
+ * a perfectly good answer: it means "let the host pick its first user".
+ */
+const readPersona = (): string | null => {
+  try {
+    return localStorage.getItem(PROTOTYPE_PERSONA_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const clearPersona = (): void => {
+  try {
+    localStorage.removeItem(PROTOTYPE_PERSONA_STORAGE_KEY);
+  } catch {
+    // Nothing to clear if nothing could be read.
+  }
+};
 
 /**
  * §18's provider for the prototype (§10): the identity comes from the host's `GET /api/me`,
@@ -33,14 +56,14 @@ export class PrototypeIdentityProvider implements IdentityProvider {
   }
 
   private async fetchIdentity(): Promise<Identity> {
-    const stored = localStorage.getItem(PROTOTYPE_PERSONA_STORAGE_KEY);
+    const stored = readPersona();
     const response = await this.request(stored);
 
     // A 404 means the stored persona no longer exists — a reseed, or a hand-edited
     // browser. Clearing and retrying is the difference between a stale key costing one
     // request and it bricking the session.
     if (response.status === 404 && stored !== null) {
-      localStorage.removeItem(PROTOTYPE_PERSONA_STORAGE_KEY);
+      clearPersona();
       return parse(await this.request(null));
     }
 
@@ -58,16 +81,16 @@ export class PrototypeIdentityProvider implements IdentityProvider {
         headers: persona === null ? {} : { 'x-prototype-user': persona },
       });
     } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      throw new GatewayError('unreachable', 0, `could not reach the prototype host — ${reason}`);
+      throw toUnreachableError(error);
     }
   }
 }
 
 const parse = async (response: Response): Promise<Identity> => {
-  if (!response.ok) {
-    throw new GatewayError('internal_error', response.status, `GET /api/me answered ${response.status}`);
-  }
+  // Shared with the gateway on purpose. Two copies of this drifted inside one slice: the
+  // version that lived here mapped every status to `internal_error` and discarded the
+  // host's own message, so a 400 and a 503 were indistinguishable to the UI.
+  if (!response.ok) throw await toGatewayError(response, 'GET /api/me');
 
   const parsed = IdentitySchema.safeParse(await response.json().catch(() => undefined));
   if (!parsed.success) throw new GatewayError('invalid_response', 0, 'GET /api/me answered something that is not an Identity');

@@ -206,3 +206,42 @@ describe('PrototypeWorkManagerGateway — failures the UI has to see', () => {
     await expect(gateway().projects.list({})).rejects.toMatchObject({ code: 'unreachable', status: 0 });
   });
 });
+
+// Found in review: an empty array filter serialized to nothing, so the host saw no filter
+// at all and answered with *everything* — the exact inverse of what the caller asked for,
+// and of what the same query does in-process.
+describe('PrototypeWorkManagerGateway — a filter that matches nothing', () => {
+  it('answers [] for an empty status array without asking the host', async () => {
+    fetchMock.mockImplementation(jsonResponse([project]));
+
+    await expect(gateway().projects.list({ status: [] })).resolves.toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does the same for an empty task filter', async () => {
+    fetchMock.mockImplementation(jsonResponse([task]));
+
+    await expect(gateway().tasks.list({ priority: [] })).resolves.toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('still sends a query that has a non-empty filter beside an absent one', async () => {
+    fetchMock.mockImplementation(jsonResponse([]));
+
+    await gateway().projects.list({ status: ['active'] });
+
+    expect(lastCall().url).toBe('http://host.test/api/projects?status=active');
+  });
+});
+
+// Found in review: replacing TaskSchema with z.unknown() left every archive test green,
+// so the "validate, then discard" comment was a claim nothing backed.
+describe('PrototypeWorkManagerGateway — archive still validates what it discards', () => {
+  it('rejects an archive response that is not a Task', async () => {
+    fetchMock.mockImplementation(jsonResponse({ id: 'task-1' }));
+
+    await expect(gateway().tasks.archive('task-1' as TaskId)).rejects.toMatchObject({
+      code: 'invalid_response',
+    });
+  });
+});

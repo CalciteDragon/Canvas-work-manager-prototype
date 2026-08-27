@@ -115,7 +115,11 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 
 const corsHeaders = (origin: string | undefined): Record<string, string> => {
-  if (origin === undefined || !ALLOWED_ORIGINS.has(origin)) return {};
+  // `Vary` goes on every response, including the ones that get no allow-origin. A cache
+  // that stored a header-less response and later served it to :4200 would break CORS for
+  // a request that should have worked — unreachable behind localhost with no intermediary,
+  // but the header costs nothing and the omission is the textbook shape of that bug.
+  if (origin === undefined || !ALLOWED_ORIGINS.has(origin)) return { vary: 'Origin' };
   return {
     'access-control-allow-origin': origin,
     'access-control-allow-methods': 'GET, POST, PATCH, OPTIONS',

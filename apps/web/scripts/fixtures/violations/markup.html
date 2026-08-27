@@ -1,5 +1,8 @@
-<!-- The style attribute is styling; everything else on this page is content. -->
-<p style="color: #123456">Inline styles are still component styles.</p>
+<!-- Styling positions are checked; everything else on this page is content. -->
+<p style="color: #123456">A plain style attribute.</p>
+<p style='padding: 24px'>Single quotes are still an attribute.</p>
+<p [style.color]="'#abcdef'">An Angular style binding.</p>
+<p [ngStyle]="{ background: '#654321' }">And ngStyle.</p>
 
 <!-- Controls: a class name, body text and an SVG attribute are not declarations. -->
 <p class="surface-tan">Silver linings, in twelve point.</p>

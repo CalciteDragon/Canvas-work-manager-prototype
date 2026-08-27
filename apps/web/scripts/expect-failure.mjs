@@ -22,20 +22,42 @@ const fixtures = join(scriptDirectory, 'fixtures', 'violations');
 
 /**
  * Exactly what the fixtures contain, as `file:line rule`. Pinning the locations — not just
- * the rule names — is what proves the controls stay clean: a `1px` border, a
- * `surface-tan` class, "Silver" in body copy and an `<svg width="24">` all sit in these
- * same files, and any of them firing would add an entry that is not on this list.
+ * the rule names — is what proves the **controls** stay clean, and the controls are the
+ * half that matters: a `1px` hairline, `height: 100vh`, `margin: 0`, a `1fr` grid track,
+ * a `surface-tan` class, "Silver" in body copy, an `<svg width="24">`,
+ * `content: "hex #fff means white"`, `fill: url(#face)` and `font-family: Gold, Tan,
+ * Sienna` all sit in these same files. Every one of them was a false positive at some
+ * point; any of them firing again adds an entry that is not on this list.
  */
 const EXPECTED = [
-  'inline-component.ts:5 literal-length',
-  'inline-component.ts:5 rgb-color',
-  'inline-component.ts:6 literal-length',
+  // An inline `styles` block, its `template`, and a `styles` string that interpolates —
+  // a single `${…}` once made the whole block invisible.
+  'inline-component.ts:8 rgb-color',
+  'inline-component.ts:8 literal-length',
+  'inline-component.ts:9 literal-length',
+  'inline-component.ts:14 hex-color',
+  // Both quote styles of `style=`, plus Angular's `[style.x]` and `[ngStyle]` bindings.
   'markup.html:2 hex-color',
-  'style-sheet.scss:2 hex-color',
-  'style-sheet.scss:3 rgb-color',
-  'style-sheet.scss:4 hsl-color',
-  'style-sheet.scss:5 named-color',
-  'style-sheet.scss:6 literal-length',
+  'markup.html:3 literal-length',
+  'markup.html:4 hex-color',
+  'markup.html:5 hex-color',
+  // One per colour rule…
+  'style-sheet.scss:3 hex-color',
+  'style-sheet.scss:4 rgb-color',
+  'style-sheet.scss:5 hsl-color',
+  'style-sheet.scss:6 modern-color',
+  'style-sheet.scss:7 named-color',
+  'style-sheet.scss:8 named-color',
+  // …one per length unit that expresses a scale…
+  'style-sheet.scss:9 literal-length',
+  'style-sheet.scss:10 literal-length',
+  'style-sheet.scss:11 literal-length',
+  // …a component defining its own private palette…
+  'style-sheet.scss:12 hex-color',
+  // …the first declaration after a nested Sass block…
+  'style-sheet.scss:15 literal-length',
+  // …and a length hiding inside a transform function.
+  'style-sheet.scss:17 literal-length',
 ];
 
 const EXPECTED_RULES = [...new Set(EXPECTED.map((entry) => entry.split(' ')[1]))].sort();

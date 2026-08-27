@@ -111,6 +111,8 @@ describe('CORS for the Angular dev server', () => {
     });
 
     expect(response.headers.get('access-control-allow-origin')).toBeNull();
+    // …but it still varies by origin, so a cache cannot serve this to an allowed one.
+    expect(response.headers.get('vary')).toBe('Origin');
   });
 
   // Without this the browser hides the body of every failure, and the gateway reports a
