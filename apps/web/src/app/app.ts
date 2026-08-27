@@ -1,20 +1,11 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
-import { SCHEMA_VERSION } from '@cwm/contracts';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { AppShell } from './core/shell/app-shell';
 
+/** The bootstrap component. Everything visible is §23's shell. */
 @Component({
-  imports: [RouterOutlet],
+  imports: [AppShell],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-root',
-  styleUrl: './app.scss',
-  templateUrl: './app.html',
+  template: `<app-shell />`,
 })
-export class App {
-  protected readonly title = signal('Canvas Work Manager');
-
-  /**
-   * Proves the `@cwm/contracts` workspace package resolves through the Angular builder
-   * and the dev server, not merely through the type-checker. Delete this once the app
-   * imports contracts for real work (Slice 6).
-   */
-  protected readonly contractsSchemaVersion = SCHEMA_VERSION;
-}
+export class App {}

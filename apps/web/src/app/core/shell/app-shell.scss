@@ -1,0 +1,25 @@
+// §23's grid. Desktop-first by design — the prototype is a desktop application.
+.shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  grid-template-columns: var(--layout-sidebar-width) 1fr;
+  grid-template-areas:
+    'top top'
+    'side workspace';
+  height: 100vh;
+}
+
+.top {
+  grid-area: top;
+}
+
+.side {
+  grid-area: side;
+  min-height: 0;
+}
+
+.workspace {
+  grid-area: workspace;
+  padding: var(--space-5);
+  overflow: auto;
+}

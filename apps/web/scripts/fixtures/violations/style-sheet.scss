@@ -1,0 +1,11 @@
+// One fixture per rule, so the self-test can name what it expects rather than count.
+.hex { color: #ff0000; }
+.rgb { background: rgba(0, 0, 0, 0.4); }
+.hsl { border-color: hsl(210 40% 50%); }
+.named { color: crimson; }
+.length { padding: 12px; }
+
+// Controls: these must NOT be reported.
+.hairline { border: 1px solid var(--color-border); }
+.tokens { padding: var(--space-3); color: var(--color-text); }
+.content-word { grid-template-areas: 'side workspace'; }

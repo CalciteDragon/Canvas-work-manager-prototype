@@ -1,22 +1,16 @@
 import { TestBed } from '@angular/core/testing';
+import { describe, expect, it } from 'vitest';
 import { App } from './app';
+import { shellTestProviders } from './core/gateway/testing/shell-test-providers';
 
 describe('App', () => {
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [App],
-    }).compileComponents();
-  });
-
-  it('renders the shell', async () => {
+  it('renders the application shell', async () => {
+    // The fakes are not optional: rendering App instantiates the whole shell subtree,
+    // which injects the gateway, the identity provider and the router.
+    TestBed.configureTestingModule({ imports: [App], providers: shellTestProviders() });
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('Canvas Work Manager');
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-shell')).not.toBeNull();
   });
-
-  // No separate test for `@cwm/contracts` resolving: App imports it statically, so the
-  // test above cannot compile — let alone render — if the workspace package fails to
-  // resolve through the Angular builder.
 });

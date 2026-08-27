@@ -276,7 +276,7 @@ describe('identity route', () => {
   });
 
   it('takes the workspace from the resolved user, never from the request', async () => {
-    const result = await call(buildRoutes(), 'GET', '/api/me', { user: PERSONAS[1]!.user.id });
+    const result = await call(buildRoutes(), 'GET', '/api/me', { user: String(PERSONAS[1]!.user.id) });
 
     expect(IdentitySchema.parse(result.body).workspace.id).toBe(PERSONAS[1]!.workspace.id);
   });

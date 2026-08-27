@@ -1,0 +1,17 @@
+.placeholder {
+  max-width: 40rem;
+  padding: var(--space-6);
+  border: var(--border-hairline) dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+h1 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-xl);
+}
+
+p {
+  margin: 0;
+  color: var(--color-text-muted);
+}

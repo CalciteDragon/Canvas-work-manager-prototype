@@ -1,0 +1,55 @@
+<nav class="sidebar" aria-label="Workspace">
+  <ul class="group">
+    <li>
+      <a data-nav-item routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+    </li>
+  </ul>
+
+  <div class="group">
+    <!-- A button, not a link: §68 defines /projects/:projectId and no /projects, so this
+         opens and closes the group rather than navigating nowhere. -->
+    <button
+      type="button"
+      class="section-header"
+      data-nav-item
+      data-projects-toggle
+      [attr.aria-expanded]="projectsExpanded()"
+      (click)="toggleProjects()"
+    >
+      Projects
+    </button>
+
+    @if (projectsExpanded()) {
+      @if (error()) {
+        <p class="notice" data-projects-error>{{ error() }}</p>
+      } @else if (projectTree().length === 0) {
+        <p class="notice" data-projects-empty>No projects yet</p>
+      } @else {
+        <ul class="projects">
+          @for (node of projectTree(); track node.project.id) {
+            <app-project-tree-item [node]="node" />
+          }
+        </ul>
+      }
+    }
+  </div>
+
+  <ul class="group">
+    <li><a data-nav-item routerLink="/calendar" routerLinkActive="active">Calendar</a></li>
+    <li><a data-nav-item routerLink="/search" routerLinkActive="active">Search</a></li>
+  </ul>
+
+  <hr />
+
+  <ul class="group">
+    <li>
+      <a
+        data-nav-item
+        routerLink="/settings"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        >Settings</a
+      >
+    </li>
+  </ul>
+</nav>

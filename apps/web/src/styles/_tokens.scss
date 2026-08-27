@@ -1,0 +1,72 @@
+// §21's design primitives. **The only file in the application permitted to hold a literal
+// colour, spacing, radius or shadow value** — `scripts/check-design-tokens.mjs` enforces
+// that, and `pnpm lint` runs it.
+//
+// §22's two themes are one attribute apart: dark is the default, light overrides. The
+// light block is `:root[data-theme='light']` rather than `[data-theme='light']` so it wins
+// on specificity (0,2,0 against 0,1,0) rather than on source order — a rule that survives
+// someone reordering this file.
+//
+// Slice 17's Design Lab writes these same properties live (§22), which is the reason they
+// are custom properties rather than Sass variables.
+
+:root {
+  color-scheme: dark;
+
+  --color-background: #14161a;
+  --color-surface: #1b1e24;
+  --color-surface-raised: #23272f;
+  --color-surface-sunken: #101216;
+  --color-text: #eef1f6;
+  --color-text-muted: #9aa3b2;
+  --color-border: #2c313a;
+  --color-accent: #6ea8fe;
+  --color-accent-contrast: #0b1220;
+  --color-danger: #ff8a8a;
+
+  // Overdue, high priority and the rest of §4's task-row states land in Slice 7. They will
+  // be tokens here, not literals in a component.
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.875rem;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-md: 0 8px 24px rgb(0 0 0 / 45%);
+
+  --font-body: system-ui, -apple-system, 'Segoe UI', roboto, sans-serif;
+  --font-size-sm: 0.8125rem;
+  --font-size-md: 0.9375rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.5rem;
+
+  // §22 names sidebar width as a Design Lab control, so it is a token from the start.
+  --layout-sidebar-width: 15rem;
+  --layout-top-bar-height: 3rem;
+  --border-hairline: 1px;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --color-background: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #eceef2;
+  --color-text: #1a1d23;
+  --color-text-muted: #626b7a;
+  --color-border: #d9dde4;
+  --color-accent: #2563eb;
+  --color-accent-contrast: #ffffff;
+  --color-danger: #b42318;
+
+  --shadow-sm: 0 1px 2px rgb(16 24 40 / 8%);
+  --shadow-md: 0 8px 24px rgb(16 24 40 / 12%);
+}

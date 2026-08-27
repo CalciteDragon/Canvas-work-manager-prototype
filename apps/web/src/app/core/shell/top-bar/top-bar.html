@@ -1,0 +1,20 @@
+<header class="top-bar">
+  <span class="product">Canvas Work Manager</span>
+
+  <div class="identity">
+    <button
+      type="button"
+      class="theme-toggle"
+      data-theme-toggle
+      [attr.aria-label]="'Switch to the ' + (theme() === 'dark' ? 'light' : 'dark') + ' theme'"
+      (click)="toggleTheme()"
+    >
+      {{ theme() === 'dark' ? 'Light' : 'Dark' }}
+    </button>
+
+    @if (identity(); as current) {
+      <span class="avatar" data-identity-avatar aria-hidden="true">{{ avatar() }}</span>
+      <span data-identity-name>{{ current.user.name }}</span>
+    }
+  </div>
+</header>

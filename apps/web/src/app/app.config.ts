@@ -1,10 +1,26 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { WORK_MANAGER_GATEWAY } from './core/gateway/work-manager-gateway';
+import { PrototypeWorkManagerGateway } from './core/gateway/prototype-work-manager-gateway';
+import { IDENTITY_PROVIDER } from './core/identity/identity-provider';
+import { PrototypeIdentityProvider } from './core/identity/prototype-identity-provider';
 import { routes } from './app.routes';
 
+/**
+ * **The only file in the application that names a concrete adapter.** §8's boundary is
+ * exactly this: every component injects `WORK_MANAGER_GATEWAY` and `IDENTITY_PROVIDER`,
+ * and swapping the prototype implementations for production ones is a change here and
+ * nowhere else (§10, §18).
+ *
+ * There is no `if (prototypeMode)` anywhere — the choice is made once, at bootstrap.
+ */
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes)
-  ]
+    provideRouter(routes, withComponentInputBinding()),
+    PrototypeIdentityProvider,
+    { provide: IDENTITY_PROVIDER, useExisting: PrototypeIdentityProvider },
+    PrototypeWorkManagerGateway,
+    { provide: WORK_MANAGER_GATEWAY, useExisting: PrototypeWorkManagerGateway },
+  ],
 };

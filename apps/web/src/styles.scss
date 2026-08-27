@@ -1,3 +1,4 @@
-// Global styles. The design tokens — colors, spacing, radius, shadow, and the light
-// and dark themes — arrive in Slice 6 (spec §21, §22). Deliberately empty until then,
-// so no literal values enter the codebase ahead of the token system.
+// §21's tokens first, then the element defaults expressed in them. Component styles use
+// the tokens and never a literal — `pnpm lint` fails the build if one appears.
+@use './styles/tokens';
+@use './styles/base';

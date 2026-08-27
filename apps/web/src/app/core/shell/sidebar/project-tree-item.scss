@@ -1,0 +1,32 @@
+:host {
+  display: contents;
+}
+
+a {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+a:hover,
+a:focus-visible {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.children {
+  margin: 0;
+  // The one indent that makes §23's hierarchy readable, in token steps so the Design
+  // Lab's spacing density (§22) moves it with everything else.
+  padding-inline-start: var(--space-4);
+  list-style: none;
+}
