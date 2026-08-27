@@ -5,6 +5,7 @@ import {
   type Project,
   type ProjectId,
   type ProjectQuery,
+  type UpdateProjectInput,
 } from '@cwm/contracts';
 import type { ProjectRepository, UnitOfWork } from '@cwm/repositories';
 import { assertValidActor, type ActorContext } from './actor';
@@ -25,17 +26,7 @@ export interface ProjectServiceDependencies {
   unitOfWork: UnitOfWork;
 }
 
-/** Applied to `UpdateProjectInput`, where `null` clears and `undefined` leaves alone. */
-type ProjectPatch = {
-  name?: string;
-  description?: string | null;
-  icon?: string | null;
-  status?: Project['status'];
-  targetDate?: string | null;
-  projectLayoutMode?: Project['projectLayoutMode'];
-  parentProjectId?: ProjectId | null;
-};
-
+/** `null` clears and `undefined` leaves alone — §11's `dueAt` example is the pattern. */
 const apply = <T extends object>(project: T, key: keyof T, value: unknown): void => {
   if (value === undefined) return;
   if (value === null) delete project[key];
@@ -95,7 +86,7 @@ export class ProjectService {
     });
   }
 
-  async update(actor: ActorContext, id: ProjectId, input: ProjectPatch): Promise<Project> {
+  async update(actor: ActorContext, id: ProjectId, input: UpdateProjectInput): Promise<Project> {
     assertValidActor(actor);
 
     return this.dependencies.unitOfWork.run(async () => {
@@ -160,8 +151,15 @@ export class ProjectService {
   private async assertParentIsUsable(actor: ActorContext, id: ProjectId, parentId: ProjectId): Promise<void> {
     if (parentId === id) throw new DomainRuleError('a project cannot be its own parent');
 
+    // The visited set is not belt-and-braces. A document can already contain a cycle —
+    // a hand-edited file, or one written before this rule existed — and every step of
+    // this walk resolves as a microtask, so an unguarded loop does not hang one request:
+    // it starves the event loop and wedges the process, signal handlers included.
+    const seen = new Set<ProjectId>([id]);
     let ancestor: ProjectId | undefined = parentId;
     while (ancestor !== undefined) {
+      if (seen.has(ancestor)) throw new DomainRuleError('a project cannot be nested inside itself');
+      seen.add(ancestor);
       const project: Project = await this.get(actor, ancestor);
       if (project.parentProjectId === id) throw new DomainRuleError('a project cannot be nested inside itself');
       ancestor = project.parentProjectId;

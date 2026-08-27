@@ -29,14 +29,21 @@ const created = (body: unknown): RouteResult => ({ status: 201, contentType: 'ap
  * `status=todo&status=done` and `status=todo,done` both mean the same two values, and a
  * numeric `limit` has to stop being a string before Zod sees it.
  */
-const queryObject = (query: URLSearchParams, arrays: string[], numbers: string[] = []): Record<string, unknown> => {
+const queryObject = (
+  query: URLSearchParams,
+  arrays: string[],
+  numbers: string[] = [],
+  booleans: string[] = [],
+): Record<string, unknown> => {
   const parsed: Record<string, unknown> = {};
   for (const key of new Set(query.keys())) {
-    const values = query.getAll(key).flatMap((value) => value.split(','));
-    if (arrays.includes(key)) parsed[key] = values;
-    else if (numbers.includes(key)) parsed[key] = Number(values[0]);
-    else if (values[0] === 'true' || values[0] === 'false') parsed[key] = values[0] === 'true';
-    else parsed[key] = values[0];
+    const raw = query.getAll(key);
+    // Comma-splitting is only for the enum-array filters. Applying it to every value
+    // would silently truncate `?search=design,copy` to `design` — titles have commas.
+    if (arrays.includes(key)) parsed[key] = raw.flatMap((value) => value.split(','));
+    else if (numbers.includes(key)) parsed[key] = Number(raw[0]);
+    else if (booleans.includes(key)) parsed[key] = raw[0] === 'true';
+    else parsed[key] = raw[0];
   }
   return parsed;
 };
@@ -83,7 +90,7 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
       ok(
         await tasks.list(
           actorFor(request),
-          TaskQuerySchema.parse(queryObject(request.query, ['status', 'priority'])),
+          TaskQuerySchema.parse(queryObject(request.query, ['status', 'priority'], [], ['includeArchived'])),
         ),
       ),
 

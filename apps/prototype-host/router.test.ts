@@ -47,6 +47,15 @@ describe('resolveRoute', () => {
     expect((await resolveRoute(routes, 'DELETE', '/api/tasks/task-1')).status).toBe(404);
   });
 
+  it('answers 404 for a malformed percent-escape rather than letting a URIError escape', async () => {
+    // decodeURIComponent runs during matching, outside resolveRoute's error mapping, so
+    // an unguarded call here would surface as a 500 for what is a caller mistake.
+    const result = await resolveRoute(routes, 'GET', '/api/tasks/%ZZ');
+
+    expect(result.status).toBe(404);
+    expect(result.body).toEqual({ error: 'not_found' });
+  });
+
   it('turns a thrown handler error into a mapped result instead of rejecting', async () => {
     const result = await resolveRoute(routes, 'POST', '/api/boom');
 

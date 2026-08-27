@@ -71,6 +71,64 @@ describe('domain import lint guard', () => {
     expect(result.stderr).toContain('escape.ts');
   });
 
+  it('rejects a store smuggled in through a re-export', async () => {
+    const root = await makeRoot();
+    // The hole the first version of this lint had: re-export a store under a relative
+    // specifier and every sibling can then import it "cleanly".
+    await write(root, 'barrel.ts', "export { JsonDataStore } from '@cwm/repositories';");
+    await write(root, 'star.ts', "export * from '@cwm/repositories';");
+
+    const result = scan(root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('barrel.ts');
+    expect(result.stderr).toContain('star.ts');
+  });
+
+  it('rejects a dynamic import and a require', async () => {
+    const root = await makeRoot();
+    await write(root, 'dynamic.ts', "export const load = async () => import('node:fs/promises');");
+    await write(root, 'required.ts', "declare const require: (id: string) => unknown; export const fs = require('fs/promises');");
+
+    const result = scan(root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('dynamic.ts');
+    expect(result.stderr).toContain('required.ts');
+  });
+
+  it('rejects a builtin reached by a submodule or unprefixed name', async () => {
+    const root = await makeRoot();
+    // `fs/promises` and `crypto` slipped past a ban list that named only `fs`.
+    await write(root, 'a.ts', "import { readFile } from 'fs/promises';");
+    await write(root, 'b.ts', "import { randomUUID } from 'crypto';");
+    await write(root, 'c.ts', "import { AsyncLocalStorage } from 'async_hooks';");
+
+    const result = scan(root);
+
+    expect(result.status).toBe(1);
+    for (const file of ['a.ts', 'b.ts', 'c.ts']) expect(result.stderr).toContain(file);
+  });
+
+  it('rejects an unknown third-party package rather than waiting to be told about it', async () => {
+    const root = await makeRoot();
+    await write(root, 'x.ts', "import express from 'express';");
+
+    const result = scan(root);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('x.ts');
+  });
+
+  it('allows a re-export of the repository interfaces by name', async () => {
+    const root = await makeRoot();
+    await write(root, 'barrel.ts', "export type { TaskRepository, UnitOfWork } from '@cwm/repositories';");
+
+    const result = scan(root);
+
+    expect(result.status, result.stderr).toBe(0);
+  });
+
   it('ignores test files', async () => {
     const root = await makeRoot();
     await write(root, 'service.test.ts', "import { JsonTaskRepository } from '@cwm/repositories';\nexport const R = JsonTaskRepository;");

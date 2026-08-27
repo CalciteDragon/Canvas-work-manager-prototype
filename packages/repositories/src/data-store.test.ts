@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rename as renameFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PrototypeDocumentSchema } from '@cwm/contracts';
+import { PrototypeDocumentSchema, type PrototypeDocument } from '@cwm/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type FileOperations, InMemoryDataStore, JsonDataStore, unitOfWorkFor } from './data-store';
 import { DocumentIntegrityError, UnitOfWorkInProgressError } from './errors';
@@ -612,5 +612,48 @@ describe('unitOfWorkFor', () => {
     await unit.run(() => repository.insert(newProject()));
 
     expect(await repository.find(newProject().id)).not.toBeNull();
+  });
+});
+
+describe('parent-chain integrity', () => {
+  /** Ids are branded, and these fixtures deliberately build documents the schema allows. */
+  const asProjectId = (id: string) => id as unknown as PrototypeDocument['projects'][number]['id'];
+  const asTaskId = (id: string) => id as unknown as PrototypeDocument['tasks'][number]['id'];
+
+  it('rejects a project that is its own ancestor', () => {
+    const document = validDocument();
+    const first = document.projects[0]!;
+    document.projects = [
+      { ...first, parentProjectId: asProjectId('project-2') },
+      { ...first, id: asProjectId('project-2'), parentProjectId: first.id },
+    ];
+
+    // Nothing downstream can detect a cycle, and every tree walk over one starves the
+    // event loop — so it has to fail at load rather than at the first request.
+    expect(() => new InMemoryDataStore(document)).toThrow(DocumentIntegrityError);
+  });
+
+  it('rejects a task that is its own ancestor', () => {
+    const document = validDocument();
+    const first = document.tasks[0]!;
+    document.tasks = [
+      { ...first, id: asTaskId('task-a'), parentTaskId: asTaskId('task-b') },
+      { ...first, id: asTaskId('task-b'), parentTaskId: asTaskId('task-a') },
+    ];
+
+    expect(() => new InMemoryDataStore(document)).toThrow(DocumentIntegrityError);
+  });
+
+  it('still accepts a deep acyclic chain with a shared ancestor', () => {
+    const document = validDocument();
+    const first = document.projects[0]!;
+    document.projects = [
+      first,
+      { ...first, id: asProjectId('project-2'), parentProjectId: first.id },
+      { ...first, id: asProjectId('project-3'), parentProjectId: asProjectId('project-2') },
+      { ...first, id: asProjectId('project-4'), parentProjectId: asProjectId('project-2') },
+    ];
+
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
   });
 });

@@ -11,9 +11,19 @@ const sourceRoot = resolve(
 
 /**
  * §12: a domain service must not know whether storage is JSON, whether a transport is
- * HTTP, or what a seed looks like. The only import that needs judgement is
- * `@cwm/repositories` — the domain is *required* to import it for the repository
- * interfaces, so the check is on the named bindings, not the specifier.
+ * HTTP, or what a seed looks like.
+ *
+ * The specifier rule is an **allowlist**, not a ban list. A ban list cannot survive the
+ * next dependency someone adds — the first version of this script banned `fs` and let
+ * `fs/promises` straight through.
+ */
+const ALLOWED_MODULES = new Set(['@cwm/contracts', '@cwm/repositories']);
+
+/**
+ * `@cwm/repositories` is the one import that needs judgement: the domain is *required* to
+ * import it for the repository interfaces, so the check is on the named bindings. A
+ * service importing `DataStore` or `JsonTaskRepository` is a service that knows storage
+ * is JSON.
  */
 const ALLOWED_REPOSITORY_BINDINGS = new Set([
   'UnitOfWork',
@@ -26,8 +36,6 @@ const ALLOWED_REPOSITORY_BINDINGS = new Set([
   'TaskRepository',
   'UserRepository',
 ]);
-
-const BANNED_MODULES = new Set(['fs', 'path', 'http', 'https', '@cwm/prototype-data']);
 
 const collectTypeScriptFiles = async (directory) => {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -51,25 +59,30 @@ for (const path of await collectTypeScriptFiles(sourceRoot)) {
     violations.push(`${relative(sourceRoot, path)}:${location.line + 1}:${location.character + 1} — ${message}`);
   };
 
-  for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
-    const specifier = statement.moduleSpecifier.text;
-
-    if (specifier.startsWith('node:') || BANNED_MODULES.has(specifier)) {
-      report(statement, `domain code must not import "${specifier}"`);
-      continue;
+  /** Shared by `import`, `export … from`, `import()` and `require()`. */
+  const checkSpecifier = (node, specifier) => {
+    if (specifier.startsWith('.')) {
+      if (!resolve(dirname(path), specifier).startsWith(sourceRoot)) {
+        report(node, `relative import "${specifier}" escapes the domain source root`);
+      }
+      return false;
     }
-
-    if (specifier.startsWith('.') && !resolve(dirname(path), specifier).startsWith(sourceRoot)) {
-      report(statement, `relative import "${specifier}" escapes the domain source root`);
-      continue;
+    if (!ALLOWED_MODULES.has(specifier)) {
+      report(node, `domain code may not import "${specifier}"`);
+      return false;
     }
+    return specifier === '@cwm/repositories';
+  };
 
-    if (specifier !== '@cwm/repositories') continue;
-    const bindings = statement.importClause?.namedBindings;
-    if (bindings === undefined || !ts.isNamedImports(bindings)) {
-      report(statement, 'import the repository interfaces by name, not as a namespace or default');
-      continue;
+  const checkRepositoryBindings = (node, bindings) => {
+    // `export * from '@cwm/repositories'` would re-export the stores under a relative
+    // specifier every sibling could then import cleanly. There is no binding list to
+    // check, so it is refused outright.
+    // `NamedImports` on an import, `NamedExports` on a re-export — different node kinds,
+    // same list of names.
+    if (bindings === undefined || !(ts.isNamedImports(bindings) || ts.isNamedExports(bindings))) {
+      report(node, 'import the repository interfaces by name — no namespace, default, or star re-export');
+      return;
     }
     for (const element of bindings.elements) {
       const imported = (element.propertyName ?? element.name).text;
@@ -77,7 +90,34 @@ for (const path of await collectTypeScriptFiles(sourceRoot)) {
         report(element, `"${imported}" is storage, not a repository interface`);
       }
     }
-  }
+  };
+
+  const visit = (node) => {
+    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+      if (checkSpecifier(node, node.moduleSpecifier.text)) {
+        checkRepositoryBindings(node, node.importClause?.namedBindings);
+      }
+    } else if (
+      ts.isExportDeclaration(node) &&
+      node.moduleSpecifier !== undefined &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      // A re-export is an import that also widens the package's own surface.
+      if (checkSpecifier(node, node.moduleSpecifier.text)) {
+        checkRepositoryBindings(node, node.exportClause);
+      }
+    } else if (
+      ts.isCallExpression(node) &&
+      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) && node.expression.text === 'require'))
+    ) {
+      const [argument] = node.arguments;
+      if (argument !== undefined && ts.isStringLiteral(argument)) checkSpecifier(node, argument.text);
+      else report(node, 'dynamic import with a computed specifier is not allowed in domain code');
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
 }
 
 if (violations.length > 0) {

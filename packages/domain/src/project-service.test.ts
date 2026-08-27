@@ -167,3 +167,23 @@ describe('ProjectService.update', () => {
     });
   });
 });
+
+describe('ProjectService cycle walk termination', () => {
+  it('terminates on a document that already contains a cycle', async () => {
+    const harness = buildHarness();
+    const a = await create(harness, { name: 'A' });
+    const b = await create(harness, { name: 'B', parentProjectId: a.id });
+
+    // Forge the cycle behind the service's back, the way a hand-edited data file would.
+    // Without a visited set the ancestor walk spins on resolved microtasks, which starves
+    // the event loop rather than merely hanging one request.
+    await harness.projects.update({ ...a, parentProjectId: b.id });
+
+    await expect(
+      Promise.race([
+        harness.projectService.update(harness.actor, MINE, { parentProjectId: b.id }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('walk did not terminate')), 1000)),
+      ]),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+  });
+});

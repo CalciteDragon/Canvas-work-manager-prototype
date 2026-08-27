@@ -1,5 +1,5 @@
 import type { PrototypeDocument, UserId, WorkspaceId } from '@cwm/contracts';
-import type { ActorContext } from '@cwm/domain';
+import { EntityNotFoundError, type ActorContext } from '@cwm/domain';
 import type { RouteRequest } from '../router.ts';
 
 /**
@@ -19,12 +19,11 @@ export const resolveActor = (document: PrototypeDocument, request: RouteRequest)
   const requested = Array.isArray(header) ? header[0] : header;
   const user = requested === undefined ? document.users[0] : document.users.find(({ id }) => id === requested);
 
+  // A mistyped persona is a caller mistake (404). An empty document is the host being
+  // broken, which is a 500 and should say so loudly.
+  if (user === undefined && requested !== undefined) throw new EntityNotFoundError('user', requested);
   if (user === undefined) {
-    throw new Error(
-      requested === undefined
-        ? 'the prototype data file contains no users — reseed it with `pnpm prototype:reset`'
-        : `unknown persona "${requested}" in x-prototype-user`,
-    );
+    throw new Error('the prototype data file contains no users — reseed it with `pnpm prototype:reset`');
   }
 
   return { actor: 'user', workspaceId: user.workspaceId as WorkspaceId, userId: user.id as UserId };

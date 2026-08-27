@@ -46,7 +46,13 @@ const match = (pattern: string, method: string, path: string): Record<string, st
     const value = pathSegments[index] ?? '';
     if (segment.startsWith(':')) {
       if (value === '') return null;
-      params[segment.slice(1)] = decodeURIComponent(value);
+      try {
+        params[segment.slice(1)] = decodeURIComponent(value);
+      } catch {
+        // A malformed escape like `%ZZ` is a caller mistake, and this runs outside
+        // resolveRoute's error mapping — letting the URIError out would make it a 500.
+        return null;
+      }
     } else if (segment !== value) {
       return null;
     }

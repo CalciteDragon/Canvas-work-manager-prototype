@@ -129,6 +129,35 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     }
   }
 
+  /**
+   * A parent chain that loops is structurally unusable: every tree walk over it either
+   * hangs or starves the event loop, and nothing further downstream can detect it. Both
+   * chains are checked here so a hand-edited file fails at load rather than at whichever
+   * request first tries to walk it.
+   */
+  const assertAcyclic = <T extends { id: string }>(
+    collection: string,
+    values: T[],
+    parentOf: (value: T) => string | undefined,
+    lookup: Map<string, T>,
+  ): void => {
+    const settled = new Set<string>();
+    for (const value of values) {
+      const path = new Set<string>();
+      let current: T | undefined = value;
+      while (current !== undefined && !settled.has(current.id)) {
+        if (path.has(current.id)) fail(`${collection} "${current.id}" is its own ancestor`);
+        path.add(current.id);
+        const parentId = parentOf(current);
+        current = parentId === undefined ? undefined : lookup.get(parentId);
+      }
+      for (const id of path) settled.add(id);
+    }
+  };
+
+  assertAcyclic('project', document.projects, (project) => project.parentProjectId, projects);
+  assertAcyclic('task', document.tasks, (task) => task.parentTaskId, tasks);
+
   for (const agent of document.agentConnections) {
     if (!users.has(agent.userId)) fail(`agent connection "${agent.id}" has missing user "${agent.userId}"`);
   }
@@ -262,9 +291,13 @@ export const unitOfWorkFor = (store: DataStore): UnitOfWork => {
       const next = tail.then(() => {
         const open = new Set(openUnitStores.getStore() ?? []);
         open.add(store);
-        // An empty operation context: a queued unit must not inherit a stale one from
-        // whichever caller happened to be at the head of the chain.
-        return openUnitStores.run(open, () => operationContexts.run(new Map(), () => store.runUnitOfWork(fn)));
+        // Drop only *this* store's stale context — a queued unit must not inherit one
+        // from whichever caller was at the head of the chain. Clearing the whole map
+        // would strand another store's in-progress unit, whose reads would silently fall
+        // back to the committed document while `openUnitStores` still claimed it was open.
+        const contexts = new Map(operationContexts.getStore() ?? []);
+        contexts.delete(store);
+        return openUnitStores.run(open, () => operationContexts.run(contexts, () => store.runUnitOfWork(fn)));
       });
       tail = next.then(
         () => undefined,

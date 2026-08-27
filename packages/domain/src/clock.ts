@@ -4,7 +4,7 @@ export interface Clock {
 
 const cloneValidDate = (value: Date): Date => {
   if (Number.isNaN(value.getTime())) {
-    throw new TypeError('PrototypeClock requires a valid date');
+    throw new TypeError('a clock requires a valid date');
   }
   return new Date(value.getTime());
 };

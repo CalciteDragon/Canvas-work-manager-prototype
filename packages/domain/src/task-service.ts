@@ -118,16 +118,17 @@ export class TaskService {
       apply(next, 'parentTaskId', input.parentTaskId);
 
       if (next.parentTaskId !== current.parentTaskId && next.parentTaskId !== undefined) {
-        if (next.parentTaskId === id) throw new DomainRuleError('a task cannot be its own parent');
-        const parent = await this.get(actor, next.parentTaskId);
-        if (parent.projectId !== current.projectId) {
-          throw new DomainRuleError('a subtask must live in the same project as its parent');
-        }
+        await this.assertParentIsUsable(actor, current, next.parentTaskId);
       }
 
       // Entering `done` stamps `completedAt`; leaving it clears it, whichever entry point
       // is used. A transition into `done` is what makes this a completion (§57's verb).
       const completing = next.status === 'done' && current.status !== 'done';
+      // PATCH is the exposed route, so a rule only `complete()` enforced would be
+      // decorative — the same trap `ProjectService` avoids for archive.
+      if (completing && current.archivedAt !== undefined) {
+        throw new DomainRuleError('an archived task cannot be completed');
+      }
       if (completing) next.completedAt = this.dependencies.clock.now().toISOString();
       if (next.status !== 'done') delete next.completedAt;
 
@@ -186,6 +187,29 @@ export class TaskService {
       projectId: task.projectId,
       summary: `${verb} "${task.title}"`,
     });
+  }
+
+  /**
+   * A subtask must share its parent's project — `validateDocumentIntegrity` enforces that
+   * much — and must not become its own ancestor, which nothing downstream catches: a
+   * committed A→B→A cycle reloads on every boot and hangs the first tree walk that meets
+   * it. The visited set also makes the walk terminate on a document that is already
+   * cyclic, where an unguarded loop would starve the event loop.
+   */
+  private async assertParentIsUsable(actor: ActorContext, task: Task, parentId: TaskId): Promise<void> {
+    if (parentId === task.id) throw new DomainRuleError('a task cannot be its own parent');
+
+    const seen = new Set<TaskId>([task.id]);
+    let ancestor: TaskId | undefined = parentId;
+    while (ancestor !== undefined) {
+      if (seen.has(ancestor)) throw new DomainRuleError('a task cannot be nested inside itself');
+      seen.add(ancestor);
+      const parent: Task = await this.get(actor, ancestor);
+      if (parent.projectId !== task.projectId) {
+        throw new DomainRuleError('a subtask must live in the same project as its parent');
+      }
+      ancestor = parent.parentTaskId;
+    }
   }
 
   private async isProjectVisible(actor: ActorContext, projectId: ProjectId): Promise<boolean> {

@@ -184,6 +184,15 @@ describe('task routes', () => {
     expect((await call(routes, 'GET', '/api/tasks?includeArchived=true')).body).toHaveLength(3);
   });
 
+  it('keeps a comma inside a search term instead of truncating it', async () => {
+    const routes = buildRoutes();
+    await newTask(routes, { title: 'Design, copy, and QA' });
+    await newTask(routes, { title: 'Design only' });
+
+    // Splitting every value on commas would search for "Design" and match both.
+    expect((await call(routes, 'GET', '/api/tasks?search=Design,%20copy')).body).toHaveLength(1);
+  });
+
   it('rejects a malformed query string with 400', async () => {
     const routes = buildRoutes();
 
@@ -226,6 +235,24 @@ describe('activity route', () => {
 
   it('rejects a limit past the cap with 400', async () => {
     expect((await call(buildRoutes(), 'GET', '/api/activity?limit=5000')).status).toBe(400);
+  });
+});
+
+describe('persona resolution', () => {
+  it('answers 404 for an unknown persona rather than 500', async () => {
+    const routes = buildRoutes();
+
+    // A mistyped header is a caller mistake; a 500 here is how a typo costs an hour.
+    const result = await call(routes, 'GET', '/api/projects', { user: 'user-nobody' });
+
+    expect(result.status).toBe(404);
+    expect(result.body).toMatchObject({ error: 'not_found' });
+  });
+
+  it('defaults to the first persona in the document', async () => {
+    const routes = buildRoutes();
+
+    expect((await call(routes, 'GET', '/api/projects')).body).toEqual([expect.objectContaining({ id: MINE })]);
   });
 });
 

@@ -22,8 +22,9 @@ export const toErrorResult = (error: unknown): RouteResult => {
   if (error instanceof ZodError) {
     return json(400, { error: 'invalid_request', issues: error.issues });
   }
-  // A malformed JSON body, or one past the size cap — both are the caller's doing.
-  if (error instanceof SyntaxError || error instanceof RangeError) {
+  // A malformed JSON body, one past the size cap, or a bad percent-escape in the URL —
+  // all the caller's doing.
+  if (error instanceof SyntaxError || error instanceof RangeError || error instanceof URIError) {
     return json(400, { error: 'invalid_request', message: error.message });
   }
   if (error instanceof EntityNotFoundError || error instanceof RepositoryNotFoundError) {

@@ -56,7 +56,7 @@ Executable, in order.
    (The *deterministic* proof that overlapping units serialize lives in
    `data-store.test.ts` with explicit blockers; item 5 is the end-to-end consequence.)
 6. `development.md` marks Slice 5 `done`; this plan carries a Revisions section; and the
-   three decision entries below exist. (Driving the app and recording friction in
+   decision entries below exist. (Driving the app and recording friction in
    `.prototype/notes.json` is AGENTS §3 Step 4, not a pass condition — a checklist item
    that rewards *finding* friction rewards inventing it.)
 
@@ -506,9 +506,14 @@ round trip against a temporary data file.
 
 - **Domain knows nothing of transport or storage (§12).** `packages/domain` imports
   `@cwm/contracts` and the *interfaces* from `@cwm/repositories`.
-  `check-domain-imports.mjs` enforces this at the level that matters — the named
-  bindings — so a service importing `DataStore` or `JsonDataStore` fails the lint. Tests
-  may construct concrete repositories; services may not name them.
+  `check-domain-imports.mjs` enforces this. The specifier rule is an **allowlist**
+  (`@cwm/contracts`, `@cwm/repositories`, relative-within-`src`), because a ban list does
+  not survive the next dependency — its first version banned `fs` and let `fs/promises`
+  straight through. On `@cwm/repositories` it checks the named bindings, so a service
+  importing `DataStore` or `JsonDataStore` fails. It walks the whole tree, covering
+  `export … from`, `export *`, dynamic `import()` and `require()` as well as plain
+  imports — a re-export was the hole that let a store back in. Tests may construct
+  concrete repositories; services may not name them.
 - **One unit of work per operation (§15).** Only an entry-point service method calls
   `UnitOfWork.run`; `ActivityService.record` and every internal helper run inside the
   caller's unit. The re-entrancy join in `unitOfWorkFor` makes a violation cost a
@@ -669,7 +674,7 @@ could pass a mismatched pair, and today that is caught only at commit by
 
 ## Outcome
 
-Every acceptance item passes. `pnpm test` is 279 tests green across six packages;
+Every acceptance item passes. `pnpm test` is 298 tests green across six packages;
 `pnpm lint` is clean, including the two domain scanners.
 
 **Deviations from the plan, and why:**
@@ -699,6 +704,76 @@ To compensate, the seven load-bearing rules were verified by mutation: each was 
 turn and a named test caught it. That found a real defect the green suite had hidden — the
 five-concurrent-writes test passed with serialization removed, because an in-memory store
 never actually overlaps. It now runs over a real file, where it fails as intended.
+
+**Post-implementation review (AGENTS §3 Step 4).** Two review agents ran against the
+diff. What they found and what changed:
+
+- **The import lint enforced much less than this plan claimed.** It walked only top-level
+  `import` declarations, so `export { JsonDataStore } from '@cwm/repositories'` — and then
+  a clean relative import of that barrel from every sibling — passed silently, as did
+  `import()`, `require()`, and every builtin reached by submodule (`fs/promises`) or
+  unprefixed name (`crypto`, `async_hooks`). Rewritten as an allowlist over a full tree
+  walk, with six new self-test cases covering each form. Writing those tests then found
+  two bugs in the rewrite itself (`NamedExports` is not `NamedImports`).
+- **An unknown `x-prototype-user` answered 500** — a caller mistake landing in the branch
+  `api/errors.ts` exists to prevent. Now `EntityNotFoundError` → 404, with a test. The
+  genuinely-broken case (a document with no users) stays a 500.
+- **`ProjectPatch` was a parallel definition of `UpdateProjectInput`** (§11). The route
+  parsed with the contract schema and handed the result to a hand-written twin, so a new
+  contract field would have been accepted, validated, and silently ignored. Deleted;
+  `ProjectService.update` takes `UpdateProjectInput`.
+- **`queryObject` split every value on commas**, so `?search=design,%20copy` searched for
+  `design`. Comma-splitting is now confined to the enum-array filters, with a test.
+- **The clock's validity guard named `PrototypeClock`** in an error `SimulatedClock` also
+  raises. Made class-neutral.
+- Reviewers also confirmed, by tracing rather than by assertion, that §12 domain purity
+  holds, that no service opens a nested unit of work, and that the four decision entries
+  match the code.
+
+A second reviewer hunted correctness bugs and proved several by running code:
+
+- **A task could become its own ancestor.** `TaskService.update` checked only
+  self-parenting, and `validateDocumentIntegrity` accepts a cycle — so `PATCH B{parent:A}`
+  then `PATCH A{parent:B}` committed an A→B→A loop to the data file that reloaded on every
+  boot and would hang the first subtask walk Slice 20 writes. Added an ancestor walk.
+- **`PATCH {status:'done'}` completed an archived task** while `POST /complete` returned
+  409 — the exact asymmetry the project service has an explicit comment about avoiding.
+  The task service now enforces it on both entry points.
+- **The project cycle walk never terminated on an already-cyclic document.** Worse than a
+  hang: every step resolves as a microtask, so it starves the event loop and wedges the
+  process, signal handlers included. The reviewer's proof pinned a test runner at 100% CPU;
+  so did mine, which is how the test for it was written. Fixed with a visited set, and —
+  the durable half — `validateDocumentIntegrity` now rejects a cyclic parent chain in
+  projects and tasks, so a bad file fails at load where `main.ts` already exits 1.
+- **A malformed percent-escape returned 500.** `decodeURIComponent` runs during route
+  matching, outside `resolveRoute`'s error mapping, so `GET /api/tasks/%ZZ` threw a
+  `URIError` past the 400 branch. Guarded in `match`, with `URIError` added to the mapping.
+- **`unitOfWorkFor` cleared every store's operation context** while preserving every
+  store's open marker, so a second store's unit inside a first store's would make the
+  first store's reads silently fall back to the committed document. Latent (the app wires
+  one store) but the two structures must agree. Now only this store's entry is dropped.
+
+The same reviewer checked and dismissed several plausible suspicions, which is worth
+recording: the no-op detection's key-order dependence is not a hazard (`next` is always a
+spread of `current`, and `apply` only assigns or deletes); `apply`'s null-clearing is
+correct for every nullable field in both inputs; `SimulatedClock` has no drift, DST or
+repeated-`setNow` bug; and no sequence could lose a write or deadlock `unitOfWorkFor` with
+a single store.
+
+All four new guards were mutation-checked: each was removed in turn and a named test
+caught it.
+
+**Not acted on:**
+
+- **CORS and a persona/identity route.** Slice 6 needs both — Angular on `:4200` calling
+  `:4310` is blocked, and §18's `IdentityProvider` has nothing to read. A dev proxy in
+  `angular.json` is the cheaper, more §71-appropriate answer than CORS middleware. It
+  belongs to the slice that has a browser in it.
+- **Returning the `SimulatedClock` from `createApi`** so Slice 12's dev panel is a route
+  addition rather than a signature change. Speculative until that panel exists.
+- **`check-no-direct-date.mjs` catching only `new Date(...)`.** A real narrowness, but
+  Slice 4's script, and no live violation: a timestamp still needs `new Date` to reach
+  `.toISOString()`.
 
 **Open for the next slice:**
 

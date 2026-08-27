@@ -256,3 +256,43 @@ describe('TaskService.archive', () => {
     expect((await harness.activity.list(harness.actor)).filter((e) => e.action === 'task.archived')).toHaveLength(1);
   });
 });
+
+describe('TaskService parent and archive guards', () => {
+  it('refuses to make a task its own ancestor', async () => {
+    const harness = buildHarness();
+    const a = await create(harness, { title: 'A' });
+    const b = await create(harness, { title: 'B' });
+    const c = await create(harness, { title: 'C' });
+    await harness.taskService.update(harness.actor, b.id, { parentTaskId: a.id });
+    await harness.taskService.update(harness.actor, c.id, { parentTaskId: b.id });
+
+    // A cycle survives validateDocumentIntegrity, so nothing downstream catches it.
+    await expect(
+      harness.taskService.update(harness.actor, a.id, { parentTaskId: c.id }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(
+      harness.taskService.update(harness.actor, a.id, { parentTaskId: b.id }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+    expect((await harness.taskService.get(harness.actor, a.id)).parentTaskId).toBeUndefined();
+  });
+
+  it('refuses to complete an archived task through update, not only through complete', async () => {
+    const harness = buildHarness();
+    const task = await create(harness);
+    await harness.taskService.archive(harness.actor, task.id);
+
+    // PATCH is the exposed route, so a rule only complete() enforced would be decorative.
+    await expect(
+      harness.taskService.update(harness.actor, task.id, { status: 'done' }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+    expect((await harness.taskService.get(harness.actor, task.id)).completedAt).toBeUndefined();
+  });
+
+  it('still allows an ordinary edit of an archived task', async () => {
+    const harness = buildHarness();
+    const task = await create(harness);
+    await harness.taskService.archive(harness.actor, task.id);
+
+    expect((await harness.taskService.update(harness.actor, task.id, { title: 'Renamed' })).title).toBe('Renamed');
+  });
+});
