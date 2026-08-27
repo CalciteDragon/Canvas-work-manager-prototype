@@ -103,6 +103,30 @@
       "projectId": null,
       "slice": 5,
       "note": "Two rounds of plan review found the same file twice, for different reasons: unitOfWorkFor. Round 1 caught that a pass-through adapter 500s on any two interleaved requests; round 2 caught that the queue fixing that would deadlock on a nested call. Both were real. The thing that settled it was not a third review but a 40-line spike run against the actual InMemoryDataStore \u2014 nested join, overlap, and failure recovery, printed. Reviewing an async-context design on paper is much worse value than running it."
+    },
+    {
+      "id": "note-2026-08-27-006",
+      "createdAt": "2026-08-27T07:20:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 5,
+      "note": "The scariest bug of the slice was found by a review agent and confirmed by accident: an unguarded ancestor walk over an already-cyclic document does not hang one request, it starves the event loop and wedges the whole process \u2014 timers stop, the server stops answering, Ctrl+C's handler never runs. I discovered this by writing the test for it, which hung the test runner for three minutes with a 1s Promise.race that never fired. Any await-in-a-loop over synchronously-resolving repository reads has this shape. Worth remembering before Slice 20 walks subtask trees and Slice 11 walks projects for the dashboard."
+    },
+    {
+      "id": "note-2026-08-27-007",
+      "createdAt": "2026-08-27T07:22:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 5,
+      "note": "Two guards written a day apart disagreed about the same problem. ProjectService carries an explicit comment \u2014 'the exposed route is PATCH, so a rule only archive() enforced would be decorative' \u2014 and TaskService then shipped exactly that bug: complete() refused an archived task, PATCH {status:'done'} did not. Knowing the trap and writing the comment was not enough to avoid it in the next file. A rule that has two entry points needs a test per entry point, not a note."
+    },
+    {
+      "id": "note-2026-08-27-008",
+      "createdAt": "2026-08-27T07:24:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 5,
+      "note": "The custom lint I wrote to enforce \u00a712 was mostly theatre: it walked only top-level import declarations, so `export { JsonDataStore } from '@cwm/repositories'` in index.ts \u2014 plus a clean relative import from every sibling \u2014 sailed through, as did import(), require(), and `fs/promises` against a ban list that named `fs`. A ban list cannot survive the next dependency; it is now an allowlist over a full tree walk. Writing the six self-tests then found two bugs in the rewrite. A lint without a test that it FAILS on each violation form is a lint you are guessing about."
     }
   ]
 }
