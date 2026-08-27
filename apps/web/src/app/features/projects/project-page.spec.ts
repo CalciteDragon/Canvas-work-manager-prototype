@@ -100,6 +100,21 @@ describe('ProjectPage (§26)', () => {
     expect(query(fixture, '[data-quick-create]')).not.toBeNull();
   });
 
+  it('renders 0% for a project with nothing done, not "Not available"', async () => {
+    // `0` is falsy, so an `@if (progress; as …)` binding reads a real zero as "no value" —
+    // the one number a progress control most needs to be able to say.
+    const { fixture } = await render({ tasks: [task('task-1', 'todo')] });
+
+    expect(fixture.nativeElement.querySelector('[data-project-progress]').textContent).toContain('0%');
+    expect(query(fixture, '[data-project-progress-unavailable]')).toBeNull();
+  });
+
+  it('says progress is unavailable when the project has no tasks at all', async () => {
+    const { fixture } = await render({ tasks: [] });
+
+    expect(query(fixture, '[data-project-progress-unavailable]')).not.toBeNull();
+  });
+
   it('invites the user to add something when the canvas is empty', async () => {
     const { fixture } = await render({ sections: [] });
 

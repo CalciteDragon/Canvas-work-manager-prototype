@@ -286,7 +286,8 @@ Diverged from the build list in one place, deliberately: `WorkManagerGateway` de
   a task **detail drawer** (side drawer, not a modal), priority, due date.
 - Optimistic completion with revert-on-failure (§63).
 - A temporary `/tasks` route to exercise this before project pages exist — it can be
-  deleted or repurposed in Slice 8.
+  deleted or repurposed in Slice 8. *(Slice 8 deleted it: §68 has no `/tasks`, and
+  `TaskListStore` is now project-scoped behind the Task List section.)*
 
 **Done when** clicking a checkbox completes the task instantly in the UI, persists to
 `data.json`, and reverts visibly if the host is stopped mid-action.
@@ -303,7 +304,7 @@ This is the central product experience (§26) and where most learning happens.
 
 ### Slice 8 — Project page + section registry
 
-**Status:** in progress — plan: [docs/plans/08-project-page-and-section-registry.md](docs/plans/08-project-page-and-section-registry.md)
+**Status:** done — plan: [docs/plans/08-project-page-and-section-registry.md](docs/plans/08-project-page-and-section-registry.md) — `/projects/:projectId` renders §26's header over a section canvas built from `SECTION_REGISTRY`, with Rich Text and Task List each inside the same `ProjectSectionFrame`. Diverged from the plan in three places. **Section activity events name the project, not the section** (`project.section_*`): `validateDocumentIntegrity` resolves every event's target at the close of every unit of work and on load, so a section-targeted event would have made a hard delete roll back its own unit of work and fail every later boot — the plan review caught it, and a domain test now fails against the naive version. **`SectionGateway.move` was deferred to Slice 9**, since nothing in the UI reorders until CDK drag-drop exists and that file's own rule is that an unexercised method is a claim no test backs; the domain service and the `move` route still ship. **`ProjectSection.config` was tightened from `unknown` to an object**, so storage and the write inputs describe the same thing. §26's middle "Project Navigation / Controls" row is deferred to Slice 9, where §32's mode toggle gives it something to hold. The browser pass found one real defect the unit tests missed: a project with nothing done rendered "Not available" instead of "0%", because `@if (progress; as …)` treats a real zero as no value.
 
 **Goal:** Sections are modular and render inside a common frame.
 

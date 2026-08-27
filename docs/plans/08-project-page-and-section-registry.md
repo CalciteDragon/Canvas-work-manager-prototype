@@ -526,3 +526,45 @@ logged decision.
   browser step was replaced with an explicit statement that it cannot be one until Slice 12;
   and three stale lines (a "six calls" that is now five, a boundary statement still saying
   `config` stays `unknown`, and an acceptance step needing a second re-seed) were corrected.
+
+## Acceptance evidence
+
+- `pnpm test` passed across contracts (94), repositories (80), web (125), prototype data
+  (38), domain (97) and host (49); `pnpm lint` and the design-token checker passed.
+- Three tests were verified by mutation rather than by reading them. Reverting
+  `ProjectSection.config` to `z.unknown()` fails `rejects a config that is not an object`;
+  targeting section activity at `entityType: 'section'` fails four domain tests including
+  `removes a section without orphaning its activity events`; rebuilding the frame's inputs
+  record per pass fails `does not rebuild the content component on a change-detection pass
+  that changed nothing`. The last one was rewritten after its first version proved vacuous —
+  it counted constructor calls, and `setInput` never reconstructs a component.
+- With `busy-week` loaded, `/projects/project-launch` rendered the header (🚀, "Website
+  launch", Active, 33% complete, 2026-08-28) and both seeded sections in position order,
+  each inside the same frame.
+- Editing the Rich Text body wrote `{"text":"Slice 8 acceptance: edited in the browser."}`
+  to `.prototype/data.json` with one `project.section_updated` event. Collapsing the section,
+  resizing it to `columnSpan: 6`, and duplicating the Task List all persisted; after a page
+  reload the rich-text frame was still collapsed at span 6 and both task lists were present.
+- Quick Add wrote a new `rich-text` section whose config was `{"text":""}` — the registry
+  definition's `createDefaultConfig()`, not an empty object.
+- Removing that section left `sections` renumbered `0,1,2` and **no activity event with
+  `entityType: 'section'`**. The host was then stopped and cold-started against the mutated
+  file: it loaded and served the sections with no `DocumentIntegrityError`. This is the
+  check that proves the plan-review blocker is actually fixed.
+- After re-seeding `nested-projects`, `Cabinets` rendered the empty-canvas invitation, and
+  `/tasks` rendered the not-found page while `/projects/project-nope` showed a visible
+  "project ... was not found" message.
+- Completing the only task in `Home renovation` moved the header from `0% complete` to
+  `100% complete` without a reload — the observable consequence of one `TaskListStore`.
+
+**One defect found in the browser and fixed.** `Home renovation` reported "Not available"
+rather than `0%`: the store was correct, but the template's `@if (store.progress(); as
+progress)` sent a falsy `0` down the no-value branch, so a project where work had not yet
+started read as unmeasurable. Two regression tests now pin `0%` and the genuinely-empty case
+apart. Every unit test had passed — they covered the store and the empty case, and never
+rendered a started-but-unfinished project.
+
+**One acceptance step was not run as written**, and is stated rather than hidden: "renders
+the header when only the task load fails" is unit-tested only. Stopping the host fails both
+fetches and lands on the not-found path instead, and failing `GET /api/tasks` alone needs the
+failure injection Slice 12 builds.

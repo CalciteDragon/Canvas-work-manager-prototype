@@ -26,8 +26,11 @@
         <div>
           <dt>Progress</dt>
           <dd data-project-progress>
-            @if (store.progress(); as progress) {
-              {{ progress }}% complete
+            <!-- `@if (store.progress(); as progress)` would be wrong: a project with
+                 nothing done yet has progress `0`, which is falsy, and would read as
+                 "Not available" — the one number this control most needs to say. -->
+            @if (store.progress() !== null) {
+              {{ store.progress() }}% complete
             } @else {
               <span data-project-progress-unavailable>Not available</span>
             }
