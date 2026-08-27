@@ -1,5 +1,7 @@
-<label class="rich-text">
-  <span class="rich-text__label">Notes</span>
+<div class="rich-text">
+  <!-- No visible label: the frame's heading already names the section, and the textarea
+       carries an `aria-label`. A visually-hidden one would be a second name for the same
+       control. -->
   <textarea
     data-rich-text-body
     class="rich-text__body"
@@ -9,4 +11,4 @@
     placeholder="What is this project about?"
     (blur)="save($any($event.target).value)"
   ></textarea>
-</label>
+</div>

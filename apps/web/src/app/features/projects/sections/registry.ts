@@ -1,4 +1,5 @@
 import type { Type } from '@angular/core';
+import type { SectionContentComponent } from './section-contract';
 import { RichTextSection } from './rich-text/rich-text-section';
 import { richTextDefaultConfig } from './rich-text/rich-text-config';
 import { TaskListSection } from './tasks/task-list-section';
@@ -15,9 +16,14 @@ export interface SectionDefinition {
 
   createDefaultConfig(): unknown;
 
-  component: Type<unknown>;
+  /**
+   * §29 writes `Type<unknown>`. Narrowed to the content contract, because an unknown here
+   * would let a section be registered without the inputs the frame sets — a failure that
+   * would otherwise surface only when someone opened the page.
+   */
+  component: Type<SectionContentComponent>;
 
-  inspectorComponent?: Type<unknown>;
+  inspectorComponent?: Type<SectionContentComponent>;
 }
 
 /**

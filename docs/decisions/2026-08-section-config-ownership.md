@@ -20,8 +20,10 @@ API, what does the contract actually promise about a config?
 
 **What we learned**
 
-The narrowing costs nothing — all 30 config values across the five committed seeds are `{}` —
-and it closes a real gap: `config` could previously hold `[]`, `"text"` or `null` at rest,
+The narrowing cost nothing: every config value in every committed seed was `{}` when it
+landed, so no existing data had to change. (The same slice then added rich-text sections
+whose configs carry a `text` key — still objects, still opaque to this package.) And it
+closes a real gap: `config` could previously hold `[]`, `"text"` or `null` at rest,
 values no input schema could produce or edit, so a hand-edited file could reach a state the
 API could never repair.
 

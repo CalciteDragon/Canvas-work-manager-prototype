@@ -25,6 +25,8 @@ export interface FakeGatewayOptions {
   failWith?: GatewayError;
 }
 
+const COMPLETED_AT = '2026-08-27T16:00:00.000Z';
+
 export class FakeWorkManagerGateway implements WorkManagerGateway {
   constructor(private readonly options: FakeGatewayOptions = {}) {}
 
@@ -57,7 +59,14 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     get: (id: TaskId) => this.answer('tasks.get', id, this.find(this.options.tasks, id, 'task')),
     create: (input) => this.answer('tasks.create', input, this.firstTask()),
     update: (id, input) => this.answer('tasks.update', { id, input }, this.firstTask()),
-    complete: (id) => this.answer('tasks.complete', id, this.firstTask()),
+    // Answers the task as completed, the way the host does. Echoing it back unchanged would
+    // make every optimistic completion appear to revert, which is a different test.
+    complete: (id) =>
+      this.answer('tasks.complete', id, {
+        ...this.find(this.options.tasks, id, 'task'),
+        status: 'done',
+        completedAt: COMPLETED_AT,
+      }),
     archive: (id) => this.answer('tasks.archive', id, undefined),
   };
 

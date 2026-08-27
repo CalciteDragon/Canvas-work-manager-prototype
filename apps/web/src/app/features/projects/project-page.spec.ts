@@ -151,6 +151,27 @@ describe('ProjectPage (§26)', () => {
     });
   });
 
+  it('gives two Task List sections on one project a single shared store', async () => {
+    // The plan's single-provision rule, made structural. Two instances would give the header
+    // and the sections two different sets of tasks — and duplicating a Task List section is
+    // a one-click action this slice ships, so the regression is live.
+    const { fixture } = await render({
+      sections: [section('section-tasks', 'task-list', 0), section('section-tasks-copy', 'task-list', 1)],
+    });
+
+    const lists = queryAll(fixture, '[data-section-frame][data-section-type="task-list"]');
+    expect(lists).toHaveLength(2);
+    expect(lists.map((list) => list.querySelectorAll('[data-task-row]').length)).toEqual([2, 2]);
+
+    // Completing in the first list must move the second, and the header, at once.
+    lists[0]!.querySelector<HTMLElement>('[data-task-complete]')!.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-project-progress]')?.textContent).toContain('100%');
+    expect(lists[1]!.querySelectorAll('[data-task-row][aria-busy="false"]')).toHaveLength(2);
+  });
+
   it('shows a not-found project as a visible message rather than an empty canvas', async () => {
     const { fixture } = await render({ failWith: new GatewayError('not_found', 404, 'no such project') });
 

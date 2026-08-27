@@ -2,15 +2,6 @@
   display: block;
 }
 
-.rich-text__label {
-  position: absolute;
-  width: var(--border-hairline);
-  height: var(--border-hairline);
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 .rich-text__body {
   display: block;
   width: 100%;

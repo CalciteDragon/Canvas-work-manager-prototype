@@ -34,7 +34,10 @@ export class ProjectPageStore {
 
   private readonly projectState = signal<Project | null>(null);
   private readonly sectionsState = signal<ProjectSection[]>([]);
-  private readonly loadingState = signal(false);
+  // Starts true: before the first load resolves the page has no project, no error and no
+  // loading flag, which matches none of the template's branches and paints blank.
+  private readonly loadingState = signal(true);
+  private loadGeneration = 0;
   private readonly errorState = signal<string | null>(null);
   private readonly sectionErrorState = signal<string | null>(null);
 
@@ -53,13 +56,22 @@ export class ProjectPageStore {
    * project that has not started are different claims, and a failed task load is a third.
    */
   readonly progress = computed<number | null>(() => {
-    if (this.tasks.error() !== null) return null;
+    // `loadFailed`, not `error`: the task store's error signal also carries "a task title is
+    // required" and a rolled-back completion, and neither of those makes the *count* wrong.
+    // Gating on `error` made the header flip to "Not available" when a user pressed Add task
+    // with an empty box.
+    if (this.tasks.loadFailed()) return null;
     const tasks = this.tasks.tasks();
     if (tasks.length === 0) return null;
     return Math.round((tasks.filter((task) => task.status === 'done').length / tasks.length) * 100);
   });
 
   load(projectId: ProjectId): Promise<void> {
+    // Clicking project A then project B inside one round trip must not leave A's sections
+    // under B's header: without this, whichever response lands last wins, per signal.
+    const generation = ++this.loadGeneration;
+    const current = () => generation === this.loadGeneration;
+
     return this.track(async () => {
       this.loadingState.set(true);
       this.errorState.set(null);
@@ -68,18 +80,25 @@ export class ProjectPageStore {
         // Sequential on purpose: a project the caller cannot see must fail as "not found"
         // rather than racing a section list that would report the same thing less clearly.
         const project = await this.gateway.projects.get(projectId);
+        const sections = await this.gateway.sections.list(projectId);
+        if (!current()) return;
         this.projectState.set(project);
-        this.sectionsState.set([...(await this.gateway.sections.list(projectId))].sort(byPosition));
+        this.sectionsState.set([...sections].sort(byPosition));
       } catch (error) {
+        if (!current()) return;
         this.projectState.set(null);
         this.sectionsState.set([]);
         this.errorState.set(messageOf(error));
       } finally {
-        this.loadingState.set(false);
+        // The task load is inside the loading window: leaving it outside made the header
+        // paint "Not available" for a frame before the real percentage arrived.
+        if (current()) {
+          // The task load owns its own error signal. A failing task list must not blank the
+          // header and the other sections — it only makes progress unavailable.
+          await this.tasks.load(projectId);
+          if (current()) this.loadingState.set(false);
+        }
       }
-      // The task load owns its own error signal. A failing task list must not blank the
-      // header and the other sections — it only makes progress unavailable.
-      await this.tasks.load(projectId);
     });
   }
 
@@ -111,19 +130,26 @@ export class ProjectPageStore {
   duplicateSection(id: SectionId): Promise<boolean> {
     return this.mutate(async () => {
       const copy = await this.gateway.sections.duplicate(id);
-      // The host renumbers siblings, so the copy's neighbours are re-read rather than
-      // guessed — a local splice would drift from the positions that were persisted.
-      await this.refreshSections();
-      this.sectionsState.update((sections) =>
-        sections.some((section) => section.id === copy.id) ? sections : [...sections, copy].sort(byPosition),
-      );
+      // Applied locally first, then reconciled. The host renumbers siblings, so the
+      // authoritative positions come from a re-read — but the write has already succeeded,
+      // and a failed re-read must not make it look otherwise.
+      this.sectionsState.update((sections) => {
+        const shifted = sections.map((section) =>
+          section.position >= copy.position ? { ...section, position: section.position + 1 } : section,
+        );
+        return [...shifted, copy].sort(byPosition);
+      });
+      await this.reconcileSections();
     });
   }
 
   removeSection(id: SectionId): Promise<boolean> {
     return this.mutate(async () => {
       await this.gateway.sections.remove(id);
-      await this.refreshSections();
+      this.sectionsState.update((sections) =>
+        sections.filter((section) => section.id !== id).map((section, position) => ({ ...section, position })),
+      );
+      await this.reconcileSections();
     });
   }
 
@@ -153,10 +179,20 @@ export class ProjectPageStore {
     });
   }
 
-  private async refreshSections(): Promise<void> {
+  /**
+   * Re-reads the canvas after a successful write, and **swallows its own failure**. The
+   * write already landed; reporting a failed re-read as a failed write would tell the user
+   * their remove did not happen and invite them to click it again, which answers 404. The
+   * optimistic update above is close enough to live with until the next load.
+   */
+  private async reconcileSections(): Promise<void> {
     const projectId = this.projectState()?.id;
     if (projectId === undefined) return;
-    this.sectionsState.set([...(await this.gateway.sections.list(projectId))].sort(byPosition));
+    try {
+      this.sectionsState.set([...(await this.gateway.sections.list(projectId))].sort(byPosition));
+    } catch {
+      // Deliberately ignored — see above.
+    }
   }
 
   private track<T>(operation: () => Promise<T>): Promise<T> {

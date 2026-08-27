@@ -23,7 +23,11 @@ export interface SectionContentInputs extends Record<string, unknown> {
   onConfigChange: (config: SectionConfig) => void;
 }
 
-/** The shape a content component must accept. Enforced structurally by the registry. */
+/**
+ * The members a content component must declare. `SectionDefinition.component` is typed
+ * against this, so a section registered without an `onConfigChange` input fails to compile
+ * rather than failing at `setInput` in the browser.
+ */
 export interface SectionContentComponent {
   readonly section: unknown;
   readonly onConfigChange: unknown;

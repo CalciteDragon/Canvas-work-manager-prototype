@@ -152,7 +152,7 @@ canvas-level fallback for an unregistered `type` is asserted in `project-page.sp
 - `api/routes.test.ts` — happy paths plus the scoping and validation cases in the test plan.
 - `router.ts` — add `DELETE` to the CORS allow-methods list, without which the browser
   preflight rejects the remove call.
-- `router.test.ts` — assert the preflight advertises `DELETE`.
+- `main.test.ts` — assert the preflight advertises `DELETE` (the CORS assertions already live there, not in `router.test.ts`).
 
 ### Web — boundary (`apps/web/src/app/core`)
 
@@ -186,7 +186,11 @@ canvas-level fallback for an unregistered `type` is asserted in `project-page.sp
   `ProjectPageStore.load(projectId)` is the only caller of `TaskListStore.load(projectId)`.
   Section mutations go through the gateway and update signals.
 - `project-page-store.spec.ts` — see test plan.
-- `sections/registry.ts` — `SectionDefinition` (§29, verbatim) and `SECTION_REGISTRY`;
+- `sections/section-contract.ts` — `SectionContentInputs`, the record the frame hands a
+  content component through `NgComponentOutlet`, and `SectionContentComponent`, the members
+  `SectionDefinition.component` is typed against.
+- `sections/registry.ts` — `SectionDefinition` (§29, verbatim but for `component`, narrowed
+  from `Type<unknown>` to the content contract) and `SECTION_REGISTRY`;
   `definitionFor(type)` returns `undefined` for an unknown type.
 - `sections/registry.spec.ts` — every entry is complete, every `type` is unique, and
   `definitionFor` returns `undefined` for an unknown type. Deliberately generic: an
@@ -338,8 +342,8 @@ Each test is written before its implementation and observed failing for the righ
   PATCH, DELETE, move and duplicate against a section in another workspace` — table-driven.
 - `answers 400 for an unsupported columnSpan`.
 - `answers 404 for a section that was already removed`.
-- `advertises DELETE in the CORS preflight` — in `router.test.ts`, guarding the one-word
-  change that would otherwise regress silently.
+- `advertises DELETE in the CORS preflight` — in `main.test.ts` alongside the existing CORS
+  assertions, guarding the one-word change that would otherwise regress silently.
 
 ### Web — store and components
 
@@ -568,3 +572,45 @@ rendered a started-but-unfinished project.
 the header when only the task load fails" is unit-tested only. Stopping the host fails both
 fetches and lands on the not-found path instead, and failing `GET /api/tasks` alone needs the
 failure injection Slice 12 builds.
+
+## Diff review
+
+Two reviewers ran against the diff rather than against a description of it. Between them
+they found seven substantive defects, all fixed in the follow-up commit, each with a test.
+
+1. **`SectionService.duplicate` used `position` as an array index.** The two agree only
+   while stored positions are dense, and §14 makes `data.json` hand-editable — the
+   pre-Slice-8 `busy-week` seed was itself sparse. Duplicating a middle section of a project
+   numbered `0, 5, 7` spliced past the end and dropped the pair below its siblings. Now
+   indexed by `findIndex`, with a sparse-data test that fails against the old line.
+2. **The header's progress went blank on any task error, not just a failed load.**
+   `TaskListStore.error` also carries "a task title is required" and a rolled-back
+   completion, so pressing Add task with an empty box flipped the header to "Not available".
+   `TaskListStore` now exposes `loadFailed` separately, and that is what `progress` reads.
+3. **Neither store guarded against out-of-order loads.** Clicking project A then B inside one
+   round trip could leave A's sections under B's header, or file a quick-created task against
+   the wrong project. Both `load` methods now carry a generation token.
+4. **A failed re-read after a successful write was reported as a failed write** — telling the
+   user a completed remove had failed, and inviting a second click that answers 404.
+   `reconcileSections` now swallows its own failure, after the local state has been updated.
+5. **`duplicateSection`'s append fallback was dead code** whose comment described behaviour
+   that could not occur; deleted along with the optimistic-then-reconcile rewrite.
+6. **`SectionContentComponent` was unused and its comment false** — it claimed the registry
+   enforced the content contract structurally, while `SectionDefinition.component` was
+   `Type<unknown>`. The type is now narrowed, so a section registered without
+   `onConfigChange` fails to compile instead of failing at `setInput` in the browser.
+7. **The promised single-`TaskListStore` test did not exist.** It does now, and it fails if
+   `TaskListSection` provides its own store — verified by making exactly that change.
+
+Also fixed from the same pass: four duplicate ids in `.prototype/notes.json`; a decision
+entry citing seed evidence the same commit had invalidated; a stale `/tasks` claim in Slice
+7's status line; two out-of-date code comments; a visually-hidden label borrowing
+`--border-hairline` for a 1px box (deleted — the textarea already carries an `aria-label`);
+and the loading window, which now covers the task load so the header no longer paints "Not
+available" for one frame before the real percentage.
+
+**Not acted on, deliberately.** Remove is still an immediate, unconfirmed, unrecoverable
+delete, and on a Rich Text section that destroys text someone wrote. §31 offers no undo and a
+section is view configuration, so this stays as designed for the prototype — but it is
+recorded as friction in `.prototype/notes.json` for the slice that revisits §32's editing
+mode, with a concrete suggestion (confirm only when a section's config is non-empty).

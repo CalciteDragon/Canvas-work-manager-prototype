@@ -15,7 +15,8 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
  *
  * Scoped to a project since Slice 8: the workspace-wide list and its project chooser were
  * Slice 7's temporary `/tasks` page, and every real task list now belongs to a project's
- * canvas. `ProjectPage` provides the single instance and is the only caller of `load`.
+ * canvas. `ProjectPage` provides the single instance, and `ProjectPageStore.load` is the
+ * only caller of `load`.
  */
 @Injectable()
 export class TaskListStore {
@@ -27,9 +28,11 @@ export class TaskListStore {
   private readonly selectedTaskIdState = signal<TaskId | null>(null);
   private readonly loadingState = signal(false);
   private readonly errorState = signal<string | null>(null);
+  private readonly loadFailedState = signal(false);
   private readonly completingIdsState = signal<ReadonlySet<TaskId>>(new Set());
 
   private revision = 0;
+  private loadGeneration = 0;
   private readonly fieldRevisions = new Map<TaskId, Map<MutableTaskField, number>>();
   private readonly fieldQueues = new Map<string, Promise<void>>();
 
@@ -38,6 +41,12 @@ export class TaskListStore {
   readonly selectedTaskId = this.selectedTaskIdState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
+  /**
+   * Whether the *list* is missing, as opposed to a mutation having failed. `error` carries
+   * both — a blank quick-create title sets it just as an unreachable host does — so a
+   * reader that needs to know "are these tasks trustworthy" has to ask this instead.
+   */
+  readonly loadFailed = this.loadFailedState.asReadonly();
   readonly completingIds = this.completingIdsState.asReadonly();
   readonly selectedTask = computed(() => {
     const id = this.selectedTaskIdState();
@@ -46,22 +55,28 @@ export class TaskListStore {
 
   /** Archived tasks stay out — they are also outside the project header's progress count. */
   load(projectId: ProjectId): Promise<void> {
+    // Switching projects faster than a round trip must not let the older answer land last.
+    const generation = ++this.loadGeneration;
     return this.track(async () => {
       this.projectIdState.set(projectId);
       this.loadingState.set(true);
       this.errorState.set(null);
+      this.loadFailedState.set(false);
       try {
         const tasks = await this.gateway.tasks.list({ projectId, includeArchived: false });
+        if (generation !== this.loadGeneration) return;
         this.tasksState.set(tasks);
         const selectedTask = this.selectedTaskIdState();
         if (selectedTask !== null && !tasks.some(({ id }) => id === selectedTask)) {
           this.selectedTaskIdState.set(null);
         }
       } catch (error) {
+        if (generation !== this.loadGeneration) return;
         this.tasksState.set([]);
         this.errorState.set(messageOf(error));
+        this.loadFailedState.set(true);
       } finally {
-        this.loadingState.set(false);
+        if (generation === this.loadGeneration) this.loadingState.set(false);
       }
     });
   }

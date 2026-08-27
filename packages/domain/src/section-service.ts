@@ -156,8 +156,13 @@ export class SectionService {
       });
 
       await this.dependencies.sections.insert(copy);
+      // Indexed by where the original actually sits, not by its `position`. The two agree
+      // only while the stored positions are dense, and a hand-edited `data.json` (§14) is
+      // free not to be — a project numbered 0, 5, 7 would splice past the end and drop the
+      // pair below its siblings.
+      const index = siblings.findIndex((section) => section.id === id);
       const reordered = [...siblings.filter((section) => section.id !== id)];
-      reordered.splice(current.position, 0, current, copy);
+      reordered.splice(index, 0, current, copy);
       await this.renumber(reordered);
 
       await this.record(actor, copy, 'project.section_added', 'Duplicated');

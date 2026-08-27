@@ -259,3 +259,31 @@ describe('section workspace scoping (§16)', () => {
     await expect(call(harness, section.id)).rejects.toBeInstanceOf(EntityNotFoundError);
   });
 });
+
+describe('SectionService on a sparsely numbered project', () => {
+  /** §14 makes `data.json` hand-editable, so dense positions are a convention, not a given. */
+  const sparse = async (harness: Harness) => {
+    const [first, second, third] = await withThree(harness);
+    for (const [section, position] of [[first, 0], [second, 5], [third, 7]] as const) {
+      await harness.sections.update({ ...section, position });
+    }
+    return [first, second, third];
+  };
+
+  it('duplicates the section the caller named, in place, rather than at its position index', async () => {
+    const harness = buildHarness();
+    const [, second] = await sparse(harness);
+
+    const copy = await harness.sectionService.duplicate(harness.actor, second.id);
+
+    // Indexing by `position` would splice past the end of a three-element array and leave
+    // the pair below `progress`.
+    expect(await positions(harness)).toEqual([
+      ['rich-text', 0],
+      ['task-list', 1],
+      ['task-list', 2],
+      ['progress', 3],
+    ]);
+    expect(copy.position).toBe(2);
+  });
+});

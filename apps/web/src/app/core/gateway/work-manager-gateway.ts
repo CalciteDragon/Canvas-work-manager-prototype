@@ -29,7 +29,7 @@ export interface TaskGateway {
 
 /**
  * §9 gives `ProjectGateway` no shape, so it grows with the code that calls it: the shell
- * lists projects, and the project page (Slice 8) will get one. `create`/`update`/`archive`
+ * lists projects and the project page reads one. `create`/`update`/`archive`
  * arrive with the UI that writes — a method the UI cannot exercise is a claim no test
  * backs.
  */

@@ -124,7 +124,11 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
   displayName: 'Rich Text',
   icon: '📝',
   createDefaultConfig: () => ({ text: '' }),
-  component: class {},
+  // Satisfies the content contract `SectionDefinition.component` requires; never rendered.
+  component: class {
+    readonly section = undefined;
+    readonly onConfigChange = undefined;
+  },
   ...overrides,
 });
 
@@ -180,6 +184,60 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.error()).toBeNull();
     expect(tasks.error()).toContain('could not reach');
     expect(store.progress()).toBeNull();
+  });
+
+  it('keeps progress after a failed task mutation — only a failed load makes it unavailable', async () => {
+    const { store, tasks } = setup();
+    await store.load(PROJECT);
+    expect(store.progress()).toBe(50);
+
+    // `TaskListStore.error` carries validation and rollback messages too. Gating progress on
+    // it made the header read "Not available" the moment someone pressed Add task with an
+    // empty box — a mutation failing does not make the count wrong.
+    expect(await tasks.create('   ')).toBe(false);
+
+    expect(tasks.error()).not.toBeNull();
+    expect(store.progress()).toBe(50);
+  });
+
+  it('ignores a slower earlier project load, so two clicks cannot mix two projects', async () => {
+    const other = 'project-b' as ProjectId;
+    const gates = new Map<string, () => void>();
+    const { store } = setup({
+      projectGet: vi.fn(async (id: ProjectId) => {
+        await new Promise<void>((resolve) => gates.set(id, resolve));
+        return project({ id, name: id === PROJECT ? 'Website launch' : 'Second project' });
+      }) as unknown as WorkManagerGateway['projects']['get'],
+    });
+
+    const first = store.load(PROJECT);
+    const second = store.load(other);
+    // The first click's response lands last — the shape that leaves A's sections under B.
+    gates.get(other)!();
+    await second;
+    gates.get(PROJECT)!();
+    await first;
+
+    expect(store.project()?.id).toBe(other);
+  });
+
+  it('reports a write that succeeded as a success even when the re-read fails', async () => {
+    let listCalls = 0;
+    const { store } = setup({
+      sectionOverrides: {
+        list: vi.fn(async () => {
+          listCalls += 1;
+          if (listCalls > 1) throw new GatewayError('unreachable', 0, 'could not reach the prototype host');
+          return [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)];
+        }),
+      },
+    });
+    await store.load(PROJECT);
+
+    // Telling the user a completed remove failed invites them to click it again, which 404s.
+    expect(await store.removeSection('section-text' as SectionId)).toBe(true);
+    expect(store.sectionError()).toBeNull();
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-tasks']);
   });
 
   it('surfaces an unreachable project as a visible error rather than an empty canvas', async () => {
