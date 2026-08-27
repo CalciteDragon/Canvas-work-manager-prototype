@@ -1,6 +1,6 @@
 # Slice 4 — Seeds, personas, clock, reset
 
-**Status:** in progress
+**Status:** done
 
 ## Goal
 
@@ -99,6 +99,10 @@ Executable, in order.
 - `pnpm-lock.yaml` — record the new workspace and tool dependency edges.
 - `docs/decisions/2026-08-persona-workspace-topology.md` — record why every seed ships
   all three personas in separate workspaces and what future use should revisit.
+- `docs/decisions/2026-08-persona-contract-fields.md` — record why §17 uses canonical
+  `User.id`/`workspaceId` rather than introducing persona-only aliases.
+- `Canvas Work Manager — Prototype Product, Design & Development Specification.md` —
+  correct §17's provisional persona field names to the implemented canonical contract.
 - `development.md` — mark Slice 4 in progress now and done only after acceptance.
 - `.prototype/notes.json` — append only friction observed during real CLI/seed use.
 - `docs/plans/04-seeds-personas-clock-reset.md` — keep this plan current and record
@@ -208,3 +212,13 @@ later development panel test persona preferences and user isolation without real
   required invalid clock construction and state-preserving update coverage; and added
   seed-local project ancestry termination/cycle checks.
 - Round 2: no substantive plan findings remained.
+- Implementation review: deep-froze the exported persona templates and added a
+  regression test so consumers cannot contaminate future deterministic builds; recorded
+  the `userId`/`workspace` → `id`/`workspaceId` contract choice and corrected §17. The
+  separate claim that §17 did not name user isolation was rejected because the exact
+  section explicitly lists it.
+- Final review: correctness/acceptance and architecture-boundary passes returned no
+  substantive findings; the spec/living-doc pass returned clean after the fixes above.
+  The real CLI verified busy-week replacement, invalid-name non-mutation, and reset
+  equivalence. `pnpm test`, `pnpm lint`, and `pnpm build` passed; the running host and
+  Angular app returned HTTP 200 before clean shutdown.

@@ -2,12 +2,28 @@ import { UserSchema, WorkspaceSchema, type User, type Workspace } from '@cwm/con
 
 const CREATED_AT = '2026-08-01T16:00:00.000Z';
 
+type DeepReadonly<T> = T extends (...arguments_: never[]) => unknown
+  ? T
+  : T extends readonly unknown[]
+    ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+    : T extends object
+      ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+      : T;
+
+const deepFreeze = <T>(value: T): DeepReadonly<T> => {
+  if (value !== null && typeof value === 'object') {
+    for (const nested of Object.values(value)) deepFreeze(nested);
+    Object.freeze(value);
+  }
+  return value as DeepReadonly<T>;
+};
+
 const persona = (user: Parameters<typeof UserSchema.parse>[0], workspace: Parameters<typeof WorkspaceSchema.parse>[0]) => ({
   user: UserSchema.parse(user),
   workspace: WorkspaceSchema.parse(workspace),
 });
 
-export const PERSONAS: ReadonlyArray<Readonly<{ user: User; workspace: Workspace }>> = [
+export const PERSONAS: DeepReadonly<ReadonlyArray<Readonly<{ user: User; workspace: Workspace }>>> = deepFreeze([
   persona(
     {
       id: 'user-demo',
@@ -80,4 +96,4 @@ export const PERSONAS: ReadonlyArray<Readonly<{ user: User; workspace: Workspace
       createdAt: CREATED_AT,
     },
   ),
-];
+]);

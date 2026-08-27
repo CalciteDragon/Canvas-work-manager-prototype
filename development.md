@@ -169,7 +169,7 @@ store and retrieve, nothing more.
 
 ### Slice 4 — Seeds, personas, clock, reset
 
-**Status:** in progress — plan: [docs/plans/04-seeds-personas-clock-reset.md](docs/plans/04-seeds-personas-clock-reset.md)
+**Status:** done — plan: [docs/plans/04-seeds-personas-clock-reset.md](docs/plans/04-seeds-personas-clock-reset.md) — five deterministic seeds include isolated personas; atomic CLI reset/seed commands and a settable, lint-enforced domain clock are verified.
 
 **Goal:** Any workspace state is one command away.
 

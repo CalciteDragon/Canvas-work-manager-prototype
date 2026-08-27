@@ -630,15 +630,18 @@ Alex
 Sam
 ```
 
-Each has:
+Each uses the canonical `User` contract fields:
 
 ```text
-userId
+id
 name
 avatar
-workspace
+workspaceId
 preferences
 ```
+
+The referenced workspace is a separate record in the prototype document (§14), not a
+nested or persona-specific workspace shape.
 
 A development menu allows:
 

@@ -50,6 +50,21 @@ describe('seed registry and validation', () => {
     expect(buildSeed(seedName)).not.toEqual(document);
   });
 
+  it('protects the exported persona templates from contaminating future builds', () => {
+    const mutablePersona = PERSONAS[0] as unknown as { user: { name: string } };
+    const originalName = mutablePersona.user.name;
+    let mutationError: unknown;
+    try {
+      mutablePersona.user.name = 'Contaminated';
+    } catch (error: unknown) {
+      mutationError = error;
+    }
+    if (mutationError === undefined) mutablePersona.user.name = originalName;
+
+    expect(mutationError).toBeInstanceOf(TypeError);
+    expect(buildSeed('empty').users[0]!.name).toBe('Demo User');
+  });
+
   it.each([
     'empty',
     'personal-workspace',
