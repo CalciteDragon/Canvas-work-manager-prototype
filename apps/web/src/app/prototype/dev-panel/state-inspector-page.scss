@@ -1,0 +1,66 @@
+:host {
+  display: block;
+}
+
+.state-inspector {
+  display: grid;
+  max-width: var(--layout-reading-width);
+  gap: var(--space-5);
+}
+
+.state-inspector h1,
+.state-inspector p {
+  margin: 0;
+}
+
+.state-inspector header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.state-inspector__eyebrow {
+  color: var(--color-accent);
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.state-inspector__deferral {
+  color: var(--color-text-muted);
+}
+
+.state-inspector__error {
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.state-inspector__projects {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.state-inspector__project {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.state-inspector__project legend {
+  width: 100%;
+  padding: 0;
+  font-size: var(--font-size-lg);
+}
+
+.state-inspector__project label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-transform: capitalize;
+}

@@ -9,7 +9,9 @@
   <article class="project-page">
     <!-- §26's header: icon, name, status, progress, target date, quick add, more. -->
     <header class="project-header">
-      <span data-project-icon class="project-header__icon" aria-hidden="true">{{ project.icon ?? '📁' }}</span>
+      <span data-project-icon class="project-header__icon" aria-hidden="true">{{
+        project.icon ?? '📁'
+      }}</span>
 
       <div class="project-header__identity">
         <h1 data-project-name class="project-header__name">{{ project.name }}</h1>
@@ -21,7 +23,9 @@
       <dl class="project-header__facts">
         <div>
           <dt>Status</dt>
-          <dd data-project-status class="project-header__status">{{ project.status.replace('_', ' ') }}</dd>
+          <dd data-project-status class="project-header__status">
+            {{ project.status.replace('_', ' ') }}
+          </dd>
         </div>
         <div>
           <dt>Progress</dt>
@@ -49,26 +53,40 @@
       </dl>
 
       <div class="project-header__actions">
-        <button
-          data-project-quick-add
-          type="button"
-          class="project-header__quick-add"
-          [attr.aria-expanded]="addOpen()"
-          (click)="toggleAdd()"
-        >
-          Quick add
-        </button>
+        @if (store.editMode()) {
+          <button
+            data-project-quick-add
+            type="button"
+            class="project-header__quick-add"
+            [attr.aria-expanded]="addOpen()"
+            (click)="toggleAdd()"
+          >
+            Quick add
+          </button>
+        }
         <!-- §26 names a "More" control. It opens nothing yet: project edit and archive
              arrive with the slice that builds them, and a menu of disabled items is worse
              than a control that is honestly inert. -->
-        <button data-project-more type="button" disabled aria-label="More project actions (not built yet)">⋯</button>
+        <button
+          data-project-more
+          type="button"
+          disabled
+          aria-label="More project actions (not built yet)"
+        >
+          ⋯
+        </button>
       </div>
 
       @if (addOpen()) {
         <ul data-add-section-menu class="project-header__add-menu">
           @for (definition of registry; track definition.type) {
             <li>
-              <button data-add-section type="button" [attr.data-section-type]="definition.type" (click)="add(definition.type)">
+              <button
+                data-add-section
+                type="button"
+                [attr.data-section-type]="definition.type"
+                (click)="add(definition.type)"
+              >
                 <span aria-hidden="true">{{ definition.icon }}</span> {{ definition.displayName }}
               </button>
             </li>
@@ -77,45 +95,101 @@
       }
     </header>
 
+    <section class="project-controls" aria-label="Project layout controls">
+      <div>
+        <strong>{{ project.projectLayoutMode === 'flow' ? 'Flow layout' : 'Grid layout' }}</strong>
+        <span class="project-controls__hint">
+          Layout experiments are switched in Prototype state.
+        </span>
+      </div>
+      <button
+        data-layout-edit-toggle
+        type="button"
+        [attr.aria-pressed]="store.editMode()"
+        (click)="toggleEditMode()"
+      >
+        {{ store.editMode() ? 'Finish editing layout' : 'Edit layout' }}
+      </button>
+    </section>
+
     @if (store.sectionError(); as sectionError) {
       <p data-section-error class="project-page__error" role="alert">{{ sectionError }}</p>
     }
 
-    <div data-section-canvas class="section-canvas">
-      @if (store.sections().length === 0) {
-        <p data-empty-canvas class="project-page__muted">
-          This canvas is empty. Use Quick add to put a section on it.
-        </p>
-      } @else {
-        @for (section of store.sections(); track section.id) {
-          @if (definitionFor(section.type); as definition) {
-            <app-project-section-frame
-              [section]="section"
-              [definition]="definition"
-              (collapseToggled)="collapse($event)"
-              (resized)="resize($event)"
-              (configChanged)="saveConfig($event)"
-              (duplicateRequested)="store.duplicateSection($event)"
-              (removeRequested)="store.removeSection($event)"
-            />
-          } @else {
-            <!-- `data.json` is hand-editable and outlives any one registry, so an unknown
-                 type gets a card the user can read and remove — not a blank space, and not
-                 something they are stuck with. -->
-            <section data-unknown-section class="unknown-section">
-              <h2>Unrecognised section</h2>
-              <p>Nothing in this build knows how to render a “{{ section.type }}” section.</p>
-              <button
-                data-unknown-section-remove
-                type="button"
-                (click)="store.removeSection(section.id)"
-              >
-                Remove it
-              </button>
-            </section>
+    @if (canvasMounted()) {
+      <div
+        data-section-canvas
+        cdkDropList
+        class="section-canvas"
+        [class.section-canvas--flow]="project.projectLayoutMode === 'flow'"
+        [class.section-canvas--grid]="project.projectLayoutMode === 'grid'"
+        [cdkDropListOrientation]="project.projectLayoutMode === 'grid' ? 'mixed' : 'vertical'"
+        [cdkDropListDisabled]="!store.editMode()"
+        (cdkDropListDropped)="drop($event)"
+      >
+        @if (store.sections().length === 0) {
+          <p data-empty-canvas class="project-page__muted">
+            @if (store.editMode()) {
+              This canvas is empty. Use Quick add to put a section on it.
+            } @else {
+              This canvas is empty. Enter Edit Layout Mode to add a section.
+            }
+          </p>
+        } @else {
+          @for (section of store.sections(); track store.canvasRevision() + ':' + section.id) {
+            <div
+              data-section-item
+              cdkDrag
+              class="section-canvas__item"
+              [attr.data-section-id]="section.id"
+              [cdkDragData]="section.id"
+              [cdkDragDisabled]="!store.editMode()"
+              [class.section-canvas__item--span-12]="section.columnSpan === 12"
+              [class.section-canvas__item--span-8]="section.columnSpan === 8"
+              [class.section-canvas__item--span-6]="section.columnSpan === 6"
+              [class.section-canvas__item--span-4]="section.columnSpan === 4"
+            >
+              @if (definitionFor(section.type); as definition) {
+                <app-project-section-frame
+                  [section]="section"
+                  [definition]="definition"
+                  [editMode]="store.editMode()"
+                  (collapseToggled)="collapse($event)"
+                  (resized)="resize($event)"
+                  (configChanged)="saveConfig($event)"
+                  (duplicateRequested)="store.duplicateSection($event)"
+                  (removeRequested)="store.removeSection($event)"
+                />
+              } @else {
+                <!-- `data.json` is hand-editable and outlives any one registry, so an unknown
+                   type stays in the same sortable list and remains removable in edit mode. -->
+                <section data-unknown-section class="unknown-section">
+                  @if (store.editMode()) {
+                    <span
+                      data-unknown-section-drag-handle
+                      cdkDragHandle
+                      class="unknown-section__handle"
+                      aria-hidden="true"
+                      >⠿</span
+                    >
+                  }
+                  <h2>Unrecognised section</h2>
+                  <p>Nothing in this build knows how to render a “{{ section.type }}” section.</p>
+                  @if (store.editMode()) {
+                    <button
+                      data-unknown-section-remove
+                      type="button"
+                      (click)="store.removeSection(section.id)"
+                    >
+                      Remove it
+                    </button>
+                  }
+                </section>
+              }
+            </div>
           }
         }
-      }
-    </div>
+      </div>
+    }
   </article>
 }

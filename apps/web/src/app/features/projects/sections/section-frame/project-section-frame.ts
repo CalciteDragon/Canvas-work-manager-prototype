@@ -1,5 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { NgComponentOutlet } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import {
   SectionColumnSpanSchema,
   type ProjectSection,
@@ -17,19 +26,20 @@ import type { SectionDefinition } from '../registry';
  * The frame is **chrome only** — it emits intent and never touches a gateway, which is what
  * lets one component carry the affordances for every section type.
  *
- * The controls are visible unconditionally. §32's Edit Layout Mode is what will hide them,
- * and that mode arrives in Slice 9; gating on a mode that does not exist is unbuildable.
+ * §32's Edit Layout Mode gates layout, configuration, and destructive controls while
+ * leaving collapse and section content usable in the normal workspace.
  */
 @Component({
   selector: 'app-project-section-frame',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet],
+  imports: [CdkDragHandle, NgComponentOutlet],
   templateUrl: './project-section-frame.html',
   styleUrl: './project-section-frame.scss',
 })
 export class ProjectSectionFrame {
   readonly section = input.required<ProjectSection>();
   readonly definition = input.required<SectionDefinition>();
+  readonly editMode = input.required<boolean>();
 
   readonly collapseToggled = output<{ id: SectionId; collapsed: boolean }>();
   readonly resized = output<{ id: SectionId; columnSpan: SectionColumnSpan }>();
@@ -57,6 +67,12 @@ export class ProjectSectionFrame {
     onConfigChange: this.emitConfig,
   }));
 
+  constructor() {
+    effect(() => {
+      if (!this.editMode()) this.configOpen.set(false);
+    });
+  }
+
   toggleCollapsed(): void {
     this.collapseToggled.emit({ id: this.section().id, collapsed: !this.section().collapsed });
   }
@@ -67,6 +83,7 @@ export class ProjectSectionFrame {
 
   resize(value: string): void {
     const columnSpan = SectionColumnSpanSchema.safeParse(Number(value));
-    if (columnSpan.success) this.resized.emit({ id: this.section().id, columnSpan: columnSpan.data });
+    if (columnSpan.success)
+      this.resized.emit({ id: this.section().id, columnSpan: columnSpan.data });
   }
 }

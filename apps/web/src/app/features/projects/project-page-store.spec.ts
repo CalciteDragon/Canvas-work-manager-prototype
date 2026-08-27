@@ -11,7 +11,10 @@ import {
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
-import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../../core/gateway/work-manager-gateway';
+import {
+  WORK_MANAGER_GATEWAY,
+  type WorkManagerGateway,
+} from '../../core/gateway/work-manager-gateway';
 import { TaskListStore } from '../tasks/task-list-store';
 import { ProjectPageStore } from './project-page-store';
 import type { SectionDefinition } from './sections/registry';
@@ -33,7 +36,12 @@ const project = (overrides: Record<string, unknown> = {}): Project =>
     ...overrides,
   });
 
-const section = (id: string, type: string, position: number, overrides: Record<string, unknown> = {}): ProjectSection =>
+const section = (
+  id: string,
+  type: string,
+  position: number,
+  overrides: Record<string, unknown> = {},
+): ProjectSection =>
   ProjectSectionSchema.parse({
     id,
     projectId: PROJECT,
@@ -59,6 +67,16 @@ const task = (id: string, status: 'todo' | 'done' = 'todo'): Task =>
     updatedAt: AT,
   });
 
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+};
+
 const setup = (
   options: {
     sections?: ProjectSection[];
@@ -69,7 +87,10 @@ const setup = (
   } = {},
 ) => {
   // Mutated by the write fakes, so a spec sees what a re-listing host would answer.
-  let sections = options.sections ?? [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)];
+  let sections = options.sections ?? [
+    section('section-text', 'rich-text', 0),
+    section('section-tasks', 'task-list', 1),
+  ];
 
   const gateway: WorkManagerGateway = {
     projects: {
@@ -80,7 +101,9 @@ const setup = (
     sections: {
       list: vi.fn(async () => [...sections]),
       create: vi.fn(async (_projectId, input) => {
-        const created = section(`section-${sections.length}`, input.type, sections.length, { config: input.config });
+        const created = section(`section-${sections.length}`, input.type, sections.length, {
+          config: input.config,
+        });
         sections = [...sections, created];
         return created;
       }),
@@ -89,13 +112,23 @@ const setup = (
         sections = sections.map((item) => (item.id === id ? updated : item));
         return updated;
       }),
-      move: vi.fn(async (id, input) => ({ ...sections.find((item) => item.id === id)!, position: input.position })),
+      move: vi.fn(async (id, input) => ({
+        ...sections.find((item) => item.id === id)!,
+        position: input.position,
+      })),
       duplicate: vi.fn(async (id) => {
         const original = sections.find((item) => item.id === id)!;
-        const copy = { ...original, id: `${id}-copy` as SectionId, position: original.position + 1 };
-        sections = [...sections.map((item) =>
-          item.position > original.position ? { ...item, position: item.position + 1 } : item,
-        ), copy];
+        const copy = {
+          ...original,
+          id: `${id}-copy` as SectionId,
+          position: original.position + 1,
+        };
+        sections = [
+          ...sections.map((item) =>
+            item.position > original.position ? { ...item, position: item.position + 1 } : item,
+          ),
+          copy,
+        ];
         return copy;
       }),
       remove: vi.fn(async (id) => {
@@ -106,7 +139,9 @@ const setup = (
       ...options.sectionOverrides,
     },
     tasks: {
-      list: options.taskList ?? vi.fn(async () => options.tasks ?? [task('task-1'), task('task-2', 'done')]),
+      list:
+        options.taskList ??
+        vi.fn(async () => options.tasks ?? [task('task-1'), task('task-2', 'done')]),
       get: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
@@ -116,7 +151,11 @@ const setup = (
   };
 
   TestBed.configureTestingModule({
-    providers: [TaskListStore, ProjectPageStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
+    providers: [
+      TaskListStore,
+      ProjectPageStore,
+      { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+    ],
   });
   return { store: TestBed.inject(ProjectPageStore), tasks: TestBed.inject(TaskListStore), gateway };
 };
@@ -229,8 +268,12 @@ describe('ProjectPageStore (§19, §26)', () => {
       sectionOverrides: {
         list: vi.fn(async () => {
           listCalls += 1;
-          if (listCalls > 1) throw new GatewayError('unreachable', 0, 'could not reach the prototype host');
-          return [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)];
+          if (listCalls > 1)
+            throw new GatewayError('unreachable', 0, 'could not reach the prototype host');
+          return [
+            section('section-text', 'rich-text', 0),
+            section('section-tasks', 'task-list', 1),
+          ];
         }),
       },
     });
@@ -264,7 +307,10 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     // The registry's default is what has to reach persistence — otherwise a new type's
     // config would silently start life as `{}`.
-    expect(gateway.sections.create).toHaveBeenCalledWith(PROJECT, { type: 'rich-text', config: { text: '' } });
+    expect(gateway.sections.create).toHaveBeenCalledWith(PROJECT, {
+      type: 'rich-text',
+      config: { text: '' },
+    });
     expect(store.sections()).toHaveLength(3);
   });
 
@@ -275,7 +321,9 @@ describe('ProjectPageStore (§19, §26)', () => {
     // §29 types `createDefaultConfig()` as `unknown`; this is where that stops being safe.
     // It surfaces as a visible section error, not a thrown page crash — a broken definition
     // is a bug to see, not a reason to lose the canvas.
-    expect(await store.addSection(definition({ createDefaultConfig: () => 'not an object' }))).toBe(false);
+    expect(await store.addSection(definition({ createDefaultConfig: () => 'not an object' }))).toBe(
+      false,
+    );
     expect(gateway.sections.create).not.toHaveBeenCalled();
     expect(store.sectionError()).not.toBeNull();
   });
@@ -290,8 +338,14 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(gateway.sections.update).toHaveBeenNthCalledWith(1, 'section-text', { collapsed: true });
     expect(gateway.sections.update).toHaveBeenNthCalledWith(2, 'section-text', { columnSpan: 6 });
-    expect(gateway.sections.update).toHaveBeenNthCalledWith(3, 'section-text', { config: { text: 'edited' } });
-    expect(store.sections()[0]).toMatchObject({ collapsed: true, columnSpan: 6, config: { text: 'edited' } });
+    expect(gateway.sections.update).toHaveBeenNthCalledWith(3, 'section-text', {
+      config: { text: 'edited' },
+    });
+    expect(store.sections()[0]).toMatchObject({
+      collapsed: true,
+      columnSpan: 6,
+      config: { text: 'edited' },
+    });
   });
 
   it('duplicates a section and re-reads the positions the host renumbered', async () => {
@@ -313,7 +367,9 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(await store.removeSection('section-text' as SectionId)).toBe(true);
 
-    expect(store.sections().map(({ id, position }) => [id, position])).toEqual([['section-tasks', 0]]);
+    expect(store.sections().map(({ id, position }) => [id, position])).toEqual([
+      ['section-tasks', 0],
+    ]);
   });
 
   it('leaves the canvas exactly as it was and shows why when a section write fails', async () => {
@@ -332,5 +388,90 @@ describe('ProjectPageStore (§19, §26)', () => {
     // A silently dropped remove or config save is the failure that costs the user work.
     expect(store.sections()).toEqual(before);
     expect(store.sectionError()).toContain('could not reach');
+  });
+
+  it('moves through the gateway and reconciles every authoritative sibling position (§32)', async () => {
+    const movedSections = [
+      section('section-tasks', 'task-list', 0),
+      section('section-text', 'rich-text', 1),
+    ];
+    let listCalls = 0;
+    const { store, gateway } = setup({
+      sectionOverrides: {
+        list: vi.fn(async () =>
+          listCalls++ === 0
+            ? [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)]
+            : movedSections,
+        ),
+        move: vi.fn(async () => movedSections[1]!),
+      },
+    });
+    await store.load(PROJECT);
+
+    expect(await store.moveSection('section-text' as SectionId, 1)).toBe(true);
+
+    expect(gateway.sections.move).toHaveBeenCalledWith('section-text', { position: 1 });
+    expect(store.sections().map(({ id, position }) => [id, position])).toEqual([
+      ['section-tasks', 0],
+      ['section-text', 1],
+    ]);
+  });
+
+  it('skips a same-index drop without writing or recording activity', async () => {
+    const { store, gateway } = setup();
+    await store.load(PROJECT);
+
+    expect(await store.moveSection('section-text' as SectionId, 0)).toBe(true);
+
+    expect(gateway.sections.move).not.toHaveBeenCalled();
+  });
+
+  it('restores a fresh canonical list and exposes the reason when a move fails', async () => {
+    const { store } = setup({
+      sectionOverrides: {
+        move: vi.fn(async () => {
+          throw new GatewayError('unreachable', 0, 'move did not persist');
+        }),
+      },
+    });
+    await store.load(PROJECT);
+    const before = store.sections();
+    const revision = store.canvasRevision();
+
+    expect(await store.moveSection('section-text' as SectionId, 1)).toBe(false);
+
+    expect(store.sections()).toEqual(before);
+    expect(store.sections()).not.toBe(before);
+    expect(store.canvasRevision()).toBe(revision + 1);
+    expect(store.sectionError()).toContain('move did not persist');
+  });
+
+  it('resets Edit Layout Mode when project navigation starts', async () => {
+    const { store } = setup();
+    await store.load(PROJECT);
+    store.setEditMode(true);
+
+    const next = store.load('project-b' as ProjectId);
+
+    expect(store.editMode()).toBe(false);
+    await next;
+  });
+
+  it('ignores a move answer for the project left during the write', async () => {
+    const gate = deferred<ProjectSection>();
+    const other = 'project-b' as ProjectId;
+    const { store } = setup({
+      projectGet: vi.fn(async (id: ProjectId) => project({ id })),
+      sectionOverrides: { move: vi.fn(() => gate.promise) },
+    });
+    await store.load(PROJECT);
+
+    const move = store.moveSection('section-text' as SectionId, 1);
+    await store.load(other);
+    gate.resolve(section('section-text', 'rich-text', 1));
+    await move;
+
+    expect(store.project()?.id).toBe(other);
+    expect(store.sectionError()).toBeNull();
   });
 });

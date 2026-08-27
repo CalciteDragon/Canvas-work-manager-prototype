@@ -7,8 +7,11 @@
   [attr.aria-labelledby]="'section-title-' + section().id"
 >
   <header class="section-frame__header">
-    <!-- Presentational in Slice 8. Slice 9 attaches Angular CDK drag-drop to it (§32). -->
-    <span data-section-drag-handle class="section-frame__handle" aria-hidden="true">⠿</span>
+    @if (editMode()) {
+      <span data-section-drag-handle cdkDragHandle class="section-frame__handle" aria-hidden="true"
+        >⠿</span
+      >
+    }
 
     <button
       data-section-collapse
@@ -26,51 +29,53 @@
       {{ title() }}
     </h2>
 
-    <div class="section-frame__controls">
-      <label class="section-frame__size">
-        <span>Size</span>
-        <select
-          data-section-size
-          [value]="section().columnSpan"
-          [attr.aria-label]="'Width of ' + title()"
-          (change)="resize($any($event.target).value)"
-        >
-          @for (span of columnSpans; track span) {
-            <option [value]="span" [selected]="span === section().columnSpan">{{ span }}</option>
-          }
-        </select>
-      </label>
+    @if (editMode()) {
+      <div class="section-frame__controls">
+        <label class="section-frame__size">
+          <span>Size</span>
+          <select
+            data-section-size
+            [value]="section().columnSpan"
+            [attr.aria-label]="'Width of ' + title()"
+            (change)="resize($any($event.target).value)"
+          >
+            @for (span of columnSpans; track span) {
+              <option [value]="span" [selected]="span === section().columnSpan">{{ span }}</option>
+            }
+          </select>
+        </label>
 
-      <button
-        data-section-config
-        type="button"
-        [attr.aria-expanded]="configOpen()"
-        [attr.aria-label]="'Settings for ' + title()"
-        (click)="toggleConfig()"
-      >
-        Settings
-      </button>
-      <button
-        data-section-duplicate
-        type="button"
-        [attr.aria-label]="'Duplicate ' + title()"
-        (click)="duplicateRequested.emit(section().id)"
-      >
-        Duplicate
-      </button>
-      <button
-        data-section-remove
-        class="section-frame__remove"
-        type="button"
-        [attr.aria-label]="'Remove ' + title()"
-        (click)="removeRequested.emit(section().id)"
-      >
-        Remove
-      </button>
-    </div>
+        <button
+          data-section-config
+          type="button"
+          [attr.aria-expanded]="configOpen()"
+          [attr.aria-label]="'Settings for ' + title()"
+          (click)="toggleConfig()"
+        >
+          Settings
+        </button>
+        <button
+          data-section-duplicate
+          type="button"
+          [attr.aria-label]="'Duplicate ' + title()"
+          (click)="duplicateRequested.emit(section().id)"
+        >
+          Duplicate
+        </button>
+        <button
+          data-section-remove
+          class="section-frame__remove"
+          type="button"
+          [attr.aria-label]="'Remove ' + title()"
+          (click)="removeRequested.emit(section().id)"
+        >
+          Remove
+        </button>
+      </div>
+    }
   </header>
 
-  @if (configOpen()) {
+  @if (editMode() && configOpen()) {
     <div data-section-inspector class="section-frame__inspector">
       @if (definition().inspectorComponent; as inspector) {
         <ng-container [ngComponentOutlet]="inspector" [ngComponentOutletInputs]="contentInputs()" />
@@ -82,7 +87,10 @@
 
   @if (!section().collapsed) {
     <div data-section-content class="section-frame__content">
-      <ng-container [ngComponentOutlet]="definition().component" [ngComponentOutletInputs]="contentInputs()" />
+      <ng-container
+        [ngComponentOutlet]="definition().component"
+        [ngComponentOutletInputs]="contentInputs()"
+      />
     </div>
   }
 </section>

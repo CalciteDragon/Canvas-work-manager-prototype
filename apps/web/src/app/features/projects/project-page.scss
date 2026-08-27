@@ -126,16 +126,103 @@
   cursor: pointer;
 }
 
+.project-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.project-controls__hint {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.project-controls button {
+  flex: 0 0 auto;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
 .section-canvas {
-  display: grid;
   gap: var(--space-4);
 }
 
+.section-canvas--flow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.section-canvas--grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.section-canvas__item {
+  min-width: 0;
+}
+
+.section-canvas--flow .section-canvas__item--span-12 {
+  width: 100%;
+}
+
+.section-canvas--flow .section-canvas__item--span-8 {
+  width: 66.666%;
+}
+
+.section-canvas--flow .section-canvas__item--span-6 {
+  width: 50%;
+}
+
+.section-canvas--flow .section-canvas__item--span-4 {
+  width: 33.333%;
+}
+
+.section-canvas--grid .section-canvas__item--span-12 {
+  grid-column: span 12;
+}
+
+.section-canvas--grid .section-canvas__item--span-8 {
+  grid-column: span 8;
+}
+
+.section-canvas--grid .section-canvas__item--span-6 {
+  grid-column: span 6;
+}
+
+.section-canvas--grid .section-canvas__item--span-4 {
+  grid-column: span 4;
+}
+
+.section-canvas__item.cdk-drag-placeholder {
+  opacity: 0.35;
+}
+
 .unknown-section {
+  position: relative;
   padding: var(--space-4);
   border: var(--border-hairline) dashed var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface-sunken);
+}
+
+.unknown-section__handle {
+  float: inline-start;
+  margin-inline-end: var(--space-2);
+  color: var(--color-text-muted);
+  cursor: grab;
 }
 
 .unknown-section h2 {
@@ -156,4 +243,17 @@
   color: var(--color-danger);
   font: inherit;
   cursor: pointer;
+}
+
+@media (max-width: 48rem) {
+  .project-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .section-canvas--flow .section-canvas__item,
+  .section-canvas--grid .section-canvas__item {
+    grid-column: span 12;
+    width: 100%;
+  }
 }

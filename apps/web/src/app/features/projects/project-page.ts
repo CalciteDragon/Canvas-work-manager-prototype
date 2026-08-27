@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList } from '@angular/cdk/drag-drop';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import type { ProjectId, SectionColumnSpan, SectionConfig, SectionId } from '@cwm/contracts';
 import { TaskListStore } from '../tasks/task-list-store';
 import { ProjectPageStore } from './project-page-store';
@@ -17,7 +26,7 @@ import { SECTION_REGISTRY, definitionFor } from './sections/registry';
 @Component({
   selector: 'app-project-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ProjectSectionFrame],
+  imports: [CdkDrag, CdkDragHandle, CdkDropList, ProjectSectionFrame],
   providers: [TaskListStore, ProjectPageStore],
   templateUrl: './project-page.html',
   styleUrl: './project-page.scss',
@@ -29,6 +38,8 @@ export class ProjectPage {
   readonly store = inject(ProjectPageStore);
   readonly registry = SECTION_REGISTRY;
   readonly addOpen = signal(false);
+  readonly canvasMounted = signal(true);
+  private readonly changeDetector = inject(ChangeDetectorRef);
 
   constructor() {
     // Re-loads when the route changes, which sidebar navigation between projects does
@@ -46,6 +57,27 @@ export class ProjectPage {
 
   toggleAdd(): void {
     this.addOpen.update((open) => !open);
+  }
+
+  toggleEditMode(): void {
+    const editing = !this.store.editMode();
+    this.store.setEditMode(editing);
+    if (!editing) this.addOpen.set(false);
+  }
+
+  async drop(event: CdkDragDrop<unknown>): Promise<void> {
+    const persisted = await this.store.moveSection(
+      event.item.data as SectionId,
+      event.currentIndex,
+    );
+    if (!persisted) {
+      // Mixed-orientation CDK moves DOM nodes directly. A rejected write must destroy that
+      // physical order before recreating the canvas from the canonical store array.
+      this.canvasMounted.set(false);
+      this.changeDetector.detectChanges();
+      this.canvasMounted.set(true);
+      this.changeDetector.detectChanges();
+    }
   }
 
   async add(type: string): Promise<void> {

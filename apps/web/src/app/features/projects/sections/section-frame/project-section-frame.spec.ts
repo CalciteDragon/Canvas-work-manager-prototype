@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, effect, input } from '@angular/core';
+import { CdkDragHandle } from '@angular/cdk/drag-drop';
+import { By } from '@angular/platform-browser';
 import { TestBed } from '@angular/core/testing';
 import { ProjectSectionSchema, type ProjectSection, type SectionConfig } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
@@ -31,7 +33,9 @@ let inputChanges = 0;
 @Component({
   selector: 'app-test-content',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<button data-test-save type="button" (click)="onConfigChange()({ text: 'edited' })">save</button>`,
+  template: `<button data-test-save type="button" (click)="onConfigChange()({ text: 'edited' })">
+    save
+  </button>`,
 })
 class TestContent {
   readonly section = input.required<ProjectSection>();
@@ -67,11 +71,16 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
   ...overrides,
 });
 
-const render = (overrides: Record<string, unknown> = {}, definitionOverrides: Partial<SectionDefinition> = {}) => {
+const render = (
+  overrides: Record<string, unknown> = {},
+  definitionOverrides: Partial<SectionDefinition> = {},
+  editMode = true,
+) => {
   inputChanges = 0;
   const fixture = TestBed.createComponent(ProjectSectionFrame);
   fixture.componentRef.setInput('section', section(overrides));
   fixture.componentRef.setInput('definition', definition(definitionOverrides));
+  fixture.componentRef.setInput('editMode', editMode);
   fixture.detectChanges();
   return fixture;
 };
@@ -165,5 +174,52 @@ describe('ProjectSectionFrame (§31)', () => {
     query(withInspector, '[data-section-config]')!.click();
     withInspector.detectChanges();
     expect(query(withInspector, '[data-test-inspector]')).not.toBeNull();
+  });
+
+  it('leaves collapse usable in view mode but hides every layout-editing control', () => {
+    const fixture = render({}, {}, false);
+    const seen: unknown[] = [];
+    fixture.componentInstance.collapseToggled.subscribe((event) => seen.push(event));
+
+    expect(query(fixture, '[data-section-drag-handle]')).toBeNull();
+    expect(query(fixture, '[data-section-size]')).toBeNull();
+    expect(query(fixture, '[data-section-config]')).toBeNull();
+    expect(query(fixture, '[data-section-duplicate]')).toBeNull();
+    expect(query(fixture, '[data-section-remove]')).toBeNull();
+    expect(query(fixture, '[data-section-content]')).not.toBeNull();
+
+    query(fixture, '[data-section-collapse]')!.click();
+    expect(seen).toEqual([{ id: 'section-a', collapsed: true }]);
+  });
+
+  it('attaches a real CDK drag handle only in Edit Layout Mode', () => {
+    const fixture = render();
+
+    expect(fixture.debugElement.query(By.directive(CdkDragHandle))).not.toBeNull();
+    expect(query(fixture, '[data-section-size]')).not.toBeNull();
+    expect(query(fixture, '[data-section-config]')).not.toBeNull();
+    expect(query(fixture, '[data-section-duplicate]')).not.toBeNull();
+    expect(query(fixture, '[data-section-remove]')).not.toBeNull();
+
+    fixture.componentRef.setInput('editMode', false);
+    fixture.detectChanges();
+
+    expect(fixture.debugElement.query(By.directive(CdkDragHandle))).toBeNull();
+  });
+
+  it('closes an open inspector when Edit Layout Mode ends and does not reopen it', () => {
+    const fixture = render({}, { inspectorComponent: TestInspector });
+    query(fixture, '[data-section-config]')!.click();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-section-inspector]')).not.toBeNull();
+
+    fixture.componentRef.setInput('editMode', false);
+    fixture.detectChanges();
+    expect(query(fixture, '[data-section-inspector]')).toBeNull();
+
+    fixture.componentRef.setInput('editMode', true);
+    fixture.detectChanges();
+    expect(query(fixture, '[data-section-inspector]')).toBeNull();
+    expect(query(fixture, '[data-section-config]')!.getAttribute('aria-expanded')).toBe('false');
   });
 });

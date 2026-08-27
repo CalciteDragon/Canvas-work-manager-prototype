@@ -26,6 +26,8 @@
 .section-frame__handle {
   color: var(--color-text-muted);
   cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
 .section-frame__title {

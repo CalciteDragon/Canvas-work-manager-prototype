@@ -12,7 +12,8 @@ import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { TaskListStore } from '../tasks/task-list-store';
 import type { SectionDefinition } from './sections/registry';
 
-const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+const messageOf = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
 const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position - b.position;
 
@@ -23,8 +24,8 @@ const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position 
  * header's progress and the Task List section one truth: two fetches would be two answers,
  * and completing a task in the section would leave the header stale until a reload.
  *
- * `editMode` from §19's sketch is deliberately absent — §32's mode is Slice 9's, and a
- * signal nothing reads is documentation of a feature that does not exist.
+ * §32's `editMode` is transient page state: it changes chrome, never persistence. A route
+ * change resets it so layout affordances do not leak from one project into another.
  */
 @Injectable()
 export class ProjectPageStore {
@@ -40,12 +41,16 @@ export class ProjectPageStore {
   private loadGeneration = 0;
   private readonly errorState = signal<string | null>(null);
   private readonly sectionErrorState = signal<string | null>(null);
+  private readonly editModeState = signal(false);
+  private readonly canvasRevisionState = signal(0);
 
   readonly project = this.projectState.asReadonly();
   readonly sections = this.sectionsState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly sectionError = this.sectionErrorState.asReadonly();
+  readonly editMode = this.editModeState.asReadonly();
+  readonly canvasRevision = this.canvasRevisionState.asReadonly();
 
   /**
    * §39's count-based formula — completed / total — over the same unarchived tasks the Task
@@ -71,6 +76,7 @@ export class ProjectPageStore {
     // under B's header: without this, whichever response lands last wins, per signal.
     const generation = ++this.loadGeneration;
     const current = () => generation === this.loadGeneration;
+    this.editModeState.set(false);
 
     return this.track(async () => {
       this.loadingState.set(true);
@@ -110,13 +116,71 @@ export class ProjectPageStore {
       // Parsed, not cast: §29 types `createDefaultConfig` as `unknown`, and a definition
       // that returns a non-object should fail here rather than at the host.
       const config = SectionConfigSchema.parse(definition.createDefaultConfig());
-      const created = await this.gateway.sections.create(projectId, { type: definition.type, config });
+      const created = await this.gateway.sections.create(projectId, {
+        type: definition.type,
+        config,
+      });
       this.sectionsState.update((sections) => [...sections, created].sort(byPosition));
     });
   }
 
   setCollapsed(id: SectionId, collapsed: boolean): Promise<boolean> {
     return this.updateSection(id, { collapsed });
+  }
+
+  setEditMode(editing: boolean): void {
+    this.editModeState.set(editing);
+  }
+
+  /**
+   * CDK owns pointer sorting; the domain owns persisted sibling positions. In mixed grid
+   * orientation CDK moves DOM nodes directly, so failure emits a fresh canonical array to
+   * make Angular restore the stored order even though the entity values did not change.
+   */
+  moveSection(id: SectionId, position: number): Promise<boolean> {
+    const project = this.projectState();
+    if (project === null) return Promise.resolve(false);
+
+    const before = this.sectionsState();
+    const from = before.findIndex((section) => section.id === id);
+    if (from < 0) return Promise.resolve(false);
+    if (from === position) return Promise.resolve(true);
+
+    const generation = this.loadGeneration;
+    const current = () =>
+      generation === this.loadGeneration && this.projectState()?.id === project.id;
+
+    // CDK's mixed strategy has already moved the actual DOM. Mirror that order in the
+    // signal immediately so Angular's logical view order matches what CDK rendered. If the
+    // host rejects the move, changing from this preview back to `before` gives Angular a
+    // real ordering delta and it can restore the DOM rather than leaving CDK's move behind.
+    const preview = [...before];
+    const [moved] = preview.splice(from, 1);
+    if (moved !== undefined)
+      preview.splice(Math.max(0, Math.min(position, preview.length)), 0, moved);
+    this.sectionsState.set(preview.map((section, index) => ({ ...section, position: index })));
+
+    return this.track(async () => {
+      if (current()) this.sectionErrorState.set(null);
+      try {
+        await this.gateway.sections.move(id, { position });
+        if (!current()) return true;
+
+        // The preview remains visibly successful if the follow-up read fails. It is a
+        // rendering order, not a second implementation of domain validation.
+        await this.reconcileSections(project.id, generation);
+        return true;
+      } catch (error) {
+        if (current()) {
+          this.sectionsState.set([...before]);
+          // Mixed-orientation CDK sorting moves DOM nodes itself. Changing the track key
+          // makes Angular recreate the wrappers in canonical order after a rejected write.
+          this.canvasRevisionState.update((revision) => revision + 1);
+          this.sectionErrorState.set(messageOf(error));
+        }
+        return false;
+      }
+    });
   }
 
   setColumnSpan(id: SectionId, columnSpan: SectionColumnSpan): Promise<boolean> {
@@ -135,7 +199,9 @@ export class ProjectPageStore {
       // and a failed re-read must not make it look otherwise.
       this.sectionsState.update((sections) => {
         const shifted = sections.map((section) =>
-          section.position >= copy.position ? { ...section, position: section.position + 1 } : section,
+          section.position >= copy.position
+            ? { ...section, position: section.position + 1 }
+            : section,
         );
         return [...shifted, copy].sort(byPosition);
       });
@@ -147,13 +213,18 @@ export class ProjectPageStore {
     return this.mutate(async () => {
       await this.gateway.sections.remove(id);
       this.sectionsState.update((sections) =>
-        sections.filter((section) => section.id !== id).map((section, position) => ({ ...section, position })),
+        sections
+          .filter((section) => section.id !== id)
+          .map((section, position) => ({ ...section, position })),
       );
       await this.reconcileSections();
     });
   }
 
-  private updateSection(id: SectionId, input: Parameters<typeof this.gateway.sections.update>[1]): Promise<boolean> {
+  private updateSection(
+    id: SectionId,
+    input: Parameters<typeof this.gateway.sections.update>[1],
+  ): Promise<boolean> {
     return this.mutate(async () => {
       const updated = await this.gateway.sections.update(id, input);
       this.sectionsState.update((sections) =>
@@ -185,11 +256,16 @@ export class ProjectPageStore {
    * their remove did not happen and invite them to click it again, which answers 404. The
    * optimistic update above is close enough to live with until the next load.
    */
-  private async reconcileSections(): Promise<void> {
-    const projectId = this.projectState()?.id;
+  private async reconcileSections(
+    projectId = this.projectState()?.id,
+    generation = this.loadGeneration,
+  ): Promise<void> {
     if (projectId === undefined) return;
     try {
-      this.sectionsState.set([...(await this.gateway.sections.list(projectId))].sort(byPosition));
+      const sections = await this.gateway.sections.list(projectId);
+      if (generation === this.loadGeneration && this.projectState()?.id === projectId) {
+        this.sectionsState.set([...sections].sort(byPosition));
+      }
     } catch {
       // Deliberately ignored — see above.
     }

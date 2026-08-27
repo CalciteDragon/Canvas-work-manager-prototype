@@ -10,7 +10,12 @@ import type {
   UpdateSectionInput,
 } from '@cwm/contracts';
 import { GatewayError } from '../gateway-error';
-import type { ProjectGateway, SectionGateway, TaskGateway, WorkManagerGateway } from '../work-manager-gateway';
+import type {
+  ProjectGateway,
+  SectionGateway,
+  TaskGateway,
+  WorkManagerGateway,
+} from '../work-manager-gateway';
 
 /**
  * The gateway every component and store spec runs against. Its existence is what makes
@@ -24,6 +29,8 @@ export interface FakeGatewayOptions {
   tasks?: Task[];
   /** Rejects every call with this instead of answering — the failure path a shell needs. */
   failWith?: GatewayError;
+  /** Reject only named calls after an otherwise successful load (for write failure UI). */
+  failOn?: Readonly<Record<string, GatewayError>>;
 }
 
 const COMPLETED_AT = '2026-08-27T16:00:00.000Z';
@@ -36,9 +43,14 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   readonly projects: ProjectGateway = {
     list: (query) => this.answer('projects.list', query, this.options.projects ?? []),
-    get: (id: ProjectId) => this.answer('projects.get', id, this.find(this.options.projects, id, 'project')),
+    get: (id: ProjectId) =>
+      this.answer('projects.get', id, this.find(this.options.projects, id, 'project')),
     update: (id, input) =>
-      this.answer('projects.update', { id, input }, applyProjectUpdate(this.find(this.options.projects, id, 'project'), input)),
+      this.answer(
+        'projects.update',
+        { id, input },
+        applyProjectUpdate(this.find(this.options.projects, id, 'project'), input),
+      ),
   };
 
   readonly sections: SectionGateway = {
@@ -51,10 +63,24 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     // The write answers echo the request over the first seeded section, which is enough for
     // a store spec: what matters is the argument that reached the boundary, not the body.
     create: (projectId, input) =>
-      this.answer('sections.create', { projectId, input }, { ...this.firstSection(), ...input, projectId }),
-    update: (id, input) => this.answer('sections.update', { id, input }, applyUpdate(this.sectionFor(id), input)),
-    move: (id, input) => this.answer('sections.move', { id, input }, { ...this.sectionFor(id), position: input.position }),
-    duplicate: (id) => this.answer('sections.duplicate', id, { ...this.sectionFor(id), id: `${id}-copy` as SectionId }),
+      this.answer(
+        'sections.create',
+        { projectId, input },
+        { ...this.firstSection(), ...input, projectId },
+      ),
+    update: (id, input) =>
+      this.answer('sections.update', { id, input }, applyUpdate(this.sectionFor(id), input)),
+    move: (id, input) =>
+      this.answer(
+        'sections.move',
+        { id, input },
+        { ...this.sectionFor(id), position: input.position },
+      ),
+    duplicate: (id) =>
+      this.answer('sections.duplicate', id, {
+        ...this.sectionFor(id),
+        id: `${id}-copy` as SectionId,
+      }),
     remove: (id) => this.answer('sections.remove', id, undefined),
   };
 
@@ -76,7 +102,8 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   private answer<T>(method: string, argument: unknown, value: T): Promise<T> {
     this.calls.push({ method, argument });
-    return this.options.failWith === undefined ? Promise.resolve(value) : Promise.reject(this.options.failWith);
+    const failure = this.options.failWith ?? this.options.failOn?.[method];
+    return failure === undefined ? Promise.resolve(value) : Promise.reject(failure);
   }
 
   private find<T extends { id: string }>(items: T[] | undefined, id: string, kind: string): T {
@@ -87,7 +114,8 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   private firstSection(): ProjectSection {
     const [section] = this.options.sections ?? [];
-    if (section === undefined) throw new Error('the fake gateway was given no sections to answer with');
+    if (section === undefined)
+      throw new Error('the fake gateway was given no sections to answer with');
     return section;
   }
 
