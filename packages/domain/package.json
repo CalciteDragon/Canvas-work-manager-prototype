@@ -11,11 +11,16 @@
   },
   "scripts": {
     "test": "vitest run",
-    "lint": "tsc --noEmit && node scripts/check-no-direct-date.mjs"
+    "lint": "tsc --noEmit && node scripts/check-no-direct-date.mjs && node scripts/check-domain-imports.mjs"
   },
   "devDependencies": {
+    "@cwm/prototype-data": "workspace:*",
     "@types/node": "^24.10.1",
     "typescript": "~6.0.2",
     "vitest": "^4.0.8"
+  },
+  "dependencies": {
+    "@cwm/contracts": "workspace:*",
+    "@cwm/repositories": "workspace:*"
   }
 }
