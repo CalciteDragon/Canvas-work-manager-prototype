@@ -106,3 +106,33 @@ describe('PrototypeIdentityProvider', () => {
     await expect(subject.getCurrentIdentity()).rejects.toThrow();
   });
 });
+
+// Found by running the app with the host stopped: the raw `TypeError: Failed to fetch`
+// reached the sidebar. §8 says the UI sees `GatewayError` and nothing else — the identity
+// provider is as much of a boundary as the gateway is.
+describe('PrototypeIdentityProvider — failures the UI has to see', () => {
+  it('reports an unreachable host as a GatewayError, not a fetch TypeError', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    const subject = provider();
+
+    await expect(subject.getCurrentIdentity()).rejects.toMatchObject({
+      name: 'GatewayError',
+      code: 'unreachable',
+      status: 0,
+    });
+  });
+
+  it('reports a broken /api/me body as an invalid_response, not a Zod error', async () => {
+    fetchMock.mockImplementation(jsonResponse({ user: identity.user }));
+    const subject = provider();
+
+    await expect(subject.getCurrentIdentity()).rejects.toMatchObject({ code: 'invalid_response', status: 0 });
+  });
+
+  it('reports a non-404 status as a GatewayError carrying it', async () => {
+    fetchMock.mockImplementation(jsonResponse({ error: 'internal_error' }, 500));
+    const subject = provider();
+
+    await expect(subject.getCurrentIdentity()).rejects.toMatchObject({ code: 'internal_error', status: 500 });
+  });
+});

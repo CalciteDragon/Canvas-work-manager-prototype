@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { IdentitySchema, type Identity } from '@cwm/contracts';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
+import { GatewayError } from '../gateway/gateway-error';
 import type { IdentityProvider } from './identity-provider';
 
 /**
@@ -40,16 +41,35 @@ export class PrototypeIdentityProvider implements IdentityProvider {
     // request and it bricking the session.
     if (response.status === 404 && stored !== null) {
       localStorage.removeItem(PROTOTYPE_PERSONA_STORAGE_KEY);
-      return IdentitySchema.parse(await (await this.request(null)).json());
+      return parse(await this.request(null));
     }
 
-    if (!response.ok) throw new Error(`GET /api/me answered ${response.status}`);
-    return IdentitySchema.parse(await response.json());
+    return parse(response);
   }
 
-  private request(persona: string | null): Promise<Response> {
-    return fetch(`${this.baseUrl}/api/me`, {
-      headers: persona === null ? {} : { 'x-prototype-user': persona },
-    });
+  /**
+   * Like the gateway, this is a boundary: §8 says components see `GatewayError` and never
+   * a transport. Without this the sidebar renders "Failed to fetch" — the browser's own
+   * words — the first time `pnpm dev` has not finished starting the host.
+   */
+  private async request(persona: string | null): Promise<Response> {
+    try {
+      return await fetch(`${this.baseUrl}/api/me`, {
+        headers: persona === null ? {} : { 'x-prototype-user': persona },
+      });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new GatewayError('unreachable', 0, `could not reach the prototype host — ${reason}`);
+    }
   }
 }
+
+const parse = async (response: Response): Promise<Identity> => {
+  if (!response.ok) {
+    throw new GatewayError('internal_error', response.status, `GET /api/me answered ${response.status}`);
+  }
+
+  const parsed = IdentitySchema.safeParse(await response.json().catch(() => undefined));
+  if (!parsed.success) throw new GatewayError('invalid_response', 0, 'GET /api/me answered something that is not an Identity');
+  return parsed.data;
+};

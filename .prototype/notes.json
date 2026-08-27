@@ -22,7 +22,7 @@
       "route": null,
       "projectId": null,
       "slice": 1,
-      "note": "Two review rounds on the plan and one on the diff each found a real defect that the previous round had introduced or missed \u2014 most sharply, the shutdown test was vacuous twice in a row for two different reasons. Verifying a test by mutation (delete the line it claims to cover, watch it fail) took about a minute and was the only thing that actually settled it. Worth doing routinely for tests that guard a failure path."
+      "note": "Two review rounds on the plan and one on the diff each found a real defect that the previous round had introduced or missed — most sharply, the shutdown test was vacuous twice in a row for two different reasons. Verifying a test by mutation (delete the line it claims to cover, watch it fail) took about a minute and was the only thing that actually settled it. Worth doing routinely for tests that guard a failure path."
     },
     {
       "id": "note-2026-08-26-005",
@@ -30,7 +30,7 @@
       "route": null,
       "projectId": null,
       "slice": 1,
-      "note": "A `tsx watch` from an earlier session outlived its parent and kept port 4310, so the next `pnpm dev` printed the EADDRINUSE message and the host died while `ng serve` carried on. The error path did its job \u2014 the message named the port and the cause \u2014 but on Windows an orphaned watcher is easy to leave behind and the symptom (web up, host silently absent) is confusing. If this recurs, `netstat -ano | findstr :4310` then Stop-Process is the fix."
+      "note": "A `tsx watch` from an earlier session outlived its parent and kept port 4310, so the next `pnpm dev` printed the EADDRINUSE message and the host died while `ng serve` carried on. The error path did its job — the message named the port and the cause — but on Windows an orphaned watcher is easy to leave behind and the symptom (web up, host silently absent) is confusing. If this recurs, `netstat -ano | findstr :4310` then Stop-Process is the fix."
     },
     {
       "id": "note-2026-08-26-004",
@@ -46,7 +46,7 @@
       "route": null,
       "projectId": null,
       "slice": 2,
-      "note": "Packages-as-source has a resolution tax that only shows up at the consumer. `pnpm --filter @cwm/contracts test` and every tsc pass were green while `apps/web`'s vitest run failed to resolve `zod` \u2014 the Angular builder inlines the contracts source into the app's own module graph, so the transitive dependency has to be a direct dependency of `apps/web`. Expect the same for every future package dependency, and check the web suite, not just the package's own."
+      "note": "Packages-as-source has a resolution tax that only shows up at the consumer. `pnpm --filter @cwm/contracts test` and every tsc pass were green while `apps/web`'s vitest run failed to resolve `zod` — the Angular builder inlines the contracts source into the app's own module graph, so the transitive dependency has to be a direct dependency of `apps/web`. Expect the same for every future package dependency, and check the web suite, not just the package's own."
     },
     {
       "id": "note-2026-08-26-007",
@@ -54,7 +54,7 @@
       "route": null,
       "projectId": null,
       "slice": 3,
-      "note": "The real JsonDataStore exercise could verify a realistic document, a two-repository unit of work, atomic replacement, and reload, but not the actual host/UI path: Slice 4 owns the first reusable seeds and Slice 5 owns host wiring. That boundary makes Slice 3's \u00a777 hands-on check necessarily storage-level; the temporary scenario reloaded two projects and a completed task successfully, with no leftover temp file."
+      "note": "The real JsonDataStore exercise could verify a realistic document, a two-repository unit of work, atomic replacement, and reload, but not the actual host/UI path: Slice 4 owns the first reusable seeds and Slice 5 owns host wiring. That boundary makes Slice 3's §77 hands-on check necessarily storage-level; the temporary scenario reloaded two projects and a completed task successfully, with no leftover temp file."
     },
     {
       "id": "note-2026-08-26-008",
@@ -70,7 +70,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "Driving the API by hand found what 93 passing tests did not: every timestamp in a host session was identical. PrototypeClock is settable-and-frozen, which is exactly right for a test and exactly wrong for a running host \u2014 a task's createdAt, completedAt and archivedAt all matched to the millisecond, and the \u00a757 feed was one undifferentiated tie. Added SimulatedClock (real time plus a settable offset) for the host and left PrototypeClock to the tests. AGENTS \u00a73 Step 4 earned its place here; no amount of unit testing would have surfaced this, because the tests *want* a frozen clock."
+      "note": "Driving the API by hand found what 93 passing tests did not: every timestamp in a host session was identical. PrototypeClock is settable-and-frozen, which is exactly right for a test and exactly wrong for a running host — a task's createdAt, completedAt and archivedAt all matched to the millisecond, and the §57 feed was one undifferentiated tie. Added SimulatedClock (real time plus a settable offset) for the host and left PrototypeClock to the tests. AGENTS §3 Step 4 earned its place here; no amount of unit testing would have surfaced this, because the tests *want* a frozen clock."
     },
     {
       "id": "note-2026-08-27-002",
@@ -78,7 +78,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "The concurrency test was vacuously green for a day. Five simultaneous POSTs against an in-memory store never actually overlap \u2014 persist() finishes inside one task, so the next request's unit of work starts cleanly and a naive non-serializing adapter passes. Only rewriting it over a real JsonDataStore (where file I/O keeps a unit open across ticks) made it fail without serialization. Mutation testing is what caught it: breaking unitOfWorkFor on purpose and watching the suite stay green. That trick has now caught something in two consecutive slices."
+      "note": "The concurrency test was vacuously green for a day. Five simultaneous POSTs against an in-memory store never actually overlap — persist() finishes inside one task, so the next request's unit of work starts cleanly and a naive non-serializing adapter passes. Only rewriting it over a real JsonDataStore (where file I/O keeps a unit open across ticks) made it fail without serialization. Mutation testing is what caught it: breaking unitOfWorkFor on purpose and watching the suite stay green. That trick has now caught something in two consecutive slices."
     },
     {
       "id": "note-2026-08-27-003",
@@ -86,7 +86,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "`node --import tsx apps/prototype-host/main.ts` from the repo root fails with ERR_MODULE_NOT_FOUND for tsx: pnpm's isolated node_modules only links it inside apps/prototype-host, so the loader has to be resolved with that as cwd. Cost a few confused minutes. scripts/acceptance.mjs sets `cwd: hostRoot` for this reason \u2014 worth remembering before Slice 15 spawns an MCP stdio process the same way."
+      "note": "`node --import tsx apps/prototype-host/main.ts` from the repo root fails with ERR_MODULE_NOT_FOUND for tsx: pnpm's isolated node_modules only links it inside apps/prototype-host, so the loader has to be resolved with that as cwd. Cost a few confused minutes. scripts/acceptance.mjs sets `cwd: hostRoot` for this reason — worth remembering before Slice 15 spawns an MCP stdio process the same way."
     },
     {
       "id": "note-2026-08-27-004",
@@ -94,7 +94,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "The seeds are built around SEED_NOW (2026-08-24) but the host clock starts at real time, so the moment you add a task to `busy-week` it sits days after every seeded due date and `overdue-chaos` stops reading as overdue. SimulatedClock.setNow is the mechanism; Slice 12's dev panel is where the control belongs. Until then a seed's scenario decays a little more each day, which will quietly mislead anyone evaluating the dashboard (\u00a724) or calendar (\u00a737). Worth deciding in Slice 12 whether loading a seed should also set the clock to that seed's SEED_NOW."
+      "note": "The seeds are built around SEED_NOW (2026-08-24) but the host clock starts at real time, so the moment you add a task to `busy-week` it sits days after every seeded due date and `overdue-chaos` stops reading as overdue. SimulatedClock.setNow is the mechanism; Slice 12's dev panel is where the control belongs. Until then a seed's scenario decays a little more each day, which will quietly mislead anyone evaluating the dashboard (§24) or calendar (§37). Worth deciding in Slice 12 whether loading a seed should also set the clock to that seed's SEED_NOW."
     },
     {
       "id": "note-2026-08-27-005",
@@ -102,7 +102,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "Two rounds of plan review found the same file twice, for different reasons: unitOfWorkFor. Round 1 caught that a pass-through adapter 500s on any two interleaved requests; round 2 caught that the queue fixing that would deadlock on a nested call. Both were real. The thing that settled it was not a third review but a 40-line spike run against the actual InMemoryDataStore \u2014 nested join, overlap, and failure recovery, printed. Reviewing an async-context design on paper is much worse value than running it."
+      "note": "Two rounds of plan review found the same file twice, for different reasons: unitOfWorkFor. Round 1 caught that a pass-through adapter 500s on any two interleaved requests; round 2 caught that the queue fixing that would deadlock on a nested call. Both were real. The thing that settled it was not a third review but a 40-line spike run against the actual InMemoryDataStore — nested join, overlap, and failure recovery, printed. Reviewing an async-context design on paper is much worse value than running it."
     },
     {
       "id": "note-2026-08-27-006",
@@ -110,7 +110,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "The scariest bug of the slice was found by a review agent and confirmed by accident: an unguarded ancestor walk over an already-cyclic document does not hang one request, it starves the event loop and wedges the whole process \u2014 timers stop, the server stops answering, Ctrl+C's handler never runs. I discovered this by writing the test for it, which hung the test runner for three minutes with a 1s Promise.race that never fired. Any await-in-a-loop over synchronously-resolving repository reads has this shape. Worth remembering before Slice 20 walks subtask trees and Slice 11 walks projects for the dashboard."
+      "note": "The scariest bug of the slice was found by a review agent and confirmed by accident: an unguarded ancestor walk over an already-cyclic document does not hang one request, it starves the event loop and wedges the whole process — timers stop, the server stops answering, Ctrl+C's handler never runs. I discovered this by writing the test for it, which hung the test runner for three minutes with a 1s Promise.race that never fired. Any await-in-a-loop over synchronously-resolving repository reads has this shape. Worth remembering before Slice 20 walks subtask trees and Slice 11 walks projects for the dashboard."
     },
     {
       "id": "note-2026-08-27-007",
@@ -118,7 +118,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "Two guards written a day apart disagreed about the same problem. ProjectService carries an explicit comment \u2014 'the exposed route is PATCH, so a rule only archive() enforced would be decorative' \u2014 and TaskService then shipped exactly that bug: complete() refused an archived task, PATCH {status:'done'} did not. Knowing the trap and writing the comment was not enough to avoid it in the next file. A rule that has two entry points needs a test per entry point, not a note."
+      "note": "Two guards written a day apart disagreed about the same problem. ProjectService carries an explicit comment — 'the exposed route is PATCH, so a rule only archive() enforced would be decorative' — and TaskService then shipped exactly that bug: complete() refused an archived task, PATCH {status:'done'} did not. Knowing the trap and writing the comment was not enough to avoid it in the next file. A rule that has two entry points needs a test per entry point, not a note."
     },
     {
       "id": "note-2026-08-27-008",
@@ -126,7 +126,39 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "The custom lint I wrote to enforce \u00a712 was mostly theatre: it walked only top-level import declarations, so `export { JsonDataStore } from '@cwm/repositories'` in index.ts \u2014 plus a clean relative import from every sibling \u2014 sailed through, as did import(), require(), and `fs/promises` against a ban list that named `fs`. A ban list cannot survive the next dependency; it is now an allowlist over a full tree walk. Writing the six self-tests then found two bugs in the rewrite. A lint without a test that it FAILS on each violation form is a lint you are guessing about."
+      "note": "The custom lint I wrote to enforce §12 was mostly theatre: it walked only top-level import declarations, so `export { JsonDataStore } from '@cwm/repositories'` in index.ts — plus a clean relative import from every sibling — sailed through, as did import(), require(), and `fs/promises` against a ban list that named `fs`. A ban list cannot survive the next dependency; it is now an allowlist over a full tree walk. Writing the six self-tests then found two bugs in the rewrite. A lint without a test that it FAILS on each violation form is a lint you are guessing about."
+    },
+    {
+      "id": "note-2026-08-27-009",
+      "createdAt": "2026-08-27T08:18:00.000Z",
+      "route": "/app",
+      "projectId": null,
+      "slice": 6,
+      "note": "Running the shell with the host stopped surfaced a boundary hole the whole test suite had missed: the sidebar rendered 'Failed to fetch'. The gateway maps every transport failure to a GatewayError, but PrototypeIdentityProvider did not — and since every gateway call awaits getCurrentIdentity() first, the identity provider is the failure the user actually meets. §8's rule reads 'components depend on gateway interfaces', so I built the mapping in one of the two boundary classes and not the other. The tests all passed because each one mocked the layer under test. Only running it found this."
+    },
+    {
+      "id": "note-2026-08-27-010",
+      "createdAt": "2026-08-27T08:22:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 6,
+      "note": "The host obeys a bare PORT environment variable, so any tool that sets PORT=4200 to launch the web app takes :4310 away from the host — and because concurrently starts both, the host wins the bind and Angular quietly moves elsewhere. What the browser then shows at :4200 is {\"error\":\"not_found\"} in the host's own words, which reads like a routing bug in the app. A shared, extremely common variable name is the wrong knob for one of two processes in a single `pnpm dev`."
+    },
+    {
+      "id": "note-2026-08-27-011",
+      "createdAt": "2026-08-27T08:26:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 6,
+      "note": "`pnpm prototype:seed nested-projects` while the app is running changes nothing on screen and gives no hint why: the host reads data.json once at startup and holds it. I spent a confused minute assuming the sidebar was caching. §76's reset is going to need to be reachable from inside the app (Slice 12's dev panel) rather than only from a second terminal — or the host needs to notice the file changed."
+    },
+    {
+      "id": "note-2026-08-27-012",
+      "createdAt": "2026-08-27T08:30:00.000Z",
+      "route": "/app",
+      "projectId": null,
+      "slice": 6,
+      "note": "With the host down the shell still renders — nav, theme, layout — and only the project list carries the error. That is the right shape, and it was worth having the sidebar take `error` as an input rather than owning a store: the failure had somewhere obvious to land. The top bar shows no persona at all in that state, which looks broken rather than degraded. Whether an unreachable host should be a shell-level banner instead of a sidebar line is a question for Slice 7, when a failed write needs somewhere to say so too (§63)."
     }
   ]
 }

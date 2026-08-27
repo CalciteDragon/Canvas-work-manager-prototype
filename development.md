@@ -238,6 +238,9 @@ and see the resulting `ActivityEvent` — with changes surviving a host restart.
 
 ### Slice 6 — Gateway boundary + Angular shell
 
+**Status:** done — plan: [docs/plans/06-gateway-boundary-angular-shell.md](docs/plans/06-gateway-boundary-angular-shell.md) — the sidebar lists the seeded projects over HTTP, three levels deep on `nested-projects`, and the theme toggle changes exactly two things in the DOM: `data-theme` on `<html>` and its own label. Verified in a real browser across the `personal-workspace`, `nested-projects` and `empty` seeds.
+Diverged from the build list in one place, deliberately: `WorkManagerGateway` declares only `projects` and `tasks` rather than stubbing §9's other six as empty interfaces — six members nothing implements would force every adapter to fake them, and each now arrives with its own slice (`docs/decisions/2026-08-gateway-surface-grows-with-implementations.md`). Three additions the slice text does not name but §18 cannot be honored without: an `Identity` contract, `GET /api/me`, and CORS on the host — the preflight turned out to be load-bearing, since `x-prototype-user` is non-simple and the router matches on method, so every gateway call would have 404’d in a browser while every unit test passed. Running it with the host stopped then found the boundary hole the suite missed: `PrototypeIdentityProvider` was leaking a raw `TypeError` where §8 says the UI sees `GatewayError`.
+
 **Goal:** The app renders a real navigation shell fed by real data.
 
 **Spec:** §8, §9, §10, §18, §19, §20, §21, §23, §65, §68

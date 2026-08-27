@@ -1,6 +1,6 @@
 # Slice 6 — Gateway boundary + Angular shell
 
-**Status:** in progress
+**Status:** done
 
 ## Goal
 
@@ -634,3 +634,28 @@ Round 3 agreed with both rejections and sharpened the first: decision 1's princi
 derived from the *absence* of a pinned shape in §9, so it cannot govern the one interface
 §9 pins verbatim. Its only real cost was three untested methods, which is a test to write
 rather than a divergence to record — now tests 8–9.
+
+## What running it changed
+
+Step 6 of the acceptance check found two things the 54 passing specs did not.
+
+**A boundary hole.** With the host stopped, the sidebar rendered "Failed to fetch" — the
+browser's own words. The gateway maps every transport failure to a `GatewayError`, but
+`PrototypeIdentityProvider` did not — and since every gateway call awaits
+`getCurrentIdentity()` first, the identity provider is the failure a user actually meets.
+Each spec mocked the layer under test, so none of them could see it. Fixed, with three
+tests: an unreachable host, a non-`Identity` body, and a non-404 status.
+
+**Two pieces of workflow friction**, both recorded in `.prototype/notes.json` and both
+Slice 12's territory (§46, §76): the host obeys a bare `PORT`, so any tool that sets
+`PORT=4200` to launch the web app takes `:4310` from the host — and the browser then shows
+the host's own `{"error":"not_found"}` at `:4200`, which reads like an app routing bug.
+And reseeding while the app runs changes nothing on screen, because the host reads
+`data.json` once at startup and holds it. Neither is fixed here.
+
+The rest of step 6 passed as written: `/` redirects to `/app`; the sidebar lists the
+project names actually in `data.json`; `nested-projects` renders Cabinets inside Kitchen
+inside Home renovation; `empty` renders its empty state; every §68 route loads and an
+unknown path renders `NotFoundPage`; and the theme toggle changes exactly two things in
+the DOM — `data-theme` on `<html>` and the toggle's own label — while every surface
+repaints.
