@@ -2,19 +2,27 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { describe, expect, it } from 'vitest';
+import { WORK_MANAGER_GATEWAY } from './core/gateway/work-manager-gateway';
+import { FakeWorkManagerGateway } from './core/gateway/testing/fake-gateway';
 import { CalendarPage } from './features/calendar/calendar-page';
 import { DashboardPage } from './features/dashboard/dashboard-page';
 import { ProjectPage } from './features/projects/project-page';
 import { SearchPage } from './features/search/search-page';
 import { AgentConnectionsPage } from './features/settings/agents/agent-connections-page';
 import { SettingsPage } from './features/settings/settings-page';
+import { TasksPage } from './features/tasks/tasks-page';
 import { DesignLabPage } from './prototype/design-lab/design-lab-page';
 import { StateInspectorPage } from './prototype/dev-panel/state-inspector-page';
 import { NotFoundPage } from './shared/components/placeholder-page/not-found-page';
 import { routes } from './app.routes';
 
 const harness = async () => {
-  TestBed.configureTestingModule({ providers: [provideRouter(routes)] });
+  TestBed.configureTestingModule({
+    providers: [
+      provideRouter(routes),
+      { provide: WORK_MANAGER_GATEWAY, useValue: new FakeWorkManagerGateway() },
+    ],
+  });
   return RouterTestingHarness.create();
 };
 
@@ -26,6 +34,7 @@ describe('the §68 route map', () => {
     ['/search', SearchPage],
     ['/settings', SettingsPage],
     ['/settings/agents', AgentConnectionsPage],
+    ['/tasks', TasksPage],
     ['/prototype/design', DesignLabPage],
     ['/prototype/state', StateInspectorPage],
   ])('resolves %s', async (path, expected) => {

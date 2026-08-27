@@ -1,0 +1,100 @@
+:host {
+  display: block;
+}
+
+.tasks-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.tasks-page__header h1,
+.tasks-page__header p,
+.tasks-page__error,
+.tasks-page__muted {
+  margin: 0;
+}
+
+.tasks-page__header h1 {
+  font-size: var(--font-size-xl);
+}
+
+.tasks-page__header p,
+.tasks-page__eyebrow,
+.tasks-page__muted {
+  color: var(--color-text-muted);
+}
+
+.tasks-page__eyebrow {
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.quick-create {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+}
+
+.quick-create label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.quick-create input,
+.quick-create select,
+.quick-create button {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.quick-create input,
+.quick-create select {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.quick-create button {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  cursor: pointer;
+}
+
+.quick-create button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.tasks-page__error {
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.tasks-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.tasks-workspace--drawer-open {
+  grid-template-columns: minmax(0, 1fr) var(--layout-drawer-width);
+}
+
+.task-list {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}

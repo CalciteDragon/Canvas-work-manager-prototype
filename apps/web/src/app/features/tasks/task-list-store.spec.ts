@@ -1,0 +1,203 @@
+import { TestBed } from '@angular/core/testing';
+import {
+  ProjectSchema,
+  TaskSchema,
+  type Project,
+  type Task,
+  type TaskId,
+  type UpdateTaskInput,
+} from '@cwm/contracts';
+import { describe, expect, it, vi } from 'vitest';
+import { GatewayError } from '../../core/gateway/gateway-error';
+import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../../core/gateway/work-manager-gateway';
+import { TaskListStore } from './task-list-store';
+
+const AT = '2026-08-27T16:00:00.000Z';
+
+const project = (id = 'project-a', name = 'Project A'): Project =>
+  ProjectSchema.parse({
+    id,
+    workspaceId: 'workspace-demo',
+    name,
+    status: 'active',
+    projectLayoutMode: 'flow',
+    createdAt: AT,
+    updatedAt: AT,
+  });
+
+const task = (overrides: Record<string, unknown> = {}): Task =>
+  TaskSchema.parse({
+    id: 'task-a',
+    projectId: 'project-a',
+    title: 'Write the first draft',
+    status: 'todo',
+    priority: 'medium',
+    createdAt: AT,
+    updatedAt: AT,
+    ...overrides,
+  });
+
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+};
+
+const setup = (options: {
+  projects?: Project[];
+  tasks?: Task[];
+  create?: WorkManagerGateway['tasks']['create'];
+  update?: WorkManagerGateway['tasks']['update'];
+  complete?: WorkManagerGateway['tasks']['complete'];
+} = {}) => {
+  const projects = options.projects ?? [project(), project('project-b', 'Project B')];
+  const tasks = options.tasks ?? [task()];
+  const gateway: WorkManagerGateway = {
+    projects: {
+      list: vi.fn(async () => projects),
+      get: vi.fn(async () => projects[0]!),
+    },
+    tasks: {
+      list: vi.fn(async () => tasks),
+      get: vi.fn(async () => tasks[0]!),
+      create: options.create ?? vi.fn(async (input) => task({ id: 'task-created', ...input })),
+      update:
+        options.update ??
+        vi.fn(async (id: TaskId, input: UpdateTaskInput) => ({ ...tasks[0]!, id, ...input, updatedAt: AT } as Task)),
+      complete: options.complete ?? vi.fn(async (id) => task({ id, status: 'done', completedAt: AT })),
+      archive: vi.fn(async () => undefined),
+    },
+  };
+
+  TestBed.configureTestingModule({
+    providers: [TaskListStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
+  });
+  return { store: TestBed.inject(TaskListStore), gateway };
+};
+
+describe('TaskListStore', () => {
+  it('loads projects and unarchived tasks and chooses the first project for quick create', async () => {
+    const { store, gateway } = setup();
+
+    await store.load();
+
+    expect(store.projects().map(({ name }) => name)).toEqual(['Project A', 'Project B']);
+    expect(store.tasks().map(({ title }) => title)).toEqual(['Write the first draft']);
+    expect(store.selectedProjectId()).toBe('project-a');
+    expect(gateway.tasks.list).toHaveBeenCalledWith({ includeArchived: false });
+  });
+
+  it('creates a trimmed task in the chosen project and selects the server result', async () => {
+    const { store, gateway } = setup();
+    await store.load();
+    store.chooseProject(project('project-b').id);
+
+    expect(await store.create('  New task  ')).toBe(true);
+
+    expect(gateway.tasks.create).toHaveBeenCalledWith({ projectId: 'project-b', title: 'New task' });
+    expect(store.tasks().at(-1)?.id).toBe('task-created');
+    expect(store.selectedTask()?.id).toBe('task-created');
+  });
+
+  it('rejects a blank quick-create title without calling the gateway', async () => {
+    const { store, gateway } = setup();
+    await store.load();
+
+    expect(await store.create('   ')).toBe(false);
+    expect(gateway.tasks.create).not.toHaveBeenCalled();
+    expect(store.error()).toContain('title');
+  });
+
+  it('updates title, priority, and date-only dueAt from the gateway results', async () => {
+    const update = vi.fn(async (id: TaskId, input: UpdateTaskInput) =>
+      task({
+        id,
+        ...input,
+        dueAt: input.dueAt === null ? undefined : input.dueAt,
+        updatedAt: '2026-08-27T17:00:00.000Z',
+      }),
+    );
+    const { store } = setup({ update });
+    await store.load();
+
+    await store.updateTitle(task().id, '  Revised title  ');
+    await store.updatePriority(task().id, 'high');
+    await store.updateDueDate(task().id, '2026-09-03');
+
+    expect(update.mock.calls.map(([, input]) => input)).toEqual([
+      { title: 'Revised title' },
+      { priority: 'high' },
+      { dueAt: '2026-09-03T23:59:59.999Z' },
+    ]);
+    expect(store.tasks()[0]).toMatchObject({
+      title: 'Revised title',
+      priority: 'high',
+      dueAt: '2026-09-03T23:59:59.999Z',
+    });
+
+    await store.updateDueDate(task().id, '');
+    expect(update).toHaveBeenLastCalledWith(task().id, { dueAt: null });
+    expect(store.tasks()[0]?.dueAt).toBeUndefined();
+  });
+
+  it('marks completion immediately while the gateway is pending, then reconciles its status fields', async () => {
+    const result = deferred<Task>();
+    const { store } = setup({ complete: vi.fn(() => result.promise) });
+    await store.load();
+
+    const completion = store.complete(task().id);
+
+    expect(store.tasks()[0]?.status).toBe('done');
+    expect(store.completingIds().has(task().id)).toBe(true);
+
+    result.resolve(task({ status: 'done', completedAt: '2026-08-27T18:00:00.000Z' }));
+    await completion;
+
+    expect(store.tasks()[0]?.completedAt).toBe('2026-08-27T18:00:00.000Z');
+    expect(store.completingIds().has(task().id)).toBe(false);
+  });
+
+  it('restores the exact previous task and exposes a message when completion fails', async () => {
+    const before = task({ title: 'Keep every field', priority: 'high' });
+    const result = deferred<Task>();
+    const { store } = setup({ tasks: [before], complete: vi.fn(() => result.promise) });
+    await store.load();
+
+    const completion = store.complete(before.id);
+    result.reject(new GatewayError('unreachable', 0, 'could not reach the prototype host'));
+    await completion;
+
+    expect(store.tasks()[0]).toEqual(before);
+    expect(store.error()).toContain('could not reach the prototype host');
+  });
+
+  it('does not let an older failed completion overwrite a newer title mutation', async () => {
+    const result = deferred<Task>();
+    const { store } = setup({ complete: vi.fn(() => result.promise) });
+    await store.load();
+
+    const completion = store.complete(task().id);
+    await store.updateTitle(task().id, 'Newer title');
+    result.reject(new GatewayError('unreachable', 0, 'offline'));
+    await completion;
+
+    expect(store.tasks()[0]).toMatchObject({ title: 'Newer title', status: 'todo' });
+  });
+
+  it('does not let an older successful completion response overwrite a newer title mutation', async () => {
+    const result = deferred<Task>();
+    const { store } = setup({ complete: vi.fn(() => result.promise) });
+    await store.load();
+
+    const completion = store.complete(task().id);
+    await store.updateTitle(task().id, 'Newer title');
+    result.resolve(task({ title: 'Stale title', status: 'done', completedAt: AT }));
+    await completion;
+
+    expect(store.tasks()[0]).toMatchObject({ title: 'Newer title', status: 'done' });
+  });
+});

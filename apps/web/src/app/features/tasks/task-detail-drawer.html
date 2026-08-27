@@ -1,0 +1,49 @@
+<aside data-task-drawer class="drawer" role="complementary" aria-labelledby="task-drawer-title">
+  <header class="drawer__header">
+    <div>
+      <span class="drawer__eyebrow">Task details</span>
+      <h2 id="task-drawer-title">{{ task().title }}</h2>
+    </div>
+    <button data-close-drawer class="drawer__close" type="button" aria-label="Close task details" (click)="closed.emit()">
+      Close
+    </button>
+  </header>
+
+  <p data-task-description class="drawer__description">
+    {{ task().description || 'No description yet.' }}
+  </p>
+
+  <label class="drawer__field">
+    <span>Priority</span>
+    <select
+      data-task-priority
+      [value]="task().priority"
+      (change)="changePriority($any($event.target).value)"
+    >
+      @for (priority of priorities; track priority) {
+        <option [value]="priority">{{ priority }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="drawer__field">
+    <span>Due date</span>
+    <input
+      data-task-due-date
+      type="date"
+      [value]="dueDate()"
+      (change)="changeDueDate($any($event.target).value)"
+    />
+  </label>
+
+  <dl class="drawer__facts">
+    <div>
+      <dt>Status</dt>
+      <dd>{{ task().status }}</dd>
+    </div>
+    <div>
+      <dt>Project</dt>
+      <dd>{{ task().projectId }}</dd>
+    </div>
+  </dl>
+</aside>

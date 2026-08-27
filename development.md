@@ -271,6 +271,8 @@ Diverged from the build list in one place, deliberately: `WorkManagerGateway` de
 
 ### Slice 7 — Tasks: the first real feature
 
+**Status:** in progress — plan: [docs/plans/07-tasks-first-real-feature.md](docs/plans/07-tasks-first-real-feature.md)
+
 **Goal:** Tasks can be created, completed, and edited in the UI.
 
 **Spec:** §19, §34, §63, §69

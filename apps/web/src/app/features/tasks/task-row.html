@@ -1,0 +1,64 @@
+<article
+  data-task-row
+  class="task-row"
+  [class.task-row--normal]="normal()"
+  [class.task-row--overdue]="overdue()"
+  [class.task-row--completed]="completed()"
+  [class.task-row--high-priority]="task().priority === 'high'"
+  [class.task-row--selected]="selected()"
+  [class.task-row--compact]="compact()"
+  [attr.aria-busy]="pending()"
+>
+  <input
+    data-task-complete
+    class="task-row__checkbox"
+    type="checkbox"
+    [checked]="completed()"
+    [disabled]="pending() || completed()"
+    [attr.aria-label]="'Complete ' + task().title"
+    (change)="requestCompletion()"
+  />
+
+  <div class="task-row__body">
+    @if (editing()) {
+      <input
+        data-task-title-editor
+        class="task-row__title-editor"
+        [value]="draftTitle()"
+        [attr.aria-invalid]="titleError() !== null"
+        (input)="updateDraft($any($event.target).value)"
+        (blur)="commitTitle()"
+        (keydown.enter)="commitTitle()"
+        (keydown.escape)="cancelEditing()"
+      />
+      @if (titleError(); as error) {
+        <span data-title-error class="task-row__error">{{ error }}</span>
+      }
+    } @else {
+      <button data-task-title class="task-row__title" type="button" (dblclick)="beginEditing()">
+        {{ task().title }}
+      </button>
+    }
+
+    <div class="task-row__metadata">
+      <span class="task-row__priority">{{ task().priority }} priority</span>
+      @if (task().dueAt; as dueAt) {
+        <time [attr.datetime]="dueAt">Due {{ dueAt.slice(0, 10) }}</time>
+      }
+      @if (overdue()) {
+        <span class="task-row__overdue-label">Overdue</span>
+      }
+    </div>
+  </div>
+
+  <button
+    data-task-details
+    class="task-row__details"
+    type="button"
+    [attr.aria-pressed]="selected()"
+    [attr.aria-label]="'Open details for ' + task().title"
+    (click)="selectedRequested.emit(task().id)"
+  >
+    Details
+  </button>
+</article>
