@@ -6,11 +6,13 @@ import type {
   ProjectId,
   ProjectQuery,
   ProjectSection,
+  MoveSectionInput,
   SectionId,
   Task,
   TaskId,
   TaskQuery,
   UpdateSectionInput,
+  UpdateProjectInput,
   UpdateTaskInput,
 } from '@cwm/contracts';
 
@@ -36,6 +38,7 @@ export interface TaskGateway {
 export interface ProjectGateway {
   list(query: ProjectQuery): Promise<Project[]>;
   get(id: ProjectId): Promise<Project>;
+  update(id: ProjectId, input: UpdateProjectInput): Promise<Project>;
 }
 
 /**
@@ -49,6 +52,7 @@ export interface SectionGateway {
   list(projectId: ProjectId): Promise<ProjectSection[]>;
   create(projectId: ProjectId, input: CreateSectionInput): Promise<ProjectSection>;
   update(id: SectionId, input: UpdateSectionInput): Promise<ProjectSection>;
+  move(id: SectionId, input: MoveSectionInput): Promise<ProjectSection>;
   duplicate(id: SectionId): Promise<ProjectSection>;
   remove(id: SectionId): Promise<void>;
 }

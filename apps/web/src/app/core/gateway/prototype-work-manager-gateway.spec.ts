@@ -114,6 +114,25 @@ describe('PrototypeWorkManagerGateway — projects', () => {
 
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1');
   });
+
+  it('updates a project layout through PATCH and validates the answer (§28)', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...project, projectLayoutMode: 'grid' }));
+
+    const updated = await gateway().projects.update('project-1' as ProjectId, { projectLayoutMode: 'grid' });
+
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1');
+    expect(lastCall().init.method).toBe('PATCH');
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({ projectLayoutMode: 'grid' });
+    expect(updated.projectLayoutMode).toBe('grid');
+  });
+
+  it('rejects an updated project body outside the shared contract', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...project, projectLayoutMode: 'canvas' }));
+
+    await expect(
+      gateway().projects.update('project-1' as ProjectId, { projectLayoutMode: 'grid' }),
+    ).rejects.toBeInstanceOf(GatewayError);
+  });
 });
 
 describe('PrototypeWorkManagerGateway — sections (§31)', () => {
@@ -144,6 +163,25 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
     expect(lastCall().url).toBe('http://host.test/api/sections/section-1');
     expect(lastCall().init.method).toBe('PATCH');
     expect(updated.collapsed).toBe(true);
+  });
+
+  it('moves through the dedicated route and validates the authoritative section (§32)', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...projectSection, position: 2 }));
+
+    const moved = await gateway().sections.move('section-1' as SectionId, { position: 2 });
+
+    expect(lastCall().url).toBe('http://host.test/api/sections/section-1/move');
+    expect(lastCall().init.method).toBe('POST');
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({ position: 2 });
+    expect(moved.position).toBe(2);
+  });
+
+  it('rejects a moved section body outside the shared contract', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...projectSection, position: -1 }));
+
+    await expect(gateway().sections.move('section-1' as SectionId, { position: 1 })).rejects.toBeInstanceOf(
+      GatewayError,
+    );
   });
 
   it('duplicates with no body and accepts 201', async () => {

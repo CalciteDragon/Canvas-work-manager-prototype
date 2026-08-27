@@ -60,11 +60,13 @@ const setup = (options: {
     projects: {
       list: vi.fn(async () => projects),
       get: vi.fn(async () => projects[0]!),
+      update: vi.fn(async (_id, input) => ({ ...projects[0]!, ...input }) as Project),
     },
     sections: {
       list: vi.fn(async () => []),
       create: vi.fn(),
       update: vi.fn(),
+      move: vi.fn(),
       duplicate: vi.fn(),
       remove: vi.fn(async () => undefined),
     } as unknown as WorkManagerGateway['sections'],

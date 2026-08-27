@@ -6,6 +6,7 @@ import type {
   SectionId,
   Task,
   TaskId,
+  UpdateProjectInput,
   UpdateSectionInput,
 } from '@cwm/contracts';
 import { GatewayError } from '../gateway-error';
@@ -36,6 +37,8 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
   readonly projects: ProjectGateway = {
     list: (query) => this.answer('projects.list', query, this.options.projects ?? []),
     get: (id: ProjectId) => this.answer('projects.get', id, this.find(this.options.projects, id, 'project')),
+    update: (id, input) =>
+      this.answer('projects.update', { id, input }, applyProjectUpdate(this.find(this.options.projects, id, 'project'), input)),
   };
 
   readonly sections: SectionGateway = {
@@ -50,6 +53,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     create: (projectId, input) =>
       this.answer('sections.create', { projectId, input }, { ...this.firstSection(), ...input, projectId }),
     update: (id, input) => this.answer('sections.update', { id, input }, applyUpdate(this.sectionFor(id), input)),
+    move: (id, input) => this.answer('sections.move', { id, input }, { ...this.sectionFor(id), position: input.position }),
     duplicate: (id) => this.answer('sections.duplicate', id, { ...this.sectionFor(id), id: `${id}-copy` as SectionId }),
     remove: (id) => this.answer('sections.remove', id, undefined),
   };
@@ -112,6 +116,16 @@ const applyUpdate = (section: ProjectSection, input: UpdateSectionInput): Projec
   for (const [key, value] of Object.entries(input)) {
     if (value === undefined) continue;
     if (value === null) delete next[key as keyof ProjectSection];
+    else Object.assign(next, { [key]: value });
+  }
+  return next;
+};
+
+const applyProjectUpdate = (project: Project, input: UpdateProjectInput): Project => {
+  const next = { ...project };
+  for (const [key, value] of Object.entries(input)) {
+    if (value === undefined) continue;
+    if (value === null) delete next[key as keyof Project];
     else Object.assign(next, { [key]: value });
   }
   return next;

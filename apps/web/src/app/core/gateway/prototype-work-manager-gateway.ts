@@ -7,6 +7,8 @@ import {
   type CreateTaskInput,
   type ProjectId,
   type ProjectQuery,
+  type UpdateProjectInput,
+  type MoveSectionInput,
   type SectionId,
   type TaskId,
   type TaskQuery,
@@ -36,6 +38,8 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         ? Promise.resolve([])
         : this.send('GET', `/api/projects${queryString(projectQueryParams(query))}`, ProjectSchema.array()),
     get: (id: ProjectId) => this.send('GET', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema),
+    update: (id: ProjectId, input: UpdateProjectInput) =>
+      this.send('PATCH', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema, input),
   };
 
   readonly sections: SectionGateway = {
@@ -45,6 +49,8 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/sections`, ProjectSectionSchema, input),
     update: (id: SectionId, input: UpdateSectionInput) =>
       this.send('PATCH', `/api/sections/${encodeURIComponent(id)}`, ProjectSectionSchema, input),
+    move: (id: SectionId, input: MoveSectionInput) =>
+      this.send('POST', `/api/sections/${encodeURIComponent(id)}/move`, ProjectSectionSchema, input),
     duplicate: (id: SectionId) =>
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/duplicate`, ProjectSectionSchema),
     // The host answers 204 with no body, so there is nothing to validate — unlike

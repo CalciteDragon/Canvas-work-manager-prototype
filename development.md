@@ -333,6 +333,8 @@ plus one registry line.
 
 ### Slice 9 — Layout modes: flow vs grid
 
+**Status:** in progress — plan: [docs/plans/09-layout-modes-flow-vs-grid.md](docs/plans/09-layout-modes-flow-vs-grid.md)
+
 **Goal:** Both candidate layouts exist and can be compared with real data.
 
 **Spec:** §27, §28, §32

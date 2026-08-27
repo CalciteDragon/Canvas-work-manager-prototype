@@ -75,6 +75,7 @@ const setup = (
     projects: {
       list: vi.fn(async () => [project()]),
       get: options.projectGet ?? vi.fn(async () => project()),
+      update: vi.fn(async (_id, input) => ({ ...project(), ...input }) as Project),
     },
     sections: {
       list: vi.fn(async () => [...sections]),
@@ -88,6 +89,7 @@ const setup = (
         sections = sections.map((item) => (item.id === id ? updated : item));
         return updated;
       }),
+      move: vi.fn(async (id, input) => ({ ...sections.find((item) => item.id === id)!, position: input.position })),
       duplicate: vi.fn(async (id) => {
         const original = sections.find((item) => item.id === id)!;
         const copy = { ...original, id: `${id}-copy` as SectionId, position: original.position + 1 };
