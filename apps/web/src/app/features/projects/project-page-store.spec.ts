@@ -149,7 +149,7 @@ const setup = (
       complete: vi.fn(async (id: string) => task(id, 'done')),
       archive: vi.fn(),
     } as unknown as WorkManagerGateway['tasks'],
-    progress: { get: vi.fn(async () => ({ projectId: PROJECT, formula: 'count' as const, percentage: 50, completed: 1, total: 2, explanation: '1 of 2 tasks complete' })) },
+    progress: { get: vi.fn(async () => { const items = options.tasks ?? [task('task-1'), task('task-2', 'done')]; const done = items.filter(({status}) => status === 'done').length; return { projectId: PROJECT, formula: 'count' as const, percentage: items.length === 0 ? null : Math.round(done / items.length * 100), completed: done, total: items.length, explanation: items.length === 0 ? 'No tasks to measure' : 'Count based' }; }) },
     timeline: { get: vi.fn(async () => ({ projectId: PROJECT, items: [] })) },
     reflections: { list: vi.fn(async () => []), create: vi.fn(), update: vi.fn() },
   };
@@ -173,6 +173,7 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
   component: class {
     readonly section = undefined;
     readonly onConfigChange = undefined;
+    readonly onProjectDataChange = undefined;
   },
   ...overrides,
 });
@@ -194,12 +195,14 @@ describe('ProjectPageStore (§19, §26)', () => {
   });
 
   it('exposes count-based progress that follows task completion in the same store', async () => {
-    const { store, tasks } = setup();
+    const { store, tasks, gateway } = setup();
     await store.load(PROJECT);
 
     expect(store.progress()).toBe(50);
 
     await tasks.complete('task-1' as Task['id']);
+    vi.mocked(gateway.progress.get).mockResolvedValue({ projectId: PROJECT, formula: 'count', percentage: 100, completed: 2, total: 2, explanation: '2 of 2 tasks complete' });
+    await store.refreshProgress();
 
     // One store means the header cannot go stale behind the Task List section.
     expect(store.progress()).toBe(100);
@@ -214,7 +217,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.progress()).toBeNull();
   });
 
-  it('renders the header and sections when only the task load fails, with progress unavailable', async () => {
+  it('renders the header and sections when only the task-list load fails, using the independent progress read model', async () => {
     const { store, tasks } = setup({
       taskList: vi.fn(async () => {
         throw new GatewayError('unreachable', 0, 'could not reach the prototype host');
@@ -228,7 +231,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sections()).toHaveLength(2);
     expect(store.error()).toBeNull();
     expect(tasks.error()).toContain('could not reach');
-    expect(store.progress()).toBeNull();
+    expect(store.progress()).toBe(50);
   });
 
   it('keeps progress after a failed task mutation — only a failed load makes it unavailable', async () => {

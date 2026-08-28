@@ -24,12 +24,16 @@ export class TaskListSection {
   readonly section = input.required<ProjectSection>();
   /** Part of the shared content contract; this section keeps no configuration of its own. */
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();
+  readonly onProjectDataChange = input.required<() => void>();
 
   readonly store = inject(TaskListStore);
 
   async quickCreate(event: SubmitEvent, input: HTMLInputElement): Promise<void> {
     event.preventDefault();
-    if (await this.store.create(input.value)) input.value = '';
+    if (await this.store.create(input.value)) {
+      input.value = '';
+      this.onProjectDataChange()();
+    }
   }
 
   editTitle(event: { id: TaskId; title: string }): void {
@@ -42,5 +46,13 @@ export class TaskListSection {
 
   changeDueDate(event: { id: TaskId; dueDate: string }): void {
     void this.store.updateDueDate(event.id, event.dueDate);
+  }
+
+  async complete(id: TaskId): Promise<void> {
+    if (await this.store.complete(id)) this.onProjectDataChange()();
+  }
+
+  async changeEstimate(event: { id: TaskId; estimate: number | null }): Promise<void> {
+    if (await this.store.updateEstimate(event.id, event.estimate)) this.onProjectDataChange()();
   }
 }

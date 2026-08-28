@@ -115,6 +115,14 @@ describe('TaskListStore', () => {
     expect(store.selectedTask()?.id).toBe('task-created');
   });
 
+  it('updates and clears an estimate through the shared task update path', async () => {
+    const { store, gateway } = setup(); await store.load(project().id);
+    await store.updateEstimate(task().id, 3);
+    expect(gateway.tasks.update).toHaveBeenCalledWith(task().id, { estimate: 3 });
+    await store.updateEstimate(task().id, null);
+    expect(gateway.tasks.update).toHaveBeenLastCalledWith(task().id, { estimate: null });
+  });
+
   it('refuses to create before a project has loaded', async () => {
     const { store, gateway } = setup();
 

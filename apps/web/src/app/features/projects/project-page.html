@@ -157,6 +157,7 @@
                   (collapseToggled)="collapse($event)"
                   (resized)="resize($event)"
                   (configChanged)="saveConfig($event)"
+                  (projectDataChanged)="store.refreshProgress()"
                   (duplicateRequested)="store.duplicateSection($event)"
                   (removeRequested)="store.removeSection($event)"
                 />

@@ -3,6 +3,7 @@ import {
   SectionConfigSchema,
   type ProjectId,
   type Project,
+  type ProgressResult,
   type ProjectSection,
   type SectionColumnSpan,
   type SectionConfig,
@@ -43,6 +44,9 @@ export class ProjectPageStore {
   private readonly sectionErrorState = signal<string | null>(null);
   private readonly editModeState = signal(false);
   private readonly canvasRevisionState = signal(0);
+  private readonly progressState = signal<ProgressResult | null>(null);
+  private progressRefresh: Promise<void> | null = null;
+  private progressRefreshQueued = false;
 
   readonly project = this.projectState.asReadonly();
   readonly sections = this.sectionsState.asReadonly();
@@ -51,6 +55,7 @@ export class ProjectPageStore {
   readonly sectionError = this.sectionErrorState.asReadonly();
   readonly editMode = this.editModeState.asReadonly();
   readonly canvasRevision = this.canvasRevisionState.asReadonly();
+  readonly progressResult = this.progressState.asReadonly();
 
   /**
    * §39's count-based formula — completed / total — over the same unarchived tasks the Task
@@ -60,16 +65,7 @@ export class ProjectPageStore {
    * `null`, never `0`, when there is nothing to divide: a project with no tasks and a
    * project that has not started are different claims, and a failed task load is a third.
    */
-  readonly progress = computed<number | null>(() => {
-    // `loadFailed`, not `error`: the task store's error signal also carries "a task title is
-    // required" and a rolled-back completion, and neither of those makes the *count* wrong.
-    // Gating on `error` made the header flip to "Not available" when a user pressed Add task
-    // with an empty box.
-    if (this.tasks.loadFailed()) return null;
-    const tasks = this.tasks.tasks();
-    if (tasks.length === 0) return null;
-    return Math.round((tasks.filter((task) => task.status === 'done').length / tasks.length) * 100);
-  });
+  readonly progress = computed<number | null>(() => this.progressState()?.percentage ?? null);
 
   load(projectId: ProjectId): Promise<void> {
     // Clicking project A then project B inside one round trip must not leave A's sections
@@ -82,6 +78,7 @@ export class ProjectPageStore {
       this.loadingState.set(true);
       this.errorState.set(null);
       this.sectionErrorState.set(null);
+      this.progressState.set(null);
       try {
         // Sequential on purpose: a project the caller cannot see must fail as "not found"
         // rather than racing a section list that would report the same thing less clearly.
@@ -101,11 +98,39 @@ export class ProjectPageStore {
         if (current()) {
           // The task load owns its own error signal. A failing task list must not blank the
           // header and the other sections — it only makes progress unavailable.
-          await this.tasks.load(projectId);
+          await Promise.all([this.tasks.load(projectId), this.refreshProgressFor(projectId, generation)]);
           if (current()) this.loadingState.set(false);
         }
       }
     });
+  }
+
+  refreshProgress(): Promise<void> {
+    if (this.progressRefresh !== null) {
+      this.progressRefreshQueued = true;
+      return this.progressRefresh;
+    }
+    const projectId = this.projectState()?.id;
+    if (projectId === undefined) return Promise.resolve();
+    const generation = this.loadGeneration;
+    this.progressRefresh = this.track(async () => {
+      do {
+        this.progressRefreshQueued = false;
+        await this.refreshProgressFor(projectId, generation);
+      } while (this.progressRefreshQueued && generation === this.loadGeneration);
+    }).finally(() => {
+      this.progressRefresh = null;
+    });
+    return this.progressRefresh;
+  }
+
+  private async refreshProgressFor(projectId: ProjectId, generation: number): Promise<void> {
+    try {
+      const result = await this.gateway.progress.get(projectId);
+      if (generation === this.loadGeneration && this.projectState()?.id === projectId) this.progressState.set(result);
+    } catch {
+      if (generation === this.loadGeneration && this.projectState()?.id === projectId) this.progressState.set(null);
+    }
   }
 
   /** §26's Quick Add. The registry's default config is what reaches persistence. */

@@ -4,7 +4,7 @@ import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 
 type MutableTaskField = keyof Pick<
   Task,
-  'title' | 'description' | 'status' | 'priority' | 'projectId' | 'parentTaskId' | 'startAt' | 'dueAt' | 'completedAt' | 'updatedAt'
+  'title' | 'description' | 'status' | 'priority' | 'estimate' | 'projectId' | 'parentTaskId' | 'startAt' | 'dueAt' | 'completedAt' | 'updatedAt'
 >;
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -127,6 +127,10 @@ export class TaskListStore {
   updateDueDate(id: TaskId, dueDate: string): Promise<boolean> {
     const dueAt = dueDate === '' ? null : `${dueDate}T23:59:59.999Z`;
     return this.updateFields(id, { dueAt }, ['dueAt', 'updatedAt']);
+  }
+
+  updateEstimate(id: TaskId, estimate: number | null): Promise<boolean> {
+    return this.updateFields(id, { estimate }, ['estimate', 'updatedAt']);
   }
 
   complete(id: TaskId): Promise<boolean> {

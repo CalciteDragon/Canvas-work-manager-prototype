@@ -123,12 +123,18 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     update: (id, input) => this.answer('tasks.update', { id, input }, this.firstTask()),
     // Answers the task as completed, the way the host does. Echoing it back unchanged would
     // make every optimistic completion appear to revert, which is a different test.
-    complete: (id) =>
-      this.answer('tasks.complete', id, {
+    complete: (id) => {
+      const current = this.find(this.options.tasks, id, 'task');
+      if (current.status !== 'done' && this.options.progress?.formula === 'count' && this.options.progress.total > 0) {
+        const completed = this.options.progress.completed + 1;
+        this.options.progress = { ...this.options.progress, completed, percentage: Math.round(completed / this.options.progress.total * 100), explanation: `${completed} of ${this.options.progress.total} tasks complete` };
+      }
+      return this.answer('tasks.complete', id, {
         ...this.find(this.options.tasks, id, 'task'),
         status: 'done',
         completedAt: COMPLETED_AT,
-      }),
+      });
+    },
     archive: (id) => this.answer('tasks.archive', id, undefined),
   };
 

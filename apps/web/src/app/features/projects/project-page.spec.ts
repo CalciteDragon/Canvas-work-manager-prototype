@@ -81,13 +81,16 @@ const render = async (
     failOn?: Record<string, GatewayError>;
   } = {},
 ) => {
+  const renderedProject = options.project ?? project();
+  const renderedTasks = options.tasks ?? [task('task-1', 'todo'), task('task-2', 'done')];
   const gateway = new FakeWorkManagerGateway({
-    projects: [options.project ?? project()],
+    projects: [renderedProject],
     sections: options.sections ?? [
       section('section-text', 'rich-text', 0),
       section('section-tasks', 'task-list', 1),
     ],
-    tasks: options.tasks ?? [task('task-1', 'todo'), task('task-2', 'done')],
+    tasks: renderedTasks,
+    progress: { projectId: renderedProject.id, formula: 'count', percentage: renderedTasks.length === 0 ? null : Math.round(renderedTasks.filter(({ status }) => status === 'done').length / renderedTasks.length * 100), completed: renderedTasks.filter(({ status }) => status === 'done').length, total: renderedTasks.length, explanation: renderedTasks.length === 0 ? 'No tasks to measure' : 'Count based' },
     failWith: options.failWith,
     failOn: options.failOn,
   });
@@ -168,17 +171,17 @@ describe('ProjectPage (§26)', () => {
   it('renders a removable fallback for a section type nothing registers', async () => {
     // `data.json` is hand-editable and outlives any one registry, so this is a real state.
     const { fixture, gateway } = await render({
-      sections: [section('section-timeline', 'timeline', 0)],
+      sections: [section('section-unknown', 'unknown-future-type', 0)],
     });
 
-    expect(query(fixture, '[data-unknown-section]')?.textContent).toContain('timeline');
+    expect(query(fixture, '[data-unknown-section]')?.textContent).toContain('unknown-future-type');
     expect(query(fixture, '[data-unknown-section-remove]')).toBeNull();
     enterEditMode(fixture);
     // And it must not leave the user stuck with a card they can never get rid of.
     query(fixture, '[data-unknown-section-remove]')!.click();
     await fixture.whenStable();
 
-    expect(gateway.argumentTo('sections.remove')).toBe('section-timeline');
+    expect(gateway.argumentTo('sections.remove')).toBe('section-unknown');
   });
 
   it('adds a section of a chosen registry type from the header’s Quick Add', async () => {
@@ -269,7 +272,7 @@ describe('ProjectPage (§26)', () => {
     const { fixture } = await render({
       sections: [
         section('section-text', 'rich-text', 0),
-        section('section-unknown', 'timeline', 1),
+        section('section-unknown', 'unknown-future-type', 1),
         section('section-tasks', 'task-list', 2),
       ],
     });
@@ -303,7 +306,7 @@ describe('ProjectPage (§26)', () => {
     const { fixture, gateway } = await render({
       sections: [
         section('section-text', 'rich-text', 0),
-        section('section-unknown', 'timeline', 1),
+        section('section-unknown', 'unknown-future-type', 1),
         section('section-tasks', 'task-list', 2),
       ],
     });

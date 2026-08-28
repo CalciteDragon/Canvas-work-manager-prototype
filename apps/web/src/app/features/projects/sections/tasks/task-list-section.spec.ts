@@ -43,6 +43,7 @@ const render = async () => {
   const fixture = TestBed.createComponent(TaskListSection);
   fixture.componentRef.setInput('section', section());
   fixture.componentRef.setInput('onConfigChange', vi.fn());
+  fixture.componentRef.setInput('onProjectDataChange', vi.fn());
   fixture.detectChanges();
   return { fixture, store, gateway };
 };
@@ -97,6 +98,7 @@ describe('TaskListSection (§30, §66)', () => {
     const fixture = TestBed.createComponent(TaskListSection);
     fixture.componentRef.setInput('section', section());
     fixture.componentRef.setInput('onConfigChange', vi.fn());
+    fixture.componentRef.setInput('onProjectDataChange', vi.fn());
     fixture.detectChanges();
 
     expect(query(fixture, '[data-tasks-empty]')).not.toBeNull();

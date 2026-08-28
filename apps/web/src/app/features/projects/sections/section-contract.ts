@@ -21,6 +21,7 @@ import type { ProjectSection, SectionConfig } from '@cwm/contracts';
 export interface SectionContentInputs extends Record<string, unknown> {
   section: ProjectSection;
   onConfigChange: (config: SectionConfig) => void;
+  onProjectDataChange: () => void;
 }
 
 /**
@@ -31,4 +32,5 @@ export interface SectionContentInputs extends Record<string, unknown> {
 export interface SectionContentComponent {
   readonly section: unknown;
   readonly onConfigChange: unknown;
+  readonly onProjectDataChange: unknown;
 }

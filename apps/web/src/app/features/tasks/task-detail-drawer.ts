@@ -11,6 +11,7 @@ export class TaskDetailDrawer {
   readonly task = input.required<Task>();
   readonly priorityChanged = output<{ id: TaskId; priority: TaskPriority }>();
   readonly dueDateChanged = output<{ id: TaskId; dueDate: string }>();
+  readonly estimateChanged = output<{ id: TaskId; estimate: number | null }>();
   readonly closed = output<void>();
 
   readonly priorities = TaskPrioritySchema.options;
@@ -22,5 +23,9 @@ export class TaskDetailDrawer {
 
   changeDueDate(dueDate: string): void {
     this.dueDateChanged.emit({ id: this.task().id, dueDate });
+  }
+
+  changeEstimate(value: string): void {
+    this.estimateChanged.emit({ id: this.task().id, estimate: value === '' ? null : Number(value) });
   }
 }

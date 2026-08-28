@@ -36,6 +36,11 @@
     />
   </label>
 
+  <label class="drawer__field">
+    <span>Estimate</span>
+    <input data-task-estimate type="number" min="0.1" step="0.5" [value]="task().estimate ?? ''" (change)="changeEstimate($any($event.target).value)" />
+  </label>
+
   <dl class="drawer__facts">
     <div>
       <dt>Status</dt>

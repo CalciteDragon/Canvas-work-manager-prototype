@@ -1,0 +1,8 @@
+.progress-section { display: grid; gap: var(--space-4); }
+.progress-section__summary { display: flex; align-items: baseline; gap: var(--space-3); }
+.progress-section__summary strong { font-size: var(--font-size-xl); }
+.progress-section__bar { height: var(--space-2); background: var(--color-surface-sunken); border-radius: var(--radius-sm); overflow: hidden; }
+.progress-section__bar span { display: block; height: 100%; background: var(--color-accent); }
+.progress-section__controls { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: end; }
+.progress-section__controls label { display: grid; gap: var(--space-1); }
+.progress-section__error { color: var(--color-danger); }

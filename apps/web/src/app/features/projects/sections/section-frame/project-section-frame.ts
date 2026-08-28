@@ -46,6 +46,7 @@ export class ProjectSectionFrame {
   readonly duplicateRequested = output<SectionId>();
   readonly removeRequested = output<SectionId>();
   readonly configChanged = output<{ id: SectionId; config: SectionConfig }>();
+  readonly projectDataChanged = output<void>();
 
   readonly configOpen = signal(false);
   readonly columnSpans = [...SectionColumnSpanSchema.values];
@@ -61,10 +62,13 @@ export class ProjectSectionFrame {
     this.configChanged.emit({ id: this.section().id, config });
   };
 
+  private readonly emitProjectDataChange = (): void => this.projectDataChanged.emit();
+
   /** Computed for the same reason: an object literal in the template is a new identity too. */
   readonly contentInputs = computed<SectionContentInputs>(() => ({
     section: this.section(),
     onConfigChange: this.emitConfig,
+    onProjectDataChange: this.emitProjectDataChange,
   }));
 
   constructor() {

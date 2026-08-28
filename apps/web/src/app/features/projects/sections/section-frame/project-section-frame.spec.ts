@@ -40,6 +40,7 @@ let inputChanges = 0;
 class TestContent {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();
+  readonly onProjectDataChange = input.required<() => void>();
 
   constructor() {
     effect(() => {
@@ -60,6 +61,7 @@ class TestContent {
 class TestInspector {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();
+  readonly onProjectDataChange = input.required<() => void>();
 }
 
 const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({

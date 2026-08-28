@@ -3,6 +3,10 @@ import type { SectionContentComponent } from './section-contract';
 import { RichTextSection } from './rich-text/rich-text-section';
 import { richTextDefaultConfig } from './rich-text/rich-text-config';
 import { TaskListSection } from './tasks/task-list-section';
+import { ProgressSection } from './progress/progress-section';
+import { ReflectionsSection } from './reflections/reflections-section';
+import { SubProjectsSection } from './sub-projects/sub-projects-section';
+import { TimelineSection } from './timeline/timeline-section';
 
 /**
  * §29, verbatim. `createDefaultConfig` returns `unknown` because only the definition knows
@@ -49,6 +53,10 @@ export const SECTION_REGISTRY: readonly SectionDefinition[] = [
     createDefaultConfig: () => ({}),
     component: TaskListSection,
   },
+  { type: 'sub-projects', displayName: 'Sub-Projects', icon: '🗂️', createDefaultConfig: () => ({}), component: SubProjectsSection },
+  { type: 'progress', displayName: 'Progress', icon: '📈', createDefaultConfig: () => ({}), component: ProgressSection },
+  { type: 'reflections', displayName: 'Reflections', icon: '💭', createDefaultConfig: () => ({}), component: ReflectionsSection },
+  { type: 'timeline', displayName: 'Timeline', icon: '🗓️', createDefaultConfig: () => ({}), component: TimelineSection },
 ];
 
 /**

@@ -35,6 +35,7 @@ describe('TaskDetailDrawer', () => {
     expect(element.querySelector('[data-task-description]')?.textContent).toContain('research notes');
     expect(element.querySelector<HTMLSelectElement>('[data-task-priority]')?.value).toBe('medium');
     expect(element.querySelector<HTMLInputElement>('[data-task-due-date]')?.value).toBe('2026-09-03');
+    expect(element.querySelector<HTMLInputElement>('[data-task-estimate]')?.value).toBe('');
   });
 
   it('emits priority, due-date set/clear, and close intent', async () => {
@@ -42,9 +43,11 @@ describe('TaskDetailDrawer', () => {
     const priority = vi.fn();
     const dueDate = vi.fn();
     const closed = vi.fn();
+    const estimate = vi.fn();
     component.priorityChanged.subscribe(priority);
     component.dueDateChanged.subscribe(dueDate);
     component.closed.subscribe(closed);
+    component.estimateChanged.subscribe(estimate);
 
     const priorityControl = element.querySelector<HTMLSelectElement>('[data-task-priority]')!;
     priorityControl.value = 'high';
@@ -56,6 +59,9 @@ describe('TaskDetailDrawer', () => {
     dueControl.value = '';
     dueControl.dispatchEvent(new Event('change', { bubbles: true }));
     element.querySelector<HTMLButtonElement>('[data-close-drawer]')?.click();
+    const estimateControl = element.querySelector<HTMLInputElement>('[data-task-estimate]')!;
+    estimateControl.value = '5'; estimateControl.dispatchEvent(new Event('change', { bubbles: true }));
+    estimateControl.value = ''; estimateControl.dispatchEvent(new Event('change', { bubbles: true }));
 
     expect(priority).toHaveBeenCalledWith({ id: value.id, priority: 'high' });
     expect(dueDate.mock.calls).toEqual([
@@ -63,5 +69,6 @@ describe('TaskDetailDrawer', () => {
       [{ id: value.id, dueDate: '' }],
     ]);
     expect(closed).toHaveBeenCalledOnce();
+    expect(estimate.mock.calls).toEqual([[{ id: value.id, estimate: 5 }], [{ id: value.id, estimate: null }]]);
   });
 });

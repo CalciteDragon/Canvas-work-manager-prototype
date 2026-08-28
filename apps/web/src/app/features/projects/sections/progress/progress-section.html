@@ -1,0 +1,14 @@
+<div class="progress-section">
+  @if (store.loading()) { <p>Calculating progress…</p> }
+  @else if (store.error(); as error) { <p class="progress-section__error" role="alert">{{ error }}</p> }
+  @else if (store.result(); as result) {
+    <div class="progress-section__summary"><strong>{{ result.percentage === null ? '—' : result.percentage + '%' }}</strong><span>{{ result.explanation }}</span></div>
+    <div class="progress-section__bar" role="progressbar" [attr.aria-valuenow]="result.percentage" aria-valuemin="0" aria-valuemax="100"><span [style.width.%]="result.percentage ?? 0"></span></div>
+    <div class="progress-section__controls" aria-label="Progress formula">
+      <button type="button" [attr.aria-pressed]="result.formula === 'count'" (click)="choose('count')">Count</button>
+      <button type="button" [attr.aria-pressed]="result.formula === 'weighted'" (click)="choose('weighted')">Weighted</button>
+      <label>Manual <input #manual type="number" min="0" max="100" [value]="result.formula === 'manual' ? result.percentage : 0" /></label>
+      <button type="button" [attr.aria-pressed]="result.formula === 'manual'" (click)="choose('manual', manual.value)">Use manual</button>
+    </div>
+  }
+</div>

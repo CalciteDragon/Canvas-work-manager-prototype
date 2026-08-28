@@ -24,9 +24,11 @@ const render = (config: unknown) => {
   const fixture = TestBed.createComponent(RichTextSection);
   fixture.componentRef.setInput('section', section(config));
   fixture.componentRef.setInput('onConfigChange', onConfigChange);
+  const onProjectDataChange = vi.fn();
+  fixture.componentRef.setInput('onProjectDataChange', onProjectDataChange);
   fixture.detectChanges();
   const textarea = fixture.nativeElement.querySelector('[data-rich-text-body]') as HTMLTextAreaElement;
-  return { fixture, textarea, onConfigChange };
+  return { fixture, textarea, onConfigChange, onProjectDataChange };
 };
 
 describe('RichTextSection (§30)', () => {
@@ -34,6 +36,12 @@ describe('RichTextSection (§30)', () => {
     const { textarea } = render({ text: 'Launch week notes' });
 
     expect(textarea.value).toBe('Launch week notes');
+  });
+
+  it('does not report project data changes for section-local text', () => {
+    const { textarea, onProjectDataChange } = render({ text: 'before' });
+    textarea.value = 'after'; textarea.dispatchEvent(new Event('blur'));
+    expect(onProjectDataChange).not.toHaveBeenCalled();
   });
 
   it('saves on blur, and not on every keystroke', () => {

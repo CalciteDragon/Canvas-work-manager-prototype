@@ -23,7 +23,7 @@
             [task]="task"
             [selected]="store.selectedTaskId() === task.id"
             [pending]="store.completingIds().has(task.id)"
-            (completionRequested)="store.complete($event)"
+            (completionRequested)="complete($event)"
             (titleEdited)="editTitle($event)"
             (selectedRequested)="store.selectTask($event)"
           />
@@ -36,6 +36,7 @@
         [task]="selectedTask"
         (priorityChanged)="changePriority($event)"
         (dueDateChanged)="changeDueDate($event)"
+        (estimateChanged)="changeEstimate($event)"
         (closed)="store.selectTask(null)"
       />
     }

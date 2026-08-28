@@ -8,8 +8,8 @@ import { SECTION_REGISTRY, definitionFor } from './registry';
  * prove. That round trip belongs to the owning section's spec.
  */
 describe('SECTION_REGISTRY (§29)', () => {
-  it('ships §30’s first two section types', () => {
-    expect(SECTION_REGISTRY.map((definition) => definition.type)).toEqual(['rich-text', 'task-list']);
+  it('ships Slice 10’s first-milestone section types', () => {
+    expect(SECTION_REGISTRY.map((definition) => definition.type)).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline']);
   });
 
   it('gives every definition the members §29 pins', () => {
@@ -29,7 +29,8 @@ describe('SECTION_REGISTRY (§29)', () => {
 
   it('answers undefined for a type nothing registers', () => {
     // A real state: `data.json` is hand-editable and outlives any one registry.
-    expect(definitionFor('timeline')).toBeUndefined();
+    expect(definitionFor('calendar')).toBeUndefined();
+    expect(definitionFor('timeline')?.displayName).toBe('Timeline');
     expect(definitionFor('rich-text')?.displayName).toBe('Rich Text');
   });
 });
