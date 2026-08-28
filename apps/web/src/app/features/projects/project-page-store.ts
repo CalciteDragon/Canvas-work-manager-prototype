@@ -112,7 +112,7 @@ export class ProjectPageStore {
   addSection(definition: SectionDefinition): Promise<boolean> {
     const projectId = this.projectState()?.id;
     if (projectId === undefined) return Promise.resolve(false);
-    return this.mutate(async () => {
+    return this.mutate(async ({ current }) => {
       // Parsed, not cast: §29 types `createDefaultConfig` as `unknown`, and a definition
       // that returns a non-object should fail here rather than at the host.
       const config = SectionConfigSchema.parse(definition.createDefaultConfig());
@@ -120,6 +120,7 @@ export class ProjectPageStore {
         type: definition.type,
         config,
       });
+      if (!current()) return;
       this.sectionsState.update((sections) => [...sections, created].sort(byPosition));
     });
   }
@@ -158,7 +159,9 @@ export class ProjectPageStore {
     const [moved] = preview.splice(from, 1);
     if (moved !== undefined)
       preview.splice(Math.max(0, Math.min(position, preview.length)), 0, moved);
-    this.sectionsState.set(preview.map((section, index) => ({ ...section, position: index })));
+    // Reordering the render array is enough to align Angular with CDK. Keep every persisted
+    // `position` untouched: sibling renumbering belongs to SectionService alone.
+    this.sectionsState.set(preview);
 
     return this.track(async () => {
       if (current()) this.sectionErrorState.set(null);
@@ -192,32 +195,29 @@ export class ProjectPageStore {
   }
 
   duplicateSection(id: SectionId): Promise<boolean> {
-    return this.mutate(async () => {
+    return this.mutate(async ({ current, projectId, generation }) => {
       const copy = await this.gateway.sections.duplicate(id);
-      // Applied locally first, then reconciled. The host renumbers siblings, so the
-      // authoritative positions come from a re-read — but the write has already succeeded,
-      // and a failed re-read must not make it look otherwise.
+      if (!current()) return;
+      // Insert only into the render order, then reconcile. The domain has already
+      // renumbered siblings, but only the returned copy is authoritative here; changing
+      // every sibling's persisted `position` would duplicate SectionService's rule.
       this.sectionsState.update((sections) => {
-        const shifted = sections.map((section) =>
-          section.position >= copy.position
-            ? { ...section, position: section.position + 1 }
-            : section,
-        );
-        return [...shifted, copy].sort(byPosition);
+        const preview = [...sections];
+        preview.splice(Math.max(0, Math.min(copy.position, preview.length)), 0, copy);
+        return preview;
       });
-      await this.reconcileSections();
+      await this.reconcileSections(projectId, generation);
     });
   }
 
   removeSection(id: SectionId): Promise<boolean> {
-    return this.mutate(async () => {
+    return this.mutate(async ({ current, projectId, generation }) => {
       await this.gateway.sections.remove(id);
-      this.sectionsState.update((sections) =>
-        sections
-          .filter((section) => section.id !== id)
-          .map((section, position) => ({ ...section, position })),
-      );
-      await this.reconcileSections();
+      if (!current()) return;
+      // Removing the render item is safe; filling the persisted position gap belongs to
+      // SectionService and arrives through the authoritative re-read below.
+      this.sectionsState.update((sections) => sections.filter((section) => section.id !== id));
+      await this.reconcileSections(projectId, generation);
     });
   }
 
@@ -225,8 +225,9 @@ export class ProjectPageStore {
     id: SectionId,
     input: Parameters<typeof this.gateway.sections.update>[1],
   ): Promise<boolean> {
-    return this.mutate(async () => {
+    return this.mutate(async ({ current }) => {
       const updated = await this.gateway.sections.update(id, input);
+      if (!current()) return;
       this.sectionsState.update((sections) =>
         sections.map((section) => (section.id === id ? updated : section)).sort(byPosition),
       );
@@ -237,14 +238,26 @@ export class ProjectPageStore {
    * The canvas is left exactly as it was when a write fails, with the reason visible. A
    * silent failure on a remove or a config save is the one that costs the user work.
    */
-  private mutate(operation: () => Promise<void>): Promise<boolean> {
+  private mutate(
+    operation: (context: {
+      current: () => boolean;
+      projectId: ProjectId;
+      generation: number;
+    }) => Promise<void>,
+  ): Promise<boolean> {
+    const projectId = this.projectState()?.id;
+    if (projectId === undefined) return Promise.resolve(false);
+    const generation = this.loadGeneration;
+    const current = () =>
+      generation === this.loadGeneration && this.projectState()?.id === projectId;
+
     return this.track(async () => {
-      this.sectionErrorState.set(null);
+      if (current()) this.sectionErrorState.set(null);
       try {
-        await operation();
+        await operation({ current, projectId, generation });
         return true;
       } catch (error) {
-        this.sectionErrorState.set(messageOf(error));
+        if (current()) this.sectionErrorState.set(messageOf(error));
         return false;
       }
     });
@@ -254,7 +267,8 @@ export class ProjectPageStore {
    * Re-reads the canvas after a successful write, and **swallows its own failure**. The
    * write already landed; reporting a failed re-read as a failed write would tell the user
    * their remove did not happen and invite them to click it again, which answers 404. The
-   * optimistic update above is close enough to live with until the next load.
+   * render-only update above is close enough to live with until the next load. Persisted
+   * sibling positions remain untouched unless they came from the host.
    */
   private async reconcileSections(
     projectId = this.projectState()?.id,

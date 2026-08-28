@@ -58,9 +58,23 @@
   font-size: var(--font-size-lg);
 }
 
-.state-inspector__project label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.state-inspector__project button {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
   text-transform: capitalize;
+  cursor: pointer;
+}
+
+.state-inspector__project button[aria-pressed='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-surface);
+}
+
+.state-inspector__project button:disabled {
+  cursor: default;
+  opacity: 0.6;
 }

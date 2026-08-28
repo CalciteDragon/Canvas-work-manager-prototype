@@ -28,6 +28,7 @@ The automated acceptance surface is `pnpm --filter web test`, `pnpm --filter web
 - `development.md` — mark Slice 9 in progress, then done with the verified result.
 - `docs/plans/09-layout-modes-flow-vs-grid.md` — keep this plan and its review revisions current.
 - `apps/web/package.json` and `pnpm-lock.yaml` — add Angular CDK at the Angular 22 version already used by the app.
+- `apps/web/angular.json` — move only the production warning baselines to 725 kB initial and 5 kB per-component style after required CDK and the cohesive layout page exceeded the old warnings; retain the existing 1 MB / 8 kB error ceilings.
 - `apps/web/src/app/core/gateway/work-manager-gateway.ts` — expose only the project update and section move operations now exercised by Slice 9.
 - `apps/web/src/app/core/gateway/prototype-work-manager-gateway.ts` — adapt those operations to the existing PATCH project and POST section-move routes and validate their contract bodies.
 - `apps/web/src/app/core/gateway/prototype-work-manager-gateway.spec.ts` — prove methods, paths, actor headers, request bodies, response validation, and errors at the web boundary.
@@ -93,7 +94,7 @@ Failure, deferred-answer, and contract parsing tests will extend the existing fa
 - No production choice between flow and grid; this slice creates evidence and records it.
 - No general state inspector, seed switcher, time/failure controls, or other development-panel work from Slice 12. `/prototype/state` gains only §28's per-project flow/grid switch and keeps the remaining deferral explicit.
 - No new section types (Slice 10), dashboard composition (Slice 11), or full prototype controls (Slice 12).
-- No keyboard drag UX beyond Angular CDK's supported semantics, custom pointer sorting, arbitrary resize handles, breakpoint-specific persisted layouts, or optimistic ordering algorithm.
+- No keyboard drag UX beyond Angular CDK's supported semantics, custom pointer sorting, arbitrary resize handles, breakpoint-specific persisted layouts, or duplicated persisted ordering algorithm. CDK-index-driven render-order previews are allowed only to keep Angular's logical view aligned with mixed-orientation DOM sorting; they never fabricate sibling `position` values.
 - No changes to contracts, repositories, domain services, or host routes unless a test demonstrates an existing Slice 9 capability is defective.
 
 ## Open questions
@@ -106,3 +107,5 @@ None blocking implementation. The development panel is reached by its existing �
 - Round 1 review moved the experiment switch to the development panel as §28 requires; defined visible proportional size presets in flow; required vertical versus mixed CDK orientation and a real unequal-span cross-row browser exercise; added failed-drop DOM restoration, common unknown-section draggables, navigation-race tests, and exact-versus-additional edit-chrome assertions.
 - Round 2 review made method-scoped/deferred fake answers explicit, added a mode-aware empty-canvas state, serialized layout changes per project, and split the view-mode chrome decision from the flow-vs-grid experiment finding.
 - Round 3 review made serialization visible by disabling only a saving project's controls and required Quick Add state to close, rather than merely hide, when layout editing ends.
+- Diff review added real-click rollback coverage for the development-panel selector, guarded every section write against stale project navigation, prevented a stale failed move from remounting the new project, kept CDK's preview order separate from persisted `position` fields, covered all four size classes, and modestly rebased build warnings without changing error ceilings.
+- Final boundary review applied the same render-only rule to successful duplicate/remove previews, made the preview non-goal precise, and required the recorded acceptance evidence to name the 6-column exercise and persisted fields explicitly.

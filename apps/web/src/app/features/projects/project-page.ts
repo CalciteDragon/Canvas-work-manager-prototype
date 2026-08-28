@@ -66,11 +66,12 @@ export class ProjectPage {
   }
 
   async drop(event: CdkDragDrop<unknown>): Promise<void> {
+    const droppedProjectId = this.store.project()?.id;
     const persisted = await this.store.moveSection(
       event.item.data as SectionId,
       event.currentIndex,
     );
-    if (!persisted) {
+    if (!persisted && this.store.project()?.id === droppedProjectId) {
       // Mixed-orientation CDK moves DOM nodes directly. A rejected write must destroy that
       // physical order before recreating the canvas from the canonical store array.
       this.canvasMounted.set(false);

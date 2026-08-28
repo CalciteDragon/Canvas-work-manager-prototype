@@ -9,7 +9,7 @@ import {
   type ProjectSection,
   type Task,
 } from '@cwm/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
@@ -61,6 +61,16 @@ const task = (id: string, status: 'todo' | 'done'): Task =>
     createdAt: AT,
     updatedAt: AT,
   });
+
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
+  return { promise, resolve, reject };
+};
 
 const render = async (
   options: {
@@ -232,17 +242,21 @@ describe('ProjectPage (§26)', () => {
     async (mode, orientation) => {
       const { fixture } = await render({
         project: project({ projectLayoutMode: mode }),
-        sections: [
-          section('section-text', 'rich-text', 0, { columnSpan: 8 }),
-          section('section-tasks', 'task-list', 1, { columnSpan: 4 }),
-        ],
+      sections: [
+        section('section-text-12', 'rich-text', 0, { columnSpan: 12 }),
+        section('section-text-8', 'rich-text', 1, { columnSpan: 8 }),
+        section('section-text-6', 'rich-text', 2, { columnSpan: 6 }),
+        section('section-tasks-4', 'task-list', 3, { columnSpan: 4 }),
+      ],
       });
 
       const canvas = query(fixture, '[data-section-canvas]')!;
       expect(canvas.classList.contains(`section-canvas--${mode}`)).toBe(true);
-      expect(queryAll(fixture, '[data-section-item]').map((item) => item.className)).toEqual([
-        expect.stringContaining('section-canvas__item--span-8'),
-        expect.stringContaining('section-canvas__item--span-4'),
+    expect(queryAll(fixture, '[data-section-item]').map((item) => item.className)).toEqual([
+      expect.stringContaining('section-canvas__item--span-12'),
+      expect.stringContaining('section-canvas__item--span-8'),
+      expect.stringContaining('section-canvas__item--span-6'),
+      expect.stringContaining('section-canvas__item--span-4'),
       ]);
       const dropList = fixture.debugElement
         .query(By.directive(CdkDropList))
@@ -328,5 +342,32 @@ describe('ProjectPage (§26)', () => {
       queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId']),
     ).toEqual(['section-text', 'section-tasks']);
     expect(query(fixture, '[data-section-error]')?.textContent).toContain('move did not persist');
+  });
+
+  it('does not remount the new project when an old project move rejects', async () => {
+    const gate = deferred<ProjectSection>();
+    const { fixture, gateway } = await render({
+      sections: [
+        section('section-text', 'rich-text', 0),
+        section('section-tasks', 'task-list', 1),
+        section('section-b', 'rich-text', 0, { projectId: 'project-b' }),
+      ],
+    });
+    gateway.sections.move = vi.fn(() => gate.promise);
+    gateway.projects.get = vi.fn(async (id) => project({ id }));
+    const drop = fixture.componentInstance.drop({
+      previousIndex: 0,
+      currentIndex: 1,
+      item: { data: 'section-text' },
+    } as never);
+    await fixture.componentInstance.store.load('project-b' as Project['id']);
+    fixture.detectChanges();
+    const projectBCanvas = query(fixture, '[data-section-canvas]');
+
+    gate.reject(new GatewayError('unreachable', 0, 'old move failed'));
+    await drop;
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-section-canvas]')).toBe(projectBCanvas);
   });
 });

@@ -372,6 +372,48 @@ describe('ProjectPageStore (§19, §26)', () => {
     ]);
   });
 
+  it('does not fabricate sibling positions when a successful duplicate cannot be re-read', async () => {
+    let listCalls = 0;
+    const { store } = setup({
+      sectionOverrides: {
+        list: vi.fn(async () => {
+          if (listCalls++ === 0)
+            return [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)];
+          throw new GatewayError('unreachable', 0, 're-read failed');
+        }),
+      },
+    });
+    await store.load(PROJECT);
+
+    expect(await store.duplicateSection('section-text' as SectionId)).toBe(true);
+
+    expect(store.sections().map(({ id, position }) => [id, position])).toEqual([
+      ['section-text', 0],
+      ['section-text-copy', 1],
+      ['section-tasks', 1],
+    ]);
+  });
+
+  it('does not fabricate sibling positions when a successful remove cannot be re-read', async () => {
+    let listCalls = 0;
+    const { store } = setup({
+      sectionOverrides: {
+        list: vi.fn(async () => {
+          if (listCalls++ === 0)
+            return [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)];
+          throw new GatewayError('unreachable', 0, 're-read failed');
+        }),
+      },
+    });
+    await store.load(PROJECT);
+
+    expect(await store.removeSection('section-text' as SectionId)).toBe(true);
+
+    expect(store.sections().map(({ id, position }) => [id, position])).toEqual([
+      ['section-tasks', 1],
+    ]);
+  });
+
   it('leaves the canvas exactly as it was and shows why when a section write fails', async () => {
     const { store } = setup({
       sectionOverrides: {
@@ -473,5 +515,74 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(store.project()?.id).toBe(other);
     expect(store.sectionError()).toBeNull();
+  });
+
+  it('does not append a created section after navigation leaves its project', async () => {
+    const gate = deferred<ProjectSection>();
+    const other = 'project-b' as ProjectId;
+    const { store } = setup({
+      projectGet: vi.fn(async (id: ProjectId) => project({ id })),
+      sectionOverrides: {
+        list: vi.fn(async (projectId: ProjectId) =>
+          projectId === PROJECT
+            ? [section('section-text', 'rich-text', 0)]
+            : [section('section-b', 'rich-text', 0, { projectId: other })],
+        ),
+        create: vi.fn(() => gate.promise),
+      },
+    });
+    await store.load(PROJECT);
+
+    const add = store.addSection(definition());
+    await store.load(other);
+    gate.resolve(section('section-created', 'rich-text', 1));
+    await add;
+
+    expect(store.project()?.id).toBe(other);
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-b']);
+  });
+
+  it('does not append a duplicate or leak a rejected update after navigation', async () => {
+    const duplicateGate = deferred<ProjectSection>();
+    const updateGate = deferred<ProjectSection>();
+    const other = 'project-b' as ProjectId;
+    const { store } = setup({
+      projectGet: vi.fn(async (id: ProjectId) => project({ id })),
+      sectionOverrides: {
+        list: vi.fn(async (projectId: ProjectId) =>
+          projectId === PROJECT
+            ? [section('section-text', 'rich-text', 0)]
+            : [section('section-b', 'rich-text', 0, { projectId: other })],
+        ),
+        duplicate: vi.fn(() => duplicateGate.promise),
+        update: vi.fn(() => updateGate.promise),
+      },
+    });
+    await store.load(PROJECT);
+
+    const duplicate = store.duplicateSection('section-text' as SectionId);
+    const update = store.setCollapsed('section-text' as SectionId, true);
+    await store.load(other);
+    duplicateGate.resolve(section('section-copy', 'rich-text', 1));
+    updateGate.reject(new GatewayError('unreachable', 0, 'old project write failed'));
+    await Promise.all([duplicate, update]);
+
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-b']);
+    expect(store.sectionError()).toBeNull();
+  });
+
+  it('previews order without fabricating persisted sibling positions', async () => {
+    const gate = deferred<ProjectSection>();
+    const { store } = setup({ sectionOverrides: { move: vi.fn(() => gate.promise) } });
+    await store.load(PROJECT);
+
+    const move = store.moveSection('section-text' as SectionId, 1);
+
+    expect(store.sections().map(({ id, position }) => [id, position])).toEqual([
+      ['section-tasks', 1],
+      ['section-text', 0],
+    ]);
+    gate.resolve(section('section-text', 'rich-text', 1));
+    await move;
   });
 });

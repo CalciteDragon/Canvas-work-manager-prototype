@@ -37,19 +37,17 @@ import { StateInspectorStore } from './state-inspector-store';
               >
                 <legend>{{ project.icon }} {{ project.name }}</legend>
                 @for (mode of modes; track mode) {
-                  <label>
-                    <input
-                      data-layout-control
-                      type="radio"
-                      [attr.data-project-id]="project.id"
-                      [attr.name]="'layout-' + project.id"
-                      [value]="mode"
-                      [checked]="project.projectLayoutMode === mode"
-                      [disabled]="store.isSaving(project.id)"
-                      (change)="changeLayout(project.id, mode)"
-                    />
+                  <button
+                    data-layout-control
+                    type="button"
+                    [attr.data-project-id]="project.id"
+                    [value]="mode"
+                    [attr.aria-pressed]="project.projectLayoutMode === mode"
+                    [disabled]="store.isSaving(project.id)"
+                    (click)="changeLayout(project.id, mode)"
+                  >
                     {{ mode }}
-                  </label>
+                  </button>
                 }
               </fieldset>
             }

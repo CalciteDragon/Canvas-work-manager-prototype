@@ -239,6 +239,30 @@
       "projectId": null,
       "slice": 8,
       "note": "The preview runner sets PORT=4200 for `pnpm dev`, and `concurrently` passes it to both children — so the host read it too and took 4200 before ng serve could, leaving the web app answering {\"error\":\"not_found\"}. The host's PORT override is deliberate (it lets the acceptance script run a second host), so the fix is not to remove it. If this recurs, run `pnpm dev:web` and `pnpm dev:host` separately, or give the host its own variable name."
+    },
+    {
+      "id": "note-2026-08-28-001",
+      "createdAt": "2026-08-28T07:10:00.000Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 9,
+      "note": "Flow and grid were indistinguishable while both seeded sections were width 12. After reload, all four persisted presets were exercised in both modes: 12 filled the 977 px canvas, 8 rendered about 646–651 px, 6 about 481 px, and 4 about 315 px. Grid could place the 8-column brief beside the 4-column Task List; that list is technically usable but dense for titles, priority, dates, overdue state, and Details. Grid needs heterogeneous section roles to earn its complexity; flow is the clearer reading/work-list default so far. Keep both until Slices 10–11 add that variety."
+    },
+    {
+      "id": "note-2026-08-28-002",
+      "createdAt": "2026-08-28T07:11:00.000Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 9,
+      "note": "Real pointer dragging reordered sections in flow and moved unequal 12/8-column sections across wrapped grid rows; both orders survived reload. Direct data.json inspection confirmed project-launch persisted projectLayoutMode=grid, brief position=0/columnSpan=8, and Task List position=1/columnSpan=4. The hard edge was failure, not success: CDK's mixed strategy physically reorders DOM nodes, so a rejected host write needs an explicit canvas remount from canonical state. A signal array with the same logical order did not undo the DOM move."
+    },
+    {
+      "id": "note-2026-08-28-003",
+      "createdAt": "2026-08-28T07:12:00.000Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 9,
+      "note": "View Mode is substantially calmer with only title and collapse in each frame. Drag, size, settings, duplicate, remove, and Quick Add make sense as one editing vocabulary. Two stale-state details mattered: leaving edit mode must close Quick Add and inspectors, and navigating projects must reset the mode. The separate Slice 8 question—whether shared-data sections such as Task List should support Duplicate at all—remains unanswered."
     }
   ]
 }

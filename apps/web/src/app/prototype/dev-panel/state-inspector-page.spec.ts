@@ -40,7 +40,10 @@ const render = async (projects: WorkManagerGateway['projects']) => {
 const controls = (fixture: Awaited<ReturnType<typeof render>>, id: string) =>
   [
     ...fixture.nativeElement.querySelectorAll(`[data-layout-control][data-project-id="${id}"]`),
-  ] as HTMLInputElement[];
+  ] as HTMLButtonElement[];
+
+const pressed = (control: HTMLButtonElement | undefined) =>
+  control?.getAttribute('aria-pressed') === 'true';
 
 describe('StateInspectorPage (§28)', () => {
   it('lists projects with independent flow/grid controls and keeps Slice 12 deferrals honest', async () => {
@@ -54,12 +57,8 @@ describe('StateInspectorPage (§28)', () => {
     expect(fixture.nativeElement.textContent).toContain('Office renovation');
     expect(controls(fixture, 'project-a')).toHaveLength(2);
     expect(controls(fixture, 'project-b')).toHaveLength(2);
-    expect(controls(fixture, 'project-a').find(({ value }) => value === 'flow')?.checked).toBe(
-      true,
-    );
-    expect(controls(fixture, 'project-b').find(({ value }) => value === 'grid')?.checked).toBe(
-      true,
-    );
+    expect(pressed(controls(fixture, 'project-a').find(({ value }) => value === 'flow'))).toBe(true);
+    expect(pressed(controls(fixture, 'project-b').find(({ value }) => value === 'grid'))).toBe(true);
     expect(fixture.nativeElement.querySelector('[data-slice-12-deferral]')?.textContent).toContain(
       'Slice 12',
     );
@@ -79,23 +78,21 @@ describe('StateInspectorPage (§28)', () => {
     } as WorkManagerGateway['projects']);
 
     const gridA = controls(fixture, 'project-a').find(({ value }) => value === 'grid')!;
-    gridA.dispatchEvent(new Event('change'));
+    gridA.click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(update).toHaveBeenCalledWith('project-a', { projectLayoutMode: 'grid' });
-    expect(gridA.checked).toBe(true);
+    expect(pressed(gridA)).toBe(true);
 
-    controls(fixture, 'project-b')
-      .find(({ value }) => value === 'grid')!
-      .dispatchEvent(new Event('change'));
+    const gridB = controls(fixture, 'project-b').find(({ value }) => value === 'grid')!;
+    gridB.click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-state-error]')?.textContent).toContain(
       'layout save failed',
     );
-    expect(controls(fixture, 'project-b').find(({ value }) => value === 'flow')?.checked).toBe(
-      true,
-    );
+    expect(pressed(controls(fixture, 'project-b').find(({ value }) => value === 'flow'))).toBe(true);
+    expect(pressed(controls(fixture, 'project-b').find(({ value }) => value === 'grid'))).toBe(false);
   });
 
   it('disables only the project whose layout PATCH is pending', async () => {
@@ -112,9 +109,7 @@ describe('StateInspectorPage (§28)', () => {
       update,
     } as WorkManagerGateway['projects']);
 
-    controls(fixture, 'project-a')
-      .find(({ value }) => value === 'grid')!
-      .dispatchEvent(new Event('change'));
+    controls(fixture, 'project-a').find(({ value }) => value === 'grid')!.click();
     fixture.detectChanges();
 
     expect(controls(fixture, 'project-a').every(({ disabled }) => disabled)).toBe(true);

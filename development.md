@@ -333,7 +333,7 @@ plus one registry line.
 
 ### Slice 9 — Layout modes: flow vs grid
 
-**Status:** in progress — plan: [docs/plans/09-layout-modes-flow-vs-grid.md](docs/plans/09-layout-modes-flow-vs-grid.md)
+**Status:** done — plan: [docs/plans/09-layout-modes-flow-vs-grid.md](docs/plans/09-layout-modes-flow-vs-grid.md) — `/prototype/state` now persists each project's flow/grid experiment flag, and the project canvas renders the same 12/8/6/4 presets as either a vertical flow or wrapping 12-column grid. Real pointer drags in both modes survived reload; every width was exercised in both modes after reload, and `.prototype/data.json` ended with `project-launch` in grid mode, its brief at position 0/span 8 and Task List at position 1/span 4. View Mode retains collapse and content interactions while Edit Layout Mode owns drag, size, settings, Duplicate, Remove, and Quick Add. Review fixes keep domain-owned sibling positions out of UI previews, reject stale writes after project navigation, and remount canonical DOM order after a failed mixed-grid move. Verified by `pnpm test`, `pnpm lint`, `pnpm build`, and the plan's real-browser/data acceptance sequence.
 
 **Goal:** Both candidate layouts exist and can be compared with real data.
 

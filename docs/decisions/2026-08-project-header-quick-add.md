@@ -22,24 +22,26 @@ Adding a section from the header worked in the real canvas, and the empty-canvas
 `nested-projects` is only escapable because of it.
 
 The cost is real and worth recording. §32 assigns "add-section buttons" to Edit Layout Mode
-specifically to avoid "permanently cluttering the normal workspace", so Slice 9 may well move
-this control behind that toggle. And under this reading a project whose canvas has no Task
-List section has **no way to add a task at all** — `project-cabinets` in `nested-projects` is
-exactly that project, and it is a genuinely awkward state to sit in.
+specifically to avoid "permanently cluttering the normal workspace", and Slice 9 confirmed
+that separation: Quick Add now appears only while editing the canvas. Under this reading a
+project whose canvas has no Task List section still has **no way to add a task at all** —
+`project-cabinets` in `nested-projects` is exactly that project, and it remains a genuinely
+awkward state to sit in.
 
 **Current decision**
 
-Quick Add opens a list of `SECTION_REGISTRY` types and adds the chosen one to the end of the
-canvas, with the definition's `createDefaultConfig()` as its config. The header's "More"
-control is inert: project edit and archive arrive with the slice that builds them, and a menu
-of disabled items is worse than a control that is honestly empty.
+In Edit Layout Mode, Quick Add opens a list of `SECTION_REGISTRY` types and adds the chosen
+one to the end of the canvas, with the definition's `createDefaultConfig()` as its config.
+View Mode hides it; an empty canvas tells the user to enter Edit Layout Mode. The header's
+"More" control is inert: project edit and archive arrive with the slice that builds them,
+and a menu of disabled items is worse than a control that is honestly empty.
 
 **Confidence**
 
-Low. This is a defensible default, not a finding.
+Medium for adding sections; low for the missing task-capture path.
 
 **Revisit when**
 
-Slice 9 builds §32's Edit Layout Mode — that is the moment to decide whether Quick Add
-belongs to the mode or to the header, and whether a canvas without a Task List needs its own
-way to capture a task.
+The project page gains a general capture action, or a canvas without a Task List is tested
+with real users. The unresolved question is now task capture, not where section addition
+belongs.
