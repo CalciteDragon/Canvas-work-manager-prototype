@@ -19,12 +19,19 @@ That starts two processes:
 
 | Process | URL | What it is |
 |---|---|---|
-| `web` | http://localhost:4200 | The Angular application — currently an empty shell |
-| `host` | http://127.0.0.1:4310 | The prototype host — currently one route, `GET /prototype/health` |
+| `web` | http://localhost:4200 | The Angular application — shell, dashboard, project pages, tasks |
+| `host` | http://127.0.0.1:4310 | The prototype host — the fake API (§61) over `.prototype/data.json` |
 
-The host is where the fake API, the MCP server, fake auth and the mock AI will live
-(spec §6). None of that exists yet; see [development.md](development.md) for what has
-actually been built.
+The host is also where the MCP server, fake auth and the real-AI adapter will live
+(spec §6). The MCP server does not exist yet; see [development.md](development.md) for
+what has actually been built.
+
+### Environment
+
+| Variable | Default | What it does |
+|---|---|---|
+| `PORT` | `4310` | Which port the host listens on. |
+| `PROTOTYPE_AI_PROVIDER` | `mock` | `mock` composes the dashboard's AI text locally, with no API key and no network (§43). `real` selects the developer-only adapter, which is a stub — it starts fine and fails loudly on the first AI call (§44). Real AI is never required. |
 
 One Ctrl+C stops both. Health check: `curl localhost:4310/prototype/health`.
 

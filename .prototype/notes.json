@@ -287,6 +287,30 @@
       "projectId": "project-renovation",
       "slice": 10,
       "note": "The dense derived Timeline is useful as a reading surface: project span, nested targets, task ranges, and milestones are distinguishable without scheduling controls. Selecting a row for a small status detail was enough interaction for this slice. The inferred project span reads plausibly in both seeds, but it is still a visualization convention rather than stored scheduling truth and should remain labeled/derived that way."
+    },
+    {
+      "id": "note-2026-08-28-001",
+      "createdAt": "2026-08-28T22:05:00.000Z",
+      "route": "/app",
+      "projectId": null,
+      "slice": 11,
+      "note": "Today's overdue rows showed only the due *time*. On busy-week against the real date, five tasks all read \"23:00\"/\"22:00\" as if they were tonight, when they were days gone. Fixed by showing the date on an overdue row and the time on one still due today — but the general lesson is that a row's meta line has to change with the row's state, not just carry the same field."
+    },
+    {
+      "id": "note-2026-08-28-002",
+      "createdAt": "2026-08-28T22:06:00.000Z",
+      "route": "/app",
+      "projectId": null,
+      "slice": 11,
+      "note": "The dashboard is entirely clock-driven and there is still no way to move the clock from inside the app (Slice 12). Against the real date every seed reads as a pile of overdue work, and Today's due-today group is permanently empty, which makes the most interesting widget the least testable. Setting the simulated date should be the first thing Slice 12 wires up, not the last."
+    },
+    {
+      "id": "note-2026-08-28-003",
+      "createdAt": "2026-08-28T22:07:00.000Z",
+      "route": "/app",
+      "projectId": null,
+      "slice": 11,
+      "note": "Widget layout comes only from persona data, and switching persona has no UI yet either — so comparing Demo's six-widget dashboard with Alex's two-widget one meant editing localStorage by hand. The §25 question 'is resizing useful?' cannot be answered until both the persona switch and some way to change a widget's size exist; right now the four presets are only observable as three seeded examples."
     }
   ]
 }

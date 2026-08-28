@@ -107,4 +107,40 @@ Web:
 
 ## Revisions
 
-Recorded after implementation — see the section at the bottom of this file.
+What changed between the plan above and the code, and why.
+
+- **`packages/domain/src/calendar.ts` was added, unplanned.** The plan assumed the service
+  could format "the day seven days after the clock's day" directly. It cannot:
+  `check-no-direct-date.mjs` bans every `new Date(...)` in domain source, and converting
+  epoch milliseconds to `YYYY-MM-DD` is exactly the operation that tempts one through. The
+  arithmetic (Hinnant's `civil_from_days`) now lives in its own pure module with its own
+  test, rather than a bypass helper smuggled into the exempt `clock.ts`.
+- **`personName` on `DailyDigestContext` became optional.** `DashboardService` has an
+  `ActorContext`, not a `User`, and the domain has no `UserRepository` wired here; giving
+  the service one just to greet someone by name would have widened its dependencies for a
+  salutation. The digest titles itself "Daily digest" instead.
+- **"Closest deadline" is nearest in *either direction*.** The first version took the
+  earliest target date, which on `overdue-chaos` named a project three weeks gone in
+  preference to one due on Monday. It now minimizes `|daysToTarget|`.
+- **`DashboardWidgetFrame` was added.** The plan had the page loop `NgComponentOutlet`
+  directly. That would rebuild the inputs record on every change-detection pass — the
+  self-feeding loop `section-contract.ts` documents — so the frame exists to give each
+  widget's record a stable identity through its own `computed()`.
+- **Two existing specs and `app.routes.spec.ts` needed edits.** Adding `dashboard` to
+  `WorkManagerGateway` broke two hand-rolled gateway objects, and `/app` now injects
+  `IDENTITY_PROVIDER`, which the route map's harness did not provide.
+- **Seed snapshots were regenerated.** `prototype/seeds/*.json` are committed fixtures, so
+  changing the demo persona's widget list is a snapshot change too.
+- **Found in the browser, not in the tests:** overdue rows in Today printed only the due
+  time, so five days-old tasks all read as tonight. Fixed, with a test that pins the
+  overdue row to a date and the still-due row to a time.
+
+The plan's acceptance check was run in full. Item 6 is proved by
+`dashboard-service.test.ts` rather than in the app, because the simulated-date control is
+Slice 12's; the seed-switching half of the *Done when* was exercised in the browser across
+`busy-week`, `overdue-chaos` and `empty`.
+
+Two things this slice did **not** answer, both recorded in `.prototype/notes.json`: whether
+§25's four preset sizes are useful (nothing in the UI changes a size, so they exist only as
+seeded examples), and how the dashboard reads on a day that is not "everything is overdue"
+(no clock control yet).

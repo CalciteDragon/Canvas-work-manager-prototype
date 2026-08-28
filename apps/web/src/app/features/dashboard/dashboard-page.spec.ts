@@ -119,6 +119,16 @@ describe('DashboardPage (§24, §25)', () => {
     expect(element.querySelector('[data-widget-task]')?.classList.contains('widget-row--overdue')).toBe(true);
   });
 
+  it('dates an overdue row and gives a still-due one only its time', async () => {
+    // Found in the browser: "23:00" on a task that went overdue five days ago reads as
+    // tonight, which is the opposite of what the row is trying to say.
+    const element = await render([widget('w-today', 'today')]);
+    const rows = [...element.querySelectorAll('[data-widget-task]')];
+
+    expect(rows[0]?.textContent).toContain('2026-08-21');
+    expect(rows[1]?.textContent).toContain('21:00');
+  });
+
   it('renders the digest as separate lines and names the provider that composed it (§43)', async () => {
     const element = await render([widget('w-digest', 'daily_digest')]);
 

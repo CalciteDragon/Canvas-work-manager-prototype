@@ -20,9 +20,17 @@ None in use yet. Considered while writing the contracts:
 
 **What we learned**
 
-Not yet used. What this choice buys, though, is that §17's "Switch Persona" changes the
-dashboard for free — testing "empty accounts vs busy accounts" (§17) is what the personas
-exist for, and a dashboard that does not vary between them would test nothing.
+Slice 11 used it, and the payoff was the one predicted: switching persona in the browser
+(Demo's six widgets → Alex's fortnight-horizon pair → Sam's single small tile) changed the
+whole dashboard with no server-side layout concept at all. Nothing in `DashboardStore`
+knows personas exist; it reads `preferences.dashboardWidgets` from `IdentityProvider` and
+asks the gateway only for content — see
+[the layout/content split](2026-08-dashboard-layout-and-content-split.md).
+
+What it did *not* settle is whether a stored per-person layout is the right model, because
+nothing in the UI writes one. Every widget's position, size and hidden flag came from seed
+data, so §25's real question — "is resizing useful?" — is still untested: the four presets
+are visible as three seeded examples, not as a choice anyone made.
 
 **Current decision**
 
@@ -30,11 +38,12 @@ exist for, and a dashboard that does not vary between them would test nothing.
 
 **Confidence**
 
-Medium. The placement is easy to move; the risk is not the location but the assumption
-that a stored per-person layout is the right model at all.
+Medium, unchanged after Slice 11. The placement works and is easy to move; the untested
+assumption is still that a stored per-person layout is the right model at all.
 
 **Revisit when**
 
-Slice 11 builds the dashboard, and again at Slice 23 if widget configuration in the UI is
-ever justified. If Slice 11 shows that everyone's dashboard is the same, this becomes a
-registry with defaults and no stored rows.
+Slice 23, if widget configuration in the UI is justified — and it cannot be judged until
+either that slice or Slice 12's persona switcher makes a layout something a person can
+actually change. If it turns out everyone's dashboard is the same, this becomes a registry
+with defaults and no stored rows.

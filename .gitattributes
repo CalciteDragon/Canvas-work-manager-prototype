@@ -1,0 +1,5 @@
+# The seed snapshots in prototype/seeds are compared byte-for-byte against LF-serialized
+# JSON (packages/prototype-data/src/seeds.test.ts). With core.autocrlf=true and no rule
+# here, a fresh clone on Windows checks them out as CRLF and five tests fail before a line
+# of code has been touched. Normalize every text file to LF in the working tree.
+* text=auto eol=lf

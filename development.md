@@ -391,6 +391,30 @@ yet — Calendar is Slice 18, the others attach in Slices 11 and 13.
 
 ### Slice 11 — Dashboard
 
+**Status:** done — plan: [docs/plans/11-dashboard.md](docs/plans/11-dashboard.md) — `/app`
+renders §25's widget model from the persona's own widget list, over one derived
+`GET /api/dashboard`. **Layout and content were split** (its own [decision
+entry](docs/decisions/2026-08-dashboard-layout-and-content-split.md)): widgets come from
+`IdentityProvider`, content from one call, because the widgets overlap — the digest counts
+exactly what Today lists — and separate derivations over separate clock readings could
+contradict each other on screen. Each registry definition exposes an optional `queryFrom`,
+so §25's opaque `config` is read only inside the widget that owns it. **Fun Fact was kept
+out of `AIProvider`** ([entry](docs/decisions/2026-08-prototype-ai-scope-and-fun-fact.md)):
+§42 pins the interface to two methods and §24 does not call Fun Fact AI-generated, so it is
+a clock-keyed fixture rotation in `DashboardService`. A new `packages/domain/src/calendar.ts`
+holds the UTC date arithmetic, because deriving "seven days after the clock's day" is what
+would otherwise smuggle a `new Date(ms)` past §45's lint. `generateProjectSummary` ships
+implemented and tested with no caller, the way §9's `TaskGateway` did. Verified in the
+browser against `busy-week`, `overdue-chaos` and `empty` — every widget has a real empty
+state, an unregistered type renders an honest note, and switching persona changed both the
+layout and the request (`?upcomingDays=14`). `PROTOTYPE_AI_PROVIDER=real` was run: the host
+starts, `/api/projects` still answers 200, and the digest fails with a message naming the
+fix. One defect the unit tests missed showed up only in the browser — overdue rows printed
+the due *time*, so five days-old tasks all read as "23:00" tonight; they now print the
+date, with a test. **Deferred to Slice 12:** the simulated-date control, which the
+dashboard needs more than any other surface — against the real date every seed is a wall of
+overdue work and the due-today group is permanently empty.
+
 **Goal:** A configurable widget surface answering "what should I do today?"
 
 **Spec:** §24, §25, §42, §43, §44

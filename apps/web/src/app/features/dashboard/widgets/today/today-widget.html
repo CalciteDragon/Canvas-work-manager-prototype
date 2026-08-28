@@ -10,9 +10,11 @@
             <span class="widget-row__title">{{ task.title }}</span>
             <span class="widget-row__meta">
               {{ task.projectIcon ?? '📁' }} {{ task.projectName }}
-              @if (task.dueAt; as dueAt) {
-                · <time [attr.datetime]="dueAt">{{ dueAt.slice(11, 16) }}</time>
-              }
+            @if (task.dueAt; as dueAt) {
+              <!-- An overdue row needs the day, not the hour: "23:00" on a task that was
+                   due last Sunday reads as tonight, which is the opposite of the truth. -->
+              · <time [attr.datetime]="dueAt">{{ task.overdue ? dueAt.slice(0, 10) : dueAt.slice(11, 16) }}</time>
+            }
             </span>
           </li>
         }
