@@ -53,7 +53,7 @@ export class PrototypeAIProvider implements AIProvider {
       `You completed ${count(context.completedRecentlyCount, 'task')} during the last ${count(context.recentDays, 'day')}.`,
     );
 
-    return this.content(context.personName === undefined ? 'Daily digest' : `Good day, ${context.personName}`, lines, context.generatedAt);
+    return this.content(lines, context.generatedAt);
   }
 
   generateProjectSummary(context: ProjectSummaryContext): Promise<GeneratedContent> {
@@ -86,7 +86,7 @@ export class PrototypeAIProvider implements AIProvider {
       lines.push(`The most recent reflection reads: "${context.latestReflection}"`);
     }
 
-    return this.content(`${context.projectName} — progress summary`, lines, context.generatedAt);
+    return this.content(lines, context.generatedAt);
   }
 
   /**
@@ -94,10 +94,8 @@ export class PrototypeAIProvider implements AIProvider {
    * that writes prose rather than copying stored values, so an empty line or a missing
    * sentence has to fail here rather than render as a blank tile.
    */
-  private content(title: string, lines: string[], generatedAt: string): Promise<GeneratedContent> {
-    return Promise.resolve(
-      GeneratedContentSchema.parse({ title, lines, source: 'prototype', generatedAt }),
-    );
+  private content(lines: string[], generatedAt: string): Promise<GeneratedContent> {
+    return Promise.resolve(GeneratedContentSchema.parse({ lines, source: 'prototype', generatedAt }));
   }
 }
 

@@ -50,7 +50,7 @@ const populated = (): DashboardResult =>
     { id: 'project-1', name: 'Website launch', icon: '🚀', status: 'active', targetDate: '2026-08-28', openTasks: 2, completedTasks: 1, percentage: 33, daysToTarget: 4 },
   ],
   recentProgress: { days: 7, sinceDate: '2026-08-17', tasks: [task('task-done', 'Approve homepage copy', { status: 'done', completedAt: '2026-08-21T18:30:00.000Z' })] },
-  dailyDigest: { title: 'Daily digest', lines: ['You have 1 task scheduled today.', '1 task is overdue.'], source: 'prototype', generatedAt: at },
+  dailyDigest: { lines: ['You have 1 task scheduled today.', '1 task is overdue.'], source: 'prototype', generatedAt: at },
   funFact: 'Context switching costs more time than the switch itself takes.',
   });
 
@@ -139,7 +139,7 @@ describe('DashboardPage (§24, §25)', () => {
     expect(element.querySelector('[data-widget-digest-source]')?.textContent).toContain('prototype AI provider');
   });
 
-  it('gives every widget an empty state rather than a blank tile', async () => {
+  it('gives each of the four list widgets an empty state rather than a blank tile', async () => {
     const element = await render(
       [
         widget('w-today', 'today', { position: 0 }),
@@ -150,6 +150,8 @@ describe('DashboardPage (§24, §25)', () => {
       { dashboard: emptyDashboard() },
     );
 
+    // Daily Digest and Fun Fact are deliberately absent from this list: both always have
+    // content to show, so neither has — or needs — an empty branch.
     expect(element.querySelectorAll('[data-widget-empty]')).toHaveLength(4);
   });
 

@@ -9,8 +9,11 @@ import { UpcomingWidget, upcomingWidgetQuery } from './upcoming/upcoming-widget'
 import type { DashboardWidgetComponent } from './widget-contract';
 
 /**
- * The dashboard's answer to §29's section registry. **Adding a widget is this file's only
- * line of change** plus the widget's own folder.
+ * The dashboard's answer to §29's section registry. Adding a widget is one line here plus
+ * its own folder — with two honest caveats, because the §29 claim is stronger than this
+ * one: `registry.spec.ts` pins the list exactly, and all six widgets share
+ * `widget-content.scss` (see the note at the top of that file). `DashboardWidgetType`
+ * already enumerates all nine of §24's widgets, so widgets 7-9 need no contract change.
  *
  * `queryFrom` is what keeps §25's opaque `config` opaque outside the widget that owns it:
  * the store merges whatever each visible widget asks for, and never learns that "days"

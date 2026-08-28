@@ -403,7 +403,7 @@ describe('PrototypeWorkManagerGateway — dashboard (§24)', () => {
     upcoming: { days: 7, throughDate: '2026-08-31', tasks: [] },
     activeProjects: [],
     recentProgress: { days: 7, sinceDate: '2026-08-17', tasks: [] },
-    dailyDigest: { title: 'Daily digest', lines: ['Nothing is scheduled for today.'], source: 'prototype', generatedAt: at },
+    dailyDigest: { lines: ['Nothing is scheduled for today.'], source: 'prototype', generatedAt: at },
     funFact: 'Context switching costs more time than the switch itself takes.',
   };
 

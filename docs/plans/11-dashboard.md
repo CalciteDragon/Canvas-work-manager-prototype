@@ -19,14 +19,13 @@ Make `/app` a configurable widget surface that answers "what should I do today?"
 2. `pnpm prototype:seed overdue-chaos`, reload `/app`: the same widgets show materially different content — overdue tasks appear, the active-project rows change, the digest sentences change.
 3. `pnpm prototype:seed empty`, reload `/app`: every widget renders its own empty state rather than a blank tile or an error.
 4. `GET /api/dashboard?upcomingDays=14` widens the Upcoming range, and the `upcoming` widget's `config: { days: 14 }` proves widget config reaches the query.
-5. `PROTOTYPE_AI_PROVIDER=real` starts the host and serves everything except the digest, which fails loudly; unset/`mock` is the default and needs no key (§44).
+5. `PROTOTYPE_AI_PROVIDER=real` starts the host and every non-dashboard route keeps working; `GET /api/dashboard` fails as a whole (the digest is part of that one read), with the reason on the host's console. Unset/`mock` is the default and needs no key (§44).
 6. Domain tests prove the dashboard is clock-driven: the same document at two different `Clock` instants produces different today/upcoming/recent buckets.
 7. `pnpm test`, `pnpm lint`, `pnpm build` all pass.
 
 ## File-level change list
 
 - `packages/contracts/src/dashboard.ts` / `.test.ts` — add `DashboardQuery`, `DashboardTask`, `DashboardProject`, `GeneratedContent`, `DashboardResult`. The §25 widget model itself already exists from Slice 2.
-- `packages/contracts/src/index.test.ts` — pin the new exports.
 - `packages/domain/src/ai-provider.ts` — §42's `AIProvider` interface and its two context types. Interface and types only.
 - `packages/domain/src/prototype-ai-provider.ts` / `.test.ts` — §43's deterministic composer for both methods. No network, no key, no clock (the context carries the instant).
 - `packages/domain/src/dashboard-service.ts` / `.test.ts` — derives today / upcoming / active projects / recent progress / fun fact from projects + tasks + `Clock`, and asks the `AIProvider` for the digest.
@@ -139,6 +138,53 @@ The plan's acceptance check was run in full. Item 6 is proved by
 `dashboard-service.test.ts` rather than in the app, because the simulated-date control is
 Slice 12's; the seed-switching half of the *Done when* was exercised in the browser across
 `busy-week`, `overdue-chaos` and `empty`.
+
+- **`.gitattributes` was added**, unplanned and repo-wide (`* text=auto eol=lf`). The seed
+  snapshots are compared byte-for-byte against LF-serialized JSON, so under
+  `core.autocrlf=true` a fresh checkout fails five tests before any code is touched. Called
+  out here because it is the largest-blast-radius change in the slice and nothing else in
+  the plan implies it.
+- **The planned `packages/contracts/src/index.test.ts` change did not happen.** That file
+  asserts the entrypoint resolves and exports runtime schemas; it does not enumerate every
+  export, so there was nothing to pin. Removed from the file list rather than left as a
+  promise the diff did not keep.
+
+### After the diff review (four subagents: correctness, spec, boundaries, acceptance)
+
+The reviewers confirmed the acceptance check, found no boundary violation, and found no
+substantive spec divergence. They also found six things worth fixing, all now fixed:
+
+- **Tasks of archived projects appeared in Today, Upcoming and Recent Progress.**
+  `projects.list({ workspaceId })` does not filter by status, so only `activeProjects` was
+  filtered. An archived project's overdue task rendered a row beside an Active Projects
+  list that said the project did not exist. `on_hold` and `planning` projects deliberately
+  still contribute tasks — that is a different question from "which projects are active".
+- **A task could appear in two lists at once.** `claimed` de-duplicated only within
+  `today`, so an in-progress task due on Thursday rendered in both Today and Upcoming and
+  was described twice by the digest — while the code comment claimed the opposite. Every
+  list is now disjoint, which is what makes the comment true.
+- **`recentDays` spanned a day more than `upcomingDays`.** `sinceMs` used
+  `todayStart - recentDays * DAY_MS`, so "the last 7 days" was seven days *and* today.
+  Now `recentDays` calendar days including today.
+- **The store's generation guard was untested.** The overlapping-load test could not
+  detect it: the fake gateway resolves in call order, so the guard could be inverted and
+  the test still passed. Replaced with a gateway whose promises the spec settles by hand,
+  out of order — verified by mutation to fail without the guard.
+- **`GeneratedContent.title` had no consumer** (the widget frame heads every tile from the
+  registry) and `DailyDigestContext.personName` existed only to build it. Both deleted,
+  under the same rule that keeps unimplemented methods off the gateway interfaces.
+- **Smaller:** the fun-fact index went negative for a clock before 1970; the header showed
+  a stale date during a reload; `emptyDashboard()` echoed a requested `days` beside a
+  hardcoded `throughDate` the real host could never pair it with; dead `.widget-progress`
+  rules; an orphaned doc comment in `services.ts`.
+
+Three claims were corrected rather than coded around. `PROTOTYPE_AI_PROVIDER=real` fails
+the **whole** dashboard read, not just the digest, and its explanation reaches the host's
+console while the HTTP response is an opaque `internal_error` — README, `development.md`
+and acceptance item 5 above all said otherwise. The registry's "adding a widget is this
+file's only line of change" overstated §29's claim, because all six widgets share one
+stylesheet. And the widget-ownership entry said three of the four size presets were seeded
+when all four are.
 
 Two things this slice did **not** answer, both recorded in `.prototype/notes.json`: whether
 §25's four preset sizes are useful (nothing in the UI changes a size, so they exist only as

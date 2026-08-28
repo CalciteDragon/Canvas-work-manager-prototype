@@ -96,14 +96,13 @@ export interface SectionGateway {
 /**
  * The boundary of §8: every component depends on this interface and never on a transport.
  *
- * §9 sketches eight members. Only the three with implementations are declared here; the
- * rest arrive with the slice that builds them, because five interfaces nothing implements
- * would force every adapter to fake five members and would document features that do not
- * exist:
+ * §9 sketches eight members. A member is declared here only once something implements and
+ * exercises it — an interface nothing implements would force every adapter to fake it and
+ * would document a feature that does not exist. Still to arrive:
  *
  * - `milestones` — Slice 19
- * - `reflections` — Slice 10
- * - `search` — Slice 10
+ * - `search` — no slice of its own; §40 surfaces through Slice 21's command palette and
+ *   Slice 14's `search_workspace` MCP tool
  * - `activity` — Slice 13
  */
 export interface WorkManagerGateway {

@@ -36,17 +36,28 @@ one slice; the alternative is diverging from both authoritative documents to sav
 
 **Current decision**
 
-`WorkManagerGateway` carries `projects` and `tasks`. `TaskGateway` is §9 verbatim.
-`ProjectGateway` is `list` + `get`. The remaining six §9 members are named in a doc comment
-against the slice that brings them, and each is added *with* its implementation.
+Unchanged in substance, updated for what has actually landed. As of Slice 11
+`WorkManagerGateway` carries **seven** members — `projects`, `sections`, `tasks`,
+`progress`, `timeline`, `reflections`, `dashboard` — each added *with* its implementation
+and its first caller. `TaskGateway` is still §9 verbatim. Three §9 members remain undeclared
+and are named in the interface's doc comment: `milestones` (Slice 19), `activity`
+(Slice 13), and `search`, which turns out to have no slice of its own.
 
 **Confidence**
 
-High for the shape, medium for where the line sits on `ProjectGateway`. If Slice 8 finds
-itself adding three project methods at once, the "arrives with its caller" rule is costing
-more than it saves and should relax to "arrives with its route".
+High. The rule has now survived five slices and produced no adapter faking a member nothing
+uses. Two refinements it earned along the way: `SectionGateway.move` was declared one slice
+*after* the rest of `SectionGateway`, when drag-drop finally called it, which is the rule
+working at method rather than member granularity; and Slice 11's `dashboard` arrived as a
+single `get`, not §9's implied breadth.
+
+The one cost worth recording: adding a member breaks every hand-rolled gateway literal in
+the specs — Slice 11 had to touch `project-page-store.spec.ts` and `task-list-store.spec.ts`
+for a member neither page uses. That is a real tax, and it is still cheaper than six faked
+members.
 
 **Revisit when**
 
-Slice 8 adds `sections` and the first `ProjectGateway` write. If the doc comment listing
-the six is still accurate then, the rule is working.
+Slice 13 adds `activity`. If `search` still has no home by Slice 21's command palette, drop
+it from the doc comment's list rather than carrying a member §9 named that the prototype
+never wanted.

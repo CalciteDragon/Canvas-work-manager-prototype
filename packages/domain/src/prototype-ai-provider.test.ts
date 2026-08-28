@@ -7,7 +7,6 @@ const GENERATED_AT = '2026-08-24T16:00:00.000Z';
 
 const digestContext = (overrides: Partial<DailyDigestContext> = {}): DailyDigestContext => ({
   generatedAt: GENERATED_AT,
-  personName: 'Demo User',
   dueTodayCount: 5,
   overdueCount: 2,
   inProgressCount: 1,
@@ -100,7 +99,7 @@ describe('PrototypeAIProvider.generateProjectSummary', () => {
     const summary = await provider.generateProjectSummary(summaryContext());
     const text = summary.lines.join('\n');
 
-    expect(GeneratedContentSchema.parse(summary).title).toContain('Website launch');
+    expect(GeneratedContentSchema.parse(summary).source).toBe('prototype');
     expect(text).toContain('2 of 6');
     expect(text).toContain('33%');
     expect(text).toContain('1 task is overdue');

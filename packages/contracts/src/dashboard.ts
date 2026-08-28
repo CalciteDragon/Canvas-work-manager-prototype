@@ -83,9 +83,12 @@ export type DashboardProject = z.infer<typeof DashboardProjectSchema>;
  * §42's `GeneratedContent`, given a shape. `lines` rather than one blob because §43's
  * example is a short stack of independent sentences, and a widget wants to lay them out
  * rather than parse them back apart.
+ *
+ * No `title`: the widget frame heads every tile from the registry's `displayName`, so a
+ * title here would be a member nothing renders — the same claim-no-test-backs rule that
+ * keeps unimplemented methods off the gateway interfaces.
  */
 export const GeneratedContentSchema = z.object({
-  title: z.string().min(1),
   lines: z.array(z.string().min(1)).min(1),
   /** Which §44 provider composed this. The UI says so rather than implying real AI. */
   source: z.enum(['prototype', 'real']),

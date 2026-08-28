@@ -31,7 +31,7 @@ what has actually been built.
 | Variable | Default | What it does |
 |---|---|---|
 | `PORT` | `4310` | Which port the host listens on. |
-| `PROTOTYPE_AI_PROVIDER` | `mock` | `mock` composes the dashboard's AI text locally, with no API key and no network (§43). `real` selects the developer-only adapter, which is a stub — it starts fine and fails loudly on the first AI call (§44). Real AI is never required. |
+| `PROTOTYPE_AI_PROVIDER` | `mock` | `mock` composes the dashboard's AI text locally, with no API key and no network (§43). `real` selects the developer-only adapter, which is a stub: the host starts and every other route works, but `GET /api/dashboard` returns `500 {"error":"internal_error"}` and `/app` shows an error instead of any widget — the digest is part of the same read. The explanation is printed on the host's console, not in the response. Real AI is never required (§44). |
 
 One Ctrl+C stops both. Health check: `curl localhost:4310/prototype/health`.
 

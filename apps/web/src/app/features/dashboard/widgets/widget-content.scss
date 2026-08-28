@@ -1,5 +1,14 @@
-// The one stylesheet the six widget bodies share. §21: no literal colors, spacing, or
-// radii — every value here is a design token, so the Design Lab can move all six at once.
+// A shared style kit for widget bodies — a list, a row, a group label, an empty state —
+// not per-widget styles. Every widget's `styleUrl` points here.
+//
+// This is a deliberate departure from the section folders (§66), where each type owns its
+// own `.scss`. Six near-identical stylesheets for six list-shaped tiles would be worse,
+// but the trade is real and worth naming: a widget folder is NOT self-contained in styles,
+// so deleting a widget can leave rules here that nothing uses. Anything genuinely specific
+// to one widget belongs in that widget's folder, not in this file.
+//
+// §21: no literal colors, spacing, or radii — every value is a design token, so the Design
+// Lab moves all six at once.
 .widget-list {
   display: flex;
   flex-direction: column;
@@ -72,18 +81,4 @@
   margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-}
-
-.widget-progress {
-  display: block;
-  overflow: hidden;
-  height: var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-}
-
-.widget-progress__fill {
-  display: block;
-  height: 100%;
-  background: var(--color-accent);
 }

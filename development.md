@@ -408,8 +408,11 @@ implemented and tested with no caller, the way §9's `TaskGateway` did. Verified
 browser against `busy-week`, `overdue-chaos` and `empty` — every widget has a real empty
 state, an unregistered type renders an honest note, and switching persona changed both the
 layout and the request (`?upcomingDays=14`). `PROTOTYPE_AI_PROVIDER=real` was run: the host
-starts, `/api/projects` still answers 200, and the digest fails with a message naming the
-fix. One defect the unit tests missed showed up only in the browser — overdue rows printed
+starts and `/api/projects` still answers 200, but `GET /api/dashboard` fails as a whole
+rather than degrading — the digest is part of that one read, so `/app` shows an error and
+no widgets, and the message naming the fix reaches the host's console while the response is
+an opaque `internal_error`. That is §44 satisfied (`mock` is the default, so real AI is
+never *required*) and is the price of the single-read design. One defect the unit tests missed showed up only in the browser — overdue rows printed
 the due *time*, so five days-old tasks all read as "23:00" tonight; they now print the
 date, with a test. **Deferred to Slice 12:** the simulated-date control, which the
 dashboard needs more than any other surface — against the real date every seed is a wall of

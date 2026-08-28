@@ -10,8 +10,6 @@ import type { GeneratedContent } from '@cwm/contracts';
  */
 export interface DailyDigestContext {
   generatedAt: string;
-  /** Absent when the caller has an actor but no user record — the domain has no `UserRepository` here. */
-  personName?: string;
   dueTodayCount: number;
   overdueCount: number;
   inProgressCount: number;

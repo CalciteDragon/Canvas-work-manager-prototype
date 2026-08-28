@@ -5,6 +5,8 @@ import { buildHarness, MINE, THEIRS } from '../test/test-support';
 /** The harness clock sits on `SEED_NOW` — Monday 2026-08-24, 16:00 UTC. */
 const NOW = '2026-08-24T16:00:00.000Z';
 
+const NEWLINE = '\n';
+
 const titles = (tasks: ReadonlyArray<{ title: string }>): string[] => tasks.map(({ title }) => title);
 
 describe('DashboardService.load', () => {
@@ -15,7 +17,7 @@ describe('DashboardService.load', () => {
     expect(() => DashboardResultSchema.parse(result)).not.toThrow();
     expect(result.today).toMatchObject({ date: '2026-08-24', overdue: [], dueToday: [], inProgress: [] });
     expect(result.upcoming).toMatchObject({ days: 7, throughDate: '2026-08-31', tasks: [] });
-    expect(result.recentProgress).toMatchObject({ days: 7, sinceDate: '2026-08-17', tasks: [] });
+    expect(result.recentProgress).toMatchObject({ days: 7, sinceDate: '2026-08-18', tasks: [] });
     expect(result.generatedAt).toBe(NOW);
     expect(result.dailyDigest.source).toBe('prototype');
     expect(result.funFact.length).toBeGreaterThan(0);
@@ -173,6 +175,64 @@ describe('DashboardService.load', () => {
     expect(text).toContain('1 task scheduled today');
     expect(text).toContain('1 task is overdue');
     expect(text).toContain('Project project-mine');
+  });
+
+  it('keeps an in-progress task out of upcoming — every list on the screen is disjoint', async () => {
+    const harness = buildHarness();
+    const running = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Running soon', dueAt: '2026-08-27T17:00:00.000Z' });
+    await harness.taskService.update(harness.actor, running.id, { status: 'in_progress' });
+
+    const result = await harness.dashboardService.load(harness.actor, {});
+
+    expect(titles(result.today.inProgress)).toEqual(['Running soon']);
+    expect(result.upcoming.tasks).toEqual([]);
+    // The digest states both counts, so an overlap here would describe one task twice.
+    const text = result.dailyDigest.lines.join(NEWLINE);
+    expect(text).toContain('1 task already in progress');
+    expect(text).not.toContain('arrives in the next');
+  });
+
+  it('hides the work of an archived project everywhere, not just in Active Projects', async () => {
+    const harness = buildHarness();
+    await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Ghost', dueAt: '2026-08-20T17:00:00.000Z' });
+    const finished = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Ghost win' });
+    await harness.taskService.complete(harness.actor, finished.id);
+    await harness.projectService.archive(harness.actor, MINE);
+
+    const result = await harness.dashboardService.load(harness.actor, {});
+
+    expect(result.today.overdue).toEqual([]);
+    expect(result.recentProgress.tasks).toEqual([]);
+    expect(result.activeProjects).toEqual([]);
+    expect(result.dailyDigest.lines.join(NEWLINE)).toContain('Nothing is overdue');
+  });
+
+  it('still shows the work of a paused project — an overdue task is overdue either way', async () => {
+    const harness = buildHarness();
+    await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Parked but late', dueAt: '2026-08-20T17:00:00.000Z' });
+    await harness.projectService.update(harness.actor, MINE, { status: 'on_hold' });
+
+    const result = await harness.dashboardService.load(harness.actor, {});
+
+    expect(titles(result.today.overdue)).toEqual(['Parked but late']);
+    expect(result.activeProjects).toEqual([]);
+  });
+
+  it('spans exactly the requested number of days in both directions', async () => {
+    const harness = buildHarness();
+    // Seven days back including today is 2026-08-18; seven days forward is 2026-08-31.
+    const edge = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Oldest kept' });
+    harness.clock.setNow(new Date('2026-08-18T00:00:00.000Z'));
+    await harness.taskService.complete(harness.actor, edge.id);
+    const dropped = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Just too old' });
+    harness.clock.setNow(new Date('2026-08-17T23:59:59.999Z'));
+    await harness.taskService.complete(harness.actor, dropped.id);
+    harness.clock.setNow(new Date(NOW));
+
+    const result = await harness.dashboardService.load(harness.actor, {});
+
+    expect(titles(result.recentProgress.tasks)).toEqual(['Oldest kept']);
+    expect(result.recentProgress.sinceDate).toBe('2026-08-18');
   });
 
   it('treats a foreign actor as an empty workspace rather than an error', async () => {

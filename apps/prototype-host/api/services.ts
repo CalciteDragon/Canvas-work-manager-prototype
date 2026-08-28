@@ -5,12 +5,6 @@ import type { Persistence } from '../persistence/store.ts';
 import { createApiRoutes, type ApiDependencies } from './routes.ts';
 
 /**
- * Wires the domain once at startup. The host is the only place that knows the `Clock` is
- * a `SimulatedClock` — the services only see the interface (§45). Slice 12's dev panel is
- * what will expose its `setNow`, so a developer can sit the workspace on a Friday
- * afternoon or the day before a deadline.
- */
-/**
  * §44's switch, read in exactly one place. Anything other than `real` is `mock`, so an
  * unset variable, a typo, and a fresh checkout all behave the same way: no API key, no
  * network, no cost (§43).
@@ -18,6 +12,12 @@ import { createApiRoutes, type ApiDependencies } from './routes.ts';
 export const aiProviderFor = (mode: string | undefined): AIProvider =>
   mode === 'real' ? new RealAIProvider() : new PrototypeAIProvider();
 
+/**
+ * Wires the domain once at startup. The host is the only place that knows the `Clock` is
+ * a `SimulatedClock` — the services only see the interface (§45). Slice 12's dev panel is
+ * what will expose its `setNow`, so a developer can sit the workspace on a Friday
+ * afternoon or the day before a deadline.
+ */
 export const createApi = (persistence: Persistence): ApiDependencies => {
   const clock = new SimulatedClock();
   const ids = new PrototypeIdGenerator();

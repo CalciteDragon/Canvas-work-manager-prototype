@@ -79,7 +79,6 @@ const dashboardTask = {
 };
 
 const generated = {
-  title: 'Daily digest',
   lines: ['You have 3 tasks scheduled today.'],
   source: 'prototype',
   generatedAt: '2026-08-24T16:00:00.000Z',

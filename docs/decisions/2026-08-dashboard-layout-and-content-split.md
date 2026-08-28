@@ -21,8 +21,9 @@
 
 **What we learned**
 
-Switching persona in the browser (Demo → Alex → Sam) changed the dashboard completely
-with no server-side layout concept at all, and the query the store sent changed with it
+Switching persona in the browser (Demo → Alex → Sam — by hand, via the `localStorage` key,
+since Slice 12 owns the switcher) changed the dashboard completely with no server-side
+layout concept at all, and the query the store sent changed with it
 (`?upcomingDays=14` for Alex's fortnight-horizon Upcoming widget). The store never learns
 what a widget's `config` means: each registry definition exposes an optional `queryFrom`,
 so Upcoming's `days` and Recent Progress's `days` become two different query members

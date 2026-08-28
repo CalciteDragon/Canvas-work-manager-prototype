@@ -29,8 +29,9 @@ asks the gateway only for content — see
 
 What it did *not* settle is whether a stored per-person layout is the right model, because
 nothing in the UI writes one. Every widget's position, size and hidden flag came from seed
-data, so §25's real question — "is resizing useful?" — is still untested: the four presets
-are visible as three seeded examples, not as a choice anyone made.
+data, so §25's real question — "is resizing useful?" — is still untested. All four presets
+do render (`wide` and `medium` on Demo, `full` on Alex, `small` on Sam), but every one of
+them is a value someone typed into a seed, not a choice anyone made while using the thing.
 
 **Current decision**
 

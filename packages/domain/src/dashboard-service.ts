@@ -55,7 +55,14 @@ export class DashboardService {
     const today = isoDayOf(nowMs);
     const todayStart = startOfUtcDay(nowMs);
 
-    const projects = await this.dependencies.projects.list({ workspaceId: actor.workspaceId });
+    // Archived projects are filed away, not merely inactive: their tasks must not surface
+    // anywhere on the dashboard. `TimelineService` excludes archived descendants for the
+    // same reason. `on_hold` and `planning` projects stay — an overdue task is overdue
+    // whoever paused the project, and "active project overview" is a narrower question
+    // than "what should I do today?".
+    const projects = (await this.dependencies.projects.list({ workspaceId: actor.workspaceId })).filter(
+      ({ status }) => status !== 'archived',
+    );
     const byId = new Map(projects.map((project) => [project.id, project]));
     const tasks = (await this.dependencies.tasks.list()).filter(
       (task) => task.archivedAt === undefined && byId.has(task.projectId),
@@ -86,21 +93,25 @@ export class DashboardService {
     const dueToday = open
       .filter((task) => task.dueAt !== undefined && Date.parse(task.dueAt) >= nowMs && isoDayOfInstant(task.dueAt) === today)
       .sort(byDueDate);
-    // A task can be overdue *and* running. It belongs in the bucket that asks for action,
-    // and appearing twice on one screen would double every count the digest states.
-    const claimed = new Set([...overdue, ...dueToday].map(({ id }) => id));
-    const inProgress = open.filter((task) => task.status === 'in_progress' && !claimed.has(task.id)).sort(byDueDate);
+    // A task can be overdue *and* running, or running *and* due on Thursday. Every list on
+    // this screen is disjoint from every other: a task appears exactly once, in the bucket
+    // that asks for action soonest, so the digest's counts add up to what the eye sees.
+    const todayIds = new Set([...overdue, ...dueToday].map(({ id }) => id));
+    const inProgress = open.filter((task) => task.status === 'in_progress' && !todayIds.has(task.id)).sort(byDueDate);
+    const claimed = new Set([...todayIds, ...inProgress.map(({ id }) => id)]);
 
     const throughMs = todayStart + upcomingDays * DAY_MS;
     const upcoming = open
       .filter((task) => {
-        if (task.dueAt === undefined) return false;
+        if (task.dueAt === undefined || claimed.has(task.id)) return false;
         const due = Date.parse(task.dueAt);
         return due >= todayStart + DAY_MS && due < throughMs + DAY_MS;
       })
       .sort(byDueDate);
 
-    const sinceMs = todayStart - recentDays * DAY_MS;
+    // `recentDays` calendar days *including today*, so "the last 7 days" spans seven days
+    // rather than seven-and-a-bit — the same width `upcomingDays` covers going forward.
+    const sinceMs = todayStart - (recentDays - 1) * DAY_MS;
     const recent = tasks
       .filter((task) => task.status === 'done' && task.completedAt !== undefined && Date.parse(task.completedAt) >= sinceMs)
       .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
@@ -152,7 +163,10 @@ export class DashboardService {
       activeProjects,
       recentProgress: { days: recentDays, sinceDate: isoDayOf(sinceMs), tasks: recent.map(row) },
       dailyDigest: await ai.generateDailyDigest(digestContext),
-      funFact: FUN_FACTS[Math.floor(todayStart / DAY_MS) % FUN_FACTS.length] ?? FUN_FACTS[0]!,
+      // `%` keeps the sign of its left operand, so a clock simulated before 1970 would
+      // index backwards off the front of the array. The double modulo makes the rotation
+      // continue in both directions instead.
+      funFact: FUN_FACTS[(((todayStart / DAY_MS) % FUN_FACTS.length) + FUN_FACTS.length) % FUN_FACTS.length]!,
     });
   }
 

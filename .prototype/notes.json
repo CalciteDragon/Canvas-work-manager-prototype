@@ -262,7 +262,7 @@
       "route": "/projects/project-launch",
       "projectId": "project-launch",
       "slice": 9,
-      "note": "View Mode is substantially calmer with only title and collapse in each frame. Drag, size, settings, duplicate, remove, and Quick Add make sense as one editing vocabulary. Two stale-state details mattered: leaving edit mode must close Quick Add and inspectors, and navigating projects must reset the mode. The separate Slice 8 question—whether shared-data sections such as Task List should support Duplicate at all—remains unanswered."
+      "note": "Widget layout comes only from persona data, and switching persona has no UI yet either — so comparing Demo's six-widget dashboard with Alex's two-widget one meant editing localStorage by hand. All four §25 presets do render across the three personas, but every size is a value typed into a seed; nothing in the app changes one. The question 'is resizing useful?' cannot be answered until both the persona switch and some way to change a widget's size exist."
     },
     {
       "id": "note-2026-08-28-004",
@@ -310,7 +310,7 @@
       "route": "/app",
       "projectId": null,
       "slice": 11,
-      "note": "Widget layout comes only from persona data, and switching persona has no UI yet either — so comparing Demo's six-widget dashboard with Alex's two-widget one meant editing localStorage by hand. The §25 question 'is resizing useful?' cannot be answered until both the persona switch and some way to change a widget's size exist; right now the four presets are only observable as three seeded examples."
+      "note": "Widget layout comes only from persona data, and switching persona has no UI yet either — so comparing Demo's six-widget dashboard with Alex's two-widget one meant editing localStorage by hand. All four §25 presets do render across the three personas, but every size is a value typed into a seed; nothing in the app changes one. The question 'is resizing useful?' cannot be answered until both the persona switch and some way to change a widget's size exist."
     }
   ]
 }

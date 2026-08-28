@@ -1,7 +1,9 @@
 <main class="dashboard">
   <header class="dashboard__header">
     <h1 class="dashboard__heading">Home</h1>
-    @if (store.dashboard(); as dashboard) {
+    <!-- Gated on `!loading` as well as on the data: during a reload the previous day's
+         date would otherwise sit above a body that says "Loading…". -->
+    @if (!store.loading() && store.dashboard(); as dashboard) {
       <p data-dashboard-date class="dashboard__date">
         <time [attr.datetime]="dashboard.today.date">{{ dashboard.today.date }}</time>
       </p>

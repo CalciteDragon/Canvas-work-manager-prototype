@@ -1,11 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import type { DashboardWidget, Identity } from '@cwm/contracts';
+import type { DashboardResult, DashboardWidget, Identity } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
-import { FakeWorkManagerGateway, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
+import { FakeWorkManagerGateway, emptyDashboard, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
 import { IDENTITY_PROVIDER } from '../../core/identity/identity-provider';
-import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
+import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../../core/gateway/work-manager-gateway';
 import { DashboardStore } from './dashboard-store';
 
 const widget = (overrides: Partial<DashboardWidget> & Pick<DashboardWidget, 'id' | 'type'>): DashboardWidget => ({
@@ -120,14 +120,44 @@ describe('DashboardStore', () => {
     expect(store.dashboard()).toBeNull();
   });
 
-  it('survives two overlapping loads without corrupting its state', async () => {
-    const { store } = setup([widget({ id: 'w-today', type: 'today' })]);
+  it('ignores a superseded load whose answer arrives last', async () => {
+    // `FakeWorkManagerGateway` resolves immediately, so it cannot express "the first call
+    // answers second" — the interleaving the generation guard exists for. This gateway
+    // hands back promises the spec settles by hand, in the order it chooses.
+    const pending: Array<(result: DashboardResult) => void> = [];
+    const answers: DashboardResult[] = [
+      { ...emptyDashboard(), funFact: 'stale answer' },
+      { ...emptyDashboard(), funFact: 'fresh answer' },
+    ];
+    const gateway = {
+      dashboard: { get: () => new Promise<DashboardResult>((resolve) => pending.push(resolve)) },
+    } as unknown as WorkManagerGateway;
+
+    TestBed.configureTestingModule({
+      providers: [
+        DashboardStore,
+        { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+        {
+          provide: IDENTITY_PROVIDER,
+          useValue: fakeIdentityProvider(identityWith([widget({ id: 'w-fact', type: 'fun_fact' })])),
+        },
+      ],
+    });
+    const store = TestBed.inject(DashboardStore);
 
     const first = store.load();
     const second = store.load();
-    await Promise.all([first, second]);
+    // Let both reach the gateway before either answers.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(pending).toHaveLength(2);
 
-    expect(store.widgets().map(({ id }) => id)).toEqual(['w-today']);
+    pending[1]!(answers[1]!);
+    await second;
+    pending[0]!(answers[0]!);
+    await first;
+
+    expect(store.dashboard()?.funFact).toBe('fresh answer');
     expect(store.loading()).toBe(false);
   });
 });

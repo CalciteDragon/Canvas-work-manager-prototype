@@ -79,7 +79,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   readonly dashboard = {
     get: (query: Partial<DashboardQuery>) =>
-      this.answer('dashboard.get', query, this.options.dashboard ?? emptyDashboard(query)),
+      this.answer('dashboard.get', query, this.options.dashboard ?? emptyDashboard()),
   };
 
   readonly progress = {
@@ -228,24 +228,25 @@ const fakeProgress = (projectId: ProjectId, formula: ProgressResult['formula'], 
 /**
  * What the host answers for a workspace with nothing in it. A spec that only cares about
  * widget layout should not have to write out a whole `DashboardResult`.
+ *
+ * It deliberately ignores the query. An earlier version echoed the requested `days` back
+ * beside hardcoded `throughDate`/`sinceDate` values — a body the real host could never
+ * produce, and exactly the kind of fake that lets a wrong implementation look right. The
+ * range a request carried is asserted through `argumentTo('dashboard.get')` instead.
  */
-export const emptyDashboard = (query: Partial<DashboardQuery> = {}): DashboardResult => {
-  const days = { upcomingDays: query.upcomingDays ?? 7, recentDays: query.recentDays ?? 7 };
-  return {
+export const emptyDashboard = (): DashboardResult => ({
+  generatedAt: COMPLETED_AT,
+  today: { date: '2026-08-27', overdue: [], dueToday: [], inProgress: [] },
+  upcoming: { days: 7, throughDate: '2026-09-03', tasks: [] },
+  activeProjects: [],
+  recentProgress: { days: 7, sinceDate: '2026-08-21', tasks: [] },
+  dailyDigest: {
+    lines: ['Nothing is scheduled for today.'],
+    source: 'prototype',
     generatedAt: COMPLETED_AT,
-    today: { date: '2026-08-27', overdue: [], dueToday: [], inProgress: [] },
-    upcoming: { days: days.upcomingDays, throughDate: '2026-09-03', tasks: [] },
-    activeProjects: [],
-    recentProgress: { days: days.recentDays, sinceDate: '2026-08-20', tasks: [] },
-    dailyDigest: {
-      title: 'Daily digest',
-      lines: ['Nothing is scheduled for today.'],
-      source: 'prototype',
-      generatedAt: COMPLETED_AT,
-    },
-    funFact: 'Writing a task down makes you roughly twice as likely to finish it.',
-  };
-};
+  },
+  funFact: 'Writing a task down makes you roughly twice as likely to finish it.',
+});
 
 /** An `IdentityProvider` that answers whatever the spec hands it. */
 export const fakeIdentityProvider = (identity: Identity | GatewayError) => ({
