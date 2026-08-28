@@ -70,6 +70,8 @@ export class ProjectService {
         status: input.status ?? 'planning',
         targetDate: input.targetDate ?? undefined,
         projectLayoutMode: input.projectLayoutMode ?? 'flow',
+        progressFormula: input.progressFormula ?? 'count',
+        manualProgress: input.manualProgress,
         createdAt: now,
         updatedAt: now,
       });
@@ -98,7 +100,13 @@ export class ProjectService {
       apply(next, 'status', input.status);
       apply(next, 'targetDate', input.targetDate);
       apply(next, 'projectLayoutMode', input.projectLayoutMode);
+      apply(next, 'progressFormula', input.progressFormula);
+      apply(next, 'manualProgress', input.manualProgress);
       apply(next, 'parentProjectId', input.parentProjectId);
+
+      if (next.progressFormula === 'manual' && next.manualProgress === undefined) {
+        throw new DomainRuleError('manual progress requires a value from 0 to 100');
+      }
 
       if (next.parentProjectId !== current.parentProjectId && next.parentProjectId !== undefined) {
         await this.assertParentIsUsable(actor, id, next.parentProjectId);

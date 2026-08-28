@@ -25,6 +25,12 @@ describe('TaskService.create', () => {
     expect(await create(harness)).toMatchObject({ status: 'todo', priority: 'medium' });
   });
 
+  it('persists an optional positive estimate on create', async () => {
+    const harness = buildHarness();
+
+    expect((await create(harness, { estimate: 5 })).estimate).toBe(5);
+  });
+
   it('stamps completedAt when a task is created already done', async () => {
     const harness = buildHarness();
 
@@ -198,6 +204,14 @@ describe('TaskService.update', () => {
 
     const cleared = await harness.taskService.update(harness.actor, task.id, { dueAt: null });
     expect(cleared.dueAt).toBeUndefined();
+  });
+
+  it('updates and clears an estimate', async () => {
+    const harness = buildHarness();
+    const task = await create(harness, { estimate: 3 });
+
+    expect((await harness.taskService.update(harness.actor, task.id, { estimate: 8 })).estimate).toBe(8);
+    expect((await harness.taskService.update(harness.actor, task.id, { estimate: null })).estimate).toBeUndefined();
   });
 
   it('refuses to move a task to another project in the same workspace', async () => {

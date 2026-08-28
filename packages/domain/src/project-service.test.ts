@@ -144,6 +144,24 @@ describe('ProjectService scoping', () => {
 });
 
 describe('ProjectService.update', () => {
+  it('persists the canonical progress formula and manual value', async () => {
+    const harness = buildHarness();
+
+    expect(
+      await harness.projectService.update(harness.actor, MINE, {
+        progressFormula: 'manual',
+        manualProgress: 37,
+      }),
+    ).toMatchObject({ progressFormula: 'manual', manualProgress: 37 });
+  });
+
+  it('requires a manual value before entering manual mode', async () => {
+    const harness = buildHarness();
+
+    await expect(
+      harness.projectService.update(harness.actor, MINE, { progressFormula: 'manual' }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+  });
   it('clears a nullable field on null and leaves it alone when omitted', async () => {
     const harness = buildHarness();
     const project = await create(harness, { description: 'Original' });

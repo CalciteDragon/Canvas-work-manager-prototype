@@ -1,6 +1,7 @@
 import type {
   ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
-  Project, ProjectId, ProjectQuery, ProjectSection, Reflection, ReflectionId, SectionId, SectionQuery,
+  MilestoneQuery, Project, ProjectId, ProjectQuery, ProjectSection, Reflection, ReflectionId, ReflectionQuery,
+  SectionId, SectionQuery,
   Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
 
@@ -41,14 +42,14 @@ export interface SectionRepository {
 
 export interface MilestoneRepository {
   find(id: MilestoneId): Promise<Milestone | null>;
-  list(): Promise<Milestone[]>;
+  list(query?: MilestoneQuery): Promise<Milestone[]>;
   insert(milestone: Milestone): Promise<void>;
   update(milestone: Milestone): Promise<void>;
 }
 
 export interface ReflectionRepository {
   find(id: ReflectionId): Promise<Reflection | null>;
-  list(): Promise<Reflection[]>;
+  list(query?: ReflectionQuery): Promise<Reflection[]>;
   insert(reflection: Reflection): Promise<void>;
   update(reflection: Reflection): Promise<void>;
 }

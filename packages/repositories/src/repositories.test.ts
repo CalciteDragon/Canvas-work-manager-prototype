@@ -336,6 +336,40 @@ describe('JsonTaskRepository archived filtering', () => {
   });
 });
 
+describe('JsonMilestoneRepository.list', () => {
+  it('filters milestones by project, and answers every milestone without a query', async () => {
+    const repository = new JsonMilestoneRepository(new InMemoryDataStore(baseDocument()));
+    const otherProjectMilestone = PrototypeDocumentSchema.shape.milestones.element.parse({
+      ...milestone,
+      id: 'milestone-2',
+      projectId: 'project-2',
+      title: 'Other project milestone',
+    });
+    await repository.insert(milestone);
+    await repository.insert(otherProjectMilestone);
+
+    expect(await repository.list({ projectId: milestone.projectId })).toEqual([milestone]);
+    expect(await repository.list()).toEqual([milestone, otherProjectMilestone]);
+  });
+});
+
+describe('JsonReflectionRepository.list', () => {
+  it('filters reflections by project, and answers every reflection without a query', async () => {
+    const repository = new JsonReflectionRepository(new InMemoryDataStore(baseDocument()));
+    const otherProjectReflection = PrototypeDocumentSchema.shape.reflections.element.parse({
+      ...reflection,
+      id: 'reflection-2',
+      projectId: 'project-2',
+      body: 'Other project learning',
+    });
+    await repository.insert(reflection);
+    await repository.insert(otherProjectReflection);
+
+    expect(await repository.list({ projectId: reflection.projectId })).toEqual([reflection]);
+    expect(await repository.list()).toEqual([reflection, otherProjectReflection]);
+  });
+});
+
 describe('JsonActivityRepository.list', () => {
   const event = (id: string, projectId: string) =>
     PrototypeDocumentSchema.shape.activityEvents.element.parse({

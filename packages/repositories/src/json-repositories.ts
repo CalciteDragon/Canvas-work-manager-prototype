@@ -1,7 +1,7 @@
 import type {
   ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
-  Project, ProjectId, ProjectQuery, ProjectSection, PrototypeDocument, Reflection,
-  ReflectionId, SectionId, SectionQuery, Task, TaskId, TaskQuery, User, UserId,
+  MilestoneQuery, Project, ProjectId, ProjectQuery, ProjectSection, PrototypeDocument, Reflection,
+  ReflectionId, ReflectionQuery, SectionId, SectionQuery, Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
 import { assertCanMutateDataStore, type DataStore, getActiveDocument } from './data-store';
 import { RepositoryConflictError, RepositoryNotFoundError } from './errors';
@@ -132,11 +132,23 @@ export class JsonSectionRepository extends JsonCollectionRepository<ProjectSecti
 
 export class JsonMilestoneRepository extends JsonCollectionRepository<Milestone> implements MilestoneRepository {
   constructor(store: DataStore) { super(store, 'milestones'); }
+
+  override async list(query: MilestoneQuery = {}): Promise<Milestone[]> {
+    const milestones = await super.list();
+    return milestones.filter((milestone) => query.projectId === undefined || milestone.projectId === query.projectId);
+  }
+
   override find(id: MilestoneId): Promise<Milestone | null> { return super.find(id); }
 }
 
 export class JsonReflectionRepository extends JsonCollectionRepository<Reflection> implements ReflectionRepository {
   constructor(store: DataStore) { super(store, 'reflections'); }
+
+  override async list(query: ReflectionQuery = {}): Promise<Reflection[]> {
+    const reflections = await super.list();
+    return reflections.filter((reflection) => query.projectId === undefined || reflection.projectId === query.projectId);
+  }
+
   override find(id: ReflectionId): Promise<Reflection | null> { return super.find(id); }
 }
 

@@ -83,6 +83,7 @@ export class TaskService {
         description: input.description,
         status,
         priority: input.priority ?? 'medium',
+        estimate: input.estimate,
         startAt: input.startAt ?? undefined,
         dueAt: input.dueAt ?? undefined,
         completedAt: status === 'done' ? now : undefined,
@@ -113,6 +114,7 @@ export class TaskService {
       apply(next, 'description', input.description);
       apply(next, 'status', input.status);
       apply(next, 'priority', input.priority);
+      apply(next, 'estimate', input.estimate);
       apply(next, 'startAt', input.startAt);
       apply(next, 'dueAt', input.dueAt);
       apply(next, 'parentTaskId', input.parentTaskId);
