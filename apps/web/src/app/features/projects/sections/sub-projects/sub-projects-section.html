@@ -2,4 +2,4 @@
 @if (store.error(); as error) { <p class="sub-projects__error" role="alert">{{ error }}</p> }
 @if (store.loading()) { <p>Loading sub-projects…</p> }
 @else if (store.projects().length === 0) { <p>No sub-projects yet.</p> }
-@else { <ul class="sub-projects__list">@for (project of store.projects(); track project.id) { <li><a [routerLink]="['/projects', project.id]"><span aria-hidden="true">{{ project.icon ?? '📁' }}</span><strong>{{ project.name }}</strong><small>{{ project.status.replace('_', ' ') }}@if (project.targetDate) { · {{ project.targetDate }} }</small></a></li> }</ul> }
+@else { <ul class="sub-projects__list">@for (project of store.projects(); track project.id) { <li><a [routerLink]="['/projects', project.id]"><span aria-hidden="true">{{ store.branchMarker(project) }}{{ project.icon ?? '📁' }}</span><strong>{{ project.name }}</strong><small>{{ project.status.replace('_', ' ') }}@if (project.targetDate) { · {{ project.targetDate }} }</small></a></li> }</ul> }
