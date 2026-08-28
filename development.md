@@ -359,7 +359,9 @@ prototype should produce, not an assumption to implement.
 
 ### Slice 10 — The remaining first-milestone sections
 
-**Status:** in progress — plan: [docs/plans/10-remaining-first-milestone-sections.md](docs/plans/10-remaining-first-milestone-sections.md)
+**Status:** done — Sub-Projects, all three canonical progress formulas, Reflections,
+and derived Timeline are implemented and exercised against `nested-projects` and
+`busy-week`; plan: [docs/plans/10-remaining-first-milestone-sections.md](docs/plans/10-remaining-first-milestone-sections.md)
 
 **Goal:** Enough section variety to evaluate the project page seriously.
 

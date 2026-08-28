@@ -1,22 +1,22 @@
-# Project header progress is count-based, and "no tasks" is not "0%"
+# Project progress has one canonical formula, and "no tasks" is not "0%"
 
 **Question**
 
-§26 puts Progress in the project header. §39 wants count-based, weighted, and manual
-formulas prototyped behind a feature setting. Which does the header show now?
+§26 puts Progress in the project header while §39 adds count-based, weighted, and
+manual formulas. How do the header and Progress section stay consistent?
 
 **Options tested**
 
-- *Count based* (`completed / total`): chosen. It is the only one the current data supports —
-  tasks carry no estimates, and nothing yet lets a person enter a figure by hand.
-- *Weighted*: unavailable. §33's task has no estimate field, and inventing one to feed a
-  header number would prejudge §39's actual question.
-- *Manual*: deferred with the Progress section (§30), which is where a feature setting to
-  switch between the three belongs.
+- *Page-local count*: initially shipped in Slice 8, but could not reflect weighted or
+  manual selection.
+- *Progress section config*: rejected because removing or duplicating a section would
+  remove or conflict with the project's progress answer.
+- *Canonical project setting*: chosen. The header and every Progress section read the
+  same domain result.
 
 **What we learned**
 
-Two things the formula alone does not settle, both found in the running app.
+Three things the formula alone does not settle, found in the running app.
 
 **Archived tasks are outside the denominator.** `TaskListStore.load` passes
 `includeArchived: false`, so the header counts exactly the tasks the Task List section shows.
@@ -29,20 +29,28 @@ template's `@if (progress; as …)` binding sent a real zero down the "no value"
 project where work had genuinely not started read as unmeasurable. Found by opening `Home
 renovation` in `nested-projects`; now pinned by a test.
 
-A failed task load also reports "Not available" rather than `0%`, for the same reason.
+A failed progress read also reports "Not available" rather than `0%`, for the same reason.
+
+**Formula selection is project state, not canvas layout.** In the Slice 10 acceptance
+exercise, count produced `1 of 3 tasks complete`, weighted produced `2 of 10 estimate
+points complete`, and manual persisted `41%` through reload. The header and section moved
+together because both consume `ProgressService`; duplicating or removing a Progress
+section cannot change the answer.
 
 **Current decision**
 
-The header shows `round(done / unarchived total × 100)%`, computed in `ProjectPageStore` from
-the `TaskListStore` the page already provides, and "Not available" when there are no tasks or
-the task load failed. No `ProgressService`, and no feature setting.
+`Project.progressFormula` is the canonical per-project feature setting, defaulting to
+count. `ProgressService` derives the selected answer from the project and its unarchived
+tasks; `ProjectPageStore` and Progress sections read that answer through their gateway.
+Count and weighted keep cancelled-but-unarchived tasks in the denominator, matching the
+visible task collection. Projects with no tasks return unavailable for derived formulas.
 
 **Confidence**
 
-Medium for count-based as the prototype's default; high for the empty and failed cases being
-distinct from zero.
+High for one canonical answer and for empty/failed being distinct from zero. Medium for
+count remaining the default until broader prototype use compares the formulas.
 
 **Revisit when**
 
-The Progress section (§30, §39) is built. It owns the feature setting and the other two
-formulas, and it is where this derivation should move out of a page store.
+User testing shows a need for roll-ups, estimate scales other than neutral points, or a
+different default formula.

@@ -124,3 +124,19 @@ None blocking. The data model has project target dates but no explicit project s
 - Round 1 review moved the progress setting from ambiguous section config to the canonical project, added the omitted TaskService estimate write path and shared milestone/reflection queries, retained documented cancelled-task semantics, added Timeline row selection/details, expanded wildcard checklist entries to concrete paths, and made target-only versus inferred project-range behavior executable.
 - Round 2 review removed two leftover section-config contradictions; defined a stable frame-to-page project-data callback and coalesced progress refresh path; added the existing progress decision to living-doc updates; replaced remaining checklist wildcards with concrete paths; and specified equal/inverted project/task date behavior.
 - Round 3 review added the existing Rich Text section to the shared dynamic-input change and pinned that its section-local config saves never fire project progress refresh.
+- Implementation review found and fixed a missing manual-value invariant on project create,
+  archived descendant leakage in Timeline, incomplete Timeline edge coverage, and stale
+  architecture comments. Domain tests now cover equal/later targets, no-target projects,
+  archived subtrees, foreign roots, and inverted task ranges.
+- Browser acceptance found two issues that review and the first unit test missed: the
+  Sub-Projects section showed only direct children, and duplicated Progress sections could
+  diverge. Sub-Projects now renders the full descendant hierarchy. Progress uses one
+  page-scoped store, with coherent-value assertions and generation guards for out-of-order
+  loads and stale write failures across project navigation.
+- Final correctness and boundary re-reviews returned no substantive findings. Real-app
+  acceptance created and reloaded a nested child and reflection, selected Timeline details,
+  switched count (`1 of 3`), weighted (`2 of 10`), and manual (`41%`) formulas, and verified
+  two duplicated Progress sections plus the header switch together. Direct data inspection
+  confirmed persisted project settings/task estimates/reflections/milestones and no timeline
+  event collection. `pnpm test`, `pnpm lint`, and `pnpm build` passed; the production build
+  retains the non-fatal initial-bundle budget warning (737.28 kB vs 725.00 kB).

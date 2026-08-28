@@ -263,6 +263,30 @@
       "projectId": "project-launch",
       "slice": 9,
       "note": "View Mode is substantially calmer with only title and collapse in each frame. Drag, size, settings, duplicate, remove, and Quick Add make sense as one editing vocabulary. Two stale-state details mattered: leaving edit mode must close Quick Add and inspectors, and navigating projects must reset the mode. The separate Slice 8 question—whether shared-data sections such as Task List should support Duplicate at all—remains unanswered."
+    },
+    {
+      "id": "note-2026-08-28-004",
+      "createdAt": "2026-08-28T21:20:00.000Z",
+      "route": "/projects/project-launch",
+      "projectId": "project-launch",
+      "slice": 10,
+      "note": "The three formulas say materially different things on the same busy-week data: count says 1 of 3 tasks, weighted says 2 of 10 estimate points, and manual persisted 41% through reload. The formula name plus explanation is essential; a bare percentage would conceal which claim the page is making. Leaving formula state on Project also proved its value immediately—the header and section changed together, and section duplication/removal cannot create competing answers."
+    },
+    {
+      "id": "note-2026-08-28-005",
+      "createdAt": "2026-08-28T21:21:00.000Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 10,
+      "note": "The first real Sub-Projects render showed Kitchen and Garden but silently dropped Cabinets, even though the sidebar and Timeline exposed the deeper level. The store had interpreted 'sub-projects' as direct children while the slice promised a nested list. A failing grandchild test and depth marker fixed it. This is exactly the kind of cross-section contradiction that makes a canvas feel untrustworthy even when each feature works alone."
+    },
+    {
+      "id": "note-2026-08-28-006",
+      "createdAt": "2026-08-28T21:22:00.000Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 10,
+      "note": "The dense derived Timeline is useful as a reading surface: project span, nested targets, task ranges, and milestones are distinguishable without scheduling controls. Selecting a row for a small status detail was enough interaction for this slice. The inferred project span reads plausibly in both seeds, but it is still a visualization convention rather than stored scheduling truth and should remain labeled/derived that way."
     }
   ]
 }
