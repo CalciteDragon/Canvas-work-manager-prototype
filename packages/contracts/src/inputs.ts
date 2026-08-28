@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { IsoDateSchema, IsoDateTimeSchema, PositionSchema } from './common';
 import { ProjectIdSchema, TaskIdSchema, WorkspaceIdSchema } from './ids';
-import { ProjectLayoutModeSchema, ProjectStatusSchema } from './project';
+import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectStatusSchema } from './project';
 import { SectionColumnSpanSchema, SectionConfigSchema } from './section';
 import { TaskPrioritySchema, TaskStatusSchema } from './task';
 
@@ -18,6 +18,7 @@ export const CreateTaskInputSchema = z.object({
   description: z.string().optional(),
   status: TaskStatusSchema.optional(),
   priority: TaskPrioritySchema.optional(),
+  estimate: z.number().positive().optional(),
   startAt: IsoDateTimeSchema.nullable().optional(),
   dueAt: IsoDateTimeSchema.nullable().optional(),
 });
@@ -28,6 +29,7 @@ export const UpdateTaskInputSchema = z.object({
   description: z.string().nullable().optional(),
   status: TaskStatusSchema.optional(),
   priority: TaskPrioritySchema.optional(),
+  estimate: z.number().positive().nullable().optional(),
   projectId: ProjectIdSchema.optional(),
   parentTaskId: TaskIdSchema.nullable().optional(),
   startAt: IsoDateTimeSchema.nullable().optional(),
@@ -44,6 +46,8 @@ export const CreateProjectInputSchema = z.object({
   status: ProjectStatusSchema.optional(),
   targetDate: IsoDateSchema.nullable().optional(),
   projectLayoutMode: ProjectLayoutModeSchema.optional(),
+  progressFormula: ProgressFormulaSchema.optional(),
+  manualProgress: z.number().min(0).max(100).optional(),
 });
 export type CreateProjectInput = z.infer<typeof CreateProjectInputSchema>;
 
@@ -54,6 +58,8 @@ export const UpdateProjectInputSchema = z.object({
   status: ProjectStatusSchema.optional(),
   targetDate: IsoDateSchema.nullable().optional(),
   projectLayoutMode: ProjectLayoutModeSchema.optional(),
+  progressFormula: ProgressFormulaSchema.optional(),
+  manualProgress: z.number().min(0).max(100).nullable().optional(),
   parentProjectId: ProjectIdSchema.nullable().optional(),
 });
 export type UpdateProjectInput = z.infer<typeof UpdateProjectInputSchema>;
@@ -105,6 +111,16 @@ export const UpdateReflectionInputSchema = z.object({
   body: z.string().min(1).optional(),
 });
 export type UpdateReflectionInput = z.infer<typeof UpdateReflectionInputSchema>;
+
+export const ReflectionQuerySchema = z.object({
+  projectId: ProjectIdSchema.optional(),
+});
+export type ReflectionQuery = z.infer<typeof ReflectionQuerySchema>;
+
+export const MilestoneQuerySchema = z.object({
+  projectId: ProjectIdSchema.optional(),
+});
+export type MilestoneQuery = z.infer<typeof MilestoneQuerySchema>;
 
 /** Filters for §61's `GET /api/tasks`, and for `TaskService.list`. */
 export const TaskQuerySchema = z.object({

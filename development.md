@@ -359,6 +359,8 @@ prototype should produce, not an assumption to implement.
 
 ### Slice 10 — The remaining first-milestone sections
 
+**Status:** in progress — plan: [docs/plans/10-remaining-first-milestone-sections.md](docs/plans/10-remaining-first-milestone-sections.md)
+
 **Goal:** Enough section variety to evaluate the project page seriously.
 
 **Spec:** §30, §36, §38, §39, §81

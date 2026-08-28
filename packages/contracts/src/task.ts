@@ -35,6 +35,9 @@ export const TaskSchema = z.object({
   status: TaskStatusSchema,
   priority: TaskPrioritySchema,
 
+  /** Optional relative effort used only by §39's weighted progress experiment. */
+  estimate: z.number().positive().optional(),
+
   startAt: IsoDateTimeSchema.optional(),
   dueAt: IsoDateTimeSchema.optional(),
   completedAt: IsoDateTimeSchema.optional(),

@@ -97,6 +97,20 @@ describe('reflection inputs', () => {
   });
 });
 
+describe('Slice 10 progress and timeline inputs', () => {
+  it('accepts estimate writes and null clear', () => {
+    expect(CreateTaskInputSchema.parse({ projectId: 'project-a', title: 'Sized', estimate: 5 }).estimate).toBe(5);
+    expect(UpdateTaskInputSchema.parse({ estimate: null }).estimate).toBeNull();
+    expect(UpdateTaskInputSchema.safeParse({ estimate: 0 }).success).toBe(false);
+  });
+
+  it('accepts canonical project progress writes', () => {
+    expect(UpdateProjectInputSchema.parse({ progressFormula: 'manual', manualProgress: 25 })).toMatchObject({
+      progressFormula: 'manual', manualProgress: 25,
+    });
+  });
+});
+
 describe('TaskQuerySchema', () => {
   it('accepts the filters §61 GET /api/tasks has to answer', () => {
     const parsed = TaskQuerySchema.parse({

@@ -13,6 +13,10 @@ export type ProjectStatus = z.infer<typeof ProjectStatusSchema>;
 export const ProjectLayoutModeSchema = z.enum(['flow', 'grid']);
 export type ProjectLayoutMode = z.infer<typeof ProjectLayoutModeSchema>;
 
+/** §39's deliberately unresolved experiment, persisted once per project. */
+export const ProgressFormulaSchema = z.enum(['count', 'weighted', 'manual']);
+export type ProgressFormula = z.infer<typeof ProgressFormulaSchema>;
+
 export const ProjectSchema = z.object({
   id: ProjectIdSchema,
   workspaceId: WorkspaceIdSchema,
@@ -28,6 +32,8 @@ export const ProjectSchema = z.object({
   status: ProjectStatusSchema,
   targetDate: IsoDateSchema.optional(),
   projectLayoutMode: ProjectLayoutModeSchema,
+  progressFormula: ProgressFormulaSchema.default('count'),
+  manualProgress: z.number().min(0).max(100).optional(),
 
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,

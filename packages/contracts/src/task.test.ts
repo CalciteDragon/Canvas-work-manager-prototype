@@ -28,8 +28,15 @@ describe('TaskSchema', () => {
       startAt: '2026-08-24T09:00:00.000Z',
       dueAt: '2026-08-27T17:00:00.000Z',
       completedAt: '2026-08-26T11:32:00.000Z',
+      estimate: 3,
     });
     expect(full.completedAt).toBe('2026-08-26T11:32:00.000Z');
+    expect(full.estimate).toBe(3);
+  });
+
+  it('rejects zero and negative estimates', () => {
+    expect(TaskSchema.safeParse({ ...task, estimate: 0 }).success).toBe(false);
+    expect(TaskSchema.safeParse({ ...task, estimate: -1 }).success).toBe(false);
   });
 
   it('rejects an empty title', () => {

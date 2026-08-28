@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ProjectLayoutModeSchema, ProjectSchema, ProjectStatusSchema } from './project';
+import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectSchema, ProjectStatusSchema } from './project';
 
 const project = {
   id: 'project-a',
@@ -40,11 +40,18 @@ describe('ProjectSchema', () => {
   it('rejects a layout mode that is not one of the two being compared (§28)', () => {
     expect(ProjectSchema.safeParse({ ...project, projectLayoutMode: 'kanban' }).success).toBe(false);
   });
+
+  it('accepts canonical per-project progress settings and bounds manual progress', () => {
+    expect(ProjectSchema.parse({ ...project, progressFormula: 'weighted' }).progressFormula).toBe('weighted');
+    expect(ProjectSchema.parse({ ...project, progressFormula: 'manual', manualProgress: 42 }).manualProgress).toBe(42);
+    expect(ProjectSchema.safeParse({ ...project, manualProgress: 101 }).success).toBe(false);
+  });
 });
 
 describe('project enums', () => {
   it('names the prototype starting statuses and the two §28 layout modes', () => {
     expect(ProjectStatusSchema.options).toEqual(['planning', 'active', 'on_hold', 'completed', 'archived']);
     expect(ProjectLayoutModeSchema.options).toEqual(['flow', 'grid']);
+    expect(ProgressFormulaSchema.options).toEqual(['count', 'weighted', 'manual']);
   });
 });
