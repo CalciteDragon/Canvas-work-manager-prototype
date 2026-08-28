@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import {
+  DashboardResultSchema,
   ProjectSchema,
   ProjectSectionSchema,
   ProgressResultSchema,
@@ -7,6 +8,7 @@ import {
   TaskSchema,
   TimelineResultSchema,
   type CreateProjectInput,
+  type DashboardQuery,
   type CreateReflectionInput,
   type CreateSectionInput,
   type CreateTaskInput,
@@ -26,7 +28,7 @@ import { z } from 'zod';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
-import type { ProgressGateway, ProjectGateway, ReflectionGateway, SectionGateway, TaskGateway, TimelineGateway, WorkManagerGateway } from './work-manager-gateway';
+import type { DashboardGateway, ProgressGateway, ProjectGateway, ReflectionGateway, SectionGateway, TaskGateway, TimelineGateway, WorkManagerGateway } from './work-manager-gateway';
 
 /**
  * The §10 adapter: Angular → `localhost:4310`. Everything transport-shaped lives here —
@@ -48,6 +50,11 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
     create: (input: CreateProjectInput) => this.send('POST', '/api/projects', ProjectSchema, input),
     update: (id: ProjectId, input: UpdateProjectInput) =>
       this.send('PATCH', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema, input),
+  };
+
+  readonly dashboard: DashboardGateway = {
+    get: (query: Partial<DashboardQuery>) =>
+      this.send('GET', `/api/dashboard${queryString(dashboardQueryParams(query))}`, DashboardResultSchema),
   };
 
   readonly progress: ProgressGateway = {
@@ -167,6 +174,13 @@ const append = (params: URLSearchParams, key: string, value: unknown): void => {
   if (value === undefined) return;
   if (Array.isArray(value)) for (const item of value) params.append(key, String(item));
   else params.append(key, String(value));
+};
+
+const dashboardQueryParams = (query: Partial<DashboardQuery>): URLSearchParams => {
+  const params = new URLSearchParams();
+  append(params, 'upcomingDays', query.upcomingDays);
+  append(params, 'recentDays', query.recentDays);
+  return params;
 };
 
 const projectQueryParams = (query: ProjectQuery): URLSearchParams => {

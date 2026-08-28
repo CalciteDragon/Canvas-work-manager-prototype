@@ -1,0 +1,47 @@
+<main class="dashboard">
+  <header class="dashboard__header">
+    <h1 class="dashboard__heading">Home</h1>
+    @if (store.dashboard(); as dashboard) {
+      <p data-dashboard-date class="dashboard__date">
+        <time [attr.datetime]="dashboard.today.date">{{ dashboard.today.date }}</time>
+      </p>
+    }
+  </header>
+
+  @if (store.loading()) {
+    <p data-dashboard-loading class="dashboard__muted">Loading your dashboard…</p>
+  } @else if (store.error(); as error) {
+    <p data-dashboard-error class="dashboard__error" role="alert">{{ error }}</p>
+  } @else if (store.dashboard(); as dashboard) {
+    @if (store.tiles().length === 0) {
+      <p data-dashboard-empty class="dashboard__muted">
+        This persona has no visible widgets. Widget configuration arrives in Slice 23.
+      </p>
+    } @else {
+      <div class="dashboard__grid">
+        @for (tile of store.tiles(); track tile.widget.id) {
+          <div
+            data-dashboard-tile
+            class="dashboard__tile"
+            [attr.data-widget-type]="tile.widget.type"
+            [attr.data-widget-size]="tile.widget.size"
+          >
+            @if (tile.definition; as definition) {
+              <app-dashboard-widget-frame
+                [widget]="tile.widget"
+                [definition]="definition"
+                [dashboard]="dashboard"
+              />
+            } @else {
+              <!-- §24 names nine widgets; this slice builds six. A persona carrying one of
+                   the others gets an honest note rather than a blank tile. -->
+              <p data-widget-unavailable class="dashboard__unavailable">
+                The {{ tile.widget.type.replaceAll('_', ' ') }} widget is not built yet.
+              </p>
+            }
+          </div>
+        }
+      </div>
+    }
+  }
+</main>

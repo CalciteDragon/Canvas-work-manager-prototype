@@ -1,0 +1,89 @@
+// The one stylesheet the six widget bodies share. §21: no literal colors, spacing, or
+// radii — every value here is a design token, so the Design Lab can move all six at once.
+.widget-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.widget-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+}
+
+.widget-row--overdue {
+  border-color: var(--color-danger);
+  background: var(--color-danger-surface);
+}
+
+.widget-row__title {
+  font-size: var(--font-size-md);
+}
+
+.widget-row__meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.widget-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.widget-group__label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.widget-empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.widget-prose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.widget-prose__line {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.widget-source {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.widget-progress {
+  display: block;
+  overflow: hidden;
+  height: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.widget-progress__fill {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+}

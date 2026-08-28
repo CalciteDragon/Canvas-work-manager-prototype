@@ -1,0 +1,80 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6);
+}
+
+.dashboard__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.dashboard__heading {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+.dashboard__date {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.dashboard__muted {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.dashboard__error {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+// §25's four presets over a 12-column grid — the same vocabulary the section canvas uses,
+// so there is one mental model for "how wide is this thing", and no pixel resizing.
+.dashboard__grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: stretch;
+}
+
+.dashboard__tile {
+  grid-column: span 12;
+}
+
+.dashboard__tile[data-widget-size='small'] {
+  grid-column: span 3;
+}
+
+.dashboard__tile[data-widget-size='medium'] {
+  grid-column: span 6;
+}
+
+.dashboard__tile[data-widget-size='wide'] {
+  grid-column: span 8;
+}
+
+.dashboard__unavailable {
+  margin: 0;
+  padding: var(--space-4);
+  border: var(--border-hairline) dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+}
+
+@media (width <= 60rem) {
+  .dashboard__tile,
+  .dashboard__tile[data-widget-size='small'],
+  .dashboard__tile[data-widget-size='medium'],
+  .dashboard__tile[data-widget-size='wide'] {
+    grid-column: span 12;
+  }
+}

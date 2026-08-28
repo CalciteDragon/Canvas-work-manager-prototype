@@ -395,3 +395,38 @@ describe('PrototypeWorkManagerGateway — archive still validates what it discar
     });
   });
 });
+
+describe('PrototypeWorkManagerGateway — dashboard (§24)', () => {
+  const dashboard = {
+    generatedAt: at,
+    today: { date: '2026-08-24', overdue: [], dueToday: [], inProgress: [] },
+    upcoming: { days: 7, throughDate: '2026-08-31', tasks: [] },
+    activeProjects: [],
+    recentProgress: { days: 7, sinceDate: '2026-08-17', tasks: [] },
+    dailyDigest: { title: 'Daily digest', lines: ['Nothing is scheduled for today.'], source: 'prototype', generatedAt: at },
+    funFact: 'Context switching costs more time than the switch itself takes.',
+  };
+
+  it('asks for the dashboard with no parameters when nothing configures a range', async () => {
+    fetchMock.mockImplementation(jsonResponse(dashboard));
+
+    expect((await gateway().dashboard.get({})).funFact).toContain('Context switching');
+    expect(lastCall().url).toBe('http://host.test/api/dashboard');
+  });
+
+  it('sends only the ranges a widget actually configures', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...dashboard, upcoming: { ...dashboard.upcoming, days: 14 } }));
+    const subject = gateway();
+
+    await subject.dashboard.get({ upcomingDays: 14 });
+    expect(lastCall().url).toBe('http://host.test/api/dashboard?upcomingDays=14');
+    await subject.dashboard.get({ upcomingDays: 14, recentDays: 30 });
+    expect(lastCall().url).toBe('http://host.test/api/dashboard?upcomingDays=14&recentDays=30');
+  });
+
+  it('refuses a body that is not the contract', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...dashboard, dailyDigest: { ...dashboard.dailyDigest, lines: [] } }));
+
+    await expect(gateway().dashboard.get({})).rejects.toMatchObject({ code: 'invalid_response' });
+  });
+});

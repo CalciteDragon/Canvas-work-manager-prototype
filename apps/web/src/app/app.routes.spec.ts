@@ -3,7 +3,9 @@ import { provideRouter, Router, withComponentInputBinding } from '@angular/route
 import { RouterTestingHarness } from '@angular/router/testing';
 import { describe, expect, it } from 'vitest';
 import { WORK_MANAGER_GATEWAY } from './core/gateway/work-manager-gateway';
-import { FakeWorkManagerGateway } from './core/gateway/testing/fake-gateway';
+import { FakeWorkManagerGateway, fakeIdentityProvider } from './core/gateway/testing/fake-gateway';
+import { testIdentity } from './core/gateway/testing/shell-test-providers';
+import { IDENTITY_PROVIDER } from './core/identity/identity-provider';
 import { CalendarPage } from './features/calendar/calendar-page';
 import { DashboardPage } from './features/dashboard/dashboard-page';
 import { ProjectPage } from './features/projects/project-page';
@@ -23,6 +25,8 @@ const harness = async () => {
       // creation — a failure of the harness, not of the route map.
       provideRouter(routes, withComponentInputBinding()),
       { provide: WORK_MANAGER_GATEWAY, useValue: new FakeWorkManagerGateway() },
+      // `DashboardPage` reads the persona's widget list from the identity provider (§25).
+      { provide: IDENTITY_PROVIDER, useValue: fakeIdentityProvider(testIdentity()) },
     ],
   });
   return RouterTestingHarness.create();

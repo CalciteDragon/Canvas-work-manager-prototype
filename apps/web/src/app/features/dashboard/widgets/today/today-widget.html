@@ -1,0 +1,22 @@
+@if (groups().length === 0) {
+  <p data-widget-empty class="widget-empty">Nothing is due today, and nothing is running.</p>
+} @else {
+  @for (group of groups(); track group.label) {
+    <div class="widget-group">
+      <p class="widget-group__label">{{ group.label }}</p>
+      <ul class="widget-list">
+        @for (task of group.tasks; track task.id) {
+          <li data-widget-task class="widget-row" [class.widget-row--overdue]="task.overdue">
+            <span class="widget-row__title">{{ task.title }}</span>
+            <span class="widget-row__meta">
+              {{ task.projectIcon ?? '📁' }} {{ task.projectName }}
+              @if (task.dueAt; as dueAt) {
+                · <time [attr.datetime]="dueAt">{{ dueAt.slice(11, 16) }}</time>
+              }
+            </span>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+}

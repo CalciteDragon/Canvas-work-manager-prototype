@@ -1,0 +1,19 @@
+@if (dashboard().activeProjects.length === 0) {
+  <p data-widget-empty class="widget-empty">No projects are active right now.</p>
+} @else {
+  <ul class="widget-list">
+    @for (project of dashboard().activeProjects; track project.id) {
+      <li data-widget-project class="widget-row">
+        <a class="widget-row__title" [routerLink]="['/projects', project.id]">
+          {{ project.icon ?? '📁' }} {{ project.name }}
+        </a>
+        <span class="widget-row__meta">
+          @if (project.percentage !== null) {
+            {{ project.percentage }}% ·
+          }
+          {{ project.openTasks }} open · {{ target(project) }}
+        </span>
+      </li>
+    }
+  </ul>
+}

@@ -1,5 +1,6 @@
 import {
   ActivityQuerySchema,
+  DashboardQuerySchema,
   CreateProjectInputSchema,
   CreateReflectionInputSchema,
   CreateSectionInputSchema,
@@ -16,7 +17,7 @@ import {
   UpdateSectionInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, ProgressService, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
+import type { ActivityService, DashboardService, ProgressService, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveUser } from './context.ts';
 import type { RouteRequest, RouteResult, RouteTable } from '../router.ts';
@@ -30,6 +31,7 @@ export interface ApiDependencies {
   progress: ProgressService;
   timeline: TimelineService;
   reflections: ReflectionService;
+  dashboard: DashboardService;
 }
 
 const ok = (body: unknown): RouteResult => ({ status: 200, contentType: 'application/json', body });
@@ -71,7 +73,7 @@ const queryObject = (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, tasks, sections, activity, progress, timeline, reflections } = dependencies;
+  const { store, projects, tasks, sections, activity, progress, timeline, reflections, dashboard } = dependencies;
   const actorFor = (request: RouteRequest) => resolveActor(store.snapshot(), request);
   const projectId = (request: RouteRequest) => ProjectIdSchema.parse(request.params['id']);
   const taskId = (request: RouteRequest) => TaskIdSchema.parse(request.params['id']);
@@ -198,6 +200,17 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'POST /api/tasks/:id/complete': async (request) => ok(await tasks.complete(actorFor(request), taskId(request))),
 
     'POST /api/tasks/:id/archive': async (request) => ok(await tasks.archive(actorFor(request), taskId(request))),
+
+    // §24's dashboard is derived, not stored, so it is one read with two configurable
+    // ranges rather than a widget-shaped endpoint per tile — the widgets overlap, and one
+    // derivation over one clock reading is what keeps them agreeing with each other.
+    'GET /api/dashboard': async (request) =>
+      ok(
+        await dashboard.load(
+          actorFor(request),
+          DashboardQuerySchema.parse(queryObject(request.query, [], ['upcomingDays', 'recentDays'])),
+        ),
+      ),
 
     'GET /api/activity': async (request) =>
       ok(await activity.list(actorFor(request), ActivityQuerySchema.parse(queryObject(request.query, [], ['limit'])))),

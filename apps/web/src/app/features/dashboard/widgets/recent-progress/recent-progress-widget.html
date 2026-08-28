@@ -1,0 +1,22 @@
+<p class="widget-group__label">
+  Since
+  <time [attr.datetime]="dashboard().recentProgress.sinceDate">{{ dashboard().recentProgress.sinceDate }}</time>
+</p>
+
+@if (dashboard().recentProgress.tasks.length === 0) {
+  <p data-widget-empty class="widget-empty">Nothing has been completed in this range yet.</p>
+} @else {
+  <ul class="widget-list">
+    @for (task of dashboard().recentProgress.tasks; track task.id) {
+      <li data-widget-task class="widget-row">
+        <span class="widget-row__title">{{ task.title }}</span>
+        <span class="widget-row__meta">
+          {{ task.projectIcon ?? '📁' }} {{ task.projectName }}
+          @if (task.completedAt; as completedAt) {
+            · <time [attr.datetime]="completedAt">{{ completedAt.slice(0, 10) }}</time>
+          }
+        </span>
+      </li>
+    }
+  </ul>
+}

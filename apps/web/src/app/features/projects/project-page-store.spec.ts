@@ -11,6 +11,7 @@ import {
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
+import { emptyDashboard } from '../../core/gateway/testing/fake-gateway';
 import {
   WORK_MANAGER_GATEWAY,
   type WorkManagerGateway,
@@ -93,6 +94,8 @@ const setup = (
   ];
 
   const gateway: WorkManagerGateway = {
+    // Slice 11 added `dashboard` to the boundary; nothing on the project page reads it.
+    dashboard: { get: vi.fn(async () => emptyDashboard()) },
     projects: {
       list: vi.fn(async () => [project()]),
       get: options.projectGet ?? vi.fn(async () => project()),

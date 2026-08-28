@@ -1,4 +1,6 @@
 import { ProjectSchema, type
+  DashboardQuery,
+  DashboardResult,
   Identity,
   ProgressResult,
   Project,
@@ -34,6 +36,7 @@ export interface FakeGatewayOptions {
   progress?: ProgressResult;
   timeline?: TimelineResult;
   reflections?: Reflection[];
+  dashboard?: DashboardResult;
   /** Rejects every call with this instead of answering — the failure path a shell needs. */
   failWith?: GatewayError;
   /** Reject only named calls after an otherwise successful load (for write failure UI). */
@@ -72,6 +75,11 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         return updated;
       });
     },
+  };
+
+  readonly dashboard = {
+    get: (query: Partial<DashboardQuery>) =>
+      this.answer('dashboard.get', query, this.options.dashboard ?? emptyDashboard(query)),
   };
 
   readonly progress = {
@@ -215,6 +223,28 @@ const fakeProgress = (projectId: ProjectId, formula: ProgressResult['formula'], 
   const completed = included.filter(({ status }) => status === 'done').reduce((sum, task) => sum + weight(task), 0);
   const label = formula === 'weighted' ? 'estimate points' : 'tasks';
   return { projectId, formula, percentage: total === 0 ? null : Math.round(completed / total * 100), completed, total, explanation: total === 0 ? 'No tasks to measure' : `${completed} of ${total} ${label} complete` };
+};
+
+/**
+ * What the host answers for a workspace with nothing in it. A spec that only cares about
+ * widget layout should not have to write out a whole `DashboardResult`.
+ */
+export const emptyDashboard = (query: Partial<DashboardQuery> = {}): DashboardResult => {
+  const days = { upcomingDays: query.upcomingDays ?? 7, recentDays: query.recentDays ?? 7 };
+  return {
+    generatedAt: COMPLETED_AT,
+    today: { date: '2026-08-27', overdue: [], dueToday: [], inProgress: [] },
+    upcoming: { days: days.upcomingDays, throughDate: '2026-09-03', tasks: [] },
+    activeProjects: [],
+    recentProgress: { days: days.recentDays, sinceDate: '2026-08-20', tasks: [] },
+    dailyDigest: {
+      title: 'Daily digest',
+      lines: ['Nothing is scheduled for today.'],
+      source: 'prototype',
+      generatedAt: COMPLETED_AT,
+    },
+    funFact: 'Writing a task down makes you roughly twice as likely to finish it.',
+  };
 };
 
 /** An `IdentityProvider` that answers whatever the spec hands it. */

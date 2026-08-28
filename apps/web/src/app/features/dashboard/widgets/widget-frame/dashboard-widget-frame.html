@@ -1,0 +1,8 @@
+<header class="widget-frame__header">
+  <span class="widget-frame__icon" aria-hidden="true">{{ definition().icon }}</span>
+  <h2 data-widget-title class="widget-frame__title">{{ definition().displayName }}</h2>
+</header>
+
+<div data-widget-content class="widget-frame__content">
+  <ng-container [ngComponentOutlet]="definition().component" [ngComponentOutletInputs]="contentInputs()" />
+</div>

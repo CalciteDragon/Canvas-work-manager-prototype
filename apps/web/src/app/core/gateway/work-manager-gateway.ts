@@ -1,5 +1,7 @@
 import { InjectionToken } from '@angular/core';
 import type {
+  DashboardQuery,
+  DashboardResult,
   CreateSectionInput,
   CreateTaskInput,
   CreateProjectInput,
@@ -49,6 +51,18 @@ export interface ProjectGateway {
   update(id: ProjectId, input: UpdateProjectInput): Promise<Project>;
 }
 
+/**
+ * §24's dashboard is *content only*. The widget layout is §25's `DashboardWidget[]` on the
+ * persona, which the application already has from `IdentityProvider` — asking the gateway
+ * for it too would give the same list two sources of truth.
+ *
+ * The query is partial because both ranges have contract defaults; the store sends only
+ * what a widget's config actually configures.
+ */
+export interface DashboardGateway {
+  get(query: Partial<DashboardQuery>): Promise<DashboardResult>;
+}
+
 export interface ProgressGateway {
   get(projectId: ProjectId): Promise<ProgressResult>;
 }
@@ -89,12 +103,12 @@ export interface SectionGateway {
  *
  * - `milestones` — Slice 19
  * - `reflections` — Slice 10
- * - `dashboard` — Slice 11
  * - `search` — Slice 10
  * - `activity` — Slice 13
  */
 export interface WorkManagerGateway {
   projects: ProjectGateway;
+  dashboard: DashboardGateway;
   sections: SectionGateway;
   tasks: TaskGateway;
   progress: ProgressGateway;

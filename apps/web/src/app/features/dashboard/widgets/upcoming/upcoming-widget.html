@@ -1,0 +1,22 @@
+<p class="widget-group__label">
+  Next {{ dashboard().upcoming.days }} days · through
+  <time [attr.datetime]="dashboard().upcoming.throughDate">{{ dashboard().upcoming.throughDate }}</time>
+</p>
+
+@if (dashboard().upcoming.tasks.length === 0) {
+  <p data-widget-empty class="widget-empty">Nothing is scheduled in this range.</p>
+} @else {
+  <ul class="widget-list">
+    @for (task of dashboard().upcoming.tasks; track task.id) {
+      <li data-widget-task class="widget-row">
+        <span class="widget-row__title">{{ task.title }}</span>
+        <span class="widget-row__meta">
+          {{ task.projectIcon ?? '📁' }} {{ task.projectName }}
+          @if (task.dueAt; as dueAt) {
+            · <time [attr.datetime]="dueAt">{{ dueAt.slice(0, 10) }}</time>
+          }
+        </span>
+      </li>
+    }
+  </ul>
+}

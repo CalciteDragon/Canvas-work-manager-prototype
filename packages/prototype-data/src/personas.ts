@@ -32,16 +32,22 @@ export const PERSONAS: DeepReadonly<ReadonlyArray<Readonly<{ user: User; workspa
       workspaceId: 'workspace-demo',
       preferences: {
         theme: 'dark',
+        // Slice 11's six widgets, laid out so `/app` is worth looking at with no
+        // configuration: the day first, then the week, then the AI-shaped commentary.
         dashboardWidgets: [
           { id: 'widget-demo-today', type: 'today', position: 0, size: 'wide', config: {}, hidden: false },
+          { id: 'widget-demo-fact', type: 'fun_fact', position: 1, size: 'medium', config: {}, hidden: false },
+          { id: 'widget-demo-upcoming', type: 'upcoming', position: 2, size: 'medium', config: { days: 7 }, hidden: false },
+          { id: 'widget-demo-digest', type: 'daily_digest', position: 3, size: 'medium', config: {}, hidden: false },
           {
             id: 'widget-demo-projects',
             type: 'active_projects',
-            position: 1,
+            position: 4,
             size: 'wide',
             config: {},
             hidden: false,
           },
+          { id: 'widget-demo-recent', type: 'recent_progress', position: 5, size: 'medium', config: { days: 7 }, hidden: false },
         ],
       },
       createdAt: CREATED_AT,
@@ -61,8 +67,11 @@ export const PERSONAS: DeepReadonly<ReadonlyArray<Readonly<{ user: User; workspa
       workspaceId: 'workspace-alex',
       preferences: {
         theme: 'light',
+        // A deliberately different layout: §17's personas exist so "switch persona" changes
+        // something, and a fortnight horizon with no digest is a real alternative shape.
         dashboardWidgets: [
           { id: 'widget-alex-upcoming', type: 'upcoming', position: 0, size: 'full', config: { days: 14 }, hidden: false },
+          { id: 'widget-alex-today', type: 'today', position: 1, size: 'medium', config: {}, hidden: false },
         ],
       },
       createdAt: CREATED_AT,

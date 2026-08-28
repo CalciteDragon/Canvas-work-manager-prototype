@@ -18,11 +18,47 @@
             "hidden": false
           },
           {
+            "id": "widget-demo-fact",
+            "type": "fun_fact",
+            "position": 1,
+            "size": "medium",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-upcoming",
+            "type": "upcoming",
+            "position": 2,
+            "size": "medium",
+            "config": {
+              "days": 7
+            },
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-digest",
+            "type": "daily_digest",
+            "position": 3,
+            "size": "medium",
+            "config": {},
+            "hidden": false
+          },
+          {
             "id": "widget-demo-projects",
             "type": "active_projects",
-            "position": 1,
+            "position": 4,
             "size": "wide",
             "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-recent",
+            "type": "recent_progress",
+            "position": 5,
+            "size": "medium",
+            "config": {
+              "days": 7
+            },
             "hidden": false
           }
         ]
@@ -45,6 +81,14 @@
             "config": {
               "days": 14
             },
+            "hidden": false
+          },
+          {
+            "id": "widget-alex-today",
+            "type": "today",
+            "position": 1,
+            "size": "medium",
+            "config": {},
             "hidden": false
           }
         ]

@@ -1,0 +1,28 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.widget-frame__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.widget-frame__title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.widget-frame__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}

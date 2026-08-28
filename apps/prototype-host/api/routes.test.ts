@@ -1,5 +1,5 @@
-import { IdentitySchema, ProgressResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, SCHEMA_VERSION, ProjectSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
-import { ActivityService, ProgressService, PrototypeClock, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, SCHEMA_VERSION, ProjectSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
+import { ActivityService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
@@ -66,6 +66,7 @@ const buildRoutes = (withProjects = true): RouteTable => {
     progress: new ProgressService({ projects, tasks }),
     timeline: new TimelineService({ projects, tasks, milestones }),
     reflections: new ReflectionService({ reflections, projects, activity, clock, ids, unitOfWork }),
+    dashboard: new DashboardService({ projects, tasks, clock, ai: new PrototypeAIProvider() }),
   });
 };
 
@@ -412,5 +413,35 @@ describe('section routes', () => {
     expect((await call(routes, 'POST', `/api/sections/${section.id}/move`, { body: { position: -1 } })).status).toBe(
       400,
     );
+  });
+});
+
+describe('dashboard route', () => {
+  it('answers the derived §24 dashboard for the calling persona', async () => {
+    const routes = buildRoutes();
+    await newTask(routes, { title: 'Late', dueAt: '2026-08-21T17:00:00.000Z' });
+
+    const result = await call(routes, 'GET', '/api/dashboard');
+    const dashboard = DashboardResultSchema.parse(result.body);
+
+    expect(result.status).toBe(200);
+    expect(dashboard.today.overdue.map(({ title }) => title)).toEqual(['Late']);
+    expect(dashboard.dailyDigest.source).toBe('prototype');
+    expect(DashboardResultSchema.parse((await call(routes, 'GET', '/api/dashboard', { user: ALEX })).body).today.overdue).toEqual([]);
+  });
+
+  it('passes the configurable ranges through as numbers, not strings', async () => {
+    const routes = buildRoutes();
+    await newTask(routes, { title: 'Fortnight out', dueAt: '2026-09-04T17:00:00.000Z' });
+
+    expect(DashboardResultSchema.parse((await call(routes, 'GET', '/api/dashboard')).body).upcoming.tasks).toEqual([]);
+    const wide = DashboardResultSchema.parse((await call(routes, 'GET', '/api/dashboard?upcomingDays=14')).body);
+    expect(wide.upcoming).toMatchObject({ days: 14, throughDate: '2026-09-07' });
+    expect(wide.upcoming.tasks.map(({ title }) => title)).toEqual(['Fortnight out']);
+  });
+
+  it('rejects a range outside the contract with 400', async () => {
+    expect((await call(buildRoutes(), 'GET', '/api/dashboard?upcomingDays=500')).status).toBe(400);
+    expect((await call(buildRoutes(), 'GET', '/api/dashboard?recentDays=nope')).status).toBe(400);
   });
 });
