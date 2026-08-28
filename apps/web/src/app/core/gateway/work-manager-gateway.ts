@@ -2,15 +2,22 @@ import { InjectionToken } from '@angular/core';
 import type {
   CreateSectionInput,
   CreateTaskInput,
+  CreateProjectInput,
+  CreateReflectionInput,
+  ProgressResult,
   Project,
   ProjectId,
   ProjectQuery,
   ProjectSection,
+  Reflection,
+  ReflectionId,
   MoveSectionInput,
   SectionId,
   Task,
   TaskId,
   TaskQuery,
+  TimelineResult,
+  UpdateReflectionInput,
   UpdateSectionInput,
   UpdateProjectInput,
   UpdateTaskInput,
@@ -38,7 +45,22 @@ export interface TaskGateway {
 export interface ProjectGateway {
   list(query: ProjectQuery): Promise<Project[]>;
   get(id: ProjectId): Promise<Project>;
+  create(input: CreateProjectInput): Promise<Project>;
   update(id: ProjectId, input: UpdateProjectInput): Promise<Project>;
+}
+
+export interface ProgressGateway {
+  get(projectId: ProjectId): Promise<ProgressResult>;
+}
+
+export interface TimelineGateway {
+  get(projectId: ProjectId): Promise<TimelineResult>;
+}
+
+export interface ReflectionGateway {
+  list(projectId: ProjectId): Promise<Reflection[]>;
+  create(input: CreateReflectionInput): Promise<Reflection>;
+  update(id: ReflectionId, input: UpdateReflectionInput): Promise<Reflection>;
 }
 
 /**
@@ -75,6 +97,9 @@ export interface WorkManagerGateway {
   projects: ProjectGateway;
   sections: SectionGateway;
   tasks: TaskGateway;
+  progress: ProgressGateway;
+  timeline: TimelineGateway;
+  reflections: ReflectionGateway;
 }
 
 export const WORK_MANAGER_GATEWAY = new InjectionToken<WorkManagerGateway>('WORK_MANAGER_GATEWAY');

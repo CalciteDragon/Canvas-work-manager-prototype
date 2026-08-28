@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import type { CreateTaskInput, Identity, ProjectId, SectionId, TaskId } from '@cwm/contracts';
+import type { CreateTaskInput, Identity, ProjectId, ReflectionId, SectionId, TaskId } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { IDENTITY_PROVIDER, type IdentityProvider } from '../identity/identity-provider';
@@ -51,6 +51,10 @@ const task = {
   updatedAt: at,
 };
 
+const progress = { projectId: 'project-1', formula: 'count', percentage: 50, completed: 1, total: 2, explanation: '1 of 2 tasks complete' };
+const timeline = { projectId: 'project-1', items: [{ id: 'project-1', kind: 'project', title: 'Personal workspace', startDate: '2026-09-30', endDate: '2026-09-30' }] };
+const reflection = { id: 'reflection-1', projectId: 'project-1', body: 'A useful note', createdAt: at, updatedAt: at };
+
 // A Response body can only be read once, so every mocked call gets a fresh one.
 const jsonResponse = (body: unknown, status = 200) => () =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -82,6 +86,12 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('PrototypeWorkManagerGateway — projects', () => {
+  it('creates a direct child project through the project gateway', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...project, id: 'project-child', parentProjectId: 'project-1' }, 201));
+    await gateway().projects.create({ workspaceId: 'workspace-demo' as never, parentProjectId: 'project-1' as ProjectId, name: 'Child' });
+    expect(lastCall().url).toBe('http://host.test/api/projects');
+    expect(lastCall().init.method).toBe('POST');
+  });
   it('owns the URL, so no component ever does', async () => {
     fetchMock.mockImplementation(jsonResponse([project]));
 
@@ -132,6 +142,37 @@ describe('PrototypeWorkManagerGateway — projects', () => {
     await expect(
       gateway().projects.update('project-1' as ProjectId, { projectLayoutMode: 'grid' }),
     ).rejects.toBeInstanceOf(GatewayError);
+  });
+});
+
+describe('PrototypeWorkManagerGateway — Slice 10 reads and reflections', () => {
+  it('validates progress and timeline read models', async () => {
+    fetchMock.mockImplementationOnce(jsonResponse(progress)).mockImplementationOnce(jsonResponse(timeline));
+    const subject = gateway();
+    expect((await subject.progress.get('project-1' as ProjectId)).percentage).toBe(50);
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/progress');
+    expect((await subject.timeline.get('project-1' as ProjectId)).items[0]?.kind).toBe('project');
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/timeline');
+  });
+
+  it('lists, creates, and updates reflections with encoded paths and bodies', async () => {
+    fetchMock.mockImplementationOnce(jsonResponse([reflection])).mockImplementationOnce(jsonResponse(reflection, 201)).mockImplementationOnce(jsonResponse({ ...reflection, title: 'Edited' }));
+    const subject = gateway();
+    await subject.reflections.list('project-1' as ProjectId);
+    expect(lastCall().url).toBe('http://host.test/api/reflections?projectId=project-1');
+    await subject.reflections.create({ projectId: 'project-1' as ProjectId, body: 'A useful note' });
+    expect(lastCall().init.method).toBe('POST');
+    await subject.reflections.update('reflection-1' as ReflectionId, { title: 'Edited' });
+    expect(lastCall().url).toBe('http://host.test/api/reflections/reflection-1');
+    expect(lastCall().init.method).toBe('PATCH');
+  });
+
+  it('rejects malformed derived and reflection bodies', async () => {
+    const subject = gateway();
+    fetchMock.mockImplementation(jsonResponse({ projectId: 'project-1' }));
+    await expect(subject.progress.get('project-1' as ProjectId)).rejects.toMatchObject({ code: 'invalid_response' });
+    fetchMock.mockImplementation(jsonResponse([{ id: 'reflection-1' }]));
+    await expect(subject.reflections.list('project-1' as ProjectId)).rejects.toMatchObject({ code: 'invalid_response' });
   });
 });
 

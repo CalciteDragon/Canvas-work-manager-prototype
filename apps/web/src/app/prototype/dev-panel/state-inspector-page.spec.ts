@@ -50,6 +50,7 @@ describe('StateInspectorPage (§28)', () => {
     const fixture = await render({
       list: vi.fn(async () => [project('project-a'), project('project-b', 'grid')]),
       get: vi.fn(),
+      create: vi.fn(),
       update: vi.fn(),
     } as WorkManagerGateway['projects']);
 
@@ -74,6 +75,7 @@ describe('StateInspectorPage (§28)', () => {
     const fixture = await render({
       list: vi.fn(async () => [project('project-a'), project('project-b')]),
       get: vi.fn(),
+      create: vi.fn(),
       update,
     } as WorkManagerGateway['projects']);
 
@@ -106,6 +108,7 @@ describe('StateInspectorPage (§28)', () => {
     const fixture = await render({
       list: vi.fn(async () => [project('project-a'), project('project-b')]),
       get: vi.fn(),
+      create: vi.fn(),
       update,
     } as WorkManagerGateway['projects']);
 

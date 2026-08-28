@@ -2,12 +2,19 @@ import { Injectable, inject } from '@angular/core';
 import {
   ProjectSchema,
   ProjectSectionSchema,
+  ProgressResultSchema,
+  ReflectionSchema,
   TaskSchema,
+  TimelineResultSchema,
+  type CreateProjectInput,
+  type CreateReflectionInput,
   type CreateSectionInput,
   type CreateTaskInput,
   type ProjectId,
   type ProjectQuery,
+  type ReflectionId,
   type UpdateProjectInput,
+  type UpdateReflectionInput,
   type MoveSectionInput,
   type SectionId,
   type TaskId,
@@ -19,7 +26,7 @@ import { z } from 'zod';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
-import type { ProjectGateway, SectionGateway, TaskGateway, WorkManagerGateway } from './work-manager-gateway';
+import type { ProgressGateway, ProjectGateway, ReflectionGateway, SectionGateway, TaskGateway, TimelineGateway, WorkManagerGateway } from './work-manager-gateway';
 
 /**
  * The §10 adapter: Angular → `localhost:4310`. Everything transport-shaped lives here —
@@ -38,8 +45,23 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         ? Promise.resolve([])
         : this.send('GET', `/api/projects${queryString(projectQueryParams(query))}`, ProjectSchema.array()),
     get: (id: ProjectId) => this.send('GET', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema),
+    create: (input: CreateProjectInput) => this.send('POST', '/api/projects', ProjectSchema, input),
     update: (id: ProjectId, input: UpdateProjectInput) =>
       this.send('PATCH', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema, input),
+  };
+
+  readonly progress: ProgressGateway = {
+    get: (projectId) => this.send('GET', `/api/projects/${encodeURIComponent(projectId)}/progress`, ProgressResultSchema),
+  };
+
+  readonly timeline: TimelineGateway = {
+    get: (projectId) => this.send('GET', `/api/projects/${encodeURIComponent(projectId)}/timeline`, TimelineResultSchema),
+  };
+
+  readonly reflections: ReflectionGateway = {
+    list: (projectId) => this.send('GET', `/api/reflections?projectId=${encodeURIComponent(projectId)}`, ReflectionSchema.array()),
+    create: (input: CreateReflectionInput) => this.send('POST', '/api/reflections', ReflectionSchema, input),
+    update: (id: ReflectionId, input: UpdateReflectionInput) => this.send('PATCH', `/api/reflections/${encodeURIComponent(id)}`, ReflectionSchema, input),
   };
 
   readonly sections: SectionGateway = {

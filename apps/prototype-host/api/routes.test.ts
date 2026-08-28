@@ -1,9 +1,11 @@
-import { IdentitySchema, ProjectSectionSchema, PrototypeDocumentSchema, SCHEMA_VERSION, ProjectSchema, TaskSchema } from '@cwm/contracts';
-import { ActivityService, PrototypeClock, PrototypeIdGenerator, ProjectService, SectionService, TaskService } from '@cwm/domain';
+import { IdentitySchema, ProgressResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, SCHEMA_VERSION, ProjectSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
+import { ActivityService, ProgressService, PrototypeClock, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
+  JsonMilestoneRepository,
   JsonProjectRepository,
+  JsonReflectionRepository,
   JsonSectionRepository,
   JsonTaskRepository,
   unitOfWorkFor,
@@ -50,6 +52,8 @@ const buildRoutes = (withProjects = true): RouteTable => {
   const sections = new JsonSectionRepository(store);
   const tasks = new JsonTaskRepository(store);
   const activities = new JsonActivityRepository(store);
+  const milestones = new JsonMilestoneRepository(store);
+  const reflections = new JsonReflectionRepository(store);
   const activity = new ActivityService({ activities, clock, ids });
   const unitOfWork = unitOfWorkFor(store);
 
@@ -59,6 +63,9 @@ const buildRoutes = (withProjects = true): RouteTable => {
     projects: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, activity, clock, ids, unitOfWork }),
     sections: new SectionService({ sections, projects, activity, clock, ids, unitOfWork }),
+    progress: new ProgressService({ projects, tasks }),
+    timeline: new TimelineService({ projects, tasks, milestones }),
+    reflections: new ReflectionService({ reflections, projects, activity, clock, ids, unitOfWork }),
   });
 };
 
@@ -132,6 +139,29 @@ describe('project routes', () => {
 
     expect(result.status).toBe(200);
     expect(result.body).toMatchObject({ name: 'Renamed' });
+  });
+});
+
+describe('Slice 10 derived and reflection routes', () => {
+  it('serves canonical progress and a derived timeline with actor scoping', async () => {
+    const routes = buildRoutes();
+    await newTask(routes, { status: 'done', estimate: 3, startAt: '2026-08-20T09:00:00.000Z', dueAt: '2026-08-22T17:00:00.000Z' });
+    await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { targetDate: '2026-08-30', progressFormula: 'weighted' } });
+
+    expect(ProgressResultSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}/progress`)).body)).toMatchObject({ formula: 'weighted', percentage: 100 });
+    expect(TimelineResultSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}/timeline`)).body).items.map(({ kind }) => kind)).toEqual(expect.arrayContaining(['project', 'task']));
+    expect((await call(routes, 'GET', `/api/projects/${THEIRS}/progress`)).status).toBe(404);
+  });
+
+  it('lists, creates, and edits reflections with schema validation', async () => {
+    const routes = buildRoutes();
+    const created = await call(routes, 'POST', '/api/reflections', { body: { projectId: MINE, body: 'First', prompt: 'What changed?' } });
+    expect(created.status).toBe(201);
+    const reflection = ReflectionSchema.parse(created.body);
+    expect(ReflectionSchema.array().parse((await call(routes, 'GET', `/api/reflections?projectId=${MINE}`)).body)).toHaveLength(1);
+    expect(ReflectionSchema.parse((await call(routes, 'PATCH', `/api/reflections/${reflection.id}`, { body: { title: 'Checkpoint' } })).body).title).toBe('Checkpoint');
+    expect((await call(routes, 'POST', '/api/reflections', { body: { projectId: MINE, body: '' } })).status).toBe(400);
+    expect((await call(routes, 'GET', `/api/reflections?projectId=${THEIRS}`)).status).toBe(404);
   });
 });
 

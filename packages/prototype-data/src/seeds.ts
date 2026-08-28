@@ -1,11 +1,15 @@
 import {
+  MilestoneSchema,
   ProjectSchema,
   ProjectSectionSchema,
   PrototypeDocumentSchema,
+  ReflectionSchema,
   SCHEMA_VERSION,
   TaskSchema,
+  type Milestone,
   type Project,
   type PrototypeDocument,
+  type Reflection,
   type Task,
 } from '@cwm/contracts';
 import { PERSONAS } from './personas';
@@ -35,6 +39,8 @@ const project = (
     targetDate?: string;
     parentProjectId?: string;
     projectLayoutMode?: 'flow' | 'grid';
+    progressFormula?: 'count' | 'weighted' | 'manual';
+    manualProgress?: number;
   } = {},
 ): Project =>
   ProjectSchema.parse({
@@ -47,6 +53,8 @@ const project = (
     targetDate: options.targetDate,
     parentProjectId: options.parentProjectId,
     projectLayoutMode: options.projectLayoutMode ?? 'flow',
+    progressFormula: options.progressFormula ?? 'count',
+    manualProgress: options.manualProgress,
     createdAt: CREATED_AT,
     updatedAt: UPDATED_AT,
   });
@@ -62,6 +70,7 @@ const task = (
     startAt?: string;
     dueAt?: string;
     completedAt?: string;
+    estimate?: number;
   } = {},
 ): Task =>
   TaskSchema.parse({
@@ -74,6 +83,7 @@ const task = (
     startAt: options.startAt,
     dueAt: options.dueAt,
     completedAt: options.completedAt,
+    estimate: options.estimate,
     createdAt: CREATED_AT,
     updatedAt: UPDATED_AT,
   });
@@ -100,6 +110,39 @@ const projectCanvas = (projectId: string, brief: string) => [
   section(`section-${projectId}-brief`, projectId, 'rich-text', 0, { text: brief }),
   section(`section-${projectId}-tasks`, projectId, 'task-list', 1),
 ];
+
+const sliceTenCanvas = (projectId: string, brief: string) => [
+  ...projectCanvas(projectId, brief),
+  section(`section-${projectId}-sub-projects`, projectId, 'sub-projects', 2),
+  section(`section-${projectId}-progress`, projectId, 'progress', 3),
+  section(`section-${projectId}-reflections`, projectId, 'reflections', 4),
+  section(`section-${projectId}-timeline`, projectId, 'timeline', 5),
+];
+
+const milestone = (
+  id: string,
+  projectId: string,
+  title: string,
+  targetDate: string,
+  status: 'upcoming' | 'achieved' | 'missed' = 'upcoming',
+): Milestone =>
+  MilestoneSchema.parse({ id, projectId, title, targetDate, status, createdAt: CREATED_AT, updatedAt: UPDATED_AT });
+
+const reflection = (
+  id: string,
+  projectId: string,
+  body: string,
+  options: { title?: string; prompt?: string; createdAt?: string; updatedAt?: string } = {},
+): Reflection =>
+  ReflectionSchema.parse({
+    id,
+    projectId,
+    title: options.title,
+    body,
+    prompt: options.prompt,
+    createdAt: options.createdAt ?? CREATED_AT,
+    updatedAt: options.updatedAt ?? options.createdAt ?? CREATED_AT,
+  });
 
 const document = (collections: Partial<PrototypeDocument> = {}): PrototypeDocument =>
   PrototypeDocumentSchema.parse({
@@ -152,6 +195,7 @@ const busyWeek = (): PrototypeDocument => {
       icon: '🚀',
       targetDate: '2026-08-28',
       projectLayoutMode: 'grid',
+      progressFormula: 'weighted',
     }),
     project('project-home', 'Home reset', {
       description: 'Small maintenance and organization jobs.',
@@ -163,11 +207,17 @@ const busyWeek = (): PrototypeDocument => {
       icon: '📚',
       targetDate: '2026-08-31',
     }),
+    project('project-launch-comms', 'Launch communications', {
+      description: 'Coordinate the announcement and customer follow-up.',
+      icon: '📣',
+      parentProjectId: 'project-launch',
+      targetDate: '2026-08-27',
+    }),
   ];
   return document({
     projects,
     sections: [
-      ...projectCanvas(projects[0]!.id, 'Launch week. Copy is signed off; QA and analytics are the risk.'),
+      ...sliceTenCanvas(projects[0]!.id, 'Launch week. Copy is signed off; QA and analytics are the risk.'),
       ...projectCanvas(projects[1]!.id, 'Small household jobs. Nothing here is urgent.'),
       ...projectCanvas(projects[2]!.id, 'Two modules left before the end of the month.'),
     ],
@@ -177,17 +227,20 @@ const busyWeek = (): PrototypeDocument => {
         priority: 'high',
         dueAt: '2026-08-21T20:00:00.000Z',
         completedAt: '2026-08-21T18:30:00.000Z',
+        estimate: 2,
       }),
       task('task-launch-qa', projects[0]!.id, 'Run launch QA', {
         status: 'in_progress',
         priority: 'high',
         startAt: '2026-08-24T16:00:00.000Z',
         dueAt: '2026-08-25T23:00:00.000Z',
+        estimate: 5,
       }),
       task('task-launch-analytics', projects[0]!.id, 'Verify analytics events', {
         status: 'blocked',
         priority: 'medium',
         dueAt: '2026-08-23T23:00:00.000Z',
+        estimate: 3,
       }),
       task('task-home-filter', projects[1]!.id, 'Replace air filter', {
         priority: 'medium',
@@ -209,15 +262,39 @@ const busyWeek = (): PrototypeDocument => {
       }),
       task('task-course-notes', projects[2]!.id, 'Organize module notes', { priority: 'low' }),
     ],
+    milestones: [milestone('milestone-launch-code-freeze', projects[0]!.id, 'Code freeze', '2026-08-26')],
+    reflections: [
+      reflection('reflection-launch-risk', projects[0]!.id, 'Analytics validation is blocked on production access.', {
+        title: 'Launch risk check',
+        prompt: "What's blocked?",
+        createdAt: '2026-08-22T18:00:00.000Z',
+      }),
+      reflection('reflection-launch-win', projects[0]!.id, 'Copy approval landed early and reduced the QA surface.', {
+        prompt: 'What went well?',
+        createdAt: '2026-08-21T19:00:00.000Z',
+      }),
+    ],
   });
 };
 
 const nestedProjects = (): PrototypeDocument => {
   const projects = [
     project('project-renovation', 'Home renovation', { icon: '🏗️', targetDate: '2026-12-15' }),
-    project('project-kitchen', 'Kitchen', { parentProjectId: 'project-renovation', icon: '🍳' }),
-    project('project-cabinets', 'Cabinets', { parentProjectId: 'project-kitchen', icon: '🗄️' }),
-    project('project-garden', 'Garden', { parentProjectId: 'project-renovation', icon: '🌿' }),
+    project('project-kitchen', 'Kitchen', {
+      parentProjectId: 'project-renovation',
+      icon: '🍳',
+      targetDate: '2026-10-30',
+    }),
+    project('project-cabinets', 'Cabinets', {
+      parentProjectId: 'project-kitchen',
+      icon: '🗄️',
+      targetDate: '2026-10-15',
+    }),
+    project('project-garden', 'Garden', {
+      parentProjectId: 'project-renovation',
+      icon: '🌿',
+      targetDate: '2026-11-20',
+    }),
   ];
   return document({
     projects,
@@ -225,17 +302,36 @@ const nestedProjects = (): PrototypeDocument => {
     // project page has to handle, and a leaf sub-project nobody has set up yet is the most
     // honest place to find one.
     sections: [
-      ...projectCanvas(projects[0]!.id, 'Whole-house plan. Kitchen first, garden in the spring.'),
+      ...sliceTenCanvas(projects[0]!.id, 'Whole-house plan. Kitchen first, garden in the spring.'),
       ...projectCanvas(projects[1]!.id, 'Appliances and finishes before cabinets are ordered.'),
       ...projectCanvas(projects[3]!.id, 'Autumn planting only. Structural work waits for next year.'),
     ],
     tasks: [
-      task('task-renovation-budget', projects[0]!.id, 'Confirm renovation budget', { priority: 'high' }),
-      task('task-kitchen-appliances', projects[1]!.id, 'Choose appliance finishes'),
+      task('task-renovation-budget', projects[0]!.id, 'Confirm renovation budget', {
+        priority: 'high',
+        startAt: '2026-08-24T16:00:00.000Z',
+        dueAt: '2026-09-04T23:00:00.000Z',
+      }),
+      task('task-kitchen-appliances', projects[1]!.id, 'Choose appliance finishes', {
+        startAt: '2026-09-08T16:00:00.000Z',
+        dueAt: '2026-09-18T23:00:00.000Z',
+      }),
       task('task-cabinets-samples', projects[2]!.id, 'Order cabinet samples', {
+        startAt: '2026-08-25T16:00:00.000Z',
         dueAt: '2026-08-28T20:00:00.000Z',
       }),
       task('task-garden-plan', projects[3]!.id, 'Sketch autumn planting plan', { priority: 'low' }),
+    ],
+    milestones: [
+      milestone('milestone-renovation-design-lock', projects[0]!.id, 'Design locked', '2026-09-25'),
+      milestone('milestone-kitchen-cabinet-order', projects[1]!.id, 'Cabinet order placed', '2026-10-02'),
+    ],
+    reflections: [
+      reflection('reflection-renovation-sequence', projects[0]!.id, 'Kitchen decisions need to land before garden work begins.', {
+        title: 'Sequence matters',
+        prompt: 'What should happen next?',
+        createdAt: '2026-08-23T17:00:00.000Z',
+      }),
     ],
   });
 };

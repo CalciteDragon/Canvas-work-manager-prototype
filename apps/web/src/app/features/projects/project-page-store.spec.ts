@@ -96,6 +96,7 @@ const setup = (
     projects: {
       list: vi.fn(async () => [project()]),
       get: options.projectGet ?? vi.fn(async () => project()),
+      create: vi.fn(),
       update: vi.fn(async (_id, input) => ({ ...project(), ...input }) as Project),
     },
     sections: {
@@ -148,6 +149,9 @@ const setup = (
       complete: vi.fn(async (id: string) => task(id, 'done')),
       archive: vi.fn(),
     } as unknown as WorkManagerGateway['tasks'],
+    progress: { get: vi.fn(async () => ({ projectId: PROJECT, formula: 'count' as const, percentage: 50, completed: 1, total: 2, explanation: '1 of 2 tasks complete' })) },
+    timeline: { get: vi.fn(async () => ({ projectId: PROJECT, items: [] })) },
+    reflections: { list: vi.fn(async () => []), create: vi.fn(), update: vi.fn() },
   };
 
   TestBed.configureTestingModule({

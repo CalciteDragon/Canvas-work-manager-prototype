@@ -1,11 +1,15 @@
-import type {
+import { ProjectSchema, type
   Identity,
+  ProgressResult,
   Project,
   ProjectId,
   ProjectSection,
+  Reflection,
+  ReflectionId,
   SectionId,
   Task,
   TaskId,
+  TimelineResult,
   UpdateProjectInput,
   UpdateSectionInput,
 } from '@cwm/contracts';
@@ -27,6 +31,9 @@ export interface FakeGatewayOptions {
   projects?: Project[];
   sections?: ProjectSection[];
   tasks?: Task[];
+  progress?: ProgressResult;
+  timeline?: TimelineResult;
+  reflections?: Reflection[];
   /** Rejects every call with this instead of answering — the failure path a shell needs. */
   failWith?: GatewayError;
   /** Reject only named calls after an otherwise successful load (for write failure UI). */
@@ -45,12 +52,37 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     list: (query) => this.answer('projects.list', query, this.options.projects ?? []),
     get: (id: ProjectId) =>
       this.answer('projects.get', id, this.find(this.options.projects, id, 'project')),
+    create: (input) =>
+      this.answer('projects.create', input, ProjectSchema.parse({
+        ...this.find(this.options.projects, input.parentProjectId ?? '', 'project'),
+        ...input,
+        id: 'project-created' as ProjectId,
+        targetDate: input.targetDate ?? undefined,
+      })),
     update: (id, input) =>
       this.answer(
         'projects.update',
         { id, input },
         applyProjectUpdate(this.find(this.options.projects, id, 'project'), input),
       ),
+  };
+
+  readonly progress = {
+    get: (projectId: ProjectId) => this.answer('progress.get', projectId, this.options.progress ?? {
+      projectId, formula: 'count' as const, percentage: null, completed: 0, total: 0, explanation: 'No tasks to measure',
+    }),
+  };
+
+  readonly timeline = {
+    get: (projectId: ProjectId) => this.answer('timeline.get', projectId, this.options.timeline ?? { projectId, items: [] }),
+  };
+
+  readonly reflections = {
+    list: (projectId: ProjectId) => this.answer('reflections.list', projectId, (this.options.reflections ?? []).filter((item) => item.projectId === projectId)),
+    create: (input: Parameters<WorkManagerGateway['reflections']['create']>[0]) => this.answer('reflections.create', input, {
+      id: 'reflection-created' as ReflectionId, ...input, createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT,
+    }),
+    update: (id: ReflectionId, input: Parameters<WorkManagerGateway['reflections']['update']>[1]) => this.answer('reflections.update', { id, input }, { ...this.find(this.options.reflections, id, 'reflection'), ...input, title: input.title === null ? undefined : input.title ?? this.find(this.options.reflections, id, 'reflection').title }),
   };
 
   readonly sections: SectionGateway = {

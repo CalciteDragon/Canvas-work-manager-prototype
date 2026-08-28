@@ -1,19 +1,22 @@
 import {
   ActivityQuerySchema,
   CreateProjectInputSchema,
+  CreateReflectionInputSchema,
   CreateSectionInputSchema,
   CreateTaskInputSchema,
   MoveSectionInputSchema,
   ProjectIdSchema,
   ProjectQuerySchema,
+  ReflectionIdSchema,
   SectionIdSchema,
   TaskIdSchema,
   TaskQuerySchema,
   UpdateProjectInputSchema,
+  UpdateReflectionInputSchema,
   UpdateSectionInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, ProjectService, SectionService, TaskService } from '@cwm/domain';
+import type { ActivityService, ProgressService, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveUser } from './context.ts';
 import type { RouteRequest, RouteResult, RouteTable } from '../router.ts';
@@ -24,6 +27,9 @@ export interface ApiDependencies {
   tasks: TaskService;
   sections: SectionService;
   activity: ActivityService;
+  progress: ProgressService;
+  timeline: TimelineService;
+  reflections: ReflectionService;
 }
 
 const ok = (body: unknown): RouteResult => ({ status: 200, contentType: 'application/json', body });
@@ -65,12 +71,13 @@ const queryObject = (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, tasks, sections, activity } = dependencies;
+  const { store, projects, tasks, sections, activity, progress, timeline, reflections } = dependencies;
   const actorFor = (request: RouteRequest) => resolveActor(store.snapshot(), request);
   const projectId = (request: RouteRequest) => ProjectIdSchema.parse(request.params['id']);
   const taskId = (request: RouteRequest) => TaskIdSchema.parse(request.params['id']);
   const sectionId = (request: RouteRequest) => SectionIdSchema.parse(request.params['id']);
   const sectionProjectId = (request: RouteRequest) => ProjectIdSchema.parse(request.params['projectId']);
+  const reflectionId = (request: RouteRequest) => ReflectionIdSchema.parse(request.params['id']);
 
   return {
     // §18's identity, composed rather than stored: there is no workspace repository, and
@@ -104,6 +111,27 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
           actorFor(request),
           projectId(request),
           UpdateProjectInputSchema.parse(request.body),
+        ),
+      ),
+
+    'GET /api/projects/:id/progress': async (request) =>
+      ok(await progress.calculate(actorFor(request), projectId(request))),
+
+    'GET /api/projects/:id/timeline': async (request) =>
+      ok(await timeline.derive(actorFor(request), projectId(request))),
+
+    'GET /api/reflections': async (request) =>
+      ok(await reflections.list(actorFor(request), ProjectIdSchema.parse(request.query.get('projectId')))),
+
+    'POST /api/reflections': async (request) =>
+      created(await reflections.create(actorFor(request), CreateReflectionInputSchema.parse(request.body))),
+
+    'PATCH /api/reflections/:id': async (request) =>
+      ok(
+        await reflections.update(
+          actorFor(request),
+          reflectionId(request),
+          UpdateReflectionInputSchema.parse(request.body),
         ),
       ),
 

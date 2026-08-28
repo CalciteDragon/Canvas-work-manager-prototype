@@ -60,6 +60,7 @@ const setup = (options: {
     projects: {
       list: vi.fn(async () => projects),
       get: vi.fn(async () => projects[0]!),
+      create: vi.fn(),
       update: vi.fn(async (_id, input) => ({ ...projects[0]!, ...input }) as Project),
     },
     sections: {
@@ -80,6 +81,9 @@ const setup = (options: {
       complete: options.complete ?? vi.fn(async (id) => task({ id, status: 'done', completedAt: AT })),
       archive: vi.fn(async () => undefined),
     },
+    progress: { get: vi.fn() },
+    timeline: { get: vi.fn() },
+    reflections: { list: vi.fn(), create: vi.fn(), update: vi.fn() },
   };
 
   TestBed.configureTestingModule({

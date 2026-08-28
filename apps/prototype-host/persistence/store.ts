@@ -3,8 +3,10 @@ import { resolve } from 'node:path';
 import { DEFAULT_DATA_PATH, writeSeedFile } from '@cwm/prototype-data';
 import {
   JsonActivityRepository,
+  JsonMilestoneRepository,
   JsonDataStore,
   JsonProjectRepository,
+  JsonReflectionRepository,
   JsonSectionRepository,
   JsonTaskRepository,
   unitOfWorkFor,
@@ -40,6 +42,8 @@ export interface Persistence {
   projects: JsonProjectRepository;
   sections: JsonSectionRepository;
   tasks: JsonTaskRepository;
+  milestones: JsonMilestoneRepository;
+  reflections: JsonReflectionRepository;
   activities: JsonActivityRepository;
   unitOfWork: ReturnType<typeof unitOfWorkFor>;
 }
@@ -55,6 +59,8 @@ export const loadPersistence = async (path = dataFilePath()): Promise<Persistenc
     projects: new JsonProjectRepository(store),
     sections: new JsonSectionRepository(store),
     tasks: new JsonTaskRepository(store),
+    milestones: new JsonMilestoneRepository(store),
+    reflections: new JsonReflectionRepository(store),
     activities: new JsonActivityRepository(store),
     unitOfWork: unitOfWorkFor(store),
   };

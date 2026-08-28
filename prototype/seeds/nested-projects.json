@@ -109,6 +109,7 @@
       "status": "active",
       "targetDate": "2026-12-15",
       "projectLayoutMode": "flow",
+      "progressFormula": "count",
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -119,7 +120,9 @@
       "name": "Kitchen",
       "icon": "🍳",
       "status": "active",
+      "targetDate": "2026-10-30",
       "projectLayoutMode": "flow",
+      "progressFormula": "count",
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -130,7 +133,9 @@
       "name": "Cabinets",
       "icon": "🗄️",
       "status": "active",
+      "targetDate": "2026-10-15",
       "projectLayoutMode": "flow",
+      "progressFormula": "count",
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -141,7 +146,9 @@
       "name": "Garden",
       "icon": "🌿",
       "status": "active",
+      "targetDate": "2026-11-20",
       "projectLayoutMode": "flow",
+      "progressFormula": "count",
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     }
@@ -165,6 +172,50 @@
       "projectId": "project-renovation",
       "type": "task-list",
       "position": 1,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-sub-projects",
+      "projectId": "project-renovation",
+      "type": "sub-projects",
+      "position": 2,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-progress",
+      "projectId": "project-renovation",
+      "type": "progress",
+      "position": 3,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-reflections",
+      "projectId": "project-renovation",
+      "type": "reflections",
+      "position": 4,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-timeline",
+      "projectId": "project-renovation",
+      "type": "timeline",
+      "position": 5,
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
@@ -227,6 +278,8 @@
       "title": "Confirm renovation budget",
       "status": "todo",
       "priority": "high",
+      "startAt": "2026-08-24T16:00:00.000Z",
+      "dueAt": "2026-09-04T23:00:00.000Z",
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -236,6 +289,8 @@
       "title": "Choose appliance finishes",
       "status": "todo",
       "priority": "medium",
+      "startAt": "2026-09-08T16:00:00.000Z",
+      "dueAt": "2026-09-18T23:00:00.000Z",
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -245,6 +300,7 @@
       "title": "Order cabinet samples",
       "status": "todo",
       "priority": "medium",
+      "startAt": "2026-08-25T16:00:00.000Z",
       "dueAt": "2026-08-28T20:00:00.000Z",
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
@@ -259,8 +315,37 @@
       "updatedAt": "2026-08-21T20:00:00.000Z"
     }
   ],
-  "milestones": [],
-  "reflections": [],
+  "milestones": [
+    {
+      "id": "milestone-renovation-design-lock",
+      "projectId": "project-renovation",
+      "title": "Design locked",
+      "targetDate": "2026-09-25",
+      "status": "upcoming",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "milestone-kitchen-cabinet-order",
+      "projectId": "project-kitchen",
+      "title": "Cabinet order placed",
+      "targetDate": "2026-10-02",
+      "status": "upcoming",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "reflections": [
+    {
+      "id": "reflection-renovation-sequence",
+      "projectId": "project-renovation",
+      "title": "Sequence matters",
+      "body": "Kitchen decisions need to land before garden work begins.",
+      "prompt": "What should happen next?",
+      "createdAt": "2026-08-23T17:00:00.000Z",
+      "updatedAt": "2026-08-23T17:00:00.000Z"
+    }
+  ],
   "activityEvents": [],
   "agentConnections": []
 }

@@ -131,6 +131,32 @@ describe('seed scenarios', () => {
     expect(tasks.some(({ dueAt }) => dueAt !== undefined && Date.parse(dueAt) > now)).toBe(true);
   });
 
+  it('makes the busy-week launch canvas exercise every Slice 10 section and timeline input', () => {
+    const document = buildSeed('busy-week');
+    const launch = document.projects.find(({ name }) => name === 'Website launch');
+
+    expect(launch).toMatchObject({ targetDate: '2026-08-28', progressFormula: 'weighted' });
+    expect(
+      document.projects.some(
+        ({ parentProjectId, targetDate }) => parentProjectId === launch?.id && targetDate !== undefined,
+      ),
+    ).toBe(true);
+    expect(
+      document.sections
+        .filter(({ projectId }) => projectId === launch?.id)
+        .sort((left, right) => left.position - right.position)
+        .map(({ type }) => type),
+    ).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline']);
+
+    const launchTasks = document.tasks.filter(({ projectId }) => projectId === launch?.id);
+    expect(launchTasks.some(({ estimate }) => estimate !== undefined && estimate > 0)).toBe(true);
+    expect(launchTasks.some(({ startAt, dueAt }) => startAt !== undefined && dueAt !== undefined)).toBe(true);
+    expect(document.reflections.some(({ projectId }) => projectId === launch?.id)).toBe(true);
+    expect(
+      document.milestones.some(({ projectId, targetDate }) => projectId === launch?.id && targetDate !== undefined),
+    ).toBe(true);
+  });
+
   it('builds a finite three-level nested project hierarchy', () => {
     const document = buildSeed('nested-projects');
     const projects = new Map(document.projects.map((project) => [project.id, project]));
@@ -150,6 +176,39 @@ describe('seed scenarios', () => {
         current = current.parentProjectId === undefined ? undefined : projects.get(current.parentProjectId);
       }
     }
+  });
+
+  it('makes the nested-projects renovation canvas exercise hierarchy and derived timeline inputs', () => {
+    const document = buildSeed('nested-projects');
+    const renovation = document.projects.find(({ name }) => name === 'Home renovation');
+    const descendants = document.projects.filter(({ parentProjectId }) => parentProjectId === renovation?.id);
+
+    expect(descendants.length).toBeGreaterThanOrEqual(2);
+    expect(descendants.some(({ targetDate }) => targetDate !== undefined)).toBe(true);
+    expect(
+      document.projects.some(({ parentProjectId }) =>
+        descendants.some(({ id }) => id === parentProjectId),
+      ),
+    ).toBe(true);
+    expect(
+      document.sections
+        .filter(({ projectId }) => projectId === renovation?.id)
+        .sort((left, right) => left.position - right.position)
+        .map(({ type }) => type),
+    ).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline']);
+    expect(
+      document.tasks.some(
+        ({ projectId, startAt, dueAt }) =>
+          descendants.some(({ id }) => id === projectId) && startAt !== undefined && dueAt !== undefined,
+      ),
+    ).toBe(true);
+    expect(
+      document.milestones.some(
+        ({ projectId, targetDate }) =>
+          [renovation?.id, ...descendants.map(({ id }) => id)].includes(projectId) && targetDate !== undefined,
+      ),
+    ).toBe(true);
+    expect(document.reflections.some(({ projectId }) => projectId === renovation?.id)).toBe(true);
   });
 
   it('builds overdue chaos with several incomplete overdue tasks', () => {
@@ -286,7 +345,7 @@ describe('seeded project canvases (§30)', () => {
 
       expect(document.sections.length).toBeGreaterThan(0);
       for (const sections of sectionsByProject(document).values()) {
-        expect(sections.map((section) => [section.type, section.position])).toEqual([
+        expect(sections.slice(0, 2).map((section) => [section.type, section.position])).toEqual([
           ['rich-text', 0],
           ['task-list', 1],
         ]);

@@ -110,6 +110,7 @@
       "status": "active",
       "targetDate": "2026-08-28",
       "projectLayoutMode": "grid",
+      "progressFormula": "weighted",
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -122,6 +123,7 @@
       "status": "active",
       "targetDate": "2026-09-05",
       "projectLayoutMode": "flow",
+      "progressFormula": "count",
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -134,6 +136,21 @@
       "status": "active",
       "targetDate": "2026-08-31",
       "projectLayoutMode": "flow",
+      "progressFormula": "count",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "project-launch-comms",
+      "workspaceId": "workspace-demo",
+      "parentProjectId": "project-launch",
+      "name": "Launch communications",
+      "description": "Coordinate the announcement and customer follow-up.",
+      "icon": "📣",
+      "status": "active",
+      "targetDate": "2026-08-27",
+      "projectLayoutMode": "flow",
+      "progressFormula": "count",
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     }
@@ -157,6 +174,50 @@
       "projectId": "project-launch",
       "type": "task-list",
       "position": 1,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-launch-sub-projects",
+      "projectId": "project-launch",
+      "type": "sub-projects",
+      "position": 2,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-launch-progress",
+      "projectId": "project-launch",
+      "type": "progress",
+      "position": 3,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-launch-reflections",
+      "projectId": "project-launch",
+      "type": "reflections",
+      "position": 4,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-launch-timeline",
+      "projectId": "project-launch",
+      "type": "timeline",
+      "position": 5,
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
@@ -219,6 +280,7 @@
       "title": "Approve homepage copy",
       "status": "done",
       "priority": "high",
+      "estimate": 2,
       "dueAt": "2026-08-21T20:00:00.000Z",
       "completedAt": "2026-08-21T18:30:00.000Z",
       "createdAt": "2026-08-01T16:00:00.000Z",
@@ -230,6 +292,7 @@
       "title": "Run launch QA",
       "status": "in_progress",
       "priority": "high",
+      "estimate": 5,
       "startAt": "2026-08-24T16:00:00.000Z",
       "dueAt": "2026-08-25T23:00:00.000Z",
       "createdAt": "2026-08-01T16:00:00.000Z",
@@ -241,6 +304,7 @@
       "title": "Verify analytics events",
       "status": "blocked",
       "priority": "medium",
+      "estimate": 3,
       "dueAt": "2026-08-23T23:00:00.000Z",
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
@@ -296,8 +360,36 @@
       "updatedAt": "2026-08-21T20:00:00.000Z"
     }
   ],
-  "milestones": [],
-  "reflections": [],
+  "milestones": [
+    {
+      "id": "milestone-launch-code-freeze",
+      "projectId": "project-launch",
+      "title": "Code freeze",
+      "targetDate": "2026-08-26",
+      "status": "upcoming",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "reflections": [
+    {
+      "id": "reflection-launch-risk",
+      "projectId": "project-launch",
+      "title": "Launch risk check",
+      "body": "Analytics validation is blocked on production access.",
+      "prompt": "What's blocked?",
+      "createdAt": "2026-08-22T18:00:00.000Z",
+      "updatedAt": "2026-08-22T18:00:00.000Z"
+    },
+    {
+      "id": "reflection-launch-win",
+      "projectId": "project-launch",
+      "body": "Copy approval landed early and reduced the QA surface.",
+      "prompt": "What went well?",
+      "createdAt": "2026-08-21T19:00:00.000Z",
+      "updatedAt": "2026-08-21T19:00:00.000Z"
+    }
+  ],
   "activityEvents": [],
   "agentConnections": []
 }
