@@ -5,6 +5,8 @@ import type { ActorContext } from '../src/actor';
 import { PrototypeClock } from '../src/clock';
 import type { IdGenerator } from '../src/ids';
 import { ActivityService } from '../src/activity-service';
+import { DashboardService } from '../src/dashboard-service';
+import { PrototypeAIProvider } from '../src/prototype-ai-provider';
 import { ProjectService } from '../src/project-service';
 import { ProgressService } from '../src/progress-service';
 import { ReflectionService } from '../src/reflection-service';
@@ -102,6 +104,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument())
     projectService: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
     taskService: new TaskService({ tasks, projects, activity, clock, ids, unitOfWork }),
     progressService: new ProgressService({ projects, tasks }),
+    dashboardService: new DashboardService({ projects, tasks, clock, ai: new PrototypeAIProvider() }),
     timelineService: new TimelineService({ projects, tasks, milestones }),
     reflectionService: new ReflectionService({ reflections, projects, activity, clock, ids, unitOfWork }),
     sectionService: new SectionService({ sections, projects, activity, clock, ids, unitOfWork }),
