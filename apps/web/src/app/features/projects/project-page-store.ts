@@ -21,9 +21,8 @@ const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position 
 /**
  * §19's `ProjectPageStore`, feature-scoped and provided by `ProjectPage` alone (§20).
  *
- * It composes `TaskListStore` rather than fetching tasks itself. That is what makes the
- * header's progress and the Task List section one truth: two fetches would be two answers,
- * and completing a task in the section would leave the header stale until a reload.
+ * It composes `TaskListStore` for the page's shared task data, while header progress comes
+ * from the canonical §39 domain read. Task writes explicitly refresh that independent read.
  *
  * §32's `editMode` is transient page state: it changes chrome, never persistence. A route
  * change resets it so layout affordances do not leak from one project into another.
@@ -57,14 +56,7 @@ export class ProjectPageStore {
   readonly canvasRevision = this.canvasRevisionState.asReadonly();
   readonly progressResult = this.progressState.asReadonly();
 
-  /**
-   * §39's count-based formula — completed / total — over the same unarchived tasks the Task
-   * List section shows. Weighted and manual are §39's other candidates and belong to the
-   * Progress section slice, not to a page header.
-   *
-   * `null`, never `0`, when there is nothing to divide: a project with no tasks and a
-   * project that has not started are different claims, and a failed task load is a third.
-   */
+  /** The selected §39 domain result; `null` means unavailable and remains distinct from 0%. */
   readonly progress = computed<number | null>(() => this.progressState()?.percentage ?? null);
 
   load(projectId: ProjectId): Promise<void> {
@@ -96,8 +88,8 @@ export class ProjectPageStore {
         // The task load is inside the loading window: leaving it outside made the header
         // paint "Not available" for a frame before the real percentage arrived.
         if (current()) {
-          // The task load owns its own error signal. A failing task list must not blank the
-          // header and the other sections — it only makes progress unavailable.
+          // Task and canonical progress reads fail independently: either feature can still
+          // render its own answer when the other request fails.
           await Promise.all([this.tasks.load(projectId), this.refreshProgressFor(projectId, generation)]);
           if (current()) this.loadingState.set(false);
         }

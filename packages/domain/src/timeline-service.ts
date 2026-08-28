@@ -68,7 +68,7 @@ export class TimelineService {
     let frontier = [rootId];
     while (frontier.length > 0) {
       const parents = new Set(frontier);
-      const children = projects.filter(({ id, parentProjectId }) => parentProjectId !== undefined && parents.has(parentProjectId) && !seen.has(id));
+      const children = projects.filter(({ id, parentProjectId, status }) => status !== 'archived' && parentProjectId !== undefined && parents.has(parentProjectId) && !seen.has(id));
       for (const child of children) seen.add(child.id);
       result.push(...children);
       frontier = children.map(({ id }) => id);

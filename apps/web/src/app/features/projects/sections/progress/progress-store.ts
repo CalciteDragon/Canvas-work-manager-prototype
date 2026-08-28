@@ -11,27 +11,34 @@ export class ProgressStore {
   private readonly resultState = signal<ProgressResult | null>(null);
   private readonly loadingState = signal(false);
   private readonly errorState = signal<string | null>(null);
+  private loadGeneration = 0;
   readonly result = this.resultState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
 
   async load(projectId: ProjectId): Promise<void> {
+    const generation = ++this.loadGeneration;
     this.projectIdState.set(projectId);
     this.loadingState.set(true);
     this.errorState.set(null);
-    try { this.resultState.set(await this.gateway.progress.get(projectId)); }
-    catch (error) { this.resultState.set(null); this.errorState.set(messageOf(error)); }
-    finally { this.loadingState.set(false); }
+    try { const result = await this.gateway.progress.get(projectId); if (generation === this.loadGeneration) this.resultState.set(result); }
+    catch (error) { if (generation === this.loadGeneration) { this.resultState.set(null); this.errorState.set(messageOf(error)); } }
+    finally { if (generation === this.loadGeneration) this.loadingState.set(false); }
   }
 
   async setFormula(progressFormula: ProgressFormula, manualProgress?: number): Promise<boolean> {
     const id = this.projectIdState();
     if (id === null) return false;
+    const generation = this.loadGeneration;
     this.errorState.set(null);
-    try {
-      await this.gateway.projects.update(id, { progressFormula, ...(manualProgress === undefined ? {} : { manualProgress }) });
-      this.resultState.set(await this.gateway.progress.get(id));
-      return true;
-    } catch (error) { this.errorState.set(messageOf(error)); return false; }
+    try { await this.gateway.projects.update(id, { progressFormula, ...(manualProgress === undefined ? {} : { manualProgress }) }); }
+    catch (error) {
+      if (id === this.projectIdState() && generation === this.loadGeneration) this.errorState.set(messageOf(error));
+      return false;
+    }
+    if (id !== this.projectIdState() || generation !== this.loadGeneration) return true;
+    try { const result = await this.gateway.progress.get(id); if (id === this.projectIdState() && generation === this.loadGeneration) this.resultState.set(result); }
+    catch (error) { if (id === this.projectIdState() && generation === this.loadGeneration) this.errorState.set(messageOf(error)); }
+    return true;
   }
 }

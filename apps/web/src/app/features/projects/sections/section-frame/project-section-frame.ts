@@ -40,6 +40,7 @@ export class ProjectSectionFrame {
   readonly section = input.required<ProjectSection>();
   readonly definition = input.required<SectionDefinition>();
   readonly editMode = input.required<boolean>();
+  readonly projectDataRevision = input.required<number>();
 
   readonly collapseToggled = output<{ id: SectionId; collapsed: boolean }>();
   readonly resized = output<{ id: SectionId; columnSpan: SectionColumnSpan }>();
@@ -69,6 +70,7 @@ export class ProjectSectionFrame {
     section: this.section(),
     onConfigChange: this.emitConfig,
     onProjectDataChange: this.emitProjectDataChange,
+    projectDataRevision: this.projectDataRevision(),
   }));
 
   constructor() {

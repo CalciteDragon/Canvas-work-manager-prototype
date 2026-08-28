@@ -41,6 +41,7 @@ class TestContent {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();
   readonly onProjectDataChange = input.required<() => void>();
+  readonly projectDataRevision = input.required<number>();
 
   constructor() {
     effect(() => {
@@ -62,6 +63,7 @@ class TestInspector {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();
   readonly onProjectDataChange = input.required<() => void>();
+  readonly projectDataRevision = input.required<number>();
 }
 
 const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({
@@ -83,6 +85,7 @@ const render = (
   fixture.componentRef.setInput('section', section(overrides));
   fixture.componentRef.setInput('definition', definition(definitionOverrides));
   fixture.componentRef.setInput('editMode', editMode);
+  fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.detectChanges();
   return fixture;
 };

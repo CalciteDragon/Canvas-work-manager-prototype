@@ -59,12 +59,19 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         id: 'project-created' as ProjectId,
         targetDate: input.targetDate ?? undefined,
       })),
-    update: (id, input) =>
-      this.answer(
+    update: (id, input) => {
+      const answer = this.answer(
         'projects.update',
         { id, input },
         applyProjectUpdate(this.find(this.options.projects, id, 'project'), input),
-      ),
+      );
+      return answer.then((updated) => {
+        if (input.progressFormula !== undefined && this.options.progress !== undefined) {
+          this.options.progress = fakeProgress(updated.id, input.progressFormula, input.manualProgress ?? undefined, this.options.tasks ?? []);
+        }
+        return updated;
+      });
+    },
   };
 
   readonly progress = {
@@ -195,6 +202,19 @@ const applyProjectUpdate = (project: Project, input: UpdateProjectInput): Projec
     else Object.assign(next, { [key]: value });
   }
   return next;
+};
+
+const fakeProgress = (projectId: ProjectId, formula: ProgressResult['formula'], manualProgress: number | undefined, tasks: Task[]): ProgressResult => {
+  if (formula === 'manual') {
+    const percentage = manualProgress ?? 0;
+    return { projectId, formula, percentage, completed: percentage, total: 100, explanation: `${percentage}% entered manually` };
+  }
+  const included = tasks.filter((task) => task.projectId === projectId && task.archivedAt === undefined);
+  const weight = (task: Task) => formula === 'weighted' ? task.estimate ?? 1 : 1;
+  const total = included.reduce((sum, task) => sum + weight(task), 0);
+  const completed = included.filter(({ status }) => status === 'done').reduce((sum, task) => sum + weight(task), 0);
+  const label = formula === 'weighted' ? 'estimate points' : 'tasks';
+  return { projectId, formula, percentage: total === 0 ? null : Math.round(completed / total * 100), completed, total, explanation: total === 0 ? 'No tasks to measure' : `${completed} of ${total} ${label} complete` };
 };
 
 /** An `IdentityProvider` that answers whatever the spec hands it. */

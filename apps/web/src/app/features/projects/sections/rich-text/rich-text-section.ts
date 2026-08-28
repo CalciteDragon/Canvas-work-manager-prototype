@@ -17,6 +17,7 @@ export class RichTextSection {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();
   readonly onProjectDataChange = input.required<() => void>();
+  readonly projectDataRevision = input.required<number>();
 
   readonly text = computed(() => readRichTextConfig(this.section().config).text);
 

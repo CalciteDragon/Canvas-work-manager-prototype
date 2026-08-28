@@ -228,6 +228,41 @@ describe('ProjectPage (§26)', () => {
     expect(lists[1]!.querySelectorAll('[data-task-row][aria-busy="false"]')).toHaveLength(2);
   });
 
+  it('reloads every duplicated Progress section after one changes the canonical formula', async () => {
+    const { fixture, gateway } = await render({
+      tasks: [
+        TaskSchema.parse({ ...task('task-1', 'done'), estimate: 2 }),
+        TaskSchema.parse({ ...task('task-2', 'todo'), estimate: 8 }),
+      ],
+      sections: [
+        section('section-progress', 'progress', 0),
+        section('section-progress-copy', 'progress', 1),
+      ],
+    });
+    const before = gateway.calls.filter(({ method }) => method === 'progress.get').length;
+    const progressSections = queryAll(fixture, '[data-section-frame][data-section-type="progress"]');
+
+    const weighted = [...progressSections[0]!.querySelectorAll<HTMLButtonElement>('button')]
+      .find((button) => button.textContent?.trim() === 'Weighted');
+    expect(weighted).toBeDefined();
+    weighted!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const after = gateway.calls.filter(({ method }) => method === 'progress.get').length;
+    expect(after - before).toBeGreaterThanOrEqual(4);
+    expect(progressSections.map((region) =>
+      [...region.querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.textContent?.trim() === 'Weighted')
+        ?.getAttribute('aria-pressed'),
+    )).toEqual(['true', 'true']);
+    expect(progressSections.map((region) => region.textContent)).toEqual([
+      expect.stringContaining('2 of 10 estimate points complete'),
+      expect.stringContaining('2 of 10 estimate points complete'),
+    ]);
+    expect(query(fixture, '[data-project-progress]')?.textContent).toContain('20%');
+  });
+
   it('shows a not-found project as a visible message rather than an empty canvas', async () => {
     const { fixture } = await render({
       failWith: new GatewayError('not_found', 404, 'no such project'),

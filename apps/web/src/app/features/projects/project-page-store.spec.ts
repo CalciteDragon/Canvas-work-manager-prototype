@@ -174,6 +174,7 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
     readonly section = undefined;
     readonly onConfigChange = undefined;
     readonly onProjectDataChange = undefined;
+    readonly projectDataRevision = undefined;
   },
   ...overrides,
 });

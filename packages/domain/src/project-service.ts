@@ -56,6 +56,10 @@ export class ProjectService {
       throw new DomainRuleError('a project can only be created in the actor\u2019s own workspace');
     }
 
+    if (input.progressFormula === 'manual' && input.manualProgress === undefined) {
+      throw new DomainRuleError('manual progress requires a value from 0 to 100');
+    }
+
     return this.dependencies.unitOfWork.run(async () => {
       if (input.parentProjectId !== undefined) await this.get(actor, input.parentProjectId);
 

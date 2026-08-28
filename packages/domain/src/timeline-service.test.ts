@@ -1,6 +1,7 @@
 import { MilestoneSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import { buildHarness, MINE } from '../test/test-support';
+import { EntityNotFoundError } from './errors';
+import { buildHarness, MINE, THEIRS } from '../test/test-support';
 
 describe('TimelineService', () => {
   it('uses a deadline marker until an earlier dated descendant establishes a range', async () => {
@@ -25,5 +26,39 @@ describe('TimelineService', () => {
     const harness = buildHarness();
     await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Backwards', startAt: '2026-09-10T09:00:00.000Z', dueAt: '2026-09-05T17:00:00.000Z' });
     expect((await harness.timelineService.derive(harness.actor, MINE)).items.find(({ title }) => title === 'Backwards')).toMatchObject({ startDate: '2026-09-05', endDate: '2026-09-10', invalidRange: true });
+  });
+
+  it('keeps a target marker when descendant dates are equal to or later than the target', async () => {
+    const harness = buildHarness();
+    await harness.projectService.update(harness.actor, MINE, { targetDate: '2026-09-30' });
+    await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Same day', dueAt: '2026-09-30T17:00:00.000Z' });
+    await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Later', dueAt: '2026-10-02T17:00:00.000Z' });
+
+    expect((await harness.timelineService.derive(harness.actor, MINE)).items.find(({ kind }) => kind === 'project')).toMatchObject({ startDate: '2026-09-30', endDate: '2026-09-30' });
+  });
+
+  it('does not fabricate a project row without a target or dated child work', async () => {
+    const harness = buildHarness();
+
+    expect((await harness.timelineService.derive(harness.actor, MINE)).items).toEqual([]);
+  });
+
+  it('excludes archived descendants and everything nested beneath them', async () => {
+    const harness = buildHarness();
+    await harness.projectService.update(harness.actor, MINE, { targetDate: '2026-09-30' });
+    const child = await harness.projectService.create(harness.actor, { workspaceId: harness.actor.workspaceId, parentProjectId: MINE, name: 'Archived child', targetDate: '2026-08-20' });
+    await harness.taskService.create(harness.actor, { projectId: child.id, title: 'Hidden task', dueAt: '2026-08-18T17:00:00.000Z' });
+    await harness.milestones.insert(MilestoneSchema.parse({ id: 'milestone-hidden', projectId: child.id, title: 'Hidden milestone', targetDate: '2026-08-19', status: 'upcoming', createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z' }));
+    await harness.projectService.archive(harness.actor, child.id);
+
+    const result = await harness.timelineService.derive(harness.actor, MINE);
+    expect(result.items.map(({ title }) => title)).toEqual(['Project project-mine']);
+    expect(result.items[0]).toMatchObject({ startDate: '2026-09-30', endDate: '2026-09-30' });
+  });
+
+  it('treats a foreign root as missing', async () => {
+    const harness = buildHarness();
+
+    await expect(harness.timelineService.derive(harness.actor, THEIRS)).rejects.toBeInstanceOf(EntityNotFoundError);
   });
 });

@@ -154,10 +154,11 @@
                   [section]="section"
                   [definition]="definition"
                   [editMode]="store.editMode()"
+                  [projectDataRevision]="projectDataRevision()"
                   (collapseToggled)="collapse($event)"
                   (resized)="resize($event)"
                   (configChanged)="saveConfig($event)"
-                  (projectDataChanged)="store.refreshProgress()"
+                  (projectDataChanged)="projectDataChanged()"
                   (duplicateRequested)="store.duplicateSection($event)"
                   (removeRequested)="store.removeSection($event)"
                 />

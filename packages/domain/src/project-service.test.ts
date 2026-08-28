@@ -47,6 +47,13 @@ describe('ProjectService.create', () => {
     await expect(create(harness, { parentProjectId: 'project-nope' })).rejects.toBeInstanceOf(EntityNotFoundError);
     await expect(create(harness, { parentProjectId: THEIRS })).rejects.toBeInstanceOf(EntityNotFoundError);
   });
+
+  it('requires a manual value when created in manual mode', async () => {
+    const harness = buildHarness();
+
+    await expect(create(harness, { progressFormula: 'manual' })).rejects.toBeInstanceOf(DomainRuleError);
+    expect(await harness.projectService.list(harness.actor)).toHaveLength(1);
+  });
 });
 
 describe('ProjectService nesting rules', () => {

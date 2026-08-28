@@ -12,6 +12,7 @@ import type { ProjectId, SectionColumnSpan, SectionConfig, SectionId } from '@cw
 import { TaskListStore } from '../tasks/task-list-store';
 import { ProjectPageStore } from './project-page-store';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
+import { ProgressStore } from './sections/progress/progress-store';
 import { SECTION_REGISTRY, definitionFor } from './sections/registry';
 
 /**
@@ -20,14 +21,14 @@ import { SECTION_REGISTRY, definitionFor } from './sections/registry';
  * "Project Navigation / Controls" row waits for them, because the mode toggle and the
  * layout switch are what it exists to hold.
  *
- * **Both stores are provided here and nowhere else.** A second `TaskListStore` would give
- * the header's progress and the Task List section two different sets of tasks.
+ * Shared-data section stores are page-scoped: duplicate Task List or Progress sections must
+ * show one project answer rather than drifting as independent component instances.
  */
 @Component({
   selector: 'app-project-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkDrag, CdkDragHandle, CdkDropList, ProjectSectionFrame],
-  providers: [TaskListStore, ProjectPageStore],
+  providers: [TaskListStore, ProgressStore, ProjectPageStore],
   templateUrl: './project-page.html',
   styleUrl: './project-page.scss',
 })
@@ -39,6 +40,7 @@ export class ProjectPage {
   readonly registry = SECTION_REGISTRY;
   readonly addOpen = signal(false);
   readonly canvasMounted = signal(true);
+  readonly projectDataRevision = signal(0);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
   constructor() {
@@ -98,5 +100,10 @@ export class ProjectPage {
 
   saveConfig(event: { id: SectionId; config: SectionConfig }): void {
     void this.store.updateConfig(event.id, event.config);
+  }
+
+  projectDataChanged(): void {
+    this.projectDataRevision.update((revision) => revision + 1);
+    void this.store.refreshProgress();
   }
 }
