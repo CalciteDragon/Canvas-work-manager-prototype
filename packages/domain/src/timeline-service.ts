@@ -1,6 +1,6 @@
 import { TimelineResultSchema, type Project, type ProjectId, type TimelineItem, type TimelineResult } from '@cwm/contracts';
 import type { MilestoneRepository, ProjectRepository, TaskRepository } from '@cwm/repositories';
-import type { ActorContext } from './actor';
+import { assertPermitted, type ActorContext } from './actor';
 import { EntityNotFoundError } from './errors';
 
 export interface TimelineServiceDependencies {
@@ -15,6 +15,7 @@ export class TimelineService {
   constructor(private readonly dependencies: TimelineServiceDependencies) {}
 
   async derive(actor: ActorContext, projectId: ProjectId): Promise<TimelineResult> {
+    assertPermitted(actor, 'projects.read');
     const projects = await this.dependencies.projects.list({ workspaceId: actor.workspaceId });
     const root = projects.find(({ id }) => id === projectId);
     if (root === undefined) throw new EntityNotFoundError('project', projectId);

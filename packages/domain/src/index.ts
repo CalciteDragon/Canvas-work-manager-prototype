@@ -1,5 +1,6 @@
 export * from './activity-service';
 export * from './actor';
+export * from './agent-connection-service';
 export * from './ai-provider';
 export * from './dashboard-service';
 export * from './calendar';

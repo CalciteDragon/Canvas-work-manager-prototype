@@ -9,7 +9,7 @@ import {
   type UpdateTaskInput,
 } from '@cwm/contracts';
 import type { ProjectRepository, TaskRepository, UnitOfWork } from '@cwm/repositories';
-import { assertValidActor, type ActorContext } from './actor';
+import { assertPermitted, assertValidActor, type ActorContext } from './actor';
 import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
@@ -37,6 +37,18 @@ export class TaskService {
   constructor(private readonly dependencies: TaskServiceDependencies) {}
 
   async get(actor: ActorContext, id: TaskId): Promise<Task> {
+    assertPermitted(actor, 'tasks.read');
+    return this.require(actor, id);
+  }
+
+  /**
+   * The same lookup without the permission check.
+   *
+   * A grant of `tasks.write` alone has to be usable: an agent that could complete a task
+   * but not read one would fail on the lookup inside its own `complete`. Reads a *caller*
+   * asked for are checked; reads a write does on its own behalf are not.
+   */
+  private async require(actor: ActorContext, id: TaskId): Promise<Task> {
     const task = await this.dependencies.tasks.find(id);
     if (task === null) throw new EntityNotFoundError('task', id);
     // A task in a foreign workspace is "not found": 409 would confirm it exists.
@@ -51,8 +63,9 @@ export class TaskService {
    * with `get`, and it stops the UI rendering "no tasks" for a typo or a foreign id.
    */
   async list(actor: ActorContext, query: TaskQuery = {}): Promise<Task[]> {
+    assertPermitted(actor, 'tasks.read');
     if (query.projectId !== undefined) await this.assertProjectVisible(actor, query.projectId);
-    if (query.parentTaskId !== undefined) await this.get(actor, query.parentTaskId);
+    if (query.parentTaskId !== undefined) await this.require(actor, query.parentTaskId);
 
     const projects = await this.dependencies.projects.list({ workspaceId: actor.workspaceId });
     const visible = new Set(projects.map((project) => project.id));
@@ -62,11 +75,12 @@ export class TaskService {
 
   async create(actor: ActorContext, input: CreateTaskInput): Promise<Task> {
     assertValidActor(actor);
+    assertPermitted(actor, 'tasks.write');
 
     return this.dependencies.unitOfWork.run(async () => {
       await this.assertProjectVisible(actor, input.projectId);
       if (input.parentTaskId !== undefined) {
-        const parent = await this.get(actor, input.parentTaskId);
+        const parent = await this.require(actor, input.parentTaskId);
         // The document requires a subtask to share its parent's project.
         if (parent.projectId !== input.projectId) {
           throw new DomainRuleError('a subtask must live in the same project as its parent');
@@ -99,9 +113,10 @@ export class TaskService {
 
   async update(actor: ActorContext, id: TaskId, input: UpdateTaskInput): Promise<Task> {
     assertValidActor(actor);
+    assertPermitted(actor, 'tasks.write');
 
     return this.dependencies.unitOfWork.run(async () => {
-      const current = await this.get(actor, id);
+      const current = await this.require(actor, id);
       // Move-to-project belongs to Slice 20, with the parent/child semantics that make it
       // hard. Refusing beats dropping `projectId` from the contract: these schemas are not
       // strict, so a removed field would be silently stripped and answered 200.
@@ -141,9 +156,10 @@ export class TaskService {
   /** Idempotent, per §34's inline completion: completing a done task records nothing. */
   async complete(actor: ActorContext, id: TaskId): Promise<Task> {
     assertValidActor(actor);
+    assertPermitted(actor, 'tasks.write');
 
     return this.dependencies.unitOfWork.run(async () => {
-      const current = await this.get(actor, id);
+      const current = await this.require(actor, id);
       if (current.archivedAt !== undefined) throw new DomainRuleError('an archived task cannot be completed');
       if (current.status === 'done') return current;
 
@@ -160,9 +176,10 @@ export class TaskService {
    */
   async archive(actor: ActorContext, id: TaskId): Promise<Task> {
     assertValidActor(actor);
+    assertPermitted(actor, 'tasks.write');
 
     return this.dependencies.unitOfWork.run(async () => {
-      const current = await this.get(actor, id);
+      const current = await this.require(actor, id);
       if (current.archivedAt !== undefined) return current;
 
       const archivedAt = this.dependencies.clock.now().toISOString();
@@ -206,7 +223,7 @@ export class TaskService {
     while (ancestor !== undefined) {
       if (seen.has(ancestor)) throw new DomainRuleError('a task cannot be nested inside itself');
       seen.add(ancestor);
-      const parent: Task = await this.get(actor, ancestor);
+      const parent: Task = await this.require(actor, ancestor);
       if (parent.projectId !== task.projectId) {
         throw new DomainRuleError('a subtask must live in the same project as its parent');
       }

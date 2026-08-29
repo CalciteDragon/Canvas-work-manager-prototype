@@ -3,11 +3,20 @@ import {
   type ActivityAction,
   type ActivityEntityType,
   type ActivityEvent,
+  type ActivityFeedEntry,
   type ActivityQuery,
   type ProjectId,
 } from '@cwm/contracts';
-import type { ActivityRepository } from '@cwm/repositories';
-import type { ActorContext } from './actor';
+import type {
+  ActivityRepository,
+  AgentConnectionRepository,
+  MilestoneRepository,
+  ProjectRepository,
+  ReflectionRepository,
+  TaskRepository,
+  UserRepository,
+} from '@cwm/repositories';
+import { assertPermitted, type ActorContext } from './actor';
 import type { Clock } from './clock';
 import type { IdGenerator } from './ids';
 
@@ -29,7 +38,20 @@ export interface ActivityServiceDependencies {
   activities: ActivityRepository;
   clock: Clock;
   ids: IdGenerator;
+  /**
+   * Read-only, and only for `list`: resolving the names §57's card renders. `record` uses
+   * none of them, which is why it stays cheap enough to run inside every mutation.
+   */
+  projects: ProjectRepository;
+  agents: AgentConnectionRepository;
+  users: UserRepository;
+  tasks: TaskRepository;
+  milestones: MilestoneRepository;
+  reflections: ReflectionRepository;
 }
+
+/** What a system action is called on screen. §57 gives it no name of its own. */
+const SYSTEM_ACTOR_NAME = 'System';
 
 /**
  * Every mutation produces one attributable event (§57). `record` never opens a unit of
@@ -39,6 +61,12 @@ export interface ActivityServiceDependencies {
 export class ActivityService {
   constructor(private readonly dependencies: ActivityServiceDependencies) {}
 
+  /**
+   * Deliberately **not** permission-checked. Every caller is a domain service that has
+   * already authorized the mutation this event describes, and it runs inside that
+   * mutation's unit of work. Nothing reaches it from a transport: the host exposes `list`
+   * only, and Slice 14's tools call the services, never this.
+   */
   async record(actor: ActorContext, entry: ActivityEntry): Promise<ActivityEvent> {
     const { activities, clock, ids } = this.dependencies;
     const event = {
@@ -60,11 +88,19 @@ export class ActivityService {
   }
 
   /**
-   * Newest first. The tie-break is explicit because the clock is settable and two events
-   * in one millisecond are ordinary: a plain stable sort would leave equal timestamps in
+   * §57's feed, newest first, with every name it renders already resolved.
+   *
+   * The names are read **now**, not taken from the event's frozen `summary`: rename a task
+   * and the feed shows its current title, which is what
+   * docs/decisions/2026-08-activity-feed-composes-from-parts.md settles.
+   *
+   * The tie-break is explicit because the clock is settable and two events in one
+   * millisecond are ordinary: a plain stable sort would leave equal timestamps in
    * *insertion* order, which reads as oldest-first inside the tie.
    */
-  async list(actor: ActorContext, query: ActivityQuery = {}): Promise<ActivityEvent[]> {
+  async list(actor: ActorContext, query: ActivityQuery = {}): Promise<ActivityFeedEntry[]> {
+    assertPermitted(actor, 'workspace.read');
+
     const events = await this.dependencies.activities.list(
       // `limit` truncates the scoped, sorted result, so it cannot be pushed down here.
       query.projectId === undefined ? {} : { projectId: query.projectId },
@@ -79,6 +115,61 @@ export class ActivityService {
       )
       .map(({ event }) => event);
 
-    return query.limit === undefined ? ordered : ordered.slice(0, query.limit);
+    const limited = query.limit === undefined ? ordered : ordered.slice(0, query.limit);
+    return Promise.all(limited.map((event) => this.resolve(event)));
+  }
+
+  private async resolve(event: ActivityEvent): Promise<ActivityFeedEntry> {
+    const [actorName, entityTitle, projectName] = await Promise.all([
+      this.actorName(event),
+      this.entityTitle(event),
+      this.projectName(event),
+    ]);
+
+    return {
+      ...event,
+      actorName,
+      ...(entityTitle === undefined ? {} : { entityTitle }),
+      ...(projectName === undefined ? {} : { projectName }),
+    };
+  }
+
+  private async actorName(event: ActivityEvent): Promise<string> {
+    if (event.actor === 'system') return SYSTEM_ACTOR_NAME;
+    if (event.actor === 'agent') {
+      const connection = await this.dependencies.agents.find(event.actorAgentConnectionId!);
+      // The store rejects a document whose event names a missing connection, so this
+      // fallback is unreachable through persistence — it exists so the feed degrades to an
+      // id rather than crashing on a fixture or a half-built document.
+      return connection?.name ?? event.actorAgentConnectionId!;
+    }
+    const user = await this.dependencies.users.find(event.actorUserId!);
+    return user?.name ?? event.actorUserId!;
+  }
+
+  private async entityTitle(event: ActivityEvent): Promise<string | undefined> {
+    const { projects, tasks, milestones, reflections, agents } = this.dependencies;
+    switch (event.entityType) {
+      case 'project':
+        return (await projects.find(event.entityId as never))?.name;
+      case 'task':
+        return (await tasks.find(event.entityId as never))?.title;
+      case 'milestone':
+        return (await milestones.find(event.entityId as never))?.title;
+      case 'reflection':
+        return (await reflections.find(event.entityId as never))?.title;
+      case 'agent_connection':
+        return (await agents.find(event.entityId as never))?.name;
+      case 'section':
+        // A section has no title of its own — §31's frame heads it from the *registry's*
+        // display name, which is a UI concern the domain has no business guessing. The
+        // card falls back to the action verb, which is all a section event ever said.
+        return undefined;
+    }
+  }
+
+  private async projectName(event: ActivityEvent): Promise<string | undefined> {
+    if (event.projectId === undefined) return undefined;
+    return (await this.dependencies.projects.find(event.projectId))?.name;
   }
 }

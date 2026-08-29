@@ -1,6 +1,6 @@
 import { ProgressResultSchema, type ProgressResult, type ProjectId } from '@cwm/contracts';
 import type { ProjectRepository, TaskRepository } from '@cwm/repositories';
-import type { ActorContext } from './actor';
+import { assertPermitted, type ActorContext } from './actor';
 import { EntityNotFoundError } from './errors';
 
 export interface ProgressServiceDependencies {
@@ -13,6 +13,7 @@ export class ProgressService {
   constructor(private readonly dependencies: ProgressServiceDependencies) {}
 
   async calculate(actor: ActorContext, projectId: ProjectId): Promise<ProgressResult> {
+    assertPermitted(actor, 'projects.read');
     const project = await this.dependencies.projects.find(projectId);
     if (project === null || project.workspaceId !== actor.workspaceId) {
       throw new EntityNotFoundError('project', projectId);

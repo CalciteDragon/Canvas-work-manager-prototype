@@ -1,7 +1,7 @@
 import { ProjectSchema, type ProjectId } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import { buildHarness, MINE, THEIRS } from '../test/test-support';
-import { DomainRuleError, EntityNotFoundError } from './errors';
+import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
 
 const NOW = '2026-08-24T16:00:00.000Z';
 
@@ -210,5 +210,36 @@ describe('ProjectService cycle walk termination', () => {
         new Promise((_, reject) => setTimeout(() => reject(new Error('walk did not terminate')), 1000)),
       ]),
     ).rejects.toBeInstanceOf(DomainRuleError);
+  });
+});
+
+describe('ProjectService permissions (§51, §53)', () => {
+  it('refuses a read from an agent without projects.read', async () => {
+    const harness = buildHarness();
+
+    await expect(harness.projectService.list(agentActorFor(0, ['tasks.read']))).rejects.toThrow(PermissionDeniedError);
+    await expect(harness.projectService.get(agentActorFor(0, ['tasks.read']), MINE)).rejects.toThrow(
+      PermissionDeniedError,
+    );
+  });
+
+  it('refuses a write from an agent granted only reads', async () => {
+    const harness = buildHarness();
+    const agent = agentActorFor(0, ['projects.read']);
+
+    await expect(
+      harness.projectService.create(agent, { workspaceId: harness.actor.workspaceId, name: 'New' }),
+    ).rejects.toThrow('connection "agent-claude" is missing permission "projects.write"');
+    await expect(harness.projectService.update(agent, MINE, { name: 'Renamed' })).rejects.toThrow(
+      PermissionDeniedError,
+    );
+  });
+
+  it('lets an agent with projects.write archive without also holding projects.read', async () => {
+    const harness = buildHarness();
+
+    const archived = await harness.projectService.archive(agentActorFor(0, ['projects.write']), MINE);
+
+    expect(archived.status).toBe('archived');
   });
 });

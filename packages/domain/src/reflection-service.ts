@@ -8,7 +8,7 @@ import {
   type UpdateReflectionInput,
 } from '@cwm/contracts';
 import type { ProjectRepository, ReflectionRepository, UnitOfWork } from '@cwm/repositories';
-import { assertValidActor, type ActorContext } from './actor';
+import { assertPermitted, assertValidActor, type ActorContext } from './actor';
 import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { EntityNotFoundError } from './errors';
@@ -27,6 +27,7 @@ export class ReflectionService {
   constructor(private readonly dependencies: ReflectionServiceDependencies) {}
 
   async list(actor: ActorContext, projectId: ProjectId): Promise<Reflection[]> {
+    assertPermitted(actor, 'reflections.read');
     await this.assertProjectVisible(actor, projectId);
     return (await this.dependencies.reflections.list({ projectId })).sort((a, b) =>
       b.createdAt === a.createdAt ? b.id.localeCompare(a.id) : b.createdAt.localeCompare(a.createdAt),
@@ -35,6 +36,7 @@ export class ReflectionService {
 
   async create(actor: ActorContext, input: CreateReflectionInput): Promise<Reflection> {
     assertValidActor(actor);
+    assertPermitted(actor, 'reflections.write');
     return this.dependencies.unitOfWork.run(async () => {
       await this.assertProjectVisible(actor, input.projectId);
       const now = this.dependencies.clock.now().toISOString();
@@ -52,6 +54,7 @@ export class ReflectionService {
 
   async update(actor: ActorContext, id: ReflectionId, input: UpdateReflectionInput): Promise<Reflection> {
     assertValidActor(actor);
+    assertPermitted(actor, 'reflections.write');
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.get(actor, id);
       const next = { ...current };

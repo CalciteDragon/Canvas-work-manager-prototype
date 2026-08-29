@@ -29,9 +29,11 @@ export type ActivityAction = z.infer<typeof ActivityActionSchema>;
 
 /**
  * The event's own fields, **exported** so `ActivityFeedEntrySchema` below can extend them.
- * `ActivityEventSchema` is a `superRefine` wrapper, and a refined schema in Zod 4 is no
- * longer an object type — there is nothing on it to `.extend()`. Both schemas are built
- * from this shape and share `assertActorIsAttributable`, so the two can never drift.
+ *
+ * Extending the *refined* `ActivityEventSchema` would also compile — Zod 4's `superRefine`
+ * returns the same object schema — but it would run the attribution check twice on every
+ * feed entry, and it would hide which schema the rule belongs to. Both schemas are built
+ * from this one shape and share `assertActorIsAttributable`, so the two cannot drift.
  */
 export const ActivityEventShape = z.object({
   id: ActivityEventIdSchema,

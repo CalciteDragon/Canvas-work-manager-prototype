@@ -1,7 +1,7 @@
 import { TaskSchema, type TaskId } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import { buildHarness, MINE, THEIRS } from '../test/test-support';
-import { DomainRuleError, EntityNotFoundError } from './errors';
+import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
 
 const NOW = '2026-08-24T16:00:00.000Z';
 const LATER = new Date('2026-08-25T09:00:00.000Z');
@@ -308,5 +308,83 @@ describe('TaskService parent and archive guards', () => {
     await harness.taskService.archive(harness.actor, task.id);
 
     expect((await harness.taskService.update(harness.actor, task.id, { title: 'Renamed' })).title).toBe('Renamed');
+  });
+});
+
+describe('TaskService permissions (§51, §53)', () => {
+  it('refuses a create from an agent that was never granted tasks.write', async () => {
+    const harness = buildHarness();
+    const agent = agentActorFor(0, ['tasks.read']);
+
+    await expect(harness.taskService.create(agent, { projectId: MINE, title: 'Configure deployment' })).rejects.toThrow(
+      'connection "agent-claude" is missing permission "tasks.write"',
+    );
+  });
+
+  it('refuses a complete from the same agent', async () => {
+    const harness = buildHarness();
+    const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Configure deployment' });
+
+    await expect(harness.taskService.complete(agentActorFor(0, ['tasks.read']), task.id)).rejects.toThrow(
+      PermissionDeniedError,
+    );
+  });
+
+  it('leaves nothing behind when a write is denied — no task, no event, no persist', async () => {
+    const harness = buildHarness();
+    const persistsBefore = harness.store.persistCalls;
+
+    await expect(
+      harness.taskService.create(agentActorFor(0, []), { projectId: MINE, title: 'Never created' }),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(await harness.tasks.list()).toEqual([]);
+    expect(await harness.activities.list()).toEqual([]);
+    expect(harness.store.persistCalls).toBe(persistsBefore);
+  });
+
+  it('refuses a read from an agent granted only writes', async () => {
+    const harness = buildHarness();
+
+    await expect(harness.taskService.list(agentActorFor(0, ['tasks.write']))).rejects.toThrow(PermissionDeniedError);
+  });
+
+  /**
+   * The reason `require` exists. A write path looks its own target up; if that lookup were
+   * the permission-checked `get`, `tasks.write` alone would be unusable — every create,
+   * complete and archive would demand `tasks.read` it was never given.
+   */
+  it('lets an agent with tasks.write but no tasks.read still create, complete and archive', async () => {
+    const harness = buildHarness();
+    const agent = agentActorFor(0, ['tasks.write']);
+
+    const created = await harness.taskService.create(agent, { projectId: MINE, title: 'Configure deployment' });
+    const completed = await harness.taskService.complete(agent, created.id);
+    const archived = await harness.taskService.archive(agent, created.id);
+
+    expect(completed.status).toBe('done');
+    expect(archived.archivedAt).toBeDefined();
+  });
+
+  it('creates a subtask without needing tasks.read for the parent lookup', async () => {
+    const harness = buildHarness();
+    const parent = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Parent' });
+
+    const child = await harness.taskService.create(agentActorFor(0, ['tasks.write']), {
+      projectId: MINE,
+      title: 'Child',
+      parentTaskId: parent.id,
+    });
+
+    expect(child.parentTaskId).toBe(parent.id);
+  });
+
+  it('attributes an agent’s write to the connection that made it (§57)', async () => {
+    const harness = buildHarness();
+
+    await harness.taskService.create(agentActorFor(0, ['tasks.write']), { projectId: MINE, title: 'By Claude' });
+
+    const [event] = await harness.activity.list(harness.actor);
+    expect(event).toMatchObject({ actor: 'agent', actorAgentConnectionId: 'agent-claude', actorName: 'Claude' });
   });
 });

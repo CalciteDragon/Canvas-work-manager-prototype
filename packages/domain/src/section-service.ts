@@ -8,7 +8,7 @@ import {
   type UpdateSectionInput,
 } from '@cwm/contracts';
 import type { ProjectRepository, SectionRepository, UnitOfWork } from '@cwm/repositories';
-import { assertValidActor, type ActorContext } from './actor';
+import { assertPermitted, assertValidActor, type ActorContext } from './actor';
 import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { EntityNotFoundError } from './errors';
@@ -51,6 +51,12 @@ export class SectionService {
   constructor(private readonly dependencies: SectionServiceDependencies) {}
 
   async get(actor: ActorContext, id: SectionId): Promise<ProjectSection> {
+    assertPermitted(actor, 'projects.read');
+    return this.require(actor, id);
+  }
+
+  /** The unchecked lookup the write paths use — see `ProjectService.require`. */
+  private async require(actor: ActorContext, id: SectionId): Promise<ProjectSection> {
     const section = await this.dependencies.sections.find(id);
     if (section === null) throw new EntityNotFoundError('section', id);
     // A section in a foreign workspace is "not found": 409 would confirm it exists.
@@ -59,12 +65,14 @@ export class SectionService {
   }
 
   async list(actor: ActorContext, projectId: ProjectId): Promise<ProjectSection[]> {
+    assertPermitted(actor, 'projects.read');
     await this.assertProjectVisible(actor, projectId);
     return this.ordered(projectId);
   }
 
   async add(actor: ActorContext, projectId: ProjectId, input: CreateSectionInput): Promise<ProjectSection> {
     assertValidActor(actor);
+    assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
       await this.assertProjectVisible(actor, projectId);
@@ -97,9 +105,10 @@ export class SectionService {
 
   async update(actor: ActorContext, id: SectionId, input: UpdateSectionInput): Promise<ProjectSection> {
     assertValidActor(actor);
+    assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
-      const current = await this.get(actor, id);
+      const current = await this.require(actor, id);
       const next = { ...current };
       apply(next, 'title', input.title);
       apply(next, 'columnSpan', input.columnSpan);
@@ -119,9 +128,10 @@ export class SectionService {
    */
   async move(actor: ActorContext, id: SectionId, position: number): Promise<ProjectSection> {
     assertValidActor(actor);
+    assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
-      const current = await this.get(actor, id);
+      const current = await this.require(actor, id);
       const siblings = await this.ordered(current.projectId);
       const without = siblings.filter((section) => section.id !== id);
       // Clamped, not rejected: a caller that asks for "last" by overshooting means last.
@@ -129,7 +139,7 @@ export class SectionService {
       without.splice(target, 0, current);
 
       await this.renumber(without);
-      const moved = await this.get(actor, id);
+      const moved = await this.require(actor, id);
       if (moved.position === current.position) return current;
       await this.record(actor, moved, 'project.section_moved', 'Moved');
       return moved;
@@ -139,9 +149,10 @@ export class SectionService {
   /** §31's duplicate: the same type and a copy of the config, directly below the original. */
   async duplicate(actor: ActorContext, id: SectionId): Promise<ProjectSection> {
     assertValidActor(actor);
+    assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
-      const current = await this.get(actor, id);
+      const current = await this.require(actor, id);
       const siblings = await this.ordered(current.projectId);
 
       const now = this.dependencies.clock.now().toISOString();
@@ -166,7 +177,7 @@ export class SectionService {
       await this.renumber(reordered);
 
       await this.record(actor, copy, 'project.section_added', 'Duplicated');
-      return this.get(actor, copy.id);
+      return this.require(actor, copy.id);
     });
   }
 
@@ -177,9 +188,10 @@ export class SectionService {
    */
   async remove(actor: ActorContext, id: SectionId): Promise<void> {
     assertValidActor(actor);
+    assertPermitted(actor, 'projects.write');
 
     await this.dependencies.unitOfWork.run(async () => {
-      const current = await this.get(actor, id);
+      const current = await this.require(actor, id);
       await this.dependencies.sections.remove(id);
       await this.renumber((await this.ordered(current.projectId)).filter((section) => section.id !== id));
       await this.record(actor, current, 'project.section_removed', 'Removed');

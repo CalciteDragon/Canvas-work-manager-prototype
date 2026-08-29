@@ -8,7 +8,8 @@ import {
   type Task,
 } from '@cwm/contracts';
 import type { ProjectRepository, TaskRepository } from '@cwm/repositories';
-import type { ActorContext } from './actor';
+import type { ActivityService } from './activity-service';
+import { assertPermitted, type ActorContext } from './actor';
 import { DAY_MS, isoDayOf, isoDayOfInstant, startOfUtcDay } from './calendar';
 import type { AIProvider, DailyDigestContext } from './ai-provider';
 import type { Clock } from './clock';
@@ -16,9 +17,17 @@ import type { Clock } from './clock';
 export interface DashboardServiceDependencies {
   projects: ProjectRepository;
   tasks: TaskRepository;
+  activity: ActivityService;
   clock: Clock;
   ai: AIProvider;
 }
+
+/**
+ * How many rows §24's Recent Agent Activity tile carries. A dashboard widget answers
+ * "what have the agents been doing?", not "everything they have ever done" — the project
+ * page's Recent Activity section is where a full history belongs.
+ */
+export const RECENT_AGENT_ACTIVITY_LIMIT = 8;
 
 /**
  * §24's "low-priority optional daily content". Deliberately *not* behind `AIProvider`:
@@ -47,6 +56,10 @@ export class DashboardService {
   constructor(private readonly dependencies: DashboardServiceDependencies) {}
 
   async load(actor: ActorContext, query: unknown): Promise<DashboardResult> {
+    // `workspace.read` is deliberately a *superset* grant: what comes back includes task
+    // and project content in aggregate. §53's grid says so on the row rather than the UI
+    // implying it is a narrower thing than it is — see the decision log.
+    assertPermitted(actor, 'workspace.read');
     const { upcomingDays, recentDays } = DashboardQuerySchema.parse(query);
     const { clock, ai } = this.dependencies;
 
@@ -163,6 +176,13 @@ export class DashboardService {
       activeProjects,
       recentProgress: { days: recentDays, sinceDate: isoDayOf(sinceMs), tasks: recent.map(row) },
       dailyDigest: await ai.generateDailyDigest(digestContext),
+      // The same read as everything else on this screen. `ActivityService.list` asserts
+      // `workspace.read` too, which the actor has already passed above — a harmless repeat,
+      // and the alternative (an unchecked internal variant) would be a hole waiting for a
+      // later caller to find.
+      recentAgentActivity: (await this.dependencies.activity.list(actor, { limit: 200 })).filter(
+        ({ actor: who }) => who === 'agent',
+      ).slice(0, RECENT_AGENT_ACTIVITY_LIMIT),
       // `%` keeps the sign of its left operand, so a clock simulated before 1970 would
       // index backwards off the front of the array. The double modulo makes the rotation
       // continue in both directions instead.

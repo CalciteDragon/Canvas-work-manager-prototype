@@ -1,6 +1,7 @@
 import { ActivityEventSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import { actorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import { actorFor, agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import { PermissionDeniedError } from './errors';
 import type { ActorContext } from './actor';
 
 const at = (iso: string) => new Date(iso);
@@ -54,7 +55,8 @@ describe('ActivityService.record', () => {
     const agent: ActorContext = {
       actor: 'agent',
       workspaceId: harness.actor.workspaceId,
-      agentConnectionId: 'agent-1' as never,
+      agentConnectionId: 'agent-claude' as never,
+      permissions: [],
     };
     const system: ActorContext = { actor: 'system', workspaceId: harness.actor.workspaceId };
 
@@ -71,7 +73,7 @@ describe('ActivityService.record', () => {
       summary: 'Recalculated progress',
     });
 
-    expect(agentEvent).toMatchObject({ actor: 'agent', actorAgentConnectionId: 'agent-1' });
+    expect(agentEvent).toMatchObject({ actor: 'agent', actorAgentConnectionId: 'agent-claude' });
     expect(agentEvent.actorUserId).toBeUndefined();
     expect(systemEvent.actorUserId).toBeUndefined();
     expect(systemEvent.actorAgentConnectionId).toBeUndefined();
@@ -171,5 +173,66 @@ describe('activity and the unit of work', () => {
     });
 
     expect(harness.store.persistCalls).toBe(0);
+  });
+});
+
+describe('ActivityService.list resolves §57’s names', () => {
+  it('names a user actor by the person, an agent by the connection, and a system act "System"', async () => {
+    const harness = buildHarness();
+    await harness.taskService.create(harness.actor, { projectId: MINE, title: 'By a person' });
+    await harness.taskService.create(agentActorFor(0, ['tasks.write']), { projectId: MINE, title: 'By an agent' });
+    await harness.activity.record(
+      { actor: 'system', workspaceId: harness.actor.workspaceId },
+      { action: 'project.updated', entityType: 'project', entityId: MINE, projectId: MINE, summary: 'Swept' },
+    );
+
+    const feed = await harness.activity.list(harness.actor);
+
+    expect(feed.map(({ actor, actorName }) => [actor, actorName])).toEqual([
+      ['system', 'System'],
+      ['agent', 'Claude'],
+      ['user', 'Demo User'],
+    ]);
+  });
+
+  /**
+   * The whole reason the feed composes rather than printing `summary`
+   * (docs/decisions/2026-08-activity-feed-composes-from-parts.md): a frozen line keeps
+   * naming the entity as it was when the event was written.
+   */
+  it('reads the entity title live, so a rename is reflected and summary is not', async () => {
+    const harness = buildHarness();
+    const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Configure deployment' });
+    await harness.taskService.update(harness.actor, task.id, { title: 'Configure the deploy pipeline' });
+
+    // The *creation* event: its frozen summary still names the task as it was, while the
+    // resolved title names it as it is. Both are visible here, which is the whole argument.
+    const creation = (await harness.activity.list(harness.actor)).find(({ action }) => action === 'task.created');
+
+    expect(creation?.summary).toBe('Created "Configure deployment"');
+    expect(creation?.entityTitle).toBe('Configure the deploy pipeline');
+  });
+
+  it('names the project a row came from, because a feed mixes projects', async () => {
+    const harness = buildHarness();
+    await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Somewhere' });
+
+    expect((await harness.activity.list(harness.actor))[0]?.projectName).toBe('Project project-mine');
+  });
+
+  it('leaves the project out of an agent_connection event, which belongs to no project', async () => {
+    const harness = buildHarness();
+    await harness.agentService.revoke(harness.actor, 'agent-cursor' as never);
+
+    const [event] = await harness.activity.list(harness.actor);
+
+    expect(event).toMatchObject({ entityType: 'agent_connection', entityTitle: 'Cursor', actorName: 'Demo User' });
+    expect(event?.projectName).toBeUndefined();
+  });
+
+  it('refuses an agent that was not granted workspace.read', async () => {
+    const harness = buildHarness();
+
+    await expect(harness.activity.list(agentActorFor(0, ['tasks.read']))).rejects.toThrow(PermissionDeniedError);
   });
 });

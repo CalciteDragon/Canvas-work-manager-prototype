@@ -1,6 +1,8 @@
 import { DashboardResultSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import { buildHarness, MINE, THEIRS } from '../test/test-support';
+import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import { RECENT_AGENT_ACTIVITY_LIMIT } from './dashboard-service';
+import { PermissionDeniedError } from './errors';
 
 /** The harness clock sits on `SEED_NOW` — Monday 2026-08-24, 16:00 UTC. */
 const NOW = '2026-08-24T16:00:00.000Z';
@@ -243,5 +245,48 @@ describe('DashboardService.load', () => {
 
     expect(result.activeProjects.map(({ id }) => id)).toEqual([THEIRS]);
     expect(result.today.overdue).toEqual([]);
+  });
+});
+
+describe('DashboardService: §24’s Recent Agent Activity', () => {
+  it('carries only agent events, newest first', async () => {
+    const harness = buildHarness();
+    await harness.taskService.create(harness.actor, { projectId: MINE, title: 'A person did this' });
+    const agent = agentActorFor(0, ['tasks.write']);
+    await harness.taskService.create(agent, { projectId: MINE, title: 'An agent did this' });
+    await harness.taskService.create(agent, { projectId: MINE, title: 'And this' });
+
+    const dashboard = await harness.dashboardService.load(harness.actor, {});
+
+    expect(dashboard.recentAgentActivity.map(({ actor, entityTitle }) => [actor, entityTitle])).toEqual([
+      ['agent', 'And this'],
+      ['agent', 'An agent did this'],
+    ]);
+  });
+
+  it('is empty when no agent has done anything — a real state, not a missing one', async () => {
+    const harness = buildHarness();
+    await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Only a person' });
+
+    expect((await harness.dashboardService.load(harness.actor, {})).recentAgentActivity).toEqual([]);
+  });
+
+  it(`caps the tile at ${RECENT_AGENT_ACTIVITY_LIMIT} rows — a widget answers "lately", not "ever"`, async () => {
+    const harness = buildHarness();
+    for (let index = 0; index < RECENT_AGENT_ACTIVITY_LIMIT + 3; index += 1) {
+      await harness.taskService.create(agentActorFor(0, ['tasks.write']), { projectId: MINE, title: `Task ${index}` });
+    }
+
+    expect((await harness.dashboardService.load(harness.actor, {})).recentAgentActivity).toHaveLength(
+      RECENT_AGENT_ACTIVITY_LIMIT,
+    );
+  });
+
+  it('refuses an agent without workspace.read', async () => {
+    const harness = buildHarness();
+
+    await expect(harness.dashboardService.load(agentActorFor(0, ['tasks.read']), {})).rejects.toThrow(
+      PermissionDeniedError,
+    );
   });
 });

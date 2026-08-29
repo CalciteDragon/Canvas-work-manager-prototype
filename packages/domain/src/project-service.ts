@@ -8,7 +8,7 @@ import {
   type UpdateProjectInput,
 } from '@cwm/contracts';
 import type { ProjectRepository, UnitOfWork } from '@cwm/repositories';
-import { assertValidActor, type ActorContext } from './actor';
+import { assertPermitted, assertValidActor, type ActorContext } from './actor';
 import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
@@ -37,6 +37,18 @@ export class ProjectService {
   constructor(private readonly dependencies: ProjectServiceDependencies) {}
 
   async get(actor: ActorContext, id: ProjectId): Promise<Project> {
+    assertPermitted(actor, 'projects.read');
+    return this.require(actor, id);
+  }
+
+  /**
+   * The same lookup without the permission check, for the write paths below.
+   *
+   * A grant of `projects.write` alone has to be usable: an agent that could create a
+   * sub-project but not read one would fail on the parent lookup inside its own create.
+   * Reads a *caller* asked for are checked; reads a write does on its own behalf are not.
+   */
+  private async require(actor: ActorContext, id: ProjectId): Promise<Project> {
     const project = await this.dependencies.projects.find(id);
     // A foreign project is "not found", not "forbidden": 409 would confirm it exists.
     if (project === null || project.workspaceId !== actor.workspaceId) {
@@ -47,11 +59,13 @@ export class ProjectService {
 
   /** The actor's workspace is applied last, so a caller-supplied filter cannot widen it. */
   async list(actor: ActorContext, query: ProjectQuery = {}): Promise<Project[]> {
+    assertPermitted(actor, 'projects.read');
     return this.dependencies.projects.list({ ...query, workspaceId: actor.workspaceId });
   }
 
   async create(actor: ActorContext, input: CreateProjectInput): Promise<Project> {
     assertValidActor(actor);
+    assertPermitted(actor, 'projects.write');
     if (input.workspaceId !== actor.workspaceId) {
       throw new DomainRuleError('a project can only be created in the actor\u2019s own workspace');
     }
@@ -61,7 +75,7 @@ export class ProjectService {
     }
 
     return this.dependencies.unitOfWork.run(async () => {
-      if (input.parentProjectId !== undefined) await this.get(actor, input.parentProjectId);
+      if (input.parentProjectId !== undefined) await this.require(actor, input.parentProjectId);
 
       const now = this.dependencies.clock.now().toISOString();
       const project = ProjectSchema.parse({
@@ -94,9 +108,10 @@ export class ProjectService {
 
   async update(actor: ActorContext, id: ProjectId, input: UpdateProjectInput): Promise<Project> {
     assertValidActor(actor);
+    assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
-      const current = await this.get(actor, id);
+      const current = await this.require(actor, id);
       const next = { ...current };
       apply(next, 'name', input.name);
       apply(next, 'description', input.description);
@@ -127,9 +142,10 @@ export class ProjectService {
   /** Sets `status: 'archived'`. Idempotent: archiving an archived project records nothing. */
   async archive(actor: ActorContext, id: ProjectId): Promise<Project> {
     assertValidActor(actor);
+    assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
-      const current = await this.get(actor, id);
+      const current = await this.require(actor, id);
       if (current.status === 'archived') return current;
       await this.assertNoActiveChildren(actor, id);
       return this.commit(actor, current, { ...current, status: 'archived' }, true);
@@ -154,7 +170,12 @@ export class ProjectService {
 
   /** An implicit cascade would archive work the caller never named (§58 flags archive). */
   private async assertNoActiveChildren(actor: ActorContext, id: ProjectId): Promise<void> {
-    const children = await this.list(actor, { parentProjectId: id });
+    // The repository, not `list`: this runs inside `archive`, and a write must not
+    // additionally require `projects.read` to check its own precondition.
+    const children = await this.dependencies.projects.list({
+      workspaceId: actor.workspaceId,
+      parentProjectId: id,
+    });
     if (children.some((child) => child.status !== 'archived')) {
       throw new DomainRuleError(`project "${id}" still has active sub-projects`);
     }
@@ -172,7 +193,7 @@ export class ProjectService {
     while (ancestor !== undefined) {
       if (seen.has(ancestor)) throw new DomainRuleError('a project cannot be nested inside itself');
       seen.add(ancestor);
-      const project: Project = await this.get(actor, ancestor);
+      const project: Project = await this.require(actor, ancestor);
       if (project.parentProjectId === id) throw new DomainRuleError('a project cannot be nested inside itself');
       ancestor = project.parentProjectId;
     }

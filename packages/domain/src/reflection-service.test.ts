@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildHarness, MINE, THEIRS } from '../test/test-support';
-import { EntityNotFoundError } from './errors';
+import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import { EntityNotFoundError, PermissionDeniedError } from './errors';
 
 describe('ReflectionService', () => {
   it('creates body-only and prompted/titled reflections, newest first', async () => {
@@ -28,5 +28,18 @@ describe('ReflectionService', () => {
     expect((await harness.activity.list(harness.actor))[0]).toMatchObject({ action: 'reflection.added', entityId: reflection.id });
     await expect(harness.reflectionService.create(harness.actor, { projectId: THEIRS, body: 'No' })).rejects.toBeInstanceOf(EntityNotFoundError);
     await expect(harness.reflectionService.list(harness.actor, THEIRS)).rejects.toBeInstanceOf(EntityNotFoundError);
+  });
+});
+
+describe('ReflectionService permissions (§51, §53)', () => {
+  it('refuses a read without reflections.read and a write without reflections.write', async () => {
+    const harness = buildHarness();
+
+    await expect(harness.reflectionService.list(agentActorFor(0, ['reflections.write']), MINE)).rejects.toThrow(
+      PermissionDeniedError,
+    );
+    await expect(
+      harness.reflectionService.create(agentActorFor(0, ['reflections.read']), { projectId: MINE, body: 'No' }),
+    ).rejects.toThrow('connection "agent-claude" is missing permission "reflections.write"');
   });
 });
