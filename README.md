@@ -60,7 +60,8 @@ The host endpoints behind it, should you want them from `curl`:
 
 | Variable | Default | What it does |
 |---|---|---|
-| `PORT` | `4310` | Which port the host listens on. **Careful:** `ng serve` reads `PORT` too, so a shell (or tool) that exports `PORT=4200` makes `pnpm dev` start the *host* on the web port — every page then answers `{"error":"not_found"}` while both processes report success. |
+| `CWM_HOST_PORT` | `4310` | Which port the host listens on. Deliberately **not** `PORT`: `pnpm dev` runs Angular and the host under one environment, and the host ignores `PORT` entirely so that a tool exporting `PORT=4200` for `ng serve` cannot hand the host the web port. An unusable value fails the start with a message rather than silently falling back to 4310. |
+| `CWM_DATA_FILE` | `.prototype/data.json` | Which file the host reads and writes. Resolved against the process's cwd; this is what lets the acceptance scripts run against a temp file. |
 | `PROTOTYPE_AI_PROVIDER` | `mock` | `mock` composes the dashboard's AI text locally, with no API key and no network (§43). `real` selects the developer-only adapter, which is a stub: the host starts and every other route works, but `GET /api/dashboard` returns `500 {"error":"internal_error"}` and `/app` shows an error instead of any widget — the digest is part of the same read. The explanation is printed on the host's console, not in the response. Real AI is never required (§44). |
 
 One Ctrl+C stops both. Health check: `curl localhost:4310/prototype/health`.

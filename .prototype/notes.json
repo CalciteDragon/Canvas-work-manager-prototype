@@ -399,6 +399,14 @@
       "projectId": null,
       "slice": 13,
       "note": "Slice 12's PORT note bit again, harder: 'pnpm dev' through the editor's launch config sets PORT=4200, so the host binds the web port and every page load answers {\"error\":\"not_found\"}. The host should read a CWM_HOST_PORT and ignore the generic PORT, or dev:host should pass its own."
+    },
+    {
+      "id": "note-port-fixed",
+      "createdAt": "2026-08-29T19:45:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 13,
+      "note": "Fixed rather than noted a fifth time: the host now reads CWM_HOST_PORT and ignores PORT entirely. Verified by running pnpm dev through the same launch config that broke it — ng serve reports \"Environment variable PORT detected. Using port 4200\" and the host still comes up on 4310. Ignoring PORT is the whole fix; honouring it as a fallback would have kept the trap loaded."
     }
   ]
 }

@@ -52,7 +52,7 @@ const request = async (method, path, { body, token, user } = {}) => {
 const startHost = async (dataFile) => {
   const child = spawn(process.execPath, ['--import', 'tsx', join(hostRoot, 'main.ts')], {
     cwd: hostRoot,
-    env: { ...process.env, CWM_DATA_FILE: dataFile, PORT: String(PORT) },
+    env: { ...process.env, CWM_DATA_FILE: dataFile, CWM_HOST_PORT: String(PORT) },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   child.stderr.on('data', (chunk) => process.stderr.write(chunk));

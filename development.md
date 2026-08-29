@@ -480,9 +480,11 @@ restored it with **no reload** (a computed over a signal); `gridProjectLayout` r
 `grid` project as flow while leaving `grid` stored, so turning it back on restores the
 project's own choice; and the AI provider went mock → real (500) → mock without a restart.
 **Agent Connection was deferred to Slice 13**, which landed it as a read-only roster. Using the panel surfaced five
-notes, the sharpest being that the host reads the generic `PORT` — so any tooling that sets
-`PORT=4200` makes `pnpm dev` start the host *on the web port*, and every page load returns
-`{"error":"not_found"}` while both processes report success.
+notes, the sharpest being that the host read the generic `PORT` — so any tooling that set
+`PORT=4200` made `pnpm dev` start the host *on the web port*, and every page load returned
+`{"error":"not_found"}` while both processes reported success. (Fixed after Slice 13, once it
+had cost time a fourth time: the host reads `CWM_HOST_PORT` and ignores `PORT` —
+[entry](docs/decisions/2026-08-host-port-is-not-the-generic-port.md).)
 
 **Goal:** Every prototype variable is adjustable at runtime.
 
@@ -567,10 +569,10 @@ rather than the mock's five, with `workspace.read` labelled as the superset gran
 
 **Deferred:** §53's page has no link from a roster row to its connection, and the panel's
 timestamps and the dashboard tile's row height both drew friction notes (§79, six entries).
-Slice 12's `PORT` finding **bit again** and is now the sharpest open item: `pnpm dev` through
-an editor launch config sets `PORT=4200`, so the host binds the web port and every page load
-answers `{"error":"not_found"}`. The host should read its own variable rather than the
-generic `PORT`.
+Slice 12's `PORT` finding **bit again** during this slice's own browser verification, which
+was the fourth time it had cost someone time — so it was fixed rather than noted again: the
+host reads `CWM_HOST_PORT` and ignores `PORT` entirely
+([entry](docs/decisions/2026-08-host-port-is-not-the-generic-port.md)).
 
 **Goal:** The permission model exists and is visible, before any MCP wiring.
 

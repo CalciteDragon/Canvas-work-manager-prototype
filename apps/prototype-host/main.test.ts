@@ -2,7 +2,7 @@ import { connect, type AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SCHEMA_VERSION } from '@cwm/contracts';
 import { DomainRuleError } from '@cwm/domain';
-import { start, stop } from './main.ts';
+import { DEFAULT_PORT, configuredPort, start, stop } from './main.ts';
 import { healthRoutes, type RouteTable } from './router.ts';
 
 const started: Array<Awaited<ReturnType<typeof start>>> = [];
@@ -137,5 +137,66 @@ describe('CORS for the Angular dev server', () => {
       expect(response.status).toBe(status);
       expect(response.headers.get('access-control-allow-origin')).toBe(WEB);
     }
+  });
+});
+
+/**
+ * The host's port is deliberately **not** `PORT`.
+ *
+ * `PORT` is the most-used variable name in web tooling, and `pnpm dev` runs two processes
+ * under one environment: anything that sets `PORT=4200` for Angular used to hand the host
+ * the web port, so the host won the bind, `ng serve` moved elsewhere, and every page load
+ * answered `{"error":"not_found"}` in the host's own words — while both processes reported
+ * success. That cost real time on four separate occasions (see `.prototype/notes.json`).
+ */
+describe('configuredPort', () => {
+  const original = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...original };
+  });
+
+  it('defaults to 4310 when nothing asks for anything else', () => {
+    delete process.env['CWM_HOST_PORT'];
+    delete process.env['PORT'];
+
+    expect(configuredPort()).toBe(DEFAULT_PORT);
+  });
+
+  it('obeys CWM_HOST_PORT, so a second host can run beside a live pnpm dev', () => {
+    process.env['CWM_HOST_PORT'] = '4399';
+
+    expect(configuredPort()).toBe(4399);
+  });
+
+  /** The regression this whole variable exists for. */
+  it('ignores PORT completely, even when it is the only thing set', () => {
+    process.env['PORT'] = '4200';
+    delete process.env['CWM_HOST_PORT'];
+
+    expect(configuredPort()).toBe(DEFAULT_PORT);
+  });
+
+  it('still ignores PORT when CWM_HOST_PORT disagrees with it', () => {
+    process.env['PORT'] = '4200';
+    process.env['CWM_HOST_PORT'] = '4398';
+
+    expect(configuredPort()).toBe(4398);
+  });
+
+  it('accepts 0, which is how a test asks for an ephemeral port', () => {
+    process.env['CWM_HOST_PORT'] = '0';
+
+    expect(configuredPort()).toBe(0);
+  });
+
+  /**
+   * A typo used to fall back to 4310 in silence, which is the same symptom as the bug
+   * above: the host comes up somewhere you did not ask for and says nothing about it.
+   */
+  it.each(['not-a-port', '70000', '-1', '43.5', ''])('refuses the unusable value %o rather than defaulting', (value) => {
+    process.env['CWM_HOST_PORT'] = value;
+
+    expect(() => configuredPort()).toThrow(/CWM_HOST_PORT/);
   });
 });

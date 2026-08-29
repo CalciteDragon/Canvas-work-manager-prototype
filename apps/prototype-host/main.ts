@@ -12,11 +12,33 @@ import { SwitchableAIProvider } from './prototype/switchable-ai-provider.ts';
 
 export const DEFAULT_PORT = 4310;
 
-/** `PORT` lets a second host (the acceptance script) run beside a live `pnpm dev`. */
+/**
+ * The host's port, from `CWM_HOST_PORT` — **never** from `PORT`.
+ *
+ * `PORT` is the most-used variable name in web tooling, and `pnpm dev` runs Angular and the
+ * host as two children of one environment. Anything that set `PORT=4200` for Angular used to
+ * hand the *host* the web port: the host won the bind, `ng serve` quietly moved elsewhere,
+ * and every page load answered `{"error":"not_found"}` in the host's own words — while both
+ * processes reported success. It cost real time on four separate occasions before the
+ * variable was renamed (`.prototype/notes.json`). A shared, extremely common name is the
+ * wrong knob for one of two processes started together.
+ *
+ * `CWM_HOST_PORT` matches `CWM_DATA_FILE`, and is what the acceptance scripts set to run a
+ * second host beside a live `pnpm dev`. An unusable value **throws** rather than falling back
+ * to the default: a silent fallback is the same failure as the bug above — the host comes up
+ * somewhere you did not ask for and says nothing about it.
+ */
+export const PORT_VARIABLE = 'CWM_HOST_PORT';
+
 export const configuredPort = (): number => {
-  const value = process.env['PORT'];
-  const port = value === undefined ? Number.NaN : Number(value);
-  return Number.isInteger(port) && port >= 0 && port <= 65535 ? port : DEFAULT_PORT;
+  const value = process.env[PORT_VARIABLE];
+  if (value === undefined) return DEFAULT_PORT;
+
+  const port = Number(value);
+  if (value.trim() === '' || !Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new RangeError(`${PORT_VARIABLE} must be a port from 0 to 65535, not "${value}"`);
+  }
+  return port;
 };
 
 /**
@@ -73,11 +95,15 @@ const isDirectRun =
   resolvePath(process.argv[1]) === resolvePath(fileURLToPath(import.meta.url));
 
 if (isDirectRun) {
+  // Resolved before the try, and reused by the failure message below: `configuredPort` now
+  // throws on an unusable value, and calling it again from the catch would throw a second
+  // time — losing the very message that explains the first.
+  let port = DEFAULT_PORT;
   try {
-    // Loading the data file first means a broken or missing document fails the start,
-    // loudly, rather than surfacing as a 500 on the first request.
+    port = configuredPort();
+    // Loading the data file after the port means a broken or missing document fails the
+    // start loudly, rather than surfacing as a 500 on the first request.
     const persistence = await loadPersistence();
-    const port = configuredPort();
 
     // The clock and the AI provider are built here, not inside `createApi`, because the
     // development panel has to hold the *same instances* the services are wired with —
@@ -118,7 +144,7 @@ if (isDirectRun) {
     }
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    console.error(`prototype-host failed to start on ${HOST}:${configuredPort()} — ${reason}`);
+    console.error(`prototype-host failed to start on ${HOST}:${port} — ${reason}`);
     process.exit(1);
   }
 }
