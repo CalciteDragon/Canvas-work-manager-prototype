@@ -35,11 +35,20 @@ The toggle lives in the top bar because §22 requires the shell to have one.
 
 **Confidence**
 
-Medium-high on the mechanism, low on the placement. Slice 12's dev panel also lists Theme
-among its controls; when it lands, the top-bar toggle is a candidate to be superseded
-rather than duplicated.
+Medium-high on the mechanism, low on the placement.
 
 **Revisit when**
 
-Slice 12 builds the dev panel — decide then whether there is one switcher or two, and
-whether a *persona-level* theme change (as opposed to a session one) is worth a write route.
+*Answered by Slice 12.* There are **two switchers over one signal**: the top-bar toggle
+stays because §22 asks the shell to have one, and the development panel drives the same
+`ThemeService` through a new public `set(theme)`. Two controls over one signal is not
+duplicated state, so neither superseded the other.
+
+A persona-level theme change is still **not** worth a write route. Slice 12 confirmed why:
+the panel deliberately keeps the theme out of `sessionStorage` while persisting its other
+settings, and switching to Alex flipped the app to light from Alex's stored preference
+alone. Persisting a session override would have broken exactly that demonstration. See
+[the panel surface entry](2026-08-development-panel-surface.md).
+
+Revisit if a persona ever needs to *change* their own stored preference from inside the
+app, which needs the §61 user-write route this entry rejected.

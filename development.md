@@ -445,6 +445,45 @@ config values is enough.
 
 ### Slice 12 — Development panel
 
+**Status:** done — plan: [docs/plans/12-development-panel.md](docs/plans/12-development-panel.md)
+— Ctrl/Cmd+Shift+D opens §46's panel over any route, and `/prototype/state` renders the same
+`DevPanelControls` so no control exists twice. **Latency and failure rate did not become host
+endpoints** ([decision](docs/decisions/2026-08-latency-and-failure-live-in-the-client.md)):
+§63's revert is a client behaviour, so the injection sits in the gateway, and the measurement
+that matters came from the running app — the task row painted complete immediately while the
+`POST /complete` request did not start for **3014 ms**, and at 100 % failure the same click
+reverted with `.prototype/data.json` still holding no `completedAt`. The panel keeps its own
+`PrototypeControlPort`, verified reachable while the work-manager gateway was failing every
+call; **Layout Mode is the one control that is not**, because `projectLayoutMode` is a domain
+field, and the panel says so rather than hiding it.
+
+Reseeding without a restart went **through** the unit-of-work lock rather than around it. The
+first design added a `reload()` that asserted no unit was open, which the plan review showed
+was unsound: `unitOfWorkFor` queues units that have not yet registered a token, so the swap
+would have landed under a pending write. `DataStore.replaceActiveDocument` runs inside the
+unit instead, and a test pins the ordering. A residual window remains and is documented —
+`actorFor` snapshots outside the lock, so a write racing your own reseed 404s rather than
+persisting across seeds.
+
+Host-state changes **reload the app** (§62's live updates are Slice 16), which forced
+delay/failure/flags into `sessionStorage` so the panel's own reload cannot wipe them; the
+theme is deliberately excluded, which is what keeps "switch persona changes the theme"
+demonstrable ([entry](docs/decisions/2026-08-development-panel-surface.md), which also closes
+the theme entry's open question). §79 notes are stamped with **real time, never the simulated
+clock** — verified by writing a note while the clock sat on 2026-08-18 and getting a
+2026-08-29 timestamp, with all 39 prior entries preserved including their `slice` field.
+
+Verified in the browser: setting the date *backwards* to 2026-08-18 moved `overdue-chaos`
+from five overdue tasks to one due-today and three upcoming, with the digest, the header date
+and the clock-keyed Fun Fact all re-derived; `nestedProjects` flattened a three-deep tree and
+restored it with **no reload** (a computed over a signal); `gridProjectLayout` rendered a
+`grid` project as flow while leaving `grid` stored, so turning it back on restores the
+project's own choice; and the AI provider went mock → real (500) → mock without a restart.
+**Agent Connection is deferred to Slice 13**, when connections exist. Using it surfaced four
+notes, the sharpest being that the host reads the generic `PORT` — so any tooling that sets
+`PORT=4200` makes `pnpm dev` start the host *on the web port*, and every page load returns
+`{"error":"not_found"}` while both processes report success.
+
 **Goal:** Every prototype variable is adjustable at runtime.
 
 **Spec:** §22, §46, §47, §63, §79
@@ -454,8 +493,10 @@ config values is enough.
 - Ctrl/Cmd+Shift+D panel (§46) controlling: Persona, Seed, Current Date, Theme,
   Layout Mode, AI Provider, Network Delay (none/300ms/1s/3s), Failure Rate,
   Feature Flags. Agent Connection joins in Slice 13.
-- Host endpoints backing it: load seed, reset, set simulated date, set latency,
-  set failure rate.
+- Host endpoints backing it: load seed, reset, set simulated date, set AI provider,
+  capture a note. **Latency and failure rate are not host endpoints** — they live in the
+  Angular gateway, where §63's optimistic revert can actually be observed
+  ([decision](docs/decisions/2026-08-latency-and-failure-live-in-the-client.md)).
 - Central `PrototypeFlags` (§47): `gridProjectLayout`, `nestedProjects`, `subtasks`,
   `manualProgress`, `aiSummarySections`, `agentConfirmations`. One flag service —
   never scattered `if (prototypeMode)` checks.
