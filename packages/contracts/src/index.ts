@@ -19,3 +19,4 @@ export * from './section';
 export * from './task';
 export * from './timeline';
 export * from './user';
+export * from './workspace';

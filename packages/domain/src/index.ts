@@ -13,4 +13,6 @@ export * from './progress-service';
 export * from './reflection-service';
 export * from './section-service';
 export * from './task-service';
+export * from './task-windows';
 export * from './timeline-service';
+export * from './workspace-service';

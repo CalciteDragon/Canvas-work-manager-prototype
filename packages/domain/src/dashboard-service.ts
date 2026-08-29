@@ -13,6 +13,7 @@ import { assertPermitted, type ActorContext } from './actor';
 import { DAY_MS, isoDayOf, isoDayOfInstant, startOfUtcDay } from './calendar';
 import type { AIProvider, DailyDigestContext } from './ai-provider';
 import type { Clock } from './clock';
+import { byDueDate, dashboardTaskFor, isOverdue, OPEN_STATUSES } from './task-windows';
 
 export interface DashboardServiceDependencies {
   projects: ProjectRepository;
@@ -44,8 +45,6 @@ const FUN_FACTS: readonly string[] = [
   'Deadlines you set for yourself work best when someone else knows about them.',
   'Unfinished work occupies memory — that nagging feeling has a name, the Zeigarnik effect.',
 ];
-
-const OPEN_STATUSES = new Set(['todo', 'in_progress', 'blocked']);
 
 /**
  * §24's dashboard, derived. Nothing here is stored: every widget reads the same
@@ -81,28 +80,11 @@ export class DashboardService {
       (task) => task.archivedAt === undefined && byId.has(task.projectId),
     );
 
-    const row = (task: Task): DashboardTask => {
-      const project = byId.get(task.projectId);
-      return {
-        id: task.id,
-        projectId: task.projectId,
-        projectName: project?.name ?? 'Unknown project',
-        ...(project?.icon === undefined ? {} : { projectIcon: project.icon }),
-        title: task.title,
-        status: task.status,
-        priority: task.priority,
-        ...(task.dueAt === undefined ? {} : { dueAt: task.dueAt }),
-        ...(task.completedAt === undefined ? {} : { completedAt: task.completedAt }),
-        overdue: task.dueAt !== undefined && Date.parse(task.dueAt) < nowMs && OPEN_STATUSES.has(task.status),
-      };
-    };
+    const row = (task: Task): DashboardTask => dashboardTaskFor(task, byId.get(task.projectId), nowMs);
 
     const open = tasks.filter((task) => OPEN_STATUSES.has(task.status));
-    const byDueDate = (a: Task, b: Task): number => (a.dueAt ?? '').localeCompare(b.dueAt ?? '');
 
-    const overdue = open
-      .filter((task) => task.dueAt !== undefined && Date.parse(task.dueAt) < nowMs)
-      .sort(byDueDate);
+    const overdue = open.filter((task) => isOverdue(task, nowMs)).sort(byDueDate);
     const dueToday = open
       .filter((task) => task.dueAt !== undefined && Date.parse(task.dueAt) >= nowMs && isoDayOfInstant(task.dueAt) === today)
       .sort(byDueDate);

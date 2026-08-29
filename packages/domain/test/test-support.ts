@@ -14,6 +14,7 @@ import { ReflectionService } from '../src/reflection-service';
 import { SectionService } from '../src/section-service';
 import { TaskService } from '../src/task-service';
 import { TimelineService } from '../src/timeline-service';
+import { WorkspaceService } from '../src/workspace-service';
 
 /** `data-store.test.ts`'s tracking store is test-local; several tests here count persists. */
 export class CountingDataStore extends InMemoryDataStore {
@@ -142,5 +143,6 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument())
     timelineService: new TimelineService({ projects, tasks, milestones }),
     reflectionService: new ReflectionService({ reflections, projects, activity, clock, ids, unitOfWork }),
     sectionService: new SectionService({ sections, projects, activity, clock, ids, unitOfWork }),
+    workspaceService: new WorkspaceService({ projects, tasks, reflections, clock }),
   };
 };
