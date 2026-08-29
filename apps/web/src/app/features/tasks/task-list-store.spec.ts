@@ -260,3 +260,28 @@ describe('TaskListStore', () => {
     expect(store.error()).toContain('newer edit failed');
   });
 });
+
+/**
+ * §63's actual payoff, and the reason the development panel's Failure Rate exists at all:
+ * "click task complete → task appears complete → gateway mutation → if it fails, revert
+ * and show error". Everything else about the injection is plumbing; this is the behaviour
+ * it was built to make testable.
+ */
+describe('TaskListStore under the panel’s failure injection (§63)', () => {
+  it('paints the completion, then reverts it and reports the failure', async () => {
+    const gate = deferred<Task>();
+    const { store } = setup({ complete: vi.fn(() => gate.promise) });
+    await store.load('project-a' as never);
+
+    const completing = store.complete('task-a' as TaskId);
+    // Painted before the gateway has answered — the whole point of an optimistic write.
+    expect(store.tasks()[0]?.status).toBe('done');
+
+    gate.reject(new GatewayError('unreachable', 0, 'prototype failure injection (§46 Failure Rate)'));
+    await completing;
+
+    expect(store.tasks()[0]?.status).toBe('todo');
+    expect(store.tasks()[0]?.completedAt).toBeUndefined();
+    expect(store.error()).toContain('prototype failure injection');
+  });
+});

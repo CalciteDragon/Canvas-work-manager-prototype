@@ -26,6 +26,7 @@ import {
 } from '@cwm/contracts';
 import { z } from 'zod';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
+import { PrototypeSettings } from '../config/prototype-settings';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
 import type { DashboardGateway, ProgressGateway, ProjectGateway, ReflectionGateway, SectionGateway, TaskGateway, TimelineGateway, WorkManagerGateway } from './work-manager-gateway';
@@ -40,6 +41,7 @@ import type { DashboardGateway, ProgressGateway, ProjectGateway, ReflectionGatew
 export class PrototypeWorkManagerGateway implements WorkManagerGateway {
   private readonly baseUrl = inject(PROTOTYPE_API_BASE_URL);
   private readonly identity = inject(IDENTITY_PROVIDER);
+  private readonly settings = inject(PrototypeSettings);
 
   readonly projects: ProjectGateway = {
     list: (query) =>
@@ -126,6 +128,16 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
   }
 
   private async request(method: string, path: string, body?: unknown): Promise<Response> {
+    // §63's injection, *first* — before the identity await, so a slow or failing identity
+    // cannot pre-empt the delay the development panel asked for. The settings service
+    // decides whether to wait and whether to fail; constructing the error is this
+    // adapter's job, because §8 says a transport boundary is the only thing allowed to
+    // produce a `GatewayError`.
+    await this.settings.delay();
+    if (this.settings.shouldFail()) {
+      throw toUnreachableError(new Error('prototype failure injection (§46 Failure Rate)'));
+    }
+
     // The persona comes from the resolved identity, never from storage: the provider heals
     // a stale one, and reading the key here would let the two drift apart.
     const { user } = await this.identity.getCurrentIdentity();

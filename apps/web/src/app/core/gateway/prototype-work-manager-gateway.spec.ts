@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import type { CreateTaskInput, Identity, ProjectId, ReflectionId, SectionId, TaskId } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
+import { PrototypeSettings } from '../config/prototype-settings';
 import { IDENTITY_PROVIDER, type IdentityProvider } from '../identity/identity-provider';
 import { GatewayError } from './gateway-error';
 import { PrototypeWorkManagerGateway } from './prototype-work-manager-gateway';
@@ -83,7 +84,10 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  sessionStorage.clear();
+});
 
 describe('PrototypeWorkManagerGateway — projects', () => {
   it('creates a direct child project through the project gateway', async () => {
@@ -428,5 +432,46 @@ describe('PrototypeWorkManagerGateway — dashboard (§24)', () => {
     fetchMock.mockImplementation(jsonResponse({ ...dashboard, dailyDigest: { ...dashboard.dailyDigest, lines: [] } }));
 
     await expect(gateway().dashboard.get({})).rejects.toMatchObject({ code: 'invalid_response' });
+  });
+});
+
+/**
+ * §63's injection point. It lives here rather than on the host because what it exists to
+ * exercise is the *optimistic* path in the stores — paint, then revert — and a host that
+ * returned a real 500 would be testing the host's error envelope instead.
+ */
+describe('PrototypeWorkManagerGateway — prototype latency and failure (§63)', () => {
+  it('fails every call at rate 1, without reaching the network', async () => {
+    const subject = gateway();
+    TestBed.inject(PrototypeSettings).setFailureRate(1);
+
+    // A non-empty query on purpose: `list({ status: [] })` short-circuits before the
+    // request is built, so it would prove nothing about injection.
+    await expect(subject.projects.list({ status: ['active'] })).rejects.toMatchObject({ code: 'unreachable' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('lets every call through at rate 0', async () => {
+    fetchMock.mockImplementation(jsonResponse([project]));
+    const subject = gateway();
+    TestBed.inject(PrototypeSettings).setFailureRate(0);
+
+    await expect(subject.projects.list({ status: ['active'] })).resolves.toHaveLength(1);
+  });
+
+  it('waits the configured delay before the fetch', async () => {
+    vi.useFakeTimers();
+    fetchMock.mockImplementation(jsonResponse([project]));
+    const subject = gateway();
+    TestBed.inject(PrototypeSettings).setNetworkDelay(3000);
+
+    const pending = subject.projects.list({ status: ['active'] });
+    await vi.advanceTimersByTimeAsync(2999);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await pending;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
   });
 });
