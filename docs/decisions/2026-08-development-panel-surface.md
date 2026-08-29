@@ -52,7 +52,8 @@ swallowed.
 
 **Current decision**
 
-Overlay mounted once at the shell, plus `/prototype/state`, both rendering
+Overlay mounted once by `App` — the bootstrap component, not `AppShell`, so that `core/`
+does not import from `prototype/` — plus `/prototype/state`, both rendering
 `DevPanelControls`; one root-provided `DevPanelStore`; host-state changes reload;
 client-owned settings persist in `sessionStorage`; the theme does not.
 

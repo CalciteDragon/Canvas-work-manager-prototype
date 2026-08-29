@@ -479,7 +479,7 @@ and the clock-keyed Fun Fact all re-derived; `nestedProjects` flattened a three-
 restored it with **no reload** (a computed over a signal); `gridProjectLayout` rendered a
 `grid` project as flow while leaving `grid` stored, so turning it back on restores the
 project's own choice; and the AI provider went mock → real (500) → mock without a restart.
-**Agent Connection is deferred to Slice 13**, when connections exist. Using it surfaced four
+**Agent Connection is deferred to Slice 13**, when connections exist. Using it surfaced five
 notes, the sharpest being that the host reads the generic `PORT` — so any tooling that sets
 `PORT=4200` makes `pnpm dev` start the host *on the web port*, and every page load returns
 `{"error":"not_found"}` while both processes report success.

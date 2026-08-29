@@ -38,7 +38,9 @@ afterEach(() => {
 });
 
 describe('DevPanelControls (§46)', () => {
-  it('offers §46’s four latency presets, labelled as the spec writes them', async () => {
+  // §46's four values. The labels are abbreviated ('1 s' for the spec's "1 second") —
+  // the values are what must match, and `prototype-settings.spec.ts` pins those.
+  it('offers §46’s four latency presets', async () => {
     expect(texts(await render(), '[data-panel-delay]')).toEqual(['none', '300 ms', '1 s', '3 s']);
   });
 

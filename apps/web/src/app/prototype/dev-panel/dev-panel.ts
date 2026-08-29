@@ -5,7 +5,8 @@ import { DevPanelControls } from './dev-panel-controls';
 /**
  * §46's development panel, summoned with **Ctrl/Cmd + Shift + D** from anywhere.
  *
- * Mounted once, at the shell, so it is available on every route — including
+ * Mounted once by `App`, the bootstrap component — not by `AppShell`, because `core/`
+ * must not import from `prototype/`. From there it is available on every route, including
  * `/prototype/state`, which renders the same controls inline as §68's seed/state
  * inspector.
  *

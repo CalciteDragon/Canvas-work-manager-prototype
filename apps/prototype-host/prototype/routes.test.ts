@@ -135,12 +135,17 @@ describe('POST /prototype/reset', () => {
   it('loads the default seed and returns the clock to real time (§76)', async () => {
     const { routes } = await harness('overdue-chaos');
     await persona(routes, 'POST', '/prototype/clock', { now: '2026-12-25T09:00:00.000Z' });
+    await persona(routes, 'POST', '/prototype/ai-provider', { provider: 'real' });
 
     const result = await persona(routes, 'POST', '/prototype/reset');
 
     const state = PrototypeStateSchema.parse(result.body);
     expect(state.seed).toBe('personal-workspace');
     expect(state.clockOffsetMs).toBe(0);
+    // "A known state" has to include the provider: leaving it on `real` keeps the
+    // dashboard 500ing and makes reset look broken rather than restorative.
+    expect(state.aiProvider).toBe('mock');
+    expect((await persona(routes, 'GET', '/api/dashboard')).status).toBe(200);
   });
 });
 
@@ -187,13 +192,18 @@ describe('POST /prototype/notes', () => {
     expect((await persona(routes, 'POST', '/prototype/notes', { note: '', route: null, projectId: null })).status).toBe(400);
   });
 
-  // 26 KB of hand-written observations must never be replaced by a one-entry file.
-  it('refuses to overwrite a notes file it cannot parse', async () => {
+  // 26 KB of hand-written observations must never be replaced by a one-entry file. Both
+  // corruption shapes have to answer 500: a truncated file is the *host's* problem, and
+  // letting SyntaxError through would map it to a 400 that blames the caller's note.
+  it.each([
+    ['the wrong shape', '{"notes": "not an array"}'],
+    ['truncated JSON', '{"notes": [{"id": "note-1"'],
+  ])('refuses to overwrite a notes file that is %s', async (_case, contents) => {
     const { routes, notesPath } = await harness();
-    await writeFile(notesPath, '{"notes": "not an array"}', 'utf8');
+    await writeFile(notesPath, contents, 'utf8');
 
     expect((await persona(routes, 'POST', '/prototype/notes', { note: 'Third', route: null, projectId: null })).status).toBe(500);
-    expect(await readFile(notesPath, 'utf8')).toBe('{"notes": "not an array"}');
+    expect(await readFile(notesPath, 'utf8')).toBe(contents);
   });
 });
 

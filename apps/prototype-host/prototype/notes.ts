@@ -54,10 +54,22 @@ const readNotes = async (path: string, fileOperations: NotesFileOperations): Pro
     throw error;
   }
 
-  const parsed = PrototypeNotesFileSchema.safeParse(JSON.parse(source));
+  // `JSON.parse` outside this guard would throw `SyntaxError`, which the host maps to a
+  // 400 — telling the caller their note was malformed when the truth is the file on disk
+  // is. Both corruption shapes have to end at the same honest 500.
+  let raw: unknown;
+  try {
+    raw = JSON.parse(source);
+  } catch {
+    throw new Error(`"${path}" is not valid JSON — refusing to overwrite it`);
+  }
+
+  const parsed = PrototypeNotesFileSchema.safeParse(raw);
   if (!parsed.success) {
     throw new Error(`"${path}" is not a prototype notes file — refusing to overwrite it`);
   }
+  // Note that a rewrite drops unknown keys the schema does not carry. Acceptable for §71
+  // code, and the reason `slice` is in the contract rather than tolerated by accident.
   return parsed.data.notes;
 };
 

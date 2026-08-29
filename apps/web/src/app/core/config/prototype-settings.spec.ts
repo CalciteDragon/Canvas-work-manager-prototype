@@ -95,6 +95,20 @@ describe('PrototypeSettings', () => {
   });
 
   /**
+   * `JSON.parse('null')` succeeds, so the read's own catch never sees it — and the
+   * constructor then dereferences null. This service is root-provided and injected by the
+   * shell and the gateway, so that is not a lost setting, it is a blank application.
+   */
+  it.each(['null', '3', '"nope"', '[]'])('survives a stored %s', (raw) => {
+    sessionStorage.setItem(PROTOTYPE_SETTINGS_STORAGE_KEY, raw);
+
+    const service = settings();
+    expect(service.networkDelayMs()).toBe(0);
+    expect(service.failureRate()).toBe(0);
+    expect(Object.keys(service.flags())).toHaveLength(6);
+  });
+
+  /**
    * `sessionStorage` throws a `SecurityError` on *access* in a sandboxed iframe and with
    * site data disabled — the same trap `PrototypeIdentityProvider` guards against. A
    * development panel that cannot be constructed takes the whole app down with it.

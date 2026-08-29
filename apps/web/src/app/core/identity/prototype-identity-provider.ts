@@ -5,9 +5,9 @@ import { GatewayError, toGatewayError, toUnreachableError } from '../gateway/gat
 import type { IdentityProvider } from './identity-provider';
 
 /**
- * Which persona the prototype is acting as. Slice 12's dev panel is what will write this;
- * nothing in the UI writes it yet, and an absent key means "let the host pick its first
- * user" — §17's "Switch Persona" without a switcher.
+ * Which persona the prototype is acting as. §46's development panel writes it through
+ * `writePersona` below and then reloads; an absent key means "let the host pick its first
+ * user", which is what a fresh browser gets.
  */
 export const PROTOTYPE_PERSONA_STORAGE_KEY = 'cwm.prototype.persona';
 

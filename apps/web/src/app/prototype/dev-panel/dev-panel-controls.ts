@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import type { ProjectLayoutMode, Theme } from '@cwm/contracts';
+import type { Theme } from '@cwm/contracts';
 import {
   FAILURE_RATES,
   NETWORK_DELAYS,
@@ -52,7 +52,6 @@ export class DevPanelControls {
   protected readonly failureRates = FAILURE_RATES;
   protected readonly flagRows = FLAG_ROWS;
   protected readonly themes: Theme[] = ['dark', 'light'];
-  protected readonly layoutModes: ProjectLayoutMode[] = ['flow', 'grid'];
   protected readonly providers: Array<'mock' | 'real'> = ['mock', 'real'];
 
   protected readonly noteDraft = signal('');

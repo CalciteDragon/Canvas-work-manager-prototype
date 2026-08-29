@@ -66,18 +66,25 @@ export class ProjectLayoutControl {
   constructor() {
     effect(() => {
       const id = this.projectId();
+      // One boolean, not the whole flags object: depending on `flags()` would re-issue
+      // this read whenever any *unrelated* flag was toggled — and that read goes through
+      // the injected gateway, so at 3 s delay it would hang the control for no reason.
+      const enabled = this.settings.flags().gridProjectLayout;
       this.error.set(null);
       this.current.set(null);
-      if (id === null || !this.settings.flags().gridProjectLayout) return;
+      if (id === null || !enabled) return;
       void this.read(id);
     });
   }
 
   private async read(id: ProjectId): Promise<void> {
     try {
-      this.current.set((await this.gateway.projects.get(id)).projectLayoutMode);
+      const mode = (await this.gateway.projects.get(id)).projectLayoutMode;
+      // A slow read for a project the panel has already moved on from must not overwrite
+      // the current one — the injected latency makes that ordering easy to hit.
+      if (this.projectId() === id) this.current.set(mode);
     } catch (error) {
-      this.error.set(messageOf(error));
+      if (this.projectId() === id) this.error.set(messageOf(error));
     }
   }
 

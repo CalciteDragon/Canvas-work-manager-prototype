@@ -326,7 +326,7 @@
       "route": null,
       "projectId": null,
       "slice": 12,
-      "note": "The host reads the generic PORT env var, and so does ng serve. Any tooling that sets PORT=4200 (the browser preview harness does) makes `pnpm dev` start the host ON the web port � the host wins the URL and every page load returns {\"error\":\"not_found\"}. It cost ten minutes to spot because both processes report success. The host should read something specific like PROTOTYPE_HOST_PORT."
+      "note": "The host reads the generic PORT env var, and so does ng serve. Any tooling that sets PORT=4200 (the browser preview harness does) makes `pnpm dev` start the host ON the web port — the host wins the URL and every page load returns {\"error\":\"not_found\"}. It cost ten minutes to spot because both processes report success. The host should read something specific like PROTOTYPE_HOST_PORT."
     },
     {
       "id": "note-2026-08-29-003",
@@ -334,7 +334,7 @@
       "route": "/app",
       "projectId": null,
       "slice": 12,
-      "note": "Ctrl/Cmd+Shift+D is Chrome own \"bookmark all tabs\" shortcut, so the browser swallows it before the page sees it in some contexts. The handler is correct � a dispatched keydown opens the panel every time � but �46 suggested chord may need a fallback (the /prototype/state route is that fallback today)."
+      "note": "Ctrl/Cmd+Shift+D is Chrome's own “bookmark all tabs” shortcut, so the browser swallows it before the page sees it in some contexts. The handler is correct — a dispatched keydown opens the panel every time — but §46's suggested chord may need a fallback (the /prototype/state route is that fallback today)."
     },
     {
       "id": "note-2026-08-29-004",
@@ -342,7 +342,7 @@
       "route": "/projects/project-client-migration",
       "projectId": "project-client-migration",
       "slice": 12,
-      "note": "At Failure Rate 100% the project page cannot load at all, so the thing the setting exists to show � an optimistic write reverting � is unobservable unless you load the page first and dial the rate up afterwards. A \"fail writes only\" option would make �63 directly testable instead of needing that ordering trick."
+      "note": "At Failure Rate 100% the project page cannot load at all, so the thing the setting exists to show — an optimistic write reverting — is unobservable unless you load the page first and dial the rate up afterwards. A “fail writes only” option would make §63 directly testable instead of needing that ordering trick."
     },
     {
       "id": "note-2026-08-29-005",
@@ -350,7 +350,7 @@
       "route": null,
       "projectId": null,
       "slice": 12,
-      "note": "Adding the panel pushed the initial bundle to 797 kB against a 725 kB warning budget. The budget has already been raised once (500 ? 700 in slice 2). Eager routes are a deliberate �3.1 choice, so the honest options are to raise the budget again or lazy-load the prototype folder; quietly raising it each slice is how the number stops meaning anything."
+      "note": "Adding the panel pushed the initial bundle to 797 kB against a 725 kB warning budget. The budget has already been raised once (500 → 700 in slice 2). Eager routes are a deliberate §3.1 choice, so the honest options are to raise the budget again or lazy-load the prototype folder; quietly raising it each slice is how the number stops meaning anything."
     }
   ]
 }

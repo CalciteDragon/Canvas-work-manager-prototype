@@ -251,6 +251,10 @@ abstract class BaseDataStore implements DataStore {
     }
     // Validated here rather than only at commit, so a bad replacement names itself at the
     // call site instead of surfacing as a mystery rollback.
+    //
+    // This rebinds the unit's document. A repository that had captured a reference from an
+    // earlier `getActiveDocument` *in the same unit* would keep writing into the discarded
+    // one — so a unit should either replace the document or do repository work, not both.
     context.document = validateDocumentIntegrity(document);
   }
 

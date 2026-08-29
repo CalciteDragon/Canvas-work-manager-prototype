@@ -64,10 +64,15 @@ export class PrototypeRuntime {
     this.seedName = seed;
   }
 
-  /** §76: back to a known state — the default seed *and* real time. */
+  /**
+   * §76: back to a known state. That means the default seed, real time, **and** the mock
+   * AI provider — a reset that left the provider on `real` would keep `/api/dashboard`
+   * answering 500, which makes the button look broken rather than restorative.
+   */
   async reset(): Promise<void> {
     await this.loadSeed(DEFAULT_SEED_NAME);
     this.clock.reset();
+    this.setAIProvider('mock');
   }
 
   /** `null` means "back to real time", which is a different instruction from "no change". */

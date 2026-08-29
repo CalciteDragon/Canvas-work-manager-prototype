@@ -43,6 +43,13 @@ High. It is two existing schemas composed; nothing here is a new idea.
 
 **Revisit when**
 
-Slice 12's dev panel adds persona switching, and Slice 13 gives an *agent* an identity —
-an agent has a workspace and no `User`, which is the first thing that will push on this
-shape.
+*Half the trigger fired — Slice 12's panel added persona switching, and the contract needed
+no change.* The panel writes the storage key the provider already read and reloads; the
+`{ user, workspace }` composite was enough, and `GET /api/me` gained nothing. One thing the
+switcher did expose: the provider **memoizes a fulfilled identity for the page's lifetime**,
+so a persona change is only visible after a reload. That is a property of the provider, not
+of this contract, and it is why the panel reloads
+([entry](2026-08-development-panel-surface.md)).
+
+The other half is still ahead: Slice 13 gives an *agent* an identity — a workspace and no
+`User` — which remains the first thing that will genuinely push on this shape.

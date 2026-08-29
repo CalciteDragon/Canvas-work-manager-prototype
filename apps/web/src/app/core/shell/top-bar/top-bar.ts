@@ -4,8 +4,12 @@ import { ThemeService } from '../../theme/theme-service';
 
 /**
  * §23's top bar. Presentational apart from the theme toggle, which is the one control §22
- * requires the shell to have — Slice 12's dev panel lists Theme among its controls, and
- * this is a candidate to be superseded rather than duplicated when that lands.
+ * requires the shell to have.
+ *
+ * §46's development panel also has a Theme control, and both drive the same `ThemeService`
+ * signal. That is two controls over one piece of state, not two pieces of state — the
+ * toggle was deliberately *not* superseded
+ * (docs/decisions/2026-08-theme-selection-is-session-only.md).
  */
 @Component({
   selector: 'app-top-bar',

@@ -7,7 +7,10 @@ import type { Identity, Theme } from '@cwm/contracts';
  * attribute selects (§21), so switching themes touches no component.
  *
  * A toggle is session-only. §61 defines no route that writes `UserPreferences`, and
- * inventing one is Slice 12's business at the earliest.
+ * Slice 12 decided against inventing one: the development panel's Theme control drives
+ * this same signal, and deliberately keeps the theme out of the `sessionStorage` it uses
+ * for its other settings, so switching persona still repaints from the persona's own
+ * preference. That demonstration is worth more than a persisted override.
  */
 @Injectable({ providedIn: 'root' })
 export class ThemeService {

@@ -6,6 +6,16 @@ import { PROTOTYPE_CONTROL } from '../control/prototype-control';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
+/**
+ * Which slice a captured note belongs to (§79). Every entry in `.prototype/notes.json`
+ * carries one, and they are how the log stays readable as a history rather than a pile.
+ *
+ * **Bump this when a slice starts.** It is a named constant rather than a literal inside
+ * `addNote` precisely because a forgotten literal would silently file Slice 13's notes
+ * under Slice 12 — corrupting the one field the contract goes out of its way to preserve.
+ */
+export const CURRENT_SLICE = 12;
+
 /** The route shape §68 defines for a project page, and the only one carrying a project. */
 const PROJECT_ROUTE = /^\/projects\/([^/?#]+)/;
 
@@ -94,8 +104,7 @@ export class DevPanelStore {
           note,
           route: url,
           projectId: projectIdFrom(url),
-          // The slice being built. Every note already in the file carries one.
-          slice: 12,
+          slice: CURRENT_SLICE,
         }),
       false,
     );

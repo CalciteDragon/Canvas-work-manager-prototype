@@ -51,7 +51,15 @@ interface StoredSettings {
 const readStored = (): Partial<StoredSettings> => {
   try {
     const raw = sessionStorage.getItem(PROTOTYPE_SETTINGS_STORAGE_KEY);
-    return raw === null ? {} : (JSON.parse(raw) as Partial<StoredSettings>);
+    if (raw === null) return {};
+    // `JSON.parse('null')` succeeds and returns null, so the catch below never sees it —
+    // and the constructor then dereferences null and takes the whole app down, because
+    // this service is root-provided and injected by both the shell and the gateway. The
+    // same goes for a stored `"3"` or `"[]"`.
+    const parsed: unknown = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Partial<StoredSettings>)
+      : {};
   } catch {
     return {};
   }

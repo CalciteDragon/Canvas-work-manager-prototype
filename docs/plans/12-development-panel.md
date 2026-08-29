@@ -276,8 +276,8 @@ is `{ notes: [...] }`.
 | `src/app/prototype/dev-panel/state-inspector-page.ts` | Drops the Slice-12 deferral note; renders `DevPanelControls` above the per-project layout list; its layout buttons respect `gridProjectLayout`. |
 | `src/app/prototype/dev-panel/state-inspector-page.spec.ts` | Adds the flag-gating case (the "still lists projects" case already passes and proves nothing new). |
 | `src/app/prototype/dev-panel/state-inspector-page.scss` | Room for the shared controls above the layout list. |
-| `src/app/prototype/dev-panel/state-inspector-store.ts` | Unchanged in job, but its layout writes are now gated on `gridProjectLayout`. |
-| `src/app/core/shell/app-shell.{ts,html}` | Mounts `<app-dev-panel />` once. |
+| `src/app/prototype/dev-panel/state-inspector-store.ts` | *(Untouched in the end — the flag gate is a template branch on the page, so no button renders and no write can start. The store needed no change.)* |
+| `src/app/app.ts` | Mounts `<app-dev-panel />` once. *(Planned for `core/shell/app-shell.*`; moved during review — mounting it in `core/` was the very `core/` → `prototype/` edge this plan placed `PrototypeSettings` in `core/config/` to avoid.)* |
 | `src/app/core/shell/shell-store.ts` | `projectTree` flattens when `nestedProjects` is off — **here, not in `Sidebar`**, which is deliberately injection-free and presentational. |
 | `src/app/core/shell/shell-store.spec.ts` | A three-deep tree renders flat with the flag off. |
 | `src/app/core/theme/theme-service.ts` | Public `set(theme: Theme)`. |
@@ -333,8 +333,8 @@ is `{ notes: [...] }`.
 **Web**
 
 11. `PrototypeSettings`: defaults are no delay and no failures; the flag record's keys are
-    exactly §47's six; `simulate()` waits the configured delay and throws at rate 1 and
-    never at 0; a throwing `sessionStorage` does not break the service.
+    exactly §47's six; `delay()` waits the configured delay; `shouldFail()` is true at rate 1
+    and never at 0; a throwing *or malformed* `sessionStorage` does not break the service.
 12. Gateway: failure rate 1 → `GatewayError('unreachable')` with `fetch` never called
     (non-empty query); a configured delay precedes the fetch.
 13. `TaskListStore`: with injection failing the write, an optimistic completion reverts and
@@ -422,6 +422,40 @@ plan's shape:
 - **Test volume fought §71.** Cut from 22 cases to 18, dropping the ones over deliberately
   disposable code and adding the one that was missing: that an optimistic write actually
   reverts under injected failure.
+
+### After implementation
+
+Two more reviewers ran against the diff. They confirmed the `replaceActiveDocument` design
+sound by tracing it, and found no blocking defect, but changed these:
+
+- **A crash, not a lost setting.** `readStored` returned `JSON.parse(raw)` unguarded, and
+  `JSON.parse('null')` *succeeds* — so a stored `"null"` slipped past the try/catch and the
+  constructor dereferenced null. `PrototypeSettings` is root-provided and injected by the
+  shell and the gateway, so that is a blank application, not a lost preference. Confirmed by
+  running it; now guarded, with a four-shape regression test.
+- **A corrupt notes file answered 400.** `JSON.parse` sat outside the guard, so a truncated
+  file threw `SyntaxError` → 400 `invalid_request`, blaming the caller's note for damage on
+  disk. Both corruption shapes now end at the same honest 500.
+- **`slice: 12` was a literal inside `addNote`.** Every note from Slice 13 on would have been
+  filed under Slice 12 — silently corrupting the one field this plan went out of its way to
+  preserve. Now a named `CURRENT_SLICE` constant with a bump instruction.
+- **`reset()` did not restore the AI provider**, so resetting while on `real` left the
+  dashboard 500ing and made the button look broken rather than restorative. §76 says "a
+  known state"; it now includes the provider.
+- **`ProjectLayoutControl` re-read on any flag change** (it depended on the whole `flags()`
+  object) and had no staleness guard on the read — both easy to hit precisely because this
+  control is the one behind the injected latency.
+- **The panel was mounted in `AppShell`** — the `core/` → `prototype/` edge this plan cites
+  as its reason for putting `PrototypeSettings` in `core/config/`. Moved to `App`.
+- **The notes I captured through `curl` were mojibake.** Git Bash mangled the UTF-8, so four
+  §79 entries stored U+FFFD where `—` and `§` belonged. Repaired. The note written through
+  the panel was clean, which is the argument for using the button rather than the shell.
+
+**The test volume claim in decision 10 did not survive contact.** It said "one smoke test per
+disposable unit" and budgeted 18 cases; 63 shipped. They are cheap and behaviour-level rather
+than exhaustive-per-field, and several earn their place (the four malformed-storage shapes and
+the two notes-corruption shapes are both real defects caught after the fact). But the honest
+record is that §71's restraint was aimed at and missed, not met.
 
 One finding was **rejected**: that the `empty` seed has no users and would 500 on
 `resolveUser`. `empty()` calls `document()` with no overrides and `document()` defaults
