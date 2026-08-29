@@ -18,6 +18,14 @@ export class ThemeService {
     this.apply(identity.user.preferences.theme);
   }
 
+  /**
+   * §46's Theme control. The top-bar toggle stays — §22 asks the shell to have one — and
+   * both drive this one signal, so two controls never mean two pieces of state.
+   */
+  set(theme: Theme): void {
+    this.apply(theme);
+  }
+
   toggle(): void {
     this.apply(this.active() === 'dark' ? 'light' : 'dark');
   }

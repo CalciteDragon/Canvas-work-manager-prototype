@@ -1,0 +1,26 @@
+@if (open()) {
+  <!-- A backdrop button rather than a click handler on a div: dismissing the panel is a
+       real action and needs to be reachable without a pointer. -->
+  <button data-dev-panel-backdrop type="button" class="dev-panel__backdrop" aria-label="Close the development panel" (click)="close()"></button>
+
+  <aside
+    #dialog
+    data-dev-panel
+    tabindex="-1"
+    class="dev-panel"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Prototype development panel"
+    cdkTrapFocus
+  >
+    <header class="dev-panel__header">
+      <div>
+        <p class="dev-panel__eyebrow">Development panel</p>
+        <h2>Prototype controls</h2>
+      </div>
+      <button data-dev-panel-close type="button" (click)="close()">Close</button>
+    </header>
+
+    <app-dev-panel-controls />
+  </aside>
+}

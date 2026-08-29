@@ -1,0 +1,107 @@
+// §21: every value here is a token. The development panel is disposable (§71), but it is
+// not exempt from the design system — a private palette in the one surface a developer
+// looks at all day is exactly how literals spread.
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.dev-panel__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  h3 {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    letter-spacing: var(--letter-spacing-wide);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+}
+
+.dev-panel__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+button {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    border-color: var(--color-accent);
+    background: var(--color-accent-surface);
+  }
+
+  &:disabled {
+    opacity: 50%;
+    cursor: default;
+  }
+}
+
+.dev-panel__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+
+  &--inline {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  input,
+  textarea {
+    padding: var(--space-2);
+    border: var(--border-hairline) solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+    color: var(--color-text);
+    font: inherit;
+    font-size: var(--font-size-sm);
+  }
+
+  textarea {
+    resize: vertical;
+  }
+}
+
+.dev-panel__flags {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+}
+
+.dev-panel__hint {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.dev-panel__error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}

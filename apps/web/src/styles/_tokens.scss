@@ -56,6 +56,8 @@
   // The comfortable measure a block of prose is held to.
   --layout-reading-width: 40rem;
   --layout-drawer-width: 22rem;
+  // §46's development panel: wide enough for a persona row without hiding the canvas.
+  --layout-dev-panel-width: 26rem;
   --layout-top-bar-height: 3rem;
   --border-hairline: 1px;
   --border-focus: 2px;

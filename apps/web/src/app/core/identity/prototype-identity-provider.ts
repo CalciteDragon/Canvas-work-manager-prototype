@@ -35,6 +35,22 @@ const clearPersona = (): void => {
 };
 
 /**
+ * §17's "Switch Persona", written by the development panel (§46). It lives beside the
+ * reader so both ends of the key stay in one file — the provider is what heals a stale
+ * value, and a second module writing the key by name is how the two drift apart.
+ *
+ * The panel reloads after calling this: an identity already resolved is memoized for the
+ * page's lifetime, so writing the key alone would change nothing on screen.
+ */
+export const writePersona = (personaId: string): void => {
+  try {
+    localStorage.setItem(PROTOTYPE_PERSONA_STORAGE_KEY, personaId);
+  } catch {
+    // A persona that cannot be remembered leaves the host picking its first user.
+  }
+};
+
+/**
  * §18's provider for the prototype (§10): the identity comes from the host's `GET /api/me`,
  * validated against the contract like every other response.
  */

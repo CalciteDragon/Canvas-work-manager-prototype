@@ -1,0 +1,186 @@
+@if (store.error(); as message) {
+  <p data-panel-error class="dev-panel__error" role="alert">{{ message }}</p>
+}
+
+<section class="dev-panel__group" aria-labelledby="dev-panel-persona">
+  <h3 id="dev-panel-persona">Persona</h3>
+  <div class="dev-panel__choices">
+    @for (persona of store.personas(); track persona.id) {
+      <button
+        data-panel-persona
+        type="button"
+        [attr.data-persona-id]="persona.id"
+        [attr.aria-pressed]="store.activePersonaId() === persona.id"
+        [disabled]="store.busy()"
+        (click)="store.switchPersona(persona.id)"
+      >
+        <span aria-hidden="true">{{ persona.avatar }}</span> {{ persona.name }}
+      </button>
+    }
+  </div>
+  <p class="dev-panel__hint">Switching persona reloads the app (§17).</p>
+</section>
+
+<section class="dev-panel__group" aria-labelledby="dev-panel-seed">
+  <h3 id="dev-panel-seed">Seed</h3>
+  <div class="dev-panel__choices">
+    @for (seed of store.seeds(); track seed) {
+      <button
+        data-panel-seed
+        type="button"
+        [attr.data-seed]="seed"
+        [attr.aria-pressed]="store.state()?.seed === seed"
+        [disabled]="store.busy()"
+        (click)="store.loadSeed(seed)"
+      >
+        {{ seed }}
+      </button>
+    }
+  </div>
+  <button data-panel-reset type="button" [disabled]="store.busy()" (click)="store.reset()">
+    Reset to personal-workspace and real time
+  </button>
+  <p class="dev-panel__hint">Loading a seed rewrites the data file and reloads the app (§76).</p>
+</section>
+
+<section class="dev-panel__group" aria-labelledby="dev-panel-date">
+  <h3 id="dev-panel-date">Current date</h3>
+  <label class="dev-panel__field">
+    <span>Simulated day</span>
+    <input data-panel-date type="date" [value]="store.simulatedDay()" [disabled]="store.busy()" (change)="setDay($event)" />
+  </label>
+  <button data-panel-real-time type="button" [disabled]="store.busy()" (click)="store.setSimulatedDay('')">
+    Back to real time
+  </button>
+  <p class="dev-panel__hint">
+    The host clock is set to 09:00 UTC on the chosen day and runs on from there (§45).
+  </p>
+</section>
+
+<section class="dev-panel__group" aria-labelledby="dev-panel-theme">
+  <h3 id="dev-panel-theme">Theme</h3>
+  <div class="dev-panel__choices">
+    @for (option of themes; track option) {
+      <button
+        data-panel-theme
+        type="button"
+        [attr.data-theme-option]="option"
+        [attr.aria-pressed]="theme() === option"
+        (click)="setTheme(option)"
+      >
+        {{ option }}
+      </button>
+    }
+  </div>
+  <p class="dev-panel__hint">Session only — the persona's own preference wins on reload (§22).</p>
+</section>
+
+<section class="dev-panel__group" aria-labelledby="dev-panel-layout">
+  <h3 id="dev-panel-layout">Layout mode</h3>
+  <app-project-layout-control [projectId]="projectId()" />
+</section>
+
+<section class="dev-panel__group" aria-labelledby="dev-panel-ai">
+  <h3 id="dev-panel-ai">AI provider</h3>
+  <div class="dev-panel__choices">
+    @for (provider of providers; track provider) {
+      <button
+        data-panel-ai
+        type="button"
+        [attr.data-provider]="provider"
+        [attr.aria-pressed]="store.state()?.aiProvider === provider"
+        [disabled]="store.busy()"
+        (click)="store.setAIProvider(provider)"
+      >
+        {{ provider }}
+      </button>
+    }
+  </div>
+  <p class="dev-panel__hint">
+    <code>real</code> is a stub that fails loudly (§44) — the dashboard errors as a whole,
+    because the digest is part of that one read.
+  </p>
+</section>
+
+<section class="dev-panel__group" aria-labelledby="dev-panel-delay">
+  <h3 id="dev-panel-delay">Network delay</h3>
+  <div class="dev-panel__choices">
+    @for (delay of delays; track delay) {
+      <button
+        data-panel-delay
+        type="button"
+        [attr.data-delay]="delay"
+        [attr.aria-pressed]="settings.networkDelayMs() === delay"
+        (click)="settings.setNetworkDelay(delay)"
+      >
+        {{ delayLabel(delay) }}
+      </button>
+    }
+  </div>
+</section>
+
+<section class="dev-panel__group" aria-labelledby="dev-panel-failure">
+  <h3 id="dev-panel-failure">Failure rate</h3>
+  <div class="dev-panel__choices">
+    @for (rate of failureRates; track rate) {
+      <button
+        data-panel-failure
+        type="button"
+        [attr.data-rate]="rate"
+        [attr.aria-pressed]="settings.failureRate() === rate"
+        (click)="settings.setFailureRate(rate)"
+      >
+        {{ ratePercent(rate) }}
+      </button>
+    }
+  </div>
+  <p class="dev-panel__hint">
+    Applied in the gateway, so §63's optimistic writes revert. This panel is not affected —
+    except Layout Mode above.
+  </p>
+</section>
+
+<section class="dev-panel__group" aria-labelledby="dev-panel-flags">
+  <h3 id="dev-panel-flags">Feature flags</h3>
+  <ul class="dev-panel__flags">
+    @for (row of flagRows; track row.key) {
+      <li>
+        <label class="dev-panel__field dev-panel__field--inline">
+          <input
+            data-panel-flag
+            type="checkbox"
+            [attr.data-flag]="row.key"
+            [checked]="settings.flags()[row.key]"
+            (change)="settings.setFlag(row.key, $any($event.target).checked)"
+          />
+          <span>{{ row.label }}</span>
+        </label>
+        @if (row.gates; as gates) {
+          <span class="dev-panel__hint">{{ gates }}</span>
+        } @else {
+          <span data-panel-flag-inert class="dev-panel__hint">Nothing reads this yet</span>
+        }
+      </li>
+    }
+  </ul>
+</section>
+
+<section class="dev-panel__group" aria-labelledby="dev-panel-note">
+  <h3 id="dev-panel-note">Add prototype note</h3>
+  <label class="dev-panel__field">
+    <span class="dev-panel__hint">Captures the current route, project and time (§79).</span>
+    <textarea
+      data-panel-note
+      rows="3"
+      placeholder="Task drawer feels too heavy for quick edits."
+      [value]="noteDraft()"
+      (input)="onNoteInput($event)"
+    ></textarea>
+  </label>
+  <button data-panel-note-save type="button" [disabled]="noteDraft().trim() === '' || store.busy()" (click)="saveNote()">
+    Save note
+  </button>
+  @if (noteSaved()) {
+    <p data-panel-note-saved class="dev-panel__hint">Saved to .prototype/notes.json</p>
+  }
+</section>

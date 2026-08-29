@@ -4,6 +4,8 @@ import { WORK_MANAGER_GATEWAY } from './core/gateway/work-manager-gateway';
 import { PrototypeWorkManagerGateway } from './core/gateway/prototype-work-manager-gateway';
 import { IDENTITY_PROVIDER } from './core/identity/identity-provider';
 import { PrototypeIdentityProvider } from './core/identity/prototype-identity-provider';
+import { PROTOTYPE_CONTROL } from './prototype/control/prototype-control';
+import { PrototypeHttpControl } from './prototype/control/prototype-http-control';
 import { routes } from './app.routes';
 
 /**
@@ -22,5 +24,10 @@ export const appConfig: ApplicationConfig = {
     { provide: IDENTITY_PROVIDER, useExisting: PrototypeIdentityProvider },
     PrototypeWorkManagerGateway,
     { provide: WORK_MANAGER_GATEWAY, useExisting: PrototypeWorkManagerGateway },
+    // §46's development panel talks to the host's `/prototype/*` routes. A separate port
+    // from the work-manager gateway on purpose: it must keep working when that gateway is
+    // at 100 % injected failure, or the panel could not turn the failures back off.
+    PrototypeHttpControl,
+    { provide: PROTOTYPE_CONTROL, useExisting: PrototypeHttpControl },
   ],
 };
