@@ -184,3 +184,30 @@
     <p data-panel-note-saved class="dev-panel__hint">Saved to .prototype/notes.json</p>
   }
 </section>
+
+<section class="dev-panel__group" aria-labelledby="dev-panel-agents">
+  <h3 id="dev-panel-agents">Agent connection</h3>
+  @if (connections().length === 0) {
+    <p data-panel-agents-empty class="dev-panel__hint">
+      This seed has no agent connections. Load <code>agent-heavy</code> above.
+    </p>
+  } @else {
+    <ul class="dev-panel__agents">
+      @for (connection of connections(); track connection.id) {
+        <li data-panel-agent [attr.data-connection-id]="connection.id">
+          <strong>{{ connection.name }}</strong>
+          @if (connection.revoked) { <span class="dev-panel__agent-revoked">revoked</span> }
+          <code data-panel-agent-token>{{ connection.token }}</code>
+          <button data-panel-agent-copy type="button" (click)="copyToken(connection.token)">
+            {{ copiedToken() === connection.token ? 'Copied' : 'Copy token' }}
+          </button>
+          <span class="dev-panel__hint">{{ permissionSummary(connection.permissions) }}</span>
+        </li>
+      }
+    </ul>
+  }
+  <p class="dev-panel__hint">
+    Read-only. Permissions and Revoke live in Settings → AI &amp; Agents (§53), so no control
+    exists twice.
+  </p>
+</section>

@@ -3,6 +3,7 @@ import type { DashboardQuery, DashboardWidgetType } from '@cwm/contracts';
 import { ActiveProjectsWidget } from './active-projects/active-projects-widget';
 import { DailyDigestWidget } from './daily-digest/daily-digest-widget';
 import { FunFactWidget } from './fun-fact/fun-fact-widget';
+import { RecentAgentActivityWidget } from './recent-agent-activity/recent-agent-activity-widget';
 import { RecentProgressWidget, recentProgressWidgetQuery } from './recent-progress/recent-progress-widget';
 import { TodayWidget } from './today/today-widget';
 import { UpcomingWidget, upcomingWidgetQuery } from './upcoming/upcoming-widget';
@@ -28,10 +29,10 @@ export interface DashboardWidgetDefinition {
 }
 
 /**
- * §24 names nine widgets; Slice 11 builds six. `calendar` waits for Slice 18,
- * `recent_agent_activity` for Slice 13, and `work_summary` for the AI summary work in
- * Slice 24 — their types exist in the contract, so a persona can already carry one and the
- * host renders the documented fallback rather than pretending the tile exists.
+ * §24 names nine widgets; seven exist. `calendar` waits for Slice 18 and `work_summary`
+ * for the AI summary work in Slice 24 — their types exist in the contract, so a persona can
+ * already carry one and the host renders the documented fallback rather than pretending the
+ * tile exists.
  */
 export const DASHBOARD_WIDGET_REGISTRY: readonly DashboardWidgetDefinition[] = [
   { type: 'today', displayName: 'Today', icon: '📌', component: TodayWidget },
@@ -40,6 +41,7 @@ export const DASHBOARD_WIDGET_REGISTRY: readonly DashboardWidgetDefinition[] = [
   { type: 'recent_progress', displayName: 'Recent Progress', icon: '✅', component: RecentProgressWidget, queryFrom: recentProgressWidgetQuery },
   { type: 'daily_digest', displayName: 'Daily Digest', icon: '🤖', component: DailyDigestWidget },
   { type: 'fun_fact', displayName: 'Fun Fact', icon: '💡', component: FunFactWidget },
+  { type: 'recent_agent_activity', displayName: 'Recent Agent Activity', icon: '🤖', component: RecentAgentActivityWidget },
 ];
 
 /** `undefined` for a type nothing registers — a real state, not a defensive one. */

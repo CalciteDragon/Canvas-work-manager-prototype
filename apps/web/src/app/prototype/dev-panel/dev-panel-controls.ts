@@ -31,9 +31,10 @@ const FLAG_ROWS: readonly FlagRow[] = [
  * §46's control set, in one component so the overlay and `/prototype/state` cannot drift
  * into two versions of the same panel.
  *
- * Agent Connection — §46's tenth control — is absent on purpose: agent connections do not
- * exist until Slice 13, and a control over nothing is the aspirational UI AGENTS.md §2
- * forbids.
+ * Agent Connection (§46's tenth control) is a **read-only roster**: which connections exist,
+ * what each may do, and the bearer token that reaches it. Editing lives in §53's Settings →
+ * AI & Agents, because Slice 12 established that no control exists twice — and a second
+ * permission grid here would be exactly that.
  */
 @Component({
   selector: 'app-dev-panel-controls',
@@ -53,6 +54,10 @@ export class DevPanelControls {
   protected readonly flagRows = FLAG_ROWS;
   protected readonly themes: Theme[] = ['dark', 'light'];
   protected readonly providers: Array<'mock' | 'real'> = ['mock', 'real'];
+
+  protected readonly connections = computed(() => this.store.state()?.agentConnections ?? []);
+  /** Which token was last copied, so the button can say it worked. */
+  protected readonly copiedToken = signal<string | null>(null);
 
   protected readonly noteDraft = signal('');
   protected readonly noteSaved = signal(false);
@@ -88,6 +93,24 @@ export class DevPanelControls {
       this.noteDraft.set('');
       this.noteSaved.set(true);
     }
+  }
+
+  /**
+   * `navigator.clipboard` is unavailable over plain HTTP on some hosts and rejects when the
+   * document is not focused. A copy button that throws is worse than one that quietly does
+   * nothing, and the token is on screen to select by hand either way.
+   */
+  protected async copyToken(token: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(token);
+      this.copiedToken.set(token);
+    } catch {
+      this.copiedToken.set(null);
+    }
+  }
+
+  protected permissionSummary(permissions: readonly string[]): string {
+    return permissions.length === 0 ? 'no permissions' : permissions.join(', ');
   }
 
   protected onNoteInput(event: Event): void {

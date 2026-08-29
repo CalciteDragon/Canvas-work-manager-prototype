@@ -409,6 +409,7 @@ describe('PrototypeWorkManagerGateway — dashboard (§24)', () => {
     recentProgress: { days: 7, sinceDate: '2026-08-17', tasks: [] },
     dailyDigest: { lines: ['Nothing is scheduled for today.'], source: 'prototype', generatedAt: at },
     funFact: 'Context switching costs more time than the switch itself takes.',
+    recentAgentActivity: [],
   };
 
   it('asks for the dashboard with no parameters when nothing configures a range', async () => {

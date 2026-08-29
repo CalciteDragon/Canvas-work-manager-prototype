@@ -8,8 +8,8 @@ import { SECTION_REGISTRY, definitionFor } from './registry';
  * prove. That round trip belongs to the owning section's spec.
  */
 describe('SECTION_REGISTRY (§29)', () => {
-  it('ships Slice 10’s first-milestone section types', () => {
-    expect(SECTION_REGISTRY.map((definition) => definition.type)).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline']);
+  it('ships the §30 section types that exist', () => {
+    expect(SECTION_REGISTRY.map((definition) => definition.type)).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
   });
 
   it('gives every definition the members §29 pins', () => {

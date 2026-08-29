@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DASHBOARD_WIDGET_REGISTRY, widgetDefinitionFor } from './registry';
 
 describe('DASHBOARD_WIDGET_REGISTRY (§24, §25)', () => {
-  it('ships the six widgets Slice 11 builds', () => {
+  it('ships the seven of §24’s widgets that exist', () => {
     expect(DASHBOARD_WIDGET_REGISTRY.map(({ type }) => type)).toEqual([
       'today',
       'upcoming',
@@ -11,6 +11,7 @@ describe('DASHBOARD_WIDGET_REGISTRY (§24, §25)', () => {
       'recent_progress',
       'daily_digest',
       'fun_fact',
+      'recent_agent_activity',
     ]);
   });
 
@@ -38,7 +39,6 @@ describe('DASHBOARD_WIDGET_REGISTRY (§24, §25)', () => {
 
   it('answers undefined for the §24 widgets later slices own', () => {
     expect(widgetDefinitionFor('calendar')).toBeUndefined();
-    expect(widgetDefinitionFor('recent_agent_activity')).toBeUndefined();
     expect(widgetDefinitionFor('work_summary')).toBeUndefined();
   });
 });

@@ -7,6 +7,7 @@ import { ProgressSection } from './progress/progress-section';
 import { ReflectionsSection } from './reflections/reflections-section';
 import { SubProjectsSection } from './sub-projects/sub-projects-section';
 import { TimelineSection } from './timeline/timeline-section';
+import { RecentActivitySection } from './activity/recent-activity-section';
 
 /**
  * §29, verbatim. `createDefaultConfig` returns `unknown` because only the definition knows
@@ -57,6 +58,7 @@ export const SECTION_REGISTRY: readonly SectionDefinition[] = [
   { type: 'progress', displayName: 'Progress', icon: '📈', createDefaultConfig: () => ({}), component: ProgressSection },
   { type: 'reflections', displayName: 'Reflections', icon: '💭', createDefaultConfig: () => ({}), component: ReflectionsSection },
   { type: 'timeline', displayName: 'Timeline', icon: '🗓️', createDefaultConfig: () => ({}), component: TimelineSection },
+  { type: 'recent-activity', displayName: 'Recent Activity', icon: '📜', createDefaultConfig: () => ({}), component: RecentActivitySection },
 ];
 
 /**

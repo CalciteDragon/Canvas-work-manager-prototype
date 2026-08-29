@@ -1,0 +1,24 @@
+@if (rows().length === 0) {
+  <p data-activity-empty class="activity__empty">{{ emptyMessage() }}</p>
+} @else {
+  <ol class="activity__list">
+    @for (row of rows(); track row.entry.id) {
+      <li data-activity-entry class="activity__row" [attr.data-actor]="row.entry.actor">
+        <span class="activity__badge" [attr.data-actor-badge]="row.entry.actor">
+          <span aria-hidden="true">{{ row.actor.icon }}</span>
+          <span class="activity__badge-label">{{ row.actor.label }}</span>
+        </span>
+        <span class="activity__body">
+          <strong data-activity-actor class="activity__actor">{{ row.entry.actorName }}</strong>
+          <span data-activity-line class="activity__line">{{ row.verb }} “{{ row.target }}”</span>
+          @if (row.entry.projectName; as project) {
+            <span data-activity-project class="activity__project">{{ project }}</span>
+          }
+        </span>
+        <time data-activity-time class="activity__time" [attr.datetime]="row.entry.createdAt">
+          {{ row.entry.createdAt }}
+        </time>
+      </li>
+    }
+  </ol>
+}

@@ -10,7 +10,7 @@ import type { PrototypeControlPort } from '../prototype-control';
 export const testPrototypeState = (overrides: Partial<PrototypeState> = {}): PrototypeState =>
   PrototypeStateSchema.parse({
     seed: 'busy-week',
-    seeds: ['empty', 'personal-workspace', 'busy-week', 'nested-projects', 'overdue-chaos'],
+    seeds: ['empty', 'personal-workspace', 'busy-week', 'nested-projects', 'overdue-chaos', 'agent-heavy'],
     simulatedNow: '2026-08-24T16:00:00.000Z',
     clockOffsetMs: 0,
     aiProvider: 'mock',
@@ -18,6 +18,22 @@ export const testPrototypeState = (overrides: Partial<PrototypeState> = {}): Pro
       { id: 'user-demo', name: 'Demo User', avatar: '🧭', workspaceId: 'workspace-demo' },
       { id: 'user-alex', name: 'Alex', avatar: '🌱', workspaceId: 'workspace-alex' },
     ],
+    // Empty by default, like `busy-week` itself: §46's roster has an honest empty state,
+    // and a spec that wants connections says so.
+    agentConnections: [],
+    ...overrides,
+  });
+
+/** One roster row, for the panel specs that need §46's Agent Connection control populated. */
+export const testAgentConnection = (overrides: Partial<PrototypeState['agentConnections'][number]> = {}) =>
+  PrototypeStateSchema.shape.agentConnections.element.parse({
+    id: 'agent-claude',
+    userId: 'user-demo',
+    name: 'Claude',
+    permissions: ['projects.read', 'tasks.read', 'tasks.write'],
+    revoked: false,
+    createdAt: '2026-08-01T16:00:00.000Z',
+    token: 'prototype-user-a-readwrite',
     ...overrides,
   });
 

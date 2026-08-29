@@ -5,7 +5,7 @@ import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { PROTOTYPE_CONTROL } from '../control/prototype-control';
-import { FakePrototypeControl } from '../control/testing/fake-prototype-control';
+import { FakePrototypeControl, testAgentConnection, testPrototypeState } from '../control/testing/fake-prototype-control';
 import { DevPanelControls } from './dev-panel-controls';
 
 /**
@@ -13,12 +13,12 @@ import { DevPanelControls } from './dev-panel-controls';
  * §46's controls are present with the values the spec names, not an exhaustive pass over
  * every interaction.
  */
-const renderFixture = async () => {
+const renderFixture = async (control: FakePrototypeControl = new FakePrototypeControl()) => {
   TestBed.configureTestingModule({
     imports: [DevPanelControls],
     providers: [
       provideRouter([]),
-      { provide: PROTOTYPE_CONTROL, useValue: new FakePrototypeControl() },
+      { provide: PROTOTYPE_CONTROL, useValue: control },
       { provide: WORK_MANAGER_GATEWAY, useValue: new FakeWorkManagerGateway() },
     ],
   });
@@ -27,7 +27,7 @@ const renderFixture = async () => {
   return fixture;
 };
 
-const render = async () => (await renderFixture()).nativeElement as HTMLElement;
+const render = async (control?: FakePrototypeControl) => (await renderFixture(control)).nativeElement as HTMLElement;
 
 const texts = (element: HTMLElement, selector: string) =>
   [...element.querySelectorAll(selector)].map((node) => node.textContent?.trim());
@@ -111,5 +111,46 @@ describe('DevPanelControls (§46)', () => {
 
     expect(control.notes.at(-1)?.note).toBe('The seed control needs a confirmation step.');
     expect(element.querySelector('[data-panel-note-saved]')).not.toBeNull();
+  });
+});
+
+describe('DevPanelControls — Agent Connection (§46, §51)', () => {
+  it('lists each connection with the bearer token that reaches it', async () => {
+    const element = await render(
+      new FakePrototypeControl(
+        testPrototypeState({
+          agentConnections: [
+            testAgentConnection(),
+            testAgentConnection({ id: 'agent-old' as never, name: 'Retired assistant', token: 'prototype-user-a-revoked', revoked: true }),
+          ],
+        }),
+      ),
+    );
+
+    expect(texts(element, '[data-panel-agent] strong')).toEqual(['Claude', 'Retired assistant']);
+    expect(texts(element, '[data-panel-agent-token]')).toEqual([
+      'prototype-user-a-readwrite',
+      'prototype-user-a-revoked',
+    ]);
+    expect(element.querySelectorAll('[data-panel-agent-copy]')).toHaveLength(2);
+  });
+
+  /**
+   * The panel is a roster, not a second permission grid: Slice 12 established that no
+   * control exists twice, and §53's Settings page owns editing.
+   */
+  it('offers no way to change a permission from the panel', async () => {
+    const element = await render(
+      new FakePrototypeControl(testPrototypeState({ agentConnections: [testAgentConnection()] })),
+    );
+
+    expect(element.querySelectorAll('[data-agent-permission]')).toHaveLength(0);
+    expect(element.querySelectorAll('[data-agent-revoke]')).toHaveLength(0);
+  });
+
+  it('says the seed has none rather than showing a control over nothing', async () => {
+    const element = await render();
+
+    expect(element.querySelector('[data-panel-agents-empty]')).not.toBeNull();
   });
 });

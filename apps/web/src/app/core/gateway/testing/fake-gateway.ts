@@ -1,4 +1,9 @@
 import { ProjectSchema, type
+  ActivityFeedEntry,
+  ActivityQuery,
+  AgentConnection,
+  AgentConnectionId,
+  AgentPermission,
   DashboardQuery,
   DashboardResult,
   Identity,
@@ -17,6 +22,8 @@ import { ProjectSchema, type
 } from '@cwm/contracts';
 import { GatewayError } from '../gateway-error';
 import type {
+  ActivityGateway,
+  AgentGateway,
   ProjectGateway,
   SectionGateway,
   TaskGateway,
@@ -37,6 +44,8 @@ export interface FakeGatewayOptions {
   timeline?: TimelineResult;
   reflections?: Reflection[];
   dashboard?: DashboardResult;
+  agentConnections?: AgentConnection[];
+  activity?: ActivityFeedEntry[];
   /** Rejects every call with this instead of answering — the failure path a shell needs. */
   failWith?: GatewayError;
   /** Reject only named calls after an otherwise successful load (for write failure UI). */
@@ -80,6 +89,33 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
   readonly dashboard = {
     get: (query: Partial<DashboardQuery>) =>
       this.answer('dashboard.get', query, this.options.dashboard ?? emptyDashboard()),
+  };
+
+  readonly agents: AgentGateway = {
+    list: () => this.answer('agents.list', undefined, this.options.agentConnections ?? []),
+    // The whole permission array is the assertion the §53 spec cares about, so it is what
+    // `calls` records — and the answer echoes it, the way the host's does.
+    setPermissions: (id: AgentConnectionId, permissions: AgentPermission[]) =>
+      this.answer('agents.setPermissions', { id, permissions }, {
+        ...this.find(this.options.agentConnections, id, 'agent connection'),
+        permissions,
+      }),
+    revoke: (id: AgentConnectionId) =>
+      this.answer('agents.revoke', id, {
+        ...this.find(this.options.agentConnections, id, 'agent connection'),
+        revoked: true,
+      }),
+  };
+
+  readonly activity: ActivityGateway = {
+    list: (query: ActivityQuery) =>
+      this.answer(
+        'activity.list',
+        query,
+        (this.options.activity ?? []).filter(
+          (entry) => query.projectId === undefined || entry.projectId === query.projectId,
+        ),
+      ),
   };
 
   readonly progress = {
@@ -246,6 +282,7 @@ export const emptyDashboard = (): DashboardResult => ({
     generatedAt: COMPLETED_AT,
   },
   funFact: 'Writing a task down makes you roughly twice as likely to finish it.',
+  recentAgentActivity: [],
 });
 
 /** An `IdentityProvider` that answers whatever the spec hands it. */

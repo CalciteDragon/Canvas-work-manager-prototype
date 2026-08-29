@@ -1,5 +1,10 @@
 import { InjectionToken } from '@angular/core';
 import type {
+  ActivityFeedEntry,
+  ActivityQuery,
+  AgentConnection,
+  AgentConnectionId,
+  AgentPermission,
   DashboardQuery,
   DashboardResult,
   CreateSectionInput,
@@ -94,6 +99,29 @@ export interface SectionGateway {
 }
 
 /**
+ * §53's Settings → AI & Agents. `setPermissions` sends the whole grant rather than a
+ * toggle: a permission grid states what the connection may do, and two boxes clicked in
+ * quick succession would otherwise race each other into different final answers.
+ *
+ * There is no `create`. §51 has no connection-issuing flow and §80 rules OAuth out, so the
+ * connections are the ones the seed carries — a create method would be a claim no test
+ * backs, which is this file's standing rule.
+ */
+export interface AgentGateway {
+  list(): Promise<AgentConnection[]>;
+  setPermissions(id: AgentConnectionId, permissions: AgentPermission[]): Promise<AgentConnection>;
+  revoke(id: AgentConnectionId): Promise<AgentConnection>;
+}
+
+/**
+ * §57's feed. Entries arrive with their names already resolved, so the UI never joins
+ * events against projects and connections it would have to fetch separately.
+ */
+export interface ActivityGateway {
+  list(query: ActivityQuery): Promise<ActivityFeedEntry[]>;
+}
+
+/**
  * The boundary of §8: every component depends on this interface and never on a transport.
  *
  * §9 sketches eight members. A member is declared here only once something implements and
@@ -103,7 +131,6 @@ export interface SectionGateway {
  * - `milestones` — Slice 19
  * - `search` — no slice of its own; §40 surfaces through Slice 21's command palette and
  *   Slice 14's `search_workspace` MCP tool
- * - `activity` — Slice 13
  */
 export interface WorkManagerGateway {
   projects: ProjectGateway;
@@ -113,6 +140,8 @@ export interface WorkManagerGateway {
   progress: ProgressGateway;
   timeline: TimelineGateway;
   reflections: ReflectionGateway;
+  agents: AgentGateway;
+  activity: ActivityGateway;
 }
 
 export const WORK_MANAGER_GATEWAY = new InjectionToken<WorkManagerGateway>('WORK_MANAGER_GATEWAY');

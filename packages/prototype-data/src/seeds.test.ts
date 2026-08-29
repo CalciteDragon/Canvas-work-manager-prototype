@@ -372,7 +372,9 @@ describe('agent-heavy', () => {
   });
 
   it('separates read-only from read-write, so a denial is reachable without editing anything', () => {
-    const byId = new Map(document().agentConnections.map((connection) => [connection.id, connection.permissions]));
+    const byId = new Map<string, readonly string[]>(
+      document().agentConnections.map((connection) => [connection.id, connection.permissions]),
+    );
 
     expect(byId.get('agent-claude')).toContain('tasks.write');
     expect(byId.get('agent-cursor')).not.toContain('tasks.write');
@@ -387,8 +389,10 @@ describe('agent-heavy', () => {
 
   it('attributes every agent event to a connection that exists in the same workspace', () => {
     const seed = document();
-    const owners = new Map(seed.agentConnections.map((connection) => [connection.id, connection.userId]));
-    const workspaces = new Map(seed.users.map((user) => [user.id, user.workspaceId]));
+    const owners = new Map<string, string>(
+      seed.agentConnections.map((connection) => [connection.id, connection.userId]),
+    );
+    const workspaces = new Map<string, string>(seed.users.map((user) => [user.id, user.workspaceId]));
 
     for (const event of seed.activityEvents.filter(({ actor }) => actor === 'agent')) {
       const owner = owners.get(event.actorAgentConnectionId ?? '');

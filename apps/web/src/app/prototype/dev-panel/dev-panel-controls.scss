@@ -105,3 +105,34 @@ button {
   color: var(--color-danger);
   font-size: var(--font-size-sm);
 }
+
+// §46's Agent Connection roster. The token is the reason this control exists — it is what
+// you paste into an MCP client — so it is monospaced and selectable, not hidden.
+.dev-panel__agents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.dev-panel__agents li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dev-panel__agents code {
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-sm);
+}
+
+.dev-panel__agent-revoked {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}

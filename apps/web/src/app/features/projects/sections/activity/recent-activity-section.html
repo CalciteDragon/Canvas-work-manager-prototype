@@ -1,0 +1,4 @@
+@if (store.error(); as error) { <p data-activity-error class="recent-activity__error" role="alert">{{ error }}</p> }
+@if (store.loading()) { <p data-activity-pending>Loading activity…</p> } @else {
+  <app-activity-feed [entries]="store.entries()" emptyMessage="Nothing has happened in this project yet." />
+}

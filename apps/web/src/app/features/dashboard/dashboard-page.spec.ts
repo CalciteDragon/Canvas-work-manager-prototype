@@ -1,6 +1,6 @@
 import { provideRouter } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
-import { DashboardResultSchema, type DashboardResult, type DashboardWidget, type Identity } from '@cwm/contracts';
+import { ActivityFeedEntrySchema, DashboardResultSchema, type DashboardResult, type DashboardWidget, type Identity } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway, emptyDashboard, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
@@ -175,5 +175,43 @@ describe('DashboardPage (§24, §25)', () => {
 
     expect(element.querySelector('[data-dashboard-error]')?.textContent).toContain('not running');
     expect(element.querySelectorAll('[data-dashboard-tile]')).toHaveLength(0);
+  });
+});
+
+describe('DashboardPage — Recent Agent Activity (§24, §57)', () => {
+  const agentEntry = ActivityFeedEntrySchema.parse({
+    id: 'activity-1',
+    workspaceId: 'workspace-demo',
+    actor: 'agent',
+    actorAgentConnectionId: 'agent-claude',
+    action: 'task.completed',
+    entityType: 'task',
+    entityId: 'task-1',
+    projectId: 'project-1',
+    summary: 'Completed "Configure deployment"',
+    createdAt: '2026-08-24T15:32:00.000Z',
+    actorName: 'Claude',
+    entityTitle: 'Configure deployment',
+    projectName: 'Website launch',
+  });
+
+  it('renders what the agents did, attributed to the connection by name', async () => {
+    const element = await render([widget('w-agents', 'recent_agent_activity', { position: 0, size: 'wide' })], {
+      dashboard: DashboardResultSchema.parse({ ...populated(), recentAgentActivity: [agentEntry] }),
+    });
+
+    expect(element.querySelector('[data-widget-title]')?.textContent).toBe('Recent Agent Activity');
+    expect(element.querySelector('[data-activity-actor]')?.textContent?.trim()).toBe('Claude');
+    expect(element.querySelector('[data-activity-entry]')?.getAttribute('data-actor')).toBe('agent');
+  });
+
+  it('has an empty state, because a workspace no agent has touched is the ordinary case', async () => {
+    const element = await render([widget('w-agents', 'recent_agent_activity', { position: 0 })], {
+      dashboard: DashboardResultSchema.parse({ ...populated(), recentAgentActivity: [] }),
+    });
+
+    expect(element.querySelector('[data-activity-empty]')?.textContent?.trim()).toBe(
+      'No agent has done anything yet.',
+    );
   });
 });

@@ -11,6 +11,10 @@ export const WIRE_ERROR_CODES = [
   'conflict',
   'busy',
   'internal_error',
+  /** §51: the bearer token names no usable connection. */
+  'unauthorized',
+  /** §53: a real connection, without the grant this call needs. The message names it. */
+  'permission_denied',
 ] as const;
 
 export type GatewayErrorCode =

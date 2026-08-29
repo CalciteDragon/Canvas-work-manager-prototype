@@ -60,6 +60,9 @@ const setup = (options: {
   const gateway: WorkManagerGateway = {
     // Slice 11 added `dashboard` to the boundary; nothing on the project page reads it.
     dashboard: { get: vi.fn(async () => emptyDashboard()) },
+    // Slice 13 added these two for the same reason.
+    agents: { list: vi.fn(async () => []), setPermissions: vi.fn(), revoke: vi.fn() },
+    activity: { list: vi.fn(async () => []) },
     projects: {
       list: vi.fn(async () => projects),
       get: vi.fn(async () => projects[0]!),

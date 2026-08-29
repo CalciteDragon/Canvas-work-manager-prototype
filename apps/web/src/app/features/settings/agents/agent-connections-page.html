@@ -1,0 +1,66 @@
+<header class="agents__header">
+  <h1>AI &amp; Agents</h1>
+  <p class="agents__intro">
+    What each connected agent is allowed to do. Changes take effect on its next call — nothing
+    to restart, and no token to reissue.
+  </p>
+</header>
+
+@if (store.error(); as message) {
+  <p data-agents-error class="agents__error" role="alert">{{ message }}</p>
+}
+
+@if (store.loading()) {
+  <p data-agents-pending>Loading connections…</p>
+} @else if (store.connections().length === 0 && store.error() === null) {
+  <p data-agents-empty>
+    No agent has been connected to this workspace. Load the <code>agent-heavy</code> seed from
+    the development panel to see one.
+  </p>
+} @else {
+  <ul class="agents__list">
+    @for (connection of store.connections(); track connection.id) {
+      <li data-agent-connection class="agents__card" [attr.data-connection-id]="connection.id">
+        <header class="agents__card-header">
+          <h2>{{ connection.name }}</h2>
+          @if (connection.revoked) {
+            <span data-agent-revoked class="agents__revoked">Revoked</span>
+          }
+        </header>
+
+        <ul class="agents__grid">
+          @for (row of permissions; track row.key) {
+            <li class="agents__row">
+              <label class="agents__permission">
+                <input
+                  data-agent-permission
+                  type="checkbox"
+                  [attr.data-permission]="row.key"
+                  [checked]="holds(connection, row.key)"
+                  [disabled]="connection.revoked || store.busy() !== null"
+                  (change)="toggle(connection.id, row.key, $event)"
+                />
+                <span>{{ row.label }}</span>
+              </label>
+              @if (row.note; as note) {
+                <span class="agents__note">{{ note }}</span>
+              }
+            </li>
+          }
+        </ul>
+
+        <footer class="agents__card-footer">
+          <span data-agent-last-used class="agents__last-used">{{ lastUsed(connection) }}</span>
+          <button
+            data-agent-revoke
+            type="button"
+            [disabled]="connection.revoked || store.busy() !== null"
+            (click)="store.revoke(connection.id)"
+          >
+            Revoke
+          </button>
+        </footer>
+      </li>
+    }
+  </ul>
+}

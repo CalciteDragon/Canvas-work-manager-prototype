@@ -1,5 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import {
+  ActivityFeedEntrySchema,
+  AgentConnectionSchema,
   DashboardResultSchema,
   ProjectSchema,
   ProjectSectionSchema,
@@ -7,6 +9,9 @@ import {
   ReflectionSchema,
   TaskSchema,
   TimelineResultSchema,
+  type ActivityQuery,
+  type AgentConnectionId,
+  type AgentPermission,
   type CreateProjectInput,
   type DashboardQuery,
   type CreateReflectionInput,
@@ -29,7 +34,7 @@ import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
-import type { DashboardGateway, ProgressGateway, ProjectGateway, ReflectionGateway, SectionGateway, TaskGateway, TimelineGateway, WorkManagerGateway } from './work-manager-gateway';
+import type { ActivityGateway, AgentGateway, DashboardGateway, ProgressGateway, ProjectGateway, ReflectionGateway, SectionGateway, TaskGateway, TimelineGateway, WorkManagerGateway } from './work-manager-gateway';
 
 /**
  * The §10 adapter: Angular → `localhost:4310`. Everything transport-shaped lives here —
@@ -104,6 +109,19 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
     archive: async (id: TaskId) => {
       await this.send('POST', `/api/tasks/${encodeURIComponent(id)}/archive`, TaskSchema);
     },
+  };
+
+  readonly agents: AgentGateway = {
+    list: () => this.send('GET', '/api/agent-connections', AgentConnectionSchema.array()),
+    setPermissions: (id: AgentConnectionId, permissions: AgentPermission[]) =>
+      this.send('PATCH', `/api/agent-connections/${encodeURIComponent(id)}`, AgentConnectionSchema, { permissions }),
+    revoke: (id: AgentConnectionId) =>
+      this.send('POST', `/api/agent-connections/${encodeURIComponent(id)}/revoke`, AgentConnectionSchema),
+  };
+
+  readonly activity: ActivityGateway = {
+    list: (query: ActivityQuery) =>
+      this.send('GET', `/api/activity${queryString(activityQueryParams(query))}`, ActivityFeedEntrySchema.array()),
   };
 
   private async send<T>(method: string, path: string, schema: z.ZodType<T>, body?: unknown): Promise<T> {
@@ -192,6 +210,13 @@ const dashboardQueryParams = (query: Partial<DashboardQuery>): URLSearchParams =
   const params = new URLSearchParams();
   append(params, 'upcomingDays', query.upcomingDays);
   append(params, 'recentDays', query.recentDays);
+  return params;
+};
+
+const activityQueryParams = (query: ActivityQuery): URLSearchParams => {
+  const params = new URLSearchParams();
+  append(params, 'projectId', query.projectId);
+  append(params, 'limit', query.limit);
   return params;
 };
 
