@@ -14,16 +14,25 @@ export const aiProviderFor = (mode: string | undefined): AIProvider =>
 
 /**
  * Wires the domain once at startup. The host is the only place that knows the `Clock` is
- * a `SimulatedClock` — the services only see the interface (§45). Slice 12's dev panel is
- * what will expose its `setNow`, so a developer can sit the workspace on a Friday
- * afternoon or the day before a deadline.
+ * a `SimulatedClock` — the services only see the interface (§45).
+ *
+ * `options` is how Slice 12's development panel reaches in: `main.ts` passes the very
+ * `SimulatedClock` and `SwitchableAIProvider` instances the services are wired with, so
+ * moving the date or swapping the provider takes effect on the next request with nothing
+ * re-created. Both default, so every other caller — `createApiRouteTable` below, and
+ * `concurrency.test.ts` — is unchanged.
  */
-export const createApi = (persistence: Persistence): ApiDependencies => {
-  const clock = new SimulatedClock();
+export interface CreateApiOptions {
+  clock?: SimulatedClock;
+  ai?: AIProvider;
+}
+
+export const createApi = (persistence: Persistence, options: CreateApiOptions = {}): ApiDependencies => {
+  const clock = options.clock ?? new SimulatedClock();
   const ids = new PrototypeIdGenerator();
   const { store, projects, sections, tasks, milestones, reflections, activities, unitOfWork } = persistence;
   const activity = new ActivityService({ activities, clock, ids });
-  const ai = aiProviderFor(process.env['PROTOTYPE_AI_PROVIDER']);
+  const ai = options.ai ?? aiProviderFor(process.env['PROTOTYPE_AI_PROVIDER']);
 
   return {
     store,

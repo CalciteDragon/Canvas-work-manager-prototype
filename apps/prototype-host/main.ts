@@ -1,9 +1,14 @@
 import { createServer, type Server } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { resolve as resolvePath } from 'node:path';
+import { SimulatedClock } from '@cwm/domain';
 import { createRequestHandler, healthRoutes, type RouteTable } from './router.ts';
-import { createApiRouteTable } from './api/services.ts';
+import { aiProviderFor, createApi } from './api/services.ts';
+import { createApiRoutes } from './api/routes.ts';
 import { loadPersistence } from './persistence/store.ts';
+import { PrototypeRuntime } from './prototype/runtime.ts';
+import { createPrototypeRoutes } from './prototype/routes.ts';
+import { SwitchableAIProvider } from './prototype/switchable-ai-provider.ts';
 
 export const DEFAULT_PORT = 4310;
 
@@ -73,7 +78,20 @@ if (isDirectRun) {
     // loudly, rather than surfacing as a 500 on the first request.
     const persistence = await loadPersistence();
     const port = configuredPort();
-    const server = await start(port, { ...healthRoutes, ...createApiRouteTable(persistence) });
+
+    // The clock and the AI provider are built here, not inside `createApi`, because the
+    // development panel has to hold the *same instances* the services are wired with —
+    // that is what lets §46 move the date or swap the provider without a restart.
+    const aiProviderMode = process.env['PROTOTYPE_AI_PROVIDER'] === 'real' ? 'real' : 'mock';
+    const clock = new SimulatedClock();
+    const ai = new SwitchableAIProvider(aiProviderFor(process.env['PROTOTYPE_AI_PROVIDER']));
+    const runtime = new PrototypeRuntime({ persistence, clock, ai, aiProvider: aiProviderMode });
+
+    const server = await start(port, {
+      ...healthRoutes,
+      ...createPrototypeRoutes(runtime),
+      ...createApiRoutes(createApi(persistence, { clock, ai })),
+    });
     console.log(`prototype-host listening on http://${HOST}:${port} — data ${persistence.path}`);
 
     let stopping = false;
