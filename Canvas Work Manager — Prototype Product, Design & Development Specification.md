@@ -1883,8 +1883,8 @@ interface WorkManagerTool {
   inputSchema: ZodSchema;
 
   execute(
-    input: unknown,
-    context: AgentContext
+    input: ParsedInput,
+    context: ToolContext
   ): Promise<unknown>;
 }
 ```
@@ -1892,6 +1892,18 @@ interface WorkManagerTool {
 The MCP transport only exposes these definitions.
 
 This allows tool semantics to change independently from MCP plumbing.
+
+Two corrections the Slice 14 build made to this section:
+
+- The context is `{ actor: ActorContext; services: WorkManagerServices }`. The actor half
+  **is** `ActorContext` — the type the domain already defines and every service already
+  takes; there is no separate `AgentContext`, because §11 allows one definition of a shape.
+  The services half is what a tool calls: domain services only, closed over per registry.
+- `execute` receives **parsed** input, not `unknown`. The registry validates against the
+  tool's own `inputSchema` before delegating, so `unknown` would only force every tool to
+  parse its input a second time.
+
+See docs/decisions/2026-08-tool-registry-is-transport-free.md.
 
 ---
 
@@ -2609,7 +2621,7 @@ OAuthMcpAuthenticator
 Everything beneath:
 
 ```text
-AgentContext
+ActorContext
 ```
 
 should remain largely unchanged.

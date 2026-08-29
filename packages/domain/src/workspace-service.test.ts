@@ -89,11 +89,34 @@ describe('WorkspaceService', () => {
       expect(hits[0]).toEqual({ kind: 'project', id: MINE, title: 'Project project-mine', status: 'active' });
     });
 
-    it('excludes archived tasks and archived projects', async () => {
+    it('excludes an archived task from a live project', async () => {
+      // Split from the archived-*project* case deliberately: archiving the project removes
+      // every fixture row at once, so one test asserting `[]` cannot tell the two rules
+      // apart. `task-archived` matches "retry" and its project is untouched.
+      const { hits } = await service.search(reader, { query: 'retry', limit: 20 });
+
+      expect(ids(hits)).not.toContain('task-archived');
+      expect(ids(hits)).toContain('task-retry-budget');
+    });
+
+    it('excludes everything inside an archived project', async () => {
       await harness.projectService.archive(harness.actor, MINE);
 
       const { hits } = await service.search(reader, { query: 'retry', limit: 20 });
       expect(ids(hits)).toEqual([]);
+    });
+
+    it('omits a blank reflection title rather than emitting an empty one', async () => {
+      // `ReflectionSchema.title` has no `min(1)`, so `''` is storable and `add_reflection`
+      // can create it. A hit carrying `title: ""` would be noise; a hit schema stricter
+      // than the record it projects would fail the *whole* result.
+      await harness.reflections.insert(reflection('reflection-blank', MINE, 'A retry with a blank title.', { title: '' }));
+
+      const { hits } = await service.search(reader, { query: 'blank title', limit: 20 });
+
+      expect(hits).toEqual([
+        { kind: 'reflection', id: 'reflection-blank', projectId: MINE, projectName: 'Project project-mine' },
+      ]);
     });
 
     it('never returns another workspace’s project, task or reflection', async () => {
@@ -104,12 +127,30 @@ describe('WorkspaceService', () => {
       expect(hits.every(({ projectId }) => projectId === undefined || projectId === MINE)).toBe(true);
     });
 
-    it('honours limit and orders deterministically', async () => {
-      const first = await service.search(reader, { query: 'retry', limit: 2 });
-      const again = await service.search(reader, { query: 'retry', limit: 2 });
+    it('orders by kind, then title — asserted as a sequence, not as “the same twice”', async () => {
+      // Two identical calls agreeing proves only determinism, which an unsorted
+      // implementation also has. The exact sequence is what pins the comparator.
+      const { hits } = await service.search(reader, { query: 'retry', limit: 20 });
 
-      expect(first.hits).toHaveLength(2);
-      expect(ids(again.hits)).toEqual(ids(first.hits));
+      expect(ids(hits)).toEqual([
+        // Tasks by title: "Add retry budget…", "Retry the finished thing", "Write it up".
+        'task-retry-budget',
+        'task-done',
+        'task-retry-docs',
+        // Then reflections, the untitled one first — an absent title sorts as empty.
+        'reflection-untitled',
+        'reflection-mine',
+      ]);
+    });
+
+    it('shares a small limit across kinds instead of letting one starve the rest', async () => {
+      // The reason this matters: §40 justifies one combined search precisely because the
+      // caller does not know which kind holds the answer. Slicing a kind-ordered list would
+      // return three tasks and no reflections here.
+      const { hits } = await service.search(reader, { query: 'retry', limit: 2 });
+
+      expect(hits).toHaveLength(2);
+      expect(new Set(hits.map(({ kind }) => kind))).toEqual(new Set(['task', 'reflection']));
     });
 
     it('succeeds for an agent holding workspace.read and nothing else', async () => {

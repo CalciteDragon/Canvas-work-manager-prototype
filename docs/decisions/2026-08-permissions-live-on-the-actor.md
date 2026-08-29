@@ -73,3 +73,16 @@ Slice 14 builds §54's tools. `get_dashboard_context` and `search_workspace` are
 callers that hold `workspace.read` for real, and they will show whether the superset grant
 is comfortable or alarming. Also Slice 22, if §58's confirmations turn out to want a
 per-action grant rather than a per-family one.
+
+---
+
+**Answered by Slice 14.** `get_dashboard_context`, `search_workspace` and
+`get_upcoming_work` now hold `workspace.read` for real, through a `WorkspaceService` that
+asserts it alone —
+[docs/decisions/2026-08-workspace-tools-need-their-own-service.md](2026-08-workspace-tools-need-their-own-service.md).
+The superset got **wider**, not narrower: search reaches reflections, so the grant is now a
+partial superset of three read permissions, and it produces a dead end — an agent is handed
+reflection hits it has no route to open, since no tool takes a reflection id and
+`list_reflections` needs `reflections.read`. The confidence above should be
+read as *low* until Slice 15 shows how that feels from a real client.
+

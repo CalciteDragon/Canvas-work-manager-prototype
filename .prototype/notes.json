@@ -407,6 +407,38 @@
       "projectId": null,
       "slice": 13,
       "note": "Fixed rather than noted a fifth time: the host now reads CWM_HOST_PORT and ignores PORT entirely. Verified by running pnpm dev through the same launch config that broke it — ng serve reports \"Environment variable PORT detected. Using port 4200\" and the host still comes up on 4310. Ignoring PORT is the whole fix; honouring it as a fallback would have kept the trap loaded."
+    },
+    {
+      "id": "note-2026-08-29-001",
+      "createdAt": "2026-08-29T13:20:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 14,
+      "note": "Slice 14 has no clickable surface, so the phase was exercised by driving the registry against a real file-backed store (a temp copy of the agent-heavy seed) rather than the in-memory test harness. Writes landed in the JSON and the activity row came out attributed to Claude. Worth keeping as the pattern for transport-less slices: the in-memory harness would not have caught a persistence-layer mistake."
+    },
+    {
+      "id": "note-2026-08-29-002",
+      "createdAt": "2026-08-29T13:21:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 14,
+      "note": "The host's createApi() has no `workspace` service, so the scratch run had to construct WorkspaceService by hand from the persistence repositories. That is the exact seam Slice 15 must wire — one line in apps/prototype-host/api/services.ts — and it is easy to miss because nothing in the host references it today."
+    },
+    {
+      "id": "note-2026-08-29-003",
+      "createdAt": "2026-08-29T13:22:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 14,
+      "note": "get_upcoming_work reuses DashboardTask, so every row repeats projectName and projectIcon. On a screen that is right — each row must say where it came from. For an agent reading twenty rows from one project it is twenty copies of the same two strings, and the icon is meaningless in text. Candidate for §56: measure whether a grouped-by-project shape reads better to a model."
+    },
+    {
+      "id": "note-2026-08-29-004",
+      "createdAt": "2026-08-29T13:23:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 14,
+      "note": "search_workspace for 'deployment' on agent-heavy returns exactly one hit, and it is the DONE task. There is no way for an agent to say 'only open work', because SearchWorkspaceQuery has no status filter. Deliberately minimal for now, but the first thing a real client will want."
     }
   ]
 }

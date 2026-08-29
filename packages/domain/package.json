@@ -11,7 +11,7 @@
   },
   "scripts": {
     "test": "vitest run",
-    "lint": "tsc --noEmit && node scripts/check-no-direct-date.mjs && node scripts/check-domain-imports.mjs"
+    "lint": "tsc --noEmit && node scripts/check-no-direct-date.mjs && node ../../scripts/check-package-imports.mjs"
   },
   "devDependencies": {
     "@cwm/prototype-data": "workspace:*",

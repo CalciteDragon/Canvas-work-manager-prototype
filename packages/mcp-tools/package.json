@@ -11,7 +11,7 @@
   },
   "scripts": {
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit && node ../../scripts/check-package-imports.mjs --root src --allow @cwm/contracts,@cwm/domain,zod --label \"Tool definitions\""
   },
   "dependencies": {
     "@cwm/contracts": "workspace:*",

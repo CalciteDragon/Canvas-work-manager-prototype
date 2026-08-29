@@ -1,5 +1,6 @@
 import {
   SearchWorkspaceResultSchema,
+  type DashboardTask,
   UpcomingWorkResultSchema,
   type Project,
   type Reflection,
@@ -69,26 +70,32 @@ export class WorkspaceService {
       this.dependencies.reflections.list(),
     ]);
 
-    const hits: SearchHit[] = [
-      ...matchedProjects.filter((project) => byId.has(project.id)).map((project) => this.projectHit(project)),
-      ...matchedTasks
+    const byKind: SearchHit[][] = [
+      matchedProjects.filter((project) => byId.has(project.id)).map((project) => this.projectHit(project)),
+      matchedTasks
         .filter((task) => task.archivedAt === undefined && byId.has(task.projectId))
         .map((task) => this.taskHit(task, byId.get(task.projectId))),
-      ...allReflections
+      allReflections
         .filter((reflection) => byId.has(reflection.projectId) && matches(reflection, term))
         .map((reflection) => this.reflectionHit(reflection, byId.get(reflection.projectId))),
     ];
+    for (const kind of byKind) kind.sort(order);
 
-    // Grouped by kind, then by title, then by id. §40 sketches a ranking; this slice does
-    // not rank, and an unordered result would make `limit` return different rows each call.
-    hits.sort(
-      (left, right) =>
-        KIND_ORDER[left.kind] - KIND_ORDER[right.kind] ||
-        (left.title ?? '').localeCompare(right.title ?? '') ||
-        left.id.localeCompare(right.id),
-    );
+    // Round-robin across the kinds, **then** present in kind order.
+    //
+    // Slicing a kind-ordered list instead would let one kind starve the others: twenty
+    // matching projects and the default limit of 20 would return no tasks and no
+    // reflections at all — from the one tool §40 justifies precisely because the caller
+    // does not know which kind holds its answer. Taking turns means a limit reached is a
+    // limit shared.
+    const hits: SearchHit[] = [];
+    for (let index = 0; hits.length < query.limit; index += 1) {
+      const round = byKind.map((kind) => kind[index]).filter((hit): hit is SearchHit => hit !== undefined);
+      if (round.length === 0) break;
+      hits.push(...round.slice(0, query.limit - hits.length));
+    }
 
-    return SearchWorkspaceResultSchema.parse({ query: query.query, hits: hits.slice(0, query.limit) });
+    return SearchWorkspaceResultSchema.parse({ query: query.query, hits: hits.sort(order) });
   }
 
   /**
@@ -111,7 +118,7 @@ export class WorkspaceService {
       (task) => task.archivedAt === undefined && byId.has(task.projectId) && isOpen(task),
     );
 
-    const bucket = (tasks: Task[]): unknown[] =>
+    const bucket = (tasks: Task[]): DashboardTask[] =>
       tasks
         .sort(byDueDate)
         .slice(0, query.limit)
@@ -158,7 +165,9 @@ export class WorkspaceService {
     return {
       kind: 'reflection',
       id: reflection.id,
-      ...(reflection.title === undefined ? {} : { title: reflection.title }),
+      // Blank as well as absent: an empty title is storable, and `title: ""` in a hit is
+      // noise an agent has to reason about.
+      ...((reflection.title ?? '').trim() === '' ? {} : { title: reflection.title }),
       projectId: reflection.projectId,
       ...(project === undefined ? {} : { projectName: project.name }),
     };
@@ -166,6 +175,15 @@ export class WorkspaceService {
 }
 
 const KIND_ORDER: Record<SearchHit['kind'], number> = { project: 0, task: 1, reflection: 2 };
+
+/**
+ * Kind, then title, then id. §40 sketches a ranking; this slice does not rank, and an
+ * unordered result would make `limit` return different rows on identical data.
+ */
+const order = (left: SearchHit, right: SearchHit): number =>
+  KIND_ORDER[left.kind] - KIND_ORDER[right.kind] ||
+  (left.title ?? '').localeCompare(right.title ?? '') ||
+  left.id.localeCompare(right.id);
 
 /** The repositories' own text rule, applied to the one entity whose query cannot express it. */
 const matches = (reflection: Reflection, term: string): boolean =>

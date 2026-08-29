@@ -131,13 +131,15 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
     harness = buildHarness();
   });
 
-  it('has a contract case for every registered tool', () => {
-    const missing = buildHarness()
+  it('has a contract case for every registered tool, and no case for a tool that is gone', () => {
+    const registered = buildHarness()
       .registry.list()
-      .map(({ name }) => name)
-      .filter((name) => !(name in CASES));
+      .map(({ name }) => name);
 
-    expect(missing).toEqual([]);
+    expect(registered.filter((name) => !(name in CASES))).toEqual([]);
+    // The other direction too: a renamed or deleted tool would otherwise leave its case
+    // sitting here unused and unnoticed.
+    expect(Object.keys(CASES).filter((name) => !registered.includes(name))).toEqual([]);
   });
 
   for (const tool of buildHarness().registry.list()) {

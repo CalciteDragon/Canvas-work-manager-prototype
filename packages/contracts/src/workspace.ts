@@ -28,8 +28,14 @@ export type SearchHitKind = z.infer<typeof SearchHitKindSchema>;
 export const SearchHitSchema = z.object({
   kind: SearchHitKindSchema,
   id: z.string().min(1),
-  /** Optional because a reflection need not have a title (`ReflectionSchema.title`). */
-  title: z.string().min(1).optional(),
+  /**
+   * Optional because a reflection need not have a title, and **not** `.min(1)`, because
+   * `ReflectionSchema.title` is not: an empty title is storable, `add_reflection` can create
+   * one, and a stricter projection than the thing it projects would make the *whole* search
+   * result fail to parse — poisoning every later search whose term happened to match that
+   * one row. A projection may narrow which fields it carries, never which values.
+   */
+  title: z.string().optional(),
   /**
    * Where the hit lives. Both absent on a `kind: 'project'` hit — its own id is `id` and
    * its own name is `title`, and repeating them would let one hit disagree with itself.

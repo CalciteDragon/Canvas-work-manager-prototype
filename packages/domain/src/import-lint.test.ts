@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
 
-const scannerPath = fileURLToPath(new URL('../scripts/check-domain-imports.mjs', import.meta.url));
+const scannerPath = fileURLToPath(new URL('../../../scripts/check-package-imports.mjs', import.meta.url));
 const temporaryRoots: string[] = [];
 
 const makeRoot = async (): Promise<string> => {

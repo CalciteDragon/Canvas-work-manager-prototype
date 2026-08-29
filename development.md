@@ -600,6 +600,66 @@ with a clear permission error.
 
 ### Slice 14 — Tool registry + in-process contract tests
 
+**Status:** done — plan:
+[docs/plans/14-tool-registry-contract-tests.md](docs/plans/14-tool-registry-contract-tests.md)
+— §54's fourteen tools exist as §55 definitions over the domain services, and a 70-test
+suite proves every one of them on both its success and its permission-denied path with no
+socket open.
+
+**No MCP SDK in this slice**
+([decision](docs/decisions/2026-08-tool-registry-is-transport-free.md)). The *Build* bullet
+below says "calling the SDK handler in-process"; what settled it was Slice 15's own *Build*,
+which owns the SDK version, the protocol target and `createMcpHandler()` — the *Do not*
+forbids only **starting an endpoint**, and an in-process handler starts nothing, so it does
+not decide the question. Three obligations move to Slice 15 as a result and are listed
+there: `tools/list` as a protocol response, agent revocation, and §60's handler path itself.
+`SPEC_TOOL_NAMES` is exported so both slices assert one list.
+
+**The registry declares permissions; the domain enforces them.** A second check in the
+registry would be a second source of truth, and the first to drift would be the one no test
+covered. `contract.test.ts` pins the two together from both sides — and the load-bearing
+half is that **success is asserted under `[tool.permission]` alone**. A "sufficient" grant
+would prove each permission *necessary* and never *sufficient*, and would have passed a
+design that was unusable in practice: composing the checked services inside
+`search_workspace` makes it demand three grants where §53's grid offers one. Hence
+**`WorkspaceService`** ([entry](docs/decisions/2026-08-workspace-tools-need-their-own-service.md)),
+which asserts `workspace.read` alone and reads the repositories as `DashboardService`
+already did. All fourteen tools pass under their minimal grant.
+
+That entry closes the "revisit when" Slice 13 left open, and the answer is uncomfortable:
+`workspace.read` got **wider**. `search_workspace` covers reflections (§40 lists them), so
+the grant is now a partial superset of three read permissions — and it produces a **dead
+end**, handing an agent reflection hits it cannot open — no tool takes a reflection id at all, and `list_reflections` on the hit's project needs `reflections.read`. What leaks
+is a substring oracle and a title rather than the text, which is a smaller and stranger leak
+than expected. Recorded rather than designed around; Slice 15 is where a real client shows
+whether it matters.
+
+`task-windows.ts` ended a duplication rather than adding a third copy: `DashboardService`
+defined the open-status set once and spelled the overdue condition out again a few lines
+below its own helper. Both now share one definition, plus the dashboard row projection
+`get_upcoming_work` reuses whole. Two things the build showed that the plan had not:
+`complete_task` pointed at the seed's already-done task would have passed a "the entity is
+there afterwards" assertion **having done nothing**, because completion is idempotent — so
+the contract table pins inputs that genuinely change; and the `agent-heavy` seed has no
+foreign-workspace project at all, so the harness injects one, or "a foreign id is not found,
+not forbidden" would have silently tested the missing-id branch instead.
+
+The **diff** review then found three things the tests as written did not: a reflection with
+an empty-string title would have made `search_workspace` throw *permanently* — the hit
+schema was stricter than the record it projects, so one blank title poisons every later
+search matching that row; `limit` applied to a kind-ordered list could starve a whole kind,
+which is the opposite of why §40 wants one combined search; and two tests were weaker than
+their names — "orders deterministically" passed against no sort at all, and the archived
+case archived the project, so it could not tell the two exclusion rules apart. All fixed and
+pinned. The regex import lint was also replaced: review showed three bypasses, so
+`packages/domain`'s AST allowlist walker moved to `scripts/check-package-imports.mjs`, took
+`--allow`/`--label`, and now guards both packages from `lint`.
+
+**Deferred:** no milestone search — §40 lists milestones and Slice 19 owns them; and
+reflection text matching sits in the service rather than the repository, because
+`ReflectionQuery` has no `search` member and adding one would change three files for one
+caller (Slice 21's to resolve).
+
 **Goal:** Tool semantics exist independently of MCP plumbing, and are tested without
 opening a socket.
 
@@ -617,6 +677,9 @@ opening a socket.
 - Every tool calls domain services — never repositories directly.
 - Contract tests calling the SDK handler in-process (§60): `tools/list`, input
   schemas, results, permission denials, errors, activity logging, revocation.
+  **Built without the SDK** — input schemas, results, permission denials, errors and
+  activity logging are covered against the registry directly; `tools/list`, revocation and
+  §60's handler path are Slice 15's, and are listed there.
 
 **Done when** contract tests cover every tool's success and permission-denied paths
 and run without a listening port.
@@ -638,8 +701,15 @@ point of this slice.
 - `createMcpHandler()` mounted at `http://localhost:4310/mcp` using the SDK's modern
   HTTP serving path — do not hand-implement the protocol (§50).
 - `pnpm mcp:stdio` entry registering **the identical registry** (§59).
-- Bearer token → `AgentContext` via Slice 13's authenticator.
+- Bearer token → `ActorContext` via Slice 13's authenticator. (§55 said `AgentContext`;
+  the spec was corrected in Slice 14 — there is one actor type, and it is the domain's.)
 - `docs/mcp-setup.md`: how to point Claude Desktop / Cursor at both transports.
+- **Three contract obligations inherited from Slice 14**
+  ([why](docs/decisions/2026-08-tool-registry-is-transport-free.md)), all of §69's list:
+  `tools/list` as a real protocol response asserted against `SPEC_TOOL_NAMES`; **agent
+  revocation** end to end, which needs a token and a handler in the same test because
+  revocation is an authenticate-time refusal with nothing for a registry-level test to
+  observe; and §60's in-process SDK-handler path itself.
 
 **Done when** a real MCP client lists tools, creates a task, and that task is present
 in `data.json` — over both HTTP and stdio.

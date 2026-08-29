@@ -23,8 +23,10 @@ That starts two processes:
 | `host` | http://127.0.0.1:4310 | The prototype host — the fake API (§61) over `.prototype/data.json` |
 
 The host is also where the MCP server, fake auth and the real-AI adapter will live
-(spec §6). The MCP server does not exist yet; see [development.md](development.md) for
-what has actually been built.
+(spec §6). **The MCP server does not exist yet.** What does exist, as of Slice 14, is
+`packages/mcp-tools`: §54's fourteen tool definitions over the domain services, tested
+in-process with no socket. Nothing serves them until Slice 15 mounts the official SDK at
+`/mcp`. See [development.md](development.md) for what has actually been built.
 
 ### The development panel
 
