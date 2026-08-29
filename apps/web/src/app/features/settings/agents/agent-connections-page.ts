@@ -90,11 +90,13 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
+const plural = (count: number, unit: string): string => `${count} ${unit}${count === 1 ? '' : 's'} ago`;
+
 /** Coarse on purpose: §53 wants "4 minutes ago", not a duration to the second. */
 const relative = (elapsed: number): string => {
   if (elapsed < 0) return 'in the future';
   if (elapsed < MINUTE) return 'just now';
-  if (elapsed < HOUR) return `${Math.floor(elapsed / MINUTE)} minutes ago`;
-  if (elapsed < DAY) return `${Math.floor(elapsed / HOUR)} hours ago`;
-  return `${Math.floor(elapsed / DAY)} days ago`;
+  if (elapsed < HOUR) return plural(Math.floor(elapsed / MINUTE), 'minute');
+  if (elapsed < DAY) return plural(Math.floor(elapsed / HOUR), 'hour');
+  return plural(Math.floor(elapsed / DAY), 'day');
 };

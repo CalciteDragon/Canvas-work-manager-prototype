@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ActivityActorSchema } from './activity';
 import { IsoDateSchema, IsoDateTimeSchema, PositionSchema } from './common';
 import { ProjectIdSchema, TaskIdSchema, WorkspaceIdSchema } from './ids';
 import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectStatusSchema } from './project';
@@ -155,6 +156,12 @@ export type SectionQuery = z.infer<typeof SectionQuerySchema>;
 /** Filters for the activity feed (§57). Capped because `limit` arrives off a query string. */
 export const ActivityQuerySchema = z.object({
   projectId: ProjectIdSchema.optional(),
+  /**
+   * Narrow the feed to one kind of actor (§57). Applied **before** `limit`, so §24's
+   * Recent Agent Activity tile cannot go empty just because the newest events happen to be
+   * a person's.
+   */
+  actor: ActivityActorSchema.optional(),
   limit: z.number().int().positive().max(200).optional(),
 });
 export type ActivityQuery = z.infer<typeof ActivityQuerySchema>;

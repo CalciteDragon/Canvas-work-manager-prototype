@@ -41,7 +41,13 @@ export type AgentConnection = z.infer<typeof AgentConnectionSchema>;
  * clicked in quick succession race each other into different final states.
  */
 export const UpdateAgentPermissionsInputSchema = z.object({
-  permissions: z.array(AgentPermissionSchema),
+  // Unique, because a grant is a set. The UI cannot send a duplicate — its checkboxes
+  // reflect held state — but the route is reachable directly, and a stored
+  // `['tasks.read', 'tasks.read']` would render §53's grid correctly while quietly making
+  // the record disagree with itself.
+  permissions: z
+    .array(AgentPermissionSchema)
+    .refine((permissions) => new Set(permissions).size === permissions.length, 'permissions must be unique'),
 });
 export type UpdateAgentPermissionsInput = z.infer<typeof UpdateAgentPermissionsInputSchema>;
 

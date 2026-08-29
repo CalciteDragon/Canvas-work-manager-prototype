@@ -26,8 +26,10 @@ copy of `prototype/seeds/agent-heavy.json`, no restart between steps.
    with `Authorization: Bearer prototype-user-a-readwrite` → **201**, and the created task's
    `id` is remembered.
 2. `PATCH /api/agent-connections/agent-claude` with header `x-prototype-user: user-demo` and
-   body `{ permissions: ["projects.read", "tasks.read"] }` → **200**; the response's
-   `permissions` does not contain `tasks.write`.
+   body `{ permissions: ["projects.read", "tasks.read", "workspace.read"] }` → **200**; the
+   response's `permissions` does not contain `tasks.write`. (`workspace.read` is kept so
+   step 4's "reads still work" means something. The exact two-element array §53's UI sends
+   is pinned by `agent-connections-page.spec.ts` instead.)
 3. The same `POST /api/tasks` with the same token → **403**, body
    `{ "error": "permission_denied", "message": "connection \"agent-claude\" is missing permission \"tasks.write\"" }`.
    Then `GET /api/tasks?projectId=project-work-manager` **as the user persona** returns the
@@ -272,7 +274,8 @@ question answered by entry 3 below.
   `ApiDependencies`, not a one-line change; said so.
 - **`lastUsedAt` is a write on every agent read.** Documented as a deliberate cost, touched
   once per request, and the acceptance check now asserts a task count rather than file bytes.
-- **`ActivityQuery.actor` dropped** — it had no caller.
+- **`ActivityQuery.actor` dropped** — it had no caller. *(Reversed in Step 4: it turned out
+  to have one, and its absence was a real defect — see below.)*
 - **`ActivityService.list` now returns feed entries** rather than adding a second read verb.
 - **Token kept off `GET /api/agent-connections`**, on `/prototype/state` only.
 - **Internal self-calls** (`create` → `this.get`) would have made writes require read;
@@ -341,3 +344,33 @@ things, three of which changed the code:
   learned that a bare time makes five-day-old rows read as tonight.
 - **Two component defects the specs caught**, both listed in `development.md`: the refused
   toggle leaving the checkbox moved, and the empty state rendering over a load error.
+
+## Step 4 review
+
+Two reviewers ran against the diff: one on boundaries and spec conformance, one that ran
+everything. The second reported the full suite, both boundary lint scripts, both acceptance
+scripts and all six seed snapshots green, and all 18 planned tests present. The first found
+**no boundary violations and no must-fix defects**. Six suggestions; five were taken:
+
+- **The dashboard tile could lie.** `recentAgentActivity` fetched the newest 200 events and
+  filtered to agents *afterwards*, so a workspace whose recent history was mostly a person's
+  would render "No agent has done anything yet" while agent work sat just outside the window
+  — and it resolved names for 200 rows to keep 8. This **reverses the plan's own decision to
+  drop `ActivityQuery.actor`**: that call was made because nothing would use the filter, and
+  the implementation proved otherwise. The service now scopes, narrows, truncates, then
+  resolves, in that order, with a test that buries one agent event under thirty user ones.
+- **`relative()` said "1 minutes ago"** — visible in the exact string §53 writes out.
+- **The two new stores skipped `PendingTasks`**, which every other gateway-calling store
+  registers with. Their specs passed on microtask timing rather than on the mechanism.
+- **`UpdateAgentPermissionsInput` accepted duplicates.** Unreachable from the grid, reachable
+  from the route; a grant is a set.
+- **The acceptance script and the plan disagreed** about step 2's permission array.
+- A cap test imported `RECENT_AGENT_ACTIVITY_LIMIT` and asserted against it, so it could not
+  catch a wrong cap *value*. Now a literal.
+
+One was **not** taken: a finding that three new files deviate from the repo's formatting
+idiom. They follow it — `activity-store.ts`'s longest line is 482 characters against
+`reflections-store.ts`'s 560 and `timeline-store.ts`'s 587, which are the nearest existing
+examples (section stores). `project-page-store.ts`, the file the reviewer compared against,
+is a page store and is conventionally formatted; so is `agent-connections-store.ts`, the
+page-level store here.

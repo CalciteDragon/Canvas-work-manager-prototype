@@ -103,6 +103,23 @@ describe('AgentConnectionsPage (§53)', () => {
     expect(labels).toEqual(['Last used: 4 minutes ago', 'Never used']);
   });
 
+  /** §53 writes the label out in words, so the words have to be right. */
+  it('says "1 minute ago", not "1 minutes ago"', async () => {
+    const { fixture } = await render(
+      new FakeWorkManagerGateway({
+        agentConnections: [
+          connection({ lastUsedAt: new Date(Date.now() - 90_000).toISOString() }),
+          connection({ id: 'agent-cursor', name: 'Cursor', lastUsedAt: new Date(Date.now() - 25 * 3_600_000).toISOString() }),
+        ],
+      }),
+    );
+
+    const labels = [...fixture.nativeElement.querySelectorAll('[data-agent-last-used]')].map((node) =>
+      (node as HTMLElement).textContent?.trim(),
+    );
+    expect(labels).toEqual(['Last used: 1 minute ago', 'Last used: 1 day ago']);
+  });
+
   it('shows the host’s error rather than an empty grid when a write is refused', async () => {
     const { fixture } = await render(
       new FakeWorkManagerGateway({

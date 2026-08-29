@@ -76,3 +76,14 @@ describe('AgentConnectionViewSchema and UpdateAgentPermissionsInputSchema', () =
     expect(UpdateAgentPermissionsInputSchema.safeParse({ permissions: ['tasks.delete'] }).success).toBe(false);
   });
 });
+
+describe('UpdateAgentPermissionsInputSchema uniqueness', () => {
+  it('rejects a repeated permission — a grant is a set, not a list', () => {
+    expect(UpdateAgentPermissionsInputSchema.safeParse({ permissions: ['tasks.read', 'tasks.read'] }).success).toBe(
+      false,
+    );
+    expect(UpdateAgentPermissionsInputSchema.safeParse({ permissions: ['tasks.read', 'tasks.write'] }).success).toBe(
+      true,
+    );
+  });
+});

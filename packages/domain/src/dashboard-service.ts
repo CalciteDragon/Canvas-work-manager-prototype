@@ -180,9 +180,10 @@ export class DashboardService {
       // `workspace.read` too, which the actor has already passed above — a harmless repeat,
       // and the alternative (an unchecked internal variant) would be a hole waiting for a
       // later caller to find.
-      recentAgentActivity: (await this.dependencies.activity.list(actor, { limit: 200 })).filter(
-        ({ actor: who }) => who === 'agent',
-      ).slice(0, RECENT_AGENT_ACTIVITY_LIMIT),
+      recentAgentActivity: await this.dependencies.activity.list(actor, {
+        actor: 'agent',
+        limit: RECENT_AGENT_ACTIVITY_LIMIT,
+      }),
       // `%` keeps the sign of its left operand, so a clock simulated before 1970 would
       // index backwards off the front of the array. The double modulo makes the rotation
       // continue in both directions instead.

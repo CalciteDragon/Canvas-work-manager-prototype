@@ -107,7 +107,10 @@ export class ActivityService {
     );
     const ordered = events
       .map((event, index) => ({ event, index }))
-      .filter(({ event }) => event.workspaceId === actor.workspaceId)
+      .filter(
+        ({ event }) =>
+          event.workspaceId === actor.workspaceId && (query.actor === undefined || event.actor === query.actor),
+      )
       .sort((left, right) =>
         left.event.createdAt === right.event.createdAt
           ? right.index - left.index
@@ -115,6 +118,10 @@ export class ActivityService {
       )
       .map(({ event }) => event);
 
+    // Scope, then narrow, then truncate, then resolve. The order is the point: filtering
+    // after the limit would let §24's agent tile report "nothing" whenever the newest
+    // events happened to be a person's, and resolving before it would cost three lookups
+    // per event for rows nobody asked for.
     const limited = query.limit === undefined ? ordered : ordered.slice(0, query.limit);
     return Promise.all(limited.map((event) => this.resolve(event)));
   }

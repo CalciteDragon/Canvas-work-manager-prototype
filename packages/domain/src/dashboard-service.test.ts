@@ -271,15 +271,35 @@ describe('DashboardService: §24’s Recent Agent Activity', () => {
     expect((await harness.dashboardService.load(harness.actor, {})).recentAgentActivity).toEqual([]);
   });
 
-  it(`caps the tile at ${RECENT_AGENT_ACTIVITY_LIMIT} rows — a widget answers "lately", not "ever"`, async () => {
+  /**
+   * The cap is written out as a literal on purpose. Asserting against the imported constant
+   * would prove only that *a* cap exists — change it to 100 and the test still passes.
+   */
+  it('caps the tile at 8 rows — a widget answers "lately", not "ever"', async () => {
     const harness = buildHarness();
-    for (let index = 0; index < RECENT_AGENT_ACTIVITY_LIMIT + 3; index += 1) {
+    for (let index = 0; index < 11; index += 1) {
       await harness.taskService.create(agentActorFor(0, ['tasks.write']), { projectId: MINE, title: `Task ${index}` });
     }
 
-    expect((await harness.dashboardService.load(harness.actor, {})).recentAgentActivity).toHaveLength(
-      RECENT_AGENT_ACTIVITY_LIMIT,
-    );
+    expect((await harness.dashboardService.load(harness.actor, {})).recentAgentActivity).toHaveLength(8);
+    expect(RECENT_AGENT_ACTIVITY_LIMIT).toBe(8);
+  });
+
+  /**
+   * The tile filters by actor *before* the limit. Filtering afterwards made it report
+   * "no agent has done anything" whenever the newest events happened to be a person's —
+   * a lying empty state, which is the one thing this slice's other decisions avoid.
+   */
+  it('finds agent work that a wall of newer user activity would otherwise bury', async () => {
+    const harness = buildHarness();
+    await harness.taskService.create(agentActorFor(0, ['tasks.write']), { projectId: MINE, title: 'By an agent' });
+    for (let index = 0; index < 30; index += 1) {
+      await harness.taskService.create(harness.actor, { projectId: MINE, title: `Person task ${index}` });
+    }
+
+    const { recentAgentActivity } = await harness.dashboardService.load(harness.actor, {});
+
+    expect(recentAgentActivity.map(({ entityTitle }) => entityTitle)).toEqual(['By an agent']);
   });
 
   it('refuses an agent without workspace.read', async () => {
