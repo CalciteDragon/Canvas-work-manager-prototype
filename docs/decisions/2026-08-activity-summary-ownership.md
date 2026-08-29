@@ -44,6 +44,9 @@ reading `data.json`, which may still be reason enough (§14) or may be dead weig
 
 **Revisit when**
 
-Slice 13, when the activity feed is built. If it renders `summary` directly, this entry is
-wrong and the staleness-on-rename problem is real and visible. If it composes, ask whether
-`summary` is still worth writing.
+~~Slice 13, when the activity feed is built.~~ **Answered in Slice 13** —
+[the feed composes from parts](2026-08-activity-feed-composes-from-parts.md). It does
+compose, this entry held, and `summary` is kept as the human-readable line in `data.json`
+that §14 says people open by hand. Nothing in `apps/web` reads it, and a domain test now
+pins both facts at once: the frozen summary naming a task's old title while the resolved
+`entityTitle` names its new one.

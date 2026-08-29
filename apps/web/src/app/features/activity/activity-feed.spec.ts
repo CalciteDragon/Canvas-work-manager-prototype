@@ -100,3 +100,17 @@ describe('ActivityFeed (§57)', () => {
     );
   });
 });
+
+describe('ActivityFeed timestamps (§57)', () => {
+  /**
+   * §57 draws `11:32 AM`. Slice 11 learned that a bare time misleads: a feed is mostly
+   * history, and five-day-old rows would all read as tonight.
+   */
+  it('prints a date as well as a time, in UTC, keeping the exact instant in datetime', async () => {
+    const fixture = await render([entry({ createdAt: '2026-08-24T15:32:00.000Z' })]);
+    const time = fixture.nativeElement.querySelector('[data-activity-time]') as HTMLElement;
+
+    expect(time.textContent?.trim()).toBe('24 Aug, 15:32');
+    expect(time.getAttribute('datetime')).toBe('2026-08-24T15:32:00.000Z');
+  });
+});

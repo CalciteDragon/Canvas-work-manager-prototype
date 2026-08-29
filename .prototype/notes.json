@@ -351,6 +351,54 @@
       "projectId": null,
       "slice": 12,
       "note": "Adding the panel pushed the initial bundle to 797 kB against a 725 kB warning budget. The budget has already been raised once (500 → 700 in slice 2). Eager routes are a deliberate §3.1 choice, so the honest options are to raise the budget again or lazy-load the prototype folder; quietly raising it each slice is how the number stops meaning anything."
+    },
+    {
+      "id": "note-2026-08-29-006",
+      "createdAt": "2026-08-29T09:30:59.563Z",
+      "route": "/prototype/state",
+      "projectId": null,
+      "slice": 13,
+      "note": "The Ctrl/Cmd+Shift+D panel's Agent Connection roster is the control I actually reached for first — not to change anything, but to find out which tokens exist. Copy token is the whole value of it. Editing living in Settings (§53) felt right, not split."
+    },
+    {
+      "id": "note-2026-08-29-007",
+      "createdAt": "2026-08-29T09:30:59.750Z",
+      "route": "/prototype/state",
+      "projectId": null,
+      "slice": 13,
+      "note": "§46's panel and §53's Settings answer different questions about the same records: 'what token do I paste' versus 'what may it do'. That split held up in use. The one thing missing from the panel is a link straight to Settings from a roster row."
+    },
+    {
+      "id": "note-2026-08-29-008",
+      "createdAt": "2026-08-29T09:30:59.964Z",
+      "route": "/prototype/state",
+      "projectId": null,
+      "slice": 13,
+      "note": "Unticking Modify tasks in Settings and watching the very next curl come back 403 with the permission named is the single most convincing thing this prototype does. The error message naming the missing permission is why — 'forbidden' would have told me nothing."
+    },
+    {
+      "id": "note-2026-08-29-009",
+      "createdAt": "2026-08-29T09:31:00.179Z",
+      "route": "/prototype/state",
+      "projectId": null,
+      "slice": 13,
+      "note": "The activity feed's three badges (colour + icon + word) read correctly at a glance on the project canvas, but on the dashboard tile the rows are tall and only three fit. A dashboard tile may want a denser row than a full-page section does."
+    },
+    {
+      "id": "note-2026-08-29-010",
+      "createdAt": "2026-08-29T09:31:00.381Z",
+      "route": "/prototype/state",
+      "projectId": null,
+      "slice": 13,
+      "note": "Completing a task in the Task List and seeing it appear at the top of Recent Activity beside it, with no refresh, is what makes the canvas feel like one page. It cost one line (reloading on projectDataRevision) and would have been very easy to miss."
+    },
+    {
+      "id": "note-2026-08-29-011",
+      "createdAt": "2026-08-29T09:31:00.578Z",
+      "route": "/prototype/state",
+      "projectId": null,
+      "slice": 13,
+      "note": "Slice 12's PORT note bit again, harder: 'pnpm dev' through the editor's launch config sets PORT=4200, so the host binds the web port and every page load answers {\"error\":\"not_found\"}. The host should read a CWM_HOST_PORT and ignore the generic PORT, or dev:host should pass its own."
     }
   ]
 }

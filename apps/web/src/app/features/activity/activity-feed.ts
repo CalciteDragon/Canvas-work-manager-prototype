@@ -47,9 +47,35 @@ export class ActivityFeed {
       // Falls back to the action's own subject when the entity has no title of its own —
       // a section, or a target a hand-edited data.json has since removed.
       target: entry.entityTitle ?? entry.entityType.replace('_', ' '),
+      when: whenOf(entry.createdAt),
     })),
   );
 }
+
+/**
+ * §57's card shows `11:32 AM`. It gets a **date as well as a time**, because Slice 11
+ * learned this the expensive way: overdue rows printed only the due time, so five-day-old
+ * work all read as "23:00" tonight. A feed is mostly history, so most rows are not today.
+ *
+ * `Intl` with an explicit UTC zone rather than the browser's: every timestamp in the
+ * prototype is UTC (§45), and rendering them in local time would put a row an hour away
+ * from the ISO value beside it in `data.json`.
+ */
+const FORMAT = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+  timeZone: 'UTC',
+});
+
+const whenOf = (iso: string): string => {
+  const parsed = Date.parse(iso);
+  // A hand-edited `data.json` can carry anything the schema's regex lets through; printing
+  // "Invalid Date" in the feed would be worse than printing what is actually stored.
+  return Number.isNaN(parsed) ? iso : FORMAT.format(new Date(parsed));
+};
 
 /**
  * `task.completed` reads as `Completed`. The verbs are not enumerated anywhere — §57 names

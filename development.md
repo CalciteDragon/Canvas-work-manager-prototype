@@ -479,7 +479,7 @@ and the clock-keyed Fun Fact all re-derived; `nestedProjects` flattened a three-
 restored it with **no reload** (a computed over a signal); `gridProjectLayout` rendered a
 `grid` project as flow while leaving `grid` stored, so turning it back on restores the
 project's own choice; and the AI provider went mock → real (500) → mock without a restart.
-**Agent Connection is deferred to Slice 13**, when connections exist. Using it surfaced five
+**Agent Connection was deferred to Slice 13**, which landed it as a read-only roster. Using the panel surfaced five
 notes, the sharpest being that the host reads the generic `PORT` — so any tooling that sets
 `PORT=4200` makes `pnpm dev` start the host *on the web port*, and every page load returns
 `{"error":"not_found"}` while both processes report success.
@@ -492,7 +492,7 @@ notes, the sharpest being that the host reads the generic `PORT` — so any tool
 
 - Ctrl/Cmd+Shift+D panel (§46) controlling: Persona, Seed, Current Date, Theme,
   Layout Mode, AI Provider, Network Delay (none/300ms/1s/3s), Failure Rate,
-  Feature Flags. Agent Connection joins in Slice 13.
+  Feature Flags. Agent Connection joined in Slice 13.
 - Host endpoints backing it: load seed, reset, set simulated date, set AI provider,
   capture a note. **Latency and failure rate are not host endpoints** — they live in the
   Angular gateway, where §63's optimistic revert can actually be observed
@@ -517,6 +517,60 @@ MCP is treated as a real product experiment (§48), not an integration chore.
 ---
 
 ### Slice 13 — Agent connections, permissions, activity
+
+**Status:** done — plan:
+[docs/plans/13-agent-connections-permissions-activity.md](docs/plans/13-agent-connections-permissions-activity.md)
+— §51's tokens resolve to `ActorContext`s, the domain enforces §53's grants, and §57's feed
+tells the three actors apart on both the project canvas and the dashboard.
+
+**Permissions live on the actor, and connection management is not a permission**
+([decision](docs/decisions/2026-08-permissions-live-on-the-actor.md)). The caller asserts
+identity, the domain asserts capability: `ActorContext`'s agent variant carries the grant and
+every public service method calls `assertPermitted`. Both plan reviewers independently found
+the same hole in the first draft — an agent able to edit connections could grant itself the
+permission it had just been denied — so `AgentConnectionService` is **user-actors-only** and
+`AgentPermissionSchema` deliberately has no `agents.*` member. A second thing only the build
+showed: write paths look their own targets up, so with the check on `get` a grant of
+`tasks.write` alone was silently unusable. Each service now has a private unchecked `require`
+for its own lookups, pinned by a test.
+
+**Tokens are fixtures, not records**
+([entry](docs/decisions/2026-08-agent-tokens-are-fixtures-not-records.md)): §52's shape has no
+token field, so `prototype-user-a-readwrite` lives beside the seeds and is only a *pointer* —
+the live connection is re-read on every request, which is what makes §53's "immediately"
+true. It rides on `/prototype/state` and is asserted absent from `GET /api/agent-connections`.
+§53's "Last used" is a **throttled** write
+([entry](docs/decisions/2026-08-last-used-is-a-throttled-write.md)): unthrottled it would make
+every agent *read* clone, twice-validate and rewrite the whole data file on one lock. The
+comparison is on distance rather than elapsed time, or §46's backwards date control strands
+the stamp in the future and freezes the label for the session.
+
+The feed **composes** from structured parts with a live `entityTitle`
+([entry](docs/decisions/2026-08-activity-feed-composes-from-parts.md)), which answers the open
+question Slice 5's summary-ownership entry left for this slice: `summary` is kept as the
+human-readable line in `data.json`, and nothing in `apps/web` reads it. §46's Agent Connection
+control is a **read-only roster** with copyable tokens
+([entry](docs/decisions/2026-08-agent-connection-panel-control-is-a-roster.md)) — a second
+permission grid would break Slice 12's "no control exists twice".
+
+Verified in the browser against `agent-heavy`: unticking **Modify tasks** in Settings → AI &
+Agents made the agent's very next `POST /api/tasks` answer
+`403 {"error":"permission_denied","message":"connection \"agent-claude\" is missing permission \"tasks.write\""}`
+with nothing restarted, and revoking the connection turned the same token into a 401.
+`scripts/agent-acceptance.mjs` walks that path against a real host. Completing a task in the
+Task List put a new row at the top of Recent Activity beside it with no refresh (the section
+reloads on `projectDataRevision` — one line, and easy to have missed). Two defects the new
+component specs caught: a refused permission toggle left the checkbox visually moved, because
+the browser owns that state and `[checked]` will not put it back; and a failed load rendered
+"no agent has been connected" over the error. §53's grid renders **all seven** permissions
+rather than the mock's five, with `workspace.read` labelled as the superset grant it is.
+
+**Deferred:** §53's page has no link from a roster row to its connection, and the panel's
+timestamps and the dashboard tile's row height both drew friction notes (§79, six entries).
+Slice 12's `PORT` finding **bit again** and is now the sharpest open item: `pnpm dev` through
+an editor launch config sets `PORT=4200`, so the host binds the web port and every page load
+answers `{"error":"not_found"}`. The host should read its own variable rather than the
+generic `PORT`.
 
 **Goal:** The permission model exists and is visible, before any MCP wiring.
 

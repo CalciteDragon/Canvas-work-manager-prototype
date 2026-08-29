@@ -311,3 +311,33 @@ Further changes:
 - **`SectionService` has seven public methods**, not the five the mapping implied.
 - `actor.test.ts:23`'s `as never` cast would hide the new required `permissions` field from
   the compiler; it becomes a real literal.
+
+**Round 3** (a re-review of the revised plan). It confirmed the revisions and found four
+things, three of which changed the code:
+
+- **The throttle wedged against a backwards clock.** Written as "more than 60 s later", a
+  simulated date moved backwards — a first-class §46 control — would strand `lastUsedAt` in
+  the future and suppress every later touch. It compares distance now, with a test each way.
+- **A comment in shipped code was factually wrong.** The plan claimed Zod 4's `superRefine`
+  returns a non-object schema that cannot be `.extend()`ed. It returns the same object
+  schema; the reviewer ran it. The structure is still right — both schemas share one shape
+  and one refinement, and extending the refined schema would run the check twice — but the
+  comment in `contracts/src/activity.ts` said something untrue, which under AGENTS.md §2 is a
+  defect. Reworded.
+- **The authenticator cannot use `AgentConnectionService.get`**, because that method is
+  user-actors-only and there is no actor yet — it is the step that produces one. It reads the
+  repository directly and only `touch`es through the service.
+- **`package.json` needed the `agent-acceptance` script**, and the acceptance steps needed
+  the seed's actual project id pinned.
+
+## What changed during implementation
+
+- **`ActivityService` lost its `sections` dependency.** A section has no title of its own —
+  §31's frame heads it from the registry's display name — so resolving one was dead weight.
+- **The `agent-heavy` seed grew a second project.** One project could not show both a
+  connection being used and connection *hygiene* being a piece of work in its own right.
+- **The feed formats its timestamps.** Only visible in the browser: §57 draws `11:32 AM`, and
+  the feed was printing raw ISO. It shows a date as well as a time, because Slice 11 already
+  learned that a bare time makes five-day-old rows read as tonight.
+- **Two component defects the specs caught**, both listed in `development.md`: the refused
+  toggle leaving the checkbox moved, and the empty state rendering over a load error.
