@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { DevPanel } from '../../prototype/dev-panel/dev-panel';
 import { ThemeService } from '../theme/theme-service';
 import { ShellStore } from './shell-store';
 import { Sidebar } from './sidebar/sidebar';
@@ -16,7 +15,7 @@ import { TopBar } from './top-bar/top-bar';
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DevPanel, RouterOutlet, Sidebar, TopBar],
+  imports: [RouterOutlet, Sidebar, TopBar],
   providers: [ShellStore],
   styleUrl: './app-shell.scss',
   templateUrl: './app-shell.html',
