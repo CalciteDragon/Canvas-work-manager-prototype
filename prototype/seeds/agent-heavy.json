@@ -1,0 +1,452 @@
+{
+  "schemaVersion": 1,
+  "users": [
+    {
+      "id": "user-demo",
+      "name": "Demo User",
+      "avatar": "🧭",
+      "workspaceId": "workspace-demo",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-demo-today",
+            "type": "today",
+            "position": 0,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-fact",
+            "type": "fun_fact",
+            "position": 1,
+            "size": "medium",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-upcoming",
+            "type": "upcoming",
+            "position": 2,
+            "size": "medium",
+            "config": {
+              "days": 7
+            },
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-digest",
+            "type": "daily_digest",
+            "position": 3,
+            "size": "medium",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-projects",
+            "type": "active_projects",
+            "position": 4,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-recent",
+            "type": "recent_progress",
+            "position": 5,
+            "size": "medium",
+            "config": {
+              "days": 7
+            },
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-agents",
+            "type": "recent_agent_activity",
+            "position": 6,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-alex",
+      "name": "Alex",
+      "avatar": "🌤️",
+      "workspaceId": "workspace-alex",
+      "preferences": {
+        "theme": "light",
+        "dashboardWidgets": [
+          {
+            "id": "widget-alex-upcoming",
+            "type": "upcoming",
+            "position": 0,
+            "size": "full",
+            "config": {
+              "days": 14
+            },
+            "hidden": false
+          },
+          {
+            "id": "widget-alex-today",
+            "type": "today",
+            "position": 1,
+            "size": "medium",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-sam",
+      "name": "Sam",
+      "avatar": "🌱",
+      "workspaceId": "workspace-sam",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-sam-calendar",
+            "type": "calendar",
+            "position": 0,
+            "size": "medium",
+            "config": {},
+            "hidden": true
+          },
+          {
+            "id": "widget-sam-digest",
+            "type": "daily_digest",
+            "position": 1,
+            "size": "small",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "workspace-demo",
+      "name": "Demo User Workspace",
+      "ownerUserId": "user-demo",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-alex",
+      "name": "Alex Workspace",
+      "ownerUserId": "user-alex",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-sam",
+      "name": "Sam Workspace",
+      "ownerUserId": "user-sam",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "project-work-manager",
+      "workspaceId": "workspace-demo",
+      "name": "Work Manager",
+      "description": "The workspace the agents actually work in.",
+      "icon": "🤖",
+      "status": "active",
+      "targetDate": "2026-09-11",
+      "projectLayoutMode": "flow",
+      "progressFormula": "count",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "project-agent-ops",
+      "workspaceId": "workspace-demo",
+      "name": "Agent operations",
+      "description": "Connection hygiene, permission reviews, and what the agents got wrong.",
+      "icon": "🔌",
+      "status": "active",
+      "targetDate": "2026-09-30",
+      "projectLayoutMode": "flow",
+      "progressFormula": "count",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "sections": [
+    {
+      "id": "section-project-work-manager-brief",
+      "projectId": "project-work-manager",
+      "type": "rich-text",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "Most of this board is maintained by agents. Watch what they do."
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-work-manager-tasks",
+      "projectId": "project-work-manager",
+      "type": "task-list",
+      "position": 1,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-work-manager-activity",
+      "projectId": "project-work-manager",
+      "type": "recent-activity",
+      "position": 2,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-agent-ops-brief",
+      "projectId": "project-agent-ops",
+      "type": "rich-text",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "Review what each connection is allowed to do before widening anything."
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-agent-ops-tasks",
+      "projectId": "project-agent-ops",
+      "type": "task-list",
+      "position": 1,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-agent-deployment",
+      "projectId": "project-work-manager",
+      "title": "Configure deployment",
+      "status": "done",
+      "priority": "high",
+      "estimate": 3,
+      "dueAt": "2026-08-24T18:00:00.000Z",
+      "completedAt": "2026-08-24T15:32:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-agent-retries",
+      "projectId": "project-work-manager",
+      "title": "Add retry budget to the sync job",
+      "status": "in_progress",
+      "priority": "high",
+      "startAt": "2026-08-24T16:00:00.000Z",
+      "dueAt": "2026-08-25T23:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-agent-schema",
+      "projectId": "project-work-manager",
+      "title": "Document the tool input schemas",
+      "status": "todo",
+      "priority": "medium",
+      "dueAt": "2026-08-27T23:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-agent-triage",
+      "projectId": "project-work-manager",
+      "title": "Triage the overnight agent errors",
+      "status": "blocked",
+      "priority": "medium",
+      "dueAt": "2026-08-23T23:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-ops-review",
+      "projectId": "project-agent-ops",
+      "title": "Review the Claude connection permissions",
+      "status": "todo",
+      "priority": "high",
+      "dueAt": "2026-08-26T20:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-ops-rotate",
+      "projectId": "project-agent-ops",
+      "title": "Retire the unused connection",
+      "status": "todo",
+      "priority": "low",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "milestones": [],
+  "reflections": [
+    {
+      "id": "reflection-agent-scope",
+      "projectId": "project-agent-ops",
+      "title": "Grants drift",
+      "body": "The read-only connection has been idle for a fortnight. Either it earns its grant or it goes.",
+      "prompt": "What should happen next?",
+      "createdAt": "2026-08-23T18:00:00.000Z",
+      "updatedAt": "2026-08-23T18:00:00.000Z"
+    }
+  ],
+  "activityEvents": [
+    {
+      "id": "activity-agent-1",
+      "workspaceId": "workspace-demo",
+      "actor": "user",
+      "actorUserId": "user-demo",
+      "action": "project.created",
+      "entityType": "project",
+      "entityId": "project-work-manager",
+      "projectId": "project-work-manager",
+      "summary": "Created \"Work Manager\"",
+      "createdAt": "2026-08-20T16:00:00.000Z"
+    },
+    {
+      "id": "activity-agent-2",
+      "workspaceId": "workspace-demo",
+      "actor": "agent",
+      "actorAgentConnectionId": "agent-claude",
+      "action": "task.created",
+      "entityType": "task",
+      "entityId": "task-agent-schema",
+      "projectId": "project-work-manager",
+      "summary": "Created \"Document the tool input schemas\"",
+      "createdAt": "2026-08-21T09:15:00.000Z"
+    },
+    {
+      "id": "activity-agent-3",
+      "workspaceId": "workspace-demo",
+      "actor": "user",
+      "actorUserId": "user-demo",
+      "action": "task.updated",
+      "entityType": "task",
+      "entityId": "task-agent-retries",
+      "projectId": "project-work-manager",
+      "summary": "Updated \"Add retry budget to the sync job\"",
+      "createdAt": "2026-08-22T11:40:00.000Z"
+    },
+    {
+      "id": "activity-agent-4",
+      "workspaceId": "workspace-demo",
+      "actor": "agent",
+      "actorAgentConnectionId": "agent-claude",
+      "action": "task.updated",
+      "entityType": "task",
+      "entityId": "task-agent-triage",
+      "projectId": "project-work-manager",
+      "summary": "Updated \"Triage the overnight agent errors\"",
+      "createdAt": "2026-08-23T08:05:00.000Z"
+    },
+    {
+      "id": "activity-agent-5",
+      "workspaceId": "workspace-demo",
+      "actor": "user",
+      "actorUserId": "user-demo",
+      "action": "reflection.created",
+      "entityType": "reflection",
+      "entityId": "reflection-agent-scope",
+      "projectId": "project-agent-ops",
+      "summary": "Created \"Grants drift\"",
+      "createdAt": "2026-08-23T18:00:00.000Z"
+    },
+    {
+      "id": "activity-agent-6",
+      "workspaceId": "workspace-demo",
+      "actor": "system",
+      "action": "agent_connection.revoked",
+      "entityType": "agent_connection",
+      "entityId": "agent-old",
+      "summary": "Revoked \"Retired assistant\" after 30 days unused",
+      "createdAt": "2026-08-24T06:00:00.000Z"
+    },
+    {
+      "id": "activity-agent-7",
+      "workspaceId": "workspace-demo",
+      "actor": "agent",
+      "actorAgentConnectionId": "agent-claude",
+      "action": "task.completed",
+      "entityType": "task",
+      "entityId": "task-agent-deployment",
+      "projectId": "project-work-manager",
+      "summary": "Completed \"Configure deployment\"",
+      "createdAt": "2026-08-24T15:32:00.000Z"
+    },
+    {
+      "id": "activity-agent-8",
+      "workspaceId": "workspace-demo",
+      "actor": "user",
+      "actorUserId": "user-demo",
+      "action": "agent_connection.updated",
+      "entityType": "agent_connection",
+      "entityId": "agent-cursor",
+      "summary": "Updated permissions for \"Cursor\"",
+      "createdAt": "2026-08-24T15:45:00.000Z"
+    }
+  ],
+  "agentConnections": [
+    {
+      "id": "agent-claude",
+      "userId": "user-demo",
+      "name": "Claude",
+      "permissions": [
+        "projects.read",
+        "tasks.read",
+        "tasks.write",
+        "workspace.read"
+      ],
+      "revoked": false,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "lastUsedAt": "2026-08-24T15:32:00.000Z"
+    },
+    {
+      "id": "agent-cursor",
+      "userId": "user-demo",
+      "name": "Cursor",
+      "permissions": [
+        "projects.read",
+        "tasks.read"
+      ],
+      "revoked": false,
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "agent-old",
+      "userId": "user-demo",
+      "name": "Retired assistant",
+      "permissions": [
+        "projects.read"
+      ],
+      "revoked": true,
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ]
+}

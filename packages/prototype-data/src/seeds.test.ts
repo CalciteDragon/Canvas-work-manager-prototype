@@ -25,23 +25,18 @@ afterEach(async () => {
 });
 
 describe('seed registry and validation', () => {
-  it('exposes exactly the five Slice 4 seed names', () => {
+  it('exposes exactly the six seed names §16 asks the prototype for so far', () => {
     expect(SEED_NAMES).toEqual([
       'empty',
       'personal-workspace',
       'busy-week',
       'nested-projects',
       'overdue-chaos',
+      'agent-heavy',
     ]);
   });
 
-  it.each([
-    'empty',
-    'personal-workspace',
-    'busy-week',
-    'nested-projects',
-    'overdue-chaos',
-  ] as const)('builds %s as a valid isolated prototype document', (seedName) => {
+  it.each(SEED_NAMES)('builds %s as a valid isolated prototype document', (seedName) => {
     const document = buildSeed(seedName);
     expect(() => PrototypeDocumentSchema.parse(document)).not.toThrow();
     expect(() => new InMemoryDataStore(document)).not.toThrow();
@@ -65,24 +60,12 @@ describe('seed registry and validation', () => {
     expect(buildSeed('empty').users[0]!.name).toBe('Demo User');
   });
 
-  it.each([
-    'empty',
-    'personal-workspace',
-    'busy-week',
-    'nested-projects',
-    'overdue-chaos',
-  ] as const)('matches the committed %s snapshot', async (seedName) => {
+  it.each(SEED_NAMES)('matches the committed %s snapshot', async (seedName) => {
     const snapshot = await readFile(join(seedSnapshotsDirectory, `${seedName}.json`), 'utf8');
     expect(snapshot).toBe(serialized(buildSeed(seedName)));
   });
 
-  it.each([
-    'empty',
-    'personal-workspace',
-    'busy-week',
-    'nested-projects',
-    'overdue-chaos',
-  ] as const)('includes all isolated personas in %s', (seedName) => {
+  it.each(SEED_NAMES)('includes all isolated personas in %s', (seedName) => {
     const document = buildSeed(seedName);
     expect(document.users.map(({ name }) => name)).toEqual(['Demo User', 'Alex', 'Sam']);
     expect(document.users.every(({ avatar }) => avatar !== undefined)).toBe(true);
@@ -272,7 +255,7 @@ describe('seed file writer', () => {
     await writeFile(targetPath, 'keep me', 'utf8');
 
     await expect(writeSeedFile('does-not-exist', { targetPath })).rejects.toThrow(
-      /does-not-exist.*empty.*personal-workspace.*busy-week.*nested-projects.*overdue-chaos/s,
+      /does-not-exist.*empty.*personal-workspace.*busy-week.*nested-projects.*overdue-chaos.*agent-heavy/s,
     );
     expect(await readFile(targetPath, 'utf8')).toBe('keep me');
   });
@@ -338,7 +321,7 @@ describe('seeded project canvases (§30)', () => {
     return grouped;
   };
 
-  it.each(['personal-workspace', 'busy-week', 'nested-projects', 'overdue-chaos'] as const)(
+  it.each(['personal-workspace', 'busy-week', 'nested-projects', 'overdue-chaos', 'agent-heavy'] as const)(
     '%s gives every seeded canvas a rich-text brief above its task list',
     (seedName) => {
       const document = buildSeed(seedName);
@@ -368,5 +351,53 @@ describe('seeded project canvases (§30)', () => {
     );
 
     expect(withoutSections.map((project) => project.name)).toEqual(['Cabinets']);
+  });
+});
+
+describe('agent-heavy', () => {
+  const document = () => buildSeed('agent-heavy');
+
+  it('gives the demo persona connections in every state §53 has to render', () => {
+    const connections = document().agentConnections;
+
+    expect(connections.map(({ id, revoked }) => [id, revoked])).toEqual([
+      ['agent-claude', false],
+      ['agent-cursor', false],
+      ['agent-old', true],
+    ]);
+    // §53 shows "Last used"; a connection that has never been used is the other state,
+    // and `lastUsedAt` is optional precisely so the seed can carry one.
+    expect(connections.find(({ id }) => id === 'agent-cursor')?.lastUsedAt).toBeUndefined();
+    expect(new Set(connections.map(({ userId }) => userId))).toEqual(new Set(['user-demo']));
+  });
+
+  it('separates read-only from read-write, so a denial is reachable without editing anything', () => {
+    const byId = new Map(document().agentConnections.map((connection) => [connection.id, connection.permissions]));
+
+    expect(byId.get('agent-claude')).toContain('tasks.write');
+    expect(byId.get('agent-cursor')).not.toContain('tasks.write');
+    expect(byId.get('agent-cursor')).toContain('tasks.read');
+  });
+
+  it('records activity from all three actors, which is what §57 asks the feed to tell apart', () => {
+    const actors = new Set(document().activityEvents.map(({ actor }) => actor));
+
+    expect(actors).toEqual(new Set(['user', 'agent', 'system']));
+  });
+
+  it('attributes every agent event to a connection that exists in the same workspace', () => {
+    const seed = document();
+    const owners = new Map(seed.agentConnections.map((connection) => [connection.id, connection.userId]));
+    const workspaces = new Map(seed.users.map((user) => [user.id, user.workspaceId]));
+
+    for (const event of seed.activityEvents.filter(({ actor }) => actor === 'agent')) {
+      const owner = owners.get(event.actorAgentConnectionId ?? '');
+      expect(owner).toBeDefined();
+      expect(workspaces.get(owner!)).toBe(event.workspaceId);
+    }
+  });
+
+  it('carries a Recent Activity section, so §30’s newest type has a seeded home', () => {
+    expect(document().sections.map(({ type }) => type)).toContain('recent-activity');
   });
 });

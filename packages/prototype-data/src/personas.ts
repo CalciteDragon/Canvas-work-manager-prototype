@@ -48,6 +48,10 @@ export const PERSONAS: DeepReadonly<ReadonlyArray<Readonly<{ user: User; workspa
             hidden: false,
           },
           { id: 'widget-demo-recent', type: 'recent_progress', position: 5, size: 'medium', config: { days: 7 }, hidden: false },
+          // Slice 13's tile. Demo User carries it so §24's agent activity is visible with
+          // no configuration; Alex and Sam deliberately do not, which keeps "switch persona
+          // changes the dashboard" true.
+          { id: 'widget-demo-agents', type: 'recent_agent_activity', position: 6, size: 'wide', config: {}, hidden: false },
         ],
       },
       createdAt: CREATED_AT,

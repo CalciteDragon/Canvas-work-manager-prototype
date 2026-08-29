@@ -1,4 +1,6 @@
 import {
+  ActivityEventSchema,
+  AgentConnectionSchema,
   MilestoneSchema,
   ProjectSchema,
   ProjectSectionSchema,
@@ -6,6 +8,8 @@ import {
   ReflectionSchema,
   SCHEMA_VERSION,
   TaskSchema,
+  type ActivityEvent,
+  type AgentConnection,
   type Milestone,
   type Project,
   type PrototypeDocument,
@@ -20,6 +24,7 @@ export const SEED_NAMES = [
   'busy-week',
   'nested-projects',
   'overdue-chaos',
+  'agent-heavy',
 ] as const;
 export type SeedName = (typeof SEED_NAMES)[number];
 
@@ -99,6 +104,53 @@ const section = (id: string, projectId: string, type: string, position: number, 
     config,
     createdAt: CREATED_AT,
     updatedAt: UPDATED_AT,
+  });
+
+const agentConnection = (
+  id: string,
+  name: string,
+  permissions: string[],
+  options: { revoked?: boolean; lastUsedAt?: string } = {},
+): AgentConnection =>
+  AgentConnectionSchema.parse({
+    id,
+    userId: PERSONAS[0]!.user.id,
+    name,
+    permissions,
+    revoked: options.revoked ?? false,
+    createdAt: CREATED_AT,
+    lastUsedAt: options.lastUsedAt,
+  });
+
+/**
+ * §57's events, seeded rather than generated, because a feed is only worth designing
+ * against once it has history. `validateDocumentIntegrity` is strict about these: the
+ * target must exist, `projectId` must match the target's project, and an agent event's
+ * connection must be owned by someone in the event's workspace — so every id below names
+ * something this seed actually creates.
+ */
+const activityEvent = (
+  id: string,
+  createdAt: string,
+  actor: 'user' | 'agent' | 'system',
+  action: string,
+  entityType: 'project' | 'section' | 'task' | 'milestone' | 'reflection' | 'agent_connection',
+  entityId: string,
+  summary: string,
+  options: { projectId?: string; agentConnectionId?: string } = {},
+): ActivityEvent =>
+  ActivityEventSchema.parse({
+    id,
+    workspaceId: DEMO_WORKSPACE_ID,
+    actor,
+    actorUserId: actor === 'user' ? PERSONAS[0]!.user.id : undefined,
+    actorAgentConnectionId: actor === 'agent' ? options.agentConnectionId : undefined,
+    action,
+    entityType,
+    entityId,
+    projectId: options.projectId,
+    summary,
+    createdAt,
   });
 
 /**
@@ -384,12 +436,172 @@ const overdueChaos = (): PrototypeDocument => {
   });
 };
 
+/**
+ * §16's `agent-heavy`. The workspace §57's own example describes — a project called Work
+ * Manager with a task called "Configure deployment" — so the feed can be designed against
+ * the picture the spec draws.
+ *
+ * Three connections cover the three states §53 has to render: a read-write agent that has
+ * been used, a read-only agent that never has, and a revoked one. The permission split is
+ * what makes a denial reachable without editing anything first.
+ */
+const agentHeavy = (): PrototypeDocument => {
+  const projects = [
+    project('project-work-manager', 'Work Manager', {
+      description: 'The workspace the agents actually work in.',
+      icon: '🤖',
+      targetDate: '2026-09-11',
+    }),
+    project('project-agent-ops', 'Agent operations', {
+      description: 'Connection hygiene, permission reviews, and what the agents got wrong.',
+      icon: '🔌',
+      targetDate: '2026-09-30',
+    }),
+  ];
+
+  return document({
+    projects,
+    sections: [
+      ...projectCanvas(projects[0]!.id, 'Most of this board is maintained by agents. Watch what they do.'),
+      section(`section-${projects[0]!.id}-activity`, projects[0]!.id, 'recent-activity', 2),
+      ...projectCanvas(projects[1]!.id, 'Review what each connection is allowed to do before widening anything.'),
+    ],
+    tasks: [
+      task('task-agent-deployment', projects[0]!.id, 'Configure deployment', {
+        status: 'done',
+        priority: 'high',
+        dueAt: '2026-08-24T18:00:00.000Z',
+        completedAt: '2026-08-24T15:32:00.000Z',
+        estimate: 3,
+      }),
+      task('task-agent-retries', projects[0]!.id, 'Add retry budget to the sync job', {
+        status: 'in_progress',
+        priority: 'high',
+        startAt: '2026-08-24T16:00:00.000Z',
+        dueAt: '2026-08-25T23:00:00.000Z',
+      }),
+      task('task-agent-schema', projects[0]!.id, 'Document the tool input schemas', {
+        priority: 'medium',
+        dueAt: '2026-08-27T23:00:00.000Z',
+      }),
+      task('task-agent-triage', projects[0]!.id, 'Triage the overnight agent errors', {
+        status: 'blocked',
+        priority: 'medium',
+        dueAt: '2026-08-23T23:00:00.000Z',
+      }),
+      task('task-ops-review', projects[1]!.id, 'Review the Claude connection permissions', {
+        priority: 'high',
+        dueAt: '2026-08-26T20:00:00.000Z',
+      }),
+      task('task-ops-rotate', projects[1]!.id, 'Retire the unused connection', { priority: 'low' }),
+    ],
+    reflections: [
+      reflection(
+        'reflection-agent-scope',
+        projects[1]!.id,
+        'The read-only connection has been idle for a fortnight. Either it earns its grant or it goes.',
+        { title: 'Grants drift', prompt: 'What should happen next?', createdAt: '2026-08-23T18:00:00.000Z' },
+      ),
+    ],
+    agentConnections: [
+      agentConnection('agent-claude', 'Claude', ['projects.read', 'tasks.read', 'tasks.write', 'workspace.read'], {
+        lastUsedAt: '2026-08-24T15:32:00.000Z',
+      }),
+      agentConnection('agent-cursor', 'Cursor', ['projects.read', 'tasks.read']),
+      agentConnection('agent-old', 'Retired assistant', ['projects.read'], { revoked: true }),
+    ],
+    activityEvents: [
+      activityEvent(
+        'activity-agent-1',
+        '2026-08-20T16:00:00.000Z',
+        'user',
+        'project.created',
+        'project',
+        projects[0]!.id,
+        'Created "Work Manager"',
+        { projectId: projects[0]!.id },
+      ),
+      activityEvent(
+        'activity-agent-2',
+        '2026-08-21T09:15:00.000Z',
+        'agent',
+        'task.created',
+        'task',
+        'task-agent-schema',
+        'Created "Document the tool input schemas"',
+        { projectId: projects[0]!.id, agentConnectionId: 'agent-claude' },
+      ),
+      activityEvent(
+        'activity-agent-3',
+        '2026-08-22T11:40:00.000Z',
+        'user',
+        'task.updated',
+        'task',
+        'task-agent-retries',
+        'Updated "Add retry budget to the sync job"',
+        { projectId: projects[0]!.id },
+      ),
+      activityEvent(
+        'activity-agent-4',
+        '2026-08-23T08:05:00.000Z',
+        'agent',
+        'task.updated',
+        'task',
+        'task-agent-triage',
+        'Updated "Triage the overnight agent errors"',
+        { projectId: projects[0]!.id, agentConnectionId: 'agent-claude' },
+      ),
+      activityEvent(
+        'activity-agent-5',
+        '2026-08-23T18:00:00.000Z',
+        'user',
+        'reflection.created',
+        'reflection',
+        'reflection-agent-scope',
+        'Created "Grants drift"',
+        { projectId: projects[1]!.id },
+      ),
+      // A system event: no actor id at all, which is the third badge §57 asks the feed to
+      // distinguish and the one nothing else in the prototype produces yet.
+      activityEvent(
+        'activity-agent-6',
+        '2026-08-24T06:00:00.000Z',
+        'system',
+        'agent_connection.revoked',
+        'agent_connection',
+        'agent-old',
+        'Revoked "Retired assistant" after 30 days unused',
+      ),
+      activityEvent(
+        'activity-agent-7',
+        '2026-08-24T15:32:00.000Z',
+        'agent',
+        'task.completed',
+        'task',
+        'task-agent-deployment',
+        'Completed "Configure deployment"',
+        { projectId: projects[0]!.id, agentConnectionId: 'agent-claude' },
+      ),
+      activityEvent(
+        'activity-agent-8',
+        '2026-08-24T15:45:00.000Z',
+        'user',
+        'agent_connection.updated',
+        'agent_connection',
+        'agent-cursor',
+        'Updated permissions for "Cursor"',
+      ),
+    ],
+  });
+};
+
 const builders: Record<SeedName, () => PrototypeDocument> = {
   empty,
   'personal-workspace': personalWorkspace,
   'busy-week': busyWeek,
   'nested-projects': nestedProjects,
   'overdue-chaos': overdueChaos,
+  'agent-heavy': agentHeavy,
 };
 
 export const isSeedName = (value: string): value is SeedName => (SEED_NAMES as readonly string[]).includes(value);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ActivityActorSchema, ActivityEntityTypeSchema, ActivityEventSchema } from './activity';
+import { ActivityActorSchema, ActivityEntityTypeSchema, ActivityEventSchema, ActivityFeedEntrySchema } from './activity';
 
 const event = {
   id: 'activity-1',
@@ -66,5 +66,55 @@ describe('ActivityEventSchema', () => {
     expect(ActivityEventSchema.parse({ ...event, action: 'reflection.added' }).action).toBe('reflection.added');
     expect(ActivityEventSchema.safeParse({ ...event, action: 'completed' }).success).toBe(false);
     expect(ActivityEventSchema.safeParse({ ...event, action: 'Task.Completed' }).success).toBe(false);
+  });
+});
+
+describe('ActivityFeedEntrySchema', () => {
+  const base = {
+    id: 'activity-1',
+    workspaceId: 'workspace-demo',
+    action: 'task.completed',
+    entityType: 'task',
+    entityId: 'task-1',
+    summary: 'Completed "Configure deployment"',
+    createdAt: '2026-08-24T16:00:00.000Z',
+  };
+
+  it('carries the names §57 renders, with the entity title read live', () => {
+    const entry = ActivityFeedEntrySchema.parse({
+      ...base,
+      actor: 'agent',
+      actorAgentConnectionId: 'agent-claude',
+      projectId: 'project-work-manager',
+      actorName: 'Claude',
+      entityTitle: 'Configure deployment',
+      projectName: 'Work Manager',
+    });
+
+    expect([entry.actorName, entry.entityTitle, entry.projectName]).toEqual([
+      'Claude',
+      'Configure deployment',
+      'Work Manager',
+    ]);
+  });
+
+  it('allows an entry with no project — an agent_connection event has none', () => {
+    const entry = ActivityFeedEntrySchema.parse({
+      ...base,
+      action: 'agent_connection.revoked',
+      entityType: 'agent_connection',
+      entityId: 'agent-claude',
+      actor: 'user',
+      actorUserId: 'user-demo',
+      actorName: 'Demo User',
+    });
+
+    expect([entry.projectName, entry.entityTitle]).toEqual([undefined, undefined]);
+  });
+
+  it('applies the same attribution rule the event does', () => {
+    expect(
+      ActivityFeedEntrySchema.safeParse({ ...base, actor: 'agent', actorName: 'Claude' }).success,
+    ).toBe(false);
   });
 });

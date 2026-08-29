@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AgentConnectionSchema, AgentPermissionSchema } from './agent';
+import { AgentConnectionSchema, AgentConnectionViewSchema, AgentPermissionSchema, UpdateAgentPermissionsInputSchema } from './agent';
 
 // §52's example, plus the timestamps the store needs.
 const connection = {
@@ -49,5 +49,30 @@ describe('AgentPermissionSchema', () => {
       'reflections.write',
       'workspace.read',
     ]);
+  });
+});
+
+describe('AgentConnectionViewSchema and UpdateAgentPermissionsInputSchema', () => {
+  const connection = {
+    id: 'agent-claude',
+    userId: 'user-demo',
+    name: 'Claude',
+    permissions: ['projects.read', 'tasks.read', 'tasks.write'],
+    revoked: false,
+    createdAt: '2026-08-01T16:00:00.000Z',
+  };
+
+  it('adds the bearer token the panel copies, and nothing else', () => {
+    const view = AgentConnectionViewSchema.parse({ ...connection, token: 'prototype-user-a-readwrite' });
+    expect(view.token).toBe('prototype-user-a-readwrite');
+  });
+
+  it('keeps the token off the record itself, so §53’s route cannot leak it', () => {
+    expect('token' in AgentConnectionSchema.parse({ ...connection, token: 'x' })).toBe(false);
+  });
+
+  it('takes the whole permission set, so two quick toggles cannot race', () => {
+    expect(UpdateAgentPermissionsInputSchema.parse({ permissions: [] }).permissions).toEqual([]);
+    expect(UpdateAgentPermissionsInputSchema.safeParse({ permissions: ['tasks.delete'] }).success).toBe(false);
   });
 });

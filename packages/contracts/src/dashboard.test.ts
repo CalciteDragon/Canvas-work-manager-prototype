@@ -105,6 +105,7 @@ describe('DashboardResultSchema', () => {
     recentProgress: { days: 7, sinceDate: '2026-08-17', tasks: [] },
     dailyDigest: generated,
     funFact: 'Most people overestimate what they can finish in a day.',
+    recentAgentActivity: [],
   };
 
   it('accepts a fully derived dashboard', () => {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AgentConnectionViewSchema } from './agent';
 import { IsoDateTimeSchema } from './common';
 import { ProjectIdSchema } from './ids';
 import { UserSchema } from './user';
@@ -47,6 +48,12 @@ export const PrototypeStateSchema = z.object({
   clockOffsetMs: z.number().int(),
   aiProvider: AIProviderModeSchema,
   personas: z.array(PrototypePersonaSchema),
+  /**
+   * §46's Agent Connection control. Carries the bearer token, which is why it rides here
+   * and not on `/api/agent-connections` — the panel is the rig, and §51's tokens are part
+   * of the rig.
+   */
+  agentConnections: z.array(AgentConnectionViewSchema),
 });
 export type PrototypeState = z.infer<typeof PrototypeStateSchema>;
 

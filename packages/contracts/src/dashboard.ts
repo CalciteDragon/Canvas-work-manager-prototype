@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ActivityFeedEntrySchema } from './activity';
 import { IsoDateSchema, IsoDateTimeSchema, PositionSchema } from './common';
 import { ProjectIdSchema, TaskIdSchema } from './ids';
 import { ProjectStatusSchema } from './project';
@@ -126,5 +127,11 @@ export const DashboardResultSchema = z.object({
   dailyDigest: GeneratedContentSchema,
   /** §24's "low-priority optional daily content" — a fixture, not AI (see the decision log). */
   funFact: z.string().min(1),
+  /**
+   * §24's Recent Agent Activity. Part of the one dashboard read for the same reason every
+   * other widget is: the digest counts what the lists show, and a tile that fetched for
+   * itself could contradict the one beside it over a different clock reading.
+   */
+  recentAgentActivity: z.array(ActivityFeedEntrySchema),
 });
 export type DashboardResult = z.infer<typeof DashboardResultSchema>;

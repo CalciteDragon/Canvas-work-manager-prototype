@@ -60,6 +60,14 @@
               "days": 7
             },
             "hidden": false
+          },
+          {
+            "id": "widget-demo-agents",
+            "type": "recent_agent_activity",
+            "position": 6,
+            "size": "wide",
+            "config": {},
+            "hidden": false
           }
         ]
       },
