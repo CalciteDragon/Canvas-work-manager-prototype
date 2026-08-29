@@ -25,6 +25,9 @@ export interface RouteRequest {
 
 export type RouteHandler = (request: RouteRequest) => Promise<RouteResult> | RouteResult;
 export type RouteTable = Record<string, RouteHandler>;
+/** Raw mounts own the Node request/response and must finish the response themselves. */
+export type RawRouteHandler = (request: IncomingMessage, response: ServerResponse) => Promise<void> | void;
+export type RawRouteTable = Readonly<Record<string, RawRouteHandler>>;
 
 const NOT_FOUND: RouteResult = { status: 404, contentType: 'application/json', body: { error: 'not_found' } };
 
@@ -129,9 +132,14 @@ const corsHeaders = (origin: string | undefined): Record<string, string> => {
   };
 };
 
-export function createRequestHandler(routes: RouteTable) {
+export function createRequestHandler(routes: RouteTable, rawRoutes: RawRouteTable = {}) {
   return async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const url = new URL(request.url ?? '/', 'http://127.0.0.1');
+    const raw = rawRoutes[url.pathname];
+    if (raw !== undefined) {
+      await raw(request, response);
+      return;
+    }
     const cors = corsHeaders(request.headers.origin);
 
     // Preflight is answered before the route table, not through it: `match()` requires the

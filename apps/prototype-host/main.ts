@@ -1,14 +1,17 @@
 import { createServer, type Server } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { resolve as resolvePath } from 'node:path';
+import type { AddressInfo } from 'node:net';
 import { SimulatedClock } from '@cwm/domain';
-import { createRequestHandler, healthRoutes, type RouteTable } from './router.ts';
+import { createToolRegistry } from '@cwm/mcp-tools';
+import { createRequestHandler, healthRoutes, type RawRouteTable, type RouteTable } from './router.ts';
 import { aiProviderFor, createApi } from './api/services.ts';
 import { createApiRoutes } from './api/routes.ts';
 import { loadPersistence } from './persistence/store.ts';
 import { PrototypeRuntime } from './prototype/runtime.ts';
 import { createPrototypeRoutes } from './prototype/routes.ts';
 import { SwitchableAIProvider } from './prototype/switchable-ai-provider.ts';
+import { createAuthenticatedMcpHandler, createMcpNodeHandler } from './mcp/handler.ts';
 
 export const DEFAULT_PORT = 4310;
 
@@ -54,9 +57,13 @@ export const HOST = '127.0.0.1';
  * can start the host without touching a data file; the real entrypoint below adds §61's
  * API on top.
  */
-export function start(port: number = DEFAULT_PORT, routes: RouteTable = healthRoutes): Promise<Server> {
+export function start(
+  port: number = DEFAULT_PORT,
+  routes: RouteTable = healthRoutes,
+  rawRoutes: RawRouteTable = {},
+): Promise<Server> {
   return new Promise((resolve, reject) => {
-    const server = createServer(createRequestHandler(routes));
+    const server = createServer(createRequestHandler(routes, rawRoutes));
     let listening = false;
 
     // Kept for the server's whole life: without it, any error after a successful
@@ -112,13 +119,23 @@ if (isDirectRun) {
     const clock = new SimulatedClock();
     const ai = new SwitchableAIProvider(aiProviderFor(process.env['PROTOTYPE_AI_PROVIDER']));
     const runtime = new PrototypeRuntime({ persistence, clock, ai, aiProvider: aiProviderMode });
+    const api = createApi(persistence, { clock, ai });
+    const registry = createToolRegistry({
+      projects: api.projects,
+      tasks: api.tasks,
+      reflections: api.reflections,
+      dashboard: api.dashboard,
+      workspace: api.workspace,
+    });
+    const mcp = createAuthenticatedMcpHandler({ registry, authenticator: api.authenticator! });
 
     const server = await start(port, {
       ...healthRoutes,
       ...createPrototypeRoutes(runtime),
-      ...createApiRoutes(createApi(persistence, { clock, ai })),
-    });
-    console.log(`prototype-host listening on http://${HOST}:${port} — data ${persistence.path}`);
+      ...createApiRoutes(api),
+    }, { '/mcp': createMcpNodeHandler(mcp) });
+    const actualPort = (server.address() as AddressInfo).port;
+    console.log(`prototype-host listening on http://${HOST}:${actualPort} — data ${persistence.path}`);
 
     let stopping = false;
     for (const signal of ['SIGINT', 'SIGTERM'] as const) {
@@ -131,7 +148,7 @@ if (isDirectRun) {
         }
         stopping = true;
         const giveUp = setTimeout(() => process.exit(0), 2000).unref();
-        void stop(server)
+        void Promise.all([stop(server), mcp.close()])
           .catch((error: unknown) => {
             const reason = error instanceof Error ? error.message : String(error);
             console.error(`prototype-host did not shut down cleanly — ${reason}`);

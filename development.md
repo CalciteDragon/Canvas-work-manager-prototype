@@ -691,6 +691,8 @@ point of this slice.
 
 ### Slice 15 — MCP HTTP endpoint (and stdio)
 
+**Status:** done — plan: [docs/plans/15-mcp-http-and-stdio.md](docs/plans/15-mcp-http-and-stdio.md) — official SDK v2 serves the identical fourteen-tool registry over modern `2026-07-28` Streamable HTTP and stdio; real clients list tools, create tasks, and find them in separate file-backed stores. HTTP authenticates every request, stdio reloads/authenticates every call, and the documented safe workflow avoids cross-process lost updates.
+
 **Goal:** A real MCP client can connect and drive the workspace.
 
 **Spec:** §49, §50, §59

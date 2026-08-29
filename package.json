@@ -15,7 +15,8 @@
     "test": "pnpm -r --if-present test",
     "lint": "pnpm -r --if-present lint",
     "prototype:seed": "pnpm --filter @cwm/prototype-data seed",
-    "prototype:reset": "pnpm --filter @cwm/prototype-data seed personal-workspace"
+    "prototype:reset": "pnpm --filter @cwm/prototype-data seed personal-workspace",
+    "mcp:stdio": "pnpm --silent --filter @cwm/prototype-host mcp:stdio"
   },
   "devDependencies": {
     "concurrently": "^10.0.5",

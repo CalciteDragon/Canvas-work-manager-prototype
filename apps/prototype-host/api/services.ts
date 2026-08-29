@@ -1,4 +1,4 @@
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, SimulatedClock, TaskService, TimelineService } from '@cwm/domain';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, SimulatedClock, TaskService, TimelineService, WorkspaceService } from '@cwm/domain';
 import type { AIProvider } from '@cwm/domain';
 import { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
 import { RealAIProvider } from './real-ai-provider.ts';
@@ -28,7 +28,12 @@ export interface CreateApiOptions {
   ai?: AIProvider;
 }
 
-export const createApi = (persistence: Persistence, options: CreateApiOptions = {}): ApiDependencies => {
+export interface HostServices extends ApiDependencies {
+  /** Slice 15's MCP registry uses this; REST routes deliberately do not. */
+  workspace: WorkspaceService;
+}
+
+export const createApi = (persistence: Persistence, options: CreateApiOptions = {}): HostServices => {
   const clock = options.clock ?? new SimulatedClock();
   const ids = new PrototypeIdGenerator();
   const { store, projects, sections, tasks, milestones, reflections, activities, agents, users, unitOfWork } =
@@ -47,6 +52,7 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
     timeline: new TimelineService({ projects, tasks, milestones }),
     reflections: new ReflectionService({ reflections, projects, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai }),
+    workspace: new WorkspaceService({ projects, tasks, reflections, clock }),
     agents: connections,
     // §51's tokens only work on localhost — `main.ts` binds to 127.0.0.1 for this reason.
     authenticator: new PrototypeAgentAuthenticator({ agents, users, connections }),

@@ -10,16 +10,22 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "acceptance": "node scripts/acceptance.mjs",
-    "agent-acceptance": "node scripts/agent-acceptance.mjs"
+    "agent-acceptance": "node scripts/agent-acceptance.mjs",
+    "mcp:stdio": "tsx mcp/stdio.ts",
+    "mcp-acceptance": "node --import tsx scripts/mcp-acceptance.mjs"
   },
   "dependencies": {
     "@cwm/contracts": "workspace:*",
     "@cwm/domain": "workspace:*",
+    "@cwm/mcp-tools": "workspace:*",
     "@cwm/prototype-data": "workspace:*",
     "@cwm/repositories": "workspace:*",
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
     "@types/node": "^24.10.1",
     "tsx": "^4.20.6",
     "typescript": "~6.0.2",

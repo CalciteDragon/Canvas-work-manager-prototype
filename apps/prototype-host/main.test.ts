@@ -1,14 +1,16 @@
 import { connect, type AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
+import { request as httpRequest } from 'node:http';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SCHEMA_VERSION } from '@cwm/contracts';
 import { DomainRuleError } from '@cwm/domain';
 import { DEFAULT_PORT, configuredPort, start, stop } from './main.ts';
-import { healthRoutes, type RouteTable } from './router.ts';
+import { createMcpNodeHandler } from './mcp/handler.ts';
+import { healthRoutes, type RawRouteTable, type RouteTable } from './router.ts';
 
 const started: Array<Awaited<ReturnType<typeof start>>> = [];
 
-async function startOnEphemeralPort(extraRoutes: RouteTable = {}) {
-  const server = await start(0, { ...healthRoutes, ...extraRoutes });
+async function startOnEphemeralPort(extraRoutes: RouteTable = {}, rawRoutes: RawRouteTable = {}) {
+  const server = await start(0, { ...healthRoutes, ...extraRoutes }, rawRoutes);
   started.push(server);
   return { server, port: (server.address() as AddressInfo).port };
 }
@@ -26,6 +28,56 @@ describe('the prototype host', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('application/json');
     expect(await response.json()).toEqual({ ok: true });
+  });
+
+  it('delegates /mcp before the JSON router consumes its request body', async () => {
+    const raw = vi.fn<RawRouteTable[string]>(async (request, response) => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) chunks.push(chunk as Buffer);
+      response.writeHead(202, { 'content-type': 'application/json' });
+      response.end(Buffer.concat(chunks));
+    });
+    const { port } = await startOnEphemeralPort({}, { '/mcp': raw });
+
+    const response = await fetch(`http://127.0.0.1:${port}/mcp`, {
+      method: 'POST',
+      body: JSON.stringify({ untouched: true }),
+      headers: { 'content-type': 'application/json' },
+    });
+
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ untouched: true });
+    expect(raw).toHaveBeenCalledOnce();
+  });
+
+  it('admits a localhost Host with no browser Origin to the MCP Node adapter', async () => {
+    const mcp = createMcpNodeHandler({ fetch: async () => new Response(null, { status: 204 }) });
+    const { port } = await startOnEphemeralPort({}, { '/mcp': mcp });
+
+    const response = await fetch(`http://127.0.0.1:${port}/mcp`, { method: 'POST' });
+
+    expect(response.status).toBe(204);
+  });
+
+  it.each([
+    ['untrusted Host', { host: 'attacker.example' }],
+    ['untrusted browser Origin', { origin: 'https://attacker.example' }],
+  ])('rejects an %s before the MCP SDK handler', async (_label, headers) => {
+    const fetchHandler = vi.fn(async () => new Response(null, { status: 204 }));
+    const mcp = createMcpNodeHandler({ fetch: fetchHandler });
+    const { port } = await startOnEphemeralPort({}, { '/mcp': mcp });
+
+    const status = await new Promise<number | undefined>((resolve, reject) => {
+      const request = httpRequest({ host: '127.0.0.1', port, path: '/mcp', method: 'POST', headers }, (response) => {
+        response.resume();
+        response.on('end', () => resolve(response.statusCode));
+      });
+      request.on('error', reject);
+      request.end();
+    });
+
+    expect(status).toBe(403);
+    expect(fetchHandler).not.toHaveBeenCalled();
   });
 
   it('binds to localhost only', async () => {

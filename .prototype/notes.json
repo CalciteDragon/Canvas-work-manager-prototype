@@ -439,6 +439,22 @@
       "projectId": null,
       "slice": 14,
       "note": "search_workspace for 'deployment' on agent-heavy returns exactly one hit, and it is the DONE task. There is no way for an agent to say 'only open work', because SearchWorkspaceQuery has no status filter. Deliberately minimal for now, but the first thing a real client will want."
+    },
+    {
+      "id": "note-2026-08-29-005",
+      "createdAt": "2026-08-29T21:40:00.000Z",
+      "route": null,
+      "projectId": "project-work-manager",
+      "slice": 15,
+      "note": "The official v2 client negotiated 2026-07-28 over both real HTTP and stdio, listed the same fourteen tools, created a task, and the returned id was present in each transport's data.json. The permission declaration survived tools/list as local.canvas-work-manager/requiredPermission, which makes the Settings grid and an agent's discovery view describe the same grant instead of relying on a failed call to explain it."
+    },
+    {
+      "id": "note-2026-08-29-006",
+      "createdAt": "2026-08-29T21:41:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 15,
+      "note": "Stdio exposed the JSON store's process boundary sharply. Reloading before each call makes a host-side revocation refuse the next call on an already-connected stdio client, but the running host still cannot see a stdio-created task and can overwrite it later. The safe prototype workflow is separate mutation sessions (or separate CWM_DATA_FILE values), not pretending a process-local lock coordinates two processes."
     }
   ]
 }
