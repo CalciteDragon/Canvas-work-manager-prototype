@@ -528,6 +528,97 @@ describe('JsonDataStore', () => {
   });
 });
 
+/**
+ * Slice 12's reseed: the development panel replaces the whole document without restarting
+ * the host. It goes *through* the unit of work rather than around it, so the ordinary
+ * commit path does the validating, persisting and swapping.
+ */
+const otherWorkspaceDocument = () =>
+  PrototypeDocumentSchema.parse({
+    schemaVersion: 1,
+    users: [
+      {
+        id: 'user-2',
+        name: 'Replacement',
+        workspaceId: 'workspace-2',
+        preferences: { theme: 'light', dashboardWidgets: [] },
+        createdAt: at,
+      },
+    ],
+    workspaces: [{ id: 'workspace-2', name: 'Replacement workspace', ownerUserId: 'user-2', createdAt: at }],
+    projects: [],
+    sections: [],
+    tasks: [],
+    milestones: [],
+    reflections: [],
+    activityEvents: [],
+    agentConnections: [],
+  });
+
+describe('replaceActiveDocument', () => {
+  it('commits the replacement and persists it, inside a unit of work', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-repositories-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
+    await writeFile(path, `${JSON.stringify(validDocument(), null, 2)}
+`, 'utf8');
+    const store = await JsonDataStore.load(path);
+    const unitOfWork = unitOfWorkFor(store);
+
+    await unitOfWork.run(() => store.replaceActiveDocument(otherWorkspaceDocument()));
+
+    expect(store.snapshot().workspaces).toEqual(otherWorkspaceDocument().workspaces);
+    const written = JSON.parse(await readFile(path, 'utf8')) as unknown;
+    expect(PrototypeDocumentSchema.parse(written).users[0]?.id).toBe('user-2');
+  });
+
+  // `assertCanMutateDataStore` returns cleanly when there is neither a context nor an
+  // active token, so reusing it here would let a caller outside a unit silently do nothing.
+  it('refuses to run outside a unit of work', () => {
+    const store = new InMemoryDataStore(validDocument());
+
+    expect(() => store.replaceActiveDocument(otherWorkspaceDocument())).toThrow(DocumentIntegrityError);
+    expect(store.snapshot().workspaces[0]?.id).toBe('workspace-1');
+  });
+
+  it('rejects a replacement that is not a valid document, leaving the unit to roll back', async () => {
+    const store = new InMemoryDataStore(validDocument());
+
+    await expect(
+      unitOfWorkFor(store).run(() => store.replaceActiveDocument({ schemaVersion: 1 })),
+    ).rejects.toBeInstanceOf(DocumentIntegrityError);
+    expect(store.snapshot().workspaces[0]?.id).toBe('workspace-1');
+  });
+
+  /**
+   * The race the first design lost. `unitOfWorkFor` queues units on a promise chain, and a
+   * *queued* unit has not yet registered a token — so a replacement that merely asserted
+   * "no unit is open" would swap the document under it. Going through the chain means the
+   * pending write commits first and is not lost.
+   */
+  it('lets a write enqueued before it commit first, then replaces', async () => {
+    const store = new InMemoryDataStore(validDocument());
+    const repository = new JsonProjectRepository(store);
+    const unitOfWork = unitOfWorkFor(store);
+    const order: string[] = [];
+
+    const write = unitOfWork.run(async () => {
+      await Promise.resolve();
+      await repository.insert(newProject());
+      order.push('write');
+    });
+    const replace = unitOfWork.run(() => {
+      order.push('replace');
+      store.replaceActiveDocument(otherWorkspaceDocument());
+    });
+
+    await Promise.all([write, replace]);
+
+    expect(order).toEqual(['write', 'replace']);
+    expect(store.snapshot().projects).toEqual([]);
+  });
+});
+
 describe('unitOfWorkFor', () => {
   const secondProject = () =>
     PrototypeDocumentSchema.shape.projects.element.parse({

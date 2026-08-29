@@ -14,6 +14,15 @@ export interface DataStore {
   snapshot(): PrototypeDocument;
   persist(): Promise<void>;
   runUnitOfWork<T>(fn: () => T | Promise<T>): Promise<T>;
+  /**
+   * Swap the whole document, from inside an open unit of work. This is how the
+   * development panel loads a seed without restarting the host (spec §46, §76).
+   *
+   * It must be called *through* `runUnitOfWork`, not around it. A version that merely
+   * checked "no unit is open" would miss the units `unitOfWorkFor` has queued but not
+   * started — those have no token yet — and swap the document under one of them.
+   */
+  replaceActiveDocument(document: unknown): void;
 }
 
 const documents = new WeakMap<DataStore, PrototypeDocument>();
@@ -224,6 +233,25 @@ abstract class BaseDataStore implements DataStore {
 
   snapshot(): PrototypeDocument {
     return structuredClone(getActiveDocument(this));
+  }
+
+  /**
+   * Deliberately **not** built on `assertCanMutateDataStore`: that helper returns cleanly
+   * when there is neither a context nor an active token, which is exactly the "called
+   * outside a unit" case this has to reject.
+   *
+   * The failure is a `DocumentIntegrityError` rather than `UnitOfWorkInProgressError`
+   * because the host maps the latter to 503 `busy` — the wrong story for a caller that
+   * never opened a unit at all.
+   */
+  replaceActiveDocument(document: unknown): void {
+    const context = inheritedContext(this);
+    if (context === undefined || context.token !== activeOperationTokens.get(this) || context.role !== 'callback') {
+      throw new DocumentIntegrityError('replaceActiveDocument must be called inside runUnitOfWork');
+    }
+    // Validated here rather than only at commit, so a bad replacement names itself at the
+    // call site instead of surfacing as a mystery rollback.
+    context.document = validateDocumentIntegrity(document);
   }
 
   async persist(): Promise<void> {

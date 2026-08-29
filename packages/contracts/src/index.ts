@@ -12,6 +12,7 @@ export * from './ids';
 export * from './inputs';
 export * from './milestone';
 export * from './project';
+export * from './prototype';
 export * from './progress';
 export * from './reflection';
 export * from './section';
