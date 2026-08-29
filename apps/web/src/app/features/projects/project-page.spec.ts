@@ -10,6 +10,7 @@ import {
   type Task,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
+import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
@@ -407,5 +408,33 @@ describe('ProjectPage (§26)', () => {
     fixture.detectChanges();
 
     expect(query(fixture, '[data-section-canvas]')).toBe(projectBCanvas);
+  });
+});
+
+/**
+ * §47's `gridProjectLayout`. The flag gates what is *rendered*, not what is stored — the
+ * project keeps its own choice, so turning the flag back on restores it rather than
+ * needing a data fix.
+ */
+describe('ProjectPage — the gridProjectLayout flag (§47)', () => {
+  it('renders a grid project as grid while the flag is on', async () => {
+    const { fixture } = await render({ project: project({ projectLayoutMode: 'grid' }) });
+
+    expect(query(fixture, '[data-section-canvas]')?.classList).toContain('section-canvas--grid');
+    expect(query(fixture, '[data-layout-name]')?.textContent).toContain('Grid layout');
+  });
+
+  it('renders the same project as flow when the flag is off', async () => {
+    const { fixture } = await render({ project: project({ projectLayoutMode: 'grid' }) });
+
+    // Set after rendering, and the canvas re-renders: the flag is a signal, so this is
+    // the no-reload behaviour the panel promises.
+    TestBed.inject(PrototypeSettings).setFlag('gridProjectLayout', false);
+    fixture.detectChanges();
+
+    const canvas = query(fixture, '[data-section-canvas]');
+    expect(canvas?.classList).toContain('section-canvas--flow');
+    expect(canvas?.classList).not.toContain('section-canvas--grid');
+    expect(query(fixture, '[data-layout-name]')?.textContent).toContain('Flow layout');
   });
 });

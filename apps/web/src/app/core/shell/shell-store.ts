@@ -1,5 +1,6 @@
 import { Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
 import { ProjectStatusSchema, type Identity, type Project } from '@cwm/contracts';
+import { PrototypeSettings } from '../config/prototype-settings';
 import { GatewayError } from '../gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
@@ -27,6 +28,7 @@ export class ShellStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly identityProvider = inject(IDENTITY_PROVIDER);
   private readonly pendingTasks = inject(PendingTasks);
+  private readonly settings = inject(PrototypeSettings);
 
   private readonly identityState = signal<Identity | null>(null);
   private readonly projectsState = signal<Project[]>([]);
@@ -37,7 +39,17 @@ export class ShellStore {
   readonly projects = this.projectsState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
-  readonly projectTree = computed(() => toTree(this.projectsState()));
+  /**
+   * §47's `nestedProjects`, read here rather than in `Sidebar`: the sidebar is
+   * presentational and injects nothing, and a flag check in it would be the first crack in
+   * that. Because the flag is a signal and this is a `computed`, turning it re-derives the
+   * tree with no reload and no second fetch.
+   */
+  readonly projectTree = computed(() =>
+    this.settings.flags().nestedProjects
+      ? toTree(this.projectsState())
+      : this.projectsState().map((project) => ({ project, children: [] })),
+  );
 
   /**
    * Registered with `PendingTasks` so `ApplicationRef.isStable` — and therefore

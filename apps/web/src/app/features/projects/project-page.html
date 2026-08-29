@@ -97,9 +97,9 @@
 
     <section class="project-controls" aria-label="Project layout controls">
       <div>
-        <strong>{{ project.projectLayoutMode === 'flow' ? 'Flow layout' : 'Grid layout' }}</strong>
+        <strong data-layout-name>{{ layoutMode(project.projectLayoutMode) === 'flow' ? 'Flow layout' : 'Grid layout' }}</strong>
         <span class="project-controls__hint">
-          Layout experiments are switched in Prototype state.
+          Switch layout in the development panel — Ctrl/Cmd+Shift+D — or at /prototype/state.
         </span>
       </div>
       <button
@@ -121,9 +121,9 @@
         data-section-canvas
         cdkDropList
         class="section-canvas"
-        [class.section-canvas--flow]="project.projectLayoutMode === 'flow'"
-        [class.section-canvas--grid]="project.projectLayoutMode === 'grid'"
-        [cdkDropListOrientation]="project.projectLayoutMode === 'grid' ? 'mixed' : 'vertical'"
+        [class.section-canvas--flow]="layoutMode(project.projectLayoutMode) === 'flow'"
+        [class.section-canvas--grid]="layoutMode(project.projectLayoutMode) === 'grid'"
+        [cdkDropListOrientation]="layoutMode(project.projectLayoutMode) === 'grid' ? 'mixed' : 'vertical'"
         [cdkDropListDisabled]="!store.editMode()"
         (cdkDropListDropped)="drop($event)"
       >

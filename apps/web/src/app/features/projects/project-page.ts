@@ -8,7 +8,8 @@ import {
   input,
   signal,
 } from '@angular/core';
-import type { ProjectId, SectionColumnSpan, SectionConfig, SectionId } from '@cwm/contracts';
+import type { ProjectId, ProjectLayoutMode, SectionColumnSpan, SectionConfig, SectionId } from '@cwm/contracts';
+import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { TaskListStore } from '../tasks/task-list-store';
 import { ProjectPageStore } from './project-page-store';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
@@ -42,6 +43,17 @@ export class ProjectPage {
   readonly canvasMounted = signal(true);
   readonly projectDataRevision = signal(0);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly settings = inject(PrototypeSettings);
+
+  /**
+   * §28's mode, gated by §47's `gridProjectLayout`. The project keeps whatever it has
+   * stored — the flag decides what is *rendered*, so turning grid off is a rendering
+   * experiment rather than a data migration, and turning it back on restores the project's
+   * own choice.
+   */
+  layoutMode(mode: ProjectLayoutMode): ProjectLayoutMode {
+    return this.settings.flags().gridProjectLayout ? mode : 'flow';
+  }
 
   constructor() {
     // Re-loads when the route changes, which sidebar navigation between projects does

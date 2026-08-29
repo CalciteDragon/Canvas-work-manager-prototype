@@ -6,6 +6,8 @@ import { WORK_MANAGER_GATEWAY } from './core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway, fakeIdentityProvider } from './core/gateway/testing/fake-gateway';
 import { testIdentity } from './core/gateway/testing/shell-test-providers';
 import { IDENTITY_PROVIDER } from './core/identity/identity-provider';
+import { PROTOTYPE_CONTROL } from './prototype/control/prototype-control';
+import { FakePrototypeControl } from './prototype/control/testing/fake-prototype-control';
 import { CalendarPage } from './features/calendar/calendar-page';
 import { DashboardPage } from './features/dashboard/dashboard-page';
 import { ProjectPage } from './features/projects/project-page';
@@ -27,6 +29,8 @@ const harness = async () => {
       { provide: WORK_MANAGER_GATEWAY, useValue: new FakeWorkManagerGateway() },
       // `DashboardPage` reads the persona's widget list from the identity provider (§25).
       { provide: IDENTITY_PROVIDER, useValue: fakeIdentityProvider(testIdentity()) },
+      // §68's /prototype/state renders §46's controls, which talk to the host's own routes.
+      { provide: PROTOTYPE_CONTROL, useValue: new FakePrototypeControl() },
     ],
   });
   return RouterTestingHarness.create();

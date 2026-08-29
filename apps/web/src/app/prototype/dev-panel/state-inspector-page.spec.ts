@@ -5,8 +5,12 @@ import {
   type ProjectId,
   type ProjectLayoutMode,
 } from '@cwm/contracts';
-import { describe, expect, it, vi } from 'vitest';
+import { provideRouter } from '@angular/router';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { GatewayError } from '../../core/gateway/gateway-error';
+import { PROTOTYPE_CONTROL } from '../control/prototype-control';
+import { FakePrototypeControl } from '../control/testing/fake-prototype-control';
 import {
   WORK_MANAGER_GATEWAY,
   type WorkManagerGateway,
@@ -28,7 +32,12 @@ const project = (id: string, layout: ProjectLayoutMode = 'flow'): Project =>
 
 const render = async (projects: WorkManagerGateway['projects']) => {
   TestBed.configureTestingModule({
-    providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: { projects } as WorkManagerGateway }],
+    providers: [
+      provideRouter([]),
+      { provide: WORK_MANAGER_GATEWAY, useValue: { projects } as WorkManagerGateway },
+      // The page renders §46's shared controls above its own layout list.
+      { provide: PROTOTYPE_CONTROL, useValue: new FakePrototypeControl() },
+    ],
   });
   const fixture = TestBed.createComponent(StateInspectorPage);
   fixture.detectChanges();
@@ -46,7 +55,7 @@ const pressed = (control: HTMLButtonElement | undefined) =>
   control?.getAttribute('aria-pressed') === 'true';
 
 describe('StateInspectorPage (§28)', () => {
-  it('lists projects with independent flow/grid controls and keeps Slice 12 deferrals honest', async () => {
+  it('lists projects with independent flow/grid controls, beside §46’s shared panel', async () => {
     const fixture = await render({
       list: vi.fn(async () => [project('project-a'), project('project-b', 'grid')]),
       get: vi.fn(),
@@ -60,9 +69,27 @@ describe('StateInspectorPage (§28)', () => {
     expect(controls(fixture, 'project-b')).toHaveLength(2);
     expect(pressed(controls(fixture, 'project-a').find(({ value }) => value === 'flow'))).toBe(true);
     expect(pressed(controls(fixture, 'project-b').find(({ value }) => value === 'grid'))).toBe(true);
-    expect(fixture.nativeElement.querySelector('[data-slice-12-deferral]')?.textContent).toContain(
-      'Slice 12',
-    );
+    // Slice 12 landed: the controls the old deferral note promised are now on this page,
+    // rendered from the same component the Ctrl/Cmd+Shift+D overlay uses.
+    expect(fixture.nativeElement.querySelector('[data-slice-12-deferral]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-panel-seed]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-panel-failure]')).not.toBeNull();
+  });
+
+  // §47: the same flag that forces flow on the project page hides the experiment here.
+  it('hides the layout experiment when gridProjectLayout is off', async () => {
+    const fixture = await render({
+      list: vi.fn(async () => [project('project-a'), project('project-b', 'grid')]),
+      get: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    } as WorkManagerGateway['projects']);
+
+    TestBed.inject(PrototypeSettings).setFlag('gridProjectLayout', false);
+    fixture.detectChanges();
+
+    expect(controls(fixture, 'project-a')).toHaveLength(0);
+    expect(fixture.nativeElement.querySelector('[data-layout-flag-off]')).not.toBeNull();
   });
 
   it('persists a selected project independently and exposes update failures', async () => {
@@ -121,4 +148,9 @@ describe('StateInspectorPage (§28)', () => {
     release();
     await fixture.whenStable();
   });
+});
+
+afterEach(() => {
+  sessionStorage.clear();
+  TestBed.resetTestingModule();
 });

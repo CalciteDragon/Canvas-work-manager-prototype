@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ProjectStatusSchema, type Project, type ProjectQuery } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
+import { PrototypeSettings } from '../config/prototype-settings';
 import { GatewayError } from '../gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../gateway/testing/fake-gateway';
 import { shellTestProviders } from '../gateway/testing/shell-test-providers';
@@ -144,5 +145,37 @@ describe('ShellStore — a corrupt parent chain', () => {
     expect(names).toEqual(['A', 'B']);
     const a = store.projectTree().find((node) => node.project.name === 'A');
     expect(a?.children.map((child) => child.project.name)).toEqual(['C']);
+  });
+});
+
+/**
+ * §47's `nestedProjects`, applied here rather than in `Sidebar` — the sidebar is
+ * deliberately presentational and injects nothing, which is what keeps §19's
+ * `Page → Store → Gateway` from becoming `Component → Gateway`.
+ */
+describe('ShellStore — the nestedProjects flag (§47)', () => {
+  const threeDeep = [
+    project('project-a', 'Home'),
+    project('project-b', 'Kitchen', 'project-a'),
+    project('project-c', 'Sink', 'project-b'),
+  ];
+
+  it('nests by default', async () => {
+    const { store } = storeWith({ projects: threeDeep });
+    await store.load();
+
+    expect(store.projectTree()).toHaveLength(1);
+    expect(store.projectTree()[0]?.children[0]?.children[0]?.project.name).toBe('Sink');
+  });
+
+  it('flattens every level when the flag is off, with no reload', async () => {
+    const { store } = storeWith({ projects: threeDeep });
+    await store.load();
+
+    TestBed.inject(PrototypeSettings).setFlag('nestedProjects', false);
+
+    // A computed over a signal: the tree re-derives without the store re-fetching.
+    expect(store.projectTree().map((node) => node.project.name)).toEqual(['Home', 'Kitchen', 'Sink']);
+    expect(store.projectTree().every((node) => node.children.length === 0)).toBe(true);
   });
 });
