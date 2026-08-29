@@ -9,7 +9,8 @@
     "build": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "acceptance": "node scripts/acceptance.mjs"
+    "acceptance": "node scripts/acceptance.mjs",
+    "agent-acceptance": "node scripts/agent-acceptance.mjs"
   },
   "dependencies": {
     "@cwm/contracts": "workspace:*",

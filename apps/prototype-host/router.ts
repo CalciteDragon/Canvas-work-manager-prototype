@@ -123,7 +123,7 @@ const corsHeaders = (origin: string | undefined): Record<string, string> => {
   return {
     'access-control-allow-origin': origin,
     'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-    'access-control-allow-headers': 'content-type, x-prototype-user',
+    'access-control-allow-headers': 'authorization, content-type, x-prototype-user',
     'access-control-max-age': '600',
     vary: 'Origin',
   };

@@ -61,6 +61,22 @@ describe('GET /prototype/state', () => {
     expect(state.aiProvider).toBe('mock');
     expect(state.clockOffsetMs).toBe(0);
     expect(state.personas.map(({ id }) => id)).toContain('user-demo');
+    // `busy-week` has no connections, so §46's Agent Connection control has an honest
+    // empty state rather than a control over nothing.
+    expect(state.agentConnections).toEqual([]);
+  });
+
+  it('carries §46’s roster with the bearer token each connection answers to', async () => {
+    const { routes } = await harness('agent-heavy');
+
+    const state = PrototypeStateSchema.parse((await persona(routes, 'GET', '/prototype/state')).body);
+
+    expect(state.agentConnections.map(({ id, name, token }) => [id, name, token])).toEqual([
+      ['agent-claude', 'Claude', 'prototype-user-a-readwrite'],
+      ['agent-cursor', 'Cursor', 'prototype-user-a-readonly'],
+      ['agent-old', 'Retired assistant', 'prototype-user-a-revoked'],
+    ]);
+    expect(state.agentConnections.find(({ id }) => id === 'agent-old')?.revoked).toBe(true);
   });
 });
 

@@ -1,5 +1,6 @@
-import { ActivityService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, SimulatedClock, TaskService, TimelineService } from '@cwm/domain';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, SimulatedClock, TaskService, TimelineService } from '@cwm/domain';
 import type { AIProvider } from '@cwm/domain';
+import { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
 import { RealAIProvider } from './real-ai-provider.ts';
 import type { Persistence } from '../persistence/store.ts';
 import { createApiRoutes, type ApiDependencies } from './routes.ts';
@@ -30,8 +31,10 @@ export interface CreateApiOptions {
 export const createApi = (persistence: Persistence, options: CreateApiOptions = {}): ApiDependencies => {
   const clock = options.clock ?? new SimulatedClock();
   const ids = new PrototypeIdGenerator();
-  const { store, projects, sections, tasks, milestones, reflections, activities, unitOfWork } = persistence;
-  const activity = new ActivityService({ activities, clock, ids });
+  const { store, projects, sections, tasks, milestones, reflections, activities, agents, users, unitOfWork } =
+    persistence;
+  const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids });
+  const connections = new AgentConnectionService({ agents, activity, clock, unitOfWork });
   const ai = options.ai ?? aiProviderFor(process.env['PROTOTYPE_AI_PROVIDER']);
 
   return {
@@ -43,7 +46,10 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
     progress: new ProgressService({ projects, tasks }),
     timeline: new TimelineService({ projects, tasks, milestones }),
     reflections: new ReflectionService({ reflections, projects, activity, clock, ids, unitOfWork }),
-    dashboard: new DashboardService({ projects, tasks, clock, ai }),
+    dashboard: new DashboardService({ projects, tasks, activity, clock, ai }),
+    agents: connections,
+    // §51's tokens only work on localhost — `main.ts` binds to 127.0.0.1 for this reason.
+    authenticator: new PrototypeAgentAuthenticator({ agents, users, connections }),
   };
 };
 

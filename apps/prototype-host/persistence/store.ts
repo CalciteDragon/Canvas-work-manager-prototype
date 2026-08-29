@@ -3,12 +3,14 @@ import { resolve } from 'node:path';
 import { DEFAULT_DATA_PATH, writeSeedFile } from '@cwm/prototype-data';
 import {
   JsonActivityRepository,
+  JsonAgentConnectionRepository,
   JsonMilestoneRepository,
   JsonDataStore,
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
   JsonTaskRepository,
+  JsonUserRepository,
   unitOfWorkFor,
   type DataStore,
 } from '@cwm/repositories';
@@ -45,6 +47,9 @@ export interface Persistence {
   milestones: JsonMilestoneRepository;
   reflections: JsonReflectionRepository;
   activities: JsonActivityRepository;
+  /** §52's connections and the users that own them, for §51's authenticator and §53's UI. */
+  agents: JsonAgentConnectionRepository;
+  users: JsonUserRepository;
   unitOfWork: ReturnType<typeof unitOfWorkFor>;
 }
 
@@ -62,6 +67,8 @@ export const loadPersistence = async (path = dataFilePath()): Promise<Persistenc
     milestones: new JsonMilestoneRepository(store),
     reflections: new JsonReflectionRepository(store),
     activities: new JsonActivityRepository(store),
+    agents: new JsonAgentConnectionRepository(store),
+    users: new JsonUserRepository(store),
     unitOfWork: unitOfWorkFor(store),
   };
 };

@@ -1,19 +1,22 @@
 import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, SCHEMA_VERSION, ProjectSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
-import { ActivityService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
+  JsonAgentConnectionRepository,
   JsonMilestoneRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
   JsonTaskRepository,
+  JsonUserRepository,
   unitOfWorkFor,
 } from '@cwm/repositories';
-import { PERSONAS } from '@cwm/prototype-data';
+import { PERSONAS, buildSeed } from '@cwm/prototype-data';
 import { describe, expect, it } from 'vitest';
 import { resolveRoute, type RouteTable } from '../router.ts';
 import { createApiRoutes } from './routes.ts';
+import { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
 
 const at = '2026-08-01T16:00:00.000Z';
 
@@ -44,8 +47,8 @@ const document = (withProjects = true) =>
     agentConnections: [],
   });
 
-const buildRoutes = (withProjects = true): RouteTable => {
-  const store = new InMemoryDataStore(document(withProjects));
+const buildRoutes = (withProjects = true, seeded?: ReturnType<typeof document>): RouteTable => {
+  const store = new InMemoryDataStore(seeded ?? document(withProjects));
   const clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'));
   const ids = new PrototypeIdGenerator();
   const projects = new JsonProjectRepository(store);
@@ -54,8 +57,11 @@ const buildRoutes = (withProjects = true): RouteTable => {
   const activities = new JsonActivityRepository(store);
   const milestones = new JsonMilestoneRepository(store);
   const reflections = new JsonReflectionRepository(store);
-  const activity = new ActivityService({ activities, clock, ids });
+  const agents = new JsonAgentConnectionRepository(store);
+  const users = new JsonUserRepository(store);
+  const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids });
   const unitOfWork = unitOfWorkFor(store);
+  const connections = new AgentConnectionService({ agents, activity, clock, unitOfWork });
 
   return createApiRoutes({
     store,
@@ -66,15 +72,25 @@ const buildRoutes = (withProjects = true): RouteTable => {
     progress: new ProgressService({ projects, tasks }),
     timeline: new TimelineService({ projects, tasks, milestones }),
     reflections: new ReflectionService({ reflections, projects, activity, clock, ids, unitOfWork }),
-    dashboard: new DashboardService({ projects, tasks, clock, ai: new PrototypeAIProvider() }),
+    dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
+    agents: connections,
+    authenticator: new PrototypeAgentAuthenticator({ agents, users, connections }),
   });
 };
 
-const call = (routes: RouteTable, method: string, path: string, options: { body?: unknown; user?: string } = {}) => {
+const call = (
+  routes: RouteTable,
+  method: string,
+  path: string,
+  options: { body?: unknown; user?: string; token?: string } = {},
+) => {
   const [pathname, search] = path.split('?');
   return resolveRoute(routes, method, pathname ?? path, {
     query: new URLSearchParams(search ?? ''),
-    headers: options.user === undefined ? {} : { 'x-prototype-user': options.user },
+    headers: {
+      ...(options.user === undefined ? {} : { 'x-prototype-user': options.user }),
+      ...(options.token === undefined ? {} : { authorization: `Bearer ${options.token}` }),
+    },
     body: options.body,
   });
 };
@@ -443,5 +459,138 @@ describe('dashboard route', () => {
   it('rejects a range outside the contract with 400', async () => {
     expect((await call(buildRoutes(), 'GET', '/api/dashboard?upcomingDays=500')).status).toBe(400);
     expect((await call(buildRoutes(), 'GET', '/api/dashboard?recentDays=nope')).status).toBe(400);
+  });
+});
+
+/** The one seed that has connections, activity, and a project the agents can write to. */
+const buildAgentRoutes = (): RouteTable => buildRoutes(true, PrototypeDocumentSchema.parse(buildSeed('agent-heavy')));
+
+describe('agent connections, permissions and activity (§§51, 52, 53, 57)', () => {
+  const READWRITE = 'prototype-user-a-readwrite';
+  const READONLY = 'prototype-user-a-readonly';
+
+  it('lists only the acting person’s connections, without their tokens', async () => {
+    const routes = buildAgentRoutes();
+
+    const response = await call(routes, 'GET', '/api/agent-connections', { user: 'user-demo' });
+
+    expect(response.status).toBe(200);
+    const connections = response.body as Array<Record<string, unknown>>;
+    expect(connections.map(({ id }) => id)).toEqual(['agent-claude', 'agent-cursor', 'agent-old']);
+    // §51's tokens belong to the rig, not the product-shaped API — they ride on
+    // /prototype/state instead.
+    expect(connections.every((connection) => !('token' in connection))).toBe(true);
+  });
+
+  it('carries out §53’s acceptance path: revoke tasks.write, next write fails naming it', async () => {
+    const routes = buildAgentRoutes();
+    const created = await call(routes, 'POST', '/api/tasks', {
+      token: READWRITE,
+      body: { projectId: 'project-work-manager', title: 'Configure deployment' },
+    });
+    expect(created.status).toBe(201);
+
+    const patched = await call(routes, 'PATCH', '/api/agent-connections/agent-claude', {
+      user: 'user-demo',
+      body: { permissions: ['projects.read', 'tasks.read', 'workspace.read'] },
+    });
+    expect(patched.status).toBe(200);
+
+    const denied = await call(routes, 'POST', '/api/tasks', {
+      token: READWRITE,
+      body: { projectId: 'project-work-manager', title: 'Should not exist' },
+    });
+
+    expect(denied.status).toBe(403);
+    expect(denied.body).toEqual({
+      error: 'permission_denied',
+      message: 'connection "agent-claude" is missing permission "tasks.write"',
+    });
+  });
+
+  it('answers 401 once the connection is revoked, with no restart', async () => {
+    const routes = buildAgentRoutes();
+    expect((await call(routes, 'GET', '/api/tasks', { token: READWRITE })).status).toBe(200);
+
+    await call(routes, 'POST', '/api/agent-connections/agent-claude/revoke', { user: 'user-demo' });
+
+    const after = await call(routes, 'GET', '/api/tasks', { token: READWRITE });
+    expect(after.status).toBe(401);
+    expect(after.body).toMatchObject({ error: 'unauthorized' });
+  });
+
+  it('answers 401 for a token nothing issued, and 401 for a scheme it does not implement', async () => {
+    const routes = buildAgentRoutes();
+
+    expect((await call(routes, 'GET', '/api/tasks', { token: 'made-up' })).status).toBe(401);
+    expect(
+      (
+        await resolveRoute(routes, 'GET', '/api/tasks', {
+          query: new URLSearchParams(),
+          headers: { authorization: 'Basic abc' },
+          body: undefined,
+        })
+      ).status,
+    ).toBe(401);
+  });
+
+  /**
+   * The escalation both plan reviewers found. A connection able to edit connections could
+   * hand itself back the permission it was just denied.
+   */
+  it('refuses a bearer token that tries to widen or revoke a connection', async () => {
+    const routes = buildAgentRoutes();
+
+    const widened = await call(routes, 'PATCH', '/api/agent-connections/agent-cursor', {
+      token: READWRITE,
+      body: { permissions: ['tasks.write'] },
+    });
+    const revoked = await call(routes, 'POST', '/api/agent-connections/agent-cursor/revoke', { token: READWRITE });
+    const listed = await call(routes, 'GET', '/api/agent-connections', { token: READWRITE });
+
+    expect([widened.status, revoked.status, listed.status]).toEqual([403, 403, 403]);
+  });
+
+  it('treats a request carrying both a token and a persona header as the agent', async () => {
+    const routes = buildAgentRoutes();
+
+    const denied = await call(routes, 'POST', '/api/tasks', {
+      token: READONLY,
+      user: 'user-demo',
+      body: { projectId: 'project-work-manager', title: 'Not allowed' },
+    });
+
+    // The persona header would have sailed through; the token is the stronger claim.
+    expect(denied.status).toBe(403);
+  });
+
+  it('leaves persona requests entirely unaffected', async () => {
+    const routes = buildAgentRoutes();
+
+    const created = await call(routes, 'POST', '/api/tasks', {
+      user: 'user-demo',
+      body: { projectId: 'project-work-manager', title: 'By a person' },
+    });
+
+    expect(created.status).toBe(201);
+  });
+
+  it('answers §18’s identity as the connection’s owner for a token-only request', async () => {
+    const routes = buildAgentRoutes();
+
+    const me = await call(routes, 'GET', '/api/me', { token: READWRITE });
+
+    expect(me.body).toMatchObject({ user: { id: 'user-demo' } });
+  });
+
+  it('answers §57’s feed with the names it renders, not just ids', async () => {
+    const routes = buildAgentRoutes();
+
+    const feed = await call(routes, 'GET', '/api/activity?limit=3', { user: 'user-demo' });
+
+    expect(feed.status).toBe(200);
+    const entries = feed.body as Array<Record<string, unknown>>;
+    expect(entries.every((entry) => typeof entry['actorName'] === 'string')).toBe(true);
+    expect(entries.map(({ actor }) => actor)).toContain('user');
   });
 });

@@ -1,4 +1,5 @@
-import { DomainRuleError, EntityNotFoundError } from '@cwm/domain';
+import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from '@cwm/domain';
+import { AgentAuthenticationError } from '../auth/prototype-agent-authenticator.ts';
 import {
   DocumentIntegrityError,
   RepositoryConflictError,
@@ -29,6 +30,17 @@ export const toErrorResult = (error: unknown): RouteResult => {
   }
   if (error instanceof EntityNotFoundError || error instanceof RepositoryNotFoundError) {
     return json(404, { error: 'not_found', message: error.message });
+  }
+  // A token that names no usable connection (§51). One shape for every cause — an
+  // unknown token, a deleted connection, a revoked one — so a 401 is never an oracle.
+  if (error instanceof AgentAuthenticationError) {
+    return json(401, { error: 'unauthorized', message: error.message });
+  }
+  // The connection is real but its grant does not cover this (§53). Unlike a 404, the
+  // message names the missing permission: the answer is a checkbox the owner can tick,
+  // and a 403 saying only "forbidden" is what makes agent debugging miserable.
+  if (error instanceof PermissionDeniedError) {
+    return json(403, { error: 'permission_denied', message: error.message });
   }
   if (error instanceof DomainRuleError) {
     return json(409, { error: 'rule_violation', message: error.message });

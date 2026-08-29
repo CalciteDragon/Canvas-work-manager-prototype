@@ -1,6 +1,6 @@
-import type { PrototypeState } from '@cwm/contracts';
+import type { AgentConnectionView, PrototypeState } from '@cwm/contracts';
 import { PrototypeAIProvider, type SimulatedClock } from '@cwm/domain';
-import { DEFAULT_SEED_NAME, SEED_NAMES, buildSeed, isSeedName } from '@cwm/prototype-data';
+import { DEFAULT_SEED_NAME, SEED_NAMES, buildSeed, isSeedName, tokenFor } from '@cwm/prototype-data';
 import { RealAIProvider } from '../api/real-ai-provider.ts';
 import type { Persistence } from '../persistence/store.ts';
 import type { SwitchableAIProvider } from './switchable-ai-provider.ts';
@@ -45,7 +45,28 @@ export class PrototypeRuntime {
       clockOffsetMs: this.clock.offset,
       aiProvider: this.aiProviderMode,
       personas: document.users.map(({ id, name, avatar, workspaceId }) => ({ id, name, avatar, workspaceId })),
+      agentConnections: this.agentConnectionViews(),
     };
+  }
+
+  /**
+   * §46's Agent Connection control: the roster, each with the bearer token that reaches it.
+   *
+   * The token rides on `/prototype/state` and **not** on `/api/agent-connections`, because
+   * this route describes the rig rather than the workspace — §51's credentials are part of
+   * the rig, and §53's product-shaped UI has no business showing a secret-shaped string.
+   *
+   * A connection the token table does not name is skipped rather than shown without one: a
+   * roster row whose whole purpose is a copy button is worse than no row when there is
+   * nothing to copy.
+   */
+  private agentConnectionViews(): AgentConnectionView[] {
+    return this.persistence.store
+      .snapshot()
+      .agentConnections.flatMap((connection) => {
+        const token = tokenFor(connection.id);
+        return token === undefined ? [] : [{ ...connection, token }];
+      });
   }
 
   /**

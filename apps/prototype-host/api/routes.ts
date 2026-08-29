@@ -1,5 +1,6 @@
 import {
   ActivityQuerySchema,
+  AgentConnectionIdSchema,
   DashboardQuerySchema,
   CreateProjectInputSchema,
   CreateReflectionInputSchema,
@@ -12,14 +13,16 @@ import {
   SectionIdSchema,
   TaskIdSchema,
   TaskQuerySchema,
+  UpdateAgentPermissionsInputSchema,
   UpdateProjectInputSchema,
   UpdateReflectionInputSchema,
   UpdateSectionInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, DashboardService, ProgressService, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
+import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
-import { resolveActor, resolveUser } from './context.ts';
+import { resolveActor, resolveIdentityUser } from './context.ts';
+import type { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
 import type { RouteRequest, RouteResult, RouteTable } from '../router.ts';
 
 export interface ApiDependencies {
@@ -32,6 +35,13 @@ export interface ApiDependencies {
   timeline: TimelineService;
   reflections: ReflectionService;
   dashboard: DashboardService;
+  agents: AgentConnectionService;
+  /**
+   * §51's bearer tokens. Optional so `createApiRouteTable` and the concurrency tests keep
+   * their one-argument form — without it every request is a persona request, which is
+   * exactly what those callers mean.
+   */
+  authenticator?: PrototypeAgentAuthenticator;
 }
 
 const ok = (body: unknown): RouteResult => ({ status: 200, contentType: 'application/json', body });
@@ -73,20 +83,26 @@ const queryObject = (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, tasks, sections, activity, progress, timeline, reflections, dashboard } = dependencies;
-  const actorFor = (request: RouteRequest) => resolveActor(store.snapshot(), request);
+  const { store, projects, tasks, sections, activity, progress, timeline, reflections, dashboard, agents, authenticator } =
+    dependencies;
+  // Async now: an agent request has to resolve its token against the live connection
+  // before the handler runs, because that read is what carries the permission set (§51).
+  const actorFor = (request: RouteRequest) => resolveActor(store.snapshot(), request, authenticator);
   const projectId = (request: RouteRequest) => ProjectIdSchema.parse(request.params['id']);
   const taskId = (request: RouteRequest) => TaskIdSchema.parse(request.params['id']);
   const sectionId = (request: RouteRequest) => SectionIdSchema.parse(request.params['id']);
   const sectionProjectId = (request: RouteRequest) => ProjectIdSchema.parse(request.params['projectId']);
   const reflectionId = (request: RouteRequest) => ReflectionIdSchema.parse(request.params['id']);
+  const connectionId = (request: RouteRequest) => AgentConnectionIdSchema.parse(request.params['id']);
 
   return {
     // §18's identity, composed rather than stored: there is no workspace repository, and
     // `resolveActor` above already reads the same snapshot.
     'GET /api/me': async (request) => {
       const document = store.snapshot();
-      const user = resolveUser(document, request);
+      // Through the authenticator too: a token-only request must answer as the connection's
+      // owner, not as `document.users[0]`.
+      const user = await resolveIdentityUser(document, request, authenticator);
       const workspace = document.workspaces.find(({ id }) => id === user.workspaceId);
       // The store validates referential integrity at load, so a missing workspace here is
       // the host being broken rather than a caller mistake.
@@ -97,41 +113,41 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'GET /api/projects': async (request) =>
       ok(
         await projects.list(
-          actorFor(request),
+          await actorFor(request),
           ProjectQuerySchema.parse(queryObject(request.query, ['status'])),
         ),
       ),
 
     'POST /api/projects': async (request) =>
-      created(await projects.create(actorFor(request), CreateProjectInputSchema.parse(request.body))),
+      created(await projects.create(await actorFor(request), CreateProjectInputSchema.parse(request.body))),
 
-    'GET /api/projects/:id': async (request) => ok(await projects.get(actorFor(request), projectId(request))),
+    'GET /api/projects/:id': async (request) => ok(await projects.get(await actorFor(request), projectId(request))),
 
     'PATCH /api/projects/:id': async (request) =>
       ok(
         await projects.update(
-          actorFor(request),
+          await actorFor(request),
           projectId(request),
           UpdateProjectInputSchema.parse(request.body),
         ),
       ),
 
     'GET /api/projects/:id/progress': async (request) =>
-      ok(await progress.calculate(actorFor(request), projectId(request))),
+      ok(await progress.calculate(await actorFor(request), projectId(request))),
 
     'GET /api/projects/:id/timeline': async (request) =>
-      ok(await timeline.derive(actorFor(request), projectId(request))),
+      ok(await timeline.derive(await actorFor(request), projectId(request))),
 
     'GET /api/reflections': async (request) =>
-      ok(await reflections.list(actorFor(request), ProjectIdSchema.parse(request.query.get('projectId')))),
+      ok(await reflections.list(await actorFor(request), ProjectIdSchema.parse(request.query.get('projectId')))),
 
     'POST /api/reflections': async (request) =>
-      created(await reflections.create(actorFor(request), CreateReflectionInputSchema.parse(request.body))),
+      created(await reflections.create(await actorFor(request), CreateReflectionInputSchema.parse(request.body))),
 
     'PATCH /api/reflections/:id': async (request) =>
       ok(
         await reflections.update(
-          actorFor(request),
+          await actorFor(request),
           reflectionId(request),
           UpdateReflectionInputSchema.parse(request.body),
         ),
@@ -141,12 +157,12 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     // — a section only exists on one project's canvas — and addressed directly for the
     // rest, because the frame has the id and nothing else needs re-stating.
     'GET /api/projects/:projectId/sections': async (request) =>
-      ok(await sections.list(actorFor(request), sectionProjectId(request))),
+      ok(await sections.list(await actorFor(request), sectionProjectId(request))),
 
     'POST /api/projects/:projectId/sections': async (request) =>
       created(
         await sections.add(
-          actorFor(request),
+          await actorFor(request),
           sectionProjectId(request),
           CreateSectionInputSchema.parse(request.body),
         ),
@@ -155,7 +171,7 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'PATCH /api/sections/:id': async (request) =>
       ok(
         await sections.update(
-          actorFor(request),
+          await actorFor(request),
           sectionId(request),
           UpdateSectionInputSchema.parse(request.body),
         ),
@@ -166,40 +182,40 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'POST /api/sections/:id/move': async (request) =>
       ok(
         await sections.move(
-          actorFor(request),
+          await actorFor(request),
           sectionId(request),
           MoveSectionInputSchema.parse(request.body).position,
         ),
       ),
 
     'POST /api/sections/:id/duplicate': async (request) =>
-      created(await sections.duplicate(actorFor(request), sectionId(request))),
+      created(await sections.duplicate(await actorFor(request), sectionId(request))),
 
     'DELETE /api/sections/:id': async (request) => {
-      await sections.remove(actorFor(request), sectionId(request));
+      await sections.remove(await actorFor(request), sectionId(request));
       return noContent();
     },
 
     'GET /api/tasks': async (request) =>
       ok(
         await tasks.list(
-          actorFor(request),
+          await actorFor(request),
           TaskQuerySchema.parse(queryObject(request.query, ['status', 'priority'], [], ['includeArchived'])),
         ),
       ),
 
     'POST /api/tasks': async (request) =>
-      created(await tasks.create(actorFor(request), CreateTaskInputSchema.parse(request.body))),
+      created(await tasks.create(await actorFor(request), CreateTaskInputSchema.parse(request.body))),
 
-    'GET /api/tasks/:id': async (request) => ok(await tasks.get(actorFor(request), taskId(request))),
+    'GET /api/tasks/:id': async (request) => ok(await tasks.get(await actorFor(request), taskId(request))),
 
     'PATCH /api/tasks/:id': async (request) =>
-      ok(await tasks.update(actorFor(request), taskId(request), UpdateTaskInputSchema.parse(request.body))),
+      ok(await tasks.update(await actorFor(request), taskId(request), UpdateTaskInputSchema.parse(request.body))),
 
     // No body: `curl -X POST` sends none, and there is nothing to say beyond the id.
-    'POST /api/tasks/:id/complete': async (request) => ok(await tasks.complete(actorFor(request), taskId(request))),
+    'POST /api/tasks/:id/complete': async (request) => ok(await tasks.complete(await actorFor(request), taskId(request))),
 
-    'POST /api/tasks/:id/archive': async (request) => ok(await tasks.archive(actorFor(request), taskId(request))),
+    'POST /api/tasks/:id/archive': async (request) => ok(await tasks.archive(await actorFor(request), taskId(request))),
 
     // §24's dashboard is derived, not stored, so it is one read with two configurable
     // ranges rather than a widget-shaped endpoint per tile — the widgets overlap, and one
@@ -207,12 +223,31 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'GET /api/dashboard': async (request) =>
       ok(
         await dashboard.load(
-          actorFor(request),
+          await actorFor(request),
           DashboardQuerySchema.parse(queryObject(request.query, [], ['upcomingDays', 'recentDays'])),
         ),
       ),
 
+    // §52's connections and §53's controls over them. Agent-actor calls are refused in the
+    // domain, not here: a connection that could edit connections could grant itself the
+    // permission it was just denied.
+    'GET /api/agent-connections': async (request) => ok(await agents.list(await actorFor(request))),
+
+    'PATCH /api/agent-connections/:id': async (request) =>
+      ok(
+        await agents.updatePermissions(
+          await actorFor(request),
+          connectionId(request),
+          UpdateAgentPermissionsInputSchema.parse(request.body).permissions,
+        ),
+      ),
+
+    // Its own route rather than a `revoked` field on PATCH: §53 draws it as a button apart
+    // from the grid, and it is the one change the grid cannot express.
+    'POST /api/agent-connections/:id/revoke': async (request) =>
+      ok(await agents.revoke(await actorFor(request), connectionId(request))),
+
     'GET /api/activity': async (request) =>
-      ok(await activity.list(actorFor(request), ActivityQuerySchema.parse(queryObject(request.query, [], ['limit'])))),
+      ok(await activity.list(await actorFor(request), ActivityQuerySchema.parse(queryObject(request.query, [], ['limit'])))),
   };
 };
