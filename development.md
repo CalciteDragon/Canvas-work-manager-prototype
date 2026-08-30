@@ -465,7 +465,11 @@ unit instead, and a test pins the ordering. A residual window remains and is doc
 `actorFor` snapshots outside the lock, so a write racing your own reseed 404s rather than
 persisting across seeds.
 
-Host-state changes **reload the app** (§62's live updates are Slice 16), which forced
+Host-state changes **reload the app** — still true after Slice 16, and now on purpose rather
+than for want of a stream: a seed swap, a clock move and an AI-provider switch change what
+every derived read on every page means at once, and one reload is cheaper and more legible
+than a fan-out of quiet refreshes. Slice 16 broadcasts `prototype.reloaded` so the *other*
+tabs refresh, and removed the layout control's reload entirely. This forced
 delay/failure/flags into `sessionStorage` so the panel's own reload cannot wipe them; the
 theme is deliberately excluded, which is what keeps "switch persona changes the theme"
 demonstrable ([entry](docs/decisions/2026-08-development-panel-surface.md), which also closes
@@ -720,7 +724,26 @@ in `data.json` — over both HTTP and stdio.
 
 ### Slice 16 — Live updates
 
-**Status:** in progress — plan: [docs/plans/16-live-updates.md](docs/plans/16-live-updates.md)
+**Status:** done — plan: [docs/plans/16-live-updates.md](docs/plans/16-live-updates.md) — one
+frame per §57 activity record, held until the unit of work commits, over
+`GET /prototype/events`. An agent's `complete_task` reaches an open project page in ~14 ms
+with the write already readable, and the feed names the connection.
+
+Three things the plan did not start out knowing. Emission rides `ActivityService.record`, so
+it is **at most** one event per operation rather than exactly one — no-op writes announce
+nothing, and `AgentConnectionService.touch` announces nothing at all, which is why §53's
+"Last used" does not live-update ([entry](docs/decisions/2026-08-live-events-ride-the-activity-record.md)).
+Every live-driven read is *quiet* — no loading flag, no cleared data, no error on failure —
+because an agent's write must not flicker a skeleton over a page someone is reading; and the
+task list and the section canvas each defer behind an optimistic write in flight, since the
+host flushes its frame at commit, which is before the tab's own response lands. Slice 12's
+three parked `location.reload()` calls were decided one by one: the layout control's is gone,
+persona switching and the host-state controls keep theirs (see below), and other tabs now get
+`prototype.reloaded` instead.
+
+Not delivered, deliberately: stdio MCP writes do not reach the browser — separate process,
+separate store, and the fix is the sync infrastructure §62 forbids
+([entry](docs/decisions/2026-08-live-updates-are-http-only.md)).
 
 **Goal:** Agent changes appear in the open browser without a refresh.
 

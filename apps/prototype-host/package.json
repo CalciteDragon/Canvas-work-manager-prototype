@@ -12,7 +12,8 @@
     "acceptance": "node scripts/acceptance.mjs",
     "agent-acceptance": "node scripts/agent-acceptance.mjs",
     "mcp:stdio": "tsx mcp/stdio.ts",
-    "mcp-acceptance": "node --import tsx scripts/mcp-acceptance.mjs"
+    "mcp-acceptance": "node --import tsx scripts/mcp-acceptance.mjs",
+    "live-acceptance": "node --import tsx scripts/live-acceptance.mjs"
   },
   "dependencies": {
     "@cwm/contracts": "workspace:*",

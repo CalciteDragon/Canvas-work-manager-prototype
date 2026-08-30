@@ -118,6 +118,13 @@ Read-only clients can run together as long as authentication's throttled `lastUs
 is acceptable. For isolated experiments, point each transport at a separate
 `CWM_DATA_FILE`.
 
+**§62's live updates are a property of the HTTP transport.** The browser and the HTTP MCP
+endpoint share one process, so an agent's write over `/mcp` appears in an open page within a
+second. A stdio process owns a separate store and cannot reach the running host's event
+stream, so its writes leave the UI unchanged — the visible symptom of the same limitation
+above. Use HTTP whenever the UI is open
+([why](decisions/2026-08-live-updates-are-http-only.md)).
+
 ## Verify and troubleshoot
 
 The repository's real-client check lists tools, creates a task, and inspects the file over
@@ -125,6 +132,14 @@ both transports:
 
 ```powershell
 pnpm --filter @cwm/prototype-host mcp-acceptance
+```
+
+§62's own check opens `GET /prototype/events`, completes a task through a real MCP client,
+and asserts the frame arrives within a second *and* that the write is already readable when
+it does:
+
+```powershell
+pnpm --filter @cwm/prototype-host live-acceptance
 ```
 
 - `401 unauthorized`: the token is missing, unknown, or its connection is revoked.
