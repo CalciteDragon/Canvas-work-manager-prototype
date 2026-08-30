@@ -41,7 +41,6 @@ export class ProjectPage {
   readonly registry = SECTION_REGISTRY;
   readonly addOpen = signal(false);
   readonly canvasMounted = signal(true);
-  readonly projectDataRevision = signal(0);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly settings = inject(PrototypeSettings);
 
@@ -115,7 +114,11 @@ export class ProjectPage {
   }
 
   projectDataChanged(): void {
-    this.projectDataRevision.update((revision) => revision + 1);
+    this.store.notifyProjectDataChanged();
     void this.store.refreshProgress();
+  }
+
+  projectHierarchyChanged(): void {
+    this.store.notifyProjectHierarchyChanged();
   }
 }

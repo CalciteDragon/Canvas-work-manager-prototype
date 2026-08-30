@@ -2,7 +2,12 @@ import { Injectable, inject } from '@angular/core';
 import { LiveEventSchema } from '@cwm/contracts';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
-import type { LiveEventListener, LiveUpdates } from './live-updates';
+import type { LiveConnectionListener, LiveEventListener, LiveUpdates } from './live-updates';
+
+interface Subscription {
+  connected?: LiveConnectionListener;
+  listener: LiveEventListener;
+}
 
 /** The first reconnect wait, doubling from here. */
 export const RECONNECT_BASE_MS = 1_000;
@@ -46,19 +51,20 @@ export class PrototypeLiveUpdates implements LiveUpdates {
   private readonly baseUrl = inject(PROTOTYPE_API_BASE_URL);
   private readonly identity = inject(IDENTITY_PROVIDER);
 
-  private readonly listeners = new Set<LiveEventListener>();
+  private readonly subscriptions = new Set<Subscription>();
   private source: EventSource | null = null;
   private connecting = false;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private retryDelay = RECONNECT_BASE_MS;
 
-  subscribe(listener: LiveEventListener): () => void {
-    this.listeners.add(listener);
-    if (this.listeners.size === 1) this.open();
+  subscribe(listener: LiveEventListener, connected?: LiveConnectionListener): () => void {
+    const subscription: Subscription = { listener, connected };
+    this.subscriptions.add(subscription);
+    if (this.subscriptions.size === 1) this.open();
 
     return () => {
-      this.listeners.delete(listener);
-      if (this.listeners.size === 0) this.close();
+      this.subscriptions.delete(subscription);
+      if (this.subscriptions.size === 0) this.close();
     };
   }
 
@@ -71,7 +77,7 @@ export class PrototypeLiveUpdates implements LiveUpdates {
         this.connecting = false;
         // The subscriber may have gone while the identity was in flight; opening now would
         // leave a socket nobody is listening to and nobody will close.
-        if (this.listeners.size === 0) return;
+        if (this.subscriptions.size === 0) return;
         this.connect(user.id);
       },
       () => {
@@ -87,6 +93,9 @@ export class PrototypeLiveUpdates implements LiveUpdates {
 
     source.onopen = () => {
       this.retryDelay = RECONNECT_BASE_MS;
+      for (const { connected } of [...this.subscriptions]) {
+        if (connected !== undefined) this.notify(connected);
+      }
     };
 
     source.onmessage = ({ data }: MessageEvent<string>) => {
@@ -95,7 +104,7 @@ export class PrototypeLiveUpdates implements LiveUpdates {
       // page that was listening for the good ones.
       const parsed = parseFrame(data);
       if (!parsed.success) return;
-      for (const listener of [...this.listeners]) listener(parsed.data);
+      for (const { listener } of [...this.subscriptions]) this.notify(() => listener(parsed.data));
     };
 
     source.onerror = () => {
@@ -108,7 +117,7 @@ export class PrototypeLiveUpdates implements LiveUpdates {
   }
 
   private scheduleReconnect(): void {
-    if (this.retryTimer !== null || this.listeners.size === 0) return;
+    if (this.retryTimer !== null || this.subscriptions.size === 0) return;
 
     const delay = this.retryDelay;
     this.retryDelay = Math.min(this.retryDelay * 2, RECONNECT_CEILING_MS);
@@ -126,5 +135,15 @@ export class PrototypeLiveUpdates implements LiveUpdates {
     this.source?.close();
     this.source = null;
     this.retryDelay = RECONNECT_BASE_MS;
+  }
+
+  /** One feature's callback cannot stop recovery or delivery for the features behind it. */
+  private notify(listener: () => void): void {
+    try {
+      listener();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error(`live update listener failed — ${reason}`);
+    }
   }
 }

@@ -122,7 +122,9 @@ so a reseed never invalidates a persona id or moves it to another workspace.
 
 ### Refreshes are quiet, and they defer to writes in flight
 
-Two rules, applied to **every** subscribing store, not just the task list:
+Two rules, applied to every ordinary mutation or connection-recovery read, not just the
+task list. A `prototype.reloaded` frame is the intentional exception: it uses the loud
+route-load path because the whole host document and its derived inputs may have changed.
 
 - **Quiet.** A live-driven refresh never sets `loading`, never clears the current data, and
   never writes `error` on failure. The loud `load()` path stays exactly as it is for route
@@ -301,7 +303,7 @@ Node's behaviour, not this prototype's.
   `apps/prototype-host`.
 - **Components depend on interfaces, never a transport.** Stores inject `LIVE_UPDATES`, an
   interface token. `EventSource` appears in exactly one file, and `app.config.ts` remains
-  the only file naming a concrete adapter.
+  the only file providing the concrete adapter (the wiring spec names it deliberately).
 - **Contracts defined once.** `LiveEvent` reuses `ActivityActionSchema`,
   `ActivityEntityTypeSchema` and `ProjectIdSchema`. Host and client parse the same schema.
 - **MCP tools call domain services.** Unchanged — the MCP path broadcasts because the
@@ -324,8 +326,10 @@ Deferred by this plan, with the reason:
   are made *by* that page, and the third mutation, `touch`'s "Last used", records no
   activity event and so produces no live event at all. A subscription there would change
   nothing observable.
-- **Sub-projects, reflections, timeline and progress-section stores.** They refresh through
-  `ProjectPageStore` or their own writes.
+- **Sub-projects, reflections, timeline and progress-section stores.** The correctness
+  follow-up found that the original page refresh did not reach their independent derived
+  reads. They now observe targeted page-owned data or hierarchy revisions, while their own
+  writes notify the same revision locally.
 - **A connection indicator in the UI.** `LiveUpdates` exposes no `connected` signal, because
   nothing renders one and §71 says not to build the stream out.
 - **Suppressing self-echo.** Accepted, with the two refresh rules as the mitigation.
@@ -455,3 +459,19 @@ by a test, all fixed with a regression case where one was cheap:
 - **`LiveEventHub` had no listener error containment.** Latent — the SSE listener cannot
   throw — but one throwing subscriber would have aborted delivery to everyone behind it *and*
   rejected `wrapUnitOfWork.run`, answering an already-committed write with a 500.
+
+**Post-slice correctness follow-up.** The implementation and regression matrix are recorded
+in [16-live-updates-correctness-follow-up.md](16-live-updates-correctness-follow-up.md). It
+closed four gaps the original slice review did not cover:
+
+- independent Activity, Progress, Reflections, Timeline and Sub-projects reads now observe
+  targeted page-owned revisions instead of assuming a `ProjectPageStore` read updates them;
+- a first SSE open or browser-managed reconnect quietly re-reads visible canonical state,
+  closing both the startup subscribe/read race and missed-frame recovery without replay;
+- all touched stores serialize loud and quiet reads, coalesce one trailing read, and preserve
+  rendered state on quiet failure so completion order cannot decide the screen;
+- project routing uses the minimal contract (`type + entityId`), and current-project data is
+  invalidated separately from workspace project hierarchy.
+
+The rationale is captured in
+[2026-08-live-recovery-invalidates-derived-views.md](../decisions/2026-08-live-recovery-invalidates-derived-views.md).

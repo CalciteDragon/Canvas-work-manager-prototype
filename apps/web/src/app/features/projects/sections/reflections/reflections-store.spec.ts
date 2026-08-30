@@ -37,6 +37,21 @@ const deferred = <T>() => {
 };
 
 describe('ReflectionsStore (§36)', () => {
+  it('serializes revision refreshes and keeps reflections on a quiet failure', async () => {
+    const loud = deferred<Reflection[]>(); const quiet = deferred<Reflection[]>(); const trailing = deferred<Reflection[]>();
+    const list = vi.fn().mockImplementationOnce(() => loud.promise).mockImplementationOnce(() => quiet.promise).mockImplementationOnce(() => trailing.promise);
+    const base = new FakeWorkManagerGateway();
+    const store = setup({ ...base, reflections: { ...base.reflections, list } } as WorkManagerGateway);
+    const loading = store.sync('project-a' as ProjectId); void store.sync('project-a' as ProjectId);
+    expect(list).toHaveBeenCalledTimes(1);
+    loud.resolve([reflection({ id: 'reflection-loud' })]); await loading; await Promise.resolve();
+    void store.sync('project-a' as ProjectId); expect(list).toHaveBeenCalledTimes(2);
+    quiet.reject(new GatewayError('unreachable', 0, 'quiet failed')); await Promise.resolve(); await Promise.resolve();
+    expect(store.reflections().map(({ id }) => id)).toEqual(['reflection-loud']); expect(store.error()).toBeNull(); expect(list).toHaveBeenCalledTimes(3);
+    trailing.resolve([reflection({ id: 'reflection-trailing' })]); await Promise.resolve(); await Promise.resolve();
+    expect(store.reflections().map(({ id }) => id)).toEqual(['reflection-trailing']);
+  });
+
   it('loads its project and sorts the response newest-first', async () => {
     const gateway = new FakeWorkManagerGateway({
       reflections: [

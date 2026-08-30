@@ -35,13 +35,15 @@ let inputChanges = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<button data-test-save type="button" (click)="onConfigChange()({ text: 'edited' })">
     save
-  </button>`,
+  </button><button data-test-hierarchy type="button" (click)="onProjectHierarchyChange()()">hierarchy</button>`,
 })
 class TestContent {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();
   readonly onProjectDataChange = input.required<() => void>();
+  readonly onProjectHierarchyChange = input.required<() => void>();
   readonly projectDataRevision = input.required<number>();
+  readonly projectHierarchyRevision = input.required<number>();
 
   constructor() {
     effect(() => {
@@ -63,7 +65,9 @@ class TestInspector {
   readonly section = input.required<ProjectSection>();
   readonly onConfigChange = input.required<(config: SectionConfig) => void>();
   readonly onProjectDataChange = input.required<() => void>();
+  readonly onProjectHierarchyChange = input.required<() => void>();
   readonly projectDataRevision = input.required<number>();
+  readonly projectHierarchyRevision = input.required<number>();
 }
 
 const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({
@@ -86,6 +90,7 @@ const render = (
   fixture.componentRef.setInput('definition', definition(definitionOverrides));
   fixture.componentRef.setInput('editMode', editMode);
   fixture.componentRef.setInput('projectDataRevision', 0);
+  fixture.componentRef.setInput('projectHierarchyRevision', 0);
   fixture.detectChanges();
   return fixture;
 };
@@ -121,6 +126,7 @@ describe('ProjectSectionFrame (§31)', () => {
     frame.duplicateRequested.subscribe((event) => seen.push(['duplicate', event]));
     frame.removeRequested.subscribe((event) => seen.push(['remove', event]));
     frame.configChanged.subscribe((event) => seen.push(['config', event]));
+    frame.projectHierarchyChanged.subscribe(() => seen.push(['hierarchy']));
 
     query(fixture, '[data-section-collapse]')!.click();
     const size = query(fixture, '[data-section-size]') as HTMLSelectElement;
@@ -130,6 +136,7 @@ describe('ProjectSectionFrame (§31)', () => {
     query(fixture, '[data-section-remove]')!.click();
     // Config-change is the one hop that carries a section's actual content upward.
     query(fixture, '[data-test-save]')!.click();
+    query(fixture, '[data-test-hierarchy]')!.click();
 
     expect(seen).toEqual([
       ['collapse', { id: 'section-a', collapsed: true }],
@@ -137,6 +144,7 @@ describe('ProjectSectionFrame (§31)', () => {
       ['duplicate', 'section-a'],
       ['remove', 'section-a'],
       ['config', { id: 'section-a', config: { text: 'edited' } }],
+      ['hierarchy'],
     ]);
   });
 
@@ -159,6 +167,7 @@ describe('ProjectSectionFrame (§31)', () => {
     const second = fixture.componentInstance.contentInputs();
     expect(second).toBe(first);
     expect(second.onConfigChange).toBe(first.onConfigChange);
+    expect(second.onProjectHierarchyChange).toBe(first.onProjectHierarchyChange);
 
     fixture.detectChanges();
 

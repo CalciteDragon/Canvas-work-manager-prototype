@@ -12,6 +12,6 @@ import { ActivityStore } from '../../../activity/activity-store';
  */
 @Component({ selector: 'app-recent-activity-section', changeDetection: ChangeDetectionStrategy.OnPush, imports: [ActivityFeed], providers: [ActivityStore], templateUrl: './recent-activity-section.html', styleUrl: './recent-activity-section.scss' })
 export class RecentActivitySection {
-  readonly section = input.required<ProjectSection>(); readonly onConfigChange = input.required<(config: SectionConfig) => void>(); readonly onProjectDataChange = input.required<() => void>(); readonly projectDataRevision = input.required<number>(); readonly store = inject(ActivityStore);
-  constructor() { effect(() => { this.projectDataRevision(); void this.store.load(this.section().projectId); }); }
+  readonly section = input.required<ProjectSection>(); readonly onConfigChange = input.required<(config: SectionConfig) => void>(); readonly onProjectDataChange = input.required<() => void>(); readonly onProjectHierarchyChange = input.required<() => void>(); readonly projectDataRevision = input.required<number>(); readonly projectHierarchyRevision = input.required<number>(); readonly store = inject(ActivityStore);
+  constructor() { effect(() => { this.projectDataRevision(); void this.store.sync(this.section().projectId); }); }
 }

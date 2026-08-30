@@ -22,7 +22,9 @@ export interface SectionContentInputs extends Record<string, unknown> {
   section: ProjectSection;
   onConfigChange: (config: SectionConfig) => void;
   onProjectDataChange: () => void;
+  onProjectHierarchyChange: () => void;
   projectDataRevision: number;
+  projectHierarchyRevision: number;
 }
 
 /**
@@ -34,5 +36,7 @@ export interface SectionContentComponent {
   readonly section: unknown;
   readonly onConfigChange: unknown;
   readonly onProjectDataChange: unknown;
+  readonly onProjectHierarchyChange: unknown;
   readonly projectDataRevision: unknown;
+  readonly projectHierarchyRevision: unknown;
 }

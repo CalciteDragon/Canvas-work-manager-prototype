@@ -41,6 +41,7 @@ export class ProjectSectionFrame {
   readonly definition = input.required<SectionDefinition>();
   readonly editMode = input.required<boolean>();
   readonly projectDataRevision = input.required<number>();
+  readonly projectHierarchyRevision = input.required<number>();
 
   readonly collapseToggled = output<{ id: SectionId; collapsed: boolean }>();
   readonly resized = output<{ id: SectionId; columnSpan: SectionColumnSpan }>();
@@ -48,6 +49,7 @@ export class ProjectSectionFrame {
   readonly removeRequested = output<SectionId>();
   readonly configChanged = output<{ id: SectionId; config: SectionConfig }>();
   readonly projectDataChanged = output<void>();
+  readonly projectHierarchyChanged = output<void>();
 
   readonly configOpen = signal(false);
   readonly columnSpans = [...SectionColumnSpanSchema.values];
@@ -64,13 +66,16 @@ export class ProjectSectionFrame {
   };
 
   private readonly emitProjectDataChange = (): void => this.projectDataChanged.emit();
+  private readonly emitProjectHierarchyChange = (): void => this.projectHierarchyChanged.emit();
 
   /** Computed for the same reason: an object literal in the template is a new identity too. */
   readonly contentInputs = computed<SectionContentInputs>(() => ({
     section: this.section(),
     onConfigChange: this.emitConfig,
     onProjectDataChange: this.emitProjectDataChange,
+    onProjectHierarchyChange: this.emitProjectHierarchyChange,
     projectDataRevision: this.projectDataRevision(),
+    projectHierarchyRevision: this.projectHierarchyRevision(),
   }));
 
   constructor() {

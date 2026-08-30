@@ -6,6 +6,7 @@ import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { widgetDefinitionFor } from './widgets/registry';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+interface QueuedRead { quiet: boolean; promise: Promise<void>; resolve: () => void; reject: (error: unknown) => void; }
 
 /**
  * The dashboard's one store (§20 — no global mega-store).
@@ -20,8 +21,8 @@ export class DashboardStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly identity = inject(IDENTITY_PROVIDER);
 
-  /** Guards against a slow first load landing after a later one (persona switch, reload). */
-  private generation = 0;
+  private activeRead: Promise<void> | null = null;
+  private queuedRead: QueuedRead | null = null;
 
   private readonly widgetsState = signal<DashboardWidget[]>([]);
   private readonly dashboardState = signal<DashboardResult | null>(null);
@@ -34,7 +35,10 @@ export class DashboardStore {
   readonly error = this.errorState.asReadonly();
 
   constructor() {
-    const unsubscribe = inject(LIVE_UPDATES).subscribe((event) => this.onLiveEvent(event));
+    const unsubscribe = inject(LIVE_UPDATES).subscribe(
+      (event) => this.onLiveEvent(event),
+      () => void this.refresh(),
+    );
     inject(DestroyRef).onDestroy(unsubscribe);
   }
 
@@ -68,13 +72,29 @@ export class DashboardStore {
   }
 
   private async read({ quiet }: { quiet: boolean }): Promise<void> {
-    const generation = ++this.generation;
+    if (this.activeRead !== null) return this.enqueue(quiet);
+    return this.startRead(quiet);
+  }
+
+  private enqueue(quiet: boolean): Promise<void> {
+    if (this.queuedRead === null) {
+      let resolve!: () => void;
+      let reject!: (error: unknown) => void;
+      const promise = new Promise<void>((yes, no) => { resolve = yes; reject = no; });
+      this.queuedRead = { quiet, promise, resolve, reject };
+    } else if (!quiet) {
+      this.queuedRead.quiet = false;
+    }
+    return this.queuedRead.promise;
+  }
+
+  private startRead(quiet: boolean): Promise<void> {
     if (!quiet) {
       this.loadingState.set(true);
       this.errorState.set(null);
     }
 
-    try {
+    const operation = (async () => { try {
       const { user } = await this.identity.getCurrentIdentity();
       // Hidden widgets are excluded before the query is built: an invisible Upcoming tile
       // must not widen the range for the ones that are on screen.
@@ -83,22 +103,25 @@ export class DashboardStore {
         .sort((a, b) => a.position - b.position);
       const dashboard = await this.gateway.dashboard.get(queryFor(widgets));
 
-      if (generation !== this.generation) return;
       this.widgetsState.set(widgets);
       this.dashboardState.set(dashboard);
+      this.errorState.set(null);
     } catch (error) {
-      if (generation !== this.generation || quiet) return;
+      if (quiet) return;
       this.widgetsState.set([]);
       this.dashboardState.set(null);
       this.errorState.set(messageOf(error));
     } finally {
-      // Deliberately **not** `&& !quiet`. Both paths claim a generation, so a live frame
-      // arriving mid-load leaves the quiet read holding the newest one — and if only the
-      // loud path could clear the flag, the load would skip its `finally` on the generation
-      // check and the dashboard would sit on a skeleton forever with its data already in
-      // hand. Whoever is current clears it; only the loud path ever sets it.
-      if (generation === this.generation) this.loadingState.set(false);
-    }
+      if (!quiet) this.loadingState.set(false);
+    } })().finally(() => {
+      if (this.activeRead !== operation) return;
+      this.activeRead = null;
+      const queued = this.queuedRead;
+      this.queuedRead = null;
+      if (queued !== null) void this.startRead(queued.quiet).then(queued.resolve, queued.reject);
+    });
+    this.activeRead = operation;
+    return operation;
   }
 }
 

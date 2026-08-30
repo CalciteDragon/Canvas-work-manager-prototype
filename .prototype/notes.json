@@ -487,6 +487,14 @@
       "projectId": null,
       "slice": 16,
       "note": "`pnpm dev` does not work under a single-port preview/launcher: the runner sets PORT=4200 and supervises one port, and the host child never bound at all � running `node --import tsx apps/prototype-host/main.ts` separately worked immediately. The Slice 1 CWM_HOST_PORT decision paid off here (the host ignored PORT rather than stealing 4200), but a two-process dev command is awkward for any tool that expects one. Not worth changing; worth knowing."
+    },
+    {
+      "id": "note-2026-08-30-005",
+      "createdAt": "2026-08-30T20:27:00.000Z",
+      "route": "/projects/project-work-manager",
+      "projectId": "project-work-manager",
+      "slice": 16,
+      "note": "The correctness follow-up held up in the real app. One HTTP-MCP batch completed Document the tool input schemas, added a reflection, and created a child: without reloading, header and Progress moved 25% → 50%, Timeline showed the task done, Reflections showed the new note, and Sub-Projects plus the sidebar showed the child. For the missed-frame case I stopped the browser's :4310 host, confirmed Progress stayed visibly at 50%, completed Add retry budget through MCP on a temporary :4311 host against the same data file, and confirmed the disconnected tab was still stale. Restarting :4310 moved Progress to 75% and Timeline to done without a second mutation. The regression suite pins one shared Progress read for duplicate sections and at most one coalesced trailing read while any touched store is busy."
     }
   ]
 }

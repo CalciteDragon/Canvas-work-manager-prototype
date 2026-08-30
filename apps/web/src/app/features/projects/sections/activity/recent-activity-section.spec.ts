@@ -55,6 +55,8 @@ const render = async (gateway = new FakeWorkManagerGateway({ activity: [entry()]
   fixture.componentRef.setInput('onConfigChange', vi.fn<(config: SectionConfig) => void>());
   fixture.componentRef.setInput('onProjectDataChange', vi.fn<() => void>());
   fixture.componentRef.setInput('projectDataRevision', 0);
+  fixture.componentRef.setInput('projectHierarchyRevision', 0);
+  fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn());
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
@@ -107,35 +109,37 @@ describe('RecentActivitySection (§30, §57)', () => {
   });
 });
 
-describe('RecentActivitySection and live updates (§62)', () => {
-  it('reloads when an agent changes something in this project', async () => {
-    const { fixture, gateway, live } = await render();
+describe('RecentActivitySection project-data invalidation (§62)', () => {
+  it('reloads when the page store invalidates current-project data', async () => {
+    const { fixture, gateway } = await render();
     const before = gateway.calls.filter(({ method }) => method === 'activity.list').length;
 
-    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-1', projectId: 'project-a' as never });
+    fixture.componentRef.setInput('projectDataRevision', 1);
+    fixture.detectChanges();
     await fixture.whenStable();
 
-    // "The activity feed shows the agent as actor" is half of this slice's *Done when*.
     expect(gateway.calls.filter(({ method }) => method === 'activity.list')).toHaveLength(before + 1);
   });
 
-  it('ignores a change in another project', async () => {
-    const { fixture, gateway, live } = await render();
+  it('ignores hierarchy-only invalidation', async () => {
+    const { fixture, gateway } = await render();
     const before = gateway.calls.filter(({ method }) => method === 'activity.list').length;
 
-    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-9', projectId: 'project-z' as never });
+    fixture.componentRef.setInput('projectHierarchyRevision', 1);
+    fixture.detectChanges();
     await fixture.whenStable();
 
     expect(gateway.calls.filter(({ method }) => method === 'activity.list')).toHaveLength(before);
   });
 
-  it('keeps the rendered feed when a live re-read fails', async () => {
+  it('keeps the rendered feed when a revision re-read fails', async () => {
     // The options object is the fake's own state, so a spec can break the host mid-test.
     const options: FakeGatewayOptions = { activity: [entry()] };
-    const { fixture, live } = await render(new FakeWorkManagerGateway(options));
+    const { fixture } = await render(new FakeWorkManagerGateway(options));
     options.failWith = new GatewayError('unreachable', 0, 'host is down');
 
-    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-1', projectId: 'project-a' as never });
+    fixture.componentRef.setInput('projectDataRevision', 1);
+    fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
 

@@ -131,6 +131,12 @@ export class TaskListStore {
           return;
         }
         this.tasksState.set(tasks);
+        // A quiet read must not erase a mutation error, but it can heal the stale load error
+        // that said no list existed before the connection came back.
+        if (this.loadFailedState()) {
+          this.errorState.set(null);
+          this.loadFailedState.set(false);
+        }
       } catch {
         // Quiet, by design — see the doc comment.
       }

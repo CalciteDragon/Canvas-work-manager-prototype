@@ -1,15 +1,18 @@
 import { TestBed } from '@angular/core/testing';
-import { ProjectStatusSchema, type Project, type ProjectQuery } from '@cwm/contracts';
-import { describe, expect, it } from 'vitest';
+import { ProjectStatusSchema, type Identity, type Project, type ProjectQuery } from '@cwm/contracts';
+import { describe, expect, it, vi } from 'vitest';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { GatewayError } from '../gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../gateway/testing/fake-gateway';
-import { shellTestProviders } from '../gateway/testing/shell-test-providers';
-import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
+import { shellTestProviders, testIdentity } from '../gateway/testing/shell-test-providers';
+import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../gateway/work-manager-gateway';
+import { IDENTITY_PROVIDER, type IdentityProvider } from '../identity/identity-provider';
+import { LIVE_UPDATES } from '../live/live-updates';
 import { FakeLiveUpdates } from '../live/testing/fake-live-updates';
 import { ShellStore } from './shell-store';
 
 const AT = '2026-08-01T16:00:00.000Z';
+const deferred = <T>() => { let resolve!: (value: T) => void; let reject!: (reason: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 
 const project = (id: string, name: string, parentProjectId?: string): Project =>
   ({
@@ -260,5 +263,37 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
     // good read hides a perfectly usable sidebar until a reload.
     expect(store.error()).toBeNull();
     expect(store.projects()).toHaveLength(1);
+  });
+
+  it('re-reads both identity and projects when the connection opens', async () => {
+    let identityCalls = 0;
+    const identity: IdentityProvider = { getCurrentIdentity: () => ++identityCalls === 1 ? Promise.reject(new GatewayError('unreachable', 0, 'identity unavailable')) : Promise.resolve(testIdentity()) };
+    const live = new FakeLiveUpdates();
+    const gateway = new FakeWorkManagerGateway({ projects: [project('project-1', 'Recovered')] });
+    TestBed.configureTestingModule({ providers: [ShellStore, ...shellTestProviders({ live }), { provide: IDENTITY_PROVIDER, useValue: identity }, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+    const store = TestBed.inject(ShellStore);
+    await store.load(); expect(store.identity()).toBeNull(); expect(store.error()).not.toBeNull();
+
+    live.emitConnected(); await settleLive();
+
+    expect(identityCalls).toBe(2); expect(store.identity()?.user.name).toBe('Demo User'); expect(store.projects()[0]?.name).toBe('Recovered'); expect(store.error()).toBeNull();
+  });
+
+  it('serializes connected/frame recovery and preserves good state on quiet failure', async () => {
+    const loud = deferred<Project[]>(); const quiet = deferred<Project[]>(); const trailing = deferred<Project[]>();
+    const list = vi.fn().mockImplementationOnce(() => loud.promise).mockImplementationOnce(() => quiet.promise).mockImplementationOnce(() => trailing.promise);
+    const gateway = { projects: { list } } as unknown as WorkManagerGateway;
+    const identity: IdentityProvider = { getCurrentIdentity: vi.fn(async () => testIdentity() as Identity) };
+    const live = new FakeLiveUpdates();
+    TestBed.configureTestingModule({ providers: [ShellStore, ...shellTestProviders({ live }), { provide: LIVE_UPDATES, useValue: live }, { provide: IDENTITY_PROVIDER, useValue: identity }, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+    const store = TestBed.inject(ShellStore);
+
+    const loading = store.load(); await Promise.resolve(); live.emitConnected(); await settleLive(); expect(list).toHaveBeenCalledTimes(1);
+    loud.resolve([project('project-loud', 'Loud')]); await loading; await settleLive(); expect(list).toHaveBeenCalledTimes(2);
+    live.emit({ type: 'project.updated', entityId: 'project-loud' }); await settleLive(); expect(list).toHaveBeenCalledTimes(2);
+    quiet.reject(new GatewayError('unreachable', 0, 'quiet failed')); await settleLive();
+    expect(store.projects()[0]?.name).toBe('Loud'); expect(store.error()).toBeNull(); expect(list).toHaveBeenCalledTimes(3);
+    trailing.resolve([project('project-trailing', 'Trailing')]); await settleLive();
+    expect(store.projects()[0]?.name).toBe('Trailing'); expect(store.identity()?.user.name).toBe('Demo User');
   });
 });

@@ -45,6 +45,20 @@ const setup = (get: WorkManagerGateway['timeline']['get'] = vi.fn(async (id) => 
 };
 
 describe('TimelineStore (§38)', () => {
+  it('serializes both revision channels and preserves timeline rows on quiet failure', async () => {
+    const loud = deferred<TimelineResult>(); const quiet = deferred<TimelineResult>(); const trailing = deferred<TimelineResult>();
+    const get = vi.fn().mockImplementationOnce(() => loud.promise).mockImplementationOnce(() => quiet.promise).mockImplementationOnce(() => trailing.promise);
+    const store = setup(get);
+    const loading = store.sync('project-a' as ProjectId); void store.sync('project-a' as ProjectId);
+    expect(get).toHaveBeenCalledTimes(1);
+    loud.resolve(result()); await loading; await Promise.resolve();
+    void store.sync('project-a' as ProjectId); expect(get).toHaveBeenCalledTimes(2);
+    quiet.reject(new GatewayError('unreachable', 0, 'quiet failed')); await Promise.resolve(); await Promise.resolve();
+    expect(store.items()).toHaveLength(2); expect(store.error()).toBeNull(); expect(get).toHaveBeenCalledTimes(3);
+    trailing.resolve({ ...result(), items: [result().items[0]!] }); await Promise.resolve(); await Promise.resolve();
+    expect(store.items()).toHaveLength(1);
+  });
+
   it('loads the derived timeline for one project and exposes it chronologically', async () => {
     const get = vi.fn(async (id: ProjectId) => result(id));
     const store = setup(get);

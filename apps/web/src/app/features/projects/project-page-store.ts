@@ -41,11 +41,17 @@ export class ProjectPageStore {
   // loading flag, which matches none of the template's branches and paints blank.
   private readonly loadingState = signal(true);
   private loadGeneration = 0;
+  /** Set before the first gateway await, so a startup frame can still be routed. */
+  private requestedProjectId: ProjectId | undefined;
+  private activeLoad: Promise<void> | null = null;
+  private fullRecoveryQueued = false;
   private readonly errorState = signal<string | null>(null);
   private readonly sectionErrorState = signal<string | null>(null);
   private readonly editModeState = signal(false);
   private readonly canvasRevisionState = signal(0);
   private readonly progressState = signal<ProgressResult | null>(null);
+  private readonly projectDataRevisionState = signal(0);
+  private readonly projectHierarchyRevisionState = signal(0);
   private progressRefresh: Promise<void> | null = null;
   private progressRefreshQueued = false;
   /**
@@ -61,6 +67,7 @@ export class ProjectPageStore {
    * be collapsing one would otherwise be lost until a reload.
    */
   private pendingSectionWrites = 0;
+  private projectRefresh: Promise<void> | null = null;
   private projectRefreshQueued = false;
 
   readonly project = this.projectState.asReadonly();
@@ -71,6 +78,8 @@ export class ProjectPageStore {
   readonly editMode = this.editModeState.asReadonly();
   readonly canvasRevision = this.canvasRevisionState.asReadonly();
   readonly progressResult = this.progressState.asReadonly();
+  readonly projectDataRevision = this.projectDataRevisionState.asReadonly();
+  readonly projectHierarchyRevision = this.projectHierarchyRevisionState.asReadonly();
 
   /** The selected §39 domain result; `null` means unavailable and remains distinct from 0%. */
   readonly progress = computed<number | null>(() => this.progressState()?.percentage ?? null);
@@ -79,17 +88,22 @@ export class ProjectPageStore {
     // §62. Subscribing here rather than in `ProjectPage` keeps the component free of the
     // stream, the same way it is free of the gateway; `DestroyRef` ties the subscription to
     // the store's own lifetime, and this store is provided by the page (§20).
-    const unsubscribe = inject(LIVE_UPDATES).subscribe((event) => this.onLiveEvent(event));
+    const unsubscribe = inject(LIVE_UPDATES).subscribe(
+      (event) => this.onLiveEvent(event),
+      () => this.onLiveConnected(),
+    );
     inject(DestroyRef).onDestroy(unsubscribe);
   }
 
   /**
    * §62's "refresh relevant state", for one project page.
    *
-   * Every path here is **quiet**: an agent's write must not flicker a skeleton over a page
-   * the user is reading, and a host blip during someone else's write must not replace the
-   * canvas with an error. `refreshProgress` and `reconcileSections` already behave that way;
-   * `TaskListStore.refresh` was given the same rule.
+   * Ordinary mutation and reconnect paths are **quiet**: an agent's write must not flicker
+   * a skeleton over a page the user is reading, and a host blip during someone else's write
+   * must not replace the canvas with an error. `prototype.reloaded` is the deliberate loud
+   * exception because the host document and its derived inputs may all have been replaced.
+   * `refreshProgress` and `reconcileSections` already behave quietly; `TaskListStore.refresh`
+   * was given the same rule.
    *
    * Routing is on `type` and `projectId`, never on `entityType` — §57's section events
    * deliberately name the *project* as their entity.
@@ -97,19 +111,26 @@ export class ProjectPageStore {
   private onLiveEvent(event: LiveEvent): void {
     // A host-state change (seed, reset, clock) replaces everything this page is built from.
     if (event.type === 'prototype.reloaded') {
-      const projectId = this.projectState()?.id;
+      const projectId = this.requestedProjectId;
       if (projectId !== undefined) void this.load(projectId);
       return;
     }
 
-    const projectId = this.projectState()?.id;
+    const projectId = this.requestedProjectId;
     if (projectId === undefined) return;
 
     const aboutThisProject =
-      event.projectId === projectId || (event.entityType === 'project' && event.entityId === projectId);
+      event.projectId === projectId || (event.type.startsWith('project.') && event.entityId === projectId);
+    if (event.type.startsWith('project.')) this.notifyProjectHierarchyChanged();
     if (!aboutThisProject) return;
 
-    // Tasks and progress are unaffected by a section write, so they refresh either way.
+    this.notifyProjectDataChanged();
+    if (this.activeLoad !== null) {
+      this.fullRecoveryQueued = true;
+      return;
+    }
+
+    // Any current-project mutation may change task-derived progress or visible tasks.
     void this.tasks.refresh();
     void this.refreshProgress();
     if (!event.type.startsWith('project.')) return;
@@ -120,27 +141,77 @@ export class ProjectPageStore {
     void this.refreshProject();
   }
 
+  /** Local cross-section invalidation and the current-project half of a live event. */
+  notifyProjectDataChanged(): void {
+    this.projectDataRevisionState.update((revision) => revision + 1);
+  }
+
+  /** Local hierarchy invalidation and the workspace-project half of a live event. */
+  notifyProjectHierarchyChanged(): void {
+    this.projectHierarchyRevisionState.update((revision) => revision + 1);
+  }
+
+  private onLiveConnected(): void {
+    if (this.requestedProjectId === undefined) return;
+    this.notifyProjectDataChanged();
+    this.notifyProjectHierarchyChanged();
+    this.queueFullRecovery();
+  }
+
+  private queueFullRecovery(): void {
+    if (this.activeLoad !== null) {
+      this.fullRecoveryQueued = true;
+      return;
+    }
+    // Project must recover before progress: a failed loud load has no `projectState` yet,
+    // and `refreshProgress` intentionally refuses to read without one.
+    void Promise.all([this.tasks.refresh(), this.refreshProject().then(() => this.refreshProgress())]);
+  }
+
   /**
    * The project record and its canvas, re-read after someone else changed either. Quiet on
    * failure for the same reason `reconcileSections` is: the page on screen is still the
    * better answer than an error the user did not cause.
    */
   private refreshProject(): Promise<void> {
-    const projectId = this.projectState()?.id;
+    if (this.pendingSectionWrites > 0) {
+      this.projectRefreshQueued = true;
+      return Promise.resolve();
+    }
+    if (this.projectRefresh !== null) {
+      this.projectRefreshQueued = true;
+      return this.projectRefresh;
+    }
+    const projectId = this.requestedProjectId;
     if (projectId === undefined) return Promise.resolve();
     const generation = this.loadGeneration;
 
-    return this.track(async () => {
-      try {
-        const project = await this.gateway.projects.get(projectId);
-        if (generation === this.loadGeneration && this.projectState()?.id === projectId) {
-          this.projectState.set(project);
+    const refresh = this.track(async () => {
+      do {
+        this.projectRefreshQueued = false;
+        try {
+          const project = await this.gateway.projects.get(projectId);
+          const sections = await this.gateway.sections.list(projectId);
+          if (generation === this.loadGeneration && this.requestedProjectId === projectId) {
+            this.projectState.set(project);
+            this.sectionsState.set([...sections].sort(byPosition));
+            // These are loud-load errors only. A complete quiet recovery makes them stale.
+            this.errorState.set(null);
+            this.sectionErrorState.set(null);
+          }
+        } catch {
+          // Quiet — see above.
         }
-      } catch {
-        // Quiet — see above.
-      }
-      await this.reconcileSections(projectId, generation);
+      } while (
+        this.projectRefreshQueued &&
+        this.pendingSectionWrites === 0 &&
+        generation === this.loadGeneration
+      );
+    }).finally(() => {
+      if (this.projectRefresh === refresh) this.projectRefresh = null;
     });
+    this.projectRefresh = refresh;
+    return refresh;
   }
 
   load(projectId: ProjectId): Promise<void> {
@@ -148,9 +219,10 @@ export class ProjectPageStore {
     // under B's header: without this, whichever response lands last wins, per signal.
     const generation = ++this.loadGeneration;
     const current = () => generation === this.loadGeneration;
+    this.requestedProjectId = projectId;
     this.editModeState.set(false);
 
-    return this.track(async () => {
+    const operation = this.track(async () => {
       this.loadingState.set(true);
       this.errorState.set(null);
       this.sectionErrorState.set(null);
@@ -174,9 +246,18 @@ export class ProjectPageStore {
         if (current()) {
           // Task and canonical progress reads fail independently: either feature can still
           // render its own answer when the other request fails.
-          await Promise.all([this.tasks.load(projectId), this.refreshProgressFor(projectId, generation)]);
+          await Promise.all([this.tasks.load(projectId), this.refreshProgressFor(projectId, generation, false)]);
           if (current()) this.loadingState.set(false);
         }
+      }
+    });
+    this.activeLoad = operation;
+    return operation.finally(() => {
+      if (this.activeLoad !== operation) return;
+      this.activeLoad = null;
+      if (this.fullRecoveryQueued) {
+        this.fullRecoveryQueued = false;
+        this.queueFullRecovery();
       }
     });
   }
@@ -192,7 +273,7 @@ export class ProjectPageStore {
     this.progressRefresh = this.track(async () => {
       do {
         this.progressRefreshQueued = false;
-        await this.refreshProgressFor(projectId, generation);
+        await this.refreshProgressFor(projectId, generation, true);
       } while (this.progressRefreshQueued && generation === this.loadGeneration);
     }).finally(() => {
       this.progressRefresh = null;
@@ -200,12 +281,14 @@ export class ProjectPageStore {
     return this.progressRefresh;
   }
 
-  private async refreshProgressFor(projectId: ProjectId, generation: number): Promise<void> {
+  private async refreshProgressFor(projectId: ProjectId, generation: number, quiet: boolean): Promise<void> {
     try {
       const result = await this.gateway.progress.get(projectId);
       if (generation === this.loadGeneration && this.projectState()?.id === projectId) this.progressState.set(result);
     } catch {
-      if (generation === this.loadGeneration && this.projectState()?.id === projectId) this.progressState.set(null);
+      if (!quiet && generation === this.loadGeneration && this.projectState()?.id === projectId) {
+        this.progressState.set(null);
+      }
     }
   }
 

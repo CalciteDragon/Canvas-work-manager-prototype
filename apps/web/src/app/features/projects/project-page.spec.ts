@@ -251,7 +251,9 @@ describe('ProjectPage (§26)', () => {
     fixture.detectChanges();
 
     const after = gateway.calls.filter(({ method }) => method === 'progress.get').length;
-    expect(after - before).toBeGreaterThanOrEqual(4);
+    // One canonical setFormula read, one shared section revision read, and one header
+    // recovery from the live self-echo. Duplicate sections must not add a fourth read.
+    expect(after - before).toBe(3);
     expect(progressSections.map((region) =>
       [...region.querySelectorAll<HTMLButtonElement>('button')]
         .find((button) => button.textContent?.trim() === 'Weighted')

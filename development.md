@@ -724,7 +724,7 @@ in `data.json` — over both HTTP and stdio.
 
 ### Slice 16 — Live updates
 
-**Status:** done — plan: [docs/plans/16-live-updates.md](docs/plans/16-live-updates.md) — one
+**Status:** done — original plan: [docs/plans/16-live-updates.md](docs/plans/16-live-updates.md), correctness follow-up: [docs/plans/16-live-updates-correctness-follow-up.md](docs/plans/16-live-updates-correctness-follow-up.md) — the follow-up closed derived-section propagation, first-connect/reconnect recovery, shared-store duplication, failed-first-load recovery, and quiet-read races found in the post-slice audit. One
 frame per §57 activity record, held until the unit of work commits, over
 `GET /prototype/events`. An agent's `complete_task` reaches an open project page in ~14 ms
 with the write already readable, and the feed names the connection. Watched in a real
@@ -738,13 +738,24 @@ Three things the plan did not start out knowing. Emission rides `ActivityService
 it is **at most** one event per operation rather than exactly one — no-op writes announce
 nothing, and `AgentConnectionService.touch` announces nothing at all, which is why §53's
 "Last used" does not live-update ([entry](docs/decisions/2026-08-live-events-ride-the-activity-record.md)).
-Every live-driven read is *quiet* — no loading flag, no cleared data, no error on failure —
-because an agent's write must not flicker a skeleton over a page someone is reading; and the
-task list and the section canvas each defer behind an optimistic write in flight, since the
-host flushes its frame at commit, which is before the tab's own response lands. Slice 12's
+Ordinary mutation and reconnect reads are *quiet* — no loading flag, no cleared data, no
+error on failure — because an agent's write or a transport recovery must not flicker a
+skeleton over a page someone is reading. A `prototype.reloaded` frame is the deliberate
+exception: it performs a loud page load because the host document, clock and provider may
+all have been replaced. The task list and the section canvas each defer behind an optimistic
+write in flight, since the host flushes its frame at commit, which is before the tab's own
+response lands. Slice 12's
 three parked `location.reload()` calls were decided one by one: the layout control's is gone,
 persona switching and the host-state controls keep theirs (see below), and other tabs now get
 `prototype.reloaded` instead.
+
+The post-slice exercise covered the sections the original acceptance missed. One HTTP-MCP
+batch completed a task, added a reflection and created a child project; Progress, Timeline,
+Reflections, Sub-projects and the sidebar all changed in the open page. Then a second task
+completion was committed while the browser's stream endpoint was offline: the tab stayed at
+50%, reconnect alone moved it to 75% and updated Timeline, and no second mutation was needed.
+The follow-up also pins one shared Progress read for duplicate sections and recovery from a
+failed first project-page load. The observation is in `.prototype/notes.json`.
 
 Not delivered, deliberately: stdio MCP writes do not reach the browser — separate process,
 separate store, and the fix is the sync infrastructure §62 forbids

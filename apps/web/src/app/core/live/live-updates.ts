@@ -2,6 +2,7 @@ import { InjectionToken } from '@angular/core';
 import type { LiveEvent } from '@cwm/contracts';
 
 export type LiveEventListener = (event: LiveEvent) => void;
+export type LiveConnectionListener = () => void;
 
 /**
  * §62 as the application sees it: a stream of "something changed, go and look".
@@ -16,8 +17,12 @@ export type LiveEventListener = (event: LiveEvent) => void;
  * gateway; nothing here ever carries an entity.
  */
 export interface LiveUpdates {
-  /** Returns the unsubscribe. The adapter opens on the first listener and closes on the last. */
-  subscribe(listener: LiveEventListener): () => void;
+  /**
+   * Returns the unsubscribe. `connected` runs after every successful source open, including
+   * browser-managed reconnects, so stores can recover state that changed while disconnected
+   * without pretending a transport lifecycle is a §57 activity event.
+   */
+  subscribe(listener: LiveEventListener, connected?: LiveConnectionListener): () => void;
 }
 
 /**

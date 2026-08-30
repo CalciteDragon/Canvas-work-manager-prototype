@@ -12,6 +12,34 @@ const PROJECT_B = ProjectIdSchema.parse('project-b');
 const deferred = <T>() => { let resolve!: (value: T) => void; let reject!: (reason: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 
 describe('ProgressStore', () => {
+  it('serializes revision refreshes and preserves the loud result when a quiet read fails', async () => {
+    const loud = deferred<ProgressResult>();
+    const quiet = deferred<ProgressResult>();
+    const trailing = deferred<ProgressResult>();
+    const get = vi.fn().mockImplementationOnce(() => loud.promise).mockImplementationOnce(() => quiet.promise).mockImplementationOnce(() => trailing.promise);
+    const gateway = new FakeWorkManagerGateway({ projects: [project] });
+    Object.assign(gateway.progress, { get });
+    TestBed.configureTestingModule({ providers: [ProgressStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+    const store = TestBed.inject(ProgressStore);
+
+    const loading = store.sync(PROJECT_A, 0);
+    void store.sync(PROJECT_A, 1);
+    expect(get).toHaveBeenCalledTimes(1);
+    loud.resolve({ projectId: PROJECT_A, formula: 'count', percentage: 25, completed: 1, total: 4, explanation: 'loud' });
+    await loading; await Promise.resolve();
+    expect(get).toHaveBeenCalledTimes(2);
+    void store.sync(PROJECT_A, 2);
+    expect(get).toHaveBeenCalledTimes(2);
+    quiet.reject(new GatewayError('unreachable', 0, 'quiet failed'));
+    await Promise.resolve(); await Promise.resolve();
+    expect(store.result()?.percentage).toBe(25);
+    expect(store.error()).toBeNull();
+    expect(get).toHaveBeenCalledTimes(3);
+    trailing.resolve({ projectId: PROJECT_A, formula: 'count', percentage: 75, completed: 3, total: 4, explanation: 'trailing' });
+    await Promise.resolve(); await Promise.resolve();
+    expect(store.result()?.percentage).toBe(75);
+  });
+
   it('persists a canonical project formula then reloads the derived answer', async () => {
     const gateway = new FakeWorkManagerGateway({
       projects: [project],

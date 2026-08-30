@@ -1,5 +1,10 @@
 import type { LiveEvent } from '@cwm/contracts';
-import type { LiveEventListener, LiveUpdates } from '../live-updates';
+import type { LiveConnectionListener, LiveEventListener, LiveUpdates } from '../live-updates';
+
+interface Subscription {
+  connected?: LiveConnectionListener;
+  listener: LiveEventListener;
+}
 
 /**
  * The live stream every store spec runs against. Its existence is what keeps §8's boundary
@@ -8,19 +13,24 @@ import type { LiveEventListener, LiveUpdates } from '../live-updates';
  * names it, deliberately, to assert exactly that.)
  */
 export class FakeLiveUpdates implements LiveUpdates {
-  private readonly listeners = new Set<LiveEventListener>();
+  private readonly subscriptions = new Set<Subscription>();
 
   /** How many listeners are attached — the teardown assertion a store spec needs. */
   get listenerCount(): number {
-    return this.listeners.size;
+    return this.subscriptions.size;
   }
 
-  subscribe(listener: LiveEventListener): () => void {
-    this.listeners.add(listener);
-    return () => void this.listeners.delete(listener);
+  subscribe(listener: LiveEventListener, connected?: LiveConnectionListener): () => void {
+    const subscription: Subscription = { listener, connected };
+    this.subscriptions.add(subscription);
+    return () => void this.subscriptions.delete(subscription);
   }
 
   emit(event: LiveEvent): void {
-    for (const listener of [...this.listeners]) listener(event);
+    for (const { listener } of [...this.subscriptions]) listener(event);
+  }
+
+  emitConnected(): void {
+    for (const { connected } of [...this.subscriptions]) connected?.();
   }
 }

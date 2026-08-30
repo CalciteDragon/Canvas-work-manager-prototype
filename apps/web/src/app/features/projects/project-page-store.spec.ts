@@ -184,7 +184,9 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
     readonly section = undefined;
     readonly onConfigChange = undefined;
     readonly onProjectDataChange = undefined;
+    readonly onProjectHierarchyChange = undefined;
     readonly projectDataRevision = undefined;
+    readonly projectHierarchyRevision = undefined;
   },
   ...overrides,
 });
@@ -608,7 +610,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 /** How many times a spy has been called, so a spec can assert a *further* call. */
 const calls = (spy: unknown): number => (spy as ReturnType<typeof vi.fn>).mock.calls.length;
 const settleLive = async () => {
-  for (let index = 0; index < 5; index += 1) await Promise.resolve();
+  for (let index = 0; index < 12; index += 1) await Promise.resolve();
 };
 
 describe('ProjectPageStore and live updates (§62)', () => {
@@ -627,6 +629,121 @@ describe('ProjectPageStore and live updates (§62)', () => {
     expect(store.loading()).toBe(false);
     expect(store.error()).toBeNull();
     expect(tasks.loading()).toBe(false);
+    expect(store.projectDataRevision()).toBe(1);
+    expect(store.projectHierarchyRevision()).toBe(0);
+  });
+
+  it('routes a minimal current-project event by type and entityId and bumps both revisions', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT);
+    const projectReads = calls(gateway.projects.get);
+    const sectionReads = calls(gateway.sections.list);
+
+    live.emit({ type: 'project.updated', entityId: PROJECT });
+    await settleLive();
+
+    expect(calls(gateway.projects.get)).toBe(projectReads + 1);
+    expect(calls(gateway.sections.list)).toBe(sectionReads + 1);
+    expect(store.projectDataRevision()).toBe(1);
+    expect(store.projectHierarchyRevision()).toBe(1);
+  });
+
+  it('invalidates hierarchy only for a project event naming another workspace project', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT);
+    const projectReads = calls(gateway.projects.get);
+
+    live.emit({ type: 'project.created', entityType: 'project', entityId: 'project-child', projectId: 'project-child' as ProjectId });
+    await settleLive();
+
+    expect(calls(gateway.projects.get)).toBe(projectReads);
+    expect(store.projectDataRevision()).toBe(0);
+    expect(store.projectHierarchyRevision()).toBe(1);
+  });
+
+  it('quietly recovers the open page when the live connection opens', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT);
+    const projectReads = calls(gateway.projects.get);
+    const sectionReads = calls(gateway.sections.list);
+    const taskReads = calls(gateway.tasks.list);
+    const progressReads = calls(gateway.progress.get);
+
+    live.emitConnected();
+    await settleLive();
+
+    expect(calls(gateway.projects.get)).toBe(projectReads + 1);
+    expect(calls(gateway.sections.list)).toBe(sectionReads + 1);
+    expect(calls(gateway.tasks.list)).toBe(taskReads + 1);
+    expect(calls(gateway.progress.get)).toBe(progressReads + 1);
+    expect(store.loading()).toBe(false);
+  });
+
+  it('recovers a failed first page load when the live connection opens', async () => {
+    const get = vi.fn()
+      .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'host starting'))
+      .mockResolvedValue(project({ name: 'Recovered project' }));
+    const listTasks = vi.fn()
+      .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'host starting'))
+      .mockResolvedValue([task('task-recovered')]);
+    const { store, tasks, live } = setup({ projectGet: get, taskList: listTasks });
+
+    await store.load(PROJECT);
+    expect(store.project()).toBeNull();
+    expect(store.error()).toContain('host starting');
+    expect(tasks.loadFailed()).toBe(true);
+
+    live.emitConnected();
+    await settleLive();
+
+    expect(store.project()?.name).toBe('Recovered project');
+    expect(store.sections()).toHaveLength(2);
+    expect(store.progressResult()?.projectId).toBe(PROJECT);
+    expect(store.error()).toBeNull();
+    expect(store.sectionError()).toBeNull();
+    expect(tasks.tasks().map(({ id }) => id)).toEqual(['task-recovered']);
+    expect(tasks.error()).toBeNull();
+    expect(tasks.loadFailed()).toBe(false);
+  });
+
+  it('queues an event that arrives before the first project response', async () => {
+    const first = deferred<Project>();
+    const get = vi.fn()
+      .mockImplementationOnce(() => first.promise)
+      .mockResolvedValue(project({ name: 'Recovered after startup' }));
+    const { store, gateway, live } = setup({ projectGet: get });
+
+    const loading = store.load(PROJECT);
+    live.emit({ type: 'task.completed', entityId: 'task-1', projectId: PROJECT });
+    first.resolve(project({ name: 'Old first read' }));
+    await loading;
+    await settleLive();
+
+    expect(calls(gateway.projects.get)).toBe(2);
+    expect(store.projectDataRevision()).toBe(1);
+    expect(store.project()?.name).toBe('Recovered after startup');
+  });
+
+  it('coalesces a second full recovery behind one already in flight', async () => {
+    const firstRecovery = deferred<Project>();
+    const get = vi.fn()
+      .mockResolvedValueOnce(project())
+      .mockImplementationOnce(() => firstRecovery.promise)
+      .mockResolvedValue(project({ name: 'Trailing recovery' }));
+    const { store, gateway, live } = setup({ projectGet: get });
+    await store.load(PROJECT);
+
+    live.emitConnected();
+    await settleLive();
+    live.emitConnected();
+    await settleLive();
+    expect(calls(gateway.projects.get)).toBe(2);
+
+    firstRecovery.resolve(project({ name: 'First recovery' }));
+    await settleLive();
+    expect(calls(gateway.projects.get)).toBe(3);
+    await settleLive();
+    expect(store.project()?.name).toBe('Trailing recovery');
   });
 
   it('ignores an event for another project', async () => {

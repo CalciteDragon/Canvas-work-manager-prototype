@@ -18,6 +18,7 @@ export interface ProjectTreeNode {
 
 /** The sidebar is navigation, so archived projects have no business in it. */
 const SIDEBAR_STATUSES = ProjectStatusSchema.options.filter((status) => status !== 'archived');
+interface QueuedRead { quiet: boolean; promise: Promise<void>; resolve: () => void; reject: (error: unknown) => void; }
 
 /**
  * The shell's own store (§19, §20). It holds the shell's state and no one else's: the
@@ -31,8 +32,8 @@ export class ShellStore {
   private readonly pendingTasks = inject(PendingTasks);
   private readonly settings = inject(PrototypeSettings);
 
-  /** Shared by `load` and §62's quiet `refresh`, so the newer question always wins. */
-  private generation = 0;
+  private activeRead: Promise<void> | null = null;
+  private queuedRead: QueuedRead | null = null;
 
   private readonly identityState = signal<Identity | null>(null);
   private readonly projectsState = signal<Project[]>([]);
@@ -63,12 +64,14 @@ export class ShellStore {
    * (`PendingTasks.run` would do the same but returns void, and callers want the promise.)
    */
   load(): Promise<void> {
-    const settled = this.pendingTasks.add();
-    return this.loadInto().finally(settled);
+    return this.read(false);
   }
 
   constructor() {
-    const unsubscribe = inject(LIVE_UPDATES).subscribe((event) => this.onLiveEvent(event));
+    const unsubscribe = inject(LIVE_UPDATES).subscribe(
+      (event) => this.onLiveEvent(event),
+      () => void this.refresh(),
+    );
     inject(DestroyRef).onDestroy(unsubscribe);
   }
 
@@ -87,42 +90,56 @@ export class ShellStore {
    * and an error banner over the sidebar for a write the user did not make is worse again.
    */
   private async refresh(): Promise<void> {
-    const generation = ++this.generation;
-    const settled = this.pendingTasks.add();
-    try {
-      const projects = await this.gateway.projects.list({ status: SIDEBAR_STATUSES });
-      if (generation !== this.generation) return;
-      this.projectsState.set(projects);
-      // Clearing the error is the *point* of a successful re-read, not an afterthought.
-      // `pnpm dev` routinely starts the web app before the host, so the sidebar's first load
-      // fails; the stream then connects and this is the read that recovers it. Leaving the
-      // error set would render the failure branch over a tree that is now perfectly good.
-      this.errorState.set(null);
-    } catch {
-      // Quiet — see above.
-    } finally {
-      settled();
-      if (generation === this.generation) this.loadingState.set(false);
-    }
+    return this.read(true);
   }
 
-  private async loadInto(): Promise<void> {
-    const generation = ++this.generation;
-    this.loadingState.set(true);
-    this.errorState.set(null);
-    try {
-      const identity = await this.identityProvider.getCurrentIdentity();
-      const projects = await this.gateway.projects.list({ status: SIDEBAR_STATUSES });
-      if (generation !== this.generation) return;
-      this.identityState.set(identity);
-      this.projectsState.set(projects);
-    } catch (error) {
-      if (generation !== this.generation) return;
-      this.projectsState.set([]);
-      this.errorState.set(error instanceof GatewayError || error instanceof Error ? error.message : String(error));
-    } finally {
-      if (generation === this.generation) this.loadingState.set(false);
+  private read(quiet: boolean): Promise<void> {
+    if (this.activeRead !== null) return this.enqueue(quiet);
+    return this.startRead(quiet);
+  }
+
+  private enqueue(quiet: boolean): Promise<void> {
+    if (this.queuedRead === null) {
+      let resolve!: () => void;
+      let reject!: (error: unknown) => void;
+      const promise = new Promise<void>((yes, no) => { resolve = yes; reject = no; });
+      this.queuedRead = { quiet, promise, resolve, reject };
+    } else if (!quiet) {
+      this.queuedRead.quiet = false;
     }
+    return this.queuedRead.promise;
+  }
+
+  private startRead(quiet: boolean): Promise<void> {
+    const settled = this.pendingTasks.add();
+    if (!quiet) { this.loadingState.set(true); this.errorState.set(null); }
+    const operation = (async () => {
+      const [identity, projects] = await Promise.allSettled([
+        this.identityProvider.getCurrentIdentity(),
+        this.gateway.projects.list({ status: SIDEBAR_STATUSES }),
+      ]);
+      if (identity.status === 'fulfilled') this.identityState.set(identity.value);
+      if (projects.status === 'fulfilled' && (quiet || identity.status === 'fulfilled')) {
+        this.projectsState.set(projects.value);
+      }
+      if (identity.status === 'fulfilled' && projects.status === 'fulfilled') {
+        this.errorState.set(null);
+      } else if (!quiet) {
+        this.projectsState.set([]);
+        const error = identity.status === 'rejected' ? identity.reason : projects.status === 'rejected' ? projects.reason : undefined;
+        this.errorState.set(error instanceof GatewayError || error instanceof Error ? error.message : String(error));
+      }
+    })().finally(() => {
+      settled();
+      if (!quiet) this.loadingState.set(false);
+      if (this.activeRead !== operation) return;
+      this.activeRead = null;
+      const queued = this.queuedRead;
+      this.queuedRead = null;
+      if (queued !== null) void this.startRead(queued.quiet).then(queued.resolve, queued.reject);
+    });
+    this.activeRead = operation;
+    return operation;
   }
 }
 

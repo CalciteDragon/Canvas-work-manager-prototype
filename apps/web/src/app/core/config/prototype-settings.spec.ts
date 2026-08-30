@@ -1,8 +1,13 @@
 import { TestBed } from '@angular/core/testing';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FAILURE_RATES, NETWORK_DELAYS, PrototypeSettings, PROTOTYPE_SETTINGS_STORAGE_KEY } from './prototype-settings';
 
 const settings = () => TestBed.inject(PrototypeSettings);
+
+beforeEach(() => {
+  // The first case must not inherit a flag another spec or prior run left in jsdom.
+  sessionStorage.clear();
+});
 
 afterEach(() => {
   sessionStorage.clear();

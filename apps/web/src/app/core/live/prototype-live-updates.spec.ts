@@ -118,6 +118,42 @@ describe('PrototypeLiveUpdates (§62, §10)', () => {
     expect(second).toEqual([expected]);
   });
 
+  it('announces the first connection and a browser-managed reconnect', async () => {
+    const live = setup();
+    const connected = vi.fn();
+    live.subscribe(() => undefined, connected);
+    await settle();
+    const source = FakeEventSource.opened[0]!;
+
+    source.open();
+    source.drop();
+    source.open();
+
+    expect(connected).toHaveBeenCalledTimes(2);
+  });
+
+  it('contains failures from event and connection listeners', async () => {
+    const live = setup();
+    const eventSeen: LiveEvent[] = [];
+    const connected = vi.fn();
+    live.subscribe(
+      () => {
+        throw new Error('bad event listener');
+      },
+      () => {
+        throw new Error('bad connection listener');
+      },
+    );
+    live.subscribe((event) => void eventSeen.push(event), connected);
+    await settle();
+    const source = FakeEventSource.opened[0]!;
+
+    expect(() => source.open()).not.toThrow();
+    expect(() => source.send('{"type":"task.completed","entityId":"task-1"}')).not.toThrow();
+    expect(connected).toHaveBeenCalledOnce();
+    expect(eventSeen).toEqual([{ type: 'task.completed', entityId: 'task-1' }]);
+  });
+
   it('drops a frame that is not a LiveEvent rather than throwing at the subscriber', async () => {
     const live = setup();
     const received: LiveEvent[] = [];

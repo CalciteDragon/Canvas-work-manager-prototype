@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import type { DashboardResult, DashboardWidget, Identity } from '@cwm/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway, emptyDashboard, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
@@ -22,6 +22,7 @@ const identityWith = (widgets: DashboardWidget[]): Identity => {
   const identity = testIdentity();
   return { ...identity, user: { ...identity.user, preferences: { ...identity.user.preferences, dashboardWidgets: widgets } } };
 };
+const deferred = <T>() => { let resolve!: (value: T) => void; let reject!: (reason: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 
 const setup = (widgets: DashboardWidget[], options: { failWith?: GatewayError; identity?: Identity | GatewayError } = {}) => {
   const gateway = new FakeWorkManagerGateway(options.failWith === undefined ? {} : { failWith: options.failWith });
@@ -124,7 +125,7 @@ describe('DashboardStore', () => {
     expect(store.dashboard()).toBeNull();
   });
 
-  it('ignores a superseded load whose answer arrives last', async () => {
+  it('serializes a second loud load so the later answer becomes final', async () => {
     // `FakeWorkManagerGateway` resolves immediately, so it cannot express "the first call
     // answers second" — the interleaving the generation guard exists for. This gateway
     // hands back promises the spec settles by hand, in the order it chooses.
@@ -151,15 +152,17 @@ describe('DashboardStore', () => {
 
     const first = store.load();
     const second = store.load();
-    // Let both reach the gateway before either answers.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(pending).toHaveLength(1);
+
+    pending[0]!(answers[0]!);
+    await first;
     await Promise.resolve();
     await Promise.resolve();
     expect(pending).toHaveLength(2);
-
     pending[1]!(answers[1]!);
     await second;
-    pending[0]!(answers[0]!);
-    await first;
 
     expect(store.dashboard()?.funFact).toBe('fresh answer');
     expect(store.loading()).toBe(false);
@@ -230,5 +233,21 @@ describe('DashboardStore — a live frame during the first load (§62)', () => {
 
     expect(store.loading()).toBe(false);
     expect(store.dashboard()).not.toBeNull();
+  });
+
+  it('queues connection/frame recovery behind any active read and preserves the loud answer on quiet failure', async () => {
+    const loud = deferred<DashboardResult>(); const quiet = deferred<DashboardResult>(); const trailing = deferred<DashboardResult>();
+    const get = vi.fn().mockImplementationOnce(() => loud.promise).mockImplementationOnce(() => quiet.promise).mockImplementationOnce(() => trailing.promise);
+    const live = new FakeLiveUpdates();
+    TestBed.configureTestingModule({ providers: [DashboardStore, { provide: WORK_MANAGER_GATEWAY, useValue: { dashboard: { get } } as unknown as WorkManagerGateway }, { provide: IDENTITY_PROVIDER, useValue: fakeIdentityProvider(identityWith([widget({ id: 'w-fact', type: 'fun_fact' })])) }, { provide: LIVE_UPDATES, useValue: live }] });
+    const store = TestBed.inject(DashboardStore);
+
+    const loading = store.load(); live.emitConnected(); await settleLive(); expect(get).toHaveBeenCalledTimes(1);
+    loud.resolve({ ...emptyDashboard(), funFact: 'loud' }); await loading; await settleLive(); expect(get).toHaveBeenCalledTimes(2);
+    live.emit({ type: 'task.updated', entityId: 'task-a' }); await settleLive(); expect(get).toHaveBeenCalledTimes(2);
+    quiet.reject(new GatewayError('unreachable', 0, 'quiet failed')); await settleLive();
+    expect(store.dashboard()?.funFact).toBe('loud'); expect(store.error()).toBeNull(); expect(get).toHaveBeenCalledTimes(3);
+    trailing.resolve({ ...emptyDashboard(), funFact: 'trailing' }); await settleLive();
+    expect(store.dashboard()?.funFact).toBe('trailing'); expect(store.loading()).toBe(false);
   });
 });

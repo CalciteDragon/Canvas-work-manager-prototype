@@ -31,6 +31,7 @@ const timeline: TimelineResult = {
     { id: 'milestone-a', kind: 'milestone', title: 'Review', startDate: '2026-09-20', endDate: '2026-09-20' },
   ],
 };
+const settle = async () => { for (let index = 0; index < 5; index += 1) await Promise.resolve(); };
 
 const render = async (options: ConstructorParameters<typeof FakeWorkManagerGateway>[0] = { timeline }) => {
   const gateway = new FakeWorkManagerGateway(options);
@@ -40,13 +41,17 @@ const render = async (options: ConstructorParameters<typeof FakeWorkManagerGatew
   const fixture = TestBed.createComponent(TimelineSection);
   const onConfigChange = vi.fn();
   const onProjectDataChange = vi.fn();
+  const onProjectHierarchyChange = vi.fn();
   fixture.componentRef.setInput('section', section());
   fixture.componentRef.setInput('onConfigChange', onConfigChange);
   fixture.componentRef.setInput('onProjectDataChange', onProjectDataChange);
+  fixture.componentRef.setInput('onProjectHierarchyChange', onProjectHierarchyChange);
+  fixture.componentRef.setInput('projectDataRevision', 0);
+  fixture.componentRef.setInput('projectHierarchyRevision', 0);
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
-  return { fixture, gateway, onConfigChange, onProjectDataChange };
+  return { fixture, gateway, onConfigChange, onProjectDataChange, onProjectHierarchyChange };
 };
 
 const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector: string) =>
@@ -83,6 +88,14 @@ describe('TimelineSection (§38)', () => {
     taskRow.click();
     fixture.detectChanges();
     expect(query(fixture, '[data-timeline-details="task-a"]')).toBeNull();
+  });
+
+  it('re-reads for both project-data and hierarchy revisions', async () => {
+    const { fixture, gateway } = await render();
+    const before = gateway.calls.filter(({ method }) => method === 'timeline.get').length;
+    fixture.componentRef.setInput('projectDataRevision', 1); fixture.detectChanges(); await fixture.whenStable(); await settle();
+    fixture.componentRef.setInput('projectHierarchyRevision', 1); fixture.detectChanges(); await fixture.whenStable(); await settle();
+    expect(gateway.calls.filter(({ method }) => method === 'timeline.get')).toHaveLength(before + 2);
   });
 
   it('renders empty, loading, and error states without scheduling controls', async () => {

@@ -43,14 +43,18 @@ const render = async (gateway = new FakeWorkManagerGateway({ reflections: [refle
   });
   const onConfigChange = vi.fn<(config: SectionConfig) => void>();
   const onProjectDataChange = vi.fn<() => void>();
+  const onProjectHierarchyChange = vi.fn<() => void>();
   const fixture = TestBed.createComponent(ReflectionsSection);
   fixture.componentRef.setInput('section', section());
   fixture.componentRef.setInput('onConfigChange', onConfigChange);
   fixture.componentRef.setInput('onProjectDataChange', onProjectDataChange);
+  fixture.componentRef.setInput('onProjectHierarchyChange', onProjectHierarchyChange);
+  fixture.componentRef.setInput('projectDataRevision', 0);
+  fixture.componentRef.setInput('projectHierarchyRevision', 0);
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
-  return { fixture, gateway, onConfigChange, onProjectDataChange };
+  return { fixture, gateway, onConfigChange, onProjectDataChange, onProjectHierarchyChange };
 };
 
 const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector: string) =>
@@ -113,7 +117,16 @@ describe('ReflectionsSection (§36)', () => {
     expect(body.value).toBe('');
     expect(prompt.value).toBe('');
     expect(onConfigChange).not.toHaveBeenCalled();
-    expect(onProjectDataChange).not.toHaveBeenCalled();
+    expect(onProjectDataChange).toHaveBeenCalledOnce();
+  });
+
+  it('re-reads on data revision but ignores hierarchy-only revision', async () => {
+    const { fixture, gateway } = await render();
+    const before = gateway.calls.filter(({ method }) => method === 'reflections.list').length;
+    fixture.componentRef.setInput('projectHierarchyRevision', 1); fixture.detectChanges(); await fixture.whenStable();
+    expect(gateway.calls.filter(({ method }) => method === 'reflections.list')).toHaveLength(before);
+    fixture.componentRef.setInput('projectDataRevision', 1); fixture.detectChanges(); await fixture.whenStable();
+    expect(gateway.calls.filter(({ method }) => method === 'reflections.list')).toHaveLength(before + 1);
   });
 
   it('supports edit, cancel, and save for title and body', async () => {
