@@ -3,6 +3,8 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { WORK_MANAGER_GATEWAY } from './core/gateway/work-manager-gateway';
 import { PrototypeWorkManagerGateway } from './core/gateway/prototype-work-manager-gateway';
 import { IDENTITY_PROVIDER } from './core/identity/identity-provider';
+import { LIVE_UPDATES } from './core/live/live-updates';
+import { PrototypeLiveUpdates } from './core/live/prototype-live-updates';
 import { PrototypeIdentityProvider } from './core/identity/prototype-identity-provider';
 import { PROTOTYPE_CONTROL } from './prototype/control/prototype-control';
 import { PrototypeHttpControl } from './prototype/control/prototype-http-control';
@@ -29,5 +31,9 @@ export const appConfig: ApplicationConfig = {
     // at 100 % injected failure, or the panel could not turn the failures back off.
     PrototypeHttpControl,
     { provide: PROTOTYPE_CONTROL, useExisting: PrototypeHttpControl },
+    // §62's stream. The token's default is inert, so forgetting this line would leave a
+    // silently dead app rather than a broken one — `app.spec.ts` asserts it is here.
+    PrototypeLiveUpdates,
+    { provide: LIVE_UPDATES, useExisting: PrototypeLiveUpdates },
   ],
 };

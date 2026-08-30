@@ -33,6 +33,18 @@ export class TaskListStore {
 
   private revision = 0;
   private loadGeneration = 0;
+  /**
+   * How many optimistic writes are in flight. §62's refresh waits behind them: a live frame
+   * for this project arrives *before* the tab's own mutation response does (the host flushes
+   * at commit), so a refresh that ran immediately would overwrite the preview a `complete`
+   * or a title edit had already painted.
+   *
+   * `fieldRevisions` cannot answer this question — `claim` only ever adds to it, so "has a
+   * revision" means "was edited at some point", and a guard built on it would leave every
+   * field the user has ever touched permanently stale.
+   */
+  private pendingMutations = 0;
+  private refreshQueued = false;
   private readonly fieldRevisions = new Map<TaskId, Map<MutableTaskField, number>>();
   private readonly fieldQueues = new Map<string, Promise<void>>();
 
@@ -81,12 +93,45 @@ export class TaskListStore {
     });
   }
 
+  /**
+   * §62's quiet re-read: same request as `load`, none of its chrome.
+   *
+   * It never touches `loading`, `error` or `loadFailed`, because an agent's write must not
+   * flicker a skeleton over a page the user is reading — nor, if the host blinks, replace it
+   * with an error nobody caused. A failed refresh simply leaves the rendered list alone
+   * until the next frame.
+   */
+  refresh(): Promise<void> {
+    if (this.projectIdState() === null) return Promise.resolve();
+    if (this.pendingMutations > 0) {
+      // Coalesced: a burst of frames costs one re-read, taken once the writes settle.
+      this.refreshQueued = true;
+      return Promise.resolve();
+    }
+
+    const generation = this.loadGeneration;
+    const projectId = this.projectIdState();
+    if (projectId === null) return Promise.resolve();
+
+    return this.track(async () => {
+      try {
+        const tasks = await this.gateway.tasks.list({ projectId, includeArchived: false });
+        // The same guard `load` uses: a refresh crossing a project switch must not drop
+        // project A's tasks under project B's header.
+        if (generation !== this.loadGeneration || this.pendingMutations > 0) return;
+        this.tasksState.set(tasks);
+      } catch {
+        // Quiet, by design — see the doc comment.
+      }
+    });
+  }
+
   selectTask(id: TaskId | null): void {
     this.selectedTaskIdState.set(id);
   }
 
   create(rawTitle: string): Promise<boolean> {
-    return this.track(async () => {
+    return this.track(() => this.mutating(async () => {
       const title = rawTitle.trim();
       const projectId = this.projectIdState();
       if (title === '') {
@@ -108,7 +153,7 @@ export class TaskListStore {
         this.errorState.set(messageOf(error));
         return false;
       }
-    });
+    }));
   }
 
   updateTitle(id: TaskId, rawTitle: string): Promise<boolean> {
@@ -134,7 +179,7 @@ export class TaskListStore {
   }
 
   complete(id: TaskId): Promise<boolean> {
-    return this.track(async () => {
+    return this.track(() => this.mutating(async () => {
       const previous = this.tasksState().find((task) => task.id === id);
       if (previous === undefined || previous.status === 'done') return false;
 
@@ -159,7 +204,7 @@ export class TaskListStore {
           return next;
         });
       }
-    });
+    }));
   }
 
   private updateFields(
@@ -173,7 +218,7 @@ export class TaskListStore {
     // does not wait behind a slow optimistic completion).
     const queueKey = `${id}:${fields[0]}`;
     return this.track(() =>
-      this.enqueue(queueKey, async () => {
+      this.enqueue(queueKey, () => this.mutating(async () => {
         this.errorState.set(null);
         const operationRevision = this.claim(id, fields);
         try {
@@ -184,7 +229,7 @@ export class TaskListStore {
           this.errorState.set(messageOf(error));
           return false;
         }
-      }),
+      })),
     );
   }
 
@@ -232,5 +277,17 @@ export class TaskListStore {
   private track<T>(operation: () => Promise<T>): Promise<T> {
     const settled = this.pendingTasks.add();
     return operation().finally(settled);
+  }
+
+  /** Marks an optimistic write in flight, and runs any refresh that arrived while it was. */
+  private mutating<T>(operation: () => Promise<T>): Promise<T> {
+    this.pendingMutations += 1;
+    return operation().finally(() => {
+      this.pendingMutations -= 1;
+      if (this.pendingMutations === 0 && this.refreshQueued) {
+        this.refreshQueued = false;
+        void this.refresh();
+      }
+    });
   }
 }

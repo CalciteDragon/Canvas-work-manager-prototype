@@ -6,6 +6,7 @@ import { GatewayError } from '../gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../gateway/testing/fake-gateway';
 import { shellTestProviders } from '../gateway/testing/shell-test-providers';
 import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
+import { FakeLiveUpdates } from '../live/testing/fake-live-updates';
 import { ShellStore } from './shell-store';
 
 const AT = '2026-08-01T16:00:00.000Z';
@@ -23,10 +24,12 @@ const project = (id: string, name: string, parentProjectId?: string): Project =>
   }) as unknown as Project;
 
 const storeWith = (options: Parameters<typeof shellTestProviders>[0] = {}) => {
-  TestBed.configureTestingModule({ providers: [ShellStore, ...shellTestProviders(options)] });
+  const live = options.live ?? new FakeLiveUpdates();
+  TestBed.configureTestingModule({ providers: [ShellStore, ...shellTestProviders({ ...options, live })] });
   return {
     store: TestBed.inject(ShellStore),
     gateway: TestBed.inject(WORK_MANAGER_GATEWAY) as FakeWorkManagerGateway,
+    live,
   };
 };
 
@@ -177,5 +180,49 @@ describe('ShellStore — the nestedProjects flag (§47)', () => {
     // A computed over a signal: the tree re-derives without the store re-fetching.
     expect(store.projectTree().map((node) => node.project.name)).toEqual(['Home', 'Kitchen', 'Sink']);
     expect(store.projectTree().every((node) => node.children.length === 0)).toBe(true);
+  });
+});
+
+describe('ShellStore and live updates (§62)', () => {
+  const projectReads = (gateway: FakeWorkManagerGateway) =>
+    gateway.calls.filter(({ method }) => method === 'projects.list').length;
+
+  const settleLive = async () => {
+    for (let index = 0; index < 5; index += 1) await Promise.resolve();
+  };
+
+  it('re-reads the tree when a project changes', async () => {
+    const { store, gateway, live } = storeWith({ projects: [project('project-1', 'Personal workspace')] });
+    await store.load();
+    const before = projectReads(gateway);
+
+    live.emit({ type: 'project.created', entityType: 'project', entityId: 'project-2' });
+    await settleLive();
+
+    expect(projectReads(gateway)).toBe(before + 1);
+    // Navigation flickering because an agent renamed something is worse than a stale label.
+    expect(store.loading()).toBe(false);
+  });
+
+  it('ignores a task event — the sidebar renders no tasks', async () => {
+    const { store, gateway, live } = storeWith({ projects: [project('project-1', 'Personal workspace')] });
+    await store.load();
+    const before = projectReads(gateway);
+
+    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-1', projectId: 'project-1' as never });
+    await settleLive();
+
+    expect(projectReads(gateway)).toBe(before);
+  });
+
+  it('re-reads when the host state is replaced', async () => {
+    const { store, gateway, live } = storeWith({ projects: [project('project-1', 'Personal workspace')] });
+    await store.load();
+    const before = projectReads(gateway);
+
+    live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
+    await settleLive();
+
+    expect(projectReads(gateway)).toBe(before + 1);
   });
 });

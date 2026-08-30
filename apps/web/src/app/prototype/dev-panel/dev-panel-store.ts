@@ -14,7 +14,7 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
  * `addNote` precisely because a forgotten literal would silently file Slice 13's notes
  * under Slice 12 — corrupting the one field the contract goes out of its way to preserve.
  */
-export const CURRENT_SLICE = 13;
+export const CURRENT_SLICE = 16;
 
 /** The route shape §68 defines for a project page, and the only one carrying a project. */
 const PROJECT_ROUTE = /^\/projects\/([^/?#]+)/;
@@ -83,12 +83,14 @@ export class DevPanelStore {
   }
 
   /**
-   * §17's "Switch Persona", which is a **reload**, not a re-fetch.
+   * §17's "Switch Persona", which is a **reload**, not a re-fetch — and still is after
+   * Slice 16 built §62's live updates.
    *
-   * `PrototypeIdentityProvider` memoizes a fulfilled identity for the page's lifetime and
-   * every store loads once — §62's live updates are Slice 16. Re-plumbing every store to
-   * re-read on a persona change is a different slice's work; reloading is what a
-   * development panel is allowed to do, and the panel says so on the control.
+   * A persona change is a different session, not a data change: `PrototypeIdentityProvider`
+   * memoizes a fulfilled identity for the page's lifetime, and the live stream is opened for
+   * *that* persona and filtered to its workspace. Nothing the stream can deliver would move
+   * the app to a new identity, so the reload is the honest instruction rather than a
+   * shortcut waiting to be replaced.
    */
   switchPersona(personaId: string): void {
     writePersona(personaId);

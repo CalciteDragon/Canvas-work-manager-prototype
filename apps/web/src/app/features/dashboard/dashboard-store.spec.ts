@@ -6,6 +6,8 @@ import { FakeWorkManagerGateway, emptyDashboard, fakeIdentityProvider } from '..
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
 import { IDENTITY_PROVIDER } from '../../core/identity/identity-provider';
 import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../../core/gateway/work-manager-gateway';
+import { LIVE_UPDATES } from '../../core/live/live-updates';
+import { FakeLiveUpdates } from '../../core/live/testing/fake-live-updates';
 import { DashboardStore } from './dashboard-store';
 
 const widget = (overrides: Partial<DashboardWidget> & Pick<DashboardWidget, 'id' | 'type'>): DashboardWidget => ({
@@ -23,14 +25,16 @@ const identityWith = (widgets: DashboardWidget[]): Identity => {
 
 const setup = (widgets: DashboardWidget[], options: { failWith?: GatewayError; identity?: Identity | GatewayError } = {}) => {
   const gateway = new FakeWorkManagerGateway(options.failWith === undefined ? {} : { failWith: options.failWith });
+  const live = new FakeLiveUpdates();
   TestBed.configureTestingModule({
     providers: [
       DashboardStore,
       { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
       { provide: IDENTITY_PROVIDER, useValue: fakeIdentityProvider(options.identity ?? identityWith(widgets)) },
+      { provide: LIVE_UPDATES, useValue: live },
     ],
   });
-  return { store: TestBed.inject(DashboardStore), gateway };
+  return { store: TestBed.inject(DashboardStore), gateway, live };
 };
 
 describe('DashboardStore', () => {
@@ -159,5 +163,51 @@ describe('DashboardStore', () => {
 
     expect(store.dashboard()?.funFact).toBe('fresh answer');
     expect(store.loading()).toBe(false);
+  });
+});
+
+describe('DashboardStore and live updates (§62)', () => {
+  const dashboardReads = (gateway: FakeWorkManagerGateway) =>
+    gateway.calls.filter(({ method }) => method === 'dashboard.get').length;
+
+  const settleLive = async () => {
+    for (let index = 0; index < 5; index += 1) await Promise.resolve();
+  };
+
+  it('quietly reloads when a task changes anywhere in the workspace', async () => {
+    const { store, gateway, live } = setup([widget({ id: 'w-today', type: 'today' })]);
+    await store.load();
+    const before = dashboardReads(gateway);
+
+    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-1' });
+    await settleLive();
+
+    expect(dashboardReads(gateway)).toBe(before + 1);
+    // Six tiles blanking to skeletons on every agent write is worse than a second of stale.
+    expect(store.loading()).toBe(false);
+  });
+
+  it('ignores an agent connection event', async () => {
+    const { store, gateway, live } = setup([widget({ id: 'w-today', type: 'today' })]);
+    await store.load();
+    const before = dashboardReads(gateway);
+
+    // Nothing on §24's dashboard renders a connection; §53's page owns those.
+    live.emit({ type: 'agent_connection.permissions_changed', entityType: 'agent_connection', entityId: 'agent-claude' });
+    await settleLive();
+
+    expect(dashboardReads(gateway)).toBe(before);
+  });
+
+  it('keeps the rendered dashboard when a live reload fails', async () => {
+    const { store, live } = setup([widget({ id: 'w-today', type: 'today' })]);
+    await store.load();
+    const rendered = store.dashboard();
+
+    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-1' });
+    await settleLive();
+
+    expect(store.dashboard()).toEqual(rendered);
+    expect(store.error()).toBeNull();
   });
 });

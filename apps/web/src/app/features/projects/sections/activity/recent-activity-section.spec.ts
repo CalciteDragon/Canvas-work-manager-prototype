@@ -8,8 +8,10 @@ import {
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../../core/gateway/gateway-error';
-import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-gateway';
+import { FakeWorkManagerGateway, type FakeGatewayOptions } from '../../../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gateway';
+import { LIVE_UPDATES } from '../../../../core/live/live-updates';
+import { FakeLiveUpdates } from '../../../../core/live/testing/fake-live-updates';
 import { RecentActivitySection } from './recent-activity-section';
 
 const section = (): ProjectSection =>
@@ -44,7 +46,10 @@ const entry = (overrides: Record<string, unknown> = {}): ActivityFeedEntry =>
   });
 
 const render = async (gateway = new FakeWorkManagerGateway({ activity: [entry()] })) => {
-  TestBed.configureTestingModule({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+  const live = new FakeLiveUpdates();
+  TestBed.configureTestingModule({
+    providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }, { provide: LIVE_UPDATES, useValue: live }],
+  });
   const fixture = TestBed.createComponent(RecentActivitySection);
   fixture.componentRef.setInput('section', section());
   fixture.componentRef.setInput('onConfigChange', vi.fn<(config: SectionConfig) => void>());
@@ -53,7 +58,7 @@ const render = async (gateway = new FakeWorkManagerGateway({ activity: [entry()]
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
-  return { fixture, gateway };
+  return { fixture, gateway, live };
 };
 
 const text = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector: string): string =>
@@ -99,5 +104,42 @@ describe('RecentActivitySection (§30, §57)', () => {
     );
 
     expect(text(fixture, '[data-activity-error]')).toBe('could not reach the prototype host');
+  });
+});
+
+describe('RecentActivitySection and live updates (§62)', () => {
+  it('reloads when an agent changes something in this project', async () => {
+    const { fixture, gateway, live } = await render();
+    const before = gateway.calls.filter(({ method }) => method === 'activity.list').length;
+
+    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-1', projectId: 'project-a' as never });
+    await fixture.whenStable();
+
+    // "The activity feed shows the agent as actor" is half of this slice's *Done when*.
+    expect(gateway.calls.filter(({ method }) => method === 'activity.list')).toHaveLength(before + 1);
+  });
+
+  it('ignores a change in another project', async () => {
+    const { fixture, gateway, live } = await render();
+    const before = gateway.calls.filter(({ method }) => method === 'activity.list').length;
+
+    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-9', projectId: 'project-z' as never });
+    await fixture.whenStable();
+
+    expect(gateway.calls.filter(({ method }) => method === 'activity.list')).toHaveLength(before);
+  });
+
+  it('keeps the rendered feed when a live re-read fails', async () => {
+    // The options object is the fake's own state, so a spec can break the host mid-test.
+    const options: FakeGatewayOptions = { activity: [entry()] };
+    const { fixture, live } = await render(new FakeWorkManagerGateway(options));
+    options.failWith = new GatewayError('unreachable', 0, 'host is down');
+
+    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-1', projectId: 'project-a' as never });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // An error banner for a write the user did not make is worse than a stale line.
+    expect(text(fixture, '[data-activity-line]')).toBe('Completed “Configure deployment”');
   });
 });

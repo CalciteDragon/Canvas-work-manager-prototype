@@ -2,6 +2,8 @@ import type { EnvironmentProviders, Provider } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { IdentitySchema, type Identity } from '@cwm/contracts';
 import { IDENTITY_PROVIDER } from '../../identity/identity-provider';
+import { LIVE_UPDATES } from '../../live/live-updates';
+import { FakeLiveUpdates } from '../../live/testing/fake-live-updates';
 import { WORK_MANAGER_GATEWAY } from '../work-manager-gateway';
 import type { GatewayError } from '../gateway-error';
 import { FakeWorkManagerGateway, fakeIdentityProvider, type FakeGatewayOptions } from './fake-gateway';
@@ -40,12 +42,15 @@ export const testIdentity = (theme: 'dark' | 'light' = 'dark'): Identity =>
  * that the target resolves.
  */
 export const shellTestProviders = (
-  options: FakeGatewayOptions & { identity?: Identity | GatewayError } = {},
+  options: FakeGatewayOptions & { identity?: Identity | GatewayError; live?: FakeLiveUpdates } = {},
 ): Array<Provider | EnvironmentProviders> => {
-  const { identity = testIdentity(), ...gatewayOptions } = options;
+  const { identity = testIdentity(), live = new FakeLiveUpdates(), ...gatewayOptions } = options;
   return [
     provideRouter([]),
     { provide: WORK_MANAGER_GATEWAY, useValue: new FakeWorkManagerGateway(gatewayOptions) },
     { provide: IDENTITY_PROVIDER, useValue: fakeIdentityProvider(identity) },
+    // §62. Provided rather than left to the token's inert default so a spec can drive the
+    // stream by handing in its own instance.
+    { provide: LIVE_UPDATES, useValue: live },
   ];
 };

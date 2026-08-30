@@ -1,4 +1,4 @@
-import { Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
 import {
   SectionConfigSchema,
   type ProjectId,
@@ -10,7 +10,9 @@ import {
   type SectionId,
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
+import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { TaskListStore } from '../tasks/task-list-store';
+import type { LiveEvent } from '@cwm/contracts';
 import type { SectionDefinition } from './sections/registry';
 
 const messageOf = (error: unknown): string =>
@@ -46,6 +48,14 @@ export class ProjectPageStore {
   private readonly progressState = signal<ProgressResult | null>(null);
   private progressRefresh: Promise<void> | null = null;
   private progressRefreshQueued = false;
+  /**
+   * Section writes in flight. §62's frames arrive *before* the tab's own mutation response
+   * (the host flushes at commit), and the reorder in `moveSection` paints an optimistic
+   * preview — so a live re-read landing in that window would replace the preview with the
+   * pre-move order for a frame. Every section write reconciles the canvas when it finishes,
+   * so skipping is safe rather than merely quieter.
+   */
+  private pendingSectionWrites = 0;
 
   readonly project = this.projectState.asReadonly();
   readonly sections = this.sectionsState.asReadonly();
@@ -58,6 +68,69 @@ export class ProjectPageStore {
 
   /** The selected §39 domain result; `null` means unavailable and remains distinct from 0%. */
   readonly progress = computed<number | null>(() => this.progressState()?.percentage ?? null);
+
+  constructor() {
+    // §62. Subscribing here rather than in `ProjectPage` keeps the component free of the
+    // stream, the same way it is free of the gateway; `DestroyRef` ties the subscription to
+    // the store's own lifetime, and this store is provided by the page (§20).
+    const unsubscribe = inject(LIVE_UPDATES).subscribe((event) => this.onLiveEvent(event));
+    inject(DestroyRef).onDestroy(unsubscribe);
+  }
+
+  /**
+   * §62's "refresh relevant state", for one project page.
+   *
+   * Every path here is **quiet**: an agent's write must not flicker a skeleton over a page
+   * the user is reading, and a host blip during someone else's write must not replace the
+   * canvas with an error. `refreshProgress` and `reconcileSections` already behave that way;
+   * `TaskListStore.refresh` was given the same rule.
+   *
+   * Routing is on `type` and `projectId`, never on `entityType` — §57's section events
+   * deliberately name the *project* as their entity.
+   */
+  private onLiveEvent(event: LiveEvent): void {
+    // A host-state change (seed, reset, clock) replaces everything this page is built from.
+    if (event.type === 'prototype.reloaded') {
+      const projectId = this.projectState()?.id;
+      if (projectId !== undefined) void this.load(projectId);
+      return;
+    }
+
+    const projectId = this.projectState()?.id;
+    if (projectId === undefined) return;
+
+    const aboutThisProject =
+      event.projectId === projectId || (event.entityType === 'project' && event.entityId === projectId);
+    if (!aboutThisProject) return;
+
+    // Tasks and progress are unaffected by a section write, so they refresh either way.
+    void this.tasks.refresh();
+    void this.refreshProgress();
+    if (event.type.startsWith('project.') && this.pendingSectionWrites === 0) void this.refreshProject();
+  }
+
+  /**
+   * The project record and its canvas, re-read after someone else changed either. Quiet on
+   * failure for the same reason `reconcileSections` is: the page on screen is still the
+   * better answer than an error the user did not cause.
+   */
+  private refreshProject(): Promise<void> {
+    const projectId = this.projectState()?.id;
+    if (projectId === undefined) return Promise.resolve();
+    const generation = this.loadGeneration;
+
+    return this.track(async () => {
+      try {
+        const project = await this.gateway.projects.get(projectId);
+        if (generation === this.loadGeneration && this.projectState()?.id === projectId) {
+          this.projectState.set(project);
+        }
+      } catch {
+        // Quiet — see above.
+      }
+      await this.reconcileSections(projectId, generation);
+    });
+  }
 
   load(projectId: ProjectId): Promise<void> {
     // Clicking project A then project B inside one round trip must not leave A's sections
@@ -180,7 +253,8 @@ export class ProjectPageStore {
     // `position` untouched: sibling renumbering belongs to SectionService alone.
     this.sectionsState.set(preview);
 
-    return this.track(async () => {
+    return this.track(() =>
+      this.writingSections(async () => {
       if (current()) this.sectionErrorState.set(null);
       try {
         await this.gateway.sections.move(id, { position });
@@ -200,7 +274,8 @@ export class ProjectPageStore {
         }
         return false;
       }
-    });
+      }),
+    );
   }
 
   setColumnSpan(id: SectionId, columnSpan: SectionColumnSpan): Promise<boolean> {
@@ -268,16 +343,18 @@ export class ProjectPageStore {
     const current = () =>
       generation === this.loadGeneration && this.projectState()?.id === projectId;
 
-    return this.track(async () => {
-      if (current()) this.sectionErrorState.set(null);
-      try {
-        await operation({ current, projectId, generation });
-        return true;
-      } catch (error) {
-        if (current()) this.sectionErrorState.set(messageOf(error));
-        return false;
-      }
-    });
+    return this.track(() =>
+      this.writingSections(async () => {
+        if (current()) this.sectionErrorState.set(null);
+        try {
+          await operation({ current, projectId, generation });
+          return true;
+        } catch (error) {
+          if (current()) this.sectionErrorState.set(messageOf(error));
+          return false;
+        }
+      }),
+    );
   }
 
   /**
@@ -305,5 +382,13 @@ export class ProjectPageStore {
   private track<T>(operation: () => Promise<T>): Promise<T> {
     const settled = this.pendingTasks.add();
     return operation().finally(settled);
+  }
+
+  /** Holds off §62's canvas re-read for the length of an optimistic section write. */
+  private writingSections<T>(operation: () => Promise<T>): Promise<T> {
+    this.pendingSectionWrites += 1;
+    return operation().finally(() => {
+      this.pendingSectionWrites -= 1;
+    });
   }
 }

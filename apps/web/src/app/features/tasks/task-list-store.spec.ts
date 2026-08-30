@@ -288,3 +288,85 @@ describe('TaskListStore under the panel’s failure injection (§63)', () => {
     expect(store.error()).toContain('prototype failure injection');
   });
 });
+
+describe('TaskListStore.refresh (§62)', () => {
+  it('quietly re-reads the project’s tasks, without a loading flicker', async () => {
+    const { store, gateway } = setup();
+    await store.load(project().id);
+    (gateway.tasks.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      task({ id: 'task-a', title: 'Renamed by an agent' }),
+      task({ id: 'task-b', title: 'Added by an agent' }),
+    ]);
+
+    const pending = store.refresh();
+    // An agent's write must not paint a skeleton over a page the user is reading.
+    expect(store.loading()).toBe(false);
+    await pending;
+
+    expect(store.tasks().map(({ title }) => title)).toEqual(['Renamed by an agent', 'Added by an agent']);
+    expect(store.loading()).toBe(false);
+    expect(store.error()).toBeNull();
+  });
+
+  it('leaves the rendered list alone when the re-read fails', async () => {
+    const { store, gateway } = setup();
+    await store.load(project().id);
+    (gateway.tasks.list as ReturnType<typeof vi.fn>).mockRejectedValue(new GatewayError('unreachable', 0, 'down'));
+
+    await store.refresh();
+
+    expect(store.tasks().map(({ title }) => title)).toEqual(['Write the first draft']);
+    expect(store.error()).toBeNull();
+    expect(store.loadFailed()).toBe(false);
+  });
+
+  it('defers while an optimistic completion is in flight, and lands once it settles', async () => {
+    const pending = deferred<Task>();
+    const { store, gateway } = setup({ complete: vi.fn(async () => pending.promise) });
+    await store.load(project().id);
+    const listCalls = (gateway.tasks.list as ReturnType<typeof vi.fn>).mock.calls.length;
+    (gateway.tasks.list as ReturnType<typeof vi.fn>).mockResolvedValue([task({ id: 'task-a', status: 'todo' })]);
+
+    const completing = store.complete('task-a' as TaskId);
+    await store.refresh();
+
+    // The host flushes its frame at commit, before this tab's own response lands — so a
+    // refresh that ran now would repaint the optimistic tick as `todo`.
+    expect(store.tasks()[0]?.status).toBe('done');
+    expect((gateway.tasks.list as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(listCalls);
+
+    pending.resolve(task({ id: 'task-a', status: 'done', completedAt: AT }));
+    await completing;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect((gateway.tasks.list as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(listCalls);
+  });
+
+  it('coalesces a burst of frames into one re-read', async () => {
+    const pending = deferred<Task>();
+    const { store, gateway } = setup({ complete: vi.fn(async () => pending.promise) });
+    await store.load(project().id);
+    const listCalls = (gateway.tasks.list as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    const completing = store.complete('task-a' as TaskId);
+    await store.refresh();
+    await store.refresh();
+    await store.refresh();
+    pending.resolve(task({ id: 'task-a', status: 'done', completedAt: AT }));
+    await completing;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // An agent working through a checklist should cost one read, not one per tick.
+    expect((gateway.tasks.list as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(listCalls + 1);
+  });
+
+  it('does nothing before a project is loaded', async () => {
+    const { store, gateway } = setup();
+
+    await store.refresh();
+
+    expect(gateway.tasks.list).not.toHaveBeenCalled();
+  });
+});

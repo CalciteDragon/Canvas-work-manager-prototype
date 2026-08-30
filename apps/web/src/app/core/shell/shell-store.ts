@@ -1,9 +1,10 @@
-import { Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
-import { ProjectStatusSchema, type Identity, type Project } from '@cwm/contracts';
+import { DestroyRef, Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
+import { ProjectStatusSchema, type Identity, type LiveEvent, type Project } from '@cwm/contracts';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { GatewayError } from '../gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
+import { LIVE_UPDATES } from '../live/live-updates';
 
 /**
  * A project and the projects under it. **Derived view state, not an entity** — it has no
@@ -61,6 +62,36 @@ export class ShellStore {
   load(): Promise<void> {
     const settled = this.pendingTasks.add();
     return this.loadInto().finally(settled);
+  }
+
+  constructor() {
+    const unsubscribe = inject(LIVE_UPDATES).subscribe((event) => this.onLiveEvent(event));
+    inject(DestroyRef).onDestroy(unsubscribe);
+  }
+
+  /**
+   * §62. The sidebar renders projects, so only project-shaped news moves it — a task
+   * completing changes nothing here, and re-reading on every one of them would put a
+   * request behind every keystroke an agent makes.
+   */
+  private onLiveEvent(event: LiveEvent): void {
+    if (event.type.startsWith('project.') || event.type === 'prototype.reloaded') void this.refresh();
+  }
+
+  /**
+   * A quiet re-read of the tree: no `loading`, and the rendered sidebar survives a failure.
+   * Navigation flickering because an agent renamed something is worse than a stale label,
+   * and an error banner over the sidebar for a write the user did not make is worse again.
+   */
+  private async refresh(): Promise<void> {
+    const settled = this.pendingTasks.add();
+    try {
+      this.projectsState.set(await this.gateway.projects.list({ status: SIDEBAR_STATUSES }));
+    } catch {
+      // Quiet — see above.
+    } finally {
+      settled();
+    }
   }
 
   private async loadInto(): Promise<void> {

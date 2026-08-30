@@ -16,6 +16,8 @@ import {
   WORK_MANAGER_GATEWAY,
   type WorkManagerGateway,
 } from '../../core/gateway/work-manager-gateway';
+import { LIVE_UPDATES } from '../../core/live/live-updates';
+import { FakeLiveUpdates } from '../../core/live/testing/fake-live-updates';
 import { TaskListStore } from '../tasks/task-list-store';
 import { ProjectPageStore } from './project-page-store';
 import type { SectionDefinition } from './sections/registry';
@@ -160,14 +162,16 @@ const setup = (
     reflections: { list: vi.fn(async () => []), create: vi.fn(), update: vi.fn() },
   };
 
+  const live = new FakeLiveUpdates();
   TestBed.configureTestingModule({
     providers: [
       TaskListStore,
       ProjectPageStore,
       { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+      { provide: LIVE_UPDATES, useValue: live },
     ],
   });
-  return { store: TestBed.inject(ProjectPageStore), tasks: TestBed.inject(TaskListStore), gateway };
+  return { store: TestBed.inject(ProjectPageStore), tasks: TestBed.inject(TaskListStore), gateway, live };
 };
 
 const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({
@@ -598,5 +602,101 @@ describe('ProjectPageStore (§19, §26)', () => {
     ]);
     gate.resolve(section('section-text', 'rich-text', 1));
     await move;
+  });
+});
+
+/** How many times a spy has been called, so a spec can assert a *further* call. */
+const calls = (spy: unknown): number => (spy as ReturnType<typeof vi.fn>).mock.calls.length;
+const settleLive = async () => {
+  for (let index = 0; index < 5; index += 1) await Promise.resolve();
+};
+
+describe('ProjectPageStore and live updates (§62)', () => {
+  it('quietly refreshes tasks and progress on a task event for this project', async () => {
+    const { store, tasks, gateway, live } = setup();
+    await store.load(PROJECT);
+    const taskReads = calls(gateway.tasks.list);
+    const progressReads = calls(gateway.progress.get);
+
+    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-1', projectId: PROJECT });
+    await settleLive();
+
+    expect(calls(gateway.tasks.list)).toBe(taskReads + 1);
+    expect(calls(gateway.progress.get)).toBe(progressReads + 1);
+    // Quiet: the page never blinks back to its loading state for someone else's write.
+    expect(store.loading()).toBe(false);
+    expect(store.error()).toBeNull();
+    expect(tasks.loading()).toBe(false);
+  });
+
+  it('ignores an event for another project', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT);
+    const taskReads = calls(gateway.tasks.list);
+
+    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-9', projectId: 'project-z' as ProjectId });
+    await settleLive();
+
+    expect(calls(gateway.tasks.list)).toBe(taskReads);
+  });
+
+  it('re-reads the project and its canvas on a project event naming this project', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT);
+    const projectReads = calls(gateway.projects.get);
+    const sectionReads = calls(gateway.sections.list);
+    (gateway.projects.get as ReturnType<typeof vi.fn>).mockResolvedValue(project({ name: 'Renamed by an agent' }));
+
+    // §57 records a section change against the *project*, which is why routing is on
+    // `type` and `projectId` rather than on `entityType`.
+    live.emit({ type: 'project.section_added', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await settleLive();
+
+    expect(calls(gateway.projects.get)).toBe(projectReads + 1);
+    expect(calls(gateway.sections.list)).toBe(sectionReads + 1);
+    expect(store.project()?.name).toBe('Renamed by an agent');
+  });
+
+  it('does not clobber an optimistic section reorder that is still in flight', async () => {
+    const move = deferred<ProjectSection>();
+    const { store, gateway, live } = setup({
+      sectionOverrides: { move: vi.fn(async () => move.promise) },
+    });
+    await store.load(PROJECT);
+    const sectionReads = calls(gateway.sections.list);
+
+    const moving = store.moveSection('section-tasks' as SectionId, 0);
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-tasks', 'section-text']);
+
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await settleLive();
+
+    // The preview survives, and the write's own reconcile is still the thing that lands it.
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-tasks', 'section-text']);
+    expect(calls(gateway.sections.list)).toBe(sectionReads);
+
+    move.resolve(section('section-tasks', 'task-list', 0));
+    await moving;
+  });
+
+  it('reloads the project when the host state is replaced', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT);
+    const projectReads = calls(gateway.projects.get);
+
+    live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
+    await settleLive();
+
+    expect(calls(gateway.projects.get)).toBe(projectReads + 1);
+  });
+
+  it('stops listening once the store is destroyed', async () => {
+    const { store, live } = setup();
+    await store.load(PROJECT);
+    expect(live.listenerCount).toBeGreaterThan(0);
+
+    TestBed.resetTestingModule();
+
+    expect(live.listenerCount).toBe(0);
   });
 });

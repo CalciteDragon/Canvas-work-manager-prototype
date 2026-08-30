@@ -96,9 +96,9 @@ export class ProjectLayoutControl {
     this.error.set(null);
     try {
       this.current.set((await this.gateway.projects.update(id, { projectLayoutMode: mode })).projectLayoutMode);
-      // The project page reads the mode off the project it loaded, so the canvas only
-      // re-renders on a fresh read. Reloading is the panel's standing answer to that.
-      location.reload();
+      // No reload since Slice 16. The write records a `project.updated` activity event, so
+      // §62's stream reaches `ProjectPageStore`, which re-reads the project and its canvas —
+      // which is exactly what the reload used to buy, without losing the page's state.
     } catch (error) {
       this.error.set(messageOf(error));
     } finally {

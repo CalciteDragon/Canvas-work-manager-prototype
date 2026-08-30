@@ -124,7 +124,7 @@ describe('DevPanelStore', () => {
       expect(control.notes.at(-1)).toMatchObject({
         route: '/projects/project-launch',
         projectId: 'project-launch',
-        slice: 13,
+        slice: 16,
         note: 'The seed control needs a confirmation step.',
       });
     });
