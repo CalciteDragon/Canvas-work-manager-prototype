@@ -435,3 +435,23 @@ persistently refused stream — a mistyped persona is a permanent 404 — from p
 forever, and resetting on `open` is what keeps a single hiccup from leaving a long session at
 the ceiling. Two of the adapter's nine cases cover it, which is not the exhaustive suite §71
 warns against.
+
+**Step 4, correctness pass.** Four real browser-side defects, all found by review rather than
+by a test, all fixed with a regression case where one was cheap:
+
+- **`DashboardStore` could strand the page on a skeleton.** Both reads bumped one generation
+  counter but only the loud one was allowed to clear `loading`, so a live frame arriving
+  during the first load left the flag set forever with the data already in hand. Whoever
+  holds the current generation now clears it; only the loud path sets it.
+- **`TaskListStore.refresh` silently dropped a re-read** when a write began *after* the read
+  started: the post-await guard returned without re-queueing. It re-queues now, and `load`
+  joins the same counter so a frame arriving mid-load queues behind it instead of racing it.
+- **`ProjectPageStore` dropped, rather than deferred, a canvas re-read** during a section
+  write — and the comment justifying that was wrong: only three of the five section writes
+  reconcile afterwards, and none re-reads the project record. Queued and flushed instead.
+- **`ShellStore.refresh` never cleared `errorState`,** so the `pnpm dev` startup race (web up
+  before the host) left the sidebar rendering its error branch over a tree that had since
+  loaded fine. Both reads also now share a generation.
+- **`LiveEventHub` had no listener error containment.** Latent — the SSE listener cannot
+  throw — but one throwing subscriber would have aborted delivery to everyone behind it *and*
+  rejected `wrapUnitOfWork.run`, answering an already-committed write with a 500.

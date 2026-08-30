@@ -31,6 +31,9 @@ export class ShellStore {
   private readonly pendingTasks = inject(PendingTasks);
   private readonly settings = inject(PrototypeSettings);
 
+  /** Shared by `load` and §62's quiet `refresh`, so the newer question always wins. */
+  private generation = 0;
+
   private readonly identityState = signal<Identity | null>(null);
   private readonly projectsState = signal<Project[]>([]);
   private readonly loadingState = signal(false);
@@ -84,28 +87,41 @@ export class ShellStore {
    * and an error banner over the sidebar for a write the user did not make is worse again.
    */
   private async refresh(): Promise<void> {
+    const generation = ++this.generation;
     const settled = this.pendingTasks.add();
     try {
-      this.projectsState.set(await this.gateway.projects.list({ status: SIDEBAR_STATUSES }));
+      const projects = await this.gateway.projects.list({ status: SIDEBAR_STATUSES });
+      if (generation !== this.generation) return;
+      this.projectsState.set(projects);
+      // Clearing the error is the *point* of a successful re-read, not an afterthought.
+      // `pnpm dev` routinely starts the web app before the host, so the sidebar's first load
+      // fails; the stream then connects and this is the read that recovers it. Leaving the
+      // error set would render the failure branch over a tree that is now perfectly good.
+      this.errorState.set(null);
     } catch {
       // Quiet — see above.
     } finally {
       settled();
+      if (generation === this.generation) this.loadingState.set(false);
     }
   }
 
   private async loadInto(): Promise<void> {
+    const generation = ++this.generation;
     this.loadingState.set(true);
     this.errorState.set(null);
     try {
       const identity = await this.identityProvider.getCurrentIdentity();
+      const projects = await this.gateway.projects.list({ status: SIDEBAR_STATUSES });
+      if (generation !== this.generation) return;
       this.identityState.set(identity);
-      this.projectsState.set(await this.gateway.projects.list({ status: SIDEBAR_STATUSES }));
+      this.projectsState.set(projects);
     } catch (error) {
+      if (generation !== this.generation) return;
       this.projectsState.set([]);
       this.errorState.set(error instanceof GatewayError || error instanceof Error ? error.message : String(error));
     } finally {
-      this.loadingState.set(false);
+      if (generation === this.generation) this.loadingState.set(false);
     }
   }
 }

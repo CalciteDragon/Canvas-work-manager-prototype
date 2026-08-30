@@ -226,3 +226,39 @@ describe('ShellStore and live updates (§62)', () => {
     expect(projectReads(gateway)).toBe(before + 1);
   });
 });
+
+describe('ShellStore — recovering from a failed first load (§62)', () => {
+  const settleLive = async () => {
+    for (let index = 0; index < 5; index += 1) await Promise.resolve();
+  };
+
+  it('clears the error when a live re-read succeeds', async () => {
+    // The routine `pnpm dev` race: the web app is up before the host is listening.
+    // The gateway holds this object, so clearing `failWith` on it brings the host back.
+    const options = {
+      projects: [project('project-1', 'Personal workspace')],
+      failWith: new GatewayError('unreachable', 0, 'host is still starting') as GatewayError | undefined,
+    };
+    const live = new FakeLiveUpdates();
+    TestBed.configureTestingModule({
+      providers: [
+        ShellStore,
+        ...shellTestProviders({ live }),
+        { provide: WORK_MANAGER_GATEWAY, useValue: new FakeWorkManagerGateway(options) },
+      ],
+    });
+    const store = TestBed.inject(ShellStore);
+
+    await store.load();
+    expect(store.error()).not.toBeNull();
+
+    options.failWith = undefined;
+    live.emit({ type: 'project.created', entityType: 'project', entityId: 'project-2' });
+    await settleLive();
+
+    // The sidebar renders the error branch *instead of* the tree, so a stale error after a
+    // good read hides a perfectly usable sidebar until a reload.
+    expect(store.error()).toBeNull();
+    expect(store.projects()).toHaveLength(1);
+  });
+});

@@ -92,7 +92,12 @@ export class DashboardStore {
       this.dashboardState.set(null);
       this.errorState.set(messageOf(error));
     } finally {
-      if (generation === this.generation && !quiet) this.loadingState.set(false);
+      // Deliberately **not** `&& !quiet`. Both paths claim a generation, so a live frame
+      // arriving mid-load leaves the quiet read holding the newest one — and if only the
+      // loud path could clear the flag, the load would skip its `finally` on the generation
+      // check and the dashboard would sit on a skeleton forever with its data already in
+      // hand. Whoever is current clears it; only the loud path ever sets it.
+      if (generation === this.generation) this.loadingState.set(false);
     }
   }
 }

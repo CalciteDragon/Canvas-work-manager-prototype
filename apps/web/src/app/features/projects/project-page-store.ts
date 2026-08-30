@@ -52,10 +52,16 @@ export class ProjectPageStore {
    * Section writes in flight. §62's frames arrive *before* the tab's own mutation response
    * (the host flushes at commit), and the reorder in `moveSection` paints an optimistic
    * preview — so a live re-read landing in that window would replace the preview with the
-   * pre-move order for a frame. Every section write reconciles the canvas when it finishes,
-   * so skipping is safe rather than merely quieter.
+   * pre-move order for a frame.
+   *
+   * Deferred, **not** dropped. Only three of the section writes reconcile the canvas
+   * afterwards (`moveSection`, `duplicateSection`, `removeSection`); `addSection` and
+   * `updateSection` patch the array in place, and none of them re-reads the *project*
+   * record. So an agent adding a section, or renaming the project, while the user happens to
+   * be collapsing one would otherwise be lost until a reload.
    */
   private pendingSectionWrites = 0;
+  private projectRefreshQueued = false;
 
   readonly project = this.projectState.asReadonly();
   readonly sections = this.sectionsState.asReadonly();
@@ -106,7 +112,12 @@ export class ProjectPageStore {
     // Tasks and progress are unaffected by a section write, so they refresh either way.
     void this.tasks.refresh();
     void this.refreshProgress();
-    if (event.type.startsWith('project.') && this.pendingSectionWrites === 0) void this.refreshProject();
+    if (!event.type.startsWith('project.')) return;
+    if (this.pendingSectionWrites > 0) {
+      this.projectRefreshQueued = true;
+      return;
+    }
+    void this.refreshProject();
   }
 
   /**
@@ -389,6 +400,10 @@ export class ProjectPageStore {
     this.pendingSectionWrites += 1;
     return operation().finally(() => {
       this.pendingSectionWrites -= 1;
+      if (this.pendingSectionWrites === 0 && this.projectRefreshQueued) {
+        this.projectRefreshQueued = false;
+        void this.refreshProject();
+      }
     });
   }
 }

@@ -211,3 +211,24 @@ describe('DashboardStore and live updates (§62)', () => {
     expect(store.error()).toBeNull();
   });
 });
+
+describe('DashboardStore — a live frame during the first load (§62)', () => {
+  const settleLive = async () => {
+    for (let index = 0; index < 5; index += 1) await Promise.resolve();
+  };
+
+  it('does not strand the dashboard on a skeleton', async () => {
+    const { store, live } = setup([widget({ id: 'w-today', type: 'today' })]);
+
+    // Both reads claim a generation, so the load abandons its own answer on the check. If
+    // only the loud path could clear `loading`, the page would sit on a skeleton forever
+    // with its data already rendered underneath.
+    const loading = store.load();
+    live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-1' });
+    await loading;
+    await settleLive();
+
+    expect(store.loading()).toBe(false);
+    expect(store.dashboard()).not.toBeNull();
+  });
+});

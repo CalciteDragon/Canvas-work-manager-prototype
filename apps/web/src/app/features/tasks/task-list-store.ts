@@ -69,7 +69,11 @@ export class TaskListStore {
   load(projectId: ProjectId): Promise<void> {
     // Switching projects faster than a round trip must not let the older answer land last.
     const generation = ++this.loadGeneration;
-    return this.track(async () => {
+    // Counted alongside the writes: a live frame arriving mid-load must queue behind it, or
+    // the two reads race and whichever lands last wins. `refresh` cannot simply claim a
+    // newer `loadGeneration` instead — that number is how `load` recognises its own answer,
+    // and bumping it here would make every load discard its own result.
+    return this.track(() => this.mutating(async () => {
       this.projectIdState.set(projectId);
       this.loadingState.set(true);
       this.errorState.set(null);
@@ -90,7 +94,7 @@ export class TaskListStore {
       } finally {
         if (generation === this.loadGeneration) this.loadingState.set(false);
       }
-    });
+    }));
   }
 
   /**
@@ -118,7 +122,14 @@ export class TaskListStore {
         const tasks = await this.gateway.tasks.list({ projectId, includeArchived: false });
         // The same guard `load` uses: a refresh crossing a project switch must not drop
         // project A's tasks under project B's header.
-        if (generation !== this.loadGeneration || this.pendingMutations > 0) return;
+        if (generation !== this.loadGeneration) return;
+        // A write started *underneath* this read, so the answer in hand is already behind
+        // the optimistic state. Re-queue rather than discard: dropping it silently loses the
+        // agent's change until some unrelated frame happens along.
+        if (this.pendingMutations > 0) {
+          this.refreshQueued = true;
+          return;
+        }
         this.tasksState.set(tasks);
       } catch {
         // Quiet, by design — see the doc comment.

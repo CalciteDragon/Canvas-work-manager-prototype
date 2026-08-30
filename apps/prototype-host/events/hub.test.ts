@@ -151,6 +151,21 @@ describe('LiveEventHub', () => {
     expect(received).toEqual([]);
   });
 
+  it('isolates a listener that throws, and does not fail the write', async () => {
+    hub.subscribe(() => {
+      throw new Error('this tab is gone');
+    });
+    hub.subscribe((live) => void received.push(live));
+
+    // A dead browser tab must not silence a live one, and must certainly not turn a
+    // committed write into a 500 by rejecting the unit of work that announced it.
+    await expect(
+      wrapped.run(() => hub.publish({ workspaceId: WORKSPACE_A, event: event('task-1') })),
+    ).resolves.toBeUndefined();
+
+    expect(received).toEqual([event('task-1')]);
+  });
+
   it('stops delivering after unsubscribe', async () => {
     const unsubscribe = hub.subscribe((live) => void received.push(live));
     unsubscribe();

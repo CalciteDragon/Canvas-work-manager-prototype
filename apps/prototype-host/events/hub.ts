@@ -51,7 +51,7 @@ export class LiveEventHub implements LiveEventPublisher {
    * changes, which replace the whole document rather than mutating one workspace.
    */
   broadcastToAll(event: LiveEvent): void {
-    for (const { listener } of [...this.subscriptions]) listener(event);
+    for (const { listener } of [...this.subscriptions]) this.notify(listener, event);
   }
 
   /**
@@ -82,7 +82,23 @@ export class LiveEventHub implements LiveEventPublisher {
     // disconnected while a flush was in progress does exactly that.
     for (const { listener, workspaceId } of [...this.subscriptions]) {
       if (workspaceId !== undefined && workspaceId !== publication.workspaceId) continue;
-      listener(publication.event);
+      this.notify(listener, publication.event);
+    }
+  }
+
+  /**
+   * One listener's failure is its own. Without this a throw from any subscriber would abort
+   * delivery to every subscriber behind it in the set — and, worse, propagate out of the
+   * flush and reject `wrapUnitOfWork.run`, so a write that **already committed** would be
+   * answered as a 500. Nothing about a browser tab going away may reach back into the
+   * mutation that told it something happened.
+   */
+  private notify(listener: LiveEventListener, event: LiveEvent): void {
+    try {
+      listener(event);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error(`live event listener failed — ${reason}`);
     }
   }
 }

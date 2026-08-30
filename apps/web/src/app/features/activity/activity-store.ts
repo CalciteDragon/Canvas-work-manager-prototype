@@ -31,7 +31,11 @@ export class ActivityStore {
   private async refresh(): Promise<void> {
     const projectId = this.projectId;
     if (projectId === null) return;
-    const generation = this.generation;
+    // Claims a generation rather than reading one. A refresh started *after* a load is the
+    // fresher question, so it must win — sharing the load's generation would let the older
+    // response land last and quietly drop the line the frame announced. Claiming it also
+    // means this read owns the loading flag, which is why the `finally` clears it.
+    const generation = ++this.generation;
     const settled = this.pendingTasks.add();
     try {
       const entries = await this.gateway.activity.list({ projectId, limit: this.limit });
@@ -40,6 +44,7 @@ export class ActivityStore {
       // Quiet — see above.
     } finally {
       settled();
+      if (generation === this.generation) this.loadingState.set(false);
     }
   }
 
