@@ -6,6 +6,10 @@ import { DomainRuleError } from '@cwm/domain';
 import { DEFAULT_PORT, configuredPort, start, stop } from './main.ts';
 import { createMcpNodeHandler } from './mcp/handler.ts';
 import { healthRoutes, type RawRouteTable, type RouteTable } from './router.ts';
+import { LiveEventHub } from './events/hub.ts';
+import { createEventStreamHandler } from './events/sse.ts';
+import { InMemoryDataStore } from '@cwm/repositories';
+import { buildSeed } from '@cwm/prototype-data';
 
 const started: Array<Awaited<ReturnType<typeof start>>> = [];
 
@@ -250,5 +254,50 @@ describe('configuredPort', () => {
     process.env['CWM_HOST_PORT'] = value;
 
     expect(() => configuredPort()).toThrow(/CWM_HOST_PORT/);
+  });
+});
+
+describe('§62 — GET /prototype/events over a real socket', () => {
+  const openStream = async () => {
+    const hub = new LiveEventHub();
+    const store = new InMemoryDataStore(buildSeed('personal-workspace'));
+    const { server, port } = await startOnEphemeralPort(
+      {},
+      { '/prototype/events': createEventStreamHandler(hub, store, { heartbeatMs: 20 }) },
+    );
+    const response = await fetch(`http://127.0.0.1:${port}/prototype/events`);
+    return { hub, server, response, reader: response.body!.getReader() };
+  };
+
+  const read = async (reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> => {
+    const { value } = await reader.read();
+    return new TextDecoder().decode(value);
+  };
+
+  it('streams a frame to a real client', async () => {
+    const { hub, response, reader } = await openStream();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('text/event-stream');
+    expect(await read(reader)).toContain('retry:');
+
+    hub.broadcastToAll({ type: 'task.updated', entityType: 'task', entityId: 'task-1' });
+
+    expect(await read(reader)).toBe(`data: {"type":"task.updated","entityType":"task","entityId":"task-1"}
+
+`);
+    await reader.cancel();
+  });
+
+  it('lets stop() terminate an open stream, so one Ctrl+C still ends the process', async () => {
+    const { server, reader } = await openStream();
+    await read(reader);
+    // This test stops the server itself, so take it off the afterEach list.
+    started.splice(started.indexOf(server), 1);
+
+    // `closeAllConnections()` is what makes this prompt: `close()` alone waits for the
+    // in-flight request, and a stream is a request that never finishes on its own.
+    await expect(stop(server)).resolves.toBeUndefined();
+    await expect(reader.read().then(({ done }) => done).catch(() => true)).resolves.toBe(true);
   });
 });

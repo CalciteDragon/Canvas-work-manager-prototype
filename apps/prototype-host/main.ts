@@ -12,6 +12,7 @@ import { PrototypeRuntime } from './prototype/runtime.ts';
 import { createPrototypeRoutes } from './prototype/routes.ts';
 import { SwitchableAIProvider } from './prototype/switchable-ai-provider.ts';
 import { createAuthenticatedMcpHandler, createMcpNodeHandler } from './mcp/handler.ts';
+import { createEventStreamHandler } from './events/sse.ts';
 
 export const DEFAULT_PORT = 4310;
 
@@ -131,9 +132,15 @@ if (isDirectRun) {
 
     const server = await start(port, {
       ...healthRoutes,
-      ...createPrototypeRoutes(runtime),
+      ...createPrototypeRoutes(runtime, {}, api.events),
       ...createApiRoutes(api),
-    }, { '/mcp': createMcpNodeHandler(mcp) });
+    }, {
+      '/mcp': createMcpNodeHandler(mcp),
+      // §62. A raw mount because a route table returning one result cannot hold a socket
+      // open. Shutdown needs nothing extra: `stop()`'s `closeAllConnections()` destroys the
+      // mid-request socket and the handler's own `close` listener clears its heartbeat.
+      '/prototype/events': createEventStreamHandler(api.events, persistence.store),
+    });
     const actualPort = (server.address() as AddressInfo).port;
     console.log(`prototype-host listening on http://${HOST}:${actualPort} — data ${persistence.path}`);
 

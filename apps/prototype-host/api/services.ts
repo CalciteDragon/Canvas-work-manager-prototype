@@ -1,6 +1,7 @@
 import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, SimulatedClock, TaskService, TimelineService, WorkspaceService } from '@cwm/domain';
 import type { AIProvider } from '@cwm/domain';
 import { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
+import { LiveEventHub } from '../events/hub.ts';
 import { RealAIProvider } from './real-ai-provider.ts';
 import type { Persistence } from '../persistence/store.ts';
 import { createApiRoutes, type ApiDependencies } from './routes.ts';
@@ -26,24 +27,34 @@ export const aiProviderFor = (mode: string | undefined): AIProvider =>
 export interface CreateApiOptions {
   clock?: SimulatedClock;
   ai?: AIProvider;
+  /** §62's fan-out. Injected by tests that want to watch it; built here otherwise. */
+  events?: LiveEventHub;
 }
 
 export interface HostServices extends ApiDependencies {
   /** Slice 15's MCP registry uses this; REST routes deliberately do not. */
   workspace: WorkspaceService;
+  /** §62's stream, for `main.ts` to mount and for `/prototype/*` to broadcast on. */
+  events: LiveEventHub;
 }
 
 export const createApi = (persistence: Persistence, options: CreateApiOptions = {}): HostServices => {
   const clock = options.clock ?? new SimulatedClock();
   const ids = new PrototypeIdGenerator();
-  const { store, projects, sections, tasks, milestones, reflections, activities, agents, users, unitOfWork } =
-    persistence;
-  const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids });
+  const { store, projects, sections, tasks, milestones, reflections, activities, agents, users } = persistence;
+
+  // §62. The wrapped unit of work is built **locally** and handed to the services;
+  // `persistence.unitOfWork` is left alone, because `PrototypeRuntime`'s seed swap runs
+  // through it and announces itself from the route table instead.
+  const events = options.events ?? new LiveEventHub();
+  const unitOfWork = events.wrapUnitOfWork(persistence.unitOfWork);
+  const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids, events });
   const connections = new AgentConnectionService({ agents, activity, clock, unitOfWork });
   const ai = options.ai ?? aiProviderFor(process.env['PROTOTYPE_AI_PROVIDER']);
 
   return {
     store,
+    events,
     activity,
     projects: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, activity, clock, ids, unitOfWork }),

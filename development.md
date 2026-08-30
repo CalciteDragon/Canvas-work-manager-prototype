@@ -720,6 +720,8 @@ in `data.json` — over both HTTP and stdio.
 
 ### Slice 16 — Live updates
 
+**Status:** in progress — plan: [docs/plans/16-live-updates.md](docs/plans/16-live-updates.md)
+
 **Goal:** Agent changes appear in the open browser without a refresh.
 
 **Spec:** §6, §62

@@ -108,6 +108,11 @@ const readBody = async (request: IncomingMessage): Promise<string> => {
  * Localhost only — the prototype's tokens have no security value (§51) and nothing here
  * may be usable from a real page.
  *
+ * Exported because the raw mounts bypass this file's own CORS handling — right for `/mcp`,
+ * whose clients are not browsers, and wrong for §62's `/prototype/events`, which an
+ * `EventSource` opens from `:4200`. That mount applies these headers itself, to every
+ * response it writes including its errors.
+ *
  * The origin is reflected rather than wildcarded, which makes the response vary by origin;
  * `Vary` says so. `x-prototype-user` is a non-simple header, so *every* gateway call
  * preflights — `Max-Age` is what stops that from doubling the request count.
@@ -117,7 +122,7 @@ const ALLOWED_ORIGINS = new Set([
   'http://127.0.0.1:4200',
 ]);
 
-const corsHeaders = (origin: string | undefined): Record<string, string> => {
+export const corsHeaders = (origin: string | undefined): Record<string, string> => {
   // `Vary` goes on every response, including the ones that get no allow-origin. A cache
   // that stored a header-less response and later served it to :4200 would break CORS for
   // a request that should have worked — unreachable behind localhost with no intermediary,

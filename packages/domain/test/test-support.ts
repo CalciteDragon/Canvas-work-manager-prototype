@@ -5,6 +5,7 @@ import type { ActorContext } from '../src/actor';
 import { PrototypeClock } from '../src/clock';
 import type { IdGenerator } from '../src/ids';
 import { ActivityService } from '../src/activity-service';
+import type { LiveEventPublisher } from '../src/live-events';
 import { AgentConnectionService } from '../src/agent-connection-service';
 import { DashboardService } from '../src/dashboard-service';
 import { PrototypeAIProvider } from '../src/prototype-ai-provider';
@@ -105,7 +106,12 @@ export const agentActorFor = (index: 0 | 1, permissions: AgentPermission[] = [])
   permissions,
 });
 
-export const buildHarness = (document: PrototypeDocument = twoPersonaDocument()) => {
+export interface HarnessOptions {
+  /** §62's publisher, when a test wants to observe the live frames a mutation emits. */
+  events?: LiveEventPublisher;
+}
+
+export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(), options: HarnessOptions = {}) => {
   const store = new CountingDataStore(document);
   const clock = new PrototypeClock(new Date(SEED_NOW));
   const ids = new CountingIdGenerator();
@@ -118,7 +124,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument())
   const activities = new JsonActivityRepository(store);
   const agents = new JsonAgentConnectionRepository(store);
   const users = new JsonUserRepository(store);
-  const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids });
+  const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids, events: options.events });
 
   return {
     store,

@@ -4,6 +4,7 @@ import {
   SetAIProviderInputSchema,
   SetSimulatedDateInputSchema,
 } from '@cwm/contracts';
+import type { LiveEventHub } from '../events/hub.ts';
 import { appendNote, type AppendNoteOptions } from './notes.ts';
 import type { PrototypeRuntime } from './runtime.ts';
 import type { RouteResult, RouteTable } from '../router.ts';
@@ -27,29 +28,47 @@ const created = (body: unknown): RouteResult => ({ status: 201, contentType: 'ap
 export const createPrototypeRoutes = (
   runtime: PrototypeRuntime,
   noteOptions: AppendNoteOptions = {},
-): RouteTable => ({
-  'GET /prototype/state': () => ok(runtime.state()),
+  events?: LiveEventHub,
+): RouteTable => {
+  /**
+   * §62 for the rig rather than the workspace. No domain service records a seed swap or a
+   * clock move, so the frame is emitted here — **one per successful request**, naming which
+   * knob moved. Emitting from `PrototypeRuntime` instead would fire three times for one
+   * `reset()`, which calls `loadSeed` and `setAIProvider` internally.
+   *
+   * The tab that pressed the button reloads itself; this is what reaches the *other* ones.
+   */
+  const reloaded = (knob: string): void => events?.broadcastToAll({ type: 'prototype.reloaded', entityId: knob });
 
-  'POST /prototype/seed': async (request) => {
-    await runtime.loadSeed(LoadSeedInputSchema.parse(request.body).seed);
-    return ok(runtime.state());
-  },
+  return {
+    'GET /prototype/state': () => ok(runtime.state()),
 
-  'POST /prototype/reset': async () => {
-    await runtime.reset();
-    return ok(runtime.state());
-  },
+    'POST /prototype/seed': async (request) => {
+      await runtime.loadSeed(LoadSeedInputSchema.parse(request.body).seed);
+      reloaded('seed');
+      return ok(runtime.state());
+    },
 
-  'POST /prototype/clock': (request) => {
-    runtime.setSimulatedNow(SetSimulatedDateInputSchema.parse(request.body).now);
-    return ok(runtime.state());
-  },
+    'POST /prototype/reset': async () => {
+      await runtime.reset();
+      reloaded('reset');
+      return ok(runtime.state());
+    },
 
-  'POST /prototype/ai-provider': (request) => {
-    runtime.setAIProvider(SetAIProviderInputSchema.parse(request.body).provider);
-    return ok(runtime.state());
-  },
+    'POST /prototype/clock': (request) => {
+      runtime.setSimulatedNow(SetSimulatedDateInputSchema.parse(request.body).now);
+      reloaded('clock');
+      return ok(runtime.state());
+    },
 
-  'POST /prototype/notes': async (request) =>
-    created(await appendNote(CreatePrototypeNoteInputSchema.parse(request.body), noteOptions)),
-});
+    'POST /prototype/ai-provider': (request) => {
+      runtime.setAIProvider(SetAIProviderInputSchema.parse(request.body).provider);
+      reloaded('ai-provider');
+      return ok(runtime.state());
+    },
+
+    // A §79 note changes nothing anyone is rendering, so it announces nothing.
+    'POST /prototype/notes': async (request) =>
+      created(await appendNote(CreatePrototypeNoteInputSchema.parse(request.body), noteOptions)),
+  };
+};

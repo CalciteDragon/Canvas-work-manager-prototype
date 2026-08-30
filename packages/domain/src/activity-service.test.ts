@@ -1,6 +1,7 @@
 import { ActivityEventSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { actorFor, agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import type { LivePublication } from './live-events';
 import { PermissionDeniedError } from './errors';
 import type { ActorContext } from './actor';
 
@@ -234,5 +235,66 @@ describe('ActivityService.list resolves §57’s names', () => {
     const harness = buildHarness();
 
     await expect(harness.activity.list(agentActorFor(0, ['tasks.read']))).rejects.toThrow(PermissionDeniedError);
+  });
+});
+
+/**
+ * §62's live frames ride the §57 record, so this is where the two are pinned together.
+ * See docs/decisions/2026-08-live-events-ride-the-activity-record.md.
+ */
+describe('ActivityService.record — live events (§62)', () => {
+  const recording = () => {
+    const published: LivePublication[] = [];
+    return { published, publisher: { publish: (publication: LivePublication) => void published.push(publication) } };
+  };
+
+  it('publishes the recorded activity as a live event', async () => {
+    const { published, publisher } = recording();
+    const harness = buildHarness(undefined, { events: publisher });
+
+    const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Configure deployment' });
+    await harness.taskService.complete(harness.actor, task.id);
+
+    expect(published).toEqual([
+      {
+        workspaceId: harness.actor.workspaceId,
+        event: { type: 'task.created', entityType: 'task', entityId: task.id, projectId: MINE },
+      },
+      {
+        workspaceId: harness.actor.workspaceId,
+        event: { type: 'task.completed', entityType: 'task', entityId: task.id, projectId: MINE },
+      },
+    ]);
+  });
+
+  it('records nothing extra when no publisher is wired', async () => {
+    const harness = buildHarness();
+
+    await expect(
+      harness.taskService.create(harness.actor, { projectId: MINE, title: 'No stream attached' }),
+    ).resolves.toMatchObject({ title: 'No stream attached' });
+  });
+
+  it('publishes only after the event is in the repository', async () => {
+    const seen: number[] = [];
+    const harness = buildHarness(undefined, {
+      events: { publish: () => void seen.push(harness.store.snapshot().activityEvents.length) },
+    });
+
+    await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Ordering' });
+
+    // Read inside the open unit of work, so this is the count the publisher could observe.
+    expect(seen).toEqual([1]);
+  });
+
+  it('publishes an agent mutation under the agent’s workspace', async () => {
+    const { published, publisher } = recording();
+    const harness = buildHarness(undefined, { events: publisher });
+
+    await harness.taskService.create(agentActorFor(0, ['tasks.write']), { projectId: MINE, title: 'From an agent' });
+
+    expect(published).toHaveLength(1);
+    expect(published[0]?.workspaceId).toBe(harness.actor.workspaceId);
+    expect(published[0]?.event.type).toBe('task.created');
   });
 });

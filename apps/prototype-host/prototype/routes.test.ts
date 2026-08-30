@@ -7,6 +7,7 @@ import { JsonDataStore } from '@cwm/repositories';
 import { buildSeed } from '@cwm/prototype-data';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApi } from '../api/services.ts';
+import { LiveEventHub } from '../events/hub.ts';
 import { createApiRoutes } from '../api/routes.ts';
 import { loadPersistence } from '../persistence/store.ts';
 import { resolveRoute, type RouteTable } from '../router.ts';
@@ -35,11 +36,14 @@ const harness = async (seed = 'busy-week') => {
   const clock = new SimulatedClock();
   const ai = new SwitchableAIProvider(new PrototypeAIProvider());
   const runtime = new PrototypeRuntime({ persistence, clock, ai, seed });
+  const events = new LiveEventHub();
+  const broadcast: string[] = [];
+  events.subscribe((event) => void broadcast.push(`${event.type}:${event.entityId}`));
   const routes: RouteTable = {
-    ...createPrototypeRoutes(runtime, { path: join(directory, 'notes.json') }),
-    ...createApiRoutes(createApi(persistence, { clock, ai })),
+    ...createPrototypeRoutes(runtime, { path: join(directory, 'notes.json') }, events),
+    ...createApiRoutes(createApi(persistence, { clock, ai, events })),
   };
-  return { routes, path, clock, runtime, notesPath: join(directory, 'notes.json') };
+  return { routes, path, clock, runtime, events, broadcast, notesPath: join(directory, 'notes.json') };
 };
 
 const persona = (routes: RouteTable, method: string, path: string, body?: unknown) =>
@@ -231,5 +235,33 @@ describe('the seed swap and the store', () => {
 
     const reloaded = await JsonDataStore.load(path);
     expect(reloaded.snapshot().projects.length).toBeGreaterThan(1);
+  });
+});
+
+describe('§62 — host-state changes announce themselves to other tabs', () => {
+  it('broadcasts exactly one prototype.reloaded frame per host-state route, naming the knob', async () => {
+    const { routes, broadcast } = await harness();
+
+    await persona(routes, 'POST', '/prototype/seed', { seed: 'agent-heavy' });
+    await persona(routes, 'POST', '/prototype/clock', { now: '2026-08-18T09:00:00.000Z' });
+    await persona(routes, 'POST', '/prototype/ai-provider', { provider: 'mock' });
+    // `reset` calls `loadSeed` and `setAIProvider` internally — the frame is emitted from
+    // the route, not the runtime, precisely so that stays one event and not three.
+    await persona(routes, 'POST', '/prototype/reset');
+
+    expect(broadcast).toEqual([
+      'prototype.reloaded:seed',
+      'prototype.reloaded:clock',
+      'prototype.reloaded:ai-provider',
+      'prototype.reloaded:reset',
+    ]);
+  });
+
+  it('says nothing when a §79 note is captured', async () => {
+    const { routes, broadcast } = await harness();
+
+    await persona(routes, 'POST', '/prototype/notes', { note: 'the canvas felt cramped', route: '/', slice: 16 });
+
+    expect(broadcast).toEqual([]);
   });
 });

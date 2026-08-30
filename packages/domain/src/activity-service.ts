@@ -19,6 +19,7 @@ import type {
 import { assertPermitted, type ActorContext } from './actor';
 import type { Clock } from './clock';
 import type { IdGenerator } from './ids';
+import type { LiveEventPublisher } from './live-events';
 
 export interface ActivityEntry {
   action: ActivityAction;
@@ -48,6 +49,12 @@ export interface ActivityServiceDependencies {
   tasks: TaskRepository;
   milestones: MilestoneRepository;
   reflections: ReflectionRepository;
+  /**
+   * §62's live stream, when one is attached. Optional: the domain never *requires* a
+   * listener, and every construction site that predates Slice 16 — tests included — stays
+   * valid without one.
+   */
+  events?: LiveEventPublisher;
 }
 
 /** What a system action is called on screen. §57 gives it no name of its own. */
@@ -84,6 +91,22 @@ export class ActivityService {
     } as ActivityEvent;
 
     await activities.insert(event);
+
+    // §62's frame is published from here rather than from each mutating service, because
+    // this is the one place every mutation already passes through — so the stream and §57's
+    // feed cannot disagree about what happened. Delivery is the publisher's problem: the
+    // host's hub holds the frame until this unit of work commits, so a browser cannot
+    // refetch a write that has not landed yet, and a rolled-back write never broadcasts.
+    // See docs/decisions/2026-08-live-events-ride-the-activity-record.md.
+    this.dependencies.events?.publish({
+      workspaceId: actor.workspaceId,
+      event: {
+        type: entry.action,
+        entityType: entry.entityType,
+        entityId: entry.entityId,
+        projectId: entry.projectId,
+      },
+    });
     return event;
   }
 

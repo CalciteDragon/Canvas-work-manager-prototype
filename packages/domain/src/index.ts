@@ -7,6 +7,7 @@ export * from './calendar';
 export * from './clock';
 export * from './errors';
 export * from './ids';
+export * from './live-events';
 export * from './project-service';
 export * from './prototype-ai-provider';
 export * from './progress-service';
