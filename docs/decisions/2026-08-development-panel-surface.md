@@ -30,9 +30,17 @@ different job — the per-project layout list, which needs every project rather 
 the route is on.
 
 **A host-state change has to reload the app.** `PrototypeIdentityProvider` memoizes a
-fulfilled identity and every store loads once; §62's live updates are Slice 16. So after a
-persona switch, seed load, clock move or provider swap, the loaded UI is stale. The panel
-calls `location.reload()`, and the controls say so. That in turn forced the client-owned
+fulfilled identity and every store loads once, so after a persona switch, seed load, clock
+move or provider swap, the loaded UI is stale. The panel calls `location.reload()`, and the
+controls say so.
+
+*Updated in Slice 16, which built §62's live updates and kept this.* The reload is now a
+choice rather than a stopgap: these controls change the clock, the AI provider and the whole
+document at once, so every derived read on every page moves together — one reload is cheaper
+and more legible than a fan-out of quiet refreshes, and a persona switch is a new session
+rather than a data change. What Slice 16 did remove is the *layout mode* control's reload,
+which was a single project write and is now just a `project.updated` frame. Other open tabs
+now refresh themselves on a `prototype.reloaded` frame. That in turn forced the client-owned
 settings into `sessionStorage` — a delay wiped by the panel's own reload is a delay you
 cannot use. Verified: switching to Alex reloaded the app, showed Alex in the top bar,
 flipped the theme to light (Alex's stored preference), and left the delay/failure/flag
@@ -68,6 +76,8 @@ given the browser collision.
 
 **Revisit when**
 
-Slice 13 adds Agent Connection to the panel. Slice 16's live updates could replace the
-reload with a real refresh, at which point `sessionStorage` may stop being necessary — that
-is the moment to check whether these settings should go back to being session-only.
+Slice 13 added Agent Connection to the panel. Slice 16's live updates arrived and the
+question they raised is answered above: the reload stays for host-state changes, so
+`sessionStorage` is still load-bearing and these settings do not go back to session-only.
+Revisit if the panel ever gains a control that changes *one* thing — Layout Mode was that
+control, and it needed no reload once a frame could reach the page.

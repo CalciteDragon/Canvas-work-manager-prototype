@@ -28,9 +28,11 @@ serves the identical registry for local child-process clients. Both use the fake
 credentials and real domain services. See [docs/mcp-setup.md](docs/mcp-setup.md) for client
 configuration and the JSON store's cross-process limitation.
 
-**Changes appear in the open browser.** Every domain mutation — from the UI, from an HTTP MCP
-client, or from the development panel — broadcasts one Server-Sent Event on
-`GET /prototype/events`, and the affected feature stores re-read. A task an agent completes
+**Changes appear in the open browser.** Every domain mutation that records activity — from
+the UI, from an HTTP MCP client, or from the development panel — broadcasts one Server-Sent
+Event on `GET /prototype/events`, and the affected feature stores re-read. (At most one: a
+write that changes nothing announces nothing, and neither does the `lastUsedAt` stamp behind
+every agent call.) A task an agent completes
 ticks itself off in an open project page in well under a second, with the activity feed
 naming the connection. Frames are held until the write commits, so a refresh triggered by one
 always reads the new value. This is a property of the HTTP transport; a `pnpm mcp:stdio`

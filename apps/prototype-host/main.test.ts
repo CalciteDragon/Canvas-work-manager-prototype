@@ -274,7 +274,11 @@ describe('§62 — GET /prototype/events over a real socket', () => {
     return new TextDecoder().decode(value);
   };
 
-  it('streams a frame to a real client', async () => {
+  // These drive the handler over a real socket, not `main.ts`'s own mount — `start()` takes
+  // its raw routes as an argument, so there is no wiring here to assert. That the entrypoint
+  // actually mounts `/prototype/events` is what `scripts/live-acceptance.mjs` proves, against
+  // the real spawned process.
+  it('streams a frame to a real client over a real socket', async () => {
     const { hub, response, reader } = await openStream();
 
     expect(response.status).toBe(200);
@@ -289,6 +293,8 @@ describe('§62 — GET /prototype/events over a real socket', () => {
     await reader.cancel();
   });
 
+  // The heartbeat's own teardown is asserted in `events/sse.test.ts`; what only a real socket
+  // can show is that `closeAllConnections()` reaches a response that never finishes.
   it('lets stop() terminate an open stream, so one Ctrl+C still ends the process', async () => {
     const { server, reader } = await openStream();
     await read(reader);

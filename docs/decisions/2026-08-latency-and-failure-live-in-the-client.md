@@ -68,8 +68,10 @@ in the way.
 
 **Revisit when**
 
-Slice 16 adds live updates and Slice 13+ puts MCP traffic through the host. Neither is
-gateway traffic, so if either wants to be slowed or failed, the host-side knob this entry
-rejects comes back — for *those* callers, not for this one. Also revisit if evaluating the
+Slices 13 and 15 put MCP traffic through the host and Slice 16 added §62's live updates.
+Neither is gateway traffic, and neither has yet wanted to be slowed or failed — the event
+stream in particular is fire-and-forget, so there is nothing for a failure rate to reject.
+If either does, the host-side knob this entry rejects comes back for *those* callers, not
+for this one. Also revisit if evaluating the
 cold-start loading state matters enough to route the identity provider through `delay()`
 while leaving `shouldFail()` off it.

@@ -58,6 +58,12 @@ optional fields are forced by the slice's own data.
 
 **Revisit when**
 
-Slice 16's live updates. If events start arriving over SSE, the feed will have to resolve
-names for an event it did not fetch — which is either a re-fetch or a reason for the event
-payload to carry more than `{ type, entityId }`.
+*Answered by Slice 16.* Events now arrive over SSE, and the answer was the re-fetch: a frame
+is a notification, not a payload, so `ActivityStore` re-asks `activity.list` and gets fully
+resolved entries exactly as before. The frame carries `{ type, entityType, entityId,
+projectId }` — the two extra fields are for *routing* (which store cares), never for
+rendering, so nothing about this entry's composition rule changed.
+
+Revisit if the feed ever needs to render an event the host cannot resolve on re-read, or if
+the re-fetch per frame becomes too chatty for a busy agent — at which point the answer is
+coalescing in the store, not a fatter frame.

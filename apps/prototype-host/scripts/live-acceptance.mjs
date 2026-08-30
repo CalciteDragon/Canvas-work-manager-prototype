@@ -17,19 +17,25 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
+import { tokenFor } from '@cwm/prototype-data';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const hostRoot = join(here, '..');
 const seedPath = join(hostRoot, '..', '..', 'prototype', 'seeds', 'agent-heavy.json');
 
 /** The `agent-heavy` fixture: a read-write connection, its owner, and an open task. */
-const TOKEN = 'prototype-user-a-readwrite';
+const CONNECTION = 'agent-claude';
+// Read from the fixture table rather than written out here: a second copy of a credential is
+// a 401 waiting for someone to renumber the tokens.
+const TOKEN = tokenFor(CONNECTION);
 const PERSONA = 'user-demo';
 const CONNECTION_NAME = 'Claude';
 const TASK = 'task-agent-schema';
 const PROJECT = 'project-work-manager';
 
 const BUDGET_MS = 1_000;
+/** How long to wait for a frame before calling the whole claim false. */
+const FRAME_TIMEOUT_MS = 10_000;
 
 const check = (condition, description) => {
   if (!condition) throw new Error(`FAILED: ${description}`);
@@ -158,8 +164,11 @@ try {
   console.log('2. An agent completes a task over MCP');
   // Measured from *issue*, not from the resolved call: the frame is flushed at commit,
   // which is before the tool's own HTTP response is written.
-  let issuedAt = Number.POSITIVE_INFINITY;
+  // Not `Infinity`: a frame arriving *before* the call was issued would then measure as
+  // -Infinity and satisfy the budget silently. A negative elapsed is a failure, not a pass.
+  let issuedAt = 0;
   const seen = [];
+  let stopReading = () => undefined;
   const watching = readFrames(origin, stream, () => issuedAt, async (event, elapsed, task, reader) => {
     seen.push({ event, elapsed, task });
     await reader.cancel();
@@ -176,7 +185,17 @@ try {
   issuedAt = Date.now();
   const called = await client.callTool({ name: 'complete_task', arguments: { taskId: TASK } });
   check(called.isError !== true, 'the agent completed the task');
-  await watching;
+
+  // Without this the central claim fails as a hang rather than as a red exit, and CI would
+  // report a timeout instead of "no frame arrived".
+  await Promise.race([
+    watching,
+    new Promise((_, reject) => {
+      const timer = setTimeout(() => reject(new Error(`FAILED: no frame within ${FRAME_TIMEOUT_MS} ms`)), FRAME_TIMEOUT_MS);
+      stopReading = () => clearTimeout(timer);
+      void watching.then(stopReading, stopReading);
+    }),
+  ]);
 
   console.log('3. The frame');
   const [frame] = seen;
@@ -186,7 +205,10 @@ try {
       JSON.stringify({ type: 'task.completed', entityType: 'task', entityId: TASK, projectId: PROJECT }),
     `it is §62's event for the completed task: ${JSON.stringify(frame.event)}`,
   );
-  check(frame.elapsed <= BUDGET_MS, `it arrived in ${frame.elapsed} ms, inside the ${BUDGET_MS} ms budget`);
+  check(
+    frame.elapsed >= 0 && frame.elapsed <= BUDGET_MS,
+    `it arrived ${frame.elapsed} ms after the call was issued, inside the ${BUDGET_MS} ms budget`,
+  );
   check(frame.task.status === 'done', 'the write was already committed when the frame arrived');
 
   console.log('4. The activity feed names the agent');

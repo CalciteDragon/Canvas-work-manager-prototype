@@ -727,7 +727,12 @@ in `data.json` — over both HTTP and stdio.
 **Status:** done — plan: [docs/plans/16-live-updates.md](docs/plans/16-live-updates.md) — one
 frame per §57 activity record, held until the unit of work commits, over
 `GET /prototype/events`. An agent's `complete_task` reaches an open project page in ~14 ms
-with the write already readable, and the feed names the connection.
+with the write already readable, and the feed names the connection. Watched in a real
+browser, not only asserted: `pnpm dev`, project page open, `complete_task` through a real MCP
+client — the row ticked and struck through, the header went 25% → 50%, its Overdue tag
+dropped, and Recent Activity's newest line became *Claude — Completed "Document the tool
+input schemas"*, with no refresh. A project created by `curl` appeared in the sidebar the
+same way. Four §79 notes recorded.
 
 Three things the plan did not start out knowing. Emission rides `ActivityService.record`, so
 it is **at most** one event per operation rather than exactly one — no-op writes announce

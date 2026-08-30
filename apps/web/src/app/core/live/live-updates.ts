@@ -8,8 +8,9 @@ export type LiveEventListener = (event: LiveEvent) => void;
  *
  * The boundary of §8 applies here exactly as it does to the gateway — a store subscribes to
  * this interface and never learns that `EventSource`, HTTP or a prototype host exist.
- * `PrototypeLiveUpdates` is the §10 adapter, and `app.config.ts` is the only file that names
- * it.
+ * `PrototypeLiveUpdates` is the §10 adapter, and `app.config.ts` is the only file that
+ * *provides* it — `app.spec.ts` names it too, but only to assert that this token is not left
+ * on the inert default below.
  *
  * A listener receives an *event*, not a state delta. It answers by re-reading through the
  * gateway; nothing here ever carries an entity.

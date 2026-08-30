@@ -4,7 +4,8 @@ import type { LiveEventListener, LiveUpdates } from '../live-updates';
 /**
  * The live stream every store spec runs against. Its existence is what keeps §8's boundary
  * structural: no spec has a reason to reach for `PrototypeLiveUpdates`, so none of them do,
- * and nothing outside `app.config.ts` names the concrete adapter.
+ * and `app.config.ts` stays the only file that provides the concrete adapter. (`app.spec.ts`
+ * names it, deliberately, to assert exactly that.)
  */
 export class FakeLiveUpdates implements LiveUpdates {
   private readonly listeners = new Set<LiveEventListener>();

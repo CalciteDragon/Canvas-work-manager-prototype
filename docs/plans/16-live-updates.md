@@ -409,3 +409,29 @@ Deferred by this plan, with the reason:
 - The `dev-panel-controls` test could not fail: the mode buttons do not render without a
   project in the route, and jsdom's `location.reload()` is neither throwing nor observable.
   Dropped in favour of the `project.updated` case that proves the replacement.
+
+**Step 4** (three reviewers against the diff: correctness, boundaries/spec, acceptance/docs).
+The suite, the lint and both acceptance scripts pass. What the reviews changed:
+
+- Two comments claimed `app.config.ts` was the only file naming the concrete adapter;
+  `app.spec.ts` names it too, deliberately, to assert the wiring. Corrected to "provides".
+- The acceptance script had two ways to pass vacuously: `issuedAt` started at `Infinity`, so
+  a frame arriving before the call was issued would measure `-Infinity` and satisfy the
+  budget; and the frame wait had no timeout, so "no frame ever arrives" would have hung
+  rather than failed red. Both fixed, and the fixture token now comes from `tokenFor` instead
+  of being a second copy of a credential.
+- Two `main.test.ts` titles over-promised: one implied it proved `main.ts`'s mount (it drives
+  the handler directly; the real mount is `live-acceptance`'s job), the other named the
+  heartbeat (asserted in `sse.test.ts`). Both now say what they prove.
+- Four older decision entries had "Slice 16 will…" written in the future tense, two of them
+  as an open *Revisit when* that this slice answered. All four updated in place, per AGENTS.md
+  §2 rule 1 — that is the living-documentation rule doing exactly what it is for.
+- README said "every domain mutation broadcasts one event"; it is *at most* one.
+
+**Kept against a review finding.** The boundary reviewer read the adapter's capped
+exponential backoff as §71 over-build and proposed a fixed 2 s interval, conceding the
+mechanism itself is needed. Kept: the ~6 lines beyond a fixed timer are what stop a
+persistently refused stream — a mistyped persona is a permanent 404 — from polling the host
+forever, and resetting on `open` is what keeps a single hiccup from leaving a long session at
+the ceiling. Two of the adapter's nine cases cover it, which is not the exhaustive suite §71
+warns against.
