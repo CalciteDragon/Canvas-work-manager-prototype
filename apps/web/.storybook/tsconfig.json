@@ -1,0 +1,22 @@
+// Two consumers, one file.
+//
+// `@analogjs/vite-plugin-angular` looks for a tsconfig at exactly this path, and a
+// component that is not in its TypeScript program renders in Storybook as
+// "Component 'X' is not resolved" — its templateUrl never gets compiled. So this includes
+// the application sources, not only the stories.
+//
+// `pnpm lint` then runs `tsc --noEmit` over it as a third pass. Stories are excluded from
+// tsconfig.app.json (they cannot resolve @storybook/* under its empty `types`) and
+// tsconfig.spec.json only ever included spec files, so without this pass a story that no
+// longer compiles against its component would be checked by nothing.
+//
+// `"types": ["node"]` is for main.ts, which uses `node:path`-shaped APIs and nothing else;
+// it is why @types/node is a dependency of this package at all.
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts", "./**/*.d.ts", "../src/**/*.ts"],
+  "exclude": ["../src/**/*.spec.ts"]
+}

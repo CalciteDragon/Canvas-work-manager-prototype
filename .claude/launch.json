@@ -26,6 +26,16 @@
         "start"
       ],
       "port": 4310
+    },
+    {
+      "name": "storybook",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "web",
+        "storybook"
+      ],
+      "port": 6006
     }
   ]
 }
