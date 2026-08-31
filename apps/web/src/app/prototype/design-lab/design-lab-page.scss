@@ -1,0 +1,67 @@
+.design-lab {
+  display: grid;
+  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-5);
+  padding: var(--space-5);
+}
+
+.design-lab__rail {
+  position: sticky;
+  top: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.design-lab__rail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.design-lab__rail-header h1 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.design-lab__rail-header button {
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.design-lab__hint,
+.design-lab__note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.design-lab__control {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.design-lab__control input[type='range'] {
+  width: 100%;
+}
+
+.design-lab__control output {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.design-lab__catalogue {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}

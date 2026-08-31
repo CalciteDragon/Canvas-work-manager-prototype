@@ -1,0 +1,49 @@
+<div class="design-lab">
+  <aside class="design-lab__rail" aria-label="Design tokens">
+    <header class="design-lab__rail-header">
+      <h1>Design Lab</h1>
+      <button type="button" data-design-lab-reset (click)="store.reset()">Reset</button>
+    </header>
+    <p class="design-lab__hint">
+      Values apply to the whole shell and last until the page is reloaded — session-only,
+      like the theme.
+    </p>
+
+    @for (token of tokens; track token.id) {
+      <div class="design-lab__control" [attr.data-design-lab-control]="token.id">
+        <label [attr.for]="'design-lab-' + token.id">{{ token.label }}</label>
+        @if (token.kind === 'color') {
+          <input
+            [id]="'design-lab-' + token.id"
+            type="color"
+            [value]="store.currentValue(token)"
+            (input)="onInput(token, $event)"
+          />
+        } @else {
+          <input
+            [id]="'design-lab-' + token.id"
+            type="range"
+            [min]="token.min ?? 0"
+            [max]="token.max ?? 1"
+            [step]="token.step ?? 0.1"
+            [value]="store.currentNumber(token)"
+            (input)="onInput(token, $event)"
+          />
+          <output>{{ store.currentNumber(token) }}{{ token.unit }}</output>
+        }
+        @if (token.note; as note) {
+          <p class="design-lab__note">{{ note }}</p>
+        }
+      </div>
+    }
+  </aside>
+
+  <div class="design-lab__catalogue">
+    <p class="design-lab__hint">
+      Live components are the real ones, driven by fixtures. Primitives are representative
+      markup — nothing shared exists to render yet, and that is the finding.
+    </p>
+    <app-design-lab-live-panels />
+    <app-design-lab-primitive-panels />
+  </div>
+</div>

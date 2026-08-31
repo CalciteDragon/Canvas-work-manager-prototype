@@ -1,0 +1,106 @@
+<section class="panel" data-panel="task-row" data-panel-kind="live">
+  <h3 class="panel__title">Task rows <span class="panel__badge">live component</span></h3>
+  <div class="panel__body panel__body--stack">
+    <app-task-row [task]="normal" [now]="now" />
+    <app-task-row [task]="overdue" [now]="now" />
+    <app-task-row [task]="done" [now]="now" />
+    <app-task-row [task]="high" [now]="now" />
+    <app-task-row [task]="normal" [selected]="true" [now]="now" />
+    <app-task-row [task]="normal" [compact]="true" [now]="now" />
+  </div>
+</section>
+
+<section class="panel" data-panel="section-frame" data-panel-kind="live">
+  <h3 class="panel__title">Section frames <span class="panel__badge">live component</span></h3>
+  <p class="panel__note">
+    Rendered inside the canvas wrapper the real page applies — without it every span is the
+    same width.
+  </p>
+  <div class="panel__body panel__body--stack">
+    <app-section-canvas-frame [columnSpan]="12">
+      <app-project-section-frame
+        [section]="fullWidth"
+        [definition]="sectionDefinition"
+        [editMode]="false"
+        [projectDataRevision]="0"
+        [projectHierarchyRevision]="0"
+      />
+    </app-section-canvas-frame>
+    <app-section-canvas-frame [columnSpan]="6">
+      <app-project-section-frame
+        [section]="halfWidth"
+        [definition]="sectionDefinition"
+        [editMode]="false"
+        [projectDataRevision]="0"
+        [projectHierarchyRevision]="0"
+      />
+    </app-section-canvas-frame>
+    <app-section-canvas-frame [columnSpan]="12">
+      <app-project-section-frame
+        [section]="collapsed"
+        [definition]="sectionDefinition"
+        [editMode]="false"
+        [projectDataRevision]="0"
+        [projectHierarchyRevision]="0"
+      />
+    </app-section-canvas-frame>
+    <app-section-canvas-frame [columnSpan]="12">
+      <app-project-section-frame
+        [section]="fullWidth"
+        [definition]="sectionDefinition"
+        [editMode]="true"
+        [projectDataRevision]="0"
+        [projectHierarchyRevision]="0"
+      />
+    </app-section-canvas-frame>
+  </div>
+</section>
+
+<section class="panel" data-panel="section-states" data-panel-kind="live">
+  <h3 class="panel__title">Section states <span class="panel__badge">live component</span></h3>
+  <div class="panel__body panel__body--stack">
+    @for (state of sectionStates; track state.id) {
+      <app-section-canvas-frame [columnSpan]="12">
+        <app-project-section-frame
+          [section]="state"
+          [definition]="sectionDefinition"
+          [editMode]="false"
+          [projectDataRevision]="0"
+          [projectHierarchyRevision]="0"
+        />
+      </app-section-canvas-frame>
+    }
+  </div>
+</section>
+
+<section class="panel" data-panel="widget-frame" data-panel-kind="live">
+  <h3 class="panel__title">Dashboard widget <span class="panel__badge">live component</span></h3>
+  <div class="panel__body">
+    @if (widgetDefinition; as definition) {
+      <app-dashboard-widget-frame [widget]="widget" [definition]="definition" [dashboard]="dashboard" />
+    }
+  </div>
+</section>
+
+<section class="panel" data-panel="navigation" data-panel-kind="live">
+  <h3 class="panel__title">Navigation <span class="panel__badge">live component</span></h3>
+  <div class="panel__body panel__body--row">
+    <app-sidebar [projectTree]="projectTree" [error]="null" />
+    <app-sidebar [projectTree]="emptyTree" [error]="sidebarError" />
+  </div>
+</section>
+
+<section class="panel" data-panel="drawer" data-panel-kind="live">
+  <h3 class="panel__title">Drawer <span class="panel__badge">live component</span></h3>
+  <div class="panel__body">
+    <app-task-detail-drawer [task]="drawerTask" />
+  </div>
+</section>
+
+<section class="panel" data-panel="activity" data-panel-kind="live">
+  <h3 class="panel__title">Activity feed <span class="panel__badge">live component</span></h3>
+  <div class="panel__body panel__body--stack">
+    <app-activity-feed [entries]="activity" />
+    <app-activity-feed [entries]="emptyTree" emptyMessage="Nothing has happened here yet." />
+  </div>
+</section>

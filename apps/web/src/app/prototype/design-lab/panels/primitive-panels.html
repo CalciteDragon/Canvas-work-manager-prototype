@@ -1,0 +1,86 @@
+<section class="panel" data-panel="buttons" data-panel-kind="primitive">
+  <h3 class="panel__title">Buttons <span class="panel__badge">not yet a shared component</span></h3>
+  <div class="panel__body panel__body--row">
+    <button type="button" class="lab-button lab-button--primary">Primary</button>
+    <button type="button" class="lab-button">Secondary</button>
+    <button type="button" class="lab-button lab-button--danger">Danger</button>
+    <button type="button" class="lab-button" disabled>Disabled</button>
+  </div>
+</section>
+
+<section class="panel" data-panel="inputs" data-panel-kind="primitive">
+  <h3 class="panel__title">Inputs <span class="panel__badge">not yet a shared component</span></h3>
+  <div class="panel__body panel__body--row">
+    <label class="lab-field">
+      <span>Text</span>
+      <input class="lab-input" type="text" value="Website launch" />
+    </label>
+    <label class="lab-field">
+      <span>Date</span>
+      <input class="lab-input" type="date" value="2026-09-30" />
+    </label>
+    <label class="lab-field">
+      <span>Select</span>
+      <select class="lab-input">
+        <option>Count</option>
+        <option>Weighted</option>
+        <option>Manual</option>
+      </select>
+    </label>
+  </div>
+</section>
+
+<section class="panel" data-panel="cards" data-panel-kind="primitive">
+  <h3 class="panel__title">Cards <span class="panel__badge">not yet a shared component</span></h3>
+  <div class="panel__body panel__body--row">
+    <article class="lab-card">
+      <h4>Surface</h4>
+      <p>A plain card on the surface token.</p>
+    </article>
+    <article class="lab-card lab-card--raised">
+      <h4>Raised</h4>
+      <p>The same card lifted with the small shadow.</p>
+    </article>
+    <article class="lab-card lab-card--sunken">
+      <h4>Sunken</h4>
+      <p>The inset variant the controls row uses.</p>
+    </article>
+  </div>
+</section>
+
+<section class="panel" data-panel="project-cards" data-panel-kind="primitive">
+  <h3 class="panel__title">Project cards <span class="panel__badge">not yet a shared component</span></h3>
+  <p class="panel__note">The shapes to copy: the Active Projects widget row and the Sub-Projects section row.</p>
+  <div class="panel__body panel__body--stack">
+    <div class="lab-project-row">
+      <span aria-hidden="true">🚀</span>
+      <span class="lab-project-row__name">Website launch</span>
+      <span class="lab-project-row__meta">62% · active</span>
+    </div>
+    <div class="lab-project-row">
+      <span aria-hidden="true">📝</span>
+      <span class="lab-project-row__name">Copy review</span>
+      <span class="lab-project-row__meta">Not available · planning</span>
+    </div>
+  </div>
+</section>
+
+<section class="panel" data-panel="menus" data-panel-kind="primitive">
+  <h3 class="panel__title">Menus <span class="panel__badge">not yet a shared component</span></h3>
+  <div class="panel__body panel__body--row">
+    <ul class="lab-menu">
+      <li><button type="button">Rename</button></li>
+      <li><button type="button">Target date</button></li>
+      <li><button type="button" class="lab-menu__danger">Archive project</button></li>
+    </ul>
+  </div>
+</section>
+
+<section class="panel" data-panel="states" data-panel-kind="primitive">
+  <h3 class="panel__title">Empty, loading and error <span class="panel__badge">not yet a shared component</span></h3>
+  <div class="panel__body panel__body--row">
+    <p class="lab-state">No projects yet</p>
+    <p class="lab-state">Loading project…</p>
+    <p class="lab-state lab-state--error" role="alert">The prototype host is not running.</p>
+  </div>
+</section>

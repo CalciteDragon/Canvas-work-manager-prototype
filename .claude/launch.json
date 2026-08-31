@@ -16,6 +16,16 @@
         "dev:web"
       ],
       "port": 4200
+    },
+    {
+      "name": "host",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@cwm/prototype-host",
+        "start"
+      ],
+      "port": 4310
     }
   ]
 }

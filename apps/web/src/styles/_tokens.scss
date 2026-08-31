@@ -7,48 +7,88 @@
 // on specificity (0,2,0 against 0,1,0) rather than on source order — a rule that survives
 // someone reordering this file.
 //
-// Slice 17's Design Lab writes these same properties live (§22), which is the reason they
-// are custom properties rather than Sass variables.
+// **The file is structured around Slice 17's Design Lab knobs (§22).** A theme block holds
+// only *base literals*; every token derived from a knob is expressed **once**, under bare
+// `:root`, so a knob moves both themes. The first draft put the derivations here while the
+// light block re-declared `--color-surface` and the shadows as literals at higher
+// specificity — which made surface contrast and elevation silent no-ops in light.
+//
+// Whole families, never one member each: all six `--space-*`, all three `--radius-*`, all
+// four `--font-size-*`, both `--shadow-*` and **all three `--color-surface*`**. In light
+// theme `--color-surface` and `--color-surface-raised` are both white, so converting only
+// the first would make raised cards stop lifting off the page as the knob moved.
+//
+// Appearance is unchanged at the defaults: `color-mix(in oklab, X 100%, Y)` is `X` round
+// tripped through oklab, exact at 8-bit output, and every `calc()` multiplies by 1.
 
 :root {
   color-scheme: dark;
 
+  // The knob layer. These are structural constants of the layer itself, not design values:
+  // 1 and 100% mean "as the stylesheet wrote it". The Design Lab writes them inline on
+  // `documentElement`, and its Reset *removes* them so these win again.
+  --knob-radius-scale: 1;
+  --knob-space-scale: 1;
+  --knob-font-scale: 1;
+  --knob-elevation: 1;
+  // Deliberately one-directional: `color-mix()` clamps to [0%, 100%] and the default sits
+  // at the top of the range, so the knob can only *reduce* contrast from today's value.
+  // Moving the default into the middle would mean shipping a different-looking application.
+  --knob-surface-contrast: 100%;
+
+  // ── Base literals. The light block overrides these; the derivations below follow. ──
   --color-background: #14161a;
-  --color-surface: #1b1e24;
-  --color-surface-raised: #23272f;
-  --color-surface-sunken: #101216;
+  --surface-base: #1b1e24;
+  --surface-raised-base: #23272f;
+  --surface-sunken-base: #101216;
+  --shadow-color-sm: rgb(0 0 0 / 40%);
+  --shadow-color-md: rgb(0 0 0 / 45%);
+
   --color-text: #eef1f6;
   --color-text-muted: #9aa3b2;
   --color-border: #2c313a;
   --color-accent: #6ea8fe;
+  // `--color-accent-contrast` and `--color-accent-surface` stay per-theme literals and do
+  // **not** track the accent knob. Contrast is near-black in dark and pure white in light,
+  // and no single `color-mix()` against the accent produces both; the tinted surfaces are
+  // mixed at visibly different strengths for the same reason. So the accent knob moves
+  // `--color-accent` alone — dragged far enough it *can* produce poor contrast on
+  // accent-filled controls. Recorded in docs/decisions/ as the first follow-up candidate.
   --color-accent-contrast: #0b1220;
+  --color-accent-surface: #202f48;
   --color-danger: #ff8a8a;
   --color-danger-surface: #3a2227;
   --color-success: #79d49a;
   --color-success-surface: #1d3427;
   --color-warning: #f3bf66;
   --color-warning-surface: #3a3020;
-  --color-accent-surface: #202f48;
 
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
+  // ── Derived once, for both themes. ──
+  --color-surface: color-mix(in oklab, var(--surface-base) var(--knob-surface-contrast), var(--color-background));
+  --color-surface-raised: color-mix(in oklab, var(--surface-raised-base) var(--knob-surface-contrast), var(--color-background));
+  --color-surface-sunken: color-mix(in oklab, var(--surface-sunken-base) var(--knob-surface-contrast), var(--color-background));
 
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.875rem;
+  --space-1: calc(0.25rem * var(--knob-space-scale));
+  --space-2: calc(0.5rem * var(--knob-space-scale));
+  --space-3: calc(0.75rem * var(--knob-space-scale));
+  --space-4: calc(1rem * var(--knob-space-scale));
+  --space-5: calc(1.5rem * var(--knob-space-scale));
+  --space-6: calc(2rem * var(--knob-space-scale));
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
-  --shadow-md: 0 8px 24px rgb(0 0 0 / 45%);
+  --radius-sm: calc(0.25rem * var(--knob-radius-scale));
+  --radius-md: calc(0.5rem * var(--knob-radius-scale));
+  --radius-lg: calc(0.875rem * var(--knob-radius-scale));
+
+  // A box-shadow shorthand cannot be multiplied from outside, so the lengths carry the
+  // knob individually and the colour arrives as its own token.
+  --shadow-sm: 0 calc(1px * var(--knob-elevation)) calc(2px * var(--knob-elevation)) var(--shadow-color-sm);
+  --shadow-md: 0 calc(8px * var(--knob-elevation)) calc(24px * var(--knob-elevation)) var(--shadow-color-md);
 
   --font-body: system-ui, -apple-system, 'Segoe UI', roboto, sans-serif;
-  --font-size-sm: 0.8125rem;
-  --font-size-md: 0.9375rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.5rem;
+  --font-size-sm: calc(0.8125rem * var(--knob-font-scale));
+  --font-size-md: calc(0.9375rem * var(--knob-font-scale));
+  --font-size-lg: calc(1.125rem * var(--knob-font-scale));
+  --font-size-xl: calc(1.5rem * var(--knob-font-scale));
   --letter-spacing-wide: 0.04em;
 
   // §22 names sidebar width as a Design Lab control, so it is a token from the start.
@@ -63,26 +103,28 @@
   --border-focus: 2px;
 }
 
+// Base literals only. Anything derived above must **not** reappear here, or the knob that
+// derives it becomes a no-op in this theme.
 :root[data-theme='light'] {
   color-scheme: light;
 
   --color-background: #f6f7f9;
-  --color-surface: #ffffff;
-  --color-surface-raised: #ffffff;
-  --color-surface-sunken: #eceef2;
+  --surface-base: #ffffff;
+  --surface-raised-base: #ffffff;
+  --surface-sunken-base: #eceef2;
+  --shadow-color-sm: rgb(16 24 40 / 8%);
+  --shadow-color-md: rgb(16 24 40 / 12%);
+
   --color-text: #1a1d23;
   --color-text-muted: #626b7a;
   --color-border: #d9dde4;
   --color-accent: #2563eb;
   --color-accent-contrast: #ffffff;
+  --color-accent-surface: #eff4ff;
   --color-danger: #b42318;
   --color-danger-surface: #fef3f2;
   --color-success: #067647;
   --color-success-surface: #ecfdf3;
   --color-warning: #93370d;
   --color-warning-surface: #fffaeb;
-  --color-accent-surface: #eff4ff;
-
-  --shadow-sm: 0 1px 2px rgb(16 24 40 / 8%);
-  --shadow-md: 0 8px 24px rgb(16 24 40 / 12%);
 }

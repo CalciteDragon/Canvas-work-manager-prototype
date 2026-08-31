@@ -1,0 +1,132 @@
+// Representative markup, tokens only — the same classes of value the features use, so a
+// knob moving these means the knob moves the real thing too.
+
+.lab-button {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.lab-button--primary {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.lab-button--danger {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.lab-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.lab-field {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.lab-input {
+  padding: var(--space-2);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.lab-card {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.lab-card h4,
+.lab-card p {
+  margin: 0;
+}
+
+.lab-card p {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.lab-card--raised {
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.lab-card--sunken {
+  background: var(--color-surface-sunken);
+}
+
+.lab-project-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.lab-project-row__name {
+  flex: 1 1 auto;
+}
+
+.lab-project-row__meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.lab-menu {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-2);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-md);
+  list-style: none;
+}
+
+.lab-menu button {
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.lab-menu__danger {
+  color: var(--color-danger);
+}
+
+.lab-state {
+  margin: 0;
+  padding: var(--space-3);
+  border: var(--border-hairline) dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+}
+
+.lab-state--error {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}

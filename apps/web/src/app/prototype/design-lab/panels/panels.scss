@@ -1,0 +1,59 @@
+// Shared by both panel components. Small on purpose: `angular.json` errors a component
+// stylesheet at 8 kB, and every panel's real chrome belongs to the component it shows.
+
+:host {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.panel {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.panel__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+// The distinction that is the useful output: a primitive panel everybody keeps re-styling
+// is evidence for extracting it, and §78 is where that evidence goes.
+.panel__badge {
+  padding: 0 var(--space-2);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: normal;
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+.panel__note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.panel__body--stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.panel__body--row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.panel__body--row > * {
+  flex: 0 1 var(--layout-sidebar-width);
+}
