@@ -296,4 +296,51 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
     trailing.resolve([project('project-trailing', 'Trailing')]); await settleLive();
     expect(store.projects()[0]?.name).toBe('Trailing'); expect(store.identity()?.user.name).toBe('Demo User');
   });
+
+  // §81's create. The sidebar's only caller of `projects.create` before this slice was the
+  // sub-projects section, which hard-codes `parentProjectId` — so the assertion that matters
+  // is the *absence* of one.
+  it('creates a top-level project in the persona’s own workspace', async () => {
+    const { store, gateway } = storeWith({ projects: [] });
+    await store.load();
+
+    const created = await store.createProject('Prototype review');
+
+    expect(created).toBe('project-created');
+    expect(gateway.argumentTo('projects.create')).toEqual({
+      workspaceId: 'workspace-demo',
+      name: 'Prototype review',
+    });
+    expect(store.createError()).toBeNull();
+  });
+
+  it('reports a failed creation on its own signal, leaving the tree loaded', async () => {
+    const { store } = storeWith({
+      projects: [project('project-1', 'Personal workspace')],
+      failOn: { 'projects.create': new GatewayError('unreachable', 0, 'the prototype host is not running') },
+    });
+    await store.load();
+
+    const created = await store.createProject('Prototype review');
+
+    expect(created).toBeNull();
+    expect(store.createError()).toContain('not running');
+    // The regression this signal exists for: the tree must survive a failed write.
+    expect(store.projects()).toHaveLength(1);
+    expect(store.error()).toBeNull();
+  });
+
+  it('refuses to create when identity never resolved', async () => {
+    const { store, gateway } = storeWith({
+      identity: new GatewayError('unauthorized', 401, 'no persona'),
+      projects: [project('project-1', 'Personal workspace')],
+    });
+    await store.load();
+
+    const created = await store.createProject('Prototype review');
+
+    expect(created).toBeNull();
+    expect(store.createError()).toContain('nowhere to put');
+    expect(gateway.calls.some(({ method }) => method === 'projects.create')).toBe(false);
+  });
 });

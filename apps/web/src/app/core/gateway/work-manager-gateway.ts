@@ -45,9 +45,13 @@ export interface TaskGateway {
 
 /**
  * §9 gives `ProjectGateway` no shape, so it grows with the code that calls it: the shell
- * lists projects and the project page reads one. `create`/`update`/`archive`
- * arrive with the UI that writes — a method the UI cannot exercise is a claim no test
- * backs.
+ * lists projects and creates one, and the project page reads, renames, re-statuses,
+ * re-dates and archives one.
+ *
+ * There is deliberately **no `archive`**. `PATCH /api/projects/:id` with
+ * `status: 'archived'` already runs the domain's whole archive path — the active-children
+ * guard and the `project.archived` activity row included — so a second method would be a
+ * second way to say the same thing.
  */
 export interface ProjectGateway {
   list(query: ProjectQuery): Promise<Project[]>;

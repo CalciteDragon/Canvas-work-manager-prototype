@@ -5,9 +5,11 @@ import {
   type Project,
   type ProgressResult,
   type ProjectSection,
+  type ProjectStatus,
   type SectionColumnSpan,
   type SectionConfig,
   type SectionId,
+  type UpdateProjectInput,
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
@@ -47,6 +49,13 @@ export class ProjectPageStore {
   private fullRecoveryQueued = false;
   private readonly errorState = signal<string | null>(null);
   private readonly sectionErrorState = signal<string | null>(null);
+  /**
+   * A failed *project* write. Distinct from `errorState`, which renders instead of the whole
+   * page — a failed rename must never blank the project you are standing on — and from
+   * `sectionErrorState`, which every successful quiet re-read clears, so a message parked
+   * there can vanish milliseconds later.
+   */
+  private readonly writeErrorState = signal<string | null>(null);
   private readonly editModeState = signal(false);
   private readonly canvasRevisionState = signal(0);
   private readonly progressState = signal<ProgressResult | null>(null);
@@ -55,10 +64,14 @@ export class ProjectPageStore {
   private progressRefresh: Promise<void> | null = null;
   private progressRefreshQueued = false;
   /**
-   * Section writes in flight. §62's frames arrive *before* the tab's own mutation response
-   * (the host flushes at commit), and the reorder in `moveSection` paints an optimistic
-   * preview — so a live re-read landing in that window would replace the preview with the
-   * pre-move order for a frame.
+   * Writes in flight — section *and* project. §62's frames arrive *before* the tab's own
+   * mutation response (the host flushes at commit), and both `moveSection` and the project
+   * writes paint optimistically — so a live re-read landing in that window would replace the
+   * preview with the pre-write value for a frame. Without this an optimistic rename is
+   * overwritten by the very frame its own write produces.
+   *
+   * One counter rather than two: all three check sites below ask the same question, and a
+   * second counter would mean consulting both at every one of them.
    *
    * Deferred, **not** dropped. Only three of the section writes reconcile the canvas
    * afterwards (`moveSection`, `duplicateSection`, `removeSection`); `addSection` and
@@ -66,7 +79,7 @@ export class ProjectPageStore {
    * record. So an agent adding a section, or renaming the project, while the user happens to
    * be collapsing one would otherwise be lost until a reload.
    */
-  private pendingSectionWrites = 0;
+  private pendingWrites = 0;
   private projectRefresh: Promise<void> | null = null;
   private projectRefreshQueued = false;
 
@@ -75,6 +88,7 @@ export class ProjectPageStore {
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly sectionError = this.sectionErrorState.asReadonly();
+  readonly writeError = this.writeErrorState.asReadonly();
   readonly editMode = this.editModeState.asReadonly();
   readonly canvasRevision = this.canvasRevisionState.asReadonly();
   readonly progressResult = this.progressState.asReadonly();
@@ -134,7 +148,7 @@ export class ProjectPageStore {
     void this.tasks.refresh();
     void this.refreshProgress();
     if (!event.type.startsWith('project.')) return;
-    if (this.pendingSectionWrites > 0) {
+    if (this.pendingWrites > 0) {
       this.projectRefreshQueued = true;
       return;
     }
@@ -174,7 +188,7 @@ export class ProjectPageStore {
    * better answer than an error the user did not cause.
    */
   private refreshProject(): Promise<void> {
-    if (this.pendingSectionWrites > 0) {
+    if (this.pendingWrites > 0) {
       this.projectRefreshQueued = true;
       return Promise.resolve();
     }
@@ -204,7 +218,7 @@ export class ProjectPageStore {
         }
       } while (
         this.projectRefreshQueued &&
-        this.pendingSectionWrites === 0 &&
+        this.pendingWrites === 0 &&
         generation === this.loadGeneration
       );
     }).finally(() => {
@@ -407,6 +421,80 @@ export class ProjectPageStore {
     });
   }
 
+  /** §26's Rename, optimistic per §63. */
+  rename(name: string): Promise<boolean> {
+    return this.writeProject({ name }, (project) => ({ ...project, name }));
+  }
+
+  /**
+   * §26's Status. `archived` is deliberately not offered here: `ProjectService.update` runs
+   * the whole archive path — active-children guard, `project.archived` activity row — on any
+   * transition into it, so a status list built naively from the enum would archive a project
+   * with no confirmation and leave the user on a page that had just left the sidebar.
+   */
+  setStatus(status: Exclude<ProjectStatus, 'archived'>): Promise<boolean> {
+    return this.writeProject({ status }, (project) => ({ ...project, status }));
+  }
+
+  /** `null` clears it, which is what puts the header's "No target date" branch in reach. */
+  setTargetDate(targetDate: string | null): Promise<boolean> {
+    return this.writeProject({ targetDate }, (project) => {
+      const next = { ...project };
+      if (targetDate === null) delete next.targetDate;
+      else next.targetDate = targetDate;
+      return next;
+    });
+  }
+
+  /**
+   * §81's archive. `PATCH` with `status: 'archived'` *is* the domain's archive path, so
+   * there is no gateway method to add. Awaited rather than optimistic, because the page it
+   * runs from disappears when it succeeds — and it returns an outcome instead of navigating,
+   * because §19's stores decide and pages navigate.
+   */
+  archive(): Promise<boolean> {
+    return this.writeProject({ status: 'archived' }, null);
+  }
+
+  /**
+   * One optimistic project write. `paint` is `null` for the write whose result the user
+   * never sees on this page, which is archive alone.
+   */
+  private writeProject(
+    input: UpdateProjectInput,
+    paint: ((project: Project) => Project) | null,
+  ): Promise<boolean> {
+    const before = this.projectState();
+    if (before === null) return Promise.resolve(false);
+    const projectId = before.id;
+    const generation = this.loadGeneration;
+    // The store's standing staleness idiom: a write that lands after the route moved on
+    // writes nothing.
+    const current = () =>
+      generation === this.loadGeneration && this.projectState()?.id === projectId;
+
+    this.writeErrorState.set(null);
+    if (paint !== null) this.projectState.set(paint(before));
+
+    return this.track(() =>
+      this.writingProject(async () => {
+        try {
+          const updated = await this.gateway.projects.update(projectId, input);
+          // The server's record, not the optimistic paint: the host may have normalised
+          // something, and `updatedAt` moved whatever else did.
+          if (current() && paint !== null) this.projectState.set(updated);
+          return true;
+        } catch (error) {
+          if (current()) {
+            if (paint !== null) this.projectState.set(before);
+            this.writeErrorState.set(messageOf(error));
+          }
+          return false;
+        }
+      }),
+    );
+  }
+
   private updateSection(
     id: SectionId,
     input: Parameters<typeof this.gateway.sections.update>[1],
@@ -480,10 +568,19 @@ export class ProjectPageStore {
 
   /** Holds off §62's canvas re-read for the length of an optimistic section write. */
   private writingSections<T>(operation: () => Promise<T>): Promise<T> {
-    this.pendingSectionWrites += 1;
+    return this.whileWriting(operation);
+  }
+
+  /** The same hold-off, for an optimistic write to the project record itself. */
+  private writingProject<T>(operation: () => Promise<T>): Promise<T> {
+    return this.whileWriting(operation);
+  }
+
+  private whileWriting<T>(operation: () => Promise<T>): Promise<T> {
+    this.pendingWrites += 1;
     return operation().finally(() => {
-      this.pendingSectionWrites -= 1;
-      if (this.pendingSectionWrites === 0 && this.projectRefreshQueued) {
+      this.pendingWrites -= 1;
+      if (this.pendingWrites === 0 && this.projectRefreshQueued) {
         this.projectRefreshQueued = false;
         void this.refreshProject();
       }

@@ -64,18 +64,35 @@
             Quick add
           </button>
         }
-        <!-- §26 names a "More" control. It opens nothing yet: project edit and archive
-             arrive with the slice that builds them, and a menu of disabled items is worse
-             than a control that is honestly inert. -->
+        <!-- §26's "More": rename, status, target date and archive (§81). -->
         <button
           data-project-more
           type="button"
-          disabled
-          aria-label="More project actions (not built yet)"
+          class="project-header__more"
+          aria-label="More project actions"
+          [attr.aria-expanded]="moreOpen()"
+          (click)="toggleMore()"
         >
           ⋯
         </button>
       </div>
+
+      @if (moreOpen()) {
+        <app-project-more-menu
+          class="project-header__more-menu"
+          [project]="project"
+          (renameRequested)="rename($event)"
+          (statusRequested)="setStatus($event)"
+          (targetDateRequested)="setTargetDate($event)"
+          (archiveRequested)="confirmArchive()"
+        />
+      }
+
+      <!-- A failed project write, in the header — never the full-page "Project unavailable"
+           state, which would blank the page the user is standing on. -->
+      @if (store.writeError(); as writeError) {
+        <p data-project-write-error class="project-header__error" role="alert">{{ writeError }}</p>
+      }
 
       @if (addOpen()) {
         <ul data-add-section-menu class="project-header__add-menu">

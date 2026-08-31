@@ -1,6 +1,12 @@
 <div class="shell">
   <app-top-bar class="top" [identity]="store.identity()" />
-  <app-sidebar class="side" [projectTree]="store.projectTree()" [error]="store.error()" />
+  <app-sidebar
+    class="side"
+    [projectTree]="store.projectTree()"
+    [error]="store.error()"
+    [createError]="store.createError()"
+    (createRequested)="createProject($event)"
+  />
   <main class="workspace">
     <router-outlet />
   </main>

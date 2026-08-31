@@ -85,6 +85,7 @@ const setup = (
     sections?: ProjectSection[];
     tasks?: Task[];
     projectGet?: WorkManagerGateway['projects']['get'];
+    projectUpdate?: WorkManagerGateway['projects']['update'];
     sectionOverrides?: Partial<WorkManagerGateway['sections']>;
     taskList?: WorkManagerGateway['tasks']['list'];
   } = {},
@@ -105,7 +106,20 @@ const setup = (
       list: vi.fn(async () => [project()]),
       get: options.projectGet ?? vi.fn(async () => project()),
       create: vi.fn(),
-      update: vi.fn(async (_id, input) => ({ ...project(), ...input }) as Project),
+      // The host's `null` clears / `undefined` leaves alone rule, so a spec clearing a
+      // target date sees what the real adapter answers rather than a `null` the contract
+      // forbids.
+      update:
+        options.projectUpdate ??
+        vi.fn(async (_id, input) => {
+          const next: Record<string, unknown> = { ...project(), updatedAt: '2026-08-28T09:00:00.000Z' };
+          for (const [key, value] of Object.entries(input)) {
+            if (value === undefined) continue;
+            if (value === null) delete next[key];
+            else next[key] = value;
+          }
+          return next as Project;
+        }),
     },
     sections: {
       list: vi.fn(async () => [...sections]),
@@ -815,5 +829,119 @@ describe('ProjectPageStore and live updates (§62)', () => {
     TestBed.resetTestingModule();
 
     expect(live.listenerCount).toBe(0);
+  });
+});
+
+describe('ProjectPageStore project writes (§26, §63, §81)', () => {
+  it('renames optimistically and reverts on failure', async () => {
+    const update = deferred<Project>();
+    const { store } = setup({ projectUpdate: vi.fn(async () => update.promise) });
+    await store.load(PROJECT);
+
+    const renaming = store.rename('Website relaunch');
+    // Painted before the write resolved — that is what §63 asks for.
+    expect(store.project()?.name).toBe('Website relaunch');
+
+    update.reject(new GatewayError('unreachable', 0, 'the prototype host is not running'));
+    expect(await renaming).toBe(false);
+    expect(store.project()?.name).toBe('Website launch');
+    expect(store.writeError()).toContain('not running');
+    // Never on the signal that renders instead of the page.
+    expect(store.error()).toBeNull();
+  });
+
+  // The defect this guard exists for: `onLiveEvent` routes any `project.*` event naming this
+  // project into `refreshProject()`, which replaces `projectState` wholesale — so without it
+  // an optimistic rename is overwritten by the very frame its own write produces.
+  it('holds off the live re-read while a project write is in flight', async () => {
+    const update = deferred<Project>();
+    const { store, gateway, live } = setup({ projectUpdate: vi.fn(async () => update.promise) });
+    await store.load(PROJECT);
+    const projectReads = calls(gateway.projects.get);
+
+    const renaming = store.rename('Website relaunch');
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await settleLive();
+
+    expect(store.project()?.name).toBe('Website relaunch');
+    expect(calls(gateway.projects.get)).toBe(projectReads);
+
+    update.resolve(project({ name: 'Website relaunch' }));
+    await renaming;
+  });
+
+  it('re-asserts the server’s record when the write resolves', async () => {
+    const { store } = setup({
+      projectUpdate: vi.fn(async () => project({ name: 'Website relaunch', updatedAt: '2026-08-28T09:00:00.000Z' })),
+    });
+    await store.load(PROJECT);
+
+    expect(await store.rename('Website relaunch')).toBe(true);
+
+    expect(store.project()?.name).toBe('Website relaunch');
+    expect(store.project()?.updatedAt).toBe('2026-08-28T09:00:00.000Z');
+  });
+
+  it('returns success without navigating', async () => {
+    const { store, gateway } = setup();
+    await store.load(PROJECT);
+
+    expect(await store.archive()).toBe(true);
+
+    expect(gateway.projects.update).toHaveBeenCalledWith(PROJECT, { status: 'archived' });
+    // The store owns no `Router` — proven by there being none to inject.
+    expect(Object.getOwnPropertyNames(store)).not.toContain('router');
+  });
+
+  // §53's lesson: a named reason beats "forbidden".
+  it('surfaces the domain’s refusal when a project still has active children', async () => {
+    const { store } = setup({
+      projectUpdate: vi.fn(async () => {
+        throw new GatewayError('conflict', 409, 'archive or complete the 2 active sub-projects first');
+      }),
+    });
+    await store.load(PROJECT);
+
+    expect(await store.archive()).toBe(false);
+
+    expect(store.writeError()).toBe('archive or complete the 2 active sub-projects first');
+    expect(store.error()).toBeNull();
+    expect(store.project()?.status).toBe('active');
+  });
+
+  it('clears a target date', async () => {
+    const { store, gateway } = setup();
+    await store.load(PROJECT);
+    expect(store.project()?.targetDate).toBe('2026-09-30');
+
+    expect(await store.setTargetDate(null)).toBe(true);
+
+    expect(gateway.projects.update).toHaveBeenCalledWith(PROJECT, { targetDate: null });
+    expect(store.project()?.targetDate).toBeUndefined();
+  });
+
+  it('sets a status without offering the archived one', async () => {
+    const { store, gateway } = setup();
+    await store.load(PROJECT);
+
+    expect(await store.setStatus('completed')).toBe(true);
+
+    expect(gateway.projects.update).toHaveBeenCalledWith(PROJECT, { status: 'completed' });
+    expect(store.project()?.status).toBe('completed');
+  });
+
+  it('ignores a write that resolved after the route moved on', async () => {
+    const update = deferred<Project>();
+    const { store } = setup({ projectUpdate: vi.fn(async () => update.promise) });
+    await store.load(PROJECT);
+
+    const renaming = store.rename('Website relaunch');
+    // A second load is a new generation: whatever the first write answers is stale.
+    await store.load(PROJECT);
+
+    update.resolve(project({ name: 'Answered too late' }));
+    await renaming;
+
+    expect(store.project()?.name).toBe('Website launch');
   });
 });

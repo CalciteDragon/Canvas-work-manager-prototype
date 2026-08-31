@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { ThemeService } from '../theme/theme-service';
 import { ShellStore } from './shell-store';
 import { Sidebar } from './sidebar/sidebar';
@@ -23,6 +23,16 @@ import { TopBar } from './top-bar/top-bar';
 export class AppShell {
   protected readonly store = inject(ShellStore);
   private readonly theme = inject(ThemeService);
+  private readonly router = inject(Router);
+
+  /**
+   * §19: the store decided, the page navigates. A failure has already been recorded on
+   * `createError`, which the sidebar renders beside its form, so there is nothing to do here.
+   */
+  protected async createProject(name: string): Promise<void> {
+    const projectId = await this.store.createProject(name);
+    if (projectId !== null) await this.router.navigate(['/projects', projectId]);
+  }
 
   constructor() {
     // The one place the persona's theme preference reaches the DOM. An effect rather than

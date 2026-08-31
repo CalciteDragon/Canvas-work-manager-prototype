@@ -6,18 +6,53 @@
   </ul>
 
   <div class="group">
-    <!-- A button, not a link: §68 defines /projects/:projectId and no /projects, so this
-         opens and closes the group rather than navigating nowhere. -->
-    <button
-      type="button"
-      class="section-header"
-      data-nav-item
-      data-projects-toggle
-      [attr.aria-expanded]="projectsExpanded()"
-      (click)="toggleProjects()"
-    >
-      Projects
-    </button>
+    <!-- The group header is itself a `<button>`, so the New project control cannot nest
+         inside it: the two are siblings in a flex row. New project sits outside the
+         expanded region so it is reachable with the group collapsed. -->
+    <div class="group__header-row">
+      <!-- A button, not a link: §68 defines /projects/:projectId and no /projects, so this
+           opens and closes the group rather than navigating nowhere. -->
+      <button
+        type="button"
+        class="section-header"
+        data-nav-item
+        data-projects-toggle
+        [attr.aria-expanded]="projectsExpanded()"
+        (click)="toggleProjects()"
+      >
+        Projects
+      </button>
+      <button
+        type="button"
+        class="group__new"
+        data-new-project
+        aria-label="New project"
+        [attr.aria-expanded]="createOpen()"
+        (click)="toggleCreate()"
+      >
+        +
+      </button>
+    </div>
+
+    @if (createOpen()) {
+      <form class="create-project" data-create-project-form (submit)="submitCreate($event, newName)">
+        <label class="create-project__label" for="new-project-name">Project name</label>
+        <input
+          id="new-project-name"
+          #newName
+          data-create-project-name
+          class="create-project__name"
+          type="text"
+          autocomplete="off"
+        />
+        <button type="submit" data-create-project-submit class="create-project__submit">Create</button>
+      </form>
+    }
+
+    <!-- Beside the form, never in place of the tree. -->
+    @if (createError(); as createError) {
+      <p class="notice" data-create-error role="alert">{{ createError }}</p>
+    }
 
     @if (projectsExpanded()) {
       @if (error()) {

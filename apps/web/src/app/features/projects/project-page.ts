@@ -8,9 +8,17 @@ import {
   input,
   signal,
 } from '@angular/core';
-import type { ProjectId, ProjectLayoutMode, SectionColumnSpan, SectionConfig, SectionId } from '@cwm/contracts';
+import { Router } from '@angular/router';
+import type {
+  ProjectId,
+  ProjectLayoutMode,
+  SectionColumnSpan,
+  SectionConfig,
+  SectionId,
+} from '@cwm/contracts';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { TaskListStore } from '../tasks/task-list-store';
+import { ProjectMoreMenu, type SettableProjectStatus } from './project-more-menu';
 import { ProjectPageStore } from './project-page-store';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
 import { ProgressStore } from './sections/progress/progress-store';
@@ -28,10 +36,13 @@ import { SECTION_REGISTRY, definitionFor } from './sections/registry';
 @Component({
   selector: 'app-project-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDrag, CdkDragHandle, CdkDropList, ProjectSectionFrame],
+  imports: [CdkDrag, CdkDragHandle, CdkDropList, ProjectMoreMenu, ProjectSectionFrame],
   providers: [TaskListStore, ProgressStore, ProjectPageStore],
   templateUrl: './project-page.html',
   styleUrl: './project-page.scss',
+  // Both popovers close on Escape from anywhere on the page, which is what a menu opened
+  // with the pointer needs — the keystroke rarely lands inside the menu itself.
+  host: { '(document:keydown.escape)': 'closeMenus()' },
 })
 export class ProjectPage {
   /** Bound from the route by `withComponentInputBinding()` (§68). */
@@ -40,9 +51,11 @@ export class ProjectPage {
   readonly store = inject(ProjectPageStore);
   readonly registry = SECTION_REGISTRY;
   readonly addOpen = signal(false);
+  readonly moreOpen = signal(false);
   readonly canvasMounted = signal(true);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly settings = inject(PrototypeSettings);
+  private readonly router = inject(Router);
 
   /**
    * §28's mode, gated by §47's `gridProjectLayout`. The project keeps whatever it has
@@ -60,6 +73,7 @@ export class ProjectPage {
     effect(() => {
       const id = this.projectId();
       this.addOpen.set(false);
+      this.closeMore();
       void this.store.load(id);
     });
   }
@@ -68,8 +82,53 @@ export class ProjectPage {
     return definitionFor(type);
   }
 
+  // Quick add and More render popovers into the same header row, so opening either closes
+  // the other rather than letting the two overlap.
   toggleAdd(): void {
-    this.addOpen.update((open) => !open);
+    const open = !this.addOpen();
+    this.addOpen.set(open);
+    if (open) this.closeMore();
+  }
+
+  toggleMore(): void {
+    const open = !this.moreOpen();
+    this.moreOpen.set(open);
+    if (open) this.addOpen.set(false);
+  }
+
+  closeMenus(): void {
+    this.addOpen.set(false);
+    this.closeMore();
+  }
+
+  private closeMore(): void {
+    this.moreOpen.set(false);
+  }
+
+  rename(name: string): void {
+    this.closeMore();
+    void this.store.rename(name);
+  }
+
+  setStatus(status: SettableProjectStatus): void {
+    this.closeMore();
+    void this.store.setStatus(status);
+  }
+
+  setTargetDate(targetDate: string | null): void {
+    this.closeMore();
+    void this.store.setTargetDate(targetDate);
+  }
+
+  /**
+   * §19: the store decided, the page navigates. A refusal leaves the user where they are,
+   * with the domain's own reason in the header.
+   */
+  async confirmArchive(): Promise<void> {
+    const archived = await this.store.archive();
+    if (!archived) return;
+    this.closeMore();
+    await this.router.navigate(['/app']);
   }
 
   toggleEditMode(): void {

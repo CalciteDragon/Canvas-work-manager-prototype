@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { CdkDrag, CdkDropList } from '@angular/cdk/drag-drop';
 import { By } from '@angular/platform-browser';
+import { Router, provideRouter } from '@angular/router';
 import {
   ProjectSchema,
   ProjectSectionSchema,
@@ -97,7 +98,7 @@ const render = async (
   });
 
   TestBed.configureTestingModule({
-    providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
+    providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }, provideRouter([])],
   });
   const fixture = TestBed.createComponent(ProjectPage);
   fixture.componentRef.setInput('projectId', 'project-a');
@@ -438,5 +439,129 @@ describe('ProjectPage — the gridProjectLayout flag (§47)', () => {
     expect(canvas?.classList).toContain('section-canvas--flow');
     expect(canvas?.classList).not.toContain('section-canvas--grid');
     expect(query(fixture, '[data-layout-name]')?.textContent).toContain('Flow layout');
+  });
+});
+
+describe('ProjectPage — §26’s More menu (§81)', () => {
+  const openMore = async (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
+    query(fixture, '[data-project-more]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  };
+
+  it('opens the More menu, closes it on Escape, and closes Quick add when it opens', async () => {
+    const { fixture } = await render();
+    expect(query(fixture, '[data-project-more]')?.hasAttribute('disabled')).toBe(false);
+
+    enterEditMode(fixture);
+    query(fixture, '[data-project-quick-add]')!.click();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-add-section-menu]')).not.toBeNull();
+
+    await openMore(fixture);
+    // The two popovers render into the same row, so they must never overlap.
+    expect(query(fixture, '[data-project-more-menu]')).not.toBeNull();
+    expect(query(fixture, '[data-add-section-menu]')).toBeNull();
+    expect(queryAll(fixture, '[data-project-status-option]').map((button) => button.getAttribute('data-status'))).toEqual([
+      'planning',
+      'active',
+      'on_hold',
+      'completed',
+    ]);
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-project-more-menu]')).toBeNull();
+  });
+
+  // The template-layer companion to the store's revert test: the store spec cannot see that
+  // `writeError` was accidentally routed to `errorState`, which would blank the page.
+  it('keeps the header rendered while showing a failed rename', async () => {
+    const { fixture } = await render({
+      failOn: { 'projects.update': new GatewayError('unreachable', 0, 'the prototype host is not running') },
+    });
+    await openMore(fixture);
+
+    const name = query(fixture, '[data-project-rename-input]') as HTMLInputElement;
+    name.value = 'Website relaunch';
+    query(fixture, '[data-project-rename-submit]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-project-write-error]')?.textContent).toContain('not running');
+    expect(query(fixture, '[data-project-name]')?.textContent).toContain('Website launch');
+    expect(query(fixture, '[data-project-error]')).toBeNull();
+  });
+
+  it('asks for confirmation before archiving', async () => {
+    const { fixture } = await render();
+    await openMore(fixture);
+
+    expect(query(fixture, '[data-project-archive-confirm]')).toBeNull();
+    query(fixture, '[data-project-archive]')!.click();
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-project-archive-confirm]')).not.toBeNull();
+  });
+
+  it('writes nothing when the confirmation is cancelled', async () => {
+    const { fixture, gateway } = await render();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    await openMore(fixture);
+
+    query(fixture, '[data-project-archive]')!.click();
+    fixture.detectChanges();
+    query(fixture, '[data-project-archive-cancel]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(gateway.calls.some(({ method }) => method === 'projects.update')).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(query(fixture, '[data-project-name]')).not.toBeNull();
+  });
+
+  it('leaves the project page only after the archive resolves', async () => {
+    const { fixture, gateway } = await render();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    await openMore(fixture);
+
+    query(fixture, '[data-project-archive]')!.click();
+    fixture.detectChanges();
+    query(fixture, '[data-project-archive-confirm-yes]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(gateway.argumentTo('projects.update')).toEqual({ id: 'project-a', input: { status: 'archived' } });
+    expect(navigate).toHaveBeenCalledWith(['/app']);
+  });
+
+  it('stays put and names the reason when the domain refuses an archive', async () => {
+    const { fixture } = await render({
+      failOn: { 'projects.update': new GatewayError('conflict', 409, 'archive or complete the 2 active sub-projects first') },
+    });
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    await openMore(fixture);
+
+    query(fixture, '[data-project-archive]')!.click();
+    fixture.detectChanges();
+    query(fixture, '[data-project-archive-confirm-yes]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(query(fixture, '[data-project-write-error]')?.textContent).toContain('active sub-projects');
+  });
+
+  it('clears a target date back to the header’s "No target date" branch', async () => {
+    const { fixture, gateway } = await render();
+    await openMore(fixture);
+
+    query(fixture, '[data-project-target-date-clear]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(gateway.argumentTo('projects.update')).toEqual({ id: 'project-a', input: { targetDate: null } });
+    expect(query(fixture, '[data-project-target-date]')?.textContent).toContain('No target date');
   });
 });

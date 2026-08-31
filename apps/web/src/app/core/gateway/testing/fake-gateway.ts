@@ -64,9 +64,15 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     list: (query) => this.answer('projects.list', query, this.options.projects ?? []),
     get: (id: ProjectId) =>
       this.answer('projects.get', id, this.find(this.options.projects, id, 'project')),
+    // A sub-project echoes its parent's record; a **top-level** project has no record to
+    // echo, so it gets the shape the host would build from the contract's own defaults.
+    // Without this branch a create with no parent threw out of `find` before `answer` ever
+    // recorded the call, which is the one thing §81's sidebar create needs to assert.
     create: (input) =>
       this.answer('projects.create', input, ProjectSchema.parse({
-        ...this.find(this.options.projects, input.parentProjectId ?? '', 'project'),
+        ...(input.parentProjectId === undefined
+          ? { status: 'planning', projectLayoutMode: 'flow', createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT }
+          : this.find(this.options.projects, input.parentProjectId, 'project')),
         ...input,
         id: 'project-created' as ProjectId,
         targetDate: input.targetDate ?? undefined,

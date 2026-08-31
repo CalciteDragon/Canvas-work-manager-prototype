@@ -1,0 +1,66 @@
+<div data-project-more-menu class="more-menu">
+  <form class="more-menu__row" data-project-rename-form (submit)="submitRename($event, renameName)">
+    <label for="project-rename">Name</label>
+    <input
+      id="project-rename"
+      #renameName
+      data-project-rename-input
+      type="text"
+      autocomplete="off"
+      [value]="project().name"
+    />
+    <button type="submit" data-project-rename-submit>Rename</button>
+  </form>
+
+  <div class="more-menu__row" role="group" aria-label="Status">
+    <span class="more-menu__label">Status</span>
+    @for (status of statuses; track status) {
+      <button
+        type="button"
+        data-project-status-option
+        [attr.data-status]="status"
+        [attr.aria-pressed]="project().status === status"
+        (click)="statusRequested.emit(status)"
+      >
+        {{ status.replace('_', ' ') }}
+      </button>
+    }
+  </div>
+
+  <form
+    class="more-menu__row"
+    data-project-target-date-form
+    (submit)="submitTargetDate($event, targetDateInput)"
+  >
+    <label for="project-target-date">Target date</label>
+    <input
+      id="project-target-date"
+      #targetDateInput
+      data-project-target-date-input
+      type="date"
+      [value]="project().targetDate ?? ''"
+    />
+    <button type="submit" data-project-target-date-submit>Set</button>
+    <button type="button" data-project-target-date-clear (click)="targetDateRequested.emit(null)">
+      Clear
+    </button>
+  </form>
+
+  <div class="more-menu__row">
+    <button type="button" data-project-archive class="more-menu__danger" (click)="confirming.set(true)">
+      Archive project
+    </button>
+  </div>
+
+  <!-- The one destructive control on the page, and it removes the surface you are standing
+       on. Cancelling writes nothing and navigates nowhere. -->
+  @if (confirming()) {
+    <div data-project-archive-confirm class="more-menu__confirm" role="group">
+      <p>Archive “{{ project().name }}”? It leaves the sidebar and this page closes.</p>
+      <button type="button" data-project-archive-confirm-yes (click)="archiveRequested.emit()">
+        Archive it
+      </button>
+      <button type="button" data-project-archive-cancel (click)="confirming.set(false)">Cancel</button>
+    </div>
+  }
+</div>
