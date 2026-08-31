@@ -831,6 +831,13 @@ and a new `writingProject`; three check sites unchanged. Mutation-checked.
 three minutes with no explanation. Each `webServer` entry now names the address its server
 actually binds ([entry](docs/decisions/2026-08-e2e-owns-its-servers-and-its-data.md)).
 
+**The fresh-resolve install check found something that was not ours.** Deleting
+`node_modules` *and* `pnpm-lock.yaml` and running plain `pnpm install` — the only check that
+exercises resolution, and so the only one that proves the `minimumReleaseAgeExclude` entries
+are complete — resolved every Storybook package cleanly and moved Angular 22.1.3 → 22.1.4,
+which cost **+107 kB** in the framework chunk on its own. The committed lockfile stays on
+22.1.3; the finding is in the budget entry.
+
 **The bundle budget moved from 725 kB to 850 kB, deliberately and with the measurement.**
 Lazy-loading the two `prototype/*` routes moved 1.4 kB, exactly as the plan predicted: `App`
 mounts the development panel globally, so the panel and its controls stay eager whatever the

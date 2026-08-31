@@ -119,7 +119,7 @@ importers:
         specifier: ^22.1.6
         version: 22.1.6(chokidar@5.0.0)
       '@angular/animations':
-        specifier: 22.1.3
+        specifier: ^22.1.0
         version: 22.1.3(@angular/core@22.1.3(@angular/compiler@22.1.3)(rxjs@7.8.2))
       '@angular/build':
         specifier: ^22.1.6

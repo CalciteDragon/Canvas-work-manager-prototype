@@ -49,13 +49,24 @@ The two `prototype/*` routes stay lazy, and `app.routes.ts` says why they are th
 its eager-by-design rule *and* states the honest limit, so the next person does not repeat the
 measurement to learn that it barely helps.
 
+**The budget earned its keep within the hour.** Slice 17's fresh-resolve check —
+`node_modules` and `pnpm-lock.yaml` both deleted, plain `pnpm install` — moved Angular from
+22.1.3 to 22.1.4 and the initial bundle from 839 kB to **946 kB**: +107 kB in the framework
+chunk, from a *patch* release, with nothing of ours changed. The committed lockfile stays on
+22.1.3 and the slice does not carry that bump, but the finding is recorded here because it is
+the first thing this number has caught, and it is not ours to fix.
+
 **Confidence**
 
 High on the measurement. Medium on 850 kB as the right line — it is a number chosen to be
-slightly uncomfortable, not a target derived from anything.
+slightly uncomfortable, not a target derived from anything. The Angular 22.1.4 measurement
+above says it is roughly the right order of uncomfortable.
 
 **Revisit when**
 
-The warning fires again. The next lever is lazy-loading the development panel, which needs a
-decision about how §46's chord reaches a route whose panel is not loaded; raising the number a
-third time without pulling that lever would be the failure Slice 12's note warned about.
+The warning fires again — including on the next Angular upgrade, which will bring the +107 kB
+with it and needs a decision rather than a number bump.
+
+Our own next lever is lazy-loading the development panel, which needs a decision about how
+§46's chord reaches a route whose panel is not loaded; raising the number a third time without
+pulling that lever would be the failure Slice 12's note warned about.
