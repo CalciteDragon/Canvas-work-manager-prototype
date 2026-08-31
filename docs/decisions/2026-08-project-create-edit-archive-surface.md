@@ -60,9 +60,10 @@ stylesheet is a build constraint before it is a tidiness preference.
 **The one rough edge left**, found by the e2e test rather than by reasoning: the sidebar offers
 **New project** before `/api/me` has answered, so clicking fast enough gets the store's honest
 "there is nowhere to put a new project" instead of a project. The message is correct for a
-*failed* identity and stays; whether the control should also be disabled while identity is
-merely pending is a judgement about a sub-second window, and it goes on the list rather than
-into this slice.
+*failed* identity, but it is the wrong answer for a *pending* one, and the web spec had to wait
+for the persona's name to work around it. The message stays; the fix — disable the control
+while identity is null, or have `createProject` await the in-flight load — is a §79 note rather
+than a change made at the end of a slice.
 
 **Current decision**
 
@@ -72,14 +73,24 @@ workspace with no `parentProjectId`. Edit and archive: §26's More menu — Rena
 status and target date are optimistic per §63; archive is awaited, because it navigates.
 Stores return outcomes and pages navigate, so no store gains a `Router`.
 
+**Using it answered the Status question, and not in the menu's favour.** The §77 pass found
+two things worth §79 notes. The header already renders Status as a *fact*, and the fact is not
+clickable — so you read the answer in one place and go somewhere else to change it, one click
+too deep. And the whole menu is a stack of three forms plus a button rather than a menu:
+renaming means opening it, typing, and pressing Rename, three deliberate acts for the most
+common project edit, when `TaskRow` already demonstrates inline title editing as one act. The
+menu as built is correct and demonstrable; it is not yet *good*, and the notes say which way
+to move it.
+
 **Confidence**
 
-High on create and archive. Medium on Status as a menu item rather than a control on the
-header itself, where the status is already rendered as a fact.
+High on create and archive. Low on Status as a menu item — the §77 pass says make the header
+fact the control.
 
 **Revisit when**
 
-Someone changes a project's status often enough to resent opening a menu for it — that is a
-one-line move of the same control. Also revisit when project delete, move-to-project or a
+Whoever picks up the §79 notes above does. Making the header's Status fact the control and
+inline-editing the name would leave More holding only target date and archive, which is closer
+to what a "More" menu should be. Also revisit when project delete, move-to-project or a
 description editor is actually wanted; none of them is on §81, and all three were left out
 deliberately.

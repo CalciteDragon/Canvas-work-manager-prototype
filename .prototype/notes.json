@@ -495,6 +495,38 @@
       "projectId": "project-work-manager",
       "slice": 16,
       "note": "The correctness follow-up held up in the real app. One HTTP-MCP batch completed Document the tool input schemas, added a reflection, and created a child: without reloading, header and Progress moved 25% → 50%, Timeline showed the task done, Reflections showed the new note, and Sub-Projects plus the sidebar showed the child. For the missed-frame case I stopped the browser's :4310 host, confirmed Progress stayed visibly at 50%, completed Add retry budget through MCP on a temporary :4311 host against the same data file, and confirmed the disconnected tab was still stale. Restarting :4310 moved Progress to 75% and Timeline to done without a second mutation. The regression suite pins one shared Progress read for duplicate sections and at most one coalesced trailing read while any touched store is busy."
+    },
+    {
+      "id": "note-2026-08-31-001",
+      "createdAt": "2026-08-31T20:02:08.257Z",
+      "route": "/projects/project-renovation",
+      "projectId": null,
+      "slice": 17,
+      "note": "New project is clickable before /api/me answers, so a fast click gets \"No workspace is loaded yet\" instead of a project. The message is right for a failed identity but wrong for a pending one — the e2e test had to wait for the persona name to work around it. Either disable the control while identity is null, or have createProject await the in-flight load."
+    },
+    {
+      "id": "note-2026-08-31-002",
+      "createdAt": "2026-08-31T20:02:08.263Z",
+      "route": "/projects/project-renovation",
+      "projectId": null,
+      "slice": 17,
+      "note": "The More menu is a stack of three forms plus a button, not a menu. Renaming means opening it, typing, and pressing Rename — three deliberate acts for the most common project edit. Inline-editing the header name (the way TaskRow edits its title) would be one act, and would leave the menu holding only the rarer things."
+    },
+    {
+      "id": "note-2026-08-31-003",
+      "createdAt": "2026-08-31T20:02:08.267Z",
+      "route": "/projects/project-renovation",
+      "projectId": null,
+      "slice": 17,
+      "note": "Status inside More is one click too deep. The header already renders Status as a fact, and the fact is not clickable — so you look at the answer and then go somewhere else to change it. Open question 3 of the slice 17 plan: the answer from using it is \"make the header fact the control\"."
+    },
+    {
+      "id": "note-2026-08-31-004",
+      "createdAt": "2026-08-31T20:02:08.271Z",
+      "route": "/projects/project-renovation",
+      "projectId": null,
+      "slice": 17,
+      "note": "Surface contrast reducing only reads as broken for the first few seconds even with the label. Dragging up does nothing and there is no motion to explain why. A control that started in the middle of a range would be honest about direction, but only by changing how the app looks at rest, which the refactor rule forbids. Worth revisiting as a differently-shaped control rather than a slider."
     }
   ]
 }

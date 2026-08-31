@@ -5,7 +5,7 @@ import { GatewayError } from '../../core/gateway/gateway-error';
 import { PROTOTYPE_PERSONA_STORAGE_KEY } from '../../core/identity/prototype-identity-provider';
 import { PROTOTYPE_CONTROL } from '../control/prototype-control';
 import { FakePrototypeControl, testPrototypeState } from '../control/testing/fake-prototype-control';
-import { DevPanelStore } from './dev-panel-store';
+import { CURRENT_SLICE, DevPanelStore } from './dev-panel-store';
 import { PlaceholderPage } from '../../shared/components/placeholder-page/placeholder-page';
 
 const setup = (control = new FakePrototypeControl()) => {
@@ -124,7 +124,10 @@ describe('DevPanelStore', () => {
       expect(control.notes.at(-1)).toMatchObject({
         route: '/projects/project-launch',
         projectId: 'project-launch',
-        slice: 16,
+        // Pinned to the constant, not to a literal: the whole point of `CURRENT_SLICE` is
+        // that a forgotten bump files this slice's notes under the last one, and a literal
+        // here would make the spec agree with the bug.
+        slice: CURRENT_SLICE,
         note: 'The seed control needs a confirmation step.',
       });
     });

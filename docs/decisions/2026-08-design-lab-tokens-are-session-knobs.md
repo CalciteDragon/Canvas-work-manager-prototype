@@ -81,9 +81,16 @@ none of those exist as components: they are token-styled markup inside features,
 repository has exactly one shared component. That distinction is the useful output — a
 primitive everybody keeps re-styling is the evidence for extracting it.
 
+**The §77 pass judged the contrast control, and it is the weakest of the seven.** Even with the
+label, dragging up does nothing and there is no motion to explain why, so it reads as broken for
+the first few seconds. A control that started in the middle of a range would be honest about
+direction — but only by changing how the application looks at rest, which the refactor rule
+above forbids. Recorded as a §79 note: the answer is probably a differently-shaped control
+rather than a slider, not a different default.
+
 **Confidence**
 
-High on the knob layer, which is measured. Medium on the one-directional contrast control.
+High on the knob layer, which is measured. Low on the one-directional contrast control's shape.
 Low on the accent knob's usefulness while the rest of the accent family does not follow it.
 
 **Revisit when**
