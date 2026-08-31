@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, input, output, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { ProjectTreeNode } from '../shell-store';
 import { ProjectTreeItem } from './project-tree-item';
@@ -31,6 +31,8 @@ export class Sidebar {
   /** §23: "Project hierarchy should optionally expand inline." */
   protected readonly projectsExpanded = signal(true);
   protected readonly createOpen = signal(false);
+  /** Survives the form closing, so a failed creation can hand the name back. */
+  protected readonly draftName = signal('');
 
   protected toggleProjects(): void {
     this.projectsExpanded.update((expanded) => !expanded);
@@ -40,16 +42,26 @@ export class Sidebar {
     this.createOpen.update((open) => !open);
   }
 
+  constructor() {
+    // The sidebar cannot await the write without injecting the store, so it closes the form
+    // optimistically and learns the outcome from `createError`. When one arrives it puts the
+    // form back with the name still in it — otherwise a failed creation costs the user their
+    // typing and they have to retype it beside the error explaining why.
+    effect(() => {
+      if (this.createError() !== null) this.createOpen.set(true);
+    });
+  }
+
   /**
-   * The form closes on submit and the outcome arrives back as `createError` — the sidebar
-   * cannot await the write without injecting the store, and a form that stays open behind a
-   * successful navigation reads as though nothing happened.
+   * Closes on submit, because a form that stays open behind a successful navigation reads as
+   * though nothing happened. The name is **kept**, not cleared: it is what the effect above
+   * restores on failure, and a successful creation navigates away from it.
    */
   protected submitCreate(event: Event, input: HTMLInputElement): void {
     event.preventDefault();
     const name = input.value.trim();
     if (name === '') return;
-    input.value = '';
+    this.draftName.set(name);
     this.createOpen.set(false);
     this.createRequested.emit(name);
   }

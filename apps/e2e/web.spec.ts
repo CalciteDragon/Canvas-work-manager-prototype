@@ -49,7 +49,12 @@ test('create a project, add a task list, add a task, and see it on Today', async
   await page.locator('[data-task-details]').first().click();
   await expect(page.locator('[data-task-drawer]')).toBeVisible();
   await page.locator('[data-task-due-date]').fill(DUE_DATE);
-  await page.locator('[data-task-due-date]').blur();
+
+  // Wait for the write to land before navigating. `fill` dispatches the `change` the drawer
+  // binds, but `page.goto` cancels in-flight fetches from the old document — so without this
+  // the assertion below races the PATCH that makes it true. The row is the drawer's own
+  // read-back, so seeing the date there means the store has the server's record.
+  await expect(page.locator('[data-task-row]').first()).toContainText(DUE_DATE);
 
   await page.goto('/app');
   const today = page.locator('app-dashboard-widget-frame', {

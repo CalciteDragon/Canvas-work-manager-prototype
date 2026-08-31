@@ -853,6 +853,10 @@ describe('ProjectPageStore project writes (§26, §63, §81)', () => {
   // The defect this guard exists for: `onLiveEvent` routes any `project.*` event naming this
   // project into `refreshProject()`, which replaces `projectState` wholesale — so without it
   // an optimistic rename is overwritten by the very frame its own write produces.
+  // What this covers, precisely: the **increment**. Removing `whileWriting` from the write
+  // path fails it. Removing only `onLiveEvent`'s pre-dispatch check does not, because
+  // `refreshProject()` re-checks the same counter on entry — two of the three check sites
+  // are redundant with each other, deliberately.
   it('holds off the live re-read while a project write is in flight', async () => {
     const update = deferred<Project>();
     const { store, gateway, live } = setup({ projectUpdate: vi.fn(async () => update.promise) });
@@ -882,6 +886,10 @@ describe('ProjectPageStore project writes (§26, §63, §81)', () => {
     expect(store.project()?.updatedAt).toBe('2026-08-28T09:00:00.000Z');
   });
 
+  // §19: stores decide, pages navigate. The guard is structural rather than asserted —
+  // `setup()` provides no `Router`, so a store that injected one would throw at
+  // construction and take every test in this file with it. What is asserted here is the
+  // other half: `archive` reports its outcome to a caller instead of acting on it.
   it('returns success without navigating', async () => {
     const { store, gateway } = setup();
     await store.load(PROJECT);
@@ -889,8 +897,23 @@ describe('ProjectPageStore project writes (§26, §63, §81)', () => {
     expect(await store.archive()).toBe(true);
 
     expect(gateway.projects.update).toHaveBeenCalledWith(PROJECT, { status: 'archived' });
-    // The store owns no `Router` — proven by there being none to inject.
-    expect(Object.getOwnPropertyNames(store)).not.toContain('router');
+  });
+
+  // The defect the reviewer found: `load()` cleared every other error signal but not this
+  // one, and `ProjectPage` re-uses one component instance across `/projects/:id` changes.
+  it('does not carry a failed write into the next project', async () => {
+    const { store } = setup({
+      projectUpdate: vi.fn(async () => {
+        throw new GatewayError('unreachable', 0, 'the prototype host is not running');
+      }),
+    });
+    await store.load(PROJECT);
+    expect(await store.rename('Website relaunch')).toBe(false);
+    expect(store.writeError()).not.toBeNull();
+
+    await store.load(PROJECT);
+
+    expect(store.writeError()).toBeNull();
   });
 
   // §53's lesson: a named reason beats "forbidden".

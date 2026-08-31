@@ -240,6 +240,10 @@ export class ProjectPageStore {
       this.loadingState.set(true);
       this.errorState.set(null);
       this.sectionErrorState.set(null);
+      // A failed write belongs to the project it was made on. `ProjectPage` re-uses one
+      // component instance across `/projects/:id` changes, so without this a rename that
+      // failed on project A shows in project B's header, over a write nobody made.
+      this.writeErrorState.set(null);
       this.progressState.set(null);
       try {
         // Sequential on purpose: a project the caller cannot see must fail as "not found"
@@ -362,7 +366,7 @@ export class ProjectPageStore {
     this.sectionsState.set(preview);
 
     return this.track(() =>
-      this.writingSections(async () => {
+      this.whileWriting(async () => {
       if (current()) this.sectionErrorState.set(null);
       try {
         await this.gateway.sections.move(id, { position });
@@ -477,7 +481,7 @@ export class ProjectPageStore {
     if (paint !== null) this.projectState.set(paint(before));
 
     return this.track(() =>
-      this.writingProject(async () => {
+      this.whileWriting(async () => {
         try {
           const updated = await this.gateway.projects.update(projectId, input);
           // The server's record, not the optimistic paint: the host may have normalised
@@ -526,7 +530,7 @@ export class ProjectPageStore {
       generation === this.loadGeneration && this.projectState()?.id === projectId;
 
     return this.track(() =>
-      this.writingSections(async () => {
+      this.whileWriting(async () => {
         if (current()) this.sectionErrorState.set(null);
         try {
           await operation({ current, projectId, generation });
@@ -566,16 +570,13 @@ export class ProjectPageStore {
     return operation().finally(settled);
   }
 
-  /** Holds off §62's canvas re-read for the length of an optimistic section write. */
-  private writingSections<T>(operation: () => Promise<T>): Promise<T> {
-    return this.whileWriting(operation);
-  }
-
-  /** The same hold-off, for an optimistic write to the project record itself. */
-  private writingProject<T>(operation: () => Promise<T>): Promise<T> {
-    return this.whileWriting(operation);
-  }
-
+  /**
+   * Holds off §62's re-read for the length of an optimistic write — a section write or a
+   * write to the project record itself. One wrapper for both, because both hazards are the
+   * same one: the host flushes its frame at commit, which is before the tab's own response
+   * lands, so a re-read in that window replaces the optimistic paint with the pre-write
+   * value for a frame.
+   */
   private whileWriting<T>(operation: () => Promise<T>): Promise<T> {
     this.pendingWrites += 1;
     return operation().finally(() => {

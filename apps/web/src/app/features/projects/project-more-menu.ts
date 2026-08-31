@@ -26,6 +26,8 @@ export class ProjectMoreMenu {
   /** `null` clears it, which is what puts the header's "No target date" branch in reach. */
   readonly targetDateRequested = output<string | null>();
   readonly archiveRequested = output<void>();
+  /** "I am done here" with nothing to write — see `submitRename`. */
+  readonly dismissed = output<void>();
 
   /**
    * `archived` is deliberately absent. `ProjectService.update` runs the whole archive path
@@ -35,10 +37,20 @@ export class ProjectMoreMenu {
   protected readonly statuses: SettableProjectStatus[] = ['planning', 'active', 'on_hold', 'completed'];
   protected readonly confirming = signal(false);
 
+  /**
+   * A blank name leaves the form alone — there is nothing to submit and nothing to say. An
+   * *unchanged* name is different: the user pressed Rename and meant something by it, so the
+   * menu closes rather than sitting there looking broken. It emits nothing, because a write
+   * that changes nothing is a request the host should never see.
+   */
   protected submitRename(event: Event, input: HTMLInputElement): void {
     event.preventDefault();
     const name = input.value.trim();
-    if (name === '' || name === this.project().name) return;
+    if (name === '') return;
+    if (name === this.project().name) {
+      this.dismissed.emit();
+      return;
+    }
     this.renameRequested.emit(name);
   }
 

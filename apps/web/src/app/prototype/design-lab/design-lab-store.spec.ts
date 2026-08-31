@@ -51,14 +51,25 @@ describe('DesignLabStore (§22)', () => {
     expect(store.overrides()).toEqual({});
   });
 
-  it('leaves data-theme alone', () => {
+  // The `ThemeService` boundary: it owns `data-theme`, this owns inline custom properties.
+  // Asserted as the **whole attribute set**, not as `data-theme` alone: a store that wrote
+  // any attribute at all — a class, a `data-design-lab`, a second theme hook — would be
+  // reaching across the same line, and an assertion naming one attribute would miss it.
+  it('touches no attribute but style', () => {
     const store = TestBed.inject(DesignLabStore);
     document.documentElement.setAttribute('data-theme', 'light');
+    const before = [...document.documentElement.attributes].map(({ name, value }) =>
+      name === 'style' ? 'style' : `${name}=${value}`,
+    );
 
-    store.write(tokenFor('accent'), '#ff00aa');
+    for (const token of DESIGN_LAB_TOKENS) store.write(token, token.kind === 'color' ? '#ff00aa' : 2);
     store.reset();
 
-    // The `ThemeService` boundary: it owns the attribute, this owns inline properties.
+    expect(
+      [...document.documentElement.attributes].map(({ name, value }) =>
+        name === 'style' ? 'style' : `${name}=${value}`,
+      ),
+    ).toEqual(before);
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
   });
 

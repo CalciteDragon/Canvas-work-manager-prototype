@@ -144,7 +144,9 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 *Seed: `overdue-chaos`, then `busy-week`. Click **Home**.*
 
 27. **Today.** The **Today** widget groups overdue, due-today and in-progress tasks, each naming
-    its project. On `overdue-chaos` it is full; on `empty` it says nothing is due.
+    its project. On `overdue-chaos` it is full — five rows under **Overdue**. Switch to the
+    `empty` seed and it says nothing is due and nothing is running; switch back before
+    continuing.
 28. **Upcoming.** The **Upcoming** widget lists tasks due within its horizon, which its config
     sets in days.
 29. **Projects.** The **Active Projects** widget lists projects with their progress. Clicking one

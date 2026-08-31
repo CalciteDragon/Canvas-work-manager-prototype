@@ -167,6 +167,26 @@ describe('Sidebar', () => {
     expect(element.querySelector('[data-projects-error]')).toBeNull();
   });
 
+  // A failed creation must not cost the user their typing: they would otherwise be looking
+  // at an error beside a closed, empty form and have to retype the name to retry.
+  it('puts the form back, with the name still in it, when the creation fails', async () => {
+    const { fixture, element } = await render();
+    const name = await openCreateForm(fixture, element);
+    name.value = 'Prototype review';
+    element.querySelector<HTMLElement>('[data-create-project-submit]')!.click();
+    await fixture.whenStable();
+    expect(element.querySelector('[data-create-project-form]')).toBeNull();
+
+    fixture.componentRef.setInput('createError', 'the prototype host is not running');
+    await fixture.whenStable();
+
+    expect(element.querySelector('[data-create-project-form]')).not.toBeNull();
+    expect(element.querySelector<HTMLInputElement>('[data-create-project-name]')?.value).toBe(
+      'Prototype review',
+    );
+    expect(element.querySelector('[data-create-error]')?.textContent).toContain('not running');
+  });
+
   it('offers New project with the group collapsed', async () => {
     const { fixture, element } = await render({ projectTree: [node('project-1', 'Personal workspace')] });
 

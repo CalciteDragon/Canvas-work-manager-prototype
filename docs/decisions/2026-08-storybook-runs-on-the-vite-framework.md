@@ -39,14 +39,26 @@ these stories survive a framework change if one is ever forced.
   A component outside its TypeScript program renders as *"Component 'TaskRow' is not
   resolved"* — the `templateUrl` is never compiled, and the message blames "a configuration
   issue" without naming the file. The plan had put the type-check config at
-  `apps/web/tsconfig.storybook.json`; it moved to `.storybook/tsconfig.json` and now serves
-  both consumers, the plugin and `pnpm lint`'s third `tsc --noEmit` pass.
+  `apps/web/tsconfig.storybook.json` covering only `.storybook/**` and the stories; it moved
+  to `.storybook/tsconfig.json` and now serves both consumers, the plugin and `pnpm lint`'s
+  third `tsc --noEmit` pass. **That changes what the third pass checks**, and the difference
+  is worth stating: it includes `../src/**/*.ts`, so the whole application is type-checked a
+  second time, under `"types": ["node"]` rather than `tsconfig.app.json`'s `[]`. The app pass
+  is still the one that forbids ambient node types in application code; this one is broader
+  and laxer, and its job is only to make a broken story fail in CI.
 
 **The dependency cost is nine packages, not two.** pnpm's isolated `node_modules` does not
 hoist, so every non-optional peer must be a *direct* devDependency of `apps/web` even though
-the lockfile already carries it transitively via `@angular/build`. `@angular/animations` had
-to be **pinned exactly** to `@angular/core`'s resolved version: at a caret range it resolved
-one patch ahead and `pnpm peers check` reported a genuine mismatch in both directions.
+the lockfile already carries it transitively via `@angular/build`.
+
+`@angular/animations` took two attempts. Added at a caret range it resolved one patch **ahead**
+of the lockfile's `@angular/core`, and `pnpm peers check` reported a genuine mismatch in both
+directions; pinning it exactly to core's version fixed that — and then broke the *fresh*
+resolve, where core moves forward and the pin does not. It is a caret range, matched to the
+rest of the Angular set: the committed lockfile holds both at the same version, and a fresh
+resolve moves both together. Neither state has a peer warning. This is the shape of every
+"pin it" instinct in a workspace with a lockfile, and it is worth remembering before the next
+one.
 
 `@storybook/addon-vitest` is deliberately out of scope. It needs Vitest browser mode and
 `@vitest/browser-playwright`, which pins vitest to an exact version and would drag the whole
