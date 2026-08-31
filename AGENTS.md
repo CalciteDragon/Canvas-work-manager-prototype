@@ -37,6 +37,10 @@ reviewers can verify against the source.
 - **Contracts:** Zod schemas in `packages/contracts`, shared by UI, API, MCP tools, tests, and seeds (§11)
 - **MCP:** official TypeScript SDK v2, protocol `2026-07-28`, Streamable HTTP + stdio (§50, §59)
 - **Package manager:** pnpm workspaces. `pnpm dev` starts everything (§75)
+- **Component workbench:** Storybook on `@storybook/angular-vite`, configured in
+  `apps/web/.storybook/`, stories beside their components as `*.stories.ts`. `pnpm storybook`
+- **End-to-end:** Playwright in `apps/e2e`, its own package, its own servers, its own data
+  file. `pnpm e2e` — and **not** part of `pnpm test`, which stays offline and browser-free
 
 ### Boundaries that must never be violated
 

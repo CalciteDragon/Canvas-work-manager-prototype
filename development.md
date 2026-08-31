@@ -789,10 +789,63 @@ resolution are all out of scope (§62).
 
 ### Slice 17 — Design Lab, Storybook, and the end-to-end tests
 
+**Status:** done — plan: [docs/plans/17-design-lab-storybook-and-e2e.md](docs/plans/17-design-lab-storybook-and-e2e.md).
+The First Prototype Milestone is closed: [docs/first-milestone-walkthrough.md](docs/first-milestone-walkthrough.md)
+carries a numbered click-path for every §81 bullet across all eight groups, naming the seed
+each one needs. Both e2e tests pass, twice in a row, from a clean checkout.
+
+**The slice's own *Build* list was written in Phase 0 and four of its items had since been
+delivered elsewhere** — the state inspector by Slice 12, all four named component tests, and
+`docs/decisions/`'s first entry. The list below is corrected rather than quietly satisfied.
+What it was missing is the opposite: three §81 bullets — create, edit and archive project —
+had no UI at all, and the web e2e test could not have been written without the first of them.
+
+**The token file is now structured around the knobs.** Each theme block holds only base
+literals; every derived token is expressed once under bare `:root`, so a knob moves both
+themes. The first structure would have made surface contrast and elevation **silent no-ops in
+light**, where `:root[data-theme='light']` re-declared the same tokens as literals at higher
+specificity. Appearance is unchanged at the defaults, and that was measured in a browser
+rather than asserted: the three surfaces paint exactly `#1b1e24`/`#23272f`/`#101216` in dark
+and `#ffffff`/`#ffffff`/`#eceef2` in light, `--space-4` is 16px, `--radius-md` is 8px, and
+each shadow keeps its own per-theme alpha. Two limits are stated on the controls themselves
+rather than left to be discovered — surface contrast reduces only, and the accent knob moves
+`--color-accent` alone ([entry](docs/decisions/2026-08-design-lab-tokens-are-session-knobs.md)).
+
+**Storybook works on the preview Vite framework**, so decision 1's fallback was not taken.
+The spike found two things planning could not: Compodoc is on by default and is a CLI this
+repo does not install, and `@analogjs/vite-plugin-angular` looks for a tsconfig at exactly
+`.storybook/tsconfig.json` — without it every component renders as *"Component 'TaskRow' is
+not resolved"* ([entry](docs/decisions/2026-08-storybook-runs-on-the-vite-framework.md)).
+`TaskRow` ships **six** of §4's seven variants; *Agent Modified* has no data behind it and
+inventing task-level attribution is a §58 question
+([entry](docs/decisions/2026-08-agent-modified-has-no-data-behind-it.md)).
+
+**The defect that mattered most** was the same class as the four commits that closed Slice 16:
+optimistic project writes had no in-flight guard, so `onLiveEvent` would route a `project.*`
+frame into `refreshProject()` and overwrite an optimistic rename with the frame its own write
+produced. `pendingSectionWrites` is now `pendingWrites`, incremented by both `writingSections`
+and a new `writingProject`; three check sites unchanged. Mutation-checked.
+
+**The e2e suite found one thing reasoning did not:** the host binds `127.0.0.1` only while
+`ng serve` listens on `[::1]`, so a single tidy probe address times out one of them after
+three minutes with no explanation. Each `webServer` entry now names the address its server
+actually binds ([entry](docs/decisions/2026-08-e2e-owns-its-servers-and-its-data.md)).
+
+**The bundle budget moved from 725 kB to 850 kB, deliberately and with the measurement.**
+Lazy-loading the two `prototype/*` routes moved 1.4 kB, exactly as the plan predicted: `App`
+mounts the development panel globally, so the panel and its controls stay eager whatever the
+routes do. The catalogue did **not** add materially, which is what "the catalogue shows real
+components" was supposed to buy ([entry](docs/decisions/2026-08-initial-bundle-budget.md)).
+
+Not delivered, deliberately: no component library extraction (the primitive panels are the
+evidence for it, not the doing of it), no `@storybook/addon-vitest`, no third e2e test, no
+project delete, no `/projects` index route, and no lazy-loading of the development panel —
+that last one would reopen a Slice 12 decision about how §46's chord reaches every route.
+
 **Goal:** Close out the First Prototype Milestone with the tools that make design
 iteration fast.
 
-**Spec:** §4, §22, §67, §69, §78, §81
+**Spec:** §4, §19, §20, §21, §22, §26, §62, §63, §65, §67, §68, §69, §78, §81
 
 **Build**
 
@@ -802,16 +855,23 @@ iteration fast.
   project cards, widgets, section frames, navigation, drawers, menus, and the
   empty/loading/error states, with live token controls (§22): radius, spacing
   density, surface contrast, accent, font scale, elevation, sidebar width.
-- `/prototype/state` — seed/state inspector (§68).
+- **Project create, edit and archive** — added to this list by Slice 17 because *Done
+  when* required it. Three §81 bullets had no UI at all: nothing created a *top-level*
+  project, the header rendered name/status/target date read-only with §26's More control
+  disabled, and archive was reachable only from the domain. The web e2e test below could
+  not have been written without the first of them.
 - The two end-to-end tests, and only these (§69):
   1. **Web:** load seed → create project → create task → dashboard shows task.
   2. **MCP:** agent calls `create_task` → task appears in the web UI → activity feed
      attributes it to the agent.
-- Component tests for `TaskRow` completion, section collapse, section configuration,
-  and dashboard widget states.
-- Seed `docs/decisions/` with the first entry — the flow-vs-grid question from
-  Slice 9, in the §78 format (Question / Options tested / What we learned / Current
-  decision / Confidence / Revisit when).
+- ~~`/prototype/state` — seed/state inspector (§68)~~ — **delivered by Slice 12.**
+  Verified here, built there.
+- ~~Component tests for `TaskRow` completion, section collapse, section configuration,
+  and dashboard widget states~~ — **all four already existed** (`task-row.spec.ts`,
+  `project-section-frame.spec.ts` ×2, `dashboard-page.spec.ts`). §69 was already
+  satisfied; this slice added only the tests its own new code earned.
+- ~~Seed `docs/decisions/` with the first entry — flow-vs-grid~~ — **done long ago.**
+  Forty entries existed before this slice, including the flow-vs-grid one.
 
 **Done when** every §81 checklist item is demonstrable and both e2e tests pass.
 

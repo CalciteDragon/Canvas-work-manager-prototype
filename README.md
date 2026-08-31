@@ -38,6 +38,27 @@ naming the connection. Frames are held until the write commits, so a refresh tri
 always reads the new value. This is a property of the HTTP transport; a `pnpm mcp:stdio`
 process owns a separate store and leaves the UI unchanged.
 
+### The Design Lab
+
+<http://localhost:4200/prototype/design> (§22, §67). A control rail on the left writes seven
+live design tokens — radius, spacing density, surface contrast, accent, font scale, elevation,
+sidebar width — as inline custom properties on the document element, so they change the
+catalogue *and the surrounding shell*, in both themes. Navigate away and the values follow
+you; **Reset** or a page reload returns them to the stylesheet, because they are session-only
+like the theme.
+
+Two things the rail states about itself rather than leaving you to discover: **surface
+contrast reduces only** (`color-mix()` clamps at 100%, where the default sits), and the
+**accent knob moves `--color-accent` alone** — accent-tinted surfaces keep their own colours.
+Both are explained in
+[the decision entry](docs/decisions/2026-08-design-lab-tokens-are-session-knobs.md).
+
+The catalogue beside it has two labelled kinds of panel. *Live component* panels are the real
+components driven by fixtures, with their real empty, loading and error states. *Primitive*
+panels are representative markup marked **not yet a shared component** — buttons, inputs,
+cards, project cards and menus do not exist as components in this repository, and a primitive
+everybody keeps re-styling is the evidence for extracting one.
+
 ### The development panel
 
 Press **Ctrl/Cmd + Shift + D** on any page (spec §46). If your browser swallows the chord —
@@ -83,10 +104,53 @@ One Ctrl+C stops both. Health check: `curl localhost:4310/prototype/health`.
 
 Requires Node `^22.22.3 || ^24.15.0 || >=26` (Angular 22's floor) and pnpm 11.
 
+## Storybook
+
+```bash
+pnpm storybook
+```
+
+<http://localhost:6006> — `TaskRow`'s six §4 variants and `ProjectSectionFrame`'s, with a
+dark/light toolbar switch and live controls. `pnpm storybook:build` produces a static build.
+
+It runs on `@storybook/angular-vite` rather than the stable webpack framework, because this
+app is zoneless and builds on `@angular/build`; the reasoning and the two configuration traps
+are in
+[the decision entry](docs/decisions/2026-08-storybook-runs-on-the-vite-framework.md).
+
+## End-to-end tests
+
+§69's two tests: the web path (create a project, create a task, see it on the dashboard) and
+the MCP path (an agent creates a task and it appears in the open page with no reload).
+
+**Stop `pnpm dev` first.** The suite starts its own web and host processes and refuses a port
+that is already in use, rather than silently reusing your dev server and destroying the
+workspace you were using. It runs the host against `.prototype/e2e-data.json`, never
+`.prototype/data.json`.
+
+Once, to fetch the browser:
+
+```bash
+pnpm exec playwright install chromium
+```
+
+Then, from the repository root:
+
+```bash
+pnpm e2e
+```
+
 ## Other commands
 
 ```bash
 pnpm build   # build the web app; type-check everything else
-pnpm test    # run all workspace tests
-pnpm lint    # type-check every workspace
+pnpm test    # run all workspace tests (fast, offline, no browsers needed)
+pnpm lint    # type-check every workspace, including the stories and the e2e specs
 ```
+
+## Is it finished?
+
+[docs/first-milestone-walkthrough.md](docs/first-milestone-walkthrough.md) is the click-path
+for every item in §81's First Prototype Milestone — fifty numbered steps across eight groups,
+each naming the seed it needs and what you should see. That document is what "demonstrable"
+means here.
