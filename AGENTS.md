@@ -36,7 +36,9 @@ reviewers can verify against the source.
 - **Persistence:** one file, `.prototype/data.json`. No SQLite, no Postgres (§14, §80)
 - **Contracts:** Zod schemas in `packages/contracts`, shared by UI, API, MCP tools, tests, and seeds (§11)
 - **MCP:** official TypeScript SDK v2, protocol `2026-07-28`, Streamable HTTP + stdio (§50, §59)
-- **Package manager:** pnpm workspaces. `pnpm dev` starts everything (§75)
+- **Package manager:** pnpm workspaces. `pnpm dev:web` and `pnpm dev:host`, in two
+  terminals — they are no longer started together
+  ([decision](docs/decisions/2026-08-web-and-host-start-separately.md))
 - **Component workbench:** Storybook on `@storybook/angular-vite`, configured in
   `apps/web/.storybook/`, stories beside their components as `*.stories.ts`. `pnpm storybook`
 - **End-to-end:** Playwright in `apps/e2e`, its own package, its own servers, its own data

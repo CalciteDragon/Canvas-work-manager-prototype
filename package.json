@@ -8,7 +8,7 @@
     "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
   },
   "scripts": {
-    "dev": "concurrently --kill-others --names web,host --prefix-colors cyan,magenta \"pnpm dev:web\" \"pnpm dev:host\"",
+    "dev": "node scripts/dev.mjs",
     "dev:web": "pnpm --filter web start",
     "dev:host": "pnpm --filter @cwm/prototype-host dev",
     "build": "pnpm -r --if-present build",
@@ -22,7 +22,6 @@
     "storybook:build": "pnpm --filter web storybook:build"
   },
   "devDependencies": {
-    "concurrently": "^10.0.5",
     "typescript": "~6.0.2"
   }
 }

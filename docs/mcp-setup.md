@@ -27,10 +27,14 @@ permission in their tool error.
 
 ## Streamable HTTP
 
-Start the application normally:
+Start the application normally — two terminals:
 
 ```powershell
-pnpm dev
+pnpm dev:web
+```
+
+```powershell
+pnpm dev:host
 ```
 
 The MCP endpoint is `http://127.0.0.1:4310/mcp`. It requires this header on every request:
@@ -112,7 +116,7 @@ prototype file.
 Do not run mutation-capable stdio and HTTP/UI sessions concurrently against the same
 `data.json`. The stdio child reloads before each call and therefore sees host-side
 revocations, but the already-running host does not see stdio writes and can overwrite them
-later. Stop `pnpm dev` before a stdio mutation session, then restart it afterwards.
+later. Stop `pnpm dev:host` before a stdio mutation session, then restart it afterwards.
 
 Read-only clients can run together as long as authentication's throttled `lastUsedAt` write
 is acceptable. For isolated experiments, point each transport at a separate

@@ -202,10 +202,15 @@ Storybook's Angular integration supports controls, actions, interaction testing,
 
 # 5. Prototype Runtime Architecture
 
-The full prototype consists of two development applications started by one command.
+The full prototype consists of two development applications, each started in its own
+terminal. They were started by one command until `concurrently`'s piped stdin was found
+to hang the host's watcher silently
+(`docs/decisions/2026-08-web-and-host-start-separately.md`).
 
 ```text
-pnpm dev
+pnpm dev:web
+
+pnpm dev:host
 ```
 
 Conceptually:
@@ -2650,12 +2655,14 @@ The corresponding interfaces remain.
 
 # 75. Prototype Development Workflow
 
-Normal development:
+Normal development, in two terminals:
 
 ```text
 pnpm install
 
-pnpm dev
+pnpm dev:web
+
+pnpm dev:host
 ```
 
 Starts:

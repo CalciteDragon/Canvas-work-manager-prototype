@@ -15,8 +15,14 @@ Friction you notice while doing this goes in the same place. That is the point o
 pnpm install
 ```
 
+Then, in two terminals:
+
 ```bash
-pnpm dev
+pnpm dev:web
+```
+
+```bash
+pnpm dev:host
 ```
 
 The web app is at <http://localhost:4200> and the prototype host at
@@ -164,7 +170,7 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 
 ## 7. MCP
 
-*Seed: `agent-heavy`. `pnpm dev` still running. Full setup in
+*Seed: `agent-heavy`. Both processes still running. Full setup in
 [docs/mcp-setup.md](mcp-setup.md).*
 
 33. **Real MCP endpoint.** Connect a real client to `http://127.0.0.1:4310/mcp` with the header
@@ -229,7 +235,7 @@ Not §81, but this is the slice that added them.
     only, and says so. **Reset** returns every token to the stylesheet's value; a full page
     reload does the same, because the values are session-only like the theme. Switch the theme
     after a reset and the rail shows that theme's own accent.
-49. **Storybook.** With `pnpm dev` stopped or on its own:
+49. **Storybook.** With the web and host processes stopped, or on its own:
 
     ```bash
     pnpm storybook
@@ -238,7 +244,7 @@ Not §81, but this is the slice that added them.
     `TaskRow` has six variants and `ProjectSectionFrame` six; the toolbar switches dark and
     light; the controls panel changes a story live; and *Completing*'s interaction test reports
     PASS.
-50. **The end-to-end tests.** Stop `pnpm dev` first — the suite starts its own servers and
+50. **The end-to-end tests.** Stop the web and host processes first — the suite starts its own servers and
     refuses a port already in use.
 
     ```bash

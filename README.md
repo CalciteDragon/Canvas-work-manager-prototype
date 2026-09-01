@@ -12,10 +12,19 @@ lives in [development.md](development.md); the specification it implements is
 
 ```bash
 pnpm install
-pnpm dev
 ```
 
-That starts two processes:
+Then two processes, in **two terminals**:
+
+```bash
+pnpm dev:web
+```
+
+```bash
+pnpm dev:host
+```
+
+Order does not matter — the web app retries the host until it answers.
 
 | Process | URL | What it is |
 |---|---|---|
@@ -96,11 +105,11 @@ The host endpoints behind it, should you want them from `curl`:
 
 | Variable | Default | What it does |
 |---|---|---|
-| `CWM_HOST_PORT` | `4310` | Which port the host listens on. Deliberately **not** `PORT`: `pnpm dev` runs Angular and the host under one environment, and the host ignores `PORT` entirely so that a tool exporting `PORT=4200` for `ng serve` cannot hand the host the web port. An unusable value fails the start with a message rather than silently falling back to 4310. |
+| `CWM_HOST_PORT` | `4310` | Which port the host listens on. Deliberately **not** `PORT`: the host ignores `PORT` entirely so that a tool exporting `PORT=4200` for `ng serve` cannot hand the host the web port. An unusable value fails the start with a message rather than silently falling back to 4310. |
 | `CWM_DATA_FILE` | `.prototype/data.json` | Which file the host reads and writes. Resolved against the process's cwd; this is what lets the acceptance scripts run against a temp file. |
 | `PROTOTYPE_AI_PROVIDER` | `mock` | `mock` composes the dashboard's AI text locally, with no API key and no network (§43). `real` selects the developer-only adapter, which is a stub: the host starts and every other route works, but `GET /api/dashboard` returns `500 {"error":"internal_error"}` and `/app` shows an error instead of any widget — the digest is part of the same read. The explanation is printed on the host's console, not in the response. Real AI is never required (§44). |
 
-One Ctrl+C stops both. Health check: `curl localhost:4310/prototype/health`.
+One Ctrl+C per terminal. Health check: `curl localhost:4310/prototype/health`.
 
 Requires Node `^22.22.3 || ^24.15.0 || >=26` (Angular 22's floor) and pnpm 11.
 
@@ -123,8 +132,8 @@ are in
 §69's two tests: the web path (create a project, create a task, see it on the dashboard) and
 the MCP path (an agent creates a task and it appears in the open page with no reload).
 
-**Stop `pnpm dev` first.** The suite starts its own web and host processes and refuses a port
-that is already in use, rather than silently reusing your dev server and destroying the
+**Stop `pnpm dev:web` and `pnpm dev:host` first.** The suite starts its own web and host
+processes and refuses a port that is already in use, rather than silently reusing your dev server and destroying the
 workspace you were using. It runs the host against `.prototype/e2e-data.json`, never
 `.prototype/data.json`.
 
