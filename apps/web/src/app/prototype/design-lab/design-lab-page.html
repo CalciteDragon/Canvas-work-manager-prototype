@@ -2,12 +2,34 @@
   <aside class="design-lab__rail" aria-label="Design tokens">
     <header class="design-lab__rail-header">
       <h1>Design Lab</h1>
-      <button type="button" data-design-lab-reset (click)="store.reset()">Reset</button>
+      <div class="design-lab__rail-actions">
+        <button type="button" data-design-lab-export (click)="onExport()">Copy CSS</button>
+        <button type="button" data-design-lab-reset (click)="onReset()">Reset</button>
+      </div>
     </header>
     <p class="design-lab__hint">
       Values apply to the whole shell and last until the page is reloaded — session-only,
       like the theme.
     </p>
+
+    @if (exported(); as result) {
+      <section class="design-lab__export" data-design-lab-export-output>
+        <p class="design-lab__note">
+          @if (copied()) {
+            Copied. The knob values are folded into the literals — paste over the matching
+            lines in <code>styles/_tokens.scss</code>.
+          } @else {
+            The clipboard was unavailable, so select the block below.
+          }
+        </p>
+        @if (!result.measured) {
+          <p class="design-lab__note" data-design-lab-export-partial>
+            Some properties did not resolve and are missing from the block.
+          </p>
+        }
+        <textarea readonly rows="14" [value]="result.css"></textarea>
+      </section>
+    }
 
     @for (token of tokens; track token.id) {
       <div class="design-lab__control" [attr.data-design-lab-control]="token.id">

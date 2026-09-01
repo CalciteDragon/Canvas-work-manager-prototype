@@ -19,6 +19,7 @@
 
 .design-lab__rail-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
@@ -64,4 +65,28 @@
   display: grid;
   gap: var(--space-5);
   min-width: 0;
+}
+
+.design-lab__rail-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.design-lab__export {
+  display: grid;
+  gap: var(--space-1);
+}
+
+// No `min-height` here on purpose: the `rows` attribute sizes the box in the text's own
+// units, and a rem literal in a component stylesheet is exactly what §21 forbids.
+.design-lab__export textarea {
+  width: 100%;
+  padding: var(--space-2);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  font-family: ui-monospace, monospace;
+  font-size: var(--font-size-sm);
+  resize: vertical;
 }

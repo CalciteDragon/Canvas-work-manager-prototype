@@ -88,6 +88,41 @@ direction — but only by changing how the application looks at rest, which the 
 above forbids. Recorded as a §79 note: the answer is probably a differently-shaped control
 rather than a slider, not a different default.
 
+**Copy CSS exports folded literals, not knob values.** Session-only state and "make these
+the defaults" are the same question asked twice, and the rail now answers it: a button beside
+Reset measures the current knobs and emits a paste-ready block for `_tokens.scss`. It does
+**not** emit `--knob-radius-scale: 1.4`. That would work, and it would cost the invariant the
+whole knob layer rests on — `1` means "as the stylesheet wrote it" — leaving Reset returning to
+a scaled state. So each family is measured at its current size and re-emitted with its
+`calc(… * var(--knob-…))` wrapper intact.
+
+Three mechanics the first draft got wrong, each silent:
+
+- **The measurements need a probe element that is still in the document.** An unregistered
+  custom property returns its declared text, so `--space-4` reads back as
+  `calc(1rem * var(--knob-space-scale))`, never `16px`. A hidden `div` resolves them — but
+  `getComputedStyle` on a *detached* element resolves nothing, so closures escaping the
+  probe's lifetime measured empty strings for all seventeen values and reported success.
+- **A computed colour keeps its colour space.** The three surfaces came back as
+  `oklab(0.227594 -0.00114521 -0.0115902)` — valid CSS, useless in a file of hex triplets.
+  Painting one pixel to a canvas and reading it back is the browser's own conversion and
+  needs no colour maths here; `CSS.supports('color', …)` gates it, because an unparseable
+  colour assigned to `fillStyle` is silently ignored and would export as black.
+- **The export is per-theme and says so.** `--surface-*-base` and `--color-accent` are
+  declared per theme, so one export captures one theme's half; the header names it, and the
+  block is dropped whenever the theme or any knob moves rather than sitting there stale.
+
+Verified by round trip against the defaults as they stood when the button was written: the
+exported block reproduced `_tokens.scss` byte for byte — `#1b1e24` / `#23272f` / `#101216`,
+`0.875rem`, `15rem`, `0 1px 2px` and `0 8px 24px`. **Those are no longer the defaults**: the
+first real use of the button moved radius, elevation, surface contrast and the dark accent
+into the stylesheet, which is what it is for. Every measured figure quoted earlier in this
+record describes the appearance the knob layer was built against, not the one shipping now.
+The unit
+test can only assert the block's shape, because jsdom loads no stylesheet and every measurement
+comes back unresolved; the export says so in the UI rather than emitting a half-empty block
+silently.
+
 **Confidence**
 
 High on the knob layer, which is measured. Low on the one-directional contrast control's shape.

@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { ThemeService } from '../../core/theme/theme-service';
+import { buildDesignLabExport, type DesignLabExport } from './design-lab-export';
 import { DesignLabStore } from './design-lab-store';
 import { DESIGN_LAB_TOKENS, type DesignLabToken } from './design-lab-tokens';
 import { LivePanels } from './panels/live-panels';
@@ -30,6 +31,12 @@ export class DesignLabPage {
   protected readonly tokens = DESIGN_LAB_TOKENS;
   private readonly theme = inject(ThemeService);
 
+  /** The last export, or `null` before the button has been pressed. */
+  private readonly exportState = signal<DesignLabExport | null>(null);
+  private readonly copiedState = signal(false);
+  protected readonly exported = this.exportState.asReadonly();
+  protected readonly copied = this.copiedState.asReadonly();
+
   constructor() {
     // The two themes declare different accents and sidebar widths, so an untouched control
     // must re-read the stylesheet when the theme moves — otherwise the rail sits there
@@ -37,10 +44,36 @@ export class DesignLabPage {
     effect(() => {
       this.theme.theme();
       this.store.rereadStylesheet();
+      // An export names the theme it was captured in, so it stops being true here too.
+      this.exportState.set(null);
     });
+  }
+
+  protected onReset(): void {
+    this.store.reset();
+    this.exportState.set(null);
   }
 
   protected onInput(token: DesignLabToken, event: Event): void {
     this.store.write(token, (event.target as HTMLInputElement).value);
+    // A block that no longer describes the knobs beside it is worse than no block: it is
+    // the one thing a reader would paste without re-checking.
+    this.exportState.set(null);
+  }
+
+  /**
+   * Copies the knobs out as SCSS, and **also renders them into a textarea**. The clipboard
+   * is not guaranteed: it needs a secure context and a permission the browser can refuse,
+   * and `navigator.clipboard` is simply absent under jsdom. Showing the text is what makes
+   * the button work everywhere; the copy is the convenience on top.
+   */
+  protected async onExport(): Promise<void> {
+    this.exportState.set(buildDesignLabExport(this.theme.theme()));
+    try {
+      await navigator.clipboard.writeText(this.exportState()!.css);
+      this.copiedState.set(true);
+    } catch {
+      this.copiedState.set(false);
+    }
   }
 }

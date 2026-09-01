@@ -55,7 +55,7 @@ export class DesignLabStore {
    * What a control should display: this store's own write, or the stylesheet's value.
    *
    * An unregistered custom property returns its **declared text**, so `--color-accent`
-   * comes back `#6ea8fe` and `--layout-sidebar-width` comes back `15rem`, **not** pixels.
+   * comes back `#ff9f6b` and `--layout-sidebar-width` comes back `15rem`, **not** pixels.
    * The `.trim()` is not cosmetic: a preserved leading space silently resets an
    * `<input type="color">` to black. Under jsdom no stylesheet is loaded and the read
    * returns `''`, so a control falls back to rendering as untouched.

@@ -1,7 +1,7 @@
 /**
  * §22's seven Design Lab controls, as data.
  *
- * **This file holds no design literals**, deliberately. A hard-coded `#6ea8fe` here would
+ * **This file holds no design literals**, deliberately. A hard-coded `#ff9f6b` here would
  * be a design value outside the one file §21 permits — invisible to
  * `check-design-tokens.mjs`, which only inspects `styles`/`template` initialisers in `.ts`
  * — *and* wrong in the light theme, whose accent is `#2563eb`. So the two controls that

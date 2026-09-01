@@ -89,4 +89,46 @@ describe('DesignLabPage (§22, §67)', () => {
     await fixture.whenStable();
     expect(document.documentElement.style.getPropertyValue('--knob-radius-scale')).toBe('');
   });
+
+  /**
+   * The export's *values* cannot be asserted here: jsdom loads no stylesheet, so every
+   * measurement comes back unresolved and the block is mostly empty. What this proves is
+   * the part jsdom can see — the button copies a block that names the theme and both
+   * targets in `_tokens.scss`, says so when the measurements are partial, and shows the
+   * text whether or not the clipboard exists.
+   */
+  it('exports a block naming the theme, and shows it when the clipboard is unavailable', async () => {
+    const { fixture, element } = await render();
+
+    element.querySelector<HTMLElement>('[data-design-lab-export]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const output = element.querySelector<HTMLTextAreaElement>('[data-design-lab-export-output] textarea')!;
+    expect(output.value).toContain('captured in the dark theme');
+    expect(output.value).toContain(':root {');
+    expect(output.value).toContain('_tokens.scss');
+    // No stylesheet under jsdom, so the block says it is incomplete rather than pretending
+    // — and it is genuinely empty, which is why no value is asserted above.
+    expect(element.querySelector('[data-design-lab-export-partial]')).not.toBeNull();
+    // The knob values themselves are never exported: 1 has to keep meaning "as written".
+    expect(output.value).not.toContain('--knob-radius-scale:');
+  });
+
+  it('drops a stale export as soon as a control moves', async () => {
+    const { fixture, element } = await render();
+
+    element.querySelector<HTMLElement>('[data-design-lab-export]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(element.querySelector('[data-design-lab-export-output]')).not.toBeNull();
+
+    const radius = element.querySelector<HTMLInputElement>('#design-lab-radius')!;
+    radius.value = '1.6';
+    radius.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(element.querySelector('[data-design-lab-export-output]')).toBeNull();
+  });
 });

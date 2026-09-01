@@ -38,16 +38,16 @@
 
   // ── Base literals. The light block overrides these; the derivations below follow. ──
   --color-background: #14161a;
-  --surface-base: #1b1e24;
-  --surface-raised-base: #23272f;
-  --surface-sunken-base: #101216;
+  --surface-base: #191b20;
+  --surface-raised-base: #1e2127;
+  --surface-sunken-base: #111317;
   --shadow-color-sm: rgb(0 0 0 / 40%);
   --shadow-color-md: rgb(0 0 0 / 45%);
 
   --color-text: #eef1f6;
   --color-text-muted: #9aa3b2;
   --color-border: #2c313a;
-  --color-accent: #6ea8fe;
+  --color-accent: #ff9f6b;
   // `--color-accent-contrast` and `--color-accent-surface` stay per-theme literals and do
   // **not** track the accent knob. Contrast is near-black in dark and pure white in light,
   // and no single `color-mix()` against the accent produces both; the tinted surfaces are
@@ -75,14 +75,14 @@
   --space-5: calc(1.5rem * var(--knob-space-scale));
   --space-6: calc(2rem * var(--knob-space-scale));
 
-  --radius-sm: calc(0.25rem * var(--knob-radius-scale));
-  --radius-md: calc(0.5rem * var(--knob-radius-scale));
-  --radius-lg: calc(0.875rem * var(--knob-radius-scale));
+  --radius-sm: calc(0.5rem * var(--knob-radius-scale));
+  --radius-md: calc(1rem * var(--knob-radius-scale));
+  --radius-lg: calc(1.75rem * var(--knob-radius-scale));
 
   // A box-shadow shorthand cannot be multiplied from outside, so the lengths carry the
   // knob individually and the colour arrives as its own token.
-  --shadow-sm: 0 calc(1px * var(--knob-elevation)) calc(2px * var(--knob-elevation)) var(--shadow-color-sm);
-  --shadow-md: 0 calc(8px * var(--knob-elevation)) calc(24px * var(--knob-elevation)) var(--shadow-color-md);
+  --shadow-sm: 0 calc(2px * var(--knob-elevation)) calc(4px * var(--knob-elevation)) var(--shadow-color-sm);
+  --shadow-md: 0 calc(16px * var(--knob-elevation)) calc(48px * var(--knob-elevation)) var(--shadow-color-md);
 
   --font-body: system-ui, -apple-system, 'Segoe UI', roboto, sans-serif;
   --font-size-sm: calc(0.8125rem * var(--knob-font-scale));
