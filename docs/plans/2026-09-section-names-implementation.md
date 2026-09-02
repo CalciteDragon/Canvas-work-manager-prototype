@@ -335,7 +335,10 @@ fail. The registry guard passes trivially against a wrong derivation if written 
 - **No new MCP tool.** `update_section` already does this; a `rename_section` shape experiment is
   §56 work, which `development.md` puts in Slice 24.
 - **No name on milestones, projects or tasks.** They have names already.
-- **Nothing about archived rows.** Sibling plan.
+- **Nothing about archived rows.** Sibling plan — but note that
+  `2026-09-archive-restore-implementation.md` changes cascade to archive the *section* as well as
+  its rows, which makes this dialog's `Archive the rows and remove` label inaccurate. Whichever
+  phase lands second updates the label; it is one string and belongs to whichever is in the file.
 
 ---
 
