@@ -4,6 +4,7 @@ import { TaskPrioritySchema, TaskSchema, TaskStatusSchema } from './task';
 const task = {
   id: 'task-123',
   projectId: 'project-a',
+  sectionId: 'section-1',
   title: 'Configure deployment',
   status: 'todo',
   priority: 'medium',
@@ -81,5 +82,13 @@ describe('TaskSchema archivedAt', () => {
 
   it('rejects a date-only archivedAt — it is an instant like the other timestamps', () => {
     expect(TaskSchema.safeParse({ ...task, archivedAt: '2026-08-26' }).success).toBe(false);
+  });
+});
+
+describe('TaskSchema ownership', () => {
+  it('requires the container section that owns the row', () => {
+    const { sectionId, ...orphan } = task;
+    expect(TaskSchema.safeParse(orphan).success).toBe(false);
+    expect(TaskSchema.parse(task).sectionId).toBe('section-1');
   });
 });

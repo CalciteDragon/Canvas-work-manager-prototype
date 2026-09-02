@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { IsoDateTimeSchema } from './common';
-import { ProjectIdSchema, TaskIdSchema } from './ids';
+import { ProjectIdSchema, SectionIdSchema, TaskIdSchema } from './ids';
 
 /**
  * §33's five statuses, in §33's order. Whether all five earn their place is one of the
@@ -26,6 +26,13 @@ export type TaskPriority = z.infer<typeof TaskPrioritySchema>;
 export const TaskSchema = z.object({
   id: TaskIdSchema,
   projectId: ProjectIdSchema,
+  /**
+   * The `task-list` container that owns this row. Required, so no task can exist in a
+   * project without a section rendering it. `projectId` stays alongside it rather than
+   * being derived through the section — the dashboard, upcoming work and search all filter
+   * by project, and the pair is held together by one write-path assertion.
+   */
+  sectionId: SectionIdSchema,
 
   parentTaskId: TaskIdSchema.optional(),
 

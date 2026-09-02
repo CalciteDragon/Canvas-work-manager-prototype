@@ -4,6 +4,7 @@ import { ReflectionSchema } from './reflection';
 const reflection = {
   id: 'reflection-1',
   projectId: 'project-a',
+  sectionId: 'section-1',
   body: 'Deployment work took the whole week.',
   createdAt: '2026-08-26T10:00:00.000Z',
   updatedAt: '2026-08-26T10:00:00.000Z',
@@ -25,5 +26,10 @@ describe('ReflectionSchema', () => {
 
   it('rejects an empty body', () => {
     expect(ReflectionSchema.safeParse({ ...reflection, body: '' }).success).toBe(false);
+  });
+
+  it('requires the container section that owns the row', () => {
+    const { sectionId, ...orphan } = reflection;
+    expect(ReflectionSchema.safeParse(orphan).success).toBe(false);
   });
 });

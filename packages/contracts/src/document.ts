@@ -10,11 +10,12 @@ import { UserSchema, WorkspaceSchema } from './user';
 
 /**
  * The version of the `.prototype/data.json` shape below. §14's example shows `4`; this
- * is the prototype's first schema, so it starts at 1. Bump it whenever a change would
- * make an existing file wrong — a mismatch is fatal rather than silently coerced, so a
- * stale file fails at load instead of halfway through a session.
+ * was the prototype's first schema. 2 makes tasks and reflections name the section that
+ * owns them. Bump it whenever a change would make an existing file wrong — a mismatch is
+ * fatal rather than silently coerced, so a stale file fails at load instead of halfway
+ * through a session. There is no migration runner: `pnpm prototype:reset` rebuilds.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /**
  * §14's document. Not strict: an unknown top-level key in a hand-edited file is stripped

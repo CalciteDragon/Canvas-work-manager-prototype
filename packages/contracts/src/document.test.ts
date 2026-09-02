@@ -16,6 +16,10 @@ const document = {
 };
 
 describe('PrototypeDocumentSchema', () => {
+  it('is at version 2 — rows now name their section, so a version-1 file is wrong', () => {
+    expect(SCHEMA_VERSION).toBe(2);
+  });
+
   it('accepts the §14 document', () => {
     expect(PrototypeDocumentSchema.parse(document)).toEqual(document);
   });
@@ -42,6 +46,7 @@ describe('PrototypeDocumentSchema', () => {
         {
           id: 'task-1',
           projectId: 'project-missing',
+          sectionId: 'section-missing',
           title: 'Orphan',
           status: 'todo',
           priority: 'medium',

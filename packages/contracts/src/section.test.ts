@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ProjectSectionSchema, SectionColumnSpanSchema } from './section';
+import {
+  ProjectSectionSchema,
+  SectionColumnSpanSchema,
+  ownedKindOf,
+  sectionKindOf,
+} from './section';
 
 const section = {
   id: 'section-1',
@@ -49,5 +54,33 @@ describe('ProjectSectionSchema', () => {
   it('rejects a position that is negative or fractional', () => {
     expect(ProjectSectionSchema.safeParse({ ...section, position: -1 }).success).toBe(false);
     expect(ProjectSectionSchema.safeParse({ ...section, position: 1.5 }).success).toBe(false);
+  });
+});
+
+describe('section ownership', () => {
+  it('splits registered types into containers and leaves the rest views', () => {
+    expect(sectionKindOf('task-list')).toBe('container');
+    expect(sectionKindOf('reflections')).toBe('container');
+    expect(sectionKindOf('progress')).toBe('view');
+    expect(sectionKindOf('timeline')).toBe('view');
+  });
+
+  it('treats an unregistered type as a view, so an unknown type can never cascade', () => {
+    expect(sectionKindOf('something-nobody-registered')).toBe('view');
+    expect(ownedKindOf('something-nobody-registered')).toBeUndefined();
+  });
+
+  it('names what each container owns', () => {
+    expect(ownedKindOf('task-list')).toBe('tasks');
+    expect(ownedKindOf('reflections')).toBe('reflections');
+  });
+
+  it('leaves rich-text out of the map — it owns config.text, not rows', () => {
+    expect(sectionKindOf('rich-text')).toBe('view');
+  });
+
+  it('does not answer for inherited Object keys', () => {
+    expect(sectionKindOf('toString')).toBe('view');
+    expect(ownedKindOf('constructor')).toBeUndefined();
   });
 });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { IsoDateTimeSchema } from './common';
-import { ProjectIdSchema, ReflectionIdSchema } from './ids';
+import { ProjectIdSchema, ReflectionIdSchema, SectionIdSchema } from './ids';
 
 /**
  * A lightweight project journal (§36), not a task. Whether reflections end up freeform,
@@ -9,6 +9,8 @@ import { ProjectIdSchema, ReflectionIdSchema } from './ids';
 export const ReflectionSchema = z.object({
   id: ReflectionIdSchema,
   projectId: ProjectIdSchema,
+  /** The `reflections` container that owns this row — see `Task.sectionId`. */
+  sectionId: SectionIdSchema,
 
   title: z.string().optional(),
   body: z.string().min(1),

@@ -10,6 +10,7 @@ describe('@cwm/contracts entrypoint', () => {
     const task: Task = TaskSchema.parse({
       id: 'task-123',
       projectId: 'project-a',
+      sectionId: 'section-1',
       title: 'Configure deployment',
       status: 'todo',
       priority: 'medium',

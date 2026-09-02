@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ActivityActorSchema } from './activity';
 import { IsoDateSchema, IsoDateTimeSchema, PositionSchema } from './common';
-import { ProjectIdSchema, TaskIdSchema, WorkspaceIdSchema } from './ids';
+import { ProjectIdSchema, SectionIdSchema, TaskIdSchema, WorkspaceIdSchema } from './ids';
 import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectStatusSchema } from './project';
 import { SectionColumnSpanSchema, SectionConfigSchema } from './section';
 import { TaskPrioritySchema, TaskStatusSchema } from './task';
@@ -14,6 +14,12 @@ import { TaskPrioritySchema, TaskStatusSchema } from './task';
 
 export const CreateTaskInputSchema = z.object({
   projectId: ProjectIdSchema,
+  /**
+   * The owning container. Optional on the way in: absent, the service resolves the
+   * project's first `task-list` and adds one when there is none, so an agent that knows
+   * nothing about the canvas still produces a project that renders its work.
+   */
+  sectionId: SectionIdSchema.optional(),
   parentTaskId: TaskIdSchema.optional(),
   title: z.string().min(1),
   description: z.string().optional(),
@@ -32,6 +38,8 @@ export const UpdateTaskInputSchema = z.object({
   priority: TaskPrioritySchema.optional(),
   estimate: z.number().positive().nullable().optional(),
   projectId: ProjectIdSchema.optional(),
+  /** Moving a task between containers. Not nullable: a row is always owned by one. */
+  sectionId: SectionIdSchema.optional(),
   parentTaskId: TaskIdSchema.nullable().optional(),
   startAt: IsoDateTimeSchema.nullable().optional(),
   dueAt: IsoDateTimeSchema.nullable().optional(),
@@ -93,6 +101,19 @@ export const UpdateSectionInputSchema = z.object({
 });
 export type UpdateSectionInput = z.infer<typeof UpdateSectionInputSchema>;
 
+/**
+ * Removing a container that still holds rows takes a policy rather than a confirmation
+ * alone: `cascade` archives them (`archivedAt` is undoable and deliberately distinct from
+ * `cancelled`), `reassign` moves them to another container of the same type. Absent, the
+ * service raises with the row count so the caller can offer the choice rather than guess.
+ * A view section ignores this entirely — removing one touches no data.
+ */
+export const RemoveSectionInputSchema = z.object({
+  policy: z.enum(['cascade', 'reassign']).optional(),
+  reassignToSectionId: SectionIdSchema.optional(),
+});
+export type RemoveSectionInput = z.infer<typeof RemoveSectionInputSchema>;
+
 /** Reordering is its own operation: it renumbers siblings, which a field patch cannot. */
 export const MoveSectionInputSchema = z.object({
   position: PositionSchema,
@@ -101,6 +122,8 @@ export type MoveSectionInput = z.infer<typeof MoveSectionInputSchema>;
 
 export const CreateReflectionInputSchema = z.object({
   projectId: ProjectIdSchema,
+  /** The owning container; resolved like `CreateTaskInput.sectionId` when absent. */
+  sectionId: SectionIdSchema.optional(),
   title: z.string().optional(),
   body: z.string().min(1),
   prompt: z.string().optional(),

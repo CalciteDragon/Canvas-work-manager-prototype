@@ -7,6 +7,7 @@ import {
   CreateTaskInputSchema,
   MoveSectionInputSchema,
   ProjectQuerySchema,
+  RemoveSectionInputSchema,
   SectionQuerySchema,
   TaskQuerySchema,
   UpdateProjectInputSchema,
@@ -203,5 +204,31 @@ describe('the §31 section write inputs', () => {
   it('filters sections by project', () => {
     expect(SectionQuerySchema.parse({ projectId: 'project-a' }).projectId).toBe('project-a');
     expect(SectionQuerySchema.parse({})).toEqual({});
+  });
+});
+
+describe('naming a container on the write inputs', () => {
+  it('lets a create name its section, and leaves it to the service when absent', () => {
+    expect(CreateTaskInputSchema.parse({ projectId: 'project-a', title: 'Ship it' }).sectionId).toBeUndefined();
+    expect(
+      CreateTaskInputSchema.parse({ projectId: 'project-a', title: 'Ship it', sectionId: 'section-1' }).sectionId,
+    ).toBe('section-1');
+    expect(
+      CreateReflectionInputSchema.parse({ projectId: 'project-a', body: 'A week', sectionId: 'section-2' }).sectionId,
+    ).toBe('section-2');
+  });
+
+  it('moves a task between containers — sectionId is not nullable, a row is always owned', () => {
+    expect(UpdateTaskInputSchema.parse({ sectionId: 'section-9' }).sectionId).toBe('section-9');
+    expect(UpdateTaskInputSchema.safeParse({ sectionId: null }).success).toBe(false);
+  });
+
+  it('carries a removal policy, and defaults to none so the caller is asked', () => {
+    expect(RemoveSectionInputSchema.parse({})).toEqual({});
+    expect(RemoveSectionInputSchema.parse({ policy: 'cascade' }).policy).toBe('cascade');
+    expect(
+      RemoveSectionInputSchema.parse({ policy: 'reassign', reassignToSectionId: 'section-2' }),
+    ).toMatchObject({ policy: 'reassign', reassignToSectionId: 'section-2' });
+    expect(RemoveSectionInputSchema.safeParse({ policy: 'delete' }).success).toBe(false);
   });
 });
