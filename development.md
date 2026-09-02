@@ -921,7 +921,7 @@ List took a dragged task across and the two lists then differed across a reload;
 Progress section moved no data and asked nothing; and cascading a non-empty Task List left its
 task in `data.json` with `archivedAt` set. That pass produced two friction notes — the removal
 dialog prints the raw domain error (section id, "1 tasks") and its reassign select names the
-section *type*, because sections have no user-visible name yet; and cascade leaves the archived
+section *type*, because nothing in the app sets the `title` §31 already allows; and cascade leaves the archived
 row's `sectionId` pointing at a removed section, which nothing validates and nothing unarchives.
 
 **Deferred:** scoping a view to a single container (the decision's "revisit when"), a

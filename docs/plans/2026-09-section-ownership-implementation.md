@@ -296,8 +296,9 @@ Items 4 and 5 were then clicked in a real browser on a reset `personal-workspace
 Two friction notes came out of that pass, in `.prototype/notes.json` (`note-2026-09-01-001`,
 `-002`): the removal dialog prints the domain error verbatim, so it names a section **id**
 rather than a title and says "1 tasks", and its reassign select lists the section *type*, so
-three Task Lists on one canvas are indistinguishable in it — sections have no user-visible name
-yet, which is the gap under both. And cascade leaves the archived row's `sectionId` pointing at
+three Task Lists on one canvas are indistinguishable in it. `ProjectSection.title` already
+exists as §31's optional override and the frame already prefers it; nothing in the app can set
+one, so the select's `title ?? type` falls back forever. And cascade leaves the archived row's `sectionId` pointing at
 a section that no longer exists; `validateDocumentIntegrity` does not check `task.sectionId`,
 and nothing unarchives a task, so the decision's "undoable" is true of the field and untested
 in the app.
