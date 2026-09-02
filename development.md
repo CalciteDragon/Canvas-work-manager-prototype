@@ -887,6 +887,48 @@ iteration fast.
 
 ---
 
+## Unnumbered phase — Container sections own their rows
+
+The first phase chosen the way §82 asks for: by friction, not by slice order. Using the
+prototype after Slice 17 showed the defect the whole build order had walked past — an agent
+could `create_project` and fill it with tasks over MCP and get a canvas that reads as empty,
+because nothing made sections and the MCP surface had no section tools. Sections were views
+over the project's rows, so two Task Lists on one project rendered the same query twice.
+
+**Status:** done — decision: [docs/decisions/2026-09-sections-own-their-data.md](docs/decisions/2026-09-sections-own-their-data.md),
+plan: [docs/plans/2026-09-section-ownership-implementation.md](docs/plans/2026-09-section-ownership-implementation.md).
+Rows carry `sectionId`; containers (`task-list`, `reflections`) own theirs and views
+(`progress`, `sub-projects`, `timeline`, `recent-activity`) own nothing. Creating a row with
+no section named resolves to the project's first matching container and otherwise calls
+`SectionService.add` — a default layout is the existing operation reached by a different
+door, not a second code path. Removing a container takes a policy: `cascade` archives its
+rows, `reassign` moves them; removing a view touches no data. The MCP registry grew from
+fourteen tools to eighteen (`list_sections`, `create_section`, `update_section`,
+`remove_section`).
+
+`SCHEMA_VERSION` went 1 → 2 with **no migration**, deliberately — `PrototypeDocumentSchema`
+pins the literal so a stale `.prototype/data.json` fails at load rather than halfway through
+a session, and `pnpm prototype:reset` rebuilds it. Three deviations from the plan, all
+recorded in it: `Reflection` gained `archivedAt` (the plan's "it already exists" was true only
+of `Task`, and without it a `reflections` cascade would have had to hard delete);
+`TaskQuery`/`ReflectionQuery` gained `sectionId`, without which a section-scoped list cannot
+read what its container owns; and two seeds changed shape rather than only ids, because under
+ownership an empty canvas and an unrendered row are the same defect.
+
+Verified in the running app on the `personal-workspace` seed, not only by the 1122-test suite:
+`POST /api/tasks` with no `sectionId` created the container that renders it; a second Task
+List took a dragged task across and the two lists then differed across a reload; removing a
+Progress section moved no data and asked nothing; and cascading a non-empty Task List left its
+task in `data.json` with `archivedAt` set. That pass produced two friction notes — the removal
+dialog prints the raw domain error (section id, "1 tasks") and its reassign select names the
+section *type*, because sections have no user-visible name yet; and cascade leaves the archived
+row's `sectionId` pointing at a removed section, which nothing validates and nothing unarchives.
+
+**Deferred:** scoping a view to a single container (the decision's "revisit when"), a
+container type for milestones, and any UI for the `reassign` policy beyond the dialog's select.
+
+---
+
 ## Phase 5 — Second milestone candidates (Slices 18–24)
 
 Build these **only when observed use justifies them** (§82). Listed in the order most

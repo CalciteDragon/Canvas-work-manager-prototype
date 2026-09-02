@@ -527,6 +527,20 @@
       "projectId": null,
       "slice": 17,
       "note": "Surface contrast reducing only reads as broken for the first few seconds even with the label. Dragging up does nothing and there is no motion to explain why. A control that started in the middle of a range would be honest about direction, but only by changing how the app looks at rest, which the refactor rule forbids. Worth revisiting as a differently-shaped control rather than a slider."
+    },
+    {
+      "id": "note-2026-09-01-001",
+      "createdAt": "2026-09-02T06:15:04.048Z",
+      "route": "/projects/project-personal",
+      "projectId": "project-personal",
+      "note": "The section removal dialog prints the domain error verbatim: `section \"section-4f7e064c\" still holds 1 tasks; removing it needs a policy of \"cascade\" or \"reassign\"`. Three things are wrong for a person standing in front of it — it names the section id rather than its title, it says \"1 tasks\", and it explains the policy vocabulary instead of the choice. The buttons underneath already say it properly (\"Archive the rows and remove\" / \"Move the rows and remove\"), so the sentence is doing harm rather than nothing. The reassign target select is worse: it lists the section *type* (\"task-list\"), so with three Task Lists on a canvas there is no way to tell which one you are moving rows into. Sections have no user-visible name yet, which is the real gap underneath both."
+    },
+    {
+      "id": "note-2026-09-01-002",
+      "createdAt": "2026-09-02T06:15:05.049Z",
+      "route": "/projects/project-personal",
+      "projectId": "project-personal",
+      "note": "Cascade archived the row exactly as designed — the task survives in data.json with `archivedAt` set — but its `sectionId` still points at the section that was just removed, and nothing in the app unarchives a task. `validateDocumentIntegrity` does not check `task.sectionId` either, so the dangling reference is invisible until something reads it. The decision entry calls cascade \"undoable\" because `archivedAt` is distinct from `cancelled`; that is true of the field and untrue of the app. Whatever eventually restores an archived row has to answer where it goes back to — which is an argument for resolving the container at restore time, the same door `resolveContainer` already opens on create."
     }
   ]
 }

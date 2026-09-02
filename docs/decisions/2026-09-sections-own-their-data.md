@@ -51,10 +51,22 @@ moving inside `config`.
 Milestones have no container type. §35 keeps them distinct from tasks, and nothing renders
 them but the timeline view, so they remain project-scoped until a container type earns them.
 
+Ownership also has to be known in two places, and that cost the registry its single-file
+claim for one of the two kinds. `SECTION_REGISTRY` lives in the web app, but cascade-on-remove
+and container resolution are domain decisions, so the ownership map — `SECTION_OWNERSHIP` in
+`packages/contracts/src/section.ts` — had to sit below both. The registry now reads `kind`
+back out of it rather than declaring it, which keeps one source of truth but means **adding a
+*container* type touches two files** (the contracts map, plus the type's own folder and its
+registry entry) rather than the one §30 promises. Adding a *view* type is unchanged: absence
+from the map is what makes something a view, so an unregistered type can never cascade — the
+failure mode of forgetting the map entry is a container that behaves as a view, which loses
+ownership rather than data.
+
 **Current decision**
 
 `kind` joins the registry entry, alongside `type` and `createDefaultConfig` — one line per
-section type, so §30's claim holds. `container` entries also name what they own.
+section type, read from the contracts map rather than restated (see the two-file cost above).
+`container` entries also name what they own.
 
 Rows of an owned kind gain `sectionId`. `projectId` stays alongside it rather than being
 derived through the section: the dashboard, upcoming-work and search all filter by project,

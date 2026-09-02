@@ -267,28 +267,54 @@ web: section-scoped stores, drag between containers, removal dialog
 
 ---
 
-## Progress — paused 2026-09-01
+## Progress — complete 2026-09-01
 
 **Steps 1–6 are done and committed**, one commit per step, subjects as suggested above
 (`5e61e54`..`a94ef26`). `pnpm test` (1122), `pnpm lint` and `pnpm build` all pass on a clean
 tree.
 
-**Step 7 is partly done.** Seed reset, host restarted, and item 3 — the bug the change exists
-to close — verified against the running host: a project with an empty canvas, then
-`POST /api/tasks` with no `sectionId`, answered a task owning `section-bdaadc55`, and
-`GET /api/projects/:id/sections` went from `[]` to `task-list@0`.
+**Step 7 is done.** Item 3 — the bug the change exists to close — was verified first, against
+a fresh `agent-heavy` host: a project with an empty canvas, then `POST /api/tasks` with no
+`sectionId`, answered a task owning `section-bdaadc55`, and `GET /api/projects/:id/sections`
+went from `[]` to `task-list@0`.
 
-### What is left
+Items 4 and 5 were then clicked in a real browser on a reset `personal-workspace` seed,
+`/projects/project-personal`:
 
-- Step 7 items 4 and 5 in the running app: two Task Lists with a drag across, then a view
-  removal and a cascade through the UI. Both are covered by tests; neither has been clicked.
-- `docs/mcp-setup.md` still says "fourteen tools" in its opening line and its `tools/list`
-  expectations. It is eighteen now — the four section tools.
-- `development.md` slice status for this phase.
-- This plan's step 0 asked to record in the ADR, if it survived review, that adding a
-  *container* type now touches two files (the contracts map plus the web registry and its
-  folder) rather than the one §30 promises. It did survive: `SECTION_OWNERSHIP` lives in
-  `packages/contracts/src/section.ts` and `registry.ts` reads `kind` back out of it.
+- **Two Task Lists, one drag.** Quick add → Task List made `section-4f7e064c` at position 2.
+  A pointer drag moved *Measure the hallway shelf* out of the seeded list and into it; the
+  host answered `sectionId: section-4f7e064c`, and after a full reload the two lists render
+  different rows — two of three in the first, one in the second. The store split from
+  page-scoped to section-scoped is what makes that hold across the reload.
+- **A view removes without ceremony.** A Progress section added and removed: no dialog, and
+  all three tasks unchanged in `data.json`, `archivedAt` still null on every one.
+- **A container cascades rather than deletes.** Removing the non-empty second Task List
+  raised the dialog naming the row count and offering both policies. *Archive the rows and
+  remove* left the task in `data.json` with `archivedAt: 2026-09-02T06:13:32.422Z` — archived,
+  not vanished.
+
+Two friction notes came out of that pass, in `.prototype/notes.json` (`note-2026-09-01-001`,
+`-002`): the removal dialog prints the domain error verbatim, so it names a section **id**
+rather than a title and says "1 tasks", and its reassign select lists the section *type*, so
+three Task Lists on one canvas are indistinguishable in it — sections have no user-visible name
+yet, which is the gap under both. And cascade leaves the archived row's `sectionId` pointing at
+a section that no longer exists; `validateDocumentIntegrity` does not check `task.sectionId`,
+and nothing unarchives a task, so the decision's "undoable" is true of the field and untested
+in the app.
+
+The rest of what step 7 owed is closed too:
+
+- `docs/mcp-setup.md` and `README.md` said "fourteen tools"; both now say eighteen and name
+  the four section tools. (The remaining "fourteen" mentions are in Slice 14/15 status text
+  and in decision entries — historical accounts of what was true when written, left alone.)
+- `development.md` gained an **Unnumbered phase** section between Phase 4 and Phase 5 — this
+  is not a slice, and it is the first phase chosen by friction rather than build order, which
+  is what the "Stop here and use the prototype" note above it asks for.
+- The step 0 finding is recorded in the ADR's *What we learned*, and its *Current decision*
+  no longer claims §30's one-file promise unqualified: adding a **container** type touches two
+  files (the contracts map plus the type's folder and registry entry), adding a **view** still
+  touches one, and forgetting the map entry degrades a container to a view — losing ownership,
+  never data.
 
 ### Three deviations from the plan, all deliberate
 
@@ -314,7 +340,11 @@ re-checked — an agent holding `tasks.write` alone must still be able to create
 
 ### Environment
 
-A prototype host predating the session was holding `:4310` with a schema-version-1 document;
-it was stopped and restarted. The running host serves the `agent-heavy` seed and contains an
-`Agent smoke test` project left by the verification above. `pnpm prototype:reset` and a host
-restart clears both.
+`.prototype/data.json` now holds the `personal-workspace` seed **as the browser pass left it**,
+not as `prototype:reset` writes it: *Measure the hallway shelf* is archived and still names the
+container that was cascaded away. Re-run `pnpm prototype:reset` before using the seed for
+anything else.
+
+The host reloads its document only at startup, and `pnpm dev:host` is `tsx watch` — touching
+`apps/prototype-host/main.ts` restarts the child and picks up a new seed without killing the
+terminal, which is how the reset above was loaded.
