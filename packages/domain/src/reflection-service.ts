@@ -5,6 +5,7 @@ import {
   type ProjectId,
   type Reflection,
   type ReflectionId,
+  type SectionId,
   type UpdateReflectionInput,
 } from '@cwm/contracts';
 import type { ProjectRepository, ReflectionRepository, UnitOfWork } from '@cwm/repositories';
@@ -29,10 +30,14 @@ export interface ReflectionServiceDependencies {
 export class ReflectionService {
   constructor(private readonly dependencies: ReflectionServiceDependencies) {}
 
-  async list(actor: ActorContext, projectId: ProjectId): Promise<Reflection[]> {
+  /**
+   * Scoped to a project, and narrowed to one container when a section is named: a
+   * reflections section renders what it owns, not everything the project holds.
+   */
+  async list(actor: ActorContext, projectId: ProjectId, sectionId?: SectionId): Promise<Reflection[]> {
     assertPermitted(actor, 'reflections.read');
     await this.assertProjectVisible(actor, projectId);
-    return (await this.dependencies.reflections.list({ projectId })).sort((a, b) =>
+    return (await this.dependencies.reflections.list({ projectId, sectionId })).sort((a, b) =>
       b.createdAt === a.createdAt ? b.id.localeCompare(a.id) : b.createdAt.localeCompare(a.createdAt),
     );
   }

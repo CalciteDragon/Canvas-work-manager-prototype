@@ -7,6 +7,8 @@ import {
   CreateSectionInputSchema,
   CreateTaskInputSchema,
   MoveSectionInputSchema,
+  ReflectionQuerySchema,
+  RemoveSectionInputSchema,
   ProjectIdSchema,
   ProjectQuerySchema,
   ReflectionIdSchema,
@@ -138,8 +140,18 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'GET /api/projects/:id/timeline': async (request) =>
       ok(await timeline.derive(await actorFor(request), projectId(request))),
 
-    'GET /api/reflections': async (request) =>
-      ok(await reflections.list(await actorFor(request), ProjectIdSchema.parse(request.query.get('projectId')))),
+    'GET /api/reflections': async (request) => {
+      // A reflections section renders what it owns, so the list narrows to one container
+      // when the caller names one. The project stays required: it is what scopes the read.
+      const query = ReflectionQuerySchema.parse(queryObject(request.query, []));
+      return ok(
+        await reflections.list(
+          await actorFor(request),
+          ProjectIdSchema.parse(request.query.get('projectId')),
+          query.sectionId,
+        ),
+      );
+    },
 
     'POST /api/reflections': async (request) =>
       created(await reflections.create(await actorFor(request), CreateReflectionInputSchema.parse(request.body))),
@@ -191,8 +203,16 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'POST /api/sections/:id/duplicate': async (request) =>
       created(await sections.duplicate(await actorFor(request), sectionId(request))),
 
+    // The policy rides on the query string, not a body: a DELETE with a body is awkward
+    // through `fetch` and every client here already builds query strings. Removing a
+    // container that still holds rows without one answers 409 naming the count, which is
+    // what lets the canvas offer cascade or reassign rather than guess.
     'DELETE /api/sections/:id': async (request) => {
-      await sections.remove(await actorFor(request), sectionId(request));
+      await sections.remove(
+        await actorFor(request),
+        sectionId(request),
+        RemoveSectionInputSchema.parse(queryObject(request.query, [])),
+      );
       return noContent();
     },
 

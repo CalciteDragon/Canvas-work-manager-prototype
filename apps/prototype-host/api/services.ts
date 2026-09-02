@@ -52,16 +52,20 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
   const connections = new AgentConnectionService({ agents, activity, clock, unitOfWork });
   const ai = options.ai ?? aiProviderFor(process.env['PROTOTYPE_AI_PROVIDER']);
 
+  // Built ahead of the table: task and reflection writes resolve their container through
+  // it, so it has to exist before they do.
+  const sectionService = new SectionService({ sections, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+
   return {
     store,
     events,
     activity,
     projects: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
-    tasks: new TaskService({ tasks, projects, activity, clock, ids, unitOfWork }),
-    sections: new SectionService({ sections, projects, activity, clock, ids, unitOfWork }),
+    tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
+    sections: sectionService,
     progress: new ProgressService({ projects, tasks }),
     timeline: new TimelineService({ projects, tasks, milestones }),
-    reflections: new ReflectionService({ reflections, projects, activity, clock, ids, unitOfWork }),
+    reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai }),
     workspace: new WorkspaceService({ projects, tasks, reflections, clock }),
     agents: connections,

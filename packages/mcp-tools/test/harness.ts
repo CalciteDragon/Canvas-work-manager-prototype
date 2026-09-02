@@ -14,6 +14,7 @@ import {
   PrototypeAIProvider,
   PrototypeClock,
   ReflectionService,
+  SectionService,
   TaskService,
   WorkspaceService,
   type ActorContext,
@@ -27,6 +28,7 @@ import {
   JsonMilestoneRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
+  JsonSectionRepository,
   JsonTaskRepository,
   JsonUserRepository,
   unitOfWorkFor,
@@ -91,6 +93,7 @@ export const buildHarness = () => {
   const projects = new JsonProjectRepository(store);
   const tasks = new JsonTaskRepository(store);
   const reflections = new JsonReflectionRepository(store);
+  const sections = new JsonSectionRepository(store);
   const activities = new JsonActivityRepository(store);
   const agents = new JsonAgentConnectionRepository(store);
   const users = new JsonUserRepository(store);
@@ -107,10 +110,13 @@ export const buildHarness = () => {
     ids,
   });
 
+  const sectionService = new SectionService({ sections, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+
   const services = {
+    sections: sectionService,
     projects: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
-    tasks: new TaskService({ tasks, projects, activity, clock, ids, unitOfWork }),
-    reflections: new ReflectionService({ reflections, projects, activity, clock, ids, unitOfWork }),
+    tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
+    reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     workspace: new WorkspaceService({ projects, tasks, reflections, clock }),
   };

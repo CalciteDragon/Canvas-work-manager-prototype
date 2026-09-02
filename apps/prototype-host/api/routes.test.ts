@@ -62,16 +62,17 @@ const buildRoutes = (withProjects = true, seeded?: ReturnType<typeof document>):
   const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids });
   const unitOfWork = unitOfWorkFor(store);
   const connections = new AgentConnectionService({ agents, activity, clock, unitOfWork });
+  const sectionService = new SectionService({ sections, projects, tasks, reflections, activity, clock, ids, unitOfWork });
 
   return createApiRoutes({
     store,
     activity,
     projects: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
-    tasks: new TaskService({ tasks, projects, activity, clock, ids, unitOfWork }),
-    sections: new SectionService({ sections, projects, activity, clock, ids, unitOfWork }),
+    tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
+    sections: sectionService,
     progress: new ProgressService({ projects, tasks }),
     timeline: new TimelineService({ projects, tasks, milestones }),
-    reflections: new ReflectionService({ reflections, projects, activity, clock, ids, unitOfWork }),
+    reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     agents: connections,
     authenticator: new PrototypeAgentAuthenticator({ agents, users, connections }),
@@ -252,6 +253,26 @@ describe('task routes', () => {
     expect(result.body).toMatchObject({ error: 'invalid_request' });
   });
 
+  it('creates a task into a named container, moves it with PATCH, and lists by section', async () => {
+    const routes = buildRoutes();
+    const first = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'One' } })).body);
+    const second = ProjectSectionSchema.parse(
+      (await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'task-list' } })).body,
+    );
+
+    const named = await call(routes, 'POST', '/api/tasks', {
+      body: { projectId: MINE, title: 'Two', sectionId: second.id },
+    });
+    expect(TaskSchema.parse(named.body).sectionId).toBe(second.id);
+
+    const moved = await call(routes, 'PATCH', `/api/tasks/${first.id}`, { body: { sectionId: second.id } });
+    expect(TaskSchema.parse(moved.body).sectionId).toBe(second.id);
+
+    const scoped = await call(routes, 'GET', `/api/tasks?sectionId=${second.id}`);
+    expect(TaskSchema.array().parse(scoped.body).map(({ title }) => title).sort()).toEqual(['One', 'Two']);
+    expect(TaskSchema.array().parse((await call(routes, 'GET', `/api/tasks?sectionId=${first.sectionId}`)).body)).toEqual([]);
+  });
+
   it('answers 409 when asked to move a task between projects', async () => {
     const routes = buildRoutes();
     const destination = await call(routes, 'POST', '/api/projects', {
@@ -384,6 +405,37 @@ describe('section routes', () => {
       'task-list',
       'rich-text',
     ]);
+  });
+
+  it('refuses a container that still holds rows, and takes a policy on the query string', async () => {
+    const routes = buildRoutes();
+    const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
+
+    // No policy: 409 naming the count, which is what lets the canvas offer a choice.
+    const refused = await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
+    expect(refused).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
+    expect(String((refused.body as { message: string }).message)).toContain('holds 1 tasks');
+
+    const cascaded = await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
+    expect(cascaded.status).toBe(204);
+    // Archived, not deleted — the removal is undoable.
+    const archived = await call(routes, 'GET', `/api/tasks/${task.id}`);
+    expect(TaskSchema.parse(archived.body).archivedAt).toBeDefined();
+  });
+
+  it('reassigns rows to another container named on the query string', async () => {
+    const routes = buildRoutes();
+    const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
+    const target = await newSection(routes, { type: 'task-list' });
+
+    const removed = await call(
+      routes,
+      'DELETE',
+      `/api/sections/${task.sectionId}?policy=reassign&reassignToSectionId=${target.id}`,
+    );
+
+    expect(removed.status).toBe(204);
+    expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).sectionId).toBe(target.id);
   });
 
   it('answers 404 for the sections of a project in another workspace', async () => {
