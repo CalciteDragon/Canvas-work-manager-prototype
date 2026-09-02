@@ -42,6 +42,7 @@ const buildServer = () => {
     projects: api.projects,
     tasks: api.tasks,
     reflections: api.reflections,
+    sections: api.sections,
     dashboard: api.dashboard,
     workspace: api.workspace,
   });

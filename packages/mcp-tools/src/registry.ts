@@ -3,6 +3,7 @@ import { UnknownToolError } from './errors';
 import type { WorkManagerServices, WorkManagerTool } from './tool';
 import { projectTools } from './tools/projects';
 import { reflectionTools } from './tools/reflections';
+import { sectionTools } from './tools/sections';
 import { taskTools } from './tools/tasks';
 import { workspaceTools } from './tools/workspace';
 
@@ -24,6 +25,10 @@ export const SPEC_TOOL_NAMES = [
   'complete_task',
   'list_reflections',
   'add_reflection',
+  'list_sections',
+  'create_section',
+  'update_section',
+  'remove_section',
   'search_workspace',
   'get_upcoming_work',
   'get_dashboard_context',
@@ -51,7 +56,7 @@ export interface ToolRegistry {
  * instead.
  */
 export const createToolRegistry = (services: WorkManagerServices): ToolRegistry => {
-  const tools: readonly WorkManagerTool[] = [...projectTools, ...taskTools, ...reflectionTools, ...workspaceTools];
+  const tools: readonly WorkManagerTool[] = [...projectTools, ...taskTools, ...reflectionTools, ...sectionTools, ...workspaceTools];
   const byName = new Map(tools.map((tool) => [tool.name, tool]));
 
   return {

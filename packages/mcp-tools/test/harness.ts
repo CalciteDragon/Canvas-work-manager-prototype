@@ -3,6 +3,7 @@ import {
   type AgentConnectionId,
   type AgentPermission,
   type ProjectId,
+  type SectionId,
   type TaskId,
   type UserId,
   type WorkspaceId,
@@ -61,6 +62,9 @@ export const PROJECT = 'project-work-manager' as ProjectId;
 export const OPS_PROJECT = 'project-agent-ops' as ProjectId;
 /** Open, not-yet-done, and therefore actually completable — unlike `task-agent-deployment`. */
 export const OPEN_TASK = 'task-agent-schema' as TaskId;
+/** The task list that owns `PROJECT`'s work, and a view beside it that owns nothing. */
+export const TASK_CONTAINER = 'section-project-work-manager-tasks' as SectionId;
+export const VIEW_SECTION = 'section-project-work-manager-activity' as SectionId;
 
 /**
  * A project in **another persona's** workspace.

@@ -1,7 +1,7 @@
 import { AgentPermissionSchema, type AgentPermission } from '@cwm/contracts';
 import { PermissionDeniedError } from '@cwm/domain';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { agent, buildHarness, OPEN_TASK, OPS_PROJECT, PROJECT } from '../test/harness';
+import { agent, buildHarness, OPEN_TASK, OPS_PROJECT, PROJECT, TASK_CONTAINER, VIEW_SECTION } from '../test/harness';
 
 const ALL_PERMISSIONS = AgentPermissionSchema.options;
 
@@ -95,6 +95,44 @@ const CASES: Record<string, ToolCase> = {
     verify: async (result, harness) => {
       const listed = await harness.services.reflections.list(agent(['reflections.read']), PROJECT);
       expect(listed.map(({ id }) => id)).toContain(result.id);
+    },
+  },
+  list_sections: {
+    input: { projectId: PROJECT },
+    verify: (result) => {
+      expect(result.map((section: { type: string }) => section.type)).toEqual([
+        'rich-text',
+        'task-list',
+        'recent-activity',
+      ]);
+    },
+  },
+  create_section: {
+    input: { projectId: PROJECT, type: 'progress' },
+    mutates: true,
+    verify: async (result, harness) => {
+      expect(result).toMatchObject({ projectId: PROJECT, type: 'progress', position: 3 });
+      const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
+      expect(listed.map(({ id }) => id)).toContain(result.id);
+    },
+  },
+  update_section: {
+    input: { sectionId: TASK_CONTAINER, title: 'This week' },
+    mutates: true,
+    verify: async (result, harness) => {
+      expect(result.title).toBe('This week');
+      expect((await harness.services.sections.get(agent(['projects.read']), TASK_CONTAINER)).title).toBe('This week');
+    },
+  },
+  remove_section: {
+    // A view: it owns nothing, so it needs no policy. The container case — a policy, and
+    // the rows it settles — is asserted in the domain, where the rule lives.
+    input: { sectionId: VIEW_SECTION },
+    mutates: true,
+    verify: async (result, harness) => {
+      expect(result).toEqual({ removed: VIEW_SECTION });
+      const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
+      expect(listed.map(({ id }) => id)).not.toContain(VIEW_SECTION);
     },
   },
   search_workspace: {

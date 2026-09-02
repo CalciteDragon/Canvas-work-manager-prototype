@@ -7,13 +7,15 @@ import { buildHarness } from '../test/harness';
 const registry = buildHarness().registry;
 
 describe('the tool registry', () => {
-  it('registers exactly the fourteen tools §54 lists', () => {
+  it('registers exactly the eighteen tools the spec and the canvas ask for', () => {
     const registered = registry.list().map(({ name }) => name);
 
     // Both directions: a missing tool and an extra one are different defects, and a
     // subset assertion would catch only the first.
     expect([...registered].sort()).toEqual([...SPEC_TOOL_NAMES].sort());
-    expect(registered).toHaveLength(14);
+    // §54's fourteen, plus the four section tools
+    // docs/decisions/2026-09-sections-own-their-data.md adds.
+    expect(registered).toHaveLength(18);
   });
 
   it('gives every tool a unique name and a description an agent could choose on', () => {

@@ -108,6 +108,8 @@ describe('live updates through the host (§62)', () => {
       projects: api.projects,
       tasks: api.tasks,
       reflections: api.reflections,
+      sections: api.sections,
+    sections: api.sections,
       dashboard: api.dashboard,
       workspace: api.workspace,
     });
