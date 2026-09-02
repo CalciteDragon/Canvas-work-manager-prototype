@@ -17,6 +17,14 @@ export const ReflectionSchema = z.object({
   /** Which of §36's prompts was answered, when one was used. Prompting stays optional. */
   prompt: z.string().optional(),
 
+  /**
+   * Set when the reflection is archived; archived reflections are excluded from lists by
+   * default. It exists for the same reason `Task.archivedAt` does, and because removing a
+   * `reflections` container with `cascade` has to be undoable — see
+   * docs/decisions/2026-09-sections-own-their-data.md.
+   */
+  archivedAt: IsoDateTimeSchema.optional(),
+
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,
 });

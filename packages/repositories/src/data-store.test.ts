@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rename as renameFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PrototypeDocumentSchema, type PrototypeDocument } from '@cwm/contracts';
+import { PrototypeDocumentSchema, type PrototypeDocument, SCHEMA_VERSION } from '@cwm/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type FileOperations, InMemoryDataStore, JsonDataStore, unitOfWorkFor } from './data-store';
 import { DocumentIntegrityError, UnitOfWorkInProgressError } from './errors';
@@ -11,7 +11,7 @@ const at = '2026-08-26T10:00:00.000Z';
 
 const validDocument = () =>
   PrototypeDocumentSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     users: [
       {
         id: 'user-1',
@@ -50,6 +50,7 @@ const validDocument = () =>
       {
         id: 'task-1',
         projectId: 'project-1',
+        sectionId: 'section-1',
         title: 'Task',
         status: 'todo',
         priority: 'medium',
@@ -71,6 +72,7 @@ const validDocument = () =>
       {
         id: 'reflection-1',
         projectId: 'project-1',
+        sectionId: 'section-1',
         body: 'Reflection',
         createdAt: at,
         updatedAt: at,
@@ -123,6 +125,7 @@ const secondWorkspace = {
   task: {
     id: 'task-2',
     projectId: 'project-2',
+    sectionId: 'section-1',
     title: 'Other task',
     status: 'todo' as const,
     priority: 'medium' as const,
@@ -535,7 +538,7 @@ describe('JsonDataStore', () => {
  */
 const otherWorkspaceDocument = () =>
   PrototypeDocumentSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     users: [
       {
         id: 'user-2',

@@ -12,6 +12,7 @@ const task = (id: string, projectId: string, title: string, extra: Partial<Task>
   PrototypeDocumentSchema.shape.tasks.element.parse({
     id,
     projectId,
+    sectionId: `section-${projectId}-tasks`,
     title,
     status: 'todo',
     priority: 'medium',
@@ -24,6 +25,7 @@ const reflection = (id: string, projectId: string, body: string, extra: Partial<
   PrototypeDocumentSchema.shape.reflections.element.parse({
     id,
     projectId,
+    sectionId: `section-${projectId}-reflections`,
     body,
     createdAt: '2026-08-01T16:00:00.000Z',
     updatedAt: '2026-08-01T16:00:00.000Z',

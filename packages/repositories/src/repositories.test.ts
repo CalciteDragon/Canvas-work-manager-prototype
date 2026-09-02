@@ -7,8 +7,7 @@ import {
   type ProjectSection,
   type Reflection,
   type Task,
-  type User,
-} from '@cwm/contracts';
+  type User, SCHEMA_VERSION, } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { InMemoryDataStore, unitOfWorkFor } from './data-store';
 import { RepositoryConflictError, RepositoryNotFoundError, UnitOfWorkInProgressError } from './errors';
@@ -27,7 +26,7 @@ const at = '2026-08-26T10:00:00.000Z';
 
 const baseDocument = () =>
   PrototypeDocumentSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     users: [
       {
         id: 'user-1',
@@ -74,6 +73,7 @@ const task = (id: string, overrides: Partial<Task> = {}): Task =>
   PrototypeDocumentSchema.shape.tasks.element.parse({
     id,
     projectId: 'project-1',
+    sectionId: 'section-1',
     title: `Task ${id}`,
     status: 'todo',
     priority: 'medium',
@@ -116,6 +116,7 @@ const milestone: Milestone = PrototypeDocumentSchema.shape.milestones.element.pa
 const reflection: Reflection = PrototypeDocumentSchema.shape.reflections.element.parse({
   id: 'reflection-1',
   projectId: 'project-1',
+  sectionId: 'section-1',
   body: 'Learned something',
   createdAt: at,
   updatedAt: at,

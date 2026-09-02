@@ -13,10 +13,13 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
+import type { SectionService } from './section-service';
 
 export interface ReflectionServiceDependencies {
   reflections: ReflectionRepository;
   projects: ProjectRepository;
+  /** A reflection belongs to a `reflections` section — see `TaskServiceDependencies`. */
+  sections: SectionService;
   activity: ActivityService;
   clock: Clock;
   ids: IdGenerator;
@@ -39,10 +42,19 @@ export class ReflectionService {
     assertPermitted(actor, 'reflections.write');
     return this.dependencies.unitOfWork.run(async () => {
       await this.assertProjectVisible(actor, input.projectId);
+      // Named: checked. Absent: the project's first reflections section, created through
+      // the ordinary add when there is none — the same door `TaskService.create` uses.
+      const sectionId =
+        input.sectionId === undefined
+          ? (await this.dependencies.sections.resolveContainer(actor, input.projectId, 'reflections')).id
+          : (await this.dependencies.sections.requireContainer(actor, input.projectId, input.sectionId, 'reflections'))
+              .id;
+
       const now = this.dependencies.clock.now().toISOString();
       const reflection = ReflectionSchema.parse({
         id: ReflectionIdSchema.parse(this.dependencies.ids.next('reflection')),
         ...input,
+        sectionId,
         createdAt: now,
         updatedAt: now,
       });

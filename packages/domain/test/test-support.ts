@@ -1,4 +1,4 @@
-import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type PrototypeDocument, type UserId, type WorkspaceId } from '@cwm/contracts';
+import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type PrototypeDocument, type SectionId, type UserId, type WorkspaceId } from '@cwm/contracts';
 import { PERSONAS, SEED_NOW } from '@cwm/prototype-data';
 import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
 import type { ActorContext } from '../src/actor';
@@ -86,6 +86,33 @@ export const twoPersonaDocument = (): PrototypeDocument =>
     ],
   });
 
+/**
+ * A container written straight to the repository, so a test can start from a project that
+ * already has a canvas without the `project.section_added` event that `SectionService.add`
+ * would record. Tests about *what a mutation records* need the setup to record nothing.
+ */
+export const seedContainer = async (
+  harness: { sections: { insert(section: ProjectSection): Promise<void> } },
+  projectId: ProjectId,
+  type = 'task-list',
+): Promise<SectionId> => {
+  const id = `section-${projectId}-${type}` as SectionId;
+  await harness.sections.insert(
+    PrototypeDocumentSchema.shape.sections.element.parse({
+      id,
+      projectId,
+      type,
+      position: 0,
+      columnSpan: 12,
+      collapsed: false,
+      config: {},
+      createdAt: CREATED_AT,
+      updatedAt: CREATED_AT,
+    }),
+  );
+  return id;
+};
+
 export const MINE = 'project-mine' as ProjectId;
 export const THEIRS = 'project-theirs' as ProjectId;
 
@@ -126,6 +153,10 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
   const users = new JsonUserRepository(store);
   const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids, events: options.events });
 
+  // Built ahead of the object literal: task and reflection writes resolve their container
+  // through it, so it has to exist before they do.
+  const sectionService = new SectionService({ sections, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+
   return {
     store,
     clock,
@@ -142,13 +173,13 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     actor: actorFor(0),
     other: actorFor(1),
     projectService: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
-    taskService: new TaskService({ tasks, projects, activity, clock, ids, unitOfWork }),
+    taskService: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     progressService: new ProgressService({ projects, tasks }),
     dashboardService: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     agentService: new AgentConnectionService({ agents, activity, clock, unitOfWork }),
     timelineService: new TimelineService({ projects, tasks, milestones }),
-    reflectionService: new ReflectionService({ reflections, projects, activity, clock, ids, unitOfWork }),
-    sectionService: new SectionService({ sections, projects, activity, clock, ids, unitOfWork }),
+    reflectionService: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
+    sectionService,
     workspaceService: new WorkspaceService({ projects, tasks, reflections, clock }),
   };
 };

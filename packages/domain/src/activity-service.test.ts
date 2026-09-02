@@ -1,6 +1,6 @@
 import { ActivityEventSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import { actorFor, agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import { actorFor, agentActorFor, buildHarness, seedContainer, MINE, THEIRS } from '../test/test-support';
 import type { LivePublication } from './live-events';
 import { PermissionDeniedError } from './errors';
 import type { ActorContext } from './actor';
@@ -10,6 +10,7 @@ const at = (iso: string) => new Date(iso);
 describe('ActivityService.record', () => {
   it('records an attributable event for every mutation this slice introduces', async () => {
     const harness = buildHarness();
+    await seedContainer(harness, MINE);
 
     const project = await harness.projectService.create(harness.actor, {
       workspaceId: harness.actor.workspaceId,
@@ -84,6 +85,7 @@ describe('ActivityService.record', () => {
 describe('ActivityService.list', () => {
   it('returns events newest first', async () => {
     const harness = buildHarness();
+    await seedContainer(harness, MINE);
     const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'First' });
     harness.clock.setNow(at('2026-08-25T09:00:00.000Z'));
     await harness.taskService.update(harness.actor, task.id, { priority: 'high' });
@@ -120,6 +122,8 @@ describe('ActivityService.list', () => {
 
   it('scopes to the actor’s workspace and applies limit after sorting', async () => {
     const harness = buildHarness();
+    await seedContainer(harness, MINE);
+    await seedContainer(harness, THEIRS);
     await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Mine' });
     harness.clock.setNow(at('2026-08-25T09:00:00.000Z'));
     await harness.taskService.create(harness.other, { projectId: THEIRS, title: 'Theirs' });
@@ -134,6 +138,7 @@ describe('ActivityService.list', () => {
 
   it('filters by project', async () => {
     const harness = buildHarness();
+    await seedContainer(harness, MINE);
     const other = await harness.projectService.create(harness.actor, {
       workspaceId: harness.actor.workspaceId,
       name: 'Other',
@@ -180,6 +185,7 @@ describe('activity and the unit of work', () => {
 describe('ActivityService.list resolves §57’s names', () => {
   it('names a user actor by the person, an agent by the connection, and a system act "System"', async () => {
     const harness = buildHarness();
+    await seedContainer(harness, MINE);
     await harness.taskService.create(harness.actor, { projectId: MINE, title: 'By a person' });
     await harness.taskService.create(agentActorFor(0, ['tasks.write']), { projectId: MINE, title: 'By an agent' });
     await harness.activity.record(
@@ -251,6 +257,7 @@ describe('ActivityService.record — live events (§62)', () => {
   it('publishes the recorded activity as a live event', async () => {
     const { published, publisher } = recording();
     const harness = buildHarness(undefined, { events: publisher });
+    await seedContainer(harness, MINE);
 
     const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Configure deployment' });
     await harness.taskService.complete(harness.actor, task.id);
@@ -281,6 +288,7 @@ describe('ActivityService.record — live events (§62)', () => {
       events: { publish: () => void seen.push(harness.store.snapshot().activityEvents.length) },
     });
 
+    await seedContainer(harness, MINE);
     await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Ordering' });
 
     // Read inside the open unit of work, so this is the count the publisher could observe.
@@ -290,6 +298,7 @@ describe('ActivityService.record — live events (§62)', () => {
   it('publishes an agent mutation under the agent’s workspace', async () => {
     const { published, publisher } = recording();
     const harness = buildHarness(undefined, { events: publisher });
+    await seedContainer(harness, MINE);
 
     await harness.taskService.create(agentActorFor(0, ['tasks.write']), { projectId: MINE, title: 'From an agent' });
 

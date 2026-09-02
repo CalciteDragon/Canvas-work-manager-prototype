@@ -57,6 +57,18 @@ export const sectionKindOf = (type: string): SectionKind =>
 export const ownedKindOf = (type: string): OwnedDataKind | undefined =>
   Object.hasOwn(SECTION_OWNERSHIP, type) ? SECTION_OWNERSHIP[type] : undefined;
 
+/**
+ * The container type to create for rows of `owned` when a project has none. Derived from
+ * the same map rather than written out a second time, so the two cannot drift.
+ */
+export const containerTypeFor = (owned: OwnedDataKind): string => {
+  const type = Object.entries(SECTION_OWNERSHIP).find(([, kind]) => kind === owned)?.[0];
+  // Unreachable while `OwnedDataKind` is derived from the map's values, and cheaper to
+  // assert than to make every caller handle an impossible undefined.
+  if (type === undefined) throw new TypeError(`no section type owns "${owned}"`);
+  return type;
+};
+
 export const ProjectSectionSchema = z.object({
   id: SectionIdSchema,
   projectId: ProjectIdSchema,

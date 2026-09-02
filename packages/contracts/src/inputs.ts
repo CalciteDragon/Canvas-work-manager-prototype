@@ -138,6 +138,10 @@ export type UpdateReflectionInput = z.infer<typeof UpdateReflectionInputSchema>;
 
 export const ReflectionQuerySchema = z.object({
   projectId: ProjectIdSchema.optional(),
+  /** Sections render what they own, so a reflections list reads by container, not project. */
+  sectionId: SectionIdSchema.optional(),
+  /** Archived reflections are excluded unless this is true, as for tasks. */
+  includeArchived: z.boolean().optional(),
 });
 export type ReflectionQuery = z.infer<typeof ReflectionQuerySchema>;
 
@@ -149,6 +153,8 @@ export type MilestoneQuery = z.infer<typeof MilestoneQuerySchema>;
 /** Filters for §61's `GET /api/tasks`, and for `TaskService.list`. */
 export const TaskQuerySchema = z.object({
   projectId: ProjectIdSchema.optional(),
+  /** Sections render what they own, so a task list reads by container, not project. */
+  sectionId: SectionIdSchema.optional(),
   parentTaskId: TaskIdSchema.optional(),
   status: z.array(TaskStatusSchema).optional(),
   priority: z.array(TaskPrioritySchema).optional(),

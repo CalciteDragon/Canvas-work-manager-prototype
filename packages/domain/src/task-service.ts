@@ -3,6 +3,7 @@ import {
   TaskSchema,
   type CreateTaskInput,
   type ProjectId,
+  type SectionId,
   type Task,
   type TaskId,
   type TaskQuery,
@@ -14,10 +15,17 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
+import type { SectionService } from './section-service';
 
 export interface TaskServiceDependencies {
   tasks: TaskRepository;
   projects: ProjectRepository;
+  /**
+   * A task belongs to a `task-list` section, not merely to a project, so a create resolves
+   * or checks a container. `SectionService` depends on repositories and never on tasks, so
+   * this direction closes no cycle.
+   */
+  sections: SectionService;
   activity: ActivityService;
   clock: Clock;
   ids: IdGenerator;
@@ -79,19 +87,14 @@ export class TaskService {
 
     return this.dependencies.unitOfWork.run(async () => {
       await this.assertProjectVisible(actor, input.projectId);
-      if (input.parentTaskId !== undefined) {
-        const parent = await this.require(actor, input.parentTaskId);
-        // The document requires a subtask to share its parent's project.
-        if (parent.projectId !== input.projectId) {
-          throw new DomainRuleError('a subtask must live in the same project as its parent');
-        }
-      }
+      const sectionId = await this.resolveSection(actor, input);
 
       const now = this.dependencies.clock.now().toISOString();
       const status = input.status ?? 'todo';
       const task = TaskSchema.parse({
         id: TaskIdSchema.parse(this.dependencies.ids.next('task')),
         projectId: input.projectId,
+        sectionId,
         parentTaskId: input.parentTaskId,
         title: input.title,
         description: input.description,
@@ -133,9 +136,27 @@ export class TaskService {
       apply(next, 'startAt', input.startAt);
       apply(next, 'dueAt', input.dueAt);
       apply(next, 'parentTaskId', input.parentTaskId);
+      apply(next, 'sectionId', input.sectionId);
 
       if (next.parentTaskId !== current.parentTaskId && next.parentTaskId !== undefined) {
         await this.assertParentIsUsable(actor, current, next.parentTaskId);
+      }
+
+      if (next.parentTaskId === undefined) {
+        // `projectId` cannot change here (refused above), so the two keys move together by
+        // construction: a new section is checked against the project the task already has.
+        if (next.sectionId !== current.sectionId) {
+          await this.dependencies.sections.requireContainer(actor, next.projectId, next.sectionId, 'tasks');
+        }
+      } else {
+        // A subtask is rendered by whichever list holds its parent, so it inherits rather
+        // than moves. Naming a different section is a caller mistake worth reporting; a
+        // parent that moved is simply followed.
+        const parent = await this.require(actor, next.parentTaskId);
+        if (input.sectionId !== undefined && input.sectionId !== parent.sectionId) {
+          throw new DomainRuleError('a subtask is rendered by its parent section and cannot be moved on its own');
+        }
+        next.sectionId = parent.sectionId;
       }
 
       // Entering `done` stamps `completedAt`; leaving it clears it, whichever entry point
@@ -149,7 +170,11 @@ export class TaskService {
       if (completing) next.completedAt = this.dependencies.clock.now().toISOString();
       if (next.status !== 'done') delete next.completedAt;
 
-      return this.commit(actor, current, next, completing ? 'task.completed' : 'task.updated');
+      const committed = await this.commit(actor, current, next, completing ? 'task.completed' : 'task.updated');
+      // Dragging a task between lists is the operation two containers exist for, and a
+      // parent left behind by its own subtasks would render as two half-tasks.
+      if (committed.sectionId !== current.sectionId) await this.moveSubtree(actor, committed);
+      return committed;
     });
   }
 
@@ -206,6 +231,51 @@ export class TaskService {
       projectId: task.projectId,
       summary: `${verb} "${task.title}"`,
     });
+  }
+
+  /**
+   * Where a new task goes. Named: checked. Inherited from a parent: the same section the
+   * parent is rendered in, one turn tighter than the same-project rule it replaces. Absent:
+   * resolved to the project's first task list, creating one when there is none — which is
+   * what stops an agent producing a project whose work nothing renders.
+   */
+  private async resolveSection(actor: ActorContext, input: CreateTaskInput): Promise<SectionId> {
+    if (input.parentTaskId !== undefined) {
+      const parent = await this.require(actor, input.parentTaskId);
+      // The document requires a subtask to share its parent's project.
+      if (parent.projectId !== input.projectId) {
+        throw new DomainRuleError('a subtask must live in the same project as its parent');
+      }
+      if (input.sectionId !== undefined && input.sectionId !== parent.sectionId) {
+        throw new DomainRuleError('a subtask is rendered by its parent section and cannot be given another');
+      }
+      return parent.sectionId;
+    }
+
+    if (input.sectionId !== undefined) {
+      await this.dependencies.sections.requireContainer(actor, input.projectId, input.sectionId, 'tasks');
+      return input.sectionId;
+    }
+
+    return (await this.dependencies.sections.resolveContainer(actor, input.projectId, 'tasks')).id;
+  }
+
+  /** Repoints every descendant of a moved task, so a subtree stays in one list. */
+  private async moveSubtree(actor: ActorContext, root: Task): Promise<void> {
+    const children = await this.dependencies.tasks.list({ parentTaskId: root.id, includeArchived: true });
+    for (const child of children) {
+      if (child.sectionId !== root.sectionId) {
+        const moved = TaskSchema.parse({
+          ...child,
+          sectionId: root.sectionId,
+          updatedAt: this.dependencies.clock.now().toISOString(),
+        });
+        await this.dependencies.tasks.update(moved);
+        await this.moveSubtree(actor, moved);
+        continue;
+      }
+      await this.moveSubtree(actor, child);
+    }
   }
 
   /**

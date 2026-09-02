@@ -1,27 +1,47 @@
 import {
   ProjectSectionSchema,
+  ReflectionSchema,
   SectionIdSchema,
+  TaskSchema,
+  containerTypeFor,
+  ownedKindOf,
   type CreateSectionInput,
+  type OwnedDataKind,
   type ProjectId,
   type ProjectSection,
+  type Reflection,
+  type RemoveSectionInput,
   type SectionId,
+  type Task,
   type UpdateSectionInput,
 } from '@cwm/contracts';
-import type { ProjectRepository, SectionRepository, UnitOfWork } from '@cwm/repositories';
+import type {
+  ProjectRepository,
+  ReflectionRepository,
+  SectionRepository,
+  TaskRepository,
+  UnitOfWork,
+} from '@cwm/repositories';
 import { assertPermitted, assertValidActor, type ActorContext } from './actor';
 import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
-import { EntityNotFoundError } from './errors';
+import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
 
 export interface SectionServiceDependencies {
   sections: SectionRepository;
   projects: ProjectRepository;
+  /** Containers own rows, so removing one has to reach the collections it owns. */
+  tasks: TaskRepository;
+  reflections: ReflectionRepository;
   activity: ActivityService;
   clock: Clock;
   ids: IdGenerator;
   unitOfWork: UnitOfWork;
 }
+
+/** A row of an owned kind: everything this service needs to archive or repoint one. */
+type OwnedRow = Task | Reflection;
 
 /** `null` clears and `undefined` leaves alone — §11's `dueAt` example is the pattern. */
 const apply = <T extends object>(section: T, key: keyof T, value: unknown): void => {
@@ -74,33 +94,89 @@ export class SectionService {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
-    return this.dependencies.unitOfWork.run(async () => {
-      await this.assertProjectVisible(actor, projectId);
-      const siblings = await this.ordered(projectId);
+    return this.dependencies.unitOfWork.run(() => this.addWithin(actor, projectId, input));
+  }
 
-      const now = this.dependencies.clock.now().toISOString();
-      const section = ProjectSectionSchema.parse({
-        id: SectionIdSchema.parse(this.dependencies.ids.next('section')),
-        projectId,
-        type: input.type,
-        title: input.title,
-        position: siblings.length,
-        // §27's presets. Full width until something asks otherwise — the grid that makes a
-        // narrower span visible does not exist until Slice 9.
-        columnSpan: input.columnSpan ?? 12,
-        collapsed: false,
-        // The registry and its `createDefaultConfig` (§29) live in Angular and carry a
-        // `Type<unknown>`, so the domain cannot reach them. An unconfigured section gets an
-        // empty object rather than a guess at the definition's shape.
-        config: input.config ?? {},
-        createdAt: now,
-        updatedAt: now,
-      });
+  /**
+   * `add` without the permission check or a unit of work of its own. `runUnitOfWork` does
+   * not re-enter -- a nested call throws `UnitOfWorkInProgressError` -- so
+   * `resolveContainer`, which runs inside the caller's transaction, needs a door into the
+   * same body. Keeping it here is what makes a default layout the *existing* behaviour
+   * reached differently rather than a second code path: positioning, the empty config and
+   * `project.section_added` all stay on one path.
+   */
+  private async addWithin(
+    actor: ActorContext,
+    projectId: ProjectId,
+    input: CreateSectionInput,
+  ): Promise<ProjectSection> {
+    await this.assertProjectVisible(actor, projectId);
+    const siblings = await this.ordered(projectId);
 
-      await this.dependencies.sections.insert(section);
-      await this.record(actor, section, 'project.section_added', 'Added');
-      return section;
+    const now = this.dependencies.clock.now().toISOString();
+    const section = ProjectSectionSchema.parse({
+      id: SectionIdSchema.parse(this.dependencies.ids.next('section')),
+      projectId,
+      type: input.type,
+      title: input.title,
+      position: siblings.length,
+      // §27's presets. Full width until something asks otherwise — the grid that makes a
+      // narrower span visible does not exist until Slice 9.
+      columnSpan: input.columnSpan ?? 12,
+      collapsed: false,
+      // The registry and its `createDefaultConfig` (§29) live in Angular and carry a
+      // `Type<unknown>`, so the domain cannot reach them. An unconfigured section gets an
+      // empty object rather than a guess at the definition's shape.
+      config: input.config ?? {},
+      createdAt: now,
+      updatedAt: now,
     });
+
+    await this.dependencies.sections.insert(section);
+    await this.record(actor, section, 'project.section_added', 'Added');
+    return section;
+  }
+
+  /**
+   * The container a row goes to when the caller names none: the project's first container
+   * of the matching type, and otherwise a new one added through the same operation the Add
+   * Section button calls, at the end of the canvas with an ordinary activity event behind
+   * it.
+   *
+   * Call it from inside an open unit of work -- it writes, and it does not open one.
+   *
+   * No `projects.write` check: this is a section a *row* write needs on its own behalf, the
+   * same reasoning `TaskService.require` uses for the lookups inside its own writes. An
+   * agent granted `tasks.write` alone must be able to create a task, and a task nothing
+   * renders is the defect this whole change exists to close.
+   */
+  async resolveContainer(actor: ActorContext, projectId: ProjectId, owned: OwnedDataKind): Promise<ProjectSection> {
+    const existing = (await this.ordered(projectId)).find((section) => ownedKindOf(section.type) === owned);
+    return existing ?? this.addWithin(actor, projectId, { type: containerTypeFor(owned) });
+  }
+
+  /**
+   * **The invariant, in one place: a row's section must belong to the row's project, and
+   * must be a container of the row's kind.** Both `TaskService` and `ReflectionService`
+   * come through here on every create and every move.
+   *
+   * Unchecked for the same reason `resolveContainer` is -- the caller has already been
+   * checked for the write it is actually doing.
+   */
+  async requireContainer(
+    actor: ActorContext,
+    projectId: ProjectId,
+    sectionId: SectionId,
+    owned: OwnedDataKind,
+  ): Promise<ProjectSection> {
+    const section = await this.require(actor, sectionId);
+    if (section.projectId !== projectId) {
+      throw new DomainRuleError('a row must live in a section of its own project');
+    }
+    if (ownedKindOf(section.type) !== owned) {
+      throw new DomainRuleError(`section "${sectionId}" does not hold ${owned}`);
+    }
+    return section;
   }
 
   async update(actor: ActorContext, id: SectionId, input: UpdateSectionInput): Promise<ProjectSection> {
@@ -185,17 +261,86 @@ export class SectionService {
    * A hard delete, and deliberately not idempotent — unlike `TaskService.archive`, there is
    * no state left behind to be idempotent about. Removing an absent section is a caller
    * mistake worth reporting.
+   *
+   * Removal follows ownership, and only ownership. A **view** touches no data whatever the
+   * policy says. A **container** takes its rows with it: empty, it goes without ceremony;
+   * holding rows, it needs a policy, and without one this raises with the count so the
+   * caller can offer the choice rather than guess on the user's behalf.
    */
-  async remove(actor: ActorContext, id: SectionId): Promise<void> {
+  async remove(actor: ActorContext, id: SectionId, input: RemoveSectionInput = {}): Promise<void> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
     await this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
+      const owned = ownedKindOf(current.type);
+      if (owned !== undefined) await this.settleRows(actor, current, owned, input);
       await this.dependencies.sections.remove(id);
       await this.renumber((await this.ordered(current.projectId)).filter((section) => section.id !== id));
       await this.record(actor, current, 'project.section_removed', 'Removed');
     });
+  }
+
+  /**
+   * Cascade or reassign, decided against the rows that are still *live*: an archived row is
+   * already unrendered, so it neither forces a policy nor needs archiving twice. Reassign
+   * still repoints the archived ones, because unarchiving a row into a section that no
+   * longer exists would be the worse outcome.
+   */
+  private async settleRows(
+    actor: ActorContext,
+    section: ProjectSection,
+    owned: OwnedDataKind,
+    input: RemoveSectionInput,
+  ): Promise<void> {
+    const rows = await this.rowsOf(section.id, owned);
+    const live = rows.filter((row) => row.archivedAt === undefined);
+    if (live.length === 0) return;
+
+    if (input.policy === undefined) {
+      throw new DomainRuleError(
+        `section "${section.id}" still holds ${live.length} ${owned}; removing it needs a policy of "cascade" or "reassign"`,
+      );
+    }
+
+    if (input.policy === 'cascade') {
+      const archivedAt = this.dependencies.clock.now().toISOString();
+      for (const row of live) await this.writeRow(owned, { ...row, archivedAt });
+      return;
+    }
+
+    if (input.reassignToSectionId === undefined) {
+      throw new DomainRuleError('reassigning rows needs a reassignToSectionId');
+    }
+    if (input.reassignToSectionId === section.id) {
+      throw new DomainRuleError('a section cannot take over its own rows');
+    }
+    const target = await this.require(actor, input.reassignToSectionId);
+    if (target.projectId !== section.projectId) {
+      throw new DomainRuleError('rows can only be reassigned within their own project');
+    }
+    if (target.type !== section.type) {
+      throw new DomainRuleError(`rows can only be reassigned to another ${section.type} section`);
+    }
+    for (const row of rows) await this.writeRow(owned, { ...row, sectionId: target.id });
+  }
+
+  private async rowsOf(sectionId: SectionId, owned: OwnedDataKind): Promise<OwnedRow[]> {
+    return owned === 'tasks'
+      ? this.dependencies.tasks.list({ sectionId, includeArchived: true })
+      : this.dependencies.reflections.list({ sectionId, includeArchived: true });
+  }
+
+  /**
+   * Rows are written through the schema rather than through the owning service: this is one
+   * step of a removal the caller has already been permitted for, and routing it back through
+   * `TaskService` would make `SectionService` depend on the services that depend on it.
+   * `updatedAt` moves, so a live client sees the row change.
+   */
+  private async writeRow(owned: OwnedDataKind, row: OwnedRow): Promise<void> {
+    const updatedAt = this.dependencies.clock.now().toISOString();
+    if (owned === 'tasks') await this.dependencies.tasks.update(TaskSchema.parse({ ...row, updatedAt }));
+    else await this.dependencies.reflections.update(ReflectionSchema.parse({ ...row, updatedAt }));
   }
 
   private async commit(

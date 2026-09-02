@@ -1,6 +1,6 @@
 import { DashboardResultSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import { agentActorFor, buildHarness, seedContainer, MINE, THEIRS } from '../test/test-support';
 import { RECENT_AGENT_ACTIVITY_LIMIT } from './dashboard-service';
 import { PermissionDeniedError } from './errors';
 
@@ -292,6 +292,9 @@ describe('DashboardService: §24’s Recent Agent Activity', () => {
    */
   it('finds agent work that a wall of newer user activity would otherwise bury', async () => {
     const harness = buildHarness();
+    // The tile is about actor filtering, so the agent's first write must not also be the
+    // one that causes a container.
+    await seedContainer(harness, MINE);
     await harness.taskService.create(agentActorFor(0, ['tasks.write']), { projectId: MINE, title: 'By an agent' });
     for (let index = 0; index < 30; index += 1) {
       await harness.taskService.create(harness.actor, { projectId: MINE, title: `Person task ${index}` });

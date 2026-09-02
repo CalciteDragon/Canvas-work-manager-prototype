@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ProjectSectionSchema,
   SectionColumnSpanSchema,
+  containerTypeFor,
   ownedKindOf,
   sectionKindOf,
 } from './section';
@@ -77,6 +78,12 @@ describe('section ownership', () => {
 
   it('leaves rich-text out of the map — it owns config.text, not rows', () => {
     expect(sectionKindOf('rich-text')).toBe('view');
+  });
+
+  it('names the container type to create for each owned kind, from the same map', () => {
+    expect(containerTypeFor('tasks')).toBe('task-list');
+    expect(containerTypeFor('reflections')).toBe('reflections');
+    expect(ownedKindOf(containerTypeFor('tasks'))).toBe('tasks');
   });
 
   it('does not answer for inherited Object keys', () => {

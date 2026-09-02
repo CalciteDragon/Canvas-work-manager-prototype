@@ -101,6 +101,7 @@ export class JsonTaskRepository extends JsonCollectionRepository<Task> implement
       const due = task.dueAt === undefined ? undefined : Date.parse(task.dueAt);
       return (
         (query.projectId === undefined || task.projectId === query.projectId) &&
+        (query.sectionId === undefined || task.sectionId === query.sectionId) &&
         (query.parentTaskId === undefined || task.parentTaskId === query.parentTaskId) &&
         (query.status === undefined || query.status.includes(task.status)) &&
         (query.priority === undefined || query.priority.includes(task.priority)) &&
@@ -146,7 +147,12 @@ export class JsonReflectionRepository extends JsonCollectionRepository<Reflectio
 
   override async list(query: ReflectionQuery = {}): Promise<Reflection[]> {
     const reflections = await super.list();
-    return reflections.filter((reflection) => query.projectId === undefined || reflection.projectId === query.projectId);
+    return reflections.filter(
+      (reflection) =>
+        (query.projectId === undefined || reflection.projectId === query.projectId) &&
+        (query.sectionId === undefined || reflection.sectionId === query.sectionId) &&
+        (query.includeArchived === true || reflection.archivedAt === undefined),
+    );
   }
 
   override find(id: ReflectionId): Promise<Reflection | null> { return super.find(id); }
