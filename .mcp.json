@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "canvas-work-manager": {
+      "type": "http",
+      "url": "http://127.0.0.1:4310/mcp",
+      "headers": {
+        "Authorization": "Bearer prototype-user-a-readwrite"
+      }
+    }
+  }
+}
