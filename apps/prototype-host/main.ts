@@ -126,7 +126,6 @@ if (isDirectRun) {
       tasks: api.tasks,
       reflections: api.reflections,
       sections: api.sections,
-    sections: api.sections,
       dashboard: api.dashboard,
       workspace: api.workspace,
     });
