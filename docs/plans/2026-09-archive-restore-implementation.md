@@ -83,7 +83,8 @@ Of the five options review round 1 put on the record, this is **D**, chosen by t
 first draft's C ("restore resolves the container").
 
 > Removing a container that still holds work sets `archivedAt` on the **section** and on its live
-> rows, in one write, with one timestamp. The section leaves the canvas; nothing is deleted.
+> rows, and stamps each of those rows with `archivedWithSectionId`. The section leaves the canvas;
+> nothing is deleted.
 
 What that buys, all of it structural rather than a rule to remember:
 
@@ -115,7 +116,7 @@ or lets a new row be created into one. Step 3 enumerates them; the test plan pin
 | Container, no rows at all | hard delete | unchanged |
 | Container, only archived rows | **hard delete — leaves them dangling** | archive the section; no policy needed |
 | Container, live rows, no policy | refuse, naming the count | unchanged |
-| Container, live rows, `cascade` | archive rows, delete section | **archive section *and* rows, one timestamp** |
+| Container, live rows, `cascade` | archive rows, delete section | **archive section *and* rows, each row stamped `archivedWithSectionId`** |
 | Container, live rows, `reassign` | repoint all rows, delete section | unchanged |
 
 Hard delete stays the common path, so the document does not accumulate tombstones for sections
@@ -133,7 +134,16 @@ renders, so no row can be invisible — is *strengthened*: it holds for archived
 
 `packages/contracts/src/section.ts` — `ProjectSectionSchema` gains
 `archivedAt: z.string().datetime().optional()`, matching `Task`'s and `Reflection`'s field
-exactly. Optional, so no `SCHEMA_VERSION` change and no reseed.
+exactly.
+
+`packages/contracts/src/task.ts` and `reflection.ts` — both gain
+`archivedWithSectionId: SectionIdSchema.optional()`: **present means this row was archived as part
+of its container's removal, and names the container it came down with.** Absent means it was
+archived on its own, or is live. Restoring a section brings back exactly the rows that name it;
+restoring a row clears it.
+
+Both fields are optional, so a document written before this phase still parses: no
+`SCHEMA_VERSION` change and no reseed.
 
 `packages/contracts/src/inputs.ts:180` — `SectionQuerySchema` gains
 `includeArchived: z.boolean().optional()`, matching `TaskQuery`/`ReflectionQuery`.
@@ -159,11 +169,21 @@ const containerFor = (collection: string, id: string, row: OwnedRowShape, expect
   if (row.archivedAt === undefined && section.archivedAt !== undefined) {
     fail(`${collection} "${id}" is live in an archived section`);
   }
+  // The marker describes an archive that happened; it cannot outlive one.
+  if (row.archivedWithSectionId !== undefined) {
+    if (row.archivedAt === undefined) fail(`live ${collection} "${id}" is marked as archived with a section`);
+    if (row.archivedWithSectionId !== row.sectionId) fail(`${collection} "${id}" is marked as archived with another section`);
+  }
 };
 ```
 
-The last clause is the one this approach earns. Under the rejected alternative it could not exist,
-because an archived row's section was allowed to be gone entirely.
+The live-in-archived clause is the one this approach earns. Under the rejected alternative it could
+not exist, because an archived row's section was allowed to be gone entirely.
+
+The two marker clauses are why the column is worth its redundancy: `archivedWithSectionId` always
+equals `sectionId` when present, so the integrity pass can assert it, and a bug that sets one
+without the other — or leaves the marker behind on restore — fails at the next commit rather than
+surfacing as a section that restores the wrong rows weeks later.
 
 Two notes, both checked: `sections` is built at `data-store.ts:97`, before the row loops at
 129-139; and no seed carries `archivedAt` on any row (`seeds.ts:89,103,202`), so all six pass
@@ -195,7 +215,9 @@ suite at document load rather than in one place.
 
 - `settleRows`' early return at `:298` becomes: no rows at all → fall through to hard delete; rows
   but none live → archive the section, no policy required.
-- The cascade branch stamps **one timestamp** on the section and each live row.
+- The cascade branch sets `archivedAt` on the section and on each live row, and
+  `archivedWithSectionId` on each of those rows. One clock read for tidiness, but nothing depends
+  on the timestamps matching.
 - Archiving renumbers the surviving live siblings exactly as deletion does — an archived section
   leaves the position sequence, and `renumber` already takes the list to keep dense.
 - Records `project.section_archived`, a new `SectionAction`. `project.section_removed` stays for
@@ -206,10 +228,9 @@ suite at document load rather than in one place.
 - Clears the section's `archivedAt` and appends it at the end of the canvas (`position` = the live
   count), which is where `addWithin` puts a new one. A restored section going back to its old index
   would need positions the canvas has since reused.
-- Restores **the rows it archived**: rows pointing at this section whose `archivedAt` equals the
-  section's. One cascade writes one timestamp, so this is exact — and a row archived individually
-  beforehand keeps its own timestamp and stays archived, which is what the person who archived it
-  asked for. *(This pairing is the one piece of cleverness in the plan; see Open question 1.)*
+- Restores **the rows it archived**: those whose `archivedWithSectionId` is this section. Their
+  `archivedAt` and `archivedWithSectionId` both clear. A row archived on its own beforehand carries
+  no marker, so it stays archived — which is what the person who archived it asked for.
 - Records `project.section_restored`.
 
 **On nested units of work:** `addWithin`'s comment (`:100-107`) says "`runUnitOfWork` does not
@@ -241,7 +262,11 @@ children alike, so this is the normal path.
 - **If the row's section is archived, restoring the row restores the section too.** The container
   is what renders it; bringing back a row into an invisible container would recreate the defect
   this phase closes, in a new shape.
+- Clears `archivedAt` **and `archivedWithSectionId`** — the marker describes an archive that is
+  over, and the integrity pass rejects a live row still carrying one.
 - Idempotent — a live task returns unchanged, as `archive` does for an already-archived one.
+- `TaskService.archive` sets `archivedAt` only. `archivedWithSectionId` is `SectionService`'s to
+  write: it means "came down with its container", which an individual archive did not.
 - Records `task.restored`, a new `TaskAction`, verb `Restored`.
 - Does **not** touch `status` or `completedAt`. Archiving never changed them.
 
@@ -351,7 +376,8 @@ Against `pnpm prototype:reset` (`personal-workspace`), host restarted:
    the case the rejected alternative had to invent a resolution mechanism for.
 5. **A row archived beforehand stays archived.** Archive one task from its row, then cascade the
    container, then restore the section: the cascaded rows come back and the individually archived
-   one does not.
+   one does not. In `data.json`, only the cascaded rows ever carried `archivedWithSectionId`, and
+   none carries it once restored.
 6. **Subtasks.** Create a subtask, cascade its container, try to restore the child alone — refused,
    naming the parent. Restore the parent: both come back, in the same list.
 7. **Nothing shows an archived section.** `GET /api/projects/:id/sections` omits it,
@@ -378,12 +404,13 @@ House convention: `.test.ts` in `packages/*`, `.spec.ts` in `apps/web`.
 | `repositories/data-store.test.ts` — an **archived** task in an archived section loads | The normal post-cascade state |
 | `repositories/data-store.test.ts` — a section from another project fails; same set for reflections | Scope, both row types |
 | `repositories/json-repositories.test.ts` — `list` excludes archived unless asked | The predicate every read depends on |
-| `domain/section-service.test.ts` — cascade archives section and live rows with **one** timestamp | The pairing restore relies on |
+| `domain/section-service.test.ts` — cascade stamps `archivedWithSectionId` on each live row and on none of the already-archived ones | The pairing restore relies on |
 | `domain/section-service.test.ts` — cascade, then validate the document | The regression test for the friction note |
 | `domain/section-service.test.ts` — a container holding **only archived** rows is archived, not deleted, with no policy | The second dangle, which no policy ever reached |
 | `domain/section-service.test.ts` — a view, and an empty container, are still hard-deleted | The common path did not become a tombstone |
 | `domain/section-service.test.ts` — archiving renumbers surviving siblings densely | Positions, which `add` then depends on |
-| `domain/section-service.test.ts` — `restoreSection` appends at the end and restores only same-timestamp rows | Acceptance items 3 and 5 |
+| `domain/section-service.test.ts` — `restoreSection` appends at the end and restores only rows naming it, clearing both fields | Acceptance items 3 and 5 |
+| `repositories/data-store.test.ts` — a **live** row carrying `archivedWithSectionId` fails; so does one naming a section other than its own | The marker cannot outlive what it describes |
 | `domain/section-service.test.ts` — `resolveContainer` skips an archived container and creates a new one | Acceptance item 7's last clause, the subtlest read path |
 | `domain/section-service.test.ts` — `requireContainer` refuses an archived section; `duplicate`/`move` refuse one | The rest of the read-path sweep |
 | `domain/task-service.test.ts` — restoring a row in an archived section restores the section too | The defect this phase closes, in its new shape |
@@ -399,7 +426,7 @@ House convention: `.test.ts` in `packages/*`, `.spec.ts` in `apps/web`.
 | `e2e` — cascade the only container and restore it through the UI | Acceptance item 4, end to end |
 
 Mutation-check the kind clause, the live-in-archived clause, the subtask refusal, the
-`resolveContainer` skip and the same-timestamp restore: each passes against a plausible wrong
+`resolveContainer` skip and the marker-scoped restore: each passes against a plausible wrong
 implementation without it.
 
 ---
@@ -447,13 +474,8 @@ implementation without it.
 
 ## Open questions
 
-**1. Is same-timestamp the right way to pair a restored section with its rows?** Recommended
-**yes**: one cascade is one write with one timestamp, so equality is exact, and it gives the
-correct answer for a row archived beforehand (acceptance item 5) without a provenance field. The
-alternative — restore *every* archived row in the section — is simpler and wrong in exactly that
-case. The risk is that it couples two records through a value rather than a reference; if that
-proves brittle, the fallback is an explicit `archivedWithSectionId` on the row, which is a column
-this plan deliberately does not add yet. Settle before Step 3.
+**1. ~~Is same-timestamp the right way to pair a restored section with its rows?~~ Resolved: no —
+an explicit `archivedWithSectionId`.** See *Why a column and not a timestamp* below.
 
 **2. Should an archived section be restorable when a container of its type already exists?**
 Recommended **yes, always** — two containers of one type is the thing the ownership phase made
@@ -461,6 +483,29 @@ normal, so refusing would be a rule invented for no reason.
 
 **3. Does the region show archived sections from sub-projects?** Recommended **no**, project-scoped
 only, matching every other section read.
+
+**Why a column and not a timestamp.** The first draft paired a restored section with its rows by
+matching `archivedAt` exactly, on the reasoning that one cascade is one write. It is exact, and it
+is the wrong mechanism: it couples two records through a value that looks incidental, so the next
+person to touch either write path has no way to know the equality is load-bearing. A field named
+`archivedWithSectionId` says what it is for.
+
+Two alternatives were considered and rejected:
+
+- **A boolean, `archivedWithSection: true`.** It carries identical information — `sectionId`
+  already names the section, and an archived row cannot be moved — so the id is redundant. It was
+  rejected on two grounds. The codebase's idiom is *optional presence carries the fact*
+  (`archivedAt`, `completedAt`, `title`), and a boolean that is only ever `true` or absent is that
+  idiom wearing a worse type. And redundancy that can be **checked** is not duplication: the two
+  clauses above turn the extra field into a consistency assertion the boolean could not express.
+- **Do not archive the rows at all — let the section's `archivedAt` hide them.** Genuinely
+  elegant: no marker, no pairing, and restoring a section brings its rows back because they were
+  never archived. Rejected because row visibility would then depend on the section's state, so
+  every row query — dashboard, upcoming work, search, progress — would need a join to a second
+  collection. That is precisely the join `2026-09-sections-own-their-data.md` refuses when it keeps
+  `projectId` on rows alongside `sectionId`: "a join on every read is not free when a unit of work
+  already clones and validates the whole document twice." Stamping the rows is the denormalisation
+  that keeps those reads flat, and the marker is what makes the denormalisation reversible.
 
 **4. Does `TaskQuery` need `archivedOnly`?** Cheap either way. Start with `includeArchived: true`
 plus a client filter; add the field only if search or the dashboard wants it. Decide in Step 6.
@@ -575,3 +620,11 @@ Rewriting it also surfaced three things round 1 did not:
 
 Round 3 has not been run. The plan changed substantially, and the read-path sweep in Step 3 is
 exactly the kind of enumeration a fresh reviewer catches an omission in.
+
+**Round 3 — the pairing mechanism, at the user's direction.** Same-timestamp matching is replaced
+by an explicit `archivedWithSectionId` on `Task` and `Reflection`, for the reasons under *Why a
+column and not a timestamp*. The alternative of not archiving rows at all is recorded there too: it
+is the most elegant option on paper and reintroduces exactly the join the ownership decision
+refuses, which is worth knowing the next time someone has the same idea. The column also earns two
+integrity clauses the timestamp could not support, so the pairing is now enforced rather than
+assumed. Still optional fields throughout — no `SCHEMA_VERSION` bump.
