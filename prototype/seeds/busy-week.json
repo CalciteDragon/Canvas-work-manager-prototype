@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "users": [
     {
       "id": "user-demo",
@@ -329,6 +329,7 @@
     {
       "id": "task-launch-copy",
       "projectId": "project-launch",
+      "sectionId": "section-project-launch-tasks",
       "title": "Approve homepage copy",
       "status": "done",
       "priority": "high",
@@ -341,6 +342,7 @@
     {
       "id": "task-launch-qa",
       "projectId": "project-launch",
+      "sectionId": "section-project-launch-tasks",
       "title": "Run launch QA",
       "status": "in_progress",
       "priority": "high",
@@ -353,6 +355,7 @@
     {
       "id": "task-launch-analytics",
       "projectId": "project-launch",
+      "sectionId": "section-project-launch-tasks",
       "title": "Verify analytics events",
       "status": "blocked",
       "priority": "medium",
@@ -364,6 +367,7 @@
     {
       "id": "task-home-filter",
       "projectId": "project-home",
+      "sectionId": "section-project-home-tasks",
       "title": "Replace air filter",
       "status": "todo",
       "priority": "medium",
@@ -374,6 +378,7 @@
     {
       "id": "task-home-donate",
       "projectId": "project-home",
+      "sectionId": "section-project-home-tasks",
       "title": "Drop off donation box",
       "status": "todo",
       "priority": "low",
@@ -384,6 +389,7 @@
     {
       "id": "task-course-module",
       "projectId": "project-course",
+      "sectionId": "section-project-course-tasks",
       "title": "Complete type-system module",
       "status": "in_progress",
       "priority": "high",
@@ -395,6 +401,7 @@
     {
       "id": "task-course-exercises",
       "projectId": "project-course",
+      "sectionId": "section-project-course-tasks",
       "title": "Submit practice exercises",
       "status": "todo",
       "priority": "medium",
@@ -405,6 +412,7 @@
     {
       "id": "task-course-notes",
       "projectId": "project-course",
+      "sectionId": "section-project-course-tasks",
       "title": "Organize module notes",
       "status": "todo",
       "priority": "low",
@@ -427,6 +435,7 @@
     {
       "id": "reflection-launch-risk",
       "projectId": "project-launch",
+      "sectionId": "section-project-launch-reflections",
       "title": "Launch risk check",
       "body": "Analytics validation is blocked on production access.",
       "prompt": "What's blocked?",
@@ -436,6 +445,7 @@
     {
       "id": "reflection-launch-win",
       "projectId": "project-launch",
+      "sectionId": "section-project-launch-reflections",
       "body": "Copy approval landed early and reduced the QA surface.",
       "prompt": "What went well?",
       "createdAt": "2026-08-21T19:00:00.000Z",

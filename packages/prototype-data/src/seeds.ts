@@ -76,11 +76,17 @@ const task = (
     dueAt?: string;
     completedAt?: string;
     estimate?: number;
+    /** Override for a project whose task list is not the conventional one below. */
+    sectionId?: string;
   } = {},
 ): Task =>
   TaskSchema.parse({
     id,
     projectId,
+    // Every seeded row names the container that renders it — a task that no section owns
+    // cannot exist any more. `projectCanvas` gives every canvas this id, and
+    // `seeds.test.ts` asserts the reference resolves rather than trusting the convention.
+    sectionId: options.sectionId ?? tasksSectionId(projectId),
     title,
     description: options.description,
     status: options.status ?? 'todo',
@@ -92,6 +98,10 @@ const task = (
     createdAt: CREATED_AT,
     updatedAt: UPDATED_AT,
   });
+
+/** The container ids `projectCanvas` and `sliceTenCanvas` create, by convention. */
+const tasksSectionId = (projectId: string) => `section-${projectId}-tasks`;
+const reflectionsSectionId = (projectId: string) => `section-${projectId}-reflections`;
 
 const section = (id: string, projectId: string, type: string, position: number, config: object = {}) =>
   ProjectSectionSchema.parse({
@@ -160,14 +170,14 @@ const activityEvent = (
  */
 const projectCanvas = (projectId: string, brief: string) => [
   section(`section-${projectId}-brief`, projectId, 'rich-text', 0, { text: brief }),
-  section(`section-${projectId}-tasks`, projectId, 'task-list', 1),
+  section(tasksSectionId(projectId), projectId, 'task-list', 1),
 ];
 
 const sliceTenCanvas = (projectId: string, brief: string) => [
   ...projectCanvas(projectId, brief),
   section(`section-${projectId}-sub-projects`, projectId, 'sub-projects', 2),
   section(`section-${projectId}-progress`, projectId, 'progress', 3),
-  section(`section-${projectId}-reflections`, projectId, 'reflections', 4),
+  section(reflectionsSectionId(projectId), projectId, 'reflections', 4),
   section(`section-${projectId}-timeline`, projectId, 'timeline', 5),
 ];
 
@@ -184,11 +194,12 @@ const reflection = (
   id: string,
   projectId: string,
   body: string,
-  options: { title?: string; prompt?: string; createdAt?: string; updatedAt?: string } = {},
+  options: { title?: string; prompt?: string; createdAt?: string; updatedAt?: string; sectionId?: string } = {},
 ): Reflection =>
   ReflectionSchema.parse({
     id,
     projectId,
+    sectionId: options.sectionId ?? reflectionsSectionId(projectId),
     title: options.title,
     body,
     prompt: options.prompt,
@@ -352,7 +363,8 @@ const nestedProjects = (): PrototypeDocument => {
     projects,
     // `project-cabinets` deliberately gets no sections: an empty canvas is a state the
     // project page has to handle, and a leaf sub-project nobody has set up yet is the most
-    // honest place to find one.
+    // honest place to find one. It therefore holds no rows either — under ownership an
+    // empty canvas and an unrendered task are the same defect, not two separate states.
     sections: [
       ...sliceTenCanvas(projects[0]!.id, 'Whole-house plan. Kitchen first, garden in the spring.'),
       ...projectCanvas(projects[1]!.id, 'Appliances and finishes before cabinets are ordered.'),
@@ -367,10 +379,6 @@ const nestedProjects = (): PrototypeDocument => {
       task('task-kitchen-appliances', projects[1]!.id, 'Choose appliance finishes', {
         startAt: '2026-09-08T16:00:00.000Z',
         dueAt: '2026-09-18T23:00:00.000Z',
-      }),
-      task('task-cabinets-samples', projects[2]!.id, 'Order cabinet samples', {
-        startAt: '2026-08-25T16:00:00.000Z',
-        dueAt: '2026-08-28T20:00:00.000Z',
       }),
       task('task-garden-plan', projects[3]!.id, 'Sketch autumn planting plan', { priority: 'low' }),
     ],
@@ -465,6 +473,7 @@ const agentHeavy = (): PrototypeDocument => {
       ...projectCanvas(projects[0]!.id, 'Most of this board is maintained by agents. Watch what they do.'),
       section(`section-${projects[0]!.id}-activity`, projects[0]!.id, 'recent-activity', 2),
       ...projectCanvas(projects[1]!.id, 'Review what each connection is allowed to do before widening anything.'),
+      section(reflectionsSectionId(projects[1]!.id), projects[1]!.id, 'reflections', 2),
     ],
     tasks: [
       task('task-agent-deployment', projects[0]!.id, 'Configure deployment', {

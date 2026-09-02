@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "users": [
     {
       "id": "user-demo",
@@ -197,6 +197,7 @@
     {
       "id": "task-personal-plan",
       "projectId": "project-personal",
+      "sectionId": "section-project-personal-tasks",
       "title": "Plan the week",
       "status": "in_progress",
       "priority": "high",
@@ -208,6 +209,7 @@
     {
       "id": "task-personal-groceries",
       "projectId": "project-personal",
+      "sectionId": "section-project-personal-tasks",
       "title": "Pick up groceries",
       "status": "todo",
       "priority": "medium",
@@ -218,6 +220,7 @@
     {
       "id": "task-personal-shelf",
       "projectId": "project-personal",
+      "sectionId": "section-project-personal-tasks",
       "title": "Measure the hallway shelf",
       "status": "todo",
       "priority": "low",

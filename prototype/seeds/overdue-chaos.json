@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "users": [
     {
       "id": "user-demo",
@@ -233,6 +233,7 @@
     {
       "id": "task-chaos-export",
       "projectId": "project-client-migration",
+      "sectionId": "section-project-client-migration-tasks",
       "title": "Export legacy records",
       "status": "in_progress",
       "priority": "high",
@@ -243,6 +244,7 @@
     {
       "id": "task-chaos-map",
       "projectId": "project-client-migration",
+      "sectionId": "section-project-client-migration-tasks",
       "title": "Finish field mapping",
       "status": "blocked",
       "priority": "high",
@@ -253,6 +255,7 @@
     {
       "id": "task-chaos-review",
       "projectId": "project-client-migration",
+      "sectionId": "section-project-client-migration-tasks",
       "title": "Review rejected rows",
       "status": "todo",
       "priority": "medium",
@@ -263,6 +266,7 @@
     {
       "id": "task-chaos-notify",
       "projectId": "project-client-migration",
+      "sectionId": "section-project-client-migration-tasks",
       "title": "Notify stakeholders",
       "status": "todo",
       "priority": "high",
@@ -273,6 +277,7 @@
     {
       "id": "task-chaos-backup",
       "projectId": "project-client-migration",
+      "sectionId": "section-project-client-migration-tasks",
       "title": "Verify backup",
       "status": "done",
       "priority": "medium",
@@ -284,6 +289,7 @@
     {
       "id": "task-admin-insurance",
       "projectId": "project-admin",
+      "sectionId": "section-project-admin-tasks",
       "title": "Renew renter insurance",
       "status": "todo",
       "priority": "medium",

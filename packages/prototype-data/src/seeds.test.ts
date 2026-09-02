@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PrototypeDocumentSchema, type PrototypeDocument } from '@cwm/contracts';
+import { PrototypeDocumentSchema, ownedKindOf, type PrototypeDocument } from '@cwm/contracts';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PERSONAS } from './personas';
@@ -403,5 +403,36 @@ describe('agent-heavy', () => {
 
   it('carries a Recent Activity section, so §30’s newest type has a seeded home', () => {
     expect(document().sections.map(({ type }) => type)).toContain('recent-activity');
+  });
+});
+
+describe('seeded rows name the container that owns them', () => {
+  it.each(SEED_NAMES)('%s resolves every sectionId to a container of the matching type', (seedName) => {
+    const document = buildSeed(seedName);
+    const sections = new Map(document.sections.map((section) => [section.id, section]));
+
+    const rows = [
+      ...document.tasks.map((task) => ({ kind: 'tasks', ...task })),
+      ...document.reflections.map((reflection) => ({ kind: 'reflections', ...reflection })),
+    ];
+
+    for (const row of rows) {
+      const owner = sections.get(row.sectionId);
+      expect(owner, `${row.id} names a section that does not exist`).toBeDefined();
+      // The denormalisation the decision accepts: a row's section must be in its project.
+      expect(owner!.projectId, `${row.id} is owned across projects`).toBe(row.projectId);
+      expect(ownedKindOf(owner!.type), `${row.id} is owned by a ${owner!.type}`).toBe(row.kind);
+    }
+  });
+
+  it.each(SEED_NAMES)('%s leaves no project holding rows nothing renders', (seedName) => {
+    const document = buildSeed(seedName);
+    const containerless = document.projects.filter(
+      (project) =>
+        !document.sections.some((section) => section.projectId === project.id) &&
+        [...document.tasks, ...document.reflections].some((row) => row.projectId === project.id),
+    );
+
+    expect(containerless.map((project) => project.name)).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "users": [
     {
       "id": "user-demo",
@@ -327,6 +327,7 @@
     {
       "id": "task-renovation-budget",
       "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-tasks",
       "title": "Confirm renovation budget",
       "status": "todo",
       "priority": "high",
@@ -338,6 +339,7 @@
     {
       "id": "task-kitchen-appliances",
       "projectId": "project-kitchen",
+      "sectionId": "section-project-kitchen-tasks",
       "title": "Choose appliance finishes",
       "status": "todo",
       "priority": "medium",
@@ -347,19 +349,9 @@
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
     {
-      "id": "task-cabinets-samples",
-      "projectId": "project-cabinets",
-      "title": "Order cabinet samples",
-      "status": "todo",
-      "priority": "medium",
-      "startAt": "2026-08-25T16:00:00.000Z",
-      "dueAt": "2026-08-28T20:00:00.000Z",
-      "createdAt": "2026-08-01T16:00:00.000Z",
-      "updatedAt": "2026-08-21T20:00:00.000Z"
-    },
-    {
       "id": "task-garden-plan",
       "projectId": "project-garden",
+      "sectionId": "section-project-garden-tasks",
       "title": "Sketch autumn planting plan",
       "status": "todo",
       "priority": "low",
@@ -391,6 +383,7 @@
     {
       "id": "reflection-renovation-sequence",
       "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-reflections",
       "title": "Sequence matters",
       "body": "Kitchen decisions need to land before garden work begins.",
       "prompt": "What should happen next?",

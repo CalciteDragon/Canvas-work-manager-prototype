@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "users": [
     {
       "id": "user-demo",
@@ -239,12 +239,24 @@
       "config": {},
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-agent-ops-reflections",
+      "projectId": "project-agent-ops",
+      "type": "reflections",
+      "position": 2,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
     }
   ],
   "tasks": [
     {
       "id": "task-agent-deployment",
       "projectId": "project-work-manager",
+      "sectionId": "section-project-work-manager-tasks",
       "title": "Configure deployment",
       "status": "done",
       "priority": "high",
@@ -257,6 +269,7 @@
     {
       "id": "task-agent-retries",
       "projectId": "project-work-manager",
+      "sectionId": "section-project-work-manager-tasks",
       "title": "Add retry budget to the sync job",
       "status": "in_progress",
       "priority": "high",
@@ -268,6 +281,7 @@
     {
       "id": "task-agent-schema",
       "projectId": "project-work-manager",
+      "sectionId": "section-project-work-manager-tasks",
       "title": "Document the tool input schemas",
       "status": "todo",
       "priority": "medium",
@@ -278,6 +292,7 @@
     {
       "id": "task-agent-triage",
       "projectId": "project-work-manager",
+      "sectionId": "section-project-work-manager-tasks",
       "title": "Triage the overnight agent errors",
       "status": "blocked",
       "priority": "medium",
@@ -288,6 +303,7 @@
     {
       "id": "task-ops-review",
       "projectId": "project-agent-ops",
+      "sectionId": "section-project-agent-ops-tasks",
       "title": "Review the Claude connection permissions",
       "status": "todo",
       "priority": "high",
@@ -298,6 +314,7 @@
     {
       "id": "task-ops-rotate",
       "projectId": "project-agent-ops",
+      "sectionId": "section-project-agent-ops-tasks",
       "title": "Retire the unused connection",
       "status": "todo",
       "priority": "low",
@@ -310,6 +327,7 @@
     {
       "id": "reflection-agent-scope",
       "projectId": "project-agent-ops",
+      "sectionId": "section-project-agent-ops-reflections",
       "title": "Grants drift",
       "body": "The read-only connection has been idle for a fortnight. Either it earns its grant or it goes.",
       "prompt": "What should happen next?",
