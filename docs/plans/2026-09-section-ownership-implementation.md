@@ -264,3 +264,57 @@ host: removal takes a policy
 mcp: section tools, and a task that can name its container
 web: section-scoped stores, drag between containers, removal dialog
 ```
+
+---
+
+## Progress — paused 2026-09-01
+
+**Steps 1–6 are done and committed**, one commit per step, subjects as suggested above
+(`5e61e54`..`a94ef26`). `pnpm test` (1122), `pnpm lint` and `pnpm build` all pass on a clean
+tree.
+
+**Step 7 is partly done.** Seed reset, host restarted, and item 3 — the bug the change exists
+to close — verified against the running host: a project with an empty canvas, then
+`POST /api/tasks` with no `sectionId`, answered a task owning `section-bdaadc55`, and
+`GET /api/projects/:id/sections` went from `[]` to `task-list@0`.
+
+### What is left
+
+- Step 7 items 4 and 5 in the running app: two Task Lists with a drag across, then a view
+  removal and a cascade through the UI. Both are covered by tests; neither has been clicked.
+- `docs/mcp-setup.md` still says "fourteen tools" in its opening line and its `tools/list`
+  expectations. It is eighteen now — the four section tools.
+- `development.md` slice status for this phase.
+- This plan's step 0 asked to record in the ADR, if it survived review, that adding a
+  *container* type now touches two files (the contracts map plus the web registry and its
+  folder) rather than the one §30 promises. It did survive: `SECTION_OWNERSHIP` lives in
+  `packages/contracts/src/section.ts` and `registry.ts` reads `kind` back out of it.
+
+### Three deviations from the plan, all deliberate
+
+1. **`Reflection` gained `archivedAt`** (and `ReflectionQuery` gained `includeArchived`). The
+   plan justified cascade-as-archive with "`archivedAt` already exists" — true only of
+   `Task`. Without the field, cascading a `reflections` container would have had to hard
+   delete, which the decision rules out.
+2. **`TaskQuery` and `ReflectionQuery` gained `sectionId`**, without which a section-scoped
+   list cannot read what its container owns. `contracts` also gained `containerTypeFor`,
+   deriving the type to create from `SECTION_OWNERSHIP` rather than restating the mapping.
+3. **Two seeds changed shape, not just ids.** `nested-projects` lost `task-cabinets-samples`
+   so Cabinets can keep its deliberately empty canvas — under ownership an empty canvas and
+   an unrendered row are the same defect. `agent-heavy`'s Agent operations project gained the
+   `reflections` container its seeded reflection always needed. The plan's claim that
+   `prototype/seeds/agent-heavy.json` is hand-maintained is wrong: `seeds.test.ts` compares
+   all six snapshots byte-for-byte against `buildSeed`, so they are generated.
+
+Also worth knowing: `runUnitOfWork` does **not** re-enter, so `SectionService.add` delegates
+to a private `addWithin` that `resolveContainer` also calls inside the caller's transaction.
+Neither `resolveContainer` nor `requireContainer` checks `projects.write`, following
+`TaskService.require`'s rule that reads and writes a *write* does on its own behalf are not
+re-checked — an agent holding `tasks.write` alone must still be able to create a task.
+
+### Environment
+
+A prototype host predating the session was holding `:4310` with a schema-version-1 document;
+it was stopped and restarted. The running host serves the `agent-heavy` seed and contains an
+`Agent smoke test` project left by the verification above. `pnpm prototype:reset` and a host
+restart clears both.
