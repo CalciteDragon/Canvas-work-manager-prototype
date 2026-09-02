@@ -12,7 +12,15 @@
   }
 
   <div class="task-workspace" [class.task-workspace--drawer-open]="store.selectedTask() !== null">
-    <div class="task-list" [attr.aria-busy]="store.loading()">
+    <div
+      class="task-list"
+      cdkDropList
+      [id]="dropId()"
+      [cdkDropListData]="section().id"
+      [cdkDropListConnectedTo]="connectedDropIds()"
+      (cdkDropListDropped)="dropTask($any($event))"
+      [attr.aria-busy]="store.loading()"
+    >
       @if (store.loading()) {
         <p data-tasks-loading class="task-list-section__muted">Loading tasks…</p>
       } @else if (store.tasks().length === 0) {
@@ -20,6 +28,8 @@
       } @else {
         @for (task of store.tasks(); track task.id) {
           <app-task-row
+            cdkDrag
+            [cdkDragData]="task.id"
             [task]="task"
             [selected]="store.selectedTaskId() === task.id"
             [pending]="store.completingIds().has(task.id)"

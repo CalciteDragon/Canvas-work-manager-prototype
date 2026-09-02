@@ -29,6 +29,7 @@ const reflection = (overrides: Record<string, unknown> = {}): Reflection =>
   ReflectionSchema.parse({
     id: 'reflection-a',
     projectId: 'project-a',
+    sectionId: 'section-reflections',
     title: 'Retrospective',
     body: 'We simplified the flow.',
     prompt: 'What went well?',
@@ -109,6 +110,7 @@ describe('ReflectionsSection (§36)', () => {
 
     expect(gateway.argumentTo('reflections.create')).toEqual({
       projectId: 'project-a',
+      sectionId: section().id,
       title: 'Weekly note',
       body: 'Momentum improved.',
       prompt: 'What changed?',

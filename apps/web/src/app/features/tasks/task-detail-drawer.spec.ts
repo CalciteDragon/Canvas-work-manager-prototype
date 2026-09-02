@@ -7,6 +7,7 @@ const AT = '2026-08-27T16:00:00.000Z';
 const value: Task = TaskSchema.parse({
   id: 'task-a',
   projectId: 'project-a',
+  sectionId: 'section-tasks',
   title: 'Write the first draft',
   description: 'Use the research notes.',
   status: 'todo',

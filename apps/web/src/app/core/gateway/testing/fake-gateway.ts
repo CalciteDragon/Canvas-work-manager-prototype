@@ -135,9 +135,18 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
   };
 
   readonly reflections = {
-    list: (projectId: ProjectId) => this.answer('reflections.list', projectId, (this.options.reflections ?? []).filter((item) => item.projectId === projectId)),
+    list: (projectId: ProjectId, sectionId?: SectionId) =>
+      this.answer(
+        'reflections.list',
+        sectionId === undefined ? projectId : { projectId, sectionId },
+        (this.options.reflections ?? []).filter(
+          (item) => item.projectId === projectId && (sectionId === undefined || item.sectionId === sectionId),
+        ),
+      ),
     create: (input: Parameters<WorkManagerGateway['reflections']['create']>[0]) => this.answer('reflections.create', input, {
-      id: 'reflection-created' as ReflectionId, ...input, createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT,
+      // The real service resolves a container when the caller names none; the fake stands
+      // in for that rather than leaving the row unowned.
+      id: 'reflection-created' as ReflectionId, sectionId: 'section-resolved' as SectionId, ...input, createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT,
     }),
     update: (id: ReflectionId, input: Parameters<WorkManagerGateway['reflections']['update']>[1]) => this.answer('reflections.update', { id, input }, { ...this.find(this.options.reflections, id, 'reflection'), ...input, title: input.title === null ? undefined : input.title ?? this.find(this.options.reflections, id, 'reflection').title }),
   };
@@ -170,11 +179,21 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         ...this.sectionFor(id),
         id: `${id}-copy` as SectionId,
       }),
-    remove: (id) => this.answer('sections.remove', id, undefined),
+    // The policy is recorded too: a removal that swallowed it would look identical here.
+    remove: (id, input) => this.answer('sections.remove', { id, input: input ?? {} }, undefined),
   };
 
   readonly tasks: TaskGateway = {
-    list: (query) => this.answer('tasks.list', query, this.options.tasks ?? []),
+    // Honours `sectionId`, because a Task List section now renders only what its own
+    // container owns — a fake that ignored it would let a broken scope pass.
+    list: (query) =>
+      this.answer(
+        'tasks.list',
+        query,
+        (this.options.tasks ?? []).filter(
+          (task) => query.sectionId === undefined || task.sectionId === query.sectionId,
+        ),
+      ),
     get: (id: TaskId) => this.answer('tasks.get', id, this.find(this.options.tasks, id, 'task')),
     create: (input) => this.answer('tasks.create', input, this.firstTask()),
     update: (id, input) => this.answer('tasks.update', { id, input }, this.firstTask()),

@@ -1,8 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import {
   ProjectSchema,
+  ProjectSectionSchema,
   TaskSchema,
   type Project,
+  type ProjectSection,
   type Task,
   type TaskId,
   type UpdateTaskInput,
@@ -26,10 +28,26 @@ const project = (id = 'project-a', name = 'Project A'): Project =>
     updatedAt: AT,
   });
 
+
+/** The container the list renders. A task list owns its rows, so the store loads by it. */
+const section = (projectId = 'project-a', id = `section-${projectId}-tasks`): ProjectSection =>
+  ProjectSectionSchema.parse({
+    id,
+    projectId,
+    type: 'task-list',
+    position: 0,
+    columnSpan: 12,
+    collapsed: false,
+    config: {},
+    createdAt: AT,
+    updatedAt: AT,
+  });
+
 const task = (overrides: Record<string, unknown> = {}): Task =>
   TaskSchema.parse({
     id: 'task-a',
     projectId: 'project-a',
+    sectionId: 'section-project-a-tasks',
     title: 'Write the first draft',
     status: 'todo',
     priority: 'medium',
@@ -102,44 +120,52 @@ describe('TaskListStore', () => {
   it('loads one project’s unarchived tasks, and only that project’s', async () => {
     const { store, gateway } = setup();
 
-    await store.load(project('project-b').id);
+    await store.load(section('project-b'));
 
     expect(store.tasks().map(({ title }) => title)).toEqual(['Write the first draft']);
     expect(store.projectId()).toBe('project-b');
-    // Archived tasks stay out, which is also what keeps them out of the header's progress.
-    expect(gateway.tasks.list).toHaveBeenCalledWith({ projectId: 'project-b', includeArchived: false });
+    expect(store.sectionId()).toBe('section-project-b-tasks');
+    // By section, not by project: this list renders only what its own container owns.
+    expect(gateway.tasks.list).toHaveBeenCalledWith({ sectionId: 'section-project-b-tasks', includeArchived: false });
   });
 
   it('creates a trimmed task in the loaded project and selects the server result', async () => {
     const { store, gateway } = setup();
-    await store.load(project('project-b').id);
+    await store.load(section('project-b'));
 
     expect(await store.create('  New task  ')).toBe(true);
 
-    expect(gateway.tasks.create).toHaveBeenCalledWith({ projectId: 'project-b', title: 'New task' });
+    // The container is named, not resolved: the domain would otherwise send the row to the
+    // project's *first* task list, which may be a different one on the same canvas.
+    expect(gateway.tasks.create).toHaveBeenCalledWith({
+      projectId: 'project-b',
+      title: 'New task',
+      sectionId: 'section-project-b-tasks',
+    });
     expect(store.tasks().at(-1)?.id).toBe('task-created');
     expect(store.selectedTask()?.id).toBe('task-created');
   });
 
   it('updates and clears an estimate through the shared task update path', async () => {
-    const { store, gateway } = setup(); await store.load(project().id);
+    const { store, gateway } = setup(); await store.load(section());
     await store.updateEstimate(task().id, 3);
     expect(gateway.tasks.update).toHaveBeenCalledWith(task().id, { estimate: 3 });
     await store.updateEstimate(task().id, null);
     expect(gateway.tasks.update).toHaveBeenLastCalledWith(task().id, { estimate: null });
   });
 
-  it('refuses to create before a project has loaded', async () => {
+  it('refuses to create before its container has loaded', async () => {
     const { store, gateway } = setup();
 
     expect(await store.create('New task')).toBe(false);
     expect(gateway.tasks.create).not.toHaveBeenCalled();
-    expect(store.error()).toContain('project');
+    // A task cannot exist without a container to render it, so there is nowhere to put one.
+    expect(store.error()).toContain('section');
   });
 
   it('rejects a blank quick-create title without calling the gateway', async () => {
     const { store, gateway } = setup();
-    await store.load(project().id);
+    await store.load(section());
 
     expect(await store.create('   ')).toBe(false);
     expect(gateway.tasks.create).not.toHaveBeenCalled();
@@ -156,7 +182,7 @@ describe('TaskListStore', () => {
       }),
     );
     const { store } = setup({ update });
-    await store.load(project().id);
+    await store.load(section());
 
     await store.updateTitle(task().id, '  Revised title  ');
     await store.updatePriority(task().id, 'high');
@@ -181,7 +207,7 @@ describe('TaskListStore', () => {
   it('marks completion immediately while the gateway is pending, then reconciles its status fields', async () => {
     const result = deferred<Task>();
     const { store } = setup({ complete: vi.fn(() => result.promise) });
-    await store.load(project().id);
+    await store.load(section());
 
     const completion = store.complete(task().id);
 
@@ -199,7 +225,7 @@ describe('TaskListStore', () => {
     const before = task({ title: 'Keep every field', priority: 'high' });
     const result = deferred<Task>();
     const { store } = setup({ tasks: [before], complete: vi.fn(() => result.promise) });
-    await store.load(project().id);
+    await store.load(section());
 
     const completion = store.complete(before.id);
     result.reject(new GatewayError('unreachable', 0, 'could not reach the prototype host'));
@@ -212,7 +238,7 @@ describe('TaskListStore', () => {
   it('does not let an older failed completion overwrite a newer title mutation', async () => {
     const result = deferred<Task>();
     const { store } = setup({ complete: vi.fn(() => result.promise) });
-    await store.load(project().id);
+    await store.load(section());
 
     const completion = store.complete(task().id);
     await store.updateTitle(task().id, 'Newer title');
@@ -225,7 +251,7 @@ describe('TaskListStore', () => {
   it('does not let an older successful completion response overwrite a newer title mutation', async () => {
     const result = deferred<Task>();
     const { store } = setup({ complete: vi.fn(() => result.promise) });
-    await store.load(project().id);
+    await store.load(section());
 
     const completion = store.complete(task().id);
     await store.updateTitle(task().id, 'Newer title');
@@ -243,7 +269,7 @@ describe('TaskListStore', () => {
       .mockImplementationOnce(() => first.promise)
       .mockImplementationOnce(() => second.promise);
     const { store } = setup({ update });
-    await store.load(project().id);
+    await store.load(section());
 
     const older = store.updateTitle(task().id, 'Persisted title');
     const newer = store.updateTitle(task().id, 'Rejected title');
@@ -274,7 +300,7 @@ describe('TaskListStore under the panel’s failure injection (§63)', () => {
   it('paints the completion, then reverts it and reports the failure', async () => {
     const gate = deferred<Task>();
     const { store } = setup({ complete: vi.fn(() => gate.promise) });
-    await store.load('project-a' as never);
+    await store.load(section());
 
     const completing = store.complete('task-a' as TaskId);
     // Painted before the gateway has answered — the whole point of an optimistic write.
@@ -292,7 +318,7 @@ describe('TaskListStore under the panel’s failure injection (§63)', () => {
 describe('TaskListStore.refresh (§62)', () => {
   it('quietly re-reads the project’s tasks, without a loading flicker', async () => {
     const { store, gateway } = setup();
-    await store.load(project().id);
+    await store.load(section());
     (gateway.tasks.list as ReturnType<typeof vi.fn>).mockResolvedValue([
       task({ id: 'task-a', title: 'Renamed by an agent' }),
       task({ id: 'task-b', title: 'Added by an agent' }),
@@ -310,7 +336,7 @@ describe('TaskListStore.refresh (§62)', () => {
 
   it('leaves the rendered list alone when the re-read fails', async () => {
     const { store, gateway } = setup();
-    await store.load(project().id);
+    await store.load(section());
     (gateway.tasks.list as ReturnType<typeof vi.fn>).mockRejectedValue(new GatewayError('unreachable', 0, 'down'));
 
     await store.refresh();
@@ -323,7 +349,7 @@ describe('TaskListStore.refresh (§62)', () => {
   it('defers while an optimistic completion is in flight, and lands once it settles', async () => {
     const pending = deferred<Task>();
     const { store, gateway } = setup({ complete: vi.fn(async () => pending.promise) });
-    await store.load(project().id);
+    await store.load(section());
     const listCalls = (gateway.tasks.list as ReturnType<typeof vi.fn>).mock.calls.length;
     (gateway.tasks.list as ReturnType<typeof vi.fn>).mockResolvedValue([task({ id: 'task-a', status: 'todo' })]);
 
@@ -346,7 +372,7 @@ describe('TaskListStore.refresh (§62)', () => {
   it('coalesces a burst of frames into one re-read', async () => {
     const pending = deferred<Task>();
     const { store, gateway } = setup({ complete: vi.fn(async () => pending.promise) });
-    await store.load(project().id);
+    await store.load(section());
     const listCalls = (gateway.tasks.list as ReturnType<typeof vi.fn>).mock.calls.length;
 
     const completing = store.complete('task-a' as TaskId);

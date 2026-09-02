@@ -10,6 +10,7 @@ const task = (overrides: Record<string, unknown> = {}): Task =>
   TaskSchema.parse({
     id: 'task-a',
     projectId: 'project-a',
+    sectionId: 'section-tasks',
     title: 'Write the first draft',
     status: 'todo',
     priority: 'medium',

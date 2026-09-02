@@ -28,6 +28,7 @@ import type {
   UpdateSectionInput,
   UpdateProjectInput,
   UpdateTaskInput,
+  RemoveSectionInput,
 } from '@cwm/contracts';
 
 /**
@@ -81,7 +82,8 @@ export interface TimelineGateway {
 }
 
 export interface ReflectionGateway {
-  list(projectId: ProjectId): Promise<Reflection[]>;
+  /** A reflections section renders what it owns, so the list narrows to one container. */
+  list(projectId: ProjectId, sectionId?: SectionId): Promise<Reflection[]>;
   create(input: CreateReflectionInput): Promise<Reflection>;
   update(id: ReflectionId, input: UpdateReflectionInput): Promise<Reflection>;
 }
@@ -99,7 +101,12 @@ export interface SectionGateway {
   update(id: SectionId, input: UpdateSectionInput): Promise<ProjectSection>;
   move(id: SectionId, input: MoveSectionInput): Promise<ProjectSection>;
   duplicate(id: SectionId): Promise<ProjectSection>;
-  remove(id: SectionId): Promise<void>;
+  /**
+   * A container that still holds rows refuses removal without a policy, and the caller
+   * surfaces the refusal as a choice rather than swallowing it — see
+   * docs/decisions/2026-09-sections-own-their-data.md.
+   */
+  remove(id: SectionId, input?: RemoveSectionInput): Promise<void>;
 }
 
 /**

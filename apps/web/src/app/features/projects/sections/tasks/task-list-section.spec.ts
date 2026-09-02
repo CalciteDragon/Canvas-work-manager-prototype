@@ -21,10 +21,11 @@ const section = (): ProjectSection =>
     updatedAt: AT,
   });
 
-const task = (id: string, projectId = 'project-a'): Task =>
+const task = (id: string, projectId = 'project-a', sectionId = 'section-tasks'): Task =>
   TaskSchema.parse({
     id,
     projectId,
+    sectionId,
     title: `Task ${id}`,
     status: 'todo',
     priority: 'medium',
@@ -32,19 +33,22 @@ const task = (id: string, projectId = 'project-a'): Task =>
     updatedAt: AT,
   });
 
-const render = async () => {
-  const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1'), task('task-2')] });
+const render = async (gateway = new FakeWorkManagerGateway({ tasks: [task('task-1'), task('task-2')] })) => {
   TestBed.configureTestingModule({
-    providers: [TaskListStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
+    providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
   });
-  const store = TestBed.inject(TaskListStore);
-  await store.load('project-a' as Task['projectId']);
-
   const fixture = TestBed.createComponent(TaskListSection);
   fixture.componentRef.setInput('section', section());
   fixture.componentRef.setInput('onConfigChange', vi.fn());
   fixture.componentRef.setInput('onProjectDataChange', vi.fn());
+  fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn());
+  fixture.componentRef.setInput('projectDataRevision', 0);
+  fixture.componentRef.setInput('projectHierarchyRevision', 0);
   fixture.detectChanges();
+  await fixture.whenStable();
+  fixture.detectChanges();
+  // The section provides its own store now — a container owns its rows, so it loads them.
+  const store = fixture.debugElement.injector.get(TaskListStore);
   return { fixture, store, gateway };
 };
 
@@ -52,10 +56,10 @@ const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector:
   fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
 describe('TaskListSection (§30, §66)', () => {
-  it('asks the gateway for only its own project’s tasks', async () => {
+  it('asks the gateway for only its own container’s tasks', async () => {
     const { gateway } = await render();
 
-    expect(gateway.argumentTo('tasks.list')).toEqual({ projectId: 'project-a', includeArchived: false });
+    expect(gateway.argumentTo('tasks.list')).toEqual({ sectionId: section().id, includeArchived: false });
   });
 
   it('renders Slice 7’s task rows rather than a second implementation of them', async () => {
@@ -73,8 +77,11 @@ describe('TaskListSection (§30, §66)', () => {
     query(fixture, '[data-quick-create]')!.dispatchEvent(new Event('submit'));
     await fixture.whenStable();
 
+    // The container is named: this list owns the row, and leaving it to the domain would
+    // resolve to the project's *first* task list, which need not be this one.
     expect(gateway.argumentTo('tasks.create')).toEqual({
       projectId: 'project-a',
+      sectionId: section().id,
       title: 'Draft the release note',
     });
   });
@@ -88,19 +95,18 @@ describe('TaskListSection (§30, §66)', () => {
     expect(gateway.argumentTo('tasks.complete')).toBe('task-1');
   });
 
-  it('says so when the project has no tasks yet', async () => {
-    const gateway = new FakeWorkManagerGateway({ tasks: [] });
-    TestBed.configureTestingModule({
-      providers: [TaskListStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
-    });
-    await TestBed.inject(TaskListStore).load('project-a' as Task['projectId']);
-
-    const fixture = TestBed.createComponent(TaskListSection);
-    fixture.componentRef.setInput('section', section());
-    fixture.componentRef.setInput('onConfigChange', vi.fn());
-    fixture.componentRef.setInput('onProjectDataChange', vi.fn());
-    fixture.detectChanges();
+  it('says so when its container holds no tasks yet', async () => {
+    const { fixture } = await render(new FakeWorkManagerGateway({ tasks: [] }));
 
     expect(query(fixture, '[data-tasks-empty]')).not.toBeNull();
+  });
+
+  it('renders only what its own container owns, so two lists differ', async () => {
+    const { fixture } = await render(
+      new FakeWorkManagerGateway({ tasks: [task('task-1'), task('task-elsewhere', 'project-a', 'section-other')] }),
+    );
+
+    expect(fixture.nativeElement.textContent).toContain('Task task-1');
+    expect(fixture.nativeElement.textContent).not.toContain('Task task-elsewhere');
   });
 });

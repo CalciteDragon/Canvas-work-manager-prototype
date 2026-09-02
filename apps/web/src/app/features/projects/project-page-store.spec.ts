@@ -62,6 +62,7 @@ const task = (id: string, status: 'todo' | 'done' = 'todo'): Task =>
   TaskSchema.parse({
     id,
     projectId: PROJECT,
+    sectionId: 'section-tasks',
     title: `Task ${id}`,
     status,
     priority: 'medium',
@@ -190,6 +191,7 @@ const setup = (
 
 const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({
   type: 'rich-text',
+  kind: 'view',
   displayName: 'Rich Text',
   icon: '📝',
   createDefaultConfig: () => ({ text: '' }),
@@ -206,8 +208,8 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
 });
 
 describe('ProjectPageStore (§19, §26)', () => {
-  it('loads the project, its sections in position order, and its tasks', async () => {
-    const { store, tasks, gateway } = setup({
+  it('loads the project and its sections in position order, and reads no rows itself', async () => {
+    const { store, gateway } = setup({
       sections: [section('section-tasks', 'task-list', 1), section('section-text', 'rich-text', 0)],
     });
 
@@ -216,14 +218,15 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.project()?.name).toBe('Website launch');
     // Ordering is the store's job — the canvas renders what it is handed.
     expect(store.sections().map(({ id }) => id)).toEqual(['section-text', 'section-tasks']);
-    expect(tasks.tasks()).toHaveLength(2);
-    expect(gateway.tasks.list).toHaveBeenCalledWith({ projectId: PROJECT, includeArchived: false });
+    // A container owns its rows, so the Task List section reads them; this store does not.
+    expect(gateway.tasks.list).not.toHaveBeenCalled();
     expect(store.error()).toBeNull();
   });
 
-  it('exposes count-based progress that follows task completion in the same store', async () => {
+  it('exposes count-based progress that follows task completion in a section store', async () => {
     const { store, tasks, gateway } = setup();
     await store.load(PROJECT);
+    await tasks.load(section('section-tasks', 'task-list', 1));
 
     expect(store.progress()).toBe(50);
 
@@ -231,7 +234,8 @@ describe('ProjectPageStore (§19, §26)', () => {
     vi.mocked(gateway.progress.get).mockResolvedValue({ projectId: PROJECT, formula: 'count', percentage: 100, completed: 2, total: 2, explanation: '2 of 2 tasks complete' });
     await store.refreshProgress();
 
-    // One store means the header cannot go stale behind the Task List section.
+    // Progress is a *view* over the whole project, so it stays page-scoped and canonical —
+    // it is not a sum of whatever the visible containers happen to hold.
     expect(store.progress()).toBe(100);
   });
 
@@ -244,7 +248,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.progress()).toBeNull();
   });
 
-  it('renders the header and sections when only the task-list load fails, using the independent progress read model', async () => {
+  it('renders the header and sections when a task-list load fails, using the independent progress read model', async () => {
     const { store, tasks } = setup({
       taskList: vi.fn(async () => {
         throw new GatewayError('unreachable', 0, 'could not reach the prototype host');
@@ -252,8 +256,9 @@ describe('ProjectPageStore (§19, §26)', () => {
     });
 
     await store.load(PROJECT);
+    await tasks.load(section('section-tasks', 'task-list', 1));
 
-    // An unrelated task error must not blank the header and the Rich Text section.
+    // One container's failure must not blank the header and the Rich Text section.
     expect(store.project()?.name).toBe('Website launch');
     expect(store.sections()).toHaveLength(2);
     expect(store.error()).toBeNull();
@@ -264,6 +269,7 @@ describe('ProjectPageStore (§19, §26)', () => {
   it('keeps progress after a failed task mutation — only a failed load makes it unavailable', async () => {
     const { store, tasks } = setup();
     await store.load(PROJECT);
+    await tasks.load(section('section-tasks', 'task-list', 1));
     expect(store.progress()).toBe(50);
 
     // `TaskListStore.error` carries validation and rollback messages too. Gating progress on
@@ -628,23 +634,22 @@ const settleLive = async () => {
 };
 
 describe('ProjectPageStore and live updates (§62)', () => {
-  it('quietly refreshes tasks and progress on a task event for this project', async () => {
-    const { store, tasks, gateway, live } = setup();
+  it('bumps the data revision and refreshes progress on a task event for this project', async () => {
+    const { store, gateway, live } = setup();
     await store.load(PROJECT);
-    const taskReads = calls(gateway.tasks.list);
     const progressReads = calls(gateway.progress.get);
 
     live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-1', projectId: PROJECT });
     await settleLive();
 
-    expect(calls(gateway.tasks.list)).toBe(taskReads + 1);
     expect(calls(gateway.progress.get)).toBe(progressReads + 1);
+    // The rows themselves are re-read by whichever container owns them, off this revision —
+    // this store no longer knows which task lists are on the canvas, and does not need to.
+    expect(store.projectDataRevision()).toBe(1);
+    expect(store.projectHierarchyRevision()).toBe(0);
     // Quiet: the page never blinks back to its loading state for someone else's write.
     expect(store.loading()).toBe(false);
     expect(store.error()).toBeNull();
-    expect(tasks.loading()).toBe(false);
-    expect(store.projectDataRevision()).toBe(1);
-    expect(store.projectHierarchyRevision()).toBe(0);
   });
 
   it('routes a minimal current-project event by type and entityId and bumps both revisions', async () => {
@@ -680,7 +685,6 @@ describe('ProjectPageStore and live updates (§62)', () => {
     await store.load(PROJECT);
     const projectReads = calls(gateway.projects.get);
     const sectionReads = calls(gateway.sections.list);
-    const taskReads = calls(gateway.tasks.list);
     const progressReads = calls(gateway.progress.get);
 
     live.emitConnected();
@@ -688,8 +692,9 @@ describe('ProjectPageStore and live updates (§62)', () => {
 
     expect(calls(gateway.projects.get)).toBe(projectReads + 1);
     expect(calls(gateway.sections.list)).toBe(sectionReads + 1);
-    expect(calls(gateway.tasks.list)).toBe(taskReads + 1);
     expect(calls(gateway.progress.get)).toBe(progressReads + 1);
+    // The containers recover on the revision the reconnect bumps.
+    expect(store.projectDataRevision()).toBeGreaterThan(0);
     expect(store.loading()).toBe(false);
   });
 
@@ -701,8 +706,10 @@ describe('ProjectPageStore and live updates (§62)', () => {
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'host starting'))
       .mockResolvedValue([task('task-recovered')]);
     const { store, tasks, live } = setup({ projectGet: get, taskList: listTasks });
+    const container = section('section-tasks', 'task-list', 1);
 
     await store.load(PROJECT);
+    await tasks.load(container);
     expect(store.project()).toBeNull();
     expect(store.error()).toContain('host starting');
     expect(tasks.loadFailed()).toBe(true);
@@ -715,6 +722,9 @@ describe('ProjectPageStore and live updates (§62)', () => {
     expect(store.progressResult()?.projectId).toBe(PROJECT);
     expect(store.error()).toBeNull();
     expect(store.sectionError()).toBeNull();
+
+    // The container recovers itself off the revision, the way the section component does.
+    await tasks.sync(container);
     expect(tasks.tasks().map(({ id }) => id)).toEqual(['task-recovered']);
     expect(tasks.error()).toBeNull();
     expect(tasks.loadFailed()).toBe(false);

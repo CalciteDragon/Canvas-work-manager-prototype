@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { ReflectionSchema, type ProjectId, type Reflection } from '@cwm/contracts';
+import { ProjectSectionSchema, ReflectionSchema, type ProjectSection, type Reflection } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../../core/gateway/gateway-error';
 import {
@@ -9,10 +9,25 @@ import {
 import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-gateway';
 import { ReflectionsStore } from './reflections-store';
 
+/** The container the list renders: a reflections section owns its rows. */
+const section = (projectId = 'project-a'): ProjectSection =>
+  ProjectSectionSchema.parse({
+    id: `section-${projectId}-reflections`,
+    projectId,
+    type: 'reflections',
+    position: 0,
+    columnSpan: 12,
+    collapsed: false,
+    config: {},
+    createdAt: '2026-08-26T16:00:00.000Z',
+    updatedAt: '2026-08-26T16:00:00.000Z',
+  });
+
 const reflection = (overrides: Record<string, unknown> = {}): Reflection =>
   ReflectionSchema.parse({
     id: 'reflection-a',
     projectId: 'project-a',
+    sectionId: 'section-project-a-reflections',
     body: 'The first note',
     createdAt: '2026-08-26T16:00:00.000Z',
     updatedAt: '2026-08-26T16:00:00.000Z',
@@ -42,17 +57,17 @@ describe('ReflectionsStore (§36)', () => {
     const list = vi.fn().mockImplementationOnce(() => loud.promise).mockImplementationOnce(() => quiet.promise).mockImplementationOnce(() => trailing.promise);
     const base = new FakeWorkManagerGateway();
     const store = setup({ ...base, reflections: { ...base.reflections, list } } as WorkManagerGateway);
-    const loading = store.sync('project-a' as ProjectId); void store.sync('project-a' as ProjectId);
+    const loading = store.sync(section()); void store.sync(section());
     expect(list).toHaveBeenCalledTimes(1);
     loud.resolve([reflection({ id: 'reflection-loud' })]); await loading; await Promise.resolve();
-    void store.sync('project-a' as ProjectId); expect(list).toHaveBeenCalledTimes(2);
+    void store.sync(section()); expect(list).toHaveBeenCalledTimes(2);
     quiet.reject(new GatewayError('unreachable', 0, 'quiet failed')); await Promise.resolve(); await Promise.resolve();
     expect(store.reflections().map(({ id }) => id)).toEqual(['reflection-loud']); expect(store.error()).toBeNull(); expect(list).toHaveBeenCalledTimes(3);
     trailing.resolve([reflection({ id: 'reflection-trailing' })]); await Promise.resolve(); await Promise.resolve();
     expect(store.reflections().map(({ id }) => id)).toEqual(['reflection-trailing']);
   });
 
-  it('loads its project and sorts the response newest-first', async () => {
+  it('loads its own container and sorts the response newest-first', async () => {
     const gateway = new FakeWorkManagerGateway({
       reflections: [
         reflection(),
@@ -61,20 +76,25 @@ describe('ReflectionsStore (§36)', () => {
     });
     const store = setup(gateway);
 
-    await store.load('project-a' as ProjectId);
+    await store.load(section());
 
-    expect(gateway.argumentTo('reflections.list')).toBe('project-a');
+    // Narrowed to the container: a reflections section renders what it owns.
+    expect(gateway.argumentTo('reflections.list')).toEqual({
+      projectId: 'project-a',
+      sectionId: section().id,
+    });
     expect(store.reflections().map(({ id }) => id)).toEqual(['reflection-new', 'reflection-a']);
   });
 
   it('creates trimmed body-only, titled, and prompted entries in the loaded project', async () => {
     const gateway = new FakeWorkManagerGateway({ reflections: [] });
     const store = setup(gateway);
-    await store.load('project-a' as ProjectId);
+    await store.load(section());
 
     expect(await store.create('  What moved forward  ', '  Weekly review  ', 'What changed?')).toBe(true);
     expect(gateway.argumentTo('reflections.create')).toEqual({
       projectId: 'project-a',
+      sectionId: section().id,
       body: 'What moved forward',
       title: 'Weekly review',
       prompt: 'What changed?',
@@ -83,6 +103,7 @@ describe('ReflectionsStore (§36)', () => {
     expect(await store.create('  A body-only note  ', '   ', '')).toBe(true);
     expect(gateway.calls.at(-1)?.argument).toEqual({
       projectId: 'project-a',
+      sectionId: section().id,
       body: 'A body-only note',
     });
   });
@@ -94,7 +115,7 @@ describe('ReflectionsStore (§36)', () => {
       failOn: { 'reflections.create': new GatewayError('unreachable', 0, 'host unavailable') },
     });
     const store = setup(gateway);
-    await store.load('project-a' as ProjectId);
+    await store.load(section());
 
     expect(await store.create('   ')).toBe(false);
     expect(store.error()).toContain('body');
@@ -107,7 +128,7 @@ describe('ReflectionsStore (§36)', () => {
     const before = reflection({ title: 'Before' });
     const gateway = new FakeWorkManagerGateway({ reflections: [before] });
     const store = setup(gateway);
-    await store.load('project-a' as ProjectId);
+    await store.load(section());
 
     store.beginEdit(before.id);
     expect(store.editingId()).toBe(before.id);
@@ -131,7 +152,7 @@ describe('ReflectionsStore (§36)', () => {
       failOn: { 'reflections.update': new GatewayError('unreachable', 0, 'save failed') },
     });
     const store = setup(gateway);
-    await store.load('project-a' as ProjectId);
+    await store.load(section());
     store.beginEdit(before.id);
 
     expect(await store.saveEdit('Title', 'Body')).toBe(false);
@@ -149,8 +170,8 @@ describe('ReflectionsStore (§36)', () => {
     const gateway = { ...base, reflections: { ...base.reflections, list } } as WorkManagerGateway;
     const store = setup(gateway);
 
-    const first = store.load('project-a' as ProjectId);
-    await store.load('project-b' as ProjectId);
+    const first = store.load(section());
+    await store.load(section('project-b'));
     older.resolve([reflection({ id: 'reflection-stale' })]);
     await first;
 

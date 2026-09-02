@@ -20,6 +20,7 @@ const task = (overrides: Record<string, unknown> = {}): Task =>
   TaskSchema.parse({
     id: 'task-story',
     projectId: 'project-story',
+    sectionId: 'section-story-tasks',
     title: 'Draft the launch announcement',
     status: 'todo',
     priority: 'medium',

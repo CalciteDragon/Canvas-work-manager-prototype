@@ -6,14 +6,15 @@ import {
   type ProgressResult,
   type ProjectSection,
   type ProjectStatus,
+  type RemoveSectionInput,
   type SectionColumnSpan,
   type SectionConfig,
   type SectionId,
   type UpdateProjectInput,
 } from '@cwm/contracts';
+import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
-import { TaskListStore } from '../tasks/task-list-store';
 import type { LiveEvent } from '@cwm/contracts';
 import type { SectionDefinition } from './sections/registry';
 
@@ -23,10 +24,21 @@ const messageOf = (error: unknown): string =>
 const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position - b.position;
 
 /**
+ * A container that refused removal, and what the canvas can offer instead. `message` is the
+ * domain's own sentence, which names the row count.
+ */
+export interface SectionRemovalPrompt {
+  sectionId: SectionId;
+  message: string;
+  targets: ProjectSection[];
+}
+
+/**
  * §19's `ProjectPageStore`, feature-scoped and provided by `ProjectPage` alone (§20).
  *
- * It composes `TaskListStore` for the page's shared task data, while header progress comes
- * from the canonical §39 domain read. Task writes explicitly refresh that independent read.
+ * It no longer composes `TaskListStore`: a Task List section owns its rows and provides its
+ * own store, and re-reads on `projectDataRevision` like every other container. This store
+ * bumps that revision and keeps header progress, which is the canonical §39 domain read.
  *
  * §32's `editMode` is transient page state: it changes chrome, never persistence. A route
  * change resets it so layout affordances do not leak from one project into another.
@@ -34,7 +46,6 @@ const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position 
 @Injectable()
 export class ProjectPageStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
-  private readonly tasks = inject(TaskListStore);
   private readonly pendingTasks = inject(PendingTasks);
 
   private readonly projectState = signal<Project | null>(null);
@@ -57,6 +68,8 @@ export class ProjectPageStore {
    */
   private readonly writeErrorState = signal<string | null>(null);
   private readonly editModeState = signal(false);
+  /** Set when a container refuses removal because it still holds rows — see `removeSection`. */
+  private readonly removalPromptState = signal<SectionRemovalPrompt | null>(null);
   private readonly canvasRevisionState = signal(0);
   private readonly progressState = signal<ProgressResult | null>(null);
   private readonly projectDataRevisionState = signal(0);
@@ -93,6 +106,7 @@ export class ProjectPageStore {
   readonly canvasRevision = this.canvasRevisionState.asReadonly();
   readonly progressResult = this.progressState.asReadonly();
   readonly projectDataRevision = this.projectDataRevisionState.asReadonly();
+  readonly removalPrompt = this.removalPromptState.asReadonly();
   readonly projectHierarchyRevision = this.projectHierarchyRevisionState.asReadonly();
 
   /** The selected §39 domain result; `null` means unavailable and remains distinct from 0%. */
@@ -144,8 +158,8 @@ export class ProjectPageStore {
       return;
     }
 
-    // Any current-project mutation may change task-derived progress or visible tasks.
-    void this.tasks.refresh();
+    // Any current-project mutation may change task-derived progress. The sections re-read
+    // themselves off the revision bumped above.
     void this.refreshProgress();
     if (!event.type.startsWith('project.')) return;
     if (this.pendingWrites > 0) {
@@ -179,7 +193,7 @@ export class ProjectPageStore {
     }
     // Project must recover before progress: a failed loud load has no `projectState` yet,
     // and `refreshProgress` intentionally refuses to read without one.
-    void Promise.all([this.tasks.refresh(), this.refreshProject().then(() => this.refreshProgress())]);
+    void this.refreshProject().then(() => this.refreshProgress());
   }
 
   /**
@@ -259,12 +273,11 @@ export class ProjectPageStore {
         this.sectionsState.set([]);
         this.errorState.set(messageOf(error));
       } finally {
-        // The task load is inside the loading window: leaving it outside made the header
-        // paint "Not available" for a frame before the real percentage arrived.
+        // Progress is inside the loading window: leaving it outside made the header paint
+        // "Not available" for a frame before the real percentage arrived. The sections load
+        // themselves when the canvas mounts them.
         if (current()) {
-          // Task and canonical progress reads fail independently: either feature can still
-          // render its own answer when the other request fails.
-          await Promise.all([this.tasks.load(projectId), this.refreshProgressFor(projectId, generation, false)]);
+          await this.refreshProgressFor(projectId, generation, false);
           if (current()) this.loadingState.set(false);
         }
       }
@@ -414,15 +427,50 @@ export class ProjectPageStore {
     });
   }
 
-  removeSection(id: SectionId): Promise<boolean> {
+  /**
+   * Removal follows ownership. A view, and an empty container, go without ceremony — this
+   * sends no policy and the domain simply removes them. A container still holding rows
+   * answers 409 `rule_violation` naming the count; that is not an error to render, it is a
+   * **question to ask**, so it opens `removalPrompt` instead of `sectionError`.
+   *
+   * The count comes from the domain rather than from a client-side row count, so the dialog
+   * and the rule cannot disagree.
+   */
+  removeSection(id: SectionId, input: RemoveSectionInput = {}): Promise<boolean> {
     return this.mutate(async ({ current, projectId, generation }) => {
-      await this.gateway.sections.remove(id);
+      try {
+        await this.gateway.sections.remove(id, input);
+      } catch (error) {
+        if (current() && error instanceof GatewayError && error.code === 'rule_violation') {
+          this.removalPromptState.set({ sectionId: id, message: error.message, targets: this.reassignTargets(id) });
+          // Swallowed on purpose: `mutate` would otherwise park the domain's sentence in
+          // `sectionError`, beside a dialog already saying the same thing.
+          return;
+        }
+        throw error;
+      }
       if (!current()) return;
+      this.removalPromptState.set(null);
       // Removing the render item is safe; filling the persisted position gap belongs to
       // SectionService and arrives through the authoritative re-read below.
       this.sectionsState.update((sections) => sections.filter((section) => section.id !== id));
       await this.reconcileSections(projectId, generation);
+      // A cascade or a reassign moved rows, so every container has to re-read.
+      if (input.policy !== undefined) this.notifyProjectDataChanged();
     });
+  }
+
+  /** The containers a refused removal could hand its rows to: same type, same project. */
+  private reassignTargets(id: SectionId): ProjectSection[] {
+    const section = this.sectionsState().find((candidate) => candidate.id === id);
+    if (section === undefined) return [];
+    return this.sectionsState().filter(
+      (candidate) => candidate.id !== id && candidate.type === section.type,
+    );
+  }
+
+  dismissRemovalPrompt(): void {
+    this.removalPromptState.set(null);
   }
 
   /** §26's Rename, optimistic per §63. */

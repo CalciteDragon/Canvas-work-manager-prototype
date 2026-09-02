@@ -52,10 +52,11 @@ const section = (
     ...overrides,
   });
 
-const task = (id: string, status: 'todo' | 'done'): Task =>
+const task = (id: string, status: 'todo' | 'done', sectionId = 'section-tasks'): Task =>
   TaskSchema.parse({
     id,
     projectId: 'project-a',
+    sectionId,
     title: `Task ${id}`,
     status,
     priority: 'medium',
@@ -183,7 +184,8 @@ describe('ProjectPage (§26)', () => {
     query(fixture, '[data-unknown-section-remove]')!.click();
     await fixture.whenStable();
 
-    expect(gateway.argumentTo('sections.remove')).toBe('section-unknown');
+    // No policy: an unknown type reads as a view, so removing it can never touch data.
+    expect(gateway.argumentTo('sections.remove')).toEqual({ id: 'section-unknown', input: {} });
   });
 
   it('adds a section of a chosen registry type from the header’s Quick Add', async () => {
@@ -204,11 +206,13 @@ describe('ProjectPage (§26)', () => {
     });
   });
 
-  it('gives two Task List sections on one project a single shared store', async () => {
-    // The plan's single-provision rule, made structural. Two instances would give the header
-    // and the sections two different sets of tasks — and duplicating a Task List section is
-    // a one-click action this slice ships, so the regression is live.
+  it('gives two Task List sections on one project their own rows', async () => {
+    // The inverse of the rule this test used to hold. A shared store was right while a
+    // `task-list` merely *queried* the project's tasks; under
+    // docs/decisions/2026-09-sections-own-their-data.md it **owns** them, so two lists that
+    // rendered the same rows would be the defect rather than the guarantee.
     const { fixture } = await render({
+      tasks: [task('task-1', 'todo'), task('task-2', 'done'), task('task-3', 'todo', 'section-tasks-copy')],
       sections: [
         section('section-tasks', 'task-list', 0),
         section('section-tasks-copy', 'task-list', 1),
@@ -217,17 +221,58 @@ describe('ProjectPage (§26)', () => {
 
     const lists = queryAll(fixture, '[data-section-frame][data-section-type="task-list"]');
     expect(lists).toHaveLength(2);
-    expect(lists.map((list) => list.querySelectorAll('[data-task-row]').length)).toEqual([2, 2]);
+    expect(lists.map((list) => list.querySelectorAll('[data-task-row]').length)).toEqual([2, 1]);
+    expect(lists[1]!.textContent).toContain('Task task-3');
+    expect(lists[0]!.textContent).not.toContain('Task task-3');
 
-    // Completing in the first list must move the second, and the header, at once.
-    lists[0]!
-      .querySelector<HTMLElement>('[data-task-complete]')!
-      .dispatchEvent(new Event('change'));
+    // Progress stays a project-wide view: completing in one list moves the header, which
+    // reads §39's canonical answer rather than summing whatever the containers hold.
+    lists[0]!.querySelector<HTMLElement>('[data-task-complete]')!.dispatchEvent(new Event('change'));
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-project-progress]')?.textContent).toContain('100%');
-    expect(lists[1]!.querySelectorAll('[data-task-row][aria-busy="false"]')).toHaveLength(2);
+    expect(query(fixture, '[data-project-progress]')?.textContent).toContain('67%');
+  });
+
+  it('asks how to remove a container that still holds rows, and removes a view outright', async () => {
+    const { fixture, gateway } = await render({
+      sections: [
+        section('section-tasks', 'task-list', 0),
+        section('section-tasks-copy', 'task-list', 1),
+        section('section-progress', 'progress', 2),
+      ],
+      failOn: {
+        'sections.remove': new GatewayError(
+          'rule_violation',
+          409,
+          'section "section-tasks" still holds 2 tasks; removing it needs a policy of "cascade" or "reassign"',
+        ),
+      },
+    });
+    fixture.componentInstance.toggleEditMode();
+    fixture.detectChanges();
+
+    const frames = queryAll(fixture, '[data-section-frame]');
+    frames[0]!.querySelector<HTMLElement>('[data-section-remove]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // The dialog quotes the domain's own sentence, so the count cannot drift from the rule.
+    const dialog = query(fixture, '[data-section-removal-dialog]');
+    expect(dialog).not.toBeNull();
+    expect(query(fixture, '[data-section-removal-message]')?.textContent).toContain('still holds 2 tasks');
+    // A refusal is a question, not an error to park in the page's error line.
+    expect(query(fixture, '[data-section-error]')).toBeNull();
+    // Reassign is offered only because a second task-list exists to take the rows.
+    expect(query(fixture, '[data-section-removal-reassign]')).not.toBeNull();
+
+    query(fixture, '[data-section-removal-cascade]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(gateway.calls.filter(({ method }) => method === 'sections.remove').at(-1)?.argument).toMatchObject({
+      input: { policy: 'cascade' },
+    });
   });
 
   it('reloads every duplicated Progress section after one changes the canonical formula', async () => {
@@ -316,7 +361,12 @@ describe('ProjectPage (§26)', () => {
       ],
     });
 
-    expect(fixture.debugElement.queryAll(By.directive(CdkDrag))).toHaveLength(3);
+    // Only the section frames: task rows are draggable too now, between containers.
+    expect(
+      fixture.debugElement
+        .queryAll(By.directive(CdkDrag))
+        .filter((drag) => (drag.nativeElement as HTMLElement).hasAttribute('data-section-item')),
+    ).toHaveLength(3);
     expect(
       queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId']),
     ).toEqual(['section-text', 'section-unknown', 'section-tasks']);

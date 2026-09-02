@@ -1,4 +1,5 @@
 import type { Type } from '@angular/core';
+import { sectionKindOf, type SectionKind } from '@cwm/contracts';
 import type { SectionContentComponent } from './section-contract';
 import { RichTextSection } from './rich-text/rich-text-section';
 import { richTextDefaultConfig } from './rich-text/rich-text-config';
@@ -18,6 +19,14 @@ export interface SectionDefinition {
   type: string;
   displayName: string;
   icon: string;
+
+  /**
+   * Whether this type **owns** the rows it renders. Read from `SECTION_OWNERSHIP` in
+   * contracts rather than written here: `SectionService` needs the same answer and cannot
+   * import from `apps/web`, and two hand-written copies would be one drift away from a
+   * container that removes rows the canvas thinks it only views.
+   */
+  kind: SectionKind;
 
   createDefaultConfig(): unknown;
 
@@ -44,6 +53,7 @@ export const SECTION_REGISTRY: readonly SectionDefinition[] = [
     type: 'rich-text',
     displayName: 'Rich Text',
     icon: '📝',
+    kind: sectionKindOf('rich-text'),
     createDefaultConfig: richTextDefaultConfig,
     component: RichTextSection,
   },
@@ -51,14 +61,15 @@ export const SECTION_REGISTRY: readonly SectionDefinition[] = [
     type: 'task-list',
     displayName: 'Task List',
     icon: '✅',
+    kind: sectionKindOf('task-list'),
     createDefaultConfig: () => ({}),
     component: TaskListSection,
   },
-  { type: 'sub-projects', displayName: 'Sub-Projects', icon: '🗂️', createDefaultConfig: () => ({}), component: SubProjectsSection },
-  { type: 'progress', displayName: 'Progress', icon: '📈', createDefaultConfig: () => ({}), component: ProgressSection },
-  { type: 'reflections', displayName: 'Reflections', icon: '💭', createDefaultConfig: () => ({}), component: ReflectionsSection },
-  { type: 'timeline', displayName: 'Timeline', icon: '🗓️', createDefaultConfig: () => ({}), component: TimelineSection },
-  { type: 'recent-activity', displayName: 'Recent Activity', icon: '📜', createDefaultConfig: () => ({}), component: RecentActivitySection },
+  { type: 'sub-projects', kind: sectionKindOf('sub-projects'), displayName: 'Sub-Projects', icon: '🗂️', createDefaultConfig: () => ({}), component: SubProjectsSection },
+  { type: 'progress', kind: sectionKindOf('progress'), displayName: 'Progress', icon: '📈', createDefaultConfig: () => ({}), component: ProgressSection },
+  { type: 'reflections', kind: sectionKindOf('reflections'), displayName: 'Reflections', icon: '💭', createDefaultConfig: () => ({}), component: ReflectionsSection },
+  { type: 'timeline', kind: sectionKindOf('timeline'), displayName: 'Timeline', icon: '🗓️', createDefaultConfig: () => ({}), component: TimelineSection },
+  { type: 'recent-activity', kind: sectionKindOf('recent-activity'), displayName: 'Recent Activity', icon: '📜', createDefaultConfig: () => ({}), component: RecentActivitySection },
 ];
 
 /**

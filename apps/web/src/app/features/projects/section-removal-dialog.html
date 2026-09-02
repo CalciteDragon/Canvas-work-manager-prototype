@@ -1,0 +1,49 @@
+<!-- Only a container still holding rows gets here: a view, and an empty container, are
+   already gone by the time this could render. The count in the message is the domain's, so
+   the question and the rule cannot disagree. -->
+<div class="removal-dialog" role="dialog" aria-modal="true" aria-labelledby="removal-dialog-title">
+  <div class="removal-dialog__panel">
+    <h2 id="removal-dialog-title" class="removal-dialog__title">Remove this section?</h2>
+    <p data-section-removal-message class="removal-dialog__message">{{ prompt().message }}</p>
+
+    @if (prompt().targets.length > 0) {
+      <label class="removal-dialog__field">
+        <span>Move them to</span>
+        <select
+          data-section-removal-target
+          [value]="chosenTarget()"
+          (change)="targetId.set($any($event.target).value)"
+        >
+          @for (target of prompt().targets; track target.id) {
+            <option [value]="target.id">{{ target.title ?? target.type }}</option>
+          }
+        </select>
+      </label>
+    }
+
+    <div class="removal-dialog__actions">
+      <button data-section-removal-cancel type="button" (click)="cancelled.emit()">
+        Keep the section
+      </button>
+      @if (prompt().targets.length > 0) {
+        <button
+          data-section-removal-reassign
+          type="button"
+          (click)="reassignChosen.emit(chosenTarget())"
+        >
+          Move the rows and remove
+        </button>
+      }
+      <!-- Archive, not delete: `archivedAt` is undoable, which is why the domain cascades
+         this way rather than destroying the rows. -->
+      <button
+        data-section-removal-cascade
+        type="button"
+        class="removal-dialog__danger"
+        (click)="cascadeChosen.emit()"
+      >
+        Archive the rows and remove
+      </button>
+    </div>
+  </div>
+</div>

@@ -20,6 +20,8 @@ import {
   type ProjectId,
   type ProjectQuery,
   type ReflectionId,
+  type ReflectionQuery,
+  type RemoveSectionInput,
   type UpdateProjectInput,
   type UpdateReflectionInput,
   type MoveSectionInput,
@@ -73,7 +75,12 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
   };
 
   readonly reflections: ReflectionGateway = {
-    list: (projectId) => this.send('GET', `/api/reflections?projectId=${encodeURIComponent(projectId)}`, ReflectionSchema.array()),
+    list: (projectId, sectionId) =>
+      this.send(
+        'GET',
+        `/api/reflections${queryString(reflectionQueryParams({ projectId, sectionId }))}`,
+        ReflectionSchema.array(),
+      ),
     create: (input: CreateReflectionInput) => this.send('POST', '/api/reflections', ReflectionSchema, input),
     update: (id: ReflectionId, input: UpdateReflectionInput) => this.send('PATCH', `/api/reflections/${encodeURIComponent(id)}`, ReflectionSchema, input),
   };
@@ -91,7 +98,12 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/duplicate`, ProjectSectionSchema),
     // The host answers 204 with no body, so there is nothing to validate — unlike
     // `tasks.archive`, which discards a body it still checks.
-    remove: (id: SectionId) => this.sendWithoutBody('DELETE', `/api/sections/${encodeURIComponent(id)}`),
+    // The policy rides on the query string, matching the host route.
+    remove: (id: SectionId, input: RemoveSectionInput = {}) =>
+      this.sendWithoutBody(
+        'DELETE',
+        `/api/sections/${encodeURIComponent(id)}${queryString(removeSectionParams(input))}`,
+      ),
   };
 
   readonly tasks: TaskGateway = {
@@ -229,9 +241,24 @@ const projectQueryParams = (query: ProjectQuery): URLSearchParams => {
   return params;
 };
 
+const reflectionQueryParams = (query: ReflectionQuery): URLSearchParams => {
+  const params = new URLSearchParams();
+  append(params, 'projectId', query.projectId);
+  append(params, 'sectionId', query.sectionId);
+  return params;
+};
+
+const removeSectionParams = (input: RemoveSectionInput): URLSearchParams => {
+  const params = new URLSearchParams();
+  append(params, 'policy', input.policy);
+  append(params, 'reassignToSectionId', input.reassignToSectionId);
+  return params;
+};
+
 const taskQueryParams = (query: TaskQuery): URLSearchParams => {
   const params = new URLSearchParams();
   append(params, 'projectId', query.projectId);
+  append(params, 'sectionId', query.sectionId);
   append(params, 'parentTaskId', query.parentTaskId);
   append(params, 'status', query.status);
   append(params, 'priority', query.priority);

@@ -44,8 +44,8 @@ describe('ProgressStore', () => {
     const gateway = new FakeWorkManagerGateway({
       projects: [project],
       tasks: [
-        TaskSchema.parse({ id: 'task-done', projectId: project.id, title: 'Done', status: 'done', priority: 'medium', estimate: 3, completedAt: project.updatedAt, createdAt: project.createdAt, updatedAt: project.updatedAt }),
-        TaskSchema.parse({ id: 'task-todo', projectId: project.id, title: 'Todo', status: 'todo', priority: 'medium', estimate: 1, createdAt: project.createdAt, updatedAt: project.updatedAt }),
+        TaskSchema.parse({ id: 'task-done', projectId: project.id, sectionId: 'section-tasks', title: 'Done', status: 'done', priority: 'medium', estimate: 3, completedAt: project.updatedAt, createdAt: project.createdAt, updatedAt: project.updatedAt }),
+        TaskSchema.parse({ id: 'task-todo', projectId: project.id, sectionId: 'section-tasks', title: 'Todo', status: 'todo', priority: 'medium', estimate: 1, createdAt: project.createdAt, updatedAt: project.updatedAt }),
       ],
       progress: { projectId: project.id, formula: 'count', percentage: 50, completed: 1, total: 2, explanation: '1 of 2 tasks complete' },
     });

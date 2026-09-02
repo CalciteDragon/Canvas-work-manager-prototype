@@ -17,9 +17,9 @@ import type {
   SectionId,
 } from '@cwm/contracts';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
-import { TaskListStore } from '../tasks/task-list-store';
 import { ProjectMoreMenu, type SettableProjectStatus } from './project-more-menu';
 import { ProjectPageStore } from './project-page-store';
+import { SectionRemovalDialog } from './section-removal-dialog';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
 import { ProgressStore } from './sections/progress/progress-store';
 import { SECTION_REGISTRY, definitionFor } from './sections/registry';
@@ -30,14 +30,17 @@ import { SECTION_REGISTRY, definitionFor } from './sections/registry';
  * "Project Navigation / Controls" row waits for them, because the mode toggle and the
  * layout switch are what it exists to hold.
  *
- * Shared-data section stores are page-scoped: duplicate Task List or Progress sections must
- * show one project answer rather than drifting as independent component instances.
+ * Section stores follow ownership. `ProgressStore` stays page-scoped — progress is a *view*
+ * over the whole project, and two Progress sections must show one answer. Task List and
+ * Reflections are **containers**: each provides its own store, because two of them hold
+ * different rows by design (docs/decisions/2026-09-sections-own-their-data.md). Sharing one
+ * store there would render the same list twice, which is the bug ownership exists to fix.
  */
 @Component({
   selector: 'app-project-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDrag, CdkDragHandle, CdkDropList, ProjectMoreMenu, ProjectSectionFrame],
-  providers: [TaskListStore, ProgressStore, ProjectPageStore],
+  imports: [CdkDrag, CdkDragHandle, CdkDropList, ProjectMoreMenu, ProjectSectionFrame, SectionRemovalDialog],
+  providers: [ProgressStore, ProjectPageStore],
   templateUrl: './project-page.html',
   styleUrl: './project-page.scss',
   // Both popovers close on Escape from anywhere on the page, which is what a menu opened
@@ -158,6 +161,19 @@ export class ProjectPage {
     if (definition === undefined) return;
     await this.store.addSection(definition);
     this.addOpen.set(false);
+  }
+
+  /**
+   * Both halves of §31's remove, once the domain has asked which one the user meant.
+   * `cascade` archives the rows — undoable — and `reassign` hands them to another container
+   * of the same type.
+   */
+  cascadeAndRemove(id: SectionId): void {
+    void this.store.removeSection(id, { policy: 'cascade' });
+  }
+
+  reassignAndRemove(id: SectionId, reassignToSectionId: SectionId): void {
+    void this.store.removeSection(id, { policy: 'reassign', reassignToSectionId });
   }
 
   collapse(event: { id: SectionId; collapsed: boolean }): void {

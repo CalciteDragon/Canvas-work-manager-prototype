@@ -1,22 +1,30 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
-import type { ProjectSection, SectionConfig, TaskId, TaskPriority } from '@cwm/contracts';
+import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
+import type { ProjectSection, SectionConfig, SectionId, TaskId, TaskPriority } from '@cwm/contracts';
 import { TaskDetailDrawer } from '../../../tasks/task-detail-drawer';
 import { TaskListStore } from '../../../tasks/task-list-store';
 import { TaskRow } from '../../../tasks/task-row';
+import { ProjectPageStore } from '../../project-page-store';
+
+/** A CDK drop-list id per section, so two lists on one canvas can be connected by name. */
+export const taskListDropId = (id: SectionId): string => `task-list-${id}`;
 
 /**
  * §30's Task List section. It owns no task logic: `TaskListStore`, `TaskRow` and
  * `TaskDetailDrawer` are Slice 7's, reused as they are (§66 — a section should be removable
  * without destabilising unrelated code, which is only true if it adds nothing of its own).
  *
- * The store is **injected, never provided here**. `ProjectPage` provides the one instance,
- * so the header's progress and this list read the same tasks; a second instance would give
- * them two different truths, and two projects' worth of HTTP.
+ * The store is **provided here, one per section**. It used to be provided by `ProjectPage`
+ * so that two Task Lists could not drift; under
+ * docs/decisions/2026-09-sections-own-their-data.md a `task-list` owns its rows, so two of
+ * them *must* differ, and sharing one store would render the same list twice. Header
+ * progress is unaffected — it reads §39's canonical project-wide answer, not this store.
  */
 @Component({
   selector: 'app-task-list-section',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TaskRow, TaskDetailDrawer],
+  imports: [CdkDrag, CdkDropList, TaskRow, TaskDetailDrawer],
+  providers: [TaskListStore],
   templateUrl: './task-list-section.html',
   styleUrl: './task-list-section.scss',
 })
@@ -30,6 +38,46 @@ export class TaskListSection {
   readonly projectHierarchyRevision = input.required<number>();
 
   readonly store = inject(TaskListStore);
+  /**
+   * Optional on purpose. The section needs the *canvas* to know which other lists exist,
+   * but §66 asks that a section stay removable and renderable on its own — a hard
+   * dependency would make it un-mountable outside a project page. Without a page, the list
+   * simply connects to nothing and drag-between-lists is unavailable.
+   */
+  private readonly page = inject(ProjectPageStore, { optional: true });
+
+  readonly dropId = computed(() => taskListDropId(this.section().id));
+
+  /**
+   * The other task lists on this canvas, named explicitly rather than through
+   * `cdkDropListGroup`: a group would also connect the canvas's own section-reorder list,
+   * and dropping a task onto the canvas is not an operation.
+   */
+  readonly connectedDropIds = computed(() =>
+    (this.page?.sections() ?? [])
+      .filter((section) => section.type === 'task-list' && section.id !== this.section().id)
+      .map(({ id }) => taskListDropId(id)),
+  );
+
+  constructor() {
+    // The same rule `ReflectionsSection` follows: load on mount, quietly re-read whenever
+    // the page says the project's data moved underneath it.
+    effect(() => {
+      this.projectDataRevision();
+      void this.store.sync(this.section());
+    });
+  }
+
+  /**
+   * A task dropped from another list. The receiving store drives the write; the source list
+   * re-reads on the revision this publishes, so neither store touches the other.
+   */
+  async dropTask(event: CdkDragDrop<SectionId>): Promise<void> {
+    if (event.previousContainer === event.container) return;
+    if (await this.store.receive(event.item.data as TaskId, this.section().id)) {
+      this.onProjectDataChange()();
+    }
+  }
 
   async quickCreate(event: SubmitEvent, input: HTMLInputElement): Promise<void> {
     event.preventDefault();

@@ -45,6 +45,7 @@ const projectSection = {
 const task = {
   id: 'task-1',
   projectId: 'project-1',
+  sectionId: 'section-1',
   title: 'Water the plants',
   status: 'todo',
   priority: 'medium',
@@ -54,7 +55,7 @@ const task = {
 
 const progress = { projectId: 'project-1', formula: 'count', percentage: 50, completed: 1, total: 2, explanation: '1 of 2 tasks complete' };
 const timeline = { projectId: 'project-1', items: [{ id: 'project-1', kind: 'project', title: 'Personal workspace', startDate: '2026-09-30', endDate: '2026-09-30' }] };
-const reflection = { id: 'reflection-1', projectId: 'project-1', body: 'A useful note', createdAt: at, updatedAt: at };
+const reflection = { id: 'reflection-1', projectId: 'project-1', sectionId: 'section-1', body: 'A useful note', createdAt: at, updatedAt: at };
 
 // A Response body can only be read once, so every mocked call gets a fresh one.
 const jsonResponse = (body: unknown, status = 200) => () =>

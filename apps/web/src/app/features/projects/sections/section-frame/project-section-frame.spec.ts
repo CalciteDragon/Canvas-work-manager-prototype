@@ -72,6 +72,7 @@ class TestInspector {
 
 const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({
   type: 'test-content',
+  kind: 'view',
   displayName: 'Test Content',
   icon: '🧪',
   createDefaultConfig: () => ({}),

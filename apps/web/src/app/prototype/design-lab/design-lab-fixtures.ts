@@ -29,6 +29,7 @@ export const labTask = (overrides: Record<string, unknown> = {}): Task =>
   TaskSchema.parse({
     id: 'task-lab',
     projectId: 'project-lab',
+    sectionId: 'section-lab-tasks',
     title: 'Draft the launch announcement',
     status: 'todo',
     priority: 'medium',
@@ -186,6 +187,8 @@ export class StubSectionContent {
 /** The definition the frame is handed. Shared by the Design Lab panel and the story set. */
 export const stubSectionDefinition = (): SectionDefinition => ({
   type: 'design-lab-stub',
+  // Unregistered in `SECTION_OWNERSHIP`, so a view — a stub owns nothing.
+  kind: 'view',
   displayName: 'Section',
   icon: '🧱',
   createDefaultConfig: () => ({ state: 'content' }),

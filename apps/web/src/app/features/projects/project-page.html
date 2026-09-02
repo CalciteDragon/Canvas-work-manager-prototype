@@ -213,5 +213,15 @@
         }
       </div>
     }
+
+    @if (store.removalPrompt(); as prompt) {
+      <app-section-removal-dialog
+        [prompt]="prompt"
+        (cancelled)="store.dismissRemovalPrompt()"
+        (cascadeChosen)="cascadeAndRemove(prompt.sectionId)"
+        (reassignChosen)="reassignAndRemove(prompt.sectionId, $event)"
+      />
+    }
+
   </article>
 }
