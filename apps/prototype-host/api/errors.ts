@@ -43,7 +43,14 @@ export const toErrorResult = (error: unknown): RouteResult => {
     return json(403, { error: 'permission_denied', message: error.message });
   }
   if (error instanceof DomainRuleError) {
-    return json(409, { error: 'rule_violation', message: error.message });
+    // Spread rather than a `details: error.details` key: an `undefined` value survives the
+    // object and disappears only in `JSON.stringify`, which puts a body-shape difference
+    // somewhere no test of this function can see.
+    return json(409, {
+      error: 'rule_violation',
+      message: error.message,
+      ...(error.details === undefined ? {} : { details: error.details }),
+    });
   }
   if (error instanceof RepositoryConflictError) {
     return json(409, { error: 'conflict', message: error.message });

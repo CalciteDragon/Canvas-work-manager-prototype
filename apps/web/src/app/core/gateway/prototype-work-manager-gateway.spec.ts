@@ -341,6 +341,30 @@ describe('PrototypeWorkManagerGateway — failures the UI has to see', () => {
     });
   });
 
+  it('preserves the untrusted details a 409 carries, and preserves their absence', async () => {
+    // The adapter keeps wire data as it found it; the feature that branches on it owns the
+    // validation. Without this the host and store tests both pass while the real removal
+    // dialog never sees the discriminator it opens on.
+    const adapter = gateway();
+    fetchMock.mockImplementation(
+      jsonResponse(
+        { error: 'rule_violation', message: 'still holds 3 tasks', details: { reason: 'section_not_empty', liveRowCount: 3 } },
+        409,
+      ),
+    );
+    await expect(adapter.sections.remove('section-1' as SectionId)).rejects.toMatchObject({
+      code: 'rule_violation',
+      details: { reason: 'section_not_empty', liveRowCount: 3 },
+    });
+
+    fetchMock.mockImplementation(jsonResponse({ error: 'rule_violation', message: 'nope' }, 409));
+    const bare = await adapter.sections
+      .remove('section-1' as SectionId)
+      .then(() => null, (thrown: unknown) => thrown as GatewayError);
+    expect(bare?.details).toBeUndefined();
+    expect(bare).toBeInstanceOf(GatewayError);
+  });
+
   it('does not let a non-JSON error body escape as a SyntaxError', async () => {
     fetchMock.mockImplementation(() => new Response('<html>gateway timeout</html>', { status: 504 }));
 

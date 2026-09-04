@@ -37,6 +37,13 @@ export class GatewayError extends Error {
      */
     readonly status: number,
     message: string,
+    /**
+     * Whatever the host sent beside the message, untouched and **untrusted**. A boundary
+     * preserves wire data; the feature that branches on it owns the validation — the removal
+     * dialog parses this through `SectionRemovalRefusalDetailsSchema` and treats anything
+     * else as an ordinary error.
+     */
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = 'GatewayError';
@@ -57,10 +64,10 @@ export const toGatewayError = async (response: Response, what: string): Promise<
     envelope = undefined;
   }
 
-  const body = envelope as { error?: unknown; message?: unknown } | undefined;
+  const body = envelope as { error?: unknown; message?: unknown; details?: unknown } | undefined;
   const code = isWireCode(body?.error) ? body.error : 'internal_error';
   const message = typeof body?.message === 'string' ? body.message : `${what} answered ${response.status}`;
-  return new GatewayError(code, response.status, message);
+  return new GatewayError(code, response.status, message, body?.details);
 };
 
 /** A `fetch` that never reached the host — a stopped process, a refused connection. */
