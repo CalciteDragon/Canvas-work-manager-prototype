@@ -278,11 +278,6 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 }
 
 /**
- * The host's `null` clears / `undefined` leaves alone rule, so a spec that clears a frame
- * title override sees what the real adapter would answer rather than a `null` the contract
- * forbids.
- */
-/**
  * What the host answers a restore with: both archive fields gone. Written here rather than
  * spread inline, because a fake that cleared only `archivedAt` would let a store that never
  * re-read the row look correct.
@@ -297,6 +292,11 @@ const restored = <T extends { archivedAt?: string; archivedWithSectionId?: strin
   return next;
 };
 
+/**
+ * The host's `null` clears / `undefined` leaves alone rule, so a spec that clears a frame
+ * title override sees what the real adapter would answer rather than a `null` the contract
+ * forbids.
+ */
 const applyUpdate = (section: ProjectSection, input: UpdateSectionInput): ProjectSection => {
   const next = { ...section };
   for (const [key, value] of Object.entries(input)) {

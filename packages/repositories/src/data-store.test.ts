@@ -292,9 +292,10 @@ describe('row ownership integrity', () => {
 
     const swapped = validDocument();
     // The reflections container does not hold tasks, and the task list does not hold
-    // reflections — each direction is its own failure.
+    // reflections — each direction is its own failure. Asserted by message, or a fixture
+    // that happened to break a different rule would pass this.
     swapped.reflections[0]!.sectionId = 'section-1' as never;
-    expect(() => new InMemoryDataStore(swapped)).toThrow(DocumentIntegrityError);
+    expect(() => new InMemoryDataStore(swapped)).toThrow(/reflection "reflection-1" is held by a task-list section/);
   });
 
   it('rejects a row whose section belongs to another project', () => {
@@ -376,7 +377,9 @@ describe('row ownership integrity', () => {
   it('holds reflections to the same marker rules', () => {
     const document = validDocument();
     document.reflections[0]!.archivedWithSectionId = 'section-2' as never;
-    expect(() => new InMemoryDataStore(document)).toThrow(DocumentIntegrityError);
+    expect(() => new InMemoryDataStore(document)).toThrow(
+      /live reflection "reflection-1" is marked as archived with a section/,
+    );
 
     document.reflections[0]!.archivedAt = archivedAt;
     document.sections[1]!.archivedAt = archivedAt;
@@ -968,6 +971,11 @@ describe('task archive group integrity', () => {
   it('rejects an archive root outside the row’s project section', () => {
     // Restoring a root walks its group, so a root in another project — or in another list
     // of the same project — would pull rows onto a canvas they do not belong to.
+    //
+    // Both fixtures are *also* non-ancestor cases, and could not be otherwise: parent/child
+    // co-location means an ancestor always shares its descendant's project and section. So
+    // this pins the clause's message and its ordering ahead of the ancestry walk, not a
+    // document only it can reject — see the note beside the clause itself.
     const crossProject = withSecondWorkspace();
     crossProject.tasks[1]!.archivedAt = archivedAt;
     crossProject.tasks.push(

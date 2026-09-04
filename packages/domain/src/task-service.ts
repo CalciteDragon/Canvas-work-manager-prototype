@@ -143,6 +143,13 @@ export class TaskService {
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
       await this.assertProjectActive(current.projectId);
+      // The row's **own** section, not the destination. `requireContainer` below checks only
+      // where a move is going, so without this an archived row could be edited or moved out
+      // of an archived container — carrying `archivedWithSectionId` to a section it no
+      // longer names, which document integrity rejects when the unit closes. The caller
+      // would see a rolled-back write rather than a refusal it can read. Restoring the
+      // section is what makes the row editable again.
+      await this.assertSectionLive(actor, current);
       // Move-to-project belongs to Slice 20, with the parent/child semantics that make it
       // hard. Refusing beats dropping `projectId` from the contract: these schemas are not
       // strict, so a removed field would be silently stripped and answered 200.
@@ -288,14 +295,8 @@ export class TaskService {
       if (current.archivedAt === undefined) return current;
       await this.assertProjectActive(current.projectId);
 
-      // `requireWithin`, not `get`: `get` asserts `projects.read`, and an agent granted
-      // `tasks.write` alone must be able to restore a task.
-      const section = await this.dependencies.sections.requireWithin(actor, current.sectionId);
-      if (section.archivedAt !== undefined) {
-        throw new DomainRuleError(
-          `task "${id}" is in archived section "${current.sectionId}"; restore the section instead`,
-        );
-      }
+      // Rule 1, and the same refusal `update` makes — one sentence, in one place.
+      await this.assertSectionLive(actor, current);
       if (current.parentTaskId !== undefined) {
         const parent = await this.require(actor, current.parentTaskId);
         if (parent.archivedAt !== undefined) {
@@ -371,6 +372,20 @@ export class TaskService {
         );
       }
       await this.rerootDescendants(actor, child.id, from, to);
+    }
+  }
+
+  /**
+   * `requireWithin`, not `get`: the section read is one this write does on its own behalf,
+   * and an agent granted `tasks.write` alone must not need `projects.read` for it — the same
+   * reasoning `restore` and `ReflectionService` use.
+   */
+  private async assertSectionLive(actor: ActorContext, task: Task): Promise<void> {
+    const section = await this.dependencies.sections.requireWithin(actor, task.sectionId);
+    if (section.archivedAt !== undefined) {
+      throw new DomainRuleError(
+        `task "${task.id}" is in archived section "${section.id}"; restore the section instead`,
+      );
     }
   }
 

@@ -200,6 +200,10 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
       const root = tasks.get(task.archivedWithTaskId) ??
         fail(`task "${task.id}" has a missing archive root "${task.archivedWithTaskId}"`);
       if (root.archivedAt === undefined) fail(`task "${task.id}" is marked with a live archive root`);
+      // Defensive, and deliberately kept: the ancestry walk below already implies this,
+      // because every parent/child pair shares a project and a section, so an ancestor
+      // shares them transitively. It fires first because its message names the actual
+      // problem — a root in the wrong place — where the walk would only say "non-ancestor".
       if (root.projectId !== task.projectId || root.sectionId !== task.sectionId) {
         fail(`task "${task.id}" has an archive root outside its project section`);
       }

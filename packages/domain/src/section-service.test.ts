@@ -425,14 +425,15 @@ describe('SectionService on a sparsely numbered project', () => {
 describe('SectionService reads are live-only', () => {
   it('defaults to the live canvas and returns both states only when asked', async () => {
     const harness = buildHarness();
-    const [first, second] = await withThree(harness);
+    const [first, second, third] = await withThree(harness);
     await harness.sectionService.remove(harness.actor, second.id);
 
+    // The whole list, spelled out: an assertion built from the result it is checking would
+    // only ever pin the length.
     expect((await harness.sectionService.list(harness.actor, MINE)).map((section) => section.id)).toEqual([
       first.id,
-      (await harness.sectionService.list(harness.actor, MINE))[1]!.id,
+      third.id,
     ]);
-    expect((await harness.sectionService.list(harness.actor, MINE)).some((s) => s.id === second.id)).toBe(false);
 
     const all = await harness.sectionService.list(harness.actor, MINE, { includeArchived: true });
     expect(all.map((section) => section.id)).toContain(second.id);

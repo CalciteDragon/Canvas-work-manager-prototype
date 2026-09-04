@@ -526,6 +526,55 @@ describe('TaskService archived-parent and archived-project policy', () => {
     expect((await harness.taskService.get(harness.actor, other.id)).parentTaskId).toBeUndefined();
   });
 
+  it('refuses to move a row out of an archived section, rather than failing at commit', async () => {
+    // The container is what renders the row, so an archived section is not a place to edit
+    // from — and a move out of one would carry `archivedWithSectionId` to a section it no
+    // longer names, which document integrity rejects at commit. That would surface as a
+    // rolled-back unit of work rather than a refusal the caller can read.
+    const harness = buildHarness();
+    const marked = await create(harness);
+    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
+    await harness.sectionService.remove(harness.actor, marked.sectionId, { policy: 'cascade' });
+
+    const refusal = await harness.taskService
+      .update(harness.actor, marked.id, { sectionId: target.id })
+      .then(() => null, (error: unknown) => error);
+    expect(refusal).toBeInstanceOf(DomainRuleError);
+    expect((refusal as DomainRuleError).message).toContain(marked.sectionId);
+
+    // The same door one level down: re-parenting inherits the new parent's section without
+    // going through `requireContainer`, so it needs the refusal too.
+    const elsewhere = await harness.taskService.create(harness.actor, {
+      projectId: MINE,
+      sectionId: target.id,
+      title: 'Somewhere live',
+    });
+    await expect(
+      harness.taskService.update(harness.actor, marked.id, { parentTaskId: elsewhere.id }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+
+    // And an ordinary edit is refused too — there is none to make on a row that is off the
+    // canvas which restoring the section first would not allow.
+    await expect(harness.taskService.update(harness.actor, marked.id, { title: 'Renamed' })).rejects.toBeInstanceOf(
+      DomainRuleError,
+    );
+    expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
+  });
+
+  it('refuses to move an unmarked archived row out of an archived section', async () => {
+    // The row archived on its own *before* the cascade carries no marker, so the marker
+    // clause would not catch this one — the rule is about the section, not the marker.
+    const harness = buildHarness();
+    const beforehand = await create(harness);
+    await harness.taskService.archive(harness.actor, beforehand.id);
+    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
+    await harness.sectionService.remove(harness.actor, beforehand.sectionId);
+
+    await expect(
+      harness.taskService.update(harness.actor, beforehand.id, { sectionId: target.id }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+  });
+
   it('freezes an archived project against create, update, complete and restore', async () => {
     const harness = buildHarness();
     const live = await create(harness, { title: 'Live' });
