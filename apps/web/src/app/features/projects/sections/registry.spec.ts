@@ -1,3 +1,4 @@
+import { displayNameOf } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { SECTION_REGISTRY, definitionFor } from './registry';
 
@@ -18,6 +19,16 @@ describe('SECTION_REGISTRY (§29)', () => {
       expect(definition.icon.length).toBeGreaterThan(0);
       expect(typeof definition.component).toBe('function');
       expect(typeof definition.createDefaultConfig()).toBe('object');
+    }
+  });
+
+  it('keeps every display name in step with the contracts default', () => {
+    // `displayName` stays a field here — it is what a designer edits and what Quick add
+    // renders. This is the guard, not a second definition: the next type whose name the
+    // derivation cannot produce fails here, at the moment it is added, rather than surfacing
+    // later as a section the removal dialog and the frame call different things.
+    for (const definition of SECTION_REGISTRY) {
+      expect(definition.displayName).toBe(displayNameOf(definition.type));
     }
   });
 

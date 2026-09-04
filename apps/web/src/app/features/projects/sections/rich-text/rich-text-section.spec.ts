@@ -6,11 +6,12 @@ import { RichTextSection } from './rich-text-section';
 
 const AT = '2026-08-27T16:00:00.000Z';
 
-const section = (config: unknown): ProjectSection =>
+const section = (config: unknown, title?: string): ProjectSection =>
   ProjectSectionSchema.parse({
     id: 'section-a',
     projectId: 'project-a',
     type: 'rich-text',
+    title,
     position: 0,
     columnSpan: 12,
     collapsed: false,
@@ -19,10 +20,10 @@ const section = (config: unknown): ProjectSection =>
     updatedAt: AT,
   });
 
-const render = (config: unknown) => {
+const render = (config: unknown, title?: string) => {
   const onConfigChange = vi.fn<(config: SectionConfig) => void>();
   const fixture = TestBed.createComponent(RichTextSection);
-  fixture.componentRef.setInput('section', section(config));
+  fixture.componentRef.setInput('section', section(config, title));
   fixture.componentRef.setInput('onConfigChange', onConfigChange);
   const onProjectDataChange = vi.fn();
   fixture.componentRef.setInput('onProjectDataChange', onProjectDataChange);
@@ -71,6 +72,13 @@ describe('RichTextSection (§30)', () => {
     const { textarea } = render({ notText: 42 });
 
     expect(textarea.value).toBe('');
+  });
+
+  it('labels the editor with the section’s resolved name, named or not', () => {
+    // The fourth surface that used to answer "what is this section called" its own way —
+    // it said "Notes for this section" where the frame two lines above said "Rich Text".
+    expect(render({ text: '' }, 'Kickoff').textarea.getAttribute('aria-label')).toBe('Notes for Kickoff');
+    expect(render({ text: '' }).textarea.getAttribute('aria-label')).toBe('Notes for Rich Text');
   });
 
   it('createDefaultConfig() parses against this section’s own schema and the storage shape', () => {

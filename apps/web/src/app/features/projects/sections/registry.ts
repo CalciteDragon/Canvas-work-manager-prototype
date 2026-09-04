@@ -41,9 +41,14 @@ export interface SectionDefinition {
 }
 
 /**
- * §30's list, two entries in. **Adding a section type is this file's only line of change**
- * plus the type's own folder — that claim is what §30 asks the prototype to prove, so
- * nothing type-specific belongs anywhere else.
+ * §30's list. **Adding a section type is one line here plus the type's own folder** — that
+ * claim is what §30 asks the prototype to prove, so nothing type-specific belongs anywhere
+ * else. Two conditional costs in `packages/contracts/src/section.ts` have since been
+ * measured and are recorded rather than argued away: a *container* needs an entry in
+ * `SECTION_OWNERSHIP`, and a type whose display name the derivation cannot produce needs one
+ * in `SECTION_DISPLAY_NAMES` (`sub-projects` is the only one today). `registry.spec.ts`
+ * fails when this file and that derivation disagree, so the second cost is paid at the
+ * moment it is incurred rather than discovered later in a dialog.
  *
  * `type` values match what the seeds and `data.json` already write, so a registry rename is
  * a data migration and not a free choice.

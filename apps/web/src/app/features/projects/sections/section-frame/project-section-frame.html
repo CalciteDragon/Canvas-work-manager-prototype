@@ -1,4 +1,4 @@
-<section
+﻿<section
   data-section-frame
   class="section-frame"
   [attr.data-section-type]="section().type"
@@ -9,7 +9,7 @@
   <header class="section-frame__header">
     @if (editMode()) {
       <span data-section-drag-handle cdkDragHandle class="section-frame__handle" aria-hidden="true"
-        >⠿</span
+        >â ¿</span
       >
     }
 
@@ -18,15 +18,15 @@
       class="section-frame__collapse"
       type="button"
       [attr.aria-expanded]="!section().collapsed"
-      [attr.aria-label]="(section().collapsed ? 'Expand ' : 'Collapse ') + title()"
+      [attr.aria-label]="(section().collapsed ? 'Expand ' : 'Collapse ') + name()"
       (click)="toggleCollapsed()"
     >
-      {{ section().collapsed ? '▸' : '▾' }}
+      {{ section().collapsed ? 'â–¸' : 'â–¾' }}
     </button>
 
     <h2 [id]="'section-title-' + section().id" class="section-frame__title">
       <span class="section-frame__icon" aria-hidden="true">{{ definition().icon }}</span>
-      {{ title() }}
+      {{ name() }}
     </h2>
 
     @if (editMode()) {
@@ -36,7 +36,7 @@
           <select
             data-section-size
             [value]="section().columnSpan"
-            [attr.aria-label]="'Width of ' + title()"
+            [attr.aria-label]="'Width of ' + name()"
             (change)="resize($any($event.target).value)"
           >
             @for (span of columnSpans; track span) {
@@ -49,7 +49,7 @@
           data-section-config
           type="button"
           [attr.aria-expanded]="configOpen()"
-          [attr.aria-label]="'Settings for ' + title()"
+          [attr.aria-label]="'Settings for ' + name()"
           (click)="toggleConfig()"
         >
           Settings
@@ -57,7 +57,7 @@
         <button
           data-section-duplicate
           type="button"
-          [attr.aria-label]="'Duplicate ' + title()"
+          [attr.aria-label]="'Duplicate ' + name()"
           (click)="duplicateRequested.emit(section().id)"
         >
           Duplicate
@@ -66,7 +66,7 @@
           data-section-remove
           class="section-frame__remove"
           type="button"
-          [attr.aria-label]="'Remove ' + title()"
+          [attr.aria-label]="'Remove ' + name()"
           (click)="removeRequested.emit(section().id)"
         >
           Remove
@@ -77,10 +77,22 @@
 
   @if (editMode() && configOpen()) {
     <div data-section-inspector class="section-frame__inspector">
+      <!-- Every registered type has a name, so this is above the type-specific inspector
+         rather than inside one — and it is why the "no settings" branch is gone. -->
+      <label class="section-frame__name">
+        <span>Name</span>
+        <input
+          data-section-name
+          type="text"
+          [value]="override()"
+          [attr.placeholder]="definition().displayName"
+          [attr.aria-label]="'Name of ' + name()"
+          (change)="rename($any($event.target))"
+        />
+      </label>
+
       @if (definition().inspectorComponent; as inspector) {
         <ng-container [ngComponentOutlet]="inspector" [ngComponentOutletInputs]="contentInputs()" />
-      } @else {
-        <p data-section-no-settings class="section-frame__muted">This section has no settings.</p>
       }
     </div>
   }

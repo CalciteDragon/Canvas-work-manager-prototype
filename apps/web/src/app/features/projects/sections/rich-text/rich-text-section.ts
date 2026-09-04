@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import type { ProjectSection, SectionConfig } from '@cwm/contracts';
+import { nameOf, type ProjectSection, type SectionConfig } from '@cwm/contracts';
 import { readRichTextConfig } from './rich-text-config';
 
 /**
@@ -22,6 +22,9 @@ export class RichTextSection {
   readonly projectHierarchyRevision = input.required<number>();
 
   readonly text = computed(() => readRichTextConfig(this.section().config).text);
+
+  /** A template can only call its component's members, and the label needs the shared name. */
+  readonly name = computed(() => nameOf(this.section()));
 
   /**
    * Saved on blur, not per keystroke: the section has no other commit point, and a debounce

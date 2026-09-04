@@ -7,7 +7,7 @@
     class="rich-text__body"
     rows="4"
     [value]="text()"
-    [attr.aria-label]="'Notes for ' + (section().title ?? 'this section')"
+    [attr.aria-label]="'Notes for ' + name()"
     placeholder="What is this project about?"
     (blur)="save($any($event.target).value)"
   ></textarea>

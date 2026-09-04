@@ -179,16 +179,71 @@ describe('ProjectSectionFrame (§31)', () => {
     expect(inputChanges).toBe(1);
   });
 
-  it('renders the definition’s inspector when it has one, and says so when it does not', () => {
+  it('renders the definition’s inspector when it has one, and the name field either way', () => {
     const withoutInspector = render();
     query(withoutInspector, '[data-section-config]')!.click();
     withoutInspector.detectChanges();
-    expect(query(withoutInspector, '[data-section-no-settings]')).not.toBeNull();
+    // Every registered section now has at least a name, so the "no settings" branch is
+    // unreachable and gone. Asserting the name field is present proves nothing about that —
+    // this is the assertion that does.
+    expect(query(withoutInspector, '[data-section-no-settings]')).toBeNull();
+    expect(query(withoutInspector, '[data-section-name]')).not.toBeNull();
 
     const withInspector = render({}, { inspectorComponent: TestInspector });
     query(withInspector, '[data-section-config]')!.click();
     withInspector.detectChanges();
     expect(query(withInspector, '[data-test-inspector]')).not.toBeNull();
+  });
+
+  it('renders an untitled sub-projects frame as Sub-Projects, not Sub Projects', () => {
+    // The regression the one-entry overrides table exists to prevent; the spec (line 1109)
+    // spells it with the hyphen and a split-on-hyphen derivation cannot produce it.
+    const fixture = render({ type: 'sub-projects' }, { type: 'sub-projects', displayName: 'Sub-Projects' });
+
+    expect(query(fixture, '.section-frame__title')!.textContent).toContain('Sub-Projects');
+  });
+
+  const openInspector = (fixture: ReturnType<typeof render>) => {
+    query(fixture, '[data-section-config]')!.click();
+    fixture.detectChanges();
+    return query(fixture, '[data-section-name]') as HTMLInputElement;
+  };
+
+  it('emits a rename from the inspector, and clears the override for a blank name', () => {
+    const fixture = render({ title: 'Backlog' });
+    const seen: unknown[] = [];
+    fixture.componentInstance.renamed.subscribe((event) => seen.push(event));
+    const input = openInspector(fixture);
+    expect(input.value).toBe('Backlog');
+
+    for (const typed of ['Shipped', '  Shipped  ', '', '   ']) {
+      input.value = typed;
+      input.dispatchEvent(new Event('change'));
+    }
+
+    // Chrome only: the frame emits intent and never touches a gateway. Blank means fall
+    // back to the derived default, which is why `title` is a nullable override.
+    expect(seen).toEqual([
+      { id: 'section-a', title: 'Shipped' },
+      { id: 'section-a', title: 'Shipped' },
+      { id: 'section-a', title: null },
+      { id: 'section-a', title: null },
+    ]);
+  });
+
+  it('leaves the field on the persisted name while a rename is pending', () => {
+    // Against the **untitled** default: an Angular property binding writes to the DOM only
+    // when the bound expression changes, so committing whitespace on a section whose
+    // expression is already `''` would otherwise leave three spaces in the field beside a
+    // header still reading `Test Content`. A titled fixture tests the case never broken.
+    const fixture = render();
+    const input = openInspector(fixture);
+
+    input.value = '   ';
+    input.dispatchEvent(new Event('change'));
+
+    expect(input.value).toBe('');
+    expect(query(fixture, '.section-frame__title')!.textContent).toContain('Test Content');
   });
 
   it('leaves collapse usable in view mode but hides every layout-editing control', () => {

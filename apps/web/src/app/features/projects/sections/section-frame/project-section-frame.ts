@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import {
   SectionColumnSpanSchema,
+  nameOf,
   type ProjectSection,
   type SectionColumnSpan,
   type SectionConfig,
@@ -48,12 +49,22 @@ export class ProjectSectionFrame {
   readonly duplicateRequested = output<SectionId>();
   readonly removeRequested = output<SectionId>();
   readonly configChanged = output<{ id: SectionId; config: SectionConfig }>();
+  /** `null` clears the override, which is what makes the placeholder the real default. */
+  readonly renamed = output<{ id: SectionId; title: string | null }>();
   readonly projectDataChanged = output<void>();
   readonly projectHierarchyChanged = output<void>();
 
   readonly configOpen = signal(false);
   readonly columnSpans = [...SectionColumnSpanSchema.values];
-  readonly title = computed(() => this.section().title ?? this.definition().displayName);
+  /**
+   * `name`, not `title`: after this phase `section().title` is the *override* and this is
+   * the resolved name, and the frame now edits the first beside the second. Two things
+   * called `title` meaning different things in one component is a week-old confusion.
+   */
+  readonly name = computed(() => nameOf(this.section()));
+
+  /** The persisted override, as the control shows it — empty means "use the default". */
+  readonly override = computed(() => this.section().title?.trim() ?? '');
 
   /**
    * A class-property arrow, so its identity never changes. `NgComponentOutlet` applies its
@@ -90,6 +101,21 @@ export class ProjectSectionFrame {
 
   toggleConfig(): void {
     this.configOpen.update((open) => !open);
+  }
+
+  /**
+   * Takes the **element**, not its value, because it has to put the control back on the
+   * persisted name while a non-optimistic write is in flight. An Angular property binding
+   * writes to the DOM only when the bound *expression* changes: on an already-untitled
+   * section whitespace normalises to `null` while the expression stays `''`, and a rejected
+   * rename does not change it either — so without this the field would keep showing a name
+   * nothing persisted.
+   */
+  rename(input: HTMLInputElement): void {
+    const trimmed = input.value.trim();
+    const next = trimmed === '' ? null : trimmed;
+    input.value = this.override();
+    this.renamed.emit({ id: this.section().id, title: next });
   }
 
   resize(value: string): void {
