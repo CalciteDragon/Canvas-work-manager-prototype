@@ -99,12 +99,17 @@ const CASES: Record<string, ToolCase> = {
   },
   list_sections: {
     input: { projectId: PROJECT },
-    verify: (result) => {
+    verify: async (result, harness) => {
       expect(result.map((section: { type: string }) => section.type)).toEqual([
         'rich-text',
         'task-list',
         'recent-activity',
       ]);
+      // An archived section has left the canvas, so it must leave the agent's view of the
+      // canvas too — otherwise the agent and the person are looking at different projects.
+      await harness.services.sections.remove(agent(['projects.write']), VIEW_SECTION);
+      const after = await harness.registry.call('list_sections', { projectId: PROJECT }, agent(['projects.read']));
+      expect((after as { id: string }[]).map(({ id }) => id)).not.toContain(VIEW_SECTION);
     },
   },
   create_section: {
@@ -130,7 +135,11 @@ const CASES: Record<string, ToolCase> = {
     input: { sectionId: VIEW_SECTION },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toEqual({ removed: VIEW_SECTION });
+      // The archived section itself, not a bare id: the agent can see `archivedAt` and know
+      // the operation is undoable. It arrives from `projects.write` alone, so the tool has
+      // not acquired a hidden `projects.read` requirement by reading the record back.
+      expect(result).toMatchObject({ id: VIEW_SECTION });
+      expect(result.archivedAt).toBeDefined();
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
       expect(listed.map(({ id }) => id)).not.toContain(VIEW_SECTION);
     },
