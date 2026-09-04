@@ -929,6 +929,49 @@ container type for milestones, and any UI for the `reassign` policy beyond the d
 
 ---
 
+## Unnumbered phase — A section has a name
+
+The second friction-chosen phase, from the first of the two notes the ownership phase's
+browser pass left (`note-2026-09-01-001`). The removal dialog printed the domain's own
+sentence — a section id, "1 tasks", and the policy vocabulary — and its reassign select named
+the section *type*, so three Task Lists on one canvas offered three identical options.
+
+**Status:** done — decision: [docs/decisions/2026-09-a-section-has-a-name.md](docs/decisions/2026-09-a-section-has-a-name.md),
+plan: [docs/plans/2026-09-section-names-implementation.md](docs/plans/2026-09-section-names-implementation.md).
+`nameOf` in `packages/contracts` is now the single expression all four naming surfaces use —
+the frame header, the removal dialog, Rich Text's aria-label and `SectionService`'s activity
+summaries — over a derivation from the `type` string plus a one-entry `SECTION_DISPLAY_NAMES`
+table that `sub-projects` earns. `title` stays an optional override, defaulted at read time,
+with a placeholder-driven Name field at the top of the frame's inspector; that made
+`This section has no settings.` unreachable and it is gone. No `SCHEMA_VERSION` change, no
+new route and no new MCP tool — the write path already shipped end to end and only the
+control was missing.
+
+The one structural change is the refusal: `DomainRuleError` gained an optional `details`
+record, the non-empty removal fills it with a discriminated
+`{ reason: 'section_not_empty', liveRowCount }`, `api/errors.ts` forwards it, `GatewayError`
+preserves it untrusted, and `ProjectPageStore` opens the dialog **only** when that payload
+parses. `ProjectPageStore` holds no rows by design, so a count it could not be told was the
+thing standing between the domain's agent-facing sentence and a person's question.
+
+Verified in the running app on `personal-workspace`, not only by the 1354-test suite: the
+Name field renamed a Task List to `Backlog` and cleared back to `Task List` with `title`
+**absent** from `data.json` rather than stored as the literal default; committing whitespace
+left the field empty rather than showing the spaces; a Sub-Projects frame read `Sub-Projects`;
+under 100% failure injection a rejected rename left header, field and a visible error exactly
+right; the dialog read `Remove “Backlog”?` / `It still holds 3 tasks.` and offered `Shipped`
+by name beside two untitled lists distinguished by canvas position, with no id anywhere;
+removing a Progress view asked nothing; and `data.json` carried
+`summary: "Removed the Backlog section"`. Over a real MCP client, `update_section` trimmed a
+padded title, refused a whitespace-only one, and `null` cleared the override.
+
+**Deferred:** a resolved `name` in `list_sections` output, a `rename_section` tool shape
+experiment (§56, Slice 24), and renaming from the frame header in View Mode — recorded as
+`note-2026-09-04-001`, which is the same "the thing you look at is not the thing you change"
+shape as the Slice 17 project-header notes.
+
+---
+
 ## Phase 5 — Second milestone candidates (Slices 18–24)
 
 Build these **only when observed use justifies them** (§82). Listed in the order most

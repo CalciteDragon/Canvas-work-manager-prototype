@@ -112,6 +112,19 @@ If the client cannot find `pnpm`, replace `command` with the absolute path repor
 `Get-Command pnpm`. Set `CWM_DATA_FILE` in `env` only when intentionally using a non-default
 prototype file.
 
+### Name the sections you create
+
+`create_section` takes a `title` alongside `type`, and naming at creation is the more natural
+path; `update_section` renames one afterwards. Both trim what they are given and refuse a
+whitespace-only name, and `update_section` with `title: null` clears the override so the
+section falls back to its type's display name.
+
+An agent that names the sections it creates is the difference between a legible canvas and
+seven identical frames — a person looking at three `Task List` headers cannot tell which one
+an agent filled. Note that `list_sections` returns the stored `title` and not a resolved
+name, so a section with no `title` has no name in the tool output to read back; that is
+deliberate ([why](decisions/2026-09-a-section-has-a-name.md)).
+
 ### Important file-store limitation
 
 Do not run mutation-capable stdio and HTTP/UI sessions concurrently against the same

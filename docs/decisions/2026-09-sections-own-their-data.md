@@ -62,6 +62,12 @@ from the map is what makes something a view, so an unregistered type can never c
 failure mode of forgetting the map entry is a container that behaves as a view, which loses
 ownership rather than data.
 
+The naming phase that followed found a second, smaller §30 cost of the same shape and
+recorded it beside this one: a section type also touches `packages/contracts` when its
+display name is not derivable from its `type` string — one entry today, `sub-projects`
+(`2026-09-a-section-has-a-name.md`). Unlike ownership's, this cost is *conditional*, and
+`registry.spec.ts` fails at the moment a new type incurs it.
+
 **Current decision**
 
 `kind` joins the registry entry, alongside `type` and `createDefaultConfig` — one line per

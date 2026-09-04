@@ -533,7 +533,23 @@
       "createdAt": "2026-09-02T06:15:04.048Z",
       "route": "/projects/project-personal",
       "projectId": "project-personal",
+      "resolvedAt": "2026-09-04T05:45:00.000Z",
+      "resolution": "Closed by the names phase (docs/decisions/2026-09-a-section-has-a-name.md), verified in the browser on personal-workspace. The dialog now reads `Remove “Backlog”?` / `It still holds 3 tasks. What should happen to them?`; its select offers `Shipped` by name and distinguishes two untitled Task Lists as `Task List (position 4 on the canvas)` and `(position 5 on the canvas)`; no section id appears anywhere in it. The Name field in the frame's Settings panel is what made that reachable — clearing it returns the header to `Task List` and removes `title` from data.json rather than storing the default as a literal. Two things the note did not predict. First, replacing the sentence was not enough: ProjectPageStore holds no rows by design and cannot count them, so the count had to travel as *data* — DomainRuleError gained an optional details record, and the dialog now opens only when a discriminated `section_not_empty` payload parses, which is also what will stop the archive phase's two new 409s from masquerading as this question. Second, naming alone does not close the note's second half: every untitled Task List still resolves to `Task List`, so the positional disambiguator is doing the real work for exactly the user the note describes — the one who has named nothing.",
       "note": "The section removal dialog prints the domain error verbatim: `section \"section-4f7e064c\" still holds 1 tasks; removing it needs a policy of \"cascade\" or \"reassign\"`. Three things are wrong for a person standing in front of it — it names the section id rather than its title, it says \"1 tasks\", and it explains the policy vocabulary instead of the choice. The buttons underneath already say it properly (\"Archive the rows and remove\" / \"Move the rows and remove\"), so the sentence is doing harm rather than nothing. The reassign target select is worse: it lists the section *type* (\"task-list\"), so with three Task Lists on a canvas there is no way to tell which one you are moving rows into. The gap underneath is narrower than it looks: `ProjectSection.title` already exists as §31's optional frame-title override, and the frame already prefers it over the registry display name — nothing in the running app can set one. The dialog's `target.title ?? target.type` is correct code falling back forever. A title control in the frame's Settings panel would fix the select and give the message something to name."
+    },
+    {
+      "id": "note-2026-09-04-001",
+      "createdAt": "2026-09-04T05:46:00.000Z",
+      "route": "/projects/project-personal",
+      "projectId": "project-personal",
+      "note": "Naming a section is two deliberate acts before you can start typing: Edit layout, then Settings on the frame. §32 is the reason and the reason is sound — an always-editable header title would put a text input where View Mode wants clean chrome. But the friction this phase set out to fix is *not being able to tell three Task Lists apart at a glance*, and the cure is behind a mode you have to know to enter. This is the same shape as note-2026-08-31-002 and -003 about the project More menu: the thing you look at is not the thing you change. Worth asking in a later slice whether the frame header should become editable in View Mode specifically for the name, which would be a §32 exception rather than a §32 violation — the name is content, not layout, in the same way the Archived region the sibling plan adds is content."
+    },
+    {
+      "id": "note-2026-09-04-002",
+      "createdAt": "2026-09-04T05:46:30.000Z",
+      "route": "/projects/project-personal",
+      "projectId": "project-personal",
+      "note": "The positional disambiguator reads better than expected but exposes a smaller gap: `Task List (position 4 on the canvas)` is only useful if you can see which frame is fourth, and in flow layout with five sections on screen you can. In grid it would be much weaker — reading order tracks position, but a wrapped grid does not make \"fourth\" obvious at a glance. If grid ever becomes the default, this label wants to become something the canvas can highlight rather than something the person has to count."
     },
     {
       "id": "note-2026-09-01-002",
