@@ -27,6 +27,7 @@ import {
   type MoveSectionInput,
   type SectionId,
   type TaskId,
+  type SectionQuery,
   type TaskQuery,
   type UpdateSectionInput,
   type UpdateTaskInput,
@@ -75,19 +76,28 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
   };
 
   readonly reflections: ReflectionGateway = {
-    list: (projectId, sectionId) =>
+    // The project scope is written **last**, so a filter object cannot override it.
+    list: (projectId, query = {}) =>
       this.send(
         'GET',
-        `/api/reflections${queryString(reflectionQueryParams({ projectId, sectionId }))}`,
+        `/api/reflections${queryString(reflectionQueryParams({ ...query, projectId }))}`,
         ReflectionSchema.array(),
       ),
     create: (input: CreateReflectionInput) => this.send('POST', '/api/reflections', ReflectionSchema, input),
     update: (id: ReflectionId, input: UpdateReflectionInput) => this.send('PATCH', `/api/reflections/${encodeURIComponent(id)}`, ReflectionSchema, input),
+    archive: (id: ReflectionId) =>
+      this.send('POST', `/api/reflections/${encodeURIComponent(id)}/archive`, ReflectionSchema),
+    restore: (id: ReflectionId) =>
+      this.send('POST', `/api/reflections/${encodeURIComponent(id)}/restore`, ReflectionSchema),
   };
 
   readonly sections: SectionGateway = {
-    list: (projectId: ProjectId) =>
-      this.send('GET', `/api/projects/${encodeURIComponent(projectId)}/sections`, ProjectSectionSchema.array()),
+    list: (projectId: ProjectId, query = {}) =>
+      this.send(
+        'GET',
+        `/api/projects/${encodeURIComponent(projectId)}/sections${queryString(sectionQueryParams(query))}`,
+        ProjectSectionSchema.array(),
+      ),
     create: (projectId: ProjectId, input: CreateSectionInput) =>
       this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/sections`, ProjectSectionSchema, input),
     update: (id: SectionId, input: UpdateSectionInput) =>
@@ -104,6 +114,8 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         'DELETE',
         `/api/sections/${encodeURIComponent(id)}${queryString(removeSectionParams(input))}`,
       ),
+    restore: (id: SectionId) =>
+      this.send('POST', `/api/sections/${encodeURIComponent(id)}/restore`, ProjectSectionSchema),
   };
 
   readonly tasks: TaskGateway = {
@@ -121,6 +133,7 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
     archive: async (id: TaskId) => {
       await this.send('POST', `/api/tasks/${encodeURIComponent(id)}/archive`, TaskSchema);
     },
+    restore: (id: TaskId) => this.send('POST', `/api/tasks/${encodeURIComponent(id)}/restore`, TaskSchema),
   };
 
   readonly agents: AgentGateway = {
@@ -245,6 +258,17 @@ const reflectionQueryParams = (query: ReflectionQuery): URLSearchParams => {
   const params = new URLSearchParams();
   append(params, 'projectId', query.projectId);
   append(params, 'sectionId', query.sectionId);
+  append(params, 'includeArchived', query.includeArchived);
+  return params;
+};
+
+/**
+ * Only `includeArchived`: the path already carries the project, and a query `projectId`
+ * would be a second, contradictable answer to the same question.
+ */
+const sectionQueryParams = (query: Omit<SectionQuery, 'projectId'>): URLSearchParams => {
+  const params = new URLSearchParams();
+  append(params, 'includeArchived', query.includeArchived);
   return params;
 };
 

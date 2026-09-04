@@ -103,6 +103,14 @@ export class TaskListSection {
     if (await this.store.complete(id)) this.onProjectDataChange()();
   }
 
+  /**
+   * The row leaves this list and appears in the page's Archived region, so the page has to
+   * hear about it: the region re-reads on the same data revision every section does.
+   */
+  async archive(id: TaskId): Promise<void> {
+    if (await this.store.archive(id)) this.onProjectDataChange()();
+  }
+
   async changeEstimate(event: { id: TaskId; estimate: number | null }): Promise<void> {
     if (await this.store.updateEstimate(event.id, event.estimate)) this.onProjectDataChange()();
   }

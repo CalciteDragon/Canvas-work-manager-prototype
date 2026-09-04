@@ -667,3 +667,90 @@ describe('ProjectPage — §26’s More menu (§81)', () => {
     expect(query(fixture, '[data-project-target-date]')?.textContent).toContain('No target date');
   });
 });
+
+describe('ProjectPage — Archived (§31, §32)', () => {
+  const archivedSection = () =>
+    section('section-backlog', 'task-list', 2, { title: 'Backlog', archivedAt: AT });
+
+  it('hides the region entirely when nothing has been removed', async () => {
+    const { fixture } = await render();
+
+    expect(query(fixture, '[data-archived-region]')).toBeNull();
+  });
+
+  it('shows the region in View Mode, because the undo is content and not layout chrome', async () => {
+    // §32 gates the remove control, and this deliberately sits on the other side of that
+    // line: hiding the undo behind Edit Layout Mode would hide it exactly when someone
+    // needs it, right after a removal they did not mean.
+    const { fixture } = await render({
+      sections: [section('section-text', 'rich-text', 0), archivedSection()],
+    });
+
+    expect(query(fixture, '[data-section-remove]')).toBeNull();
+    expect(query(fixture, '[data-archived-region]')).not.toBeNull();
+    expect(query(fixture, '[data-archived-section]')?.textContent).toContain('Backlog');
+  });
+
+  it('restores a section and paints it back onto the canvas without a reload', async () => {
+    const gatewaySections = [section('section-text', 'rich-text', 0), archivedSection()];
+    const { fixture, gateway } = await render({ sections: gatewaySections });
+    expect(queryAll(fixture, '[data-section-frame]')).toHaveLength(1);
+
+    // The host answers the restore, and the reconcile that follows re-reads the canvas —
+    // which is what makes the new frame appear.
+    gateway.options.sections = [
+      section('section-text', 'rich-text', 0),
+      section('section-backlog', 'task-list', 1, { title: 'Backlog' }),
+    ];
+    query(fixture, '[data-archived-section-restore]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(queryAll(fixture, '[data-section-frame]')).toHaveLength(2);
+    expect(query(fixture, '[data-archived-region]')).toBeNull();
+  });
+
+  it('keeps the region visible but every Restore disabled while the project is archived', async () => {
+    // The page is reachable by direct URL for an archived project. Erasing the archived work
+    // from view would be worse than showing it — but the domain refuses a restore into one,
+    // so the control says what to do instead rather than failing on click.
+    const { fixture, gateway } = await render({
+      project: project({ status: 'archived' }),
+      sections: [section('section-text', 'rich-text', 0), archivedSection()],
+    });
+
+    expect(query(fixture, '[data-archived-region]')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Reactivate this project to restore archived work.');
+    expect((query(fixture, '[data-archived-section-restore]') as HTMLButtonElement).disabled).toBe(true);
+
+    query(fixture, '[data-archived-section-restore]')!.click();
+    await fixture.whenStable();
+    // No speculative request: HTTP and MCP still enforce the refusal, but the UI does not
+    // offer something it knows will fail.
+    expect(gateway.calls.some(({ method }) => method === 'sections.restore')).toBe(false);
+  });
+
+  it('keeps Restore disabled through an optimistic reactivation, and enables it only on success', async () => {
+    // `setStatus` paints `active` before the write lands, so the loaded status alone would
+    // enable Restore during a reactivation the domain has not accepted yet.
+    const gate = deferred<Project>();
+    const { fixture, gateway } = await render({
+      project: project({ status: 'archived' }),
+      sections: [section('section-text', 'rich-text', 0), archivedSection()],
+    });
+    const update = vi.spyOn(gateway.projects, 'update').mockReturnValue(gate.promise);
+
+    query(fixture, '[data-project-more]')!.click();
+    fixture.detectChanges();
+    query(fixture, '[data-project-status-option][data-status="active"]')!.click();
+    fixture.detectChanges();
+
+    expect((query(fixture, '[data-archived-section-restore]') as HTMLButtonElement).disabled).toBe(true);
+
+    gate.resolve(project({ status: 'active' }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect((query(fixture, '[data-archived-section-restore]') as HTMLButtonElement).disabled).toBe(false);
+    update.mockRestore();
+  });
+});

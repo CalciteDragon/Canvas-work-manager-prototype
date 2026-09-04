@@ -86,6 +86,19 @@ describe('ReflectionsStore (§36)', () => {
     expect(store.reflections().map(({ id }) => id)).toEqual(['reflection-new', 'reflection-a']);
   });
 
+  it('sends the section as a query filter beside the project, not in place of it', async () => {
+    // The container id travels in the query object now that the project holds the first
+    // argument. A read that dropped the object would widen to the whole project and still
+    // render rows, so the shape is worth pinning rather than the row count.
+    const list = vi.fn<WorkManagerGateway['reflections']['list']>().mockResolvedValue([]);
+    const base = new FakeWorkManagerGateway();
+    const store = setup({ ...base, reflections: { ...base.reflections, list } } as WorkManagerGateway);
+
+    await store.load(section());
+
+    expect(list).toHaveBeenCalledWith('project-a', { sectionId: section().id });
+  });
+
   it('creates trimmed body-only, titled, and prompted entries in the loaded project', async () => {
     const gateway = new FakeWorkManagerGateway({ reflections: [] });
     const store = setup(gateway);

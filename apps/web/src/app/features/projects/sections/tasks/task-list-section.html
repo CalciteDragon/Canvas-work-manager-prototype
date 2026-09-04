@@ -33,8 +33,10 @@
             [task]="task"
             [selected]="store.selectedTaskId() === task.id"
             [pending]="store.completingIds().has(task.id)"
+            [archiving]="store.archivingIds().has(task.id)"
             (completionRequested)="complete($event)"
             (titleEdited)="editTitle($event)"
+            (archiveRequested)="archive($event)"
             (selectedRequested)="store.selectTask($event)"
           />
         }

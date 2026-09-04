@@ -172,6 +172,43 @@ describe('PrototypeWorkManagerGateway — Slice 10 reads and reflections', () =>
     expect(lastCall().init.method).toBe('PATCH');
   });
 
+  it('narrows a reflections read to one container and to the archive state asked for', async () => {
+    // A section-scoped read that lost its `sectionId` would still answer rows, just the
+    // wrong ones — the whole project's, rendered inside one container.
+    fetchMock.mockImplementation(jsonResponse([reflection]));
+    const subject = gateway();
+
+    await subject.reflections.list('project-1' as ProjectId, {
+      sectionId: 'section-1' as SectionId,
+      includeArchived: true,
+    });
+    expect(lastCall().url).toBe(
+      'http://host.test/api/reflections?projectId=project-1&sectionId=section-1&includeArchived=true',
+    );
+
+    await subject.reflections.list('project-1' as ProjectId);
+    expect(lastCall().url).toBe('http://host.test/api/reflections?projectId=project-1');
+  });
+
+  it('archives and restores a reflection through matching routes, parsing each answer', async () => {
+    // Unlike `tasks.archive`, both answers are the caller's: the list is repainted from the
+    // row that comes back rather than from a re-read.
+    fetchMock
+      .mockImplementationOnce(jsonResponse({ ...reflection, archivedAt: at }))
+      .mockImplementationOnce(jsonResponse(reflection));
+    const subject = gateway();
+
+    const archived = await subject.reflections.archive('reflection-1' as ReflectionId);
+    expect(lastCall().url).toBe('http://host.test/api/reflections/reflection-1/archive');
+    expect(lastCall().init.method).toBe('POST');
+    expect(archived.archivedAt).toBe(at);
+
+    const restored = await subject.reflections.restore('reflection-1' as ReflectionId);
+    expect(lastCall().url).toBe('http://host.test/api/reflections/reflection-1/restore');
+    expect(lastCall().init.method).toBe('POST');
+    expect(restored.archivedAt).toBeUndefined();
+  });
+
   it('rejects malformed derived and reflection bodies', async () => {
     const subject = gateway();
     fetchMock.mockImplementation(jsonResponse({ projectId: 'project-1' }));
@@ -189,6 +226,30 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
 
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1/sections');
     expect(sections[0]?.type).toBe('rich-text');
+  });
+
+  it('lists live sections by default and asks for the archived ones only when told', async () => {
+    // The project rides in the path, so a `projectId` parameter would be a second answer to
+    // the same question — one a caller could contradict.
+    fetchMock.mockImplementation(jsonResponse([projectSection]));
+    const subject = gateway();
+
+    await subject.sections.list('project-1' as ProjectId);
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/sections');
+
+    await subject.sections.list('project-1' as ProjectId, { includeArchived: true });
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/sections?includeArchived=true');
+  });
+
+  it('restores through the dedicated route and parses the section it answers', async () => {
+    fetchMock.mockImplementation(jsonResponse(projectSection));
+
+    const restored = await gateway().sections.restore('section-1' as SectionId);
+
+    expect(lastCall().url).toBe('http://host.test/api/sections/section-1/restore');
+    expect(lastCall().init.method).toBe('POST');
+    expect(lastCall().init.body).toBeUndefined();
+    expect(restored.id).toBe('section-1');
   });
 
   it('creates with a JSON body and accepts 201', async () => {
@@ -317,6 +378,19 @@ describe('PrototypeWorkManagerGateway — tasks (§9, verbatim)', () => {
     fetchMock.mockImplementation(jsonResponse({ ...task, archivedAt: at }));
 
     await expect(gateway().tasks.archive('task-1' as TaskId)).resolves.toBeUndefined();
+  });
+
+  // Restore is the undo archive lacks, and it does hand the row back: the caller that
+  // reverses an archive needs the restored task, not a second read to find it.
+  it('restores through the dedicated route and answers the task', async () => {
+    fetchMock.mockImplementation(jsonResponse(task));
+
+    const restored = await gateway().tasks.restore('task-1' as TaskId);
+
+    expect(lastCall().url).toBe('http://host.test/api/tasks/task-1/restore');
+    expect(lastCall().init.method).toBe('POST');
+    expect(lastCall().init.body).toBeUndefined();
+    expect(restored.id).toBe('task-1');
   });
 });
 

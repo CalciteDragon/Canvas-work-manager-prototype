@@ -1,6 +1,6 @@
-<!-- Only a container still holding rows gets here: a view, and an empty container, are
-   already removed by the time this could render. The count is the domain's, so the question
-   and the rule cannot disagree; the words around it are this component's. -->
+<!-- Only a container still holding live rows gets here: a view, and an empty container,
+   have already archived by the time this could render. The count is the domain's, so the
+   question and the rule cannot disagree; the words around it are this component's. -->
 <div class="removal-dialog" role="dialog" aria-modal="true" aria-labelledby="removal-dialog-title">
   <div class="removal-dialog__panel">
     <h2 id="removal-dialog-title" class="removal-dialog__title">
@@ -35,18 +35,18 @@
           type="button"
           (click)="reassignChosen.emit(chosenTarget())"
         >
-          Move the {{ rowNoun() }} and remove
+          Move the {{ rowNoun() }} out, then archive
         </button>
       }
-      <!-- Archive, not delete: `archivedAt` is undoable, which is why the domain cascades
-         this way rather than destroying the rows. -->
+      <!-- Archive, not delete, and the section comes down with the rows: both are undoable
+         from the Archived region below the canvas, in one click. -->
       <button
         data-section-removal-cascade
         type="button"
         class="removal-dialog__danger"
         (click)="cascadeChosen.emit()"
       >
-        Archive the {{ rowNoun() }} and remove
+        Archive the section and its {{ rowNoun() }}
       </button>
     </div>
   </div>

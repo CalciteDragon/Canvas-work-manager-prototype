@@ -21,7 +21,7 @@ const task = (overrides: Record<string, unknown> = {}): Task =>
 
 const render = async (
   value: Task = task(),
-  inputs: { selected?: boolean; compact?: boolean; pending?: boolean } = {},
+  inputs: { selected?: boolean; compact?: boolean; pending?: boolean; archiving?: boolean } = {},
 ) => {
   TestBed.configureTestingModule({ imports: [TaskRow] });
   const fixture: ComponentFixture<TaskRow> = TestBed.createComponent(TaskRow);
@@ -30,6 +30,7 @@ const render = async (
   fixture.componentRef.setInput('selected', inputs.selected ?? false);
   fixture.componentRef.setInput('compact', inputs.compact ?? false);
   fixture.componentRef.setInput('pending', inputs.pending ?? false);
+  fixture.componentRef.setInput('archiving', inputs.archiving ?? false);
   await fixture.whenStable();
   return { fixture, component: fixture.componentInstance, element: fixture.nativeElement as HTMLElement };
 };
@@ -102,6 +103,42 @@ describe('TaskRow', () => {
     const row = completed.element.querySelector('[data-task-row]')!;
     expect(row.classList.contains('task-row--completed')).toBe(true);
     expect(row.classList.contains('task-row--overdue')).toBe(false);
+  });
+
+  it('emits archive intent with the row’s own id', async () => {
+    const { component, element } = await render();
+    const emitted = vi.fn();
+    component.archiveRequested.subscribe(emitted);
+
+    element.querySelector<HTMLButtonElement>('[data-task-archive]')?.click();
+
+    expect(emitted).toHaveBeenCalledWith(task().id);
+  });
+
+  it('says an archive is under way and refuses a second one', async () => {
+    // A row is archived once. Without the guard a double click would send two requests, and
+    // the second would fail against a task the first has already archived.
+    const { component, element } = await render(task(), { archiving: true });
+    const emitted = vi.fn();
+    component.archiveRequested.subscribe(emitted);
+    const archive = element.querySelector<HTMLButtonElement>('[data-task-archive]')!;
+
+    expect(archive.disabled).toBe(true);
+    expect(archive.textContent?.trim()).toBe('Archiving…');
+
+    archive.click();
+    expect(emitted).not.toHaveBeenCalled();
+  });
+
+  it('keeps archiving and pending from disabling each other’s control', async () => {
+    // The two describe different requests in flight. A row waiting on an archive can still
+    // be completed, and a row waiting on a completion can still be archived.
+    const archiving = await render(task(), { archiving: true });
+    expect(archiving.element.querySelector<HTMLInputElement>('[data-task-complete]')?.disabled).toBe(false);
+
+    TestBed.resetTestingModule();
+    const pending = await render(task(), { pending: true });
+    expect(pending.element.querySelector<HTMLButtonElement>('[data-task-archive]')?.disabled).toBe(false);
   });
 
   it('exposes high-priority, selected, and compact states independently', async () => {

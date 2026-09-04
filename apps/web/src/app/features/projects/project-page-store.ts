@@ -107,6 +107,20 @@ export class ProjectPageStore {
   private projectRefresh: Promise<void> | null = null;
   private projectRefreshQueued = false;
 
+  /**
+   * How many writes to the **project record** are in flight, as a signal consumers can read.
+   *
+   * Deliberately not `pendingWrites`, which cannot answer this question: it is a plain
+   * field rather than a signal, it counts section writes too, and `whileWriting` increments
+   * it *after* the optimistic paint. The Archived region's Restore controls need the guard
+   * up **before** the paint — otherwise there is a frame in which the page shows `active`
+   * because someone clicked Reactivate, while the domain would still refuse a restore.
+   *
+   * A counter rather than a boolean, so two overlapping project writes cannot have the
+   * first response clear the second one's guard.
+   */
+  private readonly projectWritesState = signal(0);
+
   readonly project = this.projectState.asReadonly();
   readonly sections = this.sectionsState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
@@ -119,6 +133,8 @@ export class ProjectPageStore {
   readonly projectDataRevision = this.projectDataRevisionState.asReadonly();
   readonly removalPrompt = this.removalPromptState.asReadonly();
   readonly projectHierarchyRevision = this.projectHierarchyRevisionState.asReadonly();
+  /** True while any write to the project record is unresolved — see `projectWritesState`. */
+  readonly projectWritePending = computed(() => this.projectWritesState() > 0);
 
   /** The selected §39 domain result; `null` means unavailable and remains distinct from 0%. */
   readonly progress = computed<number | null>(() => this.progressState()?.percentage ?? null);
@@ -519,6 +535,27 @@ export class ProjectPageStore {
     this.removalPromptState.set(null);
   }
 
+  /**
+   * What the Archived region calls after restoring a section. It **adds** a section to the
+   * canvas, so bumping the data revision is not enough: that makes the existing containers
+   * re-read, and paints no new frame. `reconcileSections` is private and the region's store
+   * must not reach into this one, so this is the entry point the two constraints leave.
+   */
+  async sectionRestored(): Promise<void> {
+    await this.reconcileSections();
+    this.notifyProjectDataChanged();
+  }
+
+  /**
+   * The mirror, for a restored **row**. It becomes live inside a container that is already
+   * on the canvas, and that container re-reads only when its data revision moves — so
+   * without this, "restores with no reload" would hold for sections and quietly fail for
+   * rows.
+   */
+  rowRestored(): void {
+    this.notifyProjectDataChanged();
+  }
+
   /** §26's Rename, optimistic per §63. */
   rename(name: string): Promise<boolean> {
     return this.writeProject({ name }, (project) => ({ ...project, name }));
@@ -572,6 +609,9 @@ export class ProjectPageStore {
       generation === this.loadGeneration && this.projectState()?.id === projectId;
 
     this.writeErrorState.set(null);
+    // Raised **before** the paint, and lowered only once the write has succeeded or rolled
+    // back: a consumer must never read an optimistic `active` as a persisted reactivation.
+    this.projectWritesState.update((count) => count + 1);
     if (paint !== null) this.projectState.set(paint(before));
 
     return this.track(() =>
@@ -588,6 +628,8 @@ export class ProjectPageStore {
             this.writeErrorState.set(messageOf(error));
           }
           return false;
+        } finally {
+          this.projectWritesState.update((count) => count - 1);
         }
       }),
     );
@@ -640,7 +682,8 @@ export class ProjectPageStore {
   /**
    * Re-reads the canvas after a successful write, and **swallows its own failure**. The
    * write already landed; reporting a failed re-read as a failed write would tell the user
-   * their remove did not happen and invite them to click it again, which answers 404. The
+   * their remove did not happen and invite them to click it again — which now answers the
+   * already-archived 409, because removal archives and the record is still there. The
    * render-only update above is close enough to live with until the next load. Persisted
    * sibling positions remain untouched unless they came from the host.
    */

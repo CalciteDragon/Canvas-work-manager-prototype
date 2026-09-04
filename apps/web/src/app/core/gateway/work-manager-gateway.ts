@@ -18,8 +18,10 @@ import type {
   ProjectSection,
   Reflection,
   ReflectionId,
+  ReflectionQuery,
   MoveSectionInput,
   SectionId,
+  SectionQuery,
   Task,
   TaskId,
   TaskQuery,
@@ -32,8 +34,14 @@ import type {
 } from '@cwm/contracts';
 
 /**
- * §9's `TaskGateway`, verbatim. It is the one sub-interface the spec pins method for
- * method, so it is implemented in full even though nothing renders a task until Slice 7.
+ * §9's `TaskGateway`, plus `restore`. Every other member is the spec's, method for method.
+ *
+ * `restore` is a correction to §9, not a quiet widening: the spec declares `archive` and no
+ * undo, and the prototype disproved that — an archive nothing can reverse is a row a person
+ * has lost. §9 and §34 are updated in the same change
+ * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
+ *
+ * `archive` still answers `Promise<void>`, so a caller that needs the updated row re-reads.
  */
 export interface TaskGateway {
   list(query: TaskQuery): Promise<Task[]>;
@@ -42,6 +50,7 @@ export interface TaskGateway {
   update(id: TaskId, input: UpdateTaskInput): Promise<Task>;
   complete(id: TaskId): Promise<Task>;
   archive(id: TaskId): Promise<void>;
+  restore(id: TaskId): Promise<Task>;
 }
 
 /**
@@ -82,10 +91,17 @@ export interface TimelineGateway {
 }
 
 export interface ReflectionGateway {
-  /** A reflections section renders what it owns, so the list narrows to one container. */
-  list(projectId: ProjectId, sectionId?: SectionId): Promise<Reflection[]>;
+  /**
+   * A reflections section renders what it owns, so the list narrows to one container. The
+   * filters travel as the shared `ReflectionQuery` minus the project, which the first
+   * argument already fixes — so a caller cannot broaden the scope from inside the object,
+   * and the Archived region can ask for `{ includeArchived: true }` without a placeholder.
+   */
+  list(projectId: ProjectId, query?: Omit<ReflectionQuery, 'projectId'>): Promise<Reflection[]>;
   create(input: CreateReflectionInput): Promise<Reflection>;
   update(id: ReflectionId, input: UpdateReflectionInput): Promise<Reflection>;
+  archive(id: ReflectionId): Promise<Reflection>;
+  restore(id: ReflectionId): Promise<Reflection>;
 }
 
 /**
@@ -96,17 +112,22 @@ export interface ReflectionGateway {
  * handler that calls it.
  */
 export interface SectionGateway {
-  list(projectId: ProjectId): Promise<ProjectSection[]>;
+  /** Live-only by default; the Archived region is the one caller that asks for the rest. */
+  list(projectId: ProjectId, query?: Omit<SectionQuery, 'projectId'>): Promise<ProjectSection[]>;
   create(projectId: ProjectId, input: CreateSectionInput): Promise<ProjectSection>;
   update(id: SectionId, input: UpdateSectionInput): Promise<ProjectSection>;
   move(id: SectionId, input: MoveSectionInput): Promise<ProjectSection>;
   duplicate(id: SectionId): Promise<ProjectSection>;
   /**
-   * A container that still holds rows refuses removal without a policy, and the caller
-   * surfaces the refusal as a choice rather than swallowing it — see
-   * docs/decisions/2026-09-sections-own-their-data.md.
+   * Removal **archives**: the section leaves the canvas and `restore` brings it back with
+   * the rows it took down. A container that still holds live rows refuses without a policy,
+   * and the caller surfaces the refusal as a choice rather than swallowing it — see
+   * docs/decisions/2026-09-what-undo-means-for-an-archived-row.md.
+   *
+   * `Promise<void>` deliberately: the host answers 204, and the canvas re-reads.
    */
   remove(id: SectionId, input?: RemoveSectionInput): Promise<void>;
+  restore(id: SectionId): Promise<ProjectSection>;
 }
 
 /**

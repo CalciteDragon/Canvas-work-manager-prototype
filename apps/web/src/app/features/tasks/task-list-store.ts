@@ -33,6 +33,7 @@ export class TaskListStore {
   private readonly errorState = signal<string | null>(null);
   private readonly loadFailedState = signal(false);
   private readonly completingIdsState = signal<ReadonlySet<TaskId>>(new Set());
+  private readonly archivingIdsState = signal<ReadonlySet<TaskId>>(new Set());
 
   private revision = 0;
   private loadGeneration = 0;
@@ -64,6 +65,7 @@ export class TaskListStore {
    */
   readonly loadFailed = this.loadFailedState.asReadonly();
   readonly completingIds = this.completingIdsState.asReadonly();
+  readonly archivingIds = this.archivingIdsState.asReadonly();
   readonly selectedTask = computed(() => {
     const id = this.selectedTaskIdState();
     return id === null ? null : (this.tasksState().find((task) => task.id === id) ?? null);
@@ -269,6 +271,41 @@ export class TaskListStore {
         return false;
       }
     }));
+  }
+
+  /**
+   * §34's per-row archive, which the domain has had since the ownership phase and no UI
+   * called. It takes the row's live subtasks with it, and the Archived region is the undo.
+   *
+   * Not optimistic, unlike `complete`: `TaskGateway.archive` answers `Promise<void>` (§9),
+   * so there is no updated row to paint. The list re-reads instead, and a failure leaves the
+   * row exactly where it was with the reason on `error`.
+   */
+  archive(id: TaskId): Promise<boolean> {
+    return this.track(() => this.mutating(async () => {
+      if (!this.tasksState().some((task) => task.id === id)) return false;
+
+      this.errorState.set(null);
+      this.archivingIdsState.update((ids) => new Set([...ids, id]));
+      try {
+        await this.gateway.tasks.archive(id);
+        return true;
+      } catch (error) {
+        this.errorState.set(messageOf(error));
+        return false;
+      } finally {
+        this.archivingIdsState.update((ids) => {
+          const next = new Set(ids);
+          next.delete(id);
+          return next;
+        });
+      }
+    })).then(async (archived) => {
+      // Outside `mutating`, or the re-read would queue behind the write that just finished
+      // and never run.
+      if (archived) await this.refresh();
+      return archived;
+    });
   }
 
   private updateFields(

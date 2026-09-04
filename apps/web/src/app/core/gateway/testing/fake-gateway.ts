@@ -55,7 +55,11 @@ export interface FakeGatewayOptions {
 const COMPLETED_AT = '2026-08-27T16:00:00.000Z';
 
 export class FakeWorkManagerGateway implements WorkManagerGateway {
-  constructor(private readonly options: FakeGatewayOptions = {}) {}
+  /**
+   * Public so a spec can move the world underneath a component — the region re-reads on the
+   * page's data revision, and a test of that has to change what the next read answers.
+   */
+  constructor(readonly options: FakeGatewayOptions = {}) {}
 
   /** Every call the spec made, in order, so a test can assert the query that was sent. */
   readonly calls: Array<{ method: string; argument: unknown }> = [];
@@ -135,12 +139,17 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
   };
 
   readonly reflections = {
-    list: (projectId: ProjectId, sectionId?: SectionId) =>
+    // Archive filtering is faithful, not ignored: a store that forgot `includeArchived`
+    // would otherwise pass here and show archived rows in a live section.
+    list: (projectId: ProjectId, query: { sectionId?: SectionId; includeArchived?: boolean } = {}) =>
       this.answer(
         'reflections.list',
-        sectionId === undefined ? projectId : { projectId, sectionId },
+        Object.keys(query).length === 0 ? projectId : { projectId, ...query },
         (this.options.reflections ?? []).filter(
-          (item) => item.projectId === projectId && (sectionId === undefined || item.sectionId === sectionId),
+          (item) =>
+            item.projectId === projectId &&
+            (query.sectionId === undefined || item.sectionId === query.sectionId) &&
+            (query.includeArchived === true || item.archivedAt === undefined),
         ),
       ),
     create: (input: Parameters<WorkManagerGateway['reflections']['create']>[0]) => this.answer('reflections.create', input, {
@@ -149,14 +158,26 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       id: 'reflection-created' as ReflectionId, sectionId: 'section-resolved' as SectionId, ...input, createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT,
     }),
     update: (id: ReflectionId, input: Parameters<WorkManagerGateway['reflections']['update']>[1]) => this.answer('reflections.update', { id, input }, { ...this.find(this.options.reflections, id, 'reflection'), ...input, title: input.title === null ? undefined : input.title ?? this.find(this.options.reflections, id, 'reflection').title }),
+    archive: (id: ReflectionId) =>
+      this.answer('reflections.archive', id, {
+        ...this.find(this.options.reflections, id, 'reflection'),
+        archivedAt: COMPLETED_AT,
+      }),
+    restore: (id: ReflectionId) => this.answer('reflections.restore', id, restored(this.find(this.options.reflections, id, 'reflection'))),
   };
 
   readonly sections: SectionGateway = {
-    list: (projectId: ProjectId) =>
+    // Live-only unless asked, like the repository: a canvas store that forgot the default
+    // would otherwise paint archived sections and pass its spec.
+    list: (projectId: ProjectId, query: { includeArchived?: boolean } = {}) =>
       this.answer(
         'sections.list',
-        projectId,
-        (this.options.sections ?? []).filter((section) => section.projectId === projectId),
+        query.includeArchived === undefined ? projectId : { projectId, ...query },
+        (this.options.sections ?? []).filter(
+          (section) =>
+            section.projectId === projectId &&
+            (query.includeArchived === true || section.archivedAt === undefined),
+        ),
       ),
     // The write answers echo the request over the first seeded section, which is enough for
     // a store spec: what matters is the argument that reached the boundary, not the body.
@@ -181,17 +202,24 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       }),
     // The policy is recorded too: a removal that swallowed it would look identical here.
     remove: (id, input) => this.answer('sections.remove', { id, input: input ?? {} }, undefined),
+    restore: (id) => this.answer('sections.restore', id, restored(this.sectionFor(id))),
   };
 
   readonly tasks: TaskGateway = {
     // Honours `sectionId`, because a Task List section now renders only what its own
-    // container owns — a fake that ignored it would let a broken scope pass.
+    // container owns — a fake that ignored it would let a broken scope pass. It honours
+    // `projectId` and `includeArchived` for the same reason: the Archived region reads by
+    // project and asks for archived rows, and a fake that answered everything regardless
+    // would let a store that forgot either one look correct.
     list: (query) =>
       this.answer(
         'tasks.list',
         query,
         (this.options.tasks ?? []).filter(
-          (task) => query.sectionId === undefined || task.sectionId === query.sectionId,
+          (task) =>
+            (query.sectionId === undefined || task.sectionId === query.sectionId) &&
+            (query.projectId === undefined || task.projectId === query.projectId) &&
+            (query.includeArchived === true || task.archivedAt === undefined),
         ),
       ),
     get: (id: TaskId) => this.answer('tasks.get', id, this.find(this.options.tasks, id, 'task')),
@@ -212,6 +240,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       });
     },
     archive: (id) => this.answer('tasks.archive', id, undefined),
+    restore: (id) => this.answer('tasks.restore', id, restored(this.find(this.options.tasks, id, 'task'))),
   };
 
   private answer<T>(method: string, argument: unknown, value: T): Promise<T> {
@@ -253,6 +282,21 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
  * title override sees what the real adapter would answer rather than a `null` the contract
  * forbids.
  */
+/**
+ * What the host answers a restore with: both archive fields gone. Written here rather than
+ * spread inline, because a fake that cleared only `archivedAt` would let a store that never
+ * re-read the row look correct.
+ */
+const restored = <T extends { archivedAt?: string; archivedWithSectionId?: string; archivedWithTaskId?: string }>(
+  row: T,
+): T => {
+  const next = { ...row };
+  delete next.archivedAt;
+  delete next.archivedWithSectionId;
+  delete next.archivedWithTaskId;
+  return next;
+};
+
 const applyUpdate = (section: ProjectSection, input: UpdateSectionInput): ProjectSection => {
   const next = { ...section };
   for (const [key, value] of Object.entries(input)) {

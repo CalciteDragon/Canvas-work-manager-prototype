@@ -15,9 +15,9 @@ const ROW_NOUN: Record<OwnedDataKind, { one: string; many: string }> = {
 
 /**
  * §31's remove, once ownership has made it a question rather than a confirmation. A view
- * and an empty container never reach this — they are already gone; a container still
- * holding rows has to say what becomes of them
- * (docs/decisions/2026-09-sections-own-their-data.md).
+ * and an empty container never reach this — they archive silently, and the Archived region
+ * is their undo; a container still holding **live** rows has to say what becomes of them
+ * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
  *
  * **The prose is the UI's, not the domain's.** The domain's sentence answers an agent: it
  * names an id, says "1 tasks", and explains the policy vocabulary rather than the choice.

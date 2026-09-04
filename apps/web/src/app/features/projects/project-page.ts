@@ -17,6 +17,7 @@ import type {
   SectionId,
 } from '@cwm/contracts';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
+import { ArchivedRegion } from './archived-region/archived-region';
 import { ProjectMoreMenu, type SettableProjectStatus } from './project-more-menu';
 import { ProjectPageStore } from './project-page-store';
 import { SectionRemovalDialog } from './section-removal-dialog';
@@ -39,7 +40,7 @@ import { SECTION_REGISTRY, definitionFor } from './sections/registry';
 @Component({
   selector: 'app-project-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDrag, CdkDragHandle, CdkDropList, ProjectMoreMenu, ProjectSectionFrame, SectionRemovalDialog],
+  imports: [ArchivedRegion, CdkDrag, CdkDragHandle, CdkDropList, ProjectMoreMenu, ProjectSectionFrame, SectionRemovalDialog],
   providers: [ProgressStore, ProjectPageStore],
   templateUrl: './project-page.html',
   styleUrl: './project-page.scss',
@@ -164,9 +165,21 @@ export class ProjectPage {
   }
 
   /**
+   * Whether the Archived region may offer a Restore at all. Restoring into an archived
+   * project is a domain refusal, and this page stays reachable by direct URL for one — so
+   * the control is disabled with guidance rather than offered and guaranteed to fail.
+   *
+   * The pending half matters as much as the status: `setStatus` paints optimistically, so
+   * the loaded status alone would enable Restore during a reactivation that has not landed,
+   * and would keep it enabled for a frame after one that failed and rolled back.
+   */
+  restoreBlocked = () => this.store.project()?.status === 'archived' || this.store.projectWritePending();
+
+  /**
    * Both halves of §31's remove, once the dialog has asked which one the user meant.
-   * `cascade` archives the rows — undoable — and `reassign` hands them to another container
-   * of the same type.
+   * `cascade` archives the section **and** its rows — undoable from Archived, in one click —
+   * and `reassign` hands the rows to another container of the same type, then archives the
+   * emptied section.
    */
   cascadeAndRemove(id: SectionId): void {
     void this.store.removeSection(id, { policy: 'cascade' });

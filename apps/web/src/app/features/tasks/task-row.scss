@@ -112,3 +112,22 @@
   color: var(--color-accent);
   font-size: var(--font-size-sm);
 }
+
+.task-row__archive {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.task-row__archive:disabled {
+  cursor: progress;
+  opacity: 0.5;
+}
+
+/* The row stays legible while the write is in flight — it has not gone anywhere yet. */
+.task-row--archiving {
+  opacity: 0.5;
+}

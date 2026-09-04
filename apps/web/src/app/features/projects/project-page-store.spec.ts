@@ -160,6 +160,7 @@ const setup = (
           .filter((item) => item.id !== id)
           .map((item, position) => ({ ...item, position }));
       }),
+      restore: vi.fn(async (id) => sections.find((item) => item.id === id)!),
       ...options.sectionOverrides,
     },
     tasks: {
@@ -171,10 +172,11 @@ const setup = (
       update: vi.fn(),
       complete: vi.fn(async (id: string) => task(id, 'done')),
       archive: vi.fn(),
+      restore: vi.fn(),
     } as unknown as WorkManagerGateway['tasks'],
     progress: { get: vi.fn(async () => { const items = options.tasks ?? [task('task-1'), task('task-2', 'done')]; const done = items.filter(({status}) => status === 'done').length; return { projectId: PROJECT, formula: 'count' as const, percentage: items.length === 0 ? null : Math.round(done / items.length * 100), completed: done, total: items.length, explanation: items.length === 0 ? 'No tasks to measure' : 'Count based' }; }) },
     timeline: { get: vi.fn(async () => ({ projectId: PROJECT, items: [] })) },
-    reflections: { list: vi.fn(async () => []), create: vi.fn(), update: vi.fn() },
+    reflections: { list: vi.fn(async () => []), create: vi.fn(), update: vi.fn(), archive: vi.fn(), restore: vi.fn() },
   };
 
   const live = new FakeLiveUpdates();
@@ -1064,5 +1066,85 @@ describe('ProjectPageStore project writes (§26, §63, §81)', () => {
     await renaming;
 
     expect(store.project()?.name).toBe('Website launch');
+  });
+});
+
+describe('ProjectPageStore restore invalidation and the project-write guard', () => {
+  it('repaints the canvas after a section restore, not just the data revision', async () => {
+    // A restored section is a *new* frame. The revision only makes existing containers
+    // re-read, so without the reconcile the section comes back invisible until a reload.
+    const { store, gateway } = setup({ sections: [section('section-text', 'rich-text', 0)] });
+    await store.load(PROJECT);
+    const listsBefore = (gateway.sections.list as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+    const revisionBefore = store.projectDataRevision();
+
+    await store.sectionRestored();
+
+    expect((gateway.sections.list as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(
+      listsBefore + 1,
+    );
+    // Both, not either: the restored section's own container has rows to fetch too.
+    expect(store.projectDataRevision()).toBe(revisionBefore + 1);
+  });
+
+  it('invalidates the containers after a row restore', async () => {
+    // A restored row becomes live inside a container already on the canvas, and that
+    // container re-reads only when the revision moves. Without this, "with no reload" holds
+    // for sections and quietly fails for rows.
+    const { store } = setup();
+    await store.load(PROJECT);
+    const before = store.projectDataRevision();
+
+    store.rowRestored();
+
+    expect(store.projectDataRevision()).toBe(before + 1);
+  });
+
+  it('raises projectWritePending before the optimistic paint and clears it after success', async () => {
+    // `setStatus` paints optimistically, so a consumer reading the project's status alone
+    // would see `active` — and enable a restore the domain would still refuse — before the
+    // reactivation had actually landed.
+    const gate = deferred<Project>();
+    const { store } = setup({
+      projectUpdate: vi.fn(async () => gate.promise),
+      projectGet: vi.fn(async () => project({ status: 'archived' })),
+    });
+    await store.load(PROJECT);
+    expect(store.projectWritePending()).toBe(false);
+
+    const write = store.setStatus('active');
+    expect(store.project()?.status).toBe('active');
+    expect(store.projectWritePending()).toBe(true);
+
+    gate.resolve(project({ status: 'active' }));
+    expect(await write).toBe(true);
+    expect(store.projectWritePending()).toBe(false);
+  });
+
+  it('keeps the guard up through a rollback, and until the last of two writes settles', async () => {
+    const first = deferred<Project>();
+    const second = deferred<Project>();
+    const updates = [first, second];
+    const { store } = setup({
+      projectUpdate: vi.fn(async () => updates.shift()!.promise),
+      projectGet: vi.fn(async () => project({ status: 'archived' })),
+    });
+    await store.load(PROJECT);
+
+    const a = store.setStatus('active');
+    const b = store.rename('Renamed');
+    expect(store.projectWritePending()).toBe(true);
+
+    first.reject(new Error('nope'));
+    expect(await a).toBe(false);
+    // A counter rather than a boolean: the first response must not release the second
+    // request's guard.
+    expect(store.projectWritePending()).toBe(true);
+    // The failed status write rolled back, so the project is archived again.
+    expect(store.project()?.status).toBe('archived');
+
+    second.resolve(project({ status: 'archived', name: 'Renamed' }));
+    await b;
+    expect(store.projectWritePending()).toBe(false);
   });
 });

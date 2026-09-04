@@ -7,7 +7,8 @@
   [class.task-row--high-priority]="task().priority === 'high'"
   [class.task-row--selected]="selected()"
   [class.task-row--compact]="compact()"
-  [attr.aria-busy]="pending()"
+  [class.task-row--archiving]="archiving()"
+  [attr.aria-busy]="pending() || archiving()"
 >
   <input
     data-task-complete
@@ -62,5 +63,16 @@
     (click)="selectedRequested.emit(task().id)"
   >
     Details
+  </button>
+
+  <button
+    data-task-archive
+    class="task-row__archive"
+    type="button"
+    [disabled]="archiving()"
+    [attr.aria-label]="'Archive ' + task().title"
+    (click)="requestArchive()"
+  >
+    {{ archiving() ? 'Archiving…' : 'Archive' }}
   </button>
 </article>

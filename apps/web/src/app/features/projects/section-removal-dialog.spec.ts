@@ -66,7 +66,19 @@ describe('SectionRemovalDialog (§31)', () => {
     expect(render({ ownedKind: 'reflections', rowCount: 1 }).text).toContain('1 reflection.');
     expect(render({ ownedKind: 'reflections', rowCount: 2 }).text).toContain('2 reflections.');
     expect(render({ ownedKind: 'reflections', rowCount: 2, targets: [section('section-b', 1)] }).text)
-      .toContain('Archive the reflections and remove');
+      .toContain('Archive the section and its reflections');
+  });
+
+  it('says what removal now does, for both owned kinds and both policies', () => {
+    // Removal archives the section as well as settling its rows, so both labels have to say
+    // so — and both stay derived from `ownedKind` rather than hard-coded to tasks.
+    const tasks = render({ targets: [section('section-b', 1)] }).text;
+    expect(tasks).toContain('Move the tasks out, then archive');
+    expect(tasks).toContain('Archive the section and its tasks');
+
+    const reflections = render({ ownedKind: 'reflections', targets: [section('section-b', 1)] }).text;
+    expect(reflections).toContain('Move the reflections out, then archive');
+    expect(reflections).toContain('Archive the section and its reflections');
   });
 
   it('names every offered target and leaks no section id', () => {

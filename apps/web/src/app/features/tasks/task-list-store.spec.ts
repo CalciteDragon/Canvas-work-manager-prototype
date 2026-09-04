@@ -72,6 +72,7 @@ const setup = (options: {
   create?: WorkManagerGateway['tasks']['create'];
   update?: WorkManagerGateway['tasks']['update'];
   complete?: WorkManagerGateway['tasks']['complete'];
+  archive?: WorkManagerGateway['tasks']['archive'];
 } = {}) => {
   const projects = options.projects ?? [project(), project('project-b', 'Project B')];
   const tasks = options.tasks ?? [task()];
@@ -94,6 +95,7 @@ const setup = (options: {
       move: vi.fn(),
       duplicate: vi.fn(),
       remove: vi.fn(async () => undefined),
+      restore: vi.fn(),
     } as unknown as WorkManagerGateway['sections'],
     tasks: {
       list: vi.fn(async () => tasks),
@@ -103,11 +105,12 @@ const setup = (options: {
         options.update ??
         vi.fn(async (id: TaskId, input: UpdateTaskInput) => ({ ...tasks[0]!, id, ...input, updatedAt: AT } as Task)),
       complete: options.complete ?? vi.fn(async (id) => task({ id, status: 'done', completedAt: AT })),
-      archive: vi.fn(async () => undefined),
+      archive: options.archive ?? vi.fn(async () => undefined),
+      restore: vi.fn(),
     },
     progress: { get: vi.fn() },
     timeline: { get: vi.fn() },
-    reflections: { list: vi.fn(), create: vi.fn(), update: vi.fn() },
+    reflections: { list: vi.fn(), create: vi.fn(), update: vi.fn(), archive: vi.fn(), restore: vi.fn() },
   };
 
   TestBed.configureTestingModule({
@@ -394,5 +397,115 @@ describe('TaskListStore.refresh (§62)', () => {
     await store.refresh();
 
     expect(gateway.tasks.list).not.toHaveBeenCalled();
+  });
+});
+
+describe('TaskListStore.archive (§34)', () => {
+  it('re-reads the list, because the void response carries no row to paint', async () => {
+    const { store, gateway } = setup({ tasks: [task(), task({ id: 'task-b', title: 'Stays behind' })] });
+    await store.load(section());
+    (gateway.tasks.list as ReturnType<typeof vi.fn>).mockResolvedValue([task({ id: 'task-b', title: 'Stays behind' })]);
+
+    expect(await store.archive(task().id)).toBe(true);
+
+    expect(gateway.tasks.archive).toHaveBeenCalledWith(task().id);
+    // Nothing here removed the row; it is gone because the store went back and asked.
+    expect(store.tasks().map(({ title }) => title)).toEqual(['Stays behind']);
+  });
+
+  it('marks the row as archiving until the write settles', async () => {
+    const result = deferred<void>();
+    const { store } = setup({ archive: vi.fn(() => result.promise) });
+    await store.load(section());
+
+    const archiving = store.archive(task().id);
+
+    expect(store.archivingIds().has(task().id)).toBe(true);
+
+    result.resolve(undefined);
+    await archiving;
+
+    expect(store.archivingIds().has(task().id)).toBe(false);
+  });
+
+  it('stops marking the row as archiving when the write fails', async () => {
+    const result = deferred<void>();
+    const { store } = setup({ archive: vi.fn(() => result.promise) });
+    await store.load(section());
+
+    const archiving = store.archive(task().id);
+    result.reject(new GatewayError('unreachable', 0, 'offline'));
+    await archiving;
+
+    // A row that stayed marked would be left disabled with no way back for the user.
+    expect(store.archivingIds().has(task().id)).toBe(false);
+  });
+
+  it('keeps the row and reports the reason when the archive fails', async () => {
+    const before = task({ title: 'Keep every field', priority: 'high' });
+    const { store } = setup({
+      tasks: [before],
+      archive: vi.fn(async () => {
+        throw new GatewayError('unreachable', 0, 'could not reach the prototype host');
+      }),
+    });
+    await store.load(section());
+
+    expect(await store.archive(before.id)).toBe(false);
+
+    // The write was never optimistic, so there is nothing to revert — the row simply stayed.
+    expect(store.tasks()).toEqual([before]);
+    expect(store.error()).toContain('could not reach the prototype host');
+  });
+});
+
+describe('TaskListStore.archive', () => {
+  it('re-reads the list, because the void response carries nothing to paint', async () => {
+    // §9 pins `TaskGateway.archive` to `Promise<void>`, so unlike `complete` there is no
+    // updated row to patch in — the row leaves this list only because the re-read says so.
+    const remaining = [task({ id: 'task-kept', title: 'Still here' })];
+    const list = vi
+      .fn<() => Promise<Task[]>>()
+      .mockResolvedValueOnce([task(), ...remaining])
+      .mockResolvedValue(remaining);
+    const { store, gateway } = setup();
+    (gateway.tasks as { list: unknown }).list = list;
+    await store.load(section());
+    expect(store.tasks()).toHaveLength(2);
+
+    expect(await store.archive(task().id)).toBe(true);
+
+    expect(gateway.tasks.archive).toHaveBeenCalledWith(task().id);
+    expect(store.tasks().map(({ id }) => id)).toEqual(['task-kept']);
+  });
+
+  it('marks the row as archiving while the write is out, and clears it either way', async () => {
+    const gate = deferred<void>();
+    const { store } = setup({ archive: vi.fn(async () => gate.promise) });
+    await store.load(section());
+
+    const write = store.archive(task().id);
+    expect(store.archivingIds().has(task().id)).toBe(true);
+
+    gate.resolve();
+    await write;
+    expect(store.archivingIds().has(task().id)).toBe(false);
+  });
+
+  it('leaves the row where it was and names the reason when the archive fails', async () => {
+    // Not optimistic, so there is nothing to roll back — but the row must not vanish on a
+    // failure either, and the person needs to know why nothing happened.
+    const { store } = setup({
+      archive: vi.fn(async () => {
+        throw new GatewayError('rule_violation', 409, 'an archived task cannot be archived');
+      }),
+    });
+    await store.load(section());
+
+    expect(await store.archive(task().id)).toBe(false);
+
+    expect(store.tasks().map(({ id }) => id)).toEqual([task().id]);
+    expect(store.error()).toContain('cannot be archived');
+    expect(store.archivingIds().has(task().id)).toBe(false);
   });
 });

@@ -37,6 +37,7 @@ const meta: Meta<TaskRow> = {
     selected: false,
     compact: false,
     pending: false,
+    archiving: false,
     now: NOW,
   },
 };
@@ -59,6 +60,14 @@ export const HighPriority: Story = {
 };
 
 export const Selected: Story = { args: { selected: true } };
+
+/** §34's per-row archive, in the state a live row shows it: available, not in flight. */
+export const Archivable: Story = { args: { task: task({ title: 'Retire the old checklist' }) } };
+
+/** The same control while the request is out — the row it belongs to has not gone yet. */
+export const Archiving: Story = {
+  args: { task: task({ title: 'Retire the old checklist' }), archiving: true },
+};
 
 export const Compact: Story = { args: { compact: true } };
 

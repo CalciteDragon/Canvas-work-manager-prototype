@@ -23,11 +23,22 @@ export class TaskRow {
   readonly selected = input(false);
   readonly compact = input(false);
   readonly pending = input(false);
+  /**
+   * Separate from `pending`, which means "a completion is in flight". A row can be waiting
+   * on an archive while nothing about its completion is happening, and the two disable
+   * different controls.
+   */
+  readonly archiving = input(false);
   readonly now = input(Date.now());
 
   readonly completionRequested = output<TaskId>();
   readonly titleEdited = output<{ id: TaskId; title: string }>();
   readonly selectedRequested = output<TaskId>();
+  /**
+   * §34's per-row archive. A row affordance like complete, not layout chrome — so unlike
+   * §31's remove control it is **not** behind Edit Layout Mode (§32).
+   */
+  readonly archiveRequested = output<TaskId>();
 
   readonly editing = signal(false);
   readonly draftTitle = signal('');
@@ -63,6 +74,10 @@ export class TaskRow {
 
   requestCompletion(): void {
     if (!this.completed() && !this.pending()) this.completionRequested.emit(this.task().id);
+  }
+
+  requestArchive(): void {
+    if (!this.archiving()) this.archiveRequested.emit(this.task().id);
   }
 
   beginEditing(): void {
