@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test';
 import { seed, setClock } from './seed';
 
 /**
- * §69's web path: load a seed, create a project, create a task, see it on the dashboard.
+ * §69's web path: load a seed, create a project, create a task, see it on the dashboard —
+ * then remove the list that holds it and put both back from Archived.
  *
  * The clock is pinned to **mid-day UTC** and the due date is a **hard-coded** `YYYY-MM-DD`
  * matching it. The drawer writes `${date}T23:59:59.999Z` and `DashboardService` compares
@@ -61,4 +62,28 @@ test('create a project, add a task list, add a task, and see it on Today', async
     has: page.locator('[data-widget-title]:text-is("Today")'),
   });
   await expect(today.locator('[data-widget-task]')).toContainText('Write the walkthrough');
+
+  // Removing the project's **only** container and restoring it is the case that decided
+  // this design: under the rejected alternative, restoring a row had to invent somewhere to
+  // put it. Here the section comes back and the row comes back with it.
+  await page.locator('[data-project]').click();
+  await expect(page.locator('[data-task-row]')).toHaveCount(1);
+
+  await page.locator('[data-layout-edit-toggle]').click();
+  await page.locator('[data-section-remove]').click();
+  // A container still holding live rows asks what should happen to them.
+  await page.locator('[data-section-removal-cascade]').click();
+  await expect(page.locator('[data-section-frame][data-section-type="task-list"]')).toHaveCount(0);
+
+  // Archived is content rather than layout chrome, so it is here in View Mode too.
+  await page.locator('[data-layout-edit-toggle]').click();
+  await expect(page.locator('[data-archived-section]')).toContainText('Task List');
+  await expect(page.locator('[data-archived-section-count]')).toHaveText('1 task');
+
+  await page.locator('[data-archived-section-restore]').click();
+
+  // No reload: the canvas repaints the section, and the section's own store reads its row.
+  await expect(page.locator('[data-section-frame][data-section-type="task-list"]')).toBeVisible();
+  await expect(page.locator('[data-task-row]')).toContainText('Write the walkthrough');
+  await expect(page.locator('[data-archived-region]')).toHaveCount(0);
 });
