@@ -1,4 +1,5 @@
 import { SEED_NOW } from '@cwm/prototype-data';
+import { InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError } from './errors';
@@ -203,13 +204,16 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     expect((await harness.taskService.get(harness.actor, task.id)).sectionId).toBe(list.id);
   });
 
-  it('removes an empty container without ceremony', async () => {
+  it('archives an empty container without ceremony, rather than deleting it', async () => {
     const harness = buildHarness();
     const list = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
 
     await harness.sectionService.remove(harness.actor, list.id);
 
+    // Off the canvas, still on the record: no policy is needed because there are no rows to
+    // settle, and the Archived region is what makes the silent removal safe.
     expect(await harness.sectionService.list(harness.actor, MINE)).toEqual([]);
+    expect((await harness.sections.find(list.id))?.archivedAt).toBe(SEED_NOW);
   });
 
   it('refuses a container that still holds rows, naming the count', async () => {
@@ -221,7 +225,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     expect(await harness.sectionService.list(harness.actor, MINE)).toHaveLength(1);
   });
 
-  it('cascades by archiving rather than deleting, so the removal is undoable', async () => {
+  it('cascades by archiving the section and its rows, so the removal is undoable', async () => {
     const harness = buildHarness();
     const { task, list } = await projectWithWork(harness);
 
@@ -230,14 +234,47 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     const archived = await harness.tasks.find(task.id);
     expect(archived).not.toBeNull();
     expect(archived?.archivedAt).toBe(SEED_NOW);
+    // The row names what it came down with, which is what restore pairs on.
+    expect(archived?.archivedWithSectionId).toBe(list.id);
+    // The container comes down too — the row's section still exists, so nothing dangles.
+    expect((await harness.sections.find(list.id))?.archivedAt).toBe(SEED_NOW);
+    expect(await harness.sectionService.list(harness.actor, MINE)).toEqual([]);
+    expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
   });
 
-  it('ignores rows that are already archived, so an emptied list goes quietly', async () => {
+  it('stamps the marker on live rows only, and restores exactly those', async () => {
+    const harness = buildHarness();
+    const { task, list } = await projectWithWork(harness);
+    const beforehand = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Filed away' });
+    await harness.taskService.archive(harness.actor, beforehand.id);
+
+    await harness.sectionService.remove(harness.actor, list.id, { policy: 'cascade' });
+    expect((await harness.tasks.find(beforehand.id))?.archivedWithSectionId).toBeUndefined();
+
+    await harness.sectionService.restoreSection(harness.actor, list.id);
+
+    // Archiving something and restoring it changes no other state: the row filed away
+    // beforehand stays filed away.
+    const restored = await harness.tasks.find(task.id);
+    expect(restored?.archivedAt).toBeUndefined();
+    expect(restored?.archivedWithSectionId).toBeUndefined();
+    expect((await harness.tasks.find(beforehand.id))?.archivedAt).toBe(SEED_NOW);
+    // The section comes back at the end of the canvas, where a new one would go.
+    expect((await harness.sectionService.list(harness.actor, MINE)).map((section) => section.id)).toEqual([list.id]);
+  });
+
+  it('archives a container holding only archived rows, with no policy and no dangle', async () => {
+    // The second dangle, which no policy ever reached: `settleRows` returns early when
+    // nothing is live, so the old hard delete removed the section out from under them.
     const harness = buildHarness();
     const { task, list } = await projectWithWork(harness);
     await harness.taskService.archive(harness.actor, task.id);
 
-    await expect(harness.sectionService.remove(harness.actor, list.id)).resolves.toBeUndefined();
+    const archived = await harness.sectionService.remove(harness.actor, list.id);
+
+    expect(archived.archivedAt).toBe(SEED_NOW);
+    expect((await harness.tasks.find(task.id))?.sectionId).toBe(list.id);
+    expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
   });
 
   it('reassigns rows to another container of the same type, archived ones included', async () => {
@@ -254,6 +291,32 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
 
     expect((await harness.taskService.get(harness.actor, task.id)).sectionId).toBe(target.id);
     expect((await harness.tasks.find(archived.id))?.sectionId).toBe(target.id);
+    // The emptied section archives too, and writes no marker: the rows left under their own
+    // policy, so restoring it brings back an empty section — what the person removed.
+    const emptied = await harness.sections.find(list.id);
+    expect(emptied?.archivedAt).toBe(SEED_NOW);
+    expect((await harness.tasks.find(task.id))?.archivedWithSectionId).toBeUndefined();
+    expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
+
+    await harness.sectionService.restoreSection(harness.actor, list.id);
+    expect((await harness.taskService.get(harness.actor, task.id)).sectionId).toBe(target.id);
+  });
+
+  it('refuses a reassign target that is archived, naming it', async () => {
+    // `require` finds archived sections deliberately, and the checks after it were project
+    // and type only — so this moved live rows into a container off the canvas.
+    const harness = buildHarness();
+    const { list } = await projectWithWork(harness);
+    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
+    await harness.sectionService.remove(harness.actor, target.id);
+
+    const refusal = await harness.sectionService
+      .remove(harness.actor, list.id, { policy: 'reassign', reassignToSectionId: target.id })
+      .then(() => null, (error: unknown) => error);
+
+    // A rule error, not a commit-time integrity failure and rollback.
+    expect(refusal).toBeInstanceOf(DomainRuleError);
+    expect((refusal as DomainRuleError).message).toContain(target.id);
   });
 
   it('refuses a reassign target that is missing, itself, or the wrong type', async () => {
@@ -292,6 +355,11 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     await harness.sectionService.remove(harness.actor, reflection.sectionId, { policy: 'cascade' });
 
     expect((await harness.reflections.find(reflection.id))?.archivedAt).toBe(SEED_NOW);
+    expect((await harness.reflections.find(reflection.id))?.archivedWithSectionId).toBe(reflection.sectionId);
     expect(await harness.reflectionService.list(harness.actor, MINE)).toEqual([]);
+    expect((await harness.sections.find(reflection.sectionId))?.archivedAt).toBe(SEED_NOW);
+
+    await harness.sectionService.restoreSection(harness.actor, reflection.sectionId);
+    expect(await harness.reflectionService.list(harness.actor, MINE)).toHaveLength(1);
   });
 });

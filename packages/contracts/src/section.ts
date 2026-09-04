@@ -22,8 +22,11 @@ export type SectionConfig = z.infer<typeof SectionConfigSchema>;
 /**
  * What a section *does* with data, not what it renders. See
  * docs/decisions/2026-09-sections-own-their-data.md: a container owns rows of one kind and
- * removing it takes them with it; a view renders data it does not own and removing it
- * touches nothing.
+ * removing it archives them with it; a view renders data it does not own, so removing it
+ * touches no rows.
+ *
+ * It says nothing about *surviving* removal: every section archives, container or view
+ * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
  */
 export const SectionKindSchema = z.enum(['container', 'view']);
 export type SectionKind = z.infer<typeof SectionKindSchema>;
@@ -41,8 +44,9 @@ export type OwnedDataKind = z.infer<typeof OwnedDataKindSchema>;
  * failure mode for a stale or hand-edited `type` stays non-destructive.
  *
  * `rich-text` is a container conceptually, but it owns its data through `config.text`
- * rather than through rows: it has nothing to cascade, and removing the section already
- * removes its text.
+ * rather than through rows: it has nothing to cascade, and archiving the section keeps its
+ * text — `config` rides along on the record, so restoring returns the prose intact. That
+ * survival is why removal archives *every* section rather than only containers.
  */
 export const SECTION_OWNERSHIP: Record<string, OwnedDataKind> = {
   'task-list': 'tasks',
@@ -140,6 +144,15 @@ export const ProjectSectionSchema = z.object({
   collapsed: z.boolean(),
   /** Keys belong to the section definition (§29's `createDefaultConfig`). */
   config: SectionConfigSchema,
+
+  /**
+   * Set when the section is removed from the canvas. Removing a section archives it rather
+   * than deleting it, so removal is undoable: `config` — a Notes section's prose, a
+   * Progress section's milestone selection — rides along on the record, and the rows a
+   * container took down name it through `archivedWithSectionId`. Optional, so a document
+   * written before this field parses unchanged.
+   */
+  archivedAt: IsoDateTimeSchema.optional(),
 
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,

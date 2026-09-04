@@ -147,3 +147,39 @@ describe('what a section is called', () => {
     expect(SectionRemovalRefusalDetailsSchema.safeParse(undefined).success).toBe(false);
   });
 });
+
+describe('ProjectSectionSchema archivedAt', () => {
+  const section = {
+    id: 'section-1',
+    projectId: 'project-1',
+    type: 'task-list',
+    position: 0,
+    columnSpan: 12,
+    collapsed: false,
+    config: {},
+    createdAt: '2026-08-26T10:00:00.000Z',
+    updatedAt: '2026-08-26T10:00:00.000Z',
+  };
+
+  it('accepts an archived section, keeping its config', () => {
+    const parsed = ProjectSectionSchema.parse({
+      ...section,
+      type: 'rich-text',
+      config: { text: 'Measure the hallway shelf' },
+      archivedAt: '2026-09-02T06:13:32.422Z',
+    });
+    expect(parsed.archivedAt).toBe('2026-09-02T06:13:32.422Z');
+    // The whole point of archiving a view rather than deleting it: the prose survives.
+    expect(parsed.config).toEqual({ text: 'Measure the hallway shelf' });
+  });
+
+  it('parses a section written before this field existed', () => {
+    // `archivedAt` is optional, so `SCHEMA_VERSION` does not move and no reseed is needed.
+    expect(ProjectSectionSchema.parse(section).archivedAt).toBeUndefined();
+  });
+
+  it('rejects a date-only archivedAt — it is an instant like the other timestamps', () => {
+    expect(ProjectSectionSchema.safeParse({ ...section, archivedAt: '2026-09-02' }).success).toBe(false);
+  });
+});
+

@@ -215,6 +215,11 @@ describe('the §31 section write inputs', () => {
   it('filters sections by project', () => {
     expect(SectionQuerySchema.parse({ projectId: 'project-a' }).projectId).toBe('project-a');
     expect(SectionQuerySchema.parse({})).toEqual({});
+    // The Archived region is the one caller that asks for them; every other read is
+    // live-only by default, which is what keeps an archived section off the canvas.
+    expect(SectionQuerySchema.parse({ includeArchived: true }).includeArchived).toBe(true);
+    expect(SectionQuerySchema.parse({}).includeArchived).toBeUndefined();
+    expect(SectionQuerySchema.safeParse({ includeArchived: 'true' }).success).toBe(false);
   });
 });
 

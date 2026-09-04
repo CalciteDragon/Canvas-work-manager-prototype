@@ -1,6 +1,6 @@
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { PrototypeDocumentSchema, type PrototypeDocument } from '@cwm/contracts';
+import { ownedKindOf, PrototypeDocumentSchema, type OwnedDataKind, type PrototypeDocument } from '@cwm/contracts';
 import { DocumentIntegrityError, UnitOfWorkInProgressError } from './errors';
 import type { UnitOfWork } from './interfaces';
 
@@ -128,13 +128,93 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
 
   for (const section of document.sections) projectFor('section', section.id, section.projectId);
   for (const milestone of document.milestones) projectFor('milestone', milestone.id, milestone.projectId);
-  for (const reflection of document.reflections) projectFor('reflection', reflection.id, reflection.projectId);
+
+  /**
+   * **The ownership invariant, made structural** (§30,
+   * docs/decisions/2026-09-sections-own-their-data.md): every row names a section that
+   * exists, belongs to the row's project, and holds rows of the row's kind. A foreign-key
+   * check alone would not be the invariant — a `progress` section renders nothing it owns,
+   * so a row held by one is a row nothing renders.
+   */
+  const containerFor = (
+    collection: string,
+    row: { id: string; projectId: string; sectionId: string; archivedAt?: string; archivedWithSectionId?: string },
+    expected: OwnedDataKind,
+  ) => {
+    const section = sections.get(row.sectionId) ??
+      fail(`${collection} "${row.id}" has missing section "${row.sectionId}"`);
+    if (section.projectId !== row.projectId) fail(`${collection} "${row.id}" has a section from another project`);
+    if (ownedKindOf(section.type) !== expected) {
+      fail(`${collection} "${row.id}" is held by a ${section.type} section`);
+    }
+    // A live row in an archived section is off the canvas with nothing saying so. Removing
+    // a section archives its live rows with it, so this state has no legitimate producer.
+    if (row.archivedAt === undefined && section.archivedAt !== undefined) {
+      fail(`${collection} "${row.id}" is live in an archived section`);
+    }
+    // The marker describes an archive that happened, so it cannot outlive one. Redundancy
+    // that can be *checked* is not duplication: because it always equals `sectionId`, a bug
+    // that sets one without the other — or leaves it behind on restore — fails at the next
+    // commit rather than surfacing weeks later as a section that restores the wrong rows.
+    if (row.archivedWithSectionId !== undefined) {
+      if (row.archivedAt === undefined) fail(`live ${collection} "${row.id}" is marked as archived with a section`);
+      if (row.archivedWithSectionId !== row.sectionId) {
+        fail(`${collection} "${row.id}" is marked as archived with another section`);
+      }
+      if (section.archivedAt === undefined) fail(`${collection} "${row.id}" is marked with a live section`);
+    }
+    return section;
+  };
+
+  for (const reflection of document.reflections) {
+    projectFor('reflection', reflection.id, reflection.projectId);
+    containerFor('reflection', reflection, 'reflections');
+  }
   for (const task of document.tasks) {
     projectFor('task', task.id, task.projectId);
+    containerFor('task', task, 'tasks');
     if (task.parentTaskId !== undefined) {
       const parent = tasks.get(task.parentTaskId) ??
         fail(`task "${task.id}" has missing parent "${task.parentTaskId}"`);
       if (parent.projectId !== task.projectId) fail(`task "${task.id}" has a parent from another project`);
+      // A subtask is rendered by whichever list holds its parent, so a parent in another
+      // section would render as two half-tasks. Every service write already maintains this;
+      // stating it here makes it hold for a hand-edited document too (§14), and it is what
+      // lets a section cascade treat its live rows as whole subtrees.
+      if (parent.sectionId !== task.sectionId) fail(`task "${task.id}" has a parent in another section`);
+      // **A live task's ancestors are live.** `archive` cascades to descendants, so a live
+      // row under an archived parent is a row nothing can reach — the same defect as a live
+      // row in an archived section, one level down.
+      if (task.archivedAt === undefined && parent.archivedAt !== undefined) {
+        fail(`task "${task.id}" is live under an archived parent`);
+      }
+    }
+    // Each marker means "came down with *that*", and the two describe different archives, so
+    // a row can only be in one group.
+    if (task.archivedWithSectionId !== undefined && task.archivedWithTaskId !== undefined) {
+      fail(`task "${task.id}" carries two archive markers`);
+    }
+    if (task.archivedWithTaskId !== undefined) {
+      if (task.archivedAt === undefined) fail(`live task "${task.id}" is marked as archived with a task`);
+      if (task.archivedWithTaskId === task.id) fail(`task "${task.id}" is marked with itself`);
+      const root = tasks.get(task.archivedWithTaskId) ??
+        fail(`task "${task.id}" has a missing archive root "${task.archivedWithTaskId}"`);
+      if (root.archivedAt === undefined) fail(`task "${task.id}" is marked with a live archive root`);
+      if (root.projectId !== task.projectId || root.sectionId !== task.sectionId) {
+        fail(`task "${task.id}" has an archive root outside its project section`);
+      }
+      // The root must be a strict *ancestor*, or restoring it would revive an unrelated row.
+      // The acyclic pass below makes this walk finite; the visited set makes it finite even
+      // on the document that pass is about to reject.
+      const seen = new Set<string>([task.id]);
+      let ancestorId = task.parentTaskId;
+      let found = false;
+      while (ancestorId !== undefined && !seen.has(ancestorId)) {
+        if (ancestorId === root.id) { found = true; break; }
+        seen.add(ancestorId);
+        ancestorId = tasks.get(ancestorId)?.parentTaskId;
+      }
+      if (!found) fail(`task "${task.id}" is marked with a non-ancestor`);
     }
   }
 

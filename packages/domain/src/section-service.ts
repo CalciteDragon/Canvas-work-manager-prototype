@@ -14,6 +14,7 @@ import {
   type Reflection,
   type RemoveSectionInput,
   type SectionId,
+  type SectionQuery,
   type SectionRemovalRefusalDetails,
   type Task,
   type UpdateSectionInput,
@@ -61,9 +62,24 @@ type SectionAction =
   | 'project.section_added'
   | 'project.section_updated'
   | 'project.section_moved'
-  | 'project.section_removed';
+  // Removal archives, so nothing produces this any more. It stays in the union for the
+  // events already written into `data.json` (§14) — history is not rewritten.
+  | 'project.section_removed'
+  | 'project.section_archived'
+  | 'project.section_restored';
 
 const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position - b.position;
+
+/**
+ * An archived section is off the canvas, and there is no edit to make on one that restoring
+ * first would not allow — including a `config` replacement, which would overwrite the very
+ * prose archiving a view exists to keep.
+ */
+const assertLive = (section: ProjectSection): void => {
+  if (section.archivedAt !== undefined) {
+    throw new DomainRuleError(`section "${section.id}" is archived; restore it before changing it`);
+  }
+};
 
 /**
  * §31's frame affordances, as domain operations: add, update (title/size/collapse/config),
@@ -78,6 +94,17 @@ export class SectionService {
     return this.require(actor, id);
   }
 
+  /**
+   * The unchecked lookup a *row* write needs on its own behalf, for the reason
+   * `resolveContainer` and `requireContainer` are unchecked: an agent granted `tasks.write`
+   * alone must be able to archive and restore a task, and `get` would demand `projects.read`
+   * from inside that write. It deliberately answers archived sections — a row restore has to
+   * be able to see that its container has left the canvas.
+   */
+  async requireWithin(actor: ActorContext, id: SectionId): Promise<ProjectSection> {
+    return this.require(actor, id);
+  }
+
   /** The unchecked lookup the write paths use — see `ProjectService.require`. */
   private async require(actor: ActorContext, id: SectionId): Promise<ProjectSection> {
     const section = await this.dependencies.sections.find(id);
@@ -87,10 +114,24 @@ export class SectionService {
     return section;
   }
 
-  async list(actor: ActorContext, projectId: ProjectId): Promise<ProjectSection[]> {
+  /**
+   * The canvas, live-only by default. `{ includeArchived: true }` is the one read that sees
+   * archived sections — the Archived region — and it returns both states ordered by position
+   * then id, deterministic for transport; an archived section keeps a stale position, so the
+   * region applies its own timestamp order after selecting. The mandatory project scope is
+   * written last so an untyped caller cannot broaden it.
+   */
+  async list(
+    actor: ActorContext,
+    projectId: ProjectId,
+    query: Omit<SectionQuery, 'projectId'> = {},
+  ): Promise<ProjectSection[]> {
     assertPermitted(actor, 'projects.read');
     await this.assertProjectVisible(actor, projectId);
-    return this.ordered(projectId);
+    if (query.includeArchived !== true) return this.ordered(projectId);
+    return (await this.dependencies.sections.list({ includeArchived: true, projectId })).sort(
+      (a, b) => (a.position === b.position ? a.id.localeCompare(b.id) : a.position - b.position),
+    );
   }
 
   async add(actor: ActorContext, projectId: ProjectId, input: CreateSectionInput): Promise<ProjectSection> {
@@ -114,6 +155,7 @@ export class SectionService {
     input: CreateSectionInput,
   ): Promise<ProjectSection> {
     await this.assertProjectVisible(actor, projectId);
+    await this.assertProjectActive(projectId);
     const siblings = await this.ordered(projectId);
 
     const now = this.dependencies.clock.now().toISOString();
@@ -156,6 +198,9 @@ export class SectionService {
    * renders is the defect this whole change exists to close.
    */
   async resolveContainer(actor: ActorContext, projectId: ProjectId, owned: OwnedDataKind): Promise<ProjectSection> {
+    // `ordered` is live-only, so an archived container is skipped and a new one is added
+    // rather than revived: a removed section comes back through restore, never through a
+    // row write that happened to need somewhere to go.
     const existing = (await this.ordered(projectId)).find((section) => ownedKindOf(section.type) === owned);
     return existing ?? this.addWithin(actor, projectId, { type: containerTypeFor(owned) });
   }
@@ -181,6 +226,9 @@ export class SectionService {
     if (ownedKindOf(section.type) !== owned) {
       throw new DomainRuleError(`section "${sectionId}" does not hold ${owned}`);
     }
+    // An archived container is off the canvas; a row created or moved into one would be
+    // live inside it, which document integrity rejects. Refuse here, as a rule error.
+    assertLive(section);
     return section;
   }
 
@@ -190,6 +238,8 @@ export class SectionService {
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
+      assertLive(current);
+      await this.assertProjectActive(current.projectId);
       const next = { ...current };
       // A blank name means the same thing `null` does — fall back to the derived default —
       // so the two do not have to be told apart by every caller upstream.
@@ -215,6 +265,8 @@ export class SectionService {
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
+      assertLive(current);
+      await this.assertProjectActive(current.projectId);
       const siblings = await this.ordered(current.projectId);
       const without = siblings.filter((section) => section.id !== id);
       // Clamped, not rejected: a caller that asks for "last" by overshooting means last.
@@ -236,6 +288,8 @@ export class SectionService {
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
+      assertLive(current);
+      await this.assertProjectActive(current.projectId);
       const siblings = await this.ordered(current.projectId);
 
       const now = this.dependencies.clock.now().toISOString();
@@ -265,40 +319,125 @@ export class SectionService {
   }
 
   /**
-   * A hard delete, and deliberately not idempotent — unlike `TaskService.archive`, there is
-   * no state left behind to be idempotent about. Removing an absent section is a caller
-   * mistake worth reporting.
+   * §31's remove: **it archives, on every branch, and nothing is deleted.** A view archives
+   * with its `config` — a Notes section's prose lives nowhere else — and so does an empty
+   * container, and so does one holding only already-archived rows, which is the case the
+   * old hard delete left dangling with no policy able to reach it.
    *
-   * Removal follows ownership, and only ownership. A **view** touches no data whatever the
-   * policy says. A **container** takes its rows with it: empty, it goes without ceremony;
-   * holding rows, it needs a policy, and without one this raises with the count so the
-   * caller can offer the choice rather than guess on the user's behalf.
+   * A container holding **live** rows still needs a policy, because the question is what
+   * should happen to the *rows*: `cascade` archives them with the section and stamps each
+   * with `archivedWithSectionId`; `reassign` moves them to another live container of the
+   * same type and archives the emptied section, marking nothing — the rows left under their
+   * own policy, so they are not "archived with" anything.
+   *
+   * Deliberately **not** idempotent: an already-archived section is refused rather than
+   * archived twice. Removing something already removed is not a second archive, and a silent
+   * success would write a second activity event. Permanent deletion is the operation that
+   * case really wants, and it is deferred
+   * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
+   *
+   * Allowed inside an archived project, unlike every other section write: the freeze stops
+   * work coming *back* into a project someone has put away, not someone tidying one.
    */
-  async remove(actor: ActorContext, id: SectionId, input: RemoveSectionInput = {}): Promise<void> {
+  async remove(actor: ActorContext, id: SectionId, input: RemoveSectionInput = {}): Promise<ProjectSection> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
-    await this.dependencies.unitOfWork.run(async () => {
+    return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
+      if (current.archivedAt !== undefined) {
+        throw new DomainRuleError(`section "${id}" is already archived`);
+      }
       const owned = ownedKindOf(current.type);
-      if (owned !== undefined) await this.settleRows(actor, current, owned, input);
-      await this.dependencies.sections.remove(id);
-      await this.renumber((await this.ordered(current.projectId)).filter((section) => section.id !== id));
-      await this.record(actor, current, 'project.section_removed', 'Removed');
+      const archivedAt = this.dependencies.clock.now().toISOString();
+      if (owned !== undefined) await this.settleRows(actor, current, owned, input, archivedAt);
+
+      const archived = ProjectSectionSchema.parse({
+        ...current,
+        archivedAt,
+        updatedAt: this.dependencies.clock.now().toISOString(),
+      });
+      await this.dependencies.sections.update(archived);
+      // Archived first, then renumber: `ordered` is live-only, so the surviving siblings
+      // close to the same dense sequence deleting produced. The archived section keeps its
+      // now-stale position — uniqueness is a property of the live canvas, and
+      // `restoreSection` overwrites the value when it appends.
+      await this.renumber(await this.ordered(current.projectId));
+      await this.record(actor, archived, 'project.section_archived', 'Archived');
+      return archived;
+    });
+  }
+
+  /**
+   * The undo for `remove`, and the **only** way an archived section — or a row that came
+   * down with one — comes back. Under `projects.write`, like every other section write.
+   *
+   * It restores exactly what the removal took: the section, and the rows whose
+   * `archivedWithSectionId` names it. A row archived on its own beforehand carries no marker
+   * and stays archived, which is what makes this a canonical undo rather than a bulk
+   * unarchive.
+   *
+   * The section returns at the **end** of the canvas, where `addWithin` puts a new one: its
+   * old index needs positions the canvas has since reused.
+   *
+   * Refused while the project is archived — the freeze the write policy states, protecting
+   * HTTP, MCP and stale clients. It is escapable rather than a trap: `ProjectService.update`
+   * still accepts a status change away from `archived`.
+   */
+  async restoreSection(actor: ActorContext, id: SectionId): Promise<ProjectSection> {
+    assertValidActor(actor);
+    assertPermitted(actor, 'projects.write');
+
+    return this.dependencies.unitOfWork.run(async () => {
+      const current = await this.require(actor, id);
+      // Idempotent, so the public restore route cannot turn a retry into a canvas move: no
+      // reposition, no timestamps, no row writes, no activity.
+      if (current.archivedAt === undefined) return current;
+      await this.assertProjectActive(current.projectId);
+
+      const live = await this.ordered(current.projectId);
+      const restored = ProjectSectionSchema.parse({
+        ...current,
+        archivedAt: undefined,
+        position: live.length,
+        updatedAt: this.dependencies.clock.now().toISOString(),
+      });
+      delete (restored as { archivedAt?: string }).archivedAt;
+      await this.dependencies.sections.update(restored);
+
+      const owned = ownedKindOf(current.type);
+      if (owned !== undefined) {
+        for (const row of await this.rowsOf(current.id, owned)) {
+          if (row.archivedWithSectionId !== current.id) continue;
+          const next = { ...row };
+          delete next.archivedAt;
+          delete next.archivedWithSectionId;
+          await this.writeRow(owned, next);
+        }
+      }
+
+      await this.record(actor, restored, 'project.section_restored', 'Restored');
+      return restored;
     });
   }
 
   /**
    * Cascade or reassign, decided against the rows that are still *live*: an archived row is
    * already unrendered, so it neither forces a policy nor needs archiving twice. Reassign
-   * still repoints the archived ones, because unarchiving a row into a section that no
-   * longer exists would be the worse outcome.
+   * still repoints the archived ones — they keep a live container to come back to, and
+   * their `archivedWithTaskId` groups move whole, because a subtask shares its parent's
+   * section.
+   *
+   * No live rows means no question to ask, so the section archives with no policy. That is
+   * the second dangle the hard delete produced and no policy ever reached: a container
+   * holding only archived rows was deleted out from under them.
    */
   private async settleRows(
     actor: ActorContext,
     section: ProjectSection,
     owned: OwnedDataKind,
     input: RemoveSectionInput,
+    archivedAt: string,
   ): Promise<void> {
     const rows = await this.rowsOf(section.id, owned);
     const live = rows.filter((row) => row.archivedAt === undefined);
@@ -314,8 +453,11 @@ export class SectionService {
     }
 
     if (input.policy === 'cascade') {
-      const archivedAt = this.dependencies.clock.now().toISOString();
-      for (const row of live) await this.writeRow(owned, { ...row, archivedAt });
+      // The marker is what makes the cascade reversible: `restoreSection` brings back
+      // exactly the rows naming this section, and nothing else it happened to hold.
+      for (const row of live) {
+        await this.writeRow(owned, { ...row, archivedAt, archivedWithSectionId: section.id });
+      }
       return;
     }
 
@@ -326,6 +468,9 @@ export class SectionService {
       throw new DomainRuleError('a section cannot take over its own rows');
     }
     const target = await this.require(actor, input.reassignToSectionId);
+    // `require` is the unchecked lookup, so it finds archived sections deliberately —
+    // without this, reassign would move live rows into a container that has left the canvas.
+    assertLive(target);
     if (target.projectId !== section.projectId) {
       throw new DomainRuleError('rows can only be reassigned within their own project');
     }
@@ -423,5 +568,20 @@ export class SectionService {
 
   private async assertProjectVisible(actor: ActorContext, projectId: ProjectId): Promise<void> {
     if (!(await this.isProjectVisible(actor, projectId))) throw new EntityNotFoundError('project', projectId);
+  }
+
+  /**
+   * A project archives by `status`, not by workspace, so `assertProjectVisible` cannot see
+   * it. Work does not come *back* into a project someone has put away: adding, editing,
+   * moving, duplicating and restoring are refused. Removing is not — see `remove`.
+   *
+   * A small service-local assertion rather than a new abstraction layer: the same shape
+   * `TaskService` and `ReflectionService` each carry.
+   */
+  private async assertProjectActive(projectId: ProjectId): Promise<void> {
+    const project = await this.dependencies.projects.find(projectId);
+    if (project?.status === 'archived') {
+      throw new DomainRuleError(`project "${projectId}" is archived; reactivate it first`);
+    }
   }
 }

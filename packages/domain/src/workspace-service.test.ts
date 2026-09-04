@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { PermissionDeniedError } from './errors';
 import { WorkspaceService } from './workspace-service';
 import { DAY_MS } from './calendar';
-import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import { agentActorFor, buildHarness, MINE, seedContainer, THEIRS } from '../test/test-support';
 
 const at = (offsetDays: number): string => new Date(Date.parse(SEED_NOW) + offsetDays * DAY_MS).toISOString();
 
@@ -12,7 +12,7 @@ const task = (id: string, projectId: string, title: string, extra: Partial<Task>
   PrototypeDocumentSchema.shape.tasks.element.parse({
     id,
     projectId,
-    sectionId: `section-${projectId}-tasks`,
+    sectionId: `section-${projectId}-task-list`,
     title,
     status: 'todo',
     priority: 'medium',
@@ -49,6 +49,12 @@ describe('WorkspaceService', () => {
 
     // Both workspaces get matching content, so every scoping assertion has a real foreign
     // row to fail against rather than an empty one.
+    // Every row names a container that exists, holds its kind and belongs to its project —
+    // `validateDocumentIntegrity` enforces all three at the close of any unit of work.
+    for (const projectId of [MINE, THEIRS]) {
+      await seedContainer(harness, projectId, 'task-list');
+      await seedContainer(harness, projectId, 'reflections');
+    }
     await harness.tasks.insert(task('task-retry-budget', MINE, 'Add retry budget to the sync job', { dueAt: at(1) }));
     await harness.tasks.insert(task('task-retry-docs', MINE, 'Write it up', { description: 'Covers the RETRY path', dueAt: at(3) }));
     await harness.tasks.insert(task('task-overdue', MINE, 'Triage the overnight errors', { dueAt: at(-2) }));

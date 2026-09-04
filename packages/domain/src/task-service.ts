@@ -39,7 +39,26 @@ const apply = <T extends object>(task: T, key: keyof T, value: unknown): void =>
   else task[key] = value as T[keyof T];
 };
 
-type TaskAction = 'task.updated' | 'task.completed' | 'task.archived';
+/**
+ * A restored row carries **neither** marker: the integrity pass rejects a live row holding
+ * either, and each marker means "came down with *that*", which stops being true the moment
+ * the row comes back.
+ */
+const cleared = (task: Task): Task => {
+  const next = { ...task };
+  delete next.archivedAt;
+  delete next.archivedWithSectionId;
+  delete next.archivedWithTaskId;
+  return next;
+};
+
+const assertParentLive = (parent: Task): void => {
+  if (parent.archivedAt !== undefined) {
+    throw new DomainRuleError(`task "${parent.id}" is archived; restore it before nesting work under it`);
+  }
+};
+
+type TaskAction = 'task.updated' | 'task.completed' | 'task.archived' | 'task.restored';
 
 export class TaskService {
   constructor(private readonly dependencies: TaskServiceDependencies) {}
@@ -87,6 +106,9 @@ export class TaskService {
 
     return this.dependencies.unitOfWork.run(async () => {
       await this.assertProjectVisible(actor, input.projectId);
+      await this.assertProjectActive(input.projectId);
+      // `resolveSection` refuses an archived container through `requireContainer`, and
+      // skips one through `resolveContainer`; the parent check below is the level down.
       const sectionId = await this.resolveSection(actor, input);
 
       const now = this.dependencies.clock.now().toISOString();
@@ -120,6 +142,7 @@ export class TaskService {
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
+      await this.assertProjectActive(current.projectId);
       // Move-to-project belongs to Slice 20, with the parent/child semantics that make it
       // hard. Refusing beats dropping `projectId` from the contract: these schemas are not
       // strict, so a removed field would be silently stripped and answered 200.
@@ -140,6 +163,12 @@ export class TaskService {
 
       if (next.parentTaskId !== current.parentTaskId && next.parentTaskId !== undefined) {
         await this.assertParentIsUsable(actor, current, next.parentTaskId);
+        // A **live** row under an archived parent is a row nothing can reach — the same
+        // defect as a live row in an archived section, one level down. Refused before any
+        // write, so the caller sees a rule error rather than a commit-time integrity
+        // failure. An archived row may move under an archived parent: that is a move within
+        // an archive group, which `normalizeArchiveGroup` below settles.
+        if (next.archivedAt === undefined) assertParentLive(await this.require(actor, next.parentTaskId));
       }
 
       if (next.parentTaskId === undefined) {
@@ -174,6 +203,10 @@ export class TaskService {
       // Dragging a task between lists is the operation two containers exist for, and a
       // parent left behind by its own subtasks would render as two half-tasks.
       if (committed.sectionId !== current.sectionId) await this.moveSubtree(actor, committed);
+      // Re-parenting can split an archive group, and it can do so **without** changing
+      // section — an `A → B → C` detach within one list — so this runs on any parent change
+      // rather than being folded into the section-gated `moveSubtree` above.
+      if (committed.parentTaskId !== current.parentTaskId) await this.normalizeArchiveGroup(actor, committed);
       return committed;
     });
   }
@@ -185,6 +218,7 @@ export class TaskService {
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
+      await this.assertProjectActive(current.projectId);
       if (current.archivedAt !== undefined) throw new DomainRuleError('an archived task cannot be completed');
       if (current.status === 'done') return current;
 
@@ -198,6 +232,15 @@ export class TaskService {
    * would leave the prototype unable to answer §83's question about which of §33's five
    * statuses earn their place, and §58 already treats complete and archive as different
    * operations. Idempotent.
+   *
+   * **It cascades to live descendants**, stamping each with `archivedWithTaskId = id`; the
+   * root itself carries no marker, and a descendant that was already archived is left
+   * alone with whatever marker it had. Removing something takes what hangs off it — and
+   * this is what buys the invariant the rest of this file rests on: *a live row's ancestors
+   * are live*, which is what lets a section cascade treat its live rows as whole subtrees.
+   *
+   * Allowed inside an archived project or section, so a caller can tidy hidden work without
+   * bringing it back — the same exception `SectionService.remove` makes.
    */
   async archive(actor: ActorContext, id: TaskId): Promise<Task> {
     assertValidActor(actor);
@@ -208,8 +251,139 @@ export class TaskService {
       if (current.archivedAt !== undefined) return current;
 
       const archivedAt = this.dependencies.clock.now().toISOString();
-      return this.commit(actor, current, { ...current, archivedAt }, 'task.archived');
+      const archived = await this.commit(actor, current, { ...current, archivedAt }, 'task.archived');
+      await this.archiveDescendants(actor, archived.id, archived.id, archivedAt);
+      return archived;
     });
+  }
+
+  /**
+   * The undo, and the mirror of `SectionService.restoreSection`: it restores this task and
+   * every task carrying `archivedWithTaskId === id`. `archive` marks the whole subtree with
+   * the *root's* id rather than each row's parent, so this is one lookup, not a walk.
+   *
+   * Two refusals, both before any write, and both naming what to restore instead:
+   *
+   * 1. **The section is archived.** The container is what renders the row, and a live row in
+   *    an archived section is the state document integrity forbids. Restore the section —
+   *    which brings back the rows it took down — rather than the row.
+   * 2. **The parent is archived.** Reachable despite the cascade: archive a child on its
+   *    own, then its parent, and the cascade skips the child, so restoring it alone would
+   *    put a live row under an archived parent.
+   *
+   * It never calls `SectionService`: `restoreSection` asserts `projects.write`, and an agent
+   * granted `tasks.write` alone — the case `SectionService.resolveContainer` legislates for
+   * by name — would have got a `PermissionDeniedError` from inside a task write.
+   *
+   * `status` and `completedAt` are untouched; archiving never changed them.
+   */
+  async restore(actor: ActorContext, id: TaskId): Promise<Task> {
+    assertValidActor(actor);
+    assertPermitted(actor, 'tasks.write');
+
+    return this.dependencies.unitOfWork.run(async () => {
+      const current = await this.require(actor, id);
+      // Idempotent, as `archive` is for an already-archived row. A live task returns
+      // unchanged even if an ancestor was archived after the original restore.
+      if (current.archivedAt === undefined) return current;
+      await this.assertProjectActive(current.projectId);
+
+      // `requireWithin`, not `get`: `get` asserts `projects.read`, and an agent granted
+      // `tasks.write` alone must be able to restore a task.
+      const section = await this.dependencies.sections.requireWithin(actor, current.sectionId);
+      if (section.archivedAt !== undefined) {
+        throw new DomainRuleError(
+          `task "${id}" is in archived section "${current.sectionId}"; restore the section instead`,
+        );
+      }
+      if (current.parentTaskId !== undefined) {
+        const parent = await this.require(actor, current.parentTaskId);
+        if (parent.archivedAt !== undefined) {
+          throw new DomainRuleError(`task "${id}" is under archived task "${parent.id}"; restore that instead`);
+        }
+      }
+
+      const restored = await this.commit(actor, current, cleared(current), 'task.restored');
+      for (const row of await this.dependencies.tasks.list({ projectId: current.projectId, includeArchived: true })) {
+        if (row.archivedWithTaskId !== id) continue;
+        await this.dependencies.tasks.update(
+          TaskSchema.parse({ ...cleared(row), updatedAt: this.dependencies.clock.now().toISOString() }),
+        );
+      }
+      return restored;
+    });
+  }
+
+  /** Depth-first, so a descendant already archived keeps its own group intact. */
+  private async archiveDescendants(
+    actor: ActorContext,
+    parentTaskId: TaskId,
+    root: TaskId,
+    archivedAt: string,
+  ): Promise<void> {
+    const children = await this.dependencies.tasks.list({ parentTaskId, includeArchived: true });
+    for (const child of children) {
+      if (child.archivedAt !== undefined) continue;
+      await this.dependencies.tasks.update(
+        TaskSchema.parse({
+          ...child,
+          archivedAt,
+          archivedWithTaskId: root,
+          updatedAt: this.dependencies.clock.now().toISOString(),
+        }),
+      );
+      await this.archiveDescendants(actor, child.id, root, archivedAt);
+    }
+  }
+
+  /**
+   * Re-parenting is the one operation that can split a task archive group. If a moved
+   * archived task carries a marker whose root is no longer its strict ancestor, that task
+   * becomes the root of its own group: its marker clears, and the descendants still naming
+   * the old root are rewritten to name it. The detached subtree stays one reversible
+   * archive, and restoring the old root cannot revive it.
+   *
+   * A move *within* the same group — the root is still an ancestor — preserves every marker.
+   */
+  private async normalizeArchiveGroup(actor: ActorContext, moved: Task): Promise<void> {
+    const oldRoot = moved.archivedWithTaskId;
+    if (moved.archivedAt === undefined || oldRoot === undefined) return;
+    if (await this.hasAncestor(actor, moved, oldRoot)) return;
+
+    const next = { ...moved };
+    delete next.archivedWithTaskId;
+    await this.dependencies.tasks.update(
+      TaskSchema.parse({ ...next, updatedAt: this.dependencies.clock.now().toISOString() }),
+    );
+    await this.rerootDescendants(actor, moved.id, oldRoot, moved.id);
+  }
+
+  private async rerootDescendants(actor: ActorContext, parentTaskId: TaskId, from: TaskId, to: TaskId): Promise<void> {
+    for (const child of await this.dependencies.tasks.list({ parentTaskId, includeArchived: true })) {
+      // A descendant with a different valid root is somebody else's group; leave it alone.
+      if (child.archivedWithTaskId === from) {
+        await this.dependencies.tasks.update(
+          TaskSchema.parse({
+            ...child,
+            archivedWithTaskId: to,
+            updatedAt: this.dependencies.clock.now().toISOString(),
+          }),
+        );
+      }
+      await this.rerootDescendants(actor, child.id, from, to);
+    }
+  }
+
+  /** Walks `parentTaskId`; the document's acyclic guarantee makes this finite. */
+  private async hasAncestor(actor: ActorContext, task: Task, ancestorId: TaskId): Promise<boolean> {
+    let parentId = task.parentTaskId;
+    const seen = new Set<TaskId>([task.id]);
+    while (parentId !== undefined && !seen.has(parentId)) {
+      if (parentId === ancestorId) return true;
+      seen.add(parentId);
+      parentId = (await this.require(actor, parentId)).parentTaskId;
+    }
+    return false;
   }
 
   private async commit(actor: ActorContext, current: Task, next: Task, action: TaskAction): Promise<Task> {
@@ -218,7 +392,14 @@ export class TaskService {
 
     const updated = TaskSchema.parse({ ...next, updatedAt: this.dependencies.clock.now().toISOString() });
     await this.dependencies.tasks.update(updated);
-    const verb = action === 'task.completed' ? 'Completed' : action === 'task.archived' ? 'Archived' : 'Updated';
+    const verb =
+      action === 'task.completed'
+        ? 'Completed'
+        : action === 'task.archived'
+          ? 'Archived'
+          : action === 'task.restored'
+            ? 'Restored'
+            : 'Updated';
     await this.record(actor, updated, action, verb);
     return updated;
   }
@@ -249,6 +430,7 @@ export class TaskService {
       if (input.sectionId !== undefined && input.sectionId !== parent.sectionId) {
         throw new DomainRuleError('a subtask is rendered by its parent section and cannot be given another');
       }
+      assertParentLive(parent);
       return parent.sectionId;
     }
 
@@ -308,5 +490,17 @@ export class TaskService {
 
   private async assertProjectVisible(actor: ActorContext, projectId: ProjectId): Promise<void> {
     if (!(await this.isProjectVisible(actor, projectId))) throw new EntityNotFoundError('project', projectId);
+  }
+
+  /**
+   * A project archives by `status`, which `assertProjectVisible` cannot see. Work does not
+   * come back into a project someone has put away: create, update, complete and restore are
+   * refused. Archiving is not — tidying hidden work is the point.
+   */
+  private async assertProjectActive(projectId: ProjectId): Promise<void> {
+    const project = await this.dependencies.projects.find(projectId);
+    if (project?.status === 'archived') {
+      throw new DomainRuleError(`project "${projectId}" is archived; reactivate it first`);
+    }
   }
 }

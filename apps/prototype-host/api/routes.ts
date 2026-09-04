@@ -8,6 +8,7 @@ import {
   CreateTaskInputSchema,
   MoveSectionInputSchema,
   ReflectionQuerySchema,
+  SectionQuerySchema,
   RemoveSectionInputSchema,
   ProjectIdSchema,
   ProjectQuerySchema,
@@ -48,7 +49,11 @@ export interface ApiDependencies {
 
 const ok = (body: unknown): RouteResult => ({ status: 200, contentType: 'application/json', body });
 const created = (body: unknown): RouteResult => ({ status: 201, contentType: 'application/json', body });
-/** A removed section has nothing left to describe, so the response carries no body. */
+/**
+ * Removal archives, and the archived record is available through `GET` and the Archived
+ * region, so the DELETE response still carries no body. The web gateway discards the
+ * service's return value; `remove_section` over MCP is the caller that needs it.
+ */
 const noContent = (): RouteResult => ({ status: 204, contentType: 'application/json', body: undefined });
 
 /**
@@ -142,16 +147,24 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
 
     'GET /api/reflections': async (request) => {
       // A reflections section renders what it owns, so the list narrows to one container
-      // when the caller names one. The project stays required: it is what scopes the read.
-      const query = ReflectionQuerySchema.parse(queryObject(request.query, []));
+      // when the caller names one. The project stays required: it is what scopes the read,
+      // and it comes from the parsed query rather than the filters passed on, so a stray
+      // `projectId` cannot travel inside the options object and restate the scope.
+      const query = ReflectionQuerySchema.parse(queryObject(request.query, [], [], ['includeArchived']));
       return ok(
         await reflections.list(
           await actorFor(request),
           ProjectIdSchema.parse(request.query.get('projectId')),
-          query.sectionId,
+          { sectionId: query.sectionId, includeArchived: query.includeArchived },
         ),
       );
     },
+
+    'POST /api/reflections/:id/archive': async (request) =>
+      ok(await reflections.archive(await actorFor(request), reflectionId(request))),
+
+    'POST /api/reflections/:id/restore': async (request) =>
+      ok(await reflections.restore(await actorFor(request), reflectionId(request))),
 
     'POST /api/reflections': async (request) =>
       created(await reflections.create(await actorFor(request), CreateReflectionInputSchema.parse(request.body))),
@@ -168,8 +181,17 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     // §31's frame affordances. Sections are nested under their project on read and create
     // — a section only exists on one project's canvas — and addressed directly for the
     // rest, because the frame has the id and nothing else needs re-stating.
-    'GET /api/projects/:projectId/sections': async (request) =>
-      ok(await sections.list(await actorFor(request), sectionProjectId(request))),
+    'GET /api/projects/:projectId/sections': async (request) => {
+      // The Archived region is the one caller that asks for archived sections. Only
+      // `includeArchived` is forwarded: the path already fixed the project, and a query
+      // `projectId` must not redirect it.
+      const query = SectionQuerySchema.parse(queryObject(request.query, [], [], ['includeArchived']));
+      return ok(
+        await sections.list(await actorFor(request), sectionProjectId(request), {
+          includeArchived: query.includeArchived,
+        }),
+      );
+    },
 
     'POST /api/projects/:projectId/sections': async (request) =>
       created(
@@ -203,10 +225,17 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'POST /api/sections/:id/duplicate': async (request) =>
       created(await sections.duplicate(await actorFor(request), sectionId(request))),
 
+    // The undo for the DELETE below, and the only way an archived section or a row that
+    // came down with one returns. Idempotent, so a retry cannot move the canvas.
+    'POST /api/sections/:id/restore': async (request) =>
+      ok(await sections.restoreSection(await actorFor(request), sectionId(request))),
+
     // The policy rides on the query string, not a body: a DELETE with a body is awkward
     // through `fetch` and every client here already builds query strings. Removing a
-    // container that still holds rows without one answers 409 naming the count, which is
-    // what lets the canvas offer cascade or reassign rather than guess.
+    // container that still holds **live** rows without one answers 409 naming the count,
+    // which is what lets the canvas offer cascade or reassign rather than guess. Removing
+    // a section that is already archived answers 409 too — the record still exists, so
+    // this is a rule error rather than the 404 a hard delete used to give.
     'DELETE /api/sections/:id': async (request) => {
       await sections.remove(
         await actorFor(request),
@@ -236,6 +265,8 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'POST /api/tasks/:id/complete': async (request) => ok(await tasks.complete(await actorFor(request), taskId(request))),
 
     'POST /api/tasks/:id/archive': async (request) => ok(await tasks.archive(await actorFor(request), taskId(request))),
+
+    'POST /api/tasks/:id/restore': async (request) => ok(await tasks.restore(await actorFor(request), taskId(request))),
 
     // §24's dashboard is derived, not stored, so it is one read with two configurable
     // ranges rather than a widget-shaped endpoint per tile — the widgets overlap, and one

@@ -45,6 +45,19 @@ const validDocument = () =>
         createdAt: at,
         updatedAt: at,
       },
+      // A row's section has to hold rows of the row's kind, so the reflection below needs a
+      // `reflections` container rather than the task list.
+      {
+        id: 'section-2',
+        projectId: 'project-1',
+        type: 'reflections',
+        position: 1,
+        columnSpan: 12,
+        collapsed: false,
+        config: {},
+        createdAt: at,
+        updatedAt: at,
+      },
     ],
     tasks: [
       {
@@ -72,7 +85,7 @@ const validDocument = () =>
       {
         id: 'reflection-1',
         projectId: 'project-1',
-        sectionId: 'section-1',
+        sectionId: 'section-2',
         body: 'Reflection',
         createdAt: at,
         updatedAt: at,
@@ -122,10 +135,23 @@ const secondWorkspace = {
     createdAt: at,
     updatedAt: at,
   },
+  section: {
+    id: 'section-3',
+    projectId: 'project-2',
+    type: 'task-list',
+    position: 0,
+    columnSpan: 12 as const,
+    collapsed: false,
+    config: {},
+    createdAt: at,
+    updatedAt: at,
+  },
   task: {
     id: 'task-2',
     projectId: 'project-2',
-    sectionId: 'section-1',
+    // Its own project's container: a row whose section belongs to another project is now
+    // an integrity failure, which would have made the cross-scope cases below vacuous.
+    sectionId: 'section-3',
     title: 'Other task',
     status: 'todo' as const,
     priority: 'medium' as const,
@@ -147,6 +173,7 @@ const withSecondWorkspace = () => {
   document.users.push(PrototypeDocumentSchema.shape.users.element.parse(secondWorkspace.user));
   document.workspaces.push(PrototypeDocumentSchema.shape.workspaces.element.parse(secondWorkspace.workspace));
   document.projects.push(PrototypeDocumentSchema.shape.projects.element.parse(secondWorkspace.project));
+  document.sections.push(PrototypeDocumentSchema.shape.sections.element.parse(secondWorkspace.section));
   document.tasks.push(PrototypeDocumentSchema.shape.tasks.element.parse(secondWorkspace.task));
   document.agentConnections.push(PrototypeDocumentSchema.shape.agentConnections.element.parse(secondWorkspace.agent));
   return document;
@@ -225,6 +252,134 @@ describe('document validation', () => {
       projectId: entityType === 'agent_connection' ? undefined : document.projects[0]!.id,
     }));
 
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
+  });
+});
+
+/**
+ * §30's ownership invariant, made structural. The friction note the archive phase came from
+ * (`note-2026-09-01-002`) recorded a task pointing at a section that no longer existed —
+ * committed, persisted, and invisible until someone read the file by hand.
+ */
+describe('row ownership integrity', () => {
+  const archivedAt = '2026-09-02T06:13:32.422Z';
+
+  it('rejects a row whose section does not exist', () => {
+    const document = validDocument();
+    document.tasks[0]!.sectionId = 'section-gone' as never;
+    expect(() => new InMemoryDataStore(document)).toThrow(/missing section "section-gone"/);
+
+    const withReflection = validDocument();
+    withReflection.reflections[0]!.sectionId = 'section-gone' as never;
+    expect(() => new InMemoryDataStore(withReflection)).toThrow(DocumentIntegrityError);
+  });
+
+  it('rejects a row held by a section of the wrong kind', () => {
+    // Without this clause the rule is a foreign-key check, not the ownership invariant: a
+    // `rich-text` section renders nothing it owns, so a task it holds is a task nothing
+    // renders.
+    const document = validDocument();
+    document.sections.push(
+      PrototypeDocumentSchema.shape.sections.element.parse({
+        ...document.sections[0],
+        id: 'section-notes',
+        type: 'rich-text',
+        position: 2,
+      }),
+    );
+    document.tasks[0]!.sectionId = 'section-notes' as never;
+    expect(() => new InMemoryDataStore(document)).toThrow(/is held by a rich-text section/);
+
+    const swapped = validDocument();
+    // The reflections container does not hold tasks, and the task list does not hold
+    // reflections — each direction is its own failure.
+    swapped.reflections[0]!.sectionId = 'section-1' as never;
+    expect(() => new InMemoryDataStore(swapped)).toThrow(DocumentIntegrityError);
+  });
+
+  it('rejects a row whose section belongs to another project', () => {
+    const document = withSecondWorkspace();
+    document.tasks[0]!.sectionId = secondWorkspace.section.id as never;
+    expect(() => new InMemoryDataStore(document)).toThrow(/section from another project/);
+  });
+
+  it('rejects a live row in an archived section, and accepts an archived one', () => {
+    // The state removal-as-archive is built to prevent: a row still live inside a container
+    // that has left the canvas, with nothing saying so.
+    const live = validDocument();
+    live.sections[0]!.archivedAt = archivedAt;
+    expect(() => new InMemoryDataStore(live)).toThrow(/live in an archived section/);
+
+    const cascaded = validDocument();
+    cascaded.sections[0]!.archivedAt = archivedAt;
+    cascaded.tasks[0]!.archivedAt = archivedAt;
+    // The ordinary post-cascade state, and the reflection's own container is still live.
+    expect(() => new InMemoryDataStore(cascaded)).not.toThrow();
+  });
+
+  it('rejects a subtask held by a different section from its parent', () => {
+    // A subtask is rendered by whichever list holds its parent, so a split pair renders as
+    // two half-tasks — and it would let a section cascade take down a partial subtree.
+    const document = validDocument();
+    document.sections.push(
+      PrototypeDocumentSchema.shape.sections.element.parse({
+        ...document.sections[0],
+        id: 'section-other-list',
+        type: 'task-list',
+        position: 2,
+      }),
+    );
+    document.tasks.push(
+      PrototypeDocumentSchema.shape.tasks.element.parse({
+        ...document.tasks[0],
+        id: 'task-child',
+        parentTaskId: 'task-1',
+        sectionId: 'section-other-list',
+      }),
+    );
+    expect(() => new InMemoryDataStore(document)).toThrow(/has a parent in another section/);
+
+    document.tasks[1]!.archivedAt = archivedAt;
+    // Archived or live, a split pair is the same defect.
+    expect(() => new InMemoryDataStore(document)).toThrow(/has a parent in another section/);
+
+    document.tasks[1]!.sectionId = 'section-1' as never;
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
+  });
+
+  it('rejects a section archive marker that outlives what it describes', () => {
+    // The marker is the pairing `restoreSection` reads. Three ways to lie with it, each its
+    // own failure: on a live row, naming another section, or naming a section still live.
+    const live = validDocument();
+    live.tasks[0]!.archivedWithSectionId = 'section-1' as never;
+    expect(() => new InMemoryDataStore(live)).toThrow(/is marked as archived with a section/);
+
+    const elsewhere = validDocument();
+    elsewhere.sections[1]!.archivedAt = archivedAt;
+    elsewhere.reflections[0]!.archivedAt = archivedAt;
+    elsewhere.tasks[0]!.archivedAt = archivedAt;
+    elsewhere.tasks[0]!.archivedWithSectionId = 'section-2' as never;
+    expect(() => new InMemoryDataStore(elsewhere)).toThrow(/marked as archived with another section/);
+
+    const stale = validDocument();
+    stale.tasks[0]!.archivedAt = archivedAt;
+    stale.tasks[0]!.archivedWithSectionId = 'section-1' as never;
+    expect(() => new InMemoryDataStore(stale)).toThrow(/marked with a live section/);
+
+    const cascaded = validDocument();
+    cascaded.sections[0]!.archivedAt = archivedAt;
+    cascaded.tasks[0]!.archivedAt = archivedAt;
+    cascaded.tasks[0]!.archivedWithSectionId = 'section-1' as never;
+    expect(() => new InMemoryDataStore(cascaded)).not.toThrow();
+  });
+
+  it('holds reflections to the same marker rules', () => {
+    const document = validDocument();
+    document.reflections[0]!.archivedWithSectionId = 'section-2' as never;
+    expect(() => new InMemoryDataStore(document)).toThrow(DocumentIntegrityError);
+
+    document.reflections[0]!.archivedAt = archivedAt;
+    document.sections[1]!.archivedAt = archivedAt;
     expect(() => new InMemoryDataStore(document)).not.toThrow();
   });
 });
@@ -748,6 +903,154 @@ describe('parent-chain integrity', () => {
       { ...first, id: asProjectId('project-4'), parentProjectId: asProjectId('project-2') },
     ];
 
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
+  });
+});
+
+describe('task archive group integrity', () => {
+  const archivedAt = '2026-09-03T09:41:07.118Z';
+
+  /** Every case here needs a subtask, and only its archive fields differ between them. */
+  const withChild = (fields: Record<string, unknown> = {}) => {
+    const document = validDocument();
+    document.tasks.push(
+      PrototypeDocumentSchema.shape.tasks.element.parse({
+        ...document.tasks[0],
+        id: 'task-child',
+        parentTaskId: 'task-1',
+        ...fields,
+      }),
+    );
+    return document;
+  };
+
+  it('rejects a live task under an archived parent, and accepts an archived one', () => {
+    // `archive` cascades to descendants, so a live row under an archived parent is a row
+    // nothing can reach — the same defect as a live row in an archived section, one level
+    // down. The section itself stays live here so that rule cannot fire in its place.
+    const live = withChild();
+    live.tasks[0]!.archivedAt = archivedAt;
+    expect(() => new InMemoryDataStore(live)).toThrow(/live under an archived parent/);
+
+    const cascaded = withChild({ archivedAt });
+    cascaded.tasks[0]!.archivedAt = archivedAt;
+    expect(() => new InMemoryDataStore(cascaded)).not.toThrow();
+  });
+
+  it('rejects a live task carrying a task archive marker', () => {
+    // The marker describes an archive that happened, so a live row cannot be carrying one.
+    // The parent stays live, or the ancestor rule above would fail the document first.
+    const document = withChild({ archivedWithTaskId: 'task-1' });
+    expect(() => new InMemoryDataStore(document)).toThrow(/live task "task-child" is marked as archived with a task/);
+  });
+
+  it('rejects a task marked with itself', () => {
+    // A self-marked row would be its own archive root, which restore would read as a group
+    // of one that nothing can ever bring back with its parent.
+    const document = withChild({ archivedAt, archivedWithTaskId: 'task-child' });
+    expect(() => new InMemoryDataStore(document)).toThrow(/task "task-child" is marked with itself/);
+  });
+
+  it('rejects a missing archive root', () => {
+    // Restore starts from the root, so a marker naming a row that is not in the document
+    // leaves the group with no way back onto the canvas.
+    const document = withChild({ archivedAt, archivedWithTaskId: 'task-gone' });
+    expect(() => new InMemoryDataStore(document)).toThrow(/missing archive root "task-gone"/);
+  });
+
+  it('rejects a live archive root', () => {
+    // The pairing only makes sense while the root is down: a live root has already been
+    // restored, and anything still marked with it was left behind.
+    const document = withChild({ archivedAt, archivedWithTaskId: 'task-1' });
+    expect(() => new InMemoryDataStore(document)).toThrow(/marked with a live archive root/);
+  });
+
+  it('rejects an archive root outside the row’s project section', () => {
+    // Restoring a root walks its group, so a root in another project — or in another list
+    // of the same project — would pull rows onto a canvas they do not belong to.
+    const crossProject = withSecondWorkspace();
+    crossProject.tasks[1]!.archivedAt = archivedAt;
+    crossProject.tasks.push(
+      PrototypeDocumentSchema.shape.tasks.element.parse({
+        ...crossProject.tasks[0],
+        id: 'task-child',
+        archivedAt,
+        archivedWithTaskId: secondWorkspace.task.id,
+      }),
+    );
+    expect(() => new InMemoryDataStore(crossProject)).toThrow(/archive root outside its project section/);
+
+    const otherSection = validDocument();
+    otherSection.sections.push(
+      PrototypeDocumentSchema.shape.sections.element.parse({
+        ...otherSection.sections[0],
+        id: 'section-other-list',
+        type: 'task-list',
+        position: 2,
+      }),
+    );
+    otherSection.tasks.push(
+      PrototypeDocumentSchema.shape.tasks.element.parse({
+        ...otherSection.tasks[0],
+        id: 'task-root',
+        sectionId: 'section-other-list',
+        archivedAt,
+      }),
+      PrototypeDocumentSchema.shape.tasks.element.parse({
+        ...otherSection.tasks[0],
+        id: 'task-child',
+        archivedAt,
+        archivedWithTaskId: 'task-root',
+      }),
+    );
+    expect(() => new InMemoryDataStore(otherSection)).toThrow(/archive root outside its project section/);
+  });
+
+  it('rejects an archive root that is not an ancestor', () => {
+    // A marker means "came down with that", which only a descendant can have done —
+    // otherwise restoring the root would revive a row that was archived on its own.
+    const document = validDocument();
+    document.tasks[0]!.archivedAt = archivedAt;
+    document.tasks.push(
+      PrototypeDocumentSchema.shape.tasks.element.parse({
+        ...document.tasks[0],
+        id: 'task-sibling',
+        archivedAt,
+        archivedWithTaskId: 'task-1',
+      }),
+    );
+    expect(() => new InMemoryDataStore(document)).toThrow(/marked with a non-ancestor/);
+  });
+
+  it('rejects a task carrying both archive markers', () => {
+    // The two markers name different archives, so a row carrying both would be restored by
+    // whichever of the section and the parent came back first, and left inconsistent by the
+    // other. Both halves are otherwise well formed here, so nothing else fails first.
+    const document = withChild({
+      archivedAt,
+      archivedWithSectionId: 'section-1',
+      archivedWithTaskId: 'task-1',
+    });
+    document.sections[0]!.archivedAt = archivedAt;
+    document.tasks[0]!.archivedAt = archivedAt;
+    document.tasks[0]!.archivedWithSectionId = 'section-1' as never;
+    expect(() => new InMemoryDataStore(document)).toThrow(/carries two archive markers/);
+  });
+
+  it('accepts a valid archive group', () => {
+    // The state a task archive leaves behind: the root carries no marker because it came
+    // down on its own, and every descendant names it from the same project and section.
+    const document = withChild({ archivedAt, archivedWithTaskId: 'task-1' });
+    document.tasks[0]!.archivedAt = archivedAt;
+    document.tasks.push(
+      PrototypeDocumentSchema.shape.tasks.element.parse({
+        ...document.tasks[0],
+        id: 'task-grandchild',
+        parentTaskId: 'task-child',
+        archivedAt,
+        archivedWithTaskId: 'task-1',
+      }),
+    );
     expect(() => new InMemoryDataStore(document)).not.toThrow();
   });
 });

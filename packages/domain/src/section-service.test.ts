@@ -1,8 +1,9 @@
 import { ProjectSectionSchema, type SectionId } from '@cwm/contracts';
+import { SEED_NOW } from '@cwm/prototype-data';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it } from 'vitest';
-import { buildHarness, MINE, THEIRS } from '../test/test-support';
-import { DomainRuleError, EntityNotFoundError } from './errors';
+import { agentActorFor, buildHarness, MINE, seedContainer, THEIRS } from '../test/test-support';
+import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
 
 const NOW = '2026-08-24T16:00:00.000Z';
 
@@ -167,17 +168,55 @@ describe('SectionService.duplicate', () => {
 });
 
 describe('SectionService.remove', () => {
-  it('deletes the section and closes the position gap', async () => {
+  it('archives the section, closes the position gap, and returns the archived record', async () => {
     const harness = buildHarness();
     const [, second] = await withThree(harness);
 
-    await harness.sectionService.remove(harness.actor, second.id);
+    const archived = await harness.sectionService.remove(harness.actor, second.id);
 
-    await expect(harness.sectionService.get(harness.actor, second.id)).rejects.toBeInstanceOf(EntityNotFoundError);
+    // Nothing is deleted, so `get` — which resolves through the unchecked lookup restore
+    // depends on — still answers, and `list` is what stops it reaching the canvas.
+    expect(archived.archivedAt).toBe(SEED_NOW);
+    expect((await harness.sectionService.get(harness.actor, second.id)).archivedAt).toBe(SEED_NOW);
     expect(await positions(harness)).toEqual([
       ['rich-text', 0],
       ['progress', 1],
     ]);
+    // The returned record is what MCP echoes, without a second permissioned read.
+    expect(archived.id).toBe(second.id);
+  });
+
+  it('archives a view with its config, and restore returns the prose unchanged', async () => {
+    // The reason removal archives *every* section rather than only containers: a Notes
+    // section's text lives in `config` and nowhere else, so deleting the record loses it.
+    const harness = buildHarness();
+    const notes = await add(harness, 'rich-text', { title: 'Notes' });
+    await harness.sectionService.update(harness.actor, notes.id, { config: { text: 'Measure the hallway shelf' } });
+
+    // No dialog, no policy: a view holds no rows, so there is no question to ask.
+    await harness.sectionService.remove(harness.actor, notes.id);
+    expect(await harness.sectionService.list(harness.actor, MINE)).toHaveLength(0);
+
+    const restored = await harness.sectionService.restoreSection(harness.actor, notes.id);
+    expect(restored.config).toEqual({ text: 'Measure the hallway shelf' });
+    expect(restored.title).toBe('Notes');
+    expect(restored.archivedAt).toBeUndefined();
+  });
+
+  it('refuses to remove a section that is already archived', async () => {
+    // Reachable: `get` and the Archived region both hand out archived ids, so the API and
+    // `remove_section` can be pointed at one. Permanent deletion is what this case wants.
+    const harness = buildHarness();
+    const section = await add(harness);
+    await harness.sectionService.remove(harness.actor, section.id);
+
+    const refusal = await harness.sectionService
+      .remove(harness.actor, section.id)
+      .then(() => null, (error: unknown) => error);
+    expect(refusal).toBeInstanceOf(DomainRuleError);
+    expect((refusal as DomainRuleError).message).toContain(section.id);
+    // No second discriminator: the canvas surfaces this as an ordinary error, not a dialog.
+    expect((refusal as DomainRuleError).details).toBeUndefined();
   });
 
   it('removes a section without orphaning its activity events', async () => {
@@ -213,12 +252,21 @@ describe('SectionService.remove', () => {
     expect((refusal as DomainRuleError).message).toContain('holds 1 tasks');
   });
 
-  it('is not idempotent — removing twice is not found', async () => {
+  it('archives a container holding only already-archived rows, with no policy', async () => {
+    // The second dangle: the hard delete removed such a section out from under rows no
+    // policy ever reached, because `settleRows` returned early when nothing was live.
     const harness = buildHarness();
-    const section = await add(harness);
-    await harness.sectionService.remove(harness.actor, section.id);
+    const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Done with' });
+    await harness.taskService.archive(harness.actor, task.id);
 
-    await expect(harness.sectionService.remove(harness.actor, section.id)).rejects.toBeInstanceOf(EntityNotFoundError);
+    const archived = await harness.sectionService.remove(harness.actor, task.sectionId);
+
+    expect(archived.archivedAt).toBe(SEED_NOW);
+    // The row keeps a section, and it carries no marker — it was not archived *with* this.
+    const row = await harness.taskService.get(harness.actor, task.id);
+    expect(row.sectionId).toBe(task.sectionId);
+    expect(row.archivedWithSectionId).toBeUndefined();
+    expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
   });
 });
 
@@ -232,6 +280,10 @@ describe('section activity (§57)', () => {
     await harness.sectionService.move(harness.actor, section.id, 1);
     const copy = await harness.sectionService.duplicate(harness.actor, section.id);
     await harness.sectionService.remove(harness.actor, copy.id);
+    await harness.sectionService.restoreSection(harness.actor, copy.id);
+    // Restoring an already-live section invents no history — the retry semantics the public
+    // route needs.
+    await harness.sectionService.restoreSection(harness.actor, copy.id);
 
     const events = harness.store.snapshot().activityEvents;
     expect(events.map((event) => event.action)).toEqual([
@@ -240,7 +292,8 @@ describe('section activity (§57)', () => {
       'project.section_updated',
       'project.section_moved',
       'project.section_added',
-      'project.section_removed',
+      'project.section_archived',
+      'project.section_restored',
     ]);
     // Every one targets the project — see the remove test above for why that is structural.
     for (const event of events) {
@@ -257,10 +310,41 @@ describe('section activity (§57)', () => {
     const section = await add(harness, 'task-list');
 
     await harness.sectionService.remove(harness.actor, section.id);
+    await harness.sectionService.restoreSection(harness.actor, section.id);
 
     const summaries = harness.store.snapshot().activityEvents.map((event) => event.summary);
     expect(summaries).toContain('Added the Task List section');
-    expect(summaries).toContain('Removed the Task List section');
+    expect(summaries).toContain('Archived the Task List section');
+    expect(summaries).toContain('Restored the Task List section');
+  });
+
+  it('names archive and restore by the section own title, frozen at write time', async () => {
+    const harness = buildHarness();
+    const backlog = await add(harness, 'task-list', { title: 'Backlog' });
+
+    await harness.sectionService.remove(harness.actor, backlog.id);
+    await harness.sectionService.restoreSection(harness.actor, backlog.id);
+    // A later rename does not rewrite either event — `nameOf` is read at write time.
+    await harness.sectionService.update(harness.actor, backlog.id, { title: 'Later' });
+
+    const summaries = harness.store.snapshot().activityEvents.map((event) => event.summary);
+    expect(summaries).toContain('Archived the Backlog section');
+    expect(summaries).toContain('Restored the Backlog section');
+  });
+
+  it('falls back through nameOf for a legacy blank stored title', async () => {
+    // `ProjectSection.title` stays a plain optional string, so a document written before the
+    // names phase can hold `"   "`. The activity line must still say what the canvas says.
+    const harness = buildHarness();
+    const sectionId = await seedContainer(harness, MINE);
+    const stored = await harness.sectionService.get(harness.actor, sectionId);
+    await harness.sections.update({ ...stored, title: '   ' });
+
+    await harness.sectionService.remove(harness.actor, sectionId);
+
+    expect(harness.store.snapshot().activityEvents.map((event) => event.summary)).toContain(
+      'Archived the Task List section',
+    );
   });
 
   it('records nothing for an update that changes nothing', async () => {
@@ -335,5 +419,162 @@ describe('SectionService on a sparsely numbered project', () => {
       ['progress', 3],
     ]);
     expect(copy.position).toBe(2);
+  });
+});
+
+describe('SectionService reads are live-only', () => {
+  it('defaults to the live canvas and returns both states only when asked', async () => {
+    const harness = buildHarness();
+    const [first, second] = await withThree(harness);
+    await harness.sectionService.remove(harness.actor, second.id);
+
+    expect((await harness.sectionService.list(harness.actor, MINE)).map((section) => section.id)).toEqual([
+      first.id,
+      (await harness.sectionService.list(harness.actor, MINE))[1]!.id,
+    ]);
+    expect((await harness.sectionService.list(harness.actor, MINE)).some((s) => s.id === second.id)).toBe(false);
+
+    const all = await harness.sectionService.list(harness.actor, MINE, { includeArchived: true });
+    expect(all.map((section) => section.id)).toContain(second.id);
+    expect(all).toHaveLength(3);
+    // Deterministic for transport: position, then id. The region applies its own timestamp
+    // order after selecting the archived records.
+    expect(all.map((section) => section.position)).toEqual([...all.map((s) => s.position)].sort((a, b) => a - b));
+  });
+
+  it('does not cross project scope, even when asked for archived sections', async () => {
+    const harness = buildHarness();
+    await harness.sectionService.add(harness.other, THEIRS, { type: 'task-list' });
+    const mine = await add(harness, 'task-list');
+    await harness.sectionService.remove(harness.actor, mine.id);
+
+    const all = await harness.sectionService.list(harness.actor, MINE, { includeArchived: true });
+    expect(all.every((section) => section.projectId === MINE)).toBe(true);
+  });
+
+  it('resolves a container past an archived one, creating a new one rather than reviving it', async () => {
+    // The subtlest read path: a removed section comes back through restore, never through a
+    // row write that happened to need somewhere to go.
+    const harness = buildHarness();
+    const list = await add(harness, 'task-list');
+    await harness.sectionService.remove(harness.actor, list.id);
+
+    const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Somewhere new' });
+
+    expect(task.sectionId).not.toBe(list.id);
+    expect((await harness.sectionService.list(harness.actor, MINE)).map((s) => s.id)).toEqual([task.sectionId]);
+  });
+
+  it('refuses to create or move a row into an archived container', async () => {
+    const harness = buildHarness();
+    const list = await add(harness, 'task-list');
+    const keep = await add(harness, 'task-list');
+    const task = await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: keep.id, title: 'Live' });
+    await harness.sectionService.remove(harness.actor, list.id);
+
+    await expect(
+      harness.taskService.create(harness.actor, { projectId: MINE, sectionId: list.id, title: 'Nope' }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(
+      harness.taskService.update(harness.actor, task.id, { sectionId: list.id }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+  });
+
+  it('refuses update, move and duplicate on an archived section', async () => {
+    const harness = buildHarness();
+    const notes = await add(harness, 'rich-text', { title: 'Notes' });
+    await add(harness, 'task-list');
+    await harness.sectionService.update(harness.actor, notes.id, { config: { text: 'keep me' } });
+    await harness.sectionService.remove(harness.actor, notes.id);
+
+    // The `config` case is the one that matters: replacing it would overwrite the very prose
+    // archiving a view exists to keep.
+    await expect(
+      harness.sectionService.update(harness.actor, notes.id, { config: { text: 'clobbered' } }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionService.update(harness.actor, notes.id, { title: 'Renamed' })).rejects.toBeInstanceOf(
+      DomainRuleError,
+    );
+    await expect(harness.sectionService.move(harness.actor, notes.id, 0)).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionService.duplicate(harness.actor, notes.id)).rejects.toBeInstanceOf(DomainRuleError);
+    expect((await harness.sectionService.get(harness.actor, notes.id)).config).toEqual({ text: 'keep me' });
+  });
+});
+
+describe('SectionService.restoreSection', () => {
+  it('appends at the end of the canvas and renumbers nothing else', async () => {
+    const harness = buildHarness();
+    const [first, second, third] = await withThree(harness);
+    await harness.sectionService.remove(harness.actor, first.id);
+
+    // Archiving closed the gap the same way deleting used to.
+    expect(await positions(harness)).toEqual([
+      ['task-list', 0],
+      ['progress', 1],
+    ]);
+
+    const restored = await harness.sectionService.restoreSection(harness.actor, first.id);
+
+    // Its old index needs positions the canvas has since reused, so it goes last — where
+    // `addWithin` puts a new one.
+    expect(restored.position).toBe(2);
+    expect((await harness.sectionService.list(harness.actor, MINE)).map((section) => section.id)).toEqual([
+      second.id,
+      third.id,
+      first.id,
+    ]);
+  });
+
+  it('is a no-op on a live section, preserving position, timestamps and history', async () => {
+    const harness = buildHarness();
+    const [first] = await withThree(harness);
+    const before = harness.store.snapshot().activityEvents.length;
+
+    const same = await harness.sectionService.restoreSection(harness.actor, first.id);
+
+    expect(same).toEqual(first);
+    expect(harness.store.snapshot().activityEvents).toHaveLength(before);
+  });
+
+  it('refuses without projects.write, and answers not-found for a foreign section', async () => {
+    const harness = buildHarness();
+    const section = await add(harness);
+    await harness.sectionService.remove(harness.actor, section.id);
+    const theirs = await harness.sectionService.add(harness.other, THEIRS, { type: 'task-list' });
+    await harness.sectionService.remove(harness.other, theirs.id);
+
+    await expect(
+      harness.sectionService.restoreSection(agentActorFor(0, ['projects.read']), section.id),
+    ).rejects.toBeInstanceOf(PermissionDeniedError);
+    // Not-found wins for a foreign id: a rule error would confirm it exists.
+    await expect(harness.sectionService.restoreSection(harness.actor, theirs.id)).rejects.toBeInstanceOf(
+      EntityNotFoundError,
+    );
+  });
+
+  it('refuses to restore into an archived project, while removal stays allowed', async () => {
+    // The freeze stops work coming *back* into a project someone has put away; it does not
+    // stop them tidying one. It is escapable — reactivating the project lifts it.
+    const harness = buildHarness();
+    const section = await add(harness, 'task-list');
+    const second = await add(harness, 'rich-text');
+    await harness.sectionService.remove(harness.actor, section.id);
+    await harness.projectService.archive(harness.actor, MINE);
+
+    await expect(harness.sectionService.restoreSection(harness.actor, section.id)).rejects.toBeInstanceOf(
+      DomainRuleError,
+    );
+    await expect(harness.sectionService.add(harness.actor, MINE, { type: 'task-list' })).rejects.toBeInstanceOf(
+      DomainRuleError,
+    );
+    await expect(harness.sectionService.update(harness.actor, second.id, { collapsed: true })).rejects.toBeInstanceOf(
+      DomainRuleError,
+    );
+    await expect(harness.sectionService.duplicate(harness.actor, second.id)).rejects.toBeInstanceOf(DomainRuleError);
+    // Tidying is still allowed.
+    await expect(harness.sectionService.remove(harness.actor, second.id)).resolves.toMatchObject({ id: second.id });
+
+    await harness.projectService.update(harness.actor, MINE, { status: 'active' });
+    expect((await harness.sectionService.restoreSection(harness.actor, section.id)).archivedAt).toBeUndefined();
   });
 });

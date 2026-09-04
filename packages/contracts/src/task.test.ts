@@ -92,3 +92,27 @@ describe('TaskSchema ownership', () => {
     expect(TaskSchema.parse(task).sectionId).toBe('section-1');
   });
 });
+
+describe('TaskSchema archive markers', () => {
+  it('accepts a row archived with its section, and one archived with an ancestor', () => {
+    const at = '2026-09-02T06:13:32.422Z';
+    expect(
+      TaskSchema.parse({ ...task, archivedAt: at, archivedWithSectionId: 'section-1' }).archivedWithSectionId,
+    ).toBe('section-1');
+    expect(
+      TaskSchema.parse({ ...task, archivedAt: at, archivedWithTaskId: 'task-9' }).archivedWithTaskId,
+    ).toBe('task-9');
+  });
+
+  it('leaves both markers absent on a row archived on its own, or live', () => {
+    const parsed = TaskSchema.parse(task);
+    expect(parsed.archivedWithSectionId).toBeUndefined();
+    expect(parsed.archivedWithTaskId).toBeUndefined();
+  });
+
+  it('rejects a marker that is not an id of its kind', () => {
+    expect(TaskSchema.safeParse({ ...task, archivedWithSectionId: '' }).success).toBe(false);
+    expect(TaskSchema.safeParse({ ...task, archivedWithTaskId: '' }).success).toBe(false);
+  });
+});
+

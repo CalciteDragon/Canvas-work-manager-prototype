@@ -1,4 +1,5 @@
 import { TaskSchema, type TaskId } from '@cwm/contracts';
+import { InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
@@ -386,5 +387,220 @@ describe('TaskService permissions (§51, §53)', () => {
 
     const [event] = await harness.activity.list(harness.actor);
     expect(event).toMatchObject({ actor: 'agent', actorAgentConnectionId: 'agent-claude', actorName: 'Claude' });
+  });
+});
+
+describe('TaskService archive cascades, and restore undoes exactly that', () => {
+  /** A parent with two subtasks, all live and all in one list. */
+  const family = async (harness: ReturnType<typeof buildHarness>) => {
+    const parent = await create(harness, { title: 'Parent' });
+    const first = await create(harness, { title: 'First', parentTaskId: parent.id });
+    const second = await create(harness, { title: 'Second', parentTaskId: parent.id });
+    return { parent, first, second };
+  };
+
+  it('archives live descendants and stamps each with the archived task', async () => {
+    const harness = buildHarness();
+    const { parent, first, second } = await family(harness);
+
+    const archived = await harness.taskService.archive(harness.actor, parent.id);
+
+    // The root carries no marker: it is what the markers point at.
+    expect(archived.archivedWithTaskId).toBeUndefined();
+    for (const id of [first.id, second.id]) {
+      const child = await harness.taskService.get(harness.actor, id);
+      expect(child.archivedAt).toBe(NOW);
+      expect(child.archivedWithTaskId).toBe(parent.id);
+    }
+    expect(await harness.taskService.list(harness.actor)).toEqual([]);
+    expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
+  });
+
+  it('leaves an already-archived descendant alone, and restore does not revive it', async () => {
+    // The case the cascade cannot mark, and the one a naive restore strands: archiving
+    // something and restoring it changes no other state.
+    const harness = buildHarness();
+    const { parent, first, second } = await family(harness);
+    await harness.taskService.archive(harness.actor, first.id);
+
+    await harness.taskService.archive(harness.actor, parent.id);
+    expect((await harness.taskService.get(harness.actor, first.id)).archivedWithTaskId).toBeUndefined();
+
+    await harness.taskService.restore(harness.actor, parent.id);
+
+    expect((await harness.taskService.list(harness.actor)).map((task) => task.id)).toEqual([parent.id, second.id]);
+    // It restores on its own afterwards, now that its parent is live again.
+    await harness.taskService.restore(harness.actor, first.id);
+    expect((await harness.taskService.get(harness.actor, first.id)).archivedAt).toBeUndefined();
+  });
+
+  it('restores every task carrying its marker in one lookup, clearing both fields', async () => {
+    const harness = buildHarness();
+    const { parent, first } = await family(harness);
+    await harness.taskService.archive(harness.actor, parent.id);
+    harness.clock.setNow(LATER);
+
+    const restored = await harness.taskService.restore(harness.actor, parent.id);
+
+    expect(restored.archivedAt).toBeUndefined();
+    // `updatedAt` moves, which is what the §62 refresh depends on.
+    expect(restored.updatedAt).toBe(LATER.toISOString());
+    const child = await harness.taskService.get(harness.actor, first.id);
+    expect(child.archivedAt).toBeUndefined();
+    expect(child.archivedWithTaskId).toBeUndefined();
+    expect((await harness.activity.list(harness.actor))[0]).toMatchObject({ action: 'task.restored' });
+  });
+
+  it('leaves status and completedAt alone, and is idempotent on a live task', async () => {
+    const harness = buildHarness();
+    const task = await create(harness, { status: 'in_progress' });
+    await harness.taskService.archive(harness.actor, task.id);
+
+    const restored = await harness.taskService.restore(harness.actor, task.id);
+    expect(restored).toMatchObject({ status: 'in_progress' });
+    expect(restored.completedAt).toBeUndefined();
+
+    const events = (await harness.activity.list(harness.actor)).filter((e) => e.action === 'task.restored').length;
+    expect(await harness.taskService.restore(harness.actor, task.id)).toEqual(restored);
+    expect((await harness.activity.list(harness.actor)).filter((e) => e.action === 'task.restored')).toHaveLength(
+      events,
+    );
+  });
+
+  it('refuses to restore a row whose section is archived, naming the section', async () => {
+    const harness = buildHarness();
+    const marked = await create(harness);
+    const beforehand = await create(harness, { title: 'Filed first' });
+    await harness.taskService.archive(harness.actor, beforehand.id);
+    await harness.sectionService.remove(harness.actor, marked.sectionId, { policy: 'cascade' });
+
+    // Both cases: the row the cascade marked, and the one archived individually beforehand.
+    for (const id of [marked.id, beforehand.id]) {
+      const refusal = await harness.taskService.restore(harness.actor, id).then(() => null, (error: unknown) => error);
+      expect(refusal).toBeInstanceOf(DomainRuleError);
+      expect((refusal as DomainRuleError).message).toContain(marked.sectionId);
+    }
+  });
+
+  it('refuses to restore a subtask whose parent is archived, naming the parent', async () => {
+    // Rule 1 fires before rule 2, so this needs a live section and an archived parent —
+    // reachable because the cascade skips a child that was already archived.
+    const harness = buildHarness();
+    const { parent, first } = await family(harness);
+    await harness.taskService.archive(harness.actor, first.id);
+    await harness.taskService.archive(harness.actor, parent.id);
+
+    const refusal = await harness.taskService
+      .restore(harness.actor, first.id)
+      .then(() => null, (error: unknown) => error);
+    expect(refusal).toBeInstanceOf(DomainRuleError);
+    expect((refusal as DomainRuleError).message).toContain(parent.id);
+  });
+
+  it('refuses restore without tasks.write, and answers not-found across workspaces', async () => {
+    const harness = buildHarness();
+    const task = await create(harness);
+    await harness.taskService.archive(harness.actor, task.id);
+
+    await expect(harness.taskService.restore(agentActorFor(0, ['tasks.read']), task.id)).rejects.toBeInstanceOf(
+      PermissionDeniedError,
+    );
+    await expect(harness.taskService.restore(harness.other, task.id)).rejects.toBeInstanceOf(EntityNotFoundError);
+  });
+});
+
+describe('TaskService archived-parent and archived-project policy', () => {
+  it('refuses to create or re-parent beneath an archived task, before any write', async () => {
+    const harness = buildHarness();
+    const parent = await create(harness, { title: 'Parent' });
+    const other = await create(harness, { title: 'Other' });
+    await harness.taskService.archive(harness.actor, parent.id);
+
+    // A rule error, not the integrity 500 the live-ancestor invariant would otherwise cause.
+    await expect(
+      harness.taskService.create(harness.actor, { projectId: MINE, title: 'Nope', parentTaskId: parent.id }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(
+      harness.taskService.update(harness.actor, other.id, { parentTaskId: parent.id }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+    expect((await harness.taskService.get(harness.actor, other.id)).parentTaskId).toBeUndefined();
+  });
+
+  it('freezes an archived project against create, update, complete and restore', async () => {
+    const harness = buildHarness();
+    const live = await create(harness, { title: 'Live' });
+    const filed = await create(harness, { title: 'Filed' });
+    await harness.taskService.archive(harness.actor, filed.id);
+    await harness.projectService.archive(harness.actor, MINE);
+
+    await expect(harness.taskService.create(harness.actor, { projectId: MINE, title: 'Nope' })).rejects.toBeInstanceOf(
+      DomainRuleError,
+    );
+    await expect(harness.taskService.update(harness.actor, live.id, { title: 'Nope' })).rejects.toBeInstanceOf(
+      DomainRuleError,
+    );
+    await expect(harness.taskService.complete(harness.actor, live.id)).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.taskService.restore(harness.actor, filed.id)).rejects.toBeInstanceOf(DomainRuleError);
+    // Tidying stays allowed, and a live restore stays a no-op rather than a refusal.
+    await expect(harness.taskService.archive(harness.actor, live.id)).resolves.toMatchObject({ id: live.id });
+    await expect(harness.taskService.restore(harness.actor, filed.id)).rejects.toBeInstanceOf(DomainRuleError);
+  });
+});
+
+describe('TaskService archive-group markers survive a move, and split on a real detach', () => {
+  /** `A → B → C`, all archived as one group rooted at A. */
+  const group = async (harness: ReturnType<typeof buildHarness>) => {
+    const a = await create(harness, { title: 'A' });
+    const b = await create(harness, { title: 'B', parentTaskId: a.id });
+    const c = await create(harness, { title: 'C', parentTaskId: b.id });
+    await harness.taskService.archive(harness.actor, a.id);
+    return { a, b, c };
+  };
+
+  it('re-roots a detached subtree, so restoring the old root cannot revive it', async () => {
+    const harness = buildHarness();
+    const { a, b, c } = await group(harness);
+
+    // Same section, so `moveSubtree` never fires: this is the detach an implementation
+    // gated on a section change would miss.
+    await harness.taskService.update(harness.actor, b.id, { parentTaskId: null });
+
+    expect((await harness.taskService.get(harness.actor, b.id)).archivedWithTaskId).toBeUndefined();
+    expect((await harness.taskService.get(harness.actor, c.id)).archivedWithTaskId).toBe(b.id);
+    expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
+
+    await harness.taskService.restore(harness.actor, a.id);
+    expect((await harness.taskService.get(harness.actor, b.id)).archivedAt).toBe(NOW);
+    // The detached subtree is still one reversible archive, rooted at B.
+    await harness.taskService.restore(harness.actor, b.id);
+    expect((await harness.taskService.get(harness.actor, c.id)).archivedAt).toBeUndefined();
+  });
+
+  it('preserves markers on a move within the same archive group', async () => {
+    const harness = buildHarness();
+    const { a, b, c } = await group(harness);
+
+    // C moves from B to A — still inside A's group, so nothing re-roots.
+    await harness.taskService.update(harness.actor, c.id, { parentTaskId: a.id });
+
+    expect((await harness.taskService.get(harness.actor, c.id)).archivedWithTaskId).toBe(a.id);
+    expect((await harness.taskService.get(harness.actor, b.id)).archivedWithTaskId).toBe(a.id);
+    await harness.taskService.restore(harness.actor, a.id);
+    expect((await harness.taskService.list(harness.actor, { includeArchived: true })).every((t) => t.archivedAt === undefined)).toBe(true);
+  });
+
+  it('repoints an unmarked archived root between live sections, keeping its group', async () => {
+    const harness = buildHarness();
+    const { a, b, c } = await group(harness);
+    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
+
+    await harness.taskService.update(harness.actor, a.id, { sectionId: target.id });
+
+    for (const id of [a.id, b.id, c.id]) {
+      expect((await harness.taskService.get(harness.actor, id)).sectionId).toBe(target.id);
+    }
+    expect((await harness.taskService.get(harness.actor, b.id)).archivedWithTaskId).toBe(a.id);
+    expect((await harness.taskService.get(harness.actor, c.id)).archivedWithTaskId).toBe(a.id);
+    expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
   });
 });

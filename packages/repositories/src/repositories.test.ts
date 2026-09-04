@@ -446,7 +446,29 @@ describe('JsonSectionRepository', () => {
     expect(await repository.list()).toHaveLength(2);
   });
 
-  it('removes a section, leaving its siblings alone', async () => {
+  it('excludes archived sections unless the caller asks for them', async () => {
+    // The predicate every canvas read depends on: §31's remove now archives, so a section
+    // that has left the canvas must not come back through an ordinary list.
+    const repository = await populated();
+    const archived: ProjectSection = PrototypeDocumentSchema.shape.sections.element.parse({
+      ...section,
+      id: 'section-3',
+      position: 1,
+      archivedAt: '2026-09-02T06:13:32.422Z',
+    });
+    await repository.insert(archived);
+
+    expect(await repository.list({ projectId: section.projectId })).toEqual([section]);
+    expect(await repository.list()).toEqual([section, otherProject]);
+    expect(await repository.list({ projectId: section.projectId, includeArchived: true })).toEqual([
+      section,
+      archived,
+    ]);
+    // `find` is deliberately unfiltered — restore has to be able to reach an archived id.
+    expect(await repository.find(archived.id)).toEqual(archived);
+  });
+
+  it('keeps the hard delete as the seam permanent deletion will use', async () => {
     const repository = await populated();
 
     await repository.remove(section.id);

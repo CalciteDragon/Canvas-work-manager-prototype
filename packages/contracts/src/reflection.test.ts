@@ -33,3 +33,17 @@ describe('ReflectionSchema', () => {
     expect(ReflectionSchema.safeParse(orphan).success).toBe(false);
   });
 });
+
+describe('ReflectionSchema archive marker', () => {
+  it('accepts a row archived with its section and leaves the marker absent otherwise', () => {
+    expect(
+      ReflectionSchema.parse({
+        ...reflection,
+        archivedAt: '2026-09-02T06:13:32.422Z',
+        archivedWithSectionId: 'section-1',
+      }).archivedWithSectionId,
+    ).toBe('section-1');
+    expect(ReflectionSchema.parse(reflection).archivedWithSectionId).toBeUndefined();
+  });
+});
+

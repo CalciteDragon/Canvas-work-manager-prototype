@@ -418,9 +418,13 @@ describe('section routes', () => {
 
     const cascaded = await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
     expect(cascaded.status).toBe(204);
-    // Archived, not deleted — the removal is undoable.
+    // Archived, not deleted — the removal is undoable, and the section comes down too, so
+    // the row's container still exists to come back to.
     const archived = await call(routes, 'GET', `/api/tasks/${task.id}`);
     expect(TaskSchema.parse(archived.body).archivedAt).toBeDefined();
+    expect(TaskSchema.parse(archived.body).archivedWithSectionId).toBe(task.sectionId);
+    const canvas = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
+    expect(ProjectSectionSchema.array().parse(canvas.body).map((item) => item.id)).not.toContain(task.sectionId);
   });
 
   it('reassigns rows to another container named on the query string', async () => {
@@ -461,12 +465,56 @@ describe('section routes', () => {
     expect((await call(routes, method, path('section-nope'), { body })).status).toBe(404);
   });
 
-  it('answers 404 for a section that was already removed', async () => {
+  it('answers 409 for a section that was already removed — the record still exists', async () => {
+    const routes = buildRoutes();
+    const section = await newSection(routes);
+
+    expect((await call(routes, 'DELETE', `/api/sections/${section.id}`)).status).toBe(204);
+    // Removal archives, so the second call is not a 404: the section is there, and removing
+    // something already removed is a rule error rather than a second archive.
+    const again = await call(routes, 'DELETE', `/api/sections/${section.id}`);
+    expect(again).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
+  });
+
+  it('restores an archived section and the rows it took down, and retries idempotently', async () => {
+    const routes = buildRoutes();
+    const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
+    await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
+
+    const restored = await call(routes, 'POST', `/api/sections/${task.sectionId}/restore`);
+
+    expect(restored.status).toBe(200);
+    expect(ProjectSectionSchema.parse(restored.body).archivedAt).toBeUndefined();
+    expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).archivedAt).toBeUndefined();
+    // A retry must not reorder the canvas or invent history.
+    expect((await call(routes, 'POST', `/api/sections/${task.sectionId}/restore`)).status).toBe(200);
+    expect((await call(routes, 'POST', '/api/sections/section-nope/restore')).status).toBe(404);
+  });
+
+  it('answers archived sections only when the query string asks, parsing the boolean', async () => {
     const routes = buildRoutes();
     const section = await newSection(routes);
     await call(routes, 'DELETE', `/api/sections/${section.id}`);
 
-    expect((await call(routes, 'DELETE', `/api/sections/${section.id}`)).status).toBe(404);
+    const live = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
+    expect(ProjectSectionSchema.array().parse(live.body)).toEqual([]);
+    // `"false"` is a truthy string, so the boolean has to be parsed rather than passed on.
+    const explicitlyFalse = await call(routes, 'GET', `/api/projects/${MINE}/sections?includeArchived=false`);
+    expect(ProjectSectionSchema.array().parse(explicitlyFalse.body)).toEqual([]);
+
+    const all = await call(routes, 'GET', `/api/projects/${MINE}/sections?includeArchived=true`);
+    expect(ProjectSectionSchema.array().parse(all.body).map((item) => item.id)).toEqual([section.id]);
+  });
+
+  it('keeps the path project scope when the query string names another', async () => {
+    const routes = buildRoutes();
+    await newSection(routes);
+
+    // `SectionQuery.projectId` is ignored: a query parameter must not broaden or redirect
+    // the scope the route already fixed.
+    const result = await call(routes, 'GET', `/api/projects/${MINE}/sections?projectId=${THEIRS}`);
+    expect(result.status).toBe(200);
+    expect(ProjectSectionSchema.array().parse(result.body).every((item) => item.projectId === MINE)).toBe(true);
   });
 
   it('answers 400 for a column span outside the §27 presets and for a config that is not an object', async () => {

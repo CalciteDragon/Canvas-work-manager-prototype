@@ -5,14 +5,14 @@ import {
   type ProjectId,
   type Reflection,
   type ReflectionId,
-  type SectionId,
+  type ReflectionQuery,
   type UpdateReflectionInput,
 } from '@cwm/contracts';
 import type { ProjectRepository, ReflectionRepository, UnitOfWork } from '@cwm/repositories';
 import { assertPermitted, assertValidActor, type ActorContext } from './actor';
 import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
-import { EntityNotFoundError } from './errors';
+import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
 import type { SectionService } from './section-service';
 
@@ -33,11 +33,20 @@ export class ReflectionService {
   /**
    * Scoped to a project, and narrowed to one container when a section is named: a
    * reflections section renders what it owns, not everything the project holds.
+   *
+   * The filters travel as the shared `ReflectionQuery` rather than a parallel options type,
+   * so the Archived region can ask for `{ includeArchived: true }` without a placeholder
+   * argument. The mandatory project scope is written **last**, so an untyped caller cannot
+   * override it from inside the query object.
    */
-  async list(actor: ActorContext, projectId: ProjectId, sectionId?: SectionId): Promise<Reflection[]> {
+  async list(
+    actor: ActorContext,
+    projectId: ProjectId,
+    query: Omit<ReflectionQuery, 'projectId'> = {},
+  ): Promise<Reflection[]> {
     assertPermitted(actor, 'reflections.read');
     await this.assertProjectVisible(actor, projectId);
-    return (await this.dependencies.reflections.list({ projectId, sectionId })).sort((a, b) =>
+    return (await this.dependencies.reflections.list({ ...query, projectId })).sort((a, b) =>
       b.createdAt === a.createdAt ? b.id.localeCompare(a.id) : b.createdAt.localeCompare(a.createdAt),
     );
   }
@@ -47,6 +56,7 @@ export class ReflectionService {
     assertPermitted(actor, 'reflections.write');
     return this.dependencies.unitOfWork.run(async () => {
       await this.assertProjectVisible(actor, input.projectId);
+      await this.assertProjectActive(input.projectId);
       // Named: checked. Absent: the project's first reflections section, created through
       // the ordinary add when there is none — the same door `TaskService.create` uses.
       const sectionId =
@@ -74,6 +84,8 @@ export class ReflectionService {
     assertPermitted(actor, 'reflections.write');
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.get(actor, id);
+      await this.assertProjectActive(current.projectId);
+      await this.assertSectionLive(actor, current);
       const next = { ...current };
       if (input.title === null) delete next.title;
       else if (input.title !== undefined) next.title = input.title;
@@ -84,6 +96,79 @@ export class ReflectionService {
       await this.record(actor, updated, 'reflection.updated', 'Updated');
       return updated;
     });
+  }
+
+  /**
+   * The symmetric pair `TaskService` has had since the ownership phase, and which
+   * reflections lacked: a reflection could acquire `archivedAt` only by having its container
+   * cascaded, and nothing could ever clear it. Idempotent, like its task counterpart, and
+   * allowed inside an archived project or section so hidden work can still be tidied.
+   */
+  async archive(actor: ActorContext, id: ReflectionId): Promise<Reflection> {
+    assertValidActor(actor);
+    assertPermitted(actor, 'reflections.write');
+    return this.dependencies.unitOfWork.run(async () => {
+      const current = await this.get(actor, id);
+      if (current.archivedAt !== undefined) return current;
+      const archivedAt = this.dependencies.clock.now().toISOString();
+      const updated = ReflectionSchema.parse({
+        ...current,
+        archivedAt,
+        updatedAt: this.dependencies.clock.now().toISOString(),
+      });
+      await this.dependencies.reflections.update(updated);
+      await this.record(actor, updated, 'reflection.archived', 'Archived');
+      return updated;
+    });
+  }
+
+  /**
+   * The undo. Refused while the owning section is archived — the container is what renders
+   * the row, so restore the section, which brings back exactly the rows it took down.
+   * Reflections have no parents, so there is no second refusal. A live reflection returns
+   * unchanged and records nothing.
+   */
+  async restore(actor: ActorContext, id: ReflectionId): Promise<Reflection> {
+    assertValidActor(actor);
+    assertPermitted(actor, 'reflections.write');
+    return this.dependencies.unitOfWork.run(async () => {
+      const current = await this.get(actor, id);
+      if (current.archivedAt === undefined) return current;
+      await this.assertProjectActive(current.projectId);
+      await this.assertSectionLive(actor, current);
+
+      const next = { ...current };
+      delete next.archivedAt;
+      delete next.archivedWithSectionId;
+      const updated = ReflectionSchema.parse({
+        ...next,
+        updatedAt: this.dependencies.clock.now().toISOString(),
+      });
+      await this.dependencies.reflections.update(updated);
+      await this.record(actor, updated, 'reflection.restored', 'Restored');
+      return updated;
+    });
+  }
+
+  /**
+   * `requireWithin`, not `get`: the section read is one this write does on its own behalf,
+   * and an agent granted `reflections.write` alone must not need `projects.read` for it.
+   */
+  private async assertSectionLive(actor: ActorContext, reflection: Reflection): Promise<void> {
+    const section = await this.dependencies.sections.requireWithin(actor, reflection.sectionId);
+    if (section.archivedAt !== undefined) {
+      throw new DomainRuleError(
+        `reflection "${reflection.id}" is in archived section "${section.id}"; restore the section instead`,
+      );
+    }
+  }
+
+  /** See `TaskService.assertProjectActive` — the same freeze, stated service-locally. */
+  private async assertProjectActive(projectId: ProjectId): Promise<void> {
+    const project = await this.dependencies.projects.find(projectId);
+    if (project?.status === 'archived') {
+      throw new DomainRuleError(`project "${projectId}" is archived; reactivate it first`);
+    }
   }
 
   private async get(actor: ActorContext, id: ReflectionId): Promise<Reflection> {

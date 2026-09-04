@@ -33,9 +33,17 @@ export interface SectionRepository {
   insert(section: ProjectSection): Promise<void>;
   update(section: ProjectSection): Promise<void>;
   /**
-   * The one repository that deletes. A section is view configuration with no independent
-   * history, so §31's remove control is a real delete rather than a flag — which would
-   * need a contracts change §30 argues against.
+   * The one repository that deletes — and, since removal became an archive, deliberately
+   * **unreferenced by `SectionService`**. The premise it was written on is what the
+   * prototype disproved: a container is not view configuration with no independent
+   * history, because since the ownership phase it holds rows, and rows are history. §31's
+   * remove control now sets `archivedAt`, and §30's "adding a *type* touches one place"
+   * was never an argument against adding a *field*.
+   *
+   * Kept rather than deleted because it is the seam permanent deletion will use — the
+   * operation deliberately deferred out of the archive phase
+   * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md). If that phase does not
+   * arrive next, delete this then.
    */
   remove(id: SectionId): Promise<void>;
 }

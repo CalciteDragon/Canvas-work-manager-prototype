@@ -48,10 +48,10 @@ abstract class JsonCollectionRepository<T extends StoredEntity> {
   }
 
   /**
-   * Only sections expose this. A hard delete is safe for a section — it is view
-   * configuration with no history of its own (§31 offers no undo) — but it is not safe in
-   * general: `validateDocumentIntegrity` resolves every activity event's target, so
-   * deleting anything the feed points at would fail the next unit of work to close.
+   * Only sections expose this, and nothing in the domain calls it any more: §31's remove
+   * archives. It is not safe in general either — `validateDocumentIntegrity` resolves every
+   * activity event's target, so deleting anything the feed points at would fail the next
+   * unit of work to close. See `SectionRepository.remove` for why the seam stays.
    */
   protected async delete(id: T['id']): Promise<void> {
     assertCanMutateDataStore(this.store);
@@ -123,7 +123,11 @@ export class JsonSectionRepository extends JsonCollectionRepository<ProjectSecti
 
   override async list(query: SectionQuery = {}): Promise<ProjectSection[]> {
     const sections = await super.list();
-    return sections.filter((section) => query.projectId === undefined || section.projectId === query.projectId);
+    return sections.filter(
+      (section) =>
+        (query.projectId === undefined || section.projectId === query.projectId) &&
+        (query.includeArchived === true || section.archivedAt === undefined),
+    );
   }
 
   override find(id: SectionId): Promise<ProjectSection | null> { return super.find(id); }

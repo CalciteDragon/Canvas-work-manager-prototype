@@ -50,6 +50,22 @@ export const TaskSchema = z.object({
   completedAt: IsoDateTimeSchema.optional(),
   /** Set when the task is archived; archived tasks are excluded from lists by default. */
   archivedAt: IsoDateTimeSchema.optional(),
+  /**
+   * Present means this task was archived as part of its container's removal, and names the
+   * container it came down with. Absent means it was archived on its own, or is live.
+   * Restoring a section brings back exactly the rows that name it; restoring a row clears
+   * it. §33 does not declare this field, for the same "start flexible" reason `sectionId`
+   * and `archivedAt` are not declared: a cascade with no marker is not undoable, and a
+   * boolean would say less while asserting nothing the integrity pass could check.
+   */
+  archivedWithSectionId: SectionIdSchema.optional(),
+  /**
+   * The same idea one level down: present means this task came down with an ancestor's
+   * archive, and names that ancestor. `TaskService.archive` cascades to descendants, so the
+   * cascade needs the same marker its section-level counterpart does rather than a second
+   * mechanism. A task carries **at most one** of the two markers.
+   */
+  archivedWithTaskId: TaskIdSchema.optional(),
 
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,

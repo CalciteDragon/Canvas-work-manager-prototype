@@ -21,9 +21,15 @@ export const ReflectionSchema = z.object({
    * Set when the reflection is archived; archived reflections are excluded from lists by
    * default. It exists for the same reason `Task.archivedAt` does, and because removing a
    * `reflections` container with `cascade` has to be undoable — see
-   * docs/decisions/2026-09-sections-own-their-data.md.
+   * docs/decisions/2026-09-what-undo-means-for-an-archived-row.md.
    */
   archivedAt: IsoDateTimeSchema.optional(),
+  /**
+   * Present means this reflection was archived as part of its container's removal, and
+   * names the container it came down with — see `Task.archivedWithSectionId`. Reflections
+   * have no parents, so there is no second marker.
+   */
+  archivedWithSectionId: SectionIdSchema.optional(),
 
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,

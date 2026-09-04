@@ -109,11 +109,13 @@ export const UpdateSectionInputSchema = z.object({
 export type UpdateSectionInput = z.infer<typeof UpdateSectionInputSchema>;
 
 /**
- * Removing a container that still holds rows takes a policy rather than a confirmation
- * alone: `cascade` archives them (`archivedAt` is undoable and deliberately distinct from
- * `cancelled`), `reassign` moves them to another container of the same type. Absent, the
- * service raises with the row count so the caller can offer the choice rather than guess.
- * A view section ignores this entirely — removing one touches no data.
+ * Removing a section archives it — every section, container or view. A container that
+ * still holds **live** rows takes a policy rather than a confirmation alone: `cascade`
+ * archives the section and those rows together, `reassign` moves the rows to another
+ * container of the same type and archives the emptied section. Absent, the service raises
+ * with the live row count so the caller can offer the choice rather than guess. A view, an
+ * empty container, and a container holding only already-archived rows need no policy —
+ * there are no rows to settle, so there is no question to ask.
  */
 export const RemoveSectionInputSchema = z.object({
   policy: z.enum(['cascade', 'reassign']).optional(),
@@ -186,6 +188,8 @@ export type ProjectQuery = z.infer<typeof ProjectQuerySchema>;
 /** Filters for `GET /api/projects/:projectId/sections`. */
 export const SectionQuerySchema = z.object({
   projectId: ProjectIdSchema.optional(),
+  /** Archived sections are excluded unless this is true, as for tasks and reflections. */
+  includeArchived: z.boolean().optional(),
 });
 export type SectionQuery = z.infer<typeof SectionQuerySchema>;
 
