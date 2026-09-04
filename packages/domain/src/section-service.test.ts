@@ -2,7 +2,7 @@ import { ProjectSectionSchema, type SectionId } from '@cwm/contracts';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it } from 'vitest';
 import { buildHarness, MINE, THEIRS } from '../test/test-support';
-import { EntityNotFoundError } from './errors';
+import { DomainRuleError, EntityNotFoundError } from './errors';
 
 const NOW = '2026-08-24T16:00:00.000Z';
 
@@ -52,6 +52,16 @@ describe('SectionService.add', () => {
 
     expect(section).toMatchObject({ title: 'This week', columnSpan: 6 });
   });
+
+  it('normalises a name a caller passed without going through a write input schema', async () => {
+    // `SectionTitleSchema` guards HTTP and MCP, but the domain package is a public API a
+    // test or a future caller can reach with a structurally typed string. Blank means
+    // absent, exactly as it does through the wire.
+    const harness = buildHarness();
+
+    expect((await add(harness, 'task-list', { title: '  This week  ' })).title).toBe('This week');
+    expect((await add(harness, 'task-list', { title: '   ' })).title).toBeUndefined();
+  });
 });
 
 describe('SectionService.list', () => {
@@ -95,6 +105,14 @@ describe('SectionService.update', () => {
 
     expect((await harness.sectionService.update(harness.actor, section.id, { collapsed: true })).title).toBe('Notes');
     expect((await harness.sectionService.update(harness.actor, section.id, { title: null })).title).toBeUndefined();
+  });
+
+  it('treats a blank name as the same clear that null is', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'rich-text', { title: 'Notes' });
+
+    expect((await harness.sectionService.update(harness.actor, section.id, { title: '  Ideas ' })).title).toBe('Ideas');
+    expect((await harness.sectionService.update(harness.actor, section.id, { title: '   ' })).title).toBeUndefined();
   });
 });
 
@@ -177,6 +195,24 @@ describe('SectionService.remove', () => {
     expect(harness.store.snapshot().activityEvents).not.toHaveLength(0);
   });
 
+  it('refuses a non-empty container with a typed reason and a live-only count', async () => {
+    const harness = buildHarness();
+    const live = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Ship it' });
+    const archived = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Done with' });
+    await harness.taskService.archive(harness.actor, archived.id);
+
+    const refusal = await harness.sectionService
+      .remove(harness.actor, live.sectionId)
+      .then(() => null, (error: unknown) => error);
+
+    // The count travels as data rather than inside a sentence, so the canvas can compose its
+    // own question — and it counts what is *live*, since an archived row is already unrendered.
+    expect(refusal).toBeInstanceOf(DomainRuleError);
+    expect((refusal as DomainRuleError).details).toEqual({ reason: 'section_not_empty', liveRowCount: 1 });
+    // The sentence stays, for MCP and `curl` callers with no UI to compose one.
+    expect((refusal as DomainRuleError).message).toContain('holds 1 tasks');
+  });
+
   it('is not idempotent — removing twice is not found', async () => {
     const harness = buildHarness();
     const section = await add(harness);
@@ -211,6 +247,20 @@ describe('section activity (§57)', () => {
       expect(event).toMatchObject({ entityType: 'project', entityId: MINE, projectId: MINE, actor: 'user' });
     }
     expect(events[0]!.summary).toContain('Notes');
+  });
+
+  it('names an untitled section by its default rather than by its type', async () => {
+    // §14 expects people to open `data.json` and read it. `summary` is the only place that
+    // line exists — the feed composes its own from the entry's parts
+    // (docs/decisions/2026-08-activity-summary-ownership.md), so this changes no pixel.
+    const harness = buildHarness();
+    const section = await add(harness, 'task-list');
+
+    await harness.sectionService.remove(harness.actor, section.id);
+
+    const summaries = harness.store.snapshot().activityEvents.map((event) => event.summary);
+    expect(summaries).toContain('Added the Task List section');
+    expect(summaries).toContain('Removed the Task List section');
   });
 
   it('records nothing for an update that changes nothing', async () => {

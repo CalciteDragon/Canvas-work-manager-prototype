@@ -191,9 +191,12 @@ export class ActivityService {
       case 'agent_connection':
         return (await agents.find(event.entityId as never))?.name;
       case 'section':
-        // A section has no title of its own — §31's frame heads it from the *registry's*
-        // display name, which is a UI concern the domain has no business guessing. The
-        // card falls back to the action verb, which is all a section event ever said.
+        // The domain *can* name a section now — `nameOf` is in contracts and `SectionService`
+        // uses it for its summaries. This branch stays `undefined` for a different reason:
+        // section events target the **project**
+        // (docs/decisions/2026-08-section-activity-targets-the-project.md), so nothing this
+        // service writes reaches it, and only a hand-written fixture does. Resolving it would
+        // mean a repository read on a path no product surface produces.
         return undefined;
     }
   }

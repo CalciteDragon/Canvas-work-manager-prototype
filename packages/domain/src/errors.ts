@@ -17,9 +17,20 @@ export class EntityNotFoundError extends Error {
   }
 }
 
-/** A rule the caller broke: an illegal transition, a cycle, an unsupported move. */
+/**
+ * A rule the caller broke: an illegal transition, a cycle, an unsupported move.
+ *
+ * `details` is an optional plain record for a refusal a *caller* can act on rather than only
+ * read — the non-empty section removal is the first, whose row count the canvas needs to ask
+ * its own question with. It stays a record, not a JSON or HTTP shape: `api/errors.ts` is the
+ * single place that turns it into an envelope, and the schema that gives the payload a
+ * checked form lives in `packages/contracts`.
+ */
 export class DomainRuleError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly details?: Readonly<Record<string, unknown>>,
+  ) {
     super(message);
     this.name = 'DomainRuleError';
   }

@@ -4,6 +4,8 @@ import {
   SectionIdSchema,
   TaskSchema,
   containerTypeFor,
+  nameOf,
+  normaliseSectionTitle,
   ownedKindOf,
   type CreateSectionInput,
   type OwnedDataKind,
@@ -12,6 +14,7 @@ import {
   type Reflection,
   type RemoveSectionInput,
   type SectionId,
+  type SectionRemovalRefusalDetails,
   type Task,
   type UpdateSectionInput,
 } from '@cwm/contracts';
@@ -118,7 +121,9 @@ export class SectionService {
       id: SectionIdSchema.parse(this.dependencies.ids.next('section')),
       projectId,
       type: input.type,
-      title: input.title,
+      // Normalised here as well as in `SectionTitleSchema`: this package is a public API,
+      // and a caller that did not traverse a write input must not store `"  "` as a name.
+      title: normaliseSectionTitle(input.title),
       position: siblings.length,
       // §27's presets. Full width until something asks otherwise — the grid that makes a
       // narrower span visible does not exist until Slice 9.
@@ -186,7 +191,9 @@ export class SectionService {
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
       const next = { ...current };
-      apply(next, 'title', input.title);
+      // A blank name means the same thing `null` does — fall back to the derived default —
+      // so the two do not have to be told apart by every caller upstream.
+      apply(next, 'title', input.title === undefined ? undefined : (normaliseSectionTitle(input.title) ?? null));
       apply(next, 'columnSpan', input.columnSpan);
       apply(next, 'collapsed', input.collapsed);
       // Replaced whole rather than merged: the section definition owns the keys (§29), so
@@ -298,8 +305,11 @@ export class SectionService {
     if (live.length === 0) return;
 
     if (input.policy === undefined) {
+      // The sentence stays for MCP and `curl` callers, who have no UI to compose one. The
+      // details are what let a UI ask its own question — see `SectionRemovalRefusalDetails`.
       throw new DomainRuleError(
         `section "${section.id}" still holds ${live.length} ${owned}; removing it needs a policy of "cascade" or "reassign"`,
+        { reason: 'section_not_empty', liveRowCount: live.length } satisfies SectionRemovalRefusalDetails,
       );
     }
 
@@ -385,7 +395,9 @@ export class SectionService {
       entityType: 'project',
       entityId: section.projectId,
       projectId: section.projectId,
-      summary: `${verb} the ${section.title ?? section.type} section`,
+      // `nameOf`, so the hand-read log line in `data.json` (§14) says what the canvas says.
+      // Frozen at write time: renaming a section later does not rewrite its history.
+      summary: `${verb} the ${nameOf(section)} section`,
     });
   }
 
