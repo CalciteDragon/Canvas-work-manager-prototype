@@ -164,7 +164,7 @@ export class ProjectPage {
   }
 
   /**
-   * Both halves of §31's remove, once the domain has asked which one the user meant.
+   * Both halves of §31's remove, once the dialog has asked which one the user meant.
    * `cascade` archives the rows — undoable — and `reassign` hands them to another container
    * of the same type.
    */
@@ -174,6 +174,10 @@ export class ProjectPage {
 
   reassignAndRemove(id: SectionId, reassignToSectionId: SectionId): void {
     void this.store.removeSection(id, { policy: 'reassign', reassignToSectionId });
+  }
+
+  renameSection(event: { id: SectionId; title: string | null }): void {
+    void this.store.renameSection(event.id, event.title);
   }
 
   collapse(event: { id: SectionId; collapsed: boolean }): void {

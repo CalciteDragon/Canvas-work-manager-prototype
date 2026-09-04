@@ -1,12 +1,16 @@
 <!-- Only a container still holding rows gets here: a view, and an empty container, are
-   already gone by the time this could render. The count in the message is the domain's, so
-   the question and the rule cannot disagree. -->
+   already removed by the time this could render. The count is the domain's, so the question
+   and the rule cannot disagree; the words around it are this component's. -->
 <div class="removal-dialog" role="dialog" aria-modal="true" aria-labelledby="removal-dialog-title">
   <div class="removal-dialog__panel">
-    <h2 id="removal-dialog-title" class="removal-dialog__title">Remove this section?</h2>
-    <p data-section-removal-message class="removal-dialog__message">{{ prompt().message }}</p>
+    <h2 id="removal-dialog-title" class="removal-dialog__title">
+      Remove “{{ prompt().sectionName }}”?
+    </h2>
+    <p data-section-removal-message class="removal-dialog__message">
+      It still holds {{ rowCountLabel() }}. What should happen to them?
+    </p>
 
-    @if (prompt().targets.length > 0) {
+    @if (targetOptions().length > 0) {
       <label class="removal-dialog__field">
         <span>Move them to</span>
         <select
@@ -14,8 +18,8 @@
           [value]="chosenTarget()"
           (change)="targetId.set($any($event.target).value)"
         >
-          @for (target of prompt().targets; track target.id) {
-            <option [value]="target.id">{{ target.title ?? target.type }}</option>
+          @for (target of targetOptions(); track target.id) {
+            <option [value]="target.id">{{ target.label }}</option>
           }
         </select>
       </label>
@@ -25,13 +29,13 @@
       <button data-section-removal-cancel type="button" (click)="cancelled.emit()">
         Keep the section
       </button>
-      @if (prompt().targets.length > 0) {
+      @if (targetOptions().length > 0) {
         <button
           data-section-removal-reassign
           type="button"
           (click)="reassignChosen.emit(chosenTarget())"
         >
-          Move the rows and remove
+          Move the {{ rowNoun() }} and remove
         </button>
       }
       <!-- Archive, not delete: `archivedAt` is undoable, which is why the domain cascades
@@ -42,7 +46,7 @@
         class="removal-dialog__danger"
         (click)="cascadeChosen.emit()"
       >
-        Archive the rows and remove
+        Archive the {{ rowNoun() }} and remove
       </button>
     </div>
   </div>

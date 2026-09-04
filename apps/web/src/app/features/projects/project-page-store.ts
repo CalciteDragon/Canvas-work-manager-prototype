@@ -1,6 +1,10 @@
 import { DestroyRef, Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
 import {
   SectionConfigSchema,
+  SectionRemovalRefusalDetailsSchema,
+  nameOf,
+  ownedKindOf,
+  type OwnedDataKind,
   type ProjectId,
   type Project,
   type ProgressResult,
@@ -24,12 +28,19 @@ const messageOf = (error: unknown): string =>
 const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position - b.position;
 
 /**
- * A container that refused removal, and what the canvas can offer instead. `message` is the
- * domain's own sentence, which names the row count.
+ * A container that refused removal, and what the canvas can offer instead.
+ *
+ * Not the domain's sentence: that one answers an **agent**, so it names an id, says
+ * "1 tasks", and explains the policy vocabulary rather than the choice
+ * (`.prototype/notes.json`, `note-2026-09-01-001`). These are the parts the UI writes its
+ * own question from; the count still travels from the domain, so the dialog and the rule
+ * cannot disagree.
  */
 export interface SectionRemovalPrompt {
   sectionId: SectionId;
-  message: string;
+  sectionName: string;
+  rowCount: number;
+  ownedKind: OwnedDataKind;
   targets: ProjectSection[];
 }
 
@@ -407,6 +418,21 @@ export class ProjectPageStore {
     return this.updateSection(id, { columnSpan });
   }
 
+  /**
+   * §31's frame title, as a write. `null` clears the override so the name falls back to the
+   * derived default rather than storing that default as a literal — a stored `"Task List"`
+   * would silently stop tracking the registry.
+   *
+   * Deliberately **not** optimistic, unlike the project `rename` below. `updateSection`
+   * awaits the gateway and then patches, which is how `setCollapsed`, `setColumnSpan` and
+   * `updateConfig` all behave; rename joining them is one code path rather than a fourth
+   * idiom. §63 asks for optimism on *important interactions*, and a name committed on blur
+   * against a local host is not one.
+   */
+  renameSection(id: SectionId, title: string | null): Promise<boolean> {
+    return this.updateSection(id, { title });
+  }
+
   updateConfig(id: SectionId, config: SectionConfig): Promise<boolean> {
     return this.updateSection(id, { config });
   }
@@ -430,11 +456,14 @@ export class ProjectPageStore {
   /**
    * Removal follows ownership. A view, and an empty container, go without ceremony — this
    * sends no policy and the domain simply removes them. A container still holding rows
-   * answers 409 `rule_violation` naming the count; that is not an error to render, it is a
-   * **question to ask**, so it opens `removalPrompt` instead of `sectionError`.
+   * answers 409 `rule_violation` carrying a discriminated `section_not_empty` payload; that
+   * is not an error to render, it is a **question to ask**, so it opens `removalPrompt`
+   * instead of `sectionError`.
    *
-   * The count comes from the domain rather than from a client-side row count, so the dialog
-   * and the rule cannot disagree.
+   * **Only that payload opens the dialog.** A 409 with missing, malformed, zero-valued or
+   * differently discriminated details is not safely identifiable as the question this dialog
+   * can answer, so it surfaces as an ordinary error. The count still comes from the domain
+   * rather than from a client-side row count, so the dialog and the rule cannot disagree.
    */
   removeSection(id: SectionId, input: RemoveSectionInput = {}): Promise<boolean> {
     return this.mutate(async ({ current, projectId, generation }) => {
@@ -442,10 +471,13 @@ export class ProjectPageStore {
         await this.gateway.sections.remove(id, input);
       } catch (error) {
         if (current() && error instanceof GatewayError && error.code === 'rule_violation') {
-          this.removalPromptState.set({ sectionId: id, message: error.message, targets: this.reassignTargets(id) });
-          // Swallowed on purpose: `mutate` would otherwise park the domain's sentence in
-          // `sectionError`, beside a dialog already saying the same thing.
-          return;
+          const refusal = SectionRemovalRefusalDetailsSchema.safeParse(error.details);
+          if (refusal.success) {
+            this.removalPromptState.set(this.removalPromptFor(id, refusal.data.liveRowCount));
+            // Swallowed on purpose: `mutate` would otherwise park the domain's sentence in
+            // `sectionError`, beside a dialog already asking the question properly.
+            return;
+          }
         }
         throw error;
       }
@@ -458,6 +490,20 @@ export class ProjectPageStore {
       // A cascade or a reassign moved rows, so every container has to re-read.
       if (input.policy !== undefined) this.notifyProjectDataChanged();
     });
+  }
+
+  /**
+   * The parts the dialog composes its question from. `ownedKindOf` is narrowed rather than
+   * cast: only a container can refuse this way, so a `undefined` here is a bug — and an
+   * early throw lands it in `mutate`'s catch and the section error line, which is where a
+   * bug belongs.
+   */
+  private removalPromptFor(id: SectionId, rowCount: number): SectionRemovalPrompt {
+    const section = this.sectionsState().find((candidate) => candidate.id === id);
+    if (section === undefined) throw new Error(`section "${id}" refused removal but is not on the canvas`);
+    const ownedKind = ownedKindOf(section.type);
+    if (ownedKind === undefined) throw new TypeError(`section "${id}" refused removal as non-empty but owns no rows`);
+    return { sectionId: id, sectionName: nameOf(section), rowCount, ownedKind, targets: this.reassignTargets(id) };
   }
 
   /** The containers a refused removal could hand its rows to: same type, same project. */

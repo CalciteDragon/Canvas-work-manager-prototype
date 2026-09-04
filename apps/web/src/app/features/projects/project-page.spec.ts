@@ -234,6 +234,50 @@ describe('ProjectPage (§26)', () => {
     expect(query(fixture, '[data-project-progress]')?.textContent).toContain('67%');
   });
 
+  it('names a section from the frame’s Settings panel, and resets the field when the write fails', async () => {
+    const { fixture, gateway } = await render({
+      sections: [section('section-tasks', 'task-list', 0)],
+    });
+    enterEditMode(fixture);
+    query(fixture, '[data-section-config]')!.click();
+    fixture.detectChanges();
+    const input = query(fixture, '[data-section-name]') as HTMLInputElement;
+
+    input.value = 'Backlog';
+    input.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(gateway.calls.filter(({ method }) => method === 'sections.update').at(-1)?.argument).toMatchObject({
+      id: 'section-tasks',
+      input: { title: 'Backlog' },
+    });
+    expect(query(fixture, '.section-frame__title')?.textContent).toContain('Backlog');
+    expect((query(fixture, '[data-section-name]') as HTMLInputElement).value).toBe('Backlog');
+  });
+
+  it('leaves the header and the field on the persisted name when a rename fails', async () => {
+    // The DOM inconsistency a store-only test cannot see: the write is not optimistic, so a
+    // refusal must leave the header *and* the control on what is actually stored.
+    const { fixture } = await render({
+      sections: [section('section-tasks', 'task-list', 0, { title: 'Backlog' })],
+      failOn: { 'sections.update': new GatewayError('unreachable', 0, 'could not reach the prototype host') },
+    });
+    enterEditMode(fixture);
+    query(fixture, '[data-section-config]')!.click();
+    fixture.detectChanges();
+    const input = query(fixture, '[data-section-name]') as HTMLInputElement;
+
+    input.value = 'Shipped';
+    input.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, '.section-frame__title')?.textContent).toContain('Backlog');
+    expect((query(fixture, '[data-section-name]') as HTMLInputElement).value).toBe('Backlog');
+    expect(query(fixture, '[data-section-error]')?.textContent).toContain('could not reach');
+  });
+
   it('asks how to remove a container that still holds rows, and removes a view outright', async () => {
     const { fixture, gateway } = await render({
       sections: [
@@ -246,6 +290,9 @@ describe('ProjectPage (§26)', () => {
           'rule_violation',
           409,
           'section "section-tasks" still holds 2 tasks; removing it needs a policy of "cascade" or "reassign"',
+          // The discriminator is what opens the dialog at all; without it the store would
+          // rethrow and this would render the page's error line instead.
+          { reason: 'section_not_empty', liveRowCount: 2 },
         ),
       },
     });
@@ -257,10 +304,15 @@ describe('ProjectPage (§26)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    // The dialog quotes the domain's own sentence, so the count cannot drift from the rule.
+    // The count is the domain's, so it cannot drift from the rule; the sentence is the UI's,
+    // so it says "2 tasks" rather than naming a section id and a policy vocabulary.
     const dialog = query(fixture, '[data-section-removal-dialog]');
     expect(dialog).not.toBeNull();
-    expect(query(fixture, '[data-section-removal-message]')?.textContent).toContain('still holds 2 tasks');
+    expect(query(fixture, '[data-section-removal-message]')?.textContent).toContain(
+      'It still holds 2 tasks.',
+    );
+    expect(dialog?.textContent).toContain('Remove “Task List”?');
+    expect(dialog?.textContent).not.toContain('section-tasks');
     // A refusal is a question, not an error to park in the page's error line.
     expect(query(fixture, '[data-section-error]')).toBeNull();
     // Reassign is offered only because a second task-list exists to take the rows.

@@ -472,6 +472,94 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sectionError()).toContain('could not reach');
   });
 
+  it('renames a section after the gateway answers, and leaves it alone when it refuses', async () => {
+    // Rename joins `setCollapsed`/`setColumnSpan`/`updateConfig` on the store's awaited path
+    // rather than forking a fourth idiom. **Not** an optimism test: the plan deliberately
+    // does not make one pass — `updateSection` has nothing to revert.
+    const { store, gateway } = setup();
+    await store.load(PROJECT);
+
+    expect(await store.renameSection('section-tasks' as SectionId, 'Backlog')).toBe(true);
+    expect(gateway.sections.update).toHaveBeenCalledWith('section-tasks', { title: 'Backlog' });
+    expect(store.sections().find(({ id }) => id === 'section-tasks')?.title).toBe('Backlog');
+    // `null` clears the override, so the name falls back to the derived default.
+    await store.renameSection('section-tasks' as SectionId, null);
+    expect(gateway.sections.update).toHaveBeenLastCalledWith('section-tasks', { title: null });
+  });
+
+  it('leaves the section unchanged and says why when a rename is refused', async () => {
+    const { store } = setup({
+      sectionOverrides: {
+        update: vi.fn(async () => {
+          throw new GatewayError('rule_violation', 409, 'nope');
+        }),
+      },
+    });
+    await store.load(PROJECT);
+    const before = store.sections();
+
+    expect(await store.renameSection('section-tasks' as SectionId, 'Backlog')).toBe(false);
+    expect(store.sections()).toEqual(before);
+    expect(store.sectionError()).toContain('nope');
+  });
+
+  it('opens the removal dialog with the parts the UI writes its question from', async () => {
+    const { store } = setup({
+      sections: [section('section-tasks', 'task-list', 0), section('section-shipped', 'task-list', 1)],
+      sectionOverrides: {
+        remove: vi.fn(async () => {
+          throw new GatewayError('rule_violation', 409, 'still holds 3 tasks', {
+            reason: 'section_not_empty',
+            liveRowCount: 3,
+          });
+        }),
+      },
+    });
+    await store.load(PROJECT);
+
+    expect(await store.removeSection('section-tasks' as SectionId)).toBe(true);
+    expect(store.removalPrompt()).toEqual({
+      sectionId: 'section-tasks',
+      sectionName: 'Task List',
+      rowCount: 3,
+      ownedKind: 'tasks',
+      targets: [expect.objectContaining({ id: 'section-shipped' })],
+    });
+    // A question, not an error: the dialog is already saying it.
+    expect(store.sectionError()).toBeNull();
+  });
+
+  it('surfaces every other 409 as an error rather than as a removal-policy question', async () => {
+    // The archive phase's coming refusals — an already-archived section, an archived
+    // reassign target — must never masquerade as this dialog's question.
+    let details: unknown;
+    const { store } = setup({
+      sectionOverrides: {
+        remove: vi.fn(async () => {
+          throw new GatewayError('rule_violation', 409, 'still holds 3 tasks', details);
+        }),
+      },
+    });
+    await store.load(PROJECT);
+
+    for (const candidate of [
+      undefined,
+      null,
+      'section_not_empty',
+      { reason: 'section_not_empty' },
+      { reason: 'section_not_empty', liveRowCount: 0 },
+      { reason: 'section_not_empty', liveRowCount: 1.5 },
+      { reason: 'section_not_empty', liveRowCount: '3' },
+      { reason: 'section_archived', liveRowCount: 3 },
+    ]) {
+      details = candidate;
+
+      expect(await store.removeSection('section-tasks' as SectionId)).toBe(false);
+      expect(store.removalPrompt()).toBeNull();
+      expect(store.sectionError()).toContain('still holds 3 tasks');
+    }
+  });
+
   it('moves through the gateway and reconciles every authoritative sibling position (§32)', async () => {
     const movedSections = [
       section('section-tasks', 'task-list', 0),
