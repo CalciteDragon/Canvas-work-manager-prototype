@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   ProjectSectionSchema,
   SectionColumnSpanSchema,
+  SectionRemovalRefusalDetailsSchema,
   containerTypeFor,
+  displayNameOf,
+  nameOf,
+  normaliseSectionTitle,
   ownedKindOf,
   sectionKindOf,
 } from './section';
@@ -89,5 +93,57 @@ describe('section ownership', () => {
   it('does not answer for inherited Object keys', () => {
     expect(sectionKindOf('toString')).toBe('view');
     expect(ownedKindOf('constructor')).toBeUndefined();
+  });
+});
+
+describe('what a section is called', () => {
+  it('derives every registered display name, and overrides the one it cannot', () => {
+    // The seven registered types, against `SECTION_REGISTRY`'s own display names. Six derive
+    // from the kebab type; `sub-projects` is the entry the overrides table exists for, and
+    // the spec (line 1109) spells it with the hyphen.
+    expect(displayNameOf('rich-text')).toBe('Rich Text');
+    expect(displayNameOf('task-list')).toBe('Task List');
+    expect(displayNameOf('progress')).toBe('Progress');
+    expect(displayNameOf('reflections')).toBe('Reflections');
+    expect(displayNameOf('timeline')).toBe('Timeline');
+    expect(displayNameOf('recent-activity')).toBe('Recent Activity');
+    expect(displayNameOf('sub-projects')).toBe('Sub-Projects');
+  });
+
+  it('does not read a display name off Object.prototype', () => {
+    // `type` is an open string an agent can write and `data.json` can hold, so the hole
+    // `sectionKindOf` closes twenty lines above is reachable here too — a `??` lookup would
+    // answer `Object` from a signature declaring `: string`.
+    expect(displayNameOf('toString')).toBe('ToString');
+    expect(displayNameOf('constructor')).toBe('Constructor');
+  });
+
+  it('prefers the section’s own override and falls back to the derived default', () => {
+    expect(nameOf({ type: 'task-list', title: 'Backlog' })).toBe('Backlog');
+    expect(nameOf({ type: 'task-list', title: undefined })).toBe('Task List');
+  });
+
+  it('trims a legacy override, and falls back rather than rendering a blank name', () => {
+    // `ProjectSectionSchema.title` stays a plain optional string, so a hand-edited document
+    // (§14) written before this phase can hold whitespace. `nameOf` is the compatibility
+    // boundary: it keeps such a record visibly named without invalidating the document.
+    expect(nameOf({ type: 'task-list', title: '  Backlog  ' })).toBe('Backlog');
+    expect(nameOf({ type: 'task-list', title: '   ' })).toBe('Task List');
+    expect(nameOf({ type: 'task-list', title: '' })).toBe('Task List');
+    expect(normaliseSectionTitle('  Backlog ')).toBe('Backlog');
+    expect(normaliseSectionTitle('   ')).toBeUndefined();
+    expect(normaliseSectionTitle(null)).toBeUndefined();
+  });
+
+  it('discriminates the one refusal the canvas can turn into a question', () => {
+    expect(
+      SectionRemovalRefusalDetailsSchema.parse({ reason: 'section_not_empty', liveRowCount: 2 }),
+    ).toEqual({ reason: 'section_not_empty', liveRowCount: 2 });
+    // A count of zero is not the question this dialog answers, and a different reason is a
+    // different 409 — both stay ordinary errors.
+    expect(SectionRemovalRefusalDetailsSchema.safeParse({ reason: 'section_not_empty', liveRowCount: 0 }).success).toBe(false);
+    expect(SectionRemovalRefusalDetailsSchema.safeParse({ reason: 'section_not_empty', liveRowCount: 1.5 }).success).toBe(false);
+    expect(SectionRemovalRefusalDetailsSchema.safeParse({ reason: 'section_archived', liveRowCount: 2 }).success).toBe(false);
+    expect(SectionRemovalRefusalDetailsSchema.safeParse(undefined).success).toBe(false);
   });
 });

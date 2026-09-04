@@ -69,6 +69,54 @@ export const containerTypeFor = (owned: OwnedDataKind): string => {
   return type;
 };
 
+/**
+ * Display names that the derivation below cannot produce. One entry today: the spec spells
+ * sub-projects with a hyphen (line 1109), and nothing distinguishes that hyphen from
+ * `task-list`'s. `registry.spec.ts` fails when a registered name and this pair disagree, so
+ * the table grows exactly when a new type earns an entry and never silently.
+ */
+export const SECTION_DISPLAY_NAMES: Record<string, string> = { 'sub-projects': 'Sub-Projects' };
+
+/**
+ * The name a section carries when it has no `title` override.
+ *
+ * `Object.hasOwn`, not `??` — for the reason stated above at `sectionKindOf`:
+ * `SECTION_DISPLAY_NAMES['constructor']` is `Object`, not `undefined`, so `??` would never
+ * fire and this would return a *function* from a signature declaring `: string`, with the
+ * `Record<string, string>` index signature hiding it from the compiler. `type` is an open
+ * `z.string().min(1)` that `create_section` exposes to agents and that a hand-edited
+ * `data.json` (§14) can hold, so this is reachable rather than theoretical.
+ */
+export const displayNameOf = (type: string): string =>
+  Object.hasOwn(SECTION_DISPLAY_NAMES, type)
+    ? SECTION_DISPLAY_NAMES[type]
+    : type.split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
+/** A stored or incoming override, normalised without making legacy blank data fatal. */
+export const normaliseSectionTitle = (title: string | null | undefined): string | undefined => {
+  const normalised = title?.trim();
+  return normalised === undefined || normalised === '' ? undefined : normalised;
+};
+
+/**
+ * **A section's name, for every surface that has to say one.** Its normalised override, else
+ * the derived default. The frame, the removal dialog, the domain's activity summary and the
+ * Notes aria-label each had their own answer and the four disagreed; this is the one.
+ */
+export const nameOf = (section: Pick<ProjectSection, 'type' | 'title'>): string =>
+  normaliseSectionTitle(section.title) ?? displayNameOf(section.type);
+
+/**
+ * The only 409 the canvas may turn into a removal-policy question. Positive and
+ * discriminated on purpose: a refusal that carries no count, or a different reason, is not
+ * safely identifiable as the question the dialog can answer, so it stays an ordinary error.
+ */
+export const SectionRemovalRefusalDetailsSchema = z.object({
+  reason: z.literal('section_not_empty'),
+  liveRowCount: z.number().int().positive(),
+});
+export type SectionRemovalRefusalDetails = z.infer<typeof SectionRemovalRefusalDetailsSchema>;
+
 export const ProjectSectionSchema = z.object({
   id: SectionIdSchema,
   projectId: ProjectIdSchema,
@@ -78,7 +126,13 @@ export const ProjectSectionSchema = z.object({
    * touch its own folder plus one registry line — not this file.
    */
   type: z.string().min(1),
-  /** Optional override for the §31 frame title; the registry supplies the default. */
+  /**
+   * Optional override for the §31 frame title; `displayNameOf` supplies the default. Left a
+   * plain optional string rather than the trimmed `SectionTitleSchema` the write inputs use:
+   * tightening it here would reject a document that parsed before this phase, which is a
+   * `SCHEMA_VERSION` change this phase does not make. `nameOf` is the compatibility
+   * boundary — every new write is strict.
+   */
   title: z.string().optional(),
 
   position: PositionSchema,

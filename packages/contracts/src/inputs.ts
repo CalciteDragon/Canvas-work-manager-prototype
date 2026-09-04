@@ -83,18 +83,25 @@ export type UpdateProjectInput = z.infer<typeof UpdateProjectInputSchema>;
  * keep. Absence means leave alone; there is no "clear", because an absent config and an
  * empty one are not different states.
  */
+/**
+ * One normalisation for every name a caller can write — a person through the frame, HTTP,
+ * or `create_section`/`update_section` over MCP. Trimmed before the length check, so a
+ * whitespace-only name is a refusal rather than a stored blank the canvas renders as nothing.
+ */
+export const SectionTitleSchema = z.string().trim().min(1);
+
 export const CreateSectionInputSchema = z.object({
   /** A `SECTION_REGISTRY` key (§29). Open, for the same reason `ProjectSection.type` is. */
   type: z.string().min(1),
-  title: z.string().min(1).optional(),
+  title: SectionTitleSchema.optional(),
   columnSpan: SectionColumnSpanSchema.optional(),
   config: SectionConfigSchema.optional(),
 });
 export type CreateSectionInput = z.infer<typeof CreateSectionInputSchema>;
 
 export const UpdateSectionInputSchema = z.object({
-  /** Nullable because the title is an *override* — clearing it falls back to the registry. */
-  title: z.string().min(1).nullable().optional(),
+  /** Nullable because the title is an *override* — clearing it falls back to the default. */
+  title: SectionTitleSchema.nullable().optional(),
   columnSpan: SectionColumnSpanSchema.optional(),
   collapsed: z.boolean().optional(),
   config: SectionConfigSchema.optional(),

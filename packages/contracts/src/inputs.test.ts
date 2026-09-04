@@ -186,6 +186,17 @@ describe('the §31 section write inputs', () => {
     expect(UpdateSectionInputSchema.parse({}).title).toBeUndefined();
   });
 
+  it('trims every incoming name and refuses a blank one, on create and on update', () => {
+    // One shared `SectionTitleSchema`, so a person, HTTP and MCP all store the same
+    // normalised override — a stored `" Backlog "` would render differently everywhere.
+    expect(CreateSectionInputSchema.parse({ type: 'task-list', title: '  Backlog  ' }).title).toBe('Backlog');
+    expect(UpdateSectionInputSchema.parse({ title: '  Backlog  ' }).title).toBe('Backlog');
+    for (const title of ['', '   ', '\t\n']) {
+      expect(CreateSectionInputSchema.safeParse({ type: 'task-list', title }).success).toBe(false);
+      expect(UpdateSectionInputSchema.safeParse({ title }).success).toBe(false);
+    }
+  });
+
   it('replaces a config whole and refuses a config that is not an object', () => {
     expect(UpdateSectionInputSchema.parse({ config: { text: 'hello' } }).config).toEqual({ text: 'hello' });
     // `null` would be ambiguous between "clear it" and "a legitimate config value".
