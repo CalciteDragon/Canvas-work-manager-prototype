@@ -134,6 +134,15 @@ duplicate, row create/update/complete, and every state-changing restore are refu
 removal and archiving stay allowed, because tidying a project you have put away is not the
 same as reopening it. The freeze is escapable: reactivating the project lifts it.
 
+**An archived section is frozen the same way, one level down.** Its own `update`, `move` and
+`duplicate` are refused — a `config` replacement most of all, since that is the prose
+archiving a view exists to keep — and so is creating, moving, editing or restoring a row
+inside it. That last one is the easiest to leave out and the one that matters: an archived row
+edited or moved out of an archived container would carry `archivedWithSectionId` to a section
+it no longer names, and the integrity clause would reject it at commit, so the caller would
+see a rolled-back write instead of a refusal it could read. Archiving a row stays allowed, so
+hidden work can still be tidied.
+
 An **Archived** region at the foot of the project canvas is the undo surface. It is content
 rather than layout chrome, so it shows in View Mode (§32); hiding it behind Edit Layout Mode
 would hide it exactly when someone needs it. It offers only restores the domain will accept.
