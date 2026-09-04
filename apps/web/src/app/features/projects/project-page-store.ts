@@ -470,11 +470,12 @@ export class ProjectPageStore {
   }
 
   /**
-   * Removal follows ownership. A view, and an empty container, go without ceremony — this
-   * sends no policy and the domain simply removes them. A container still holding rows
-   * answers 409 `rule_violation` carrying a discriminated `section_not_empty` payload; that
-   * is not an error to render, it is a **question to ask**, so it opens `removalPrompt`
-   * instead of `sectionError`.
+   * Removal **archives**. A view, an empty container, and a container holding only archived
+   * rows go without ceremony — this sends no policy and the domain archives them, and the
+   * Archived region below the canvas is what makes that safe. A container still holding
+   * *live* rows answers 409 `rule_violation` carrying a discriminated `section_not_empty`
+   * payload; that is not an error to render, it is a **question to ask**, so it opens
+   * `removalPrompt` instead of `sectionError`.
    *
    * **Only that payload opens the dialog.** A 409 with missing, malformed, zero-valued or
    * differently discriminated details is not safely identifiable as the question this dialog

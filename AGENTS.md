@@ -51,8 +51,12 @@ one of them is wrong even if it works.
 
 - Angular components depend on **gateway interfaces**, never on a concrete gateway,
   never on HTTP, never on Supabase-shaped anything.
-- Domain services depend on **repository interfaces + `Clock`** only. They must not
-  know about HTTP, MCP, or JSON.
+- Domain services depend on **domain and repository abstractions only** — repository
+  interfaces, `Clock`, and where an invariant needs it, another domain service through an
+  **acyclic** edge (`TaskService` and `ReflectionService` already compose `SectionService`
+  to resolve a container). They must never know about HTTP, MCP, JSON adapters, or any
+  other infrastructure. This describes the architecture the code already enforces; it does
+  not authorize a new edge.
 - MCP tools call **domain services**, never repositories directly.
 - Contracts are defined **once**, in `packages/contracts`. No parallel type
   definitions anywhere.

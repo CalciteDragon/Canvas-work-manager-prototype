@@ -19,9 +19,9 @@ deleted?
 - *Cascade-delete the section's events with the section*: rejected. §57 exists so a workspace
   can say what happened; erasing the record that a section ever existed is the opposite of an
   activity log, and it would make removal the one mutation that destroys history.
-- *Soft-delete the section instead*: rejected. It needs a new field in
-  `packages/contracts`, which §30 argues against, to avoid a problem the option below does
-  not have.
+- *Soft-delete the section instead*: rejected **then, and taken later** — see the amendment
+  below. It needs a new field in `packages/contracts`, which was read as something §30 argues
+  against, to avoid a problem the option below does not have.
 - *`entityType: 'project'`, pointing at the owning project*: chosen. The event names an
   entity that outlives the section, so nothing dangles and nothing is destroyed.
 
@@ -44,11 +44,29 @@ be filtered to one section — nothing in §57 or any planned slice asks for tha
 **Current decision**
 
 Section mutations record against the owning project, with `entityId` and `projectId` both set
-to `section.projectId`. Section removal stays a hard delete.
+to `section.projectId`.
+
+**Amended, 2026-09-04** (`2026-09-what-undo-means-for-an-archived-row.md`). Section removal is
+**no longer a hard delete** — it sets `archivedAt`, and `restoreSection` clears it. The
+soft-delete option rejected above was taken, for reasons this entry never weighed: a container
+holds rows, and rows are history. The §30 objection was also a misreading — §30 promises that
+adding a section *type* touches one place and says nothing about adding a *field* to
+`ProjectSection`.
+
+**The conclusion here still holds, and its reason is now a better one.** Targeting the project
+no longer depends on sections being deletable; it depends on activity identity being durable
+whatever happens to a section later. That is the property worth keeping, because it survives
+the next change to removal semantics as well.
+
+The actions gain `project.section_archived` and `project.section_restored`.
+`project.section_removed` stays in the union with nothing producing it, for the events already
+written into `data.json` — history is not rewritten.
 
 **Confidence**
 
-High. The alternative is not a worse design, it is a document that fails to load.
+High. The alternative is not a worse design, it is a document that fails to load — and that
+remains true under the archive semantics, since an event targeting a section would still
+outlive whatever permanent deletion eventually does to one.
 
 **Revisit when**
 

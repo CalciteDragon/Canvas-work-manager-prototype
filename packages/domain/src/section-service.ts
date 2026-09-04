@@ -142,10 +142,14 @@ export class SectionService {
   }
 
   /**
-   * `add` without the permission check or a unit of work of its own. `runUnitOfWork` does
-   * not re-enter -- a nested call throws `UnitOfWorkInProgressError` -- so
-   * `resolveContainer`, which runs inside the caller's transaction, needs a door into the
-   * same body. Keeping it here is what makes a default layout the *existing* behaviour
+   * `add` without the permission check or a unit of work of its own — the door
+   * `resolveContainer` needs, since it runs inside the caller's transaction.
+   *
+   * (An earlier version of this comment said `runUnitOfWork` "does not re-enter -- a nested
+   * call throws `UnitOfWorkInProgressError`". That is true of `DataStore.runUnitOfWork` and
+   * **not** of the `UnitOfWork` the services actually hold: `unitOfWorkFor` deliberately
+   * *joins* a nested call on the same async stack, because queueing it would deadlock. The
+   * door below is justified by the permission check, not by a transaction constraint.) Keeping it here is what makes a default layout the *existing* behaviour
    * reached differently rather than a second code path: positioning, the empty config and
    * `project.section_added` all stay on one path.
    */

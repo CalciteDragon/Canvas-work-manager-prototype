@@ -321,7 +321,8 @@ describe('ProjectPageStore (§19, §26)', () => {
     });
     await store.load(PROJECT);
 
-    // Telling the user a completed remove failed invites them to click it again, which 404s.
+    // Telling the user a completed remove failed invites them to click it again, which now
+    // answers the already-archived 409 — the record is still there.
     expect(await store.removeSection('section-text' as SectionId)).toBe(true);
     expect(store.sectionError()).toBeNull();
     expect(store.sections().map(({ id }) => id)).toEqual(['section-tasks']);

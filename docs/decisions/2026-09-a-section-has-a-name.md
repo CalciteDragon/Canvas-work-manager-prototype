@@ -111,6 +111,18 @@ start naming sections routinely and never see it. Medium for rename-in-the-inspe
 two clicks deep, and the same objection `note-2026-08-31-002` makes about the project More
 menu applies here.
 
+**Amended, 2026-09-04.** Archived (`2026-09-what-undo-means-for-an-archived-row.md`) is a
+fifth `nameOf` consumer, and the first one that names a section which is no longer on the
+canvas. The optional-title compatibility rule matters more there than anywhere else: an
+archived section's stored `title` is whatever it had when it was removed, padding and blanks
+included, and it has no frame left to fall back through.
+
+The region **owns its own collision suffix** — `archive 1`, `archive 2` in its own sorted
+order — rather than reusing the dialog's `(position N on the canvas)`. The two are answering
+different questions: the dialog identifies a *live canvas target*, while an archived section
+keeps a deliberately stale position and is being identified inside an already-sorted list.
+Sharing `nameOf` and not sharing the suffix is the split that keeps both honest.
+
 **Revisit when**
 
 `list_sections` wants a denormalized resolved name. It does not get one now — it would mean

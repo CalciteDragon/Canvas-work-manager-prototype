@@ -89,11 +89,48 @@ ordinary section at the end of the canvas with an ordinary activity event behind
 default layout is the existing behaviour reached by a different door, not a second code
 path to keep in step.
 
-Removal follows ownership, and only ownership. Removing a container removes its rows;
-removing a view touches no data at all. A container that still holds rows takes a policy
-rather than a confirmation alone: `cascade` archives the rows (`archivedAt` already exists
-and is deliberately distinct from `cancelled`, so this is undoable), or `reassign` moves
-them to another container of the same type. An empty container goes without ceremony.
+Removal follows ownership for the **rows**, and only ownership. A container that still holds
+live rows takes a policy rather than a confirmation alone: `cascade` archives them, or
+`reassign` moves them to another container of the same type. A view has no rows to settle, so
+no policy applies to it. An empty container goes without ceremony.
+
+**Amended, 2026-09-04** (`2026-09-what-undo-means-for-an-archived-row.md`). Two claims above
+were wrong, and the correction is worth recording rather than quietly editing away (§77).
+
+The first: "`archivedAt` … is deliberately distinct from `cancelled`, so this is undoable"
+was true of the field and untrue of the application. Nothing in the repository had ever
+cleared `archivedAt`, so for a fortnight this decision justified a cascade with an undo that
+did not exist. It exists now — `SectionService.restoreSection`, `TaskService.restore` and
+`ReflectionService.restore` — and the sentence is finally true.
+
+The second: "removing a container removes its rows; removing a view touches no data at all."
+Removal now **archives the section itself**, on every branch, and nothing is deleted. A
+cascade takes the container down with its rows, each stamped with `archivedWithSectionId`;
+a reassign archives the emptied section and marks nothing. A *view* archives too, because
+`rich-text` owns its data through `config.text` and deleting the record would lose prose that
+exists nowhere else — so "removing a view touches no data" was never quite true either.
+
+The invariant this decision states is **strengthened**, not narrowed. Under a hard delete a
+cascaded row pointed at a section that no longer existed — the friction note
+`note-2026-09-01-002` caught one — and rows archived *before* a cascade dangled with no
+policy involved at all. Now every row's section exists, so "every row has a `sectionId`,
+every section renders, so no row can be invisible" holds for archived rows too, with
+"renders" read as "exists and would render if restored". `validateDocumentIntegrity` enforces
+it rather than the write path merely maintaining it.
+
+The rejected *computed "unrendered data" region* is not what the Archived region is. That
+option was rejected as a way of **holding the invariant** by surfacing orphaned live data.
+Archived shows deliberately archived work, and is the undo surface for an operation this
+decision already called undoable.
+
+Also worth recording, because it was already true and never written down: `TaskService` and
+`ReflectionService` compose `SectionService`'s container operations on create and move, and
+the edge is acyclic — `SectionService` holds repositories and never a row service. Container
+creation stays on the one `addWithin` path for the reason above: a default layout is the
+existing behaviour reached by a different door. Restore deliberately does **not** add a
+second edge: `restoreSection` asserts `projects.write` while a task restore is gated on
+`tasks.write`, so calling it from inside one would have failed for an agent granted
+`tasks.write` alone.
 
 The MCP surface gains section tools — listing, creating, updating and removing — under
 `projects.write`, the permission that already governs the canvas. Without them an agent can
@@ -103,9 +140,11 @@ this.
 **Confidence**
 
 High for the container/view split, which follows from what the section types already read
-rather than from a preference. High for removal semantics. Medium for keeping `projectId`
-alongside `sectionId` — it is a performance judgement against a store whose costs may not
-survive the JSON document. Low for the reassign policy, which has no UI behind it yet.
+rather than from a preference. High for removal semantics **as amended** — the original
+version's claim about views was wrong, and the undo it promised did not exist. Medium for
+keeping `projectId` alongside `sectionId` — it is a performance judgement against a store
+whose costs may not survive the JSON document. Reassign is no longer low-confidence for want
+of a UI: the removal dialog offers it, and it now archives the emptied section as well.
 
 **Revisit when**
 

@@ -902,7 +902,9 @@ Rows carry `sectionId`; containers (`task-list`, `reflections`) own theirs and v
 no section named resolves to the project's first matching container and otherwise calls
 `SectionService.add` — a default layout is the existing operation reached by a different
 door, not a second code path. Removing a container takes a policy: `cascade` archives its
-rows, `reassign` moves them; removing a view touches no data. The MCP registry grew from
+rows, `reassign` moves them. (Removal no longer *deletes* anything — the archive phase below
+made it archive the section too, so the "removing a view touches no data" this phase shipped
+is now "removing a view archives it with its config".) The MCP registry grew from
 fourteen tools to eighteen (`list_sections`, `create_section`, `update_section`,
 `remove_section`).
 
@@ -938,9 +940,10 @@ the section *type*, so three Task Lists on one canvas offered three identical op
 
 **Status:** done — decision: [docs/decisions/2026-09-a-section-has-a-name.md](docs/decisions/2026-09-a-section-has-a-name.md),
 plan: [docs/plans/2026-09-section-names-implementation.md](docs/plans/2026-09-section-names-implementation.md).
-`nameOf` in `packages/contracts` is now the single expression all four naming surfaces use —
-the frame header, the removal dialog, Rich Text's aria-label and `SectionService`'s activity
-summaries — over a derivation from the `type` string plus a one-entry `SECTION_DISPLAY_NAMES`
+`nameOf` in `packages/contracts` is now the single expression every naming surface uses — the
+frame header, the removal dialog, Rich Text's aria-label, `SectionService`'s activity summaries
+and, since the archive phase below, the Archived region — over a derivation from the `type`
+string plus a one-entry `SECTION_DISPLAY_NAMES`
 table that `sub-projects` earns. `title` stays an optional override, defaulted at read time,
 with a placeholder-driven Name field at the top of the frame's inspector; that made
 `This section has no settings.` unreachable and it is gone. No `SCHEMA_VERSION` change, no
@@ -969,6 +972,46 @@ padded title, refused a whitespace-only one, and `null` cleared the override.
 experiment (§56, Slice 24), and renaming from the frame header in View Mode — recorded as
 `note-2026-09-04-001`, which is the same "the thing you look at is not the thing you change"
 shape as the Slice 17 project-header notes.
+
+---
+
+## Unnumbered phase — Archive keeps its promise
+
+The third friction-chosen phase, from the second of the two notes the ownership phase's browser
+pass left (`note-2026-09-01-002`). Cascading a container archived its rows and hard-deleted the
+container, so every archived row pointed at a section that no longer existed — and nothing in
+the repository had ever cleared `archivedAt`, so the "this is undoable" the ownership decision
+rested on was a claim with no operation behind it.
+
+**Status:** done — decision: [docs/decisions/2026-09-what-undo-means-for-an-archived-row.md](docs/decisions/2026-09-what-undo-means-for-an-archived-row.md),
+plan: [docs/plans/2026-09-archive-restore-implementation.md](docs/plans/2026-09-archive-restore-implementation.md).
+Removing **any** section now archives it; nothing hard-deletes. A cascade takes the container
+down with its live rows, each stamped `archivedWithSectionId`; a reassign moves the rows out
+and archives the emptied section, marking nothing. `restoreSection` is the canonical undo and
+restores exactly what the removal took — a row archived beforehand stays archived.
+`TaskService.archive` now cascades to live descendants under `archivedWithTaskId`, with
+`restore` as its mirror, and `ReflectionService` finally has the archive/restore pair it never
+had. An **Archived** region at the foot of the canvas is the undo surface, visible in View Mode
+because it is content rather than layout chrome (§32), and `TaskRow` gained the per-row Archive
+control §34 describes and the domain had carried since the ownership phase with no caller.
+
+No `SCHEMA_VERSION` change: every new field is optional, and the current `.prototype/data.json`
+was booted unedited to prove it. The structural change is in `validateDocumentIntegrity`, which
+learned the ownership invariant the previous phase left to the write path — every row's section
+must exist, belong to its project and hold its kind; a live row is never in an archived section
+or under an archived parent; a parent and child share a section; and each archive marker names
+an archive still in progress. The document that produced the friction note now fails to load.
+
+Corrections this phase owed rather than made quietly: §9's `TaskGateway` gained `restore`, the
+ownership decision was amended on two counts it got wrong, the activity decision's rejected
+soft-delete was taken, and AGENTS.md's "repositories + `Clock` only" was widened to the acyclic
+domain composition the code has enforced since the ownership phase.
+
+**Deferred:** permanent deletion — wanted, and deliberately not built here, with
+`SectionRepository.remove` kept as its seam and `archivedWithSectionId` reducing it to a query
+on one column. Also: archive/restore MCP tools and `includeArchived` on the list tools (§54
+lists none, and an agent has no undo surface to build), project restore, and any workspace-wide
+archive browser or bulk restore.
 
 ---
 

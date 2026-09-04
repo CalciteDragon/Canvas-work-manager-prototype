@@ -557,6 +557,13 @@
       "route": "/projects/project-personal",
       "projectId": "project-personal",
       "note": "Cascade archived the row exactly as designed — the task survives in data.json with `archivedAt` set — but its `sectionId` still points at the section that was just removed, and nothing in the app unarchives a task. `validateDocumentIntegrity` does not check `task.sectionId` either, so the dangling reference is invisible until something reads it. The decision entry calls cascade \"undoable\" because `archivedAt` is distinct from `cancelled`; that is true of the field and untrue of the app. Whatever eventually restores an archived row has to answer where it goes back to — which is an argument for resolving the container at restore time, the same door `resolveContainer` already opens on create."
+    },
+    {
+      "id": "note-2026-09-04-002",
+      "createdAt": "2026-09-04T23:20:00.000Z",
+      "route": "/projects/project-personal",
+      "projectId": "project-personal",
+      "note": "Resolves note-2026-09-01-002. Using the archive phase settled the question that note left open — \"whatever eventually restores an archived row has to answer where it goes back to\" — by removing it. Removing a section now archives the section, so the row goes back to the section it already names and no resolution mechanism is needed. Restoring the container brought back exactly the two rows the cascade took, while the task archived a minute earlier stayed archived and reappeared as its own entry once its section was live again; that asymmetry reads correctly rather than surprising, which was the thing I was least sure of. Two things the browser pass changed my mind about. The Archived region wants to be visible in View Mode: I removed a Task List with Edit layout on, left edit mode to look at the canvas, and the undo was still there — behind the mode toggle it would have been invisible at exactly the moment I wanted it. And an archived view showing no row count reads better than \"0 tasks\" would; the emptied container that legitimately shows `0 tasks` sits next to it and the two are not confusable. Remaining friction, small: three archived Task Lists read `Task List (archive 1/2/3)`, which disambiguates but says nothing about *when* or *what was in them* — a relative time would probably do more work than the ordinal. And the region has no way to clear anything out, which is the deferred permanent-delete question already recorded in the decision entry."
     }
   ]
 }

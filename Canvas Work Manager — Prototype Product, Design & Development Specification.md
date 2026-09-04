@@ -372,8 +372,14 @@ interface TaskGateway {
   update(id: TaskId, input: UpdateTaskInput): Promise<Task>;
   complete(id: TaskId): Promise<Task>;
   archive(id: TaskId): Promise<void>;
+  restore(id: TaskId): Promise<Task>;
 }
 ```
+
+`restore` was added once the prototype showed that an archive nothing can reverse is a row a
+person has lost (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md). It restores
+the task and every descendant that came down with it. `archive` keeps its `Promise<void>`, so
+a caller that needs the updated row re-reads.
 
 The frontend depends on these interfaces.
 
@@ -1151,6 +1157,23 @@ remove
 
 The content component handles only its feature.
 
+**Remove archives; it does not delete.** It sets `archivedAt` on the section, which leaves the
+canvas and keeps everything it held — a Notes section's prose, a Progress section's milestone
+selection, and the rows a container took down with it. A container still holding *live* rows
+first asks what should happen to them: archive them with the section, or move them to another
+container of the same type. A view, an empty container, and a container holding only archived
+rows need no question and archive silently.
+
+Every project canvas therefore ends with an **Archived** region: the sections that have been
+removed, each with the number of rows that came down with it, above the rows archived on their
+own. One **Restore** puts a section back at the end of the canvas with exactly what the removal
+took — not the rows that were already archived beforehand, which stay archived. Restoring is
+refused while the project itself is archived, so the region stays visible with its controls
+disabled and the guidance *Reactivate this project to restore archived work.*
+
+Removing a section that is already archived is refused rather than repeated. Permanent deletion
+is a later question.
+
 Example:
 
 ```text
@@ -1184,6 +1207,11 @@ Edit Layout Mode reveals:
 - section configuration
 
 This avoids permanently cluttering the normal workspace.
+
+§31's **Archived** region is *not* layout chrome and stays visible in View Mode: it is content,
+and it is the undo for removal. Gating it behind Edit Layout Mode would hide it exactly when
+someone needs it — right after a removal they did not mean. The per-row archive control in §34
+is likewise a row affordance rather than a layout one.
 
 Angular CDK should be used for reorderable drag/drop interactions rather than implementing pointer sorting from scratch.
 
@@ -1253,7 +1281,16 @@ start date
 due date
 
 subtasks
+
+archive
+
+restore
 ```
+
+Archiving a task takes its subtasks with it, and restoring it brings back exactly those — a
+subtask archived on its own beforehand stays archived. A subtask cannot be restored on its own
+while its parent or its section is archived; restore the one that took it down instead.
+Archived rows are reached through §31's Archived region.
 
 Prefer a side drawer over a modal for detailed task editing so workspace context remains visible.
 
