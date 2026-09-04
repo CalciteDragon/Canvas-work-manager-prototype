@@ -7,20 +7,23 @@ phase's browser pass recorded (`.prototype/notes.json`, `note-2026-09-01-002`).
 with it. Restoring brings back exactly what the removal took — no more, no less. No row, live or
 archived, ever points at a section that does not exist.
 
-**Spec sections.** §9 (`TaskGateway`'s pinned surface), §29/§30/§31 (the registry, adding a type,
+**Spec sections.** §9 (`TaskGateway`'s pinned surface), §11/§14 (one shared contract and the
+hand-readable file that must stay backwards-compatible), §29/§30/§31 (the registry, adding a type,
 the frame's remove control), §33/§34 (subtasks), §45 (injected clock), §54/§56 (the tool set and
 tool-shape experiments), §57 (activity events), §58 (agent confirmations), §61 (prototype API),
-§62 (live updates), §69 (end-to-end tests),
+§62 (live updates), §63 (optimistic project-status paint), §69 (end-to-end tests),
 §71 (deliberately disposable), §77 (correcting the design from use), §78 (the decision log),
 §80 (never build); §4 (the component workbench, for the region's stories); and §32 (Edit Layout Mode gates the remove control, and now the region and
 the per-row Archive button that sit beside it).
 
-**Not in scope.** Naming sections, which is the sibling plan
-`2026-09-section-names-implementation.md`.
+**Landed prerequisite, not work to repeat.** `2026-09-section-names-implementation.md` is now on
+`main`. This phase consumes its `nameOf`/`SectionRemovalRefusalDetailsSchema` contracts and its
+UI-owned removal prompt, and preserves its optional-title compatibility rule. It does not add a
+second name field, a second resolved-name helper, or a second error discriminator.
 
 ---
 
-## Step 0 — Five facts that change the obvious approach
+## Step 0 — Six facts that change the obvious approach
 
 **The decision already claims what this plan has to build.**
 `docs/decisions/2026-09-sections-own-their-data.md` justifies cascade-as-archive with
@@ -32,34 +35,47 @@ the undo the decision promises.** The specification mentions archive four times 
 (`archive(id: TaskId)` in §9's `TaskGateway`), 2008 and 2011 (§58), 2922 (§81) — and restore never.
 
 **`settleRows` contains the argument against its own cascade branch.**
-`section-service.ts:287-288` says, of reassign:
+`section-service.ts:293-296` says, of reassign:
 
 > Reassign still repoints the archived ones, because unarchiving a row into a section that no
 > longer exists would be the worse outcome.
 
-Cascade, twelve lines later, produces exactly that: `:306-310` writes only `archivedAt`, and
-`remove` at `:278` hard-deletes the section. From the last phase's browser pass:
+Cascade produces exactly that: `section-service.ts:314-318` writes only `archivedAt`, and
+`remove` at `:277-289` hard-deletes the section. The ownership phase's browser pass captured the
+historical bad record in `.prototype/notes.json` (`note-2026-09-01-002`):
 
 ```
 section-4f7e064c | Measure the hallway shelf | archivedAt= 2026-09-02T06:13:32.422Z
 ```
 
-`section-4f7e064c` no longer exists. **Rows archived *before* a cascade dangle too**: `:297`
-filters them out of `live`, `:298` returns early when nothing is live, and the section is
-hard-deleted without touching them. That second case is not fixed by any policy — it happens with
-no policy at all — and it is the one this plan's approach closes for free.
+`section-4f7e064c` no longer existed. The names phase has since reset `.prototype/data.json`, so
+this is evidence in the note, **not a claim about the current file**. Rows archived *before* a
+cascade dangle too: `section-service.ts:303-305` filters them out of `live`, then returns early
+when nothing is live, and the section is hard-deleted without touching them. That second case is
+not fixed by any policy — it happens with no policy at all — and it is the one this plan's
+approach closes for free.
 
 **The integrity pass never learned about the field the last phase added.**
 `validateDocumentIntegrity` (`data-store.ts:129-139`) checks a task's `projectId` and
 `parentTaskId`, and a section's, milestone's and reflection's `projectId`. The string `sectionId`
-does not appear in the function. Validation runs once at unit close (`data-store.ts:280`), not per
-write, so a rule added here sees only committed states — no intra-unit ordering hazard.
+does not appear in the function. Validation runs at unit close (`data-store.ts:280`) and again in
+`persist` (`:263`/`:376`), not per write; both passes see committed state, so a rule added here has
+no intra-unit ordering hazard.
 
 **Archive is half-built on both rows it applies to.** `TaskService.archive` exists
 (`task-service.ts:202`) and `TaskGateway.archive` is declared (`work-manager-gateway.ts:44`) —
 but **no UI calls it**: the one `.archive(` in `apps/web` is `project-page.ts:131`, the *project*.
 `ReflectionService` has no archive at all, so a reflection can acquire `archivedAt` only by having
 its container cascaded, and nothing can ever clear it.
+
+**The names phase landed the archive phase's error and naming seams.** The non-empty refusal is
+now the shared, positive discriminator
+`{ reason: 'section_not_empty', liveRowCount }` (`contracts/src/section.ts:114-118`), forwarded by
+the host, retained as untrusted `GatewayError.details`, and parsed by `ProjectPageStore` before it
+opens the dialog. The archive phase's already-archived and archived-target 409s therefore need no
+new detail shape and must stay on the ordinary error path. `nameOf` is likewise the one contract
+for stored overrides, legacy blank titles and derived defaults. Archive cards and archive/restore
+activity summaries use it directly; they do not reproduce the dialog's or registry's fallback.
 
 **`SectionRepository.remove` documents the opposite of what this plan does.**
 `packages/repositories/src/interfaces.ts:35-40`:
@@ -109,8 +125,8 @@ someone set it up again. "Removing a section is undoable" is a rule that fits in
 
 `SectionKind` keeps meaning exactly what it meant — *owns rows or does not* — and stops being
 overloaded to mean *survives removal or does not*, which was never the same question. It also has
-nothing to do with how many of a type a project may have: nothing in `addWithin` (`:108`) or
-`duplicate` (`:226`) constrains that, for views or containers.
+nothing to do with how many of a type a project may have: nothing in `addWithin` (`:111-143`) or
+`duplicate` (`:233-265`) constrains that, for views or containers.
 
 What that buys, all of it structural rather than a rule to remember:
 
@@ -127,8 +143,8 @@ What that buys, all of it structural rather than a rule to remember:
   reconstruction of something they removed in one click.
 - **No `SCHEMA_VERSION` bump.** `archivedAt` is optional, so a document written before this phase
   still parses. The ownership phase's 1 → 2 bump is not repeated, and no **schema-version-driven**
-  reseed is required. Step 2 still resets the current prototype data because it already contains
-  the dangling-row defect this phase deliberately makes invalid.
+  reseed is required. The names phase already reset the historical dangling-row defect out of the
+  current prototype data; Step 2 verifies that clean legacy-shaped file before acceptance reset.
 
 **What it costs, stated plainly:** every read of sections must now exclude archived ones, and there
 are more of those than the first draft's approach touched — `SectionService.ordered`/`list`,
@@ -207,8 +223,9 @@ whole subtrees, and the section marker is the only one written.
 Both fields are optional, so a document written before this phase still parses: no
 `SCHEMA_VERSION` change and no schema-version-driven reseed. `SCHEMA_VERSION` is `2` at
 `contracts/src/document.ts:18` and does not move; there is no migration runner to update. The
-one reset this plan does require is data repair, not schema migration: the current local file
-already violates the stricter ownership invariant, as the reseed subsection below explains.
+names phase's browser pass already reset the historical dangling row out of the current local
+file. This plan therefore requires no pre-implementation repair reset; acceptance still begins
+from `pnpm prototype:reset` so its scenario is deterministic.
 
 `archivedWithSectionId` and `archivedWithTaskId` are fields on `Task` that §33 does not declare, exactly as
 `sectionId` and `archivedAt` were. Both of those carry a justifying comment under §33's "Start
@@ -243,7 +260,7 @@ When a move does change sections, compare the computed `next.sectionId`, not mer
 input named one: `update` can overwrite it from the new parent's section at `:159`. Tests assert the
 final marker group and document validity, not an implementation-specific sequence of clears.
 
-`packages/contracts/src/inputs.ts:180` — `SectionQuerySchema` gains
+`packages/contracts/src/inputs.ts:187` — `SectionQuerySchema` gains
 `includeArchived: z.boolean().optional()`, matching `TaskQuery`/`ReflectionQuery`.
 
 `packages/repositories/src/json-repositories.ts:124` — `JsonSectionRepository.list` filters on it
@@ -258,7 +275,7 @@ with the same predicate the other two use (`json-repositories.ts:110`, `:154`):
   it is view configuration with no history of its own (§31 offers no undo)." §31 now offers undo.
 - `packages/contracts/src/section.ts:22-27` (`SectionKindSchema`) — "removing it takes them with
   it; a view … removing it touches nothing." Removing a view now archives it.
-- `packages/contracts/src/section.ts:42-45` (`SECTION_OWNERSHIP`) — "removing the section already
+- `packages/contracts/src/section.ts:43-45` (`SECTION_OWNERSHIP`) — "removing the section already
   removes its text." It archives it. Step 1 quotes this comment approvingly for its *first* half
   and must not leave the second standing.
 
@@ -338,7 +355,7 @@ document load rather than in one place.
 `validDocument()` puts `reflection-1` in `section-1`, whose `type` is `task-list` (`:36-40`,
 `:71-75`), and the fixture is used **29 times**, each construction validating at
 `data-store.ts:231`. Add a second section of type `reflections` and repoint the reflection at it.
-This is a separate failure from the `.prototype/data.json` reseed below and is not fixed by it.
+This is independent of the clean `.prototype/data.json` baseline below.
 (`repositories.test.ts` is **not** affected — its inserts run outside a unit of work, so
 `assertCanMutateDataStore` (`:48-60`) returns before anything validates. Leave it alone.)
 
@@ -348,21 +365,23 @@ unaffected — both passes see committed state, so there is still no intra-unit 
 but anyone budgeting the four new clauses should know they run twice, which is also what the
 ownership ADR means by "clones and validates the whole document twice".
 
-### Before the first commit: reseed
+### Baseline after the names phase
 
-**`.prototype/data.json` as it stands today fails the new rule.** It still holds the row this
-plan quotes as its Step 0 evidence — `task-personal-shelf` pointing at `section-4f7e064c`, which
-is not in `sections`. `validateDocumentIntegrity` runs on `JsonDataStore` construction
-(`data-store.ts:231`), so **the host will refuse to boot the moment the first commit lands**,
-before any UI exists to explain why.
+**The current `.prototype/data.json` is already clean.** The names phase's real-app pass reset it:
+`task-personal-shelf` is live in `section-project-personal-tasks`, and the historical
+`section-4f7e064c` dangle survives only in `note-2026-09-01-002`. `validateDocumentIntegrity`
+runs on `JsonDataStore` construction (`data-store.ts:231`), so after the first repository commit
+start `pnpm dev:host`, observe `prototype-host listening … data …\.prototype\data.json`, and stop
+it without making a request **before** resetting anything. That process cannot print ready unless
+`loadPersistence()` constructed `JsonDataStore` from the current default file, so it is the
+backwards-compatible clean-data proof the package fixtures cannot provide.
 
-So: capture that row first if acceptance item 1 is to be run against the real artefact, then
-`pnpm prototype:reset`. The reseed destroys the evidence, which is the point — but it is also
-the last chance to look at it. Delete any stale `.prototype/e2e-data.json` at the same time — see
-*Environment*.
+Use `pnpm prototype:reset` only when beginning the deterministic acceptance scenario. The stale
+`.prototype/e2e-data.json` described under *Environment* is already absent; do not add a deletion
+step unless a generated copy has reappeared.
 
-**Verify:** `pnpm --filter @cwm/contracts test`, `pnpm --filter @cwm/repositories test`,
-`pnpm --filter @cwm/prototype-data test`.
+**Verify:** the default-file host boot above, then `pnpm --filter @cwm/contracts test`,
+`pnpm --filter @cwm/repositories test`, `pnpm --filter @cwm/prototype-data test`.
 
 ---
 
@@ -377,28 +396,28 @@ Step 6 region. The enumeration is the checklist:
   `{ includeArchived: true, projectId }` (mandatory scope last) and returns both states, ordered by
   position then id for deterministic transport; the Archived region applies its timestamp order
   after selecting archived records. No internal canvas/write caller opts in.
-- `resolveContainer` (`:153`) and `requireContainer` (`:166`) — **must ignore archived sections**.
+- `resolveContainer` (`:158`) and `requireContainer` (`:171`) — **must ignore archived sections**.
   A new row must never be created into, or moved into, an archived container; `resolveContainer`
   falling through to `addWithin` is the correct behaviour when the only container is archived.
 - `duplicate` and `move` — refuse on an archived section.
-- **`update` (`:182-198`) — refuse on an archived section**, same family as `duplicate` and
-  `move`. It resolves through the unchecked `require` (`:187`) and refuses nothing today, so
+- **`update` (`:187-208`) — refuse on an archived section**, same family as `duplicate` and
+  `move`. It resolves through the unchecked `require` and refuses nothing today, so
   `PATCH /api/sections/:id` (`routes.ts:183`) and the `update_section` MCP tool can retitle,
   resize, collapse or **replace the `config` of** an archived section — including the
   `config.text` whose survival is Step 1's entire justification for archiving views. An archived
   section is off the canvas; there is no edit to make on one that restoring first would not allow.
-- **`get` (`:73-76`) deliberately keeps returning archived sections.** It resolves through
+- **`get` (`:76-79`) deliberately keeps returning archived sections.** It resolves through
   `require`, and `restoreSection`, the region and the acceptance checks all depend on it. Said
   explicitly because "every read becomes live-only" reads as a blanket rule, and an implementer
   who filters here breaks restore.
-- **`settleRows`' reassign target (`:318`)** — the subtlest one, and the one an earlier draft's
+- **`settleRows`' reassign target (`:328`)** — the subtlest one, and the one an earlier draft's
   enumeration missed. It resolves through the *unchecked* `require`, and the checks that follow
-  are project (`:319`) and type (`:322`) only, so
+  are project (`:329`) and type (`:332`) only, so
   `DELETE /api/sections/A?policy=reassign&reassignToSectionId=<archived B>` moves **live** rows
   into an archived container — producing the state Step 2's new clause forbids, as an integrity
   failure and rollback rather than a `DomainRuleError`. Refuse an archived target, in the same
-  family as the three refusals at `:316`/`:320`/`:323`.
-- `require` (`:79`) stays as it is: it is the unchecked lookup the write paths use, and restore
+  family as the refusals at `:322-334`.
+- `require` (`:82`) stays as it is: it is the unchecked lookup the write paths use, and restore
   needs to find an archived section by id.
 
 **The archived-parent write policy is exact, not a slogan.** Add a small service-local active-
@@ -416,7 +435,7 @@ remains the deliberate exception described below.
 the archived record after the write. Mechanically:
 
 - **An already-archived section is refused**, with a `DomainRuleError` naming it. It is reachable:
-  `require` (`:79`) finds archived sections deliberately, and the region shows their ids, so the
+  `require` (`:82`) finds archived sections deliberately, and the region shows their ids, so the
   API and the `remove_section` tool can both be pointed at one. Removing something already removed
   is not a second archive, and a silent no-op would still write an activity event and answer two
   identical calls with two successes. Permanent deletion is the operation this case really wants
@@ -424,7 +443,7 @@ the archived record after the write. Mechanically:
 - The no-policy/non-empty refusal preserves the names phase's typed
   `{ reason: 'section_not_empty', liveRowCount }` details. Every other rule error in this phase has
   no such discriminator, so the web surfaces it as an error instead of reopening the policy dialog.
-- `settleRows`' early return at `:298` becomes: no rows at all, or rows but none live → archive
+- `settleRows`' early return at `:305` becomes: no rows at all, or rows but none live → archive
   the section, no policy required. A view never reaches `settleRows` at all and archives directly.
 - The cascade branch sets `archivedAt` on the section and on each live row, and
   `archivedWithSectionId` on each of those rows. One clock read for tidiness, but nothing depends
@@ -437,7 +456,11 @@ the archived record after the write. Mechanically:
   position uniqueness applies only to the live canvas, and `restoreSection` overwrites the value
   when it appends the section. This fixes the operation order rather than leaving two equivalent
   implementations for the next person to choose between.
-- Records `project.section_archived`, a new `SectionAction`. `project.section_removed` no longer
+- Records `project.section_archived`, a new `SectionAction`. Its summary is
+  `Archived the ${nameOf(section)} section`; restore records the matching `Restored …` summary.
+  This deliberately reuses the names phase's frozen-at-write activity rule. A legacy blank title
+  therefore falls back safely, and a later rename does not rewrite either event.
+  `project.section_removed` no longer
   has a branch that produces it; it stays in the union for the events already in `data.json`.
 - Returns the archived section. The web/HTTP path may discard that value; the MCP tool needs it and
   must not perform a second `get` that would add a `projects.read` permission check.
@@ -460,8 +483,8 @@ section or a row that came down with one returns:
   Step 6 also disables its Restore controls with reactivation guidance rather than offering a
   button guaranteed to fail.
 
-  Two things this needs, neither free. `assertProjectVisible` (`:412`) and `isProjectVisible`
-  (`:407-410`) test **workspace** only, while a project archives by `status: 'archived'`
+  Two things this needs, neither free. `assertProjectVisible` (`:424`) and `isProjectVisible`
+  (`:419-422`) test **workspace** only, while a project archives by `status: 'archived'`
   (`project-service.ts:143-151`) — so `restoreSection` adds its own status test. And the freeze is
   **escapable**, which is what makes it safe rather than a trap: `ProjectService.update` (`:119`,
   `:134`) already accepts a status change away from `archived`, so nothing is stranded behind it.
@@ -470,7 +493,7 @@ section or a row that came down with one returns:
   before or after. Said because "one rule" would otherwise imply both directions.
 - Records `project.section_restored`.
 
-**On nested units of work:** `addWithin`'s comment (`:100-107`) says "`runUnitOfWork` does not
+**On nested units of work:** `addWithin`'s comment (`:103-110`) says "`runUnitOfWork` does not
 re-enter -- a nested call throws `UnitOfWorkInProgressError`". That is true of
 `DataStore.runUnitOfWork` (`data-store.ts:266-291`, the rejection at `:267-269`), and **not** of
 the `UnitOfWork` the services actually hold: `unitOfWorkFor` explicitly *joins* a nested call on
@@ -612,7 +635,7 @@ reflection archive remains allowed for tidying. A live restore is idempotent and
   the path's `projectId`; ignore `SectionQuery.projectId` so a query parameter cannot override the
   route's scope.
 - **`GET /api/reflections` must forward `includeArchived`.** It parses `ReflectionQuerySchema` —
-  which has the field (`inputs.ts:144`) — then passes only `query.sectionId` (`routes.ts:143-154`),
+  which has the field (`inputs.ts:146-153`) — then passes only `query.sectionId` (`routes.ts:143-154`),
   and omits it from `queryObject`'s boolean list, unlike the tasks route at `:223`. Parse the
   required project scope from `query.projectId`, then pass only
   `{ sectionId: query.sectionId, includeArchived: query.includeArchived }` as the service filters.
@@ -654,26 +677,30 @@ place is AGENTS.md §2 rule 6.
   `list(projectId, query: Omit<ReflectionQuery, 'projectId'> = {})`, matching the domain shape
   above. `tasks.archive` already exists and finally gains a caller, which that file's own rule
   requires of a declared method.
-- **`TaskGateway` is pinned to §9 "verbatim" (`work-manager-gateway.ts:38`)**, and spec line 374
+- **`TaskGateway` is pinned to §9 "verbatim" (`work-manager-gateway.ts:38-45`)**, and spec line 374
   declares `archive` and nothing else. Adding `restore` is legitimate under AGENTS.md §2 rule 5 —
   correct the spec when the prototype disproves it — but it means editing §9 and recording it,
   not quietly widening the interface.
 - `archive` returns `Promise<void>`, so the store cannot read the updated row back from it. Both
   archive and restore re-read, or the list goes stale.
 
-**The removal dialog's prose is wrong after this phase and is this plan's to fix**, both the two
-action labels and two comments: `section-removal-dialog.html:1-3` says a view and an empty
-container are "already **gone** by the time this could render" (they are archived, and they still
-never reach the dialog — the first half stays, the word does not), and `:37-38` says the domain
+**The removal dialog's prose is wrong after this phase and is this plan's to fix**, both action
+labels and all three comments: `section-removal-dialog.ts:16-20` says a view and an empty
+container are "already **gone**" (they are archived, and they still never reach the dialog — the
+first half stays, the word does not); the template's `:1-3` already says only "removed" and stays.
+The template's `:41-42` says the domain
 cascades this way "rather than destroying the rows" — now it does not destroy the section either.
-`section-removal-dialog.html:45` and `:34` carry the two labels, and `project-page.ts:168-169`
+`section-removal-dialog.html:38` and `:49` carry the two labels, and `project-page.ts:166-169`
 the matching comment
 `` `cascade` archives the rows — undoable ``. All three now understate what happens: the section
 archives too.
 
-**See the three-column table under *Sequencing* for the exact strings.** This phase updates the
+**See the two-state table under *Landed names baseline* for the exact strings.** This phase updates the
 names-created dialog spec for both `tasks` and `reflections`; labels remain derived from
-`prompt.ownedKind`, never hard-coded to tasks.
+`prompt.ownedKind`, never hard-coded to tasks. Preserve the now-shipped
+`SectionRemovalPrompt { sectionName, rowCount, ownedKind, targets }` shape and the positive
+`SectionRemovalRefusalDetailsSchema` parse. Do not add archive-specific `details`, change
+`GatewayError`, or turn an already-archived/archived-target 409 into a second dialog.
 
 **An `Archived` region at the foot of the project canvas**, project-scoped, provided by
 `ProjectPage`, with its own store. It lists archived **sections** — each with the number of rows
@@ -690,7 +717,7 @@ both are empty. Files:
 | `apps/web/src/app/features/projects/archived-region/archived-region-store.ts` | Project-scoped archived reads and filtering; never section-scoped stores |
 | `apps/web/src/app/features/projects/project-page.ts` | Hosts the region and restore callbacks |
 | `apps/web/src/app/features/projects/project-page.html` | Places the region after the canvas |
-| `apps/web/src/app/features/projects/project-page-store.ts` | Public restore reconciliation/invalidation entry points and pre-paint `projectWritePending` signal |
+| `apps/web/src/app/features/projects/project-page-store.ts` | Public restore reconciliation/invalidation entry points and a pre-paint, overlap-safe project-write pending signal kept distinct from the existing all-write refresh counter |
 | `apps/web/src/app/features/projects/project-page-store.spec.ts` | Section/row restore invalidation and pending-before-optimistic-paint ordering |
 | `apps/web/src/app/features/projects/section-removal-dialog.html` | Both owned-kind labels |
 | `apps/web/src/app/features/projects/section-removal-dialog.spec.ts` | Names-phase harness updated for all four final labels |
@@ -721,6 +748,10 @@ region shows no count.
   deterministic tie-break. Their label is `nameOf(section)`, so `Backlog` stays `Backlog` and an
   untitled section reads `Task List`, never a raw type or id. Equal resolved names gain a local
   `archive 1`, `archive 2` suffix in that sorted order; duplicate names remain legal.
+  `SectionRemovalDialog.targetOptions` is not reusable here: its position suffix identifies a
+  *live canvas target*, while an archived section keeps a deliberately stale position and is being
+  identified inside this already-sorted region. Both surfaces reuse `nameOf`; each owns only its
+  local collision suffix.
 - A section's count includes only rows whose `archivedWithSectionId === section.id`. A view shows no
   count. An emptied/reassigned container shows `0 tasks` or `0 reflections` rather than pretending
   it owns none.
@@ -739,8 +770,12 @@ region shows no count.
   region visible so archived work is not erased from view, but disable every Restore control and
   show `Reactivate this project to restore archived work.` Reusing the loaded project status is
   not enough by itself because `setStatus` paints optimistically. `ProjectPageStore` exposes a
-  `projectWritePending` signal, set **before** its optimistic project paint and cleared only after
-  the gateway succeeds or rollback completes. Restore is disabled when the project is archived,
+  `projectWritePending` computed signal backed by a small **project-write counter**. Increment it
+  in `writeProject` **before** `projectState.set(paint(before))`, and decrement it in a `finally`
+  only after success or rollback. Do not derive it from the existing `pendingWrites`: that counter
+  is non-reactive, includes section writes, and today increments inside `whileWriting` only after
+  the optimistic paint. The counter shape also keeps two overlapping project writes from clearing
+  the disabled state when the first one settles. Restore is disabled when the project is archived,
   when `projectWritePending` is true, or while that restore itself is pending. Once the existing
   status editor's reactivation succeeds, the controls enable without a reload; after failure the
   project rolls back to archived and they stay disabled. Do not make a speculative restore request.
@@ -753,10 +788,10 @@ button is a row affordance like complete, not a layout one. Stating this because
 controls look alike and §32 is the reason they differ.
 
 **How the region refreshes.** The canvas is covered — `onLiveEvent` routes `project.*` to
-`refreshProject` (`project-page-store.ts:163-169`), which re-reads sections at `:222`. A row
+`refreshProject` (`project-page-store.ts:174-180`), which re-reads sections at `:233`. A row
 archived through the new per-row button emits `task.archived`, which reaches
-`notifyProjectDataChanged` (`:155`) and then returns at `:164` without touching `refreshProject`,
-so **the region's store reads `ProjectPageStore.projectDataRevision` (`:108`)** and re-reads when
+`notifyProjectDataChanged` (`:184`) and returns before `refreshProject`,
+so **the region's store reads `ProjectPageStore.projectDataRevision` (`:119`)** and re-reads when
 it changes. Note the precedent is not quite what it looks like: the section-scoped *stores* do not
 subscribe: their **components** take the revision as a required `input` fed from
 `project-page.html:175` (`progress-section.ts:11,14`, `reflections-section.ts:6,8`). Reading the
@@ -771,7 +806,7 @@ archived work, and it is the undo surface for an operation the ADR calls undoabl
 - The region's store must not reach into the section-scoped stores; it reads with
   `includeArchived: true` and filters.
 - Restoring a section **adds a section to the canvas**, so it must reach `reconcileSections`
-  (`project-page-store.ts:601`) and not only bump `projectDataRevision` — the revision makes
+  (`project-page-store.ts:647`) and not only bump `projectDataRevision` — the revision makes
   existing containers re-read; it does not paint a new one. **`reconcileSections` is `private`**,
   and the region's store must not reach into other stores, so `ProjectPageStore` gains a public
   entry point — `sectionRestored()` — that calls `reconcileSections` and then
@@ -801,6 +836,13 @@ archived work, and it is the undo surface for an operation the ADR calls undoabl
   no UI behind it yet" changes. Also record the already-shipped acyclic
   `TaskService`/`ReflectionService` → `SectionService` composition and why container creation stays
   on one domain path.
+- `docs/decisions/2026-08-section-activity-targets-the-project.md` — amend the rejected
+  soft-delete option and the "removal stays a hard delete" decision. The conclusion that section
+  events target the project still holds; the reason is now durable activity identity, not the
+  asserted absence of section archives.
+- `docs/decisions/2026-09-a-section-has-a-name.md` — Archived becomes a fifth `nameOf` consumer.
+  Preserve its compatibility rule for padded/blank legacy titles and record that the Archived
+  region owns a local collision suffix instead of reusing the live-canvas position suffix.
 - `AGENTS.md` — correct the over-narrow domain-boundary shorthand. Domain code may compose an
   acyclic domain service to preserve an invariant, as this repository already does, but it may
   depend only on domain/repository abstractions and must never know HTTP, MCP, JSON adapters or
@@ -812,13 +854,17 @@ archived work, and it is the undo surface for an operation the ADR calls undoabl
   chrome; §34 adds task archive/restore to the interaction list. §33 still
   needs no field-by-field rewrite: it describes a shape to start from, so the marker fields get
   justifying comments beside `sectionId` and `archivedAt` instead.
-- Update stale source comments in `packages/contracts/src/inputs.ts:104-110`,
-  `packages/domain/src/section-service.ts:260-268`,
-  `apps/web/src/app/features/projects/project-page-store.ts:430-434`, and
-  `apps/web/src/app/features/projects/section-removal-dialog.ts:7`, in addition to Step 2's four
-  comments and Step 6's template comments.
+- Update stale source comments in `packages/contracts/src/inputs.ts:111-117`,
+  `packages/domain/src/section-service.ts:267-275`, `apps/prototype-host/api/routes.ts:51`,
+  `apps/web/src/app/features/projects/project-page-store.ts:456-466` and `:640-645`,
+  `apps/web/src/app/features/projects/project-page-store.spec.ts:322`, and
+  `apps/web/src/app/features/projects/section-removal-dialog.ts:16-20`, in addition to Step 2's
+  four comments and Step 6's template comments. The post-write reconcile explanation must say a
+  repeated remove now answers an already-archived 409, not 404.
 - `development.md` — add the third unnumbered phase as **in progress before the first failing
-  test**, and mark it **done only after** the full app/MCP/E2E acceptance pass.
+  test**, and mark it **done only after** the full app/MCP/E2E acceptance pass. In the existing
+  ownership summary, replace "removing a view touches no data" with the final archive semantics;
+  in the completed names summary, change "all four naming surfaces" to include Archived.
 - `.prototype/notes.json` — resolve `note-2026-09-01-002` by writing what using it found.
 
 ---
@@ -866,7 +912,7 @@ This is the implementation checklist; every path is concrete.
 | `apps/web/src/app/features/projects/project-page.ts` | Host region and callbacks; corrected removal comment |
 | `apps/web/src/app/features/projects/project-page.html` | Place Archived beneath the canvas |
 | `apps/web/src/app/features/projects/project-page.spec.ts` | Connected region placement and final removal flow |
-| `apps/web/src/app/features/projects/project-page-store.ts` | Reconciliation/invalidation entry points, stale comments, and pre-paint `projectWritePending` signal |
+| `apps/web/src/app/features/projects/project-page-store.ts` | Reconciliation/invalidation entry points, stale comments, and the dedicated overlap-safe pre-paint `projectWritePending` counter/signal |
 | `apps/web/src/app/features/projects/project-page-store.spec.ts` | Section/row restore invalidation and project-write pending ordering |
 | `apps/web/src/app/features/projects/section-removal-dialog.ts` | Correct archived semantics comment |
 | `apps/web/src/app/features/projects/section-removal-dialog.html` | Final dynamic task/reflection labels |
@@ -888,23 +934,28 @@ This is the implementation checklist; every path is concrete.
 | `AGENTS.md` | Align the domain boundary wording with the existing, acyclic domain composition |
 | `docs/decisions/2026-09-what-undo-means-for-an-archived-row.md` | Canonical undo and archived-parent policy |
 | `docs/decisions/2026-09-sections-own-their-data.md` | Amend removal/invariant/confidence claims |
-| `development.md` | In-progress then done phase state |
+| `docs/decisions/2026-08-section-activity-targets-the-project.md` | Remove the now-false soft-delete rejection while preserving project-targeted events |
+| `docs/decisions/2026-09-a-section-has-a-name.md` | Record Archived as a `nameOf` consumer and its local duplicate-name treatment |
+| `development.md` | In-progress then done phase state; correct the ownership and names phase summaries to the final archive/name surfaces |
 | `.prototype/notes.json` | Resolve the originating note from actual use |
 
 ---
 
 ## Acceptance check
 
-Against `pnpm prototype:reset` (`personal-workspace`), host restarted:
+Run items 1–2 **before reset**, then run `pnpm prototype:reset` once and restart the host on the
+`personal-workspace` seed for items 3–13:
 
-1. **The dangle cannot come back.** Hand-edit `.prototype/data.json` to point a live task at a
-   missing section id; restart. It refuses to load, naming both. Repeat pointing it at the
-   `rich-text` section — refuses, naming the type. Repeat with the task live and its section
-   `archivedAt` set — refuses, "live in an archived section".
-2. **A document written before this phase, and free of the defect this phase closes, still loads**
-   unedited with no reseed: `archivedAt` is optional and `SCHEMA_VERSION` is unchanged. A document
-   carrying the defect — including `.prototype/data.json` as it stands today — does not, which is
-   why Step 2 reseeds before the first commit.
+1. **A document written before this phase, and free of the defect this phase closes, still loads**
+   unedited with no reseed: perform Step 2's default-file host boot against the current names-phase
+   `.prototype/data.json`. `archivedAt` is optional and `SCHEMA_VERSION` is unchanged.
+2. **The dangle cannot come back.** Make three fresh OS-temporary copies of that valid file; never
+   edit `.prototype/data.json`. In one scratch copy point a live task at a missing section id; in
+   the second point it at the `rich-text` section; in the third leave the task live and set its
+   owning section's `archivedAt`. Start the host once per copy with `CWM_DATA_FILE` set to that
+   exact scratch path. Each start refuses before listening, respectively naming the missing id,
+   the wrong section type, and "live in an archived section". Remove the scratch files and clear
+   `CWM_DATA_FILE`, then reset once for the interactive checks below.
 3. **Cascade and undo, in one click each.** Name a second Task List `Backlog`, drag a task in,
    remove it with
    *Archive the section and its tasks*. It leaves the canvas and appears in the region as a
@@ -983,7 +1034,7 @@ House convention: `.test.ts` in `packages/*`, `.spec.ts` in `apps/web`.
 | `repositories/data-store.test.ts` — a **live** row carrying `archivedWithSectionId` fails; so does one naming a section other than its own | The marker cannot outlive what it describes |
 | `repositories/data-store.test.ts` — a section marker whose section is live fails | A cascade marker cannot outlive the section archive it names |
 | `repositories/data-store.test.ts` — live and archived children in a different section from their parent fail | Section cascades always operate on complete task subtrees |
-| `domain/section-service.test.ts` — `resolveContainer` skips an archived container and creates a new one | Acceptance item 7's last clause, the subtlest read path |
+| `domain/section-service.test.ts` — `resolveContainer` skips an archived container and creates a new one | Acceptance item 10's last clause, the subtlest read path |
 | `domain/section-service.test.ts` — `requireContainer` refuses an archived section; `duplicate`/`move` refuse one | The rest of the read-path sweep |
 | `domain/task-service.test.ts` — restoring a subtask alone is refused, naming the parent | The rule round 1 found missing |
 | `domain/task-service.test.ts` — restoring a parent restores archived descendants into one section | `moveSubtree`'s promise, under restore |
@@ -1000,7 +1051,7 @@ House convention: `.test.ts` in `packages/*`, `.spec.ts` in `apps/web`.
 | `web/archived-region.spec.ts` — hides when empty; restoring a section calls `reconcileSections`, not only the revision bump | The empty state and the repaint round 1 found missing |
 | `web/archived-region.spec.ts` — a failed restore rolls back and shows a message | The failure path, per `task-list-store.spec.ts:224` |
 | `web/project-page.spec.ts` — Archived is present in View Mode, hidden when empty, and section restore repaints the canvas | Region placement and §32 behavior through the real page wiring |
-| `web/project-page-store.spec.ts` — a gated project update sets `projectWritePending` before optimistic status paint and clears it after success or rollback | Consumers cannot mistake optimistic status for persisted reactivation |
+| `web/project-page-store.spec.ts` — a gated project update sets `projectWritePending` before optimistic status paint and clears it after success or rollback; with two overlapping project writes it stays true until both settle | Consumers cannot mistake optimistic status for persisted reactivation, and one response cannot release another request's guard |
 | `web/project-page.spec.ts` — direct-load an archived project: the region remains visible with guidance; a gated reactivation keeps Restore disabled until success and a failed reactivation leaves it disabled | The UI never offers a restore the domain's project freeze will refuse |
 | `apps/e2e/web.spec.ts` — extend the existing journey to cascade its only container and restore it | Acceptance item 4 end to end without creating a third E2E test |
 
@@ -1010,7 +1061,7 @@ New rows this phase's later rounds added:
 |---|---|
 | `domain/section-service.test.ts` — a **view** with config is archived, not deleted, and restore returns its `config` unchanged | Step 1's widening, and the reason `rich-text` forced it |
 | `domain/section-service.test.ts` — removing an **already-archived** section is refused | The case the region makes reachable |
-| `domain/section-service.test.ts` — `reassign` to an **archived target** is refused, naming it | The read path the round-3 sweep found missing (`:318`) |
+| `domain/section-service.test.ts` — `reassign` to an **archived target** is refused, naming it | The read path the round-3 sweep found missing (`section-service.ts:328`) |
 | `domain/section-service.test.ts` — reassign moves a complete archived task group, preserves its `archivedWithTaskId` markers, and the document validates | Reassign does not flatten a still-valid subtree undo group |
 | `domain/task-service.test.ts` — moving an unmarked archived root between live sections repoints its descendants and preserves markers naming that root | A section move keeps one reversible archive group |
 | `domain/task-service.test.ts` — moving within the same archive group preserves its root marker | Re-parent normalization splits a group only when ancestry actually changes |
@@ -1021,6 +1072,7 @@ New rows this phase's later rounds added:
 | `domain/section-service.test.ts` — restoring an already-live section is a no-op preserving position, timestamps, rows and activity count | Public-route retry cannot reorder the canvas or invent history |
 | `domain/section-service.test.ts` — archive returns the archived `ProjectSection` | MCP can echo the result without a second permissioned read |
 | `domain/section-service.test.ts` — archive/restore record exactly one `project.section_archived` / `project.section_restored`; idempotent restore records none | Activity and retry semantics |
+| `domain/section-service.test.ts` — archive and restore summaries say `Archived/Restored the Backlog section`; a legacy blank title falls back through `nameOf` | The names phase's single naming contract survives both new activity paths |
 | `web/archived-region.spec.ts` — a section owning nothing renders with no row count | Settled decision 6 |
 | `mcp-tools` — `remove_section` echoes the archived section, not a bare id | The rewritten tool contract |
 | `domain/task-service.test.ts` — `archive` on a parent archives its live descendants and stamps each with `archivedWithTaskId`; an already-archived descendant is untouched | The cascade, and the case that keeps its own marker |
@@ -1036,8 +1088,9 @@ New rows this phase's later rounds added:
 | `domain/reflection-service.test.ts` — archived project/section refuses create/update while archive remains allowed | The reflection half of the exact freeze/tidying boundary |
 | `domain/task-service.test.ts`, `domain/reflection-service.test.ts` — archive/restore actions are recorded once; idempotent restores record nothing | New §57 action strings and event cardinality |
 | `mcp-tools/contract.test.ts` — a `projects.write`-only agent receives the archived section from `remove_section` | No hidden `projects.read` requirement |
-| `web/archived-region.spec.ts` — custom/fallback names; section counts; views; duplicate-name suffixes; marker filtering; live-section and live-ancestor filtering; stable ordering | The exact project-scoped projection, including an independently archived child hidden until its archived parent returns, so every enabled Restore is executable |
+| `web/archived-region.spec.ts` — custom/fallback names, including padded and whitespace-only legacy `title` values; section counts; views; duplicate resolved-name suffixes; marker filtering; live-section and live-ancestor filtering; stable ordering | The exact project-scoped projection uses `nameOf`, not `title ?? displayNameOf`, including an independently archived child hidden until its archived parent returns, so every enabled Restore is executable |
 | `web/section-removal-dialog.spec.ts` — final task and reflection reassign/cascade labels | The names-phase dynamic owned-kind contract survives the wording handoff |
+| Preserve `web/project-page-store.spec.ts:532-560` — every malformed/differently discriminated 409 stays an ordinary error; add an archived-target race from an already-open prompt, which does not replace the prompt and also surfaces the error | The names-phase positive discriminator remains the only route into the policy dialog, while a person may still choose a different live target after a race |
 | `web/task-row.spec.ts`, `web/task-list-section.spec.ts`, `web/task-list-store.spec.ts` — archive intent, pending disable, void-response re-read, revision notification and failure preservation | The new row control is wired across all three existing layers |
 
 ### Existing tests this phase rewrites
@@ -1048,13 +1101,15 @@ passing while their names stop describing the behaviour, which is worse:
 
 | Test | Today | Must become |
 |---|---|---|
-| `domain/section-service.test.ts:152` — "deletes the section and closes the position gap" | expects `EntityNotFoundError` from `get` at `:158` | **Fails.** `get` goes through the unfiltered `require`, so an archived section is returned. Rename, and assert the section is archived, absent from `list`, and still returned by `get` |
-| `domain/section-service.test.ts:180` — "is not idempotent — removing twice is not found" | expects `EntityNotFoundError` at `:185` | **Fails.** The second remove now raises `DomainRuleError`. Rename and re-assert — this is the §2 rule 4 case exactly |
-| `domain/section-service.test.ts:190` — "records one event per mutation…" | asserts the literal `'project.section_removed'` at `:207` | **Fails.** `project.section_archived` |
+| `domain/section-service.test.ts:170` — "deletes the section and closes the position gap" | expects `EntityNotFoundError` from `get` at `:176` | **Fails.** `get` goes through the unfiltered `require`, so an archived section is returned. Rename, and assert the section is archived, absent from `list`, and still returned by `get` |
+| `domain/section-service.test.ts:216` — "is not idempotent — removing twice is not found" | expects `EntityNotFoundError` at `:221` | **Fails.** The second remove now raises `DomainRuleError`. Rename and re-assert — this is the §2 rule 4 case exactly |
+| `domain/section-service.test.ts:226` — "records one event per mutation…" | asserts the literal `'project.section_removed'` at `:243` | **Fails.** `project.section_archived` |
+| `domain/section-service.test.ts:252` — "names an untitled section by its default rather than by its type" | expects `Removed the Task List section` at `:263` | **Fails.** Keep the names-phase test and change the new final event to `Archived the Task List section`; add restore and custom/legacy-title cases rather than weakening it to an action-only assertion |
 | `domain/section-ownership.test.ts:206` — "removes an empty container without ceremony" | asserts `list` is `[]` at `:212` | Keeps passing, name now lies. Assert archived-not-deleted |
 | `domain/section-ownership.test.ts:224` — "cascades by archiving rather than deleting, so the removal is undoable" | asserts the task's `archivedAt` only (`:230-232`) | also assert the **section**'s `archivedAt`, and that `sectionService.list` omits it |
 | `domain/section-ownership.test.ts:235` — "ignores rows that are already archived, so an emptied list goes quietly" | asserts `remove` resolves with no policy (`:240`) | rename, and assert the section is archived rather than deleted — this is "the second dangle" |
 | `host/api/routes.test.ts:410-424` | asserts 204 on cascade, checks the task only | assert the section is archived and absent from a subsequent `GET` |
+| `host/api/routes.test.ts:464-470` | removes a section, then expects the second DELETE to be 404 | the archived record still exists, so the second DELETE is the already-archived 409; keep the first response at 204 |
 
 Mutation-check the kind clause, the live-in-archived clause, the two marker clauses, the task-group
 preservation/re-rooting paths, the row-restore refusal, the `resolveContainer` skip, the reassign-target
@@ -1151,7 +1206,7 @@ Two alternatives were considered and rejected:
 explicit client projection; add a query field only if a later search/dashboard consumer justifies
 it.
 
-The flat reads were checked and **none needs changing**. `TaskQuery.search` (`inputs.ts:164`) runs
+The flat reads were checked and **none needs changing**. `TaskQuery.search` (`inputs.ts:171`) runs
 through the task repository's live-by-default predicate; dashboard and upcoming work also retain
 their explicit task guards (`dashboard-service.ts:80`, `workspace-service.ts:76` and `:118`).
 Workspace search's reflections call is live-only because `JsonReflectionRepository.list()` applies
@@ -1186,6 +1241,10 @@ phase; Step 7 records it under *Revisit when*, not as a rejected option.
 - An amendment to `2026-09-sections-own-their-data.md` per Step 7. A decision that claimed
   something untrue for a fortnight is worth recording as such — §77's rule is that the prototype
   correcting the design is the output, not an embarrassment.
+- Amend `2026-08-section-activity-targets-the-project.md`: soft delete is no longer rejected, while
+  project-targeted events still avoid activity references that can ever dangle.
+- Amend `2026-09-a-section-has-a-name.md`: Archived consumes `nameOf` and owns its own collision
+  suffix; the optional-title compatibility decision itself is unchanged.
 
 ---
 
@@ -1202,49 +1261,45 @@ e2e: the existing web journey archives and restores its only list
 docs+spec: what undo means for an archived row
 ```
 
-The first commit is green **against a reseeded data file**: it adds optional fields, section query
+The first commit is green **against the current clean names-phase data file**: it adds optional fields, section query
 filtering, missing/wrong-kind section checks and parent/child section co-location, but it does not
 yet enforce archive-marker or live-parent rules whose producing behavior has not landed. No seed
 carries `archivedAt`, and every audited document free of the dangling-row defect passes.
-It is **not** green against `.prototype/data.json` as it stands today, which still holds that
-defect — see Step 2's *Before the first commit: reseed* — and it carries the
-`data-store.test.ts` fixture fix with it, since `validDocument()` fails the new kind clause on its
-own. The section commit adds its marker clauses atomically with every section-marker writer/clear.
+Run Step 2's default-file host boot and repository checks once before `pnpm prototype:reset`; the
+reset is acceptance setup, not data repair. The commit carries the `data-store.test.ts` fixture fix with it, since
+`validDocument()` fails the new kind clause on its own. The section commit adds its marker clauses
+atomically with every section-marker writer/clear.
 The task commit adds the live-parent/task-marker clauses atomically with cascading archive,
 restore, create/re-parent refusals and subtree marker normalization. There is never a green commit
 where the existing public task archive route violates an invariant introduced earlier.
 
 ---
 
-## Sequencing against the sibling plan
+## Landed names baseline
 
-**Land `2026-09-section-names-implementation.md` first.** It is the smaller change, and it converts
-the removal dialog from rendering the domain's sentence to composing its own prose — after which
-this phase's edit there is a label handoff rather than a rewrite. Before this phase's first failing
-test, rebase on the names commit, refresh all source-line citations, and complete another plan
-review against the rebased tree.
+`2026-09-section-names-implementation.md` landed through `918af90`. This plan has been rebased and
+reviewed against that tree. The shared surfaces now have concrete contracts:
 
-The shared handoff checklist is: `packages/contracts/src/section.ts`;
-`packages/domain/src/section-service.ts` and `section-service.test.ts`;
-`apps/web/src/app/features/projects/project-page-store.ts` and `.spec.ts`;
-`project-page.ts`; `project-page.html`; `section-removal-dialog.html`;
-`section-removal-dialog.spec.ts`; `docs/decisions/2026-09-sections-own-their-data.md`; and
-`development.md`. Preserve the names phase's discriminated `section_not_empty` refusal while
-rewriting removal, and keep every other 409 on the ordinary error path.
+- `nameOf(section)` is the one resolved-name boundary, including legacy padded/blank stored titles.
+- `SectionRemovalRefusalDetailsSchema` is the only 409 payload that opens the policy dialog;
+  `GatewayError.details` remains untrusted until that feature parses it.
+- `SectionRemovalPrompt` carries `sectionName`, `rowCount`, `ownedKind` and live target records.
+  The dialog owns pluralisation and live-target collision labels.
+- Section writes, including rename, share `ProjectPageStore.updateSection`; archive does not fork
+  that path or add a second name-specific reconciliation mechanism.
 
-The one genuine handoff is the dialog's two action labels, and each phase ships the wording that is
-true when it lands:
+The remaining label handoff is now current → archive behavior:
 
-| Kind | Today | After the names phase | After this phase |
-|---|---|---|---|
-| tasks, reassign | `Move the rows and remove` | `Move the tasks and remove` | `Move the tasks out, then archive` |
-| tasks, cascade | `Archive the rows and remove` | `Archive the tasks and remove` | `Archive the section and its tasks` |
-| reflections, reassign | `Move the rows and remove` | `Move the reflections and remove` | `Move the reflections out, then archive` |
-| reflections, cascade | `Archive the rows and remove` | `Archive the reflections and remove` | `Archive the section and its reflections` |
+| Kind | Current names build | After this phase |
+|---|---|---|
+| tasks, reassign | `Move the tasks and remove` | `Move the tasks out, then archive` |
+| tasks, cascade | `Archive the tasks and remove` | `Archive the section and its tasks` |
+| reflections, reassign | `Move the reflections and remove` | `Move the reflections out, then archive` |
+| reflections, cascade | `Archive the reflections and remove` | `Archive the section and its reflections` |
 
-The names phase is what makes `tasks`/`reflections` follow the container's `ownedKind`; this phase
-is what makes "and the section" true. Neither may ship the other's column early — AGENTS.md §2
-rule 6.
+The archive phase changes those labels and their comments only. It preserves the prompt fields,
+the `ownedKind` noun table, the resolved section/target names, positional disambiguation for live
+targets, and the rule that every other 409 stays an ordinary error.
 
 ---
 
@@ -1267,6 +1322,22 @@ Worth carrying forward: **a `SCHEMA_VERSION` bump invalidates every data file, n
 ---
 
 ## Revisions
+
+**Round 7 — rebased after the names phase landed.** Re-read the actual names diff and current
+contracts/domain/host/web code, then ran a cold-start plan audit against the rebased tree. The
+review removed the now-false pre-commit repair reset (the names browser pass already restored the
+working data to a clean seed), converted the dangling row to historical note evidence, and
+replaced the future-tense sibling sequencing with the landed contracts this phase must preserve.
+It added the names-created activity and 409 tests plus the host's second-DELETE test to the rewrite
+list; added the activity-target and names ADRs and both stale `development.md` summaries to living
+documentation; pinned `nameOf`'s padded/blank legacy behavior in Archived; and made
+`projectWritePending` an overlap-safe, reactive project-write counter that starts before today's
+optimistic paint rather than reusing the later, non-reactive all-write counter. Source citations
+across the shared files were refreshed. The follow-up review then made the clean-data proof an
+actual default-file host boot, moved the three invalid-document checks to isolated
+`CWM_DATA_FILE` scratch copies before one acceptance reset, and corrected the remaining rebased
+citations. The final re-review returned no substantive findings. Round 7 review findings are not
+implementation work; the code remains untouched until the first TDD commit.
 
 **Round 6 — post-edit consistency audit.** Distinguished a schema migration from the required
 repair reset, made the section and reflection archived-read APIs explicit shared-contract query
