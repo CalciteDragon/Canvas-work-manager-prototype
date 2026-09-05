@@ -68,13 +68,16 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     list: (query) => this.answer('projects.list', query, this.options.projects ?? []),
     get: (id: ProjectId) =>
       this.answer('projects.get', id, this.find(this.options.projects, id, 'project')),
-    // A sub-project echoes its parent's record; a **top-level** project has no record to
-    // echo, so it gets the shape the host would build from the contract's own defaults.
-    // Without this branch a create with no parent threw out of `find` before `answer` ever
-    // recorded the call, which is the one thing §81's sidebar create needs to assert.
+    // A sub-project echoes its parent's record; a **root** has no record to echo, so it gets
+    // the shape the host would build from the contract's own defaults. Without this branch a
+    // root create threw out of `find` before `answer` ever recorded the call, which is the
+    // one thing §81's sidebar create needs to assert.
+    //
+    // Branching on `kind` rather than on whether a parent happened to be supplied: the two
+    // agreed before §26 made the distinction explicit, and only one of them is the rule.
     create: (input) =>
       this.answer('projects.create', input, ProjectSchema.parse({
-        ...(input.parentProjectId === undefined
+        ...(input.kind === 'root'
           ? { status: 'planning', projectLayoutMode: 'flow', createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT }
           : this.find(this.options.projects, input.parentProjectId, 'project')),
         ...input,

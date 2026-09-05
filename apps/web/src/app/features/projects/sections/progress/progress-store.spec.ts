@@ -6,7 +6,7 @@ import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-ga
 import { GatewayError } from '../../../../core/gateway/gateway-error';
 import { ProgressStore } from './progress-store';
 
-const project = ProjectSchema.parse({ id: 'project-a', workspaceId: 'workspace-demo', name: 'Launch', status: 'active', projectLayoutMode: 'flow', createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z' });
+const project = ProjectSchema.parse({ id: 'project-a', workspaceId: 'workspace-demo', kind: 'root', name: 'Launch', status: 'active', projectLayoutMode: 'flow', createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z' });
 const PROJECT_A = ProjectIdSchema.parse('project-a');
 const PROJECT_B = ProjectIdSchema.parse('project-b');
 const deferred = <T>() => { let resolve!: (value: T) => void; let reject!: (reason: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };

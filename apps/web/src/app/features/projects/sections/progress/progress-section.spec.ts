@@ -6,7 +6,7 @@ import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-ga
 import { ProgressSection } from './progress-section';
 import { ProgressStore } from './progress-store';
 
-const section = ProjectSectionSchema.parse({ id: 'section-progress', projectId: 'project-a', type: 'progress', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: '2026-08-30T07:00:00.000Z', updatedAt: '2026-08-30T07:00:00.000Z' });
+const section = ProjectSectionSchema.parse({ id: 'section-progress', projectId: 'project-a', pageId: 'page-project-a', type: 'progress', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: '2026-08-30T07:00:00.000Z', updatedAt: '2026-08-30T07:00:00.000Z' });
 const settle = async () => { for (let index = 0; index < 5; index += 1) await Promise.resolve(); };
 const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>((yes) => { resolve = yes; }); return { promise, resolve }; };
 

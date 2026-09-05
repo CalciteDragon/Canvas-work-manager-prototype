@@ -23,6 +23,7 @@ const identity = {
 const project = {
   id: 'project-1',
   workspaceId: 'workspace-demo',
+  kind: 'root',
   name: 'Personal workspace',
   status: 'active',
   projectLayoutMode: 'flow',
@@ -33,6 +34,7 @@ const project = {
 const projectSection = {
   id: 'section-1',
   projectId: 'project-1',
+  pageId: 'page-project-1',
   type: 'rich-text',
   position: 0,
   columnSpan: 12,
@@ -92,8 +94,8 @@ afterEach(() => {
 
 describe('PrototypeWorkManagerGateway — projects', () => {
   it('creates a direct child project through the project gateway', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...project, id: 'project-child', parentProjectId: 'project-1' }, 201));
-    await gateway().projects.create({ workspaceId: 'workspace-demo' as never, parentProjectId: 'project-1' as ProjectId, name: 'Child' });
+    fetchMock.mockImplementation(jsonResponse({ ...project, id: 'project-child', kind: 'subproject', parentProjectId: 'project-1' }, 201));
+    await gateway().projects.create({ workspaceId: 'workspace-demo' as never, kind: 'subproject', parentProjectId: 'project-1' as ProjectId, name: 'Child' });
     expect(lastCall().url).toBe('http://host.test/api/projects');
     expect(lastCall().init.method).toBe('POST');
   });

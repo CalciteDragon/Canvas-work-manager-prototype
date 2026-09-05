@@ -23,6 +23,7 @@ const project = (overrides: Record<string, unknown> = {}): Project =>
   ProjectSchema.parse({
     id: 'project-a',
     workspaceId: 'workspace-demo',
+    kind: 'root',
     name: 'Website launch',
     icon: '🚀',
     status: 'on_hold',
@@ -42,6 +43,7 @@ const section = (
   ProjectSectionSchema.parse({
     id,
     projectId: 'project-a',
+    pageId: 'page-project-a',
     type,
     position,
     columnSpan: 12,

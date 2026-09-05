@@ -5,8 +5,8 @@ import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gate
 import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-gateway';
 import { SubProjectsSection } from './sub-projects-section';
 
-const root = ProjectSchema.parse({ id: 'project-a', workspaceId: 'workspace-demo', name: 'Root', status: 'active', projectLayoutMode: 'flow', createdAt: '2026-08-30T07:00:00.000Z', updatedAt: '2026-08-30T07:00:00.000Z' });
-const section = ProjectSectionSchema.parse({ id: 'section-subprojects', projectId: root.id, type: 'sub-projects', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: root.createdAt, updatedAt: root.updatedAt });
+const root = ProjectSchema.parse({ id: 'project-a', workspaceId: 'workspace-demo', kind: 'root', name: 'Root', status: 'active', projectLayoutMode: 'flow', createdAt: '2026-08-30T07:00:00.000Z', updatedAt: '2026-08-30T07:00:00.000Z' });
+const section = ProjectSectionSchema.parse({ id: 'section-subprojects', projectId: root.id, pageId: `page-${root.id}`, type: 'sub-projects', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: root.createdAt, updatedAt: root.updatedAt });
 const settle = async () => { for (let index = 0; index < 8; index += 1) await Promise.resolve(); };
 
 describe('SubProjectsSection live invalidation', () => {

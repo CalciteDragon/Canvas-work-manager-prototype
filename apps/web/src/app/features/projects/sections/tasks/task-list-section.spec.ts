@@ -13,6 +13,7 @@ const section = (): ProjectSection =>
   ProjectSectionSchema.parse({
     id: 'section-tasks',
     projectId: 'project-a',
+    pageId: 'page-project-a',
     type: 'task-list',
     position: 0,
     columnSpan: 12,

@@ -8,9 +8,9 @@ import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gate
 import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-gateway';
 import { SubProjectsStore } from './sub-projects-store';
 
-const root = ProjectSchema.parse({ id: 'project-a', workspaceId: 'workspace-demo', name: 'Root', status: 'active', projectLayoutMode: 'flow', createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z' });
-const child = ProjectSchema.parse({ ...root, id: 'project-b', parentProjectId: root.id, name: 'Child' });
-const grandchild = ProjectSchema.parse({ ...root, id: 'project-c', parentProjectId: child.id, name: 'Grandchild' });
+const root = ProjectSchema.parse({ id: 'project-a', workspaceId: 'workspace-demo', kind: 'root', name: 'Root', status: 'active', projectLayoutMode: 'flow', createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z' });
+const child = ProjectSchema.parse({ ...root, id: 'project-b', kind: 'subproject', parentProjectId: root.id, name: 'Child' });
+const grandchild = ProjectSchema.parse({ ...root, id: 'project-c', kind: 'subproject', parentProjectId: child.id, name: 'Grandchild' });
 const deferred = <T>() => { let resolve!: (value: T) => void; let reject!: (reason: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 
 describe('SubProjectsStore', () => {

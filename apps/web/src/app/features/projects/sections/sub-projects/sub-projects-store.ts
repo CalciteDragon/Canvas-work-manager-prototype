@@ -64,7 +64,7 @@ export class SubProjectsStore {
   branchMarker(project: Project): string { return '↳ '.repeat(this.depthOf(project)); }
   async create(rawName: string): Promise<boolean> {
     const name = rawName.trim(); if (name === '' || this.root === null) { this.errorState.set('A sub-project name is required.'); return false; }
-    try { const created = await this.gateway.projects.create({ workspaceId: this.root.workspaceId, parentProjectId: this.root.id, name }); this.depths.set(created.id, 0); this.projectsState.update((items) => [...items, created]); return true; }
+    try { const created = await this.gateway.projects.create({ workspaceId: this.root.workspaceId, kind: 'subproject', parentProjectId: this.root.id, name }); this.depths.set(created.id, 0); this.projectsState.update((items) => [...items, created]); return true; }
     catch (error) { this.errorState.set(messageOf(error)); return false; }
   }
 }

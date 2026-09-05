@@ -23,6 +23,7 @@ const section = (id: string, overrides: Record<string, unknown> = {}): ProjectSe
   ProjectSectionSchema.parse({
     id,
     projectId: PROJECT,
+    pageId: `page-${PROJECT}`,
     type: 'task-list',
     position: 0,
     columnSpan: 12,

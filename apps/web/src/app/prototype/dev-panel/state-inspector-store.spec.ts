@@ -19,6 +19,7 @@ const project = (id: string, layout: ProjectLayoutMode = 'flow'): Project =>
   ProjectSchema.parse({
     id,
     workspaceId: 'workspace-demo',
+    kind: 'root',
     name: id === 'project-a' ? 'Website launch' : 'Office renovation',
     status: 'active',
     projectLayoutMode: layout,

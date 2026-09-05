@@ -14,6 +14,7 @@ const section = (projectId = 'project-a'): ProjectSection =>
   ProjectSectionSchema.parse({
     id: `section-${projectId}-reflections`,
     projectId,
+    pageId: `page-${projectId}`,
     type: 'reflections',
     position: 0,
     columnSpan: 12,

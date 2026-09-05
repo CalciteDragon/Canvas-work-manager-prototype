@@ -14,6 +14,7 @@ const section = (
   ProjectSectionSchema.parse({
     id,
     projectId: 'project-a',
+    pageId: 'page-project-a',
     type: 'task-list',
     position,
     columnSpan: 12,

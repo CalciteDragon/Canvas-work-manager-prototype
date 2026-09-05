@@ -69,6 +69,8 @@ describe('project inputs', () => {
     expect(
       CreateProjectInputSchema.parse({ workspaceId: 'workspace-a', kind: 'root', name: 'Work Manager' }).name,
     ).toBe('Work Manager');
+    // Matched rather than read through: only one branch of the union has a parent, which is
+    // the point — a caller that wants one has to say which kind it is creating first.
     expect(
       CreateProjectInputSchema.parse({
         workspaceId: 'workspace-a',
@@ -76,8 +78,8 @@ describe('project inputs', () => {
         name: 'Child',
         parentProjectId: 'project-a',
         targetDate: '2026-09-30',
-      }).parentProjectId,
-    ).toBe('project-a');
+      }),
+    ).toMatchObject({ kind: 'subproject', parentProjectId: 'project-a' });
   });
 
   /**

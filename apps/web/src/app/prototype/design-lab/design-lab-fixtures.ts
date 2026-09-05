@@ -42,6 +42,7 @@ export const labProject = (overrides: Record<string, unknown> = {}): Project =>
   ProjectSchema.parse({
     id: 'project-lab',
     workspaceId: 'workspace-lab',
+    kind: 'root',
     name: 'Website launch',
     icon: '🚀',
     status: 'active',
@@ -56,6 +57,7 @@ export const labSection = (overrides: Record<string, unknown> = {}): ProjectSect
   ProjectSectionSchema.parse({
     id: 'section-lab',
     projectId: 'project-lab',
+    pageId: 'page-project-lab',
     type: 'design-lab-stub',
     position: 0,
     columnSpan: 12,

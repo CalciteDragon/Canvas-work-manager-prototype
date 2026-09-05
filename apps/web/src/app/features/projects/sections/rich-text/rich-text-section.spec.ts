@@ -10,6 +10,7 @@ const section = (config: unknown, title?: string): ProjectSection =>
   ProjectSectionSchema.parse({
     id: 'section-a',
     projectId: 'project-a',
+    pageId: 'page-project-a',
     type: 'rich-text',
     title,
     position: 0,

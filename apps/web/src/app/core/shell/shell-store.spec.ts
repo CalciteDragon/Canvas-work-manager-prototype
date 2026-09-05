@@ -307,8 +307,10 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
     const created = await store.createProject('Prototype review');
 
     expect(created).toBe('project-created');
+    // §26: the sidebar makes a **root**, and says so rather than leaving it to be inferred.
     expect(gateway.argumentTo('projects.create')).toEqual({
       workspaceId: 'workspace-demo',
+      kind: 'root',
       name: 'Prototype review',
     });
     expect(store.createError()).toBeNull();

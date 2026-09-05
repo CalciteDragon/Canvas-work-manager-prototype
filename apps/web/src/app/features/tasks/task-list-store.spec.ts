@@ -21,6 +21,7 @@ const project = (id = 'project-a', name = 'Project A'): Project =>
   ProjectSchema.parse({
     id,
     workspaceId: 'workspace-demo',
+    kind: 'root',
     name,
     status: 'active',
     projectLayoutMode: 'flow',
@@ -34,6 +35,7 @@ const section = (projectId = 'project-a', id = `section-${projectId}-tasks`): Pr
   ProjectSectionSchema.parse({
     id,
     projectId,
+    pageId: `page-${projectId}`,
     type: 'task-list',
     position: 0,
     columnSpan: 12,

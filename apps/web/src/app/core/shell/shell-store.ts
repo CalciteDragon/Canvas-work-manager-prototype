@@ -97,7 +97,7 @@ export class ShellStore {
     this.createErrorState.set(null);
     const settled = this.pendingTasks.add();
     try {
-      const created = await this.gateway.projects.create({ workspaceId, name });
+      const created = await this.gateway.projects.create({ workspaceId, kind: 'root', name });
       // Quiet: the tree is already on screen and this is the user's own write.
       await this.refresh();
       return created.id;

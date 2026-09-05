@@ -39,6 +39,7 @@ const ALLOWED_REPOSITORY_BINDINGS = new Set([
   'ActivityRepository',
   'AgentConnectionRepository',
   'MilestoneRepository',
+  'ProjectPageRepository',
   'ProjectRepository',
   'ReflectionRepository',
   'SectionRepository',

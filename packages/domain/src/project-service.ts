@@ -98,7 +98,9 @@ export class ProjectService {
         id: ProjectIdSchema.parse(this.dependencies.ids.next('project')),
         workspaceId: input.workspaceId,
         kind: input.kind,
-        parentProjectId: input.parentProjectId,
+        // Only one branch of the input has a parent, and reading it outside the narrow would
+        // be reading a field the root branch does not have — which is the union working.
+        parentProjectId: input.kind === 'subproject' ? input.parentProjectId : undefined,
         name: input.name,
         description: input.description,
         icon: input.icon,

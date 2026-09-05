@@ -13,6 +13,7 @@ const section = (): ProjectSection =>
   ProjectSectionSchema.parse({
     id: 'section-timeline',
     projectId: 'project-a',
+    pageId: 'page-project-a',
     type: 'timeline',
     position: 0,
     columnSpan: 12,
