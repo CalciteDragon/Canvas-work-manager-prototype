@@ -83,6 +83,8 @@ const setup = (options: {
     dashboard: { get: vi.fn(async () => emptyDashboard()) },
     // Slice 13 added these two for the same reason.
     agents: { list: vi.fn(async () => []), setPermissions: vi.fn(), revoke: vi.fn() },
+    // Slice 25.2 added `pages`; nothing here reads it until the workspace shell lands (25.3).
+    pages: { list: vi.fn(async () => []), setEnabled: vi.fn() },
     activity: { list: vi.fn(async () => []) },
     projects: {
       list: vi.fn(async () => projects),

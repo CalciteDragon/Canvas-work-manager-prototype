@@ -125,6 +125,32 @@ an agent filled. Note that `list_sections` returns the stored `title` and not a 
 name, so a section with no `title` has no name in the tool output to read back; that is
 deliberate ([why](decisions/2026-09-a-section-has-a-name.md)).
 
+### Say which kind of project, and which page
+
+`create_project` takes a required `kind`. A **root** is a workspace: it starts with a Home page
+and can turn on Todos, Archive and Reflections. A **subproject** is a unit of work with exactly
+one work canvas, requires `parentProjectId`, and has no pages to configure — nesting goes to any
+depth. A root naming a parent, or a subproject without one, is refused rather than reinterpreted,
+so a call that means one of the two cannot quietly produce the other.
+
+`list_project_pages` shows what a project owns, including a page that is switched off; a disabled
+page keeps its sections and everything referring to them and is simply not navigation.
+`set_project_page_enabled` turns one of a root's optional three on or off, and the first enable
+is what creates it. Home cannot be disabled.
+
+Once a root has more than one canvas, **where a write lands** stops being a single answer, so
+say it:
+
+- Nothing named — the project's canonical canvas takes it: a root's Home, a subproject's work
+  canvas.
+- `pageId` named — it lands there, provided that page holds that kind of section. A Reflections
+  page holds only a reflections container; Todos and Archive hold none, because they project rows
+  they do not own. A page that does not take it is a refusal, never a quiet fallback to Home.
+- `sectionId` named — that exact container, and it must agree with any `pageId` also given.
+
+`list_sections` takes an optional `pageId` for the same reason. Without one it answers with the
+whole project, grouped by page.
+
 ### Important file-store limitation
 
 Do not run mutation-capable stdio and HTTP/UI sessions concurrently against the same

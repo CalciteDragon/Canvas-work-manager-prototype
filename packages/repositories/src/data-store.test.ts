@@ -1252,4 +1252,32 @@ describe('page ownership integrity', () => {
     document.sections[0]!.pageId = 'page-todos' as typeof document.sections[0]['pageId'];
     expect(() => new InMemoryDataStore(document)).toThrow(/does not hold sections/);
   });
+
+  /**
+   * §30 gives Reflections a narrower capability than a full canvas: its own reflections
+   * container, and a journal feed that is not a section. A `task-list` there would be a
+   * container the page never renders — the same defect a section on Todos is, one level finer.
+   */
+  it('rejects a task container on a Reflections page', () => {
+    const document = validDocument();
+    document.projectPages.push(page({ id: 'page-reflections', kind: 'reflections' }));
+    document.sections[0]!.pageId = 'page-reflections' as typeof document.sections[0]['pageId'];
+    expect(document.sections[0]!.type).toBe('task-list');
+    expect(() => new InMemoryDataStore(document)).toThrow(/does not hold task-list sections/);
+  });
+
+  it('accepts a reflections container on a Reflections page', () => {
+    const document = validDocument();
+    document.projectPages.push(page({ id: 'page-reflections', kind: 'reflections' }));
+    document.sections.push(
+      PrototypeDocumentSchema.shape.sections.element.parse({
+        ...document.sections[0],
+        id: 'section-journal',
+        type: 'reflections',
+        pageId: 'page-reflections',
+        position: 1,
+      }),
+    );
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
+  });
 });

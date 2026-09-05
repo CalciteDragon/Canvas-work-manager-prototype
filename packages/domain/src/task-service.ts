@@ -15,6 +15,7 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
+import { archivedAncestry, assertProjectWritable } from './project-visibility';
 import type { SectionService } from './section-service';
 
 export interface TaskServiceDependencies {
@@ -97,7 +98,19 @@ export class TaskService {
     const projects = await this.dependencies.projects.list({ workspaceId: actor.workspaceId });
     const visible = new Set(projects.map((project) => project.id));
     const tasks = await this.dependencies.tasks.list(query);
-    return tasks.filter((task) => visible.has(task.projectId));
+    // §31: an archived project hides its live contents from **ordinary** reads. A read that
+    // named where to look is not one of those — the canvas asks by `sectionId` and an archived
+    // project's own page has to keep rendering — so the exclusion applies only when the caller
+    // named nothing at all. Keyed on all three, not on `projectId`: the Task List section
+    // reads `{ sectionId }` with no project.
+    const scoped =
+      query.projectId !== undefined || query.sectionId !== undefined || query.parentTaskId !== undefined;
+    if (scoped) return tasks.filter((task) => visible.has(task.projectId));
+    const ancestry = archivedAncestry(projects);
+    return tasks.filter(
+      (task) =>
+        visible.has(task.projectId) && !ancestry.isArchived(task.projectId) && !ancestry.isHidden(task.projectId),
+    );
   }
 
   async create(actor: ActorContext, input: CreateTaskInput): Promise<Task> {
@@ -191,6 +204,15 @@ export class TaskService {
         const parent = await this.require(actor, next.parentTaskId);
         if (input.sectionId !== undefined && input.sectionId !== parent.sectionId) {
           throw new DomainRuleError('a subtask is rendered by its parent section and cannot be moved on its own');
+        }
+        // This branch runs on **every** update of a task that has a parent, not only on a
+        // reparent, so the disabled-page rule is applied to the *change* rather than to the
+        // branch: renaming a subtask that already lives on a disabled page is an edit, and
+        // following a parent onto one is a placement (§27).
+        if (parent.sectionId !== current.sectionId) {
+          await this.dependencies.sections.assertWritablePage(
+            await this.dependencies.sections.requireWithin(actor, parent.sectionId),
+          );
         }
         next.sectionId = parent.sectionId;
       }
@@ -446,15 +468,34 @@ export class TaskService {
         throw new DomainRuleError('a subtask is rendered by its parent section and cannot be given another');
       }
       assertParentLive(parent);
+      // §27's third case reaches the *inherited* section too: a supplied page has to agree with
+      // where the parent is rendered, and this is also the one create path that names neither a
+      // page nor a section, so it is where the disabled-page rule has to be applied by hand.
+      // `requireWithin` is the unchecked door, so a `tasks.write`-only agent still gets here.
+      const section = await this.dependencies.sections.requireWithin(actor, parent.sectionId);
+      if (input.pageId !== undefined && input.pageId !== section.pageId) {
+        throw new DomainRuleError('a subtask is rendered by its parent section and cannot be given another page');
+      }
+      await this.dependencies.sections.assertWritablePage(section);
       return parent.sectionId;
     }
 
     if (input.sectionId !== undefined) {
-      await this.dependencies.sections.requireContainer(actor, input.projectId, input.sectionId, 'tasks');
+      const section = await this.dependencies.sections.requireContainer(
+        actor,
+        input.projectId,
+        input.sectionId,
+        'tasks',
+      );
+      // Authoritative, and it must agree with any page also supplied (§27) — a mismatch is an
+      // error rather than a preference order.
+      if (input.pageId !== undefined && input.pageId !== section.pageId) {
+        throw new DomainRuleError('the named section is not on the named page');
+      }
       return input.sectionId;
     }
 
-    return (await this.dependencies.sections.resolveContainer(actor, input.projectId, 'tasks')).id;
+    return (await this.dependencies.sections.resolveContainer(actor, input.projectId, 'tasks', input.pageId)).id;
   }
 
   /** Repoints every descendant of a moved task, so a subtree stays in one list. */
@@ -509,13 +550,12 @@ export class TaskService {
 
   /**
    * A project archives by `status`, which `assertProjectVisible` cannot see. Work does not
-   * come back into a project someone has put away: create, update, complete and restore are
-   * refused. Archiving is not — tidying hidden work is the point.
+   * come back into a project someone has put away — **or into one whose ancestor is archived**,
+   * since archiving does not cascade (§31). Create, update, complete and restore are refused.
+   * Archiving is not — tidying hidden work is the point. The walk is shared with
+   * `SectionService` and `ReflectionService`, which each carried the shallow version.
    */
   private async assertProjectActive(projectId: ProjectId): Promise<void> {
-    const project = await this.dependencies.projects.find(projectId);
-    if (project?.status === 'archived') {
-      throw new DomainRuleError(`project "${projectId}" is archived; reactivate it first`);
-    }
+    await assertProjectWritable(this.dependencies.projects, projectId);
   }
 }

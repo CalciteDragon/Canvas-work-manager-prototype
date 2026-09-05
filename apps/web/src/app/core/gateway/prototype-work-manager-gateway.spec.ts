@@ -55,6 +55,15 @@ const task = {
   updatedAt: at,
 };
 
+const homePage = {
+  id: 'page-project-1',
+  projectId: 'project-1',
+  kind: 'home',
+  enabled: true,
+  createdAt: at,
+  updatedAt: at,
+};
+
 const progress = { projectId: 'project-1', formula: 'count', percentage: 50, completed: 1, total: 2, explanation: '1 of 2 tasks complete' };
 const timeline = { projectId: 'project-1', items: [{ id: 'project-1', kind: 'project', title: 'Personal workspace', startDate: '2026-09-30', endDate: '2026-09-30' }] };
 const reflection = { id: 'reflection-1', projectId: 'project-1', sectionId: 'section-1', body: 'A useful note', createdAt: at, updatedAt: at };
@@ -241,6 +250,27 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
 
     await subject.sections.list('project-1' as ProjectId, { includeArchived: true });
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1/sections?includeArchived=true');
+  });
+
+  /**
+   * §27: a section belongs to a page. The filter has to survive **three** allowlists — this
+   * one, the host route's query parsing, and the object that route forwards to the service —
+   * and dropping it in any of them is a 200 with the wrong rows rather than a failure.
+   */
+  it('narrows the canvas to one page, alongside the archived flag', async () => {
+    fetchMock.mockImplementation(jsonResponse([projectSection]));
+    const subject = gateway();
+
+    await subject.sections.list('project-1' as ProjectId, { pageId: 'page-project-1' as never });
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/sections?pageId=page-project-1');
+
+    await subject.sections.list('project-1' as ProjectId, {
+      pageId: 'page-project-1' as never,
+      includeArchived: true,
+    });
+    expect(lastCall().url).toBe(
+      'http://host.test/api/projects/project-1/sections?pageId=page-project-1&includeArchived=true',
+    );
   });
 
   it('restores through the dedicated route and parses the section it answers', async () => {
@@ -575,5 +605,42 @@ describe('PrototypeWorkManagerGateway — prototype latency and failure (§63)',
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     vi.useRealTimers();
+  });
+});
+
+describe('PrototypeWorkManagerGateway — project pages (§26)', () => {
+  it('lists a project’s pages under the project', async () => {
+    fetchMock.mockImplementation(jsonResponse([homePage]));
+
+    const pages = await gateway().pages.list('project-1' as ProjectId);
+
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/pages');
+    expect(lastCall().init.method).toBe('GET');
+    expect(pages[0]?.kind).toBe('home');
+  });
+
+  /**
+   * Addressed by **kind**, not by page id: enabling a page for the first time is what creates
+   * the record, so there is no id to name yet. Only `enabled` travels in the body.
+   */
+  it('toggles an optional page by kind, sending only the new state', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...homePage, id: 'page-todos', kind: 'todos', enabled: true }));
+
+    const page = await gateway().pages.setEnabled('project-1' as ProjectId, { kind: 'todos', enabled: true });
+
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/pages/todos');
+    expect(lastCall().init.method).toBe('PATCH');
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({ enabled: true });
+    expect(page).toMatchObject({ kind: 'todos', enabled: true });
+  });
+
+  it('surfaces a refused toggle as a GatewayError the UI can show', async () => {
+    fetchMock.mockImplementation(
+      jsonResponse({ error: { code: 'conflict', message: 'the home page is required and cannot be disabled' } }, 409),
+    );
+
+    await expect(
+      gateway().pages.setEnabled('project-1' as ProjectId, { kind: 'home', enabled: false }),
+    ).rejects.toBeInstanceOf(GatewayError);
   });
 });

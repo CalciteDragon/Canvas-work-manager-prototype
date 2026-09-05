@@ -77,9 +77,45 @@ describe('live updates through the host (§62)', () => {
       entityType: 'task',
       entityId: OPEN_TASK,
       projectId: 'project-work-manager',
+      // The root of the tree the change sits in — here the project itself, since it is one.
+      rootProjectId: 'project-work-manager',
     });
     // The point of the whole deferral: a listener that refetches on this frame reads `done`.
     expect(frames[0]?.statusAtDelivery).toBe('done');
+  });
+
+  /**
+   * §31 and §34's aggregate pages — Archive and Todos — project rows from anywhere beneath a
+   * root, so a write three levels down changes what they render while `projectId` names a
+   * project those pages are not open on. `rootProjectId` is what lets a client answer "does
+   * this concern the root I am showing?" without refetching on every frame.
+   */
+  it('names the root on a change two levels down', async () => {
+    const { api, routes, frames } = await harness();
+    const actor = { actor: 'user' as const, workspaceId: 'workspace-demo' as never, userId: 'user-demo' as never };
+
+    const middle = await api.projects.create(actor, {
+      kind: 'subproject',
+      parentProjectId: 'project-work-manager' as never,
+      workspaceId: 'workspace-demo' as never,
+      name: 'Middle',
+    });
+    const leaf = await api.projects.create(actor, {
+      kind: 'subproject',
+      parentProjectId: middle.id,
+      workspaceId: 'workspace-demo' as never,
+      name: 'Leaf',
+    });
+    frames.length = 0;
+
+    const created = await persona(routes, 'POST', '/api/tasks', { projectId: leaf.id, title: 'Deep work' });
+
+    expect(created.status).toBe(201);
+    const written = frames.map(({ event }) => event).filter(({ type }) => type === 'task.created');
+    expect(written).toHaveLength(1);
+    // The immediate owner is still named — a client on the leaf's own canvas needs it — and
+    // the root beside it, which is the only thing that can invalidate an aggregate page.
+    expect(written[0]).toMatchObject({ projectId: leaf.id, rootProjectId: 'project-work-manager' });
   });
 
   it('says nothing when the mutation fails', async () => {
@@ -106,6 +142,7 @@ describe('live updates through the host (§62)', () => {
     const { api, frames } = await harness();
     const registry = createToolRegistry({
       projects: api.projects,
+    pages: api.pages,
       tasks: api.tasks,
       reflections: api.reflections,
       sections: api.sections,

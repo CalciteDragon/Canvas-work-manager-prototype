@@ -6,9 +6,11 @@ import {
   CreateSectionInputSchema,
   CreateTaskInputSchema,
   MoveSectionInputSchema,
+  ProjectPageQuerySchema,
   ProjectQuerySchema,
   RemoveSectionInputSchema,
   SectionQuerySchema,
+  SetProjectPageEnabledInputSchema,
   TaskQuerySchema,
   UpdateProjectInputSchema,
   UpdateReflectionInputSchema,
@@ -275,5 +277,46 @@ describe('naming a container on the write inputs', () => {
       RemoveSectionInputSchema.parse({ policy: 'reassign', reassignToSectionId: 'section-2' }),
     ).toMatchObject({ policy: 'reassign', reassignToSectionId: 'section-2' });
     expect(RemoveSectionInputSchema.safeParse({ policy: 'delete' }).success).toBe(false);
+  });
+});
+
+describe('page selection (§27, §26)', () => {
+  it('lets a row write name the page it should land on, on either row kind', () => {
+    expect(CreateTaskInputSchema.parse({ projectId: 'project-a', title: 'A', pageId: 'page-home' }).pageId)
+      .toBe('page-home');
+    expect(
+      CreateReflectionInputSchema.parse({ projectId: 'project-a', body: 'A week', pageId: 'page-refl' }).pageId,
+    ).toBe('page-refl');
+  });
+
+  it('leaves the page absent when nobody named one, so the service resolves the canonical page', () => {
+    expect(CreateTaskInputSchema.parse({ projectId: 'project-a', title: 'A' }).pageId).toBeUndefined();
+  });
+
+  it('narrows a section list to one page', () => {
+    expect(SectionQuerySchema.parse({ pageId: 'page-home' }).pageId).toBe('page-home');
+    expect(SectionQuerySchema.parse({}).pageId).toBeUndefined();
+  });
+
+  it('addresses a toggle by page kind, because the first enable has no id yet', () => {
+    expect(SetProjectPageEnabledInputSchema.parse({ kind: 'todos', enabled: true }))
+      .toEqual({ kind: 'todos', enabled: true });
+    expect(SetProjectPageEnabledInputSchema.safeParse({ kind: 'calendar', enabled: true }).success).toBe(false);
+    // `enabled` is required: a toggle that did not say which way is not a toggle.
+    expect(SetProjectPageEnabledInputSchema.safeParse({ kind: 'todos' }).success).toBe(false);
+  });
+
+  /**
+   * `home` and `work` are accepted *here* on purpose. Refusing them at the parser would answer
+   * "not a page kind", which is false; the service refuses them saying they cannot be disabled.
+   */
+  it('leaves the canonical kinds to the service to refuse, with a reason', () => {
+    expect(SetProjectPageEnabledInputSchema.safeParse({ kind: 'home', enabled: false }).success).toBe(true);
+  });
+
+  it('filters pages by project, kind and enabled state', () => {
+    expect(ProjectPageQuerySchema.parse({ projectId: 'project-a', kind: 'home', enabled: true }))
+      .toEqual({ projectId: 'project-a', kind: 'home', enabled: true });
+    expect(ProjectPageQuerySchema.parse({})).toEqual({});
   });
 });

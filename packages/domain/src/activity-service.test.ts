@@ -265,11 +265,13 @@ describe('ActivityService.record — live events (§62)', () => {
     expect(published).toEqual([
       {
         workspaceId: harness.actor.workspaceId,
-        event: { type: 'task.created', entityType: 'task', entityId: task.id, projectId: MINE },
+        // `rootProjectId` equals `projectId` here: `project-mine` is a root. It differs — and
+        // earns its place — when the change is on a sub-project; see the descendant case below.
+        event: { type: 'task.created', entityType: 'task', entityId: task.id, projectId: MINE, rootProjectId: MINE },
       },
       {
         workspaceId: harness.actor.workspaceId,
-        event: { type: 'task.completed', entityType: 'task', entityId: task.id, projectId: MINE },
+        event: { type: 'task.completed', entityType: 'task', entityId: task.id, projectId: MINE, rootProjectId: MINE },
       },
     ]);
   });

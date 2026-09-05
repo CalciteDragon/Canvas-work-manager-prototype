@@ -28,5 +28,18 @@ export const LiveEventSchema = z.object({
   entityType: ActivityEntityTypeSchema.optional(),
   entityId: z.string().min(1),
   projectId: ProjectIdSchema.optional(),
+  /**
+   * The **root** of the tree `projectId` sits in, when the change has one (§26).
+   *
+   * A root's aggregate pages — Todos and Archive (§31, §34) — project rows that live anywhere
+   * beneath it, so a task written three sub-projects down changes what they render while
+   * `projectId` names a project those pages are not open on. Without this a client would either
+   * refetch on every frame or miss the update; with it, "does this frame concern the root I am
+   * showing?" is one comparison.
+   *
+   * Equal to `projectId` when the change is on a root itself. Optional for the same reason
+   * `projectId` is: a frame about an agent connection belongs to no project at all.
+   */
+  rootProjectId: ProjectIdSchema.optional(),
 });
 export type LiveEvent = z.infer<typeof LiveEventSchema>;

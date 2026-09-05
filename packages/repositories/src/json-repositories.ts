@@ -1,6 +1,6 @@
 import type {
   ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
-  MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageKind, ProjectQuery, ProjectSection,
+  MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageQuery, ProjectQuery, ProjectSection,
   PrototypeDocument, Reflection,
   ReflectionId, ReflectionQuery, SectionId, SectionQuery, Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
@@ -124,9 +124,7 @@ export class JsonProjectPageRepository extends JsonCollectionRepository<ProjectP
     super(store, 'projectPages');
   }
 
-  override async list(
-    query: { projectId?: ProjectId; kind?: ProjectPageKind; enabled?: boolean } = {},
-  ): Promise<ProjectPage[]> {
+  override async list(query: ProjectPageQuery = {}): Promise<ProjectPage[]> {
     const pages = await super.list();
     return pages.filter(
       (page) =>
@@ -147,6 +145,7 @@ export class JsonSectionRepository extends JsonCollectionRepository<ProjectSecti
     return sections.filter(
       (section) =>
         (query.projectId === undefined || section.projectId === query.projectId) &&
+        (query.pageId === undefined || section.pageId === query.pageId) &&
         (query.includeArchived === true || section.archivedAt === undefined),
     );
   }

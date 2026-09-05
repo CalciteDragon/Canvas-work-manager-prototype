@@ -1,4 +1,4 @@
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, SimulatedClock, TaskService, TimelineService, WorkspaceService } from '@cwm/domain';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SimulatedClock, TaskService, TimelineService, WorkspaceService } from '@cwm/domain';
 import type { AIProvider } from '@cwm/domain';
 import { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
 import { LiveEventHub } from '../events/hub.ts';
@@ -61,6 +61,7 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
     events,
     activity,
     projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
+    pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     sections: sectionService,
     progress: new ProgressService({ projects, tasks }),

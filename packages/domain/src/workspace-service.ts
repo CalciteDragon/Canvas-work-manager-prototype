@@ -15,6 +15,7 @@ import type { ProjectRepository, ReflectionRepository, TaskRepository } from '@c
 import { assertPermitted, type ActorContext } from './actor';
 import { DAY_MS, isoDayOf, startOfUtcDay } from './calendar';
 import type { Clock } from './clock';
+import { archivedAncestry } from './project-visibility';
 import { byDueDate, dashboardTaskFor, isOpen, isOverdue } from './task-windows';
 
 export interface WorkspaceServiceDependencies {
@@ -138,10 +139,17 @@ export class WorkspaceService {
     });
   }
 
+  /**
+   * Archived projects are not workspace content, and neither is the live work sitting
+   * underneath one: archiving does not cascade (§31), so `status` alone would leave a
+   * reparented or reactivated sub-project showing up in search and in upcoming work while
+   * every write to it is refused. `archivedAncestry` is built over the **unfiltered** list —
+   * over the filtered one the archived ancestors would already be gone.
+   */
   private async visibleProjects(actor: ActorContext): Promise<Project[]> {
-    return (await this.dependencies.projects.list({ workspaceId: actor.workspaceId })).filter(
-      ({ status }) => status !== 'archived',
-    );
+    const all = await this.dependencies.projects.list({ workspaceId: actor.workspaceId });
+    const ancestry = archivedAncestry(all);
+    return all.filter(({ id, status }) => status !== 'archived' && !ancestry.isHidden(id));
   }
 
   /** A project names itself: repeating its id and name as `projectId`/`projectName` would let one hit disagree with itself. */

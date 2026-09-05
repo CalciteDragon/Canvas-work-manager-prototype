@@ -40,8 +40,13 @@ export interface ActivityServiceDependencies {
   clock: Clock;
   ids: IdGenerator;
   /**
-   * Read-only, and only for `list`: resolving the names §57's card renders. `record` uses
-   * none of them, which is why it stays cheap enough to run inside every mutation.
+   * Read-only. `list` uses all of them, to resolve the names §57's card renders.
+   *
+   * `record` uses **one**: it walks `projects` up the parent chain to name the root a change
+   * belongs to (see `rootOf`). That is a departure from "record reads nothing" — worth stating
+   * rather than leaving as a surprise, since `record` runs inside every mutation. The walk is
+   * one map lookup per ancestor over a document already held in memory (§14, §71); the trees
+   * this prototype is about are a handful deep.
    */
   projects: ProjectRepository;
   agents: AgentConnectionRepository;
@@ -105,9 +110,35 @@ export class ActivityService {
         entityType: entry.entityType,
         entityId: entry.entityId,
         projectId: entry.projectId,
+        // A root's aggregate pages project rows from anywhere beneath it (§31, §34), so a
+        // change three sub-projects down changes what they render while `projectId` names a
+        // project those pages are not open on.
+        rootProjectId: entry.projectId === undefined ? undefined : await this.rootOf(entry.projectId),
       },
     });
     return event;
+  }
+
+  /**
+   * The root of the tree a project sits in — itself, when it is already one.
+   *
+   * The visited set is the same guard `ProjectService.assertParentIsUsable` carries and for the
+   * same reason: a hand-edited document (§14) can contain a parent cycle, and this runs inside
+   * every mutation, where an unguarded loop would not fail one request but starve the event
+   * loop. A chain that cannot be resolved answers with the last project it could see, which is
+   * a worse root than the truth and better than no frame at all.
+   */
+  private async rootOf(projectId: ProjectId): Promise<ProjectId | undefined> {
+    const seen = new Set<ProjectId>();
+    let current = await this.dependencies.projects.find(projectId);
+    if (current === null) return undefined;
+    while (current.parentProjectId !== undefined && !seen.has(current.id)) {
+      seen.add(current.id);
+      const parent = await this.dependencies.projects.find(current.parentProjectId);
+      if (parent === null) break;
+      current = parent;
+    }
+    return current.id;
   }
 
   /**

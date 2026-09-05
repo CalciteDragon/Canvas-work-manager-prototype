@@ -1038,7 +1038,7 @@ ascending with undated last, retaining completed and cancelled rows.
 |---|---|---|---|
 | 25.0 | Resolve product rules and amend spec | — | done — §23, §26–27, §30–32, §34, §36, §54, §68, §82–83 amended; decision entry written |
 | 25.1 | Root/subproject model and persistent pages | 25.0 | done — plan: [docs/plans/25.1-owner-kinds-and-persistent-pages.md](docs/plans/25.1-owner-kinds-and-persistent-pages.md) |
-| 25.2 | Page ownership through domain, API and MCP | 25.1 | not started |
+| 25.2 | Page ownership through domain, API and MCP | 25.1 | done — plan: [docs/plans/25.2-page-aware-ownership.md](docs/plans/25.2-page-aware-ownership.md) |
 | 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | not started |
 | 25.4 | Home shortcuts | 25.3 | not started |
 | 25.5 | Chronological Todos | 25.3 | not started |
@@ -1074,6 +1074,47 @@ as its cwd, a trap every path-taking passthrough shares.
 No navigation changed: the app looks exactly as it did, on a converted file. Verified in the
 browser on the real `.prototype/data.json` after conversion, and over HTTP for both kinds,
 both refusals and a default write landing on a sub-project's work canvas.
+
+**25.2, done.** The page is now the unit of section ownership everywhere a write or a read can
+reach it. `ProjectPageService` lists a project's pages and toggles a root's optional three;
+`SectionService` resolves §27's three write cases — nothing supplied, a page supplied, a section
+supplied — and refuses rather than falling back when a page does not hold that kind of section.
+Positions are dense **per page**, so reordering Home never renumbers Reflections, and the one
+project-wide read groups by page because two pages both number from zero.
+
+Four product questions were answered rather than assumed, each with a decision entry. An
+optional page's record is created by its **first enable**, which is the only reading under which
+a document written by 25.1 still loads — and enabling one is the single write the archive freeze
+does not cover, because §31 says undo must never be behind a toggle. A disabled page refuses
+**placement** and keeps everything already on it, which is how §27's two sentences about disabled
+pages stop contradicting each other. And reassigning a container's rows may cross pages within a
+project, because §31 constrains the type and not the page.
+
+The shared archived-ancestor rule landed here so Archive can ship before Todos, and closing it
+turned out to need both ends. Hiding live work beneath an archived ancestor without also refusing
+the two operations that produce it — reparenting under an archived project, reactivating beneath
+one — would have manufactured a project that is live, invisible to every list and refused by
+every write. The reactivation check is a *transition*, not a state, or it would refuse the rename
+that is part of the way out.
+
+Three things the phase found rather than planned, all caught in plan review across five rounds
+and worth recording because each would have been a silently wrong answer rather than a failure.
+`SectionService.list`'s archived branch is a direct repository read that never passes through
+`ordered`, so page-scoping the sort alone would have answered a page query with the whole
+project. `resolveContainer` searching one page while `addWithin` created on another are two
+independent resolutions of exactly the thing this slice makes ambiguous. And `TaskService.update`'s
+subtask branch re-derives `sectionId` from the parent on *every* update of a task that has one, so
+a disabled-page refusal placed on the branch would have refused renaming a subtask.
+
+`LiveEvent` gained `rootProjectId`, resolved by walking the parent chain inside
+`ActivityService.record` — a departure from that method reading nothing, stated in its own comment
+rather than left as a surprise. A root's Todos and Archive project rows from anywhere beneath it,
+so `projectId` alone cannot say which root a deep change concerns. Nothing routes on it yet; 25.3
+does.
+
+No navigation changed, and no component changed: the two new gateway methods are exercised by the
+gateway spec and the fake. Verified in the browser on a converted `.prototype/data.json`, and over
+HTTP and MCP for the create-a-root, nest-a-unit-of-work, enable-a-page journey and its refusals.
 
 **Done when:** the roadmap's integrated browser/MCP journey passes: a multi-page root
 and nested work units retain canonical data ownership, shortcuts reflect source content,

@@ -1,6 +1,6 @@
 import type {
   ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
-  MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageKind, ProjectQuery, ProjectSection,
+  MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageQuery, ProjectQuery, ProjectSection,
   Reflection, ReflectionId, ReflectionQuery,
   SectionId, SectionQuery,
   Task, TaskId, TaskQuery, User, UserId,
@@ -28,7 +28,7 @@ export interface ProjectRepository {
  */
 export interface ProjectPageRepository {
   find(id: ProjectPageId): Promise<ProjectPage | null>;
-  list(query?: { projectId?: ProjectId; kind?: ProjectPageKind; enabled?: boolean }): Promise<ProjectPage[]>;
+  list(query?: ProjectPageQuery): Promise<ProjectPage[]>;
   insert(page: ProjectPage): Promise<void>;
   update(page: ProjectPage): Promise<void>;
 }

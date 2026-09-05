@@ -1,6 +1,7 @@
 import type { ActorContext } from '@cwm/domain';
 import { UnknownToolError } from './errors';
 import type { WorkManagerServices, WorkManagerTool } from './tool';
+import { projectPageTools } from './tools/project-pages';
 import { projectTools } from './tools/projects';
 import { reflectionTools } from './tools/reflections';
 import { sectionTools } from './tools/sections';
@@ -18,6 +19,8 @@ export const SPEC_TOOL_NAMES = [
   'get_project',
   'create_project',
   'update_project',
+  'list_project_pages',
+  'set_project_page_enabled',
   'list_tasks',
   'get_task',
   'create_task',
@@ -56,7 +59,14 @@ export interface ToolRegistry {
  * instead.
  */
 export const createToolRegistry = (services: WorkManagerServices): ToolRegistry => {
-  const tools: readonly WorkManagerTool[] = [...projectTools, ...taskTools, ...reflectionTools, ...sectionTools, ...workspaceTools];
+  const tools: readonly WorkManagerTool[] = [
+    ...projectTools,
+    ...projectPageTools,
+    ...taskTools,
+    ...reflectionTools,
+    ...sectionTools,
+    ...workspaceTools,
+  ];
   const byName = new Map(tools.map((tool) => [tool.name, tool]));
 
   return {

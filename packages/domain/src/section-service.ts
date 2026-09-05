@@ -1,5 +1,6 @@
 import {
   canonicalPageKindFor,
+  pageAcceptsSectionType,
   pageAcceptsSections,
   ProjectSectionSchema,
   ReflectionSchema,
@@ -19,6 +20,7 @@ import {
   type SectionQuery,
   type SectionRemovalRefusalDetails,
   type Task,
+  type ProjectPage,
   type ProjectPageId,
   type UpdateSectionInput,
 } from '@cwm/contracts';
@@ -35,6 +37,7 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
+import { assertProjectWritable } from './project-visibility';
 
 export interface SectionServiceDependencies {
   sections: SectionRepository;
@@ -75,6 +78,22 @@ type SectionAction =
   | 'project.section_restored';
 
 const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position - b.position;
+
+/**
+ * The order for a read that spans **several pages**. Positions are dense per page (§27), so two
+ * pages both number from 0 and `byPosition` alone would interleave them in whatever order
+ * storage happened to return — an ordering with no meaning any renderer could use. Page, then
+ * position, then id: grouped, and deterministic for transport.
+ *
+ * Shared by both project-wide branches of `list`. The archived branch does not go through
+ * `ordered`, so a comparator defined only there would leave exactly this defect behind.
+ */
+const byPageThenPosition = (a: ProjectSection, b: ProjectSection): number =>
+  a.pageId === b.pageId
+    ? a.position === b.position
+      ? a.id.localeCompare(b.id)
+      : a.position - b.position
+    : a.pageId.localeCompare(b.pageId);
 
 /**
  * An archived section is off the canvas, and there is no edit to make on one that restoring
@@ -134,10 +153,17 @@ export class SectionService {
   ): Promise<ProjectSection[]> {
     assertPermitted(actor, 'projects.read');
     await this.assertProjectVisible(actor, projectId);
-    if (query.includeArchived !== true) return this.ordered(projectId);
-    return (await this.dependencies.sections.list({ includeArchived: true, projectId })).sort(
-      (a, b) => (a.position === b.position ? a.id.localeCompare(b.id) : a.position - b.position),
-    );
+    // Resolved, not merely filtered: a stale or foreign page must answer not-found rather than
+    // an empty array that reads as "this page is empty" — the rule `TaskService.list` applies
+    // to `parentTaskId`. Both branches below then carry the filter; the archived one is a
+    // direct repository read that does not pass through `ordered`.
+    if (query.pageId !== undefined) await this.requirePageOf(projectId, query.pageId);
+    if (query.includeArchived !== true) {
+      return query.pageId === undefined ? this.ordered(projectId) : this.orderedOnPage(query.pageId);
+    }
+    return (
+      await this.dependencies.sections.list({ includeArchived: true, projectId, pageId: query.pageId })
+    ).sort(byPageThenPosition);
   }
 
   async add(actor: ActorContext, projectId: ProjectId, input: CreateSectionInput): Promise<ProjectSection> {
@@ -167,15 +193,15 @@ export class SectionService {
     await this.assertProjectVisible(actor, projectId);
     // Ordered before the page resolution below, so an archived project still refuses with
     // "reactivate it first" rather than with whatever its pages happen to look like.
-    await this.assertProjectActive(projectId);
-    const pageId = await this.resolvePage(projectId, input.pageId);
-    const siblings = await this.ordered(projectId);
+    await this.assertProjectWritable(projectId);
+    const page = await this.resolvePage(projectId, input.pageId, input.type);
+    const siblings = await this.orderedOnPage(page.id);
 
     const now = this.dependencies.clock.now().toISOString();
     const section = ProjectSectionSchema.parse({
       id: SectionIdSchema.parse(this.dependencies.ids.next('section')),
       projectId,
-      pageId,
+      pageId: page.id,
       type: input.type,
       // Normalised here as well as in `SectionTitleSchema`: this package is a public API,
       // and a caller that did not traverse a write input must not store `"  "` as a name.
@@ -199,14 +225,27 @@ export class SectionService {
   }
 
   /**
-   * The page a section lands on: the one the caller named, or the project's canonical page
-   * when it named none (§27). A root's Home, a sub-project's sole canvas.
+   * **§27's "where a write lands when nobody said", in one place.** The page the caller named,
+   * or the project's canonical page when it named none — a root's Home, a sub-project's sole
+   * canvas. Returns the record rather than the id, because every caller that named a page also
+   * has to know whether it is switched on.
    *
-   * A named page must belong to this project and accept sections — Todos and Archive project
-   * rows they do not own (§30), so a section on one would render nowhere. Choosing *between*
-   * a root's several section-bearing pages is Slice 25.2's; today there is exactly one.
+   * A named page must exist, belong to this project, accept sections at all, accept *this kind*
+   * of section, and be enabled. The first two are a **not-found**: a page in someone else's
+   * project is not a refusal to confirm the id with, which is the rule `require` follows for a
+   * foreign section. The other three are rule errors — the caller may see the page, it just may
+   * not put that there — and each says which of the three it is, because they are three
+   * different repairs.
+   *
+   * The type check is deliberately applied on the canonical branch too, where it is inert: Home
+   * and a work canvas take every registered type (§30), so one function answers "which page,
+   * and may this go there" rather than two that can disagree.
    */
-  private async resolvePage(projectId: ProjectId, pageId: ProjectPageId | undefined): Promise<ProjectPageId> {
+  private async resolvePage(
+    projectId: ProjectId,
+    pageId: ProjectPageId | undefined,
+    type: string,
+  ): Promise<ProjectPage> {
     if (pageId === undefined) {
       const project = await this.dependencies.projects.find(projectId);
       if (project === null) throw new EntityNotFoundError('project', projectId);
@@ -214,22 +253,66 @@ export class SectionService {
       // Unreachable while every project is created with its page in the same unit of work,
       // and cheaper to state than to let a caller discover as a schema failure.
       if (canonical === undefined) throw new DomainRuleError(`project "${projectId}" has no canvas`);
-      return canonical.id;
+      return canonical;
     }
 
+    const page = await this.requirePageOf(projectId, pageId);
+    this.assertPageTakes(page, type);
+    return page;
+  }
+
+  /** The page lookup that only answers for *this* project. See `resolvePage` for the not-found. */
+  private async requirePageOf(projectId: ProjectId, pageId: ProjectPageId): Promise<ProjectPage> {
     const page = await this.dependencies.pages.find(pageId);
-    if (page === null || page.projectId !== projectId) {
-      throw new DomainRuleError('a section must live on a page of its own project');
-    }
-    if (!pageAcceptsSections(page.kind)) throw new DomainRuleError(`a ${page.kind} page does not hold sections`);
-    return page.id;
+    if (page === null || page.projectId !== projectId) throw new EntityNotFoundError('projectPage', pageId);
+    return page;
   }
 
   /**
-   * The container a row goes to when the caller names none: the project's first container
-   * of the matching type, and otherwise a new one added through the same operation the Add
-   * Section button calls, at the end of the canvas with an ordinary activity event behind
-   * it.
+   * §30's capability, plus §27's *"a write never lands on a disabled page. Silent placement
+   * somewhere invisible is worse than a refusal."*
+   *
+   * The disabled rule is about **placement**, not about the caller's choice of identifier and
+   * not about reading: §27 also says a source on a disabled page is still a valid source, so a
+   * section already there keeps being read, edited, reordered, removed and restored. What is
+   * refused is putting something new there.
+   */
+  private assertPageTakes(page: ProjectPage, type: string): void {
+    if (!pageAcceptsSections(page.kind)) throw new DomainRuleError(`a ${page.kind} page does not hold sections`);
+    if (!pageAcceptsSectionType(page.kind, type)) {
+      throw new DomainRuleError(`a ${page.kind} page does not hold ${type} sections`);
+    }
+    if (!page.enabled) throw new DomainRuleError(`page "${page.id}" is disabled; enable it before adding to it`);
+  }
+
+  /**
+   * The same refusal for a destination named by its *section* rather than by its page.
+   *
+   * Public, because the two subtask paths in `TaskService` are placements that name neither a
+   * page nor a section — they inherit the parent's — so they cannot reach the rule through
+   * `requireContainer` and have to ask for it. Unchecked, like every other door a row write
+   * uses on its own behalf.
+   */
+  async assertWritablePage(section: ProjectSection): Promise<void> {
+    await this.assertDestinationPageEnabled(section);
+  }
+
+  private async assertDestinationPageEnabled(section: ProjectSection): Promise<void> {
+    const page = await this.dependencies.pages.find(section.pageId);
+    if (page !== null && !page.enabled) {
+      throw new DomainRuleError(`page "${page.id}" is disabled; enable it before adding to it`);
+    }
+  }
+
+  /**
+   * The container a row goes to when the caller names none: the first container of the matching
+   * type **on the resolved page**, and otherwise a new one added there through the same
+   * operation the Add Section button calls, at the end of that page with an ordinary activity
+   * event behind it.
+   *
+   * The page is resolved **once** and passed into `addWithin`. Searching one page and creating
+   * on another would be two independent answers to the question this slice exists to make
+   * unambiguous — they agree only while a project has a single section-bearing page.
    *
    * Call it from inside an open unit of work -- it writes, and it does not open one.
    *
@@ -238,12 +321,19 @@ export class SectionService {
    * agent granted `tasks.write` alone must be able to create a task, and a task nothing
    * renders is the defect this whole change exists to close.
    */
-  async resolveContainer(actor: ActorContext, projectId: ProjectId, owned: OwnedDataKind): Promise<ProjectSection> {
-    // `ordered` is live-only, so an archived container is skipped and a new one is added
+  async resolveContainer(
+    actor: ActorContext,
+    projectId: ProjectId,
+    owned: OwnedDataKind,
+    pageId?: ProjectPageId,
+  ): Promise<ProjectSection> {
+    const type = containerTypeFor(owned);
+    const page = await this.resolvePage(projectId, pageId, type);
+    // `orderedOnPage` is live-only, so an archived container is skipped and a new one is added
     // rather than revived: a removed section comes back through restore, never through a
     // row write that happened to need somewhere to go.
-    const existing = (await this.ordered(projectId)).find((section) => ownedKindOf(section.type) === owned);
-    return existing ?? this.addWithin(actor, projectId, { type: containerTypeFor(owned) });
+    const existing = (await this.orderedOnPage(page.id)).find((section) => ownedKindOf(section.type) === owned);
+    return existing ?? this.addWithin(actor, projectId, { type, pageId: page.id });
   }
 
   /**
@@ -270,6 +360,9 @@ export class SectionService {
     // An archived container is off the canvas; a row created or moved into one would be
     // live inside it, which document integrity rejects. Refuse here, as a rule error.
     assertLive(section);
+    // §27's disabled-page rule reaches a destination named by its section too — otherwise the
+    // refusal would depend on which identifier the caller happened to use for the same place.
+    await this.assertDestinationPageEnabled(section);
     return section;
   }
 
@@ -280,7 +373,7 @@ export class SectionService {
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
       assertLive(current);
-      await this.assertProjectActive(current.projectId);
+      await this.assertProjectWritable(current.projectId);
       const next = { ...current };
       // A blank name means the same thing `null` does — fall back to the derived default —
       // so the two do not have to be told apart by every caller upstream.
@@ -307,8 +400,9 @@ export class SectionService {
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
       assertLive(current);
-      await this.assertProjectActive(current.projectId);
-      const siblings = await this.ordered(current.projectId);
+      await this.assertProjectWritable(current.projectId);
+      // Within the section's **page**: reordering one page must not renumber another (§27).
+      const siblings = await this.orderedOnPage(current.pageId);
       const without = siblings.filter((section) => section.id !== id);
       // Clamped, not rejected: a caller that asks for "last" by overshooting means last.
       const target = Math.min(Math.max(position, 0), without.length);
@@ -330,8 +424,11 @@ export class SectionService {
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
       assertLive(current);
-      await this.assertProjectActive(current.projectId);
-      const siblings = await this.ordered(current.projectId);
+      await this.assertProjectWritable(current.projectId);
+      // Duplicating creates a section, so it is placement: refused on a disabled page like
+      // every other create, even though the original is already sitting there.
+      await this.assertDestinationPageEnabled(current);
+      const siblings = await this.orderedOnPage(current.pageId);
 
       const now = this.dependencies.clock.now().toISOString();
       const copy = ProjectSectionSchema.parse({
@@ -399,11 +496,11 @@ export class SectionService {
         updatedAt: this.dependencies.clock.now().toISOString(),
       });
       await this.dependencies.sections.update(archived);
-      // Archived first, then renumber: `ordered` is live-only, so the surviving siblings
+      // Archived first, then renumber: `orderedOnPage` is live-only, so the surviving siblings
       // close to the same dense sequence deleting produced. The archived section keeps its
-      // now-stale position — uniqueness is a property of the live canvas, and
+      // now-stale position — uniqueness is a property of the live page, and
       // `restoreSection` overwrites the value when it appends.
-      await this.renumber(await this.ordered(current.projectId));
+      await this.renumber(await this.orderedOnPage(current.pageId));
       await this.record(actor, archived, 'project.section_archived', 'Archived');
       return archived;
     });
@@ -434,9 +531,11 @@ export class SectionService {
       // Idempotent, so the public restore route cannot turn a retry into a canvas move: no
       // reposition, no timestamps, no row writes, no activity.
       if (current.archivedAt === undefined) return current;
-      await this.assertProjectActive(current.projectId);
+      await this.assertProjectWritable(current.projectId);
 
-      const live = await this.ordered(current.projectId);
+      // Back onto its own page, at that page's end. Undo, so no disabled-page refusal: the
+      // section is returning to where it already lived (§31 — undo is never behind a toggle).
+      const live = await this.orderedOnPage(current.pageId);
       const restored = ProjectSectionSchema.parse({
         ...current,
         archivedAt: undefined,
@@ -518,6 +617,11 @@ export class SectionService {
     if (target.type !== section.type) {
       throw new DomainRuleError(`rows can only be reassigned to another ${section.type} section`);
     }
+    // Deliberately **no** page-equality rule: §31 says "another container of the same type" and
+    // states no page constraint, and both containers render what they hold — see
+    // docs/decisions/2026-09-reassign-may-cross-pages.md. The destination still has to be
+    // somewhere a write may land, which is the one page rule that applies.
+    await this.assertDestinationPageEnabled(target);
     for (const row of rows) await this.writeRow(owned, { ...row, sectionId: target.id });
   }
 
@@ -598,8 +702,23 @@ export class SectionService {
     }
   }
 
+  /**
+   * A whole project's live canvas, across every page it has. The one read that is not
+   * page-scoped, and the only live caller of `byPageThenPosition`.
+   */
   private async ordered(projectId: ProjectId): Promise<ProjectSection[]> {
-    return (await this.dependencies.sections.list({ projectId })).sort(byPosition);
+    return (await this.dependencies.sections.list({ projectId })).sort(byPageThenPosition);
+  }
+
+  /**
+   * **One page's live canvas** — the read every path that places or renumbers uses.
+   *
+   * The `pageId` is required rather than optional on purpose. Positions are dense per page and
+   * nothing validates that at load, so a call that forgot the argument would renumber across
+   * pages and corrupt an ordering with nothing to catch it.
+   */
+  private async orderedOnPage(pageId: ProjectPageId): Promise<ProjectSection[]> {
+    return (await this.dependencies.sections.list({ pageId })).sort(byPosition);
   }
 
   private async isProjectVisible(actor: ActorContext, projectId: ProjectId): Promise<boolean> {
@@ -616,13 +735,12 @@ export class SectionService {
    * it. Work does not come *back* into a project someone has put away: adding, editing,
    * moving, duplicating and restoring are refused. Removing is not — see `remove`.
    *
-   * A small service-local assertion rather than a new abstraction layer: the same shape
-   * `TaskService` and `ReflectionService` each carry.
+   * **Or into one whose ancestor is archived.** Archiving does not cascade (§31), so a live
+   * sub-project can sit under an archived root, and a freeze that looked only at the named
+   * project would let work in through the side door. `project-visibility.ts` states that walk
+   * once, for the three services that each carried a copy of the shallow version.
    */
-  private async assertProjectActive(projectId: ProjectId): Promise<void> {
-    const project = await this.dependencies.projects.find(projectId);
-    if (project?.status === 'archived') {
-      throw new DomainRuleError(`project "${projectId}" is archived; reactivate it first`);
-    }
+  private async assertProjectWritable(projectId: ProjectId): Promise<void> {
+    await assertProjectWritable(this.dependencies.projects, projectId);
   }
 }

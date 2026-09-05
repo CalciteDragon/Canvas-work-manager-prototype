@@ -16,6 +16,7 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
+import { archivedAncestry } from './project-visibility';
 
 /**
  * §26's project hierarchy. Deliberately no depth limit: whether nesting is worth keeping
@@ -66,10 +67,25 @@ export class ProjectService {
     return project;
   }
 
-  /** The actor's workspace is applied last, so a caller-supplied filter cannot widen it. */
+  /**
+   * The actor's workspace is applied last, so a caller-supplied filter cannot widen it.
+   *
+   * **Live projects underneath an archived ancestor are dropped.** Archiving does not cascade
+   * (§31), so reparenting or reactivating can leave one live inside something someone has put
+   * away — hidden from the tree a person navigates while every write to it is refused. It is
+   * the trap state, and it is the only thing dropped: a project archived in its own right is
+   * still returned, so `status: ['archived']` keeps working and an archived project's
+   * Sub-Projects section still lists what is under it.
+   *
+   * The ancestry is built over the **unfiltered** workspace, then the query is applied. Built
+   * over the filtered result it would be looking for ancestors that are no longer in the array,
+   * and would silently find none.
+   */
   async list(actor: ActorContext, query: ProjectQuery = {}): Promise<Project[]> {
     assertPermitted(actor, 'projects.read');
-    return this.dependencies.projects.list({ ...query, workspaceId: actor.workspaceId });
+    const ancestry = archivedAncestry(await this.dependencies.projects.list({ workspaceId: actor.workspaceId }));
+    const matching = await this.dependencies.projects.list({ ...query, workspaceId: actor.workspaceId });
+    return matching.filter((project) => !ancestry.isHidden(project.id));
   }
 
   async create(actor: ActorContext, input: CreateProjectInput): Promise<Project> {
@@ -88,9 +104,9 @@ export class ProjectService {
         const parent = await this.require(actor, input.parentProjectId);
         // A unit of work under archived work would be live inside something hidden from every
         // ordinary read — the same defect a live row in an archived section is, one layer up.
-        if (parent.status === 'archived') {
-          throw new DomainRuleError(`project "${parent.id}" is archived and cannot take new work`);
-        }
+        // The whole chain, not just the parent: an archived *grandparent* hides it just as
+        // completely, and archiving does not cascade, so the intermediate one can be live.
+        await this.assertAncestryActive(actor, parent);
       }
 
       const now = this.dependencies.clock.now().toISOString();
@@ -168,6 +184,20 @@ export class ProjectService {
 
       if (next.parentProjectId !== current.parentProjectId && next.parentProjectId !== undefined) {
         await this.assertParentIsUsable(actor, id, next.parentProjectId);
+        await this.assertAncestryActive(actor, await this.require(actor, next.parentProjectId));
+      }
+
+      // **Reactivating is an explicit choice (§31); this only says in which order.** Coming back
+      // out of `archived` while an ancestor is still archived would produce a project that is
+      // live, hidden from every ordinary read, and refused by every write — so it names the
+      // ancestor to reactivate first instead.
+      //
+      // A *transition*, not a state: a project already live under an archived ancestor has
+      // `next.status !== 'archived'` on every update, so a state check would refuse renaming it
+      // or moving it out — which is the way out. Read from `next.parentProjectId`, after the
+      // reparent above, so reactivating and moving out in one call succeeds.
+      if (current.status === 'archived' && next.status !== 'archived' && next.parentProjectId !== undefined) {
+        await this.assertAncestryActive(actor, await this.require(actor, next.parentProjectId));
       }
 
       // §26: completion is explicit and recorded. Derived from the status rather than
@@ -226,6 +256,22 @@ export class ProjectService {
     });
     if (children.some((child) => child.status !== 'archived')) {
       throw new DomainRuleError(`project "${id}" still has active sub-projects`);
+    }
+  }
+
+  /**
+   * The parent, and everything above it. Walks with a visited set for the reason
+   * `assertParentIsUsable` states — a document can already contain a cycle.
+   */
+  private async assertAncestryActive(actor: ActorContext, parent: Project): Promise<void> {
+    const seen = new Set<ProjectId>();
+    let current: Project | undefined = parent;
+    while (current !== undefined && !seen.has(current.id)) {
+      if (current.status === 'archived') {
+        throw new DomainRuleError(`project "${current.id}" is archived and cannot take new work`);
+      }
+      seen.add(current.id);
+      current = current.parentProjectId === undefined ? undefined : await this.require(actor, current.parentProjectId);
     }
   }
 

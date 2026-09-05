@@ -10,10 +10,13 @@ import { ProjectSchema, type
   ProgressResult,
   Project,
   ProjectId,
+  ProjectPage,
+  ProjectPageId,
   ProjectSection,
   Reflection,
   ReflectionId,
   SectionId,
+  SetProjectPageEnabledInput,
   Task,
   TaskId,
   TimelineResult,
@@ -25,6 +28,7 @@ import type {
   ActivityGateway,
   AgentGateway,
   ProjectGateway,
+  ProjectPageGateway,
   SectionGateway,
   TaskGateway,
   WorkManagerGateway,
@@ -38,6 +42,8 @@ import type {
  */
 export interface FakeGatewayOptions {
   projects?: Project[];
+  /** §26's pages. Absent, every project answers with the canonical page it must have. */
+  pages?: ProjectPage[];
   sections?: ProjectSection[];
   tasks?: Task[];
   progress?: ProgressResult;
@@ -63,6 +69,28 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   /** Every call the spec made, in order, so a test can assert the query that was sent. */
   readonly calls: Array<{ method: string; argument: unknown }> = [];
+
+  /**
+   * A project's pages: the seeded ones, or the canonical page every project has from the
+   * moment it exists (§26). Derived rather than required in every fixture, for the same
+   * reason the domain creates it in the same unit of work as its owner — a project with no
+   * page is not a state anything should have to represent.
+   */
+  private pagesOf(projectId: ProjectId): ProjectPage[] {
+    const seeded = (this.options.pages ?? []).filter((page) => page.projectId === projectId);
+    if (seeded.length > 0) return seeded;
+    const kind = (this.options.projects ?? []).find(({ id }) => id === projectId)?.kind ?? 'root';
+    return [
+      {
+        id: `page-${projectId}` as ProjectPageId,
+        projectId,
+        kind: kind === 'root' ? 'home' : 'work',
+        enabled: true,
+        createdAt: COMPLETED_AT,
+        updatedAt: COMPLETED_AT,
+      },
+    ];
+  }
 
   readonly projects: ProjectGateway = {
     list: (query) => this.answer('projects.list', query, this.options.projects ?? []),
@@ -169,16 +197,38 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     restore: (id: ReflectionId) => this.answer('reflections.restore', id, restored(this.find(this.options.reflections, id, 'reflection'))),
   };
 
+  readonly pages: ProjectPageGateway = {
+    list: (projectId: ProjectId) =>
+      this.answer('pages.list', projectId, this.pagesOf(projectId)),
+    // The toggle, echoed: enabling a kind the project does not have yet answers with a new
+    // record, matching the service's upsert, so a store spec sees the same two shapes it
+    // would over HTTP.
+    setEnabled: (projectId: ProjectId, input: SetProjectPageEnabledInput) =>
+      this.answer('pages.setEnabled', { projectId, input }, {
+        ...(this.pagesOf(projectId).find(({ kind }) => kind === input.kind) ?? {
+          id: `page-${projectId}-${input.kind}` as ProjectPageId,
+          projectId,
+          kind: input.kind,
+          createdAt: COMPLETED_AT,
+          updatedAt: COMPLETED_AT,
+        }),
+        enabled: input.enabled,
+      }),
+  };
+
   readonly sections: SectionGateway = {
     // Live-only unless asked, like the repository: a canvas store that forgot the default
-    // would otherwise paint archived sections and pass its spec.
-    list: (projectId: ProjectId, query: { includeArchived?: boolean } = {}) =>
+    // would otherwise paint archived sections and pass its spec. `pageId` is honoured for the
+    // same reason — a store that read a page and got the whole project would pass its spec
+    // and paint another canvas's sections.
+    list: (projectId: ProjectId, query: { pageId?: ProjectPageId; includeArchived?: boolean } = {}) =>
       this.answer(
         'sections.list',
-        query.includeArchived === undefined ? projectId : { projectId, ...query },
+        query.includeArchived === undefined && query.pageId === undefined ? projectId : { projectId, ...query },
         (this.options.sections ?? []).filter(
           (section) =>
             section.projectId === projectId &&
+            (query.pageId === undefined || section.pageId === query.pageId) &&
             (query.includeArchived === true || section.archivedAt === undefined),
         ),
       ),

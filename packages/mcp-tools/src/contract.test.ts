@@ -49,6 +49,23 @@ const CASES: Record<string, ToolCase> = {
       );
     },
   },
+  list_project_pages: {
+    input: { projectId: PROJECT },
+    verify: (result) => {
+      // A root that has never configured a page has exactly Home, and Home is always on.
+      expect(result.map((page: { kind: string }) => page.kind)).toEqual(['home']);
+      expect(result[0].enabled).toBe(true);
+    },
+  },
+  set_project_page_enabled: {
+    input: { projectId: PROJECT, kind: 'reflections', enabled: true },
+    mutates: true,
+    verify: async (result, harness) => {
+      expect(result).toMatchObject({ projectId: PROJECT, kind: 'reflections', enabled: true });
+      const listed = await harness.services.pages.list(agent(['projects.read']), PROJECT);
+      expect(listed.map(({ id }) => id)).toContain(result.id);
+    },
+  },
   list_tasks: {
     input: { projectId: PROJECT },
     verify: (result) => expect(result.length).toBeGreaterThan(0),

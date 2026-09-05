@@ -11,9 +11,11 @@ import {
   SectionQuerySchema,
   RemoveSectionInputSchema,
   ProjectIdSchema,
+  ProjectPageKindSchema,
   ProjectQuerySchema,
   ReflectionIdSchema,
   SectionIdSchema,
+  SetProjectPageEnabledInputSchema,
   TaskIdSchema,
   TaskQuerySchema,
   UpdateAgentPermissionsInputSchema,
@@ -22,7 +24,7 @@ import {
   UpdateSectionInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
+import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectPageService, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveIdentityUser } from './context.ts';
 import type { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
@@ -31,6 +33,8 @@ import type { RouteRequest, RouteResult, RouteTable } from '../router.ts';
 export interface ApiDependencies {
   store: DataStore;
   projects: ProjectService;
+  /** §26's pages, listed and toggled through their own routes below. */
+  pages: ProjectPageService;
   tasks: TaskService;
   sections: SectionService;
   activity: ActivityService;
@@ -90,7 +94,7 @@ const queryObject = (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, tasks, sections, activity, progress, timeline, reflections, dashboard, agents, authenticator } =
+  const { store, projects, pages, tasks, sections, activity, progress, timeline, reflections, dashboard, agents, authenticator } =
     dependencies;
   // Async now: an agent request has to resolve its token against the live connection
   // before the handler runs, because that read is what carries the permission set (§51).
@@ -139,6 +143,24 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
         ),
       ),
 
+    // §26's pages. Nested under the project on both verbs: a page only exists as one
+    // project's, and the toggle is addressed by *kind* rather than by page id because the
+    // first enable is what creates the record — there is no id yet to name.
+    'GET /api/projects/:projectId/pages': async (request) =>
+      ok(await pages.list(await actorFor(request), sectionProjectId(request))),
+
+    'PATCH /api/projects/:projectId/pages/:kind': async (request) =>
+      ok(
+        await pages.setEnabled(
+          await actorFor(request),
+          sectionProjectId(request),
+          SetProjectPageEnabledInputSchema.parse({
+            kind: ProjectPageKindSchema.parse(request.params['kind']),
+            ...(request.body as Record<string, unknown>),
+          }),
+        ),
+      ),
+
     'GET /api/projects/:id/progress': async (request) =>
       ok(await progress.calculate(await actorFor(request), projectId(request))),
 
@@ -182,12 +204,15 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     // — a section only exists on one project's canvas — and addressed directly for the
     // rest, because the frame has the id and nothing else needs re-stating.
     'GET /api/projects/:projectId/sections': async (request) => {
-      // The Archived region is the one caller that asks for archived sections. Only
-      // `includeArchived` is forwarded: the path already fixed the project, and a query
-      // `projectId` must not redirect it.
+      // The Archived region is the one caller that asks for archived sections, and a page
+      // read is the one that narrows to a canvas. Only those two are forwarded: the path
+      // already fixed the project, and a query `projectId` must not redirect it. Both have to
+      // be named here *and* in the forwarded object — parsing one and forwarding the other
+      // would accept the filter and silently ignore it.
       const query = SectionQuerySchema.parse(queryObject(request.query, [], [], ['includeArchived']));
       return ok(
         await sections.list(await actorFor(request), sectionProjectId(request), {
+          pageId: query.pageId,
           includeArchived: query.includeArchived,
         }),
       );

@@ -3,6 +3,7 @@ import { ActivityActorSchema } from './activity';
 import { IsoDateSchema, IsoDateTimeSchema, PositionSchema } from './common';
 import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema, TaskIdSchema, WorkspaceIdSchema } from './ids';
 import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectStatusSchema } from './project';
+import { ProjectPageKindSchema } from './project-page';
 import { SectionColumnSpanSchema, SectionConfigSchema } from './section';
 import { TaskPrioritySchema, TaskStatusSchema } from './task';
 
@@ -15,11 +16,19 @@ import { TaskPrioritySchema, TaskStatusSchema } from './task';
 export const CreateTaskInputSchema = z.object({
   projectId: ProjectIdSchema,
   /**
-   * The owning container. Optional on the way in: absent, the service resolves the
-   * project's first `task-list` and adds one when there is none, so an agent that knows
-   * nothing about the canvas still produces a project that renders its work.
+   * The owning container. Optional on the way in: absent, the service resolves a `task-list`
+   * on the page below and adds one when there is none, so an agent that knows nothing about
+   * the canvas still produces a project that renders its work.
    */
   sectionId: SectionIdSchema.optional(),
+  /**
+   * §27's middle case: *"a page supplied — resolve there, but only if that page accepts that
+   * kind of data. Otherwise refuse; do not fall back somewhere the caller did not name."*
+   * Absent, resolution uses the project's canonical page. Supplied alongside a `sectionId` —
+   * or alongside a `parentTaskId`, whose section the subtask inherits — the two must agree;
+   * a mismatch is an error rather than a preference order.
+   */
+  pageId: ProjectPageIdSchema.optional(),
   parentTaskId: TaskIdSchema.optional(),
   title: z.string().min(1),
   description: z.string().optional(),
@@ -185,6 +194,8 @@ export const CreateReflectionInputSchema = z.object({
   projectId: ProjectIdSchema,
   /** The owning container; resolved like `CreateTaskInput.sectionId` when absent. */
   sectionId: SectionIdSchema.optional(),
+  /** The page to resolve on; see `CreateTaskInput.pageId`. */
+  pageId: ProjectPageIdSchema.optional(),
   title: z.string().optional(),
   body: z.string().min(1),
   prompt: z.string().optional(),
@@ -240,10 +251,49 @@ export type ProjectQuery = z.infer<typeof ProjectQuerySchema>;
 /** Filters for `GET /api/projects/:projectId/sections`. */
 export const SectionQuerySchema = z.object({
   projectId: ProjectIdSchema.optional(),
+  /**
+   * Narrow the canvas to one page (§27). Absent, the read spans the project — which is what
+   * every caller wants while a project has one section-bearing page, and what the Archive page
+   * will keep wanting after that.
+   *
+   * `SectionService.list` **resolves** it rather than only passing it to the filter: a stale or
+   * foreign page has to answer not-found, the way an unknown `parentTaskId` does on a task
+   * list, instead of an empty array that reads as "this page is empty".
+   */
+  pageId: ProjectPageIdSchema.optional(),
   /** Archived sections are excluded unless this is true, as for tasks and reflections. */
   includeArchived: z.boolean().optional(),
 });
 export type SectionQuery = z.infer<typeof SectionQuerySchema>;
+
+/**
+ * Filters for `ProjectPageRepository.list`. Written here rather than inline on the interface
+ * because it was inline in **two** packages — the repository interface and its JSON
+ * implementation — which is the parallel definition §11 forbids, just small enough to have gone
+ * unnoticed.
+ */
+export const ProjectPageQuerySchema = z.object({
+  projectId: ProjectIdSchema.optional(),
+  kind: ProjectPageKindSchema.optional(),
+  enabled: z.boolean().optional(),
+});
+export type ProjectPageQuery = z.infer<typeof ProjectPageQuerySchema>;
+
+/**
+ * §26's optional tabs, as a write. The kind is the address rather than a page id: a root has at
+ * most one page of each kind, and on the first enable there is no id yet to name — the record is
+ * created then (see `ProjectPageService.setEnabled`).
+ *
+ * Both directions travel through one input because they are one operation to the person: the
+ * control is a toggle. `home` and `work` are refused by the service, not by this schema — the
+ * refusal wants to say *why*, and "cannot be disabled" is a different sentence from "is not a
+ * kind".
+ */
+export const SetProjectPageEnabledInputSchema = z.object({
+  kind: ProjectPageKindSchema,
+  enabled: z.boolean(),
+});
+export type SetProjectPageEnabledInput = z.infer<typeof SetProjectPageEnabledInputSchema>;
 
 /** Filters for the activity feed (§57). Capped because `limit` arrives off a query string. */
 export const ActivityQuerySchema = z.object({

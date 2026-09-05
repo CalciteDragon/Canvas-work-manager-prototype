@@ -1,11 +1,11 @@
 import {
   CreateSectionInputSchema,
   ProjectIdSchema,
+  SectionQuerySchema,
   RemoveSectionInputSchema,
   SectionIdSchema,
   UpdateSectionInputSchema,
 } from '@cwm/contracts';
-import { z } from 'zod';
 import { defineTool, type WorkManagerTool } from '../tool';
 
 /**
@@ -25,15 +25,15 @@ export const sectionTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'list_sections',
     description:
-      'List a project’s canvas sections in the order they are laid out. Container sections (task-list, reflections) own the rows they render; view sections (progress, timeline, recent-activity, sub-projects) render data they do not own. Removed sections are archived rather than deleted and do not appear here.',
+      'List a project’s canvas sections in the order they are laid out, grouped by the page each sits on. Name a pageId to read one page. Container sections (task-list, reflections) own the rows they render; view sections (progress, timeline, recent-activity, sub-projects) render data they do not own. Removed sections are archived rather than deleted and do not appear here.',
     permission: 'projects.read',
-    inputSchema: z.object({ projectId: ProjectIdSchema }),
-    execute: ({ projectId }, { actor, services }) => services.sections.list(actor, projectId),
+    inputSchema: SectionQuerySchema.pick({ pageId: true }).extend({ projectId: ProjectIdSchema }),
+    execute: ({ projectId, ...query }, { actor, services }) => services.sections.list(actor, projectId, query),
   }),
   defineTool({
     name: 'create_section',
     description:
-      'Add a section to the end of a project’s canvas, given a section type such as task-list, reflections, rich-text, progress or timeline.',
+      'Add a section to the end of a page’s canvas, given a section type such as task-list, reflections, rich-text, progress or timeline. Without a pageId it lands on the project’s canonical canvas — a root’s Home, a sub-project’s sole work canvas. With one, it lands there, provided that page holds that kind of section: Home and a work canvas take every type, a Reflections page takes only a reflections container, and Todos and Archive hold none because they project rows they do not own. A disabled page takes nothing new.',
     permission: 'projects.write',
     inputSchema: CreateSectionInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.sections.add(actor, projectId, input),

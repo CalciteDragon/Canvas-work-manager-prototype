@@ -14,6 +14,7 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
+import { assertProjectWritable } from './project-visibility';
 import type { SectionService } from './section-service';
 
 export interface ReflectionServiceDependencies {
@@ -57,13 +58,11 @@ export class ReflectionService {
     return this.dependencies.unitOfWork.run(async () => {
       await this.assertProjectVisible(actor, input.projectId);
       await this.assertProjectActive(input.projectId);
-      // Named: checked. Absent: the project's first reflections section, created through
-      // the ordinary add when there is none — the same door `TaskService.create` uses.
-      const sectionId =
-        input.sectionId === undefined
-          ? (await this.dependencies.sections.resolveContainer(actor, input.projectId, 'reflections')).id
-          : (await this.dependencies.sections.requireContainer(actor, input.projectId, input.sectionId, 'reflections'))
-              .id;
+      // §27's three cases, the same door `TaskService.create` uses. Named section:
+      // authoritative, and it has to agree with any page also supplied. Named page only:
+      // resolved there, and refused if that page does not take reflections. Neither: the
+      // project's canonical page.
+      const sectionId = await this.resolveSection(actor, input);
 
       const now = this.dependencies.clock.now().toISOString();
       const reflection = ReflectionSchema.parse({
@@ -150,6 +149,24 @@ export class ReflectionService {
     });
   }
 
+  /** §27's write resolution for a reflection. See `TaskService.resolveSection` for the shape. */
+  private async resolveSection(actor: ActorContext, input: CreateReflectionInput) {
+    if (input.sectionId === undefined) {
+      return (await this.dependencies.sections.resolveContainer(actor, input.projectId, 'reflections', input.pageId))
+        .id;
+    }
+    const section = await this.dependencies.sections.requireContainer(
+      actor,
+      input.projectId,
+      input.sectionId,
+      'reflections',
+    );
+    if (input.pageId !== undefined && input.pageId !== section.pageId) {
+      throw new DomainRuleError('the named section is not on the named page');
+    }
+    return section.id;
+  }
+
   /**
    * `requireWithin`, not `get`: the section read is one this write does on its own behalf,
    * and an agent granted `reflections.write` alone must not need `projects.read` for it.
@@ -163,12 +180,9 @@ export class ReflectionService {
     }
   }
 
-  /** See `TaskService.assertProjectActive` — the same freeze, stated service-locally. */
+  /** See `TaskService.assertProjectActive` — the same freeze, and now the same ancestor walk. */
   private async assertProjectActive(projectId: ProjectId): Promise<void> {
-    const project = await this.dependencies.projects.find(projectId);
-    if (project?.status === 'archived') {
-      throw new DomainRuleError(`project "${projectId}" is archived; reactivate it first`);
-    }
+    await assertProjectWritable(this.dependencies.projects, projectId);
   }
 
   private async get(actor: ActorContext, id: ReflectionId): Promise<Reflection> {

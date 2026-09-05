@@ -610,13 +610,19 @@ describe('SectionService page ownership', () => {
     expect(await canonicalPageOf(harness, child.id)).toMatchObject({ kind: 'work', id: section.pageId });
   });
 
-  it('refuses a section on another project’s page', async () => {
+  /**
+   * **Not found, not a rule error.** A 409 would confirm the page exists, which is the reason
+   * `require` answers not-found for a foreign section and `ProjectService.require` for a
+   * foreign project. The page's *capability* refusals below stay rule errors: the caller may
+   * see that page, it just may not put that there.
+   */
+  it('answers not found for another project’s page', async () => {
     const harness = buildHarness();
     const foreign = await canonicalPageOf(harness, THEIRS);
 
     await expect(
       harness.sectionService.add(harness.actor, MINE, { type: 'task-list', pageId: foreign.id }),
-    ).rejects.toBeInstanceOf(DomainRuleError);
+    ).rejects.toBeInstanceOf(EntityNotFoundError);
   });
 
   /** §30: Todos and Archive project rows they do not own, so a section there renders nowhere. */

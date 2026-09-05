@@ -14,6 +14,7 @@ import type {
   ProgressResult,
   Project,
   ProjectId,
+  ProjectPage,
   ProjectQuery,
   ProjectSection,
   Reflection,
@@ -22,6 +23,7 @@ import type {
   MoveSectionInput,
   SectionId,
   SectionQuery,
+  SetProjectPageEnabledInput,
   Task,
   TaskId,
   TaskQuery,
@@ -105,6 +107,21 @@ export interface ReflectionGateway {
 }
 
 /**
+ * §26's pages: which a project owns, and which of a root's optional three are switched on.
+ *
+ * Separate from `ProjectGateway` for the same reason `ProjectPageService` is separate from
+ * `ProjectService`: a page is a property of a **root**, and a sub-project has exactly one work
+ * canvas that is not a tab and cannot be configured. Two members, because §26 gives pages two
+ * operations — there is no create and no remove: enabling one for the first time is what
+ * creates it, and disabling keeps everything on it.
+ */
+export interface ProjectPageGateway {
+  /** Every page the project owns, disabled ones included — this is the toggle list. */
+  list(projectId: ProjectId): Promise<ProjectPage[]>;
+  setEnabled(projectId: ProjectId, input: SetProjectPageEnabledInput): Promise<ProjectPage>;
+}
+
+/**
  * §31's frame affordances, as a gateway. `move` is deliberately absent: nothing in the UI
  * reorders sections until Slice 9 wires Angular CDK drag-drop, and this file's rule is that
  * a method the UI cannot exercise is a claim no test backs. The domain service and
@@ -112,7 +129,13 @@ export interface ReflectionGateway {
  * handler that calls it.
  */
 export interface SectionGateway {
-  /** Live-only by default; the Archived region is the one caller that asks for the rest. */
+  /**
+   * Live-only by default; the Archived region is the one caller that asks for the rest.
+   *
+   * `pageId` narrows to one canvas (§27). Absent, the read spans the project's pages, grouped
+   * by page — which is what every caller wants while a project has one section-bearing page,
+   * and what the canvas keeps wanting for the Archived region after that.
+   */
   list(projectId: ProjectId, query?: Omit<SectionQuery, 'projectId'>): Promise<ProjectSection[]>;
   create(projectId: ProjectId, input: CreateSectionInput): Promise<ProjectSection>;
   update(id: SectionId, input: UpdateSectionInput): Promise<ProjectSection>;
@@ -166,6 +189,7 @@ export interface ActivityGateway {
  */
 export interface WorkManagerGateway {
   projects: ProjectGateway;
+  pages: ProjectPageGateway;
   dashboard: DashboardGateway;
   sections: SectionGateway;
   tasks: TaskGateway;

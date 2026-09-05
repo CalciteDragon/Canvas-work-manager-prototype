@@ -10,6 +10,7 @@ import {
 import type { ProjectRepository, TaskRepository } from '@cwm/repositories';
 import type { ActivityService } from './activity-service';
 import { assertPermitted, type ActorContext } from './actor';
+import { archivedAncestry } from './project-visibility';
 import { DAY_MS, isoDayOf, isoDayOfInstant, startOfUtcDay } from './calendar';
 import type { AIProvider, DailyDigestContext } from './ai-provider';
 import type { Clock } from './clock';
@@ -72,9 +73,13 @@ export class DashboardService {
     // same reason. `on_hold` and `planning` projects stay — an overdue task is overdue
     // whoever paused the project, and "active project overview" is a narrower question
     // than "what should I do today?".
-    const projects = (await this.dependencies.projects.list({ workspaceId: actor.workspaceId })).filter(
-      ({ status }) => status !== 'archived',
-    );
+    const all = await this.dependencies.projects.list({ workspaceId: actor.workspaceId });
+    // Two rules, not one: archived owners are excluded by `status`, and the live sub-projects
+    // *underneath* an archived ancestor by `isHidden` — archiving does not cascade (§31), so
+    // one does not imply the other. The ancestry is built over `all`, before the filter, or it
+    // would be searching for ancestors it has just removed.
+    const ancestry = archivedAncestry(all);
+    const projects = all.filter(({ id, status }) => status !== 'archived' && !ancestry.isHidden(id));
     const byId = new Map(projects.map((project) => [project.id, project]));
     const tasks = (await this.dependencies.tasks.list()).filter(
       (task) => task.archivedAt === undefined && byId.has(task.projectId),

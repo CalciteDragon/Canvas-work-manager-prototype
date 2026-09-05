@@ -4,6 +4,7 @@ import {
   canonicalPageKindFor,
   isCanonicalPageKind,
   ownedKindOf,
+  pageAcceptsSectionType,
   pageAcceptsSections,
   PrototypeDocumentSchema,
   SCHEMA_VERSION,
@@ -200,6 +201,12 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     if (page.projectId !== section.projectId) fail(`section "${section.id}" has a page from another project`);
     // §30: Todos and Archive project rows they do not own, so a section on one renders nowhere.
     if (!pageAcceptsSections(page.kind)) fail(`section "${section.id}" is on a ${page.kind} page, which does not hold sections`);
+    // And a page that holds *some* sections may still not hold *this* one: §30 narrows
+    // Reflections to its own container. Two messages rather than one, because "this page holds
+    // no sections at all" and "this page holds no task lists" are different repairs.
+    if (!pageAcceptsSectionType(page.kind, section.type)) {
+      fail(`section "${section.id}" is on a ${page.kind} page, which does not hold ${section.type} sections`);
+    }
   }
   for (const milestone of document.milestones) projectFor('milestone', milestone.id, milestone.projectId);
 

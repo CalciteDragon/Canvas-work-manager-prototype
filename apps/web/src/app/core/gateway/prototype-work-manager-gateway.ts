@@ -3,6 +3,7 @@ import {
   ActivityFeedEntrySchema,
   AgentConnectionSchema,
   DashboardResultSchema,
+  ProjectPageSchema,
   ProjectSchema,
   ProjectSectionSchema,
   ProgressResultSchema,
@@ -28,6 +29,7 @@ import {
   type SectionId,
   type TaskId,
   type SectionQuery,
+  type SetProjectPageEnabledInput,
   type TaskQuery,
   type UpdateSectionInput,
   type UpdateTaskInput,
@@ -37,7 +39,7 @@ import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
-import type { ActivityGateway, AgentGateway, DashboardGateway, ProgressGateway, ProjectGateway, ReflectionGateway, SectionGateway, TaskGateway, TimelineGateway, WorkManagerGateway } from './work-manager-gateway';
+import type { ActivityGateway, AgentGateway, DashboardGateway, ProgressGateway, ProjectGateway, ProjectPageGateway, ReflectionGateway, SectionGateway, TaskGateway, TimelineGateway, WorkManagerGateway } from './work-manager-gateway';
 
 /**
  * The §10 adapter: Angular → `localhost:4310`. Everything transport-shaped lives here —
@@ -89,6 +91,20 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       this.send('POST', `/api/reflections/${encodeURIComponent(id)}/archive`, ReflectionSchema),
     restore: (id: ReflectionId) =>
       this.send('POST', `/api/reflections/${encodeURIComponent(id)}/restore`, ReflectionSchema),
+  };
+
+  readonly pages: ProjectPageGateway = {
+    list: (projectId: ProjectId) =>
+      this.send('GET', `/api/projects/${encodeURIComponent(projectId)}/pages`, ProjectPageSchema.array()),
+    // Addressed by kind rather than by page id: the first enable is what creates the record,
+    // so there is no id yet to name. The host route reads the kind out of the path.
+    setEnabled: (projectId: ProjectId, input: SetProjectPageEnabledInput) =>
+      this.send(
+        'PATCH',
+        `/api/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(input.kind)}`,
+        ProjectPageSchema,
+        { enabled: input.enabled },
+      ),
   };
 
   readonly sections: SectionGateway = {
@@ -263,11 +279,16 @@ const reflectionQueryParams = (query: ReflectionQuery): URLSearchParams => {
 };
 
 /**
- * Only `includeArchived`: the path already carries the project, and a query `projectId`
- * would be a second, contradictable answer to the same question.
+ * `pageId` and `includeArchived` only: the path already carries the project, and a query
+ * `projectId` would be a second, contradictable answer to the same question.
+ *
+ * The host's route parses its own allowlist and forwards the same two. A filter added to one
+ * side and not the other is accepted and silently ignored — a 200 with the wrong rows — so the
+ * two lists are meant to be read together.
  */
 const sectionQueryParams = (query: Omit<SectionQuery, 'projectId'>): URLSearchParams => {
   const params = new URLSearchParams();
+  append(params, 'pageId', query.pageId);
   append(params, 'includeArchived', query.includeArchived);
   return params;
 };

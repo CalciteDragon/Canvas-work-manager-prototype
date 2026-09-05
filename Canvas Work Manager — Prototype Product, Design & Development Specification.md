@@ -1086,10 +1086,16 @@ a new root. Disabling a page keeps its content, its layout and every reference t
 nothing is destroyed by a toggle. A URL pointing at a disabled page falls back to Home, says
 why, and offers to re-enable it.
 
-*The model landed in Slice 25.1: `kind` is stored and enforced, every project owns its
-canonical page, and every section names one. What is still planned is the product surface —
-choosing among a root's pages, enabling and disabling the optional three, and the navigation
-that reaches them (Slices 25.2–25.3). A root today has a Home and nothing to switch to.*
+*The model landed in Slice 25.1 and the operations in Slice 25.2: `kind` is stored and
+enforced, every project owns its canonical page, and every section names one. A root's optional
+pages are listed and toggled through `ProjectPageService`, `GET`/`PATCH
+/api/projects/:projectId/pages`, and `list_project_pages`/`set_project_page_enabled` over MCP.
+"Defaulting to Home only" is the literal stored state: an optional page's record is created by
+its first enable, and disabling one writes a single boolean and keeps everything on it
+([why](docs/decisions/2026-09-optional-pages-are-created-on-first-enable.md)). What is still
+planned is the **navigation** — the second sidebar column, the routes, and the renderers each
+page kind needs (Slices 25.3–25.7). Enabling Todos, Archive or Reflections today gives a page
+that owns data and has nothing to draw it yet.*
 
 ---
 
@@ -1174,10 +1180,10 @@ Subprojects are not sections and do not live on a page: they belong to the paren
 hierarchy. A Sub-Projects section is a *view* of that hierarchy, which is why removing one
 takes no work down with it.
 
-*Landed in Slice 25.1. Sections carry `pageId`, and `validateDocumentIntegrity` holds a
-section's page and project in agreement. Reordering is still project-scoped rather than
-page-scoped, which is the same thing while a project has one section-bearing page; Slice 25.2
-separates them.*
+*Landed in Slices 25.1 and 25.2. Sections carry `pageId`, `validateDocumentIntegrity` holds a
+section's page and project in agreement, and positions are dense **per page**: adding,
+reordering, duplicating, removing and restoring all renumber one page and never another. A read
+that names no page spans the project grouped by page, since two pages both number from zero.*
 
 ## Where a write lands when nobody said
 
@@ -1195,8 +1201,17 @@ than inferred:
 A write never lands on a disabled page. Silent placement somewhere invisible is worse than a
 refusal, because the writer believes it worked.
 
-*Planned in Slice 25.2. Today an unnamed container resolves to the project's first container of
-the matching type, and there is no page to supply.*
+*Landed in Slice 25.2, in `SectionService`. All three cases hold for a person through Quick
+Add, for HTTP, and for `create_task`/`add_reflection` over MCP, and they stay reachable with
+`tasks.write` or `reflections.write` alone — resolution runs through the unchecked doors a row
+write already uses on its own behalf, and acquires no `projects.read`.*
+
+*The disabled-page rule needed one more sentence than it has above, because §27 also says a
+source on a disabled page is still a valid source. The two are about different verbs: **placing**
+new content on a disabled page is refused — adding or duplicating a section there, creating or
+moving a row into a container there, reassigning rows there — while everything already there
+stays readable, editable, reorderable, removable and restorable. Undo is never behind a toggle
+([why](docs/decisions/2026-09-a-disabled-page-hides-navigation-not-data.md)).*
 
 ## Shortcuts on Home
 
@@ -1327,9 +1342,13 @@ page kind declares a capability, and it is not a hand-maintained list of section
 container the page does not accept — a Task List on the Reflections page — is refused by the
 domain, not merely hidden by the UI.
 
-*Partly landed in Slice 25.1: the capability table exists in contracts and the repository
-enforces it, so a section cannot be stored on a page that holds none. The pages themselves are
-still unreachable — only a canonical Home or work canvas is ever created (Slices 25.2–25.3).*
+*Landed across Slices 25.1 and 25.2. The coarse answer — does this page hold sections at all —
+is `pageAcceptsSections`; the narrow one is `pageAcceptsSectionType`, which reads Reflections'
+capability out of `SECTION_OWNERSHIP` rather than naming section types, so a type registered
+later needs no entry. `SectionService` refuses on the way in and `validateDocumentIntegrity`
+refuses at load, because a hand-edited `data.json` (§14) must fail then rather than at whichever
+request first renders it. The pages are reachable now; their renderers arrive with Slices
+25.5–25.7.*
 
 ---
 
@@ -1400,7 +1419,19 @@ archived work *findable*; it does not make archiving *contagious*.
 Because undo must never be behind a toggle, disabling the Archive page leaves **Open archive**
 in the project controls, which enables and opens it.
 
-*Planned in Slices 25.2 and 25.6. Today's undo surface is the per-canvas region.*
+*Partly landed in Slice 25.2: enabling a page is the one write the archive freeze does not
+cover, so the Archive page can always be turned back on — on an archived root included. The
+**Open archive** control and the page it opens are Slice 25.6's; today's undo surface is still
+the per-canvas region.*
+
+*The same slice made the rest of this section's visibility promise real. Archived owners **and**
+the live work sitting beneath an archived ancestor are excluded from the dashboard, workspace
+search, upcoming work, the project list and an unscoped task list; a read that names a project
+or a section still answers, because an archived project's own page keeps rendering. Writes
+beneath an archived ancestor are refused naming the ancestor, and the two operations that could
+produce that state — reparenting under an archived project, and reactivating beneath one — are
+refused too, so the rule cannot strand work it has just hidden
+([why](docs/decisions/2026-09-reactivating-under-an-archived-ancestor.md)).*
 
 Example:
 
@@ -2231,7 +2262,12 @@ discovering that a placement exists is `projects.read`, and loading the tasks be
 returns, and denies rather than returning a partial answer. Everything stays inside the
 actor's own workspace and the root tree it asked about.
 
-*Planned across Slices 25.2, 25.4–25.7.*
+*`list_project_pages` and `set_project_page_enabled` landed in Slice 25.2, under
+`projects.read` and `projects.write`; `create_project` and `create_section` now say in their
+descriptions which kind of project takes pages and which pages take which sections.
+`get_project_todos` and `get_project_archive` project pages that have no renderer yet and arrive
+with them in Slices 25.5 and 25.6, along with the read-permission composition described above.
+Shortcut tools are Slice 25.4's and canonical archive/restore tools Slice 25.6's.*
 
 ---
 

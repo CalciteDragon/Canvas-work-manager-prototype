@@ -26,7 +26,8 @@ export const taskTools: readonly WorkManagerTool[] = [
   }),
   defineTool({
     name: 'create_task',
-    description: 'Create a task in a project. Name a parent task to create a subtask, which must live in the same project.',
+    description:
+      'Create a task in a project. Without a sectionId or pageId it lands in a task list on the project’s canonical canvas — a root’s Home, a sub-project’s sole work canvas — and one is created if there is none. Name a pageId to place it on a particular page of a root, which is refused if that page does not hold task lists. Name a sectionId to choose the exact container, which must agree with any pageId given. Name a parent task to create a subtask, which lives in the same project and is rendered by its parent’s section.',
     permission: 'tasks.write',
     inputSchema: CreateTaskInputSchema,
     execute: (input, { actor, services }) => services.tasks.create(actor, input),

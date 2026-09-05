@@ -457,6 +457,20 @@ describe('JsonSectionRepository', () => {
     expect(await repository.list()).toHaveLength(2);
   });
 
+  /**
+   * §27's ownership chain runs `project → page → section`, so a canvas read has to be able to
+   * ask for one page. The predicate is here; resolving a stale or foreign page into a
+   * not-found is `SectionService.list`'s, because a repository has no actor to scope against.
+   */
+  it('filters sections by page', async () => {
+    const repository = await populated();
+
+    expect(await repository.list({ pageId: section.pageId })).toEqual([section]);
+    expect(await repository.list({ pageId: 'page-nobody-has' as typeof section.pageId })).toEqual([]);
+    // Combined with the project scope rather than replacing it.
+    expect(await repository.list({ projectId: otherProject.projectId, pageId: section.pageId })).toEqual([]);
+  });
+
   it('excludes archived sections unless the caller asks for them', async () => {
     // The predicate every canvas read depends on: §31's remove now archives, so a section
     // that has left the canvas must not come back through an ordinary list.

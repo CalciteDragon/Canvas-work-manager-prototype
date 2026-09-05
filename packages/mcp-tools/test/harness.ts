@@ -11,6 +11,7 @@ import {
 import {
   ActivityService,
   DashboardService,
+  ProjectPageService,
   ProjectService,
   PrototypeAIProvider,
   PrototypeClock,
@@ -134,6 +135,7 @@ export const buildHarness = () => {
   const services = {
     sections: sectionService,
     projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
+    pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),

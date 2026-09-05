@@ -42,6 +42,7 @@ const buildServer = () => {
   const api = createApi(persistence);
   const registry = createToolRegistry({
     projects: api.projects,
+    pages: api.pages,
     tasks: api.tasks,
     reflections: api.reflections,
     sections: api.sections,

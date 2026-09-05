@@ -1,0 +1,40 @@
+import { ProjectIdSchema, SetProjectPageEnabledInputSchema } from '@cwm/contracts';
+import { z } from 'zod';
+import { defineTool, type WorkManagerTool } from '../tool';
+
+/**
+ * §54's page surface: *"Pages get their own small surface — listing a root's pages, toggling an
+ * optional one, and querying the derived Todos and Archive projections."*
+ *
+ * Two of the four here. `get_project_todos` and `get_project_archive` are projections of rows
+ * that do not exist as pages yet, and each needs the read-permission composition §54 describes
+ * — "a derived page that combines categories requires the grant for each category it returns,
+ * and denies rather than returning a partial answer" — so they arrive with the pages they
+ * project, in Slices 25.5 and 25.6.
+ *
+ * They live in their own file rather than in `projects.ts` because the capability distinction is
+ * the point: a page is a property of a **root**, and a sub-project has none. An agent reading
+ * `create_project`'s two branches and then this file learns that in the order it needs it.
+ *
+ * Under the same `projects.read`/`projects.write` grants as the canvas: §53's grid has no
+ * "layout" permission separate from "project", and inventing one here would be a second
+ * permission model for the same thing.
+ */
+export const projectPageTools: readonly WorkManagerTool[] = [
+  defineTool({
+    name: 'list_project_pages',
+    description:
+      'List the pages a project owns. A root project has Home — always present, always enabled — plus whichever of Todos, Archive and Reflections have been turned on, each with its enabled state; a disabled page keeps everything on it and is simply not navigation. A sub-project has exactly one work canvas, which is not a tab and cannot be configured.',
+    permission: 'projects.read',
+    inputSchema: z.object({ projectId: ProjectIdSchema }),
+    execute: ({ projectId }, { actor, services }) => services.pages.list(actor, projectId),
+  }),
+  defineTool({
+    name: 'set_project_page_enabled',
+    description:
+      'Turn one of a root project’s optional pages — todos, archive or reflections — on or off. Enabling a page for the first time creates it; disabling one is nondestructive, keeping its sections, their layout and every reference to it, and changes only whether it is navigation. Home cannot be disabled, and a sub-project has no pages to configure.',
+    permission: 'projects.write',
+    inputSchema: SetProjectPageEnabledInputSchema.extend({ projectId: ProjectIdSchema }),
+    execute: ({ projectId, ...input }, { actor, services }) => services.pages.setEnabled(actor, projectId, input),
+  }),
+];

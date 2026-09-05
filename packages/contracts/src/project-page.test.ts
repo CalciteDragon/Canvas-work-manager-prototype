@@ -5,6 +5,7 @@ import {
   ProjectPageSchema,
   canonicalPageKindFor,
   isNavigablePageKind,
+  pageAcceptsSectionType,
   pageAcceptsSections,
 } from './project-page';
 
@@ -58,5 +59,29 @@ describe('page capabilities', () => {
     expect(NAVIGABLE_PAGE_KINDS).toEqual(['home', 'todos', 'archive', 'reflections']);
     expect(isNavigablePageKind('work')).toBe(false);
     expect(ProjectPageKindSchema.options).toEqual(['home', 'work', 'todos', 'archive', 'reflections']);
+  });
+
+  /**
+   * §30 narrows Reflections to "its own reflections container, and the journal feed". The feed
+   * is not a section, so what is left is the container — derived from `SECTION_OWNERSHIP`
+   * rather than named here, because §30 says a page kind declares a *capability* and is not a
+   * hand-maintained list of section names.
+   */
+  it('narrows a Reflections page to containers that own reflections', () => {
+    expect(pageAcceptsSectionType('reflections', 'reflections')).toBe(true);
+    expect(pageAcceptsSectionType('reflections', 'task-list')).toBe(false);
+    expect(pageAcceptsSectionType('reflections', 'progress')).toBe(false);
+  });
+
+  it('lets a full canvas hold every registered type, including one registered later', () => {
+    for (const type of ['rich-text', 'task-list', 'progress', 'reflections', 'a-type-nobody-has-written-yet']) {
+      expect(pageAcceptsSectionType('home', type)).toBe(true);
+      expect(pageAcceptsSectionType('work', type)).toBe(true);
+    }
+  });
+
+  it('lets a derived page hold nothing at all', () => {
+    expect(pageAcceptsSectionType('todos', 'task-list')).toBe(false);
+    expect(pageAcceptsSectionType('archive', 'reflections')).toBe(false);
   });
 });

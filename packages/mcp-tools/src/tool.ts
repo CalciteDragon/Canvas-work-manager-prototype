@@ -2,6 +2,7 @@ import type { AgentPermission } from '@cwm/contracts';
 import type {
   ActorContext,
   DashboardService,
+  ProjectPageService,
   ProjectService,
   ReflectionService,
   SectionService,
@@ -20,6 +21,8 @@ import type { z, ZodType } from 'zod';
  */
 export interface WorkManagerServices {
   projects: ProjectService;
+  /** §26's pages: which a root has, and which of the optional three are switched on. */
+  pages: ProjectPageService;
   tasks: TaskService;
   reflections: ReflectionService;
   /** §31's frame affordances, and the containers that own tasks and reflections. */

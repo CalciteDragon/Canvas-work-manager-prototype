@@ -9,6 +9,7 @@ import type { LiveEventPublisher } from '../src/live-events';
 import { AgentConnectionService } from '../src/agent-connection-service';
 import { DashboardService } from '../src/dashboard-service';
 import { PrototypeAIProvider } from '../src/prototype-ai-provider';
+import { ProjectPageService } from '../src/project-page-service';
 import { ProjectService } from '../src/project-service';
 import { ProgressService } from '../src/progress-service';
 import { ReflectionService } from '../src/reflection-service';
@@ -194,6 +195,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     actor: actorFor(0),
     other: actorFor(1),
     projectService: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
+    projectPageService: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
     taskService: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     progressService: new ProgressService({ projects, tasks }),
     dashboardService: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),

@@ -1,5 +1,5 @@
 import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, SCHEMA_VERSION, ProjectSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
@@ -14,10 +14,14 @@ import {
   unitOfWorkFor,
 } from '@cwm/repositories';
 import { PERSONAS, buildSeed } from '@cwm/prototype-data';
-import { describe, expect, it } from 'vitest';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import { resolveRoute, type RouteTable } from '../router.ts';
 import { createApiRoutes } from './routes.ts';
 import { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
+import { JsonDataStore, type DataStore } from '@cwm/repositories';
 
 const at = '2026-08-01T16:00:00.000Z';
 
@@ -64,8 +68,15 @@ const document = (withProjects = true) => {
   });
 };
 
-const buildRoutes = (withProjects = true, seeded?: ReturnType<typeof document>): RouteTable => {
-  const store = new InMemoryDataStore(seeded ?? document(withProjects));
+const buildRoutes = (withProjects = true, seeded?: ReturnType<typeof document>): RouteTable =>
+  routesFor(new InMemoryDataStore(seeded ?? document(withProjects)));
+
+/**
+ * The wiring, over whatever store it is handed. Split out from `buildRoutes` so the
+ * persistence case below can point two successive stores at one file — a restart, without a
+ * process to restart.
+ */
+const routesFor = (store: DataStore): RouteTable => {
   const clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'));
   const ids = new PrototypeIdGenerator();
   const projects = new JsonProjectRepository(store);
@@ -86,6 +97,7 @@ const buildRoutes = (withProjects = true, seeded?: ReturnType<typeof document>):
     store,
     activity,
     projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
+    pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     sections: sectionService,
     progress: new ProgressService({ projects, tasks }),
@@ -710,5 +722,157 @@ describe('agent connections, permissions and activity (§§51, 52, 53, 57)', () 
     const entries = feed.body as Array<Record<string, unknown>>;
     expect(entries.every((entry) => typeof entry['actorName'] === 'string')).toBe(true);
     expect(entries.map(({ actor }) => actor)).toContain('user');
+  });
+});
+
+/**
+ * §26-27, end to end over HTTP: a root, a nested unit of work, an optional page turned on, and
+ * a task and a reflection that each land on the page they were meant to.
+ *
+ * The slice's acceptance check, written as a route test rather than a curl script so it runs
+ * inside `pnpm test` with no server and no port.
+ */
+describe('page-aware ownership over HTTP (26, 27, 30)', () => {
+  const temporaryDirectories: string[] = [];
+
+  afterEach(async () => {
+    await Promise.all(
+      temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
+    );
+  });
+
+  const workspaceId = PERSONAS[0]!.workspace.id;
+
+  const journey = async (routes: RouteTable) => {
+    const root = ProjectSchema.parse(
+      (await call(routes, 'POST', '/api/projects', { body: { workspaceId, kind: 'root', name: 'Renovation' } })).body,
+    );
+    const unit = ProjectSchema.parse(
+      (
+        await call(routes, 'POST', '/api/projects', {
+          body: { workspaceId, kind: 'subproject', parentProjectId: root.id, name: 'Kitchen' },
+        })
+      ).body,
+    );
+
+    const pagesBefore = await call(routes, 'GET', `/api/projects/${root.id}/pages`);
+    const enabled = await call(routes, 'PATCH', `/api/projects/${root.id}/pages/reflections`, {
+      body: { enabled: true },
+    });
+    const reflectionsPage = enabled.body as { id: string; kind: string; enabled: boolean };
+
+    // No page named, so the canonical canvas takes it: the root's Home.
+    const task = TaskSchema.parse(
+      (await call(routes, 'POST', '/api/tasks', { body: { projectId: root.id, title: 'Choose the tiles' } })).body,
+    );
+    const unitTask = TaskSchema.parse(
+      (await call(routes, 'POST', '/api/tasks', { body: { projectId: unit.id, title: 'Measure the wall' } })).body,
+    );
+    const reflection = ReflectionSchema.parse(
+      (
+        await call(routes, 'POST', '/api/reflections', {
+          body: { projectId: root.id, pageId: reflectionsPage.id, body: 'The first week went well.' },
+        })
+      ).body,
+    );
+
+    return { root, unit, pagesBefore, reflectionsPage, task, unitTask, reflection };
+  };
+
+  /** Where a row's container sits, read back the way a client would. */
+  const pageOfSection = async (routes: RouteTable, projectId: string, sectionId: string) => {
+    const listed = await call(routes, 'GET', `/api/projects/${projectId}/sections`);
+    return (listed.body as Array<{ id: string; pageId: string }>).find(({ id }) => id === sectionId)?.pageId;
+  };
+
+  const pagesOf = async (routes: RouteTable, projectId: string) =>
+    (await call(routes, 'GET', `/api/projects/${projectId}/pages`)).body as Array<{ id: string; kind: string }>;
+
+  it('creates a root, a nested unit of work and page-owned rows, and lists the same ownership', async () => {
+    const routes = buildRoutes(false);
+
+    const { root, unit, pagesBefore, reflectionsPage, task, unitTask, reflection } = await journey(routes);
+
+    expect((pagesBefore.body as Array<{ kind: string }>).map(({ kind }) => kind)).toEqual(['home']);
+    expect(reflectionsPage).toMatchObject({ kind: 'reflections', enabled: true });
+
+    const homeId = (await pagesOf(routes, root.id)).find(({ kind }) => kind === 'home')!.id;
+    expect(await pageOfSection(routes, root.id, task.sectionId)).toBe(homeId);
+    expect(await pageOfSection(routes, root.id, reflection.sectionId)).toBe(reflectionsPage.id);
+
+    // The unit of work's own canvas is neither of the root's pages.
+    const unitPages = await pagesOf(routes, unit.id);
+    expect(unitPages.map(({ kind }) => kind)).toEqual(['work']);
+    expect(await pageOfSection(routes, unit.id, unitTask.sectionId)).toBe(unitPages[0]!.id);
+
+    // And a section list narrows to one page rather than answering with the whole project.
+    const onReflections = await call(
+      routes,
+      'GET',
+      `/api/projects/${root.id}/sections?pageId=${encodeURIComponent(reflectionsPage.id)}`,
+    );
+    expect((onReflections.body as Array<{ id: string }>).map(({ id }) => id)).toEqual([reflection.sectionId]);
+  });
+
+  it('keeps that ownership across a restart, read back from the file it was written to', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-page-ownership-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
+    await writeFile(path, `${JSON.stringify(document(false), null, 2)}\n`, 'utf8');
+
+    const written = await journey(routesFor(await JsonDataStore.load(path)));
+
+    // A second store over the same file, which is what a restart amounts to here.
+    const after = routesFor(await JsonDataStore.load(path));
+    const pages = await pagesOf(after, written.root.id);
+
+    expect(pages.map(({ kind }) => kind)).toEqual(['home', 'reflections']);
+    expect(await pageOfSection(after, written.root.id, written.reflection.sectionId)).toBe(
+      written.reflectionsPage.id,
+    );
+    expect(await pageOfSection(after, written.root.id, written.task.sectionId)).toBe(
+      pages.find(({ kind }) => kind === 'home')!.id,
+    );
+  });
+
+  it('refuses the denied half, with the status each refusal earns', async () => {
+    // With the fixture projects, so there is a real foreign workspace to fail against.
+    const routes = buildRoutes(true);
+    const { root, unit, reflectionsPage } = await journey(routes);
+
+    // A task list is not something a Reflections page holds: a rule error, so 409.
+    expect(
+      (
+        await call(routes, 'POST', `/api/projects/${root.id}/sections`, {
+          body: { type: 'task-list', pageId: reflectionsPage.id },
+        })
+      ).status,
+    ).toBe(409);
+
+    // A sub-project has no pages to configure, and Home cannot be disabled.
+    expect(
+      (await call(routes, 'PATCH', `/api/projects/${unit.id}/pages/todos`, { body: { enabled: true } })).status,
+    ).toBe(409);
+    expect(
+      (await call(routes, 'PATCH', `/api/projects/${root.id}/pages/home`, { body: { enabled: false } })).status,
+    ).toBe(409);
+
+    // A page from another workspace is **not found**, not a conflict, on the write and on the
+    // read alike: a 409 would confirm the id exists.
+    expect((await call(routes, 'GET', `/api/projects/${THEIRS}/pages`)).status).toBe(404);
+    const foreignPageId = (
+      (await call(routes, 'GET', `/api/projects/${THEIRS}/pages`, { user: ALEX })).body as Array<{ id: string }>
+    )[0]!.id;
+    expect(
+      (
+        await call(routes, 'POST', `/api/projects/${root.id}/sections`, {
+          body: { type: 'reflections', pageId: foreignPageId },
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (await call(routes, 'GET', `/api/projects/${root.id}/sections?pageId=${encodeURIComponent(foreignPageId)}`))
+        .status,
+    ).toBe(404);
   });
 });

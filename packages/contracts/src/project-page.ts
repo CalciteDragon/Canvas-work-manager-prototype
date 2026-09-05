@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IsoDateTimeSchema } from './common';
 import { ProjectIdSchema, ProjectPageIdSchema } from './ids';
 import type { ProjectKind } from './project';
+import { ownedKindOf } from './section';
 
 /**
  * §26's pages. Four of these are a **root's**, and one is a **sub-project's**.
@@ -34,16 +35,34 @@ export const isNavigablePageKind = (kind: ProjectPageKind): boolean =>
  * **Todos and Archive own nothing.** They are derived projections of rows that live elsewhere
  * (§31, §34), so a section on one is a section nothing would render.
  *
- * Reflections is deliberately coarse here: §26 gives it a narrower capability than Home and a
- * work canvas — its own reflections container and the journal feed, not every registered type
- * — but this answers only *whether a page holds sections at all*, which is what storage has to
- * know. Narrowing it to a kind of section is Slice 25.2's, along with the test that a task
- * container on a Reflections page is refused. Nothing creates a Reflections page yet, so the
- * looser answer is unreachable rather than wrong.
+ * Reflections is deliberately coarse here: it answers only *whether a page holds sections at
+ * all*, which is what storage has to know before it knows anything about a type.
+ * `pageAcceptsSectionType` below is the narrow answer.
  */
 const PAGES_HOLDING_SECTIONS: readonly ProjectPageKind[] = ['home', 'work', 'reflections'];
 
 export const pageAcceptsSections = (kind: ProjectPageKind): boolean => PAGES_HOLDING_SECTIONS.includes(kind);
+
+/**
+ * **Whether *this* type may go on *that* page** — §30's table at the resolution a create needs.
+ *
+ * Home and a work canvas take "all registered types", and §30 means that literally: *"including
+ * types registered after this is written; a page kind declares a capability, and it is not a
+ * hand-maintained list of section names."* So they answer `true` for any type, and a type
+ * registered in Slice 30 needs no entry here.
+ *
+ * Reflections is the one narrowed kind: §30 gives it "its own reflections container, and the
+ * journal feed". The feed is not a section — Slice 25.7 renders it as part of the page — so what
+ * is left is the container, derived from `SECTION_OWNERSHIP` rather than named, for the same
+ * reason the sentence above rules out a list.
+ *
+ * `SectionService` and `validateDocumentIntegrity` both enforce this, because a hand-edited
+ * `data.json` (§14) has to fail at load rather than at whichever request first renders it.
+ */
+export const pageAcceptsSectionType = (kind: ProjectPageKind, type: string): boolean => {
+  if (!pageAcceptsSections(kind)) return false;
+  return kind === 'reflections' ? ownedKindOf(type) === 'reflections' : true;
+};
 
 /**
  * The page a project's sections land on when nobody named one (§27). A root's Home, a

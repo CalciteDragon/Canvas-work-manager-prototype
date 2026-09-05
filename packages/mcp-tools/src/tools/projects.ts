@@ -22,7 +22,8 @@ export const projectTools: readonly WorkManagerTool[] = [
   }),
   defineTool({
     name: 'get_project',
-    description: 'Read one project by id, including its status, target date, description and progress settings.',
+    description:
+      'Read one project by id, including its kind — "root" for a workspace, "subproject" for a unit of work — its status, target date, description, completion time and progress settings.',
     permission: 'projects.read',
     inputSchema: z.object({ projectId: ProjectIdSchema }),
     execute: ({ projectId }, { actor, services }) => services.projects.get(actor, projectId),
@@ -30,7 +31,7 @@ export const projectTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'create_project',
     description:
-      'Create a project in the connection owner’s workspace. Two kinds exist: kind "root" is a workspace with pages and takes no parent; kind "subproject" is a unit of work with one canvas and requires parentProjectId, which may itself be a sub-project at any depth. A root naming a parent, or a sub-project without one, is rejected rather than reinterpreted.',
+      'Create a project in the connection owner’s workspace. Two kinds exist: kind "root" is a workspace and takes no parent — it starts with a Home page and can enable Todos, Archive and Reflections through set_project_page_enabled; kind "subproject" is a unit of work with exactly one work canvas and no pages to configure, and requires parentProjectId, which may itself be a sub-project at any depth. Neither kind converts into the other. A root naming a parent, or a sub-project without one, is rejected rather than reinterpreted.',
     permission: 'projects.write',
     // Each branch omits `workspaceId` separately: `.omit()` is an object operation and the
     // union has no single object to take it from. Rebuilding the union here rather than
