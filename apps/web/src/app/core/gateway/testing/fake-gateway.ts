@@ -310,13 +310,36 @@ const applyUpdate = (section: ProjectSection, input: UpdateSectionInput): Projec
   return next;
 };
 
+/**
+ * A second implementation of `ProjectService.update`'s field application, and knowingly so:
+ * this fake answers component specs without a host, and a generic patch is what most of them
+ * need. It only has to agree with the real service where a spec could otherwise assert
+ * something the host would never do.
+ *
+ * Two such places, both from §26's owner kinds:
+ *
+ * - **`kind` is immutable.** A root cannot be given a parent and a sub-project cannot lose
+ *   one; the real service refuses both with a `DomainRuleError`, so the fake refuses too
+ *   rather than answering a project that changed kind — a shape no test should be able to
+ *   build a passing expectation on.
+ * - **`completedAt` is derived, never supplied.** The service stamps it from the `Clock` when
+ *   the status becomes `completed` and clears it when it leaves, so this does the same from
+ *   the fixture's own timestamps rather than letting an input set it.
+ */
 const applyProjectUpdate = (project: Project, input: UpdateProjectInput): Project => {
+  if (input.parentProjectId !== undefined && project.kind !== 'subproject') {
+    throw new GatewayError('conflict', 409, 'a root project cannot be given a parent');
+  }
+
   const next = { ...project };
   for (const [key, value] of Object.entries(input)) {
     if (value === undefined) continue;
     if (value === null) delete next[key as keyof Project];
     else Object.assign(next, { [key]: value });
   }
+
+  if (next.status === 'completed' && project.status !== 'completed') next.completedAt = COMPLETED_AT;
+  else if (next.status !== 'completed') delete next.completedAt;
   return next;
 };
 

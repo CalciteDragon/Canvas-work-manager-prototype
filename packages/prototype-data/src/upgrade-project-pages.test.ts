@@ -125,15 +125,24 @@ describe('upgradeProjectPages', () => {
 });
 
 describe('upgradeDataFile', () => {
-  const operations = (source: string): UpgradeFileOperations & { written: Map<string, string> } => {
+  const operations = (
+    source: string,
+  ): UpgradeFileOperations & { written: Map<string, string>; order: string[] } => {
     const written = new Map<string, string>();
+    // Every write in the order it happened. A set of paths cannot tell "backed up first" from
+    // "backed up last", and the whole point of the backup is that it exists *before* the
+    // target is touched.
+    const order: string[] = [];
     return {
       written,
+      order,
       readFile: vi.fn(async () => source),
       writeFile: vi.fn(async (path: string, data: string) => {
+        order.push(`write ${path}`);
         written.set(path, data);
       }),
       rename: vi.fn(async (from: string, to: string) => {
+        order.push(`rename ${from} -> ${to}`);
         written.set(to, written.get(from) ?? '');
         written.delete(from);
       }),
@@ -146,8 +155,11 @@ describe('upgradeDataFile', () => {
 
     await upgradeDataFile('data.json', { fileOperations, now: new Date('2026-09-04T12:00:00.000Z') });
 
-    const paths = [...fileOperations.written.keys()];
-    expect(paths).toContain('data.json.backup-2026-09-04T12-00-00-000Z.json');
+    expect(fileOperations.order).toEqual([
+      'write data.json.backup-2026-09-04T12-00-00-000Z.json',
+      'write data.json.tmp',
+      'rename data.json.tmp -> data.json',
+    ]);
     expect(fileOperations.written.get('data.json.backup-2026-09-04T12-00-00-000Z.json')).toBe(source);
     expect(JSON.parse(fileOperations.written.get('data.json')!)).toMatchObject({ schemaVersion: SCHEMA_VERSION });
   });

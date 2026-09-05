@@ -33,6 +33,13 @@ export const isNavigablePageKind = (kind: ProjectPageKind): boolean =>
  *
  * **Todos and Archive own nothing.** They are derived projections of rows that live elsewhere
  * (§31, §34), so a section on one is a section nothing would render.
+ *
+ * Reflections is deliberately coarse here: §26 gives it a narrower capability than Home and a
+ * work canvas — its own reflections container and the journal feed, not every registered type
+ * — but this answers only *whether a page holds sections at all*, which is what storage has to
+ * know. Narrowing it to a kind of section is Slice 25.2's, along with the test that a task
+ * container on a Reflections page is refused. Nothing creates a Reflections page yet, so the
+ * looser answer is unreachable rather than wrong.
  */
 const PAGES_HOLDING_SECTIONS: readonly ProjectPageKind[] = ['home', 'work', 'reflections'];
 

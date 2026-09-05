@@ -331,13 +331,17 @@ describe('ProjectService owner kinds and pages', () => {
     );
   });
 
-  it('refuses to change a project’s kind by clearing or adding a parent', async () => {
+  /**
+   * Demotion — giving a root a parent — is the only half of kind-change the service can be
+   * *asked* to do. Promotion was closed one layer earlier: `UpdateProjectInputSchema` dropped
+   * `parentProjectId`'s nullability, so "clear the parent" is not an input that exists, and
+   * `inputs.test.ts` is where that half is proven.
+   */
+  it('refuses to give a root a parent, which would change its kind', async () => {
     const harness = buildHarness();
     const root = await create(harness);
     const child = await create(harness, { name: 'Child', parentProjectId: root.id });
 
-    // Promotion: a sub-project cannot become a root. The input no longer expresses it, so
-    // this is the service refusing the other door — a parent belonging to nobody.
     await expect(
       harness.projectService.update(harness.actor, root.id, { parentProjectId: child.id }),
     ).rejects.toBeInstanceOf(DomainRuleError);

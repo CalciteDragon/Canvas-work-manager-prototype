@@ -577,8 +577,8 @@ or a rollback framework; the next cutover writes its own or resets, and either i
 a framework nothing else uses. See
 `docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md`.
 
-*Planned in Slice 25.1. Today `SCHEMA_VERSION` is 2 and a mismatch fails at load, with
-`pnpm prototype:reset` as the only recovery.*
+*Landed in Slice 25.1. `SCHEMA_VERSION` is 3, and `pnpm prototype:upgrade <path>` converts a
+version-2 file in place, keeping a backup beside it.*
 
 ---
 
@@ -1086,8 +1086,10 @@ a new root. Disabling a page keeps its content, its layout and every reference t
 nothing is destroyed by a toggle. A URL pointing at a disabled page falls back to Home, says
 why, and offers to re-enable it.
 
-*Planned in Slices 25.1–25.3. Today one `Project` schema serves both kinds, sections belong
-directly to a project, and there are no page records.*
+*The model landed in Slice 25.1: `kind` is stored and enforced, every project owns its
+canonical page, and every section names one. What is still planned is the product surface —
+choosing among a root's pages, enabling and disabling the optional three, and the navigation
+that reaches them (Slices 25.2–25.3). A root today has a Home and nothing to switch to.*
 
 ---
 
@@ -1172,8 +1174,10 @@ Subprojects are not sections and do not live on a page: they belong to the paren
 hierarchy. A Sub-Projects section is a *view* of that hierarchy, which is why removing one
 takes no work down with it.
 
-*Planned in Slices 25.1–25.2. Today a section belongs directly to its project, there is no page
-record, and document integrity has nothing to check them against.*
+*Landed in Slice 25.1. Sections carry `pageId`, and `validateDocumentIntegrity` holds a
+section's page and project in agreement. Reordering is still project-scoped rather than
+page-scoped, which is the same thing while a project has one section-bearing page; Slice 25.2
+separates them.*
 
 ## Where a write lands when nobody said
 
@@ -1323,8 +1327,9 @@ page kind declares a capability, and it is not a hand-maintained list of section
 container the page does not accept — a Task List on the Reflections page — is refused by the
 domain, not merely hidden by the UI.
 
-*Planned in Slices 25.1–25.3. The seven registered types named above are current; the page
-column is not — today every section belongs directly to its project.*
+*Partly landed in Slice 25.1: the capability table exists in contracts and the repository
+enforces it, so a section cannot be stored on a page that holds none. The pages themselves are
+still unreachable — only a canonical Home or work canvas is ever created (Slices 25.2–25.3).*
 
 ---
 
