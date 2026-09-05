@@ -4,6 +4,7 @@ import {
   type AgentConnection,
   type Milestone,
   type Project,
+  type Subproject,
   type ProjectSection,
   type Reflection,
   type Task,
@@ -41,6 +42,7 @@ const baseDocument = () =>
       {
         id: 'project-1',
         workspaceId: 'workspace-1',
+        kind: 'root',
         name: 'Alpha Launch',
         description: 'First project',
         status: 'active',
@@ -49,7 +51,11 @@ const baseDocument = () =>
         updatedAt: at,
       },
     ],
+    projectPages: [
+      { id: 'page-1', projectId: 'project-1', kind: 'home', enabled: true, createdAt: at, updatedAt: at },
+    ],
     sections: [],
+    sectionShortcuts: [],
     tasks: [],
     milestones: [],
     reflections: [],
@@ -57,10 +63,13 @@ const baseDocument = () =>
     agentConnections: [],
   });
 
-const project = (id: string, overrides: Partial<Project> = {}): Project =>
+const project = (id: string, overrides: Partial<Subproject> = {}): Project =>
   PrototypeDocumentSchema.shape.projects.element.parse({
     id,
     workspaceId: 'workspace-1',
+    // A parent is what makes something a unit of work rather than a workspace (§26), so the
+    // factory derives the discriminator instead of asking every call site to restate it.
+    kind: overrides.parentProjectId === undefined ? 'root' : 'subproject',
     name: `Project ${id}`,
     status: 'planning',
     projectLayoutMode: 'flow',
@@ -97,6 +106,7 @@ type CrudCase<T extends { id: string }> = {
 const section: ProjectSection = PrototypeDocumentSchema.shape.sections.element.parse({
   id: 'section-1',
   projectId: 'project-1',
+  pageId: 'page-1',
   type: 'task-list',
   position: 0,
   columnSpan: 12,
@@ -429,6 +439,7 @@ describe('JsonSectionRepository', () => {
     ...section,
     id: 'section-2',
     projectId: 'project-2',
+    pageId: 'page-2',
     position: 0,
   });
 

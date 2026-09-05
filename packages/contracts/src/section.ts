@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { IsoDateTimeSchema, PositionSchema } from './common';
-import { ProjectIdSchema, SectionIdSchema } from './ids';
+import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema } from './ids';
 
 /**
  * §27's grid presets against a 12-column grid. No absolute X/Y, and no arbitrary span —
@@ -124,6 +124,17 @@ export type SectionRemovalRefusalDetails = z.infer<typeof SectionRemovalRefusalD
 export const ProjectSectionSchema = z.object({
   id: SectionIdSchema,
   projectId: ProjectIdSchema,
+
+  /**
+   * The page this section sits on (§27). Required, not optional: every project has a
+   * canonical page from the moment it is created, so there is no legitimate state in which a
+   * section belongs to a project but to none of its pages.
+   *
+   * `projectId` stays alongside it for the same reason a row keeps both `projectId` and
+   * `sectionId` — the readers that filter by project should not have to join through a page
+   * to do it. `validateDocumentIntegrity` holds the two in agreement.
+   */
+  pageId: ProjectPageIdSchema,
 
   /**
    * Open string, not an enum: §29 makes section types a registry, and adding one should

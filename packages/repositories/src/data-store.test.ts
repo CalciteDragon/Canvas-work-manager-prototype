@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PrototypeDocumentSchema, type PrototypeDocument, SCHEMA_VERSION } from '@cwm/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { type FileOperations, InMemoryDataStore, JsonDataStore, unitOfWorkFor } from './data-store';
+import { type DataStore, type FileOperations, InMemoryDataStore, JsonDataStore, unitOfWorkFor } from './data-store';
 import { DocumentIntegrityError, UnitOfWorkInProgressError } from './errors';
-import { JsonProjectRepository } from './json-repositories';
+import { JsonProjectPageRepository, JsonProjectRepository } from './json-repositories';
 
 const at = '2026-08-26T10:00:00.000Z';
 
@@ -26,6 +26,7 @@ const validDocument = () =>
       {
         id: 'project-1',
         workspaceId: 'workspace-1',
+        kind: 'root',
         name: 'Project',
         status: 'active',
         projectLayoutMode: 'flow',
@@ -33,10 +34,13 @@ const validDocument = () =>
         updatedAt: at,
       },
     ],
+    projectPages: [{ id: 'page-1', projectId: 'project-1', kind: 'home', enabled: true, createdAt: at, updatedAt: at }],
+    sectionShortcuts: [],
     sections: [
       {
         id: 'section-1',
         projectId: 'project-1',
+        pageId: 'page-1',
         type: 'task-list',
         position: 0,
         columnSpan: 12,
@@ -50,6 +54,7 @@ const validDocument = () =>
       {
         id: 'section-2',
         projectId: 'project-1',
+        pageId: 'page-1',
         type: 'reflections',
         position: 1,
         columnSpan: 12,
@@ -129,15 +134,18 @@ const secondWorkspace = {
   project: {
     id: 'project-2',
     workspaceId: 'workspace-2',
+    kind: 'root' as const,
     name: 'Other project',
     status: 'active' as const,
     projectLayoutMode: 'flow' as const,
     createdAt: at,
     updatedAt: at,
   },
+  page: { id: 'page-2', projectId: 'project-2', kind: 'home' as const, enabled: true, createdAt: at, updatedAt: at },
   section: {
     id: 'section-3',
     projectId: 'project-2',
+    pageId: 'page-2',
     type: 'task-list',
     position: 0,
     columnSpan: 12 as const,
@@ -173,6 +181,7 @@ const withSecondWorkspace = () => {
   document.users.push(PrototypeDocumentSchema.shape.users.element.parse(secondWorkspace.user));
   document.workspaces.push(PrototypeDocumentSchema.shape.workspaces.element.parse(secondWorkspace.workspace));
   document.projects.push(PrototypeDocumentSchema.shape.projects.element.parse(secondWorkspace.project));
+  document.projectPages.push(PrototypeDocumentSchema.shape.projectPages.element.parse(secondWorkspace.page));
   document.sections.push(PrototypeDocumentSchema.shape.sections.element.parse(secondWorkspace.section));
   document.tasks.push(PrototypeDocumentSchema.shape.tasks.element.parse(secondWorkspace.task));
   document.agentConnections.push(PrototypeDocumentSchema.shape.agentConnections.element.parse(secondWorkspace.agent));
@@ -401,12 +410,33 @@ const newProject = () =>
   PrototypeDocumentSchema.shape.projects.element.parse({
     id: 'project-2',
     workspaceId: 'workspace-1',
+    kind: 'root',
     name: 'New project',
     status: 'planning',
     projectLayoutMode: 'grid',
     createdAt: at,
     updatedAt: at,
   });
+
+const pageFor = (projectId: string) =>
+  PrototypeDocumentSchema.shape.projectPages.element.parse({
+    id: `page-${projectId}`,
+    projectId,
+    kind: 'home',
+    enabled: true,
+    createdAt: at,
+    updatedAt: at,
+  });
+
+/**
+ * A project and its canonical page are one write (§26): a project with nowhere to put a
+ * section does not validate, so a unit of work that inserted only the project would fail at
+ * commit for a reason none of these unit-of-work tests are about.
+ */
+const insertProject = async (store: DataStore, project = newProject()): Promise<void> => {
+  await new JsonProjectRepository(store).insert(project);
+  await new JsonProjectPageRepository(store).insert(pageFor(project.id));
+};
 
 describe('runUnitOfWork', () => {
   it('awaits async work, persists once, and returns the callback result', async () => {
@@ -415,7 +445,7 @@ describe('runUnitOfWork', () => {
 
     const result = await store.runUnitOfWork(async () => {
       await Promise.resolve();
-      await repository.insert(newProject());
+      await insertProject(store);
       await repository.update({ ...newProject(), name: 'Updated in one operation' });
       return 'result';
     });
@@ -431,7 +461,7 @@ describe('runUnitOfWork', () => {
 
     await expect(
       store.runUnitOfWork(async () => {
-        await repository.insert(newProject());
+        await insertProject(store);
         throw new Error('operation failed');
       }),
     ).rejects.toThrow('operation failed');
@@ -465,7 +495,7 @@ describe('runUnitOfWork', () => {
     store.failPersistence = true;
     const repository = new JsonProjectRepository(store);
 
-    await expect(store.runUnitOfWork(() => repository.insert(newProject()))).rejects.toThrow('persist failed');
+    await expect(store.runUnitOfWork(() => insertProject(store))).rejects.toThrow('persist failed');
     expect(store.persistCalls).toBe(1);
     expect(await repository.find(newProject().id)).toBeNull();
   });
@@ -479,7 +509,7 @@ describe('runUnitOfWork', () => {
     const blocker = new Promise<void>((resolve) => (release = resolve));
     let nestedResult: Promise<unknown> | undefined;
     const first = store.runUnitOfWork(async () => {
-      await repository.insert(newProject());
+      await insertProject(store);
       nestedResult = store.runUnitOfWork(() => Promise.resolve());
       entered();
       await blocker;
@@ -505,7 +535,7 @@ describe('runUnitOfWork', () => {
     const hasEntered = new Promise<void>((resolve) => (entered = resolve));
     const blocker = new Promise<void>((resolve) => (release = resolve));
     const operation = store.runUnitOfWork(async () => {
-      await repository.insert(newProject());
+      await insertProject(store);
       expect(await repository.find(newProject().id)).not.toBeNull();
       entered();
       await blocker;
@@ -544,9 +574,8 @@ describe('JsonDataStore', () => {
     const path = join(directory, 'data.json');
     await writeFile(path, `${JSON.stringify(validDocument(), null, 2)}\n`, 'utf8');
     const store = await JsonDataStore.load(path);
-    const repository = new JsonProjectRepository(store);
 
-    await store.runUnitOfWork(() => repository.insert(newProject()));
+    await store.runUnitOfWork(() => insertProject(store));
 
     const written = JSON.parse(await readFile(path, 'utf8')) as unknown;
     expect(PrototypeDocumentSchema.parse(written).projects).toContainEqual(newProject());
@@ -573,7 +602,7 @@ describe('JsonDataStore', () => {
     const store = await JsonDataStore.load(path, operations);
     const repository = new JsonProjectRepository(store);
 
-    await expect(store.runUnitOfWork(() => repository.insert(newProject()))).rejects.toThrow('partial write');
+    await expect(store.runUnitOfWork(() => insertProject(store))).rejects.toThrow('partial write');
     expect(order).toEqual(['write']);
     expect(operations.writeFile).toHaveBeenCalledWith(`${path}.tmp`, expect.any(String), 'utf8');
     expect(operations.rename).not.toHaveBeenCalled();
@@ -602,7 +631,7 @@ describe('JsonDataStore', () => {
     const store = await JsonDataStore.load(path, operations);
     const repository = new JsonProjectRepository(store);
 
-    await expect(store.runUnitOfWork(() => repository.insert(newProject()))).rejects.toThrow('rename failed');
+    await expect(store.runUnitOfWork(() => insertProject(store))).rejects.toThrow('rename failed');
     expect(order).toEqual(['write', 'rename']);
     expect(operations.writeFile).toHaveBeenCalledWith(`${path}.tmp`, expect.any(String), 'utf8');
     expect(operations.rename).toHaveBeenCalledWith(`${path}.tmp`, path);
@@ -638,7 +667,7 @@ describe('JsonDataStore', () => {
     let lateProbe: Promise<void> | undefined;
     let lateVisibleProject: Awaited<ReturnType<typeof repository.find>> | undefined;
     const operation = store.runUnitOfWork(async () => {
-      await repository.insert(newProject());
+      await insertProject(store);
       lateWrite = (async () => {
         await lateWriteBlocker;
         await repository.update({ ...newProject(), name: 'Too late' });
@@ -674,7 +703,7 @@ describe('JsonDataStore', () => {
     const lateWriteBlocker = new Promise<void>((resolve) => (releaseLateWrite = resolve));
     let lateWrite: Promise<void> | undefined;
     await store.runUnitOfWork(async () => {
-      await repository.insert(newProject());
+      await insertProject(store);
       lateWrite = (async () => {
         await lateWriteBlocker;
         await repository.update({ ...newProject(), name: 'Stale write' });
@@ -708,7 +737,9 @@ const otherWorkspaceDocument = () =>
     ],
     workspaces: [{ id: 'workspace-2', name: 'Replacement workspace', ownerUserId: 'user-2', createdAt: at }],
     projects: [],
+    projectPages: [],
     sections: [],
+    sectionShortcuts: [],
     tasks: [],
     milestones: [],
     reflections: [],
@@ -759,13 +790,12 @@ describe('replaceActiveDocument', () => {
    */
   it('lets a write enqueued before it commit first, then replaces', async () => {
     const store = new InMemoryDataStore(validDocument());
-    const repository = new JsonProjectRepository(store);
     const unitOfWork = unitOfWorkFor(store);
     const order: string[] = [];
 
     const write = unitOfWork.run(async () => {
       await Promise.resolve();
-      await repository.insert(newProject());
+      await insertProject(store);
       order.push('write');
     });
     const replace = unitOfWork.run(() => {
@@ -785,6 +815,7 @@ describe('unitOfWorkFor', () => {
     PrototypeDocumentSchema.shape.projects.element.parse({
       id: 'project-3',
       workspaceId: 'workspace-1',
+      kind: 'root',
       name: 'Third project',
       status: 'planning',
       projectLayoutMode: 'flow',
@@ -811,11 +842,11 @@ describe('unitOfWorkFor', () => {
 
     const first = unit.run(async () => {
       await blocker;
-      await repository.insert(newProject());
+      await insertProject(store);
       order.push('first');
     });
     const second = unit.run(async () => {
-      await repository.insert(secondProject());
+      await insertProject(store, secondProject());
       order.push('second');
     });
 
@@ -834,10 +865,10 @@ describe('unitOfWorkFor', () => {
     const unit = unitOfWorkFor(store);
 
     await unit.run(async () => {
-      await repository.insert(newProject());
+      await insertProject(store);
       // The await matters: a queued nested call would wait on the unit awaiting it.
       await new Promise((resolve) => setTimeout(resolve, 1));
-      await unit.run(() => repository.insert(secondProject()));
+      await unit.run(() => insertProject(store, secondProject()));
     });
 
     expect(store.persistCalls).toBe(1);
@@ -861,7 +892,7 @@ describe('unitOfWorkFor', () => {
     const unit = unitOfWorkFor(store);
 
     await expect(unit.run(() => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
-    await unit.run(() => repository.insert(newProject()));
+    await unit.run(() => insertProject(store));
 
     expect(await repository.find(newProject().id)).not.toBeNull();
   });
@@ -875,10 +906,28 @@ describe('parent-chain integrity', () => {
   it('rejects a project that is its own ancestor', () => {
     const document = validDocument();
     const first = document.projects[0]!;
-    document.projects = [
-      { ...first, parentProjectId: asProjectId('project-2') },
-      { ...first, id: asProjectId('project-2'), parentProjectId: first.id },
-    ];
+    // Two sub-projects parenting each other, beneath the surviving root. A cycle *between
+    // roots* is not expressible any more — a root has no parent — so this is now the only
+    // shape the rule has to catch, and the root stays to keep the seeded canvas valid.
+    const looped = (id: string, parentProjectId: string) => ({
+      ...first,
+      id: asProjectId(id),
+      kind: 'subproject' as const,
+      parentProjectId: asProjectId(parentProjectId),
+    });
+    document.projects = [first, looped('project-2', 'project-3'), looped('project-3', 'project-2')];
+    document.projectPages.push(
+      ...['project-2', 'project-3'].map((projectId) =>
+        PrototypeDocumentSchema.shape.projectPages.element.parse({
+          id: `page-${projectId}`,
+          projectId,
+          kind: 'work',
+          enabled: true,
+          createdAt: at,
+          updatedAt: at,
+        }),
+      ),
+    );
 
     // Nothing downstream can detect a cycle, and every tree walk over one starves the
     // event loop — so it has to fail at load rather than at the first request.
@@ -899,12 +948,27 @@ describe('parent-chain integrity', () => {
   it('still accepts a deep acyclic chain with a shared ancestor', () => {
     const document = validDocument();
     const first = document.projects[0]!;
-    document.projects = [
-      first,
-      { ...first, id: asProjectId('project-2'), parentProjectId: first.id },
-      { ...first, id: asProjectId('project-3'), parentProjectId: asProjectId('project-2') },
-      { ...first, id: asProjectId('project-4'), parentProjectId: asProjectId('project-2') },
-    ];
+    // The chain is sub-projects under the root, which is the only shape §26 allows: a root
+    // has no parent, so a three-deep chain of roots is not a document to accept any more.
+    const nested = (id: string, parentProjectId: string) => ({
+      ...first,
+      id: asProjectId(id),
+      kind: 'subproject' as const,
+      parentProjectId: asProjectId(parentProjectId),
+    });
+    document.projects = [first, nested('project-2', first.id), nested('project-3', 'project-2'), nested('project-4', 'project-2')];
+    document.projectPages.push(
+      ...['project-2', 'project-3', 'project-4'].map((projectId) =>
+        PrototypeDocumentSchema.shape.projectPages.element.parse({
+          id: `page-${projectId}`,
+          projectId,
+          kind: 'work',
+          enabled: true,
+          createdAt: at,
+          updatedAt: at,
+        }),
+      ),
+    );
 
     expect(() => new InMemoryDataStore(document)).not.toThrow();
   });
@@ -1060,5 +1124,132 @@ describe('task archive group integrity', () => {
       }),
     );
     expect(() => new InMemoryDataStore(document)).not.toThrow();
+  });
+});
+
+/**
+ * §26–27's page rules, held where a hand-edited `data.json` (§14) has to pass through them
+ * too. These are structural: a project with nowhere to put a section, or two Homes to choose
+ * between, is not a state any operation should be able to reach.
+ */
+describe('page ownership integrity', () => {
+  const subprojectDocument = () => {
+    const document = validDocument();
+    document.projects.push(
+      PrototypeDocumentSchema.shape.projects.element.parse({
+        id: 'project-child',
+        workspaceId: 'workspace-1',
+        kind: 'subproject',
+        parentProjectId: 'project-1',
+        name: 'Work unit',
+        status: 'active',
+        projectLayoutMode: 'flow',
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    document.projectPages.push(
+      PrototypeDocumentSchema.shape.projectPages.element.parse({
+        id: 'page-child',
+        projectId: 'project-child',
+        kind: 'work',
+        enabled: true,
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    return document;
+  };
+
+  const page = (overrides: Record<string, unknown>) =>
+    PrototypeDocumentSchema.shape.projectPages.element.parse({
+      id: 'page-extra',
+      projectId: 'project-1',
+      kind: 'todos',
+      enabled: true,
+      createdAt: at,
+      updatedAt: at,
+      ...overrides,
+    });
+
+  it('accepts a root with Home and a sub-project with a work canvas', () => {
+    expect(() => new InMemoryDataStore(subprojectDocument())).not.toThrow();
+  });
+
+  it('rejects a page whose project does not exist', () => {
+    const document = validDocument();
+    document.projectPages.push(page({ projectId: 'project-gone' }));
+    expect(() => new InMemoryDataStore(document)).toThrow(/missing project "project-gone"/);
+  });
+
+  it('rejects a root with two Home pages', () => {
+    const document = validDocument();
+    document.projectPages.push(page({ id: 'page-1b', kind: 'home' }));
+    expect(() => new InMemoryDataStore(document)).toThrow(/more than one home page/);
+  });
+
+  it('rejects a root with no Home page', () => {
+    const document = validDocument();
+    document.projectPages = [];
+    document.sections = [];
+    document.tasks = [];
+    document.reflections = [];
+    document.activityEvents = [];
+    expect(() => new InMemoryDataStore(document)).toThrow(/has no home page/);
+  });
+
+  it('rejects a sub-project with no work canvas', () => {
+    const document = subprojectDocument();
+    document.projectPages = document.projectPages.filter((candidate) => candidate.id !== 'page-child');
+    expect(() => new InMemoryDataStore(document)).toThrow(/has no work page/);
+  });
+
+  /**
+   * A sub-project is a unit of work, not a workspace: it cannot gain tabs. Enforced here and
+   * not only in the service, because this is the layer a hand-edited file goes through.
+   */
+  it('rejects a navigable page on a sub-project', () => {
+    const document = subprojectDocument();
+    document.projectPages.push(page({ id: 'page-child-todos', projectId: 'project-child' }));
+    expect(() => new InMemoryDataStore(document)).toThrow(/cannot own a todos page/);
+  });
+
+  it('rejects a work canvas on a root', () => {
+    const document = validDocument();
+    document.projectPages.push(page({ id: 'page-1-work', kind: 'work' }));
+    expect(() => new InMemoryDataStore(document)).toThrow(/cannot own a work page/);
+  });
+
+  it('rejects a second page of one optional kind', () => {
+    const document = validDocument();
+    document.projectPages.push(page({ id: 'page-todos-a' }), page({ id: 'page-todos-b' }));
+    expect(() => new InMemoryDataStore(document)).toThrow(/more than one todos page/);
+  });
+
+  /** Home is where an unnamed write lands; a disabled one leaves that write nowhere to go. */
+  it('rejects a disabled canonical page', () => {
+    const document = validDocument();
+    document.projectPages[0]!.enabled = false;
+    expect(() => new InMemoryDataStore(document)).toThrow(/cannot be disabled/);
+  });
+
+  it('rejects a section on a page of another project', () => {
+    const document = subprojectDocument();
+    document.sections[0]!.pageId = 'page-child' as typeof document.sections[0]['pageId'];
+    expect(() => new InMemoryDataStore(document)).toThrow(/page from another project/);
+  });
+
+  it('rejects a section on a page that does not exist', () => {
+    const document = validDocument();
+    document.sections[0]!.pageId = 'page-gone' as typeof document.sections[0]['pageId'];
+    expect(() => new InMemoryDataStore(document)).toThrow(/missing page "page-gone"/);
+  });
+
+  /** §30: Todos and Archive project rows they do not own, so a section there renders nowhere. */
+  it('rejects a section on a derived page', () => {
+    const document = validDocument();
+    document.projectPages.push(page({ id: 'page-todos' }));
+    document.sections[0]!.pageId = 'page-todos' as typeof document.sections[0]['pageId'];
+    expect(() => new InMemoryDataStore(document)).toThrow(/does not hold sections/);
   });
 });

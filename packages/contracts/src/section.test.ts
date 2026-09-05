@@ -14,6 +14,7 @@ import {
 const section = {
   id: 'section-1',
   projectId: 'project-a',
+  pageId: 'page-a',
   type: 'task_list',
   position: 0,
   columnSpan: 12,
@@ -152,6 +153,7 @@ describe('ProjectSectionSchema archivedAt', () => {
   const section = {
     id: 'section-1',
     projectId: 'project-1',
+    pageId: 'page-1',
     type: 'task-list',
     position: 0,
     columnSpan: 12,
@@ -173,8 +175,7 @@ describe('ProjectSectionSchema archivedAt', () => {
     expect(parsed.config).toEqual({ text: 'Measure the hallway shelf' });
   });
 
-  it('parses a section written before this field existed', () => {
-    // `archivedAt` is optional, so `SCHEMA_VERSION` does not move and no reseed is needed.
+  it('parses a section that has never been archived', () => {
     expect(ProjectSectionSchema.parse(section).archivedAt).toBeUndefined();
   });
 

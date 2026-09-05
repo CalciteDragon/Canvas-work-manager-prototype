@@ -1,6 +1,7 @@
 import type {
   ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
-  MilestoneQuery, Project, ProjectId, ProjectQuery, ProjectSection, Reflection, ReflectionId, ReflectionQuery,
+  MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageKind, ProjectQuery, ProjectSection,
+  Reflection, ReflectionId, ReflectionQuery,
   SectionId, SectionQuery,
   Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
@@ -18,6 +19,18 @@ export interface ProjectRepository {
   list(query?: ProjectQuery): Promise<Project[]>;
   insert(project: Project): Promise<void>;
   update(project: Project): Promise<void>;
+}
+
+/**
+ * §26's pages. No `remove`: a page is never deleted — an optional one is disabled, which keeps
+ * its sections and their layout, and a canonical one cannot go away while its project exists.
+ * The seam permanent deletion would need is `SectionRepository.remove`, not this.
+ */
+export interface ProjectPageRepository {
+  find(id: ProjectPageId): Promise<ProjectPage | null>;
+  list(query?: { projectId?: ProjectId; kind?: ProjectPageKind; enabled?: boolean }): Promise<ProjectPage[]>;
+  insert(page: ProjectPage): Promise<void>;
+  update(page: ProjectPage): Promise<void>;
 }
 
 export interface TaskRepository {

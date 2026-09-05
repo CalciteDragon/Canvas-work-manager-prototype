@@ -1,6 +1,15 @@
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { ownedKindOf, PrototypeDocumentSchema, type OwnedDataKind, type PrototypeDocument } from '@cwm/contracts';
+import {
+  canonicalPageKindFor,
+  isCanonicalPageKind,
+  ownedKindOf,
+  pageAcceptsSections,
+  PrototypeDocumentSchema,
+  SCHEMA_VERSION,
+  type OwnedDataKind,
+  type PrototypeDocument,
+} from '@cwm/contracts';
 import { DocumentIntegrityError, UnitOfWorkInProgressError } from './errors';
 import type { UnitOfWork } from './interfaces';
 
@@ -84,12 +93,29 @@ const uniqueMap = <T extends { id: string }>(collection: string, values: T[]): M
   return result;
 };
 
+/**
+ * A version mismatch is the one parse failure with a *remedy*, so it says so. Without this the
+ * operator with a version-2 file gets "document does not match PrototypeDocumentSchema" and a
+ * page of Zod paths, which names neither the problem nor `pnpm prototype:upgrade` (§14).
+ */
+const describeVersion = (input: unknown): string | undefined => {
+  if (typeof input !== 'object' || input === null) return undefined;
+  const version = (input as { schemaVersion?: unknown }).schemaVersion;
+  if (typeof version !== 'number' || version === SCHEMA_VERSION) return undefined;
+  return (
+    `document is at schema version ${version}, but this build reads version ${SCHEMA_VERSION}. ` +
+    (version < SCHEMA_VERSION
+      ? 'Run "pnpm prototype:upgrade <path>" to convert it, or "pnpm prototype:reset" to discard it.'
+      : 'It was written by a newer build.')
+  );
+};
+
 export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => {
   let document: PrototypeDocument;
   try {
     document = PrototypeDocumentSchema.parse(input);
   } catch (cause) {
-    throw new DocumentIntegrityError('document does not match PrototypeDocumentSchema', cause);
+    throw new DocumentIntegrityError(describeVersion(input) ?? 'document does not match PrototypeDocumentSchema', cause);
   }
   const users = uniqueMap('users', document.users);
   const workspaces = uniqueMap('workspaces', document.workspaces);
@@ -126,7 +152,55 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     return project;
   };
 
-  for (const section of document.sections) projectFor('section', section.id, section.projectId);
+  const pages = uniqueMap('projectPages', document.projectPages);
+
+  /**
+   * **§26–27's page rules, made structural.** A project's canonical page is what an unnamed
+   * write resolves to and what every section hangs from, so "exactly one, always enabled" is
+   * an invariant rather than a convention the create path happens to maintain.
+   *
+   * Counted per project rather than asserted per page, because the interesting failures —
+   * two Homes, no Home — are absences and duplicates that no single record can see.
+   */
+  const pageKindCounts = new Map<string, Map<string, number>>();
+  for (const page of document.projectPages) {
+    const owner = projects.get(page.projectId) ??
+      fail(`page "${page.id}" has missing project "${page.projectId}"`);
+
+    // A sub-project is a unit of work, not a workspace: its one page is its canvas, and a
+    // root's tabs are meaningless on it. The reverse is equally wrong — a root has no canvas
+    // of its own outside Home.
+    if (page.kind !== canonicalPageKindFor(owner.kind) && isCanonicalPageKind(page.kind)) {
+      fail(`${owner.kind} "${owner.id}" cannot own a ${page.kind} page`);
+    }
+    if (owner.kind === 'subproject' && !isCanonicalPageKind(page.kind)) {
+      fail(`subproject "${owner.id}" cannot own a ${page.kind} page`);
+    }
+    if (isCanonicalPageKind(page.kind) && !page.enabled) {
+      fail(`page "${page.id}" is a ${page.kind} page and cannot be disabled`);
+    }
+
+    const counts = pageKindCounts.get(page.projectId) ?? new Map<string, number>();
+    const next = (counts.get(page.kind) ?? 0) + 1;
+    if (next > 1) fail(`project "${page.projectId}" has more than one ${page.kind} page`);
+    counts.set(page.kind, next);
+    pageKindCounts.set(page.projectId, counts);
+  }
+
+  for (const project of document.projects) {
+    const canonical = canonicalPageKindFor(project.kind);
+    if ((pageKindCounts.get(project.id)?.get(canonical) ?? 0) !== 1) {
+      fail(`project "${project.id}" has no ${canonical} page`);
+    }
+  }
+
+  for (const section of document.sections) {
+    projectFor('section', section.id, section.projectId);
+    const page = pages.get(section.pageId) ?? fail(`section "${section.id}" has missing page "${section.pageId}"`);
+    if (page.projectId !== section.projectId) fail(`section "${section.id}" has a page from another project`);
+    // §30: Todos and Archive project rows they do not own, so a section on one renders nowhere.
+    if (!pageAcceptsSections(page.kind)) fail(`section "${section.id}" is on a ${page.kind} page, which does not hold sections`);
+  }
   for (const milestone of document.milestones) projectFor('milestone', milestone.id, milestone.projectId);
 
   /**

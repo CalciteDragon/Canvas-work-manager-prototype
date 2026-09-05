@@ -1,12 +1,13 @@
 import type {
   ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
-  MilestoneQuery, Project, ProjectId, ProjectQuery, ProjectSection, PrototypeDocument, Reflection,
+  MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageKind, ProjectQuery, ProjectSection,
+  PrototypeDocument, Reflection,
   ReflectionId, ReflectionQuery, SectionId, SectionQuery, Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
 import { assertCanMutateDataStore, type DataStore, getActiveDocument } from './data-store';
 import { RepositoryConflictError, RepositoryNotFoundError } from './errors';
 import type {
-  ActivityRepository, AgentConnectionRepository, MilestoneRepository, ProjectRepository,
+  ActivityRepository, AgentConnectionRepository, MilestoneRepository, ProjectPageRepository, ProjectRepository,
   ReflectionRepository, SectionRepository, TaskRepository, UserRepository,
 } from './interfaces';
 
@@ -116,6 +117,26 @@ export class JsonTaskRepository extends JsonCollectionRepository<Task> implement
   override find(id: TaskId): Promise<Task | null> {
     return super.find(id);
   }
+}
+
+export class JsonProjectPageRepository extends JsonCollectionRepository<ProjectPage> implements ProjectPageRepository {
+  constructor(store: DataStore) {
+    super(store, 'projectPages');
+  }
+
+  override async list(
+    query: { projectId?: ProjectId; kind?: ProjectPageKind; enabled?: boolean } = {},
+  ): Promise<ProjectPage[]> {
+    const pages = await super.list();
+    return pages.filter(
+      (page) =>
+        (query.projectId === undefined || page.projectId === query.projectId) &&
+        (query.kind === undefined || page.kind === query.kind) &&
+        (query.enabled === undefined || page.enabled === query.enabled),
+    );
+  }
+
+  override find(id: ProjectPageId): Promise<ProjectPage | null> { return super.find(id); }
 }
 
 export class JsonSectionRepository extends JsonCollectionRepository<ProjectSection> implements SectionRepository {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ActivityActorSchema } from './activity';
 import { IsoDateSchema, IsoDateTimeSchema, PositionSchema } from './common';
-import { ProjectIdSchema, SectionIdSchema, TaskIdSchema, WorkspaceIdSchema } from './ids';
+import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema, TaskIdSchema, WorkspaceIdSchema } from './ids';
 import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectStatusSchema } from './project';
 import { SectionColumnSpanSchema, SectionConfigSchema } from './section';
 import { TaskPrioritySchema, TaskStatusSchema } from './task';
@@ -46,9 +46,9 @@ export const UpdateTaskInputSchema = z.object({
 });
 export type UpdateTaskInput = z.infer<typeof UpdateTaskInputSchema>;
 
-export const CreateProjectInputSchema = z.object({
+/** Settable on either kind. Ids, timestamps and `completedAt` come from the service. */
+const createProjectFields = {
   workspaceId: WorkspaceIdSchema,
-  parentProjectId: ProjectIdSchema.optional(),
   name: z.string().min(1),
   description: z.string().optional(),
   icon: z.string().optional(),
@@ -57,7 +57,38 @@ export const CreateProjectInputSchema = z.object({
   projectLayoutMode: ProjectLayoutModeSchema.optional(),
   progressFormula: ProgressFormulaSchema.optional(),
   manualProgress: z.number().min(0).max(100).optional(),
+};
+
+/**
+ * Creating a workspace and creating a unit of work are **two operations**, not one whose
+ * meaning depends on whether a parent happened to be passed (§26, §54). The discriminator is
+ * required, so a caller cannot create the wrong thing by omission, and a body whose `kind` and
+ * `parentProjectId` contradict each other is rejected by the parser rather than reinterpreted.
+ */
+export const CreateRootProjectInputSchema = z.object({
+  ...createProjectFields,
+  kind: z.literal('root'),
+  /**
+   * Declared absent rather than omitted, for the reason `RootProjectSchema` gives: a plain
+   * `z.object` strips unknown keys, so leaving it out would make `{ kind: 'root',
+   * parentProjectId }` parse *successfully* with the parent silently dropped — the exact
+   * silent reinterpretation this union exists to prevent.
+   */
+  parentProjectId: z.undefined().optional(),
 });
+export type CreateRootProjectInput = z.infer<typeof CreateRootProjectInputSchema>;
+
+export const CreateSubprojectInputSchema = z.object({
+  ...createProjectFields,
+  kind: z.literal('subproject'),
+  parentProjectId: ProjectIdSchema,
+});
+export type CreateSubprojectInput = z.infer<typeof CreateSubprojectInputSchema>;
+
+export const CreateProjectInputSchema = z.discriminatedUnion('kind', [
+  CreateRootProjectInputSchema,
+  CreateSubprojectInputSchema,
+]);
 export type CreateProjectInput = z.infer<typeof CreateProjectInputSchema>;
 
 export const UpdateProjectInputSchema = z.object({
@@ -69,7 +100,16 @@ export const UpdateProjectInputSchema = z.object({
   projectLayoutMode: ProjectLayoutModeSchema.optional(),
   progressFormula: ProgressFormulaSchema.optional(),
   manualProgress: z.number().min(0).max(100).nullable().optional(),
-  parentProjectId: ProjectIdSchema.nullable().optional(),
+  /**
+   * Reparenting a sub-project. **Not nullable**: clearing it used to promote a sub-project to
+   * a root, and root/sub-project conversion is not a thing the model allows any more (§26) —
+   * the two kinds hold different things. A `null` here would have surfaced as a raw parse
+   * failure deep in the service rather than as a refusal, so the input stops expressing it.
+   *
+   * `kind` is absent for the same reason: it is immutable, and an update input that accepted
+   * it would be describing an operation that does not exist.
+   */
+  parentProjectId: ProjectIdSchema.optional(),
 });
 export type UpdateProjectInput = z.infer<typeof UpdateProjectInputSchema>;
 
@@ -93,6 +133,13 @@ export const SectionTitleSchema = z.string().trim().min(1);
 export const CreateSectionInputSchema = z.object({
   /** A `SECTION_REGISTRY` key (§29). Open, for the same reason `ProjectSection.type` is. */
   type: z.string().min(1),
+  /**
+   * The page to add it to. Absent, the service resolves the project's canonical page — Home
+   * for a root, the sole canvas for a sub-project (§27). Named, it must belong to the same
+   * project and accept sections. Choosing *between* a root's pages is Slice 25.2's; this
+   * exists so the seeds and the converter can be explicit.
+   */
+  pageId: ProjectPageIdSchema.optional(),
   title: SectionTitleSchema.optional(),
   columnSpan: SectionColumnSpanSchema.optional(),
   config: SectionConfigSchema.optional(),

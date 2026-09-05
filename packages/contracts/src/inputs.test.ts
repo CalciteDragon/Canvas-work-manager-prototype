@@ -65,18 +65,45 @@ describe('UpdateTaskInputSchema', () => {
 });
 
 describe('project inputs', () => {
-  it('accepts a create and a nested create', () => {
-    expect(CreateProjectInputSchema.parse({ workspaceId: 'workspace-a', name: 'Work Manager' }).name).toBe(
-      'Work Manager',
-    );
+  it('accepts a root create and a nested work-unit create', () => {
+    expect(
+      CreateProjectInputSchema.parse({ workspaceId: 'workspace-a', kind: 'root', name: 'Work Manager' }).name,
+    ).toBe('Work Manager');
     expect(
       CreateProjectInputSchema.parse({
         workspaceId: 'workspace-a',
+        kind: 'subproject',
         name: 'Child',
         parentProjectId: 'project-a',
         targetDate: '2026-09-30',
       }).parentProjectId,
     ).toBe('project-a');
+  });
+
+  /**
+   * §26, as an operation rather than a convention: the two creates are separate, so a caller
+   * cannot make the wrong kind by omission, and a contradictory pair is a parse failure.
+   */
+  it('rejects a create with no kind, and a root create naming a parent', () => {
+    expect(CreateProjectInputSchema.safeParse({ workspaceId: 'workspace-a', name: 'Nameless kind' }).success).toBe(
+      false,
+    );
+    expect(
+      CreateProjectInputSchema.safeParse({
+        workspaceId: 'workspace-a',
+        kind: 'root',
+        name: 'Root',
+        parentProjectId: 'project-a',
+      }).success,
+    ).toBe(false);
+    expect(
+      CreateProjectInputSchema.safeParse({ workspaceId: 'workspace-a', kind: 'subproject', name: 'Orphan' }).success,
+    ).toBe(false);
+  });
+
+  /** Promotion and demotion are root/sub-project conversion, which the model does not do. */
+  it('will not clear a parent, because that would change the project’s kind', () => {
+    expect(UpdateProjectInputSchema.safeParse({ parentProjectId: null }).success).toBe(false);
   });
 
   it('clears a target date with null and rejects an unknown status', () => {
@@ -85,7 +112,7 @@ describe('project inputs', () => {
   });
 
   it('rejects a create with no name', () => {
-    expect(CreateProjectInputSchema.safeParse({ workspaceId: 'workspace-a' }).success).toBe(false);
+    expect(CreateProjectInputSchema.safeParse({ workspaceId: 'workspace-a', kind: 'root' }).success).toBe(false);
   });
 });
 

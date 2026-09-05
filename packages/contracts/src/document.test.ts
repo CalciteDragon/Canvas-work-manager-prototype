@@ -7,7 +7,9 @@ const document = {
   users: [],
   workspaces: [],
   projects: [],
+  projectPages: [],
   sections: [],
+  sectionShortcuts: [],
   tasks: [],
   milestones: [],
   reflections: [],
@@ -16,8 +18,8 @@ const document = {
 };
 
 describe('PrototypeDocumentSchema', () => {
-  it('is at version 2 — rows now name their section, so a version-1 file is wrong', () => {
-    expect(SCHEMA_VERSION).toBe(2);
+  it('is at version 3 — projects split into roots and sub-projects, and pages own sections', () => {
+    expect(SCHEMA_VERSION).toBe(3);
   });
 
   it('accepts the §14 document', () => {
@@ -28,7 +30,7 @@ describe('PrototypeDocumentSchema', () => {
     expect(PrototypeDocumentSchema.safeParse({ ...document, schemaVersion: SCHEMA_VERSION - 1 }).success).toBe(false);
   });
 
-  it('rejects a document missing one of the nine §14 collections', () => {
+  it('rejects a document missing one of the §14 collections', () => {
     const { agentConnections, ...incomplete } = document;
     expect(PrototypeDocumentSchema.safeParse(incomplete).success).toBe(false);
   });
