@@ -1037,7 +1037,7 @@ ascending with undated last, retaining completed and cancelled rows.
 | Slice | Scope | Depends on | Status |
 |---|---|---|---|
 | 25.0 | Resolve product rules and amend spec | — | done — §23, §26–27, §30–32, §34, §36, §54, §68, §82–83 amended; decision entry written |
-| 25.1 | Root/subproject model and persistent pages | 25.0 | not started |
+| 25.1 | Root/subproject model and persistent pages | 25.0 | done — plan: [docs/plans/25.1-owner-kinds-and-persistent-pages.md](docs/plans/25.1-owner-kinds-and-persistent-pages.md) |
 | 25.2 | Page ownership through domain, API and MCP | 25.1 | not started |
 | 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | not started |
 | 25.4 | Home shortcuts | 25.3 | not started |
@@ -1045,6 +1045,35 @@ ascending with undated last, retaining completed and cancelled rows.
 | 25.6 | Root Archive and reachable undo | 25.3 | not started |
 | 25.7 | Completed-work reflections | 25.3 | not started |
 | 25.8 | Integrated acceptance and documentation closure | 25.4–25.7 | not started |
+
+**25.1, done.** `Project` is a Zod discriminated union on `kind`, so a workspace and a unit of
+work differ by what the parser enforces rather than by what each call site remembers. Every
+project owns exactly one canonical `ProjectPage` — `home` for a root, `work` for a
+sub-project — created in the same unit of work as its owner, and every section carries a
+required `pageId` that `validateDocumentIntegrity` holds in agreement with its project.
+`completedAt` is derived from the status on both kinds, from the injected `Clock`.
+
+`SCHEMA_VERSION` went 2 → 3 **with a converter**, the first time this prototype has had one:
+`pnpm prototype:upgrade <path>` validates, backs the original up, then writes through a temp
+file, and is a no-op on an already-converted file. It is one file for one cutover, not a
+migration runner (§14). The v2 corpus it is tested against is committed at
+`packages/prototype-data/test/fixtures/nested-projects-v2.json`, because this same change
+regenerated the seeds it would otherwise have read.
+
+Three things the phase found rather than planned. Two existing domain tests were passing for
+the wrong reason once the new root guard landed — both staged their case by reparenting a
+root, so they proved the kind guard rather than the self-parent and cycle rules they named.
+Writing the create input as a union caught that a plain `z.object` *strips* unknown keys, so a
+root branch that merely omitted `parentProjectId` would have accepted a parent and silently
+dropped it; both the storage schema and the input now declare its absence, the input as a
+`z.strictObject` because `z.undefined()` has no JSON Schema representation and the MCP
+registry publishes it. And `pnpm prototype:upgrade` failed with no message at the repository
+root until it resolved paths from `INIT_CWD` — `pnpm --filter` runs a script with the package
+as its cwd, a trap every path-taking passthrough shares.
+
+No navigation changed: the app looks exactly as it did, on a converted file. Verified in the
+browser on the real `.prototype/data.json` after conversion, and over HTTP for both kinds,
+both refusals and a default write landing on a sub-project's work canvas.
 
 **Done when:** the roadmap's integrated browser/MCP journey passes: a multi-page root
 and nested work units retain canonical data ownership, shortcuts reflect source content,

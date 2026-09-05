@@ -26,6 +26,17 @@ pnpm dev:host
 
 Order does not matter — the web app retries the host until it answers.
 
+If the host refuses to start with a schema-version error, an existing `.prototype/data.json`
+predates the current shape. Convert it, keeping its contents:
+
+```bash
+pnpm prototype:upgrade .prototype/data.json
+```
+
+It validates the result before writing anything, leaves the original beside it as a
+`.backup-*.json`, and does nothing to a file already at the current version. `pnpm
+prototype:reset` remains the other option — it discards the file and reseeds.
+
 | Process | URL | What it is |
 |---|---|---|
 | `web` | http://localhost:4200 | The Angular application — shell, dashboard, project pages, tasks |
