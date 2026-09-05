@@ -16,6 +16,7 @@
     "lint": "pnpm -r --if-present lint",
     "prototype:seed": "pnpm --filter @cwm/prototype-data seed",
     "prototype:reset": "pnpm --filter @cwm/prototype-data seed personal-workspace",
+    "prototype:upgrade": "pnpm --filter @cwm/prototype-data upgrade-data",
     "mcp:stdio": "pnpm --silent --filter @cwm/prototype-host mcp:stdio",
     "e2e": "pnpm --filter @cwm/e2e e2e",
     "storybook": "pnpm --filter web storybook",

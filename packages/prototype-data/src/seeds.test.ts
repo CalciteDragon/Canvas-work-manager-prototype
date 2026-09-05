@@ -436,3 +436,40 @@ describe('seeded rows name the container that owns them', () => {
     expect(containerless.map((project) => project.name)).toEqual([]);
   });
 });
+
+/**
+ * §26–27's ownership chain, asserted against the built seeds rather than trusted from the
+ * builder's conventions — the same reason `sectionId` references are checked above.
+ */
+describe('seeded owner kinds and pages', () => {
+  it.each(SEED_NAMES)('gives every project in %s exactly one canonical page', (seedName) => {
+    const document = buildSeed(seedName);
+
+    for (const project of document.projects) {
+      const pages = document.projectPages.filter((page) => page.projectId === project.id);
+      expect(pages).toEqual([
+        expect.objectContaining({ kind: project.kind === 'root' ? 'home' : 'work', enabled: true }),
+      ]);
+    }
+    expect(document.projectPages).toHaveLength(document.projects.length);
+  });
+
+  it.each(SEED_NAMES)('puts every section in %s on a page of its own project', (seedName) => {
+    const document = buildSeed(seedName);
+    const owners = new Map(document.projectPages.map((page) => [page.id, page.projectId]));
+
+    for (const section of document.sections) {
+      expect(owners.get(section.pageId)).toBe(section.projectId);
+    }
+  });
+
+  it.each(SEED_NAMES)('derives %s owner kinds from the hierarchy', (seedName) => {
+    for (const project of buildSeed(seedName).projects) {
+      expect(project.kind).toBe(project.parentProjectId === undefined ? 'root' : 'subproject');
+    }
+  });
+
+  it('reserves the shortcut collection empty until slice 25.4', () => {
+    expect(buildSeed('nested-projects').sectionShortcuts).toEqual([]);
+  });
+});

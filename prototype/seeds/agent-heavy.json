@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "users": [
     {
       "id": "user-demo",
@@ -164,7 +164,8 @@
       "projectLayoutMode": "flow",
       "progressFormula": "count",
       "createdAt": "2026-08-01T16:00:00.000Z",
-      "updatedAt": "2026-08-21T20:00:00.000Z"
+      "updatedAt": "2026-08-21T20:00:00.000Z",
+      "kind": "root"
     },
     {
       "id": "project-agent-ops",
@@ -177,6 +178,25 @@
       "projectLayoutMode": "flow",
       "progressFormula": "count",
       "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z",
+      "kind": "root"
+    }
+  ],
+  "projectPages": [
+    {
+      "id": "page-project-work-manager",
+      "projectId": "project-work-manager",
+      "kind": "home",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "page-project-agent-ops",
+      "projectId": "project-agent-ops",
+      "kind": "home",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     }
   ],
@@ -184,6 +204,7 @@
     {
       "id": "section-project-work-manager-brief",
       "projectId": "project-work-manager",
+      "pageId": "page-project-work-manager",
       "type": "rich-text",
       "position": 0,
       "columnSpan": 12,
@@ -197,6 +218,7 @@
     {
       "id": "section-project-work-manager-tasks",
       "projectId": "project-work-manager",
+      "pageId": "page-project-work-manager",
       "type": "task-list",
       "position": 1,
       "columnSpan": 12,
@@ -208,6 +230,7 @@
     {
       "id": "section-project-work-manager-activity",
       "projectId": "project-work-manager",
+      "pageId": "page-project-work-manager",
       "type": "recent-activity",
       "position": 2,
       "columnSpan": 12,
@@ -219,6 +242,7 @@
     {
       "id": "section-project-agent-ops-brief",
       "projectId": "project-agent-ops",
+      "pageId": "page-project-agent-ops",
       "type": "rich-text",
       "position": 0,
       "columnSpan": 12,
@@ -232,6 +256,7 @@
     {
       "id": "section-project-agent-ops-tasks",
       "projectId": "project-agent-ops",
+      "pageId": "page-project-agent-ops",
       "type": "task-list",
       "position": 1,
       "columnSpan": 12,
@@ -243,6 +268,7 @@
     {
       "id": "section-project-agent-ops-reflections",
       "projectId": "project-agent-ops",
+      "pageId": "page-project-agent-ops",
       "type": "reflections",
       "position": 2,
       "columnSpan": 12,
@@ -252,6 +278,7 @@
       "updatedAt": "2026-08-21T20:00:00.000Z"
     }
   ],
+  "sectionShortcuts": [],
   "tasks": [
     {
       "id": "task-agent-deployment",

@@ -12,16 +12,17 @@
   "scripts": {
     "seed": "tsx src/seed-cli.ts",
     "test": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "upgrade-data": "tsx src/upgrade-cli.ts"
   },
   "dependencies": {
-    "@cwm/contracts": "workspace:*"
+    "@cwm/contracts": "workspace:*",
+    "@cwm/repositories": "workspace:*"
   },
   "devDependencies": {
-    "@cwm/repositories": "workspace:*",
-    "@types/node": "^24.10.1",
-    "tsx": "^4.20.6",
-    "typescript": "~6.0.2",
-    "vitest": "^4.0.8"
+    "@types/node": "^24.13.3",
+    "tsx": "^4.23.13",
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.11"
   }
 }

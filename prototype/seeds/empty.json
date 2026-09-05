@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "users": [
     {
       "id": "user-demo",
@@ -153,7 +153,9 @@
     }
   ],
   "projects": [],
+  "projectPages": [],
   "sections": [],
+  "sectionShortcuts": [],
   "tasks": [],
   "milestones": [],
   "reflections": [],

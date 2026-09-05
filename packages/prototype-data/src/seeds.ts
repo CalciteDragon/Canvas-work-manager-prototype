@@ -2,6 +2,7 @@ import {
   ActivityEventSchema,
   AgentConnectionSchema,
   MilestoneSchema,
+  ProjectPageSchema,
   ProjectSchema,
   ProjectSectionSchema,
   PrototypeDocumentSchema,
@@ -12,6 +13,7 @@ import {
   type AgentConnection,
   type Milestone,
   type Project,
+  type ProjectPage,
   type PrototypeDocument,
   type Reflection,
   type Task,
@@ -51,6 +53,8 @@ const project = (
   ProjectSchema.parse({
     id,
     workspaceId: DEMO_WORKSPACE_ID,
+    // A parent is what makes something a unit of work rather than a workspace (§26).
+    kind: options.parentProjectId === undefined ? 'root' : 'subproject',
     name,
     description: options.description,
     icon: options.icon,
@@ -103,10 +107,28 @@ const task = (
 const tasksSectionId = (projectId: string) => `section-${projectId}-tasks`;
 const reflectionsSectionId = (projectId: string) => `section-${projectId}-reflections`;
 
+/**
+ * A project's canonical page id, by the same convention (§26–27). Derived rather than passed
+ * so that no seed builder has to thread a page id through every section it writes — and so
+ * `seeds.test.ts` can assert the reference resolves rather than trusting the convention.
+ */
+const canonicalPageId = (projectId: string) => `page-${projectId}`;
+
+const canonicalPage = (project: Project): ProjectPage =>
+  ProjectPageSchema.parse({
+    id: canonicalPageId(project.id),
+    projectId: project.id,
+    kind: project.kind === 'root' ? 'home' : 'work',
+    enabled: true,
+    createdAt: CREATED_AT,
+    updatedAt: UPDATED_AT,
+  });
+
 const section = (id: string, projectId: string, type: string, position: number, config: object = {}) =>
   ProjectSectionSchema.parse({
     id,
     projectId,
+    pageId: canonicalPageId(projectId),
     type,
     position,
     columnSpan: 12,
@@ -214,12 +236,16 @@ const document = (collections: Partial<PrototypeDocument> = {}): PrototypeDocume
     workspaces: PERSONAS.map(({ workspace }) => structuredClone(workspace)),
     projects: [],
     sections: [],
+    sectionShortcuts: [],
     tasks: [],
     milestones: [],
     reflections: [],
     activityEvents: [],
     agentConnections: [],
     ...collections,
+    // Derived from the projects rather than written per seed: every project has exactly one
+    // canonical page (§26), so listing them by hand would be six chances to forget one.
+    projectPages: collections.projectPages ?? (collections.projects ?? []).map(canonicalPage),
   });
 
 const empty = (): PrototypeDocument => document();

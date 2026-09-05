@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "users": [
     {
       "id": "user-demo",
@@ -164,6 +164,17 @@
       "projectLayoutMode": "flow",
       "progressFormula": "count",
       "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z",
+      "kind": "root"
+    }
+  ],
+  "projectPages": [
+    {
+      "id": "page-project-personal",
+      "projectId": "project-personal",
+      "kind": "home",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     }
   ],
@@ -171,6 +182,7 @@
     {
       "id": "section-project-personal-brief",
       "projectId": "project-personal",
+      "pageId": "page-project-personal",
       "type": "rich-text",
       "position": 0,
       "columnSpan": 12,
@@ -184,6 +196,7 @@
     {
       "id": "section-project-personal-tasks",
       "projectId": "project-personal",
+      "pageId": "page-project-personal",
       "type": "task-list",
       "position": 1,
       "columnSpan": 12,
@@ -193,6 +206,7 @@
       "updatedAt": "2026-08-21T20:00:00.000Z"
     }
   ],
+  "sectionShortcuts": [],
   "tasks": [
     {
       "id": "task-personal-plan",
