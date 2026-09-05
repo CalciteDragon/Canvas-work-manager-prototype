@@ -883,6 +883,34 @@ Settings
 
 Project hierarchy should optionally expand inline.
 
+## The project navigation column
+
+A root project is a workspace with pages (§26), so opening one adds a **second navigation
+column** between the sidebar and the main workspace:
+
+```text
+┌─────────┬──────────┬─────────────────────────┐
+│ Sidebar │ Project  │ Main workspace          │
+│         │  Home    │                         │
+│         │  Todos   │                         │
+│         │  Archive │                         │
+│         │  Reflect │                         │
+│         │  ──────  │                         │
+│         │  Work    │                         │
+└─────────┴──────────┴─────────────────────────┘
+```
+
+The global sidebar stays where it is; the project column is additional, not a replacement. It
+lists the root's **enabled** pages, and beneath them the root's subprojects as the work
+hierarchy — a subproject is a unit of work, not a page.
+
+Opening a subproject keeps its root's column and adds breadcrumbs back through its parents, so
+a work unit three levels deep never loses its context. At narrow widths the project column
+collapses behind a labelled control rather than disappearing. Links are keyboard reachable and
+carry an active state; nothing here uses a literal colour or spacing value (§21).
+
+*Planned in Slice 25.3. The shell today has one sidebar and a single project page.*
+
 ---
 
 # 24. Home Dashboard
@@ -989,6 +1017,59 @@ Quick Add
 More
 ```
 
+## Two kinds of project
+
+A project is one of two things, and the difference is structural rather than cosmetic:
+
+| | **Root project** | **Subproject** |
+|---|---|---|
+| Is | a configurable workspace | a unit of work |
+| Parent | none, ever | required — a root or another subproject |
+| Children | subprojects | subprojects, to any depth |
+| Canvases | one per enabled page | exactly one work canvas |
+| Pages | Home, plus optional pages | none, and no tab settings |
+
+`kind` is part of the stored model and the schemas — a discriminated union, not a label
+derived from whether `parentProjectId` happens to be set. Roots and subprojects share an ID
+space and a repository so references between them stay cheap, but their create and update
+operations are separately named and separately capable. A root cannot acquire a parent; a
+subproject cannot acquire pages; neither converts into the other.
+
+A subproject carries the work metadata the canvas vocabulary needs: a description, an optional
+**due date** (the existing date-only `targetDate`, relabelled), a status, and a `completedAt`
+timestamp. Empty descriptions and undated work stay valid — most work units will have both.
+Completion is explicit and does **not** complete descendants; reopening clears `completedAt`.
+
+## Pages
+
+A root's pages are persisted records — stable ID, owner project, kind, enabled state, and the
+canvas layout where the kind has one. Four kinds exist:
+
+```text
+Home       required, exactly one, cannot be disabled
+
+Todos      optional  (§34)
+Archive    optional  (§31)
+Reflections optional (§36)
+```
+
+Home and a subproject's work canvas are full section canvases: every registered section type
+(§30) may be added to either. Reflections owns its own reflections container and shows the
+journal feed. **Todos and Archive are derived** — they project rows that live elsewhere and
+own none of their own.
+
+A new page kind is a deliberate addition: an entry in the capability table plus a renderer.
+The prototype is not building a generic page builder, and arbitrary user-defined pages are a
+non-goal (§80).
+
+Which pages a root shows is ordinary persisted product state, defaulting to **Home only** for
+a new root. Disabling a page keeps its content, its layout and every reference to it —
+nothing is destroyed by a toggle. A URL pointing at a disabled page falls back to Home, says
+why, and offers to re-enable it.
+
+*Planned in Slices 25.1–25.3. Today one `Project` schema serves both kinds, sections belong
+directly to a project, and there are no page records.*
+
 ---
 
 # 27. Section Canvas
@@ -1049,6 +1130,74 @@ Example:
 ```
 
 This gives substantial flexibility without prematurely creating an infinite-canvas system.
+
+---
+
+## Who owns what
+
+One chain, and it does not branch:
+
+```text
+project → page → section → row
+```
+
+A section belongs to a page; a row belongs to the section that owns it (see
+`docs/decisions/2026-09-sections-own-their-data.md`). Rows keep the `projectId` and
+`sectionId` they already carry — a row's *page* is derived from its section rather than stored
+a second time, so the two cannot disagree. Document integrity checks that they agree anyway.
+
+Sections reorder within their page. Reordering one page never renumbers another, and
+duplicating a section leaves the copy on the page that owned the original.
+
+Subprojects are not sections and do not live on a page: they belong to the parent's work
+hierarchy. A Sub-Projects section is a *view* of that hierarchy, which is why removing one
+takes no work down with it.
+
+## Where a write lands when nobody said
+
+Quick Add and an agent's `create_task` both have to resolve a container. With pages, "the
+project's task container" is no longer a single answer, so the resolution is stated rather
+than inferred:
+
+- **Nothing supplied** — a root resolves a matching container on Home; a subproject resolves
+  one on its sole canvas.
+- **A page supplied** — resolve there, but only if that page accepts that kind of data.
+  Otherwise refuse; do not fall back somewhere the caller did not name.
+- **A section supplied** — authoritative, and it must agree with any page or project also
+  supplied. A mismatch is an error, not a preference order.
+
+A write never lands on a disabled page. Silent placement somewhere invisible is worse than a
+refusal, because the writer believes it worked.
+
+## Shortcuts on Home
+
+A root's Home may show a section that canonically lives somewhere else in the same root tree —
+another of its pages, or any subproject at any depth. This is a **placement**: a stored
+reference to a source section ID plus its own position, span and collapse state. No rows are
+copied and the source's configuration is not duplicated; there is exactly one owner of the
+data, and it is the source.
+
+Home holds one combined ordering of its own sections and its shortcut placements — a shortcut
+sits in the canvas like anything else.
+
+Rules the model enforces rather than the UI suggesting:
+
+- source and destination are in the same root tree, and the same workspace
+- no shortcut to a shortcut, and no shortcut to itself
+- removing a placement never archives the source
+- an archived source shows an unavailable placeholder — not its content — and restoring the
+  source revives the reference
+- a source on a *disabled* page is still a valid source; hiding a page hides navigation, not
+  data
+
+The first pass renders source content **read-only**, identifies where it came from, and offers
+**Open source** for editing. The placement's own layout stays editable. Whether embedded
+editing is worth the ambiguity of two live views of one section is a question for later use,
+not an assumption to build in now.
+
+The control that creates one is labelled **Add shortcut**.
+
+*Planned in Slice 25.4. Nothing in the canvas today references a section it does not own.*
 
 ---
 
@@ -1131,6 +1280,24 @@ Recent Activity
 
 Adding a new section type should require minimal changes outside its own feature folder.
 
+## Which pages accept sections
+
+Seven of the types above are registered today: Rich Text, Task List, Sub-Projects, Progress,
+Reflections, Timeline and Recent Activity.
+
+| Page | Sections |
+|---|---|
+| Home (root) | all registered types, plus shortcut placements (§27) |
+| Work canvas (subproject) | all registered types |
+| Reflections | its own reflections container, and the journal feed |
+| Todos | none — derived (§34) |
+| Archive | none — derived (§31) |
+
+"All registered types" means exactly that, including types registered after this is written; a
+page kind declares a capability, and it is not a hand-maintained list of section names. A
+container the page does not accept — a Task List on the Reflections page — is refused by the
+domain, not merely hidden by the UI.
+
 ---
 
 # 31. Project Section Frame
@@ -1174,6 +1341,29 @@ disabled and the guidance *Reactivate this project to restore archived work.*
 Removing a section that is already archived is refused rather than repeated. Permanent deletion
 is a later question.
 
+## Where archived work is found
+
+Archived work does not appear on ordinary pages, views or read models — that is what archiving
+means. It is not deleted, so it has to be reachable somewhere, and that somewhere becomes the
+root's optional **Archive** page: every archived section, task, reflection and subproject
+across the whole root tree, each with its origin, what caused it to be archived, and whether it
+can be restored.
+
+The per-canvas **Archived** region described above is the current form of that promise and
+stays until the Archive page replaces it. The page is a superset: it also lists the rows the
+region deliberately hides — those an ancestor took down, which cannot be restored on their own
+— with guidance naming the ancestor to restore instead.
+
+A project whose own status is `archived` hides its live contents from ordinary reads too. The
+Archive page may still show them under their archived owner, distinguishing *hidden because an
+ancestor is archived* from *archived in its own right*. Reactivating is an explicit status
+choice; the prototype does not guess a prior status.
+
+Because undo must never be behind a toggle, disabling the Archive page leaves **Open archive**
+in the project controls, which enables and opens it.
+
+*Planned in Slices 25.2 and 25.6. Today's undo surface is the per-canvas region.*
+
 Example:
 
 ```text
@@ -1211,7 +1401,12 @@ This avoids permanently cluttering the normal workspace.
 §31's **Archived** region is *not* layout chrome and stays visible in View Mode: it is content,
 and it is the undo for removal. Gating it behind Edit Layout Mode would hide it exactly when
 someone needs it — right after a removal they did not mean. The per-row archive control in §34
-is likewise a row affordance rather than a layout one.
+is likewise a row affordance rather than a layout one. The same reasoning carries to the
+Archive page that replaces the region: it is a page of content, reachable in View Mode, and
+reachable through project controls even when its tab is disabled.
+
+Shortcut placements (§27) are layout. Adding and removing one belongs to Edit Layout Mode; the
+source content a placement renders does not become editable there.
 
 Angular CDK should be used for reorderable drag/drop interactions rather than implementing pointer sorting from scratch.
 
@@ -1294,6 +1489,35 @@ Archived rows are reached through §31's Archived region.
 
 Prefer a side drawer over a modal for detailed task editing so workspace context remains visible.
 
+## The Todos page
+
+A root's optional **Todos** page answers one question: *what is coming up, across everything
+under this project?* It is a derived chronological projection, not another owner of rows.
+
+It contains the root's own tasks plus every descendant subproject and every descendant task.
+Subprojects appear because a unit of work with a due date is a thing to do, and a list that
+omitted them would be lying about the week.
+
+```text
+sort   due date ascending
+then   undated last
+then   deterministic tie-break by kind, then ID
+```
+
+A subproject's date-only due date and a task's due date compare under the existing calendar
+convention (§45, `docs/decisions/2026-08-task-date-only-due-time.md`), which timezone tests
+pin rather than assume.
+
+Rows show their completion state and **stay on the list once finished**, because a chronology
+that erases what was done is a worse record than one that shows it. Archived entities, and
+anything beneath an archived ancestor, are excluded. Every row carries an origin breadcrumb
+and links to its canonical owner; completing one there and completing it here are the same
+operation on the same row.
+
+There is no drag ordering on Todos. The order is the chronology.
+
+*Planned in Slice 25.5.*
+
 ---
 
 # 35. Milestones
@@ -1348,6 +1572,36 @@ What should happen next?
 ```
 
 Prompting should remain optional.
+
+## Reflecting on completed work
+
+A reflection may optionally name what it is *about*:
+
+```text
+subject?: { kind: 'task' | 'subproject'; id }
+```
+
+The subject is validated to exist within the same root tree. It is **separate from ownership**:
+the reflection still belongs to the reflections container it was written into, and attaching a
+subject moves nothing.
+
+The completed-work composer requires a subject that is currently completed — the point is to
+reflect on finished work while it is fresh. General journal entries with no subject remain
+first-class and are not a legacy shape.
+
+What happens afterwards matters more than what happens at creation. If the subject is later
+reopened or archived, the reflection **survives**, keeps its association, and displays the
+subject's current state. A journal that quietly discarded entries when their subject changed
+status would be worthless as a record.
+
+## The Reflections page
+
+A root's optional **Reflections** page shows the journal: newest reflection first, aggregated
+from Home, from the page's own container and from descendant work canvases — aggregated, not
+moved. Alongside it sits a picker of completed work to reflect on. The page's composer names
+the container it writes into rather than resolving one invisibly.
+
+*Planned in Slice 25.7.*
 
 ---
 
@@ -1907,6 +2161,39 @@ get_upcoming_work
 get_dashboard_context
 ```
 
+## Roots, work units and pages
+
+Once projects split into roots and subprojects (§26), an agent must be able to say which it
+means. Creating a root and creating a unit of work are **distinct, discoverable operations**,
+not one call whose meaning depends on whether a parent happened to be passed. A call whose
+kind and parent contradict each other is rejected rather than reinterpreted.
+
+Pages get their own small surface — listing a root's pages, toggling an optional one, and
+querying the derived Todos and Archive projections:
+
+```text
+list_project_pages
+
+set_project_page_enabled
+
+get_project_todos
+
+get_project_archive
+```
+
+Shortcuts (§27) are created and removed through their own tools, and archive/restore become
+canonical tools on projects, sections, tasks and reflections so an agent has the same undo a
+person does.
+
+**A page is never a permission bypass.** Resolving a shortcut's source content requires the
+read permission for the *content*, not merely permission to see the layout that references it:
+discovering that a placement exists is `projects.read`, and loading the tasks behind it is
+`tasks.read`. A derived page that combines categories requires the grant for each category it
+returns, and denies rather than returning a partial answer. Everything stays inside the
+actor's own workspace and the root tree it asked about.
+
+*Planned across Slices 25.2, 25.4–25.7.*
+
 ---
 
 # 55. MCP Experimental Tool Registry
@@ -2388,6 +2675,16 @@ dashboard
 /projects/:projectId
 
 project workspace
+— a root resolves to its Home,
+  a subproject to its sole work canvas
+
+
+/projects/:projectId/pages/:pageKind
+
+a root's page: home | todos | archive | reflections
+— rejected on a subproject, which has no pages;
+  unknown or disabled kinds fall back to Home
+  with an explanation (§26)
 
 
 /calendar
@@ -3042,6 +3339,12 @@ additional project layouts
 
 Do not automatically implement everything in the original product idea.
 
+Use since the first milestone produced one observed question large enough to take priority
+over that list: a single canvas per project conflates *a place to work* with *a piece of
+work*. The multi-page root and the subproject work unit described in §23, §26–27, §30–32, §34,
+§36 and §54 are the answer being tested, staged as Slices 25.0–25.8 in `development.md`. The
+candidates above wait behind it.
+
 ---
 
 # 83. Questions the Prototype Must Answer Before MVP
@@ -3051,6 +3354,11 @@ The MVP specification should not be finalized until these have answers.
 ## Project model
 
 - Are nested projects worth keeping?
+  *Answered by use: yes, and they are a different kind of thing — see §26 and
+  `docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md`. The remaining
+  question is how deep nesting is actually used.*
+- Is a root project with pages better than one long canvas?
+- Do subprojects need any root capability we removed from them?
 - What defines project progress?
 - What project statuses exist?
 
@@ -3060,6 +3368,10 @@ The MVP specification should not be finalized until these have answers.
 - Are resizable sections useful?
 - Are columns useful?
 - Does the application actually need a freeform canvas?
+- Which optional pages do people actually enable, and do any get disabled again?
+- Do shortcuts to sections elsewhere earn their ambiguity, or is read-only embedding a
+  half-measure people work around?
+- Should a shortcut's source be editable in place?
 
 ## Tasks
 
@@ -3080,6 +3392,12 @@ The MVP specification should not be finalized until these have answers.
 - Prompted?
 - Daily?
 - Project-specific?
+- Do reflections attached to completed work get written, or is the journal enough?
+
+## Archive
+
+- Is a whole-tree Archive page used, or only the undo immediately after a mistake?
+- Is permanent deletion needed once archived work is easy to find?
 
 ## Dashboard
 

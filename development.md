@@ -1017,17 +1017,26 @@ archive browser or bulk restore.
 
 ## Planned overhaul — Multi-page projects (Slices 25.0–25.8)
 
-**Status:** not started — dependency-aware roadmap:
-[docs/plans/25-multi-page-projects-overhaul.md](docs/plans/25-multi-page-projects-overhaul.md).
+**Status:** in progress — dependency-aware roadmap:
+[docs/plans/25-multi-page-projects-overhaul.md](docs/plans/25-multi-page-projects-overhaul.md),
+decision:
+[docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md](docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md).
 Requested direction: root projects become workspaces with required Home and optional
 Todos, Archive and Reflections pages; subprojects become distinct, nestable single-page
 work units. Home can render shortcuts to canonical sections elsewhere in the root tree.
-The roadmap records proposed semantics and open clarifications; it does not describe
-features as already implemented or supersede the completed phases above.
+The roadmap records proposed semantics; it does not describe features as already
+implemented or supersede the completed phases above.
+
+The three clarifications the roadmap left open were answered by the user on 2026-09-04 and
+are now settled in the decision entry: a **bounded v2→v3 converter** carries live data over
+rather than a disposable reset; **Archive** means hidden from ordinary surfaces plus a real
+whole-tree Archive page, with **Open archive** remaining in project controls when the tab is
+disabled; **Todos** carries root tasks plus every descendant subproject and task, due date
+ascending with undated last, retaining completed and cancelled rows.
 
 | Slice | Scope | Depends on | Status |
 |---|---|---|---|
-| 25.0 | Resolve product rules and amend spec | — | not started |
+| 25.0 | Resolve product rules and amend spec | — | done — §23, §26–27, §30–32, §34, §36, §54, §68, §82–83 amended; decision entry written |
 | 25.1 | Root/subproject model and persistent pages | 25.0 | not started |
 | 25.2 | Page ownership through domain, API and MCP | 25.1 | not started |
 | 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | not started |

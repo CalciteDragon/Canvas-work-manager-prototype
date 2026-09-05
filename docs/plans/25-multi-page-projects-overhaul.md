@@ -1,6 +1,8 @@
 # Multi-page projects overhaul — dependency-aware implementation roadmap
 
-**Status:** planned; implementation not started. This is a multi-phase roadmap, not authorization to implement every phase in one change. Before each phase, re-read its touched code and write its bounded implementation plan under the AGENTS.md protocol, including iterative review and red/green tests.
+**Status:** 25.0 done; 25.1 onward not started. This is a multi-phase roadmap, not authorization to implement every phase in one change. Before each phase, re-read its touched code and write its bounded implementation plan under the AGENTS.md protocol, including iterative review and red/green tests.
+
+**Resolved in 25.0** (user, 2026-09-04 — recorded in [docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md](../decisions/2026-09-project-workspaces-and-subproject-work-units.md)): the data cutover uses a bounded v2→v3 converter rather than a disposable reset; Archive means hidden from ordinary surfaces plus a whole-tree Archive page, with **Open archive** in project controls when the tab is disabled; Todos carries root tasks plus every descendant subproject and task, due date ascending with undated last and deterministic ties, retaining completed and cancelled rows. The two "clarification pending" rows in the table below are therefore settled as proposed.
 
 ## Goal
 
