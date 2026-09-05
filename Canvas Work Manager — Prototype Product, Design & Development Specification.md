@@ -1424,13 +1424,18 @@ cover, so the Archive page can always be turned back on — on an archived root 
 **Open archive** control and the page it opens are Slice 25.6's; today's undo surface is still
 the per-canvas region.*
 
-*The same slice made the rest of this section's visibility promise real. Archived owners **and**
-the live work sitting beneath an archived ancestor are excluded from the dashboard, workspace
-search, upcoming work, the project list and an unscoped task list; a read that names a project
-or a section still answers, because an archived project's own page keeps rendering. Writes
-beneath an archived ancestor are refused naming the ancestor, and the two operations that could
-produce that state — reparenting under an archived project, and reactivating beneath one — are
-refused too, so the rule cannot strand work it has just hidden
+*The same slice made the rest of this section's visibility promise real, and the two halves of
+it are not the same rule. **Archived owners** are excluded by the `status` filter each aggregate
+read already had — the dashboard, workspace search and upcoming work — and by the unscoped task
+list, which had none. **Live work beneath an archived ancestor** is excluded by all of those and
+by the project list too, which still returns a project archived in its own right so that
+`status: ['archived']` keeps working and an archived project's own Sub-Projects section still
+lists what is under it. A read that names a project or a section always answers, because an
+archived project's own page keeps rendering.*
+
+*Writes beneath an archived ancestor are refused naming the ancestor, and the two operations
+that could produce that state — reparenting under an archived project, and reactivating beneath
+one — are refused too, so the rule cannot strand the work it has just hidden
 ([why](docs/decisions/2026-09-reactivating-under-an-archived-ancestor.md)).*
 
 Example:

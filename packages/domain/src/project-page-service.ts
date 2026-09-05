@@ -1,8 +1,8 @@
 import {
   isCanonicalPageKind,
   isNavigablePageKind,
+  NAVIGABLE_PAGE_KINDS,
   ProjectPageIdSchema,
-  ProjectPageKindSchema,
   ProjectPageSchema,
   type ProjectId,
   type ProjectPage,
@@ -35,11 +35,15 @@ export interface ProjectPageServiceDependencies {
 }
 
 /**
- * §23's column order, which is `ProjectPageKind`'s own order minus the one kind that is not a
- * tab. Sorting here rather than at each caller: a list whose order depends on insertion is a
- * navigation bar that reshuffles itself the first time somebody enables a page.
+ * §23's column order, read from the one place that states it. Not from `ProjectPageKind`'s own
+ * order, which agrees only by coincidence — `work` happens to sit where it does, and a root
+ * never owns one — so reordering that enum for an unrelated reason would silently reshuffle
+ * navigation with nothing to catch it.
+ *
+ * Sorting here rather than at each caller: a list whose order depends on insertion is a
+ * navigation bar that rearranges itself the first time somebody enables a page.
  */
-const KIND_ORDER = new Map(ProjectPageKindSchema.options.map((kind, index) => [kind, index]));
+const KIND_ORDER = new Map<string, number>(NAVIGABLE_PAGE_KINDS.map((kind, index) => [kind, index]));
 
 export class ProjectPageService {
   constructor(private readonly dependencies: ProjectPageServiceDependencies) {}
@@ -52,8 +56,10 @@ export class ProjectPageService {
   async list(actor: ActorContext, projectId: ProjectId): Promise<ProjectPage[]> {
     assertPermitted(actor, 'projects.read');
     await this.requireProject(actor, projectId);
+    // A sub-project's `work` page is not navigation and has no place in that order; it is also
+    // the only page such a project owns, so sorting it against anything is moot.
     return (await this.dependencies.pages.list({ projectId })).sort(
-      (a, b) => (KIND_ORDER.get(a.kind) ?? 0) - (KIND_ORDER.get(b.kind) ?? 0),
+      (a, b) => (KIND_ORDER.get(a.kind) ?? -1) - (KIND_ORDER.get(b.kind) ?? -1),
     );
   }
 

@@ -75,7 +75,9 @@ export class ProjectService {
    * away — hidden from the tree a person navigates while every write to it is refused. It is
    * the trap state, and it is the only thing dropped: a project archived in its own right is
    * still returned, so `status: ['archived']` keeps working and an archived project's
-   * Sub-Projects section still lists what is under it.
+   * Sub-Projects section still lists the descendants that were archived with it — which, since
+   * archiving requires its children archived first, is all of them on a document built through
+   * these operations.
    *
    * The ancestry is built over the **unfiltered** workspace, then the query is applied. Built
    * over the filtered result it would be looking for ancestors that are no longer in the array,
@@ -182,10 +184,8 @@ export class ProjectService {
         throw new DomainRuleError('manual progress requires a value from 0 to 100');
       }
 
-      if (next.parentProjectId !== current.parentProjectId && next.parentProjectId !== undefined) {
-        await this.assertParentIsUsable(actor, id, next.parentProjectId);
-        await this.assertAncestryActive(actor, await this.require(actor, next.parentProjectId));
-      }
+      const reparenting = next.parentProjectId !== current.parentProjectId && next.parentProjectId !== undefined;
+      if (reparenting) await this.assertParentIsUsable(actor, id, next.parentProjectId!);
 
       // **Reactivating is an explicit choice (§31); this only says in which order.** Coming back
       // out of `archived` while an ancestor is still archived would produce a project that is
@@ -194,9 +194,12 @@ export class ProjectService {
       //
       // A *transition*, not a state: a project already live under an archived ancestor has
       // `next.status !== 'archived'` on every update, so a state check would refuse renaming it
-      // or moving it out — which is the way out. Read from `next.parentProjectId`, after the
-      // reparent above, so reactivating and moving out in one call succeeds.
-      if (current.status === 'archived' && next.status !== 'archived' && next.parentProjectId !== undefined) {
+      // or moving it out — which is the way out.
+      const reactivating = current.status === 'archived' && next.status !== 'archived';
+      // One walk, from `next.parentProjectId` — **after** the reparent, so reactivating and
+      // moving to a live parent in one call succeeds rather than being refused against the
+      // parent it is leaving.
+      if ((reparenting || reactivating) && next.parentProjectId !== undefined) {
         await this.assertAncestryActive(actor, await this.require(actor, next.parentProjectId));
       }
 

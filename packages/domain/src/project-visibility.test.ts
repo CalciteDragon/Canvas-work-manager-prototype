@@ -93,6 +93,34 @@ describe('archivedAncestry', () => {
     expect(ancestry.hasArchivedAncestor(id('b'))).toBe(false);
   });
 
+  /**
+   * The cache shares one walk's answer with every project on its path, which is sound *except*
+   * when the walk stopped because it came back to where it started: that `false` is relative to
+   * the start. `a → b → a` with `a` archived — `a` has no archived ancestor, `b` does, and the
+   * ancestry must say so whichever is asked about first.
+   */
+  it('does not poison the cache when a walk stops on a cycle', () => {
+    const cyclic = () => [project('a', 'archived', 'b'), project('b', 'active', 'a')];
+
+    const askedAFirst = archivedAncestry(cyclic());
+    expect(askedAFirst.hasArchivedAncestor(id('a'))).toBe(false);
+    expect(askedAFirst.hasArchivedAncestor(id('b'))).toBe(true);
+
+    const askedBFirst = archivedAncestry(cyclic());
+    expect(askedBFirst.hasArchivedAncestor(id('b'))).toBe(true);
+    expect(askedBFirst.hasArchivedAncestor(id('a'))).toBe(false);
+  });
+
+  it('agrees with the write freeze on the same cyclic document', async () => {
+    const cyclic = [project('a', 'archived', 'b'), project('b', 'active', 'a')];
+    const ancestry = archivedAncestry(cyclic);
+
+    expect(ancestry.isHidden(id('b'))).toBe(true);
+    // The read hides it, so the write must refuse it — otherwise the two disagree and produce
+    // the live-but-unreachable state this module exists to prevent, inverted.
+    await expect(assertProjectWritable(repositoryOf(cyclic), id('b'))).rejects.toThrow(/inside archived project "a"/);
+  });
+
   it('answers false for a project the set does not contain', () => {
     const ancestry = archivedAncestry(archivedRootTree());
 

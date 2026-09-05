@@ -42,8 +42,8 @@ prototype:reset` remains the other option — it discards the file and reseeds.
 | `web` | http://localhost:4200 | The Angular application — shell, dashboard, project pages, tasks |
 | `host` | http://127.0.0.1:4310 | The prototype host — fake API (§61), Streamable HTTP MCP at `/mcp`, and §62's event stream at `/prototype/events`, over `.prototype/data.json` |
 
-The host serves eighteen transport-free tool definitions — §54's fourteen plus the four
-section tools — through the official MCP SDK v2, targeting protocol `2026-07-28`. Streamable HTTP is mounted at `/mcp`; `pnpm mcp:stdio`
+The host serves twenty transport-free tool definitions — §54's fourteen, the four section
+tools, and §54's two page tools — through the official MCP SDK v2, targeting protocol `2026-07-28`. Streamable HTTP is mounted at `/mcp`; `pnpm mcp:stdio`
 serves the identical registry for local child-process clients. Both use the fake agent
 credentials and real domain services. See [docs/mcp-setup.md](docs/mcp-setup.md) for client
 configuration and the JSON store's cross-process limitation.

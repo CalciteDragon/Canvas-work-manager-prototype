@@ -106,10 +106,14 @@ export class TaskService {
     const scoped =
       query.projectId !== undefined || query.sectionId !== undefined || query.parentTaskId !== undefined;
     if (scoped) return tasks.filter((task) => visible.has(task.projectId));
+    // Archived **and** beneath an archived ancestor: `isHidden` deliberately excludes a project
+    // archived in its own right, and this is the one read with no `status` filter of its own.
     const ancestry = archivedAncestry(projects);
     return tasks.filter(
       (task) =>
-        visible.has(task.projectId) && !ancestry.isArchived(task.projectId) && !ancestry.isHidden(task.projectId),
+        visible.has(task.projectId) &&
+        !ancestry.isArchived(task.projectId) &&
+        !ancestry.hasArchivedAncestor(task.projectId),
     );
   }
 

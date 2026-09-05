@@ -154,9 +154,11 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
         await pages.setEnabled(
           await actorFor(request),
           sectionProjectId(request),
+          // The path wins: spread **first**, then the kind, or a body naming a different kind
+          // would toggle a page other than the one addressed.
           SetProjectPageEnabledInputSchema.parse({
-            kind: ProjectPageKindSchema.parse(request.params['kind']),
             ...(request.body as Record<string, unknown>),
+            kind: ProjectPageKindSchema.parse(request.params['kind']),
           }),
         ),
       ),
@@ -205,10 +207,13 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     // rest, because the frame has the id and nothing else needs re-stating.
     'GET /api/projects/:projectId/sections': async (request) => {
       // The Archived region is the one caller that asks for archived sections, and a page
-      // read is the one that narrows to a canvas. Only those two are forwarded: the path
-      // already fixed the project, and a query `projectId` must not redirect it. Both have to
-      // be named here *and* in the forwarded object — parsing one and forwarding the other
-      // would accept the filter and silently ignore it.
+      // read is the one that narrows to a canvas. Only those two are **forwarded**: the path
+      // already fixed the project, and a query `projectId` must not redirect it.
+      //
+      // `includeArchived` is named in `queryObject`'s boolean list because `"true"` has to stop
+      // being a string; `pageId` needs no coercion and rides the default branch. What matters
+      // is the forwarded object below — a value parsed and then not forwarded is a filter the
+      // caller sent and the answer silently ignored.
       const query = SectionQuerySchema.parse(queryObject(request.query, [], [], ['includeArchived']));
       return ok(
         await sections.list(await actorFor(request), sectionProjectId(request), {

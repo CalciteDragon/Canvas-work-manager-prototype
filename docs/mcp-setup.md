@@ -1,7 +1,7 @@
 # MCP setup
 
-Canvas Work Manager serves the same eighteen tools over Streamable HTTP and stdio (§59) —
-§54's fourteen, plus the four section tools the canvas needs.
+Canvas Work Manager serves the same twenty tools over Streamable HTTP and stdio (§59) —
+§54's fourteen, the four section tools the canvas needs, and §54's two page tools.
 Both use the fake local credentials from the `agent-heavy` seed; they have no security value
 and the HTTP host binds only to `127.0.0.1`.
 

@@ -55,25 +55,28 @@ export const archivedAncestry = (projects: readonly Project[]): ArchivedAncestry
     // The visited set is not belt-and-braces, for the reason `ProjectService` states at its own
     // walk: a hand-edited document (§14) can contain a cycle, and this runs on read paths that
     // must answer rather than hang.
-    const path: ProjectId[] = [];
+    //
+    // **Each query walks its own chain**, and only its own answer is remembered. An earlier
+    // version shared one walk's result with every project it passed through, which is sound on a
+    // tree and wrong on a cycle, where "has an archived ancestor" stops being a property of the
+    // chain and becomes relative to where the walk began: with `a → b → a` and `a` archived, `a`
+    // has no archived ancestor and `b` does, so neither project's answer is the other's. It made
+    // the ancestry give different answers for the same project depending on which was asked
+    // about first, and disagree with `assertProjectWritable`, which walks afresh every time.
+    // A walk per query is O(depth) over a document already in memory (§14, §71).
     const seen = new Set<ProjectId>([id]);
     let ancestorId = byId.get(id)?.parentProjectId;
     let found = false;
     while (ancestorId !== undefined && !seen.has(ancestorId)) {
-      const cachedAncestor = archivedAncestorCache.get(ancestorId);
-      if (isArchived(ancestorId) || cachedAncestor === true) {
+      if (isArchived(ancestorId)) {
         found = true;
         break;
       }
-      if (cachedAncestor === false) break;
       seen.add(ancestorId);
-      path.push(ancestorId);
       ancestorId = byId.get(ancestorId)?.parentProjectId;
     }
 
-    // Every project on the path shares the answer: they have the same ancestors from here up.
     archivedAncestorCache.set(id, found);
-    for (const walked of path) archivedAncestorCache.set(walked, found);
     return found;
   };
 

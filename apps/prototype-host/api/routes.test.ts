@@ -779,10 +779,17 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
     return { root, unit, pagesBefore, reflectionsPage, task, unitTask, reflection };
   };
 
-  /** Where a row's container sits, read back the way a client would. */
+  /**
+   * Which of a project's pages holds a section, read back the way a client would — by asking
+   * each page for its own canvas, because a canvas *is* a page (§27) and a section list answers
+   * one rather than the whole project.
+   */
   const pageOfSection = async (routes: RouteTable, projectId: string, sectionId: string) => {
-    const listed = await call(routes, 'GET', `/api/projects/${projectId}/sections`);
-    return (listed.body as Array<{ id: string; pageId: string }>).find(({ id }) => id === sectionId)?.pageId;
+    for (const page of await pagesOf(routes, projectId)) {
+      const listed = await call(routes, 'GET', `/api/projects/${projectId}/sections?pageId=${encodeURIComponent(page.id)}`);
+      if ((listed.body as Array<{ id: string }>).some(({ id }) => id === sectionId)) return page.id;
+    }
+    return undefined;
   };
 
   const pagesOf = async (routes: RouteTable, projectId: string) =>

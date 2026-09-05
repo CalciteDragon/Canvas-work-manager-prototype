@@ -215,24 +215,35 @@ describe('ordering is per page (§27)', () => {
   });
 
   /**
-   * The project-wide read spans pages that each number from zero, so position alone would
-   * interleave them in whatever order storage returned. Both branches — live and archived —
-   * group by page, because the archived one is a direct repository read that does not share
+   * **A canvas is a page** (§27), so a read that names none answers the *canonical* one rather
+   * than the whole project. Running the feature is what made this matter: a project-wide read
+   * put the Reflections page's container on Home and its archived sections in Home's Archived
+   * region, and enabling an optional page was all it took to reach.
+   *
+   * Both branches, because the archived one is a direct repository read that does not share
    * the live path's sort.
    */
-  it('groups a project-wide canvas read by page, deterministically, in both branches', async () => {
+  it('answers the canonical canvas when no page is named, in both branches', async () => {
     const harness = buildHarness();
-    const { home, reflections, first } = await stage(harness);
+    const { home, reflections, first, journal } = await stage(harness);
     await harness.sectionService.remove(harness.actor, first.id);
+    await harness.sectionService.remove(harness.actor, journal.id);
 
-    const grouped = (sections: ProjectSection[]) => sections.map(({ pageId }) => pageId);
+    const pagesIn = (sections: ProjectSection[]) => new Set(sections.map(({ pageId }) => pageId));
     const live = await harness.sectionService.list(harness.actor, MINE);
     const all = await harness.sectionService.list(harness.actor, MINE, { includeArchived: true });
 
-    for (const pages of [grouped(live), grouped(all)]) {
-      expect(pages).toEqual([...pages].sort((a, b) => a.localeCompare(b)));
-    }
-    expect(new Set(grouped(all))).toEqual(new Set([home.id, reflections.id]));
+    expect(pagesIn(live)).toEqual(new Set([home.id]));
+    expect(pagesIn(all)).toEqual(new Set([home.id]));
+    expect(all.some(({ id }) => id === first.id)).toBe(true);
+    // The other page's archived section belongs to that page's region, not to Home's.
+    expect(all.some(({ id }) => id === journal.id)).toBe(false);
+    // It is on its own page's region instead — which is where §31 says a canvas's region is.
+    const onReflections = await harness.sectionService.list(harness.actor, MINE, {
+      pageId: reflections.id,
+      includeArchived: true,
+    });
+    expect(onReflections.map(({ id }) => id)).toEqual([journal.id]);
   });
 
   it('scopes a list to one page in both branches, and resolves a page it cannot own', async () => {
@@ -300,13 +311,22 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     ).rejects.toThrow(/is disabled/);
   });
 
-  it('refuses a subtask that would follow its parent onto one', async () => {
+  /**
+   * **A task cannot currently reach a disabled page at all**, and this is where that is stated
+   * rather than left as a gap in the coverage. A `task-list` may only sit on a page whose kind
+   * accepts it — `home` or `work` (§30) — and neither can ever be disabled: `setEnabled` refuses
+   * a canonical kind and every kind on a sub-project, and `validateDocumentIntegrity` rejects a
+   * disabled canonical page at load. The only disable-able page that holds sections is
+   * Reflections, which holds reflections containers.
+   *
+   * So the two subtask guards in `TaskService` are uniformity, not coverage: they apply the same
+   * rule the reflection paths are pinned on above, on paths that inherit a section and could not
+   * otherwise reach it. What *is* reachable — and what this asserts — is the inheritance itself.
+   */
+  it('gives a subtask its parent’s section, and so its parent’s page', async () => {
     const harness = buildHarness();
-    const { reflections } = await rootWithReflections(harness);
-    // A task list on the Reflections page is refused, so the disabled page in this case is a
-    // second root's Home — reached through a sub-project, whose canvas is never disabled.
+    const { home } = await rootWithReflections(harness);
     const parent = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Tile the wall' });
-    expect(reflections.enabled).toBe(true);
 
     const child = await harness.taskService.create(harness.actor, {
       projectId: MINE,
@@ -315,6 +335,7 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     });
 
     expect(child.sectionId).toBe(parent.sectionId);
+    expect((await harness.sectionService.requireWithin(harness.actor, child.sectionId)).pageId).toBe(home.id);
   });
 
   it('keeps reading, editing, reordering, removing and restoring what is already there', async () => {
@@ -336,7 +357,13 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     expect((await harness.reflections.list({ sectionId: journal.id }))[0]?.archivedAt).toBeUndefined();
   });
 
-  it('lets an existing subtask on a disabled page still be edited', async () => {
+  /**
+   * `TaskService.update`'s subtask branch re-derives `sectionId` from the parent on **every**
+   * update of a task that has one, not only on a reparent — so a disabled-page refusal placed on
+   * the branch rather than on the *change* would refuse an ordinary rename. This is the case that
+   * distinguishes the two, and it is the reason the check compares against `current.sectionId`.
+   */
+  it('renames a subtask without treating the inherited section as a placement', async () => {
     const harness = buildHarness();
     const parent = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Tile the wall' });
     const child = await harness.taskService.create(harness.actor, {
@@ -344,8 +371,7 @@ describe('a disabled page hides navigation, not data (§27)', () => {
       parentTaskId: parent.id,
       title: 'Buy grout',
     });
-    // Home cannot be disabled, so the page is made unavailable the only way §26 allows it to
-    // be: the row's own container moves nowhere and the edit is not a placement.
+
     await expect(
       harness.taskService.update(harness.actor, child.id, { title: 'Buy grout and spacers' }),
     ).resolves.toMatchObject({ title: 'Buy grout and spacers', sectionId: parent.sectionId });

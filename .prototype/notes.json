@@ -22,7 +22,7 @@
       "route": null,
       "projectId": null,
       "slice": 1,
-      "note": "Two review rounds on the plan and one on the diff each found a real defect that the previous round had introduced or missed \u2014 most sharply, the shutdown test was vacuous twice in a row for two different reasons. Verifying a test by mutation (delete the line it claims to cover, watch it fail) took about a minute and was the only thing that actually settled it. Worth doing routinely for tests that guard a failure path."
+      "note": "Two review rounds on the plan and one on the diff each found a real defect that the previous round had introduced or missed — most sharply, the shutdown test was vacuous twice in a row for two different reasons. Verifying a test by mutation (delete the line it claims to cover, watch it fail) took about a minute and was the only thing that actually settled it. Worth doing routinely for tests that guard a failure path."
     },
     {
       "id": "note-2026-08-26-005",
@@ -30,7 +30,7 @@
       "route": null,
       "projectId": null,
       "slice": 1,
-      "note": "A `tsx watch` from an earlier session outlived its parent and kept port 4310, so the next `pnpm dev` printed the EADDRINUSE message and the host died while `ng serve` carried on. The error path did its job \u2014 the message named the port and the cause \u2014 but on Windows an orphaned watcher is easy to leave behind and the symptom (web up, host silently absent) is confusing. If this recurs, `netstat -ano | findstr :4310` then Stop-Process is the fix."
+      "note": "A `tsx watch` from an earlier session outlived its parent and kept port 4310, so the next `pnpm dev` printed the EADDRINUSE message and the host died while `ng serve` carried on. The error path did its job — the message named the port and the cause — but on Windows an orphaned watcher is easy to leave behind and the symptom (web up, host silently absent) is confusing. If this recurs, `netstat -ano | findstr :4310` then Stop-Process is the fix."
     },
     {
       "id": "note-2026-08-26-004",
@@ -46,7 +46,7 @@
       "route": null,
       "projectId": null,
       "slice": 2,
-      "note": "Packages-as-source has a resolution tax that only shows up at the consumer. `pnpm --filter @cwm/contracts test` and every tsc pass were green while `apps/web`'s vitest run failed to resolve `zod` \u2014 the Angular builder inlines the contracts source into the app's own module graph, so the transitive dependency has to be a direct dependency of `apps/web`. Expect the same for every future package dependency, and check the web suite, not just the package's own."
+      "note": "Packages-as-source has a resolution tax that only shows up at the consumer. `pnpm --filter @cwm/contracts test` and every tsc pass were green while `apps/web`'s vitest run failed to resolve `zod` — the Angular builder inlines the contracts source into the app's own module graph, so the transitive dependency has to be a direct dependency of `apps/web`. Expect the same for every future package dependency, and check the web suite, not just the package's own."
     },
     {
       "id": "note-2026-08-26-007",
@@ -54,7 +54,7 @@
       "route": null,
       "projectId": null,
       "slice": 3,
-      "note": "The real JsonDataStore exercise could verify a realistic document, a two-repository unit of work, atomic replacement, and reload, but not the actual host/UI path: Slice 4 owns the first reusable seeds and Slice 5 owns host wiring. That boundary makes Slice 3's \u00a777 hands-on check necessarily storage-level; the temporary scenario reloaded two projects and a completed task successfully, with no leftover temp file."
+      "note": "The real JsonDataStore exercise could verify a realistic document, a two-repository unit of work, atomic replacement, and reload, but not the actual host/UI path: Slice 4 owns the first reusable seeds and Slice 5 owns host wiring. That boundary makes Slice 3's §77 hands-on check necessarily storage-level; the temporary scenario reloaded two projects and a completed task successfully, with no leftover temp file."
     },
     {
       "id": "note-2026-08-26-008",
@@ -70,7 +70,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "Driving the API by hand found what 93 passing tests did not: every timestamp in a host session was identical. PrototypeClock is settable-and-frozen, which is exactly right for a test and exactly wrong for a running host \u2014 a task's createdAt, completedAt and archivedAt all matched to the millisecond, and the \u00a757 feed was one undifferentiated tie. Added SimulatedClock (real time plus a settable offset) for the host and left PrototypeClock to the tests. AGENTS \u00a73 Step 4 earned its place here; no amount of unit testing would have surfaced this, because the tests *want* a frozen clock."
+      "note": "Driving the API by hand found what 93 passing tests did not: every timestamp in a host session was identical. PrototypeClock is settable-and-frozen, which is exactly right for a test and exactly wrong for a running host — a task's createdAt, completedAt and archivedAt all matched to the millisecond, and the §57 feed was one undifferentiated tie. Added SimulatedClock (real time plus a settable offset) for the host and left PrototypeClock to the tests. AGENTS §3 Step 4 earned its place here; no amount of unit testing would have surfaced this, because the tests *want* a frozen clock."
     },
     {
       "id": "note-2026-08-27-002",
@@ -78,7 +78,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "The concurrency test was vacuously green for a day. Five simultaneous POSTs against an in-memory store never actually overlap \u2014 persist() finishes inside one task, so the next request's unit of work starts cleanly and a naive non-serializing adapter passes. Only rewriting it over a real JsonDataStore (where file I/O keeps a unit open across ticks) made it fail without serialization. Mutation testing is what caught it: breaking unitOfWorkFor on purpose and watching the suite stay green. That trick has now caught something in two consecutive slices."
+      "note": "The concurrency test was vacuously green for a day. Five simultaneous POSTs against an in-memory store never actually overlap — persist() finishes inside one task, so the next request's unit of work starts cleanly and a naive non-serializing adapter passes. Only rewriting it over a real JsonDataStore (where file I/O keeps a unit open across ticks) made it fail without serialization. Mutation testing is what caught it: breaking unitOfWorkFor on purpose and watching the suite stay green. That trick has now caught something in two consecutive slices."
     },
     {
       "id": "note-2026-08-27-003",
@@ -86,7 +86,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "`node --import tsx apps/prototype-host/main.ts` from the repo root fails with ERR_MODULE_NOT_FOUND for tsx: pnpm's isolated node_modules only links it inside apps/prototype-host, so the loader has to be resolved with that as cwd. Cost a few confused minutes. scripts/acceptance.mjs sets `cwd: hostRoot` for this reason \u2014 worth remembering before Slice 15 spawns an MCP stdio process the same way."
+      "note": "`node --import tsx apps/prototype-host/main.ts` from the repo root fails with ERR_MODULE_NOT_FOUND for tsx: pnpm's isolated node_modules only links it inside apps/prototype-host, so the loader has to be resolved with that as cwd. Cost a few confused minutes. scripts/acceptance.mjs sets `cwd: hostRoot` for this reason — worth remembering before Slice 15 spawns an MCP stdio process the same way."
     },
     {
       "id": "note-2026-08-27-004",
@@ -94,7 +94,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "The seeds are built around SEED_NOW (2026-08-24) but the host clock starts at real time, so the moment you add a task to `busy-week` it sits days after every seeded due date and `overdue-chaos` stops reading as overdue. SimulatedClock.setNow is the mechanism; Slice 12's dev panel is where the control belongs. Until then a seed's scenario decays a little more each day, which will quietly mislead anyone evaluating the dashboard (\u00a724) or calendar (\u00a737). Worth deciding in Slice 12 whether loading a seed should also set the clock to that seed's SEED_NOW."
+      "note": "The seeds are built around SEED_NOW (2026-08-24) but the host clock starts at real time, so the moment you add a task to `busy-week` it sits days after every seeded due date and `overdue-chaos` stops reading as overdue. SimulatedClock.setNow is the mechanism; Slice 12's dev panel is where the control belongs. Until then a seed's scenario decays a little more each day, which will quietly mislead anyone evaluating the dashboard (§24) or calendar (§37). Worth deciding in Slice 12 whether loading a seed should also set the clock to that seed's SEED_NOW."
     },
     {
       "id": "note-2026-08-27-005",
@@ -102,7 +102,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "Two rounds of plan review found the same file twice, for different reasons: unitOfWorkFor. Round 1 caught that a pass-through adapter 500s on any two interleaved requests; round 2 caught that the queue fixing that would deadlock on a nested call. Both were real. The thing that settled it was not a third review but a 40-line spike run against the actual InMemoryDataStore \u2014 nested join, overlap, and failure recovery, printed. Reviewing an async-context design on paper is much worse value than running it."
+      "note": "Two rounds of plan review found the same file twice, for different reasons: unitOfWorkFor. Round 1 caught that a pass-through adapter 500s on any two interleaved requests; round 2 caught that the queue fixing that would deadlock on a nested call. Both were real. The thing that settled it was not a third review but a 40-line spike run against the actual InMemoryDataStore — nested join, overlap, and failure recovery, printed. Reviewing an async-context design on paper is much worse value than running it."
     },
     {
       "id": "note-2026-08-27-006",
@@ -110,7 +110,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "The scariest bug of the slice was found by a review agent and confirmed by accident: an unguarded ancestor walk over an already-cyclic document does not hang one request, it starves the event loop and wedges the whole process \u2014 timers stop, the server stops answering, Ctrl+C's handler never runs. I discovered this by writing the test for it, which hung the test runner for three minutes with a 1s Promise.race that never fired. Any await-in-a-loop over synchronously-resolving repository reads has this shape. Worth remembering before Slice 20 walks subtask trees and Slice 11 walks projects for the dashboard."
+      "note": "The scariest bug of the slice was found by a review agent and confirmed by accident: an unguarded ancestor walk over an already-cyclic document does not hang one request, it starves the event loop and wedges the whole process — timers stop, the server stops answering, Ctrl+C's handler never runs. I discovered this by writing the test for it, which hung the test runner for three minutes with a 1s Promise.race that never fired. Any await-in-a-loop over synchronously-resolving repository reads has this shape. Worth remembering before Slice 20 walks subtask trees and Slice 11 walks projects for the dashboard."
     },
     {
       "id": "note-2026-08-27-007",
@@ -118,7 +118,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "Two guards written a day apart disagreed about the same problem. ProjectService carries an explicit comment \u2014 'the exposed route is PATCH, so a rule only archive() enforced would be decorative' \u2014 and TaskService then shipped exactly that bug: complete() refused an archived task, PATCH {status:'done'} did not. Knowing the trap and writing the comment was not enough to avoid it in the next file. A rule that has two entry points needs a test per entry point, not a note."
+      "note": "Two guards written a day apart disagreed about the same problem. ProjectService carries an explicit comment — 'the exposed route is PATCH, so a rule only archive() enforced would be decorative' — and TaskService then shipped exactly that bug: complete() refused an archived task, PATCH {status:'done'} did not. Knowing the trap and writing the comment was not enough to avoid it in the next file. A rule that has two entry points needs a test per entry point, not a note."
     },
     {
       "id": "note-2026-08-27-008",
@@ -126,7 +126,7 @@
       "route": null,
       "projectId": null,
       "slice": 5,
-      "note": "The custom lint I wrote to enforce \u00a712 was mostly theatre: it walked only top-level import declarations, so `export { JsonDataStore } from '@cwm/repositories'` in index.ts \u2014 plus a clean relative import from every sibling \u2014 sailed through, as did import(), require(), and `fs/promises` against a ban list that named `fs`. A ban list cannot survive the next dependency; it is now an allowlist over a full tree walk. Writing the six self-tests then found two bugs in the rewrite. A lint without a test that it FAILS on each violation form is a lint you are guessing about."
+      "note": "The custom lint I wrote to enforce §12 was mostly theatre: it walked only top-level import declarations, so `export { JsonDataStore } from '@cwm/repositories'` in index.ts — plus a clean relative import from every sibling — sailed through, as did import(), require(), and `fs/promises` against a ban list that named `fs`. A ban list cannot survive the next dependency; it is now an allowlist over a full tree walk. Writing the six self-tests then found two bugs in the rewrite. A lint without a test that it FAILS on each violation form is a lint you are guessing about."
     },
     {
       "id": "note-2026-08-27-009",
@@ -134,7 +134,7 @@
       "route": "/app",
       "projectId": null,
       "slice": 6,
-      "note": "Running the shell with the host stopped surfaced a boundary hole the whole test suite had missed: the sidebar rendered 'Failed to fetch'. The gateway maps every transport failure to a GatewayError, but PrototypeIdentityProvider did not \u2014 and since every gateway call awaits getCurrentIdentity() first, the identity provider is the failure the user actually meets. \u00a78's rule reads 'components depend on gateway interfaces', so I built the mapping in one of the two boundary classes and not the other. The tests all passed because each one mocked the layer under test. Only running it found this."
+      "note": "Running the shell with the host stopped surfaced a boundary hole the whole test suite had missed: the sidebar rendered 'Failed to fetch'. The gateway maps every transport failure to a GatewayError, but PrototypeIdentityProvider did not — and since every gateway call awaits getCurrentIdentity() first, the identity provider is the failure the user actually meets. §8's rule reads 'components depend on gateway interfaces', so I built the mapping in one of the two boundary classes and not the other. The tests all passed because each one mocked the layer under test. Only running it found this."
     },
     {
       "id": "note-2026-08-27-010",
@@ -142,7 +142,7 @@
       "route": null,
       "projectId": null,
       "slice": 6,
-      "note": "The host obeys a bare PORT environment variable, so any tool that sets PORT=4200 to launch the web app takes :4310 away from the host \u2014 and because concurrently starts both, the host wins the bind and Angular quietly moves elsewhere. What the browser then shows at :4200 is {\"error\":\"not_found\"} in the host's own words, which reads like a routing bug in the app. A shared, extremely common variable name is the wrong knob for one of two processes in a single `pnpm dev`."
+      "note": "The host obeys a bare PORT environment variable, so any tool that sets PORT=4200 to launch the web app takes :4310 away from the host — and because concurrently starts both, the host wins the bind and Angular quietly moves elsewhere. What the browser then shows at :4200 is {\"error\":\"not_found\"} in the host's own words, which reads like a routing bug in the app. A shared, extremely common variable name is the wrong knob for one of two processes in a single `pnpm dev`."
     },
     {
       "id": "note-2026-08-27-011",
@@ -150,7 +150,7 @@
       "route": null,
       "projectId": null,
       "slice": 6,
-      "note": "`pnpm prototype:seed nested-projects` while the app is running changes nothing on screen and gives no hint why: the host reads data.json once at startup and holds it. I spent a confused minute assuming the sidebar was caching. \u00a776's reset is going to need to be reachable from inside the app (Slice 12's dev panel) rather than only from a second terminal \u2014 or the host needs to notice the file changed."
+      "note": "`pnpm prototype:seed nested-projects` while the app is running changes nothing on screen and gives no hint why: the host reads data.json once at startup and holds it. I spent a confused minute assuming the sidebar was caching. §76's reset is going to need to be reachable from inside the app (Slice 12's dev panel) rather than only from a second terminal — or the host needs to notice the file changed."
     },
     {
       "id": "note-2026-08-27-012",
@@ -158,7 +158,7 @@
       "route": "/app",
       "projectId": null,
       "slice": 6,
-      "note": "With the host down the shell still renders \u2014 nav, theme, layout \u2014 and only the project list carries the error. That is the right shape, and it was worth having the sidebar take `error` as an input rather than owning a store: the failure had somewhere obvious to land. The top bar shows no persona at all in that state, which looks broken rather than degraded. Whether an unreachable host should be a shell-level banner instead of a sidebar line is a question for Slice 7, when a failed write needs somewhere to say so too (\u00a763)."
+      "note": "With the host down the shell still renders — nav, theme, layout — and only the project list carries the error. That is the right shape, and it was worth having the sidebar take `error` as an input rather than owning a store: the failure had somewhere obvious to land. The top bar shows no persona at all in that state, which looks broken rather than degraded. Whether an unreachable host should be a shell-level banner instead of a sidebar line is a question for Slice 7, when a failed write needs somewhere to say so too (§63)."
     },
     {
       "id": "note-2026-08-27-013",
@@ -166,7 +166,7 @@
       "route": null,
       "projectId": null,
       "slice": 6,
-      "note": "I wrote note-008 last slice \u2014 'a lint without a test that it FAILS on each violation form is a lint you are guessing about' \u2014 and then shipped exactly that lint again. The token checker passed a probe file containing eleven deliberate literals: a component defining its own --my-accent palette, the first declaration after a nested Sass block, every non-px unit, oklch()/lab(), single-quoted style attributes, Angular [style.x] and [ngStyle] bindings, and any styles string containing a ${}. Two violations were already live in shipped code. The self-test was real but its fixtures were all single-line rules, which is the one shape where the bugs cancel out. Knowing the lesson and writing it down did not transfer; what would have caught it is writing the adversarial probe BEFORE believing the checker, not after review asked."
+      "note": "I wrote note-008 last slice — 'a lint without a test that it FAILS on each violation form is a lint you are guessing about' — and then shipped exactly that lint again. The token checker passed a probe file containing eleven deliberate literals: a component defining its own --my-accent palette, the first declaration after a nested Sass block, every non-px unit, oklch()/lab(), single-quoted style attributes, Angular [style.x] and [ngStyle] bindings, and any styles string containing a ${}. Two violations were already live in shipped code. The self-test was real but its fixtures were all single-line rules, which is the one shape where the bugs cancel out. Knowing the lesson and writing it down did not transfer; what would have caught it is writing the adversarial probe BEFORE believing the checker, not after review asked."
     },
     {
       "id": "note-2026-08-27-014",
@@ -174,7 +174,7 @@
       "route": null,
       "projectId": null,
       "slice": 6,
-      "note": "Hardening the checker immediately produced three false positives \u2014 content: \"hex #fff means white\", fill: url(#face), and font-family: Gold, Tan, Sienna \u2014 and my fix for those silently broke Angular binding detection, because a bound style value IS a quoted string and I had just started stripping quoted strings. Every tightening pass loosened something else. The only reason I caught it was keeping the original probe file and re-running it after each change. A lint needs two fixture sets that both run every time: the things it must catch, and the things it must not."
+      "note": "Hardening the checker immediately produced three false positives — content: \"hex #fff means white\", fill: url(#face), and font-family: Gold, Tan, Sienna — and my fix for those silently broke Angular binding detection, because a bound style value IS a quoted string and I had just started stripping quoted strings. Every tightening pass loosened something else. The only reason I caught it was keeping the original probe file and re-running it after each change. A lint needs two fixture sets that both run every time: the things it must catch, and the things it must not."
     },
     {
       "id": "note-2026-08-27-015",
@@ -182,7 +182,7 @@
       "route": null,
       "projectId": null,
       "slice": 6,
-      "note": "Review found the gateway turning 'match nothing' into 'match everything': list({status: []}) serialized to no query parameter, the host read that as no filter, and every project came back \u2014 the exact inverse of the request, and the opposite of what the same query does in-process. An adapter that is supposed to be a transparent transport for a query type has to answer for the values that do not survive the wire, and an empty array is the obvious one. Worth checking every other filter shape for the same class of thing when Slice 7 starts sending real TaskQuery values."
+      "note": "Review found the gateway turning 'match nothing' into 'match everything': list({status: []}) serialized to no query parameter, the host read that as no filter, and every project came back — the exact inverse of the request, and the opposite of what the same query does in-process. An adapter that is supposed to be a transparent transport for a query type has to answer for the values that do not survive the wire, and an empty array is the obvious one. Worth checking every other filter shape for the same class of thing when Slice 7 starts sending real TaskQuery values."
     },
     {
       "id": "note-2026-08-27-016",
@@ -190,7 +190,7 @@
       "route": null,
       "projectId": null,
       "slice": 6,
-      "note": "Two boundary classes, written an hour apart, disagreed about the same job: the gateway read the host's {error, message} envelope, and the identity provider mapped every status to internal_error and threw the message away. Same shape as Slice 5's ProjectService/TaskService archive-guard divergence (note-007). The pattern is now clear enough to name: whenever a rule or a translation has two entry points, the second one gets a worse version of it. The fix is not vigilance, it is one function both call \u2014 toGatewayError now lives in gateway-error.ts."
+      "note": "Two boundary classes, written an hour apart, disagreed about the same job: the gateway read the host's {error, message} envelope, and the identity provider mapped every status to internal_error and threw the message away. Same shape as Slice 5's ProjectService/TaskService archive-guard divergence (note-007). The pattern is now clear enough to name: whenever a rule or a translation has two entry points, the second one gets a worse version of it. The fix is not vigilance, it is one function both call — toGatewayError now lives in gateway-error.ts."
     },
     {
       "id": "note-2026-08-27-017",
@@ -214,7 +214,7 @@
       "route": "/projects/:projectId",
       "projectId": "project-renovation",
       "slice": 8,
-      "note": "A project with one unfinished task showed \"Not available\" instead of \"0%\". The store was right; the template was `@if (store.progress(); as progress)`, and 0 is falsy, so a real zero took the no-value branch. Every unit test passed \u2014 they asserted the store, and the empty case, but never rendered a project where work simply had not started. Falsy-zero is worth checking by hand in any template that renders a count."
+      "note": "A project with one unfinished task showed \"Not available\" instead of \"0%\". The store was right; the template was `@if (store.progress(); as progress)`, and 0 is falsy, so a real zero took the no-value branch. Every unit test passed — they asserted the store, and the empty case, but never rendered a project where work simply had not started. Falsy-zero is worth checking by hand in any template that renders a count."
     },
     {
       "id": "note-2026-08-27-020",
@@ -222,7 +222,7 @@
       "route": "/projects/:projectId",
       "projectId": "project-launch",
       "slice": 8,
-      "note": "Duplicating a Task List section gives two frames listing the same tasks, each with its own quick-create, both writing to the same project. Nothing is broken \u2014 but \u00a731 gives every section a duplicate control, and for a section backed by shared data it is not obvious what duplicating means. Duplicate is clearly useful for Rich Text. Worth asking in Slice 9 whether it belongs on every section type or only on ones that own their content."
+      "note": "Duplicating a Task List section gives two frames listing the same tasks, each with its own quick-create, both writing to the same project. Nothing is broken — but §31 gives every section a duplicate control, and for a section backed by shared data it is not obvious what duplicating means. Duplicate is clearly useful for Rich Text. Worth asking in Slice 9 whether it belongs on every section type or only on ones that own their content."
     },
     {
       "id": "note-2026-08-27-021",
@@ -230,7 +230,7 @@
       "route": "/projects/:projectId",
       "projectId": null,
       "slice": 8,
-      "note": "Remove deletes a section immediately, with no confirmation and no undo. That was the right call for a prototype (\u00a731 offers no undo, and a section is view configuration), but removing the Rich Text section also removes text someone wrote \u2014 the one section whose content lives in the section itself. If a real user ever loses a paragraph this way, the answer is probably a confirm on sections whose config is non-empty, not a general undo."
+      "note": "Remove deletes a section immediately, with no confirmation and no undo. That was the right call for a prototype (§31 offers no undo, and a section is view configuration), but removing the Rich Text section also removes text someone wrote — the one section whose content lives in the section itself. If a real user ever loses a paragraph this way, the answer is probably a confirm on sections whose config is non-empty, not a general undo."
     },
     {
       "id": "note-2026-08-27-022",
@@ -238,7 +238,7 @@
       "route": null,
       "projectId": null,
       "slice": 8,
-      "note": "The preview runner sets PORT=4200 for `pnpm dev`, and `concurrently` passes it to both children \u2014 so the host read it too and took 4200 before ng serve could, leaving the web app answering {\"error\":\"not_found\"}. The host's PORT override is deliberate (it lets the acceptance script run a second host), so the fix is not to remove it. If this recurs, run `pnpm dev:web` and `pnpm dev:host` separately, or give the host its own variable name."
+      "note": "The preview runner sets PORT=4200 for `pnpm dev`, and `concurrently` passes it to both children — so the host read it too and took 4200 before ng serve could, leaving the web app answering {\"error\":\"not_found\"}. The host's PORT override is deliberate (it lets the acceptance script run a second host), so the fix is not to remove it. If this recurs, run `pnpm dev:web` and `pnpm dev:host` separately, or give the host its own variable name."
     },
     {
       "id": "note-2026-08-28-001",
@@ -246,7 +246,7 @@
       "route": "/projects/project-launch",
       "projectId": "project-launch",
       "slice": 9,
-      "note": "Flow and grid were indistinguishable while both seeded sections were width 12. After reload, all four persisted presets were exercised in both modes: 12 filled the 977 px canvas, 8 rendered about 646\u2013651 px, 6 about 481 px, and 4 about 315 px. Grid could place the 8-column brief beside the 4-column Task List; that list is technically usable but dense for titles, priority, dates, overdue state, and Details. Grid needs heterogeneous section roles to earn its complexity; flow is the clearer reading/work-list default so far. Keep both until Slices 10\u201311 add that variety."
+      "note": "Flow and grid were indistinguishable while both seeded sections were width 12. After reload, all four persisted presets were exercised in both modes: 12 filled the 977 px canvas, 8 rendered about 646–651 px, 6 about 481 px, and 4 about 315 px. Grid could place the 8-column brief beside the 4-column Task List; that list is technically usable but dense for titles, priority, dates, overdue state, and Details. Grid needs heterogeneous section roles to earn its complexity; flow is the clearer reading/work-list default so far. Keep both until Slices 10–11 add that variety."
     },
     {
       "id": "note-2026-08-28-002",
@@ -262,7 +262,7 @@
       "route": "/projects/project-launch",
       "projectId": "project-launch",
       "slice": 9,
-      "note": "Widget layout comes only from persona data, and switching persona has no UI yet either \u2014 so comparing Demo's six-widget dashboard with Alex's two-widget one meant editing localStorage by hand. All four \u00a725 presets do render across the three personas, but every size is a value typed into a seed; nothing in the app changes one. The question 'is resizing useful?' cannot be answered until both the persona switch and some way to change a widget's size exist."
+      "note": "Widget layout comes only from persona data, and switching persona has no UI yet either — so comparing Demo's six-widget dashboard with Alex's two-widget one meant editing localStorage by hand. All four §25 presets do render across the three personas, but every size is a value typed into a seed; nothing in the app changes one. The question 'is resizing useful?' cannot be answered until both the persona switch and some way to change a widget's size exist."
     },
     {
       "id": "note-2026-08-28-004",
@@ -270,7 +270,7 @@
       "route": "/projects/project-launch",
       "projectId": "project-launch",
       "slice": 10,
-      "note": "The three formulas say materially different things on the same busy-week data: count says 1 of 3 tasks, weighted says 2 of 10 estimate points, and manual persisted 41% through reload. The formula name plus explanation is essential; a bare percentage would conceal which claim the page is making. Leaving formula state on Project also proved its value immediately\u2014the header and section changed together, and section duplication/removal cannot create competing answers."
+      "note": "The three formulas say materially different things on the same busy-week data: count says 1 of 3 tasks, weighted says 2 of 10 estimate points, and manual persisted 41% through reload. The formula name plus explanation is essential; a bare percentage would conceal which claim the page is making. Leaving formula state on Project also proved its value immediately—the header and section changed together, and section duplication/removal cannot create competing answers."
     },
     {
       "id": "note-2026-08-28-005",
@@ -294,7 +294,7 @@
       "route": "/app",
       "projectId": null,
       "slice": 11,
-      "note": "Today's overdue rows showed only the due *time*. On busy-week against the real date, five tasks all read \"23:00\"/\"22:00\" as if they were tonight, when they were days gone. Fixed by showing the date on an overdue row and the time on one still due today \u2014 but the general lesson is that a row's meta line has to change with the row's state, not just carry the same field."
+      "note": "Today's overdue rows showed only the due *time*. On busy-week against the real date, five tasks all read \"23:00\"/\"22:00\" as if they were tonight, when they were days gone. Fixed by showing the date on an overdue row and the time on one still due today — but the general lesson is that a row's meta line has to change with the row's state, not just carry the same field."
     },
     {
       "id": "note-2026-08-28-002",
@@ -310,7 +310,7 @@
       "route": "/app",
       "projectId": null,
       "slice": 11,
-      "note": "Widget layout comes only from persona data, and switching persona has no UI yet either \u2014 so comparing Demo's six-widget dashboard with Alex's two-widget one meant editing localStorage by hand. All four \u00a725 presets do render across the three personas, but every size is a value typed into a seed; nothing in the app changes one. The question 'is resizing useful?' cannot be answered until both the persona switch and some way to change a widget's size exist."
+      "note": "Widget layout comes only from persona data, and switching persona has no UI yet either — so comparing Demo's six-widget dashboard with Alex's two-widget one meant editing localStorage by hand. All four §25 presets do render across the three personas, but every size is a value typed into a seed; nothing in the app changes one. The question 'is resizing useful?' cannot be answered until both the persona switch and some way to change a widget's size exist."
     },
     {
       "id": "note-2026-08-29-001",
@@ -326,7 +326,7 @@
       "route": null,
       "projectId": null,
       "slice": 12,
-      "note": "The host reads the generic PORT env var, and so does ng serve. Any tooling that sets PORT=4200 (the browser preview harness does) makes `pnpm dev` start the host ON the web port \u2014 the host wins the URL and every page load returns {\"error\":\"not_found\"}. It cost ten minutes to spot because both processes report success. The host should read something specific like PROTOTYPE_HOST_PORT."
+      "note": "The host reads the generic PORT env var, and so does ng serve. Any tooling that sets PORT=4200 (the browser preview harness does) makes `pnpm dev` start the host ON the web port — the host wins the URL and every page load returns {\"error\":\"not_found\"}. It cost ten minutes to spot because both processes report success. The host should read something specific like PROTOTYPE_HOST_PORT."
     },
     {
       "id": "note-2026-08-29-003",
@@ -334,7 +334,7 @@
       "route": "/app",
       "projectId": null,
       "slice": 12,
-      "note": "Ctrl/Cmd+Shift+D is Chrome's own \u201cbookmark all tabs\u201d shortcut, so the browser swallows it before the page sees it in some contexts. The handler is correct \u2014 a dispatched keydown opens the panel every time \u2014 but \u00a746's suggested chord may need a fallback (the /prototype/state route is that fallback today)."
+      "note": "Ctrl/Cmd+Shift+D is Chrome's own “bookmark all tabs” shortcut, so the browser swallows it before the page sees it in some contexts. The handler is correct — a dispatched keydown opens the panel every time — but §46's suggested chord may need a fallback (the /prototype/state route is that fallback today)."
     },
     {
       "id": "note-2026-08-29-004",
@@ -342,7 +342,7 @@
       "route": "/projects/project-client-migration",
       "projectId": "project-client-migration",
       "slice": 12,
-      "note": "At Failure Rate 100% the project page cannot load at all, so the thing the setting exists to show \u2014 an optimistic write reverting \u2014 is unobservable unless you load the page first and dial the rate up afterwards. A \u201cfail writes only\u201d option would make \u00a763 directly testable instead of needing that ordering trick."
+      "note": "At Failure Rate 100% the project page cannot load at all, so the thing the setting exists to show — an optimistic write reverting — is unobservable unless you load the page first and dial the rate up afterwards. A “fail writes only” option would make §63 directly testable instead of needing that ordering trick."
     },
     {
       "id": "note-2026-08-29-005",
@@ -350,7 +350,7 @@
       "route": null,
       "projectId": null,
       "slice": 12,
-      "note": "Adding the panel pushed the initial bundle to 797 kB against a 725 kB warning budget. The budget has already been raised once (500 \u2192 700 in slice 2). Eager routes are a deliberate \u00a73.1 choice, so the honest options are to raise the budget again or lazy-load the prototype folder; quietly raising it each slice is how the number stops meaning anything."
+      "note": "Adding the panel pushed the initial bundle to 797 kB against a 725 kB warning budget. The budget has already been raised once (500 → 700 in slice 2). Eager routes are a deliberate §3.1 choice, so the honest options are to raise the budget again or lazy-load the prototype folder; quietly raising it each slice is how the number stops meaning anything."
     },
     {
       "id": "note-2026-08-29-006",
@@ -358,7 +358,7 @@
       "route": "/prototype/state",
       "projectId": null,
       "slice": 13,
-      "note": "The Ctrl/Cmd+Shift+D panel's Agent Connection roster is the control I actually reached for first \u2014 not to change anything, but to find out which tokens exist. Copy token is the whole value of it. Editing living in Settings (\u00a753) felt right, not split."
+      "note": "The Ctrl/Cmd+Shift+D panel's Agent Connection roster is the control I actually reached for first — not to change anything, but to find out which tokens exist. Copy token is the whole value of it. Editing living in Settings (§53) felt right, not split."
     },
     {
       "id": "note-2026-08-29-007",
@@ -366,7 +366,7 @@
       "route": "/prototype/state",
       "projectId": null,
       "slice": 13,
-      "note": "\u00a746's panel and \u00a753's Settings answer different questions about the same records: 'what token do I paste' versus 'what may it do'. That split held up in use. The one thing missing from the panel is a link straight to Settings from a roster row."
+      "note": "§46's panel and §53's Settings answer different questions about the same records: 'what token do I paste' versus 'what may it do'. That split held up in use. The one thing missing from the panel is a link straight to Settings from a roster row."
     },
     {
       "id": "note-2026-08-29-008",
@@ -374,7 +374,7 @@
       "route": "/prototype/state",
       "projectId": null,
       "slice": 13,
-      "note": "Unticking Modify tasks in Settings and watching the very next curl come back 403 with the permission named is the single most convincing thing this prototype does. The error message naming the missing permission is why \u2014 'forbidden' would have told me nothing."
+      "note": "Unticking Modify tasks in Settings and watching the very next curl come back 403 with the permission named is the single most convincing thing this prototype does. The error message naming the missing permission is why — 'forbidden' would have told me nothing."
     },
     {
       "id": "note-2026-08-29-009",
@@ -406,7 +406,7 @@
       "route": null,
       "projectId": null,
       "slice": 13,
-      "note": "Fixed rather than noted a fifth time: the host now reads CWM_HOST_PORT and ignores PORT entirely. Verified by running pnpm dev through the same launch config that broke it \u2014 ng serve reports \"Environment variable PORT detected. Using port 4200\" and the host still comes up on 4310. Ignoring PORT is the whole fix; honouring it as a fallback would have kept the trap loaded."
+      "note": "Fixed rather than noted a fifth time: the host now reads CWM_HOST_PORT and ignores PORT entirely. Verified by running pnpm dev through the same launch config that broke it — ng serve reports \"Environment variable PORT detected. Using port 4200\" and the host still comes up on 4310. Ignoring PORT is the whole fix; honouring it as a fallback would have kept the trap loaded."
     },
     {
       "id": "note-2026-08-29-001",
@@ -422,7 +422,7 @@
       "route": null,
       "projectId": null,
       "slice": 14,
-      "note": "The host's createApi() has no `workspace` service, so the scratch run had to construct WorkspaceService by hand from the persistence repositories. That is the exact seam Slice 15 must wire \u2014 one line in apps/prototype-host/api/services.ts \u2014 and it is easy to miss because nothing in the host references it today."
+      "note": "The host's createApi() has no `workspace` service, so the scratch run had to construct WorkspaceService by hand from the persistence repositories. That is the exact seam Slice 15 must wire — one line in apps/prototype-host/api/services.ts — and it is easy to miss because nothing in the host references it today."
     },
     {
       "id": "note-2026-08-29-003",
@@ -430,7 +430,7 @@
       "route": null,
       "projectId": null,
       "slice": 14,
-      "note": "get_upcoming_work reuses DashboardTask, so every row repeats projectName and projectIcon. On a screen that is right \u2014 each row must say where it came from. For an agent reading twenty rows from one project it is twenty copies of the same two strings, and the icon is meaningless in text. Candidate for \u00a756: measure whether a grouped-by-project shape reads better to a model."
+      "note": "get_upcoming_work reuses DashboardTask, so every row repeats projectName and projectIcon. On a screen that is right — each row must say where it came from. For an agent reading twenty rows from one project it is twenty copies of the same two strings, and the icon is meaningless in text. Candidate for §56: measure whether a grouped-by-project shape reads better to a model."
     },
     {
       "id": "note-2026-08-29-004",
@@ -462,7 +462,7 @@
       "route": "/projects/project-work-manager",
       "projectId": "project-work-manager",
       "slice": 16,
-      "note": "Live updates land, and the thing you notice is what is missing: an agent completing a task looks exactly like completing it yourself \ufffd same green row, same strikethrough, appearing under your cursor with no explanation. The Recent Activity section is the only place that says Claude did it, and on a long canvas it is off screen. \ufffd58 asks whether agent actions need confirmation; this suggests a smaller prior question \ufffd whether they need *attribution at the point of change*, e.g. a brief agent-colored flash or a marker on the row. Worth a Slice 22 experiment."
+      "note": "Live updates land, and the thing you notice is what is missing: an agent completing a task looks exactly like completing it yourself � same green row, same strikethrough, appearing under your cursor with no explanation. The Recent Activity section is the only place that says Claude did it, and on a long canvas it is off screen. �58 asks whether agent actions need confirmation; this suggests a smaller prior question � whether they need *attribution at the point of change*, e.g. a brief agent-colored flash or a marker on the row. Worth a Slice 22 experiment."
     },
     {
       "id": "note-2026-08-30-002",
@@ -486,7 +486,7 @@
       "route": null,
       "projectId": null,
       "slice": 16,
-      "note": "`pnpm dev` does not work under a single-port preview/launcher: the runner sets PORT=4200 and supervises one port, and the host child never bound at all \ufffd running `node --import tsx apps/prototype-host/main.ts` separately worked immediately. The Slice 1 CWM_HOST_PORT decision paid off here (the host ignored PORT rather than stealing 4200), but a two-process dev command is awkward for any tool that expects one. Not worth changing; worth knowing."
+      "note": "`pnpm dev` does not work under a single-port preview/launcher: the runner sets PORT=4200 and supervises one port, and the host child never bound at all � running `node --import tsx apps/prototype-host/main.ts` separately worked immediately. The Slice 1 CWM_HOST_PORT decision paid off here (the host ignored PORT rather than stealing 4200), but a two-process dev command is awkward for any tool that expects one. Not worth changing; worth knowing."
     },
     {
       "id": "note-2026-08-30-005",
@@ -494,7 +494,7 @@
       "route": "/projects/project-work-manager",
       "projectId": "project-work-manager",
       "slice": 16,
-      "note": "The correctness follow-up held up in the real app. One HTTP-MCP batch completed Document the tool input schemas, added a reflection, and created a child: without reloading, header and Progress moved 25% \u2192 50%, Timeline showed the task done, Reflections showed the new note, and Sub-Projects plus the sidebar showed the child. For the missed-frame case I stopped the browser's :4310 host, confirmed Progress stayed visibly at 50%, completed Add retry budget through MCP on a temporary :4311 host against the same data file, and confirmed the disconnected tab was still stale. Restarting :4310 moved Progress to 75% and Timeline to done without a second mutation. The regression suite pins one shared Progress read for duplicate sections and at most one coalesced trailing read while any touched store is busy."
+      "note": "The correctness follow-up held up in the real app. One HTTP-MCP batch completed Document the tool input schemas, added a reflection, and created a child: without reloading, header and Progress moved 25% → 50%, Timeline showed the task done, Reflections showed the new note, and Sub-Projects plus the sidebar showed the child. For the missed-frame case I stopped the browser's :4310 host, confirmed Progress stayed visibly at 50%, completed Add retry budget through MCP on a temporary :4311 host against the same data file, and confirmed the disconnected tab was still stale. Restarting :4310 moved Progress to 75% and Timeline to done without a second mutation. The regression suite pins one shared Progress read for duplicate sections and at most one coalesced trailing read while any touched store is busy."
     },
     {
       "id": "note-2026-08-31-001",
@@ -502,7 +502,7 @@
       "route": "/projects/project-renovation",
       "projectId": null,
       "slice": 17,
-      "note": "New project is clickable before /api/me answers, so a fast click gets \"No workspace is loaded yet\" instead of a project. The message is right for a failed identity but wrong for a pending one \u2014 the e2e test had to wait for the persona name to work around it. Either disable the control while identity is null, or have createProject await the in-flight load."
+      "note": "New project is clickable before /api/me answers, so a fast click gets \"No workspace is loaded yet\" instead of a project. The message is right for a failed identity but wrong for a pending one — the e2e test had to wait for the persona name to work around it. Either disable the control while identity is null, or have createProject await the in-flight load."
     },
     {
       "id": "note-2026-08-31-002",
@@ -510,7 +510,7 @@
       "route": "/projects/project-renovation",
       "projectId": null,
       "slice": 17,
-      "note": "The More menu is a stack of three forms plus a button, not a menu. Renaming means opening it, typing, and pressing Rename \u2014 three deliberate acts for the most common project edit. Inline-editing the header name (the way TaskRow edits its title) would be one act, and would leave the menu holding only the rarer things."
+      "note": "The More menu is a stack of three forms plus a button, not a menu. Renaming means opening it, typing, and pressing Rename — three deliberate acts for the most common project edit. Inline-editing the header name (the way TaskRow edits its title) would be one act, and would leave the menu holding only the rarer things."
     },
     {
       "id": "note-2026-08-31-003",
@@ -518,7 +518,7 @@
       "route": "/projects/project-renovation",
       "projectId": null,
       "slice": 17,
-      "note": "Status inside More is one click too deep. The header already renders Status as a fact, and the fact is not clickable \u2014 so you look at the answer and then go somewhere else to change it. Open question 3 of the slice 17 plan: the answer from using it is \"make the header fact the control\"."
+      "note": "Status inside More is one click too deep. The header already renders Status as a fact, and the fact is not clickable — so you look at the answer and then go somewhere else to change it. Open question 3 of the slice 17 plan: the answer from using it is \"make the header fact the control\"."
     },
     {
       "id": "note-2026-08-31-004",
@@ -534,36 +534,36 @@
       "route": "/projects/project-personal",
       "projectId": "project-personal",
       "resolvedAt": "2026-09-04T05:45:00.000Z",
-      "resolution": "Closed by the names phase (docs/decisions/2026-09-a-section-has-a-name.md), verified in the browser on personal-workspace. The dialog now reads `Remove \u201cBacklog\u201d?` / `It still holds 3 tasks. What should happen to them?`; its select offers `Shipped` by name and distinguishes two untitled Task Lists as `Task List (position 4 on the canvas)` and `(position 5 on the canvas)`; no section id appears anywhere in it. The Name field in the frame's Settings panel is what made that reachable \u2014 clearing it returns the header to `Task List` and removes `title` from data.json rather than storing the default as a literal. Two things the note did not predict. First, replacing the sentence was not enough: ProjectPageStore holds no rows by design and cannot count them, so the count had to travel as *data* \u2014 DomainRuleError gained an optional details record, and the dialog now opens only when a discriminated `section_not_empty` payload parses, which is also what will stop the archive phase's two new 409s from masquerading as this question. Second, naming alone does not close the note's second half: every untitled Task List still resolves to `Task List`, so the positional disambiguator is doing the real work for exactly the user the note describes \u2014 the one who has named nothing.",
-      "note": "The section removal dialog prints the domain error verbatim: `section \"section-4f7e064c\" still holds 1 tasks; removing it needs a policy of \"cascade\" or \"reassign\"`. Three things are wrong for a person standing in front of it \u2014 it names the section id rather than its title, it says \"1 tasks\", and it explains the policy vocabulary instead of the choice. The buttons underneath already say it properly (\"Archive the rows and remove\" / \"Move the rows and remove\"), so the sentence is doing harm rather than nothing. The reassign target select is worse: it lists the section *type* (\"task-list\"), so with three Task Lists on a canvas there is no way to tell which one you are moving rows into. The gap underneath is narrower than it looks: `ProjectSection.title` already exists as \u00a731's optional frame-title override, and the frame already prefers it over the registry display name \u2014 nothing in the running app can set one. The dialog's `target.title ?? target.type` is correct code falling back forever. A title control in the frame's Settings panel would fix the select and give the message something to name."
+      "resolution": "Closed by the names phase (docs/decisions/2026-09-a-section-has-a-name.md), verified in the browser on personal-workspace. The dialog now reads `Remove “Backlog”?` / `It still holds 3 tasks. What should happen to them?`; its select offers `Shipped` by name and distinguishes two untitled Task Lists as `Task List (position 4 on the canvas)` and `(position 5 on the canvas)`; no section id appears anywhere in it. The Name field in the frame's Settings panel is what made that reachable — clearing it returns the header to `Task List` and removes `title` from data.json rather than storing the default as a literal. Two things the note did not predict. First, replacing the sentence was not enough: ProjectPageStore holds no rows by design and cannot count them, so the count had to travel as *data* — DomainRuleError gained an optional details record, and the dialog now opens only when a discriminated `section_not_empty` payload parses, which is also what will stop the archive phase's two new 409s from masquerading as this question. Second, naming alone does not close the note's second half: every untitled Task List still resolves to `Task List`, so the positional disambiguator is doing the real work for exactly the user the note describes — the one who has named nothing.",
+      "note": "The section removal dialog prints the domain error verbatim: `section \"section-4f7e064c\" still holds 1 tasks; removing it needs a policy of \"cascade\" or \"reassign\"`. Three things are wrong for a person standing in front of it — it names the section id rather than its title, it says \"1 tasks\", and it explains the policy vocabulary instead of the choice. The buttons underneath already say it properly (\"Archive the rows and remove\" / \"Move the rows and remove\"), so the sentence is doing harm rather than nothing. The reassign target select is worse: it lists the section *type* (\"task-list\"), so with three Task Lists on a canvas there is no way to tell which one you are moving rows into. The gap underneath is narrower than it looks: `ProjectSection.title` already exists as §31's optional frame-title override, and the frame already prefers it over the registry display name — nothing in the running app can set one. The dialog's `target.title ?? target.type` is correct code falling back forever. A title control in the frame's Settings panel would fix the select and give the message something to name."
     },
     {
       "id": "note-2026-09-04-001",
       "createdAt": "2026-09-04T05:46:00.000Z",
       "route": "/projects/project-personal",
       "projectId": "project-personal",
-      "note": "Naming a section is two deliberate acts before you can start typing: Edit layout, then Settings on the frame. \u00a732 is the reason and the reason is sound \u2014 an always-editable header title would put a text input where View Mode wants clean chrome. But the friction this phase set out to fix is *not being able to tell three Task Lists apart at a glance*, and the cure is behind a mode you have to know to enter. This is the same shape as note-2026-08-31-002 and -003 about the project More menu: the thing you look at is not the thing you change. Worth asking in a later slice whether the frame header should become editable in View Mode specifically for the name, which would be a \u00a732 exception rather than a \u00a732 violation \u2014 the name is content, not layout, in the same way the Archived region the sibling plan adds is content."
+      "note": "Naming a section is two deliberate acts before you can start typing: Edit layout, then Settings on the frame. §32 is the reason and the reason is sound — an always-editable header title would put a text input where View Mode wants clean chrome. But the friction this phase set out to fix is *not being able to tell three Task Lists apart at a glance*, and the cure is behind a mode you have to know to enter. This is the same shape as note-2026-08-31-002 and -003 about the project More menu: the thing you look at is not the thing you change. Worth asking in a later slice whether the frame header should become editable in View Mode specifically for the name, which would be a §32 exception rather than a §32 violation — the name is content, not layout, in the same way the Archived region the sibling plan adds is content."
     },
     {
       "id": "note-2026-09-04-002",
       "createdAt": "2026-09-04T05:46:30.000Z",
       "route": "/projects/project-personal",
       "projectId": "project-personal",
-      "note": "The positional disambiguator reads better than expected but exposes a smaller gap: `Task List (position 4 on the canvas)` is only useful if you can see which frame is fourth, and in flow layout with five sections on screen you can. In grid it would be much weaker \u2014 reading order tracks position, but a wrapped grid does not make \"fourth\" obvious at a glance. If grid ever becomes the default, this label wants to become something the canvas can highlight rather than something the person has to count."
+      "note": "The positional disambiguator reads better than expected but exposes a smaller gap: `Task List (position 4 on the canvas)` is only useful if you can see which frame is fourth, and in flow layout with five sections on screen you can. In grid it would be much weaker — reading order tracks position, but a wrapped grid does not make \"fourth\" obvious at a glance. If grid ever becomes the default, this label wants to become something the canvas can highlight rather than something the person has to count."
     },
     {
       "id": "note-2026-09-01-002",
       "createdAt": "2026-09-02T06:15:05.049Z",
       "route": "/projects/project-personal",
       "projectId": "project-personal",
-      "note": "Cascade archived the row exactly as designed \u2014 the task survives in data.json with `archivedAt` set \u2014 but its `sectionId` still points at the section that was just removed, and nothing in the app unarchives a task. `validateDocumentIntegrity` does not check `task.sectionId` either, so the dangling reference is invisible until something reads it. The decision entry calls cascade \"undoable\" because `archivedAt` is distinct from `cancelled`; that is true of the field and untrue of the app. Whatever eventually restores an archived row has to answer where it goes back to \u2014 which is an argument for resolving the container at restore time, the same door `resolveContainer` already opens on create."
+      "note": "Cascade archived the row exactly as designed — the task survives in data.json with `archivedAt` set — but its `sectionId` still points at the section that was just removed, and nothing in the app unarchives a task. `validateDocumentIntegrity` does not check `task.sectionId` either, so the dangling reference is invisible until something reads it. The decision entry calls cascade \"undoable\" because `archivedAt` is distinct from `cancelled`; that is true of the field and untrue of the app. Whatever eventually restores an archived row has to answer where it goes back to — which is an argument for resolving the container at restore time, the same door `resolveContainer` already opens on create."
     },
     {
       "id": "note-2026-09-04-002",
       "createdAt": "2026-09-04T23:20:00.000Z",
       "route": "/projects/project-personal",
       "projectId": "project-personal",
-      "note": "Resolves note-2026-09-01-002. Using the archive phase settled the question that note left open \u2014 \"whatever eventually restores an archived row has to answer where it goes back to\" \u2014 by removing it. Removing a section now archives the section, so the row goes back to the section it already names and no resolution mechanism is needed. Restoring the container brought back exactly the two rows the cascade took, while the task archived a minute earlier stayed archived and reappeared as its own entry once its section was live again; that asymmetry reads correctly rather than surprising, which was the thing I was least sure of. Two things the browser pass changed my mind about. The Archived region wants to be visible in View Mode: I removed a Task List with Edit layout on, left edit mode to look at the canvas, and the undo was still there \u2014 behind the mode toggle it would have been invisible at exactly the moment I wanted it. And an archived view showing no row count reads better than \"0 tasks\" would; the emptied container that legitimately shows `0 tasks` sits next to it and the two are not confusable. Remaining friction, small: three archived Task Lists read `Task List (archive 1/2/3)`, which disambiguates but says nothing about *when* or *what was in them* \u2014 a relative time would probably do more work than the ordinal. And the region has no way to clear anything out, which is the deferred permanent-delete question already recorded in the decision entry."
+      "note": "Resolves note-2026-09-01-002. Using the archive phase settled the question that note left open — \"whatever eventually restores an archived row has to answer where it goes back to\" — by removing it. Removing a section now archives the section, so the row goes back to the section it already names and no resolution mechanism is needed. Restoring the container brought back exactly the two rows the cascade took, while the task archived a minute earlier stayed archived and reappeared as its own entry once its section was live again; that asymmetry reads correctly rather than surprising, which was the thing I was least sure of. Two things the browser pass changed my mind about. The Archived region wants to be visible in View Mode: I removed a Task List with Edit layout on, left edit mode to look at the canvas, and the undo was still there — behind the mode toggle it would have been invisible at exactly the moment I wanted it. And an archived view showing no row count reads better than \"0 tasks\" would; the emptied container that legitimately shows `0 tasks` sits next to it and the two are not confusable. Remaining friction, small: three archived Task Lists read `Task List (archive 1/2/3)`, which disambiguates but says nothing about *when* or *what was in them* — a relative time would probably do more work than the ordinal. And the region has no way to clear anything out, which is the deferred permanent-delete question already recorded in the decision entry."
     },
     {
       "id": "note-2026-09-05-001",
@@ -571,6 +571,20 @@
       "route": "/projects/project-personal",
       "projectId": "project-personal",
       "note": "Slice 25.1 through the browser on the converted live file. The point of the phase is that nothing looks different, and nothing does: all seven section types render, the archived Sub-Projects region still offers Restore, and the reflection and sub-project written before the conversion are both intact. Creating a sub-project from the Sub-Projects section persisted kind 'subproject' with its own work canvas.\n\nTwo things worth writing down. The converter's own command was the only real friction: `pnpm prototype:upgrade .prototype/data.json` failed with exit 1 and no message, because `pnpm --filter` runs a script with the package as its cwd and the path resolved inside packages/prototype-data. Fixed with INIT_CWD, but it is a reminder that every `pnpm --filter` passthrough taking a path has this trap -- `prototype:seed` takes a seed name rather than a path, so it escapes it by luck rather than design.\n\nThe second is a question 25.3 has to answer rather than a defect. A sub-project's canvas now reads 'This canvas is empty. Enter Edit Layout Mode to add a section.' -- the same empty state a root gets. It has a work page underneath, but nothing on screen distinguishes a unit of work from a workspace yet, which is exactly the conflation this overhaul exists to fix. Worth re-reading once the secondary navigation lands, to see whether the distinction reads as obvious or as arbitrary."
+    },
+    {
+      "id": "note-2026-09-05-002",
+      "createdAt": "2026-09-05T19:05:00.000Z",
+      "route": "/projects/project-personal",
+      "projectId": "project-personal",
+      "note": "Slice 25.2. Enabling the Reflections page over HTTP and adding a container to it put that container on the *Home* canvas, because the canvas read was project-wide while a canvas is a page. Caught by using the feature, not by a test — every domain test asserted the page filter directly, so none of them looked at what a caller passing nothing would get. SectionService.list now answers one page (the one named, or the canonical one) and the Archived region follows it. The general lesson worth keeping: a slice that makes a second instance of something reachable has to re-check every read that quietly assumed there was one."
+    },
+    {
+      "id": "note-2026-09-05-003",
+      "createdAt": "2026-09-05T19:06:00.000Z",
+      "route": "/projects/project-personal",
+      "projectId": "project-personal",
+      "note": "Slice 25.2. A root can now enable Todos, Archive and Reflections over HTTP and MCP, but nothing renders them — 25.3 brings the navigation and 25.5–25.7 the renderers. So an enabled page is currently a canvas you can write to and cannot see. The tools say as much, but it is a state a person could reach through an agent and be puzzled by. Worth checking in 25.3 that the second sidebar column makes an enabled-but-empty page obviously navigable rather than silently absent."
     }
   ]
 }

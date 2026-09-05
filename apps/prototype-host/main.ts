@@ -123,7 +123,7 @@ if (isDirectRun) {
     const api = createApi(persistence, { clock, ai });
     const registry = createToolRegistry({
       projects: api.projects,
-    pages: api.pages,
+      pages: api.pages,
       tasks: api.tasks,
       reflections: api.reflections,
       sections: api.sections,

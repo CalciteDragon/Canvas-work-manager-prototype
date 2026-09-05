@@ -148,10 +148,13 @@ export const CreateSectionInputSchema = z.object({
   /** A `SECTION_REGISTRY` key (§29). Open, for the same reason `ProjectSection.type` is. */
   type: z.string().min(1),
   /**
-   * The page to add it to. Absent, the service resolves the project's canonical page — Home
-   * for a root, the sole canvas for a sub-project (§27). Named, it must belong to the same
-   * project and accept sections. Choosing *between* a root's pages is Slice 25.2's; this
-   * exists so the seeds and the converter can be explicit.
+   * The page to add it to. Absent, the service resolves the project's canonical page — Home for
+   * a root, the sole canvas for a sub-project (§27).
+   *
+   * Named, it must belong to the same project, hold sections *of this type* — a Reflections page
+   * takes only a reflections container (§30) — and be enabled, because no write places content
+   * behind navigation that is off. Each of those is a refusal rather than a fallback: §27 is
+   * explicit that a write must not land somewhere the caller did not name.
    */
   pageId: ProjectPageIdSchema.optional(),
   title: SectionTitleSchema.optional(),

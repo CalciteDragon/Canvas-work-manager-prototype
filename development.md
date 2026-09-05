@@ -1097,7 +1097,17 @@ one — would have manufactured a project that is live, invisible to every list 
 every write. The reactivation check is a *transition*, not a state, or it would refuse the rename
 that is part of the way out.
 
-Three things the phase found rather than planned, all caught in plan review across five rounds
+Two things the phase found by **using** it rather than by testing it, which is the argument for
+§77's step. Enabling the Reflections page and putting a container on it drew that container on
+*Home*, because the canvas read was project-wide while a canvas is a page — every domain test
+asserted the page filter directly, so none of them looked at what a caller passing nothing got.
+`SectionService.list` now answers one page and the Archived region follows it. And the
+archived-ancestor memoisation shared one walk's answer along its path, which is sound on a tree
+and wrong on a cycle, where the answer is relative to where the walk began; it made the ancestry
+disagree with itself depending on call order, and with the write freeze. Each query now walks its
+own chain.
+
+Three more the phase found rather than planned, all caught in plan review across five rounds
 and worth recording because each would have been a silently wrong answer rather than a failure.
 `SectionService.list`'s archived branch is a direct repository read that never passes through
 `ordered`, so page-scoping the sort alone would have answered a page query with the whole
