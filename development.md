@@ -1015,6 +1015,39 @@ archive browser or bulk restore.
 
 ---
 
+## Planned overhaul — Multi-page projects (Slices 25.0–25.8)
+
+**Status:** not started — dependency-aware roadmap:
+[docs/plans/25-multi-page-projects-overhaul.md](docs/plans/25-multi-page-projects-overhaul.md).
+Requested direction: root projects become workspaces with required Home and optional
+Todos, Archive and Reflections pages; subprojects become distinct, nestable single-page
+work units. Home can render shortcuts to canonical sections elsewhere in the root tree.
+The roadmap records proposed semantics and open clarifications; it does not describe
+features as already implemented or supersede the completed phases above.
+
+| Slice | Scope | Depends on | Status |
+|---|---|---|---|
+| 25.0 | Resolve product rules and amend spec | — | not started |
+| 25.1 | Root/subproject model and persistent pages | 25.0 | not started |
+| 25.2 | Page ownership through domain, API and MCP | 25.1 | not started |
+| 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | not started |
+| 25.4 | Home shortcuts | 25.3 | not started |
+| 25.5 | Chronological Todos | 25.3 | not started |
+| 25.6 | Root Archive and reachable undo | 25.3 | not started |
+| 25.7 | Completed-work reflections | 25.3 | not started |
+| 25.8 | Integrated acceptance and documentation closure | 25.4–25.7 | not started |
+
+**Done when:** the roadmap's integrated browser/MCP journey passes: a multi-page root
+and nested work units retain canonical data ownership, shortcuts reflect source content,
+Todos follows the agreed chronology, archived work remains recoverable, completed work
+can receive reflections, and navigation/toggles persist across reloads. Each phase also
+has its own executable acceptance gate; implementation follows AGENTS.md per phase.
+
+**Do not** pull in the candidate features below, arbitrary custom pages, cross-root
+shortcuts, permanent deletion or production infrastructure as part of this overhaul.
+
+---
+
 ## Phase 5 — Second milestone candidates (Slices 18–24)
 
 Build these **only when observed use justifies them** (§82). Listed in the order most
