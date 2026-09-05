@@ -59,12 +59,20 @@ export const upgradeDataFile = async (
   return { changed: true };
 };
 
+/**
+ * `pnpm --filter` runs the script with the *package* as its cwd, so a path a person typed at
+ * the repository root would silently resolve inside `packages/prototype-data` and fail as "not
+ * found". pnpm records where the command was actually invoked in `INIT_CWD`; that is the
+ * directory a typed path means.
+ */
+const resolveFromCaller = (path: string): string => resolve(process.env['INIT_CWD'] ?? process.cwd(), path);
+
 const run = async (): Promise<void> => {
   const [path, ...extraArguments] = process.argv.slice(2);
   if (path === undefined || extraArguments.length > 0) {
     throw new RangeError('Expected one path. Usage: pnpm prototype:upgrade <path to data.json>');
   }
-  const { changed } = await upgradeDataFile(path);
+  const { changed } = await upgradeDataFile(resolveFromCaller(path));
   process.stdout.write(
     changed
       ? `Converted "${path}" to schema version 3. The original is beside it as a .backup-*.json file.\n`
