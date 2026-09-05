@@ -1,16 +1,26 @@
-import { ProjectSchema, type ProjectId } from '@cwm/contracts';
+import { ProjectSchema, isSubproject, type CreateProjectInput, type CreateSubprojectInput, type ProjectId } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
 
 const NOW = '2026-08-24T16:00:00.000Z';
 
-const create = (harness: ReturnType<typeof buildHarness>, overrides = {}) =>
+type CreateOverrides = Partial<CreateSubprojectInput>;
+
+/**
+ * A root unless a test says otherwise. `kind` is required on the input (§26), and typing the
+ * overrides as the sub-project branch is what lets a caller pass `parentProjectId` — the
+ * default `{}` inferred as `{}` and could carry neither.
+ */
+const create = (harness: ReturnType<typeof buildHarness>, overrides: CreateOverrides = {}) =>
   harness.projectService.create(harness.actor, {
     workspaceId: harness.actor.workspaceId,
     name: 'Work Manager',
+    // A parent is what makes something a unit of work rather than a workspace (§26), so the
+    // helper derives the discriminator and the cases below stay about what they were about.
+    kind: overrides.parentProjectId === undefined ? 'root' : 'subproject',
     ...overrides,
-  });
+  } as CreateProjectInput);
 
 describe('ProjectService.create', () => {
   it('creates in the actor’s workspace with clock timestamps', async () => {
@@ -44,7 +54,9 @@ describe('ProjectService.create', () => {
   it('rejects a parent that does not exist or belongs to another workspace', async () => {
     const harness = buildHarness();
 
-    await expect(create(harness, { parentProjectId: 'project-nope' })).rejects.toBeInstanceOf(EntityNotFoundError);
+    await expect(create(harness, { parentProjectId: 'project-nope' as ProjectId })).rejects.toBeInstanceOf(
+      EntityNotFoundError,
+    );
     await expect(create(harness, { parentProjectId: THEIRS })).rejects.toBeInstanceOf(EntityNotFoundError);
   });
 
@@ -57,11 +69,17 @@ describe('ProjectService.create', () => {
 });
 
 describe('ProjectService nesting rules', () => {
+  /**
+   * Every case here reparents a **sub-project**. A root has no parent to change (§26) and is
+   * refused before the ancestor walk is reached, so staging these on a root would prove the
+   * kind guard twice over and the cycle rules not at all.
+   */
   it('rejects a project as its own parent', async () => {
     const harness = buildHarness();
+    const child = await create(harness, { name: 'Child', parentProjectId: MINE });
 
     await expect(
-      harness.projectService.update(harness.actor, MINE, { parentProjectId: MINE }),
+      harness.projectService.update(harness.actor, child.id, { parentProjectId: child.id }),
     ).rejects.toBeInstanceOf(DomainRuleError);
   });
 
@@ -70,9 +88,9 @@ describe('ProjectService nesting rules', () => {
     const child = await create(harness, { name: 'Child', parentProjectId: MINE });
     const grandchild = await create(harness, { name: 'Grandchild', parentProjectId: child.id });
 
-    // Making the root a child of its own grandchild closes the loop.
+    // Making the child a child of its own grandchild closes the loop.
     await expect(
-      harness.projectService.update(harness.actor, MINE, { parentProjectId: grandchild.id }),
+      harness.projectService.update(harness.actor, child.id, { parentProjectId: grandchild.id }),
     ).rejects.toBeInstanceOf(DomainRuleError);
   });
 });
@@ -196,17 +214,24 @@ describe('ProjectService.update', () => {
 describe('ProjectService cycle walk termination', () => {
   it('terminates on a document that already contains a cycle', async () => {
     const harness = buildHarness();
-    const a = await create(harness, { name: 'A' });
+    const a = await create(harness, { name: 'A', parentProjectId: MINE });
     const b = await create(harness, { name: 'B', parentProjectId: a.id });
+    const outsider = await create(harness, { name: 'C', parentProjectId: MINE });
 
     // Forge the cycle behind the service's back, the way a hand-edited data file would.
     // Without a visited set the ancestor walk spins on resolved microtasks, which starves
     // the event loop rather than merely hanging one request.
+    // Narrowed rather than cast: only a sub-project has a parent to forge, which is now a
+    // fact the type system knows and this fixture has to satisfy.
+    if (!isSubproject(a)) throw new Error('fixture A should be a sub-project');
     await harness.projects.update({ ...a, parentProjectId: b.id });
 
+    // Reparenting a project *into* the loop is what makes the walk enter it. Reparenting one
+    // of the two looped projects would not: its stored parent already equals the requested
+    // one, and the service skips the check when the parent is unchanged.
     await expect(
       Promise.race([
-        harness.projectService.update(harness.actor, MINE, { parentProjectId: b.id }),
+        harness.projectService.update(harness.actor, outsider.id, { parentProjectId: a.id }),
         new Promise((_, reject) => setTimeout(() => reject(new Error('walk did not terminate')), 1000)),
       ]),
     ).rejects.toBeInstanceOf(DomainRuleError);
@@ -228,7 +253,7 @@ describe('ProjectService permissions (§51, §53)', () => {
     const agent = agentActorFor(0, ['projects.read']);
 
     await expect(
-      harness.projectService.create(agent, { workspaceId: harness.actor.workspaceId, name: 'New' }),
+      harness.projectService.create(agent, { workspaceId: harness.actor.workspaceId, kind: 'root', name: 'New' }),
     ).rejects.toThrow('connection "agent-claude" is missing permission "projects.write"');
     await expect(harness.projectService.update(agent, MINE, { name: 'Renamed' })).rejects.toThrow(
       PermissionDeniedError,
@@ -241,5 +266,108 @@ describe('ProjectService permissions (§51, §53)', () => {
     const archived = await harness.projectService.archive(agentActorFor(0, ['projects.write']), MINE);
 
     expect(archived.status).toBe('archived');
+  });
+});
+
+/**
+ * §26's structural rules, at the layer that has to hold them for every caller: HTTP, MCP and
+ * the canvas all come through `ProjectService`.
+ */
+describe('ProjectService owner kinds and pages', () => {
+  it('creates a root with exactly one enabled Home page', async () => {
+    const harness = buildHarness();
+
+    const project = await create(harness);
+
+    expect(project.kind).toBe('root');
+    expect(await harness.pages.list({ projectId: project.id })).toEqual([
+      expect.objectContaining({ projectId: project.id, kind: 'home', enabled: true }),
+    ]);
+  });
+
+  it('creates a sub-project with one work canvas and no tabs', async () => {
+    const harness = buildHarness();
+    const root = await create(harness);
+
+    const child = await create(harness, { name: 'Work unit', parentProjectId: root.id });
+
+    expect(child).toMatchObject({ kind: 'subproject', parentProjectId: root.id });
+    expect(await harness.pages.list({ projectId: child.id })).toEqual([
+      expect.objectContaining({ kind: 'work', enabled: true }),
+    ]);
+  });
+
+  /**
+   * The owner and its page are one write. Without the shared unit of work a failed page
+   * insert would leave a project with nowhere to put a section — a state
+   * `validateDocumentIntegrity` rejects, so every later commit in the session would fail.
+   *
+   * Forced by pre-inserting the page id the create is about to derive, so the repository
+   * raises a conflict from inside the unit.
+   */
+  it('leaves no orphan project when its page cannot be written', async () => {
+    const harness = buildHarness();
+    await harness.pages.insert({
+      id: 'projectPage-1' as Parameters<typeof harness.pages.insert>[0]['id'],
+      projectId: MINE,
+      kind: 'todos',
+      enabled: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await expect(create(harness)).rejects.toThrow();
+
+    expect(await harness.projects.find('project-1' as ProjectId)).toBeNull();
+  });
+
+  it('refuses a sub-project under an archived parent', async () => {
+    const harness = buildHarness();
+    const root = await create(harness);
+    await harness.projectService.archive(harness.actor, root.id);
+
+    await expect(create(harness, { name: 'Too late', parentProjectId: root.id })).rejects.toBeInstanceOf(
+      DomainRuleError,
+    );
+  });
+
+  it('refuses to change a project’s kind by clearing or adding a parent', async () => {
+    const harness = buildHarness();
+    const root = await create(harness);
+    const child = await create(harness, { name: 'Child', parentProjectId: root.id });
+
+    // Promotion: a sub-project cannot become a root. The input no longer expresses it, so
+    // this is the service refusing the other door — a parent belonging to nobody.
+    await expect(
+      harness.projectService.update(harness.actor, root.id, { parentProjectId: child.id }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+  });
+
+  /** §45: the timestamp comes from the injected clock, and reopening does not leave it behind. */
+  it('stamps completedAt on completion and clears it on reopening', async () => {
+    const harness = buildHarness();
+    const project = await create(harness);
+
+    const completed = await harness.projectService.update(harness.actor, project.id, { status: 'completed' });
+    expect(completed.completedAt).toBe(NOW);
+
+    const reopened = await harness.projectService.update(harness.actor, project.id, { status: 'active' });
+    expect(reopened.completedAt).toBeUndefined();
+  });
+
+  /**
+   * `projects.write` alone still creates. The page insert is a write the service does on its
+   * own behalf, so it must not start demanding a read grant the actor was never given.
+   */
+  it('creates for an agent granted projects.write alone', async () => {
+    const harness = buildHarness();
+
+    const project = await harness.projectService.create(agentActorFor(0, ['projects.write']), {
+      workspaceId: harness.actor.workspaceId,
+      kind: 'root',
+      name: 'Agent root',
+    });
+
+    expect(await harness.pages.list({ projectId: project.id })).toHaveLength(1);
   });
 });

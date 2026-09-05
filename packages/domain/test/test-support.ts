@@ -1,6 +1,6 @@
 import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type PrototypeDocument, type SectionId, type UserId, type WorkspaceId } from '@cwm/contracts';
 import { PERSONAS, SEED_NOW } from '@cwm/prototype-data';
-import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
+import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
 import type { ActorContext } from '../src/actor';
 import { PrototypeClock } from '../src/clock';
 import type { IdGenerator } from '../src/ids';
@@ -44,9 +44,25 @@ const project = (id: string, workspaceId: unknown): Project =>
   PrototypeDocumentSchema.shape.projects.element.parse({
     id,
     workspaceId,
+    kind: 'root',
     name: `Project ${id}`,
     status: 'active',
     projectLayoutMode: 'flow',
+    createdAt: CREATED_AT,
+    updatedAt: CREATED_AT,
+  });
+
+/**
+ * Every project has a canonical page from the moment it exists (§26), so a fixture project
+ * comes with one. The id follows the project's, which is what lets a test name a page it did
+ * not create.
+ */
+const homePage = (projectId: string) =>
+  PrototypeDocumentSchema.shape.projectPages.element.parse({
+    id: `page-${projectId}`,
+    projectId,
+    kind: 'home',
+    enabled: true,
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
   });
@@ -74,7 +90,9 @@ export const twoPersonaDocument = (): PrototypeDocument =>
     users: PERSONAS.slice(0, 2).map((persona) => persona.user),
     workspaces: PERSONAS.slice(0, 2).map((persona) => persona.workspace),
     projects: [project('project-mine', PERSONAS[0]!.workspace.id), project('project-theirs', PERSONAS[1]!.workspace.id)],
+    projectPages: [homePage('project-mine'), homePage('project-theirs')],
     sections: [],
+    sectionShortcuts: [],
     tasks: [],
     milestones: [],
     reflections: [],
@@ -101,6 +119,7 @@ export const seedContainer = async (
     PrototypeDocumentSchema.shape.sections.element.parse({
       id,
       projectId,
+      pageId: `page-${projectId}`,
       type,
       position: 0,
       columnSpan: 12,
@@ -144,6 +163,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
   const ids = new CountingIdGenerator();
   const unitOfWork = unitOfWorkFor(store);
   const projects = new JsonProjectRepository(store);
+  const pages = new JsonProjectPageRepository(store);
   const sections = new JsonSectionRepository(store);
   const tasks = new JsonTaskRepository(store);
   const milestones = new JsonMilestoneRepository(store);
@@ -155,13 +175,14 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
 
   // Built ahead of the object literal: task and reflection writes resolve their container
   // through it, so it has to exist before they do.
-  const sectionService = new SectionService({ sections, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionService = new SectionService({ sections, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
 
   return {
     store,
     clock,
     ids,
     projects,
+    pages,
     sections,
     tasks,
     milestones,
@@ -172,7 +193,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     activity,
     actor: actorFor(0),
     other: actorFor(1),
-    projectService: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
+    projectService: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
     taskService: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     progressService: new ProgressService({ projects, tasks }),
     dashboardService: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),

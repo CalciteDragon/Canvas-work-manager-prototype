@@ -1,5 +1,8 @@
 import {
+  canonicalPageKindFor,
   ProjectIdSchema,
+  ProjectPageIdSchema,
+  ProjectPageSchema,
   ProjectSchema,
   type CreateProjectInput,
   type Project,
@@ -7,7 +10,7 @@ import {
   type ProjectQuery,
   type UpdateProjectInput,
 } from '@cwm/contracts';
-import type { ProjectRepository, UnitOfWork } from '@cwm/repositories';
+import type { ProjectPageRepository, ProjectRepository, UnitOfWork } from '@cwm/repositories';
 import { assertPermitted, assertValidActor, type ActorContext } from './actor';
 import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
@@ -20,6 +23,12 @@ import type { IdGenerator } from './ids';
  */
 export interface ProjectServiceDependencies {
   projects: ProjectRepository;
+  /**
+   * §26's pages. A repository rather than a page *service*: a project and its canonical page
+   * are one write, and routing that through another service would be a new edge in the domain
+   * graph for no invariant that needs one.
+   */
+  pages: ProjectPageRepository;
   activity: ActivityService;
   clock: Clock;
   ids: IdGenerator;
@@ -75,12 +84,20 @@ export class ProjectService {
     }
 
     return this.dependencies.unitOfWork.run(async () => {
-      if (input.parentProjectId !== undefined) await this.require(actor, input.parentProjectId);
+      if (input.kind === 'subproject') {
+        const parent = await this.require(actor, input.parentProjectId);
+        // A unit of work under archived work would be live inside something hidden from every
+        // ordinary read — the same defect a live row in an archived section is, one layer up.
+        if (parent.status === 'archived') {
+          throw new DomainRuleError(`project "${parent.id}" is archived and cannot take new work`);
+        }
+      }
 
       const now = this.dependencies.clock.now().toISOString();
       const project = ProjectSchema.parse({
         id: ProjectIdSchema.parse(this.dependencies.ids.next('project')),
         workspaceId: input.workspaceId,
+        kind: input.kind,
         parentProjectId: input.parentProjectId,
         name: input.name,
         description: input.description,
@@ -95,6 +112,19 @@ export class ProjectService {
       });
 
       await this.dependencies.projects.insert(project);
+      // In the same unit as the owner: a project with no canonical page has nowhere to put a
+      // section, which `validateDocumentIntegrity` rejects — so the pair commits or neither
+      // does. No separate "ensure page" path exists to drift from this one.
+      await this.dependencies.pages.insert(
+        ProjectPageSchema.parse({
+          id: ProjectPageIdSchema.parse(this.dependencies.ids.next('projectPage')),
+          projectId: project.id,
+          kind: canonicalPageKindFor(project.kind),
+          enabled: true,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
       await this.dependencies.activity.record(actor, {
         action: 'project.created',
         entityType: 'project',
@@ -112,6 +142,13 @@ export class ProjectService {
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
+      // Reparenting is only meaningful for a unit of work. A root has no parent to change,
+      // and giving it one would be conversion between kinds — which §26 does not allow, and
+      // which `ProjectSchema` would reject as a parse failure rather than a refusal.
+      if (input.parentProjectId !== undefined && current.kind !== 'subproject') {
+        throw new DomainRuleError('a root project cannot be given a parent');
+      }
+
       const next = { ...current };
       apply(next, 'name', input.name);
       apply(next, 'description', input.description);
@@ -129,6 +166,15 @@ export class ProjectService {
 
       if (next.parentProjectId !== current.parentProjectId && next.parentProjectId !== undefined) {
         await this.assertParentIsUsable(actor, id, next.parentProjectId);
+      }
+
+      // §26: completion is explicit and recorded. Derived from the status rather than
+      // accepted as an input, so the two cannot disagree, and cleared on reopening so a
+      // reopened project does not keep claiming a finish date.
+      if (next.status === 'completed' && current.status !== 'completed') {
+        next.completedAt = this.dependencies.clock.now().toISOString();
+      } else if (next.status !== 'completed') {
+        delete next.completedAt;
       }
 
       const archiving = next.status === 'archived' && current.status !== 'archived';

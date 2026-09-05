@@ -119,7 +119,7 @@ describe('DashboardService.load', () => {
   it('omits projects that are not active and never leaks another workspace', async () => {
     const harness = buildHarness();
     await harness.taskService.create(harness.other, { projectId: THEIRS, title: 'Not mine', dueAt: '2026-08-21T17:00:00.000Z' });
-    const parked = await harness.projectService.create(harness.actor, { workspaceId: harness.actor.workspaceId, name: 'Parked' });
+    const parked = await harness.projectService.create(harness.actor, { kind: 'root', workspaceId: harness.actor.workspaceId, name: 'Parked' });
     await harness.projectService.update(harness.actor, parked.id, { status: 'on_hold' });
 
     const result = await harness.dashboardService.load(harness.actor, {});

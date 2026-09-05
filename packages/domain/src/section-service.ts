@@ -1,4 +1,6 @@
 import {
+  canonicalPageKindFor,
+  pageAcceptsSections,
   ProjectSectionSchema,
   ReflectionSchema,
   SectionIdSchema,
@@ -17,9 +19,11 @@ import {
   type SectionQuery,
   type SectionRemovalRefusalDetails,
   type Task,
+  type ProjectPageId,
   type UpdateSectionInput,
 } from '@cwm/contracts';
 import type {
+  ProjectPageRepository,
   ProjectRepository,
   ReflectionRepository,
   SectionRepository,
@@ -35,6 +39,8 @@ import type { IdGenerator } from './ids';
 export interface SectionServiceDependencies {
   sections: SectionRepository;
   projects: ProjectRepository;
+  /** §27: a section belongs to a page, so adding one has to resolve or check that page. */
+  pages: ProjectPageRepository;
   /** Containers own rows, so removing one has to reach the collections it owns. */
   tasks: TaskRepository;
   reflections: ReflectionRepository;
@@ -159,13 +165,17 @@ export class SectionService {
     input: CreateSectionInput,
   ): Promise<ProjectSection> {
     await this.assertProjectVisible(actor, projectId);
+    // Ordered before the page resolution below, so an archived project still refuses with
+    // "reactivate it first" rather than with whatever its pages happen to look like.
     await this.assertProjectActive(projectId);
+    const pageId = await this.resolvePage(projectId, input.pageId);
     const siblings = await this.ordered(projectId);
 
     const now = this.dependencies.clock.now().toISOString();
     const section = ProjectSectionSchema.parse({
       id: SectionIdSchema.parse(this.dependencies.ids.next('section')),
       projectId,
+      pageId,
       type: input.type,
       // Normalised here as well as in `SectionTitleSchema`: this package is a public API,
       // and a caller that did not traverse a write input must not store `"  "` as a name.
@@ -186,6 +196,33 @@ export class SectionService {
     await this.dependencies.sections.insert(section);
     await this.record(actor, section, 'project.section_added', 'Added');
     return section;
+  }
+
+  /**
+   * The page a section lands on: the one the caller named, or the project's canonical page
+   * when it named none (§27). A root's Home, a sub-project's sole canvas.
+   *
+   * A named page must belong to this project and accept sections — Todos and Archive project
+   * rows they do not own (§30), so a section on one would render nowhere. Choosing *between*
+   * a root's several section-bearing pages is Slice 25.2's; today there is exactly one.
+   */
+  private async resolvePage(projectId: ProjectId, pageId: ProjectPageId | undefined): Promise<ProjectPageId> {
+    if (pageId === undefined) {
+      const project = await this.dependencies.projects.find(projectId);
+      if (project === null) throw new EntityNotFoundError('project', projectId);
+      const canonical = (await this.dependencies.pages.list({ projectId, kind: canonicalPageKindFor(project.kind) }))[0];
+      // Unreachable while every project is created with its page in the same unit of work,
+      // and cheaper to state than to let a caller discover as a schema failure.
+      if (canonical === undefined) throw new DomainRuleError(`project "${projectId}" has no canvas`);
+      return canonical.id;
+    }
+
+    const page = await this.dependencies.pages.find(pageId);
+    if (page === null || page.projectId !== projectId) {
+      throw new DomainRuleError('a section must live on a page of its own project');
+    }
+    if (!pageAcceptsSections(page.kind)) throw new DomainRuleError(`a ${page.kind} page does not hold sections`);
+    return page.id;
   }
 
   /**

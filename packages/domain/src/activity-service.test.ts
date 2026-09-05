@@ -12,7 +12,7 @@ describe('ActivityService.record', () => {
     const harness = buildHarness();
     await seedContainer(harness, MINE);
 
-    const project = await harness.projectService.create(harness.actor, {
+    const project = await harness.projectService.create(harness.actor, { kind: 'root',
       workspaceId: harness.actor.workspaceId,
       name: 'Work Manager',
     });
@@ -139,7 +139,7 @@ describe('ActivityService.list', () => {
   it('filters by project', async () => {
     const harness = buildHarness();
     await seedContainer(harness, MINE);
-    const other = await harness.projectService.create(harness.actor, {
+    const other = await harness.projectService.create(harness.actor, { kind: 'root',
       workspaceId: harness.actor.workspaceId,
       name: 'Other',
     });
@@ -153,7 +153,7 @@ describe('ActivityService.list', () => {
 describe('activity and the unit of work', () => {
   it('rolls the event back with the mutation that failed', async () => {
     const harness = buildHarness();
-    const child = await harness.projectService.create(harness.actor, {
+    const child = await harness.projectService.create(harness.actor, { kind: 'subproject',
       workspaceId: harness.actor.workspaceId,
       name: 'Child',
       parentProjectId: MINE,

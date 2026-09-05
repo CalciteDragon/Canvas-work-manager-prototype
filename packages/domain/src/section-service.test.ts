@@ -1,4 +1,4 @@
-import { ProjectSectionSchema, type SectionId } from '@cwm/contracts';
+import { ProjectSectionSchema, type ProjectId, type SectionId } from '@cwm/contracts';
 import { SEED_NOW } from '@cwm/prototype-data';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it } from 'vitest';
@@ -577,5 +577,92 @@ describe('SectionService.restoreSection', () => {
 
     await harness.projectService.update(harness.actor, MINE, { status: 'active' });
     expect((await harness.sectionService.restoreSection(harness.actor, section.id)).archivedAt).toBeUndefined();
+  });
+});
+
+/**
+ * §27's ownership chain at the layer that maintains it. A section belongs to a page, and the
+ * page it belongs to is either the one the caller named or the project's canonical one.
+ */
+describe('SectionService page ownership', () => {
+  const canonicalPageOf = async (harness: ReturnType<typeof buildHarness>, projectId: ProjectId) =>
+    (await harness.pages.list({ projectId }))[0]!;
+
+  it('lands a section on a root’s Home when no page is named', async () => {
+    const harness = buildHarness();
+
+    const section = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
+
+    expect(section.pageId).toBe((await canonicalPageOf(harness, MINE)).id);
+  });
+
+  it('lands a section on a sub-project’s work canvas when no page is named', async () => {
+    const harness = buildHarness();
+    const child = await harness.projectService.create(harness.actor, {
+      workspaceId: harness.actor.workspaceId,
+      kind: 'subproject',
+      parentProjectId: MINE,
+      name: 'Work unit',
+    });
+
+    const section = await harness.sectionService.add(harness.actor, child.id, { type: 'task-list' });
+
+    expect(await canonicalPageOf(harness, child.id)).toMatchObject({ kind: 'work', id: section.pageId });
+  });
+
+  it('refuses a section on another project’s page', async () => {
+    const harness = buildHarness();
+    const foreign = await canonicalPageOf(harness, THEIRS);
+
+    await expect(
+      harness.sectionService.add(harness.actor, MINE, { type: 'task-list', pageId: foreign.id }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+  });
+
+  /** §30: Todos and Archive project rows they do not own, so a section there renders nowhere. */
+  it('refuses a section on a page that holds none', async () => {
+    const harness = buildHarness();
+    const home = await canonicalPageOf(harness, MINE);
+    await harness.pages.insert({ ...home, id: 'page-mine-todos' as typeof home.id, kind: 'todos' });
+
+    await expect(
+      harness.sectionService.add(harness.actor, MINE, { type: 'task-list', pageId: 'page-mine-todos' as typeof home.id }),
+    ).rejects.toThrow(/does not hold sections/);
+  });
+
+  /**
+   * Ordering, not just outcome: page resolution runs after the archive check, so an archived
+   * project keeps failing with the refusal that names the actual problem.
+   */
+  it('still refuses with the archive error on an archived project', async () => {
+    const harness = buildHarness();
+    await harness.projectService.archive(harness.actor, MINE);
+
+    await expect(harness.sectionService.add(harness.actor, MINE, { type: 'task-list' })).rejects.toThrow(
+      /archived; reactivate it first/,
+    );
+  });
+
+  it('keeps a duplicate on the page that owned the original', async () => {
+    const harness = buildHarness();
+    const section = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
+
+    expect((await harness.sectionService.duplicate(harness.actor, section.id)).pageId).toBe(section.pageId);
+  });
+
+  /**
+   * The write-only path still works. Resolving a container now resolves a page too, and an
+   * agent granted `tasks.write` alone must not start needing layout permission for it.
+   */
+  it('resolves a container for an agent granted tasks.write alone', async () => {
+    const harness = buildHarness();
+
+    const task = await harness.taskService.create(agentActorFor(0, ['tasks.write']), {
+      projectId: MINE,
+      title: 'Agent task',
+    });
+
+    const container = await harness.sectionService.get(harness.actor, task.sectionId);
+    expect(container.pageId).toBe((await canonicalPageOf(harness, MINE)).id);
   });
 });

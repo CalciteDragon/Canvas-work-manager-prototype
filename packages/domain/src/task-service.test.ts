@@ -53,7 +53,7 @@ describe('TaskService.create', () => {
 
   it('rejects a parent task from another project', async () => {
     const harness = buildHarness();
-    const sibling = await harness.projectService.create(harness.actor, {
+    const sibling = await harness.projectService.create(harness.actor, { kind: 'root',
       workspaceId: harness.actor.workspaceId,
       name: 'Sibling',
     });
@@ -217,7 +217,7 @@ describe('TaskService.update', () => {
 
   it('refuses to move a task to another project in the same workspace', async () => {
     const harness = buildHarness();
-    const destination = await harness.projectService.create(harness.actor, {
+    const destination = await harness.projectService.create(harness.actor, { kind: 'root',
       workspaceId: harness.actor.workspaceId,
       name: 'Destination',
     });
