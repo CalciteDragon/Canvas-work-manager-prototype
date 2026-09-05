@@ -568,6 +568,18 @@ JSON is preferable during this phase because:
 - AI agents can inspect test fixtures
 - prototype data volume is tiny
 
+"No migrations are initially necessary" held while a stale `schemaVersion` could simply be
+reset. It stops holding the first time a real file is worth keeping. The multi-page cutover is
+that first time, so it gets **one bounded converter with its own explicit CLI entry** —
+validate, back up, write atomically, no-op on an already-converted file, fail loudly on
+anything else. That is a single one-off, deliberately not a migration runner, a version chain
+or a rollback framework; the next cutover writes its own or resets, and either is cheaper than
+a framework nothing else uses. See
+`docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md`.
+
+*Planned in Slice 25.1. Today `SCHEMA_VERSION` is 2 and a mismatch fails at load, with
+`pnpm prototype:reset` as the only recovery.*
+
 ---
 
 # 15. JSON Persistence Behavior
@@ -1027,7 +1039,7 @@ A project is one of two things, and the difference is structural rather than cos
 | Parent | none, ever | required — a root or another subproject |
 | Children | subprojects | subprojects, to any depth |
 | Canvases | one per enabled page | exactly one work canvas |
-| Pages | Home, plus optional pages | none, and no tab settings |
+| Pages | Home, plus optional pages | one, fixed: its work canvas |
 
 `kind` is part of the stored model and the schemas — a discriminated union, not a label
 derived from whether `parentProjectId` happens to be set. Roots and subprojects share an ID
@@ -1042,16 +1054,23 @@ Completion is explicit and does **not** complete descendants; reopening clears `
 
 ## Pages
 
-A root's pages are persisted records — stable ID, owner project, kind, enabled state, and the
-canvas layout where the kind has one. Four kinds exist:
+Pages are persisted records — stable ID, owner project, kind, enabled state, and the canvas
+layout where the kind has one. Four kinds are a root's, and one is a subproject's:
 
 ```text
-Home       required, exactly one, cannot be disabled
+Home        required on a root, exactly one, cannot be disabled
 
-Todos      optional  (§34)
-Archive    optional  (§31)
-Reflections optional (§36)
+Todos       optional  (§34)
+Archive     optional  (§31)
+Reflections optional  (§36)
+
+Work        required on a subproject, exactly one
 ```
+
+A subproject's work canvas is a page record like any other — that is what keeps the ownership
+chain in §27 unbranched, since every section belongs to a page. It is simply not a *tab*: it
+cannot be disabled, cannot be added, and has no toggle API. Only the four root kinds are
+navigation.
 
 Home and a subproject's work canvas are full section canvases: every registered section type
 (§30) may be added to either. Reflections owns its own reflections container and shows the
@@ -1153,6 +1172,9 @@ Subprojects are not sections and do not live on a page: they belong to the paren
 hierarchy. A Sub-Projects section is a *view* of that hierarchy, which is why removing one
 takes no work down with it.
 
+*Planned in Slices 25.1–25.2. Today a section belongs directly to its project, there is no page
+record, and document integrity has nothing to check them against.*
+
 ## Where a write lands when nobody said
 
 Quick Add and an agent's `create_task` both have to resolve a container. With pages, "the
@@ -1168,6 +1190,9 @@ than inferred:
 
 A write never lands on a disabled page. Silent placement somewhere invisible is worse than a
 refusal, because the writer believes it worked.
+
+*Planned in Slice 25.2. Today an unnamed container resolves to the project's first container of
+the matching type, and there is no page to supply.*
 
 ## Shortcuts on Home
 
@@ -1298,6 +1323,9 @@ page kind declares a capability, and it is not a hand-maintained list of section
 container the page does not accept — a Task List on the Reflections page — is refused by the
 domain, not merely hidden by the UI.
 
+*Planned in Slices 25.1–25.3. The seven registered types named above are current; the page
+column is not — today every section belongs directly to its project.*
+
 ---
 
 # 31. Project Section Frame
@@ -1358,6 +1386,11 @@ A project whose own status is `archived` hides its live contents from ordinary r
 Archive page may still show them under their archived owner, distinguishing *hidden because an
 ancestor is archived* from *archived in its own right*. Reactivating is an explicit status
 choice; the prototype does not guess a prior status.
+
+None of this adds a cascade. Archiving a project with **live child subprojects is still
+refused**, exactly as it is today, and archiving a project never archives anything beneath it —
+an implicit cascade would archive work the caller never named. A whole-tree Archive page makes
+archived work *findable*; it does not make archiving *contagious*.
 
 Because undo must never be behind a toggle, disabling the Archive page leaves **Open archive**
 in the project controls, which enables and opens it.
@@ -1508,8 +1541,9 @@ A subproject's date-only due date and a task's due date compare under the existi
 convention (§45, `docs/decisions/2026-08-task-date-only-due-time.md`), which timezone tests
 pin rather than assume.
 
-Rows show their completion state and **stay on the list once finished**, because a chronology
-that erases what was done is a worse record than one that shows it. Archived entities, and
+Rows show their completion state and **stay on the list once finished** — completed *and*
+cancelled, since a task that was dropped is part of the week's record too, and a chronology
+that erases what happened is a worse record than one that shows it. Archived entities, and
 anything beneath an archived ancestor, are excluded. Every row carries an origin breadcrumb
 and links to its canonical owner; completing one there and completing it here are the same
 operation on the same row.
@@ -3339,11 +3373,14 @@ additional project layouts
 
 Do not automatically implement everything in the original product idea.
 
-Use since the first milestone produced one observed question large enough to take priority
-over that list: a single canvas per project conflates *a place to work* with *a piece of
-work*. The multi-page root and the subproject work unit described in §23, §26–27, §30–32, §34,
-§36 and §54 are the answer being tested, staged as Slices 25.0–25.8 in `development.md`. The
-candidates above wait behind it.
+One direction has been raised by the user that takes priority over that list: a single canvas
+per project conflates *a place to work* with *a piece of work*. The multi-page root and the
+subproject work unit described in §23, §26–27, §30–32, §34, §36 and §54 are the answer being
+tested, staged as Slices 25.0–25.8 in `development.md`. The candidates above wait behind it.
+
+It is worth being honest about which kind of input this was. It is a **user-requested
+direction**, not a finding the prototype produced by being used — the distinction §77 and §79
+exist to keep. Use is what will judge it.
 
 ---
 
@@ -3354,9 +3391,11 @@ The MVP specification should not be finalized until these have answers.
 ## Project model
 
 - Are nested projects worth keeping?
-  *Answered by use: yes, and they are a different kind of thing — see §26 and
-  `docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md`. The remaining
-  question is how deep nesting is actually used.*
+  *Still open, and still a question for use. A decision has been taken on what a nested
+  project **is** — a unit of work, structurally distinct from a root (§26,
+  `docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md`) — from code and
+  user direction, not from observed use. Whether nesting earns its place, and at what depth,
+  is what use still has to answer.*
 - Is a root project with pages better than one long canvas?
 - Do subprojects need any root capability we removed from them?
 - What defines project progress?

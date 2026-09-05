@@ -111,7 +111,17 @@ descendants; reopening clears the timestamp.
 
 A root owns persisted `ProjectPage` records: exactly one enabled Home that cannot be disabled,
 and at most one each of Todos, Archive and Reflections, defaulting to Home only. Disabling a
-page destroys nothing. A subproject has exactly one work canvas and no tab API at all.
+page destroys nothing.
+
+A subproject owns exactly one page too — its work canvas — and no tab API at all. Making the
+work canvas a page record rather than an exception is what keeps the ownership chain
+unbranched: every section names a page, with no "unless its project is a subproject" clause in
+every reader. It is a page in the model and not a tab in the product; only the four root kinds
+are navigation.
+
+Archiving gains no cascade from any of this. A project with live child subprojects still
+refuses to archive, and archiving never propagates downward. The Archive page makes archived
+work findable, which is a different thing from making archiving contagious.
 
 Home and work canvases accept every registered section type. Reflections owns its own
 container and aggregates the journal. Todos and Archive are **derived** — they own no rows.
