@@ -103,11 +103,16 @@ The three open clarifications were resolved by the user on 2026-09-04:
 
 Roots and subprojects are one discriminated `Project` union sharing an ID space and a
 repository. A root cannot have a parent; a subproject requires one, may parent another to any
-depth, and can never own pages. Neither converts into the other.
+depth, and can never own a *tab* — an optional page, or a second canvas. Neither converts into
+the other.
 
 Subprojects carry description, an optional **due date** (the existing date-only `targetDate`,
 relabelled), status and `completedAt`. Completion is explicit and does not cascade to
-descendants; reopening clears the timestamp.
+descendants; reopening clears the timestamp. `completedAt` is stored on **both** kinds rather
+than subprojects alone: a root already has a `completed` status, and letting that status mean
+"and we recorded when" on one kind and not the other would be a worse rule than the one it
+replaces. It is a timestamp, not a capability, so it does not breach the roadmap's
+"preserve existing root settings".
 
 A root owns persisted `ProjectPage` records: exactly one enabled Home that cannot be disabled,
 and at most one each of Todos, Archive and Reflections, defaulting to Home only. Disabling a
@@ -150,7 +155,7 @@ every grant it returns.
 High for the root/subproject split and for pages owning sections — both follow from what the
 code already does rather than from taste, and both were reachable only by reading it.
 
-Medium for the page *kinds*. Four is a guess. Todos and Archive in particular may turn out to
+Medium for the page *kinds*. Four navigable kinds is a guess. Todos and Archive in particular may turn out to
 be one page, or to be better as filters on Home, and the capability-entry design is what keeps
 that cheap to find out.
 
@@ -167,5 +172,12 @@ None of this is browser-confidence. Nothing here has been used.
 The first real week of use on a multi-page root. Specifically: whether any optional page gets
 disabled after being enabled, whether shortcuts are created and then abandoned, whether
 Todos's retained completed rows are read or scrolled past, and whether nesting past depth two
-is ever wanted. Also when a fifth page kind is proposed — that is the test of whether the
+is ever wanted. Also when a fifth *navigable* page kind is proposed — that is the test of whether the
 capability table generalises or whether it has quietly become the page builder §80 forbids.
+
+The subproject work canvas is deliberately not that fifth kind, and the distinction is worth
+stating because it looks like one. It is a page **record**, so that every section names a page
+and §27's chain has no "unless its owner is a subproject" clause in every reader. It is not a
+page in the product: it cannot be added, disabled, chosen or navigated to as a tab. The
+tripwire is about a growing menu of things a person can turn on, and this adds nothing to that
+menu.
