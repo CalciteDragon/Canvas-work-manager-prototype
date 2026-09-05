@@ -17,7 +17,7 @@ describe('§57 activity from a tool call', () => {
   const newest = async () => (await harness.activity.list(user(), { limit: 1 }))[0]!;
 
   const cases: [name: string, permission: 'projects.write' | 'tasks.write' | 'reflections.write', input: unknown, action: string][] = [
-    ['create_project', 'projects.write', { name: 'Agent-made project' }, 'project.created'],
+    ['create_project', 'projects.write', { kind: 'root', name: 'Agent-made project' }, 'project.created'],
     ['update_project', 'projects.write', { projectId: PROJECT, description: 'Rewritten.' }, 'project.updated'],
     ['create_task', 'tasks.write', { projectId: PROJECT, title: 'Wire the transport' }, 'task.created'],
     ['update_task', 'tasks.write', { taskId: OPEN_TASK, priority: 'high' }, 'task.updated'],

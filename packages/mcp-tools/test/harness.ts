@@ -27,6 +27,7 @@ import {
   JsonActivityRepository,
   JsonAgentConnectionRepository,
   JsonMilestoneRepository,
+  JsonProjectPageRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
@@ -82,9 +83,22 @@ export const buildHarness = () => {
     PrototypeDocumentSchema.shape.projects.element.parse({
       id: FOREIGN_PROJECT,
       workspaceId: PERSONAS[1]!.workspace.id,
+      kind: 'root',
       name: 'Their project',
       status: 'active',
       projectLayoutMode: 'flow',
+      createdAt: '2026-08-01T16:00:00.000Z',
+      updatedAt: '2026-08-01T16:00:00.000Z',
+    }),
+  );
+
+  // Its canonical page, in the same push: a project without one does not validate (§26).
+  document.projectPages.push(
+    PrototypeDocumentSchema.shape.projectPages.element.parse({
+      id: `page-${FOREIGN_PROJECT}`,
+      projectId: FOREIGN_PROJECT,
+      kind: 'home',
+      enabled: true,
       createdAt: '2026-08-01T16:00:00.000Z',
       updatedAt: '2026-08-01T16:00:00.000Z',
     }),
@@ -95,6 +109,7 @@ export const buildHarness = () => {
   const ids = new CountingIdGenerator();
   const unitOfWork = unitOfWorkFor(store);
   const projects = new JsonProjectRepository(store);
+  const pages = new JsonProjectPageRepository(store);
   const tasks = new JsonTaskRepository(store);
   const reflections = new JsonReflectionRepository(store);
   const sections = new JsonSectionRepository(store);
@@ -114,11 +129,11 @@ export const buildHarness = () => {
     ids,
   });
 
-  const sectionService = new SectionService({ sections, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionService = new SectionService({ sections, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
 
   const services = {
     sections: sectionService,
-    projects: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
+    projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),

@@ -6,6 +6,7 @@ import {
   JsonAgentConnectionRepository,
   JsonMilestoneRepository,
   JsonDataStore,
+  JsonProjectPageRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
@@ -42,6 +43,8 @@ export interface Persistence {
   path: string;
   store: DataStore;
   projects: JsonProjectRepository;
+  /** §26's pages, which own the sections below. */
+  pages: JsonProjectPageRepository;
   sections: JsonSectionRepository;
   tasks: JsonTaskRepository;
   milestones: JsonMilestoneRepository;
@@ -62,6 +65,7 @@ export const loadPersistence = async (path = dataFilePath()): Promise<Persistenc
     path,
     store,
     projects: new JsonProjectRepository(store),
+    pages: new JsonProjectPageRepository(store),
     sections: new JsonSectionRepository(store),
     tasks: new JsonTaskRepository(store),
     milestones: new JsonMilestoneRepository(store),

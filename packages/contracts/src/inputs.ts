@@ -65,20 +65,25 @@ const createProjectFields = {
  * required, so a caller cannot create the wrong thing by omission, and a body whose `kind` and
  * `parentProjectId` contradict each other is rejected by the parser rather than reinterpreted.
  */
-export const CreateRootProjectInputSchema = z.object({
+/**
+ * **Strict**, and that is what carries the rule: a plain `z.object` strips unknown keys, so a
+ * root branch that merely omitted `parentProjectId` would parse `{ kind: 'root',
+ * parentProjectId }` *successfully* with the parent silently dropped — the exact
+ * reinterpretation this union exists to prevent. Strictness makes it an error instead.
+ *
+ * The storage schema states the same rule as `parentProjectId: z.undefined().optional()`
+ * (`project.ts`). It cannot do that here: `z.undefined()` has no JSON Schema representation,
+ * and this input is published to agents through `z.toJSONSchema` (§55) — which the tool
+ * registry's contract test catches.
+ */
+export const CreateRootProjectInputSchema = z.strictObject({
   ...createProjectFields,
   kind: z.literal('root'),
-  /**
-   * Declared absent rather than omitted, for the reason `RootProjectSchema` gives: a plain
-   * `z.object` strips unknown keys, so leaving it out would make `{ kind: 'root',
-   * parentProjectId }` parse *successfully* with the parent silently dropped — the exact
-   * silent reinterpretation this union exists to prevent.
-   */
-  parentProjectId: z.undefined().optional(),
 });
 export type CreateRootProjectInput = z.infer<typeof CreateRootProjectInputSchema>;
 
-export const CreateSubprojectInputSchema = z.object({
+/** Strict for the same reason, and so a misspelled field is a refusal rather than a silent drop. */
+export const CreateSubprojectInputSchema = z.strictObject({
   ...createProjectFields,
   kind: z.literal('subproject'),
   parentProjectId: ProjectIdSchema,

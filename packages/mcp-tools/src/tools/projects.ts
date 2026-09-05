@@ -1,4 +1,10 @@
-import { CreateProjectInputSchema, ProjectIdSchema, ProjectQuerySchema, UpdateProjectInputSchema } from '@cwm/contracts';
+import {
+  CreateRootProjectInputSchema,
+  CreateSubprojectInputSchema,
+  ProjectIdSchema,
+  ProjectQuerySchema,
+  UpdateProjectInputSchema,
+} from '@cwm/contracts';
 import { z } from 'zod';
 import { defineTool, type WorkManagerTool } from '../tool';
 
@@ -23,9 +29,17 @@ export const projectTools: readonly WorkManagerTool[] = [
   }),
   defineTool({
     name: 'create_project',
-    description: 'Create a project. It is created in the connection owner’s workspace; sub-projects are made by naming a parent.',
+    description:
+      'Create a project in the connection owner’s workspace. Two kinds exist: kind "root" is a workspace with pages and takes no parent; kind "subproject" is a unit of work with one canvas and requires parentProjectId, which may itself be a sub-project at any depth. A root naming a parent, or a sub-project without one, is rejected rather than reinterpreted.',
     permission: 'projects.write',
-    inputSchema: CreateProjectInputSchema.omit({ workspaceId: true }),
+    // Each branch omits `workspaceId` separately: `.omit()` is an object operation and the
+    // union has no single object to take it from. Rebuilding the union here rather than
+    // widening the contract keeps the discriminator required, which is what stops an agent
+    // creating the wrong kind of thing by leaving a field out.
+    inputSchema: z.discriminatedUnion('kind', [
+      CreateRootProjectInputSchema.omit({ workspaceId: true }),
+      CreateSubprojectInputSchema.omit({ workspaceId: true }),
+    ]),
     // The workspace is the actor's, injected rather than accepted. The service rejects a
     // foreign one anyway, and an agent has no way to know its own workspace id — asking it
     // for one would be asking it to guess.

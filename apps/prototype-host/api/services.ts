@@ -41,7 +41,7 @@ export interface HostServices extends ApiDependencies {
 export const createApi = (persistence: Persistence, options: CreateApiOptions = {}): HostServices => {
   const clock = options.clock ?? new SimulatedClock();
   const ids = new PrototypeIdGenerator();
-  const { store, projects, sections, tasks, milestones, reflections, activities, agents, users } = persistence;
+  const { store, projects, pages, sections, tasks, milestones, reflections, activities, agents, users } = persistence;
 
   // §62. The wrapped unit of work is built **locally** and handed to the services;
   // `persistence.unitOfWork` is left alone, because `PrototypeRuntime`'s seed swap runs
@@ -54,13 +54,13 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
 
   // Built ahead of the table: task and reflection writes resolve their container through
   // it, so it has to exist before they do.
-  const sectionService = new SectionService({ sections, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionService = new SectionService({ sections, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
 
   return {
     store,
     events,
     activity,
-    projects: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
+    projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     sections: sectionService,
     progress: new ProgressService({ projects, tasks }),

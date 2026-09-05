@@ -30,7 +30,7 @@ const CASES: Record<string, ToolCase> = {
     verify: (result) => expect(result.name).toBe('Work Manager'),
   },
   create_project: {
-    input: { name: 'Agent-made project' },
+    input: { kind: 'root', name: 'Agent-made project' },
     mutates: true,
     verify: async (result, harness) => {
       expect(result.name).toBe('Agent-made project');

@@ -1,6 +1,6 @@
 import { PrototypeAIProvider } from '@cwm/domain';
 import { describe, expect, it } from 'vitest';
-import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
+import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
 import { buildSeed } from '@cwm/prototype-data';
 import type { LiveEvent, TaskId, UserId, WorkspaceId } from '@cwm/contracts';
 import type { ActorContext } from '@cwm/domain';
@@ -52,6 +52,7 @@ describe('createApi and the live event hub (§62)', () => {
       path: ':memory:',
       store,
       projects: new JsonProjectRepository(store),
+      pages: new JsonProjectPageRepository(store),
       sections: new JsonSectionRepository(store),
       tasks: new JsonTaskRepository(store),
       milestones: new JsonMilestoneRepository(store),

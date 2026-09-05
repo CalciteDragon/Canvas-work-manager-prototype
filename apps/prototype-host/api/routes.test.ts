@@ -5,6 +5,7 @@ import {
   JsonActivityRepository,
   JsonAgentConnectionRepository,
   JsonMilestoneRepository,
+  JsonProjectPageRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
@@ -24,6 +25,7 @@ const project = (id: string, workspaceId: unknown) =>
   PrototypeDocumentSchema.shape.projects.element.parse({
     id,
     workspaceId,
+    kind: 'root',
     name: `Project ${id}`,
     status: 'active',
     projectLayoutMode: 'flow',
@@ -31,14 +33,28 @@ const project = (id: string, workspaceId: unknown) =>
     updatedAt: at,
   });
 
-const document = (withProjects = true) =>
-  PrototypeDocumentSchema.parse({
+const homePage = (projectId: string) =>
+  PrototypeDocumentSchema.shape.projectPages.element.parse({
+    id: `page-${projectId}`,
+    projectId,
+    kind: 'home',
+    enabled: true,
+    createdAt: at,
+    updatedAt: at,
+  });
+
+const document = (withProjects = true) => {
+  const projects = withProjects
+    ? [project('project-mine', PERSONAS[0]!.workspace.id), project('project-theirs', PERSONAS[1]!.workspace.id)]
+    : [];
+  return PrototypeDocumentSchema.parse({
     schemaVersion: SCHEMA_VERSION,
     users: PERSONAS.slice(0, 2).map((persona) => persona.user),
     workspaces: PERSONAS.slice(0, 2).map((persona) => persona.workspace),
-    projects: withProjects
-      ? [project('project-mine', PERSONAS[0]!.workspace.id), project('project-theirs', PERSONAS[1]!.workspace.id)]
-      : [],
+    projects,
+    // Every project has one (§26), so it is derived rather than listed twice.
+    projectPages: projects.map((candidate) => homePage(candidate.id)),
+    sectionShortcuts: [],
     sections: [],
     tasks: [],
     milestones: [],
@@ -46,12 +62,14 @@ const document = (withProjects = true) =>
     activityEvents: [],
     agentConnections: [],
   });
+};
 
 const buildRoutes = (withProjects = true, seeded?: ReturnType<typeof document>): RouteTable => {
   const store = new InMemoryDataStore(seeded ?? document(withProjects));
   const clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'));
   const ids = new PrototypeIdGenerator();
   const projects = new JsonProjectRepository(store);
+  const pages = new JsonProjectPageRepository(store);
   const sections = new JsonSectionRepository(store);
   const tasks = new JsonTaskRepository(store);
   const activities = new JsonActivityRepository(store);
@@ -62,12 +80,12 @@ const buildRoutes = (withProjects = true, seeded?: ReturnType<typeof document>):
   const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids });
   const unitOfWork = unitOfWorkFor(store);
   const connections = new AgentConnectionService({ agents, activity, clock, unitOfWork });
-  const sectionService = new SectionService({ sections, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionService = new SectionService({ sections, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
 
   return createApiRoutes({
     store,
     activity,
-    projects: new ProjectService({ projects, activity, clock, ids, unitOfWork }),
+    projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     sections: sectionService,
     progress: new ProgressService({ projects, tasks }),
@@ -112,7 +130,7 @@ describe('project routes', () => {
     const routes = buildRoutes();
 
     const result = await call(routes, 'POST', '/api/projects', {
-      body: { workspaceId: PERSONAS[0]!.workspace.id, name: 'Work Manager' },
+      body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'root', name: 'Work Manager' },
     });
 
     expect(result.status).toBe(201);
@@ -132,7 +150,7 @@ describe('project routes', () => {
   it('applies query filters from the query string', async () => {
     const routes = buildRoutes();
     await call(routes, 'POST', '/api/projects', {
-      body: { workspaceId: PERSONAS[0]!.workspace.id, name: 'Planned', status: 'planning' },
+      body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'root', name: 'Planned', status: 'planning' },
     });
 
     const active = await call(routes, 'GET', '/api/projects?status=active');
@@ -276,7 +294,7 @@ describe('task routes', () => {
   it('answers 409 when asked to move a task between projects', async () => {
     const routes = buildRoutes();
     const destination = await call(routes, 'POST', '/api/projects', {
-      body: { workspaceId: PERSONAS[0]!.workspace.id, name: 'Destination' },
+      body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'root', name: 'Destination' },
     });
     const task = await newTask(routes);
 
