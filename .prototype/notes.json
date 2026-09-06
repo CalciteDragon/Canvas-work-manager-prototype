@@ -609,6 +609,14 @@
       "projectId": null,
       "slice": 25,
       "note": "Enabling Todos over HTTP and then opening its URL is a satisfying thing to watch — the page falls back to Home saying 'The Todos page is not built yet', and no tab appears for it. But it does raise the question the spec's 'offers to re-enable it' half already implies: once 25.5 lands, is a disabled page's fallback supposed to offer a one-click enable, or is that a settings decision? Deferred to 25.6 deliberately; flagging that the sentence reads better with the offer than without it."
+    },
+    {
+      "id": "note-2026-09-06-004",
+      "createdAt": "2026-09-06T10:25:00.000Z",
+      "route": "/projects/:projectId",
+      "projectId": null,
+      "slice": 25,
+      "note": "Opening one project on nested-projects issues four workspace-wide `projects?status=…` lists, three `projects/:id` gets, three progress reads and two page lists. Four stores each ask for what they need — ShellStore, ProjectWorkspaceStore, SubProjectsStore, and then the SSE connect fires a full context recovery immediately after the load that just happened. Nothing is wrong and nothing is slow at this size, and §3.1 says optimise for time-to-change-an-idea — but the reconnect-after-load duplicate is free to remove (skip the recovery when a load is already in flight or has just completed), and it is the shape that would hurt first if this ever ran against a real API."
     }
   ]
 }
