@@ -1039,7 +1039,7 @@ ascending with undated last, retaining completed and cancelled rows.
 | 25.0 | Resolve product rules and amend spec | — | done — §23, §26–27, §30–32, §34, §36, §54, §68, §82–83 amended; decision entry written |
 | 25.1 | Root/subproject model and persistent pages | 25.0 | done — plan: [docs/plans/25.1-owner-kinds-and-persistent-pages.md](docs/plans/25.1-owner-kinds-and-persistent-pages.md) |
 | 25.2 | Page ownership through domain, API and MCP | 25.1 | done — plan: [docs/plans/25.2-page-aware-ownership.md](docs/plans/25.2-page-aware-ownership.md) |
-| 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | not started |
+| 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | done — plan: [docs/plans/25.3-workspace-shell-and-subproject-canvas.md](docs/plans/25.3-workspace-shell-and-subproject-canvas.md) |
 | 25.4 | Home shortcuts | 25.3 | not started |
 | 25.5 | Chronological Todos | 25.3 | not started |
 | 25.6 | Root Archive and reachable undo | 25.3 | not started |
@@ -1125,6 +1125,55 @@ does.
 No navigation changed, and no component changed: the two new gateway methods are exercised by the
 gateway spec and the fake. Verified in the browser on a converted `.prototype/data.json`, and over
 HTTP and MCP for the create-a-root, nest-a-unit-of-work, enable-a-page journey and its refusals.
+
+**25.3, done.** Opening a project is now §23's picture: the global sidebar, a second navigation
+column, and the workspace. `ProjectWorkspaceShell` serves both of §68's project routes — Angular
+re-uses the instance across a parameter change, so moving between a root's pages keeps the context
+loaded once — and renders §26's header **once per project** above the column and whichever page is
+showing. A root opens on Home; a sub-project opens on its sole work canvas, keeps its root's
+column, and gets breadcrumbs back through its parents. Verified in the browser on
+`nested-projects` at depth three, including creating a nested work unit from a Sub-Projects
+section and watching the column gain it without a reload.
+
+Four decisions the phase made rather than inherited. **The column lives in the projects feature**,
+not in `AppShell` — placement and state are separable, and putting a root's pages and an ancestor
+walk in the one store every route pays for is the mega-store §20 forbids. Placement is one
+`:has()` rule in `app-shell.scss`, keyed on a declared attribute so a rename cannot silently stop
+matching ([entry](docs/decisions/2026-09-where-the-project-navigation-column-lives.md)). **The
+header moved to the shell**, because it describes the project and would otherwise vanish the
+moment 25.5's Todos page mounted. **Quick Add moved to the canvas**, because a root has several
+canvases and one header, and §26 is amended to say so. And **resolution is a positive rule** —
+root, navigable kind, enabled, renderable — so `/pages/work` on a root falls back like any other
+non-tab instead of rendering a sub-project canvas on a workspace.
+
+`ProjectPageStore` became the canvas store: the sections of one page, guarded on page identity as
+well as project and generation. Its project record, §39's progress and §26's writes moved to
+`ProjectWorkspaceStore`. `refreshProject()` was **narrowed to `refreshSections()` rather than
+deleted** — plan review caught that it was the only path re-reading the canvas on a live frame —
+and its deferral counter stayed with it, because the hazard it guards is an optimistic reorder.
+The three live rules are now stated separately: progress on any frame naming this project, the
+record on `project.*` naming it, the tree on `rootProjectId`. Conflating them either stops an
+agent's completed task from moving the header or puts a request behind every sibling's frame.
+
+Three things found by building rather than by planning. `NgComponentOutlet` binds **inputs only**,
+so the canvas reports upward through callback inputs — the plan had called them outputs, citing as
+precedent the very component that uses callbacks for this reason. The Archived region was
+project-scoped while the canvas became page-scoped, so Home would have listed sections archived
+from another page and restoring one would have painted nothing. And a sticky column needs
+`min-height` rather than `height` on its container: fixed to the scrollport's height, sticky has
+nowhere to travel and the column scrolls away with the canvas — which is §23's "disappearing" by
+another route.
+
+Five review rounds on the plan before a line was written, and each round found something the
+previous one had introduced: the sub-project's `work` page had no source, `routerLinkActive` would
+not have marked Home current at the URL the app actually links to, the fallback notice could not
+survive the redirect that produces it, and twice a spec split assigned the same test to two files.
+The plan's Revisions section carries all of it.
+
+Known: the initial bundle is 883 kB against an 850 kB **warning** budget (the error budget is
+1 MB, so the build passes). §68's feature routes are eager by an existing decision, and this slice
+adds a shell, a header, a column and a work item. Whether to move the budget again is a §78
+question for 25.8 rather than a silent edit here.
 
 **Done when:** the roadmap's integrated browser/MCP journey passes: a multi-page root
 and nested work units retain canonical data ownership, shortcuts reflect source content,

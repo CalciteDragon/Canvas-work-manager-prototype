@@ -913,15 +913,25 @@ column** between the sidebar and the main workspace:
 ```
 
 The global sidebar stays where it is; the project column is additional, not a replacement. It
-lists the root's **enabled** pages, and beneath them the root's subprojects as the work
-hierarchy — a subproject is a unit of work, not a page.
+lists the root's **enabled** pages *that this build can render* — a kind with no renderer is not
+advertised, because a tab leading to a blank screen is worse than no tab — and beneath them the
+root's subprojects as the work hierarchy, a subproject being a unit of work rather than a page.
 
 Opening a subproject keeps its root's column and adds breadcrumbs back through its parents, so
 a work unit three levels deep never loses its context. At narrow widths the project column
 collapses behind a labelled control rather than disappearing. Links are keyboard reachable and
 carry an active state; nothing here uses a literal colour or spacing value (§21).
 
-*Planned in Slice 25.3. The shell today has one sidebar and a single project page.*
+*Landed in Slice 25.3.* `ProjectWorkspaceShell` owns the column and its state; `AppShell` and
+`ShellStore` are untouched, because loading a root's pages and walking its ancestors in the one
+store every route pays for is the mega-store §20 forbids. Placement is a single CSS rule instead:
+the routed component declares `data-flush-workspace` and the shell drops the workspace region's
+padding, so the column sits flush against the global sidebar with no shell state at all. The
+column is sticky, so a long canvas scrolls beneath it rather than taking it along; at ≤ 60rem it
+collapses behind a labelled button and its links leave the tab order with it.
+
+Today the column lists Home and the work hierarchy. Todos, Archive and Reflections have records
+and no renderers, so Slices 25.5–25.7 each add one line to `PROJECT_PAGE_REGISTRY`.
 
 ---
 
@@ -1022,12 +1032,19 @@ Status
 
 Progress
 
-Target Date
-
-Quick Add
+Target Date  (Due date, on a unit of work)
 
 More
 ```
+
+**Quick Add is a canvas control, not a header one.** It was in this list while a project had one
+canvas; a root now has several and one header, and "add a section" acts on *a canvas*. It sits in
+the Controls row beside Edit Layout, still gated by §32's Edit Layout Mode
+([why](docs/decisions/2026-09-where-the-project-navigation-column-lives.md)).
+
+The header itself is rendered **once per project**, above the navigation column and whichever
+page is showing — it describes the project, not the page, and a header living inside Home would
+vanish the moment another page rendered.
 
 ## Two kinds of project
 
@@ -1092,10 +1109,12 @@ pages are listed and toggled through `ProjectPageService`, `GET`/`PATCH
 /api/projects/:projectId/pages`, and `list_project_pages`/`set_project_page_enabled` over MCP.
 "Defaulting to Home only" is the literal stored state: an optional page's record is created by
 its first enable, and disabling one writes a single boolean and keeps everything on it
-([why](docs/decisions/2026-09-optional-pages-are-created-on-first-enable.md)). What is still
-planned is the **navigation** — the second sidebar column, the routes, and the renderers each
-page kind needs (Slices 25.3–25.7). Enabling Todos, Archive or Reflections today gives a page
-that owns data and has nothing to draw it yet.*
+([why](docs/decisions/2026-09-optional-pages-are-created-on-first-enable.md)). Slice 25.3 added the
+**navigation**: §23's second column, §68's two routes, and the renderer behind Home and a
+sub-project's work canvas. What is still planned is a renderer for each optional kind
+(Slices 25.5–25.7); until one exists its kind is not advertised in the column, and a URL pointing
+at it falls back to Home saying it is not built yet. A sub-project's `/pages/…` URL is refused the
+same way, because it has no pages to name.*
 
 ---
 
@@ -2796,6 +2815,16 @@ design lab
 
 seed/state inspector
 ```
+
+*Both project routes landed in Slice 25.3, resolving to one `ProjectWorkspaceShell` — Angular
+re-uses the instance across a parameter change, so moving between a root's pages keeps its
+context loaded once. `/projects/:projectId` **stays valid** rather than redirecting: it is what
+the sidebar, project creation and every Sub-Projects section link to. Resolution is a positive
+rule — the project is a root, the kind is navigable, the root has it enabled, and this build can
+render it — so `/pages/work` on a root falls back like any other kind that is not a tab. A
+fallback replaces the URL and carries its reason in navigation state, which is what lets the
+explanation survive the sub-project case, where the redirect crosses route configurations and
+destroys the component.*
 
 ---
 
