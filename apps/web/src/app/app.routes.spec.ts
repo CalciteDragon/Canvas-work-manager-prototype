@@ -22,9 +22,9 @@ import { routes } from './app.routes';
 const harness = async () => {
   TestBed.configureTestingModule({
     providers: [
-      // `withComponentInputBinding()` matches `app.config.ts`. Without it `ProjectPage`'s
-      // required `projectId` route input is never bound, and the page throws NG0950 on
-      // creation — a failure of the harness, not of the route map.
+      // `withComponentInputBinding()` matches `app.config.ts`. Without it
+      // `ProjectWorkspaceShell`'s required `projectId` route input is never bound, and the
+      // shell throws NG0950 on creation — a failure of the harness, not of the route map.
       provideRouter(routes, withComponentInputBinding()),
       { provide: WORK_MANAGER_GATEWAY, useValue: new FakeWorkManagerGateway() },
       // `DashboardPage` reads the persona's widget list from the identity provider (§25).

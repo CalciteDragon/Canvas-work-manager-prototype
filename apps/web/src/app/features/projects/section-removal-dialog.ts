@@ -24,7 +24,7 @@ const ROW_NOUN: Record<OwnedDataKind, { one: string; many: string }> = {
  * The store hands over the parts — the name, the count, the owned kind — and this composes
  * a question a person can answer.
  *
- * Its own component rather than more of `ProjectPage`: the page's stylesheet is already at
+ * Its own component rather than more of `ProjectCanvas`: the canvas's stylesheet is already at
  * its budget, and a dialog with two answers and a target picker is a self-contained thing.
  */
 @Component({

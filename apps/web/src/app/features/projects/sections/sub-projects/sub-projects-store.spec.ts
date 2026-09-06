@@ -40,4 +40,18 @@ describe('SubProjectsStore', () => {
     expect(await store.create('  New child  ')).toBe(true);
     expect(gateway.argumentTo('projects.create')).toMatchObject({ parentProjectId: root.id, name: 'New child' });
   });
+
+  // §31: archived work does not appear on ordinary pages or views, and a Sub-Projects section
+  // is a view of the hierarchy. Asserted on the argument, because the fake answers
+  // `projects.list` whatever the query says.
+  it('asks for live work only, never archived', async () => {
+    const gateway = new FakeWorkManagerGateway({ projects: [root, child] });
+    TestBed.configureTestingModule({ providers: [SubProjectsStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+    const store = TestBed.inject(SubProjectsStore);
+
+    await store.load(root.id);
+
+    expect((gateway.argumentTo('projects.list') as { status?: string[] }).status)
+      .toEqual(['planning', 'active', 'on_hold', 'completed']);
+  });
 });

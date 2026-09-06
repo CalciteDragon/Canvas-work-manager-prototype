@@ -80,7 +80,7 @@ export const SECTION_REGISTRY: readonly SectionDefinition[] = [
 /**
  * `undefined` for a type nothing registers. That is a real state, not a defensive one:
  * `data.json` is hand-editable and outlives any one registry, so the canvas has to render
- * *something* for a section it cannot build — see `ProjectPage`'s fallback.
+ * *something* for a section it cannot build — see `ProjectCanvas`'s fallback.
  */
 export const definitionFor = (type: string): SectionDefinition | undefined =>
   SECTION_REGISTRY.find((definition) => definition.type === type);

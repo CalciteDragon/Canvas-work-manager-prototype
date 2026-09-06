@@ -14,7 +14,7 @@ export const taskListDropId = (id: SectionId): string => `task-list-${id}`;
  * `TaskDetailDrawer` are Slice 7's, reused as they are (§66 — a section should be removable
  * without destabilising unrelated code, which is only true if it adds nothing of its own).
  *
- * The store is **provided here, one per section**. It used to be provided by `ProjectPage`
+ * The store is **provided here, one per section**. It used to be provided by the project page
  * so that two Task Lists could not drift; under
  * docs/decisions/2026-09-sections-own-their-data.md a `task-list` owns its rows, so two of
  * them *must* differ, and sharing one store would render the same list twice. Header

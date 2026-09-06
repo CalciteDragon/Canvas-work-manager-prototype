@@ -9,8 +9,8 @@ import { ProjectSectionFrame } from './project-section-frame';
  *
  * **Every story is wrapped in `SectionCanvasFrame`**, and that is not decoration. The frame
  * writes only `[attr.data-column-span]`; the actual width comes from
- * `.section-canvas--flow .section-canvas__item--span-N` in `project-page.scss`, applied by
- * `ProjectPage` to a wrapper element, in *that* component's encapsulated stylesheet. A bare
+ * `.section-canvas--flow .section-canvas__item--span-N` in `project-canvas.scss`, applied by
+ * `ProjectCanvas` to a wrapper element, in *that* component's encapsulated stylesheet. A bare
  * frame shows no width difference at all — Full Width and Half Width would be pixel
  * identical, and the variant set would be a lie.
  *

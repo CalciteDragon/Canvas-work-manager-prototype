@@ -5,8 +5,8 @@ import type { SectionColumnSpan } from '@cwm/contracts';
  * The canvas wrapper a `ProjectSectionFrame` needs in order to have a **width**.
  *
  * The frame itself writes only `[attr.data-column-span]`; the actual width comes from
- * `.section-canvas--flow .section-canvas__item--span-N` in `project-page.scss`, applied by
- * `ProjectPage` to a wrapper element, in *that* component's emulated-encapsulation
+ * `.section-canvas--flow .section-canvas__item--span-N` in `project-canvas.scss`, applied by
+ * `ProjectCanvas` to a wrapper element, in *that* component's emulated-encapsulation
  * stylesheet. A bare frame shows no width difference at all — so "Full Width" and "Half
  * Width" would be pixel-identical and the variant set would be a lie.
  *

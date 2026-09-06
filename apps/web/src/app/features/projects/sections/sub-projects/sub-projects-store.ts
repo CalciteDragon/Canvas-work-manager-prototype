@@ -1,8 +1,14 @@
 import { Injectable, inject, signal } from '@angular/core';
-import type { Project, ProjectId } from '@cwm/contracts';
+import { ProjectStatusSchema, type Project, type ProjectId } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gateway';
 
 const messageOf = (error: unknown) => error instanceof Error ? error.message : String(error);
+/**
+ * §31: archived work does not appear on ordinary pages or views. A Sub-Projects section is a
+ * view of the work hierarchy, so the same filter `ShellStore` and `ProjectWorkspaceStore`
+ * apply to navigation applies here.
+ */
+const LIVE_STATUSES = ProjectStatusSchema.options.filter((status) => status !== 'archived');
 interface ActiveRead { generation: number; promise: Promise<void>; queued: boolean; }
 @Injectable()
 export class SubProjectsStore {
@@ -30,7 +36,7 @@ export class SubProjectsStore {
     if (!quiet) { this.loadingState.set(true); this.errorState.set(null); }
     state.promise = (async () => { try {
       const root = await this.gateway.projects.get(id);
-      const all = await this.gateway.projects.list({});
+      const all = await this.gateway.projects.list({ status: LIVE_STATUSES });
       const childrenByParent = new Map<ProjectId, Project[]>();
       for (const project of all) {
         if (project.parentProjectId === undefined) continue;
