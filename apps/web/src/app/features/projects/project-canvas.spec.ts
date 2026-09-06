@@ -16,6 +16,7 @@ import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
 import { ProjectCanvas } from './project-canvas';
+import { SECTION_REGISTRY } from './sections/registry';
 
 const AT = '2026-08-27T16:00:00.000Z';
 
@@ -140,6 +141,45 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     // The two content components, each inside the shared §31 chrome.
     expect(query(fixture, '[data-rich-text-body]')).not.toBeNull();
     expect(query(fixture, '[data-quick-create]')).not.toBeNull();
+  });
+
+  // Acceptance 3, as a test rather than a claim: §30 says Home and a work canvas take "all
+  // registered types", including ones registered after that sentence was written — so the case
+  // iterates the registry instead of naming seven types it would then have to be kept in step
+  // with. Both canvases, because a sub-project's page is the one whose id is not canonical.
+  it.each([
+    ['a root’s Home', 'page-project-a'],
+    ['a sub-project’s work canvas', 'page-work'],
+  ])('mounts a frame for every registered section type on %s', async (_case, pageId) => {
+    const { fixture } = await render({
+      pageId,
+      sections: SECTION_REGISTRY.map((definition, index) =>
+        section(`section-${definition.type}`, definition.type, index, { pageId }),
+      ),
+    });
+
+    expect(
+      queryAll(fixture, '[data-section-frame]').map((frame) => frame.getAttribute('data-section-type')),
+    ).toEqual(SECTION_REGISTRY.map(({ type }) => type));
+    expect(queryAll(fixture, '[data-unknown-section]')).toHaveLength(0);
+  });
+
+  // §63 on the one toggle a person can fail in this slice: 25.3 ships no page-enable control,
+  // so the collapse toggle is it.
+  it('rolls a failed collapse back onto the canvas and names the reason', async () => {
+    const { fixture } = await render({
+      sections: [section('section-text', 'rich-text', 0)],
+      failOn: { 'sections.update': new GatewayError('unreachable', 0, 'the host is not running') },
+    });
+    const collapse = query(fixture, '[data-section-collapse]')!;
+
+    collapse.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-section-error]')?.textContent).toContain('the host is not running');
+    // Still expanded: the write never landed, so nothing on the canvas moved.
+    expect(query(fixture, '[data-section-collapse]')?.getAttribute('aria-expanded')).toBe('true');
   });
 
   it('invites the user to add something when the canvas is empty', async () => {

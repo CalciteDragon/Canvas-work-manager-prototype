@@ -86,6 +86,26 @@ const all = (fixture: { nativeElement: HTMLElement }, selector: string): HTMLEle
 const text = (fixture: { nativeElement: HTMLElement }): string => fixture.nativeElement.textContent ?? '';
 
 describe('ArchivedRegion', () => {
+  // §27: a canvas is a page, so this canvas's undo is this page's. Home offering to restore a
+  // section archived from another page would put it back where nobody is looking — and a
+  // sub-project's region must not list its root's. Asserted on the argument, because the
+  // section fixtures all carry this page and a project-wide read would look identical.
+  it('reads the page it is placed on, never the whole project', async () => {
+    const { gateway } = await render(
+      new FakeWorkManagerGateway({
+        sections: [section('section-live'), section('section-archived', { archivedAt: AT })],
+        tasks: [],
+        reflections: [],
+      }),
+    );
+
+    expect(gateway.argumentTo('sections.list')).toEqual({
+      projectId: PROJECT,
+      pageId: PAGE,
+      includeArchived: true,
+    });
+  });
+
   it('renders nothing at all when there is nothing to undo', async () => {
     // An empty Archived heading below every canvas would be permanent furniture claiming
     // something happened. The region appears when a removal gives it something to say.

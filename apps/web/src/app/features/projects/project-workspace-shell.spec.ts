@@ -275,6 +275,83 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
   });
 });
 
+describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
+  /**
+   * A `matchMedia` stub, because jsdom has none and the shell reads the query at construction
+   * and then listens for changes. The listener is kept so a test can flip the query the way a
+   * real resize does.
+   */
+  const stubMatchMedia = (matches: boolean) => {
+    const listeners: Array<(event: { matches: boolean }) => void> = [];
+    const original = globalThis.matchMedia;
+    Object.defineProperty(globalThis, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches,
+        media: query,
+        addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) =>
+          listeners.push(listener),
+        removeEventListener: () => {},
+      }),
+    });
+    return {
+      flip: (next: boolean) => listeners.forEach((listener) => listener({ matches: next })),
+      restore: () => Object.defineProperty(globalThis, 'matchMedia', {
+        configurable: true,
+        writable: true,
+        value: original,
+      }),
+    };
+  };
+
+  it('opens with the column collapsed when the narrow query already matches', async () => {
+    const media = stubMatchMedia(true);
+    try {
+      const { harness } = await open('/projects/project-renovation');
+
+      expect(query(harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(true);
+      expect(query(harness, '[data-project-nav-toggle]')?.textContent).toContain('Show project navigation');
+    } finally {
+      media.restore();
+    }
+  });
+
+  it('collapses when the window becomes narrow, and restores when it widens again', async () => {
+    const media = stubMatchMedia(false);
+    try {
+      const { harness } = await open('/projects/project-renovation');
+      expect(query(harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(false);
+
+      media.flip(true);
+      await settle(harness);
+      expect(query(harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(true);
+
+      // A column that stayed collapsed after the window widened would hide navigation the
+      // user never chose to hide.
+      media.flip(false);
+      await settle(harness);
+      expect(query(harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(false);
+    } finally {
+      media.restore();
+    }
+  });
+
+  it('leaves the toggle in the user’s hands once they have used it', async () => {
+    const media = stubMatchMedia(true);
+    try {
+      const { harness } = await open('/projects/project-renovation');
+
+      query(harness, '[data-project-nav-toggle]')!.click();
+      await settle(harness);
+
+      expect(query(harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(false);
+    } finally {
+      media.restore();
+    }
+  });
+});
+
 describe('ProjectWorkspaceShell — the header, the canvas and what crosses between them', () => {
   it('leaves the workspace only after an archive resolves, and stays put when the domain refuses', async () => {
     const refused = await open('/projects/project-renovation', {
