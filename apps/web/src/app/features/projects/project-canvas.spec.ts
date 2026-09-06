@@ -516,7 +516,14 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     fixture.detectChanges();
     // Not `whenStable()`: the rejected move below is still registered with `PendingTasks`, so
     // waiting for stability here would wait for the very thing this test has not released yet.
+    // A few microtask turns are enough for the new page's own list to land, and the canvas is
+    // absent until it does — loading, error and empty are one chain now.
+    for (let pass = 0; pass < 4; pass += 1) {
+      await Promise.resolve();
+      fixture.detectChanges();
+    }
     const pageBCanvas = query(fixture, '[data-section-canvas]');
+    expect(pageBCanvas).not.toBeNull();
 
     gate.reject(new GatewayError('unreachable', 0, 'old move failed'));
     await drop;

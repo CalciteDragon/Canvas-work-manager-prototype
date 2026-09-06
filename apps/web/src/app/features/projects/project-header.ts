@@ -3,8 +3,10 @@ import { isSubproject, type Project } from '@cwm/contracts';
 import { ProjectMoreMenu, type SettableProjectStatus } from './project-more-menu';
 
 /**
- * §26's Project Header, rendered once per project by `ProjectWorkspaceShell` — above the
- * navigation column and whichever page is showing, which is the order §26 states.
+ * §26's Project Header, rendered once per project by `ProjectWorkspaceShell` — at the top of
+ * the workspace track, beside the full-height navigation column and above whichever page is
+ * showing. §23's diagram is the one describing the shell, so it wins over reading §26's
+ * structure list as a strict vertical stack.
  *
  * It lives here rather than inside a page renderer because it belongs to the **project**: a
  * root has several canvases and one identity, and a header inside Home would disappear the

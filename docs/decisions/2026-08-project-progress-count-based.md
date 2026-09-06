@@ -41,7 +41,9 @@ section cannot change the answer.
 
 `Project.progressFormula` is the canonical per-project feature setting, defaulting to
 count. `ProgressService` derives the selected answer from the project and its unarchived
-tasks; `ProjectPageStore` and Progress sections read that answer through their gateway.
+tasks; the project store and Progress sections read that answer through their gateway. *(Since
+Slice 25.3 the header's copy of it belongs to `ProjectWorkspaceStore`, since progress describes
+the project rather than one of its pages.)*
 Count and weighted keep cancelled-but-unarchived tasks in the denominator, matching the
 visible task collection. Projects with no tasks return unavailable for derived formulas.
 

@@ -591,7 +591,7 @@
       "createdAt": "2026-09-06T10:05:00.000Z",
       "route": "/projects/:projectId",
       "projectId": null,
-      "slice": 25.3,
+      "slice": 25,
       "note": "A unit of work had two default icons in three places while it was being built: the Sub-Projects section fell back to a folder, the new project column and the header to a puzzle piece. Nothing enforces a default for something the model leaves optional, so each renderer invented one. Aligned on the puzzle piece for a work unit and the folder for a workspace, but the real lesson is that an optional display field wants one shared fallback, not one per template."
     },
     {
@@ -599,7 +599,7 @@
       "createdAt": "2026-09-06T10:07:00.000Z",
       "route": "/projects/:projectId",
       "projectId": null,
-      "slice": 25.3,
+      "slice": 25,
       "note": "The project column scrolled away with the canvas on the first try. `position: sticky` was there, but the shell was `height: 100%` of the scrollport, so the sticky element's containing block was exactly one viewport tall and had nowhere to travel. `min-height: 100%` fixes it. Worth remembering the next time a sticky element in this app 'ignores' its rule: it is nearly always the containing block, not the declaration."
     },
     {
@@ -607,7 +607,7 @@
       "createdAt": "2026-09-06T10:09:00.000Z",
       "route": "/projects/:projectId/pages/:pageKind",
       "projectId": null,
-      "slice": 25.3,
+      "slice": 25,
       "note": "Enabling Todos over HTTP and then opening its URL is a satisfying thing to watch — the page falls back to Home saying 'The Todos page is not built yet', and no tab appears for it. But it does raise the question the spec's 'offers to re-enable it' half already implies: once 25.5 lands, is a disabled page's fallback supposed to offer a one-click enable, or is that a settings decision? Deferred to 25.6 deliberately; flagging that the sentence reads better with the offer than without it."
     }
   ]

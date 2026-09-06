@@ -260,6 +260,59 @@ describe('ProjectWorkspaceStore and live updates (§62)', () => {
     expect(gateway.calls.filter(({ method }) => method === 'projects.list').length).toBe(before + 1);
   });
 
+  // A context read is four or five sequential round trips, so a burst of frames would otherwise
+  // start overlapping reads whose guards are identical — and whichever finished last would win,
+  // which is how a stale name gets painted over a fresh one.
+  it('coalesces a burst of frames into one read and one trailing re-read', async () => {
+    const live = new FakeLiveUpdates();
+    const projects = renovation();
+    const gate = deferred<Project>();
+    const gateway = new FakeWorkManagerGateway({ projects });
+    const original = gateway.projects.get.bind(gateway.projects);
+    let firstRefresh = true;
+    let loaded = false;
+    gateway.projects.get = (id: ProjectId) => {
+      if (loaded && firstRefresh && id === 'project-renovation') {
+        firstRefresh = false;
+        return gate.promise;
+      }
+      return original(id);
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        ProjectWorkspaceStore,
+        { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+        { provide: LIVE_UPDATES, useValue: live },
+      ],
+    });
+    const store = TestBed.inject(ProjectWorkspaceStore);
+    await store.load('project-renovation' as ProjectId);
+    loaded = true;
+    const before = gateway.calls.filter(({ method }) => method === 'projects.list').length;
+
+    const frame = {
+      type: 'project.updated',
+      entityType: 'project',
+      entityId: 'project-renovation',
+      projectId: 'project-renovation',
+      rootProjectId: 'project-renovation',
+      actor: { kind: 'agent', id: 'agent-1', name: 'Claude' },
+      at: AT,
+    };
+    live.emit(frame as never);
+    live.emit(frame as never);
+    live.emit(frame as never);
+    await Promise.resolve();
+    // All three frames are behind one in-flight read, not three racing ones.
+    expect(gateway.calls.filter(({ method }) => method === 'projects.list').length).toBe(before);
+
+    gate.resolve(projects[0]!);
+    for (let pass = 0; pass < 8; pass += 1) await Promise.resolve();
+
+    // One trailing re-read for everything that arrived while the first was in flight.
+    expect(gateway.calls.filter(({ method }) => method === 'projects.list').length).toBe(before + 2);
+  });
+
   it('stops listening once the store is destroyed', async () => {
     const live = new FakeLiveUpdates();
     const { store } = storeWith({ projects: renovation() }, live);

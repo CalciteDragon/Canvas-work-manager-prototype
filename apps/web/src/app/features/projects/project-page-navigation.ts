@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { Project, ProjectPageKind } from '@cwm/contracts';
+import type { Project, ProjectId, ProjectPageKind } from '@cwm/contracts';
 import type { WorkTreeNode } from './project-workspace-store';
 import type { ProjectPageDefinition } from './project-page-registry';
 import { ProjectWorkItem } from './project-work-item';
@@ -29,7 +29,7 @@ export class ProjectPageNavigation {
   readonly pages = input.required<ProjectPageDefinition[]>();
   readonly workTree = input.required<WorkTreeNode[]>();
   /** The project the route names, so the column can mark the open unit of work. */
-  readonly currentProjectId = input.required<string>();
+  readonly currentProjectId = input.required<ProjectId>();
   /** `null` on a sub-project: its work canvas is not one of the root's tabs (§26). */
   readonly activeKind = input<ProjectPageKind | null>(null);
   /** Root first, immediate parent last. Empty on a root. */

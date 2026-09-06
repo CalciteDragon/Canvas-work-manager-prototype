@@ -1,5 +1,10 @@
 # The project header's Quick Add adds a section
 
+> **Superseded in part, Slice 25.3.** *What* Quick Add adds is unchanged and still current: a
+> section. *Where it lives* is not — a root now has several canvases and one header, so it moved
+> to the canvas controls row beside Edit Layout, and §26's header list was amended to match. See
+> [2026-09-where-the-project-navigation-column-lives.md](2026-09-where-the-project-navigation-column-lives.md).
+
 **Question**
 
 §26 lists "Quick Add" in the project header and does not say what it adds. A task? A

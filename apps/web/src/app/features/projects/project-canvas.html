@@ -48,19 +48,20 @@
   }
 </section>
 
+@if (store.sectionError(); as sectionError) {
+  <p data-section-error class="project-canvas__error" role="alert">{{ sectionError }}</p>
+}
+
+<!-- One chain, not two independent blocks: an empty canvas, a loading canvas and an unreadable
+     one are three different things to say, and saying two of them at once is how "This canvas
+     is empty" ends up printed over a canvas nobody could read. -->
 @if (store.loading()) {
   <p data-canvas-loading class="project-canvas__muted">Loading canvas…</p>
 } @else if (store.error(); as error) {
   <!-- A failed section list, not a missing project: the header and the column above are
        still standing, so this is a message on the canvas rather than a blank page. -->
   <p data-canvas-error class="project-canvas__error" role="alert">{{ error }}</p>
-}
-
-@if (store.sectionError(); as sectionError) {
-  <p data-section-error class="project-canvas__error" role="alert">{{ sectionError }}</p>
-}
-
-@if (canvasMounted()) {
+} @else if (canvasMounted()) {
   <div
     data-section-canvas
     cdkDropList

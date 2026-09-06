@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import type { ProjectId } from '@cwm/contracts';
 import type { WorkTreeNode } from './project-workspace-store';
 
 /**
@@ -37,5 +38,5 @@ import type { WorkTreeNode } from './project-workspace-store';
 })
 export class ProjectWorkItem {
   readonly node = input.required<WorkTreeNode>();
-  readonly currentProjectId = input.required<string>();
+  readonly currentProjectId = input.required<ProjectId>();
 }

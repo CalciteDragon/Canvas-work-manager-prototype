@@ -34,9 +34,10 @@ domain. What is the least UI that makes all three real?
 - `sectionErrorState` is cleared by every successful quiet re-read, so a message parked there
   can vanish milliseconds later.
 
-So `ProjectPageStore` gained a third signal, `writeError`, and the test that matters asserts
+So the project store gained a third signal, `writeError`, and the test that matters asserts
 the **header is still rendered** beside it — a store-level test could not have seen the
-difference.
+difference. *(Slice 25.3 split that store: `writeError` and the project record now live in
+`ProjectWorkspaceStore`, and the header is `ProjectHeader`. The rule is unchanged.)*
 
 **Optimistic project writes needed the same in-flight guard the section writes already had.**
 `onLiveEvent` routes any `project.*` event naming the open project into `refreshProject()`,
@@ -51,11 +52,14 @@ on any transition into `archived`, so a status menu built naively from the enum 
 the project with no confirmation and leave the user on a page that had just left the sidebar.
 Archive is the only route to the fifth value, and it confirms.
 
-**Two smaller findings from building it.** §26's **More** and Quick add render popovers into
-the same header row, so opening either closes the other and both close on Escape. And the
-More menu became its own component — `angular.json` budgets a component stylesheet at 5 kB
-(error at 8 kB) and `project-page.scss` was already close, so a menu's chrome carrying its own
-stylesheet is a build constraint before it is a tidiness preference.
+**Two smaller findings from building it.** §26's **More** and Quick add rendered popovers into
+the same header row, so opening either closed the other and both closed on Escape. *(Slice 25.3
+moved Quick Add to the canvas controls row — a root has several canvases and one header — so
+they are no longer in one row and the mutual exclusion is structural rather than handled. Each
+still closes on Escape, in the component that owns it.)* And the More menu became its own
+component — `angular.json` budgets a component stylesheet at 5 kB (error at 8 kB) and the
+project page's was already close, so a menu's chrome carrying its own stylesheet is a build
+constraint before it is a tidiness preference.
 
 **The one rough edge left**, found by the e2e test rather than by reasoning: the sidebar offers
 **New project** before `/api/me` has answered, so clicking fast enough gets the store's honest

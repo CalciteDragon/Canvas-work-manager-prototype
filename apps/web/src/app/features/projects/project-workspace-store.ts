@@ -52,6 +52,7 @@ export class ProjectWorkspaceStore {
   /** Writes to the project record in flight; see `writeProject`. */
   private projectWrites = 0;
   private projectRefreshQueued = false;
+  private contextRefresh: Promise<void> | null = null;
 
   private readonly projectState = signal<Project | null>(null);
   private readonly ancestorsState = signal<Project[]>([]);
@@ -136,20 +137,39 @@ export class ProjectWorkspaceStore {
       this.projectRefreshQueued = true;
       return;
     }
+    // Coalesced, like the canvas store's. A context read is four or five sequential round trips,
+    // so a burst of frames — an agent creating three sub-projects — would otherwise start three
+    // overlapping reads whose guards are identical, and whichever *finished* last would win.
+    // That is how a stale name and a stale tree get painted over fresh ones.
+    if (this.contextRefresh !== null) {
+      this.projectRefreshQueued = true;
+      return;
+    }
     const projectId = this.requestedProjectId;
     if (projectId === undefined) return;
     const generation = this.loadGeneration;
-    void this.track(async () => {
-      try {
-        const context = await this.readContext(projectId);
-        if (generation === this.loadGeneration && this.requestedProjectId === projectId) {
-          this.applyContext(context);
-          this.errorState.set(null);
+
+    const refresh = this.track(async () => {
+      do {
+        this.projectRefreshQueued = false;
+        try {
+          const context = await this.readContext(projectId);
+          if (generation === this.loadGeneration && this.requestedProjectId === projectId) {
+            this.applyContext(context);
+            this.errorState.set(null);
+          }
+        } catch {
+          // Quiet — see above.
         }
-      } catch {
-        // Quiet — see above.
-      }
+      } while (
+        this.projectRefreshQueued &&
+        this.projectWrites === 0 &&
+        generation === this.loadGeneration
+      );
+    }).finally(() => {
+      if (this.contextRefresh === refresh) this.contextRefresh = null;
     });
+    this.contextRefresh = refresh;
   }
 
   /**
@@ -160,6 +180,7 @@ export class ProjectWorkspaceStore {
     const generation = ++this.loadGeneration;
     const current = () => generation === this.loadGeneration;
     this.requestedProjectId = projectId;
+    this.projectRefreshQueued = false;
 
     return this.track(async () => {
       this.loadingState.set(true);
@@ -182,7 +203,9 @@ export class ProjectWorkspaceStore {
         this.errorState.set(messageOf(error));
       } finally {
         if (current()) {
-          await this.readProgress(projectId, generation);
+          // Only when there is a project to measure: a second guaranteed-failing request adds
+          // nothing to a page that is already saying it cannot read the project.
+          if (this.projectState() !== null) await this.readProgress(projectId, generation);
           if (current()) this.loadingState.set(false);
         }
       }

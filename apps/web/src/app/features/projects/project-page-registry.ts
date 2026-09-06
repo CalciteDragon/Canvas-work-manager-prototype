@@ -85,12 +85,17 @@ export const resolveProjectPage = (input: {
   }
 
   const kind = requestedKind ?? 'home';
-  const home = ownPages.find((page) => page.kind === 'home');
-  // Home cannot be disabled or removed (§26), so a root without one is a broken document
-  // rather than a fallback case — and falling back *to* Home would loop.
+  const home = ownPages.find((page) => page.kind === 'home' && page.enabled);
+
+  /**
+   * Falling back *to* Home when Home is the thing that failed would loop, so that case answers
+   * `unavailable` — with its own sentence, because "Showing Home instead" is exactly what is
+   * not happening. §26 makes Home required and undisablable, so reaching this is a broken
+   * document rather than an ordinary state, and it should read like one.
+   */
   const toHome = (reason: string): ProjectPageResolution =>
     kind === 'home' || home === undefined
-      ? { outcome: 'unavailable', reason }
+      ? { outcome: 'unavailable', reason: 'This project has no Home page to show.' }
       : { outcome: 'redirect', to: ['/projects', project.id, 'pages', 'home'], reason };
 
   const definition = PROJECT_PAGE_REGISTRY.find(({ kind: candidate }) => candidate === kind);

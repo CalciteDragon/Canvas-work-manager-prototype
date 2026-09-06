@@ -727,7 +727,7 @@ Backend
 Example:
 
 ```text
-ProjectPageComponent
+ProjectCanvas
        ↓
 ProjectPageStore
        ↓
@@ -740,12 +740,16 @@ Example:
 
 ```ts
 class ProjectPageStore {
-  project = signal<Project | null>(null);
   sections = signal<ProjectSection[]>([]);
   loading = signal(false);
   editMode = signal(false);
 }
 ```
+
+*Since Slice 25.3 this store holds the sections of **one page**, and the project record it used
+to carry belongs to `ProjectWorkspaceStore` — a root has several canvases and one identity (§26).
+The shape of the rule is unchanged: a feature store, provided by the component that needs it,
+talking to the gateway and to nothing else.*
 
 Angular Signals are well suited to this kind of reactive view state.
 
@@ -1042,9 +1046,10 @@ canvas; a root now has several and one header, and "add a section" acts on *a ca
 the Controls row beside Edit Layout, still gated by §32's Edit Layout Mode
 ([why](docs/decisions/2026-09-where-the-project-navigation-column-lives.md)).
 
-The header itself is rendered **once per project**, above the navigation column and whichever
-page is showing — it describes the project, not the page, and a header living inside Home would
-vanish the moment another page rendered.
+The header itself is rendered **once per project** — at the top of the workspace track, beside
+§23's full-height navigation column and above whichever page is showing. It describes the
+project, not the page, and a header living inside Home would vanish the moment another page
+rendered.
 
 ## Two kinds of project
 
@@ -1423,7 +1428,10 @@ can be restored.
 The per-canvas **Archived** region described above is the current form of that promise and
 stays until the Archive page replaces it. The page is a superset: it also lists the rows the
 region deliberately hides — those an ancestor took down, which cannot be restored on their own
-— with guidance naming the ancestor to restore instead.
+— with guidance naming the ancestor to restore instead, **and those whose container lives on
+another page of the same project**, which a region scoped to one canvas cannot show. Slice 25.3
+page-scoped the region, because §27 makes a canvas a page: Home must not offer to restore what
+was archived from Reflections, since the restore would land where nobody is looking.
 
 A project whose own status is `archived` hides its live contents from ordinary reads too. The
 Archive page may still show them under their archived owner, distinguishing *hidden because an

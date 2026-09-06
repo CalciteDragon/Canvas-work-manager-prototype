@@ -10,6 +10,7 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { DestroyRef } from '@angular/core';
 import { Router } from '@angular/router';
 import type { ProjectId, ProjectPageKind } from '@cwm/contracts';
 import { ProjectHeader } from './project-header';
@@ -65,6 +66,8 @@ export class ProjectWorkspaceShell {
   private readonly location = inject(Location);
 
   private readonly noticeState = signal<string | null>(null);
+  /** The page the current notice was read for; see the resolve effect. */
+  private noticedFor: string | null = null;
   private readonly narrowState = signal(false);
   private readonly collapsedState = signal(false);
 
@@ -78,7 +81,12 @@ export class ProjectWorkspaceShell {
    */
   readonly resolution = computed<ProjectPageResolution | null>(() => {
     const project = this.store.project();
-    if (project === null) return null;
+    // Not just "is anything loaded" — is the loaded thing *this* project. Angular re-uses this
+    // component across a parameter change, and a load leaves the previous record in place while
+    // `projects.get` is in flight. Both halves of the route can change at once (one root's page
+    // to another root's), and resolving the new kind against the old project would refuse a page
+    // that exists and redirect the user back to the workspace they had just left.
+    if (project === null || project.id !== this.projectId()) return null;
     return resolveProjectPage({
       project,
       ownPages: this.store.ownPages(),
@@ -155,8 +163,16 @@ export class ProjectWorkspaceShell {
         return;
       }
       // Read here rather than on init, so one code path covers a reused component, a
-      // re-created one and a reload.
-      untracked(() => this.noticeState.set(this.noticeFromNavigation()));
+      // re-created one and a reload — but keyed on the page that was *resolved*, not on the
+      // resolution object. That object is a fresh literal whenever the project record is
+      // replaced, and every optimistic write replaces it; re-reading history state on each one
+      // would undo a notice the user had already dismissed.
+      const settled = resolution.outcome === 'render' ? resolution.pageId : 'unavailable';
+      untracked(() => {
+        if (this.noticedFor === settled) return;
+        this.noticedFor = settled;
+        this.noticeState.set(this.noticeFromNavigation());
+      });
     });
 
     const narrow = globalThis.matchMedia?.(NARROW);
@@ -165,10 +181,14 @@ export class ProjectWorkspaceShell {
       // A collapsed column that stays collapsed after the window widens would hide navigation
       // the user never chose to hide, so `collapsed` is the *and* of the two.
       this.collapsedState.set(narrow.matches);
-      narrow.addEventListener('change', (event) => {
+      const onNarrowChange = (event: { matches: boolean }): void => {
         this.narrowState.set(event.matches);
         this.collapsedState.set(event.matches);
-      });
+      };
+      narrow.addEventListener('change', onNarrowChange);
+      // The `MediaQueryList` is a window singleton and outlives this component, so an
+      // unremoved listener is a closure over a destroyed shell — once per visit, forever.
+      inject(DestroyRef).onDestroy(() => narrow.removeEventListener('change', onNarrowChange));
     }
   }
 
@@ -181,8 +201,13 @@ export class ProjectWorkspaceShell {
     this.collapsedState.update((collapsed) => !collapsed);
   }
 
+  /**
+   * Clears the message **and** the history entry that carries it, so a reload or a Back onto
+   * this URL does not resurrect something the user has already read and dismissed.
+   */
   dismissNotice(): void {
     this.noticeState.set(null);
+    this.location.replaceState(this.location.path(), '', {});
   }
 
   rename(name: string): void {

@@ -204,6 +204,12 @@ export class ArchivedRegionStore {
     this.restoringState.update((ids) => new Set([...ids, id]));
     try {
       await write();
+      // The write landed, but the canvas underneath may have changed while it was in flight —
+      // the shell re-uses this component across a project or page change. Re-reading the page
+      // we *started* on would stamp its archive over the one now on screen, and every later
+      // restore from that region would target the wrong canvas. The write itself is done, so
+      // the caller still hears success; the region on screen re-reads on its own revision.
+      if (this.projectIdState() !== projectId || this.pageIdState() !== pageId) return true;
       await this.read(projectId, pageId);
       return true;
     } catch (error) {

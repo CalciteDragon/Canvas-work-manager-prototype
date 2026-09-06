@@ -1129,8 +1129,8 @@ HTTP and MCP for the create-a-root, nest-a-unit-of-work, enable-a-page journey a
 **25.3, done.** Opening a project is now §23's picture: the global sidebar, a second navigation
 column, and the workspace. `ProjectWorkspaceShell` serves both of §68's project routes — Angular
 re-uses the instance across a parameter change, so moving between a root's pages keeps the context
-loaded once — and renders §26's header **once per project** above the column and whichever page is
-showing. A root opens on Home; a sub-project opens on its sole work canvas, keeps its root's
+loaded once — and renders §26's header **once per project**, at the top of the workspace track
+beside the full-height column. A root opens on Home; a sub-project opens on its sole work canvas, keeps its root's
 column, and gets breadcrumbs back through its parents. Verified in the browser on
 `nested-projects` at depth three, including creating a nested work unit from a Sub-Projects
 section and watching the column gain it without a reload.

@@ -266,6 +266,53 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
     expect(router.url).toBe('/projects/project-renovation/pages/home');
   });
 
+  // The one case where the component is re-used *and* both halves of the route change at once.
+  // The store still holds the previous project while `projects.get` is in flight, so resolving
+  // against it would answer for the wrong workspace — and redirect the user there.
+  it('does not resolve a new project’s page against the project it is replacing', async () => {
+    const { harness, router } = await open('/projects/project-renovation/pages/home', {
+      pages: [
+        page('page-renovation-home', 'project-renovation', 'home'),
+        // A second root that *does* have Todos enabled — so the page the user asks for is real,
+        // and only a resolution against the stale project could refuse it.
+        page('page-loft-home', 'project-loft', 'home'),
+        page('page-loft-todos', 'project-loft', 'todos'),
+        page('page-kitchen-work', 'project-kitchen', 'work'),
+      ],
+      projects: [RENOVATION, project('project-loft', 'Loft conversion'), KITCHEN, CABINETS, GARDEN],
+    });
+
+    await harness.navigateByUrl('/projects/project-loft/pages/todos');
+    await settle(harness);
+
+    // Todos has no renderer yet, so this must fall back — but to *Loft's* Home, never to the
+    // project the user was standing on.
+    expect(router.url).toBe('/projects/project-loft/pages/home');
+    expect(query(harness, '[data-project-name]')?.textContent).toContain('Loft conversion');
+  });
+
+  // The notice is read from history state, which still carries it after a dismissal. Re-reading
+  // on every resolution — and the resolution object is rebuilt whenever the project record is —
+  // put a dismissed notice back on the next rename or live frame.
+  it('keeps a dismissed explanation dismissed through a project write', async () => {
+    const { harness } = await open('/projects/project-renovation/pages/nonsense');
+    expect(query(harness, '[data-page-notice]')).not.toBeNull();
+
+    query(harness, '[data-page-notice-dismiss]')!.click();
+    await settle(harness);
+    expect(query(harness, '[data-page-notice]')).toBeNull();
+
+    query(harness, '[data-project-more]')!.click();
+    harness.fixture.detectChanges();
+    const name = query(harness, '[data-project-rename-input]') as HTMLInputElement;
+    name.value = 'Renovation, renamed';
+    query(harness, '[data-project-rename-submit]')!.click();
+    await settle(harness);
+
+    expect(query(harness, '[data-project-name]')?.textContent).toContain('Renovation, renamed');
+    expect(query(harness, '[data-page-notice]')).toBeNull();
+  });
+
   it('renders Home for a shell created directly at its URL, which is what a reload is', async () => {
     const { harness, router } = await open('/projects/project-renovation/pages/home');
 

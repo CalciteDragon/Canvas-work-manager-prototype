@@ -265,6 +265,42 @@ describe('ArchivedRegion', () => {
     expect(rowRestored).toHaveBeenCalled();
   });
 
+  // The shell re-uses this component across a project or page change (`/projects/A` and
+  // `/projects/B` are one route configuration), so a restore can resolve after the canvas
+  // underneath it has moved. Re-reading the page the write *started* on would stamp its
+  // archive over the one now on screen, and every later restore would target the wrong canvas.
+  it('does not paint the page it started on over the page now on screen', async () => {
+    let release!: (value: unknown) => void;
+    const restoring = new Promise((resolve) => (release = resolve));
+    const gateway = new FakeWorkManagerGateway({
+      sections: [section('section-a', { title: 'Backlog', archivedAt: AT })],
+      tasks: [],
+      reflections: [],
+    });
+    gateway.sections.restore = (() => restoring) as unknown as typeof gateway.sections.restore;
+    const { fixture } = await render(gateway);
+
+    const restore = html(fixture).querySelector<HTMLButtonElement>('[data-archived-section-restore]')!;
+    restore.click();
+    // The user moves to another canvas while the write is in flight. Not `whenStable()` here:
+    // the restore is registered with `PendingTasks`, so waiting for stability would wait for
+    // the very thing this test has not released yet.
+    fixture.componentRef.setInput('pageId', 'page-elsewhere');
+    fixture.detectChanges();
+    await Promise.resolve();
+    fixture.detectChanges();
+    const readsAfterMove = gateway.calls.filter(({ method }) => method === 'sections.list').length;
+
+    release(section('section-a', { title: 'Backlog' }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // The write landed; what must not happen is a re-read of the abandoned page.
+    const listCalls = gateway.calls.filter(({ method }) => method === 'sections.list');
+    expect(listCalls.length).toBe(readsAfterMove);
+    expect((listCalls.at(-1)?.argument as { pageId?: string }).pageId).toBe('page-elsewhere');
+  });
+
   it('keeps the entry and shows the reason when a restore fails', async () => {
     const gateway = new FakeWorkManagerGateway({
       sections: [section('section-a', { title: 'Backlog', archivedAt: AT })],

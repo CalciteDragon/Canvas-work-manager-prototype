@@ -795,6 +795,27 @@ describe('ProjectPageStore and live updates (§62)', () => {
     expect(tasks.loadFailed()).toBe(false);
   });
 
+  // The recovery above repaints the canvas and clears the error, which is the whole point of
+  // it — so the canvas must be *writable* afterwards. `loaded` was set only by `load()`, and
+  // every write guard reads it, so a recovered canvas rendered a full set of controls that
+  // silently did nothing: no write, no error, and a dragged section snapping back.
+  it('is writable again after a quiet recovery, not merely readable', async () => {
+    const list = vi.fn()
+      .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'host starting'))
+      .mockResolvedValue([section('section-text', 'rich-text', 0)]);
+    const { store, gateway, live } = setup({ sectionOverrides: { list } });
+
+    await store.load(PROJECT, PAGE);
+    expect(store.error()).toContain('host starting');
+
+    live.emitConnected();
+    await settleLive();
+    expect(store.sections()).toHaveLength(1);
+
+    expect(await store.setCollapsed('section-text' as SectionId, true)).toBe(true);
+    expect(gateway.sections.update).toHaveBeenCalled();
+  });
+
   it('queues an event that arrives before the first canvas response', async () => {
     const first = deferred<ProjectSection[]>();
     const list = vi.fn()

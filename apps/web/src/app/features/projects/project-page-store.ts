@@ -220,6 +220,10 @@ export class ProjectPageStore {
           const sections = await this.gateway.sections.list(projectId, { pageId });
           if (this.current(generation, projectId, pageId)) {
             this.sectionsState.set([...sections].sort(byPosition));
+            // A recovery is a load. Without this a canvas that recovered from a failed first
+            // read rendered every control and silently refused every write — no request, no
+            // error, and a dragged section snapping back with nothing said.
+            this.loaded = true;
             // These are loud-load errors only. A complete quiet recovery makes them stale.
             this.errorState.set(null);
             this.sectionErrorState.set(null);
@@ -250,6 +254,9 @@ export class ProjectPageStore {
     this.requestedProjectId = projectId;
     this.requestedPageId = pageId;
     this.loaded = false;
+    // A refresh in flight for the page being left exits on the generation check without
+    // consuming this, and the flag would otherwise buy the *next* page a gratuitous re-read.
+    this.sectionRefreshQueued = false;
     this.editModeState.set(false);
 
     const operation = this.track(async () => {
@@ -473,7 +480,7 @@ export class ProjectPageStore {
     return { sectionId: id, sectionName: nameOf(section), rowCount, ownedKind, targets: this.reassignTargets(id) };
   }
 
-  /** The containers a refused removal could hand its rows to: same type, same project. */
+  /** The containers a refused removal could hand its rows to: same type, same page. */
   private reassignTargets(id: SectionId): ProjectSection[] {
     const section = this.sectionsState().find((candidate) => candidate.id === id);
     if (section === undefined) return [];
@@ -570,6 +577,7 @@ export class ProjectPageStore {
       const sections = await this.gateway.sections.list(projectId, { pageId });
       if (this.current(generation, projectId, pageId)) {
         this.sectionsState.set([...sections].sort(byPosition));
+        this.loaded = true;
       }
     } catch {
       // Deliberately ignored — see above.
