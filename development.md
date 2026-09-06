@@ -1040,7 +1040,7 @@ ascending with undated last, retaining completed and cancelled rows.
 | 25.1 | Root/subproject model and persistent pages | 25.0 | done — plan: [docs/plans/25.1-owner-kinds-and-persistent-pages.md](docs/plans/25.1-owner-kinds-and-persistent-pages.md) |
 | 25.2 | Page ownership through domain, API and MCP | 25.1 | done — plan: [docs/plans/25.2-page-aware-ownership.md](docs/plans/25.2-page-aware-ownership.md) |
 | 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | done — plan: [docs/plans/25.3-workspace-shell-and-subproject-canvas.md](docs/plans/25.3-workspace-shell-and-subproject-canvas.md) |
-| 25.4 | Home shortcuts | 25.3 | not started |
+| 25.4 | Home shortcuts | 25.3 | not started — plan written and reviewed: [docs/plans/25.4-home-shortcuts.md](docs/plans/25.4-home-shortcuts.md) |
 | 25.5 | Chronological Todos | 25.3 | not started |
 | 25.6 | Root Archive and reachable undo | 25.3 | not started |
 | 25.7 | Completed-work reflections | 25.3 | not started |
