@@ -1,0 +1,361 @@
+import { TestBed } from '@angular/core/testing';
+import {
+  ProjectSchema,
+  ProjectStatusSchema,
+  type Project,
+  type ProjectId,
+  type ProjectQuery,
+} from '@cwm/contracts';
+import { describe, expect, it } from 'vitest';
+import { GatewayError } from '../../core/gateway/gateway-error';
+import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
+import { FakeWorkManagerGateway, type FakeGatewayOptions } from '../../core/gateway/testing/fake-gateway';
+import { LIVE_UPDATES } from '../../core/live/live-updates';
+import { FakeLiveUpdates } from '../../core/live/testing/fake-live-updates';
+import { ProjectWorkspaceStore } from './project-workspace-store';
+
+const AT = '2026-08-27T16:00:00.000Z';
+
+const root = (id: string, name: string, overrides: Record<string, unknown> = {}): Project =>
+  ProjectSchema.parse({
+    id,
+    workspaceId: 'workspace-demo',
+    kind: 'root',
+    name,
+    status: 'active',
+    projectLayoutMode: 'flow',
+    createdAt: AT,
+    updatedAt: AT,
+    ...overrides,
+  });
+
+const child = (
+  id: string,
+  name: string,
+  parentProjectId: string,
+  overrides: Record<string, unknown> = {},
+): Project =>
+  ProjectSchema.parse({
+    id,
+    workspaceId: 'workspace-demo',
+    kind: 'subproject',
+    name,
+    parentProjectId,
+    status: 'active',
+    projectLayoutMode: 'flow',
+    createdAt: AT,
+    updatedAt: AT,
+    ...overrides,
+  });
+
+/** The `nested-projects` shape: renovation → kitchen → cabinets, plus a sibling garden. */
+const renovation = () => [
+  root('project-renovation', 'Home renovation'),
+  child('project-kitchen', 'Kitchen', 'project-renovation'),
+  child('project-cabinets', 'Cabinets', 'project-kitchen'),
+  child('project-garden', 'Garden', 'project-renovation'),
+];
+
+const storeWith = (options: FakeGatewayOptions = {}, live = new FakeLiveUpdates()) => {
+  TestBed.configureTestingModule({
+    providers: [
+      ProjectWorkspaceStore,
+      { provide: WORK_MANAGER_GATEWAY, useValue: new FakeWorkManagerGateway(options) },
+      { provide: LIVE_UPDATES, useValue: live },
+    ],
+  });
+  return {
+    store: TestBed.inject(ProjectWorkspaceStore),
+    gateway: TestBed.inject(WORK_MANAGER_GATEWAY) as FakeWorkManagerGateway,
+    live,
+  };
+};
+
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((yes) => {
+    resolve = yes;
+  });
+  return { promise, resolve };
+};
+
+describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
+  it('loads a root, its pages and the work hierarchy beneath it', async () => {
+    const { store } = storeWith({ projects: renovation() });
+
+    await store.load('project-renovation' as ProjectId);
+
+    expect(store.project()?.name).toBe('Home renovation');
+    expect(store.root()?.id).toBe('project-renovation');
+    expect(store.breadcrumbs()).toEqual([]);
+    expect(store.pages().map((page) => page.kind)).toEqual(['home']);
+    expect(store.subprojectTree().map((node) => node.project.name)).toEqual(['Kitchen', 'Garden']);
+    expect(store.subprojectTree()[0]?.children.map((node) => node.project.name)).toEqual(['Cabinets']);
+    expect(store.loading()).toBe(false);
+    expect(store.error()).toBeNull();
+  });
+
+  // §23: "Opening a subproject keeps its root's column and adds breadcrumbs back through its
+  // parents." Three levels counting the root is the deepest the seed goes.
+  it('keeps a depth-three sub-project in its root context, with breadcrumbs through its parents', async () => {
+    const { store } = storeWith({ projects: renovation() });
+
+    await store.load('project-cabinets' as ProjectId);
+
+    expect(store.project()?.name).toBe('Cabinets');
+    expect(store.root()?.name).toBe('Home renovation');
+    expect(store.breadcrumbs().map((project) => project.name)).toEqual(['Home renovation', 'Kitchen']);
+    expect(store.subprojectTree().map((node) => node.project.name)).toEqual(['Kitchen', 'Garden']);
+  });
+
+  // The root's pages drive navigation; the sub-project's own `work` page is the canvas's
+  // identity, and `pages.list(rootId)` never returns it.
+  it('reads a sub-project’s own pages as well as its root’s', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+
+    await store.load('project-cabinets' as ProjectId);
+
+    expect(store.pages().map((page) => page.kind)).toEqual(['home']);
+    expect(store.ownPages().map((page) => page.kind)).toEqual(['work']);
+    expect(gateway.calls.filter(({ method }) => method === 'pages.list')).toHaveLength(2);
+  });
+
+  it('asks for one page list only when the project is its own root', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+
+    await store.load('project-renovation' as ProjectId);
+
+    expect(gateway.calls.filter(({ method }) => method === 'pages.list')).toHaveLength(1);
+  });
+
+  // §31: archived work does not appear in ordinary views, and the column is navigation.
+  // Asserted on the argument because the fake answers `projects.list` regardless of query.
+  it('asks for every project status except archived', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+
+    await store.load('project-renovation' as ProjectId);
+
+    const query = gateway.argumentTo('projects.list') as ProjectQuery;
+    expect(query.status).toEqual(['planning', 'active', 'on_hold', 'completed']);
+    expect(query.status).toHaveLength(ProjectStatusSchema.options.length - 1);
+  });
+
+  // §31: "a read that names a project always answers, because an archived project's own page
+  // keeps rendering." The filtered list cannot supply its ancestors, so the chain is walked.
+  it('builds breadcrumbs for a project the navigation filter excludes', async () => {
+    const projects = renovation();
+    const { store } = storeWith({
+      projects: [...projects, child('project-attic', 'Attic', 'project-kitchen', { status: 'archived' })],
+    });
+
+    await store.load('project-attic' as ProjectId);
+
+    expect(store.breadcrumbs().map((project) => project.name)).toEqual(['Home renovation', 'Kitchen']);
+    expect(store.project()?.name).toBe('Attic');
+    expect(store.error()).toBeNull();
+  });
+
+  it('settles into one visible message when the project cannot be read', async () => {
+    const { store } = storeWith({
+      projects: renovation(),
+      failOn: { 'projects.get': new GatewayError('not_found', 404, 'no such project "ghost"') },
+    });
+
+    await store.load('project-renovation' as ProjectId);
+
+    expect(store.error()).toContain('no such project');
+    expect(store.project()).toBeNull();
+    expect(store.loading()).toBe(false);
+  });
+
+  it('discards a late response from the project the user has already left', async () => {
+    const projects = renovation();
+    const slow = deferred<Project>();
+    const gateway = new FakeWorkManagerGateway({ projects });
+    const original = gateway.projects.get.bind(gateway.projects);
+    gateway.projects.get = (id: ProjectId) =>
+      id === 'project-kitchen' ? slow.promise : original(id);
+    TestBed.configureTestingModule({
+      providers: [
+        ProjectWorkspaceStore,
+        { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+        { provide: LIVE_UPDATES, useValue: new FakeLiveUpdates() },
+      ],
+    });
+    const store = TestBed.inject(ProjectWorkspaceStore);
+
+    const first = store.load('project-kitchen' as ProjectId);
+    await store.load('project-garden' as ProjectId);
+    slow.resolve(projects[1]!);
+    await first;
+
+    expect(store.project()?.name).toBe('Garden');
+  });
+});
+
+describe('ProjectWorkspaceStore and live updates (§62)', () => {
+  it('refreshes header progress on a task event for this project', async () => {
+    const live = new FakeLiveUpdates();
+    const { store, gateway } = storeWith({ projects: renovation() }, live);
+    await store.load('project-renovation' as ProjectId);
+    const before = gateway.calls.filter(({ method }) => method === 'progress.get').length;
+
+    live.emit({
+      type: 'task.completed',
+      entityType: 'task',
+      entityId: 'task-1',
+      projectId: 'project-renovation',
+      rootProjectId: 'project-renovation',
+      actor: { kind: 'agent', id: 'agent-1', name: 'Claude' },
+      at: AT,
+    } as never);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(gateway.calls.filter(({ method }) => method === 'progress.get').length).toBe(before + 1);
+    expect(gateway.calls.filter(({ method }) => method === 'projects.get').length).toBe(1);
+  });
+
+  // `rootProjectId` is right for the tree and wrong for the record: a sibling three levels
+  // away must not put a `projects.get` behind every frame it produces.
+  it('leaves this project’s record alone when a sibling sub-project is written', async () => {
+    const live = new FakeLiveUpdates();
+    const { store, gateway } = storeWith({ projects: renovation() }, live);
+    await store.load('project-kitchen' as ProjectId);
+    const before = gateway.calls.filter(({ method }) => method === 'projects.get').length;
+
+    live.emit({
+      type: 'task.created',
+      entityType: 'task',
+      entityId: 'task-2',
+      projectId: 'project-garden',
+      rootProjectId: 'project-renovation',
+      actor: { kind: 'agent', id: 'agent-1', name: 'Claude' },
+      at: AT,
+    } as never);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(gateway.calls.filter(({ method }) => method === 'projects.get').length).toBe(before);
+  });
+
+  it('re-reads the work hierarchy when a project is created anywhere in this root', async () => {
+    const live = new FakeLiveUpdates();
+    const { store, gateway } = storeWith({ projects: renovation() }, live);
+    await store.load('project-renovation' as ProjectId);
+    const before = gateway.calls.filter(({ method }) => method === 'projects.list').length;
+
+    live.emit({
+      type: 'project.created',
+      entityType: 'project',
+      entityId: 'project-new',
+      projectId: 'project-new',
+      rootProjectId: 'project-renovation',
+      actor: { kind: 'agent', id: 'agent-1', name: 'Claude' },
+      at: AT,
+    } as never);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(gateway.calls.filter(({ method }) => method === 'projects.list').length).toBe(before + 1);
+  });
+
+  it('stops listening once the store is destroyed', async () => {
+    const live = new FakeLiveUpdates();
+    const { store } = storeWith({ projects: renovation() }, live);
+    await store.load('project-renovation' as ProjectId);
+    expect(live.listenerCount).toBe(1);
+
+    TestBed.resetTestingModule();
+
+    expect(live.listenerCount).toBe(0);
+  });
+});
+
+describe('ProjectWorkspaceStore — the project’s own writes (§26, §63, §81)', () => {
+  it('renames optimistically and keeps the new name when the write lands', async () => {
+    const { store } = storeWith({ projects: renovation() });
+    await store.load('project-renovation' as ProjectId);
+
+    const renamed = await store.rename('Renovation');
+
+    expect(renamed).toBe(true);
+    expect(store.project()?.name).toBe('Renovation');
+    expect(store.writeError()).toBeNull();
+  });
+
+  it('rolls a failed rename back to the persisted name and says why', async () => {
+    const { store } = storeWith({
+      projects: renovation(),
+      failOn: { 'projects.update': new GatewayError('conflict', 409, 'someone else renamed it') },
+    });
+    await store.load('project-renovation' as ProjectId);
+
+    const renamed = await store.rename('Renovation');
+
+    expect(renamed).toBe(false);
+    expect(store.project()?.name).toBe('Home renovation');
+    expect(store.writeError()).toContain('someone else renamed it');
+  });
+
+  it('stores a description on a work unit', async () => {
+    const { store } = storeWith({ projects: renovation() });
+    await store.load('project-kitchen' as ProjectId);
+
+    await store.setDescription('Appliances first');
+
+    expect(store.project()?.description).toBe('Appliances first');
+  });
+
+  it('stores a due date on a work unit, and clears it back to nothing', async () => {
+    const { store } = storeWith({ projects: renovation() });
+    await store.load('project-kitchen' as ProjectId);
+
+    await store.setTargetDate('2026-10-15');
+    expect(store.project()?.targetDate).toBe('2026-10-15');
+
+    await store.setTargetDate(null);
+    expect(store.project()?.targetDate).toBeUndefined();
+  });
+
+  // The Restore controls need the guard up *before* the optimistic paint, or there is a frame
+  // in which the page says `active` while the domain would still refuse a restore.
+  it('holds the write guard from before the optimistic paint until the response lands', async () => {
+    const gateway = new FakeWorkManagerGateway({ projects: renovation() });
+    const slow = deferred<Project>();
+    gateway.projects.update = () => slow.promise;
+    TestBed.configureTestingModule({
+      providers: [
+        ProjectWorkspaceStore,
+        { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+        { provide: LIVE_UPDATES, useValue: new FakeLiveUpdates() },
+      ],
+    });
+    const store = TestBed.inject(ProjectWorkspaceStore);
+    await store.load('project-renovation' as ProjectId);
+
+    const writing = store.setStatus('active');
+    expect(store.projectWritePending()).toBe(true);
+
+    slow.resolve({ ...renovation()[0]!, status: 'active' });
+    await writing;
+
+    expect(store.projectWritePending()).toBe(false);
+  });
+
+  it('archives through the same status write, and reports a refusal without leaving the page', async () => {
+    const { store } = storeWith({
+      projects: renovation(),
+      failOn: {
+        'projects.update': new GatewayError('conflict', 409, 'archive its live sub-projects first'),
+      },
+    });
+    await store.load('project-renovation' as ProjectId);
+
+    const archived = await store.archive();
+
+    expect(archived).toBe(false);
+    expect(store.project()?.status).toBe('active');
+    expect(store.writeError()).toContain('archive its live sub-projects first');
+  });
+});
