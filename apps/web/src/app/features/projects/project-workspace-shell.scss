@@ -1,0 +1,93 @@
+:host {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
+
+// §23's picture: the navigation column, then the main workspace. `AppShell` hands this
+// component the region without its own padding (see `app-shell.scss`), so the column is
+// flush against the global sidebar and the gutter belongs to the main track alone.
+.workspace {
+  display: grid;
+  grid-template-columns: var(--layout-project-column-width) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.workspace__nav {
+  // Load-bearing, not decoration: a stretched grid item is already the full height of the
+  // row, so sticky would have no travel and the column would scroll away with the canvas.
+  align-self: start;
+  position: sticky;
+  top: 0;
+  max-height: calc(100vh - var(--layout-top-bar-height));
+  min-height: 0;
+}
+
+.workspace__main {
+  display: grid;
+  align-content: start;
+  gap: var(--space-5);
+  min-width: 0;
+  padding: var(--space-5);
+}
+
+.workspace__muted {
+  margin: 0;
+  padding: var(--space-5);
+  color: var(--color-text-muted);
+}
+
+.workspace__notice {
+  padding: var(--space-5);
+}
+
+.workspace__notice h1 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-xl);
+}
+
+.workspace__error,
+.workspace__notice p {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.workspace__page-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
+.workspace__page-notice button {
+  flex: 0 0 auto;
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 60rem) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace__nav {
+    position: static;
+    max-height: none;
+  }
+}

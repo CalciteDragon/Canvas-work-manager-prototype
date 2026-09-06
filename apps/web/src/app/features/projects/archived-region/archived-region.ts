@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output } from '@angular/core';
-import type { OwnedDataKind, ProjectId, SectionId } from '@cwm/contracts';
+import type { OwnedDataKind, ProjectId, ProjectPageId, SectionId } from '@cwm/contracts';
 import { ArchivedRegionStore, type ArchivedRowEntry, type ArchivedSectionEntry } from './archived-region-store';
 
 /** `1 task`, never `1 tasks` — the same rule `SectionRemovalDialog` follows. */
@@ -30,6 +30,8 @@ const ROW_NOUN: Record<OwnedDataKind, { one: string; many: string }> = {
 })
 export class ArchivedRegion {
   readonly projectId = input.required<ProjectId>();
+  /** §27: the region is a canvas's undo, and a canvas is a page. */
+  readonly pageId = input.required<ProjectPageId>();
   /** The page's §62 invalidation signal — the same input every section frame takes. */
   readonly projectDataRevision = input.required<number>();
   /**
@@ -55,7 +57,7 @@ export class ArchivedRegion {
     // in a Task List appears here without a reload.
     effect(() => {
       this.projectDataRevision();
-      void this.store.load(this.projectId());
+      void this.store.load(this.projectId(), this.pageId());
     });
   }
 

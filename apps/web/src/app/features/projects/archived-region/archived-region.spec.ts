@@ -4,6 +4,7 @@ import {
   ReflectionSchema,
   TaskSchema,
   type ProjectId,
+  type ProjectPageId,
   type ProjectSection,
   type Reflection,
   type SectionId,
@@ -16,6 +17,8 @@ import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway
 import { ArchivedRegion } from './archived-region';
 
 const PROJECT = 'project-a' as ProjectId;
+/** §27: the region is a canvas's undo, and a canvas is a page. */
+const PAGE = `page-${PROJECT}` as ProjectPageId;
 const AT = '2026-09-02T06:13:32.422Z';
 const EARLIER = '2026-09-01T06:13:32.422Z';
 
@@ -23,7 +26,7 @@ const section = (id: string, overrides: Record<string, unknown> = {}): ProjectSe
   ProjectSectionSchema.parse({
     id,
     projectId: PROJECT,
-    pageId: `page-${PROJECT}`,
+    pageId: PAGE,
     type: 'task-list',
     position: 0,
     columnSpan: 12,
@@ -64,6 +67,7 @@ const render = async (gateway: FakeWorkManagerGateway, restoreBlocked = false) =
   });
   const fixture = TestBed.createComponent(ArchivedRegion);
   fixture.componentRef.setInput('projectId', PROJECT);
+  fixture.componentRef.setInput('pageId', PAGE);
   fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.componentRef.setInput('restoreBlocked', restoreBlocked);
   const sectionRestored = vi.fn<(id: SectionId) => void>();

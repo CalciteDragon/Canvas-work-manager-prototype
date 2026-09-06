@@ -1,0 +1,57 @@
+@if (store.loading()) {
+  <p data-project-loading class="workspace__muted">Loading project…</p>
+} @else if (store.error(); as error) {
+  <section class="workspace__notice" aria-labelledby="project-error-heading">
+    <h1 id="project-error-heading">Project unavailable</h1>
+    <p data-project-error role="alert">{{ error }}</p>
+  </section>
+} @else if (store.project(); as project) {
+  <div class="workspace">
+    @if (store.root(); as root) {
+      <app-project-page-navigation
+        class="workspace__nav"
+        [root]="root"
+        [pages]="pages()"
+        [workTree]="store.subprojectTree()"
+        [currentProjectId]="project.id"
+        [activeKind]="activeKind()"
+        [breadcrumbs]="store.breadcrumbs()"
+        [collapsed]="collapsed()"
+        (toggleRequested)="toggleNavigation()"
+      />
+    }
+
+    <div class="workspace__main">
+      <app-project-header
+        [project]="project"
+        [progress]="store.progress()"
+        [writeError]="store.writeError()"
+        (renameRequested)="rename($event)"
+        (descriptionRequested)="setDescription($event)"
+        (statusRequested)="setStatus($event)"
+        (targetDateRequested)="setTargetDate($event)"
+        (archiveRequested)="confirmArchive()"
+      />
+
+      <!-- §68: an unknown, disabled or unbuilt page falls back "with an explanation". The URL
+           was already replaced; this is the sentence that goes with it. -->
+      @if (notice(); as notice) {
+        <p data-page-notice class="workspace__page-notice" role="status">
+          {{ notice }}
+          <button type="button" data-page-notice-dismiss (click)="dismissNotice()">Dismiss</button>
+        </p>
+      }
+
+      @if (unavailable(); as reason) {
+        <p data-page-unavailable class="workspace__error" role="alert">{{ reason }}</p>
+      } @else if (rendered(); as rendered) {
+        <!-- Mounted only once the page is resolved: the renderer's `pageId` is required, and
+             resolving it needs a second round trip after the project itself. -->
+        <ng-container
+          [ngComponentOutlet]="rendered.component"
+          [ngComponentOutletInputs]="rendererInputs() ?? {}"
+        />
+      }
+    </div>
+  </div>
+}

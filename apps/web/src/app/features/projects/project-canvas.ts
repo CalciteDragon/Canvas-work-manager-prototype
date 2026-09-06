@@ -3,22 +3,22 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  computed,
   effect,
   inject,
   input,
   signal,
 } from '@angular/core';
-import { Router } from '@angular/router';
 import type {
   ProjectId,
   ProjectLayoutMode,
+  ProjectPageId,
   SectionColumnSpan,
   SectionConfig,
   SectionId,
 } from '@cwm/contracts';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { ArchivedRegion } from './archived-region/archived-region';
-import { ProjectMoreMenu, type SettableProjectStatus } from './project-more-menu';
 import { ProjectPageStore } from './project-page-store';
 import { SectionRemovalDialog } from './section-removal-dialog';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
@@ -26,40 +26,51 @@ import { ProgressStore } from './sections/progress/progress-store';
 import { SECTION_REGISTRY, definitionFor } from './sections/registry';
 
 /**
- * §26's project page: header, then the section canvas. One plain vertical stack — §27's
- * flow/grid comparison and §32's Edit Layout Mode both arrive in Slice 9, and §26's middle
- * "Project Navigation / Controls" row waits for them, because the mode toggle and the
- * layout switch are what it exists to hold.
+ * §27's section canvas, for **one page**: the controls row, the drag-drop canvas, the
+ * Archived region and the removal dialog. It is the renderer for a root's Home and for a
+ * sub-project's sole work canvas, which after §26 are the same component — the two kinds
+ * differ in their *header*, and the header belongs to `ProjectWorkspaceShell`.
  *
- * Section stores follow ownership. `ProgressStore` stays page-scoped — progress is a *view*
+ * It is mounted through `NgComponentOutlet`, which binds **inputs only**. The two ways the
+ * canvas has to tell the shell something — progress may have moved, the work hierarchy may
+ * have moved — therefore arrive as callback inputs with stable identity, exactly as
+ * `ProjectSectionFrame` hands callbacks to its content components.
+ *
+ * Section stores follow ownership. `ProgressStore` stays canvas-scoped — progress is a *view*
  * over the whole project, and two Progress sections must show one answer. Task List and
  * Reflections are **containers**: each provides its own store, because two of them hold
- * different rows by design (docs/decisions/2026-09-sections-own-their-data.md). Sharing one
- * store there would render the same list twice, which is the bug ownership exists to fix.
+ * different rows by design (docs/decisions/2026-09-sections-own-their-data.md).
  */
 @Component({
-  selector: 'app-project-page',
+  selector: 'app-project-canvas',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ArchivedRegion, CdkDrag, CdkDragHandle, CdkDropList, ProjectMoreMenu, ProjectSectionFrame, SectionRemovalDialog],
+  imports: [ArchivedRegion, CdkDrag, CdkDragHandle, CdkDropList, ProjectSectionFrame, SectionRemovalDialog],
   providers: [ProgressStore, ProjectPageStore],
-  templateUrl: './project-page.html',
-  styleUrl: './project-page.scss',
-  // Both popovers close on Escape from anywhere on the page, which is what a menu opened
-  // with the pointer needs — the keystroke rarely lands inside the menu itself.
-  host: { '(document:keydown.escape)': 'closeMenus()' },
+  templateUrl: './project-canvas.html',
+  styleUrl: './project-canvas.scss',
+  // Quick Add's menu closes on Escape from anywhere on the canvas, which is what a menu
+  // opened with the pointer needs — the keystroke rarely lands inside the menu itself. The
+  // More menu declares its own, in the header that owns it.
+  host: { '(document:keydown.escape)': 'closeAdd()' },
 })
-export class ProjectPage {
-  /** Bound from the route by `withComponentInputBinding()` (§68). */
+export class ProjectCanvas {
   readonly projectId = input.required<ProjectId>();
+  /** §27: a canvas is a page. Every read and write this store makes names it. */
+  readonly pageId = input.required<ProjectPageId>();
+  readonly projectLayoutMode = input.required<ProjectLayoutMode>();
+  /** Whether the Archived region may offer a Restore at all — the shell knows, not the canvas. */
+  readonly restoreBlocked = input<boolean>(false);
+  /** Progress may have moved. Called, not emitted: `NgComponentOutlet` has no output API. */
+  readonly onProjectDataChange = input<() => void>(() => {});
+  /** The work hierarchy may have moved — a Sub-Projects section created a child. */
+  readonly onProjectHierarchyChange = input<() => void>(() => {});
 
   readonly store = inject(ProjectPageStore);
   readonly registry = SECTION_REGISTRY;
   readonly addOpen = signal(false);
-  readonly moreOpen = signal(false);
   readonly canvasMounted = signal(true);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly settings = inject(PrototypeSettings);
-  private readonly router = inject(Router);
 
   /**
    * §28's mode, gated by §47's `gridProjectLayout`. The project keeps whatever it has
@@ -67,18 +78,18 @@ export class ProjectPage {
    * experiment rather than a data migration, and turning it back on restores the project's
    * own choice.
    */
-  layoutMode(mode: ProjectLayoutMode): ProjectLayoutMode {
-    return this.settings.flags().gridProjectLayout ? mode : 'flow';
-  }
+  readonly layoutMode = computed<ProjectLayoutMode>(() =>
+    this.settings.flags().gridProjectLayout ? this.projectLayoutMode() : 'flow',
+  );
 
   constructor() {
-    // Re-loads when the route changes, which sidebar navigation between projects does
-    // without re-creating the component.
+    // Re-loads when the page changes, which the column does without re-creating this
+    // component, and which the shell also does when the route moves to another project.
     effect(() => {
-      const id = this.projectId();
+      const projectId = this.projectId();
+      const pageId = this.pageId();
       this.addOpen.set(false);
-      this.closeMore();
-      void this.store.load(id);
+      void this.store.load(projectId, pageId);
     });
   }
 
@@ -86,53 +97,12 @@ export class ProjectPage {
     return definitionFor(type);
   }
 
-  // Quick add and More render popovers into the same header row, so opening either closes
-  // the other rather than letting the two overlap.
   toggleAdd(): void {
-    const open = !this.addOpen();
-    this.addOpen.set(open);
-    if (open) this.closeMore();
+    this.addOpen.update((open) => !open);
   }
 
-  toggleMore(): void {
-    const open = !this.moreOpen();
-    this.moreOpen.set(open);
-    if (open) this.addOpen.set(false);
-  }
-
-  closeMenus(): void {
+  closeAdd(): void {
     this.addOpen.set(false);
-    this.closeMore();
-  }
-
-  private closeMore(): void {
-    this.moreOpen.set(false);
-  }
-
-  rename(name: string): void {
-    this.closeMore();
-    void this.store.rename(name);
-  }
-
-  setStatus(status: SettableProjectStatus): void {
-    this.closeMore();
-    void this.store.setStatus(status);
-  }
-
-  setTargetDate(targetDate: string | null): void {
-    this.closeMore();
-    void this.store.setTargetDate(targetDate);
-  }
-
-  /**
-   * §19: the store decided, the page navigates. A refusal leaves the user where they are,
-   * with the domain's own reason in the header.
-   */
-  async confirmArchive(): Promise<void> {
-    const archived = await this.store.archive();
-    if (!archived) return;
-    this.closeMore();
-    await this.router.navigate(['/app']);
   }
 
   toggleEditMode(): void {
@@ -142,12 +112,12 @@ export class ProjectPage {
   }
 
   async drop(event: CdkDragDrop<unknown>): Promise<void> {
-    const droppedProjectId = this.store.project()?.id;
+    const droppedPageId = this.pageId();
     const persisted = await this.store.moveSection(
       event.item.data as SectionId,
       event.currentIndex,
     );
-    if (!persisted && this.store.project()?.id === droppedProjectId) {
+    if (!persisted && this.pageId() === droppedPageId) {
       // Mixed-orientation CDK moves DOM nodes directly. A rejected write must destroy that
       // physical order before recreating the canvas from the canonical store array.
       this.canvasMounted.set(false);
@@ -163,17 +133,6 @@ export class ProjectPage {
     await this.store.addSection(definition);
     this.addOpen.set(false);
   }
-
-  /**
-   * Whether the Archived region may offer a Restore at all. Restoring into an archived
-   * project is a domain refusal, and this page stays reachable by direct URL for one — so
-   * the control is disabled with guidance rather than offered and guaranteed to fail.
-   *
-   * The pending half matters as much as the status: `setStatus` paints optimistically, so
-   * the loaded status alone would enable Restore during a reactivation that has not landed,
-   * and would keep it enabled for a frame after one that failed and rolled back.
-   */
-  restoreBlocked = () => this.store.project()?.status === 'archived' || this.store.projectWritePending();
 
   /**
    * Both halves of §31's remove, once the dialog has asked which one the user meant.
@@ -207,10 +166,11 @@ export class ProjectPage {
 
   projectDataChanged(): void {
     this.store.notifyProjectDataChanged();
-    void this.store.refreshProgress();
+    this.onProjectDataChange()();
   }
 
   projectHierarchyChanged(): void {
     this.store.notifyProjectHierarchyChanged();
+    this.onProjectHierarchyChange()();
   }
 }

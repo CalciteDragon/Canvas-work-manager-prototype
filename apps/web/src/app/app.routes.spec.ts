@@ -10,7 +10,7 @@ import { PROTOTYPE_CONTROL } from './prototype/control/prototype-control';
 import { FakePrototypeControl } from './prototype/control/testing/fake-prototype-control';
 import { CalendarPage } from './features/calendar/calendar-page';
 import { DashboardPage } from './features/dashboard/dashboard-page';
-import { ProjectPage } from './features/projects/project-page';
+import { ProjectWorkspaceShell } from './features/projects/project-workspace-shell';
 import { SearchPage } from './features/search/search-page';
 import { AgentConnectionsPage } from './features/settings/agents/agent-connections-page';
 import { SettingsPage } from './features/settings/settings-page';
@@ -39,7 +39,13 @@ const harness = async () => {
 describe('the §68 route map', () => {
   it.each([
     ['/app', DashboardPage],
-    ['/projects/project-1', ProjectPage],
+    ['/projects/project-1', ProjectWorkspaceShell],
+    // §68's canonical root page route. Declared before the shorter one, or
+    // `projects/:projectId` would match it and swallow the page segment.
+    ['/projects/project-1/pages/home', ProjectWorkspaceShell],
+    // The shell decides what an unknown kind means, not the router — §68 asks for a fallback
+    // with an explanation, which a 404 route could not give.
+    ['/projects/project-1/pages/nonsense', ProjectWorkspaceShell],
     ['/calendar', CalendarPage],
     ['/search', SearchPage],
     ['/settings', SettingsPage],

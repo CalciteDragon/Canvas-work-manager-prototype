@@ -23,3 +23,12 @@
   padding: var(--space-5);
   overflow: auto;
 }
+
+// §23 puts the project navigation column *between* the sidebar and the main workspace, which
+// means it cannot sit inside this region's gutter. A routed component declares it owns the
+// full bleed and pads its own tracks; the shell keeps its state out of `ShellStore` (§20) and
+// contributes only this rule. Keyed on the declared attribute rather than on a component
+// selector, so a rename cannot silently stop matching.
+.workspace:has(> [data-flush-workspace]) {
+  padding: 0;
+}

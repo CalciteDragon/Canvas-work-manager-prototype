@@ -5,6 +5,7 @@ import {
   TaskSchema,
   type Project,
   type ProjectId,
+  type ProjectPageId,
   type ProjectSection,
   type SectionId,
   type Task,
@@ -24,6 +25,8 @@ import type { SectionDefinition } from './sections/registry';
 
 const AT = '2026-08-27T16:00:00.000Z';
 const PROJECT = 'project-a' as ProjectId;
+const PAGE = `page-${PROJECT}` as ProjectPageId;
+const OTHER_PAGE = 'page-project-b' as ProjectPageId;
 
 const project = (overrides: Record<string, unknown> = {}): Project =>
   ProjectSchema.parse({
@@ -214,14 +217,13 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
 });
 
 describe('ProjectPageStore (§19, §26)', () => {
-  it('loads the project and its sections in position order, and reads no rows itself', async () => {
+  it('loads its page’s sections in position order, and reads no rows itself', async () => {
     const { store, gateway } = setup({
       sections: [section('section-tasks', 'task-list', 1), section('section-text', 'rich-text', 0)],
     });
 
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
-    expect(store.project()?.name).toBe('Website launch');
     // Ordering is the store's job — the canvas renders what it is handed.
     expect(store.sections().map(({ id }) => id)).toEqual(['section-text', 'section-tasks']);
     // A container owns its rows, so the Task List section reads them; this store does not.
@@ -229,83 +231,45 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.error()).toBeNull();
   });
 
-  it('exposes count-based progress that follows task completion in a section store', async () => {
-    const { store, tasks, gateway } = setup();
-    await store.load(PROJECT);
-    await tasks.load(section('section-tasks', 'task-list', 1));
-
-    expect(store.progress()).toBe(50);
-
-    await tasks.complete('task-1' as Task['id']);
-    vi.mocked(gateway.progress.get).mockResolvedValue({ projectId: PROJECT, formula: 'count', percentage: 100, completed: 2, total: 2, explanation: '2 of 2 tasks complete' });
-    await store.refreshProgress();
-
-    // Progress is a *view* over the whole project, so it stays page-scoped and canonical —
-    // it is not a sum of whatever the visible containers happen to hold.
-    expect(store.progress()).toBe(100);
-  });
-
-  it('reports no progress rather than NaN for a project with no tasks', async () => {
-    const { store } = setup({ tasks: [] });
-
-    await store.load(PROJECT);
-
-    // "Nothing to measure" and "nothing done" are different claims to make about a project.
-    expect(store.progress()).toBeNull();
-  });
-
-  it('renders the header and sections when a task-list load fails, using the independent progress read model', async () => {
+  it('keeps the rest of the canvas when one container’s rows cannot be read', async () => {
     const { store, tasks } = setup({
       taskList: vi.fn(async () => {
         throw new GatewayError('unreachable', 0, 'could not reach the prototype host');
       }) as unknown as WorkManagerGateway['tasks']['list'],
     });
 
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
     await tasks.load(section('section-tasks', 'task-list', 1));
 
-    // One container's failure must not blank the header and the Rich Text section.
-    expect(store.project()?.name).toBe('Website launch');
+    // One container's failure must not blank the Rich Text section beside it.
     expect(store.sections()).toHaveLength(2);
     expect(store.error()).toBeNull();
     expect(tasks.error()).toContain('could not reach');
-    expect(store.progress()).toBe(50);
   });
 
-  it('keeps progress after a failed task mutation — only a failed load makes it unavailable', async () => {
-    const { store, tasks } = setup();
-    await store.load(PROJECT);
-    await tasks.load(section('section-tasks', 'task-list', 1));
-    expect(store.progress()).toBe(50);
-
-    // `TaskListStore.error` carries validation and rollback messages too. Gating progress on
-    // it made the header read "Not available" the moment someone pressed Add task with an
-    // empty box — a mutation failing does not make the count wrong.
-    expect(await tasks.create('   ')).toBe(false);
-
-    expect(tasks.error()).not.toBeNull();
-    expect(store.progress()).toBe(50);
-  });
-
-  it('ignores a slower earlier project load, so two clicks cannot mix two projects', async () => {
+  it('ignores a slower earlier page load, so two clicks cannot mix two canvases', async () => {
     const other = 'project-b' as ProjectId;
     const gates = new Map<string, () => void>();
     const { store } = setup({
-      projectGet: vi.fn(async (id: ProjectId) => {
-        await new Promise<void>((resolve) => gates.set(id, resolve));
-        return project({ id, name: id === PROJECT ? 'Website launch' : 'Second project' });
-      }) as unknown as WorkManagerGateway['projects']['get'],
+      sectionOverrides: {
+        list: vi.fn(async (projectId: ProjectId) => {
+          await new Promise<void>((resolve) => gates.set(projectId, resolve));
+          return projectId === PROJECT
+            ? [section('section-text', 'rich-text', 0)]
+            : [section('section-b', 'rich-text', 0, { projectId: other, pageId: OTHER_PAGE })];
+        }),
+      },
     });
 
-    const first = store.load(PROJECT);
-    const second = store.load(other);
+    const first = store.load(PROJECT, PAGE);
+    const second = store.load(other, OTHER_PAGE);
     // The first click's response lands last — the shape that leaves A's sections under B.
     gates.get(other)!();
     await second;
     gates.get(PROJECT)!();
     await first;
 
-    expect(store.project()?.id).toBe(other);
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-b']);
   });
 
   it('reports a write that succeeded as a success even when the re-read fails', async () => {
@@ -323,7 +287,7 @@ describe('ProjectPageStore (§19, §26)', () => {
         }),
       },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     // Telling the user a completed remove failed invites them to click it again, which now
     // answers the already-archived 409 — the record is still there.
@@ -332,30 +296,36 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sections().map(({ id }) => id)).toEqual(['section-tasks']);
   });
 
-  it('surfaces an unreachable project as a visible error rather than an empty canvas', async () => {
+  it('surfaces an unreadable canvas as a visible error rather than a silently empty one', async () => {
     const { store } = setup({
-      projectGet: vi.fn(async () => {
-        throw new GatewayError('not_found', 404, 'no such project "project-a"');
-      }) as unknown as WorkManagerGateway['projects']['get'],
+      sectionOverrides: {
+        list: vi.fn(async () => {
+          throw new GatewayError('not_found', 404, 'no such page "page-project-a"');
+        }),
+      },
     });
 
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
-    expect(store.project()).toBeNull();
+    // An empty canvas is a legitimate state, so "nothing to draw" and "could not read it"
+    // must not look the same. The project itself is the shell's error to report.
     expect(store.sections()).toEqual([]);
-    expect(store.error()).toContain('no such project');
+    expect(store.error()).toContain('no such page');
   });
 
   it('adds a section with the registry definition’s default config', async () => {
     const { store, gateway } = setup();
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     expect(await store.addSection(definition())).toBe(true);
 
     // The registry's default is what has to reach persistence — otherwise a new type's
     // config would silently start life as `{}`.
+    // The registry's default *and* the canvas's own page: §27 resolves an unnamed write onto
+    // the project's canonical page, which is the wrong answer for any other page a root shows.
     expect(gateway.sections.create).toHaveBeenCalledWith(PROJECT, {
       type: 'rich-text',
+      pageId: PAGE,
       config: { text: '' },
     });
     expect(store.sections()).toHaveLength(3);
@@ -363,7 +333,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
   it('refuses a definition whose default config is not an object', async () => {
     const { store, gateway } = setup();
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     // §29 types `createDefaultConfig()` as `unknown`; this is where that stops being safe.
     // It surfaces as a visible section error, not a thrown page crash — a broken definition
@@ -377,7 +347,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
   it('collapses, resizes and re-configures a section through the gateway', async () => {
     const { store, gateway } = setup();
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     expect(await store.setCollapsed('section-text' as SectionId, true)).toBe(true);
     expect(await store.setColumnSpan('section-text' as SectionId, 6)).toBe(true);
@@ -397,7 +367,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
   it('duplicates a section and re-reads the positions the host renumbered', async () => {
     const { store } = setup();
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     expect(await store.duplicateSection('section-text' as SectionId)).toBe(true);
 
@@ -410,7 +380,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
   it('removes a section and closes the position gap', async () => {
     const { store } = setup();
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     expect(await store.removeSection('section-text' as SectionId)).toBe(true);
 
@@ -430,7 +400,7 @@ describe('ProjectPageStore (§19, §26)', () => {
         }),
       },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     expect(await store.duplicateSection('section-text' as SectionId)).toBe(true);
 
@@ -452,7 +422,7 @@ describe('ProjectPageStore (§19, §26)', () => {
         }),
       },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     expect(await store.removeSection('section-text' as SectionId)).toBe(true);
 
@@ -469,7 +439,7 @@ describe('ProjectPageStore (§19, §26)', () => {
         }),
       },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
     const before = store.sections();
 
     expect(await store.removeSection('section-text' as SectionId)).toBe(false);
@@ -484,7 +454,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     // rather than forking a fourth idiom. **Not** an optimism test: the plan deliberately
     // does not make one pass — `updateSection` has nothing to revert.
     const { store, gateway } = setup();
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     expect(await store.renameSection('section-tasks' as SectionId, 'Backlog')).toBe(true);
     expect(gateway.sections.update).toHaveBeenCalledWith('section-tasks', { title: 'Backlog' });
@@ -502,7 +472,7 @@ describe('ProjectPageStore (§19, §26)', () => {
         }),
       },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
     const before = store.sections();
 
     expect(await store.renameSection('section-tasks' as SectionId, 'Backlog')).toBe(false);
@@ -522,7 +492,7 @@ describe('ProjectPageStore (§19, §26)', () => {
         }),
       },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     expect(await store.removeSection('section-tasks' as SectionId)).toBe(true);
     expect(store.removalPrompt()).toEqual({
@@ -547,7 +517,7 @@ describe('ProjectPageStore (§19, §26)', () => {
         }),
       },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     for (const candidate of [
       undefined,
@@ -583,7 +553,7 @@ describe('ProjectPageStore (§19, §26)', () => {
         move: vi.fn(async () => movedSections[1]!),
       },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     expect(await store.moveSection('section-text' as SectionId, 1)).toBe(true);
 
@@ -596,7 +566,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
   it('skips a same-index drop without writing or recording activity', async () => {
     const { store, gateway } = setup();
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     expect(await store.moveSection('section-text' as SectionId, 0)).toBe(true);
 
@@ -611,7 +581,7 @@ describe('ProjectPageStore (§19, §26)', () => {
         }),
       },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
     const before = store.sections();
     const revision = store.canvasRevision();
 
@@ -623,12 +593,12 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sectionError()).toContain('move did not persist');
   });
 
-  it('resets Edit Layout Mode when project navigation starts', async () => {
+  it('resets Edit Layout Mode when page navigation starts', async () => {
     const { store } = setup();
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
     store.setEditMode(true);
 
-    const next = store.load('project-b' as ProjectId);
+    const next = store.load('project-b' as ProjectId, OTHER_PAGE);
 
     expect(store.editMode()).toBe(false);
     await next;
@@ -638,17 +608,23 @@ describe('ProjectPageStore (§19, §26)', () => {
     const gate = deferred<ProjectSection>();
     const other = 'project-b' as ProjectId;
     const { store } = setup({
-      projectGet: vi.fn(async (id: ProjectId) => project({ id })),
-      sectionOverrides: { move: vi.fn(() => gate.promise) },
+      sectionOverrides: {
+        list: vi.fn(async (projectId: ProjectId) =>
+          projectId === PROJECT
+            ? [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)]
+            : [section('section-b', 'rich-text', 0, { projectId: other, pageId: OTHER_PAGE })],
+        ),
+        move: vi.fn(() => gate.promise),
+      },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     const move = store.moveSection('section-text' as SectionId, 1);
-    await store.load(other);
+    await store.load(other, OTHER_PAGE);
     gate.resolve(section('section-text', 'rich-text', 1));
     await move;
 
-    expect(store.project()?.id).toBe(other);
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-b']);
     expect(store.sectionError()).toBeNull();
   });
 
@@ -666,14 +642,13 @@ describe('ProjectPageStore (§19, §26)', () => {
         create: vi.fn(() => gate.promise),
       },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     const add = store.addSection(definition());
-    await store.load(other);
+    await store.load(other, OTHER_PAGE);
     gate.resolve(section('section-created', 'rich-text', 1));
     await add;
 
-    expect(store.project()?.id).toBe(other);
     expect(store.sections().map(({ id }) => id)).toEqual(['section-b']);
   });
 
@@ -693,11 +668,11 @@ describe('ProjectPageStore (§19, §26)', () => {
         update: vi.fn(() => updateGate.promise),
       },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     const duplicate = store.duplicateSection('section-text' as SectionId);
     const update = store.setCollapsed('section-text' as SectionId, true);
-    await store.load(other);
+    await store.load(other, OTHER_PAGE);
     duplicateGate.resolve(section('section-copy', 'rich-text', 1));
     updateGate.reject(new GatewayError('unreachable', 0, 'old project write failed'));
     await Promise.all([duplicate, update]);
@@ -709,7 +684,7 @@ describe('ProjectPageStore (§19, §26)', () => {
   it('previews order without fabricating persisted sibling positions', async () => {
     const gate = deferred<ProjectSection>();
     const { store } = setup({ sectionOverrides: { move: vi.fn(() => gate.promise) } });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
 
     const move = store.moveSection('section-text' as SectionId, 1);
 
@@ -729,92 +704,87 @@ const settleLive = async () => {
 };
 
 describe('ProjectPageStore and live updates (§62)', () => {
-  it('bumps the data revision and refreshes progress on a task event for this project', async () => {
+  it('bumps the data revision on a task event for this project, without re-listing the canvas', async () => {
     const { store, gateway, live } = setup();
-    await store.load(PROJECT);
-    const progressReads = calls(gateway.progress.get);
+    await store.load(PROJECT, PAGE);
+    const sectionReads = calls(gateway.sections.list);
 
     live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-1', projectId: PROJECT });
     await settleLive();
 
-    expect(calls(gateway.progress.get)).toBe(progressReads + 1);
     // The rows themselves are re-read by whichever container owns them, off this revision —
-    // this store no longer knows which task lists are on the canvas, and does not need to.
+    // this store no longer knows which task lists are on the canvas, and does not need to. A
+    // task cannot change which *sections* exist, so it earns no `sections.list`.
     expect(store.projectDataRevision()).toBe(1);
     expect(store.projectHierarchyRevision()).toBe(0);
-    // Quiet: the page never blinks back to its loading state for someone else's write.
+    expect(calls(gateway.sections.list)).toBe(sectionReads);
+    // Quiet: the canvas never blinks back to its loading state for someone else's write.
     expect(store.loading()).toBe(false);
     expect(store.error()).toBeNull();
   });
 
   it('routes a minimal current-project event by type and entityId and bumps both revisions', async () => {
     const { store, gateway, live } = setup();
-    await store.load(PROJECT);
-    const projectReads = calls(gateway.projects.get);
+    await store.load(PROJECT, PAGE);
     const sectionReads = calls(gateway.sections.list);
 
     live.emit({ type: 'project.updated', entityId: PROJECT });
     await settleLive();
 
-    expect(calls(gateway.projects.get)).toBe(projectReads + 1);
     expect(calls(gateway.sections.list)).toBe(sectionReads + 1);
     expect(store.projectDataRevision()).toBe(1);
     expect(store.projectHierarchyRevision()).toBe(1);
   });
 
+  // The hierarchy revision is the one signal that ignores `projectId`: a Sub-Projects section
+  // is a *view* of the work tree, so a sibling's creation has to move it.
   it('invalidates hierarchy only for a project event naming another workspace project', async () => {
     const { store, gateway, live } = setup();
-    await store.load(PROJECT);
-    const projectReads = calls(gateway.projects.get);
+    await store.load(PROJECT, PAGE);
+    const sectionReads = calls(gateway.sections.list);
 
     live.emit({ type: 'project.created', entityType: 'project', entityId: 'project-child', projectId: 'project-child' as ProjectId });
     await settleLive();
 
-    expect(calls(gateway.projects.get)).toBe(projectReads);
+    expect(calls(gateway.sections.list)).toBe(sectionReads);
     expect(store.projectDataRevision()).toBe(0);
     expect(store.projectHierarchyRevision()).toBe(1);
   });
 
-  it('quietly recovers the open page when the live connection opens', async () => {
+  it('quietly recovers the open canvas when the live connection opens', async () => {
     const { store, gateway, live } = setup();
-    await store.load(PROJECT);
-    const projectReads = calls(gateway.projects.get);
+    await store.load(PROJECT, PAGE);
     const sectionReads = calls(gateway.sections.list);
-    const progressReads = calls(gateway.progress.get);
 
     live.emitConnected();
     await settleLive();
 
-    expect(calls(gateway.projects.get)).toBe(projectReads + 1);
     expect(calls(gateway.sections.list)).toBe(sectionReads + 1);
-    expect(calls(gateway.progress.get)).toBe(progressReads + 1);
     // The containers recover on the revision the reconnect bumps.
     expect(store.projectDataRevision()).toBeGreaterThan(0);
     expect(store.loading()).toBe(false);
   });
 
-  it('recovers a failed first page load when the live connection opens', async () => {
-    const get = vi.fn()
+  it('recovers a failed first canvas load when the live connection opens', async () => {
+    const list = vi.fn()
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'host starting'))
-      .mockResolvedValue(project({ name: 'Recovered project' }));
+      .mockResolvedValue([section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)]);
     const listTasks = vi.fn()
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'host starting'))
       .mockResolvedValue([task('task-recovered')]);
-    const { store, tasks, live } = setup({ projectGet: get, taskList: listTasks });
+    const { store, tasks, live } = setup({ sectionOverrides: { list }, taskList: listTasks });
     const container = section('section-tasks', 'task-list', 1);
 
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
     await tasks.load(container);
-    expect(store.project()).toBeNull();
+    expect(store.sections()).toEqual([]);
     expect(store.error()).toContain('host starting');
     expect(tasks.loadFailed()).toBe(true);
 
     live.emitConnected();
     await settleLive();
 
-    expect(store.project()?.name).toBe('Recovered project');
     expect(store.sections()).toHaveLength(2);
-    expect(store.progressResult()?.projectId).toBe(PROJECT);
     expect(store.error()).toBeNull();
     expect(store.sectionError()).toBeNull();
 
@@ -825,72 +795,82 @@ describe('ProjectPageStore and live updates (§62)', () => {
     expect(tasks.loadFailed()).toBe(false);
   });
 
-  it('queues an event that arrives before the first project response', async () => {
-    const first = deferred<Project>();
-    const get = vi.fn()
+  it('queues an event that arrives before the first canvas response', async () => {
+    const first = deferred<ProjectSection[]>();
+    const list = vi.fn()
       .mockImplementationOnce(() => first.promise)
-      .mockResolvedValue(project({ name: 'Recovered after startup' }));
-    const { store, gateway, live } = setup({ projectGet: get });
+      .mockResolvedValue([section('section-recovered', 'rich-text', 0)]);
+    const { store, gateway, live } = setup({ sectionOverrides: { list } });
 
-    const loading = store.load(PROJECT);
-    live.emit({ type: 'task.completed', entityId: 'task-1', projectId: PROJECT });
-    first.resolve(project({ name: 'Old first read' }));
+    const loading = store.load(PROJECT, PAGE);
+    live.emit({ type: 'project.updated', entityId: PROJECT, projectId: PROJECT });
+    first.resolve([section('section-text', 'rich-text', 0)]);
     await loading;
     await settleLive();
 
-    expect(calls(gateway.projects.get)).toBe(2);
+    expect(calls(gateway.sections.list)).toBe(2);
     expect(store.projectDataRevision()).toBe(1);
-    expect(store.project()?.name).toBe('Recovered after startup');
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-recovered']);
   });
 
   it('coalesces a second full recovery behind one already in flight', async () => {
-    const firstRecovery = deferred<Project>();
-    const get = vi.fn()
-      .mockResolvedValueOnce(project())
+    const firstRecovery = deferred<ProjectSection[]>();
+    const list = vi.fn()
+      .mockResolvedValueOnce([section('section-text', 'rich-text', 0)])
       .mockImplementationOnce(() => firstRecovery.promise)
-      .mockResolvedValue(project({ name: 'Trailing recovery' }));
-    const { store, gateway, live } = setup({ projectGet: get });
-    await store.load(PROJECT);
+      .mockResolvedValue([section('section-trailing', 'rich-text', 0)]);
+    const { store, gateway, live } = setup({ sectionOverrides: { list } });
+    await store.load(PROJECT, PAGE);
 
     live.emitConnected();
     await settleLive();
     live.emitConnected();
     await settleLive();
-    expect(calls(gateway.projects.get)).toBe(2);
+    expect(calls(gateway.sections.list)).toBe(2);
 
-    firstRecovery.resolve(project({ name: 'First recovery' }));
+    firstRecovery.resolve([section('section-first', 'rich-text', 0)]);
     await settleLive();
-    expect(calls(gateway.projects.get)).toBe(3);
+    expect(calls(gateway.sections.list)).toBe(3);
     await settleLive();
-    expect(store.project()?.name).toBe('Trailing recovery');
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-trailing']);
   });
 
   it('ignores an event for another project', async () => {
     const { store, gateway, live } = setup();
-    await store.load(PROJECT);
-    const taskReads = calls(gateway.tasks.list);
+    await store.load(PROJECT, PAGE);
+    const sectionReads = calls(gateway.sections.list);
 
     live.emit({ type: 'task.completed', entityType: 'task', entityId: 'task-9', projectId: 'project-z' as ProjectId });
     await settleLive();
 
-    expect(calls(gateway.tasks.list)).toBe(taskReads);
+    expect(calls(gateway.sections.list)).toBe(sectionReads);
+    expect(store.projectDataRevision()).toBe(0);
   });
 
-  it('re-reads the project and its canvas on a project event naming this project', async () => {
+  it('re-reads its canvas on a project event naming this project', async () => {
     const { store, gateway, live } = setup();
-    await store.load(PROJECT);
-    const projectReads = calls(gateway.projects.get);
+    await store.load(PROJECT, PAGE);
     const sectionReads = calls(gateway.sections.list);
-    (gateway.projects.get as ReturnType<typeof vi.fn>).mockResolvedValue(project({ name: 'Renamed by an agent' }));
 
     // §57 records a section change against the *project*, which is why routing is on
     // `type` and `projectId` rather than on `entityType`.
     live.emit({ type: 'project.section_added', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
     await settleLive();
 
-    expect(calls(gateway.projects.get)).toBe(projectReads + 1);
     expect(calls(gateway.sections.list)).toBe(sectionReads + 1);
-    expect(store.project()?.name).toBe('Renamed by an agent');
+    expect(store.sections()).toHaveLength(2);
+  });
+
+  it('reads the canvas of the page it is showing, never the whole project', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT, PAGE);
+
+    live.emit({ type: 'project.section_added', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await settleLive();
+
+    for (const call of (gateway.sections.list as ReturnType<typeof vi.fn>).mock.calls) {
+      expect(call[1]).toEqual({ pageId: PAGE });
+    }
   });
 
   it('does not clobber an optimistic section reorder that is still in flight', async () => {
@@ -898,7 +878,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
     const { store, gateway, live } = setup({
       sectionOverrides: { move: vi.fn(async () => move.promise) },
     });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
     const sectionReads = calls(gateway.sections.list);
 
     const moving = store.moveSection('section-tasks' as SectionId, 0);
@@ -915,20 +895,20 @@ describe('ProjectPageStore and live updates (§62)', () => {
     await moving;
   });
 
-  it('reloads the project when the host state is replaced', async () => {
+  it('reloads the canvas when the host state is replaced', async () => {
     const { store, gateway, live } = setup();
-    await store.load(PROJECT);
-    const projectReads = calls(gateway.projects.get);
+    await store.load(PROJECT, PAGE);
+    const sectionReads = calls(gateway.sections.list);
 
     live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
     await settleLive();
 
-    expect(calls(gateway.projects.get)).toBe(projectReads + 1);
+    expect(calls(gateway.sections.list)).toBe(sectionReads + 1);
   });
 
   it('stops listening once the store is destroyed', async () => {
     const { store, live } = setup();
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
     expect(live.listenerCount).toBeGreaterThan(0);
 
     TestBed.resetTestingModule();
@@ -937,149 +917,12 @@ describe('ProjectPageStore and live updates (§62)', () => {
   });
 });
 
-describe('ProjectPageStore project writes (§26, §63, §81)', () => {
-  it('renames optimistically and reverts on failure', async () => {
-    const update = deferred<Project>();
-    const { store } = setup({ projectUpdate: vi.fn(async () => update.promise) });
-    await store.load(PROJECT);
-
-    const renaming = store.rename('Website relaunch');
-    // Painted before the write resolved — that is what §63 asks for.
-    expect(store.project()?.name).toBe('Website relaunch');
-
-    update.reject(new GatewayError('unreachable', 0, 'the prototype host is not running'));
-    expect(await renaming).toBe(false);
-    expect(store.project()?.name).toBe('Website launch');
-    expect(store.writeError()).toContain('not running');
-    // Never on the signal that renders instead of the page.
-    expect(store.error()).toBeNull();
-  });
-
-  // The defect this guard exists for: `onLiveEvent` routes any `project.*` event naming this
-  // project into `refreshProject()`, which replaces `projectState` wholesale — so without it
-  // an optimistic rename is overwritten by the very frame its own write produces.
-  // What this covers, precisely: the **increment**. Removing `whileWriting` from the write
-  // path fails it. Removing only `onLiveEvent`'s pre-dispatch check does not, because
-  // `refreshProject()` re-checks the same counter on entry — two of the three check sites
-  // are redundant with each other, deliberately.
-  it('holds off the live re-read while a project write is in flight', async () => {
-    const update = deferred<Project>();
-    const { store, gateway, live } = setup({ projectUpdate: vi.fn(async () => update.promise) });
-    await store.load(PROJECT);
-    const projectReads = calls(gateway.projects.get);
-
-    const renaming = store.rename('Website relaunch');
-    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
-    await settleLive();
-
-    expect(store.project()?.name).toBe('Website relaunch');
-    expect(calls(gateway.projects.get)).toBe(projectReads);
-
-    update.resolve(project({ name: 'Website relaunch' }));
-    await renaming;
-  });
-
-  it('re-asserts the server’s record when the write resolves', async () => {
-    const { store } = setup({
-      projectUpdate: vi.fn(async () => project({ name: 'Website relaunch', updatedAt: '2026-08-28T09:00:00.000Z' })),
-    });
-    await store.load(PROJECT);
-
-    expect(await store.rename('Website relaunch')).toBe(true);
-
-    expect(store.project()?.name).toBe('Website relaunch');
-    expect(store.project()?.updatedAt).toBe('2026-08-28T09:00:00.000Z');
-  });
-
-  // §19: stores decide, pages navigate. The guard is structural rather than asserted —
-  // `setup()` provides no `Router`, so a store that injected one would throw at
-  // construction and take every test in this file with it. What is asserted here is the
-  // other half: `archive` reports its outcome to a caller instead of acting on it.
-  it('returns success without navigating', async () => {
-    const { store, gateway } = setup();
-    await store.load(PROJECT);
-
-    expect(await store.archive()).toBe(true);
-
-    expect(gateway.projects.update).toHaveBeenCalledWith(PROJECT, { status: 'archived' });
-  });
-
-  // The defect the reviewer found: `load()` cleared every other error signal but not this
-  // one, and `ProjectPage` re-uses one component instance across `/projects/:id` changes.
-  it('does not carry a failed write into the next project', async () => {
-    const { store } = setup({
-      projectUpdate: vi.fn(async () => {
-        throw new GatewayError('unreachable', 0, 'the prototype host is not running');
-      }),
-    });
-    await store.load(PROJECT);
-    expect(await store.rename('Website relaunch')).toBe(false);
-    expect(store.writeError()).not.toBeNull();
-
-    await store.load(PROJECT);
-
-    expect(store.writeError()).toBeNull();
-  });
-
-  // §53's lesson: a named reason beats "forbidden".
-  it('surfaces the domain’s refusal when a project still has active children', async () => {
-    const { store } = setup({
-      projectUpdate: vi.fn(async () => {
-        throw new GatewayError('conflict', 409, 'archive or complete the 2 active sub-projects first');
-      }),
-    });
-    await store.load(PROJECT);
-
-    expect(await store.archive()).toBe(false);
-
-    expect(store.writeError()).toBe('archive or complete the 2 active sub-projects first');
-    expect(store.error()).toBeNull();
-    expect(store.project()?.status).toBe('active');
-  });
-
-  it('clears a target date', async () => {
-    const { store, gateway } = setup();
-    await store.load(PROJECT);
-    expect(store.project()?.targetDate).toBe('2026-09-30');
-
-    expect(await store.setTargetDate(null)).toBe(true);
-
-    expect(gateway.projects.update).toHaveBeenCalledWith(PROJECT, { targetDate: null });
-    expect(store.project()?.targetDate).toBeUndefined();
-  });
-
-  it('sets a status without offering the archived one', async () => {
-    const { store, gateway } = setup();
-    await store.load(PROJECT);
-
-    expect(await store.setStatus('completed')).toBe(true);
-
-    expect(gateway.projects.update).toHaveBeenCalledWith(PROJECT, { status: 'completed' });
-    expect(store.project()?.status).toBe('completed');
-  });
-
-  it('ignores a write that resolved after the route moved on', async () => {
-    const update = deferred<Project>();
-    const { store } = setup({ projectUpdate: vi.fn(async () => update.promise) });
-    await store.load(PROJECT);
-
-    const renaming = store.rename('Website relaunch');
-    // A second load is a new generation: whatever the first write answers is stale.
-    await store.load(PROJECT);
-
-    update.resolve(project({ name: 'Answered too late' }));
-    await renaming;
-
-    expect(store.project()?.name).toBe('Website launch');
-  });
-});
-
-describe('ProjectPageStore restore invalidation and the project-write guard', () => {
+describe('ProjectPageStore restore invalidation (§31)', () => {
   it('repaints the canvas after a section restore, not just the data revision', async () => {
     // A restored section is a *new* frame. The revision only makes existing containers
     // re-read, so without the reconcile the section comes back invisible until a reload.
     const { store, gateway } = setup({ sections: [section('section-text', 'rich-text', 0)] });
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
     const listsBefore = (gateway.sections.list as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
     const revisionBefore = store.projectDataRevision();
 
@@ -1097,59 +940,11 @@ describe('ProjectPageStore restore invalidation and the project-write guard', ()
     // container re-reads only when the revision moves. Without this, "with no reload" holds
     // for sections and quietly fails for rows.
     const { store } = setup();
-    await store.load(PROJECT);
+    await store.load(PROJECT, PAGE);
     const before = store.projectDataRevision();
 
     store.rowRestored();
 
     expect(store.projectDataRevision()).toBe(before + 1);
-  });
-
-  it('raises projectWritePending before the optimistic paint and clears it after success', async () => {
-    // `setStatus` paints optimistically, so a consumer reading the project's status alone
-    // would see `active` — and enable a restore the domain would still refuse — before the
-    // reactivation had actually landed.
-    const gate = deferred<Project>();
-    const { store } = setup({
-      projectUpdate: vi.fn(async () => gate.promise),
-      projectGet: vi.fn(async () => project({ status: 'archived' })),
-    });
-    await store.load(PROJECT);
-    expect(store.projectWritePending()).toBe(false);
-
-    const write = store.setStatus('active');
-    expect(store.project()?.status).toBe('active');
-    expect(store.projectWritePending()).toBe(true);
-
-    gate.resolve(project({ status: 'active' }));
-    expect(await write).toBe(true);
-    expect(store.projectWritePending()).toBe(false);
-  });
-
-  it('keeps the guard up through a rollback, and until the last of two writes settles', async () => {
-    const first = deferred<Project>();
-    const second = deferred<Project>();
-    const updates = [first, second];
-    const { store } = setup({
-      projectUpdate: vi.fn(async () => updates.shift()!.promise),
-      projectGet: vi.fn(async () => project({ status: 'archived' })),
-    });
-    await store.load(PROJECT);
-
-    const a = store.setStatus('active');
-    const b = store.rename('Renamed');
-    expect(store.projectWritePending()).toBe(true);
-
-    first.reject(new Error('nope'));
-    expect(await a).toBe(false);
-    // A counter rather than a boolean: the first response must not release the second
-    // request's guard.
-    expect(store.projectWritePending()).toBe(true);
-    // The failed status write rolled back, so the project is archived again.
-    expect(store.project()?.status).toBe('archived');
-
-    second.resolve(project({ status: 'archived', name: 'Renamed' }));
-    await b;
-    expect(store.projectWritePending()).toBe(false);
   });
 });

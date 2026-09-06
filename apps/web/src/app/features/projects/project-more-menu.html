@@ -12,6 +12,23 @@
     <button type="submit" data-project-rename-submit>Rename</button>
   </form>
 
+  <form
+    class="more-menu__row"
+    data-project-description-form
+    (submit)="submitDescription($event, descriptionInput)"
+  >
+    <label for="project-description">Description</label>
+    <input
+      id="project-description"
+      #descriptionInput
+      data-project-description-input
+      type="text"
+      autocomplete="off"
+      [value]="project().description ?? ''"
+    />
+    <button type="submit" data-project-description-submit>Save</button>
+  </form>
+
   <div class="more-menu__row" role="group" aria-label="Status">
     <span class="more-menu__label">Status</span>
     @for (status of statuses; track status) {
@@ -32,7 +49,7 @@
     data-project-target-date-form
     (submit)="submitTargetDate($event, targetDateInput)"
   >
-    <label for="project-target-date">Target date</label>
+    <label for="project-target-date">{{ isWorkUnit() ? 'Due date' : 'Target date' }}</label>
     <input
       id="project-target-date"
       #targetDateInput

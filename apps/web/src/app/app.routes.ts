@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { CalendarPage } from './features/calendar/calendar-page';
 import { DashboardPage } from './features/dashboard/dashboard-page';
-import { ProjectPage } from './features/projects/project-page';
+import { ProjectWorkspaceShell } from './features/projects/project-workspace-shell';
 import { SearchPage } from './features/search/search-page';
 import { AgentConnectionsPage } from './features/settings/agents/agent-connections-page';
 import { SettingsPage } from './features/settings/settings-page';
@@ -25,7 +25,13 @@ export const routes: Routes = [
   // `pathMatch: 'full'` is not decoration — without it this redirect swallows every URL.
   { path: '', pathMatch: 'full', redirectTo: '/app' },
   { path: 'app', component: DashboardPage },
-  { path: 'projects/:projectId', component: ProjectPage },
+  // §68's two project routes, in this order: the longer path must be declared first, or
+  // `projects/:projectId` matches `projects/x/pages/home` and swallows the page.
+  {
+    path: 'projects/:projectId/pages/:pageKind',
+    component: ProjectWorkspaceShell,
+  },
+  { path: 'projects/:projectId', component: ProjectWorkspaceShell },
   { path: 'calendar', component: CalendarPage },
   { path: 'search', component: SearchPage },
   { path: 'settings', component: SettingsPage },

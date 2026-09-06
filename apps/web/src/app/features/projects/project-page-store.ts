@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, PendingTasks, inject, signal } from '@angular/core';
 import {
   SectionConfigSchema,
   SectionRemovalRefusalDetailsSchema,
@@ -6,15 +6,12 @@ import {
   ownedKindOf,
   type OwnedDataKind,
   type ProjectId,
-  type Project,
-  type ProgressResult,
+  type ProjectPageId,
   type ProjectSection,
-  type ProjectStatus,
   type RemoveSectionInput,
   type SectionColumnSpan,
   type SectionConfig,
   type SectionId,
-  type UpdateProjectInput,
 } from '@cwm/contracts';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
@@ -45,21 +42,27 @@ export interface SectionRemovalPrompt {
 }
 
 /**
- * §19's `ProjectPageStore`, feature-scoped and provided by `ProjectPage` alone (§20).
+ * §19's canvas store: **the sections of one page**, feature-scoped and provided by
+ * `ProjectCanvas` alone (§20).
  *
- * It no longer composes `TaskListStore`: a Task List section owns its rows and provides its
- * own store, and re-reads on `projectDataRevision` like every other container. This store
- * bumps that revision and keeps header progress, which is the canonical §39 domain read.
+ * It owns a canvas, not a project. §27's chain is `project → page → section → row`, and a root
+ * has several pages, so "the project's sections" stopped being an answer — every read and
+ * write here names a `pageId`. The project record, its progress and §26's writes to it belong
+ * to `ProjectWorkspaceStore`, which the shell provides once per project; the two halves talk
+ * through callback inputs rather than through a shared store.
  *
- * §32's `editMode` is transient page state: it changes chrome, never persistence. A route
- * change resets it so layout affordances do not leak from one project into another.
+ * It does not compose `TaskListStore`: a Task List section owns its rows and provides its own
+ * store, and re-reads on `projectDataRevision` like every other container. This store bumps
+ * that revision.
+ *
+ * §32's `editMode` is transient page state: it changes chrome, never persistence. A page
+ * change resets it so layout affordances do not leak from one canvas into another.
  */
 @Injectable()
 export class ProjectPageStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
 
-  private readonly projectState = signal<Project | null>(null);
   private readonly sectionsState = signal<ProjectSection[]>([]);
   // Starts true: before the first load resolves the page has no project, no error and no
   // loading flag, which matches none of the template's branches and paints blank.
@@ -67,82 +70,51 @@ export class ProjectPageStore {
   private loadGeneration = 0;
   /** Set before the first gateway await, so a startup frame can still be routed. */
   private requestedProjectId: ProjectId | undefined;
+  private requestedPageId: ProjectPageId | undefined;
+  /**
+   * Whether a load has completed. The staleness guards used to ask `projectState() !== null`,
+   * which answered "is anything loaded" as a side effect; with the record gone, `sections()`
+   * cannot take that job — an empty canvas is a legitimate state, not an unloaded one.
+   */
+  private loaded = false;
   private activeLoad: Promise<void> | null = null;
   private fullRecoveryQueued = false;
   private readonly errorState = signal<string | null>(null);
   private readonly sectionErrorState = signal<string | null>(null);
-  /**
-   * A failed *project* write. Distinct from `errorState`, which renders instead of the whole
-   * page — a failed rename must never blank the project you are standing on — and from
-   * `sectionErrorState`, which every successful quiet re-read clears, so a message parked
-   * there can vanish milliseconds later.
-   */
-  private readonly writeErrorState = signal<string | null>(null);
   private readonly editModeState = signal(false);
   /** Set when a container refuses removal because it still holds rows — see `removeSection`. */
   private readonly removalPromptState = signal<SectionRemovalPrompt | null>(null);
   private readonly canvasRevisionState = signal(0);
-  private readonly progressState = signal<ProgressResult | null>(null);
   private readonly projectDataRevisionState = signal(0);
   private readonly projectHierarchyRevisionState = signal(0);
-  private progressRefresh: Promise<void> | null = null;
-  private progressRefreshQueued = false;
   /**
-   * Writes in flight — section *and* project. §62's frames arrive *before* the tab's own
-   * mutation response (the host flushes at commit), and both `moveSection` and the project
-   * writes paint optimistically — so a live re-read landing in that window would replace the
-   * preview with the pre-write value for a frame. Without this an optimistic rename is
-   * overwritten by the very frame its own write produces.
-   *
-   * One counter rather than two: all three check sites below ask the same question, and a
-   * second counter would mean consulting both at every one of them.
+   * Section writes in flight. §62's frames arrive *before* the tab's own mutation response
+   * (the host flushes at commit) and `moveSection` paints optimistically — so a live re-read
+   * landing in that window would replace the preview with the pre-write value for a frame.
    *
    * Deferred, **not** dropped. Only three of the section writes reconcile the canvas
    * afterwards (`moveSection`, `duplicateSection`, `removeSection`); `addSection` and
-   * `updateSection` patch the array in place, and none of them re-reads the *project*
-   * record. So an agent adding a section, or renaming the project, while the user happens to
-   * be collapsing one would otherwise be lost until a reload.
+   * `updateSection` patch the array in place. So an agent adding a section while the user
+   * happens to be collapsing one would otherwise be lost until a reload.
    */
-  private pendingWrites = 0;
-  private projectRefresh: Promise<void> | null = null;
-  private projectRefreshQueued = false;
+  private pendingSectionWrites = 0;
+  private sectionRefresh: Promise<void> | null = null;
+  private sectionRefreshQueued = false;
 
-  /**
-   * How many writes to the **project record** are in flight, as a signal consumers can read.
-   *
-   * Deliberately not `pendingWrites`, which cannot answer this question: it is a plain
-   * field rather than a signal, it counts section writes too, and `whileWriting` increments
-   * it *after* the optimistic paint. The Archived region's Restore controls need the guard
-   * up **before** the paint — otherwise there is a frame in which the page shows `active`
-   * because someone clicked Reactivate, while the domain would still refuse a restore.
-   *
-   * A counter rather than a boolean, so two overlapping project writes cannot have the
-   * first response clear the second one's guard.
-   */
-  private readonly projectWritesState = signal(0);
-
-  readonly project = this.projectState.asReadonly();
   readonly sections = this.sectionsState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly sectionError = this.sectionErrorState.asReadonly();
-  readonly writeError = this.writeErrorState.asReadonly();
   readonly editMode = this.editModeState.asReadonly();
   readonly canvasRevision = this.canvasRevisionState.asReadonly();
-  readonly progressResult = this.progressState.asReadonly();
   readonly projectDataRevision = this.projectDataRevisionState.asReadonly();
   readonly removalPrompt = this.removalPromptState.asReadonly();
   readonly projectHierarchyRevision = this.projectHierarchyRevisionState.asReadonly();
-  /** True while any write to the project record is unresolved — see `projectWritesState`. */
-  readonly projectWritePending = computed(() => this.projectWritesState() > 0);
-
-  /** The selected §39 domain result; `null` means unavailable and remains distinct from 0%. */
-  readonly progress = computed<number | null>(() => this.progressState()?.percentage ?? null);
 
   constructor() {
-    // §62. Subscribing here rather than in `ProjectPage` keeps the component free of the
+    // §62. Subscribing here rather than in `ProjectCanvas` keeps the component free of the
     // stream, the same way it is free of the gateway; `DestroyRef` ties the subscription to
-    // the store's own lifetime, and this store is provided by the page (§20).
+    // the store's own lifetime, and this store is provided by the canvas (§20).
     const unsubscribe = inject(LIVE_UPDATES).subscribe(
       (event) => this.onLiveEvent(event),
       () => this.onLiveConnected(),
@@ -151,23 +123,26 @@ export class ProjectPageStore {
   }
 
   /**
-   * §62's "refresh relevant state", for one project page.
+   * §62's "refresh relevant state", for one canvas.
    *
    * Ordinary mutation and reconnect paths are **quiet**: an agent's write must not flicker
    * a skeleton over a page the user is reading, and a host blip during someone else's write
    * must not replace the canvas with an error. `prototype.reloaded` is the deliberate loud
    * exception because the host document and its derived inputs may all have been replaced.
-   * `refreshProgress` and `reconcileSections` already behave quietly; `TaskListStore.refresh`
-   * was given the same rule.
+   * `refreshSections` and `reconcileSections` behave quietly; `TaskListStore.refresh` was
+   * given the same rule.
    *
    * Routing is on `type` and `projectId`, never on `entityType` — §57's section events
-   * deliberately name the *project* as their entity.
+   * deliberately name the *project* as their entity. The **hierarchy** revision is the one
+   * exception that ignores `projectId`: a Sub-Projects section is a view of the work tree, so
+   * a sibling's creation has to move it.
    */
   private onLiveEvent(event: LiveEvent): void {
-    // A host-state change (seed, reset, clock) replaces everything this page is built from.
+    // A host-state change (seed, reset, clock) replaces everything this canvas is built from.
     if (event.type === 'prototype.reloaded') {
       const projectId = this.requestedProjectId;
-      if (projectId !== undefined) void this.load(projectId);
+      const pageId = this.requestedPageId;
+      if (projectId !== undefined && pageId !== undefined) void this.load(projectId, pageId);
       return;
     }
 
@@ -179,21 +154,19 @@ export class ProjectPageStore {
     if (event.type.startsWith('project.')) this.notifyProjectHierarchyChanged();
     if (!aboutThisProject) return;
 
+    // The containers re-read themselves off the revision; only a change to the canvas's own
+    // section list needs a `sections.list`, which is what `project.*` frames carry.
     this.notifyProjectDataChanged();
     if (this.activeLoad !== null) {
       this.fullRecoveryQueued = true;
       return;
     }
-
-    // Any current-project mutation may change task-derived progress. The sections re-read
-    // themselves off the revision bumped above.
-    void this.refreshProgress();
     if (!event.type.startsWith('project.')) return;
-    if (this.pendingWrites > 0) {
-      this.projectRefreshQueued = true;
+    if (this.pendingSectionWrites > 0) {
+      this.sectionRefreshQueued = true;
       return;
     }
-    void this.refreshProject();
+    void this.refreshSections();
   }
 
   /** Local cross-section invalidation and the current-project half of a live event. */
@@ -218,37 +191,34 @@ export class ProjectPageStore {
       this.fullRecoveryQueued = true;
       return;
     }
-    // Project must recover before progress: a failed loud load has no `projectState` yet,
-    // and `refreshProgress` intentionally refuses to read without one.
-    void this.refreshProject().then(() => this.refreshProgress());
+    void this.refreshSections();
   }
 
   /**
-   * The project record and its canvas, re-read after someone else changed either. Quiet on
-   * failure for the same reason `reconcileSections` is: the page on screen is still the
-   * better answer than an error the user did not cause.
+   * This canvas, re-read after someone else changed it. Quiet on failure for the same reason
+   * `reconcileSections` is: the page on screen is still the better answer than an error the
+   * user did not cause.
    */
-  private refreshProject(): Promise<void> {
-    if (this.pendingWrites > 0) {
-      this.projectRefreshQueued = true;
+  private refreshSections(): Promise<void> {
+    if (this.pendingSectionWrites > 0) {
+      this.sectionRefreshQueued = true;
       return Promise.resolve();
     }
-    if (this.projectRefresh !== null) {
-      this.projectRefreshQueued = true;
-      return this.projectRefresh;
+    if (this.sectionRefresh !== null) {
+      this.sectionRefreshQueued = true;
+      return this.sectionRefresh;
     }
     const projectId = this.requestedProjectId;
-    if (projectId === undefined) return Promise.resolve();
+    const pageId = this.requestedPageId;
+    if (projectId === undefined || pageId === undefined) return Promise.resolve();
     const generation = this.loadGeneration;
 
     const refresh = this.track(async () => {
       do {
-        this.projectRefreshQueued = false;
+        this.sectionRefreshQueued = false;
         try {
-          const project = await this.gateway.projects.get(projectId);
-          const sections = await this.gateway.sections.list(projectId);
-          if (generation === this.loadGeneration && this.requestedProjectId === projectId) {
-            this.projectState.set(project);
+          const sections = await this.gateway.sections.list(projectId, { pageId });
+          if (this.current(generation, projectId, pageId)) {
             this.sectionsState.set([...sections].sort(byPosition));
             // These are loud-load errors only. A complete quiet recovery makes them stale.
             this.errorState.set(null);
@@ -258,55 +228,45 @@ export class ProjectPageStore {
           // Quiet — see above.
         }
       } while (
-        this.projectRefreshQueued &&
-        this.pendingWrites === 0 &&
+        this.sectionRefreshQueued &&
+        this.pendingSectionWrites === 0 &&
         generation === this.loadGeneration
       );
     }).finally(() => {
-      if (this.projectRefresh === refresh) this.projectRefresh = null;
+      if (this.sectionRefresh === refresh) this.sectionRefresh = null;
     });
-    this.projectRefresh = refresh;
+    this.sectionRefresh = refresh;
     return refresh;
   }
 
-  load(projectId: ProjectId): Promise<void> {
-    // Clicking project A then project B inside one round trip must not leave A's sections
-    // under B's header: without this, whichever response lands last wins, per signal.
+  /**
+   * The canvas of **one page** (§27). Navigating between two pages of the same root re-uses
+   * this component and this store, so a response that lands after the page changed must write
+   * nothing — the guard is the page as well as the project.
+   */
+  load(projectId: ProjectId, pageId: ProjectPageId): Promise<void> {
     const generation = ++this.loadGeneration;
     const current = () => generation === this.loadGeneration;
     this.requestedProjectId = projectId;
+    this.requestedPageId = pageId;
+    this.loaded = false;
     this.editModeState.set(false);
 
     const operation = this.track(async () => {
       this.loadingState.set(true);
       this.errorState.set(null);
       this.sectionErrorState.set(null);
-      // A failed write belongs to the project it was made on. `ProjectPage` re-uses one
-      // component instance across `/projects/:id` changes, so without this a rename that
-      // failed on project A shows in project B's header, over a write nobody made.
-      this.writeErrorState.set(null);
-      this.progressState.set(null);
       try {
-        // Sequential on purpose: a project the caller cannot see must fail as "not found"
-        // rather than racing a section list that would report the same thing less clearly.
-        const project = await this.gateway.projects.get(projectId);
-        const sections = await this.gateway.sections.list(projectId);
+        const sections = await this.gateway.sections.list(projectId, { pageId });
         if (!current()) return;
-        this.projectState.set(project);
         this.sectionsState.set([...sections].sort(byPosition));
+        this.loaded = true;
       } catch (error) {
         if (!current()) return;
-        this.projectState.set(null);
         this.sectionsState.set([]);
         this.errorState.set(messageOf(error));
       } finally {
-        // Progress is inside the loading window: leaving it outside made the header paint
-        // "Not available" for a frame before the real percentage arrived. The sections load
-        // themselves when the canvas mounts them.
-        if (current()) {
-          await this.refreshProgressFor(projectId, generation, false);
-          if (current()) this.loadingState.set(false);
-        }
+        if (current()) this.loadingState.set(false);
       }
     });
     this.activeLoad = operation;
@@ -320,46 +280,36 @@ export class ProjectPageStore {
     });
   }
 
-  refreshProgress(): Promise<void> {
-    if (this.progressRefresh !== null) {
-      this.progressRefreshQueued = true;
-      return this.progressRefresh;
-    }
-    const projectId = this.projectState()?.id;
-    if (projectId === undefined) return Promise.resolve();
-    const generation = this.loadGeneration;
-    this.progressRefresh = this.track(async () => {
-      do {
-        this.progressRefreshQueued = false;
-        await this.refreshProgressFor(projectId, generation, true);
-      } while (this.progressRefreshQueued && generation === this.loadGeneration);
-    }).finally(() => {
-      this.progressRefresh = null;
-    });
-    return this.progressRefresh;
+  /**
+   * The store's standing staleness predicate. `loaded` is what the removed project record
+   * used to answer as a side effect: an empty canvas is a legitimate state, so `sections()`
+   * cannot say whether a load has happened.
+   */
+  private current(generation: number, projectId: ProjectId, pageId: ProjectPageId): boolean {
+    return (
+      generation === this.loadGeneration &&
+      this.requestedProjectId === projectId &&
+      this.requestedPageId === pageId
+    );
   }
 
-  private async refreshProgressFor(projectId: ProjectId, generation: number, quiet: boolean): Promise<void> {
-    try {
-      const result = await this.gateway.progress.get(projectId);
-      if (generation === this.loadGeneration && this.projectState()?.id === projectId) this.progressState.set(result);
-    } catch {
-      if (!quiet && generation === this.loadGeneration && this.projectState()?.id === projectId) {
-        this.progressState.set(null);
-      }
-    }
-  }
-
-  /** §26's Quick Add. The registry's default config is what reaches persistence. */
+  /**
+   * §26's Quick Add. The registry's default config is what reaches persistence, and the
+   * canvas's own `pageId` travels with it: §27 resolves an unnamed write onto the project's
+   * canonical page, which is the right answer for Home and a work canvas and the wrong one
+   * for every other page a root can show.
+   */
   addSection(definition: SectionDefinition): Promise<boolean> {
-    const projectId = this.projectState()?.id;
-    if (projectId === undefined) return Promise.resolve(false);
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    if (projectId === undefined || pageId === undefined) return Promise.resolve(false);
     return this.mutate(async ({ current }) => {
       // Parsed, not cast: §29 types `createDefaultConfig` as `unknown`, and a definition
       // that returns a non-object should fail here rather than at the host.
       const config = SectionConfigSchema.parse(definition.createDefaultConfig());
       const created = await this.gateway.sections.create(projectId, {
         type: definition.type,
+        pageId,
         config,
       });
       if (!current()) return;
@@ -381,8 +331,9 @@ export class ProjectPageStore {
    * make Angular restore the stored order even though the entity values did not change.
    */
   moveSection(id: SectionId, position: number): Promise<boolean> {
-    const project = this.projectState();
-    if (project === null) return Promise.resolve(false);
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    if (!this.loaded || projectId === undefined || pageId === undefined) return Promise.resolve(false);
 
     const before = this.sectionsState();
     const from = before.findIndex((section) => section.id === id);
@@ -390,8 +341,7 @@ export class ProjectPageStore {
     if (from === position) return Promise.resolve(true);
 
     const generation = this.loadGeneration;
-    const current = () =>
-      generation === this.loadGeneration && this.projectState()?.id === project.id;
+    const current = () => this.current(generation, projectId, pageId);
 
     // CDK's mixed strategy has already moved the actual DOM. Mirror that order in the
     // signal immediately so Angular's logical view order matches what CDK rendered. If the
@@ -414,7 +364,7 @@ export class ProjectPageStore {
 
         // The preview remains visibly successful if the follow-up read fails. It is a
         // rendering order, not a second implementation of domain validation.
-        await this.reconcileSections(project.id, generation);
+        await this.reconcileSections(projectId, pageId, generation);
         return true;
       } catch (error) {
         if (current()) {
@@ -454,7 +404,7 @@ export class ProjectPageStore {
   }
 
   duplicateSection(id: SectionId): Promise<boolean> {
-    return this.mutate(async ({ current, projectId, generation }) => {
+    return this.mutate(async ({ current, projectId, pageId, generation }) => {
       const copy = await this.gateway.sections.duplicate(id);
       if (!current()) return;
       // Insert only into the render order, then reconcile. The domain has already
@@ -465,7 +415,7 @@ export class ProjectPageStore {
         preview.splice(Math.max(0, Math.min(copy.position, preview.length)), 0, copy);
         return preview;
       });
-      await this.reconcileSections(projectId, generation);
+      await this.reconcileSections(projectId, pageId, generation);
     });
   }
 
@@ -483,7 +433,7 @@ export class ProjectPageStore {
    * rather than from a client-side row count, so the dialog and the rule cannot disagree.
    */
   removeSection(id: SectionId, input: RemoveSectionInput = {}): Promise<boolean> {
-    return this.mutate(async ({ current, projectId, generation }) => {
+    return this.mutate(async ({ current, projectId, pageId, generation }) => {
       try {
         await this.gateway.sections.remove(id, input);
       } catch (error) {
@@ -503,7 +453,7 @@ export class ProjectPageStore {
       // Removing the render item is safe; filling the persisted position gap belongs to
       // SectionService and arrives through the authoritative re-read below.
       this.sectionsState.update((sections) => sections.filter((section) => section.id !== id));
-      await this.reconcileSections(projectId, generation);
+      await this.reconcileSections(projectId, pageId, generation);
       // A cascade or a reassign moved rows, so every container has to re-read.
       if (input.policy !== undefined) this.notifyProjectDataChanged();
     });
@@ -557,85 +507,6 @@ export class ProjectPageStore {
     this.notifyProjectDataChanged();
   }
 
-  /** §26's Rename, optimistic per §63. */
-  rename(name: string): Promise<boolean> {
-    return this.writeProject({ name }, (project) => ({ ...project, name }));
-  }
-
-  /**
-   * §26's Status. `archived` is deliberately not offered here: `ProjectService.update` runs
-   * the whole archive path — active-children guard, `project.archived` activity row — on any
-   * transition into it, so a status list built naively from the enum would archive a project
-   * with no confirmation and leave the user on a page that had just left the sidebar.
-   */
-  setStatus(status: Exclude<ProjectStatus, 'archived'>): Promise<boolean> {
-    return this.writeProject({ status }, (project) => ({ ...project, status }));
-  }
-
-  /** `null` clears it, which is what puts the header's "No target date" branch in reach. */
-  setTargetDate(targetDate: string | null): Promise<boolean> {
-    return this.writeProject({ targetDate }, (project) => {
-      const next = { ...project };
-      if (targetDate === null) delete next.targetDate;
-      else next.targetDate = targetDate;
-      return next;
-    });
-  }
-
-  /**
-   * §81's archive. `PATCH` with `status: 'archived'` *is* the domain's archive path, so
-   * there is no gateway method to add. Awaited rather than optimistic, because the page it
-   * runs from disappears when it succeeds — and it returns an outcome instead of navigating,
-   * because §19's stores decide and pages navigate.
-   */
-  archive(): Promise<boolean> {
-    return this.writeProject({ status: 'archived' }, null);
-  }
-
-  /**
-   * One optimistic project write. `paint` is `null` for the write whose result the user
-   * never sees on this page, which is archive alone.
-   */
-  private writeProject(
-    input: UpdateProjectInput,
-    paint: ((project: Project) => Project) | null,
-  ): Promise<boolean> {
-    const before = this.projectState();
-    if (before === null) return Promise.resolve(false);
-    const projectId = before.id;
-    const generation = this.loadGeneration;
-    // The store's standing staleness idiom: a write that lands after the route moved on
-    // writes nothing.
-    const current = () =>
-      generation === this.loadGeneration && this.projectState()?.id === projectId;
-
-    this.writeErrorState.set(null);
-    // Raised **before** the paint, and lowered only once the write has succeeded or rolled
-    // back: a consumer must never read an optimistic `active` as a persisted reactivation.
-    this.projectWritesState.update((count) => count + 1);
-    if (paint !== null) this.projectState.set(paint(before));
-
-    return this.track(() =>
-      this.whileWriting(async () => {
-        try {
-          const updated = await this.gateway.projects.update(projectId, input);
-          // The server's record, not the optimistic paint: the host may have normalised
-          // something, and `updatedAt` moved whatever else did.
-          if (current() && paint !== null) this.projectState.set(updated);
-          return true;
-        } catch (error) {
-          if (current()) {
-            if (paint !== null) this.projectState.set(before);
-            this.writeErrorState.set(messageOf(error));
-          }
-          return false;
-        } finally {
-          this.projectWritesState.update((count) => count - 1);
-        }
-      }),
-    );
-  }
-
   private updateSection(
     id: SectionId,
     input: Parameters<typeof this.gateway.sections.update>[1],
@@ -657,20 +528,21 @@ export class ProjectPageStore {
     operation: (context: {
       current: () => boolean;
       projectId: ProjectId;
+      pageId: ProjectPageId;
       generation: number;
     }) => Promise<void>,
   ): Promise<boolean> {
-    const projectId = this.projectState()?.id;
-    if (projectId === undefined) return Promise.resolve(false);
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    if (!this.loaded || projectId === undefined || pageId === undefined) return Promise.resolve(false);
     const generation = this.loadGeneration;
-    const current = () =>
-      generation === this.loadGeneration && this.projectState()?.id === projectId;
+    const current = () => this.current(generation, projectId, pageId);
 
     return this.track(() =>
       this.whileWriting(async () => {
         if (current()) this.sectionErrorState.set(null);
         try {
-          await operation({ current, projectId, generation });
+          await operation({ current, projectId, pageId, generation });
           return true;
         } catch (error) {
           if (current()) this.sectionErrorState.set(messageOf(error));
@@ -689,13 +561,14 @@ export class ProjectPageStore {
    * sibling positions remain untouched unless they came from the host.
    */
   private async reconcileSections(
-    projectId = this.projectState()?.id,
+    projectId = this.requestedProjectId,
+    pageId = this.requestedPageId,
     generation = this.loadGeneration,
   ): Promise<void> {
-    if (projectId === undefined) return;
+    if (projectId === undefined || pageId === undefined) return;
     try {
-      const sections = await this.gateway.sections.list(projectId);
-      if (generation === this.loadGeneration && this.projectState()?.id === projectId) {
+      const sections = await this.gateway.sections.list(projectId, { pageId });
+      if (this.current(generation, projectId, pageId)) {
         this.sectionsState.set([...sections].sort(byPosition));
       }
     } catch {
@@ -709,19 +582,17 @@ export class ProjectPageStore {
   }
 
   /**
-   * Holds off §62's re-read for the length of an optimistic write — a section write or a
-   * write to the project record itself. One wrapper for both, because both hazards are the
-   * same one: the host flushes its frame at commit, which is before the tab's own response
-   * lands, so a re-read in that window replaces the optimistic paint with the pre-write
-   * value for a frame.
+   * Holds off §62's re-read for the length of an optimistic section write. The host flushes
+   * its frame at commit, which is before the tab's own response lands, so a re-read in that
+   * window replaces the optimistic paint with the pre-write value for a frame.
    */
   private whileWriting<T>(operation: () => Promise<T>): Promise<T> {
-    this.pendingWrites += 1;
+    this.pendingSectionWrites += 1;
     return operation().finally(() => {
-      this.pendingWrites -= 1;
-      if (this.pendingWrites === 0 && this.projectRefreshQueued) {
-        this.projectRefreshQueued = false;
-        void this.refreshProject();
+      this.pendingSectionWrites -= 1;
+      if (this.pendingSectionWrites === 0 && this.sectionRefreshQueued) {
+        this.sectionRefreshQueued = false;
+        void this.refreshSections();
       }
     });
   }

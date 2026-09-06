@@ -93,6 +93,8 @@
 
   // §22 names sidebar width as a Design Lab control, so it is a token from the start.
   --layout-sidebar-width: 15rem;
+  // §23's second column, beside the global sidebar when a project is open.
+  --layout-project-column-width: 14rem;
   // The comfortable measure a block of prose is held to.
   --layout-reading-width: 40rem;
   --layout-drawer-width: 22rem;

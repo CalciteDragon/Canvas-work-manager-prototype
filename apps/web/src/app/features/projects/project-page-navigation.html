@@ -1,0 +1,69 @@
+<!-- The toggle is outside the collapsible region on purpose: a control that collapses with
+     what it collapses cannot bring it back. §23: the column "collapses behind a labelled
+     control rather than disappearing". -->
+<button
+  type="button"
+  data-project-nav-toggle
+  class="project-nav__toggle"
+  [attr.aria-expanded]="!collapsed()"
+  aria-controls="project-nav-panel"
+  (click)="toggleRequested.emit()"
+>
+  {{ collapsed() ? 'Show project navigation' : 'Hide project navigation' }}
+</button>
+
+<!-- `hidden` rather than an `@if`: a collapsed column must leave the tab order, and removing
+     the panel would also throw away its scroll position on every toggle. -->
+<nav
+  id="project-nav-panel"
+  class="project-nav"
+  [attr.aria-label]="'Project navigation for ' + root().name"
+  [hidden]="collapsed()"
+>
+  <a data-project-nav-root class="project-nav__root" [routerLink]="['/projects', root().id]">
+    <span aria-hidden="true">{{ root().icon ?? '📁' }}</span>
+    <span class="project-nav__root-name">{{ root().name }}</span>
+  </a>
+
+  @if (breadcrumbs().length > 0) {
+    <nav class="project-nav__breadcrumbs" aria-label="Parent projects">
+      <ol>
+        @for (ancestor of breadcrumbs(); track ancestor.id) {
+          <li>
+            <a data-project-breadcrumb [routerLink]="['/projects', ancestor.id]">{{ ancestor.name }}</a>
+          </li>
+        }
+      </ol>
+    </nav>
+  }
+
+  <ul class="project-nav__pages">
+    @for (page of pages(); track page.kind) {
+      <li>
+        <a
+          data-project-page-tab
+          [attr.data-page-kind]="page.kind"
+          [routerLink]="['/projects', root().id, 'pages', page.kind]"
+          [attr.aria-current]="page.kind === activeKind() ? 'page' : null"
+        >
+          <span aria-hidden="true">{{ page.icon }}</span> {{ page.label }}
+        </a>
+      </li>
+    }
+  </ul>
+
+  <hr />
+
+  <!-- §23: "beneath them the root's subprojects as the work hierarchy — a subproject is a
+       unit of work, not a page." -->
+  <h2 class="project-nav__heading">Work</h2>
+  @if (workTree().length === 0) {
+    <p data-work-empty class="project-nav__empty">No sub-projects yet</p>
+  } @else {
+    <ul class="project-nav__work">
+      @for (node of workTree(); track node.project.id) {
+        <app-project-work-item [node]="node" [currentProjectId]="currentProjectId()" />
+      }
+    </ul>
+  }
+</nav>

@@ -4,6 +4,7 @@ import {
   ownedKindOf,
   type OwnedDataKind,
   type ProjectId,
+  type ProjectPageId,
   type ProjectSection,
   type Reflection,
   type ReflectionId,
@@ -52,6 +53,7 @@ export class ArchivedRegionStore {
   private readonly pendingTasks = inject(PendingTasks);
 
   private readonly projectIdState = signal<ProjectId | null>(null);
+  private readonly pageIdState = signal<ProjectPageId | null>(null);
   private readonly sectionsState = signal<ProjectSection[]>([]);
   private readonly tasksState = signal<Task[]>([]);
   private readonly reflectionsState = signal<Reflection[]>([]);
@@ -134,16 +136,27 @@ export class ArchivedRegionStore {
   /** Hidden entirely when there is nothing to undo — an empty region says nothing useful. */
   readonly empty = computed(() => this.sections().length === 0 && this.rows().length === 0);
 
-  load(projectId: ProjectId): Promise<void> {
-    return this.track(() => this.read(projectId));
+  /**
+   * The region belongs to **one canvas**, so it reads one page (§27). Home must not offer to
+   * restore a section archived from another of the root's pages — the restore would land
+   * somewhere the user is not looking — and a sub-project's region must not list its root's.
+   *
+   * The knock-on is deliberate: page-scoping the sections also narrows the containers a row
+   * can be attributed to, so a row archived inside a container on another page drops out of
+   * this region too. It is still undoable from the canvas that owns it, and 25.6's whole-tree
+   * Archive page is what makes it findable from anywhere.
+   */
+  load(projectId: ProjectId, pageId: ProjectPageId): Promise<void> {
+    return this.track(() => this.read(projectId, pageId));
   }
 
-  private async read(projectId: ProjectId): Promise<void> {
+  private async read(projectId: ProjectId, pageId: ProjectPageId): Promise<void> {
     this.projectIdState.set(projectId);
+    this.pageIdState.set(pageId);
     const generation = ++this.generation;
     try {
       const [sections, tasks, reflections] = await Promise.all([
-        this.gateway.sections.list(projectId, { includeArchived: true }),
+        this.gateway.sections.list(projectId, { pageId, includeArchived: true }),
         this.gateway.tasks.list({ projectId, includeArchived: true }),
         this.gateway.reflections.list(projectId, { includeArchived: true }),
       ]);
@@ -184,13 +197,14 @@ export class ArchivedRegionStore {
 
   private async writeAndReload(id: string, write: () => Promise<unknown>): Promise<boolean> {
     const projectId = this.projectIdState();
-    if (projectId === null) return false;
+    const pageId = this.pageIdState();
+    if (projectId === null || pageId === null) return false;
 
     this.errorState.set(null);
     this.restoringState.update((ids) => new Set([...ids, id]));
     try {
       await write();
-      await this.read(projectId);
+      await this.read(projectId, pageId);
       return true;
     } catch (error) {
       this.errorState.set(messageOf(error));

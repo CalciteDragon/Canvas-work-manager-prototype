@@ -1,0 +1,88 @@
+<header class="project-header">
+  <span data-project-icon class="project-header__icon" aria-hidden="true">{{
+    project().icon ?? (isWorkUnit() ? '🧩' : '📁')
+  }}</span>
+
+  <div class="project-header__identity">
+    <h1 data-project-name class="project-header__name">{{ project().name }}</h1>
+    @if (project().description; as description) {
+      <p data-project-description class="project-header__description">{{ description }}</p>
+    }
+  </div>
+
+  <dl class="project-header__facts">
+    <div>
+      <dt>Status</dt>
+      <dd data-project-status class="project-header__status">
+        {{ project().status.replace('_', ' ') }}
+      </dd>
+    </div>
+    <div>
+      <dt>Progress</dt>
+      <dd data-project-progress>
+        <!-- `@if (progress(); as value)` would be wrong: a project with nothing done yet has
+             progress `0`, which is falsy, and would read as "Not available" — the one number
+             this control most needs to say. -->
+        @if (progress() !== null) {
+          {{ progress() }}% complete
+        } @else {
+          <span data-project-progress-unavailable>Not available</span>
+        }
+      </dd>
+    </div>
+    <div>
+      <!-- §26 labels the same date **Due date** on a unit of work. One stored field, one
+           relabelling: a deadline does not become a second column because the thing holding
+           it is smaller. -->
+      <dt data-project-date-label>{{ isWorkUnit() ? 'Due date' : 'Target date' }}</dt>
+      <dd data-project-target-date>
+        @if (project().targetDate; as targetDate) {
+          <time [attr.datetime]="targetDate">{{ targetDate }}</time>
+        } @else {
+          {{ isWorkUnit() ? 'No due date' : 'No target date' }}
+        }
+      </dd>
+    </div>
+    @if (project().completedAt; as completedAt) {
+      <div>
+        <dt>Completed</dt>
+        <dd data-project-completed-at>
+          <time [attr.datetime]="completedAt">{{ completedAt }}</time>
+        </dd>
+      </div>
+    }
+  </dl>
+
+  <div class="project-header__actions">
+    <!-- §26's "More": rename, description, status, date and archive (§81). -->
+    <button
+      data-project-more
+      type="button"
+      class="project-header__more"
+      aria-label="More project actions"
+      [attr.aria-expanded]="moreOpen()"
+      (click)="toggleMore()"
+    >
+      ⋯
+    </button>
+  </div>
+
+  @if (moreOpen()) {
+    <app-project-more-menu
+      class="project-header__more-menu"
+      [project]="project()"
+      (renameRequested)="emit(renameRequested, $event)"
+      (descriptionRequested)="emit(descriptionRequested, $event)"
+      (statusRequested)="emit(statusRequested, $event)"
+      (targetDateRequested)="emit(targetDateRequested, $event)"
+      (archiveRequested)="archive()"
+      (dismissed)="closeMore()"
+    />
+  }
+
+  <!-- A failed project write, in the header — never the full-page "Project unavailable"
+       state, which would blank the page the user is standing on. -->
+  @if (writeError(); as writeError) {
+    <p data-project-write-error class="project-header__error" role="alert">{{ writeError }}</p>
+  }
+</header>

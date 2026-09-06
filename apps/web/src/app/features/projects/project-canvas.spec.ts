@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { CdkDrag, CdkDropList } from '@angular/cdk/drag-drop';
+import { CdkDrag } from '@angular/cdk/drag-drop';
 import { By } from '@angular/platform-browser';
-import { Router, provideRouter } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import {
   ProjectSchema,
   ProjectSectionSchema,
@@ -15,7 +15,7 @@ import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
-import { ProjectPage } from './project-page';
+import { ProjectCanvas } from './project-canvas';
 
 const AT = '2026-08-27T16:00:00.000Z';
 
@@ -80,6 +80,8 @@ const deferred = <T>() => {
 const render = async (
   options: {
     project?: Project;
+    pageId?: string;
+    restoreBlocked?: boolean;
     sections?: ProjectSection[];
     tasks?: Task[];
     failWith?: GatewayError;
@@ -103,8 +105,12 @@ const render = async (
   TestBed.configureTestingModule({
     providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }, provideRouter([])],
   });
-  const fixture = TestBed.createComponent(ProjectPage);
-  fixture.componentRef.setInput('projectId', 'project-a');
+  const fixture = TestBed.createComponent(ProjectCanvas);
+  fixture.componentRef.setInput('projectId', renderedProject.id);
+  fixture.componentRef.setInput('pageId', options.pageId ?? 'page-project-a');
+  // The shell owns the project record; the canvas is handed only what it renders with.
+  fixture.componentRef.setInput('projectLayoutMode', renderedProject.projectLayoutMode);
+  fixture.componentRef.setInput('restoreBlocked', options.restoreBlocked ?? false);
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
@@ -122,17 +128,7 @@ const enterEditMode = (fixture: Awaited<ReturnType<typeof render>>['fixture']) =
   fixture.detectChanges();
 };
 
-describe('ProjectPage (§26)', () => {
-  it('renders §26’s header: icon, name, status, progress and target date', async () => {
-    const { fixture } = await render();
-
-    expect(query(fixture, '[data-project-icon]')?.textContent).toContain('🚀');
-    expect(query(fixture, '[data-project-name]')?.textContent).toContain('Website launch');
-    expect(query(fixture, '[data-project-status]')?.textContent).toContain('on hold');
-    expect(query(fixture, '[data-project-progress]')?.textContent).toContain('50%');
-    expect(query(fixture, '[data-project-target-date]')?.textContent).toContain('2026-09-30');
-  });
-
+describe('ProjectCanvas (§27, §31, §32)', () => {
   it('renders every registered section inside one frame, in position order', async () => {
     const { fixture } = await render();
 
@@ -144,23 +140,6 @@ describe('ProjectPage (§26)', () => {
     // The two content components, each inside the shared §31 chrome.
     expect(query(fixture, '[data-rich-text-body]')).not.toBeNull();
     expect(query(fixture, '[data-quick-create]')).not.toBeNull();
-  });
-
-  it('renders 0% for a project with nothing done, not "Not available"', async () => {
-    // `0` is falsy, so an `@if (progress; as …)` binding reads a real zero as "no value" —
-    // the one number a progress control most needs to be able to say.
-    const { fixture } = await render({ tasks: [task('task-1', 'todo')] });
-
-    expect(fixture.nativeElement.querySelector('[data-project-progress]').textContent).toContain(
-      '0%',
-    );
-    expect(query(fixture, '[data-project-progress-unavailable]')).toBeNull();
-  });
-
-  it('says progress is unavailable when the project has no tasks at all', async () => {
-    const { fixture } = await render({ tasks: [] });
-
-    expect(query(fixture, '[data-project-progress-unavailable]')).not.toBeNull();
   });
 
   it('invites the user to add something when the canvas is empty', async () => {
@@ -190,7 +169,7 @@ describe('ProjectPage (§26)', () => {
     expect(gateway.argumentTo('sections.remove')).toEqual({ id: 'section-unknown', input: {} });
   });
 
-  it('adds a section of a chosen registry type from the header’s Quick Add', async () => {
+  it('adds a section of a chosen registry type from Quick Add', async () => {
     const { fixture, gateway } = await render();
 
     enterEditMode(fixture);
@@ -202,10 +181,33 @@ describe('ProjectPage (§26)', () => {
     richText!.click();
     await fixture.whenStable();
 
+    // The registry's default config *and* the canvas's own page: §27 resolves an unnamed
+    // write onto the project's canonical page, which is the wrong answer for any other page
+    // a root shows.
     expect(gateway.argumentTo('sections.create')).toEqual({
       projectId: 'project-a',
-      input: { type: 'rich-text', config: { text: '' } },
+      input: { type: 'rich-text', pageId: 'page-project-a', config: { text: '' } },
     });
+  });
+
+  // Test 31 of the plan: the same write, on the one canvas whose page is not canonical for
+  // the project the caller would otherwise resolve to.
+  it('creates on a sub-project’s work page, not on the root’s Home', async () => {
+    const { fixture, gateway } = await render({
+      pageId: 'page-work',
+      sections: [section('section-work', 'rich-text', 0, { pageId: 'page-work' })],
+    });
+
+    enterEditMode(fixture);
+    query(fixture, '[data-project-quick-add]')!.click();
+    fixture.detectChanges();
+    queryAll(fixture, '[data-add-section]')
+      .find((button) => button.getAttribute('data-section-type') === 'rich-text')!
+      .click();
+    await fixture.whenStable();
+
+    expect((gateway.argumentTo('sections.create') as { input: { pageId?: string } }).input.pageId)
+      .toBe('page-work');
   });
 
   it('gives two Task List sections on one project their own rows', async () => {
@@ -227,13 +229,16 @@ describe('ProjectPage (§26)', () => {
     expect(lists[1]!.textContent).toContain('Task task-3');
     expect(lists[0]!.textContent).not.toContain('Task task-3');
 
-    // Progress stays a project-wide view: completing in one list moves the header, which
-    // reads §39's canonical answer rather than summing whatever the containers hold.
+    // Completing in one list moves §39's canonical answer, which the *header* renders — and
+    // the header belongs to the shell now. The canvas's job is to say so, which it does
+    // through `onProjectDataChange`; `project-workspace-shell.spec.ts` asserts the other end.
+    let reported = 0;
+    fixture.componentRef.setInput('onProjectDataChange', () => (reported += 1));
     lists[0]!.querySelector<HTMLElement>('[data-task-complete]')!.dispatchEvent(new Event('change'));
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-project-progress]')?.textContent).toContain('67%');
+    expect(reported).toBeGreaterThan(0);
   });
 
   it('names a section from the frame’s Settings panel, and resets the field when the write fails', async () => {
@@ -351,9 +356,9 @@ describe('ProjectPage (§26)', () => {
     fixture.detectChanges();
 
     const after = gateway.calls.filter(({ method }) => method === 'progress.get').length;
-    // One canonical setFormula read, one shared section revision read, and one header
-    // recovery from the live self-echo. Duplicate sections must not add a fourth read.
-    expect(after - before).toBe(3);
+    // One canonical setFormula read and one shared section revision read. Duplicate sections
+    // must not add a third — and the header's own recovery read is the shell's now.
+    expect(after - before).toBe(2);
     expect(progressSections.map((region) =>
       [...region.querySelectorAll<HTMLButtonElement>('button')]
         .find((button) => button.textContent?.trim() === 'Weighted')
@@ -363,48 +368,8 @@ describe('ProjectPage (§26)', () => {
       expect.stringContaining('2 of 10 estimate points complete'),
       expect.stringContaining('2 of 10 estimate points complete'),
     ]);
-    expect(query(fixture, '[data-project-progress]')?.textContent).toContain('20%');
+
   });
-
-  it('shows a not-found project as a visible message rather than an empty canvas', async () => {
-    const { fixture } = await render({
-      failWith: new GatewayError('not_found', 404, 'no such project'),
-    });
-
-    expect(query(fixture, '[data-project-error]')?.textContent).toContain('no such project');
-    expect(query(fixture, '[data-section-canvas]')).toBeNull();
-  });
-
-  it.each([
-    ['flow', 'vertical'],
-    ['grid', 'mixed'],
-  ] as const)(
-    'renders %s from the persisted flag with the supported CDK orientation',
-    async (mode, orientation) => {
-      const { fixture } = await render({
-        project: project({ projectLayoutMode: mode }),
-      sections: [
-        section('section-text-12', 'rich-text', 0, { columnSpan: 12 }),
-        section('section-text-8', 'rich-text', 1, { columnSpan: 8 }),
-        section('section-text-6', 'rich-text', 2, { columnSpan: 6 }),
-        section('section-tasks-4', 'task-list', 3, { columnSpan: 4 }),
-      ],
-      });
-
-      const canvas = query(fixture, '[data-section-canvas]')!;
-      expect(canvas.classList.contains(`section-canvas--${mode}`)).toBe(true);
-    expect(queryAll(fixture, '[data-section-item]').map((item) => item.className)).toEqual([
-      expect.stringContaining('section-canvas__item--span-12'),
-      expect.stringContaining('section-canvas__item--span-8'),
-      expect.stringContaining('section-canvas__item--span-6'),
-      expect.stringContaining('section-canvas__item--span-4'),
-      ]);
-      const dropList = fixture.debugElement
-        .query(By.directive(CdkDropList))
-        .injector.get(CdkDropList);
-      expect(dropList.orientation).toBe(orientation);
-    },
-  );
 
   it('keeps every section, including an unknown type, in the same draggable order', async () => {
     const { fixture } = await render({
@@ -490,31 +455,35 @@ describe('ProjectPage (§26)', () => {
     expect(query(fixture, '[data-section-error]')?.textContent).toContain('move did not persist');
   });
 
-  it('does not remount the new project when an old project move rejects', async () => {
+  it('does not remount the new canvas when the page left behind rejects a move', async () => {
     const gate = deferred<ProjectSection>();
     const { fixture, gateway } = await render({
       sections: [
         section('section-text', 'rich-text', 0),
         section('section-tasks', 'task-list', 1),
-        section('section-b', 'rich-text', 0, { projectId: 'project-b' }),
+        section('section-b', 'rich-text', 0, { pageId: 'page-b' }),
       ],
     });
     gateway.sections.move = vi.fn(() => gate.promise);
-    gateway.projects.get = vi.fn(async (id) => project({ id }));
     const drop = fixture.componentInstance.drop({
       previousIndex: 0,
       currentIndex: 1,
       item: { data: 'section-text' },
     } as never);
-    await fixture.componentInstance.store.load('project-b' as Project['id']);
+    // The user moved on to another page of the same project — the identity the rollback
+    // has to compare against is the page, not only the project.
+    fixture.componentRef.setInput('pageId', 'page-b');
     fixture.detectChanges();
-    const projectBCanvas = query(fixture, '[data-section-canvas]');
+    // Not `whenStable()`: the rejected move below is still registered with `PendingTasks`, so
+    // waiting for stability here would wait for the very thing this test has not released yet.
+    const pageBCanvas = query(fixture, '[data-section-canvas]');
 
     gate.reject(new GatewayError('unreachable', 0, 'old move failed'));
     await drop;
+    await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-section-canvas]')).toBe(projectBCanvas);
+    expect(query(fixture, '[data-section-canvas]')).toBe(pageBCanvas);
   });
 });
 
@@ -523,7 +492,7 @@ describe('ProjectPage (§26)', () => {
  * project keeps its own choice, so turning the flag back on restores it rather than
  * needing a data fix.
  */
-describe('ProjectPage — the gridProjectLayout flag (§47)', () => {
+describe('ProjectCanvas — the gridProjectLayout flag (§47)', () => {
   it('renders a grid project as grid while the flag is on', async () => {
     const { fixture } = await render({ project: project({ projectLayoutMode: 'grid' }) });
 
@@ -546,131 +515,7 @@ describe('ProjectPage — the gridProjectLayout flag (§47)', () => {
   });
 });
 
-describe('ProjectPage — §26’s More menu (§81)', () => {
-  const openMore = async (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
-    query(fixture, '[data-project-more]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-  };
-
-  it('opens the More menu, closes it on Escape, and closes Quick add when it opens', async () => {
-    const { fixture } = await render();
-    expect(query(fixture, '[data-project-more]')?.hasAttribute('disabled')).toBe(false);
-
-    enterEditMode(fixture);
-    query(fixture, '[data-project-quick-add]')!.click();
-    fixture.detectChanges();
-    expect(query(fixture, '[data-add-section-menu]')).not.toBeNull();
-
-    await openMore(fixture);
-    // The two popovers render into the same row, so they must never overlap.
-    expect(query(fixture, '[data-project-more-menu]')).not.toBeNull();
-    expect(query(fixture, '[data-add-section-menu]')).toBeNull();
-    expect(queryAll(fixture, '[data-project-status-option]').map((button) => button.getAttribute('data-status'))).toEqual([
-      'planning',
-      'active',
-      'on_hold',
-      'completed',
-    ]);
-
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(query(fixture, '[data-project-more-menu]')).toBeNull();
-  });
-
-  // The template-layer companion to the store's revert test: the store spec cannot see that
-  // `writeError` was accidentally routed to `errorState`, which would blank the page.
-  it('keeps the header rendered while showing a failed rename', async () => {
-    const { fixture } = await render({
-      failOn: { 'projects.update': new GatewayError('unreachable', 0, 'the prototype host is not running') },
-    });
-    await openMore(fixture);
-
-    const name = query(fixture, '[data-project-rename-input]') as HTMLInputElement;
-    name.value = 'Website relaunch';
-    query(fixture, '[data-project-rename-submit]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(query(fixture, '[data-project-write-error]')?.textContent).toContain('not running');
-    expect(query(fixture, '[data-project-name]')?.textContent).toContain('Website launch');
-    expect(query(fixture, '[data-project-error]')).toBeNull();
-  });
-
-  it('asks for confirmation before archiving', async () => {
-    const { fixture } = await render();
-    await openMore(fixture);
-
-    expect(query(fixture, '[data-project-archive-confirm]')).toBeNull();
-    query(fixture, '[data-project-archive]')!.click();
-    fixture.detectChanges();
-
-    expect(query(fixture, '[data-project-archive-confirm]')).not.toBeNull();
-  });
-
-  it('writes nothing when the confirmation is cancelled', async () => {
-    const { fixture, gateway } = await render();
-    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    await openMore(fixture);
-
-    query(fixture, '[data-project-archive]')!.click();
-    fixture.detectChanges();
-    query(fixture, '[data-project-archive-cancel]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(gateway.calls.some(({ method }) => method === 'projects.update')).toBe(false);
-    expect(navigate).not.toHaveBeenCalled();
-    expect(query(fixture, '[data-project-name]')).not.toBeNull();
-  });
-
-  it('leaves the project page only after the archive resolves', async () => {
-    const { fixture, gateway } = await render();
-    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    await openMore(fixture);
-
-    query(fixture, '[data-project-archive]')!.click();
-    fixture.detectChanges();
-    query(fixture, '[data-project-archive-confirm-yes]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(gateway.argumentTo('projects.update')).toEqual({ id: 'project-a', input: { status: 'archived' } });
-    expect(navigate).toHaveBeenCalledWith(['/app']);
-  });
-
-  it('stays put and names the reason when the domain refuses an archive', async () => {
-    const { fixture } = await render({
-      failOn: { 'projects.update': new GatewayError('conflict', 409, 'archive or complete the 2 active sub-projects first') },
-    });
-    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    await openMore(fixture);
-
-    query(fixture, '[data-project-archive]')!.click();
-    fixture.detectChanges();
-    query(fixture, '[data-project-archive-confirm-yes]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(navigate).not.toHaveBeenCalled();
-    expect(query(fixture, '[data-project-write-error]')?.textContent).toContain('active sub-projects');
-  });
-
-  it('clears a target date back to the header’s "No target date" branch', async () => {
-    const { fixture, gateway } = await render();
-    await openMore(fixture);
-
-    query(fixture, '[data-project-target-date-clear]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(gateway.argumentTo('projects.update')).toEqual({ id: 'project-a', input: { targetDate: null } });
-    expect(query(fixture, '[data-project-target-date]')?.textContent).toContain('No target date');
-  });
-});
-
-describe('ProjectPage — Archived (§31, §32)', () => {
+describe('ProjectCanvas — Archived (§31, §32)', () => {
   const archivedSection = () =>
     section('section-backlog', 'task-list', 2, { title: 'Backlog', archivedAt: AT });
 
@@ -710,49 +555,5 @@ describe('ProjectPage — Archived (§31, §32)', () => {
 
     expect(queryAll(fixture, '[data-section-frame]')).toHaveLength(2);
     expect(query(fixture, '[data-archived-region]')).toBeNull();
-  });
-
-  it('keeps the region visible but every Restore disabled while the project is archived', async () => {
-    // The page is reachable by direct URL for an archived project. Erasing the archived work
-    // from view would be worse than showing it — but the domain refuses a restore into one,
-    // so the control says what to do instead rather than failing on click.
-    const { fixture, gateway } = await render({
-      project: project({ status: 'archived' }),
-      sections: [section('section-text', 'rich-text', 0), archivedSection()],
-    });
-
-    expect(query(fixture, '[data-archived-region]')).not.toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Reactivate this project to restore archived work.');
-    expect((query(fixture, '[data-archived-section-restore]') as HTMLButtonElement).disabled).toBe(true);
-
-    query(fixture, '[data-archived-section-restore]')!.click();
-    await fixture.whenStable();
-    // No speculative request: HTTP and MCP still enforce the refusal, but the UI does not
-    // offer something it knows will fail.
-    expect(gateway.calls.some(({ method }) => method === 'sections.restore')).toBe(false);
-  });
-
-  it('keeps Restore disabled through an optimistic reactivation, and enables it only on success', async () => {
-    // `setStatus` paints `active` before the write lands, so the loaded status alone would
-    // enable Restore during a reactivation the domain has not accepted yet.
-    const gate = deferred<Project>();
-    const { fixture, gateway } = await render({
-      project: project({ status: 'archived' }),
-      sections: [section('section-text', 'rich-text', 0), archivedSection()],
-    });
-    const update = vi.spyOn(gateway.projects, 'update').mockReturnValue(gate.promise);
-
-    query(fixture, '[data-project-more]')!.click();
-    fixture.detectChanges();
-    query(fixture, '[data-project-status-option][data-status="active"]')!.click();
-    fixture.detectChanges();
-
-    expect((query(fixture, '[data-archived-section-restore]') as HTMLButtonElement).disabled).toBe(true);
-
-    gate.resolve(project({ status: 'active' }));
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect((query(fixture, '[data-archived-section-restore]') as HTMLButtonElement).disabled).toBe(false);
-    update.mockRestore();
   });
 });

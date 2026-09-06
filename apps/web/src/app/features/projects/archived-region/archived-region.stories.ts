@@ -5,6 +5,7 @@ import {
   ReflectionSchema,
   TaskSchema,
   type ProjectId,
+  type ProjectPageId,
   type ProjectSection,
   type Reflection,
   type Task,
@@ -23,6 +24,7 @@ import { ArchivedRegion } from './archived-region';
  * *nothing at all*, which is the state the first story exists to show.
  */
 const PROJECT = 'project-story' as ProjectId;
+const PAGE = `page-${PROJECT}` as ProjectPageId;
 const AT = '2026-09-02T06:13:32.422Z';
 const EARLIER = '2026-09-01T06:13:32.422Z';
 
@@ -30,7 +32,7 @@ const section = (id: string, overrides: Record<string, unknown> = {}): ProjectSe
   ProjectSectionSchema.parse({
     id,
     projectId: PROJECT,
-    pageId: `page-${PROJECT}`,
+    pageId: PAGE,
     type: 'task-list',
     position: 0,
     columnSpan: 12,
@@ -74,7 +76,7 @@ const worldOf = (options: ConstructorParameters<typeof FakeWorkManagerGateway>[0
 const meta: Meta<ArchivedRegion> = {
   title: 'Projects/ArchivedRegion',
   component: ArchivedRegion,
-  args: { projectId: PROJECT, projectDataRevision: 0, restoreBlocked: false },
+  args: { projectId: PROJECT, pageId: PAGE, projectDataRevision: 0, restoreBlocked: false },
 };
 
 export default meta;
