@@ -1041,7 +1041,7 @@ ascending with undated last, retaining completed and cancelled rows.
 | 25.2 | Page ownership through domain, API and MCP | 25.1 | done — plan: [docs/plans/25.2-page-aware-ownership.md](docs/plans/25.2-page-aware-ownership.md) |
 | 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | done — plan: [docs/plans/25.3-workspace-shell-and-subproject-canvas.md](docs/plans/25.3-workspace-shell-and-subproject-canvas.md) |
 | 25.4 | Home shortcuts | 25.3 | done — plan: [docs/plans/25.4-home-shortcuts.md](docs/plans/25.4-home-shortcuts.md) |
-| 25.5 | Chronological Todos | 25.3 | not started — reviewed implementation plan: [docs/plans/25.5-chronological-todos.md](docs/plans/25.5-chronological-todos.md) |
+| 25.5 | Chronological Todos | 25.3 | done — plan: [docs/plans/25.5-chronological-todos.md](docs/plans/25.5-chronological-todos.md) |
 | 25.6 | Root Archive and reachable undo | 25.3 | not started |
 | 25.7 | Completed-work reflections | 25.3 | not started |
 | 25.8 | Integrated acceptance and documentation closure | 25.4–25.7 | not started |
@@ -1190,6 +1190,52 @@ Verified with `pnpm test` (178 contracts, 124 repositories, 94 seed, 354 domain,
 host, and 521 web tests), `pnpm lint`, `pnpm build`, `pnpm storybook:build`, the two-transport MCP
 acceptance, and the unchanged `pnpm e2e` suite (2 passed). The production build still reports the
 existing warning-only 850 kB initial-bundle budget overage; it remains below the 1 MB error budget.
+
+**25.5, done.** A root's optional Todos page is the second entry in `PROJECT_PAGE_REGISTRY`, and
+the first page that is a *projection* rather than a canvas. `ProjectTodosService.derive` walks one
+root's tree, drops archived owners, ancestors, containers and rows, and returns the canonical
+`Task` and `Subproject` records themselves under a shared discriminated union — one shape for the
+page, `GET /api/projects/:id/todos` and `get_project_todos`. Completing a row calls the canonical
+operation for its kind, so archive guards, activity attribution, completion timestamps and §39's
+progress behave exactly as on the canvas that owns it; a completed unit of work does not complete
+its children.
+
+Three things the phase decided rather than inherited, all in
+[the §78 entry](docs/decisions/2026-09-todos-chronology-and-canonical-navigation.md). **Instants are
+compared as text**: `IsoDateTimeSchema` accepts omitted seconds and a fraction of any length, so
+`Date.parse` would call `.0001Z` and `.0009Z` one instant and sort them by id — a fixed-width
+whole-second prefix plus right-padded fractions is lossless and needs no clock or timezone.
+**Reading the chronology does not require the tab**: enabling a page is navigation state, not a
+content permission. And **completion is one-way** — finished rows stay on the list with no control,
+because reopening has no canonical operation that could know the previous status.
+
+`WorkManagerTool` gained optional `additionalPermissions` for §54's rule that a derived page needs
+the grant for each category it returns. The singular `requiredPermission` metadata key is unchanged
+and a plural key carries the whole list beside it, so an existing client keeps working; the generic
+contract suite now denies every tool once per declared grant rather than once in total.
+
+Following a row's link had no mechanism: the app scrolls its own region and a canvas loads
+asynchronously, so the router's global anchor scrolling cannot arrive at a section. The canvas
+matches `#section-<id>` against the sections it actually loaded — never interpolating a fragment
+into a selector — focuses the frame's heading once rendered, and opens a collapsed target through a
+new `transientlyExpanded` input that leaves the canonical record alone. Arrival writes nothing;
+collapsing the container releases the override through the ordinary canonical write. Watched in the
+running prototype: the container opened, the heading took focus, and the stored section was still
+collapsed afterwards.
+
+The browser pass on `nested-projects` enabled Todos over the API, read the chronology through the
+page, `GET /api/projects/:id/todos` and `get_project_todos`, followed a row into a collapsed
+container, completed a task and a unit of work inline, and watched §46's failure injection refuse a
+completion and roll the row back. Four friction notes came out of it, `note-2026-09-06-006`
+through `-009`: one is this page's (a transiently opened container gives no sign of *why* it is
+open), and three are things it made visible elsewhere — 25.4's shortcut error banner on every
+sub-project canvas, the shell's columns not collapsing at 375px, and §46's failure rate applying to
+reads as well as writes. The pre-run `.prototype/data.json` was restored afterwards.
+
+Verified with `pnpm test` (186 contracts, 124 repositories, 94 seed, 373 domain, 102 MCP, 165
+host, and 559 web tests), `pnpm lint`, `pnpm build`, `pnpm storybook:build`, and `pnpm e2e`
+(3 passed, including the new `todos.spec.ts` journey). The production build's initial-bundle
+warning is now 921 kB against the 850 kB warning budget, still below the 1 MB error budget.
 
 Known: the initial bundle is 883 kB against an 850 kB **warning** budget (the error budget is
 1 MB, so the build passes). §68's feature routes are eager by an existing decision, and this slice

@@ -934,8 +934,9 @@ padding, so the column sits flush against the global sidebar with no shell state
 column is sticky, so a long canvas scrolls beneath it rather than taking it along; at ≤ 60rem it
 collapses behind a labelled button and its links leave the tab order with it.
 
-Today the column lists Home and the work hierarchy. Todos, Archive and Reflections have records
-and no renderers, so Slices 25.5–25.7 each add one line to `PROJECT_PAGE_REGISTRY`.
+Today the column lists Home, Todos where a root has enabled it, and the work hierarchy. Archive
+and Reflections have records and no renderers, so Slices 25.6 and 25.7 each add one line to
+`PROJECT_PAGE_REGISTRY`.
 
 ---
 
@@ -1376,9 +1377,10 @@ is `pageAcceptsSections`; the narrow one is `pageAcceptsSectionType`, which read
 capability out of `SECTION_OWNERSHIP` rather than naming section types, so a type registered
 later needs no entry. `SectionService` refuses on the way in and `validateDocumentIntegrity`
 refuses at load, because a hand-edited `data.json` (§14) must fail then rather than at whichever
-request first renders it. The pages are reachable now; their renderers arrive with Slices
-25.5–25.7. Slice 25.4 adds the Home-only shortcut placement beside the registered types; it
-does not register a Reflections, Todos or Archive page renderer.*
+request first renders it. Slice 25.4 adds the Home-only shortcut placement beside the registered
+types. Slice 25.5 registers the Todos renderer — a derived list that holds no sections, so nothing
+about this table changes for it; the Archive and Reflections renderers arrive with Slices 25.6 and
+25.7.*
 
 ---
 
@@ -1633,7 +1635,17 @@ operation on the same row.
 
 There is no drag ordering on Todos. The order is the chronology.
 
-*Planned in Slice 25.5.*
+*Landed in Slice 25.5.* `ProjectTodosService.derive` is the one query behind the page,
+`GET /api/projects/:id/todos` and `get_project_todos`; it returns the canonical `Task` and
+`Subproject` records rather than copies, and requires both `projects.read` and `tasks.read` (§54).
+Two instants are compared as **text** — a fixed-width whole-second prefix plus right-padded
+fractional digits — because §11's `IsoDateTimeSchema` admits omitted seconds and arbitrary
+fractional precision that `Date.parse` would collapse; ties then use kind (a unit of work before a
+task) and the ordinal id. Reading the chronology does not require the Todos tab to be switched on:
+enabling a page is navigation state, not a content permission. Completion is one-way — finished
+rows stay on the list with no control, and reopening uses the canonical canvas the row lives on,
+which is also where a row's link lands, at its own container
+([entry](docs/decisions/2026-09-todos-chronology-and-canonical-navigation.md)).
 
 ---
 
@@ -2312,8 +2324,12 @@ actor's own workspace and the root tree it asked about.
 *`list_project_pages` and `set_project_page_enabled` landed in Slice 25.2, under
 `projects.read` and `projects.write`; `create_project` and `create_section` now say in their
 descriptions which kind of project takes pages and which pages take which sections.
-`get_project_todos` and `get_project_archive` project pages that have no renderer yet and arrive
-with them in Slices 25.5 and 25.6, along with the read-permission composition described above.
+Slice 25.5 adds `get_project_todos`, the first tool to need more than one grant: it declares
+`projects.read` **and** `tasks.read`, and the domain denies outright without either rather than
+answering with the half it was allowed to read. `WorkManagerTool` carries the extra grants in an
+optional `additionalPermissions`, and the transports publish the complete list under
+`_meta["local.canvas-work-manager/requiredPermissions"]` beside the unchanged singular key.
+`get_project_archive` projects a page that has no renderer yet and arrives with it in Slice 25.6.
 Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
 `add_section_shortcut` / `remove_section_shortcut` under `projects.write`; the list returns
 placement and source identity only, never source rows. Canonical archive/restore tools remain

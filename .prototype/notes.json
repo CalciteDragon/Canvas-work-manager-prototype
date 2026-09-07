@@ -625,6 +625,38 @@
       "projectId": "project-renovation",
       "slice": 25.4,
       "note": "Adding a Home shortcut was easy to understand once Edit Layout was on: the picker grouped source sections by breadcrumb, and the resulting frame made its Kitchen origin and Open source link clear. The source task completed in a second tab and the read-only Home frame updated without a reload. Hiding the source project exposed one piece of archive friction: archiving Kitchen first refused because Cabinets was still active, so the child had to be archived before the source could be hidden. That is consistent with the whole-tree archive rule, but makes hiding a source a multi-step operation."
+    },
+    {
+      "id": "note-2026-09-06-006",
+      "createdAt": "2026-09-07T02:35:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 25.5,
+      "note": "Every visit to a sub-project's work canvas shows a red alert: \"shortcuts can only be placed on a root project's Home page\". It appears on a plain /projects/project-kitchen visit with nothing clicked, so it is the canvas loading shortcuts on a page that cannot hold them and surfacing the domain's refusal as a section error. Nothing is broken, but every unit of work looks broken. Belongs to 25.4's shortcut work, not to Todos — the canvas should not ask for placements on a page where §27 says there are none."
+    },
+    {
+      "id": "note-2026-09-06-007",
+      "createdAt": "2026-09-07T02:36:00.000Z",
+      "route": "/projects/project-renovation/pages/todos",
+      "projectId": "project-renovation",
+      "slice": 25.5,
+      "note": "Following a Todos row to a task in a collapsed container works exactly as intended — the container opens, the heading takes focus, the section scrolls into view, and the stored section is still collapsed afterwards. What is missing is any sign of *why* it is open. Someone who arrives, reads, and then wonders whether they expanded it has no way to tell; the next visit closing it again will read as the app forgetting something. A one-line \"opened because you followed a link\" hint, or a visibly distinct frame, is worth trying before this becomes a habit."
+    },
+    {
+      "id": "note-2026-09-06-008",
+      "createdAt": "2026-09-07T02:37:00.000Z",
+      "route": "/projects/project-renovation/pages/todos",
+      "projectId": "project-renovation",
+      "slice": 25.5,
+      "note": "At a 375px viewport a Todos row is 154px wide: the global sidebar and the project column both keep their full width, so the whole workspace region — any page renderer, not just this one — is squeezed into what is left. The row's own grid collapses correctly at 40rem; the shell above it is the constraint. §23 is deliberately desktop-first, and the column already collapses at ≤60rem, but the *sidebar* does not, so the narrow case never reaches the width the page was designed for."
+    },
+    {
+      "id": "note-2026-09-06-009",
+      "createdAt": "2026-09-07T02:38:00.000Z",
+      "route": "/projects/project-renovation/pages/todos",
+      "projectId": "project-renovation",
+      "slice": 25.5,
+      "note": "With §46's failure rate at 25% the refused completion behaved well — row rolled back to Active, the host's message shown, other rows still usable — but the same 25% was applied to *reads*, so getting to that state took four page loads, each of which failed somewhere different (project record, sub-projects section, the chronology itself). A rate that could be scoped to writes would make the write-failure path testable by hand in one attempt instead of by persistence."
     }
   ]
 }

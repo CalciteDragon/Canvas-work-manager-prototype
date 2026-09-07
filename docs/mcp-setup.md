@@ -1,7 +1,7 @@
 # MCP setup
 
-Canvas Work Manager serves the same twenty-three tools over Streamable HTTP and stdio (§59) —
-§54's fourteen, the four section tools the canvas needs, §54's two page tools, and Slice 25.4's
+Canvas Work Manager serves the same twenty-four tools over Streamable HTTP and stdio (§59) —
+§54's fourteen, the four section tools the canvas needs, §54's three page tools, and Slice 25.4's
 three shortcut tools.
 Both use the fake local credentials from the `agent-heavy` seed; they have no security value
 and the HTTP host binds only to `127.0.0.1`.
@@ -24,8 +24,12 @@ Useful fixture tokens:
 | `prototype-user-a-revoked` | Retired assistant | always refused |
 
 Every listed tool advertises its grant under
-`_meta["local.canvas-work-manager/requiredPermission"]`. Denied calls also name the missing
-permission in their tool error.
+`_meta["local.canvas-work-manager/requiredPermission"]`, and the **complete** list under
+`_meta["local.canvas-work-manager/requiredPermissions"]` beside it. The two agree for every tool
+that needs one grant; §54's derived pages need more than one, and `get_project_todos` is the first
+— it declares `["projects.read", "tasks.read"]`. Denied calls also name the missing permission in
+their tool error, and a derived page is refused outright rather than answering with the half it was
+allowed to read.
 
 ## Streamable HTTP
 
@@ -138,6 +142,19 @@ so a call that means one of the two cannot quietly produce the other.
 page keeps its sections and everything referring to them and is simply not navigation.
 `set_project_page_enabled` turns one of a root's optional three on or off, and the first enable
 is what creates it. Home cannot be disabled.
+
+### Todos
+
+Slice 25.5 adds `get_project_todos` (`projects.read` **and** `tasks.read`): the whole chronology
+under one root project — its own tasks plus every descendant unit of work and every descendant
+task — ordered by due date, undated last, ties broken by kind then id. A unit of work's date-only
+due date sorts at the end of that UTC day.
+
+Rows keep their status and stay on the list once finished, done and cancelled alike; archived rows,
+archived containers and anything beneath an archived project are excluded. Each row carries the
+canonical project, page and container that owns it, so an agent can complete what it finds with
+`complete_task` or `update_project` — the same operation a person uses on the canvas. Reading the
+chronology neither creates the Todos page nor depends on it being switched on.
 
 ### Home shortcuts
 
