@@ -142,6 +142,8 @@ const setup = (
     // Slice 25.2 added `pages`; nothing here reads it until the workspace shell lands (25.3).
     pages: { list: vi.fn(async () => []), setEnabled: vi.fn() },
     activity: { list: vi.fn(async () => []) },
+    // Slice 25.5 added `todos`; this store reads a canvas, never the chronology.
+    todos: { get: vi.fn(async () => ({ projectId: PROJECT, items: [] })) },
     projects: {
       list: vi.fn(async () => [project()]),
       get: options.projectGet ?? vi.fn(async () => project()),

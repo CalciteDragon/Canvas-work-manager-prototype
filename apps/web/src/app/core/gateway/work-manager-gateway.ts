@@ -18,6 +18,7 @@ import type {
   ProjectPage,
   ProjectQuery,
   ProjectSection,
+  ProjectTodosResult,
   Reflection,
   ReflectionId,
   ReflectionQuery,
@@ -98,6 +99,17 @@ export interface ProgressGateway {
 
 export interface TimelineGateway {
   get(projectId: ProjectId): Promise<TimelineResult>;
+}
+
+/**
+ * §34's Todos, as one read of one **root**.
+ *
+ * There is no query and no second member. The chronology is the whole answer — §34 gives the
+ * page no filters and no ordering controls — and Todos owns nothing, so completing a row goes
+ * through `tasks.complete` or `projects.update` like every other caller.
+ */
+export interface TodosGateway {
+  get(projectId: ProjectId): Promise<ProjectTodosResult>;
 }
 
 export interface ReflectionGateway {
@@ -214,6 +226,7 @@ export interface WorkManagerGateway {
   tasks: TaskGateway;
   progress: ProgressGateway;
   timeline: TimelineGateway;
+  todos: TodosGateway;
   reflections: ReflectionGateway;
   agents: AgentGateway;
   activity: ActivityGateway;

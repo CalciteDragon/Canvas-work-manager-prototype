@@ -13,6 +13,7 @@ import { ProjectSchema, type
   ProjectPage,
   ProjectPageId,
   ProjectSection,
+  ProjectTodosResult,
   ResolvedSectionShortcut,
   Reflection,
   ReflectionId,
@@ -57,6 +58,8 @@ export interface FakeGatewayOptions {
   tasks?: Task[];
   progress?: ProgressResult;
   timeline?: TimelineResult;
+  /** §34's chronology, seeded whole: the fake orders nothing, the domain does. */
+  todos?: ProjectTodosResult;
   reflections?: Reflection[];
   dashboard?: DashboardResult;
   agentConnections?: AgentConnection[];
@@ -176,6 +179,10 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   readonly timeline = {
     get: (projectId: ProjectId) => this.answer('timeline.get', projectId, this.options.timeline ?? { projectId, items: [] }),
+  };
+
+  readonly todos = {
+    get: (projectId: ProjectId) => this.answer('todos.get', projectId, this.options.todos ?? { projectId, items: [] }),
   };
 
   readonly reflections = {

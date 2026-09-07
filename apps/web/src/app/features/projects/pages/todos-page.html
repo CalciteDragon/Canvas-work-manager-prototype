@@ -1,0 +1,70 @@
+<section class="todos" aria-labelledby="todos-heading">
+  <header class="todos__header">
+    <h2 id="todos-heading" class="todos__heading">What is coming up</h2>
+    <p class="todos__hint">
+      Everything under this project, in due-date order. Open a row to work on it where it lives.
+    </p>
+  </header>
+
+  @if (store.writeError(); as writeError) {
+    <p data-todo-write-error class="todos__error" role="alert">{{ writeError }}</p>
+  }
+  @if (store.refreshError(); as refreshError) {
+    <!-- The list on screen is still the better answer than a blank page, so this says the
+       chronology may be behind rather than replacing it. -->
+    <p data-todos-refresh-error class="todos__notice" role="status">
+      This list may be out of date — {{ refreshError }}
+    </p>
+  }
+
+  @if (store.loading()) {
+    <p data-todos-loading class="todos__muted">Loading todos…</p>
+  } @else if (store.error(); as error) {
+    <p data-todos-error class="todos__error" role="alert">{{ error }}</p>
+    <button data-todos-retry type="button" class="todos__retry" (click)="store.retry()">Try again</button>
+  } @else if (store.items().length === 0) {
+    <p data-todos-empty class="todos__muted">
+      Nothing under this project has a due date yet, and it holds no units of work.
+    </p>
+  } @else {
+    <ol data-todos-list class="todos__list">
+      @for (item of store.items(); track idOf(item)) {
+        <li
+          data-todo-row
+          class="todos__row"
+          [attr.data-todo-id]="idOf(item)"
+          [attr.data-todo-kind]="item.kind"
+          [class.todos__row--finished]="finished(item)"
+        >
+          <span class="todos__kind">{{ kindLabel(item) }}</span>
+
+          <a data-todo-link class="todos__title" [routerLink]="linkOf(item)" [fragment]="fragmentOf(item)">
+            {{ titleOf(item) }}
+          </a>
+
+          <span data-todo-due class="todos__due">{{ dueOf(item) ?? 'No due date' }}</span>
+          <span data-todo-status class="todos__status">{{ statusOf(item) }}</span>
+
+          <ol data-todo-origin class="todos__origin">
+            @for (step of breadcrumbOf(item); track $index) {
+              <li>{{ step }}</li>
+            }
+          </ol>
+
+          @if (!finished(item)) {
+            <button
+              data-todo-complete
+              type="button"
+              class="todos__complete"
+              [disabled]="writesBlocked()"
+              [attr.aria-label]="'Complete ' + titleOf(item)"
+              (click)="complete(item)"
+            >
+              {{ store.completing() === idOf(item) ? 'Completing…' : 'Complete' }}
+            </button>
+          }
+        </li>
+      }
+    </ol>
+  }
+</section>

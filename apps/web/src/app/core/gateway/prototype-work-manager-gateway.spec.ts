@@ -75,6 +75,23 @@ const homePage = {
 
 const progress = { projectId: 'project-1', formula: 'count', percentage: 50, completed: 1, total: 2, explanation: '1 of 2 tasks complete' };
 const timeline = { projectId: 'project-1', items: [{ id: 'project-1', kind: 'project', title: 'Personal workspace', startDate: '2026-09-30', endDate: '2026-09-30' }] };
+const todos = {
+  projectId: 'project-1',
+  items: [
+    {
+      kind: 'task',
+      task: { ...task, dueAt: '2026-09-01T09:00:00.000Z' },
+      origin: {
+        projectId: 'project-1',
+        pageId: 'page-project-1',
+        pageKind: 'home',
+        breadcrumb: [{ projectId: 'project-1', name: 'Personal workspace' }],
+        sectionId: 'section-1',
+        sectionName: 'Task List',
+      },
+    },
+  ],
+};
 const reflection = { id: 'reflection-1', projectId: 'project-1', sectionId: 'section-1', body: 'A useful note', createdAt: at, updatedAt: at };
 const shortcut = ResolvedSectionShortcutSchema.parse({
   id: 'shortcut-1',
@@ -256,12 +273,25 @@ describe('PrototypeWorkManagerGateway — Slice 10 reads and reflections', () =>
     expect(restored.archivedAt).toBeUndefined();
   });
 
+  it('reads §34’s chronology under its root, with the persona header', async () => {
+    fetchMock.mockImplementation(jsonResponse(todos));
+
+    const result = await gateway().todos.get('project-1' as ProjectId);
+
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/todos');
+    expect((lastCall().init.headers as Record<string, string>)['x-prototype-user']).toBe('user-demo');
+    expect(result.items[0]?.kind).toBe('task');
+  });
+
   it('rejects malformed derived and reflection bodies', async () => {
     const subject = gateway();
     fetchMock.mockImplementation(jsonResponse({ projectId: 'project-1' }));
     await expect(subject.progress.get('project-1' as ProjectId)).rejects.toMatchObject({ code: 'invalid_response' });
     fetchMock.mockImplementation(jsonResponse([{ id: 'reflection-1' }]));
     await expect(subject.reflections.list('project-1' as ProjectId)).rejects.toMatchObject({ code: 'invalid_response' });
+    // A Todos row whose origin is missing its container is not a row this page can link.
+    fetchMock.mockImplementation(jsonResponse({ projectId: 'project-1', items: [{ kind: 'task', task, origin: { projectId: 'project-1', pageId: 'page-project-1', pageKind: 'home', breadcrumb: [{ projectId: 'project-1', name: 'Personal workspace' }] } }] }));
+    await expect(subject.todos.get('project-1' as ProjectId)).rejects.toMatchObject({ code: 'invalid_response' });
   });
 });
 
