@@ -1042,7 +1042,7 @@ ascending with undated last, retaining completed and cancelled rows.
 | 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | done — plan: [docs/plans/25.3-workspace-shell-and-subproject-canvas.md](docs/plans/25.3-workspace-shell-and-subproject-canvas.md) |
 | 25.4 | Home shortcuts | 25.3 | done — plan: [docs/plans/25.4-home-shortcuts.md](docs/plans/25.4-home-shortcuts.md) |
 | 25.5 | Chronological Todos | 25.3 | done — plan: [docs/plans/25.5-chronological-todos.md](docs/plans/25.5-chronological-todos.md) |
-| 25.6 | Root Archive and reachable undo | 25.3 | not started |
+| 25.6 | Root Archive and reachable undo | 25.3 | not started — implementation plan: [docs/plans/25.6-root-archive-and-reachable-undo.md](docs/plans/25.6-root-archive-and-reachable-undo.md) |
 | 25.7 | Completed-work reflections | 25.3 | not started |
 | 25.8 | Integrated acceptance and documentation closure | 25.4–25.7 | not started |
 

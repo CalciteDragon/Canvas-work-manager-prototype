@@ -155,6 +155,8 @@ Paths are repository-relative. Files marked **new** do not exist yet. For each l
 
 **Depends on:** 25.3 and Archive wording decision. **Spec:** §31–34, §52–55, §62–63.
 
+**Implementation plan:** [25.6-root-archive-and-reachable-undo.md](25.6-root-archive-and-reachable-undo.md). Implementation remains not started.
+
 - Add **new** `packages/contracts/src/project-archive.ts`, `packages/domain/src/project-archive-service.ts`: root-tree archive query with explicit entity kind, origin, archive cause, and restore eligibility. Require grants for each content category returned; proposed initial combined endpoint requires projects/tasks/reflections read permissions. No new cascade semantics.
 - Extend existing `project-service.ts`, `section-service.ts`, `task-service.ts`, `reflection-service.ts` only to close ancestor-active validation gaps and expose consistent restore refusals. Retain prior independent archive markers exactly. Reactivate subprojects through explicit status selection, not guessed prior status.
 - Wire host routes/services, gateway, and add canonical archive/restore tools to `packages/mcp-tools/src/tools/{projects,sections,tasks,reflections}.ts`, with existing write permissions and activity attribution. Add archive query to page tools and document it.
