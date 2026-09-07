@@ -5,14 +5,16 @@ import { projectPageTools } from './tools/project-pages';
 import { projectTools } from './tools/projects';
 import { reflectionTools } from './tools/reflections';
 import { sectionTools } from './tools/sections';
+import { shortcutTools } from './tools/shortcuts';
 import { taskTools } from './tools/tasks';
 import { workspaceTools } from './tools/workspace';
 
 /**
- * §54's tool set, in the order §54 lists it. Exported so Slice 15's `tools/list` test can
- * assert the protocol response against the same list this slice's registry test asserts the
- * registry against — one source of truth for "which tools exist", across a transport
- * boundary that does not exist yet.
+ * §54's tool set, in the registry's stable order. §54 names the shortcut tools without
+ * ordering them, so their position here is this slice's choice. Exported so Slice 15's
+ * `tools/list` test can assert the protocol response against the same list this registry test
+ * asserts — one source of truth for "which tools exist", across a transport boundary that does
+ * not exist yet.
  */
 export const SPEC_TOOL_NAMES = [
   'list_projects',
@@ -32,6 +34,9 @@ export const SPEC_TOOL_NAMES = [
   'create_section',
   'update_section',
   'remove_section',
+  'list_section_shortcuts',
+  'add_section_shortcut',
+  'remove_section_shortcut',
   'search_workspace',
   'get_upcoming_work',
   'get_dashboard_context',
@@ -65,6 +70,7 @@ export const createToolRegistry = (services: WorkManagerServices): ToolRegistry 
     ...taskTools,
     ...reflectionTools,
     ...sectionTools,
+    ...shortcutTools,
     ...workspaceTools,
   ];
   const byName = new Map(tools.map((tool) => [tool.name, tool]));

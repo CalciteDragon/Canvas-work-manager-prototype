@@ -1,8 +1,8 @@
 import { PrototypeAIProvider } from '@cwm/domain';
-import { describe, expect, it } from 'vitest';
-import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
+import { describe, expect, it, vi } from 'vitest';
+import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonSectionShortcutRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
 import { buildSeed } from '@cwm/prototype-data';
-import type { LiveEvent, TaskId, UserId, WorkspaceId } from '@cwm/contracts';
+import type { LiveEvent, ProjectId, ProjectPageId, TaskId, UserId, WorkspaceId } from '@cwm/contracts';
 import type { ActorContext } from '@cwm/domain';
 import { LiveEventHub } from '../events/hub.ts';
 import { RealAIProvider } from './real-ai-provider.ts';
@@ -54,6 +54,7 @@ describe('createApi and the live event hub (§62)', () => {
       projects: new JsonProjectRepository(store),
       pages: new JsonProjectPageRepository(store),
       sections: new JsonSectionRepository(store),
+      shortcuts: new JsonSectionShortcutRepository(store),
       tasks: new JsonTaskRepository(store),
       milestones: new JsonMilestoneRepository(store),
       reflections: new JsonReflectionRepository(store),
@@ -90,5 +91,20 @@ describe('createApi and the live event hub (§62)', () => {
     // `PrototypeRuntime`'s seed swap runs through this one and announces itself from the
     // route table; routing it through the hub would emit a workspace frame for a rig change.
     expect(persistence.unitOfWork).toBe(original);
+  });
+
+  it('gives the section and shortcut services one placement repository', async () => {
+    const persistence = inMemoryPersistence();
+    const list = vi.spyOn(persistence.shortcuts, 'list');
+    const api = createApi(persistence, { events: new LiveEventHub() });
+    const projectId = 'project-work-manager' as ProjectId;
+    const pageId = 'page-project-work-manager' as ProjectPageId;
+
+    await api.sections.add(actor, projectId, { type: 'rich-text' });
+    await api.shortcuts.list(actor, projectId, { pageId });
+
+    // SectionService needs this read to append after a placement; ShortcutService needs it to
+    // resolve the page's own placements. Both calls landing on one spy is the composition seam.
+    expect(list.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });

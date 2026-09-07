@@ -209,6 +209,34 @@ describe('document validation', () => {
     expect(() => new InMemoryDataStore(document)).toThrow(DocumentIntegrityError);
   });
 
+  it('rejects duplicate shortcut ids', () => {
+    const document = validDocument();
+    document.projectPages.push(
+      PrototypeDocumentSchema.shape.projectPages.element.parse({
+        id: 'page-reflections',
+        projectId: 'project-1',
+        kind: 'reflections',
+        enabled: true,
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    document.sections[1]!.pageId = 'page-reflections' as never;
+    const placement = PrototypeDocumentSchema.shape.sectionShortcuts.element.parse({
+      id: 'shortcut-1',
+      pageId: 'page-1',
+      sourceSectionId: 'section-2',
+      position: 1,
+      columnSpan: 12,
+      collapsed: false,
+      createdAt: at,
+      updatedAt: at,
+    });
+    document.sectionShortcuts.push(placement, structuredClone(placement));
+
+    expect(() => new InMemoryDataStore(document)).toThrow(/sectionShortcuts contains duplicate id/);
+  });
+
   it.each([
     ['workspace owner', (document: ReturnType<typeof validDocument>) => (document.workspaces[0]!.ownerUserId = 'missing' as never)],
     ['user workspace', (document: ReturnType<typeof validDocument>) => (document.users[0]!.workspaceId = 'missing' as never)],
@@ -1279,5 +1307,64 @@ describe('page ownership integrity', () => {
       }),
     );
     expect(() => new InMemoryDataStore(document)).not.toThrow();
+  });
+
+  it('accepts a same-tree shortcut and rejects foreign, non-Home, and dangling sources', () => {
+    const valid = subprojectDocument();
+    valid.sections.push(
+      PrototypeDocumentSchema.shape.sections.element.parse({
+        ...valid.sections[0],
+        id: 'section-child',
+        projectId: 'project-child',
+        pageId: 'page-child',
+        position: 0,
+      }),
+    );
+    valid.sectionShortcuts.push(
+      PrototypeDocumentSchema.shape.sectionShortcuts.element.parse({
+        id: 'shortcut-child',
+        pageId: 'page-1',
+        sourceSectionId: 'section-child',
+        position: 2,
+        columnSpan: 12,
+        collapsed: false,
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    expect(() => new InMemoryDataStore(valid)).not.toThrow();
+
+    const dangling = structuredClone(valid);
+    dangling.sectionShortcuts[0]!.sourceSectionId = 'section-gone' as never;
+    expect(() => new InMemoryDataStore(dangling)).toThrow(/missing source section/);
+
+    const foreign = withSecondWorkspace();
+    foreign.sectionShortcuts.push(
+      PrototypeDocumentSchema.shape.sectionShortcuts.element.parse({
+        id: 'shortcut-foreign',
+        pageId: 'page-1',
+        sourceSectionId: 'section-3',
+        position: 2,
+        columnSpan: 12,
+        collapsed: false,
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    expect(() => new InMemoryDataStore(foreign)).toThrow(/crosses workspaces/);
+
+    const nonHome = structuredClone(valid);
+    nonHome.projectPages.push(
+      PrototypeDocumentSchema.shape.projectPages.element.parse({
+        id: 'page-reflections',
+        projectId: 'project-1',
+        kind: 'reflections',
+        enabled: true,
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    nonHome.sectionShortcuts[0]!.pageId = 'page-reflections' as never;
+    expect(() => new InMemoryDataStore(nonHome)).toThrow(/must be placed on a Home page/);
   });
 });

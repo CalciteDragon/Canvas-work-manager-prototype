@@ -30,6 +30,7 @@ export class TaskRow {
    */
   readonly archiving = input(false);
   readonly now = input(Date.now());
+  readonly readOnly = input(false);
 
   readonly completionRequested = output<TaskId>();
   readonly titleEdited = output<{ id: TaskId; title: string }>();
@@ -73,14 +74,17 @@ export class TaskRow {
   }
 
   requestCompletion(): void {
+    if (this.readOnly()) return;
     if (!this.completed() && !this.pending()) this.completionRequested.emit(this.task().id);
   }
 
   requestArchive(): void {
+    if (this.readOnly()) return;
     if (!this.archiving()) this.archiveRequested.emit(this.task().id);
   }
 
   beginEditing(): void {
+    if (this.readOnly()) return;
     this.draftTitle.set(this.task().title);
     this.titleError.set(null);
     this.editing.set(true);

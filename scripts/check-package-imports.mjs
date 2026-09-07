@@ -43,6 +43,7 @@ const ALLOWED_REPOSITORY_BINDINGS = new Set([
   'ProjectRepository',
   'ReflectionRepository',
   'SectionRepository',
+  'SectionShortcutRepository',
   'TaskRepository',
   'UserRepository',
 ]);

@@ -1,56 +1,79 @@
 <div class="task-list-section">
-  <form data-quick-create class="quick-create" (submit)="quickCreate($any($event), quickTitle)">
-    <label class="quick-create__title">
-      <span>Task title</span>
-      <input data-quick-task-title #quickTitle type="text" placeholder="Add a task" />
-    </label>
-    <button type="submit">Add task</button>
-  </form>
+  @if (!readOnly()) {
+    <form data-quick-create class="quick-create" (submit)="quickCreate($any($event), quickTitle)">
+      <label class="quick-create__title">
+        <span>Task title</span>
+        <input data-quick-task-title #quickTitle type="text" placeholder="Add a task" />
+      </label>
+      <button type="submit">Add task</button>
+    </form>
+  }
 
   @if (store.error(); as error) {
     <p data-tasks-error class="task-list-section__error" role="alert">{{ error }}</p>
   }
 
   <div class="task-workspace" [class.task-workspace--drawer-open]="store.selectedTask() !== null">
-    <div
-      class="task-list"
-      cdkDropList
-      [id]="dropId()"
-      [cdkDropListData]="section().id"
-      [cdkDropListConnectedTo]="connectedDropIds()"
-      (cdkDropListDropped)="dropTask($any($event))"
-      [attr.aria-busy]="store.loading()"
-    >
-      @if (store.loading()) {
-        <p data-tasks-loading class="task-list-section__muted">Loading tasks…</p>
-      } @else if (store.tasks().length === 0) {
-        <p data-tasks-empty class="task-list-section__muted">No tasks yet. Add the first one above.</p>
-      } @else {
-        @for (task of store.tasks(); track task.id) {
-          <app-task-row
-            cdkDrag
-            [cdkDragData]="task.id"
-            [task]="task"
-            [selected]="store.selectedTaskId() === task.id"
-            [pending]="store.completingIds().has(task.id)"
-            [archiving]="store.archivingIds().has(task.id)"
-            (completionRequested)="complete($event)"
-            (titleEdited)="editTitle($event)"
-            (archiveRequested)="archive($event)"
-            (selectedRequested)="store.selectTask($event)"
-          />
+    @if (readOnly()) {
+      <div class="task-list" [attr.aria-busy]="store.loading()">
+        @if (store.loading()) {
+          <p data-tasks-loading class="task-list-section__muted">Loading tasks…</p>
+        } @else if (store.tasks().length === 0) {
+          <p data-tasks-empty class="task-list-section__muted">No tasks yet.</p>
+        } @else {
+          @for (task of store.tasks(); track task.id) {
+            <app-task-row
+              [task]="task"
+              [selected]="false"
+              [pending]="false"
+              [archiving]="false"
+              [readOnly]="true"
+            />
+          }
         }
-      }
-    </div>
+      </div>
+    } @else {
+      <div
+        class="task-list"
+        cdkDropList
+        [id]="dropId()"
+        [cdkDropListData]="section().id"
+        [cdkDropListConnectedTo]="connectedDropIds()"
+        (cdkDropListDropped)="dropTask($any($event))"
+        [attr.aria-busy]="store.loading()"
+      >
+        @if (store.loading()) {
+          <p data-tasks-loading class="task-list-section__muted">Loading tasks…</p>
+        } @else if (store.tasks().length === 0) {
+          <p data-tasks-empty class="task-list-section__muted">No tasks yet. Add the first one above.</p>
+        } @else {
+          @for (task of store.tasks(); track task.id) {
+            <app-task-row
+              cdkDrag
+              [cdkDragData]="task.id"
+              [task]="task"
+              [selected]="store.selectedTaskId() === task.id"
+              [pending]="store.completingIds().has(task.id)"
+              [archiving]="store.archivingIds().has(task.id)"
+              [readOnly]="false"
+              (completionRequested)="complete($event)"
+              (titleEdited)="editTitle($event)"
+              (archiveRequested)="archive($event)"
+              (selectedRequested)="store.selectTask($event)"
+            />
+          }
+        }
+      </div>
 
-    @if (store.selectedTask(); as selectedTask) {
-      <app-task-detail-drawer
-        [task]="selectedTask"
-        (priorityChanged)="changePriority($event)"
-        (dueDateChanged)="changeDueDate($event)"
-        (estimateChanged)="changeEstimate($event)"
-        (closed)="store.selectTask(null)"
-      />
+      @if (store.selectedTask(); as selectedTask) {
+        <app-task-detail-drawer
+          [task]="selectedTask"
+          (priorityChanged)="changePriority($event)"
+          (dueDateChanged)="changeDueDate($event)"
+          (estimateChanged)="changeEstimate($event)"
+          (closed)="store.selectTask(null)"
+        />
+      }
     }
   </div>
 </div>

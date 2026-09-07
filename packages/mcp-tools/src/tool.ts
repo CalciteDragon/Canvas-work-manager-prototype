@@ -6,6 +6,7 @@ import type {
   ProjectService,
   ReflectionService,
   SectionService,
+  SectionShortcutService,
   TaskService,
   WorkspaceService,
 } from '@cwm/domain';
@@ -27,6 +28,8 @@ export interface WorkManagerServices {
   reflections: ReflectionService;
   /** §31's frame affordances, and the containers that own tasks and reflections. */
   sections: SectionService;
+  /** §27's layout-only references; tools never reach a repository or source rows. */
+  shortcuts: SectionShortcutService;
   dashboard: DashboardService;
   workspace: WorkspaceService;
 }

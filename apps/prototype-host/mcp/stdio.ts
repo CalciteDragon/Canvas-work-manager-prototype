@@ -12,6 +12,7 @@ const registryFor = (api: ReturnType<typeof createApi>): ToolRegistry =>
     tasks: api.tasks,
     reflections: api.reflections,
     sections: api.sections,
+    shortcuts: api.shortcuts,
     dashboard: api.dashboard,
     workspace: api.workspace,
   });

@@ -1040,7 +1040,7 @@ ascending with undated last, retaining completed and cancelled rows.
 | 25.1 | Root/subproject model and persistent pages | 25.0 | done — plan: [docs/plans/25.1-owner-kinds-and-persistent-pages.md](docs/plans/25.1-owner-kinds-and-persistent-pages.md) |
 | 25.2 | Page ownership through domain, API and MCP | 25.1 | done — plan: [docs/plans/25.2-page-aware-ownership.md](docs/plans/25.2-page-aware-ownership.md) |
 | 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | done — plan: [docs/plans/25.3-workspace-shell-and-subproject-canvas.md](docs/plans/25.3-workspace-shell-and-subproject-canvas.md) |
-| 25.4 | Home shortcuts | 25.3 | not started — plan written and reviewed: [docs/plans/25.4-home-shortcuts.md](docs/plans/25.4-home-shortcuts.md) |
+| 25.4 | Home shortcuts | 25.3 | done — plan: [docs/plans/25.4-home-shortcuts.md](docs/plans/25.4-home-shortcuts.md) |
 | 25.5 | Chronological Todos | 25.3 | not started |
 | 25.6 | Root Archive and reachable undo | 25.3 | not started |
 | 25.7 | Completed-work reflections | 25.3 | not started |
@@ -1169,6 +1169,27 @@ previous one had introduced: the sub-project's `work` page had no source, `route
 not have marked Home current at the URL the app actually links to, the fallback notice could not
 survive the redirect that produces it, and twice a spec split assigned the same test to two files.
 The plan's Revisions section carries all of it.
+
+**25.4, done.** Home now owns a single combined placement sequence: its native sections and
+read-only references to sections elsewhere in the same root tree. `SectionShortcutService` resolves
+source identity and availability without reading task or reflection rows, while `page-placements.ts`
+keeps section and shortcut position changes in one domain-owned operation. The HTTP gateway and MCP
+registry expose the three shortcut operations with `projects.read` / `projects.write` grants, and
+the picker is available only on a root Home page. Duplicate references are allowed; each remains a
+separate read-only frame with no task drop list or mutating controls.
+
+The browser pass on `nested-projects` added the Kitchen Task List to Home, showed its source
+breadcrumb and **Open source**, completed the source task in a second tab, and observed the updated
+status on Home without reload. Archiving the source section changed the frame to its unavailable
+state and restoring it brought the content back; archiving the source project changed it to the
+hidden-source state. The child project had to be archived first because the archive rule protects
+active descendants — recorded as `note-2026-09-06-005`. The pre-test `.prototype/data.json` was
+restored after the run, so the checked-in seed remains `sectionShortcuts: []` as required by §25.8.
+
+Verified with `pnpm test` (178 contracts, 124 repositories, 94 seed, 354 domain, 96 MCP, 160
+host, and 521 web tests), `pnpm lint`, `pnpm build`, `pnpm storybook:build`, the two-transport MCP
+acceptance, and the unchanged `pnpm e2e` suite (2 passed). The production build still reports the
+existing warning-only 850 kB initial-bundle budget overage; it remains below the 1 MB error budget.
 
 Known: the initial bundle is 883 kB against an 850 kB **warning** budget (the error budget is
 1 MB, so the build passes). §68's feature routes are eager by an existing decision, and this slice

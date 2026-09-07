@@ -8,10 +8,14 @@ import {
   type ProjectId,
   type ProjectPageId,
   type ProjectSection,
+  type ResolvedSectionShortcut,
+  type CreateSectionShortcutInput,
+  type UpdateSectionShortcutInput,
   type RemoveSectionInput,
   type SectionColumnSpan,
   type SectionConfig,
   type SectionId,
+  type SectionShortcutId,
 } from '@cwm/contracts';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
@@ -23,6 +27,21 @@ const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position - b.position;
+
+export type ProjectCanvasPlacement =
+  | { kind: 'section'; section: ProjectSection }
+  | { kind: 'shortcut'; shortcut: ResolvedSectionShortcut };
+
+const placementId = (placement: ProjectCanvasPlacement): string =>
+  placement.kind === 'section' ? placement.section.id : placement.shortcut.id;
+
+const placementPosition = (placement: ProjectCanvasPlacement): number =>
+  placement.kind === 'section' ? placement.section.position : placement.shortcut.position;
+
+const byPlacementPosition = (a: ProjectCanvasPlacement, b: ProjectCanvasPlacement): number => {
+  const position = placementPosition(a) - placementPosition(b);
+  return position === 0 ? placementId(a).localeCompare(placementId(b)) : position;
+};
 
 /**
  * A container that refused removal, and what the canvas can offer instead.
@@ -42,7 +61,7 @@ export interface SectionRemovalPrompt {
 }
 
 /**
- * §19's canvas store: **the sections of one page**, feature-scoped and provided by
+ * §19's canvas store: **the sections and shortcut placements of one page**, feature-scoped and provided by
  * `ProjectCanvas` alone (§20).
  *
  * It owns a canvas, not a project. §27's chain is `project → page → section → row`, and a root
@@ -64,6 +83,8 @@ export class ProjectPageStore {
   private readonly pendingTasks = inject(PendingTasks);
 
   private readonly sectionsState = signal<ProjectSection[]>([]);
+  private readonly shortcutsState = signal<ResolvedSectionShortcut[]>([]);
+  private readonly placementsState = signal<ProjectCanvasPlacement[]>([]);
   // Starts true: before the first load resolves the page has no project, no error and no
   // loading flag, which matches none of the template's branches and paints blank.
   private readonly loadingState = signal(true);
@@ -102,6 +123,8 @@ export class ProjectPageStore {
   private sectionRefreshQueued = false;
 
   readonly sections = this.sectionsState.asReadonly();
+  readonly shortcuts = this.shortcutsState.asReadonly();
+  readonly placements = this.placementsState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly sectionError = this.sectionErrorState.asReadonly();
@@ -151,8 +174,10 @@ export class ProjectPageStore {
 
     const aboutThisProject =
       event.projectId === projectId || (event.type.startsWith('project.') && event.entityId === projectId);
+    const hasShortcuts = this.shortcutsState().length > 0;
+    const isInRootTree = event.rootProjectId === projectId;
     if (event.type.startsWith('project.')) this.notifyProjectHierarchyChanged();
-    if (!aboutThisProject) return;
+    if (!aboutThisProject && !(hasShortcuts && isInRootTree)) return;
 
     // The containers re-read themselves off the revision; only a change to the canvas's own
     // section list needs a `sections.list`, which is what `project.*` frames carry.
@@ -166,7 +191,8 @@ export class ProjectPageStore {
       this.sectionRefreshQueued = true;
       return;
     }
-    void this.refreshSections();
+    if (aboutThisProject) void this.refreshSections();
+    else void this.refreshShortcuts();
   }
 
   /** Local cross-section invalidation and the current-project half of a live event. */
@@ -216,21 +242,30 @@ export class ProjectPageStore {
     const refresh = this.track(async () => {
       do {
         this.sectionRefreshQueued = false;
-        try {
-          const sections = await this.gateway.sections.list(projectId, { pageId });
-          if (this.current(generation, projectId, pageId)) {
-            this.sectionsState.set([...sections].sort(byPosition));
-            // A recovery is a load. Without this a canvas that recovered from a failed first
-            // read rendered every control and silently refused every write — no request, no
-            // error, and a dragged section snapping back with nothing said.
-            this.loaded = true;
-            // These are loud-load errors only. A complete quiet recovery makes them stale.
-            this.errorState.set(null);
-            this.sectionErrorState.set(null);
-          }
-        } catch {
-          // Quiet — see above.
+        const [sectionsResult, shortcutsResult] = await Promise.allSettled([
+          this.gateway.sections.list(projectId, { pageId }),
+          this.gateway.shortcuts.list(projectId, { pageId }),
+        ]);
+        if (!this.current(generation, projectId, pageId)) continue;
+        if (sectionsResult.status === 'rejected') {
+          // Quiet — see above. Keep the currently painted canvas intact.
+          continue;
         }
+        const sections = [...sectionsResult.value].sort(byPosition);
+        if (shortcutsResult.status === 'fulfilled') {
+          this.setCanvas(this.composePlacements(sections, shortcutsResult.value));
+          this.sectionErrorState.set(null);
+        } else {
+          // A shortcut read is a partial failure: the canonical section canvas remains useful,
+          // and the stale shortcut state is not silently discarded.
+          this.setCanvas(this.composePlacements(sections, this.shortcutsState()));
+          this.sectionErrorState.set(messageOf(shortcutsResult.reason));
+        }
+        // A recovery is a load. Without this a canvas that recovered from a failed first
+        // read rendered every control and silently refused every write — no request, no
+        // error, and a dragged section snapping back with nothing said.
+        this.loaded = true;
+        this.errorState.set(null);
       } while (
         this.sectionRefreshQueued &&
         this.pendingSectionWrites === 0 &&
@@ -241,6 +276,28 @@ export class ProjectPageStore {
     });
     this.sectionRefresh = refresh;
     return refresh;
+  }
+
+  /** A root frame needs shortcut identity refreshed when a descendant changes, not its sections. */
+  private refreshShortcuts(): Promise<void> {
+    if (this.pendingSectionWrites > 0) {
+      this.sectionRefreshQueued = true;
+      return Promise.resolve();
+    }
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    if (projectId === undefined || pageId === undefined) return Promise.resolve();
+    const generation = this.loadGeneration;
+    return this.track(async () => {
+      try {
+        const shortcuts = await this.gateway.shortcuts.list(projectId, { pageId });
+        if (!this.current(generation, projectId, pageId)) return;
+        this.setCanvas(this.composePlacements(this.sectionsState(), shortcuts));
+        this.sectionErrorState.set(null);
+      } catch (error) {
+        if (this.current(generation, projectId, pageId)) this.sectionErrorState.set(messageOf(error));
+      }
+    });
   }
 
   /**
@@ -263,18 +320,25 @@ export class ProjectPageStore {
       this.loadingState.set(true);
       this.errorState.set(null);
       this.sectionErrorState.set(null);
-      try {
-        const sections = await this.gateway.sections.list(projectId, { pageId });
-        if (!current()) return;
-        this.sectionsState.set([...sections].sort(byPosition));
+      const [sectionsResult, shortcutsResult] = await Promise.allSettled([
+        this.gateway.sections.list(projectId, { pageId }),
+        this.gateway.shortcuts.list(projectId, { pageId }),
+      ]);
+      if (!current()) return;
+      if (sectionsResult.status === 'rejected') {
+        this.setCanvas([]);
+        this.errorState.set(messageOf(sectionsResult.reason));
+      } else {
+        const sections = [...sectionsResult.value].sort(byPosition);
+        if (shortcutsResult.status === 'fulfilled') {
+          this.setCanvas(this.composePlacements(sections, shortcutsResult.value));
+        } else {
+          this.setCanvas(this.composePlacements(sections, []));
+          this.sectionErrorState.set(messageOf(shortcutsResult.reason));
+        }
         this.loaded = true;
-      } catch (error) {
-        if (!current()) return;
-        this.sectionsState.set([]);
-        this.errorState.set(messageOf(error));
-      } finally {
-        if (current()) this.loadingState.set(false);
       }
+      this.loadingState.set(false);
     });
     this.activeLoad = operation;
     return operation.finally(() => {
@@ -300,6 +364,53 @@ export class ProjectPageStore {
     );
   }
 
+  private composePlacements(
+    sections: readonly ProjectSection[],
+    shortcuts: readonly ResolvedSectionShortcut[],
+  ): ProjectCanvasPlacement[] {
+    return [
+      ...sections.map((section) => ({ kind: 'section' as const, section })),
+      ...shortcuts.map((shortcut) => ({ kind: 'shortcut' as const, shortcut })),
+    ].sort(byPlacementPosition);
+  }
+
+  private setCanvas(placements: readonly ProjectCanvasPlacement[]): void {
+    const next = [...placements];
+    this.placementsState.set(next);
+    this.sectionsState.set(
+      next.filter((placement): placement is Extract<ProjectCanvasPlacement, { kind: 'section' }> => placement.kind === 'section')
+        .map((placement) => placement.section),
+    );
+    this.shortcutsState.set(
+      next.filter((placement): placement is Extract<ProjectCanvasPlacement, { kind: 'shortcut' }> => placement.kind === 'shortcut')
+        .map((placement) => placement.shortcut),
+    );
+  }
+
+  private replaceSection(section: ProjectSection): void {
+    const current = this.placementsState();
+    const index = current.findIndex((placement) => placement.kind === 'section' && placement.section.id === section.id);
+    if (index === -1) {
+      this.setCanvas(this.composePlacements([...this.sectionsState(), section], this.shortcutsState()));
+      return;
+    }
+    const next = [...current];
+    next[index] = { kind: 'section', section };
+    this.setCanvas(next);
+  }
+
+  private replaceShortcut(shortcut: ResolvedSectionShortcut): void {
+    const current = this.placementsState();
+    const index = current.findIndex((placement) => placement.kind === 'shortcut' && placement.shortcut.id === shortcut.id);
+    if (index === -1) {
+      this.setCanvas(this.composePlacements(this.sectionsState(), [...this.shortcutsState(), shortcut]));
+      return;
+    }
+    const next = [...current];
+    next[index] = { kind: 'shortcut', shortcut };
+    this.setCanvas(next);
+  }
+
   /**
    * §26's Quick Add. The registry's default config is what reaches persistence, and the
    * canvas's own `pageId` travels with it: §27 resolves an unnamed write onto the project's
@@ -320,7 +431,19 @@ export class ProjectPageStore {
         config,
       });
       if (!current()) return;
-      this.sectionsState.update((sections) => [...sections, created].sort(byPosition));
+      this.replaceSection(created);
+    });
+  }
+
+  /** Adds a placement to this Home canvas; the source remains owned by its canonical page. */
+  addShortcut(input: CreateSectionShortcutInput): Promise<boolean> {
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    if (projectId === undefined || pageId === undefined || input.pageId !== pageId) return Promise.resolve(false);
+    return this.mutate(async ({ current }) => {
+      const created = await this.gateway.shortcuts.create(projectId, input);
+      if (!current()) return;
+      this.replaceShortcut(created);
     });
   }
 
@@ -342,8 +465,8 @@ export class ProjectPageStore {
     const pageId = this.requestedPageId;
     if (!this.loaded || projectId === undefined || pageId === undefined) return Promise.resolve(false);
 
-    const before = this.sectionsState();
-    const from = before.findIndex((section) => section.id === id);
+    const before = this.placementsState();
+    const from = before.findIndex((placement) => placement.kind === 'section' && placement.section.id === id);
     if (from < 0) return Promise.resolve(false);
     if (from === position) return Promise.resolve(true);
 
@@ -360,7 +483,7 @@ export class ProjectPageStore {
       preview.splice(Math.max(0, Math.min(position, preview.length)), 0, moved);
     // Reordering the render array is enough to align Angular with CDK. Keep every persisted
     // `position` untouched: sibling renumbering belongs to SectionService alone.
-    this.sectionsState.set(preview);
+    this.setCanvas(preview);
 
     return this.track(() =>
       this.whileWriting(async () => {
@@ -375,7 +498,7 @@ export class ProjectPageStore {
         return true;
       } catch (error) {
         if (current()) {
-          this.sectionsState.set([...before]);
+          this.setCanvas(before);
           // Mixed-orientation CDK sorting moves DOM nodes itself. Changing the track key
           // makes Angular recreate the wrappers in canonical order after a rejected write.
           this.canvasRevisionState.update((revision) => revision + 1);
@@ -389,6 +512,72 @@ export class ProjectPageStore {
 
   setColumnSpan(id: SectionId, columnSpan: SectionColumnSpan): Promise<boolean> {
     return this.updateSection(id, { columnSpan });
+  }
+
+  setCollapsedShortcut(id: SectionShortcutId, collapsed: boolean): Promise<boolean> {
+    return this.updateShortcut(id, { collapsed });
+  }
+
+  setColumnSpanShortcut(id: SectionShortcutId, columnSpan: SectionColumnSpan): Promise<boolean> {
+    return this.updateShortcut(id, { columnSpan });
+  }
+
+  updateShortcut(id: SectionShortcutId, input: UpdateSectionShortcutInput): Promise<boolean> {
+    return this.mutate(async ({ current }) => {
+      const updated = await this.gateway.shortcuts.update(id, input);
+      if (!current()) return;
+      this.replaceShortcut(updated);
+    });
+  }
+
+  moveShortcut(id: SectionShortcutId, position: number): Promise<boolean> {
+    if (!this.loaded || this.requestedProjectId === undefined || this.requestedPageId === undefined) {
+      return Promise.resolve(false);
+    }
+    const before = this.placementsState();
+    const from = before.findIndex((placement) => placement.kind === 'shortcut' && placement.shortcut.id === id);
+    if (from < 0) return Promise.resolve(false);
+    if (from === position) return Promise.resolve(true);
+    const generation = this.loadGeneration;
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    const current = () => this.current(generation, projectId, pageId);
+    const preview = [...before];
+    const [moved] = preview.splice(from, 1);
+    if (moved !== undefined) {
+      preview.splice(Math.max(0, Math.min(position, preview.length)), 0, moved);
+    }
+    this.setCanvas(preview);
+
+    return this.track(() =>
+      this.whileWriting(async () => {
+        if (current()) this.sectionErrorState.set(null);
+        try {
+          await this.gateway.shortcuts.move(id, { position });
+          if (!current()) return true;
+          await this.reconcileSections(projectId, pageId, generation);
+          return true;
+        } catch (error) {
+          if (current()) {
+            this.setCanvas(before);
+            this.canvasRevisionState.update((revision) => revision + 1);
+            this.sectionErrorState.set(messageOf(error));
+          }
+          return false;
+        }
+      }),
+    );
+  }
+
+  removeShortcut(id: SectionShortcutId): Promise<boolean> {
+    return this.mutate(async ({ current, projectId, pageId, generation }) => {
+      await this.gateway.shortcuts.remove(id);
+      if (!current()) return;
+      this.setCanvas(
+        this.placementsState().filter((placement) => !(placement.kind === 'shortcut' && placement.shortcut.id === id)),
+      );
+      await this.reconcileSections(projectId, pageId, generation);
+    });
   }
 
   /**
@@ -417,11 +606,13 @@ export class ProjectPageStore {
       // Insert only into the render order, then reconcile. The domain has already
       // renumbered siblings, but only the returned copy is authoritative here; changing
       // every sibling's persisted `position` would duplicate SectionService's rule.
-      this.sectionsState.update((sections) => {
-        const preview = [...sections];
-        preview.splice(Math.max(0, Math.min(copy.position, preview.length)), 0, copy);
-        return preview;
-      });
+      const preview = [...this.placementsState()];
+      preview.splice(
+        Math.max(0, Math.min(copy.position, preview.length)),
+        0,
+        { kind: 'section', section: copy },
+      );
+      this.setCanvas(preview);
       await this.reconcileSections(projectId, pageId, generation);
     });
   }
@@ -459,7 +650,9 @@ export class ProjectPageStore {
       this.removalPromptState.set(null);
       // Removing the render item is safe; filling the persisted position gap belongs to
       // SectionService and arrives through the authoritative re-read below.
-      this.sectionsState.update((sections) => sections.filter((section) => section.id !== id));
+      this.setCanvas(
+        this.placementsState().filter((placement) => !(placement.kind === 'section' && placement.section.id === id)),
+      );
       await this.reconcileSections(projectId, pageId, generation);
       // A cascade or a reassign moved rows, so every container has to re-read.
       if (input.policy !== undefined) this.notifyProjectDataChanged();
@@ -521,9 +714,7 @@ export class ProjectPageStore {
     return this.mutate(async ({ current }) => {
       const updated = await this.gateway.sections.update(id, input);
       if (!current()) return;
-      this.sectionsState.update((sections) =>
-        sections.map((section) => (section.id === id ? updated : section)).sort(byPosition),
-      );
+      this.replaceSection(updated);
     });
   }
 
@@ -573,14 +764,16 @@ export class ProjectPageStore {
     generation = this.loadGeneration,
   ): Promise<void> {
     if (projectId === undefined || pageId === undefined) return;
-    try {
-      const sections = await this.gateway.sections.list(projectId, { pageId });
-      if (this.current(generation, projectId, pageId)) {
-        this.sectionsState.set([...sections].sort(byPosition));
-        this.loaded = true;
-      }
-    } catch {
-      // Deliberately ignored — see above.
+    const [sectionsResult, shortcutsResult] = await Promise.allSettled([
+      this.gateway.sections.list(projectId, { pageId }),
+      this.gateway.shortcuts.list(projectId, { pageId }),
+    ]);
+    if (!this.current(generation, projectId, pageId)) return;
+    if (sectionsResult.status === 'fulfilled') {
+      const shortcuts = shortcutsResult.status === 'fulfilled' ? shortcutsResult.value : this.shortcutsState();
+      this.setCanvas(this.composePlacements([...sectionsResult.value].sort(byPosition), shortcuts));
+      this.loaded = true;
+      if (shortcutsResult.status === 'fulfilled') this.sectionErrorState.set(null);
     }
   }
 

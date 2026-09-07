@@ -21,7 +21,7 @@ const task = (overrides: Record<string, unknown> = {}): Task =>
 
 const render = async (
   value: Task = task(),
-  inputs: { selected?: boolean; compact?: boolean; pending?: boolean; archiving?: boolean } = {},
+  inputs: { selected?: boolean; compact?: boolean; pending?: boolean; archiving?: boolean; readOnly?: boolean } = {},
 ) => {
   TestBed.configureTestingModule({ imports: [TaskRow] });
   const fixture: ComponentFixture<TaskRow> = TestBed.createComponent(TaskRow);
@@ -31,6 +31,7 @@ const render = async (
   fixture.componentRef.setInput('compact', inputs.compact ?? false);
   fixture.componentRef.setInput('pending', inputs.pending ?? false);
   fixture.componentRef.setInput('archiving', inputs.archiving ?? false);
+  fixture.componentRef.setInput('readOnly', inputs.readOnly ?? false);
   await fixture.whenStable();
   return { fixture, component: fixture.componentInstance, element: fixture.nativeElement as HTMLElement };
 };
@@ -48,6 +49,32 @@ describe('TaskRow', () => {
     fixture.componentRef.setInput('pending', true);
     await fixture.whenStable();
     expect(element.querySelector<HTMLInputElement>('[data-task-complete]')?.disabled).toBe(true);
+  });
+
+  it('hides every row mutation in read-only mode and ignores intent methods', async () => {
+    const { fixture, component, element } = await render(task(), { readOnly: true });
+    const completed = vi.fn();
+    const archived = vi.fn();
+    const edited = vi.fn();
+    component.completionRequested.subscribe(completed);
+    component.archiveRequested.subscribe(archived);
+    component.titleEdited.subscribe(edited);
+
+    expect(element.querySelector('[data-task-complete]')).toBeNull();
+    expect(element.querySelector('[data-task-details]')).toBeNull();
+    expect(element.querySelector('[data-task-archive]')).toBeNull();
+    expect(element.querySelector('[data-task-title]')?.tagName).toBe('SPAN');
+
+    component.requestCompletion();
+    component.requestArchive();
+    component.beginEditing();
+    fixture.detectChanges();
+
+    expect(completed).not.toHaveBeenCalled();
+    expect(archived).not.toHaveBeenCalled();
+    expect(edited).not.toHaveBeenCalled();
+    expect(component.editing()).toBe(false);
+    expect(element.querySelector('[data-task-title-editor]')).toBeNull();
   });
 
   it('commits a trimmed inline title', async () => {

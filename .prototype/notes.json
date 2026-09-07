@@ -617,6 +617,14 @@
       "projectId": null,
       "slice": 25,
       "note": "Opening one project on nested-projects issues four workspace-wide `projects?status=…` lists, three `projects/:id` gets, three progress reads and two page lists. Four stores each ask for what they need — ShellStore, ProjectWorkspaceStore, SubProjectsStore, and then the SSE connect fires a full context recovery immediately after the load that just happened. Nothing is wrong and nothing is slow at this size, and §3.1 says optimise for time-to-change-an-idea — but the reconnect-after-load duplicate is free to remove (skip the recovery when a load is already in flight or has just completed), and it is the shape that would hurt first if this ever ran against a real API."
+    },
+    {
+      "id": "note-2026-09-06-005",
+      "createdAt": "2026-09-07T00:20:23.143Z",
+      "route": "/projects/project-renovation/pages/home",
+      "projectId": "project-renovation",
+      "slice": 25.4,
+      "note": "Adding a Home shortcut was easy to understand once Edit Layout was on: the picker grouped source sections by breadcrumb, and the resulting frame made its Kitchen origin and Open source link clear. The source task completed in a second tab and the read-only Home frame updated without a reload. Hiding the source project exposed one piece of archive friction: archiving Kitchen first refused because Cabinets was still active, so the child had to be archived before the source could be hidden. That is consistent with the whole-tree archive rule, but makes hiding a source a multi-step operation."
     }
   ]
 }

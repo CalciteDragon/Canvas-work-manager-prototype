@@ -29,6 +29,7 @@ import type {
   ProjectRepository,
   ReflectionRepository,
   SectionRepository,
+  SectionShortcutRepository,
   TaskRepository,
   UnitOfWork,
 } from '@cwm/repositories';
@@ -38,9 +39,12 @@ import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
 import { assertProjectWritable } from './project-visibility';
+import { listPlacements, renumberPlacements, type PagePlacement } from './page-placements';
 
 export interface SectionServiceDependencies {
   sections: SectionRepository;
+  /** §27: section writes share one dense order with Home shortcut placements. */
+  shortcuts: SectionShortcutRepository;
   projects: ProjectRepository;
   /** §27: a section belongs to a page, so adding one has to resolve or check that page. */
   pages: ProjectPageRepository;
@@ -189,7 +193,7 @@ export class SectionService {
     // "reactivate it first" rather than with whatever its pages happen to look like.
     await this.assertProjectWritable(projectId);
     const page = await this.resolvePage(projectId, input.pageId, input.type);
-    const siblings = await this.orderedOnPage(page.id);
+    const siblings = await this.placementsOnPage(page.id);
 
     const now = this.dependencies.clock.now().toISOString();
     const section = ProjectSectionSchema.parse({
@@ -399,13 +403,13 @@ export class SectionService {
       assertLive(current);
       await this.assertProjectWritable(current.projectId);
       // Within the section's **page**: reordering one page must not renumber another (§27).
-      const siblings = await this.orderedOnPage(current.pageId);
-      const without = siblings.filter((section) => section.id !== id);
+      const siblings = await this.placementsOnPage(current.pageId);
+      const without = siblings.filter((placement) => !(placement.kind === 'section' && placement.value.id === id));
       // Clamped, not rejected: a caller that asks for "last" by overshooting means last.
       const target = Math.min(Math.max(position, 0), without.length);
-      without.splice(target, 0, current);
+      without.splice(target, 0, { kind: 'section', value: current });
 
-      await this.renumber(without);
+      await renumberPlacements(this.dependencies, this.dependencies.clock, without);
       const moved = await this.require(actor, id);
       if (moved.position === current.position) return current;
       await this.record(actor, moved, 'project.section_moved', 'Moved');
@@ -425,7 +429,7 @@ export class SectionService {
       // Duplicating creates a section, so it is placement: refused on a disabled page like
       // every other create, even though the original is already sitting there.
       await this.assertWritablePage(current);
-      const siblings = await this.orderedOnPage(current.pageId);
+      const siblings = await this.placementsOnPage(current.pageId);
 
       const now = this.dependencies.clock.now().toISOString();
       const copy = ProjectSectionSchema.parse({
@@ -443,10 +447,12 @@ export class SectionService {
       // only while the stored positions are dense, and a hand-edited `data.json` (§14) is
       // free not to be — a project numbered 0, 5, 7 would splice past the end and drop the
       // pair below its siblings.
-      const index = siblings.findIndex((section) => section.id === id);
-      const reordered = [...siblings.filter((section) => section.id !== id)];
-      reordered.splice(index, 0, current, copy);
-      await this.renumber(reordered);
+      const index = siblings.findIndex((placement) => placement.kind === 'section' && placement.value.id === id);
+      const reordered: PagePlacement[] = siblings.filter(
+        (placement) => !(placement.kind === 'section' && placement.value.id === id),
+      );
+      reordered.splice(index, 0, { kind: 'section', value: current }, { kind: 'section', value: copy });
+      await renumberPlacements(this.dependencies, this.dependencies.clock, reordered);
 
       await this.record(actor, copy, 'project.section_added', 'Duplicated');
       return this.require(actor, copy.id);
@@ -497,7 +503,11 @@ export class SectionService {
       // close to the same dense sequence deleting produced. The archived section keeps its
       // now-stale position — uniqueness is a property of the live page, and
       // `restoreSection` overwrites the value when it appends.
-      await this.renumber(await this.orderedOnPage(current.pageId));
+      await renumberPlacements(
+        this.dependencies,
+        this.dependencies.clock,
+        await this.placementsOnPage(current.pageId),
+      );
       await this.record(actor, archived, 'project.section_archived', 'Archived');
       return archived;
     });
@@ -532,7 +542,7 @@ export class SectionService {
 
       // Back onto its own page, at that page's end. Undo, so no disabled-page refusal: the
       // section is returning to where it already lived (§31 — undo is never behind a toggle).
-      const live = await this.orderedOnPage(current.pageId);
+      const live = await this.placementsOnPage(current.pageId);
       const restored = ProjectSectionSchema.parse({
         ...current,
         archivedAt: undefined,
@@ -688,17 +698,6 @@ export class SectionService {
     });
   }
 
-  /** Writes `0..n-1` over the given order, touching only the sections that actually move. */
-  private async renumber(sections: ProjectSection[]): Promise<void> {
-    const now = this.dependencies.clock.now().toISOString();
-    for (const [position, section] of sections.entries()) {
-      if (section.position === position) continue;
-      await this.dependencies.sections.update(
-        ProjectSectionSchema.parse({ ...section, position, updatedAt: now }),
-      );
-    }
-  }
-
   /**
    * **One page's live canvas** — the read every path that places or renumbers uses.
    *
@@ -708,6 +707,10 @@ export class SectionService {
    */
   private async orderedOnPage(pageId: ProjectPageId): Promise<ProjectSection[]> {
     return (await this.dependencies.sections.list({ pageId })).sort(byPosition);
+  }
+
+  private async placementsOnPage(pageId: ProjectPageId): Promise<PagePlacement[]> {
+    return listPlacements(this.dependencies, pageId);
   }
 
   private async isProjectVisible(actor: ActorContext, projectId: ProjectId): Promise<boolean> {

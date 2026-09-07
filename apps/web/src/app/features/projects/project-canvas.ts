@@ -16,14 +16,17 @@ import type {
   SectionColumnSpan,
   SectionConfig,
   SectionId,
+  SectionShortcutId,
 } from '@cwm/contracts';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { ArchivedRegion } from './archived-region/archived-region';
 import { ProjectPageStore } from './project-page-store';
 import { SectionRemovalDialog } from './section-removal-dialog';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
-import { ProgressStore } from './sections/progress/progress-store';
 import { SECTION_REGISTRY, definitionFor } from './sections/registry';
+import { ShortcutFrame } from './shortcuts/shortcut-frame';
+import { ShortcutPicker } from './shortcuts/shortcut-picker';
+import { ShortcutStore } from './shortcuts/shortcut-store';
 
 /**
  * §27's section canvas, for **one page**: the controls row, the drag-drop canvas, the
@@ -36,16 +39,26 @@ import { SECTION_REGISTRY, definitionFor } from './sections/registry';
  * have moved — therefore arrive as callback inputs with stable identity, exactly as
  * `ProjectSectionFrame` hands callbacks to its content components.
  *
- * Section stores follow ownership. `ProgressStore` stays canvas-scoped — progress is a *view*
- * over the whole project, and two Progress sections must show one answer. Task List and
- * Reflections are **containers**: each provides its own store, because two of them hold
- * different rows by design (docs/decisions/2026-09-sections-own-their-data.md).
+ * Section stores follow ownership. Progress, Task List and Reflections provide their own
+ * stores at the content boundary. A shortcut never gets one of those stores from this canvas:
+ * its source content is mounted read-only by `ShortcutFrame`, so the source remains the only
+ * owner of writable content. Progress is provided by each Progress section because a Home may
+ * reference Progress from another project.
  */
 @Component({
   selector: 'app-project-canvas',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ArchivedRegion, CdkDrag, CdkDragHandle, CdkDropList, ProjectSectionFrame, SectionRemovalDialog],
-  providers: [ProgressStore, ProjectPageStore],
+  imports: [
+    ArchivedRegion,
+    CdkDrag,
+    CdkDragHandle,
+    CdkDropList,
+    ProjectSectionFrame,
+    SectionRemovalDialog,
+    ShortcutFrame,
+    ShortcutPicker,
+  ],
+  providers: [ProjectPageStore, ShortcutStore],
   templateUrl: './project-canvas.html',
   styleUrl: './project-canvas.scss',
   // Quick Add's menu closes on Escape from anywhere on the canvas, which is what a menu
@@ -58,6 +71,8 @@ export class ProjectCanvas {
   /** §27: a canvas is a page. Every read and write this store makes names it. */
   readonly pageId = input.required<ProjectPageId>();
   readonly projectLayoutMode = input.required<ProjectLayoutMode>();
+  /** Shortcut placement is a Home-only root capability (§27). */
+  readonly shortcutsAllowed = input.required<boolean>();
   /** Whether the Archived region may offer a Restore at all — the shell knows, not the canvas. */
   readonly restoreBlocked = input<boolean>(false);
   /** Progress may have moved. Called, not emitted: `NgComponentOutlet` has no output API. */
@@ -68,7 +83,9 @@ export class ProjectCanvas {
   readonly store = inject(ProjectPageStore);
   readonly registry = SECTION_REGISTRY;
   readonly addOpen = signal(false);
+  readonly shortcutPickerOpen = signal(false);
   readonly canvasMounted = signal(true);
+  readonly shortcutStore = inject(ShortcutStore);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly settings = inject(PrototypeSettings);
 
@@ -89,6 +106,7 @@ export class ProjectCanvas {
       const projectId = this.projectId();
       const pageId = this.pageId();
       this.addOpen.set(false);
+      this.shortcutPickerOpen.set(false);
       void this.store.load(projectId, pageId);
     });
   }
@@ -103,20 +121,26 @@ export class ProjectCanvas {
 
   closeAdd(): void {
     this.addOpen.set(false);
+    this.shortcutPickerOpen.set(false);
   }
 
   toggleEditMode(): void {
     const editing = !this.store.editMode();
     this.store.setEditMode(editing);
-    if (!editing) this.addOpen.set(false);
+    if (!editing) {
+      this.addOpen.set(false);
+      this.shortcutPickerOpen.set(false);
+    }
   }
 
   async drop(event: CdkDragDrop<unknown>): Promise<void> {
     const droppedPageId = this.pageId();
-    const persisted = await this.store.moveSection(
-      event.item.data as SectionId,
-      event.currentIndex,
-    );
+    const data = event.item.data as { kind?: string; id?: string } | string;
+    const isShortcut = typeof data !== 'string' && data.kind === 'shortcut';
+    const id = (typeof data === 'string' ? data : data.id) as string;
+    const persisted = isShortcut
+      ? await this.store.moveShortcut(id as SectionShortcutId, event.currentIndex)
+      : await this.store.moveSection(id as SectionId, event.currentIndex);
     if (!persisted && this.pageId() === droppedPageId) {
       // Mixed-orientation CDK moves DOM nodes directly. A rejected write must destroy that
       // physical order before recreating the canvas from the canonical store array.
@@ -132,6 +156,34 @@ export class ProjectCanvas {
     if (definition === undefined) return;
     await this.store.addSection(definition);
     this.addOpen.set(false);
+  }
+
+  openShortcutPicker(): void {
+    if (!this.shortcutsAllowed()) return;
+    this.addOpen.set(false);
+    this.shortcutPickerOpen.set(true);
+    void this.shortcutStore.load(this.projectId(), this.pageId());
+  }
+
+  closeShortcutPicker(): void {
+    this.shortcutPickerOpen.set(false);
+  }
+
+  shortcutAdded(): void {
+    this.shortcutPickerOpen.set(false);
+    void this.shortcutStore.refresh(this.projectId(), this.pageId());
+  }
+
+  collapseShortcut(event: { id: SectionShortcutId; collapsed: boolean }): void {
+    void this.store.setCollapsedShortcut(event.id, event.collapsed);
+  }
+
+  resizeShortcut(event: { id: SectionShortcutId; columnSpan: SectionColumnSpan }): void {
+    void this.store.setColumnSpanShortcut(event.id, event.columnSpan);
+  }
+
+  removeShortcut(id: SectionShortcutId): void {
+    void this.store.removeShortcut(id);
   }
 
   /**

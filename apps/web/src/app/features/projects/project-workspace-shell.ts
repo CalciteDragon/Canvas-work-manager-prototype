@@ -135,6 +135,7 @@ export class ProjectWorkspaceShell {
       // paints optimistically, so the loaded status alone would enable Restore during a
       // reactivation that has not landed.
       restoreBlocked: project.status === 'archived' || this.store.projectWritePending(),
+      shortcutsAllowed: project.kind === 'root' && rendered.kind === 'home',
       onProjectDataChange: this.onProjectDataChange,
       onProjectHierarchyChange: this.onProjectHierarchyChange,
     };

@@ -15,6 +15,8 @@ export * from './prototype-ai-provider';
 export * from './progress-service';
 export * from './reflection-service';
 export * from './section-service';
+export * from './section-shortcut-service';
+export * from './page-placements';
 export * from './task-service';
 export * from './task-windows';
 export * from './timeline-service';

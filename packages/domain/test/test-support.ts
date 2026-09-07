@@ -1,6 +1,6 @@
 import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type PrototypeDocument, type SectionId, type UserId, type WorkspaceId } from '@cwm/contracts';
 import { PERSONAS, SEED_NOW } from '@cwm/prototype-data';
-import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
+import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonSectionShortcutRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
 import type { ActorContext } from '../src/actor';
 import { PrototypeClock } from '../src/clock';
 import type { IdGenerator } from '../src/ids';
@@ -14,6 +14,7 @@ import { ProjectService } from '../src/project-service';
 import { ProgressService } from '../src/progress-service';
 import { ReflectionService } from '../src/reflection-service';
 import { SectionService } from '../src/section-service';
+import { SectionShortcutService } from '../src/section-shortcut-service';
 import { TaskService } from '../src/task-service';
 import { TimelineService } from '../src/timeline-service';
 import { WorkspaceService } from '../src/workspace-service';
@@ -166,6 +167,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
   const projects = new JsonProjectRepository(store);
   const pages = new JsonProjectPageRepository(store);
   const sections = new JsonSectionRepository(store);
+  const shortcuts = new JsonSectionShortcutRepository(store);
   const tasks = new JsonTaskRepository(store);
   const milestones = new JsonMilestoneRepository(store);
   const reflections = new JsonReflectionRepository(store);
@@ -176,7 +178,8 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
 
   // Built ahead of the object literal: task and reflection writes resolve their container
   // through it, so it has to exist before they do.
-  const sectionService = new SectionService({ sections, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
 
   return {
     store,
@@ -185,6 +188,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     projects,
     pages,
     sections,
+    shortcuts,
     tasks,
     milestones,
     reflections,
@@ -203,6 +207,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     timelineService: new TimelineService({ projects, tasks, milestones }),
     reflectionService: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     sectionService,
+    sectionShortcutService,
     workspaceService: new WorkspaceService({ projects, tasks, reflections, clock }),
   };
 };

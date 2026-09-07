@@ -1,7 +1,7 @@
 import type {
   ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
   MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageQuery, ProjectQuery, ProjectSection,
-  Reflection, ReflectionId, ReflectionQuery,
+  Reflection, ReflectionId, ReflectionQuery, SectionShortcut, SectionShortcutId, SectionShortcutQuery,
   SectionId, SectionQuery,
   Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
@@ -59,6 +59,15 @@ export interface SectionRepository {
    * arrive next, delete this then.
    */
   remove(id: SectionId): Promise<void>;
+}
+
+/** §27's layout-only reference. Removing it is safe: it owns no content or activity target. */
+export interface SectionShortcutRepository {
+  find(id: SectionShortcutId): Promise<SectionShortcut | null>;
+  list(query?: SectionShortcutQuery): Promise<SectionShortcut[]>;
+  insert(shortcut: SectionShortcut): Promise<void>;
+  update(shortcut: SectionShortcut): Promise<void>;
+  remove(id: SectionShortcutId): Promise<void>;
 }
 
 export interface MilestoneRepository {

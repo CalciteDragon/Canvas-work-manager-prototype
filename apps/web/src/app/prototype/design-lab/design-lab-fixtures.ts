@@ -138,7 +138,7 @@ export type StubSectionState = 'content' | 'empty' | 'loading' | 'error';
  *
  * A *real* registry definition's content component injects a store which injects the
  * gateway, so rendering one here would make "the Design Lab injects no gateway" false. This
- * stub declares the six members `SectionContentComponent` requires and injects nothing.
+ * stub declares the seven members `SectionContentComponent` requires and injects nothing.
  */
 @Component({
   selector: 'app-design-lab-stub-section',
@@ -179,6 +179,7 @@ export class StubSectionContent {
   readonly onProjectHierarchyChange = input<() => void>();
   readonly projectDataRevision = input(0);
   readonly projectHierarchyRevision = input(0);
+  readonly readOnly = input(false);
 
   protected state(): StubSectionState {
     const config = this.section().config as { state?: StubSectionState };

@@ -1,0 +1,88 @@
+<section
+  data-shortcut-frame
+  class="shortcut-frame"
+  [attr.data-shortcut-availability]="shortcut().availability"
+  [class.shortcut-frame--collapsed]="shortcut().collapsed"
+  [attr.aria-labelledby]="'shortcut-title-' + shortcut().id"
+>
+  <header class="shortcut-frame__header">
+    @if (editMode()) {
+      <span data-shortcut-drag-handle cdkDragHandle class="shortcut-frame__handle" aria-hidden="true">⠿</span>
+    }
+
+    <button
+      data-shortcut-collapse
+      class="shortcut-frame__collapse"
+      type="button"
+      [attr.aria-expanded]="!shortcut().collapsed"
+      [attr.aria-label]="(shortcut().collapsed ? 'Expand ' : 'Collapse ') + sourceName()"
+      (click)="toggleCollapsed()"
+    >
+      {{ shortcut().collapsed ? '▸' : '▾' }}
+    </button>
+
+    <div class="shortcut-frame__heading">
+      <h2 [id]="'shortcut-title-' + shortcut().id" class="shortcut-frame__title">
+        <span class="shortcut-frame__icon" aria-hidden="true">↗</span>
+        {{ sourceName() }}
+      </h2>
+      <p data-shortcut-source class="shortcut-frame__source">
+        {{ shortcut().breadcrumb.join(' / ') }} · {{ pageLabel() }}
+      </p>
+    </div>
+
+    @if (editMode()) {
+      <div class="shortcut-frame__controls">
+        <label class="shortcut-frame__size">
+          <span>Size</span>
+          <select
+            data-shortcut-size
+            [value]="shortcut().columnSpan"
+            [attr.aria-label]="'Width of ' + sourceName()"
+            (change)="resize($any($event.target).value)"
+          >
+            @for (span of columnSpans; track span) {
+              <option [value]="span" [selected]="span === shortcut().columnSpan">{{ span }}</option>
+            }
+          </select>
+        </label>
+        <button
+          data-shortcut-remove
+          class="shortcut-frame__remove"
+          type="button"
+          [attr.aria-label]="'Remove shortcut to ' + sourceName()"
+          (click)="removeRequested.emit(shortcut().id)"
+        >
+          Remove
+        </button>
+      </div>
+    }
+  </header>
+
+  @if (shortcut().availability !== 'available') {
+    <p data-shortcut-unavailable class="shortcut-frame__unavailable" role="status">
+      @if (shortcut().availability === 'source_archived') {
+        The source section is archived. Restore it to show this shortcut again.
+      } @else {
+        The source is hidden because its project or parent is archived.
+      }
+    </p>
+  } @else if (sourceDefinition(); as definition) {
+    @if (!shortcut().collapsed) {
+      <div data-shortcut-content class="shortcut-frame__content">
+        <ng-container
+          [ngComponentOutlet]="definition.component"
+          [ngComponentOutletInputs]="contentInputs()"
+        />
+      </div>
+    }
+  } @else {
+    <p data-shortcut-unavailable class="shortcut-frame__unavailable" role="status">
+      This source section type is not available in this build.
+    </p>
+  }
+
+  <footer class="shortcut-frame__footer">
+    <a data-shortcut-open-source [routerLink]="sourceRoute()">Open source</a>
+  </footer>
+</section>

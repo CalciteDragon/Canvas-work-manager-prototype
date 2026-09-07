@@ -37,8 +37,8 @@ export const PrototypeDocumentSchema = z.object({
   projectPages: z.array(ProjectPageSchema),
   sections: z.array(ProjectSectionSchema),
   /**
-   * §27's shortcut placements. Reserved empty in the version-3 cutover so that the operations
-   * arriving in Slice 25.4 need no second destructive load break; nothing writes to it yet.
+   * §27's shortcut placements. The version-3 cutover kept this collection empty so the feature
+   * could arrive without a second destructive load break; Slice 25.4 now writes placements here.
    */
   sectionShortcuts: z.array(SectionShortcutSchema),
   tasks: z.array(TaskSchema),

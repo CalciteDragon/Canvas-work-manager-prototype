@@ -21,13 +21,14 @@ const section = (config: unknown, title?: string): ProjectSection =>
     updatedAt: AT,
   });
 
-const render = (config: unknown, title?: string) => {
+const render = (config: unknown, title?: string, readOnly = false) => {
   const onConfigChange = vi.fn<(config: SectionConfig) => void>();
   const fixture = TestBed.createComponent(RichTextSection);
   fixture.componentRef.setInput('section', section(config, title));
   fixture.componentRef.setInput('onConfigChange', onConfigChange);
   const onProjectDataChange = vi.fn();
   fixture.componentRef.setInput('onProjectDataChange', onProjectDataChange);
+  fixture.componentRef.setInput('readOnly', readOnly);
   fixture.detectChanges();
   const textarea = fixture.nativeElement.querySelector('[data-rich-text-body]') as HTMLTextAreaElement;
   return { fixture, textarea, onConfigChange, onProjectDataChange };
@@ -62,6 +63,16 @@ describe('RichTextSection (§30)', () => {
   it('does not save when the text is unchanged', () => {
     const { textarea, onConfigChange } = render({ text: 'same' });
 
+    textarea.dispatchEvent(new Event('blur'));
+
+    expect(onConfigChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps source notes readable without saving a read-only edit', () => {
+    const { textarea, onConfigChange } = render({ text: 'source notes' }, undefined, true);
+
+    expect(textarea.readOnly).toBe(true);
+    textarea.value = 'attempted source edit';
     textarea.dispatchEvent(new Event('blur'));
 
     expect(onConfigChange).not.toHaveBeenCalled();

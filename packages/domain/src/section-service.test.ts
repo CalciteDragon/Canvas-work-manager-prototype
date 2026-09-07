@@ -22,6 +22,23 @@ const withThree = async (harness: Harness) => [
 const positions = async (harness: Harness) =>
   (await harness.sectionService.list(harness.actor, MINE)).map((section) => [section.type, section.position]);
 
+const withShortcut = async () => {
+  const harness = buildHarness();
+  const sourceProject = await harness.projectService.create(harness.actor, {
+    workspaceId: harness.actor.workspaceId,
+    kind: 'subproject',
+    parentProjectId: MINE,
+    name: 'Kitchen',
+  });
+  const source = await harness.sectionService.add(harness.actor, sourceProject.id, { type: 'rich-text' });
+  const home = (await harness.pages.list({ projectId: MINE, kind: 'home' }))[0]!;
+  const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, {
+    pageId: home.id,
+    sourceSectionId: source.id,
+  });
+  return { harness, shortcut };
+};
+
 describe('SectionService.add', () => {
   it('appends at the end with the caller’s config and clock timestamps', async () => {
     const harness = buildHarness();
@@ -79,6 +96,53 @@ describe('SectionService.list', () => {
     ]);
     expect((await harness.sectionService.list(harness.actor, MINE)).map(({ id }) => id)).toContain(first.id);
   });
+});
+
+describe('SectionService and Home shortcut ordering (§27)', () => {
+  it('appends a section after an existing shortcut', async () => {
+    const { harness, shortcut } = await withShortcut();
+
+    const section = await add(harness, 'rich-text');
+
+    expect(section.position).toBe(1);
+    expect((await harness.shortcuts.find(shortcut.id))?.position).toBe(0);
+  });
+
+  it('moves a section past a shortcut using the combined target index', async () => {
+    const { harness, shortcut } = await withShortcut();
+    const first = await add(harness, 'rich-text');
+    const second = await add(harness, 'progress');
+
+    await harness.sectionService.move(harness.actor, first.id, 2);
+
+    expect((await harness.shortcuts.find(shortcut.id))?.position).toBe(0);
+    expect((await harness.sections.find(second.id))?.position).toBe(1);
+    expect((await harness.sections.find(first.id))?.position).toBe(2);
+  });
+
+  it('duplicates a section beside its original on a mixed canvas', async () => {
+    const { harness, shortcut } = await withShortcut();
+    const original = await add(harness, 'rich-text');
+
+    const copy = await harness.sectionService.duplicate(harness.actor, original.id);
+
+    expect((await harness.shortcuts.find(shortcut.id))?.position).toBe(0);
+    expect((await harness.sections.find(original.id))?.position).toBe(1);
+    expect((await harness.sections.find(copy.id))?.position).toBe(2);
+  });
+
+  it('removes a section and closes the gap around a shortcut', async () => {
+    const { harness, shortcut } = await withShortcut();
+    const before = await add(harness, 'rich-text');
+    const after = await add(harness, 'progress');
+    await harness.sectionService.move(harness.actor, before.id, 0);
+
+    await harness.sectionService.remove(harness.actor, before.id);
+
+    expect((await harness.shortcuts.find(shortcut.id))?.position).toBe(0);
+    expect((await harness.sections.find(after.id))?.position).toBe(1);
+  });
+
 });
 
 describe('SectionService.update', () => {

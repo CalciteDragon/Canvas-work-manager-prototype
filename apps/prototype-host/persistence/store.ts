@@ -10,6 +10,7 @@ import {
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
+  JsonSectionShortcutRepository,
   JsonTaskRepository,
   JsonUserRepository,
   unitOfWorkFor,
@@ -46,6 +47,7 @@ export interface Persistence {
   /** §26's pages, which own the sections below. */
   pages: JsonProjectPageRepository;
   sections: JsonSectionRepository;
+  shortcuts: JsonSectionShortcutRepository;
   tasks: JsonTaskRepository;
   milestones: JsonMilestoneRepository;
   reflections: JsonReflectionRepository;
@@ -67,6 +69,7 @@ export const loadPersistence = async (path = dataFilePath()): Promise<Persistenc
     projects: new JsonProjectRepository(store),
     pages: new JsonProjectPageRepository(store),
     sections: new JsonSectionRepository(store),
+    shortcuts: new JsonSectionShortcutRepository(store),
     tasks: new JsonTaskRepository(store),
     milestones: new JsonMilestoneRepository(store),
     reflections: new JsonReflectionRepository(store),

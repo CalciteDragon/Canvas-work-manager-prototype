@@ -20,6 +20,7 @@ export class RichTextSection {
   readonly onProjectHierarchyChange = input.required<() => void>();
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
+  readonly readOnly = input(false);
 
   readonly text = computed(() => readRichTextConfig(this.section().config).text);
 
@@ -31,6 +32,7 @@ export class RichTextSection {
    * would still PATCH mid-sentence.
    */
   save(value: string): void {
+    if (this.readOnly()) return;
     if (value === this.text()) return;
     this.onConfigChange()({ text: value });
   }

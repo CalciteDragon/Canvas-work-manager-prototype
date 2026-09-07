@@ -8,6 +8,7 @@
     rows="4"
     [value]="text()"
     [attr.aria-label]="'Notes for ' + name()"
+    [readonly]="readOnly()"
     placeholder="What is this project about?"
     (blur)="save($any($event.target).value)"
   ></textarea>

@@ -39,7 +39,10 @@ const reflection = (overrides: Record<string, unknown> = {}): Reflection =>
     ...overrides,
   });
 
-const render = async (gateway = new FakeWorkManagerGateway({ reflections: [reflection()] })) => {
+const render = async (
+  gateway = new FakeWorkManagerGateway({ reflections: [reflection()] }),
+  readOnly = false,
+) => {
   TestBed.configureTestingModule({
     providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
   });
@@ -53,6 +56,7 @@ const render = async (gateway = new FakeWorkManagerGateway({ reflections: [refle
   fixture.componentRef.setInput('onProjectHierarchyChange', onProjectHierarchyChange);
   fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.componentRef.setInput('projectHierarchyRevision', 0);
+  fixture.componentRef.setInput('readOnly', readOnly);
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
@@ -121,6 +125,15 @@ describe('ReflectionsSection (§36)', () => {
     expect(prompt.value).toBe('');
     expect(onConfigChange).not.toHaveBeenCalled();
     expect(onProjectDataChange).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the journal readable while hiding its composer and edit controls', async () => {
+    const { fixture, gateway } = await render(undefined, true);
+
+    expect(query(fixture, '[data-reflection-entry]')).not.toBeNull();
+    expect(query(fixture, '[data-reflection-create]')).toBeNull();
+    expect(query(fixture, '[data-reflection-edit]')).toBeNull();
+    expect(gateway.calls.filter(({ method }) => method === 'reflections.list').length).toBeGreaterThan(0);
   });
 
   it('re-reads on data revision but ignores hierarchy-only revision', async () => {

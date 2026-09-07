@@ -5,8 +5,10 @@ import {
   CreateProjectInputSchema,
   CreateReflectionInputSchema,
   CreateSectionInputSchema,
+  CreateSectionShortcutInputSchema,
   CreateTaskInputSchema,
   MoveSectionInputSchema,
+  MoveSectionShortcutInputSchema,
   ReflectionQuerySchema,
   SectionQuerySchema,
   RemoveSectionInputSchema,
@@ -15,6 +17,9 @@ import {
   ProjectQuerySchema,
   ReflectionIdSchema,
   SectionIdSchema,
+  SectionShortcutIdSchema,
+  SectionShortcutQuerySchema,
+  ShortcutSourceQuerySchema,
   SetProjectPageEnabledInputSchema,
   TaskIdSchema,
   TaskQuerySchema,
@@ -22,9 +27,10 @@ import {
   UpdateProjectInputSchema,
   UpdateReflectionInputSchema,
   UpdateSectionInputSchema,
+  UpdateSectionShortcutInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectPageService, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
+import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveIdentityUser } from './context.ts';
 import type { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
@@ -37,6 +43,7 @@ export interface ApiDependencies {
   pages: ProjectPageService;
   tasks: TaskService;
   sections: SectionService;
+  shortcuts: SectionShortcutService;
   activity: ActivityService;
   progress: ProgressService;
   timeline: TimelineService;
@@ -84,6 +91,11 @@ const queryObject = (
   return parsed;
 };
 
+/** The project in a shortcut route is already in the path; only its destination page travels. */
+const shortcutPageQuery = (query: URLSearchParams): Record<string, unknown> => ({
+  ...(query.get('pageId') === null ? {} : { pageId: query.get('pageId') }),
+});
+
 /**
  * §61's routes, plus three the slice earns: `POST /api/tasks/:id/complete` from the
  * slice's own build list, `GET /api/tasks/:id` and `POST /api/tasks/:id/archive` because
@@ -94,7 +106,7 @@ const queryObject = (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, pages, tasks, sections, activity, progress, timeline, reflections, dashboard, agents, authenticator } =
+  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, reflections, dashboard, agents, authenticator } =
     dependencies;
   // Async now: an agent request has to resolve its token against the live connection
   // before the handler runs, because that read is what carries the permission set (§51).
@@ -102,6 +114,7 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
   const projectId = (request: RouteRequest) => ProjectIdSchema.parse(request.params['id']);
   const taskId = (request: RouteRequest) => TaskIdSchema.parse(request.params['id']);
   const sectionId = (request: RouteRequest) => SectionIdSchema.parse(request.params['id']);
+  const shortcutId = (request: RouteRequest) => SectionShortcutIdSchema.parse(request.params['id']);
   const sectionProjectId = (request: RouteRequest) => ProjectIdSchema.parse(request.params['projectId']);
   const reflectionId = (request: RouteRequest) => ReflectionIdSchema.parse(request.params['id']);
   const connectionId = (request: RouteRequest) => AgentConnectionIdSchema.parse(request.params['id']);
@@ -272,6 +285,58 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
         sectionId(request),
         RemoveSectionInputSchema.parse(queryObject(request.query, [])),
       );
+      return noContent();
+    },
+
+    // §27's layout-only references. The domain resolves source identity and availability;
+    // these routes never read or return the source's row collection.
+    'GET /api/projects/:projectId/shortcuts': async (request) =>
+      ok(
+        await shortcuts.list(
+          await actorFor(request),
+          sectionProjectId(request),
+          SectionShortcutQuerySchema.parse(shortcutPageQuery(request.query)),
+        ),
+      ),
+
+    'GET /api/projects/:projectId/shortcut-sources': async (request) =>
+      ok(
+        await shortcuts.listSources(
+          await actorFor(request),
+          sectionProjectId(request),
+          ShortcutSourceQuerySchema.parse(shortcutPageQuery(request.query)),
+        ),
+      ),
+
+    'POST /api/projects/:projectId/shortcuts': async (request) =>
+      created(
+        await shortcuts.create(
+          await actorFor(request),
+          sectionProjectId(request),
+          CreateSectionShortcutInputSchema.parse(request.body),
+        ),
+      ),
+
+    'PATCH /api/shortcuts/:id': async (request) =>
+      ok(
+        await shortcuts.update(
+          await actorFor(request),
+          shortcutId(request),
+          UpdateSectionShortcutInputSchema.parse(request.body),
+        ),
+      ),
+
+    'POST /api/shortcuts/:id/move': async (request) =>
+      ok(
+        await shortcuts.move(
+          await actorFor(request),
+          shortcutId(request),
+          MoveSectionShortcutInputSchema.parse(request.body),
+        ),
+      ),
+
+    'DELETE /api/shortcuts/:id': async (request) => {
+      await shortcuts.remove(await actorFor(request), shortcutId(request));
       return noContent();
     },
 

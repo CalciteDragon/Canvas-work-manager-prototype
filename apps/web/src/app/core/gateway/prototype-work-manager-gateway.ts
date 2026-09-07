@@ -6,10 +6,12 @@ import {
   ProjectPageSchema,
   ProjectSchema,
   ProjectSectionSchema,
+  ResolvedSectionShortcutSchema,
   ProgressResultSchema,
   ReflectionSchema,
   TaskSchema,
   TimelineResultSchema,
+  ShortcutSourceSchema,
   type ActivityQuery,
   type AgentConnectionId,
   type AgentPermission,
@@ -23,12 +25,18 @@ import {
   type ReflectionId,
   type ReflectionQuery,
   type RemoveSectionInput,
+  type CreateSectionShortcutInput,
   type UpdateProjectInput,
   type UpdateReflectionInput,
   type MoveSectionInput,
   type SectionId,
   type TaskId,
   type SectionQuery,
+  type SectionShortcutId,
+  type SectionShortcutQuery,
+  type ShortcutSourceQuery,
+  type UpdateSectionShortcutInput,
+  type MoveSectionShortcutInput,
   type SetProjectPageEnabledInput,
   type TaskQuery,
   type UpdateSectionInput,
@@ -39,7 +47,7 @@ import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
-import type { ActivityGateway, AgentGateway, DashboardGateway, ProgressGateway, ProjectGateway, ProjectPageGateway, ReflectionGateway, SectionGateway, TaskGateway, TimelineGateway, WorkManagerGateway } from './work-manager-gateway';
+import type { ActivityGateway, AgentGateway, DashboardGateway, ProgressGateway, ProjectGateway, ProjectPageGateway, ReflectionGateway, SectionGateway, SectionShortcutGateway, TaskGateway, TimelineGateway, WorkManagerGateway } from './work-manager-gateway';
 
 /**
  * The §10 adapter: Angular → `localhost:4310`. Everything transport-shaped lives here —
@@ -132,6 +140,29 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       ),
     restore: (id: SectionId) =>
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/restore`, ProjectSectionSchema),
+  };
+
+  readonly shortcuts: SectionShortcutGateway = {
+    list: (projectId: ProjectId, query: SectionShortcutQuery = {}) =>
+      this.send(
+        'GET',
+        `/api/projects/${encodeURIComponent(projectId)}/shortcuts${queryString(shortcutQueryParams(query))}`,
+        ResolvedSectionShortcutSchema.array(),
+      ),
+    sources: (projectId: ProjectId, query: ShortcutSourceQuery) =>
+      this.send(
+        'GET',
+        `/api/projects/${encodeURIComponent(projectId)}/shortcut-sources${queryString(shortcutSourceQueryParams(query))}`,
+        ShortcutSourceSchema.array(),
+      ),
+    create: (projectId: ProjectId, input: CreateSectionShortcutInput) =>
+      this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/shortcuts`, ResolvedSectionShortcutSchema, input),
+    update: (id: SectionShortcutId, input: UpdateSectionShortcutInput) =>
+      this.send('PATCH', `/api/shortcuts/${encodeURIComponent(id)}`, ResolvedSectionShortcutSchema, input),
+    move: (id: SectionShortcutId, input: MoveSectionShortcutInput) =>
+      this.send('POST', `/api/shortcuts/${encodeURIComponent(id)}/move`, ResolvedSectionShortcutSchema, input),
+    remove: (id: SectionShortcutId) =>
+      this.sendWithoutBody('DELETE', `/api/shortcuts/${encodeURIComponent(id)}`),
   };
 
   readonly tasks: TaskGateway = {
@@ -290,6 +321,18 @@ const sectionQueryParams = (query: Omit<SectionQuery, 'projectId'>): URLSearchPa
   const params = new URLSearchParams();
   append(params, 'pageId', query.pageId);
   append(params, 'includeArchived', query.includeArchived);
+  return params;
+};
+
+const shortcutQueryParams = (query: SectionShortcutQuery): URLSearchParams => {
+  const params = new URLSearchParams();
+  append(params, 'pageId', query.pageId);
+  return params;
+};
+
+const shortcutSourceQueryParams = (query: ShortcutSourceQuery): URLSearchParams => {
+  const params = new URLSearchParams();
+  append(params, 'pageId', query.pageId);
   return params;
 };
 

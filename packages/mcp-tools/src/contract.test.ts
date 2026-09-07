@@ -1,7 +1,18 @@
 import { AgentPermissionSchema, type AgentPermission } from '@cwm/contracts';
 import { PermissionDeniedError } from '@cwm/domain';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { agent, buildHarness, OPEN_TASK, OPS_PROJECT, PROJECT, TASK_CONTAINER, VIEW_SECTION } from '../test/harness';
+import {
+  agent,
+  buildHarness,
+  OPEN_TASK,
+  OPS_PROJECT,
+  PROJECT,
+  SEEDED_SHORTCUT,
+  SHORTCUT_DESTINATION_PAGE,
+  SHORTCUT_SOURCE_SECTION,
+  TASK_CONTAINER,
+  VIEW_SECTION,
+} from '../test/harness';
 
 const ALL_PERMISSIONS = AgentPermissionSchema.options;
 
@@ -9,7 +20,7 @@ const ALL_PERMISSIONS = AgentPermissionSchema.options;
  * One case per tool. `mutates` says which half of the store assertion applies; `verify` is
  * given the tool's result and the harness, and is where "it actually did the thing" lives.
  *
- * The suite iterates `registry.list()` and fails on any tool with no case, so a fifteenth
+ * The suite iterates `registry.list()` and fails on any tool with no case, so a new
  * tool cannot arrive without a contract.
  */
 interface ToolCase {
@@ -133,7 +144,7 @@ const CASES: Record<string, ToolCase> = {
     input: { projectId: PROJECT, type: 'progress' },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toMatchObject({ projectId: PROJECT, type: 'progress', position: 3 });
+      expect(result).toMatchObject({ projectId: PROJECT, type: 'progress', position: 4 });
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
       expect(listed.map(({ id }) => id)).toContain(result.id);
     },
@@ -159,6 +170,39 @@ const CASES: Record<string, ToolCase> = {
       expect(result.archivedAt).toBeDefined();
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
       expect(listed.map(({ id }) => id)).not.toContain(VIEW_SECTION);
+    },
+  },
+  list_section_shortcuts: {
+    input: { projectId: PROJECT, pageId: SHORTCUT_DESTINATION_PAGE },
+    verify: (result) => {
+      expect(result).toEqual([
+        expect.objectContaining({ id: SEEDED_SHORTCUT, sourceSectionId: SHORTCUT_SOURCE_SECTION }),
+      ]);
+      expect(result[0]).not.toHaveProperty('tasks');
+    },
+  },
+  add_section_shortcut: {
+    input: {
+      projectId: PROJECT,
+      pageId: SHORTCUT_DESTINATION_PAGE,
+      sourceSectionId: SHORTCUT_SOURCE_SECTION,
+    },
+    mutates: true,
+    verify: async (result, harness) => {
+      expect(result).toMatchObject({ sourceSectionId: SHORTCUT_SOURCE_SECTION, sourcePageKind: 'work' });
+      expect(
+        (await harness.services.shortcuts.list(agent(['projects.read']), PROJECT, { pageId: SHORTCUT_DESTINATION_PAGE }))
+          .map(({ sourceSectionId }) => sourceSectionId),
+      ).toContain(SHORTCUT_SOURCE_SECTION);
+    },
+  },
+  remove_section_shortcut: {
+    input: { shortcutId: SEEDED_SHORTCUT },
+    mutates: true,
+    verify: async (result, harness) => {
+      expect(result).toBeUndefined();
+      expect(await harness.services.shortcuts.list(agent(['projects.read']), PROJECT)).toEqual([]);
+      expect(await harness.services.sections.get(agent(['projects.read']), SHORTCUT_SOURCE_SECTION)).toBeDefined();
     },
   },
   search_workspace: {

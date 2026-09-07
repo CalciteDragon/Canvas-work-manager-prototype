@@ -4,17 +4,21 @@ import {
   CreateProjectInputSchema,
   CreateReflectionInputSchema,
   CreateSectionInputSchema,
+  CreateSectionShortcutInputSchema,
   CreateTaskInputSchema,
   MoveSectionInputSchema,
+  MoveSectionShortcutInputSchema,
   ProjectPageQuerySchema,
   ProjectQuerySchema,
   RemoveSectionInputSchema,
   SectionQuerySchema,
+  SectionShortcutQuerySchema,
   SetProjectPageEnabledInputSchema,
   TaskQuerySchema,
   UpdateProjectInputSchema,
   UpdateReflectionInputSchema,
   UpdateSectionInputSchema,
+  UpdateSectionShortcutInputSchema,
   UpdateTaskInputSchema,
 } from './inputs';
 
@@ -251,6 +255,47 @@ describe('the §31 section write inputs', () => {
     expect(SectionQuerySchema.parse({ includeArchived: true }).includeArchived).toBe(true);
     expect(SectionQuerySchema.parse({}).includeArchived).toBeUndefined();
     expect(SectionQuerySchema.safeParse({ includeArchived: 'true' }).success).toBe(false);
+  });
+});
+
+describe('the §27 shortcut placement inputs', () => {
+  it('requires a destination page and source section, with a placement-local span', () => {
+    expect(
+      CreateSectionShortcutInputSchema.parse({
+        pageId: 'page-home',
+        sourceSectionId: 'section-source',
+        columnSpan: 6,
+      }),
+    ).toEqual({ pageId: 'page-home', sourceSectionId: 'section-source', columnSpan: 6 });
+  });
+
+  it('rejects fields the caller cannot set and an incomplete create', () => {
+    expect(CreateSectionShortcutInputSchema.safeParse({ sourceSectionId: 'section-source' }).success).toBe(false);
+    expect(
+      CreateSectionShortcutInputSchema.safeParse({
+        pageId: 'page-home',
+        sourceSectionId: 'section-source',
+        position: 0,
+      }).success,
+    ).toBe(false);
+    expect(
+      CreateSectionShortcutInputSchema.safeParse({
+        pageId: 'page-home',
+        sourceSectionId: 'section-source',
+        extra: true,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('keeps update and move narrow, and queries by destination page', () => {
+    expect(UpdateSectionShortcutInputSchema.parse({ collapsed: true, columnSpan: 4 })).toEqual({
+      collapsed: true,
+      columnSpan: 4,
+    });
+    expect(UpdateSectionShortcutInputSchema.safeParse({ sourceSectionId: 'section-other' }).success).toBe(false);
+    expect(MoveSectionShortcutInputSchema.parse({ position: 0 })).toEqual({ position: 0 });
+    expect(SectionShortcutQuerySchema.parse({ pageId: 'page-home' })).toEqual({ pageId: 'page-home' });
+    expect(SectionShortcutQuerySchema.parse({})).toEqual({});
   });
 });
 

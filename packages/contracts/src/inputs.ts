@@ -193,6 +193,27 @@ export const MoveSectionInputSchema = z.object({
 });
 export type MoveSectionInput = z.infer<typeof MoveSectionInputSchema>;
 
+/** §27: a shortcut input names its destination page and canonical source section only. */
+export const CreateSectionShortcutInputSchema = z.strictObject({
+  pageId: ProjectPageIdSchema,
+  sourceSectionId: SectionIdSchema,
+  columnSpan: SectionColumnSpanSchema.optional(),
+});
+export type CreateSectionShortcutInput = z.infer<typeof CreateSectionShortcutInputSchema>;
+
+/** A shortcut's layout is local to the placement; it cannot patch the source section. */
+export const UpdateSectionShortcutInputSchema = z.strictObject({
+  columnSpan: SectionColumnSpanSchema.optional(),
+  collapsed: z.boolean().optional(),
+});
+export type UpdateSectionShortcutInput = z.infer<typeof UpdateSectionShortcutInputSchema>;
+
+/** Reordering a shortcut renumbers the combined section/shortcut canvas. */
+export const MoveSectionShortcutInputSchema = z.strictObject({
+  position: PositionSchema,
+});
+export type MoveSectionShortcutInput = z.infer<typeof MoveSectionShortcutInputSchema>;
+
 export const CreateReflectionInputSchema = z.object({
   projectId: ProjectIdSchema,
   /** The owning container; resolved like `CreateTaskInput.sectionId` when absent. */
@@ -268,6 +289,18 @@ export const SectionQuerySchema = z.object({
   includeArchived: z.boolean().optional(),
 });
 export type SectionQuery = z.infer<typeof SectionQuerySchema>;
+
+/** Filters for the shortcut placements on a destination page. */
+export const SectionShortcutQuerySchema = z.strictObject({
+  pageId: ProjectPageIdSchema.optional(),
+});
+export type SectionShortcutQuery = z.infer<typeof SectionShortcutQuerySchema>;
+
+/** The picker must name its destination so the service can mark existing placements. */
+export const ShortcutSourceQuerySchema = z.strictObject({
+  pageId: ProjectPageIdSchema,
+});
+export type ShortcutSourceQuery = z.infer<typeof ShortcutSourceQuerySchema>;
 
 /**
  * Filters for `ProjectPageRepository.list`. Written here rather than inline on the interface

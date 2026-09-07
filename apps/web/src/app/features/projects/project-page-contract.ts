@@ -16,6 +16,8 @@ export interface ProjectPageRendererInputs extends Record<string, unknown> {
   pageId: ProjectPageId;
   projectLayoutMode: ProjectLayoutMode;
   restoreBlocked: boolean;
+  /** Shortcut placement is a Home-only root capability (§27). */
+  shortcutsAllowed: boolean;
   /** Something on this page may have moved §39's progress — the header re-reads it. */
   onProjectDataChange: () => void;
   /** Something on this page may have moved the work hierarchy — the column re-reads it. */
@@ -32,6 +34,7 @@ export interface ProjectPageRenderer {
   readonly pageId: unknown;
   readonly projectLayoutMode: unknown;
   readonly restoreBlocked: unknown;
+  readonly shortcutsAllowed: unknown;
   readonly onProjectDataChange: unknown;
   readonly onProjectHierarchyChange: unknown;
 }

@@ -27,4 +27,26 @@ describe('SubProjectsSection live invalidation', () => {
     await fixture.componentInstance.create({ preventDefault: vi.fn() } as unknown as SubmitEvent, input);
     expect(hierarchyChanged).toHaveBeenCalledOnce(); expect(dataChanged).not.toHaveBeenCalled();
   });
+
+  it('keeps the hierarchy readable but removes its create form in read-only mode', async () => {
+    const gateway = new FakeWorkManagerGateway({ projects: [root] });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+    const fixture = TestBed.createComponent(SubProjectsSection);
+    fixture.componentRef.setInput('section', section);
+    fixture.componentRef.setInput('onConfigChange', vi.fn());
+    fixture.componentRef.setInput('onProjectDataChange', vi.fn());
+    fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn());
+    fixture.componentRef.setInput('projectDataRevision', 0);
+    fixture.componentRef.setInput('projectHierarchyRevision', 0);
+    fixture.componentRef.setInput('readOnly', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('.sub-projects__create')).toBeNull();
+    const input = document.createElement('input');
+    input.value = 'Should not be created';
+    await fixture.componentInstance.create({ preventDefault: vi.fn() } as unknown as SubmitEvent, input);
+    expect(gateway.calls.filter(({ method }) => method === 'projects.create')).toHaveLength(0);
+  });
 });

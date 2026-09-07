@@ -469,7 +469,7 @@ describe('seeded owner kinds and pages', () => {
     }
   });
 
-  it('reserves the shortcut collection empty until slice 25.4', () => {
+  it('reserves the shortcut collection empty until slice 25.8', () => {
     expect(buildSeed('nested-projects').sectionShortcuts).toEqual([]);
   });
 });

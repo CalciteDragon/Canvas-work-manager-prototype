@@ -1,5 +1,14 @@
 import { TestBed } from '@angular/core/testing';
-import type { CreateTaskInput, Identity, ProjectId, ReflectionId, SectionId, TaskId } from '@cwm/contracts';
+import {
+  ResolvedSectionShortcutSchema,
+  ShortcutSourceSchema,
+  type CreateTaskInput,
+  type Identity,
+  type ProjectId,
+  type ReflectionId,
+  type SectionId,
+  type TaskId,
+} from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { PrototypeSettings } from '../config/prototype-settings';
@@ -67,6 +76,33 @@ const homePage = {
 const progress = { projectId: 'project-1', formula: 'count', percentage: 50, completed: 1, total: 2, explanation: '1 of 2 tasks complete' };
 const timeline = { projectId: 'project-1', items: [{ id: 'project-1', kind: 'project', title: 'Personal workspace', startDate: '2026-09-30', endDate: '2026-09-30' }] };
 const reflection = { id: 'reflection-1', projectId: 'project-1', sectionId: 'section-1', body: 'A useful note', createdAt: at, updatedAt: at };
+const shortcut = ResolvedSectionShortcutSchema.parse({
+  id: 'shortcut-1',
+  pageId: 'page-project-1',
+  sourceSectionId: 'section-source',
+  position: 0,
+  columnSpan: 12,
+  collapsed: false,
+  createdAt: at,
+  updatedAt: at,
+  source: { ...projectSection, id: 'section-source', pageId: 'page-project-2', projectId: 'project-2' },
+  sourceProjectId: 'project-2',
+  sourceProjectName: 'Kitchen',
+  sourcePageKind: 'work',
+  breadcrumb: ['Personal workspace', 'Kitchen'],
+  availability: 'available',
+});
+const shortcutSource = ShortcutSourceSchema.parse({
+  sourceSectionId: 'section-source',
+  type: 'rich-text',
+  name: 'Rich Text',
+  projectId: 'project-2',
+  projectName: 'Kitchen',
+  pageId: 'page-project-2',
+  pageKind: 'work',
+  breadcrumb: ['Personal workspace', 'Kitchen'],
+  alreadyPlaced: false,
+});
 
 // A Response body can only be read once, so every mocked call gets a fresh one.
 const jsonResponse = (body: unknown, status = 200) => () =>
@@ -349,6 +385,48 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
     await expect(gateway().sections.update('section-1' as SectionId, { columnSpan: 6 })).rejects.toBeInstanceOf(
       GatewayError,
     );
+  });
+});
+
+describe('PrototypeWorkManagerGateway — shortcuts (§27)', () => {
+  it('serializes the destination page and round-trips all placement routes', async () => {
+    fetchMock
+      .mockImplementationOnce(jsonResponse([shortcut]))
+      .mockImplementationOnce(jsonResponse([shortcutSource]))
+      .mockImplementationOnce(jsonResponse(shortcut, 201))
+      .mockImplementationOnce(jsonResponse({ ...shortcut, collapsed: true }))
+      .mockImplementationOnce(jsonResponse({ ...shortcut, position: 2 }))
+      .mockImplementationOnce(() => new Response(null, { status: 204 }));
+    const subject = gateway();
+
+    expect(await subject.shortcuts.list('project-1' as ProjectId, { pageId: 'page-project-1' as never })).toEqual([
+      shortcut,
+    ]);
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/shortcuts?pageId=page-project-1');
+
+    expect(await subject.shortcuts.sources('project-1' as ProjectId, { pageId: 'page-project-1' as never })).toEqual([
+      shortcutSource,
+    ]);
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/shortcut-sources?pageId=page-project-1');
+
+    await subject.shortcuts.create('project-1' as ProjectId, {
+      pageId: 'page-project-1' as never,
+      sourceSectionId: 'section-source' as SectionId,
+    });
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/shortcuts');
+    expect(lastCall().init.method).toBe('POST');
+
+    await subject.shortcuts.update('shortcut-1' as never, { collapsed: true });
+    expect(lastCall().url).toBe('http://host.test/api/shortcuts/shortcut-1');
+    expect(lastCall().init.method).toBe('PATCH');
+
+    await subject.shortcuts.move('shortcut-1' as never, { position: 2 });
+    expect(lastCall().url).toBe('http://host.test/api/shortcuts/shortcut-1/move');
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({ position: 2 });
+
+    await subject.shortcuts.remove('shortcut-1' as never);
+    expect(lastCall().url).toBe('http://host.test/api/shortcuts/shortcut-1');
+    expect(lastCall().init.method).toBe('DELETE');
   });
 });
 

@@ -45,6 +45,7 @@ class TestContent {
   readonly onProjectHierarchyChange = input.required<() => void>();
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
+  readonly readOnly = input(false);
 
   constructor() {
     effect(() => {
@@ -69,6 +70,7 @@ class TestInspector {
   readonly onProjectHierarchyChange = input.required<() => void>();
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
+  readonly readOnly = input(false);
 }
 
 const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({

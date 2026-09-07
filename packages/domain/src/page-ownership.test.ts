@@ -214,6 +214,25 @@ describe('ordering is per page (§27)', () => {
     expect(await positionsOn(harness, reflections)).toEqual(before);
   });
 
+  it('restores a Home section after its shortcut placements', async () => {
+    const harness = buildHarness();
+    const sourceProject = await subprojectOf(harness, MINE, 'Kitchen');
+    const source = await harness.sectionService.add(harness.actor, sourceProject.id, { type: 'task-list' });
+    const { home } = await rootWithReflections(harness);
+    const own = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, {
+      pageId: home.id,
+      sourceSectionId: source.id,
+    });
+    await harness.sectionService.remove(harness.actor, own.id);
+
+    const restored = await harness.sectionService.restoreSection(harness.actor, own.id);
+
+    expect((await harness.shortcuts.find(shortcut.id))?.position).toBe(0);
+    expect(restored.pageId).toBe(home.id);
+    expect(restored.position).toBe(1);
+  });
+
   /**
    * **A canvas is a page** (§27), so a read that names none answers the *canonical* one rather
    * than the whole project. Running the feature is what made this matter: a project-wide read

@@ -1,5 +1,5 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, SCHEMA_VERSION, ProjectSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, TaskService, TimelineService } from '@cwm/domain';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
@@ -9,6 +9,7 @@ import {
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
+  JsonSectionShortcutRepository,
   JsonTaskRepository,
   JsonUserRepository,
   unitOfWorkFor,
@@ -82,6 +83,7 @@ const routesFor = (store: DataStore): RouteTable => {
   const projects = new JsonProjectRepository(store);
   const pages = new JsonProjectPageRepository(store);
   const sections = new JsonSectionRepository(store);
+  const shortcuts = new JsonSectionShortcutRepository(store);
   const tasks = new JsonTaskRepository(store);
   const activities = new JsonActivityRepository(store);
   const milestones = new JsonMilestoneRepository(store);
@@ -91,7 +93,8 @@ const routesFor = (store: DataStore): RouteTable => {
   const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids });
   const unitOfWork = unitOfWorkFor(store);
   const connections = new AgentConnectionService({ agents, activity, clock, unitOfWork });
-  const sectionService = new SectionService({ sections, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
 
   return createApiRoutes({
     store,
@@ -100,6 +103,7 @@ const routesFor = (store: DataStore): RouteTable => {
     pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     sections: sectionService,
+    shortcuts: sectionShortcutService,
     progress: new ProgressService({ projects, tasks }),
     timeline: new TimelineService({ projects, tasks, milestones }),
     reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
@@ -559,6 +563,72 @@ describe('section routes', () => {
     expect((await call(routes, 'POST', `/api/sections/${section.id}/move`, { body: { position: -1 } })).status).toBe(
       400,
     );
+  });
+});
+
+describe('shortcut routes (§27, §68)', () => {
+  const nestedRoutes = () => buildRoutes(true, buildSeed('nested-projects'));
+  const root = 'project-renovation';
+  const home = 'page-project-renovation';
+  const source = 'section-project-kitchen-tasks';
+
+  it('gets shortcuts and sources with the path project scope and pageId only', async () => {
+    const routes = nestedRoutes();
+
+    const placements = await call(
+      routes,
+      'GET',
+      `/api/projects/${root}/shortcuts?pageId=${home}&projectId=project-kitchen`,
+    );
+    const candidates = await call(
+      routes,
+      'GET',
+      `/api/projects/${root}/shortcut-sources?pageId=${home}&projectId=project-kitchen`,
+    );
+
+    expect(placements).toMatchObject({ status: 200, body: [] });
+    expect(ShortcutSourceSchema.array().parse(candidates.body).map(({ sourceSectionId }) => sourceSectionId)).toContain(source);
+  });
+
+  it('round-trips POST, PATCH, move and DELETE for one placement', async () => {
+    const routes = nestedRoutes();
+    const before = TaskSchema.array().parse((await call(routes, 'GET', `/api/tasks?sectionId=${source}`)).body);
+
+    const created = await call(routes, 'POST', `/api/projects/${root}/shortcuts`, {
+      body: { pageId: home, sourceSectionId: source },
+    });
+    expect(created.status).toBe(201);
+    const shortcut = ResolvedSectionShortcutSchema.parse(created.body);
+    expect(shortcut).toMatchObject({ sourceSectionId: source, sourceProjectId: 'project-kitchen' });
+
+    const patched = await call(routes, 'PATCH', `/api/shortcuts/${shortcut.id}`, {
+      body: { collapsed: true },
+    });
+    expect(patched.status).toBe(200);
+    expect(ResolvedSectionShortcutSchema.parse(patched.body).collapsed).toBe(true);
+
+    const moved = await call(routes, 'POST', `/api/shortcuts/${shortcut.id}/move`, {
+      body: { position: 0 },
+    });
+    expect(moved.status).toBe(200);
+    expect(ResolvedSectionShortcutSchema.parse(moved.body).position).toBe(0);
+
+    const removed = await call(routes, 'DELETE', `/api/shortcuts/${shortcut.id}`);
+    expect(removed.status).toBe(204);
+    expect((await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).body).toEqual([]);
+    expect(TaskSchema.array().parse((await call(routes, 'GET', `/api/tasks?sectionId=${source}`)).body)).toEqual(before);
+  });
+
+  it('answers 409 and leaves the document unchanged when the source is on the destination page', async () => {
+    const routes = nestedRoutes();
+    const before = await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`);
+
+    const refused = await call(routes, 'POST', `/api/projects/${root}/shortcuts`, {
+      body: { pageId: home, sourceSectionId: 'section-project-renovation-brief' },
+    });
+
+    expect(refused).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
+    expect(await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).toEqual(before);
   });
 });
 

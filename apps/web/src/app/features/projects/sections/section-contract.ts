@@ -25,6 +25,8 @@ export interface SectionContentInputs extends Record<string, unknown> {
   onProjectHierarchyChange: () => void;
   projectDataRevision: number;
   projectHierarchyRevision: number;
+  /** A shortcut is a read-only projection of this same content component (§27). */
+  readOnly: boolean;
 }
 
 /**
@@ -39,4 +41,5 @@ export interface SectionContentComponent {
   readonly onProjectHierarchyChange: unknown;
   readonly projectDataRevision: unknown;
   readonly projectHierarchyRevision: unknown;
+  readonly readOnly: unknown;
 }

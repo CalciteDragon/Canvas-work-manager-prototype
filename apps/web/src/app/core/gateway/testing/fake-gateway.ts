@@ -13,15 +13,21 @@ import { ProjectSchema, type
   ProjectPage,
   ProjectPageId,
   ProjectSection,
+  ResolvedSectionShortcut,
   Reflection,
   ReflectionId,
   SectionId,
+  SectionShortcutId,
+  ShortcutSource,
   SetProjectPageEnabledInput,
   Task,
   TaskId,
   TimelineResult,
   UpdateProjectInput,
   UpdateSectionInput,
+  CreateSectionShortcutInput,
+  MoveSectionShortcutInput,
+  UpdateSectionShortcutInput,
 } from '@cwm/contracts';
 import { GatewayError } from '../gateway-error';
 import type {
@@ -30,6 +36,7 @@ import type {
   ProjectGateway,
   ProjectPageGateway,
   SectionGateway,
+  SectionShortcutGateway,
   TaskGateway,
   WorkManagerGateway,
 } from '../work-manager-gateway';
@@ -45,6 +52,8 @@ export interface FakeGatewayOptions {
   /** §26's pages. Absent, every project answers with the canonical page it must have. */
   pages?: ProjectPage[];
   sections?: ProjectSection[];
+  shortcuts?: ResolvedSectionShortcut[];
+  shortcutSources?: ShortcutSource[];
   tasks?: Task[];
   progress?: ProgressResult;
   timeline?: TimelineResult;
@@ -258,6 +267,37 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     restore: (id) => this.answer('sections.restore', id, restored(this.sectionFor(id))),
   };
 
+  readonly shortcuts: SectionShortcutGateway = {
+    list: (projectId: ProjectId, query = {}) =>
+      this.answer(
+        'shortcuts.list',
+        query.pageId === undefined ? projectId : { projectId, ...query },
+        (this.options.shortcuts ?? []).filter((shortcut) => query.pageId === undefined || shortcut.pageId === query.pageId),
+      ),
+    sources: (projectId: ProjectId, query: { pageId: ProjectPageId }) =>
+      this.answer(
+        'shortcuts.sources',
+        { projectId, ...query },
+        // The query page is the destination Home page, while each source carries its own
+        // canonical page. The fixture is already scoped to the destination project tree, so
+        // filtering it by the source page would silently erase every valid picker option.
+        this.options.shortcutSources ?? [],
+      ),
+    create: (projectId: ProjectId, input: CreateSectionShortcutInput) =>
+      this.answer('shortcuts.create', { projectId, input }, {
+        ...this.shortcutForCreate(projectId, input),
+        id: 'shortcut-created' as SectionShortcutId,
+        pageId: input.pageId,
+        sourceSectionId: input.sourceSectionId,
+        columnSpan: input.columnSpan ?? this.shortcutForCreate(projectId, input).columnSpan,
+      }),
+    update: (id: SectionShortcutId, input: UpdateSectionShortcutInput) =>
+      this.answer('shortcuts.update', { id, input }, { ...this.shortcutFor(id), ...input }),
+    move: (id: SectionShortcutId, input: MoveSectionShortcutInput) =>
+      this.answer('shortcuts.move', { id, input }, { ...this.shortcutFor(id), position: input.position }),
+    remove: (id: SectionShortcutId) => this.answer('shortcuts.remove', id, undefined),
+  };
+
   readonly tasks: TaskGateway = {
     // Honours `sectionId`, because a Task List section now renders only what its own
     // container owns — a fake that ignored it would let a broken scope pass. It honours
@@ -317,6 +357,44 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   private sectionFor(id: SectionId): ProjectSection {
     return this.find(this.options.sections, id, 'section');
+  }
+
+  private shortcutFor(id: SectionShortcutId): ResolvedSectionShortcut {
+    return this.find(this.options.shortcuts, id, 'shortcut');
+  }
+
+  private shortcutForCreate(projectId: ProjectId, input: CreateSectionShortcutInput): ResolvedSectionShortcut {
+    const existing = this.options.shortcuts?.[0];
+    if (existing !== undefined) return existing;
+    const source = this.options.shortcutSources?.find(({ sourceSectionId }) => sourceSectionId === input.sourceSectionId);
+    const now = COMPLETED_AT;
+    return {
+      id: 'shortcut-placeholder' as SectionShortcutId,
+      pageId: input.pageId,
+      sourceSectionId: input.sourceSectionId,
+      position: 0,
+      columnSpan: input.columnSpan ?? 12,
+      collapsed: false,
+      createdAt: now,
+      updatedAt: now,
+      source: {
+        id: input.sourceSectionId,
+        projectId,
+        pageId: source?.pageId ?? `page-${projectId}` as ProjectPageId,
+        type: source?.type ?? 'task-list',
+        position: 0,
+        columnSpan: 12,
+        collapsed: false,
+        config: {},
+        createdAt: now,
+        updatedAt: now,
+      },
+      sourceProjectId: source?.projectId ?? projectId,
+      sourceProjectName: source?.projectName ?? 'Source project',
+      sourcePageKind: source?.pageKind ?? 'work',
+      breadcrumb: source?.breadcrumb ?? ['Source project'],
+      availability: 'available',
+    };
   }
 
   private firstTask(): Task {

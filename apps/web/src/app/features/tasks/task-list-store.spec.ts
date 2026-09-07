@@ -101,6 +101,14 @@ const setup = (options: {
       remove: vi.fn(async () => undefined),
       restore: vi.fn(),
     } as unknown as WorkManagerGateway['sections'],
+    shortcuts: {
+      list: vi.fn(async () => []),
+      sources: vi.fn(async () => []),
+      create: vi.fn(),
+      update: vi.fn(),
+      move: vi.fn(),
+      remove: vi.fn(async () => undefined),
+    } as unknown as WorkManagerGateway['shortcuts'],
     tasks: {
       list: vi.fn(async () => tasks),
       get: vi.fn(async () => tasks[0]!),

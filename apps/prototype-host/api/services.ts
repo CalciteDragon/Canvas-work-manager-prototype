@@ -1,4 +1,4 @@
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SimulatedClock, TaskService, TimelineService, WorkspaceService } from '@cwm/domain';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, SimulatedClock, TaskService, TimelineService, WorkspaceService } from '@cwm/domain';
 import type { AIProvider } from '@cwm/domain';
 import { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
 import { LiveEventHub } from '../events/hub.ts';
@@ -41,7 +41,7 @@ export interface HostServices extends ApiDependencies {
 export const createApi = (persistence: Persistence, options: CreateApiOptions = {}): HostServices => {
   const clock = options.clock ?? new SimulatedClock();
   const ids = new PrototypeIdGenerator();
-  const { store, projects, pages, sections, tasks, milestones, reflections, activities, agents, users } = persistence;
+  const { store, projects, pages, sections, shortcuts, tasks, milestones, reflections, activities, agents, users } = persistence;
 
   // §62. The wrapped unit of work is built **locally** and handed to the services;
   // `persistence.unitOfWork` is left alone, because `PrototypeRuntime`'s seed swap runs
@@ -54,7 +54,8 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
 
   // Built ahead of the table: task and reflection writes resolve their container through
   // it, so it has to exist before they do.
-  const sectionService = new SectionService({ sections, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
 
   return {
     store,
@@ -64,6 +65,7 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
     pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     sections: sectionService,
+    shortcuts: sectionShortcutService,
     progress: new ProgressService({ projects, tasks }),
     timeline: new TimelineService({ projects, tasks, milestones }),
     reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),

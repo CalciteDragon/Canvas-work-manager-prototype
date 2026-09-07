@@ -19,6 +19,17 @@
       >
         Quick add
       </button>
+      @if (shortcutsAllowed()) {
+        <button
+          data-project-add-shortcut
+          type="button"
+          class="project-controls__shortcut"
+          [attr.aria-expanded]="shortcutPickerOpen()"
+          (click)="openShortcutPicker()"
+        >
+          Add shortcut
+        </button>
+      }
     }
     <button
       data-layout-edit-toggle
@@ -46,6 +57,15 @@
       }
     </ul>
   }
+
+  @if (shortcutPickerOpen()) {
+    <app-shortcut-picker
+      [projectId]="projectId()"
+      [pageId]="pageId()"
+      (closed)="closeShortcutPicker()"
+      (added)="shortcutAdded()"
+    />
+  }
 </section>
 
 @if (store.sectionError(); as sectionError) {
@@ -72,7 +92,7 @@
     [cdkDropListDisabled]="!store.editMode()"
     (cdkDropListDropped)="drop($event)"
   >
-    @if (store.sections().length === 0) {
+    @if (store.placements().length === 0) {
       <p data-empty-canvas class="project-canvas__muted">
         @if (store.editMode()) {
           This canvas is empty. Use Quick add to put a section on it.
@@ -81,60 +101,74 @@
         }
       </p>
     } @else {
-      @for (section of store.sections(); track store.canvasRevision() + ':' + section.id) {
+      @for (placement of store.placements(); track store.canvasRevision() + ':' + (placement.kind === 'section' ? placement.section.id : placement.shortcut.id)) {
         <div
-          data-section-item
+          [attr.data-section-item]="placement.kind === 'section' ? '' : null"
+          [attr.data-shortcut-item]="placement.kind === 'shortcut' ? '' : null"
           cdkDrag
           class="section-canvas__item"
-          [attr.data-section-id]="section.id"
-          [cdkDragData]="section.id"
+          [attr.data-section-id]="placement.kind === 'section' ? placement.section.id : null"
+          [attr.data-shortcut-id]="placement.kind === 'shortcut' ? placement.shortcut.id : null"
+          [cdkDragData]="{ kind: placement.kind, id: placement.kind === 'section' ? placement.section.id : placement.shortcut.id }"
           [cdkDragDisabled]="!store.editMode()"
-          [class.section-canvas__item--span-12]="section.columnSpan === 12"
-          [class.section-canvas__item--span-8]="section.columnSpan === 8"
-          [class.section-canvas__item--span-6]="section.columnSpan === 6"
-          [class.section-canvas__item--span-4]="section.columnSpan === 4"
+          [class.section-canvas__item--span-12]="(placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan) === 12"
+          [class.section-canvas__item--span-8]="(placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan) === 8"
+          [class.section-canvas__item--span-6]="(placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan) === 6"
+          [class.section-canvas__item--span-4]="(placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan) === 4"
         >
-          @if (definitionFor(section.type); as definition) {
-            <app-project-section-frame
-              [section]="section"
-              [definition]="definition"
+          @if (placement.kind === 'shortcut') {
+            <app-shortcut-frame
+              [shortcut]="placement.shortcut"
               [editMode]="store.editMode()"
               [projectDataRevision]="store.projectDataRevision()"
               [projectHierarchyRevision]="store.projectHierarchyRevision()"
-              (collapseToggled)="collapse($event)"
-              (resized)="resize($event)"
-              (configChanged)="saveConfig($event)"
-              (renamed)="renameSection($event)"
-              (projectDataChanged)="projectDataChanged()"
-              (projectHierarchyChanged)="projectHierarchyChanged()"
-              (duplicateRequested)="store.duplicateSection($event)"
-              (removeRequested)="store.removeSection($event)"
+              (collapseToggled)="collapseShortcut($event)"
+              (resized)="resizeShortcut($event)"
+              (removeRequested)="removeShortcut($event)"
             />
           } @else {
-            <!-- `data.json` is hand-editable and outlives any one registry, so an unknown
-               type stays in the same sortable list and remains removable in edit mode. -->
-            <section data-unknown-section class="unknown-section">
-              @if (store.editMode()) {
-                <span
-                  data-unknown-section-drag-handle
-                  cdkDragHandle
-                  class="unknown-section__handle"
-                  aria-hidden="true"
-                  >⠿</span
-                >
-              }
-              <h2>Unrecognised section</h2>
-              <p>Nothing in this build knows how to render a “{{ section.type }}” section.</p>
-              @if (store.editMode()) {
-                <button
-                  data-unknown-section-remove
-                  type="button"
-                  (click)="store.removeSection(section.id)"
-                >
-                  Remove it
-                </button>
-              }
-            </section>
+            @if (definitionFor(placement.section.type); as definition) {
+              <app-project-section-frame
+                [section]="placement.section"
+                [definition]="definition"
+                [editMode]="store.editMode()"
+                [projectDataRevision]="store.projectDataRevision()"
+                [projectHierarchyRevision]="store.projectHierarchyRevision()"
+                (collapseToggled)="collapse($event)"
+                (resized)="resize($event)"
+                (configChanged)="saveConfig($event)"
+                (renamed)="renameSection($event)"
+                (projectDataChanged)="projectDataChanged()"
+                (projectHierarchyChanged)="projectHierarchyChanged()"
+                (duplicateRequested)="store.duplicateSection($event)"
+                (removeRequested)="store.removeSection($event)"
+              />
+            } @else {
+              <!-- `data.json` is hand-editable and outlives any one registry, so an unknown
+                 type stays in the same sortable list and remains removable in edit mode. -->
+              <section data-unknown-section class="unknown-section">
+                @if (store.editMode()) {
+                  <span
+                    data-unknown-section-drag-handle
+                    cdkDragHandle
+                    class="unknown-section__handle"
+                    aria-hidden="true"
+                    >⠿</span
+                  >
+                }
+                <h2>Unrecognised section</h2>
+                <p>Nothing in this build knows how to render a “{{ placement.section.type }}” section.</p>
+                @if (store.editMode()) {
+                  <button
+                    data-unknown-section-remove
+                    type="button"
+                    (click)="store.removeSection(placement.section.id)"
+                  >
+                    Remove it
+                  </button>
+                }
+              </section>
+            }
           }
         </div>
       }

@@ -2,13 +2,14 @@ import type {
   ActivityEvent, ActivityEventId, ActivityQuery, AgentConnection, AgentConnectionId, Milestone, MilestoneId,
   MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageQuery, ProjectQuery, ProjectSection,
   PrototypeDocument, Reflection,
-  ReflectionId, ReflectionQuery, SectionId, SectionQuery, Task, TaskId, TaskQuery, User, UserId,
+  ReflectionId, ReflectionQuery, SectionId, SectionQuery, SectionShortcut, SectionShortcutId,
+  SectionShortcutQuery, Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
 import { assertCanMutateDataStore, type DataStore, getActiveDocument } from './data-store';
 import { RepositoryConflictError, RepositoryNotFoundError } from './errors';
 import type {
   ActivityRepository, AgentConnectionRepository, MilestoneRepository, ProjectPageRepository, ProjectRepository,
-  ReflectionRepository, SectionRepository, TaskRepository, UserRepository,
+  ReflectionRepository, SectionRepository, SectionShortcutRepository, TaskRepository, UserRepository,
 } from './interfaces';
 
 type StoredCollection = Exclude<keyof PrototypeDocument, 'schemaVersion' | 'workspaces'>;
@@ -49,10 +50,10 @@ abstract class JsonCollectionRepository<T extends StoredEntity> {
   }
 
   /**
-   * Only sections expose this, and nothing in the domain calls it any more: §31's remove
-   * archives. It is not safe in general either — `validateDocumentIntegrity` resolves every
-   * activity event's target, so deleting anything the feed points at would fail the next
-   * unit of work to close. See `SectionRepository.remove` for why the seam stays.
+   * Sections and shortcut placements expose this. Section removal is no longer used by the
+   * domain because §31 archives; deleting a shortcut is safe because it owns no content or
+   * activity target. Deleting anything else would fail the next integrity check when the feed
+   * resolves its target.
    */
   protected async delete(id: T['id']): Promise<void> {
     assertCanMutateDataStore(this.store);
@@ -153,6 +154,22 @@ export class JsonSectionRepository extends JsonCollectionRepository<ProjectSecti
   override find(id: SectionId): Promise<ProjectSection | null> { return super.find(id); }
 
   remove(id: SectionId): Promise<void> { return this.delete(id); }
+}
+
+export class JsonSectionShortcutRepository
+  extends JsonCollectionRepository<SectionShortcut>
+  implements SectionShortcutRepository
+{
+  constructor(store: DataStore) { super(store, 'sectionShortcuts'); }
+
+  override async list(query: SectionShortcutQuery = {}): Promise<SectionShortcut[]> {
+    const shortcuts = await super.list();
+    return shortcuts.filter((shortcut) => query.pageId === undefined || shortcut.pageId === query.pageId);
+  }
+
+  override find(id: SectionShortcutId): Promise<SectionShortcut | null> { return super.find(id); }
+
+  remove(id: SectionShortcutId): Promise<void> { return this.delete(id); }
 }
 
 export class JsonMilestoneRepository extends JsonCollectionRepository<Milestone> implements MilestoneRepository {

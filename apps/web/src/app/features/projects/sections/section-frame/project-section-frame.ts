@@ -87,6 +87,7 @@ export class ProjectSectionFrame {
     onProjectHierarchyChange: this.emitProjectHierarchyChange,
     projectDataRevision: this.projectDataRevision(),
     projectHierarchyRevision: this.projectHierarchyRevision(),
+    readOnly: false,
   }));
 
   constructor() {

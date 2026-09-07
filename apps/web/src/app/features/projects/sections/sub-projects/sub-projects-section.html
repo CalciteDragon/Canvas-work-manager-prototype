@@ -1,4 +1,4 @@
-<form class="sub-projects__create" (submit)="create($any($event), name)"><label><span>New sub-project</span><input #name type="text" /></label><button type="submit">Create child</button></form>
+@if (!readOnly()) { <form class="sub-projects__create" (submit)="create($any($event), name)"><label><span>New sub-project</span><input #name type="text" /></label><button type="submit">Create child</button></form> }
 @if (store.error(); as error) { <p class="sub-projects__error" role="alert">{{ error }}</p> }
 @if (store.loading()) { <p>Loading sub-projects…</p> }
 @else if (store.projects().length === 0) { <p>No sub-projects yet.</p> }

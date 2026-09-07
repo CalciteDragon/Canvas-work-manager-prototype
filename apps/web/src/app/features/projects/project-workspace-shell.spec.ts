@@ -183,6 +183,18 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     expect(queryAll(harness, '[data-section-canvas]')).toHaveLength(1);
   });
 
+  it('passes the shortcut capability only to a root Home renderer', async () => {
+    const root = await open('/projects/project-renovation/pages/home');
+    const rootShell = root.harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell))
+      .componentInstance as ProjectWorkspaceShell;
+    expect(rootShell.rendererInputs()?.shortcutsAllowed).toBe(true);
+
+    const subproject = await open('/projects/project-kitchen');
+    const subprojectShell = subproject.harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell))
+      .componentInstance as ProjectWorkspaceShell;
+    expect(subprojectShell.rendererInputs()?.shortcutsAllowed).toBe(false);
+  });
+
   // `pages.list(rootId)` never returns a sub-project's `work` record, so a canvas read off the
   // root's pages would show the wrong sections, or none.
   it('scopes a sub-project’s canvas to its own work page', async () => {

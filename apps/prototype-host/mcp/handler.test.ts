@@ -11,6 +11,7 @@ import {
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
+  JsonSectionShortcutRepository,
   JsonTaskRepository,
   JsonUserRepository,
   unitOfWorkFor,
@@ -27,6 +28,7 @@ const inMemoryPersistence = () => {
     projects: new JsonProjectRepository(store),
     pages: new JsonProjectPageRepository(store),
     sections: new JsonSectionRepository(store),
+    shortcuts: new JsonSectionShortcutRepository(store),
     tasks: new JsonTaskRepository(store),
     milestones: new JsonMilestoneRepository(store),
     reflections: new JsonReflectionRepository(store),
@@ -46,6 +48,7 @@ const buildServer = () => {
     tasks: api.tasks,
     reflections: api.reflections,
     sections: api.sections,
+    shortcuts: api.shortcuts,
     dashboard: api.dashboard,
     workspace: api.workspace,
   });

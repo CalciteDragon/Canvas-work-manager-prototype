@@ -35,7 +35,10 @@ const task = (id: string, projectId = 'project-a', sectionId = 'section-tasks'):
     updatedAt: AT,
   });
 
-const render = async (gateway = new FakeWorkManagerGateway({ tasks: [task('task-1'), task('task-2')] })) => {
+const render = async (
+  gateway = new FakeWorkManagerGateway({ tasks: [task('task-1'), task('task-2')] }),
+  readOnly = false,
+) => {
   TestBed.configureTestingModule({
     providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
   });
@@ -47,6 +50,7 @@ const render = async (gateway = new FakeWorkManagerGateway({ tasks: [task('task-
   fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn());
   fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.componentRef.setInput('projectHierarchyRevision', 0);
+  fixture.componentRef.setInput('readOnly', readOnly);
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
@@ -70,6 +74,22 @@ describe('TaskListSection (§30, §66)', () => {
 
     expect(fixture.nativeElement.querySelectorAll('[data-task-row]')).toHaveLength(2);
     expect(query(fixture, '[data-task-complete]')).not.toBeNull();
+  });
+
+  it('renders source rows read-only with no form, drawer, or task drop list', async () => {
+    const { fixture, gateway } = await render(undefined, true);
+
+    expect(fixture.nativeElement.querySelectorAll('[data-task-row]')).toHaveLength(2);
+    expect(query(fixture, '[data-quick-create]')).toBeNull();
+    expect(query(fixture, '[data-task-complete]')).toBeNull();
+    expect(query(fixture, '[data-task-details]')).toBeNull();
+    expect(query(fixture, '[data-task-archive]')).toBeNull();
+    expect(query(fixture, '[data-task-title-editor]')).toBeNull();
+    expect(query(fixture, '#task-list-section-tasks')).toBeNull();
+
+    await fixture.componentInstance.complete('task-1' as TaskId);
+    await fixture.componentInstance.archive('task-1' as TaskId);
+    expect(gateway.calls.filter(({ method }) => method === 'tasks.complete' || method === 'tasks.archive')).toHaveLength(0);
   });
 
   it('quick-creates into the section’s project through the injected store', async () => {

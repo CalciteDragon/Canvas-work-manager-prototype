@@ -84,6 +84,7 @@ const meta: Meta<ProjectCanvas> = {
     pageId: PAGE,
     projectLayoutMode: 'flow',
     restoreBlocked: false,
+    shortcutsAllowed: false,
   },
 };
 

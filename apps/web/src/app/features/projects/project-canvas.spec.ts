@@ -5,9 +5,11 @@ import { provideRouter } from '@angular/router';
 import {
   ProjectSchema,
   ProjectSectionSchema,
+  ResolvedSectionShortcutSchema,
   TaskSchema,
   type Project,
   type ProjectSection,
+  type ResolvedSectionShortcut,
   type Task,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
@@ -68,6 +70,24 @@ const task = (id: string, status: 'todo' | 'done', sectionId = 'section-tasks'):
     updatedAt: AT,
   });
 
+const shortcut = (id: string, position: number, sourceSectionId = 'section-source'): ResolvedSectionShortcut =>
+  ResolvedSectionShortcutSchema.parse({
+    id,
+    pageId: 'page-project-a',
+    sourceSectionId,
+    position,
+    columnSpan: 12,
+    collapsed: false,
+    createdAt: AT,
+    updatedAt: AT,
+    source: section(sourceSectionId, 'task-list', 0, { pageId: 'page-source' }),
+    sourceProjectId: 'project-a',
+    sourceProjectName: 'Website launch',
+    sourcePageKind: 'work',
+    breadcrumb: ['Website launch', 'Source'],
+    availability: 'available',
+  });
+
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
@@ -82,8 +102,10 @@ const render = async (
   options: {
     project?: Project;
     pageId?: string;
+    shortcutsAllowed?: boolean;
     restoreBlocked?: boolean;
     sections?: ProjectSection[];
+    shortcuts?: ResolvedSectionShortcut[];
     tasks?: Task[];
     failWith?: GatewayError;
     failOn?: Record<string, GatewayError>;
@@ -98,6 +120,7 @@ const render = async (
       section('section-tasks', 'task-list', 1),
     ],
     tasks: renderedTasks,
+    shortcuts: options.shortcuts,
     progress: { projectId: renderedProject.id, formula: 'count', percentage: renderedTasks.length === 0 ? null : Math.round(renderedTasks.filter(({ status }) => status === 'done').length / renderedTasks.length * 100), completed: renderedTasks.filter(({ status }) => status === 'done').length, total: renderedTasks.length, explanation: renderedTasks.length === 0 ? 'No tasks to measure' : 'Count based' },
     failWith: options.failWith,
     failOn: options.failOn,
@@ -111,6 +134,7 @@ const render = async (
   fixture.componentRef.setInput('pageId', options.pageId ?? 'page-project-a');
   // The shell owns the project record; the canvas is handed only what it renders with.
   fixture.componentRef.setInput('projectLayoutMode', renderedProject.projectLayoutMode);
+  fixture.componentRef.setInput('shortcutsAllowed', options.shortcutsAllowed ?? false);
   fixture.componentRef.setInput('restoreBlocked', options.restoreBlocked ?? false);
   fixture.detectChanges();
   await fixture.whenStable();
@@ -141,6 +165,18 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     // The two content components, each inside the shared §31 chrome.
     expect(query(fixture, '[data-rich-text-body]')).not.toBeNull();
     expect(query(fixture, '[data-quick-create]')).not.toBeNull();
+  });
+
+  it('renders duplicate source placements as read-only frames without duplicate task drop lists', async () => {
+    const { fixture } = await render({
+      shortcuts: [shortcut('shortcut-a', 2), shortcut('shortcut-b', 3)],
+      tasks: [task('task-source', 'todo', 'section-source')],
+    });
+
+    expect(queryAll(fixture, '[data-shortcut-frame]')).toHaveLength(2);
+    expect(queryAll(fixture, '[data-shortcut-content]')).toHaveLength(2);
+    expect(queryAll(fixture, '#task-list-section-source')).toHaveLength(0);
+    expect(queryAll(fixture, '[data-shortcut-content] [data-task-complete]')).toHaveLength(0);
   });
 
   // Acceptance 3, as a test rather than a claim: §30 says Home and a work canvas take "all
@@ -374,7 +410,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     });
   });
 
-  it('reloads every duplicated Progress section after one changes the canonical formula', async () => {
+  it('reloads every duplicated Progress view after one changes the canonical formula', async () => {
     const { fixture, gateway } = await render({
       tasks: [
         TaskSchema.parse({ ...task('task-1', 'done'), estimate: 2 }),
@@ -396,9 +432,9 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     fixture.detectChanges();
 
     const after = gateway.calls.filter(({ method }) => method === 'progress.get').length;
-    // One canonical setFormula read and one shared section revision read. Duplicate sections
-    // must not add a third — and the header's own recovery read is the shell's now.
-    expect(after - before).toBe(2);
+    // Each Progress view owns a project-keyed store. They still agree on one project, but the
+    // second view performs its own read instead of sharing a canvas-scoped store.
+    expect(after - before).toBe(3);
     expect(progressSections.map((region) =>
       [...region.querySelectorAll<HTMLButtonElement>('button')]
         .find((button) => button.textContent?.trim() === 'Weighted')
@@ -448,6 +484,51 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     fixture.detectChanges();
     enterEditMode(fixture);
     expect(query(fixture, '[data-add-section-menu]')).toBeNull();
+  });
+
+  it('offers Add shortcut only for a root Home while editing', async () => {
+    const root = await render({ shortcutsAllowed: true });
+    expect(query(root.fixture, '[data-project-add-shortcut]')).toBeNull();
+    enterEditMode(root.fixture);
+    expect(query(root.fixture, '[data-project-add-shortcut]')).not.toBeNull();
+
+    TestBed.resetTestingModule();
+    const subproject = await render({
+      project: project({ id: 'project-child', kind: 'subproject', parentProjectId: 'project-parent' }),
+      pageId: 'page-work',
+      sections: [section('section-work', 'rich-text', 0, { projectId: 'project-child', pageId: 'page-work' })],
+    });
+    enterEditMode(subproject.fixture);
+    expect(query(subproject.fixture, '[data-project-add-shortcut]')).toBeNull();
+  });
+
+  it('sends section and shortcut drops as positions in the same combined sequence', async () => {
+    const { fixture, gateway } = await render({
+      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 2)],
+      shortcuts: [shortcut('shortcut-a', 1)],
+      tasks: [task('task-source', 'todo', 'section-source')],
+    });
+    enterEditMode(fixture);
+
+    await fixture.componentInstance.drop({
+      previousIndex: 1,
+      currentIndex: 0,
+      item: { data: { kind: 'shortcut', id: 'shortcut-a' } },
+    } as never);
+    expect(gateway.argumentTo('shortcuts.move')).toEqual({
+      id: 'shortcut-a',
+      input: { position: 0 },
+    });
+
+    await fixture.componentInstance.drop({
+      previousIndex: 0,
+      currentIndex: 2,
+      item: { data: { kind: 'section', id: 'section-text' } },
+    } as never);
+    expect(gateway.argumentTo('sections.move')).toEqual({
+      id: 'section-text',
+      input: { position: 2 },
+    });
   });
 
   it('dispatches a drop by the dragged section id and complete-list index', async () => {

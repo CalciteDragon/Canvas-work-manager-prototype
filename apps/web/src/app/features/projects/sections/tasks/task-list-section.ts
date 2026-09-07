@@ -36,6 +36,7 @@ export class TaskListSection {
   readonly onProjectHierarchyChange = input.required<() => void>();
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
+  readonly readOnly = input(false);
 
   readonly store = inject(TaskListStore);
   /**
@@ -54,9 +55,11 @@ export class TaskListSection {
    * and dropping a task onto the canvas is not an operation.
    */
   readonly connectedDropIds = computed(() =>
-    (this.page?.sections() ?? [])
+    !this.readOnly()
+      ? (this.page?.sections() ?? [])
       .filter((section) => section.type === 'task-list' && section.id !== this.section().id)
-      .map(({ id }) => taskListDropId(id)),
+      .map(({ id }) => taskListDropId(id))
+      : [],
   );
 
   constructor() {
@@ -73,6 +76,7 @@ export class TaskListSection {
    * re-reads on the revision this publishes, so neither store touches the other.
    */
   async dropTask(event: CdkDragDrop<SectionId>): Promise<void> {
+    if (this.readOnly()) return;
     if (event.previousContainer === event.container) return;
     if (await this.store.receive(event.item.data as TaskId, this.section().id)) {
       this.onProjectDataChange()();
@@ -81,6 +85,7 @@ export class TaskListSection {
 
   async quickCreate(event: SubmitEvent, input: HTMLInputElement): Promise<void> {
     event.preventDefault();
+    if (this.readOnly()) return;
     if (await this.store.create(input.value)) {
       input.value = '';
       this.onProjectDataChange()();
@@ -88,18 +93,22 @@ export class TaskListSection {
   }
 
   editTitle(event: { id: TaskId; title: string }): void {
+    if (this.readOnly()) return;
     void this.store.updateTitle(event.id, event.title);
   }
 
   changePriority(event: { id: TaskId; priority: TaskPriority }): void {
+    if (this.readOnly()) return;
     void this.store.updatePriority(event.id, event.priority);
   }
 
   changeDueDate(event: { id: TaskId; dueDate: string }): void {
+    if (this.readOnly()) return;
     void this.store.updateDueDate(event.id, event.dueDate);
   }
 
   async complete(id: TaskId): Promise<void> {
+    if (this.readOnly()) return;
     if (await this.store.complete(id)) this.onProjectDataChange()();
   }
 
@@ -108,10 +117,12 @@ export class TaskListSection {
    * hear about it: the region re-reads on the same data revision every section does.
    */
   async archive(id: TaskId): Promise<void> {
+    if (this.readOnly()) return;
     if (await this.store.archive(id)) this.onProjectDataChange()();
   }
 
   async changeEstimate(event: { id: TaskId; estimate: number | null }): Promise<void> {
+    if (this.readOnly()) return;
     if (await this.store.updateEstimate(event.id, event.estimate)) this.onProjectDataChange()();
   }
 }

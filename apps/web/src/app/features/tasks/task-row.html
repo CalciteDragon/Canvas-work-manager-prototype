@@ -10,15 +10,17 @@
   [class.task-row--archiving]="archiving()"
   [attr.aria-busy]="pending() || archiving()"
 >
-  <input
-    data-task-complete
-    class="task-row__checkbox"
-    type="checkbox"
-    [checked]="completed()"
-    [disabled]="pending() || completed()"
-    [attr.aria-label]="'Complete ' + task().title"
-    (change)="requestCompletion()"
-  />
+  @if (!readOnly()) {
+    <input
+      data-task-complete
+      class="task-row__checkbox"
+      type="checkbox"
+      [checked]="completed()"
+      [disabled]="pending() || completed()"
+      [attr.aria-label]="'Complete ' + task().title"
+      (change)="requestCompletion()"
+    />
+  }
 
   <div class="task-row__body">
     @if (editing()) {
@@ -37,6 +39,8 @@
       @if (titleError(); as error) {
         <span data-title-error class="task-row__error">{{ error }}</span>
       }
+    } @else if (readOnly()) {
+      <span data-task-title class="task-row__title">{{ task().title }}</span>
     } @else {
       <button data-task-title class="task-row__title" type="button" (click)="beginEditing()">
         {{ task().title }}
@@ -54,25 +58,27 @@
     </div>
   </div>
 
-  <button
-    data-task-details
-    class="task-row__details"
-    type="button"
-    [attr.aria-pressed]="selected()"
-    [attr.aria-label]="'Open details for ' + task().title"
-    (click)="selectedRequested.emit(task().id)"
-  >
-    Details
-  </button>
+  @if (!readOnly()) {
+    <button
+      data-task-details
+      class="task-row__details"
+      type="button"
+      [attr.aria-pressed]="selected()"
+      [attr.aria-label]="'Open details for ' + task().title"
+      (click)="selectedRequested.emit(task().id)"
+    >
+      Details
+    </button>
 
-  <button
-    data-task-archive
-    class="task-row__archive"
-    type="button"
-    [disabled]="archiving()"
-    [attr.aria-label]="'Archive ' + task().title"
-    (click)="requestArchive()"
-  >
-    {{ archiving() ? 'Archiving…' : 'Archive' }}
-  </button>
+    <button
+      data-task-archive
+      class="task-row__archive"
+      type="button"
+      [disabled]="archiving()"
+      [attr.aria-label]="'Archive ' + task().title"
+      (click)="requestArchive()"
+    >
+      {{ archiving() ? 'Archiving…' : 'Archive' }}
+    </button>
+  }
 </article>

@@ -122,6 +122,7 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   const workspaces = uniqueMap('workspaces', document.workspaces);
   const projects = uniqueMap('projects', document.projects);
   const sections = uniqueMap('sections', document.sections);
+  const shortcuts = uniqueMap('sectionShortcuts', document.sectionShortcuts);
   const tasks = uniqueMap('tasks', document.tasks);
   const milestones = uniqueMap('milestones', document.milestones);
   const reflections = uniqueMap('reflections', document.reflections);
@@ -208,6 +209,47 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
       fail(`section "${section.id}" is on a ${page.kind} page, which does not hold ${section.type} sections`);
     }
   }
+
+  /** The root-tree boundary a shortcut is allowed to cross (§27). */
+  const rootProjectId = (projectId: string): string => {
+    let current = projects.get(projectId) ?? fail(`project "${projectId}" does not exist`);
+    const seen = new Set<string>();
+    while (current.parentProjectId !== undefined) {
+      if (seen.has(current.id)) fail(`project "${current.id}" is its own ancestor`);
+      seen.add(current.id);
+      current = projects.get(current.parentProjectId) ??
+        fail(`project "${current.id}" has missing parent "${current.parentProjectId}"`);
+    }
+    return current.id;
+  };
+
+  for (const shortcut of shortcuts.values()) {
+    const page = pages.get(shortcut.pageId) ??
+      fail(`section shortcut "${shortcut.id}" has missing page "${shortcut.pageId}"`);
+    const destination = projects.get(page.projectId) ??
+      fail(`page "${page.id}" has missing project "${page.projectId}"`);
+    if (page.kind !== 'home') {
+      fail(`section shortcut "${shortcut.id}" must be placed on a Home page`);
+    }
+    if (destination.kind !== 'root') {
+      fail(`section shortcut "${shortcut.id}" must be placed on a root project's Home`);
+    }
+
+    const source = sections.get(shortcut.sourceSectionId) ??
+      fail(`section shortcut "${shortcut.id}" has missing source section "${shortcut.sourceSectionId}"`);
+    const sourceProject = projects.get(source.projectId) ??
+      fail(`section "${source.id}" has missing project "${source.projectId}"`);
+    if (sourceProject.workspaceId !== destination.workspaceId) {
+      fail(`section shortcut "${shortcut.id}" crosses workspaces`);
+    }
+    if (rootProjectId(sourceProject.id) !== rootProjectId(destination.id)) {
+      fail(`section shortcut "${shortcut.id}" crosses root project trees`);
+    }
+    if (source.pageId === page.id) {
+      fail(`section shortcut "${shortcut.id}" cannot reference a section on its destination page`);
+    }
+  }
+
   for (const milestone of document.milestones) projectFor('milestone', milestone.id, milestone.projectId);
 
   /**

@@ -8,7 +8,6 @@ import { ProgressStore } from './progress-store';
 
 const section = ProjectSectionSchema.parse({ id: 'section-progress', projectId: 'project-a', pageId: 'page-project-a', type: 'progress', position: 0, columnSpan: 12, collapsed: false, config: {}, createdAt: '2026-08-30T07:00:00.000Z', updatedAt: '2026-08-30T07:00:00.000Z' });
 const settle = async () => { for (let index = 0; index < 5; index += 1) await Promise.resolve(); };
-const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>((yes) => { resolve = yes; }); return { promise, resolve }; };
 
 describe('ProgressSection live invalidation', () => {
   it('observes project-data revision only', async () => {
@@ -24,33 +23,61 @@ describe('ProgressSection live invalidation', () => {
     expect(gateway.calls.filter(({ method }) => method === 'progress.get')).toHaveLength(before + 1);
   });
 
-  it('deduplicates one revision across duplicate sections sharing the page store', async () => {
-    const first = deferred<{ projectId: typeof section.projectId; formula: 'count'; percentage: number; completed: number; total: number; explanation: string }>();
-    const second = deferred<{ projectId: typeof section.projectId; formula: 'count'; percentage: number; completed: number; total: number; explanation: string }>();
-    const get = vi.fn().mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
+  it('keeps two Progress views over different projects independent', async () => {
+    const otherSection = ProjectSectionSchema.parse({ ...section, id: 'section-progress-b', projectId: 'project-b', pageId: 'page-project-b' });
+    const get = vi.fn(async (projectId: typeof section.projectId) => ({
+      projectId,
+      formula: 'count' as const,
+      percentage: projectId === section.projectId ? 25 : 75,
+      completed: 1,
+      total: 4,
+      explanation: projectId === section.projectId ? 'first project' : 'second project',
+    }));
     const gateway = new FakeWorkManagerGateway();
     Object.assign(gateway.progress, { get });
     TestBed.configureTestingModule({ providers: [ProgressStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
 
-    const create = () => {
+    const create = (value: typeof section) => {
       const fixture = TestBed.createComponent(ProgressSection);
-      fixture.componentRef.setInput('section', section); fixture.componentRef.setInput('onConfigChange', vi.fn()); fixture.componentRef.setInput('onProjectDataChange', vi.fn()); fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn()); fixture.componentRef.setInput('projectDataRevision', 0); fixture.componentRef.setInput('projectHierarchyRevision', 0);
+      fixture.componentRef.setInput('section', value); fixture.componentRef.setInput('onConfigChange', vi.fn()); fixture.componentRef.setInput('onProjectDataChange', vi.fn()); fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn()); fixture.componentRef.setInput('projectDataRevision', 0); fixture.componentRef.setInput('projectHierarchyRevision', 0);
       fixture.detectChanges();
       return fixture;
     };
-    const firstSection = create();
-    const duplicateSection = create();
-    expect(get).toHaveBeenCalledTimes(1);
-
-    first.resolve({ projectId: section.projectId, formula: 'count', percentage: 25, completed: 1, total: 4, explanation: 'initial' });
+    const firstSection = create(section);
+    const secondSection = create(otherSection);
     await settle();
-    expect(get).toHaveBeenCalledTimes(1);
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(get.mock.calls.map(([projectId]) => projectId)).toEqual([section.projectId, otherSection.projectId]);
 
     firstSection.componentRef.setInput('projectDataRevision', 1); firstSection.detectChanges();
-    duplicateSection.componentRef.setInput('projectDataRevision', 1); duplicateSection.detectChanges();
-    expect(get).toHaveBeenCalledTimes(2);
-    second.resolve({ projectId: section.projectId, formula: 'count', percentage: 50, completed: 2, total: 4, explanation: 'updated' });
     await settle();
-    expect(get).toHaveBeenCalledTimes(2);
+    expect(get).toHaveBeenCalledTimes(3);
+    expect(firstSection.componentInstance.store.result()?.projectId).toBe(section.projectId);
+    expect(secondSection.componentInstance.store.result()?.projectId).toBe(otherSection.projectId);
+    expect(secondSection.componentInstance.store.result()?.percentage).toBe(75);
+  });
+
+  it('keeps the result visible but hides formula controls in read-only mode', async () => {
+    const gateway = new FakeWorkManagerGateway({ progress: { projectId: section.projectId, formula: 'count', percentage: 50, completed: 1, total: 2, explanation: 'half' } });
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+    const fixture = TestBed.createComponent(ProgressSection);
+    fixture.componentRef.setInput('section', section);
+    fixture.componentRef.setInput('onConfigChange', vi.fn());
+    fixture.componentRef.setInput('onProjectDataChange', vi.fn());
+    fixture.componentRef.setInput('onProjectHierarchyChange', vi.fn());
+    fixture.componentRef.setInput('projectDataRevision', 0);
+    fixture.componentRef.setInput('projectHierarchyRevision', 0);
+    fixture.componentRef.setInput('readOnly', true);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await settle();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.progress-section__summary')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.progress-section__controls')).toBeNull();
+    const before = gateway.calls.filter(({ method }) => method === 'projects.update').length;
+    await fixture.componentInstance.choose('weighted');
+    expect(gateway.calls.filter(({ method }) => method === 'projects.update')).toHaveLength(before);
   });
 });

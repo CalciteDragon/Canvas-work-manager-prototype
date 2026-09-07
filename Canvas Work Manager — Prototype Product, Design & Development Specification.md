@@ -1265,7 +1265,12 @@ not an assumption to build in now.
 
 The control that creates one is labelled **Add shortcut**.
 
-*Planned in Slice 25.4. Nothing in the canvas today references a section it does not own.*
+*Landed in Slice 25.4. Home stores sections and shortcut placements in one combined order;
+the resolver returns the source section and project/page identity without rows, and the source
+content is mounted read-only with an **Open source** link. Placement writes require the same-root
+Home and project-write rules; archived source sections show `source_archived`, while a source
+project or ancestor archived beneath it shows `source_hidden`. A disabled source page remains a
+valid source because disabling hides navigation, not data.*
 
 ---
 
@@ -1366,13 +1371,14 @@ page kind declares a capability, and it is not a hand-maintained list of section
 container the page does not accept — a Task List on the Reflections page — is refused by the
 domain, not merely hidden by the UI.
 
-*Landed across Slices 25.1 and 25.2. The coarse answer — does this page hold sections at all —
+*Landed across Slices 25.1, 25.2 and 25.4. The coarse answer — does this page hold sections at all —
 is `pageAcceptsSections`; the narrow one is `pageAcceptsSectionType`, which reads Reflections'
 capability out of `SECTION_OWNERSHIP` rather than naming section types, so a type registered
 later needs no entry. `SectionService` refuses on the way in and `validateDocumentIntegrity`
 refuses at load, because a hand-edited `data.json` (§14) must fail then rather than at whichever
 request first renders it. The pages are reachable now; their renderers arrive with Slices
-25.5–25.7.*
+25.5–25.7. Slice 25.4 adds the Home-only shortcut placement beside the registered types; it
+does not register a Reflections, Todos or Archive page renderer.*
 
 ---
 
@@ -1465,6 +1471,11 @@ that could produce that state — reparenting under an archived project, and rea
 one — are refused too, so the rule cannot strand the work it has just hidden
 ([why](docs/decisions/2026-09-reactivating-under-an-archived-ancestor.md)).*
 
+*Slice 25.4 applies the same visibility distinction to Home shortcuts: an archived source
+section is unavailable in place, and live content whose project or ancestor is archived is
+hidden in place, even though a direct read naming that section can still answer. Reactivating
+the source owner or restoring the source section revives the reference.*
+
 Example:
 
 ```text
@@ -1508,6 +1519,10 @@ reachable through project controls even when its tab is disabled.
 
 Shortcut placements (§27) are layout. Adding and removing one belongs to Edit Layout Mode; the
 source content a placement renders does not become editable there.
+
+*Landed in Slice 25.4: **Add shortcut** and **Remove shortcut** are available only in Edit
+Layout Mode, while collapse, span and the combined CDK order belong to the placement. The
+embedded source stays read-only; removing the placement does not archive its source.*
 
 Angular CDK should be used for reorderable drag/drop interactions rather than implementing pointer sorting from scratch.
 
@@ -2299,7 +2314,10 @@ actor's own workspace and the root tree it asked about.
 descriptions which kind of project takes pages and which pages take which sections.
 `get_project_todos` and `get_project_archive` project pages that have no renderer yet and arrive
 with them in Slices 25.5 and 25.6, along with the read-permission composition described above.
-Shortcut tools are Slice 25.4's and canonical archive/restore tools Slice 25.6's.*
+Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
+`add_section_shortcut` / `remove_section_shortcut` under `projects.write`; the list returns
+placement and source identity only, never source rows. Canonical archive/restore tools remain
+Slice 25.6's.*
 
 ---
 

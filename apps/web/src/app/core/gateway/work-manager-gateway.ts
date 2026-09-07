@@ -11,6 +11,7 @@ import type {
   CreateTaskInput,
   CreateProjectInput,
   CreateReflectionInput,
+  CreateSectionShortcutInput,
   ProgressResult,
   Project,
   ProjectId,
@@ -21,8 +22,14 @@ import type {
   ReflectionId,
   ReflectionQuery,
   MoveSectionInput,
+  MoveSectionShortcutInput,
   SectionId,
   SectionQuery,
+  SectionShortcutId,
+  SectionShortcutQuery,
+  ResolvedSectionShortcut,
+  ShortcutSource,
+  ShortcutSourceQuery,
   SetProjectPageEnabledInput,
   Task,
   TaskId,
@@ -30,6 +37,7 @@ import type {
   TimelineResult,
   UpdateReflectionInput,
   UpdateSectionInput,
+  UpdateSectionShortcutInput,
   UpdateProjectInput,
   UpdateTaskInput,
   RemoveSectionInput,
@@ -153,6 +161,16 @@ export interface SectionGateway {
   restore(id: SectionId): Promise<ProjectSection>;
 }
 
+/** §27's layout-only reference gateway. Sources identify canonical sections; they never carry rows. */
+export interface SectionShortcutGateway {
+  list(projectId: ProjectId, query?: SectionShortcutQuery): Promise<ResolvedSectionShortcut[]>;
+  sources(projectId: ProjectId, query: ShortcutSourceQuery): Promise<ShortcutSource[]>;
+  create(projectId: ProjectId, input: CreateSectionShortcutInput): Promise<ResolvedSectionShortcut>;
+  update(id: SectionShortcutId, input: UpdateSectionShortcutInput): Promise<ResolvedSectionShortcut>;
+  move(id: SectionShortcutId, input: MoveSectionShortcutInput): Promise<ResolvedSectionShortcut>;
+  remove(id: SectionShortcutId): Promise<void>;
+}
+
 /**
  * §53's Settings → AI & Agents. `setPermissions` sends the whole grant rather than a
  * toggle: a permission grid states what the connection may do, and two boxes clicked in
@@ -192,6 +210,7 @@ export interface WorkManagerGateway {
   pages: ProjectPageGateway;
   dashboard: DashboardGateway;
   sections: SectionGateway;
+  shortcuts: SectionShortcutGateway;
   tasks: TaskGateway;
   progress: ProgressGateway;
   timeline: TimelineGateway;

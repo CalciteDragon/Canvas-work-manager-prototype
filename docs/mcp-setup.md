@@ -1,7 +1,8 @@
 # MCP setup
 
-Canvas Work Manager serves the same twenty tools over Streamable HTTP and stdio (§59) —
-§54's fourteen, the four section tools the canvas needs, and §54's two page tools.
+Canvas Work Manager serves the same twenty-three tools over Streamable HTTP and stdio (§59) —
+§54's fourteen, the four section tools the canvas needs, §54's two page tools, and Slice 25.4's
+three shortcut tools.
 Both use the fake local credentials from the `agent-heavy` seed; they have no security value
 and the HTTP host binds only to `127.0.0.1`.
 
@@ -137,6 +138,20 @@ so a call that means one of the two cannot quietly produce the other.
 page keeps its sections and everything referring to them and is simply not navigation.
 `set_project_page_enabled` turns one of a root's optional three on or off, and the first enable
 is what creates it. Home cannot be disabled.
+
+### Home shortcuts
+
+Slice 25.4 adds three placement tools:
+
+- `list_section_shortcuts` (`projects.read`) lists Home placements with source project, page,
+  section and breadcrumb identity, plus availability; it returns no task or reflection rows.
+- `add_section_shortcut` (`projects.write`) places a read-only reference to a source section in
+  the same root tree.
+- `remove_section_shortcut` (`projects.write`) deletes only the placement; the source section and
+  its rows remain.
+
+The source content still uses its own grant. For example, discovering a Task List shortcut does
+not grant `tasks.read`; call `list_tasks` with that permission to read the source rows.
 
 Once a root has more than one canvas, **where a write lands** stops being a single answer, so
 say it:

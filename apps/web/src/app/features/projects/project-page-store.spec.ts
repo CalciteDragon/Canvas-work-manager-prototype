@@ -2,11 +2,13 @@ import { TestBed } from '@angular/core/testing';
 import {
   ProjectSchema,
   ProjectSectionSchema,
+  ResolvedSectionShortcutSchema,
   TaskSchema,
   type Project,
   type ProjectId,
   type ProjectPageId,
   type ProjectSection,
+  type ResolvedSectionShortcut,
   type SectionId,
   type Task,
 } from '@cwm/contracts';
@@ -76,6 +78,32 @@ const task = (id: string, status: 'todo' | 'done' = 'todo'): Task =>
     updatedAt: AT,
   });
 
+const shortcut = (
+  id: string,
+  position: number,
+  overrides: Record<string, unknown> = {},
+): ResolvedSectionShortcut =>
+  ResolvedSectionShortcutSchema.parse({
+    id,
+    pageId: PAGE,
+    sourceSectionId: `source-${id}`,
+    position,
+    columnSpan: 12,
+    collapsed: false,
+    createdAt: AT,
+    updatedAt: AT,
+    source: section(`source-${id}`, 'rich-text', 0, {
+      projectId: 'project-source',
+      pageId: `page-source-${id}`,
+    }),
+    sourceProjectId: 'project-source',
+    sourceProjectName: 'Source project',
+    sourcePageKind: 'work',
+    breadcrumb: ['Website launch', 'Source project'],
+    availability: 'available',
+    ...overrides,
+  });
+
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
@@ -89,10 +117,13 @@ const deferred = <T>() => {
 const setup = (
   options: {
     sections?: ProjectSection[];
+    shortcuts?: ResolvedSectionShortcut[];
     tasks?: Task[];
     projectGet?: WorkManagerGateway['projects']['get'];
     projectUpdate?: WorkManagerGateway['projects']['update'];
     sectionOverrides?: Partial<WorkManagerGateway['sections']>;
+    shortcutList?: WorkManagerGateway['shortcuts']['list'];
+    shortcutOverrides?: Partial<WorkManagerGateway['shortcuts']>;
     taskList?: WorkManagerGateway['tasks']['list'];
   } = {},
 ) => {
@@ -101,6 +132,7 @@ const setup = (
     section('section-text', 'rich-text', 0),
     section('section-tasks', 'task-list', 1),
   ];
+  let shortcuts = options.shortcuts ?? [];
 
   const gateway: WorkManagerGateway = {
     // Slice 11 added `dashboard` to the boundary; nothing on the project page reads it.
@@ -170,6 +202,36 @@ const setup = (
       restore: vi.fn(async (id) => sections.find((item) => item.id === id)!),
       ...options.sectionOverrides,
     },
+    shortcuts: {
+      list:
+        options.shortcutList ??
+        vi.fn(async () => [...shortcuts]),
+      sources: vi.fn(async () => []),
+      create: vi.fn(async (_projectId, input) => {
+        const created = shortcut(`shortcut-${shortcuts.length + 1}`, shortcuts.length, {
+          pageId: input.pageId,
+          sourceSectionId: input.sourceSectionId,
+        });
+        shortcuts = [...shortcuts, created];
+        return created;
+      }),
+      update: vi.fn(async (id, input) => {
+        const current = shortcuts.find((item) => item.id === id)!;
+        const updated = { ...current, ...input };
+        shortcuts = shortcuts.map((item) => (item.id === id ? updated : item));
+        return updated;
+      }),
+      move: vi.fn(async (id, input) => {
+        const current = shortcuts.find((item) => item.id === id)!;
+        const updated = { ...current, position: input.position };
+        shortcuts = shortcuts.map((item) => (item.id === id ? updated : item));
+        return updated;
+      }),
+      remove: vi.fn(async (id) => {
+        shortcuts = shortcuts.filter((item) => item.id !== id);
+      }),
+      ...options.shortcutOverrides,
+    } as WorkManagerGateway['shortcuts'],
     tasks: {
       list:
         options.taskList ??
@@ -212,6 +274,7 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
     readonly onProjectHierarchyChange = undefined;
     readonly projectDataRevision = undefined;
     readonly projectHierarchyRevision = undefined;
+    readonly readOnly = undefined;
   },
   ...overrides,
 });
@@ -229,6 +292,93 @@ describe('ProjectPageStore (§19, §26)', () => {
     // A container owns its rows, so the Task List section reads them; this store does not.
     expect(gateway.tasks.list).not.toHaveBeenCalled();
     expect(store.error()).toBeNull();
+  });
+
+  it('merges sections and shortcuts into one ordered placement list', async () => {
+    const { store } = setup({
+      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 2)],
+      shortcuts: [shortcut('shortcut-a', 1)],
+    });
+
+    await store.load(PROJECT, PAGE);
+
+    expect(store.placements().map((placement) => [placement.kind, placement.kind === 'section' ? placement.section.id : placement.shortcut.id])).toEqual([
+      ['section', 'section-text'],
+      ['shortcut', 'shortcut-a'],
+      ['section', 'section-tasks'],
+    ]);
+  });
+
+  it('renders an empty placement list for a page with neither sections nor shortcuts', async () => {
+    const { store } = setup({ sections: [], shortcuts: [] });
+
+    await store.load(PROJECT, PAGE);
+
+    expect(store.placements()).toEqual([]);
+  });
+
+  it('does not let a late shortcut response from the previous page write into the new page', async () => {
+    const previous = deferred<ResolvedSectionShortcut[]>();
+    const current = deferred<ResolvedSectionShortcut[]>();
+    const other = 'project-b' as ProjectId;
+    const { store } = setup({
+      sectionOverrides: {
+        list: vi.fn(async (projectId: ProjectId) =>
+          projectId === PROJECT
+            ? [section('section-text', 'rich-text', 0)]
+            : [section('section-b', 'rich-text', 0, { projectId: other, pageId: OTHER_PAGE })],
+        ),
+      },
+      shortcutList: vi.fn(async (projectId: ProjectId) => {
+        if (projectId === PROJECT) {
+          await previous.promise;
+          return [shortcut('shortcut-previous', 1)];
+        }
+        await current.promise;
+        return [];
+      }),
+    });
+
+    const oldLoad = store.load(PROJECT, PAGE);
+    const newLoad = store.load(other, OTHER_PAGE);
+    current.resolve([]);
+    await newLoad;
+    previous.resolve([]);
+    await oldLoad;
+
+    expect(store.shortcuts()).toEqual([]);
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-b']);
+  });
+
+  it('keeps a successfully loaded section canvas when the placement read fails, and reports it', async () => {
+    const { store } = setup({
+      shortcutList: vi.fn(async () => {
+        throw new GatewayError('unreachable', 0, 'shortcut read failed');
+      }),
+    });
+
+    await store.load(PROJECT, PAGE);
+
+    expect(store.sections()).toHaveLength(2);
+    expect(store.placements().every((placement) => placement.kind === 'section')).toBe(true);
+    expect(store.sectionError()).toContain('shortcut read failed');
+    expect(store.error()).toBeNull();
+  });
+
+  it('keeps a failed section read loud and paints no placements even when shortcuts answer', async () => {
+    const { store } = setup({
+      sectionOverrides: {
+        list: vi.fn(async () => {
+          throw new GatewayError('not_found', 404, 'canvas read failed');
+        }),
+      },
+      shortcuts: [shortcut('shortcut-a', 0)],
+    });
+
+    await store.load(PROJECT, PAGE);
+
+    expect(store.placements()).toEqual([]);
+    expect(store.error()).toContain('canvas read failed');
   });
 
   it('keeps the rest of the canvas when one container’s rows cannot be read', async () => {
@@ -721,6 +871,140 @@ describe('ProjectPageStore and live updates (§62)', () => {
     // Quiet: the canvas never blinks back to its loading state for someone else's write.
     expect(store.loading()).toBe(false);
     expect(store.error()).toBeNull();
+  });
+
+  it('bumps the data revision for a descendant frame only while the page holds a shortcut', async () => {
+    const withoutShortcut = setup();
+    await withoutShortcut.store.load(PROJECT, PAGE);
+    withoutShortcut.live.emit({
+      type: 'task.updated',
+      entityType: 'task',
+      entityId: 'task-source',
+      projectId: 'project-source' as ProjectId,
+      rootProjectId: PROJECT,
+    });
+    await settleLive();
+    expect(withoutShortcut.store.projectDataRevision()).toBe(0);
+
+    TestBed.resetTestingModule();
+    const withShortcut = setup({ shortcuts: [shortcut('shortcut-a', 0)] });
+    await withShortcut.store.load(PROJECT, PAGE);
+    withShortcut.live.emit({
+      type: 'task.updated',
+      entityType: 'task',
+      entityId: 'task-source',
+      projectId: 'project-source' as ProjectId,
+      rootProjectId: PROJECT,
+    });
+    await settleLive();
+    expect(withShortcut.store.projectDataRevision()).toBe(1);
+  });
+
+  it('re-reads placements, not the section list, for a project frame elsewhere in the root tree', async () => {
+    const { store, gateway, live } = setup({ shortcuts: [shortcut('shortcut-a', 0)] });
+    await store.load(PROJECT, PAGE);
+    const sectionReads = calls(gateway.sections.list);
+    const shortcutReads = calls(gateway.shortcuts.list);
+
+    live.emit({
+      type: 'project.updated',
+      entityType: 'project',
+      entityId: 'project-source',
+      projectId: 'project-source' as ProjectId,
+      rootProjectId: PROJECT,
+    });
+    await settleLive();
+
+    expect(calls(gateway.sections.list)).toBe(sectionReads);
+    expect(calls(gateway.shortcuts.list)).toBe(shortcutReads + 1);
+    expect(store.projectDataRevision()).toBe(1);
+  });
+
+  it('paints a shortcut added by another tab after the destination frame arrives', async () => {
+    const added = shortcut('shortcut-added', 2);
+    const list = vi.fn().mockResolvedValueOnce([]).mockResolvedValue([added]);
+    const { store, live } = setup({ shortcutList: list });
+    await store.load(PROJECT, PAGE);
+
+    live.emit({
+      type: 'project.shortcut_added',
+      entityType: 'project',
+      entityId: PROJECT,
+      projectId: PROJECT,
+      rootProjectId: PROJECT,
+    });
+    await settleLive();
+
+    expect(store.shortcuts().map(({ id }) => id)).toEqual(['shortcut-added']);
+  });
+
+  it('defers a placement refresh that arrives while a shortcut write is in flight', async () => {
+    const create = deferred<ResolvedSectionShortcut>();
+    const { store, gateway, live } = setup({
+      shortcutOverrides: { create: vi.fn(() => create.promise) },
+    });
+    await store.load(PROJECT, PAGE);
+    const sectionReads = calls(gateway.sections.list);
+
+    const add = store.addShortcut({ pageId: PAGE, sourceSectionId: 'section-source' as SectionId });
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await settleLive();
+    expect(calls(gateway.sections.list)).toBe(sectionReads);
+
+    create.resolve(shortcut('shortcut-created', 2));
+    await add;
+    await settleLive();
+    expect(calls(gateway.sections.list)).toBeGreaterThan(sectionReads);
+  });
+
+  it('rolls back a failed placement save and reports the reason', async () => {
+    const { store } = setup({
+      shortcuts: [shortcut('shortcut-a', 1)],
+      shortcutOverrides: {
+        update: vi.fn(async () => {
+          throw new GatewayError('unreachable', 0, 'shortcut update failed');
+        }),
+      },
+    });
+    await store.load(PROJECT, PAGE);
+    const before = store.placements();
+
+    expect(await store.setCollapsedShortcut('shortcut-a' as never, true)).toBe(false);
+
+    expect(store.placements()).toEqual(before);
+    expect(store.sectionError()).toContain('shortcut update failed');
+  });
+
+  it('removes only the placement and leaves the source section collection visible', async () => {
+    const { store } = setup({
+      sections: [section('section-text', 'rich-text', 0)],
+      shortcuts: [shortcut('shortcut-a', 1)],
+    });
+    await store.load(PROJECT, PAGE);
+
+    expect(await store.removeShortcut('shortcut-a' as never)).toBe(true);
+
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-text']);
+    expect(store.shortcuts()).toEqual([]);
+  });
+
+  it('restores the combined order after a rejected section move past a shortcut', async () => {
+    const { store } = setup({
+      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 2)],
+      shortcuts: [shortcut('shortcut-a', 1)],
+      sectionOverrides: {
+        move: vi.fn(async () => {
+          throw new GatewayError('unreachable', 0, 'section move failed');
+        }),
+      },
+    });
+    await store.load(PROJECT, PAGE);
+    const before = store.placements().map((placement) => placement.kind === 'section' ? placement.section.id : placement.shortcut.id);
+
+    expect(await store.moveSection('section-text' as SectionId, 2)).toBe(false);
+
+    expect(store.placements().map((placement) => placement.kind === 'section' ? placement.section.id : placement.shortcut.id)).toEqual(before);
+    expect(store.sectionError()).toContain('section move failed');
   });
 
   it('routes a minimal current-project event by type and entityId and bumps both revisions', async () => {

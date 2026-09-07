@@ -7,6 +7,7 @@ import {
   type Subproject,
   type ProjectSection,
   type Reflection,
+  type SectionShortcut,
   type Task,
   type User, SCHEMA_VERSION, } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
@@ -19,6 +20,7 @@ import {
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
+  JsonSectionShortcutRepository,
   JsonTaskRepository,
   JsonUserRepository,
 } from './json-repositories';
@@ -115,6 +117,16 @@ const section: ProjectSection = PrototypeDocumentSchema.shape.sections.element.p
   createdAt: at,
   updatedAt: at,
 });
+const shortcut: SectionShortcut = PrototypeDocumentSchema.shape.sectionShortcuts.element.parse({
+  id: 'shortcut-1',
+  pageId: 'page-1',
+  sourceSectionId: 'section-1',
+  position: 0,
+  columnSpan: 12,
+  collapsed: false,
+  createdAt: at,
+  updatedAt: at,
+});
 const milestone: Milestone = PrototypeDocumentSchema.shape.milestones.element.parse({
   id: 'milestone-1',
   projectId: 'project-1',
@@ -177,6 +189,12 @@ const crudCases: CrudCase<any>[] = [
     create: (store) => new JsonSectionRepository(store),
     original: section,
     updated: { ...section, title: 'Renamed' },
+  },
+  {
+    name: 'section shortcut',
+    create: (store) => new JsonSectionShortcutRepository(store),
+    original: shortcut,
+    updated: { ...shortcut, collapsed: true },
   },
   {
     name: 'milestone',
@@ -531,5 +549,30 @@ describe('JsonSectionRepository', () => {
     release();
     await operation;
     expect(await repository.find(section.id)).not.toBeNull();
+  });
+});
+
+describe('JsonSectionShortcutRepository', () => {
+  it('filters placements by destination page and keeps find unfiltered', async () => {
+    const repository = new JsonSectionShortcutRepository(new InMemoryDataStore(baseDocument()));
+    const other = PrototypeDocumentSchema.shape.sectionShortcuts.element.parse({
+      ...shortcut,
+      id: 'shortcut-2',
+      pageId: 'page-other',
+    });
+    await repository.insert(shortcut);
+    await repository.insert(other);
+
+    expect(await repository.list({ pageId: shortcut.pageId })).toEqual([shortcut]);
+    expect(await repository.list()).toEqual([shortcut, other]);
+    expect(await repository.find(other.id)).toEqual(other);
+  });
+
+  it('deletes a placement without exposing a content deletion seam', async () => {
+    const repository = new JsonSectionShortcutRepository(new InMemoryDataStore(baseDocument()));
+    await repository.insert(shortcut);
+    await repository.remove(shortcut.id);
+
+    expect(await repository.find(shortcut.id)).toBeNull();
   });
 });

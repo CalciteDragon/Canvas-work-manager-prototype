@@ -3,7 +3,9 @@ import {
   type AgentConnectionId,
   type AgentPermission,
   type ProjectId,
+  type ProjectPageId,
   type SectionId,
+  type SectionShortcutId,
   type TaskId,
   type UserId,
   type WorkspaceId,
@@ -17,6 +19,7 @@ import {
   PrototypeClock,
   ReflectionService,
   SectionService,
+  SectionShortcutService,
   TaskService,
   WorkspaceService,
   type ActorContext,
@@ -32,6 +35,7 @@ import {
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
+  JsonSectionShortcutRepository,
   JsonTaskRepository,
   JsonUserRepository,
   unitOfWorkFor,
@@ -67,6 +71,11 @@ export const OPEN_TASK = 'task-agent-schema' as TaskId;
 /** The task list that owns `PROJECT`'s work, and a view beside it that owns nothing. */
 export const TASK_CONTAINER = 'section-project-work-manager-tasks' as SectionId;
 export const VIEW_SECTION = 'section-project-work-manager-activity' as SectionId;
+export const SHORTCUT_DESTINATION_PAGE = 'page-project-work-manager' as ProjectPageId;
+export const SHORTCUT_SOURCE_PROJECT = 'project-agent-kitchen' as ProjectId;
+export const SHORTCUT_SOURCE_PAGE = 'page-project-agent-kitchen' as ProjectPageId;
+export const SHORTCUT_SOURCE_SECTION = 'section-project-agent-kitchen-tasks' as SectionId;
+export const SEEDED_SHORTCUT = 'shortcut-project-agent-kitchen' as SectionShortcutId;
 
 /**
  * A project in **another persona's** workspace.
@@ -105,6 +114,56 @@ export const buildHarness = () => {
     }),
   );
 
+  document.projects.push(
+    PrototypeDocumentSchema.shape.projects.element.parse({
+      id: SHORTCUT_SOURCE_PROJECT,
+      workspaceId: PERSONAS[0]!.workspace.id,
+      kind: 'subproject',
+      parentProjectId: PROJECT,
+      name: 'Kitchen',
+      status: 'active',
+      projectLayoutMode: 'flow',
+      createdAt: '2026-08-01T16:00:00.000Z',
+      updatedAt: '2026-08-01T16:00:00.000Z',
+    }),
+  );
+  document.projectPages.push(
+    PrototypeDocumentSchema.shape.projectPages.element.parse({
+      id: SHORTCUT_SOURCE_PAGE,
+      projectId: SHORTCUT_SOURCE_PROJECT,
+      kind: 'work',
+      enabled: true,
+      createdAt: '2026-08-01T16:00:00.000Z',
+      updatedAt: '2026-08-01T16:00:00.000Z',
+    }),
+  );
+  document.sections.push(
+    PrototypeDocumentSchema.shape.sections.element.parse({
+      id: SHORTCUT_SOURCE_SECTION,
+      projectId: SHORTCUT_SOURCE_PROJECT,
+      pageId: SHORTCUT_SOURCE_PAGE,
+      type: 'task-list',
+      position: 0,
+      columnSpan: 12,
+      collapsed: false,
+      config: {},
+      createdAt: '2026-08-01T16:00:00.000Z',
+      updatedAt: '2026-08-01T16:00:00.000Z',
+    }),
+  );
+  document.sectionShortcuts.push(
+    PrototypeDocumentSchema.shape.sectionShortcuts.element.parse({
+      id: SEEDED_SHORTCUT,
+      pageId: SHORTCUT_DESTINATION_PAGE,
+      sourceSectionId: SHORTCUT_SOURCE_SECTION,
+      position: 3,
+      columnSpan: 12,
+      collapsed: false,
+      createdAt: '2026-08-01T16:00:00.000Z',
+      updatedAt: '2026-08-01T16:00:00.000Z',
+    }),
+  );
+
   const store = new CountingDataStore(PrototypeDocumentSchema.parse(document));
   const clock = new PrototypeClock(new Date(SEED_NOW));
   const ids = new CountingIdGenerator();
@@ -114,6 +173,7 @@ export const buildHarness = () => {
   const tasks = new JsonTaskRepository(store);
   const reflections = new JsonReflectionRepository(store);
   const sections = new JsonSectionRepository(store);
+  const shortcuts = new JsonSectionShortcutRepository(store);
   const activities = new JsonActivityRepository(store);
   const agents = new JsonAgentConnectionRepository(store);
   const users = new JsonUserRepository(store);
@@ -130,10 +190,12 @@ export const buildHarness = () => {
     ids,
   });
 
-  const sectionService = new SectionService({ sections, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
 
   const services = {
     sections: sectionService,
+    shortcuts: sectionShortcutService,
     projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
     pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
