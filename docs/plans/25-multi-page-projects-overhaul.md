@@ -1,6 +1,6 @@
 # Multi-page projects overhaul — dependency-aware implementation roadmap
 
-**Status:** 25.0–25.3 done; 25.4 onward not started. This is a multi-phase roadmap, not authorization to implement every phase in one change. Before each phase, re-read its touched code and write its bounded implementation plan under the AGENTS.md protocol, including iterative review and red/green tests.
+**Status:** 25.0–25.4 done; 25.5 onward not started. This is a multi-phase roadmap, not authorization to implement every phase in one change. Before each phase, re-read its touched code and write its bounded implementation plan under the AGENTS.md protocol, including iterative review and red/green tests.
 
 **Resolved in 25.0** (user, 2026-09-04 — recorded in [docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md](../decisions/2026-09-project-workspaces-and-subproject-work-units.md)): the data cutover uses a bounded v2→v3 converter rather than a disposable reset; Archive means hidden from ordinary surfaces plus a whole-tree Archive page, with **Open archive** in project controls when the tab is disabled; Todos carries root tasks plus every descendant subproject and task, due date ascending with undated last and deterministic ties, retaining completed and cancelled rows. The two "clarification pending" rows in the table below are therefore settled as proposed.
 
@@ -137,6 +137,8 @@ Paths are repository-relative. Files marked **new** do not exist yet. For each l
 **Done when:** Home shows a Task List from a nested subproject and Reflections container from another root page; source edits appear live; source row counts remain unchanged; Open source and unavailable states work. Until another root page is released, test cross-page sources using valid fixtures without exposing an unfinished renderer.
 
 ### 25.5 — Chronological Todos page
+
+**Implementation plan:** [25.5-chronological-todos.md](25.5-chronological-todos.md) — reviewed and ready; implementation not started.
 
 **Depends on:** 25.3 and 25.0's order/scope decision. **Spec:** §33–34, §38, §45, §52, §62.
 

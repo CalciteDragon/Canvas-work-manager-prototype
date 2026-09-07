@@ -2,8 +2,8 @@
 // inferred types — and resolves by its package specifier, the way every consumer
 // (Angular, the host, MCP tools, seeds) will import it.
 import { describe, expect, it } from 'vitest';
-import { SCHEMA_VERSION, TaskSchema, TaskStatusSchema } from '@cwm/contracts';
-import type { Task, TaskStatus } from '@cwm/contracts';
+import { ProjectTodosResultSchema, SCHEMA_VERSION, TaskSchema, TaskStatusSchema } from '@cwm/contracts';
+import type { ProjectTodosResult, Task, TaskStatus } from '@cwm/contracts';
 
 describe('@cwm/contracts entrypoint', () => {
   it('exports runtime schemas', () => {
@@ -21,5 +21,13 @@ describe('@cwm/contracts entrypoint', () => {
     const status: TaskStatus = task.status;
     expect(TaskStatusSchema.options).toContain(status);
     expect(SCHEMA_VERSION).toBeGreaterThan(0);
+  });
+
+  // §34's projection is shared by the page, the HTTP route and `get_project_todos`, so it
+  // travels through the same entrypoint as the records it carries.
+  it('exports the Todos projection', () => {
+    const empty: ProjectTodosResult = ProjectTodosResultSchema.parse({ projectId: 'project-a', items: [] });
+
+    expect(empty.items).toEqual([]);
   });
 });
