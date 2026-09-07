@@ -1,4 +1,4 @@
-import { ProjectIdSchema, SetProjectPageEnabledInputSchema } from '@cwm/contracts';
+import { ProjectTodosQuerySchema, SetProjectPageEnabledInputSchema, ProjectIdSchema } from '@cwm/contracts';
 import { z } from 'zod';
 import { defineTool, type WorkManagerTool } from '../tool';
 
@@ -6,11 +6,13 @@ import { defineTool, type WorkManagerTool } from '../tool';
  * §54's page surface: *"Pages get their own small surface — listing a root's pages, toggling an
  * optional one, and querying the derived Todos and Archive projections."*
  *
- * Two of the four here. `get_project_todos` and `get_project_archive` are projections of rows
- * that do not exist as pages yet, and each needs the read-permission composition §54 describes
+ * Three of the four here. `get_project_archive` is a projection of rows that has no page yet and
+ * arrives with it in Slice 25.6.
+ *
+ * `get_project_todos` is the first tool that needs the read-permission composition §54 describes
  * — "a derived page that combines categories requires the grant for each category it returns,
- * and denies rather than returning a partial answer" — so they arrive with the pages they
- * project, in Slices 25.5 and 25.6.
+ * and denies rather than returning a partial answer" — so it declares `tasks.read` beside
+ * `projects.read` and the domain refuses outright without either.
  *
  * They live in their own file rather than in `projects.ts` because the capability distinction is
  * the point: a page is a property of a **root**, and a sub-project has none. An agent reading
@@ -36,5 +38,14 @@ export const projectPageTools: readonly WorkManagerTool[] = [
     permission: 'projects.write',
     inputSchema: SetProjectPageEnabledInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.pages.setEnabled(actor, projectId, input),
+  }),
+  defineTool({
+    name: 'get_project_todos',
+    description:
+      'The chronology of everything under one root project: its own tasks plus every descendant unit of work and every descendant task, ordered by due date, undated last, ties broken by kind then id. A unit of work’s date-only due date sorts at the end of that UTC day. Rows keep their status and stay on the list once finished — done and cancelled alike — while archived rows, archived containers and anything beneath an archived project are excluded. Each row carries the canonical project, page and container that owns it, so completing it there and completing it here are the same operation. Reading it needs both projects.read and tasks.read, and is refused rather than answered in part; it neither creates the Todos page nor depends on it being switched on.',
+    permission: 'projects.read',
+    additionalPermissions: ['tasks.read'],
+    inputSchema: ProjectTodosQuerySchema,
+    execute: ({ projectId }, { actor, services }) => services.todos.derive(actor, projectId),
   }),
 ];

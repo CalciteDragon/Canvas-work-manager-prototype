@@ -9,6 +9,7 @@ const registryFor = (api: ReturnType<typeof createApi>): ToolRegistry =>
   createToolRegistry({
     projects: api.projects,
     pages: api.pages,
+    todos: api.todos,
     tasks: api.tasks,
     reflections: api.reflections,
     sections: api.sections,

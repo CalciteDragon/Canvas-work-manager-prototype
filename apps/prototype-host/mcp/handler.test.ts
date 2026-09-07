@@ -1,6 +1,6 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { PrototypeDocumentSchema } from '@cwm/contracts';
-import { createToolRegistry, SPEC_TOOL_NAMES } from '@cwm/mcp-tools';
+import { ProjectTodosResultSchema, PrototypeDocumentSchema } from '@cwm/contracts';
+import { createToolRegistry, requiredPermissions, SPEC_TOOL_NAMES } from '@cwm/mcp-tools';
 import { buildSeed } from '@cwm/prototype-data';
 import {
   InMemoryDataStore,
@@ -18,7 +18,7 @@ import {
 } from '@cwm/repositories';
 import { describe, expect, it, vi } from 'vitest';
 import { createApi } from '../api/services.ts';
-import { createAuthenticatedMcpHandler, REQUIRED_PERMISSION_META_KEY } from './handler.ts';
+import { createAuthenticatedMcpHandler, REQUIRED_PERMISSION_META_KEY, REQUIRED_PERMISSIONS_META_KEY } from './handler.ts';
 
 const inMemoryPersistence = () => {
   const store = new InMemoryDataStore(PrototypeDocumentSchema.parse(buildSeed('agent-heavy')));
@@ -45,6 +45,7 @@ const buildServer = () => {
   const registry = createToolRegistry({
     projects: api.projects,
     pages: api.pages,
+    todos: api.todos,
     tasks: api.tasks,
     reflections: api.reflections,
     sections: api.sections,
@@ -85,10 +86,43 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
         expect(listed.tools[index]).toMatchObject({
           name: tool.name,
           description: tool.description,
-          _meta: { [REQUIRED_PERMISSION_META_KEY]: tool.permission },
+          _meta: {
+            [REQUIRED_PERMISSION_META_KEY]: tool.permission,
+            [REQUIRED_PERMISSIONS_META_KEY]: requiredPermissions(tool),
+          },
         });
         expect(listed.tools[index]?.inputSchema).toMatchObject({ type: 'object' });
       }
+    } finally {
+      await client.close();
+      await handler.close();
+    }
+  });
+
+  /**
+   * §54's derived page over the transport: the shared result travels intact, and the tool that
+   * needs two grants says so in its metadata rather than only inside the domain.
+   */
+  it('publishes both of the Todos tool’s grants and returns the shared projection', async () => {
+    const { client, handler } = await build();
+
+    try {
+      const listed = await client.listTools();
+      const todos = listed.tools.find(({ name }) => name === 'get_project_todos');
+      expect(todos?._meta).toMatchObject({
+        [REQUIRED_PERMISSION_META_KEY]: 'projects.read',
+        [REQUIRED_PERMISSIONS_META_KEY]: ['projects.read', 'tasks.read'],
+      });
+
+      const result = await client.callTool({
+        name: 'get_project_todos',
+        arguments: { projectId: 'project-work-manager' },
+      });
+
+      expect(result.isError).not.toBe(true);
+      const parsed = ProjectTodosResultSchema.parse(result.structuredContent);
+      expect(parsed.projectId).toBe('project-work-manager');
+      expect(parsed.items.length).toBeGreaterThan(0);
     } finally {
       await client.close();
       await handler.close();

@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
 import { getDefaultEnvironment, StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import { ProjectTodosResultSchema } from '@cwm/contracts';
+import { SPEC_TOOL_NAMES } from '@cwm/mcp-tools';
 import { writeSeedFile } from '@cwm/prototype-data';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApi } from '../api/services.ts';
@@ -43,6 +45,21 @@ describe('MCP stdio entry (§59)', () => {
       expect(client.getProtocolEra()).toBe('modern');
       const before = await client.callTool({ name: 'list_tasks', arguments: { projectId: 'project-work-manager' } });
       expect(before.isError).not.toBe(true);
+
+      // §54's derived page, over the other transport: discovered with both of its grants, and
+      // answering the same shared result the HTTP handler does.
+      const listed = await client.listTools();
+      expect(listed.tools.map(({ name }) => name)).toEqual(SPEC_TOOL_NAMES);
+      expect(listed.tools.find(({ name }) => name === 'get_project_todos')?._meta).toMatchObject({
+        'local.canvas-work-manager/requiredPermission': 'projects.read',
+        'local.canvas-work-manager/requiredPermissions': ['projects.read', 'tasks.read'],
+      });
+      const todos = await client.callTool({
+        name: 'get_project_todos',
+        arguments: { projectId: 'project-work-manager' },
+      });
+      expect(todos.isError).not.toBe(true);
+      expect(ProjectTodosResultSchema.parse(todos.structuredContent).projectId).toBe('project-work-manager');
 
       const external = createApi(await loadPersistence(path));
       await external.agents.revoke(

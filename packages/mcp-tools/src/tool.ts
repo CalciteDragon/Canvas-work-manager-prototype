@@ -4,6 +4,7 @@ import type {
   DashboardService,
   ProjectPageService,
   ProjectService,
+  ProjectTodosService,
   ReflectionService,
   SectionService,
   SectionShortcutService,
@@ -24,6 +25,8 @@ export interface WorkManagerServices {
   projects: ProjectService;
   /** §26's pages: which a root has, and which of the optional three are switched on. */
   pages: ProjectPageService;
+  /** §34's chronology across a root's whole tree. A read of two categories, never an owner. */
+  todos: ProjectTodosService;
   tasks: TaskService;
   reflections: ReflectionService;
   /** §31's frame affordances, and the containers that own tasks and reflections. */
@@ -59,9 +62,28 @@ export interface WorkManagerTool<TSchema extends ZodType = ZodType> {
   description: string;
   /** The grant this tool needs. Declared here for `tools/list`; **enforced in the domain**. */
   permission: AgentPermission;
+  /**
+   * The **other** grants this tool needs, for the derived pages §54 describes: *"a derived page
+   * that combines categories requires the grant for each category it returns, and denies rather
+   * than returning a partial answer."*
+   *
+   * Optional and additive rather than a replacement for `permission`, so every existing tool,
+   * its metadata and its transport payload are unchanged. `requiredPermissions` below is what
+   * discovery and the contract suite read — nothing should assemble the list a second time.
+   */
+  additionalPermissions?: readonly AgentPermission[];
   inputSchema: TSchema;
   execute(input: z.output<TSchema>, context: ToolContext): Promise<unknown>;
 }
+
+/**
+ * Every grant a tool needs, declared first and in a stable order. Still only a *declaration*:
+ * `assertPermitted` inside the domain service remains the one enforcement (§53).
+ */
+export const requiredPermissions = (tool: WorkManagerTool): readonly AgentPermission[] => [
+  tool.permission,
+  ...(tool.additionalPermissions ?? []),
+];
 
 /** Keeps each tool's `execute` typed against its own schema while the registry holds a flat list. */
 export const defineTool = <TSchema extends ZodType>(tool: WorkManagerTool<TSchema>): WorkManagerTool =>

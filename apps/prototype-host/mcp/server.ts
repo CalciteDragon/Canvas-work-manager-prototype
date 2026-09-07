@@ -1,9 +1,19 @@
 import type { ActorContext } from '@cwm/domain';
-import type { ToolRegistry } from '@cwm/mcp-tools';
+import { requiredPermissions, type ToolRegistry } from '@cwm/mcp-tools';
 import { McpServer } from '@modelcontextprotocol/server';
 
 /** Reverse-DNS-style local vendor metadata, per the 2026-07-28 MetaObject guidance. */
 export const REQUIRED_PERMISSION_META_KEY = 'local.canvas-work-manager/requiredPermission';
+
+/**
+ * The **complete** grant list, beside the singular key rather than instead of it.
+ *
+ * §54's derived pages need more than one grant, and a client reading only `requiredPermission`
+ * would be told half the answer. The singular key stays exactly as it was — it is published
+ * metadata, and every tool that needs one grant still says so there — so a client written
+ * against the old key keeps working and a client that understands this one is never surprised.
+ */
+export const REQUIRED_PERMISSIONS_META_KEY = 'local.canvas-work-manager/requiredPermissions';
 
 export interface McpInvocation {
   actor: ActorContext;
@@ -31,7 +41,10 @@ export const createWorkManagerMcpServer = (
       {
         description: tool.description,
         inputSchema: tool.inputSchema,
-        _meta: { [REQUIRED_PERMISSION_META_KEY]: tool.permission },
+        _meta: {
+          [REQUIRED_PERMISSION_META_KEY]: tool.permission,
+          [REQUIRED_PERMISSIONS_META_KEY]: requiredPermissions(tool),
+        },
       },
       async (input) => {
         const { registry, actor } = await resolveInvocation();

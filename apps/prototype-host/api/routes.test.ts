@@ -1,5 +1,5 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
@@ -106,6 +106,7 @@ const routesFor = (store: DataStore): RouteTable => {
     shortcuts: sectionShortcutService,
     progress: new ProgressService({ projects, tasks }),
     timeline: new TimelineService({ projects, tasks, milestones }),
+    todos: new ProjectTodosService({ projects, tasks, sections, pages }),
     reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     agents: connections,
@@ -951,5 +952,82 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
       (await call(routes, 'GET', `/api/projects/${root.id}/sections?pageId=${encodeURIComponent(foreignPageId)}`))
         .status,
     ).toBe(404);
+  });
+});
+
+/**
+ * §34 over HTTP. The order and the exclusions are the domain's, and asserted there against a
+ * far larger fixture; what this covers is the route — its scope, its shared body, and §54's
+ * requirement that a derived page hold both grants and deny rather than answer partially.
+ */
+describe('Todos projection route (§34, §54)', () => {
+  const scenario = async (routes: RouteTable) => {
+    const unit = ProjectSchema.parse(
+      (await call(routes, 'POST', '/api/projects', { body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'subproject', parentProjectId: MINE, name: 'Kitchen', targetDate: '2026-09-01' } })).body,
+    );
+    // Deliberately out of chronological order, so the answer cannot be insertion order.
+    await newTask(routes, { title: 'Later', dueAt: '2026-09-05T12:00:00.000Z' });
+    await newTask(routes, { title: 'Earlier', dueAt: '2026-09-01T09:00:00.000Z' });
+    await newTask(routes, { title: 'Undated' });
+    await call(routes, 'POST', '/api/tasks', { body: { projectId: unit.id, title: 'Nested', dueAt: '2026-09-01T23:59:59.999Z' } });
+    return unit;
+  };
+
+  it('answers the shared result in §34’s order', async () => {
+    const routes = buildRoutes();
+    const unit = await scenario(routes);
+
+    const response = await call(routes, 'GET', `/api/projects/${MINE}/todos`);
+
+    expect(response.status).toBe(200);
+    const result = ProjectTodosResultSchema.parse(response.body);
+    expect(result.projectId).toBe(MINE);
+    expect(result.items.map((item) => [item.kind, item.kind === 'task' ? item.task.title : item.project.name])).toEqual([
+      ['task', 'Earlier'],
+      ['subproject', 'Kitchen'],
+      ['task', 'Nested'],
+      ['task', 'Later'],
+      ['task', 'Undated'],
+    ]);
+    // The origin carries the canonical owner, not the page the reader happens to be on.
+    const nested = result.items.find((item) => item.kind === 'task' && item.task.title === 'Nested');
+    expect(nested?.kind === 'task' && nested.origin.projectId).toBe(unit.id);
+    expect(nested?.kind === 'task' && nested.origin.pageKind).toBe('work');
+  });
+
+  it('cannot be pointed at another root from the query string', async () => {
+    const routes = buildRoutes();
+    await scenario(routes);
+
+    const widened = await call(routes, 'GET', `/api/projects/${MINE}/todos?projectId=${THEIRS}`);
+
+    expect(widened.status).toBe(200);
+    expect(ProjectTodosResultSchema.parse(widened.body).projectId).toBe(MINE);
+  });
+
+  it('is not found for another workspace’s root, and a conflict for a unit of work', async () => {
+    const routes = buildRoutes();
+    const unit = await scenario(routes);
+
+    expect((await call(routes, 'GET', `/api/projects/${THEIRS}/todos`)).status).toBe(404);
+    expect((await call(routes, 'GET', '/api/projects/project-nowhere/todos')).status).toBe(404);
+    expect((await call(routes, 'GET', `/api/projects/${unit.id}/todos`)).status).toBe(409);
+  });
+
+  it('denies a connection missing either grant, naming the one it lacks', async () => {
+    const routes = buildAgentRoutes();
+    const READONLY = 'prototype-user-a-readonly';
+    expect((await call(routes, 'GET', '/api/projects/project-work-manager/todos', { token: READONLY })).status).toBe(200);
+
+    await call(routes, 'PATCH', '/api/agent-connections/agent-cursor', { user: 'user-demo', body: { permissions: ['projects.read'] } });
+    const withoutTasks = await call(routes, 'GET', '/api/projects/project-work-manager/todos', { token: READONLY });
+
+    await call(routes, 'PATCH', '/api/agent-connections/agent-cursor', { user: 'user-demo', body: { permissions: ['tasks.read'] } });
+    const withoutProjects = await call(routes, 'GET', '/api/projects/project-work-manager/todos', { token: READONLY });
+
+    expect(withoutTasks.status).toBe(403);
+    expect(withoutTasks.body).toMatchObject({ message: expect.stringContaining('tasks.read') });
+    expect(withoutProjects.status).toBe(403);
+    expect(withoutProjects.body).toMatchObject({ message: expect.stringContaining('projects.read') });
   });
 });

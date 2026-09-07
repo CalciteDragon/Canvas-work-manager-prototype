@@ -2,21 +2,22 @@ import { AgentPermissionSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { SPEC_TOOL_NAMES } from './index';
-import { agent, buildHarness, FOREIGN_PROJECT, PROJECT } from '../test/harness';
+import { requiredPermissions } from './tool';
+import { agent, buildHarness, FOREIGN_PROJECT, OPEN_TASK, PROJECT } from '../test/harness';
 
 const registry = buildHarness().registry;
 
 describe('the tool registry', () => {
-  it('registers exactly the twenty-three tools the spec and the canvas ask for', () => {
+  it('registers exactly the twenty-four tools the spec and the canvas ask for', () => {
     const registered = registry.list().map(({ name }) => name);
 
     // Both directions: a missing tool and an extra one are different defects, and a
     // subset assertion would catch only the first.
     expect([...registered].sort()).toEqual([...SPEC_TOOL_NAMES].sort());
-    // §54's fourteen, plus the four section tools, two page tools and three shortcut tools.
-    // §54 names two more page tools — `get_project_todos` and `get_project_archive` — which
-    // project pages that do not exist yet and arrive with them in Slices 25.5 and 25.6.
-    expect(registered).toHaveLength(23);
+    // §54's fourteen, plus the four section tools, three page tools and three shortcut tools.
+    // §54 names one more page tool — `get_project_archive` — which projects a page that does
+    // not exist yet and arrives with it in Slice 25.6.
+    expect(registered).toHaveLength(24);
     // The sorted comparison above catches membership; this catches a shortcut tool being
     // spread in a different position from the declared registry order.
     expect(registered).toEqual([...SPEC_TOOL_NAMES]);
@@ -31,9 +32,14 @@ describe('the tool registry', () => {
     }
   });
 
-  it('declares only permissions that exist', () => {
+  it('declares only permissions that exist, additional grants included', () => {
     for (const tool of registry.list()) {
-      expect(AgentPermissionSchema.safeParse(tool.permission).success, tool.name).toBe(true);
+      for (const permission of requiredPermissions(tool)) {
+        expect(AgentPermissionSchema.safeParse(permission).success, tool.name).toBe(true);
+      }
+      // A tool that named the same grant twice would make `tools/list` say something the
+      // permission model does not.
+      expect(new Set(requiredPermissions(tool)).size, tool.name).toBe(requiredPermissions(tool).length);
     }
   });
 
@@ -122,5 +128,54 @@ describe('the tool registry', () => {
         agent(['projects.write']),
       ),
     ).rejects.toThrow(/required and cannot be disabled/);
+  });
+});
+
+/**
+ * §34's promise that "completing one there and completing it here are the same operation",
+ * checked from the agent's side: Todos is a read, and the write is the canonical tool with the
+ * canonical grant. Reading the chronology buys no ability to change it.
+ */
+describe('completing work an agent found on Todos (§34, §53)', () => {
+  const READ_ONLY = ['projects.read', 'tasks.read'] as const;
+
+  it('lets a read-only agent see the chronology and refuses both completions', async () => {
+    const harness = buildHarness();
+    const unit = (await harness.registry.call(
+      'create_project',
+      { kind: 'subproject', parentProjectId: PROJECT, name: 'A unit of work' },
+      agent(['projects.write']),
+    )) as { id: string; status: string };
+
+    const before = (await harness.registry.call('get_project_todos', { projectId: PROJECT }, agent([...READ_ONLY]))) as {
+      items: { kind: string; task?: { id: string; status: string } }[];
+    };
+    expect(before.items.some((item) => item.kind === 'task' && item.task?.id === OPEN_TASK)).toBe(true);
+
+    await expect(
+      harness.registry.call('complete_task', { taskId: OPEN_TASK }, agent([...READ_ONLY])),
+    ).rejects.toThrow(/tasks\.write/);
+    await expect(
+      harness.registry.call('update_project', { projectId: unit.id, status: 'completed' }, agent([...READ_ONLY])),
+    ).rejects.toThrow(/projects\.write/);
+
+    // Unchanged canonical records, read back through the canonical tools.
+    expect(((await harness.registry.call('get_task', { taskId: OPEN_TASK }, agent(['tasks.read']))) as { status: string }).status).toBe('todo');
+    expect(((await harness.registry.call('get_project', { projectId: unit.id }, agent(['projects.read']))) as { status: string }).status).toBe(unit.status);
+  });
+
+  it('shows the canonical completion on the next read of the chronology', async () => {
+    const harness = buildHarness();
+
+    await harness.registry.call('complete_task', { taskId: OPEN_TASK }, agent(['tasks.write']));
+
+    const after = (await harness.registry.call('get_project_todos', { projectId: PROJECT }, agent([...READ_ONLY]))) as {
+      items: { kind: string; task?: { id: string; status: string; completedAt?: string } }[];
+    };
+    const row = after.items.find((item) => item.kind === 'task' && item.task?.id === OPEN_TASK);
+
+    // Still on the list, and carrying the canonical timestamp rather than leaving it (§34).
+    expect(row?.task?.status).toBe('done');
+    expect(row?.task?.completedAt).toBeDefined();
   });
 });

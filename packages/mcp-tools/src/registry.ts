@@ -23,6 +23,7 @@ export const SPEC_TOOL_NAMES = [
   'update_project',
   'list_project_pages',
   'set_project_page_enabled',
+  'get_project_todos',
   'list_tasks',
   'get_task',
   'create_task',

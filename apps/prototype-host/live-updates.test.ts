@@ -142,7 +142,8 @@ describe('live updates through the host (§62)', () => {
     const { api, frames } = await harness();
     const registry = createToolRegistry({
       projects: api.projects,
-    pages: api.pages,
+      pages: api.pages,
+      todos: api.todos,
       tasks: api.tasks,
       reflections: api.reflections,
       sections: api.sections,

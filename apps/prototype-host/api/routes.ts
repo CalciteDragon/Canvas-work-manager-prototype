@@ -30,7 +30,7 @@ import {
   UpdateSectionShortcutInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveIdentityUser } from './context.ts';
 import type { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
@@ -47,6 +47,8 @@ export interface ApiDependencies {
   activity: ActivityService;
   progress: ProgressService;
   timeline: TimelineService;
+  /** §34's chronology. Its own service because it reads two categories and grants both (§54). */
+  todos: ProjectTodosService;
   reflections: ReflectionService;
   dashboard: DashboardService;
   agents: AgentConnectionService;
@@ -106,7 +108,7 @@ const shortcutPageQuery = (query: URLSearchParams): Record<string, unknown> => (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, reflections, dashboard, agents, authenticator } =
+  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, reflections, dashboard, agents, authenticator } =
     dependencies;
   // Async now: an agent request has to resolve its token against the live connection
   // before the handler runs, because that read is what carries the permission set (§51).
@@ -181,6 +183,11 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
 
     'GET /api/projects/:id/timeline': async (request) =>
       ok(await timeline.derive(await actorFor(request), projectId(request))),
+
+    // §34's Todos. The root is the path and nothing else: a projection that could be widened
+    // from the query string would be a second way to say which tree it is about.
+    'GET /api/projects/:id/todos': async (request) =>
+      ok(await todos.derive(await actorFor(request), projectId(request))),
 
     'GET /api/reflections': async (request) => {
       // A reflections section renders what it owns, so the list narrows to one container

@@ -1,5 +1,6 @@
 import { AgentPermissionSchema, type AgentPermission } from '@cwm/contracts';
 import { PermissionDeniedError } from '@cwm/domain';
+import { requiredPermissions } from './tool';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   agent,
@@ -9,6 +10,7 @@ import {
   PROJECT,
   SEEDED_SHORTCUT,
   SHORTCUT_DESTINATION_PAGE,
+  SHORTCUT_SOURCE_PROJECT,
   SHORTCUT_SOURCE_SECTION,
   TASK_CONTAINER,
   VIEW_SECTION,
@@ -220,6 +222,19 @@ const CASES: Record<string, ToolCase> = {
       expect(result.overdue.map((task: { id: string }) => task.id)).toContain('task-agent-triage');
     },
   },
+  get_project_todos: {
+    input: { projectId: PROJECT },
+    verify: (result) => {
+      expect(result.projectId).toBe(PROJECT);
+      // The seeded root's own work, plus the unit of work the harness hangs beneath it.
+      const ids = result.items.map((item: any) => (item.kind === 'task' ? item.task.id : item.project.id));
+      expect(ids).toContain(OPEN_TASK);
+      expect(ids).toContain(SHORTCUT_SOURCE_PROJECT);
+      // A projection, not a second owner: every row appears once, however many shortcut
+      // placements point at the container holding it.
+      expect(new Set(ids).size).toBe(ids.length);
+    },
+  },
   get_dashboard_context: {
     input: {},
     verify: (result) => {
@@ -260,8 +275,10 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
        * whose service happened to assert a second permission would pass both halves. This
        * is the assertion that would have caught `search_workspace` needing three grants.
        */
-      it(`succeeds with ${tool.permission} alone`, async () => {
-        const result = await harness.registry.call(tool.name, testCase.input, agent([tool.permission]));
+      const required = requiredPermissions(tool);
+
+      it(`succeeds with ${required.join(' + ')} alone`, async () => {
+        const result = await harness.registry.call(tool.name, testCase.input, agent([...required]));
 
         await testCase.verify(result, harness);
       });
@@ -269,23 +286,30 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
       it(testCase.mutates === true ? 'persists its change' : 'writes nothing', async () => {
         const before = harness.store.persistCalls;
 
-        await harness.registry.call(tool.name, testCase.input, agent([tool.permission]));
+        await harness.registry.call(tool.name, testCase.input, agent([...required]));
 
         expect(harness.store.persistCalls > before).toBe(testCase.mutates === true);
       });
 
-      it(`is denied without ${tool.permission}, however much else the connection holds`, async () => {
-        const grant = ALL_PERMISSIONS.filter((permission) => permission !== tool.permission) as AgentPermission[];
+      /**
+       * **Each** declared grant, one at a time. A tool that needs two of them — §54's derived
+       * pages — has to be refused for either missing one, and refused *outright*: the store
+       * assertion below is what says it did not answer with the half it was allowed to read.
+       */
+      for (const permission of required) {
+        it(`is denied without ${permission}, however much else the connection holds`, async () => {
+          const grant = ALL_PERMISSIONS.filter((candidate) => candidate !== permission) as AgentPermission[];
 
-        await expect(harness.registry.call(tool.name, testCase.input, agent(grant))).rejects.toThrow(
-          expect.objectContaining({
-            name: 'PermissionDeniedError',
-            permission: tool.permission,
-            connectionId: 'agent-claude',
-          }),
-        );
-        expect(harness.store.persistCalls).toBe(0);
-      });
+          await expect(harness.registry.call(tool.name, testCase.input, agent(grant))).rejects.toThrow(
+            expect.objectContaining({
+              name: 'PermissionDeniedError',
+              permission,
+              connectionId: 'agent-claude',
+            }),
+          );
+          expect(harness.store.persistCalls).toBe(0);
+        });
+      }
     });
   }
 
