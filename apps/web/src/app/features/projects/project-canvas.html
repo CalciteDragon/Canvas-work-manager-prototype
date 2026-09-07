@@ -68,6 +68,14 @@
   }
 </section>
 
+@if (targetMissing()) {
+  <!-- A link to a container that is not on this canvas: the page is still the right page, so
+     this explains rather than redirecting or scrolling somewhere arbitrary. -->
+  <p data-section-target-missing class="project-canvas__muted" role="status">
+    The container this link points at is not on this page any more.
+  </p>
+}
+
 @if (store.sectionError(); as sectionError) {
   <p data-section-error class="project-canvas__error" role="alert">{{ sectionError }}</p>
 }
@@ -103,6 +111,7 @@
     } @else {
       @for (placement of store.placements(); track store.canvasRevision() + ':' + (placement.kind === 'section' ? placement.section.id : placement.shortcut.id)) {
         <div
+          [attr.id]="placement.kind === 'section' ? 'section-' + placement.section.id : null"
           [attr.data-section-item]="placement.kind === 'section' ? '' : null"
           [attr.data-shortcut-item]="placement.kind === 'shortcut' ? '' : null"
           cdkDrag
@@ -131,6 +140,7 @@
               <app-project-section-frame
                 [section]="placement.section"
                 [definition]="definition"
+                [transientlyExpanded]="transientTargetId() === placement.section.id"
                 [editMode]="store.editMode()"
                 [projectDataRevision]="store.projectDataRevision()"
                 [projectHierarchyRevision]="store.projectHierarchyRevision()"

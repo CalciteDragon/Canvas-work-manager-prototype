@@ -295,4 +295,46 @@ describe('ProjectSectionFrame (§31)', () => {
     expect(query(fixture, '[data-section-inspector]')).toBeNull();
     expect(query(fixture, '[data-section-config]')!.getAttribute('aria-expanded')).toBe('false');
   });
+
+  /**
+   * §34's Todos links land on a container that may be collapsed. Opening it is a property of the
+   * visit, not a layout change, so the canonical record the content store is given must still say
+   * `collapsed: true` while everything the reader sees says otherwise.
+   */
+  it('opens a collapsed section for one visit without changing the record it renders', () => {
+    const fixture = render({ collapsed: true }, {}, false);
+    expect(query(fixture, '[data-section-content]')).toBeNull();
+
+    fixture.componentRef.setInput('transientlyExpanded', true);
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-section-content]')).not.toBeNull();
+    expect(query(fixture, '[data-section-collapse]')!.getAttribute('aria-expanded')).toBe('true');
+    expect(query(fixture, '[data-section-collapse]')!.getAttribute('aria-label')).toBe('Collapse Test Content');
+    expect(query(fixture, '[data-section-frame]')!.classList.contains('section-frame--collapsed')).toBe(false);
+    // The canonical section is untouched: this is chrome, not a write.
+    expect(fixture.componentInstance.section().collapsed).toBe(true);
+  });
+
+  it('reads collapse intent off what the reader can see', () => {
+    const fixture = render({ collapsed: true }, {}, false);
+    fixture.componentRef.setInput('transientlyExpanded', true);
+    fixture.detectChanges();
+    const seen: unknown[] = [];
+    fixture.componentInstance.collapseToggled.subscribe((event) => seen.push(event));
+
+    query(fixture, '[data-section-collapse]')!.click();
+
+    // Collapse, not "expand again": the section is open on screen.
+    expect(seen).toEqual([{ id: 'section-a', collapsed: true }]);
+  });
+
+  it('leaves an ordinary frame exactly as it was, and offers a heading a canvas can focus', () => {
+    const fixture = render({ collapsed: true }, {}, false);
+
+    expect(query(fixture, '[data-section-content]')).toBeNull();
+    expect(query(fixture, '[data-section-collapse]')!.getAttribute('aria-expanded')).toBe('false');
+    // Focusable programmatically, and out of the tab order: only a canvas arrival focuses it.
+    expect(query(fixture, '[data-section-title]')!.getAttribute('tabindex')).toBe('-1');
+  });
 });

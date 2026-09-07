@@ -3,7 +3,7 @@
   class="section-frame"
   [attr.data-section-type]="section().type"
   [attr.data-column-span]="section().columnSpan"
-  [class.section-frame--collapsed]="section().collapsed"
+  [class.section-frame--collapsed]="effectiveCollapsed()"
   [attr.aria-labelledby]="'section-title-' + section().id"
 >
   <header class="section-frame__header">
@@ -17,14 +17,21 @@
       data-section-collapse
       class="section-frame__collapse"
       type="button"
-      [attr.aria-expanded]="!section().collapsed"
-      [attr.aria-label]="(section().collapsed ? 'Expand ' : 'Collapse ') + name()"
+      [attr.aria-expanded]="!effectiveCollapsed()"
+      [attr.aria-label]="(effectiveCollapsed() ? 'Expand ' : 'Collapse ') + name()"
       (click)="toggleCollapsed()"
     >
-      {{ section().collapsed ? 'â–¸' : 'â–¾' }}
+      {{ effectiveCollapsed() ? 'â–¸' : 'â–¾' }}
     </button>
 
-    <h2 [id]="'section-title-' + section().id" class="section-frame__title">
+    <!-- `tabindex="-1"` so a canvas that was navigated to a container can put the reader at its
+       heading. It is not in the tab order: only a script focuses it. -->
+    <h2
+      data-section-title
+      tabindex="-1"
+      [id]="'section-title-' + section().id"
+      class="section-frame__title"
+    >
       <span class="section-frame__icon" aria-hidden="true">{{ definition().icon }}</span>
       {{ name() }}
     </h2>
@@ -97,7 +104,7 @@
     </div>
   }
 
-  @if (!section().collapsed) {
+  @if (!effectiveCollapsed()) {
     <div data-section-content class="section-frame__content">
       <ng-container
         [ngComponentOutlet]="definition().component"

@@ -11,6 +11,7 @@ import {
   TaskSchema,
   type Project,
   type ProjectPage,
+  type ProjectTodosResult,
   type ProjectSection,
   type Task,
 } from '@cwm/contracts';
@@ -97,6 +98,8 @@ const defaults = () => ({
 
 type Options = Partial<ReturnType<typeof defaults>> & {
   failOn?: Record<string, GatewayError>;
+  /** §34's chronology, as the query would answer it. The shell only routes to it. */
+  todos?: ProjectTodosResult;
 };
 
 const open = async (url: string, options: Options = {}) => {
@@ -223,14 +226,14 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
   it.each([
     [
       'an enabled kind this build cannot draw',
-      '/projects/project-renovation/pages/todos',
-      [page('page-renovation-home', 'project-renovation', 'home'), page('page-renovation-todos', 'project-renovation', 'todos')],
+      '/projects/project-renovation/pages/archive',
+      [page('page-renovation-home', 'project-renovation', 'home'), page('page-renovation-archive', 'project-renovation', 'archive')],
       'not built yet',
     ],
     [
       'a disabled kind',
-      '/projects/project-renovation/pages/archive',
-      [page('page-renovation-home', 'project-renovation', 'home'), page('page-renovation-archive', 'project-renovation', 'archive', false)],
+      '/projects/project-renovation/pages/todos',
+      [page('page-renovation-home', 'project-renovation', 'home'), page('page-renovation-todos', 'project-renovation', 'todos', false)],
       'switched off',
     ],
     [
@@ -285,19 +288,19 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
     const { harness, router } = await open('/projects/project-renovation/pages/home', {
       pages: [
         page('page-renovation-home', 'project-renovation', 'home'),
-        // A second root that *does* have Todos enabled — so the page the user asks for is real,
-        // and only a resolution against the stale project could refuse it.
+        // A second root that *does* have Archive enabled — so the page the user asks for is
+        // real, and only a resolution against the stale project could refuse it.
         page('page-loft-home', 'project-loft', 'home'),
-        page('page-loft-todos', 'project-loft', 'todos'),
+        page('page-loft-archive', 'project-loft', 'archive'),
         page('page-kitchen-work', 'project-kitchen', 'work'),
       ],
       projects: [RENOVATION, project('project-loft', 'Loft conversion'), KITCHEN, CABINETS, GARDEN],
     });
 
-    await harness.navigateByUrl('/projects/project-loft/pages/todos');
+    await harness.navigateByUrl('/projects/project-loft/pages/archive');
     await settle(harness);
 
-    // Todos has no renderer yet, so this must fall back — but to *Loft's* Home, never to the
+    // Archive has no renderer yet, so this must fall back — but to *Loft's* Home, never to the
     // project the user was standing on.
     expect(router.url).toBe('/projects/project-loft/pages/home');
     expect(query(harness, '[data-project-name]')?.textContent).toContain('Loft conversion');
@@ -484,5 +487,104 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     await settle(harness);
 
     expect(gateway.calls.filter(({ method }) => method === 'progress.get').length).toBeGreaterThan(before);
+  });
+});
+
+/** §34's chronology for the renovation root: one root task and one unit of work. */
+const todoResult = (): ProjectTodosResult => ({
+  projectId: RENOVATION.id,
+  items: [
+    {
+      kind: 'task',
+      task: task('task-1', 'project-renovation'),
+      origin: {
+        projectId: RENOVATION.id,
+        pageId: page('page-renovation-home', 'project-renovation', 'home').id,
+        pageKind: 'home',
+        breadcrumb: [{ projectId: RENOVATION.id, name: RENOVATION.name }],
+        sectionId: 'section-tasks' as ProjectSection['id'],
+        sectionName: 'Task List',
+      },
+    },
+    {
+      kind: 'subproject',
+      project: KITCHEN as Extract<ProjectTodosResult['items'][number], { kind: 'subproject' }>['project'],
+      origin: {
+        projectId: KITCHEN.id,
+        pageId: page('page-kitchen-work', 'project-kitchen', 'work').id,
+        pageKind: 'work',
+        breadcrumb: [
+          { projectId: RENOVATION.id, name: RENOVATION.name },
+          { projectId: KITCHEN.id, name: KITCHEN.name },
+        ],
+      },
+    },
+  ],
+});
+
+const withTodos = (): Options => ({
+  pages: [...defaults().pages, page('page-renovation-todos', 'project-renovation', 'todos')],
+  todos: todoResult(),
+});
+
+describe('ProjectWorkspaceShell — the Todos page (§34, §68)', () => {
+  it('advertises Todos, opens it, and renders the chronology instead of a canvas', async () => {
+    const { harness, gateway } = await open('/projects/project-renovation/pages/todos', withTodos());
+
+    expect(queryAll(harness, '[data-project-page-tab]').map((tab) => tab.dataset['pageKind'])).toEqual(['home', 'todos']);
+    expect(queryAll(harness, '[data-todo-row]').map((row) => row.getAttribute('data-todo-id'))).toEqual([
+      'task-1',
+      'project-kitchen',
+    ]);
+    // A projection, not a canvas: no sections are read for this page at all.
+    expect(query(harness, '[data-section-canvas]')).toBeNull();
+    expect(gateway.calls.filter(({ method }) => method === 'todos.get').map(({ argument }) => argument)).toEqual([
+      'project-renovation',
+    ]);
+  });
+
+  it('re-reads the chronology when the shell moves to another root, and back', async () => {
+    const { harness, gateway } = await open('/projects/project-renovation/pages/todos', {
+      ...withTodos(),
+      projects: [RENOVATION, project('project-loft', 'Loft conversion'), KITCHEN, CABINETS, GARDEN],
+      pages: [
+        ...defaults().pages,
+        page('page-renovation-todos', 'project-renovation', 'todos'),
+        page('page-loft-home', 'project-loft', 'home'),
+        page('page-loft-todos', 'project-loft', 'todos'),
+      ],
+    });
+
+    await harness.navigateByUrl('/projects/project-loft/pages/todos');
+    await settle(harness);
+
+    expect(gateway.calls.filter(({ method }) => method === 'todos.get').map(({ argument }) => argument)).toEqual([
+      'project-renovation',
+      'project-loft',
+    ]);
+    // The other root's chronology, not this one's: the fake answers by root, and an empty list
+    // is the honest answer for a root it was given no rows for.
+    expect(queryAll(harness, '[data-todo-row]')).toEqual([]);
+    expect(query(harness, '[data-todos-empty]')).not.toBeNull();
+  });
+
+  it('gives a unit of work its work canvas for a /pages/todos URL', async () => {
+    const { harness, router } = await open('/projects/project-kitchen/pages/todos', withTodos());
+
+    expect(router.url).toBe('/projects/project-kitchen');
+    expect(query(harness, '[data-page-notice]')?.textContent).toContain('unit of work');
+    expect(query(harness, '[data-section-canvas]')).not.toBeNull();
+    expect(query(harness, '[data-todos-list]')).toBeNull();
+  });
+
+  it('tells the shell to re-read progress when a row is completed on Todos', async () => {
+    const { harness, gateway } = await open('/projects/project-renovation/pages/todos', withTodos());
+    const progressReads = gateway.calls.filter(({ method }) => method === 'progress.get').length;
+
+    (query(harness, '[data-todo-complete]') as HTMLButtonElement).click();
+    await settle(harness);
+
+    expect(gateway.calls.some(({ method }) => method === 'tasks.complete')).toBe(true);
+    expect(gateway.calls.filter(({ method }) => method === 'progress.get').length).toBeGreaterThan(progressReads);
   });
 });

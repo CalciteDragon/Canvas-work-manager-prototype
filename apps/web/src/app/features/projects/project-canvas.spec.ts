@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { CdkDrag } from '@angular/cdk/drag-drop';
 import { By } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, provideRouter } from '@angular/router';
 import {
   ProjectSchema,
   ProjectSectionSchema,
@@ -12,6 +12,7 @@ import {
   type ResolvedSectionShortcut,
   type Task,
 } from '@cwm/contracts';
+import { BehaviorSubject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { GatewayError } from '../../core/gateway/gateway-error';
@@ -109,6 +110,10 @@ const render = async (
     tasks?: Task[];
     failWith?: GatewayError;
     failOn?: Record<string, GatewayError>;
+    /** The route fragment this canvas was opened with, driveable during the test. */
+    fragment?: BehaviorSubject<string | null>;
+    /** Holds the section read open, so "the target has not loaded yet" is a real state. */
+    sectionsGate?: ReturnType<typeof deferred<void>>;
   } = {},
 ) => {
   const renderedProject = options.project ?? project();
@@ -126,8 +131,21 @@ const render = async (
     failOn: options.failOn,
   });
 
+  if (options.sectionsGate !== undefined) {
+    const list = gateway.sections.list.bind(gateway.sections);
+    gateway.sections.list = (projectId, query) => options.sectionsGate!.promise.then(() => list(projectId, query));
+  }
+
   TestBed.configureTestingModule({
-    providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }, provideRouter([])],
+    providers: [
+      { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+      provideRouter([]),
+      // After `provideRouter`, so the canvas reads the fragment a test drives rather than the
+      // empty one a router with no navigation reports.
+      ...(options.fragment === undefined
+        ? []
+        : [{ provide: ActivatedRoute, useValue: { fragment: options.fragment.asObservable() } }]),
+    ],
   });
   const fixture = TestBed.createComponent(ProjectCanvas);
   fixture.componentRef.setInput('projectId', renderedProject.id);
@@ -137,8 +155,12 @@ const render = async (
   fixture.componentRef.setInput('shortcutsAllowed', options.shortcutsAllowed ?? false);
   fixture.componentRef.setInput('restoreBlocked', options.restoreBlocked ?? false);
   fixture.detectChanges();
-  await fixture.whenStable();
-  fixture.detectChanges();
+  // A gated read is deliberately still in flight, so waiting for stability here would hang:
+  // that test resolves the gate itself and waits then.
+  if (options.sectionsGate === undefined) {
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
   return { fixture, gateway };
 };
 
@@ -683,5 +705,80 @@ describe('ProjectCanvas — Archived (§31, §32)', () => {
 
     expect(queryAll(fixture, '[data-section-frame]')).toHaveLength(2);
     expect(query(fixture, '[data-archived-region]')).toBeNull();
+  });
+});
+
+/**
+ * §34's Todos rows link to the container that owns them, so a canvas has to be able to arrive at
+ * one: `/projects/:id/pages/home#section-<id>`. The router's global anchor scrolling cannot do
+ * this — the app scrolls its own region, and the section may not have loaded, or may be collapsed.
+ */
+describe('ProjectCanvas — arriving at a container (§27, §34)', () => {
+  const frameFor = (fixture: Awaited<ReturnType<typeof render>>['fixture'], id: string) =>
+    queryAll(fixture, '[data-section-item]').find((item) => item.dataset['sectionId'] === id)!;
+
+  it('waits for the section to load, then focuses its heading', async () => {
+    const sectionsGate = deferred<void>();
+    const { fixture } = await render({ fragment: new BehaviorSubject<string | null>('section-section-tasks'), sectionsGate });
+    // Nothing to focus yet, and nothing claimed to be missing while the read is in flight.
+    expect(query(fixture, '[data-section-target-missing]')).toBeNull();
+
+    sectionsGate.resolve();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const heading = frameFor(fixture, 'section-tasks').querySelector('[data-section-title]');
+    expect(document.activeElement).toBe(heading);
+    expect(frameFor(fixture, 'section-tasks').getAttribute('id')).toBe('section-section-tasks');
+  });
+
+  it('opens a collapsed target for the visit, and writes nothing to get there', async () => {
+    const { fixture, gateway } = await render({
+      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1, { collapsed: true })],
+      fragment: new BehaviorSubject<string | null>('section-section-tasks'),
+    });
+
+    const frame = frameFor(fixture, 'section-tasks');
+    expect(frame.querySelector('[data-section-content]')).not.toBeNull();
+    expect(frame.querySelector('[data-section-collapse]')!.getAttribute('aria-expanded')).toBe('true');
+    // Arrival is a read: no layout was persisted to open it.
+    expect(gateway.calls.some(({ method }) => method === 'sections.update')).toBe(false);
+  });
+
+  it('releases the transient open state when the reader collapses that container', async () => {
+    const { fixture, gateway } = await render({
+      sections: [section('section-tasks', 'task-list', 0, { collapsed: true })],
+      fragment: new BehaviorSubject<string | null>('section-section-tasks'),
+    });
+
+    (frameFor(fixture, 'section-tasks').querySelector('[data-section-collapse]') as HTMLElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(frameFor(fixture, 'section-tasks').querySelector('[data-section-content]')).toBeNull();
+    // The ordinary canonical operation, not a second collapse mechanism.
+    expect(gateway.calls.some(({ method }) => method === 'sections.update')).toBe(true);
+  });
+
+  it('follows a second target and forgets the first', async () => {
+    const fragment = new BehaviorSubject<string | null>('section-section-tasks');
+    const { fixture } = await render({ fragment });
+
+    fragment.next('section-section-text');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(document.activeElement).toBe(frameFor(fixture, 'section-text').querySelector('[data-section-title]'));
+  });
+
+  it('leaves the canvas usable when the fragment names nothing on this page', async () => {
+    for (const fragment of ['section-section-gone', 'section-"]:not(*)', 'notes']) {
+      TestBed.resetTestingModule();
+      const { fixture } = await render({ fragment: new BehaviorSubject<string | null>(fragment) });
+
+      // Every section still rendered; only a fragment that *looks* like a target says anything.
+      expect(queryAll(fixture, '[data-section-frame]')).toHaveLength(2);
+      expect(query(fixture, '[data-section-target-missing]') === null).toBe(!fragment.startsWith('section-'));
+    }
   });
 });

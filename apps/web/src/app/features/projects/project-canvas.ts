@@ -3,12 +3,17 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
   inject,
   input,
   signal,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import type {
   ProjectId,
   ProjectLayoutMode,
@@ -88,6 +93,39 @@ export class ProjectCanvas {
   readonly shortcutStore = inject(ShortcutStore);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly settings = inject(PrototypeSettings);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+  /**
+   * §34's Todos links arrive at a container, not just at a page. The canvas handles the fragment
+   * itself rather than through the router's global anchor scrolling, because the app scrolls its
+   * own region and a canvas is loaded asynchronously — a scroll attempted at navigation time
+   * lands before the section exists.
+   */
+  private readonly fragment = toSignal(inject(ActivatedRoute).fragment, { initialValue: null });
+  /** Set when the reader collapses the very section this visit opened for them. */
+  private readonly releasedTarget = signal<SectionId | null>(null);
+  private lastTargetKey: string | null = null;
+
+  /**
+   * The container this visit is aimed at — **only** once this page's own sections have loaded and
+   * one of them is it. A fragment naming something else is never turned into a selector.
+   */
+  readonly targetSectionId = computed<SectionId | null>(() => {
+    const requested = requestedSectionId(this.fragment());
+    if (requested === null) return null;
+    return this.store.sections().some(({ id }) => id === requested) ? requested : null;
+  });
+
+  /** A fragment this page cannot honour. The canvas stays entirely usable; it just says so. */
+  readonly targetMissing = computed(
+    () => requestedSectionId(this.fragment()) !== null && !this.store.loading() && this.targetSectionId() === null,
+  );
+
+  /** The transient open state handed to one frame: released as soon as the reader collapses it. */
+  readonly transientTargetId = computed<SectionId | null>(() => {
+    const target = this.targetSectionId();
+    return target === null || target === this.releasedTarget() ? null : target;
+  });
 
   /**
    * §28's mode, gated by §47's `gridProjectLayout`. The project keeps whatever it has
@@ -109,6 +147,40 @@ export class ProjectCanvas {
       this.shortcutPickerOpen.set(false);
       void this.store.load(projectId, pageId);
     });
+    this.watchNavigationTarget();
+  }
+
+  /**
+   * Arrival: expand the target for this visit, put the reader at its heading, and scroll it into
+   * view. Registered from an effect so it waits for the data, and run after the next render so it
+   * waits for the DOM — the frame has to have drawn its content before the heading can be focused.
+   *
+   * `lastTargetKey` is what stops it running twice for one arrival, and what makes a *new* target
+   * or a page change a fresh arrival rather than a repeat of the old one.
+   */
+  private watchNavigationTarget(): void {
+    effect(() => {
+      const pageId = this.pageId();
+      const target = this.targetSectionId();
+      const key = target === null ? null : `${pageId}:${target}`;
+      if (key === this.lastTargetKey) return;
+      this.lastTargetKey = key;
+      // A new target — or none — starts with no release: the previous one belonged to a
+      // container the reader has navigated away from.
+      this.releasedTarget.set(null);
+      if (target === null) return;
+      afterNextRender(() => this.revealTarget(target), { injector: this.injector });
+    });
+  }
+
+  private revealTarget(sectionId: SectionId): void {
+    const wrapper = [...this.host.nativeElement.querySelectorAll('[data-section-id]')].find(
+      (element) => element.getAttribute('data-section-id') === sectionId,
+    ) as HTMLElement | undefined;
+    if (wrapper === undefined) return;
+    // Optional: jsdom has no layout, and a canvas that could not scroll must still focus.
+    wrapper.scrollIntoView?.({ block: 'start' });
+    (wrapper.querySelector('[data-section-title]') as HTMLElement | null)?.focus({ preventScroll: true });
   }
 
   definitionFor(type: string) {
@@ -205,6 +277,10 @@ export class ProjectCanvas {
   }
 
   collapse(event: { id: SectionId; collapsed: boolean }): void {
+    // Collapsing the container this visit opened is the reader saying "I am done with it": the
+    // transient override is released and the canonical operation runs, exactly as on any other
+    // frame. Arriving wrote nothing; this is the first write either way.
+    if (event.id === this.targetSectionId()) this.releasedTarget.set(event.id);
     void this.store.setCollapsed(event.id, event.collapsed);
   }
 
@@ -226,3 +302,10 @@ export class ProjectCanvas {
     this.onProjectHierarchyChange()();
   }
 }
+
+/** The section id a fragment names, if it names one at all. Ids are never trusted as selectors. */
+const requestedSectionId = (fragment: string | null): SectionId | null => {
+  if (fragment === null || !fragment.startsWith('section-')) return null;
+  const id = fragment.slice('section-'.length);
+  return id === '' ? null : (id as SectionId);
+};

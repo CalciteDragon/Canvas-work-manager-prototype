@@ -182,7 +182,14 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
   };
 
   readonly todos = {
-    get: (projectId: ProjectId) => this.answer('todos.get', projectId, this.options.todos ?? { projectId, items: [] }),
+    // Scoped to the root it was seeded for, not answered to whoever asks: a shell that read the
+    // chronology of the project it was *leaving* would otherwise pass here.
+    get: (projectId: ProjectId) =>
+      this.answer(
+        'todos.get',
+        projectId,
+        this.options.todos?.projectId === projectId ? this.options.todos : { projectId, items: [] },
+      ),
   };
 
   readonly reflections = {

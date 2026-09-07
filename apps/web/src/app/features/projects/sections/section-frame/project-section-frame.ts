@@ -43,6 +43,16 @@ export class ProjectSectionFrame {
   readonly editMode = input.required<boolean>();
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
+  /**
+   * Open **for this visit only**, because something navigated to this container (§34's Todos
+   * links land on a section that may be collapsed).
+   *
+   * It is an input rather than a mutation because arrival must write nothing: the section object
+   * handed to the content store stays the canonical record, and `collapsed` on it still says
+   * what is persisted. Everything the frame draws reads `effectiveCollapsed` instead, so the
+   * chrome, the ARIA state and the collapse button cannot disagree with the content.
+   */
+  readonly transientlyExpanded = input<boolean>(false);
 
   readonly collapseToggled = output<{ id: SectionId; collapsed: boolean }>();
   readonly resized = output<{ id: SectionId; columnSpan: SectionColumnSpan }>();
@@ -62,6 +72,9 @@ export class ProjectSectionFrame {
    * called `title` meaning different things in one component is a week-old confusion.
    */
   readonly name = computed(() => nameOf(this.section()));
+
+  /** What the frame actually draws: collapsed, unless this visit has opened it. */
+  readonly effectiveCollapsed = computed(() => this.section().collapsed && !this.transientlyExpanded());
 
   /** The persisted override, as the control shows it — empty means "use the default". */
   readonly override = computed(() => this.section().title?.trim() ?? '');
@@ -96,8 +109,13 @@ export class ProjectSectionFrame {
     });
   }
 
+  /**
+   * Intent, read off what the user can see. A transiently opened section shows "Collapse", and
+   * clicking it means collapse — even though the canonical record already says so, which is what
+   * makes the click the moment the override is released rather than a no-op.
+   */
   toggleCollapsed(): void {
-    this.collapseToggled.emit({ id: this.section().id, collapsed: !this.section().collapsed });
+    this.collapseToggled.emit({ id: this.section().id, collapsed: !this.effectiveCollapsed() });
   }
 
   toggleConfig(): void {
