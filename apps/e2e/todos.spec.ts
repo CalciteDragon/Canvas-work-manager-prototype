@@ -93,6 +93,9 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
 
   const taskCountBefore = (await api<unknown[]>('GET', `/api/tasks?projectId=${root.id}`)).length;
   const sectionCountBefore = (await api<unknown[]>('GET', `/api/projects/${root.id}/sections`)).length;
+  // Home plus the Todos page the first enable created — and nothing may add to it after that.
+  const pagesBefore = (await api<{ kind: string }[]>('GET', `/api/projects/${root.id}/pages`)).map(({ kind }) => kind);
+  expect(pagesBefore).toEqual(['home', 'todos']);
 
   // ─── HTTP ────────────────────────────────────────────────────────────────────────────────
   const overHttp = await api<{ projectId: string; items: Row[] }>('GET', `/api/projects/${root.id}/todos`);
@@ -128,8 +131,20 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
     const arrived = page.locator(`[data-section-item][data-section-id="${containerA.id}"]`);
     await expect(arrived.locator('[data-section-content]')).toBeVisible();
     await expect(arrived.locator('[data-section-collapse]')).toHaveAttribute('aria-expanded', 'true');
+    // The acceptance asks for the owning heading **focused and in view**, so assert both here
+    // rather than trusting the jsdom test, which has no layout to scroll.
+    expect(
+      await page.evaluate((sectionId) => {
+        const wrapper = document.querySelector(`[data-section-item][data-section-id="${sectionId}"]`);
+        const heading = wrapper?.querySelector('[data-section-title]');
+        const box = heading?.getBoundingClientRect();
+        return {
+          focused: document.activeElement === heading,
+          inView: box !== undefined && box.top >= 0 && box.bottom <= window.innerHeight,
+        };
+      }, containerA.id),
+    ).toEqual({ focused: true, inView: true });
     // Arrival wrote nothing: the container is still collapsed for everyone else.
-    expect((await api<{ collapsed: boolean }>('GET', `/api/projects/${root.id}/sections`))).toBeTruthy();
     expect(
       (await api<{ id: string; collapsed: boolean }[]>('GET', `/api/projects/${root.id}/sections`)).find(
         ({ id }) => id === containerA.id,
@@ -198,6 +213,10 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
   // ─── nothing was created, moved or duplicated by reading and toggling ──────────────────
   expect((await api<unknown[]>('GET', `/api/tasks?projectId=${root.id}`)).length).toBe(taskCountBefore);
   expect((await api<unknown[]>('GET', `/api/projects/${root.id}/sections`)).length).toBe(sectionCountBefore);
+  // Toggling updated the existing record rather than creating a second one; reading created none.
+  expect((await api<{ kind: string }[]>('GET', `/api/projects/${root.id}/pages`)).map(({ kind }) => kind)).toEqual(
+    pagesBefore,
+  );
   const finalRows = await api<{ items: Row[] }>('GET', `/api/projects/${root.id}/todos`);
   expect(finalRows.items.filter(({ kind }) => kind === 'task').every(({ origin }) => origin.sectionId !== undefined)).toBe(true);
   expect(new Set(namesOf(finalRows.items)).size).toBe(finalRows.items.length);

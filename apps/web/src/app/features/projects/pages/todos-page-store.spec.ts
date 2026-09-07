@@ -269,6 +269,40 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     expect(statusOf(store, 'task-1')).toBe('done');
   });
 
+  /**
+   * The other half of the same hazard: a read that was **already running** when the completion
+   * started. Deferring only the reads that have not begun leaves this one free to land its
+   * pre-write snapshot on top of the settled row.
+   */
+  it('discards a read that started before the completion and re-reads instead', async () => {
+    const inFlight = deferred<{ projectId: ProjectId; items: ProjectTodoItem[] }>();
+    const write = deferred<Task>();
+    let reads = 0;
+    const { store, live, todosGet } = setup({
+      completeTask: () => write.promise,
+      todosGet: async (projectId) => {
+        reads += 1;
+        if (reads === 1) return { projectId, items: [taskItem('task-1')] };
+        // The read already in flight answers from before the write.
+        if (reads === 2) return inFlight.promise;
+        return { projectId, items: [taskItem('task-1', { status: 'done', completedAt: AT })] };
+      },
+    });
+    await store.load(ROOT);
+
+    live.emit({ type: 'task.updated', entityId: 'task-1', projectId: ROOT, rootProjectId: ROOT });
+    await settleLive();
+    const completion = store.complete(store.items()[0]!);
+    write.resolve(task('task-1', { status: 'done', completedAt: AT }));
+    await completion;
+    inFlight.resolve({ projectId: ROOT, items: [taskItem('task-1')] });
+    await settleLive();
+
+    expect(statusOf(store, 'task-1')).toBe('done');
+    // Not merely ignored — the stale answer is replaced by a fresh read.
+    expect(todosGet).toHaveBeenCalledTimes(3);
+  });
+
   it('does not undo a persisted completion when the following read fails', async () => {
     let reads = 0;
     const { store, live } = setup({
@@ -333,22 +367,33 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     expect(todosGet).toHaveBeenCalledTimes(2);
   });
 
-  it('clears and reloads on prototype.reloaded even though the root id has not changed', async () => {
-    const gate = deferred<{ projectId: ProjectId; items: ProjectTodoItem[] }>();
+  it('clears and reloads on prototype.reloaded, and rejects the continuations it interrupted', async () => {
+    const stale = deferred<{ projectId: ProjectId; items: ProjectTodoItem[] }>();
+    const staleWrite = deferred<Task>();
     let reads = 0;
     const { store, live } = setup({
+      completeTask: () => staleWrite.promise,
       todosGet: async (projectId) => {
         reads += 1;
-        return reads === 2 ? gate.promise : { projectId, items: [taskItem('task-1')] };
+        if (reads === 1) return { projectId, items: [taskItem('task-1')] };
+        // The read left in flight by the reset, answering from the replaced document.
+        if (reads === 2) return stale.promise;
+        return { projectId, items: [taskItem('task-seeded')] };
       },
     });
     await store.load(ROOT);
+    live.emit({ type: 'task.updated', entityId: 'task-1', projectId: ROOT, rootProjectId: ROOT });
+    await settleLive();
+    const staleCompletion = store.complete(store.items()[0]!);
 
     live.emit({ type: 'prototype.reloaded', entityId: 'prototype' });
 
     // Content is gone at once: the document behind it may have been replaced entirely.
     expect(store.items()).toEqual([]);
-    gate.resolve({ projectId: ROOT, items: [taskItem('task-seeded')] });
+    stale.resolve({ projectId: ROOT, items: [taskItem('task-1')] });
+    staleWrite.resolve(task('task-1', { status: 'done' }));
+    // Neither continuation may write to the view, or the reseeded page shows the old document.
+    expect(await staleCompletion).toBe(false);
     await settleLive();
     expect(store.items().map((item) => (item.kind === 'task' ? item.task.id : ''))).toEqual(['task-seeded']);
   });
@@ -387,14 +432,19 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     expect(store.completing()).toBeNull();
   });
 
-  it('unsubscribes from the stream when it is destroyed', async () => {
-    const { store, live, todosGet } = setup();
+  it('unsubscribes on destroy and suppresses the continuations still in flight', async () => {
+    const write = deferred<Task>();
+    const { store, live, todosGet } = setup({ completeTask: () => write.promise });
     await store.load(ROOT);
     expect(live.listenerCount).toBe(1);
+    const completion = store.complete(store.items()[0]!);
 
     TestBed.resetTestingModule();
 
     expect(live.listenerCount).toBe(0);
+    write.resolve(task('task-1', { status: 'done' }));
+    // `false`, so the destroyed page cannot tell the shell that project data moved.
+    expect(await completion).toBe(false);
     live.emit({ type: 'task.updated', entityId: 'task-1', projectId: ROOT, rootProjectId: ROOT } as LiveEvent);
     await settleLive();
     expect(todosGet).toHaveBeenCalledTimes(1);

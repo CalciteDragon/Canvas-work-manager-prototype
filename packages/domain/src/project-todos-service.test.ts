@@ -455,14 +455,21 @@ describe('ProjectTodosService.derive — permission and addressing (§53, §54)'
     const service = todosServiceFor(harness);
     const before = sequenceOf(await service.derive(harness.actor, MINE));
 
+    const pagesBefore = (await harness.pages.list({ projectId: MINE })).length;
+
     await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'todos', enabled: true });
     const enabled = sequenceOf(await service.derive(harness.actor, MINE));
+    const pagesAfterEnable = (await harness.pages.list({ projectId: MINE })).length;
     await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'todos', enabled: false });
     const disabled = sequenceOf(await service.derive(harness.actor, MINE));
 
     expect(before).toEqual(EXPECTED);
     expect(enabled).toEqual(EXPECTED);
     expect(disabled).toEqual(EXPECTED);
+    // Exactly one page record, created by the first enable and only updated afterwards — and the
+    // three reads around it created none, which is the half a content count cannot show.
+    expect(pagesAfterEnable).toBe(pagesBefore + 1);
+    expect((await harness.pages.list({ projectId: MINE })).length).toBe(pagesAfterEnable);
   });
 });
 

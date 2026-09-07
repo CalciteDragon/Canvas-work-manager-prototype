@@ -1117,10 +1117,18 @@ pages are listed and toggled through `ProjectPageService`, `GET`/`PATCH
 its first enable, and disabling one writes a single boolean and keeps everything on it
 ([why](docs/decisions/2026-09-optional-pages-are-created-on-first-enable.md)). Slice 25.3 added the
 **navigation**: §23's second column, §68's two routes, and the renderer behind Home and a
-sub-project's work canvas. What is still planned is a renderer for each optional kind
-(Slices 25.5–25.7); until one exists its kind is not advertised in the column, and a URL pointing
-at it falls back to Home saying it is not built yet. A sub-project's `/pages/…` URL is refused the
-same way, because it has no pages to name.*
+sub-project's work canvas. Slice 25.5 added the first optional renderer, Todos (§34); Archive and
+Reflections are still planned (Slices 25.6–25.7), and until a kind has a renderer it is not
+advertised in the column and a URL pointing at it falls back to Home saying it is not built yet. A
+sub-project's `/pages/…` URL is refused the same way, because it has no pages to name.
+
+Slice 25.5 adds a **fragment** to both project routes — `#section-<id>` — so §34's Todos rows can
+link to the container that owns them and not merely to the page. It is handled by the canvas rather
+than by the router's global anchor scrolling: the application scrolls its own region, and a canvas
+is loaded asynchronously, so a scroll attempted at navigation time lands before the section exists.
+The canvas matches the fragment against the sections **that page actually loaded**, never
+interpolating it into a selector; an unmatched one leaves the canvas usable and says so. Arriving
+writes nothing — a collapsed target is opened for that visit only.*
 
 ---
 

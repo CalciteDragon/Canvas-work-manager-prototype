@@ -1191,6 +1191,11 @@ host, and 521 web tests), `pnpm lint`, `pnpm build`, `pnpm storybook:build`, the
 acceptance, and the unchanged `pnpm e2e` suite (2 passed). The production build still reports the
 existing warning-only 850 kB initial-bundle budget overage; it remains below the 1 MB error budget.
 
+Known: the initial bundle is 883 kB against an 850 kB **warning** budget (the error budget is
+1 MB, so the build passes). §68's feature routes are eager by an existing decision, and this slice
+adds a shell, a header, a column and a work item. Whether to move the budget again is a §78
+question for 25.8 rather than a silent edit here.
+
 **25.5, done.** A root's optional Todos page is the second entry in `PROJECT_PAGE_REGISTRY`, and
 the first page that is a *projection* rather than a canvas. `ProjectTodosService.derive` walks one
 root's tree, drops archived owners, ancestors, containers and rows, and returns the canonical
@@ -1232,15 +1237,21 @@ open), and three are things it made visible elsewhere — 25.4's shortcut error 
 sub-project canvas, the shell's columns not collapsing at 375px, and §46's failure rate applying to
 reads as well as writes. The pre-run `.prototype/data.json` was restored afterwards.
 
+Three review subagents read the diff. The one that mattered found a real hole: `invalidate()`
+deferred *starting* a read during a completion, but a read **already running** when the click
+landed still applied its pre-write snapshot on top of the settled row — the plan asked for
+deferred *application*, and only deferred scheduling was built. A write epoch fixes it; a read
+whose epoch is stale is discarded and re-read rather than painted. The same pass found that
+`DestroyRef` was only unsubscribing the stream, so a completion resolving after teardown still
+reported success and fired the shell's callbacks; disposal is now part of the store's one
+staleness predicate. Both arrived as failing tests first. The reviews also caught an empty state
+that contradicted §34 (undated work *is* listed), a vacuous e2e assertion, and that the journey
+never asserted the acceptance's "focused and in view" — it does now, in the real browser.
+
 Verified with `pnpm test` (186 contracts, 124 repositories, 94 seed, 373 domain, 102 MCP, 165
-host, and 559 web tests), `pnpm lint`, `pnpm build`, `pnpm storybook:build`, and `pnpm e2e`
+host, and 560 web tests), `pnpm lint`, `pnpm build`, `pnpm storybook:build`, and `pnpm e2e`
 (3 passed, including the new `todos.spec.ts` journey). The production build's initial-bundle
 warning is now 921 kB against the 850 kB warning budget, still below the 1 MB error budget.
-
-Known: the initial bundle is 883 kB against an 850 kB **warning** budget (the error budget is
-1 MB, so the build passes). §68's feature routes are eager by an existing decision, and this slice
-adds a shell, a header, a column and a work item. Whether to move the budget again is a §78
-question for 25.8 rather than a silent edit here.
 
 **Done when:** the roadmap's integrated browser/MCP journey passes: a multi-page root
 and nested work units retain canonical data ownership, shortcuts reflect source content,

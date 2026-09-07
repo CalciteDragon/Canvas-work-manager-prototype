@@ -49,6 +49,14 @@ export class TodosPageStore {
   private activeRead: Promise<void> | null = null;
   private readQueued = false;
   private writing = false;
+  /**
+   * Bumped when a completion starts. A read that was **already running** at that moment answers
+   * from before the write, so its epoch no longer matches and its result is discarded rather than
+   * painted over the settled row — deferring only the reads that have not begun would leave that
+   * one free to revert the row to its pre-write status.
+   */
+  private writeEpoch = 0;
+  private destroyed = false;
 
   readonly items = this.itemsState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
@@ -65,7 +73,12 @@ export class TodosPageStore {
       (event) => this.onLiveEvent(event),
       () => this.invalidate(),
     );
-    inject(DestroyRef).onDestroy(unsubscribe);
+    inject(DestroyRef).onDestroy(() => {
+      // Disposal is a staleness reason like any other: a read must not write to a view that is
+      // gone, and a write must not report success to a component that can no longer act on it.
+      this.destroyed = true;
+      unsubscribe();
+    });
   }
 
   /** The chronology of one root. Called again when the shell routes to another one. */
@@ -109,11 +122,14 @@ export class TodosPageStore {
 
     const generation = this.generation;
     const id = todoIdOf(item);
-    const current = () => generation === this.generation && this.requestedProjectId === projectId;
+    // The store's one staleness predicate — root, generation and disposal — rather than a second
+    // copy of two thirds of it.
+    const current = () => this.current(generation, projectId);
 
     this.writeErrorState.set(null);
     this.completingState.set(id);
     this.writing = true;
+    this.writeEpoch += 1;
 
     try {
       if (item.kind === 'task') {
@@ -208,10 +224,17 @@ export class TodosPageStore {
     }
     if (!quiet) this.loadingState.set(true);
 
+    const epoch = this.writeEpoch;
     const operation = this.track(async () => {
       try {
         const result = await this.gateway.todos.get(projectId);
         if (!this.current(generation, projectId)) return;
+        if (this.writing || this.writeEpoch !== epoch) {
+          // Answered from before a write this view has since made. Queue a fresh read rather than
+          // repainting the row the user just completed.
+          this.readQueued = true;
+          return;
+        }
         this.itemsState.set(result.items);
         this.errorState.set(null);
         this.refreshErrorState.set(null);
@@ -238,7 +261,7 @@ export class TodosPageStore {
   }
 
   private current(generation: number, projectId: ProjectId): boolean {
-    return generation === this.generation && this.requestedProjectId === projectId;
+    return !this.destroyed && generation === this.generation && this.requestedProjectId === projectId;
   }
 
   private replace(id: string, next: ProjectTodoItem): void {
@@ -247,6 +270,13 @@ export class TodosPageStore {
 
   private track<T>(operation: () => Promise<T>): Promise<T> {
     const settled = this.pendingTasks.add();
-    return operation().finally(settled);
+    try {
+      return operation().finally(settled);
+    } catch (error) {
+      // A synchronous throw would otherwise leave the token outstanding and `whenStable()` would
+      // never settle again — a hang, rather than the error the caller is about to see.
+      settled();
+      throw error;
+    }
   }
 }

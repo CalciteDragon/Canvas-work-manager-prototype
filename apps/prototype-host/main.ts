@@ -124,7 +124,7 @@ if (isDirectRun) {
     const registry = createToolRegistry({
       projects: api.projects,
       pages: api.pages,
-    todos: api.todos,
+      todos: api.todos,
       tasks: api.tasks,
       reflections: api.reflections,
       sections: api.sections,

@@ -23,13 +23,31 @@ local.canvas-work-manager/requiredPermission
 ```
 
 The value comes directly from `WorkManagerTool.permission`; there is no second mapping.
-The full fourteen-tool list remains visible even when the caller lacks a grant. Domain
-services still enforce the permission and return the precise denial.
+The full tool list remains visible even when the caller lacks a grant. Domain services still
+enforce the permission and return the precise denial.
+
+*Amended in Slice 25.5.* §54's derived pages need **more than one** grant — `get_project_todos`
+requires `projects.read` and `tasks.read` — so one key can no longer carry the whole answer. The
+singular key is unchanged and still carries `tool.permission`, and a second key carries the
+complete list beside it:
+
+```text
+local.canvas-work-manager/requiredPermissions
+```
+
+Two keys rather than a breaking change to one, because the singular key is published metadata a
+client may already read, and every tool that needs a single grant still says so there. The list
+comes from `requiredPermissions(tool)` — `permission` plus the optional `additionalPermissions` —
+which is also what the generic contract suite uses to deny each tool once per declared grant, so
+the declaration and the test cannot drift apart. Enforcement did not move: `assertPermitted` in the
+domain service is still the only refusal, and a derived page denies outright rather than answering
+with the category it was allowed to read.
 
 **Current decision**
 
 Every advertised tool carries
-`_meta["local.canvas-work-manager/requiredPermission"] = tool.permission`. Standard
+`_meta["local.canvas-work-manager/requiredPermission"] = tool.permission` and
+`_meta["local.canvas-work-manager/requiredPermissions"] = requiredPermissions(tool)`. Standard
 annotations are left unset until a later tool-shape experiment earns them.
 
 **Confidence**

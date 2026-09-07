@@ -24,7 +24,7 @@
     <button data-todos-retry type="button" class="todos__retry" (click)="store.retry()">Try again</button>
   } @else if (store.items().length === 0) {
     <p data-todos-empty class="todos__muted">
-      Nothing under this project has a due date yet, and it holds no units of work.
+      There is no work under this project yet — no tasks, and no units of work.
     </p>
   } @else {
     <ol data-todos-list class="todos__list">
