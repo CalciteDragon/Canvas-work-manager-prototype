@@ -377,6 +377,8 @@ describe('agent-heavy', () => {
     );
 
     expect(byId.get('agent-claude')).toContain('tasks.write');
+    expect(byId.get('agent-claude')).toContain('reflections.read');
+    expect(byId.get('agent-claude')).toContain('reflections.write');
     expect(byId.get('agent-cursor')).not.toContain('tasks.write');
     expect(byId.get('agent-cursor')).toContain('tasks.read');
   });

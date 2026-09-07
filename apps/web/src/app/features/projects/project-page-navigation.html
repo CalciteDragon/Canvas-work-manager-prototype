@@ -25,6 +25,15 @@
     <span class="project-nav__root-name">{{ root().name }}</span>
   </a>
 
+  <button
+    type="button"
+    data-project-nav-open-archive
+    class="project-nav__archive"
+    (click)="openArchiveRequested.emit()"
+  >
+    <span aria-hidden="true">🗄️</span> Open archive
+  </button>
+
   @if (breadcrumbs().length > 0) {
     <nav class="project-nav__breadcrumbs" aria-label="Parent projects">
       <ol>

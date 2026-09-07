@@ -1,4 +1,4 @@
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectTodosService, PrototypeAIProvider, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, SimulatedClock, TaskService, TimelineService, WorkspaceService } from '@cwm/domain';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectTodosService, PrototypeAIProvider, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, SimulatedClock, TaskService, TimelineService, WorkspaceService } from '@cwm/domain';
 import type { AIProvider } from '@cwm/domain';
 import { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
 import { LiveEventHub } from '../events/hub.ts';
@@ -69,6 +69,7 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
     progress: new ProgressService({ projects, tasks }),
     timeline: new TimelineService({ projects, tasks, milestones }),
     todos: new ProjectTodosService({ projects, tasks, sections, pages }),
+    archive: new ProjectArchiveService({ projects, pages, sections, tasks, reflections }),
     reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai }),
     workspace: new WorkspaceService({ projects, tasks, reflections, clock }),

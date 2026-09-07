@@ -14,6 +14,7 @@ export * from './live';
 export * from './milestone';
 export * from './project';
 export * from './project-page';
+export * from './project-archive';
 export * from './project-todos';
 export * from './prototype';
 export * from './progress';

@@ -268,7 +268,7 @@ describe('SectionService.remove', () => {
   });
 
   it('refuses to remove a section that is already archived', async () => {
-    // Reachable: `get` and the Archived region both hand out archived ids, so the API and
+    // Reachable: `get` and the root Archive projection both hand out archived ids, so the API and
     // `remove_section` can be pointed at one. Permanent deletion is what this case wants.
     const harness = buildHarness();
     const section = await add(harness);

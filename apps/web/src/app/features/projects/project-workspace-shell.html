@@ -18,6 +18,7 @@
         [breadcrumbs]="store.breadcrumbs()"
         [collapsed]="collapsed()"
         (toggleRequested)="toggleNavigation()"
+        (openArchiveRequested)="openArchive()"
       />
     }
 
@@ -31,7 +32,14 @@
         (statusRequested)="setStatus($event)"
         (targetDateRequested)="setTargetDate($event)"
         (archiveRequested)="confirmArchive()"
+        (openArchiveRequested)="openArchive()"
       />
+
+      @if (archiveRetryNeeded()) {
+        <button type="button" data-archive-open-retry class="project-workspace__retry" (click)="retryArchiveOpen()">
+          Retry opening Archive
+        </button>
+      }
 
       <!-- §68: an unknown, disabled or unbuilt page falls back "with an explanation". The URL
            was already replaced; this is the sentence that goes with it. -->

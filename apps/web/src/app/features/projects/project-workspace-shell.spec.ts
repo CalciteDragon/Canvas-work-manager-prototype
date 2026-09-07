@@ -15,7 +15,7 @@ import {
   type ProjectSection,
   type Task,
 } from '@cwm/contracts';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
@@ -226,8 +226,8 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
   it.each([
     [
       'an enabled kind this build cannot draw',
-      '/projects/project-renovation/pages/archive',
-      [page('page-renovation-home', 'project-renovation', 'home'), page('page-renovation-archive', 'project-renovation', 'archive')],
+      '/projects/project-renovation/pages/reflections',
+      [page('page-renovation-home', 'project-renovation', 'home'), page('page-renovation-reflections', 'project-renovation', 'reflections')],
       'not built yet',
     ],
     [
@@ -300,10 +300,11 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
     await harness.navigateByUrl('/projects/project-loft/pages/archive');
     await settle(harness);
 
-    // Archive has no renderer yet, so this must fall back — but to *Loft's* Home, never to the
-    // project the user was standing on.
-    expect(router.url).toBe('/projects/project-loft/pages/home');
+    // The Archive renderer resolves against Loft's context, never the project the user was
+    // standing on.
+    expect(router.url).toBe('/projects/project-loft/pages/archive');
     expect(query(harness, '[data-project-name]')?.textContent).toContain('Loft conversion');
+    expect(query(harness, '[data-archive-page]')).not.toBeNull();
   });
 
   // The notice is read from history state, which still carries it after a dismissal. Re-reading
@@ -440,39 +441,18 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     expect(accepted.router.url).toBe('/app');
   });
 
-  // The one assertion that proves an input crosses `NgComponentOutlet` into the renderer, and
-  // §63's guard: `setStatus` paints `active` before the write lands, so the loaded status
-  // alone would enable a Restore the domain would still refuse.
-  it('disables every Restore in the mounted canvas through an optimistic reactivation', async () => {
-    let resolveUpdate!: (project: Project) => void;
-    const pending = new Promise<Project>((resolve) => (resolveUpdate = resolve));
-    const archivedProject = project('project-renovation', 'Home renovation', undefined, { status: 'archived' });
-    const { harness, gateway } = await open('/projects/project-renovation', {
-      projects: [archivedProject, KITCHEN, CABINETS, GARDEN],
-      sections: [
-        section('section-home', 'project-renovation', 'page-renovation-home'),
-        ProjectSectionSchema.parse({
-          ...section('section-archived', 'project-renovation', 'page-renovation-home'),
-          archivedAt: AT,
-        }),
-      ],
-    });
+  it('opens the root Archive from navigation after enabling its disabled page', async () => {
+    const { harness, gateway, router } = await open('/projects/project-renovation');
 
-    expect((query(harness, '[data-archived-section-restore]') as HTMLButtonElement).disabled).toBe(true);
-
-    const update = vi.spyOn(gateway.projects, 'update').mockReturnValue(pending);
-    query(harness, '[data-project-more]')!.click();
-    harness.fixture.detectChanges();
-    query(harness, '[data-project-status-option][data-status="active"]')!.click();
-    harness.fixture.detectChanges();
-
-    expect((query(harness, '[data-archived-section-restore]') as HTMLButtonElement).disabled).toBe(true);
-
-    resolveUpdate(project('project-renovation', 'Home renovation'));
+    query(harness, '[data-project-nav-open-archive]')!.click();
     await settle(harness);
 
-    expect((query(harness, '[data-archived-section-restore]') as HTMLButtonElement).disabled).toBe(false);
-    update.mockRestore();
+    expect(router.url).toBe('/projects/project-renovation/pages/archive');
+    expect(query(harness, '[data-archive-page]')).not.toBeNull();
+    expect(gateway.calls).toContainEqual({
+      method: 'pages.setEnabled',
+      argument: { projectId: RENOVATION.id, input: { kind: 'archive', enabled: true } },
+    });
   });
 
   it('moves header progress when a row on the canvas changes, through the renderer’s callback', async () => {

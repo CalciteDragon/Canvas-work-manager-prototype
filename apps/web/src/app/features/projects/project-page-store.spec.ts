@@ -144,6 +144,7 @@ const setup = (
     activity: { list: vi.fn(async () => []) },
     // Slice 25.5 added `todos`; this store reads a canvas, never the chronology.
     todos: { get: vi.fn(async () => ({ projectId: PROJECT, items: [] })) },
+    archive: { get: vi.fn(async () => ({ projectId: PROJECT, root: project() as Extract<Project, { kind: 'root' }>, items: [] })) },
     projects: {
       list: vi.fn(async () => [project()]),
       get: options.projectGet ?? vi.fn(async () => project()),
@@ -280,8 +281,20 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
   },
   ...overrides,
 });
-
 describe('ProjectPageStore (§19, §26)', () => {
+  it('does not read shortcut placements when the routed page does not allow them', async () => {
+    const { store, gateway, live } = setup({ shortcuts: [shortcut('shortcut-hidden', 0)] });
+
+    await store.load(PROJECT, PAGE, false);
+    expect(gateway.shortcuts.list).not.toHaveBeenCalled();
+    expect(store.shortcuts()).toEqual([]);
+
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await settleLive();
+    expect(gateway.shortcuts.list).not.toHaveBeenCalled();
+    expect(store.shortcuts()).toEqual([]);
+  });
+
   it('loads its page’s sections in position order, and reads no rows itself', async () => {
     const { store, gateway } = setup({
       sections: [section('section-tasks', 'task-list', 1), section('section-text', 'rich-text', 0)],
@@ -1221,37 +1234,5 @@ describe('ProjectPageStore and live updates (§62)', () => {
     TestBed.resetTestingModule();
 
     expect(live.listenerCount).toBe(0);
-  });
-});
-
-describe('ProjectPageStore restore invalidation (§31)', () => {
-  it('repaints the canvas after a section restore, not just the data revision', async () => {
-    // A restored section is a *new* frame. The revision only makes existing containers
-    // re-read, so without the reconcile the section comes back invisible until a reload.
-    const { store, gateway } = setup({ sections: [section('section-text', 'rich-text', 0)] });
-    await store.load(PROJECT, PAGE);
-    const listsBefore = (gateway.sections.list as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
-    const revisionBefore = store.projectDataRevision();
-
-    await store.sectionRestored();
-
-    expect((gateway.sections.list as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(
-      listsBefore + 1,
-    );
-    // Both, not either: the restored section's own container has rows to fetch too.
-    expect(store.projectDataRevision()).toBe(revisionBefore + 1);
-  });
-
-  it('invalidates the containers after a row restore', async () => {
-    // A restored row becomes live inside a container already on the canvas, and that
-    // container re-reads only when the revision moves. Without this, "with no reload" holds
-    // for sections and quietly fails for rows.
-    const { store } = setup();
-    await store.load(PROJECT, PAGE);
-    const before = store.projectDataRevision();
-
-    store.rowRestored();
-
-    expect(store.projectDataRevision()).toBe(before + 1);
   });
 });

@@ -9,6 +9,7 @@ import {
   type ProjectPageKind,
 } from '@cwm/contracts';
 import { ProjectCanvas } from './project-canvas';
+import { ArchivePage } from './pages/archive-page';
 import { TodosPage } from './pages/todos-page';
 import type { ProjectPageRenderer } from './project-page-contract';
 
@@ -32,13 +33,13 @@ export interface ProjectPageDefinition {
  *
  * Adding a page kind is one entry here plus its renderer — the same claim §29's section
  * registry makes, at the level above it. **A kind with no entry is not advertised and cannot
- * be navigated to**, even when the root has enabled it: enabling Archive over MCP today creates
- * a page record with nothing to render it, and a tab leading to a blank screen is worse than no
- * tab. Slices 25.6 and 25.7 add one line each.
+ * be navigated to**, even when the root has enabled it: a tab leading to a blank screen is worse
+ * than no tab. Archive is now rendered here; Reflections remains the next renderer slice.
  */
 export const PROJECT_PAGE_REGISTRY: readonly ProjectPageDefinition[] = [
   { kind: 'home', label: 'Home', icon: '🏠', component: ProjectCanvas },
   { kind: 'todos', label: 'Todos', icon: '🗓️', component: TodosPage },
+  { kind: 'archive', label: 'Archive', icon: '🗄️', component: ArchivePage },
 ];
 
 export const pageDefinitionFor = (kind: ProjectPageKind): ProjectPageDefinition | undefined =>

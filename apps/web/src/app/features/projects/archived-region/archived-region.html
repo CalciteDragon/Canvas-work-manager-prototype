@@ -1,8 +1,6 @@
-<!-- Nothing archived, nothing to say. The region appears the moment a removal gives it
-   something to undo, and disappears again once everything is back. -->
 @if (!hidden()) {
   <section data-archived-region class="archived-region" aria-labelledby="archived-region-title">
-    <h2 id="archived-region-title" class="archived-region__title">Archived</h2>
+    <h2 id="archived-region-title" class="archived-region__title">Archive</h2>
 
     @if (restoreBlocked()) {
       <p data-archived-blocked class="archived-region__note">
@@ -10,50 +8,77 @@
       </p>
     }
 
-    @if (store.error(); as error) {
-      <p data-archived-error class="archived-region__error" role="alert">{{ error }}</p>
-    }
-
-    @if (sections().length > 0) {
-      <ul class="archived-region__list">
-        @for (entry of sections(); track entry.id) {
-          <li data-archived-section class="archived-region__entry">
-            <span class="archived-region__name">{{ entry.label }}</span>
-            <!-- A view owns nothing, so it shows no count rather than a misleading zero. -->
-            @if (rowCountLabel(entry); as count) {
-              <span data-archived-section-count class="archived-region__meta">{{ count }}</span>
+    <ul class="archived-region__list">
+      @for (item of items(); track idOf(item)) {
+        <li
+          data-archived-item
+          [attr.data-archived-kind]="item.kind"
+          [attr.data-archived-id]="idOf(item)"
+          class="archived-region__entry"
+        >
+          <div class="archived-region__identity">
+            <strong data-archived-name class="archived-region__name">{{ label(item) }}</strong>
+            <span data-archived-type class="archived-region__meta">{{ typeLabel(item) }}</span>
+            <span data-archived-origin class="archived-region__meta">
+              Origin:
+              @for (step of item.origin.breadcrumb; track step.projectId) {
+                @if (!$first) { <span aria-hidden="true"> / </span> }
+                <span>{{ step.name }}</span>
+              }
+              <span aria-hidden="true"> / </span>
+              @if (originRoute(item); as route) {
+                <a
+                  data-archived-origin-link
+                  [routerLink]="route"
+                  [fragment]="originFragment(item)"
+                >{{ originPageLabel(item) }}</a>
+              } @else {
+                <span>{{ originPageLabel(item) }}</span>
+              }
+              @if (item.origin.sectionName; as sectionName) {
+                <span aria-hidden="true"> / </span><span>{{ sectionName }}</span>
+              }
+            </span>
+            <span data-archived-cause class="archived-region__meta">{{ causeLabel(item) }}</span>
+            @if (item.kind === 'section' && item.cascadeCount !== undefined) {
+              <span data-archived-cascade-count class="archived-region__meta">
+                {{ item.cascadeCount }}
+                {{ item.section.type === 'reflections'
+                  ? (item.cascadeCount === 1 ? 'reflection' : 'reflections')
+                  : (item.cascadeCount === 1 ? 'task' : 'tasks') }}
+                with it
+              </span>
             }
-            <button
-              data-archived-section-restore
-              type="button"
-              [disabled]="restoreBlocked() || restoring(entry.id)"
-              [attr.aria-label]="'Restore the ' + entry.label + ' section'"
-              (click)="restoreSection(entry)"
-            >
-              {{ restoring(entry.id) ? 'Restoring…' : 'Restore' }}
-            </button>
-          </li>
-        }
-      </ul>
-    }
-
-    @if (rows().length > 0) {
-      <ul class="archived-region__list">
-        @for (entry of rows(); track entry.id) {
-          <li data-archived-row class="archived-region__entry">
-            <span class="archived-region__name">{{ entry.label }}</span>
-            <button
-              data-archived-row-restore
-              type="button"
-              [disabled]="restoreBlocked() || restoring(entry.id)"
-              [attr.aria-label]="'Restore ' + entry.label"
-              (click)="restoreRow(entry)"
-            >
-              {{ restoring(entry.id) ? 'Restoring…' : 'Restore' }}
-            </button>
-          </li>
-        }
-      </ul>
-    }
+            @if (blockerLabel(item); as blocker) {
+              <span data-archived-blocker class="archived-region__meta">{{ blocker }}</span>
+            }
+          </div>
+          @if (item.kind === 'subproject' && item.restoration.kind === 'ready') {
+            <label class="archived-region__status">
+              Restore as
+              <select
+                data-archived-project-status
+                [value]="projectStatus(item)"
+                [disabled]="!canRestore(item)"
+                (change)="selectProjectStatus(item, $event)"
+              >
+                @for (status of projectStatuses; track status) {
+                  <option [value]="status">{{ status.replace('_', ' ') }}</option>
+                }
+              </select>
+            </label>
+          }
+          <button
+            data-archived-restore
+            type="button"
+            [disabled]="!canRestore(item)"
+            [attr.aria-label]="'Restore ' + label(item)"
+            (click)="restore(item)"
+          >
+            {{ isRestoring(item) ? 'Restoring…' : 'Restore' }}
+          </button>
+        </li>
+      }
+    </ul>
   </section>
 }

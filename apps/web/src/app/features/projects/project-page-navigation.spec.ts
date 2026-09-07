@@ -70,7 +70,7 @@ describe('ProjectPageNavigation (§23)', () => {
     const fixture = await render();
 
     expect(queryAll(fixture, '[data-project-page-tab]').map((tab) => tab.textContent?.replace(/\s+/g, ' ').trim()))
-      .toEqual(['🏠 Home', '🗓️ Todos']);
+      .toEqual(['🏠 Home', '🗓️ Todos', '🗄️ Archive']);
     // Recursive, not one level: the `nested-projects` seed is three deep counting the root.
     expect(queryAll(fixture, '[data-work-project]').map((link) => link.querySelector('.name')?.textContent))
       .toEqual(['Kitchen', 'Cabinets', 'Garden']);
@@ -80,7 +80,7 @@ describe('ProjectPageNavigation (§23)', () => {
   // advertised. `navigablePages` is the filter, and the column renders what it is handed.
   it('advertises no page kind without a renderer, even when the root enabled it', async () => {
     // Parsed rather than cast, so the fixture cannot outlive the contract's shape.
-    const enabled = ['home', 'archive'].map((kind) =>
+    const enabled = ['home', 'reflections'].map((kind) =>
       ProjectPageSchema.parse({
         id: `page-${kind}`,
         projectId: ROOT.id,

@@ -24,7 +24,6 @@ import type {
   SectionShortcutId,
 } from '@cwm/contracts';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
-import { ArchivedRegion } from './archived-region/archived-region';
 import { ProjectPageStore } from './project-page-store';
 import { SectionRemovalDialog } from './section-removal-dialog';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
@@ -34,8 +33,8 @@ import { ShortcutPicker } from './shortcuts/shortcut-picker';
 import { ShortcutStore } from './shortcuts/shortcut-store';
 
 /**
- * §27's section canvas, for **one page**: the controls row, the drag-drop canvas, the
- * Archived region and the removal dialog. It is the renderer for a root's Home and for a
+ * §27's section canvas, for **one page**: the controls row, the drag-drop canvas and the
+ * removal dialog. Archive is a root-wide page now, rather than a footer on each canvas. It is the renderer for a root's Home and for a
  * sub-project's sole work canvas, which after §26 are the same component — the two kinds
  * differ in their *header*, and the header belongs to `ProjectWorkspaceShell`.
  *
@@ -54,7 +53,6 @@ import { ShortcutStore } from './shortcuts/shortcut-store';
   selector: 'app-project-canvas',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ArchivedRegion,
     CdkDrag,
     CdkDragHandle,
     CdkDropList,
@@ -78,7 +76,7 @@ export class ProjectCanvas {
   readonly projectLayoutMode = input.required<ProjectLayoutMode>();
   /** Shortcut placement is a Home-only root capability (§27). */
   readonly shortcutsAllowed = input.required<boolean>();
-  /** Whether the Archived region may offer a Restore at all — the shell knows, not the canvas. */
+  /** Whether the root Archive page may offer a Restore at all — the shell knows, not the canvas. */
   readonly restoreBlocked = input<boolean>(false);
   /** Progress may have moved. Called, not emitted: `NgComponentOutlet` has no output API. */
   readonly onProjectDataChange = input<() => void>(() => {});
@@ -145,7 +143,7 @@ export class ProjectCanvas {
       const pageId = this.pageId();
       this.addOpen.set(false);
       this.shortcutPickerOpen.set(false);
-      void this.store.load(projectId, pageId);
+      void this.store.load(projectId, pageId, this.shortcutsAllowed());
     });
     this.watchNavigationTarget();
   }

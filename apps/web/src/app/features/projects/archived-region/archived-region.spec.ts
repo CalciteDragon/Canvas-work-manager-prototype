@@ -1,358 +1,177 @@
 import { TestBed } from '@angular/core/testing';
 import {
+  ProjectArchiveItemSchema,
   ProjectSectionSchema,
+  ProjectSchema,
   ReflectionSchema,
+  SubprojectSchema,
   TaskSchema,
-  type ProjectId,
-  type ProjectPageId,
-  type ProjectSection,
-  type Reflection,
-  type SectionId,
-  type Task,
+  type ProjectArchiveItem,
 } from '@cwm/contracts';
+import { provideRouter } from '@angular/router';
 import { describe, expect, it, vi } from 'vitest';
-import { GatewayError } from '../../../core/gateway/gateway-error';
-import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
-import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { ArchivedRegion } from './archived-region';
 
-const PROJECT = 'project-a' as ProjectId;
-/** §27: the region is a canvas's undo, and a canvas is a page. */
-const PAGE = `page-${PROJECT}` as ProjectPageId;
 const AT = '2026-09-02T06:13:32.422Z';
-const EARLIER = '2026-09-01T06:13:32.422Z';
+const ROOT_ID = 'project-a';
+const origin = {
+  projectId: ROOT_ID,
+  pageId: 'page-project-a',
+  pageKind: 'home' as const,
+  pageEnabled: true,
+  breadcrumb: [{ projectId: ROOT_ID, name: 'Website launch' }],
+};
+const root = ProjectSchema.parse({
+  id: ROOT_ID,
+  workspaceId: 'workspace-demo',
+  kind: 'root',
+  name: 'Website launch',
+  status: 'active',
+  projectLayoutMode: 'flow',
+  createdAt: AT,
+  updatedAt: AT,
+});
+const section = ProjectSectionSchema.parse({
+  id: 'section-archive',
+  projectId: ROOT_ID,
+  pageId: origin.pageId,
+  type: 'task-list',
+  title: 'Backlog',
+  position: 0,
+  columnSpan: 12,
+  collapsed: false,
+  config: {},
+  archivedAt: AT,
+  createdAt: AT,
+  updatedAt: AT,
+});
+const task = TaskSchema.parse({
+  id: 'task-archive',
+  projectId: ROOT_ID,
+  sectionId: section.id,
+  title: 'Ship it',
+  status: 'todo',
+  priority: 'medium',
+  archivedAt: AT,
+  createdAt: AT,
+  updatedAt: AT,
+});
+const reflection = ReflectionSchema.parse({
+  id: 'reflection-archive',
+  projectId: ROOT_ID,
+  sectionId: section.id,
+  title: 'A note',
+  body: 'A week of it',
+  archivedAt: AT,
+  createdAt: AT,
+  updatedAt: AT,
+});
+const subproject = SubprojectSchema.parse({
+  id: 'project-subproject',
+  workspaceId: 'workspace-demo',
+  kind: 'subproject',
+  parentProjectId: ROOT_ID,
+  name: 'Kitchen',
+  status: 'planning',
+  projectLayoutMode: 'flow',
+  createdAt: AT,
+  updatedAt: AT,
+});
 
-const section = (id: string, overrides: Record<string, unknown> = {}): ProjectSection =>
-  ProjectSectionSchema.parse({
-    id,
-    projectId: PROJECT,
-    pageId: PAGE,
-    type: 'task-list',
-    position: 0,
-    columnSpan: 12,
-    collapsed: false,
-    config: {},
-    createdAt: EARLIER,
-    updatedAt: AT,
-    ...overrides,
-  });
+const items: ProjectArchiveItem[] = [
+  ProjectArchiveItemSchema.parse({
+    kind: 'section',
+    section,
+    origin,
+    cause: { kind: 'own' },
+    cascadeCount: 1,
+    restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
+  }),
+  ProjectArchiveItemSchema.parse({
+    kind: 'task',
+    task,
+    origin: { ...origin, sectionId: section.id, sectionName: 'Backlog' },
+    cause: { kind: 'section-cascade', sectionId: section.id },
+    restoration: { kind: 'blocked', blocker: { kind: 'section', sectionId: section.id, name: 'Backlog' } },
+  }),
+  ProjectArchiveItemSchema.parse({
+    kind: 'reflection',
+    reflection,
+    origin: { ...origin, sectionId: section.id, sectionName: 'Backlog' },
+    cause: { kind: 'hidden-by-project', projectId: ROOT_ID },
+    restoration: { kind: 'not-archived', blocker: { kind: 'project', projectId: ROOT_ID, name: root.name } },
+  }),
+  ProjectArchiveItemSchema.parse({
+    kind: 'subproject',
+    project: subproject,
+    origin: { ...origin, projectId: subproject.id, breadcrumb: [...origin.breadcrumb, { projectId: subproject.id, name: subproject.name }] },
+    cause: { kind: 'own' },
+    restoration: { kind: 'ready', operation: 'restore_project', permission: 'projects.write' },
+  }),
+];
 
-const task = (id: string, overrides: Record<string, unknown> = {}): Task =>
-  TaskSchema.parse({
-    id,
-    projectId: PROJECT,
-    sectionId: 'section-live',
-    title: 'Ship it',
-    status: 'todo',
-    priority: 'medium',
-    createdAt: EARLIER,
-    updatedAt: AT,
-    ...overrides,
-  });
-
-const reflection = (id: string, overrides: Record<string, unknown> = {}): Reflection =>
-  ReflectionSchema.parse({
-    id,
-    projectId: PROJECT,
-    sectionId: 'section-notes',
-    body: 'A week of it',
-    createdAt: EARLIER,
-    updatedAt: AT,
-    ...overrides,
-  });
-
-const render = async (gateway: FakeWorkManagerGateway, restoreBlocked = false) => {
-  TestBed.configureTestingModule({
-    providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gateway }],
-  });
+const render = async (archiveItems = items, restoreBlocked = false) => {
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({ providers: [provideRouter([])] });
   const fixture = TestBed.createComponent(ArchivedRegion);
-  fixture.componentRef.setInput('projectId', PROJECT);
-  fixture.componentRef.setInput('pageId', PAGE);
-  fixture.componentRef.setInput('projectDataRevision', 0);
+  fixture.componentRef.setInput('items', archiveItems);
   fixture.componentRef.setInput('restoreBlocked', restoreBlocked);
-  const sectionRestored = vi.fn<(id: SectionId) => void>();
-  const rowRestored = vi.fn<() => void>();
-  fixture.componentInstance.sectionRestored.subscribe(sectionRestored);
-  fixture.componentInstance.rowRestored.subscribe(rowRestored);
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
-  return { fixture, gateway, sectionRestored, rowRestored };
+  return fixture;
 };
 
-const html = (fixture: { nativeElement: HTMLElement }): HTMLElement => fixture.nativeElement;
-const all = (fixture: { nativeElement: HTMLElement }, selector: string): HTMLElement[] =>
-  [...fixture.nativeElement.querySelectorAll<HTMLElement>(selector)];
-const text = (fixture: { nativeElement: HTMLElement }): string => fixture.nativeElement.textContent ?? '';
+const all = (fixture: Awaited<ReturnType<typeof render>>, selector: string): HTMLElement[] =>
+  [...(fixture.nativeElement.querySelectorAll(selector) as NodeListOf<HTMLElement>)];
 
 describe('ArchivedRegion', () => {
-  // §27: a canvas is a page, so this canvas's undo is this page's. Home offering to restore a
-  // section archived from another page would put it back where nobody is looking — and a
-  // sub-project's region must not list its root's. Asserted on the argument, because the
-  // section fixtures all carry this page and a project-wide read would look identical.
-  it('reads the page it is placed on, never the whole project', async () => {
-    const { gateway } = await render(
-      new FakeWorkManagerGateway({
-        sections: [section('section-live'), section('section-archived', { archivedAt: AT })],
-        tasks: [],
-        reflections: [],
-      }),
-    );
-
-    expect(gateway.argumentTo('sections.list')).toEqual({
-      projectId: PROJECT,
-      pageId: PAGE,
-      includeArchived: true,
-    });
+  it('renders nothing for an empty root-wide projection', async () => {
+    const fixture = await render([]);
+    expect(fixture.nativeElement.querySelector('[data-archived-region]')).toBeNull();
   });
 
-  it('renders nothing at all when there is nothing to undo', async () => {
-    // An empty Archived heading below every canvas would be permanent furniture claiming
-    // something happened. The region appears when a removal gives it something to say.
-    const { fixture } = await render(
-      new FakeWorkManagerGateway({ sections: [section('section-live')], tasks: [], reflections: [] }),
-    );
-
-    expect(html(fixture).querySelector('[data-archived-region]')).toBeNull();
+  it('renders every archive kind, cause, and exact cascade count', async () => {
+    const fixture = await render();
+    expect(all(fixture, '[data-archived-item]')).toHaveLength(4);
+    expect(all(fixture, '[data-archived-kind="section"] [data-archived-name]')[0]?.textContent).toContain('Backlog');
+    expect(all(fixture, '[data-archived-origin]')[0]?.textContent).toContain('Website launch');
+    expect(all(fixture, '[data-archived-origin-link]')[0]?.textContent).toContain('Home');
+    expect(fixture.nativeElement.querySelector('[data-archived-cascade-count]')?.textContent).toContain('1 task');
+    expect(all(fixture, '[data-archived-cause]')[1]?.textContent).toContain('with its section');
+    expect(all(fixture, '[data-archived-blocker]')[0]?.textContent).toContain('Restore “Backlog” first');
   });
 
-  it('names sections through nameOf, including padded and blank legacy titles', async () => {
-    // `ProjectSection.title` is a plain optional string, so a document written before the
-    // names phase can hold whitespace. The region must say what the canvas would have said —
-    // never a raw type, never an id.
-    const { fixture } = await render(
-      new FakeWorkManagerGateway({
-        sections: [
-          section('section-a', { title: 'Backlog', archivedAt: AT }),
-          section('section-b', { title: '  Shipped  ', archivedAt: EARLIER }),
-          section('section-c', { title: '   ', archivedAt: '2026-08-30T06:13:32.422Z' }),
-        ],
-      }),
-    );
+  it('emits only a ready canonical restore request', async () => {
+    const fixture = await render();
+    const restored = vi.fn<(request: { item: ProjectArchiveItem; status: 'active' | 'planning' | 'on_hold' | 'completed' }) => void>();
+    fixture.componentInstance.restoreRequested.subscribe(restored);
 
-    expect(all(fixture, '[data-archived-section] .archived-region__name').map((node) => node.textContent?.trim())).toEqual([
-      'Backlog',
-      'Shipped',
-      'Task List',
-    ]);
-    expect(text(fixture)).not.toContain('section-a');
+    const buttons = all(fixture, '[data-archived-restore]') as HTMLButtonElement[];
+    buttons[0]!.click();
+    buttons[1]!.click();
+
+    expect(restored).toHaveBeenCalledTimes(1);
+    expect(restored).toHaveBeenCalledWith({ item: items[0], status: 'active' });
+    expect(buttons[1]!.disabled).toBe(true);
   });
 
-  it('suffixes only the names that actually collide, in the order shown', async () => {
-    // Sections keep no uniqueness rule — two may share a name deliberately — and every
-    // untitled Task List resolves to `Task List`, so without this the region offers three
-    // identical Restore buttons.
-    const { fixture } = await render(
-      new FakeWorkManagerGateway({
-        sections: [
-          section('section-a', { archivedAt: AT }),
-          section('section-b', { archivedAt: EARLIER }),
-          section('section-c', { title: 'Backlog', archivedAt: EARLIER }),
-        ],
-      }),
-    );
-
-    expect(all(fixture, '[data-archived-section] .archived-region__name').map((node) => node.textContent?.trim())).toEqual([
-      'Task List (archive 1)',
-      'Task List (archive 2)',
-      'Backlog',
-    ]);
-  });
-
-  it('counts only the rows that came down with each section, and shows none for a view', async () => {
-    const { fixture } = await render(
-      new FakeWorkManagerGateway({
-        sections: [
-          section('section-a', { title: 'Backlog', archivedAt: AT }),
-          section('section-notes', { type: 'rich-text', title: 'Notes', archivedAt: EARLIER }),
-        ],
-        tasks: [
-          task('task-1', { sectionId: 'section-a', archivedAt: AT, archivedWithSectionId: 'section-a' }),
-          task('task-2', { sectionId: 'section-a', archivedAt: AT, archivedWithSectionId: 'section-a' }),
-        ],
-      }),
-    );
-
-    const counts = all(fixture, '[data-archived-section]').map(
-      (node) => node.querySelector('[data-archived-section-count]')?.textContent?.trim() ?? null,
-    );
-    // A `rich-text` section owns nothing, so `0 tasks` would be a lie rather than a count.
-    expect(counts).toEqual(['2 tasks', null]);
-  });
-
-  it('shows an emptied container as owning zero rather than pretending it owns none', async () => {
-    // A reassign moves the rows out and archives the emptied section. It is still a
-    // container, so it says `0 tasks` — which is what the person will get back.
-    const { fixture } = await render(
-      new FakeWorkManagerGateway({ sections: [section('section-a', { title: 'Backlog', archivedAt: AT })] }),
-    );
-
-    expect(html(fixture).querySelector('[data-archived-section-count]')?.textContent?.trim()).toBe('0 tasks');
-  });
-
-  it('offers only rows that can actually be restored, newest first', async () => {
-    // A row inside an archived section, one that came down with a section or an ancestor,
-    // and one whose parent is archived are all refused by the domain until something else
-    // returns first — so none of them is offered here.
-    const { fixture } = await render(
-      new FakeWorkManagerGateway({
-        sections: [section('section-live'), section('section-gone', { archivedAt: AT })],
-        tasks: [
-          task('task-standalone', { title: 'On its own', archivedAt: AT }),
-          task('task-older', { title: 'Filed earlier', archivedAt: EARLIER }),
-          task('task-with-section', { sectionId: 'section-gone', archivedAt: AT, archivedWithSectionId: 'section-gone' }),
-          task('task-in-archived-section', { sectionId: 'section-gone', archivedAt: AT }),
-          task('task-parent', { title: 'Parent', archivedAt: AT }),
-          task('task-child', { title: 'Child', archivedAt: EARLIER, parentTaskId: 'task-parent' }),
-        ],
-        reflections: [
-          reflection('reflection-standalone', { sectionId: 'section-live', title: 'Week 34', archivedAt: EARLIER }),
-        ],
-      }),
-    );
-
-    // Newest first, with the id as the tie-break — deterministic rather than incidental,
-    // because the three collections arrive from three separate reads.
-    expect(all(fixture, '[data-archived-row] .archived-region__name').map((node) => node.textContent?.trim())).toEqual([
-      'Parent',
-      'On its own',
-      'Week 34',
-      'Filed earlier',
-    ]);
-  });
-
-  it('falls back to Reflection for a row with no usable title', async () => {
-    const { fixture } = await render(
-      new FakeWorkManagerGateway({
-        sections: [section('section-live', { type: 'reflections' })],
-        reflections: [reflection('reflection-a', { sectionId: 'section-live', title: '   ', archivedAt: AT })],
-      }),
-    );
-
-    expect(html(fixture).querySelector('[data-archived-row] .archived-region__name')?.textContent?.trim()).toBe(
-      'Reflection',
-    );
-  });
-
-  it('restores a section and tells the page, which is what repaints the canvas', async () => {
-    // The revision alone would only make existing containers re-read. A restored section is
-    // a *new* frame, so the page has to reconcile — hence a separate output.
-    const gateway = new FakeWorkManagerGateway({
-      sections: [section('section-a', { title: 'Backlog', archivedAt: AT })],
-    });
-    const { fixture, sectionRestored } = await render(gateway);
-
-    html(fixture).querySelector<HTMLButtonElement>('[data-archived-section-restore]')!.click();
-    await fixture.whenStable();
-
-    expect(gateway.calls.filter(({ method }) => method === 'sections.restore')).toEqual([
-      { method: 'sections.restore', argument: 'section-a' },
-    ]);
-    expect(sectionRestored).toHaveBeenCalledWith('section-a');
-  });
-
-  it('restores a standalone row and notifies the page, so its container re-reads', async () => {
-    const gateway = new FakeWorkManagerGateway({
-      sections: [section('section-live')],
-      tasks: [task('task-standalone', { archivedAt: AT })],
-    });
-    const { fixture, rowRestored } = await render(gateway);
-
-    html(fixture).querySelector<HTMLButtonElement>('[data-archived-row-restore]')!.click();
-    await fixture.whenStable();
-
-    expect(gateway.calls.some(({ method }) => method === 'tasks.restore')).toBe(true);
-    expect(rowRestored).toHaveBeenCalled();
-  });
-
-  // The shell re-uses this component across a project or page change (`/projects/A` and
-  // `/projects/B` are one route configuration), so a restore can resolve after the canvas
-  // underneath it has moved. Re-reading the page the write *started* on would stamp its
-  // archive over the one now on screen, and every later restore would target the wrong canvas.
-  it('does not paint the page it started on over the page now on screen', async () => {
-    let release!: (value: unknown) => void;
-    const restoring = new Promise((resolve) => (release = resolve));
-    const gateway = new FakeWorkManagerGateway({
-      sections: [section('section-a', { title: 'Backlog', archivedAt: AT })],
-      tasks: [],
-      reflections: [],
-    });
-    gateway.sections.restore = (() => restoring) as unknown as typeof gateway.sections.restore;
-    const { fixture } = await render(gateway);
-
-    const restore = html(fixture).querySelector<HTMLButtonElement>('[data-archived-section-restore]')!;
-    restore.click();
-    // The user moves to another canvas while the write is in flight. Not `whenStable()` here:
-    // the restore is registered with `PendingTasks`, so waiting for stability would wait for
-    // the very thing this test has not released yet.
-    fixture.componentRef.setInput('pageId', 'page-elsewhere');
+  it('lets a project restore choose an explicit non-archived status', async () => {
+    const fixture = await render();
+    const restored = vi.fn();
+    fixture.componentInstance.restoreRequested.subscribe(restored);
+    const select = all(fixture, '[data-archived-project-status]')[0] as HTMLSelectElement;
+    select.value = 'on_hold';
+    select.dispatchEvent(new Event('change'));
     fixture.detectChanges();
-    await Promise.resolve();
-    fixture.detectChanges();
-    const readsAfterMove = gateway.calls.filter(({ method }) => method === 'sections.list').length;
+    (all(fixture, '[data-archived-kind="subproject"] [data-archived-restore]')[0] as HTMLButtonElement).click();
 
-    release(section('section-a', { title: 'Backlog' }));
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    // The write landed; what must not happen is a re-read of the abandoned page.
-    const listCalls = gateway.calls.filter(({ method }) => method === 'sections.list');
-    expect(listCalls.length).toBe(readsAfterMove);
-    expect((listCalls.at(-1)?.argument as { pageId?: string }).pageId).toBe('page-elsewhere');
+    expect(restored).toHaveBeenCalledWith({ item: items[3], status: 'on_hold' });
   });
 
-  it('keeps the entry and shows the reason when a restore fails', async () => {
-    const gateway = new FakeWorkManagerGateway({
-      sections: [section('section-a', { title: 'Backlog', archivedAt: AT })],
-      failOn: { 'sections.restore': new GatewayError('rule_violation', 409, 'project "project-a" is archived') },
-    });
-    const { fixture, sectionRestored } = await render(gateway);
-
-    html(fixture).querySelector<HTMLButtonElement>('[data-archived-section-restore]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(html(fixture).querySelector('[data-archived-error]')?.textContent).toContain('is archived');
-    // Nothing came back, so the entry stays and the page is not told to repaint.
-    expect(all(fixture, '[data-archived-section]')).toHaveLength(1);
-    expect(sectionRestored).not.toHaveBeenCalled();
-  });
-
-  it('disables every Restore and explains why while the project is archived', async () => {
-    // The page is reachable by direct URL for an archived project. The work stays visible —
-    // erasing it would be worse — but the domain would refuse the restore, so the control
-    // says what to do instead rather than failing on click.
-    const gateway = new FakeWorkManagerGateway({
-      sections: [section('section-a', { title: 'Backlog', archivedAt: AT })],
-      tasks: [task('task-standalone', { archivedAt: AT })],
-    });
-    const { fixture, sectionRestored } = await render(gateway, true);
-
-    expect(text(fixture)).toContain('Reactivate this project to restore archived work.');
-    for (const button of all(fixture, 'button')) {
-      expect((button as HTMLButtonElement).disabled).toBe(true);
-    }
-
-    html(fixture).querySelector<HTMLButtonElement>('[data-archived-section-restore]')!.click();
-    await fixture.whenStable();
-    // No speculative request: the refusal is enforced by HTTP and MCP, and predicted here.
-    expect(gateway.calls.some(({ method }) => method === 'sections.restore')).toBe(false);
-    expect(sectionRestored).not.toHaveBeenCalled();
-  });
-
-  it('re-reads when the page’s data revision moves', async () => {
-    // A task archived from its row emits `task.archived`, which the page turns into a
-    // revision bump rather than a canvas reconcile — this is how the region hears about it.
-    const gateway = new FakeWorkManagerGateway({ sections: [section('section-live')], tasks: [] });
-    const { fixture } = await render(gateway);
-    expect(html(fixture).querySelector('[data-archived-region]')).toBeNull();
-
-    gateway.options.tasks = [task('task-standalone', { title: 'Just archived', archivedAt: AT })];
-    fixture.componentRef.setInput('projectDataRevision', 1);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(text(fixture)).toContain('Just archived');
+  it('disables all restore controls when the root project is archived', async () => {
+    const fixture = await render([items[0]!], true);
+    expect(all(fixture, '[data-archived-blocked]')[0]?.textContent).toContain('Reactivate');
+    expect((all(fixture, '[data-archived-restore]')[0] as HTMLButtonElement).disabled).toBe(true);
   });
 });

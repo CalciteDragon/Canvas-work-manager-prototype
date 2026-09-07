@@ -37,4 +37,6 @@ export class ProjectPageNavigation {
   readonly collapsed = input<boolean>(false);
 
   readonly toggleRequested = output<void>();
+  /** Archive remains reachable even when its optional tab is disabled (§31–32). */
+  readonly openArchiveRequested = output<void>();
 }

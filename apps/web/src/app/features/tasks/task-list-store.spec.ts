@@ -88,6 +88,7 @@ const setup = (options: {
     activity: { list: vi.fn(async () => []) },
     // Slice 25.5 added `todos`; this store reads a canvas, never the chronology.
     todos: { get: vi.fn(async (projectId) => ({ projectId, items: [] })) },
+    archive: { get: vi.fn(async (projectId) => ({ projectId, root: project(projectId) as Extract<Project, { kind: 'root' }>, items: [] })) },
     projects: {
       list: vi.fn(async () => projects),
       get: vi.fn(async () => projects[0]!),

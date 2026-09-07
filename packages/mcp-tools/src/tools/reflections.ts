@@ -1,4 +1,4 @@
-import { CreateReflectionInputSchema, ProjectIdSchema } from '@cwm/contracts';
+import { CreateReflectionInputSchema, ProjectIdSchema, ReflectionIdSchema } from '@cwm/contracts';
 import { z } from 'zod';
 import { defineTool, type WorkManagerTool } from '../tool';
 
@@ -19,5 +19,19 @@ export const reflectionTools: readonly WorkManagerTool[] = [
     permission: 'reflections.write',
     inputSchema: CreateReflectionInputSchema,
     execute: (input, { actor, services }) => services.reflections.create(actor, input),
+  }),
+  defineTool({
+    name: 'archive_reflection',
+    description: 'Archive a reflection without deleting it. It remains recoverable from the project Archive projection.',
+    permission: 'reflections.write',
+    inputSchema: z.object({ reflectionId: ReflectionIdSchema }),
+    execute: ({ reflectionId }, { actor, services }) => services.reflections.archive(actor, reflectionId),
+  }),
+  defineTool({
+    name: 'restore_reflection',
+    description: 'Restore an archived reflection when its owning project and section are live.',
+    permission: 'reflections.write',
+    inputSchema: z.object({ reflectionId: ReflectionIdSchema }),
+    execute: ({ reflectionId }, { actor, services }) => services.reflections.restore(actor, reflectionId),
   }),
 ];

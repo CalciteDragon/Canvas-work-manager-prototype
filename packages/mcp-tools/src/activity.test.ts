@@ -16,19 +16,39 @@ describe('§57 activity from a tool call', () => {
   /** Read back as the *person*: `ActivityService.list` asserts `workspace.read`. */
   const newest = async () => (await harness.activity.list(user(), { limit: 1 }))[0]!;
 
-  const cases: [name: string, permission: 'projects.write' | 'tasks.write' | 'reflections.write', input: unknown, action: string][] = [
-    ['create_project', 'projects.write', { kind: 'root', name: 'Agent-made project' }, 'project.created'],
-    ['update_project', 'projects.write', { projectId: PROJECT, description: 'Rewritten.' }, 'project.updated'],
-    ['create_task', 'tasks.write', { projectId: PROJECT, title: 'Wire the transport' }, 'task.created'],
-    ['update_task', 'tasks.write', { taskId: OPEN_TASK, priority: 'high' }, 'task.updated'],
+  type ActivityCase = {
+    name: string;
+    permission: 'projects.write' | 'tasks.write' | 'reflections.write';
+    input: unknown;
+    action: string;
+    prepare?: () => Promise<void>;
+  };
+  const cases: ActivityCase[] = [
+    { name: 'create_project', permission: 'projects.write', input: { kind: 'root', name: 'Agent-made project' }, action: 'project.created' },
+    { name: 'update_project', permission: 'projects.write', input: { projectId: PROJECT, description: 'Rewritten.' }, action: 'project.updated' },
+    { name: 'archive_project', permission: 'projects.write', input: { projectId: 'project-agent-kitchen' }, action: 'project.archived' },
+    { name: 'restore_project', permission: 'projects.write', input: { projectId: 'project-agent-kitchen', status: 'active' }, action: 'project.updated', prepare: async () => {
+      await harness.registry.call('archive_project', { projectId: 'project-agent-kitchen' }, agent(['projects.write']));
+    } },
+    { name: 'create_task', permission: 'tasks.write', input: { projectId: PROJECT, title: 'Wire the transport' }, action: 'task.created' },
+    { name: 'update_task', permission: 'tasks.write', input: { taskId: OPEN_TASK, priority: 'high' }, action: 'task.updated' },
     // Not `task-agent-deployment`: it is already done, and completing a done task is
     // idempotent — it records nothing, so the assertion would read a stale seed event.
-    ['complete_task', 'tasks.write', { taskId: OPEN_TASK }, 'task.completed'],
-    ['add_reflection', 'reflections.write', { projectId: PROJECT, body: 'Worth writing down.' }, 'reflection.added'],
+    { name: 'complete_task', permission: 'tasks.write', input: { taskId: OPEN_TASK }, action: 'task.completed' },
+    { name: 'archive_task', permission: 'tasks.write', input: { taskId: OPEN_TASK }, action: 'task.archived' },
+    { name: 'restore_task', permission: 'tasks.write', input: { taskId: OPEN_TASK }, action: 'task.restored', prepare: async () => {
+      await harness.registry.call('archive_task', { taskId: OPEN_TASK }, agent(['tasks.write']));
+    } },
+    { name: 'add_reflection', permission: 'reflections.write', input: { projectId: PROJECT, body: 'Worth writing down.' }, action: 'reflection.added' },
+    { name: 'archive_reflection', permission: 'reflections.write', input: { reflectionId: 'reflection-agent-scope' }, action: 'reflection.archived' },
+    { name: 'restore_reflection', permission: 'reflections.write', input: { reflectionId: 'reflection-agent-scope' }, action: 'reflection.restored', prepare: async () => {
+      await harness.registry.call('archive_reflection', { reflectionId: 'reflection-agent-scope' }, agent(['reflections.write']));
+    } },
   ];
 
-  for (const [name, permission, input, action] of cases) {
+  for (const { name, permission, input, action, prepare } of cases) {
     it(`${name} records ${action}, attributed to the connection that made it`, async () => {
+      await prepare?.();
       const result = (await harness.registry.call(name, input, agent([permission]))) as { id: string };
 
       const event = await newest();

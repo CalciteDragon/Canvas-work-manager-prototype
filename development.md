@@ -942,7 +942,7 @@ the section *type*, so three Task Lists on one canvas offered three identical op
 plan: [docs/plans/2026-09-section-names-implementation.md](docs/plans/2026-09-section-names-implementation.md).
 `nameOf` in `packages/contracts` is now the single expression every naming surface uses — the
 frame header, the removal dialog, Rich Text's aria-label, `SectionService`'s activity summaries
-and, since the archive phase below, the Archived region — over a derivation from the `type`
+and, since the archive phase below, the root Archive page — over a derivation from the `type`
 string plus a one-entry `SECTION_DISPLAY_NAMES`
 table that `sub-projects` earns. `title` stays an optional override, defaulted at read time,
 with a placeholder-driven Name field at the top of the frame's inspector; that made
@@ -991,9 +991,10 @@ and archives the emptied section, marking nothing. `restoreSection` is the canon
 restores exactly what the removal took — a row archived beforehand stays archived.
 `TaskService.archive` now cascades to live descendants under `archivedWithTaskId`, with
 `restore` as its mirror, and `ReflectionService` finally has the archive/restore pair it never
-had. An **Archived** region at the foot of the canvas is the undo surface, visible in View Mode
-because it is content rather than layout chrome (§32), and `TaskRow` gained the per-row Archive
-control §34 describes and the domain had carried since the ownership phase with no caller.
+had. The phase first shipped an **Archived** region at the foot of the canvas as the undo
+surface, visible in View Mode because it was content rather than layout chrome (§32). Slice
+25.6 replaced that page-local surface with the root-wide Archive page, while `TaskRow` retained
+the per-row Archive control §34 describes.
 
 No `SCHEMA_VERSION` change: every new field is optional, and the current `.prototype/data.json`
 was booted unedited to prove it. The structural change is in `validateDocumentIntegrity`, which
@@ -1009,9 +1010,8 @@ domain composition the code has enforced since the ownership phase.
 
 **Deferred:** permanent deletion — wanted, and deliberately not built here, with
 `SectionRepository.remove` kept as its seam and `archivedWithSectionId` reducing it to a query
-on one column. Also: archive/restore MCP tools and `includeArchived` on the list tools (§54
-lists none, and an agent has no undo surface to build), project restore, and any workspace-wide
-archive browser or bulk restore.
+on one column. Bulk restore remains deferred; Slice 25.6 supplies the root Archive projection,
+explicit project reactivation and canonical archive/restore MCP tools.
 
 ---
 
@@ -1042,7 +1042,7 @@ ascending with undated last, retaining completed and cancelled rows.
 | 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | done — plan: [docs/plans/25.3-workspace-shell-and-subproject-canvas.md](docs/plans/25.3-workspace-shell-and-subproject-canvas.md) |
 | 25.4 | Home shortcuts | 25.3 | done — plan: [docs/plans/25.4-home-shortcuts.md](docs/plans/25.4-home-shortcuts.md) |
 | 25.5 | Chronological Todos | 25.3 | done — plan: [docs/plans/25.5-chronological-todos.md](docs/plans/25.5-chronological-todos.md) |
-| 25.6 | Root Archive and reachable undo | 25.3 | not started — implementation plan: [docs/plans/25.6-root-archive-and-reachable-undo.md](docs/plans/25.6-root-archive-and-reachable-undo.md) |
+| 25.6 | Root Archive and reachable undo | 25.3 | in progress — implementation and diff review complete; browser/MCP sign-off is blocked by missing workspace dependencies: [docs/plans/25.6-root-archive-and-reachable-undo.md](docs/plans/25.6-root-archive-and-reachable-undo.md) |
 | 25.7 | Completed-work reflections | 25.3 | not started |
 | 25.8 | Integrated acceptance and documentation closure | 25.4–25.7 | not started |
 
@@ -1101,7 +1101,8 @@ Two things the phase found by **using** it rather than by testing it, which is t
 §77's step. Enabling the Reflections page and putting a container on it drew that container on
 *Home*, because the canvas read was project-wide while a canvas is a page — every domain test
 asserted the page filter directly, so none of them looked at what a caller passing nothing got.
-`SectionService.list` now answers one page and the Archived region follows it. And the
+`SectionService.list` now answers one page and the root Archive projection follows the same
+page-aware ownership rules. And the
 archived-ancestor memoisation shared one walk's answer along its path, which is sound on a tree
 and wrong on a cycle, where the answer is relative to where the walk began; it made the ancestry
 disagree with itself depending on call order, and with the write freeze. Each query now walks its
@@ -1157,9 +1158,10 @@ agent's completed task from moving the header or puts a request behind every sib
 
 Three things found by building rather than by planning. `NgComponentOutlet` binds **inputs only**,
 so the canvas reports upward through callback inputs — the plan had called them outputs, citing as
-precedent the very component that uses callbacks for this reason. The Archived region was
+precedent the very component that uses callbacks for this reason. The earlier Archived region was
 project-scoped while the canvas became page-scoped, so Home would have listed sections archived
-from another page and restoring one would have painted nothing. And a sticky column needs
+from another page and restoring one would have painted nothing; the root Archive page now owns
+that projection. And a sticky column needs
 `min-height` rather than `height` on its container: fixed to the scrollport's height, sticky has
 nowhere to travel and the column scrolls away with the canvas — which is §23's "disappearing" by
 another route.

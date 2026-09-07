@@ -9,6 +9,7 @@ export * from './errors';
 export * from './ids';
 export * from './live-events';
 export * from './project-page-service';
+export * from './project-archive-service';
 export * from './project-service';
 export * from './project-todos-service';
 export * from './project-visibility';

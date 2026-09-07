@@ -313,6 +313,69 @@ describe('ProjectWorkspaceStore and live updates (§62)', () => {
     expect(gateway.calls.filter(({ method }) => method === 'projects.list').length).toBe(before + 2);
   });
 
+  it('does not let a pre-toggle context read overwrite the reconciled Archive page', async () => {
+    const live = new FakeLiveUpdates();
+    const projects = renovation();
+    const gateway = new FakeWorkManagerGateway({ projects });
+    const originalGet = gateway.projects.get.bind(gateway.projects);
+    const originalPagesList = gateway.pages.list.bind(gateway.pages);
+    const stalePages = await originalPagesList('project-renovation' as ProjectId);
+    const gate = deferred<Project>();
+    let blockRefresh = false;
+    let oldRefreshInFlight = false;
+    let openingRead = false;
+
+    gateway.projects.get = (id: ProjectId) => {
+      if (blockRefresh && id === 'project-renovation') {
+        blockRefresh = false;
+        oldRefreshInFlight = true;
+        return gate.promise;
+      }
+      return originalGet(id);
+    };
+    gateway.pages.list = (projectId: ProjectId) => {
+      if (openingRead) {
+        openingRead = false;
+        return originalPagesList(projectId);
+      }
+      if (oldRefreshInFlight) {
+        oldRefreshInFlight = false;
+        return Promise.resolve(stalePages);
+      }
+      return originalPagesList(projectId);
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        ProjectWorkspaceStore,
+        { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+        { provide: LIVE_UPDATES, useValue: live },
+      ],
+    });
+    const store = TestBed.inject(ProjectWorkspaceStore);
+    await store.load('project-renovation' as ProjectId);
+    blockRefresh = true;
+
+    live.emit({
+      type: 'project.updated',
+      entityType: 'project',
+      entityId: 'project-renovation',
+      projectId: 'project-renovation',
+      rootProjectId: 'project-renovation',
+      actor: { kind: 'agent', id: 'agent-1', name: 'Claude' },
+      at: AT,
+    } as never);
+    await Promise.resolve();
+
+    openingRead = true;
+    expect(await store.openArchive()).toBe(true);
+    expect(store.pages().find(({ kind }) => kind === 'archive')?.enabled).toBe(true);
+
+    gate.resolve(projects[0]!);
+    for (let pass = 0; pass < 8; pass += 1) await Promise.resolve();
+
+    expect(store.pages().find(({ kind }) => kind === 'archive')?.enabled).toBe(true);
+  });
+
   it('stops listening once the store is destroyed', async () => {
     const live = new FakeLiveUpdates();
     const { store } = storeWith({ projects: renovation() }, live);

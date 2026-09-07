@@ -137,7 +137,7 @@ export class SectionService {
 
   /**
    * **One page's canvas**, live-only by default. `{ includeArchived: true }` is the one read
-   * that sees archived sections — the Archived region — and it returns both states ordered by
+   * that sees archived sections — the root Archive projection — and it returns both states ordered by
    * position then id, deterministic for transport; an archived section keeps a stale position,
    * so the region applies its own timestamp order after selecting.
    */
@@ -150,7 +150,7 @@ export class SectionService {
     await this.assertProjectVisible(actor, projectId);
     // **A canvas is a page** (§27), so this answers one — the page named, or the project's
     // canonical one. A project-wide read would put the Reflections page's container on Home and
-    // its archived sections in Home's Archived region, which is what running the feature
+    // its archived sections in Home's Archive projection, which is what running the feature
     // actually showed; and it was reachable the moment an optional page could be enabled.
     //
     // Resolved, not merely filtered: a stale or foreign page answers not-found rather than an

@@ -92,6 +92,7 @@ export class ProjectPageStore {
   /** Set before the first gateway await, so a startup frame can still be routed. */
   private requestedProjectId: ProjectId | undefined;
   private requestedPageId: ProjectPageId | undefined;
+  private requestedShortcutsAllowed = true;
   /**
    * Whether a load has completed. The staleness guards used to ask `projectState() !== null`,
    * which answered "is anything loaded" as a side effect; with the record gone, `sections()`
@@ -165,7 +166,7 @@ export class ProjectPageStore {
     if (event.type === 'prototype.reloaded') {
       const projectId = this.requestedProjectId;
       const pageId = this.requestedPageId;
-      if (projectId !== undefined && pageId !== undefined) void this.load(projectId, pageId);
+      if (projectId !== undefined && pageId !== undefined) void this.load(projectId, pageId, this.requestedShortcutsAllowed);
       return;
     }
 
@@ -244,7 +245,7 @@ export class ProjectPageStore {
         this.sectionRefreshQueued = false;
         const [sectionsResult, shortcutsResult] = await Promise.allSettled([
           this.gateway.sections.list(projectId, { pageId }),
-          this.gateway.shortcuts.list(projectId, { pageId }),
+          this.readShortcuts(projectId, pageId),
         ]);
         if (!this.current(generation, projectId, pageId)) continue;
         if (sectionsResult.status === 'rejected') {
@@ -287,6 +288,10 @@ export class ProjectPageStore {
     const projectId = this.requestedProjectId;
     const pageId = this.requestedPageId;
     if (projectId === undefined || pageId === undefined) return Promise.resolve();
+    if (!this.requestedShortcutsAllowed) {
+      this.setCanvas(this.composePlacements(this.sectionsState(), []));
+      return Promise.resolve();
+    }
     const generation = this.loadGeneration;
     return this.track(async () => {
       try {
@@ -305,11 +310,13 @@ export class ProjectPageStore {
    * this component and this store, so a response that lands after the page changed must write
    * nothing — the guard is the page as well as the project.
    */
-  load(projectId: ProjectId, pageId: ProjectPageId): Promise<void> {
+  load(projectId: ProjectId, pageId: ProjectPageId, shortcutsAllowed = true): Promise<void> {
     const generation = ++this.loadGeneration;
     const current = () => generation === this.loadGeneration;
     this.requestedProjectId = projectId;
     this.requestedPageId = pageId;
+    this.requestedShortcutsAllowed = shortcutsAllowed;
+    if (!shortcutsAllowed) this.setCanvas(this.composePlacements(this.sectionsState(), []));
     this.loaded = false;
     // A refresh in flight for the page being left exits on the generation check without
     // consuming this, and the flag would otherwise buy the *next* page a gratuitous re-read.
@@ -322,7 +329,7 @@ export class ProjectPageStore {
       this.sectionErrorState.set(null);
       const [sectionsResult, shortcutsResult] = await Promise.allSettled([
         this.gateway.sections.list(projectId, { pageId }),
-        this.gateway.shortcuts.list(projectId, { pageId }),
+        this.readShortcuts(projectId, pageId),
       ]);
       if (!current()) return;
       if (sectionsResult.status === 'rejected') {
@@ -372,6 +379,10 @@ export class ProjectPageStore {
       ...sections.map((section) => ({ kind: 'section' as const, section })),
       ...shortcuts.map((shortcut) => ({ kind: 'shortcut' as const, shortcut })),
     ].sort(byPlacementPosition);
+  }
+
+  private readShortcuts(projectId: ProjectId, pageId: ProjectPageId): Promise<ResolvedSectionShortcut[]> {
+    return this.requestedShortcutsAllowed ? this.gateway.shortcuts.list(projectId, { pageId }) : Promise.resolve([]);
   }
 
   private setCanvas(placements: readonly ProjectCanvasPlacement[]): void {
@@ -620,7 +631,7 @@ export class ProjectPageStore {
   /**
    * Removal **archives**. A view, an empty container, and a container holding only archived
    * rows go without ceremony — this sends no policy and the domain archives them, and the
-   * Archived region below the canvas is what makes that safe. A container still holding
+   * root Archive page is what makes that safe. A container still holding
    * *live* rows answers 409 `rule_violation` carrying a discriminated `section_not_empty`
    * payload; that is not an error to render, it is a **question to ask**, so it opens
    * `removalPrompt` instead of `sectionError`.
@@ -686,27 +697,6 @@ export class ProjectPageStore {
     this.removalPromptState.set(null);
   }
 
-  /**
-   * What the Archived region calls after restoring a section. It **adds** a section to the
-   * canvas, so bumping the data revision is not enough: that makes the existing containers
-   * re-read, and paints no new frame. `reconcileSections` is private and the region's store
-   * must not reach into this one, so this is the entry point the two constraints leave.
-   */
-  async sectionRestored(): Promise<void> {
-    await this.reconcileSections();
-    this.notifyProjectDataChanged();
-  }
-
-  /**
-   * The mirror, for a restored **row**. It becomes live inside a container that is already
-   * on the canvas, and that container re-reads only when its data revision moves — so
-   * without this, "restores with no reload" would hold for sections and quietly fail for
-   * rows.
-   */
-  rowRestored(): void {
-    this.notifyProjectDataChanged();
-  }
-
   private updateSection(
     id: SectionId,
     input: Parameters<typeof this.gateway.sections.update>[1],
@@ -766,7 +756,7 @@ export class ProjectPageStore {
     if (projectId === undefined || pageId === undefined) return;
     const [sectionsResult, shortcutsResult] = await Promise.allSettled([
       this.gateway.sections.list(projectId, { pageId }),
-      this.gateway.shortcuts.list(projectId, { pageId }),
+      this.readShortcuts(projectId, pageId),
     ]);
     if (!this.current(generation, projectId, pageId)) return;
     if (sectionsResult.status === 'fulfilled') {

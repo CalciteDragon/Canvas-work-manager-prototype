@@ -1387,8 +1387,8 @@ later needs no entry. `SectionService` refuses on the way in and `validateDocume
 refuses at load, because a hand-edited `data.json` (§14) must fail then rather than at whichever
 request first renders it. Slice 25.4 adds the Home-only shortcut placement beside the registered
 types. Slice 25.5 registers the Todos renderer — a derived list that holds no sections, so nothing
-about this table changes for it; the Archive and Reflections renderers arrive with Slices 25.6 and
-25.7.*
+about this table changes for it. Slice 25.6 adds the Archive renderer; Reflections remains the
+next page renderer in Slice 25.7.*
 
 ---
 
@@ -1423,16 +1423,6 @@ first asks what should happen to them: archive them with the section, or move th
 container of the same type. A view, an empty container, and a container holding only archived
 rows need no question and archive silently.
 
-Every project canvas therefore ends with an **Archived** region: the sections that have been
-removed, each with the number of rows that came down with it, above the rows archived on their
-own. One **Restore** puts a section back at the end of the canvas with exactly what the removal
-took — not the rows that were already archived beforehand, which stay archived. Restoring is
-refused while the project itself is archived, so the region stays visible with its controls
-disabled and the guidance *Reactivate this project to restore archived work.*
-
-Removing a section that is already archived is refused rather than repeated. Permanent deletion
-is a later question.
-
 ## Where archived work is found
 
 Archived work does not appear on ordinary pages, views or read models — that is what archiving
@@ -1441,13 +1431,13 @@ root's optional **Archive** page: every archived section, task, reflection and s
 across the whole root tree, each with its origin, what caused it to be archived, and whether it
 can be restored.
 
-The per-canvas **Archived** region described above is the current form of that promise and
-stays until the Archive page replaces it. The page is a superset: it also lists the rows the
-region deliberately hides — those an ancestor took down, which cannot be restored on their own
-— with guidance naming the ancestor to restore instead, **and those whose container lives on
-another page of the same project**, which a region scoped to one canvas cannot show. Slice 25.3
-page-scoped the region, because §27 makes a canvas a page: Home must not offer to restore what
-was archived from Reflections, since the restore would land where nobody is looking.
+The root-wide **Archive** page is canonical. It lists the rows a canvas-scoped undo surface
+could miss — those an ancestor took down, which cannot be restored on their own, and those whose
+container lives on another page of the same project — with guidance naming the operation or
+ancestor to restore instead. It also identifies each item's owning project, page and container,
+whether the cause was its own archive or a cascade marker, and the canonical restore operation.
+The owning page may be disabled or not yet rendered; the Archive page remains the place to find
+and restore its content.
 
 A project whose own status is `archived` hides its live contents from ordinary reads too. The
 Archive page may still show them under their archived owner, distinguishing *hidden because an
@@ -1460,12 +1450,15 @@ an implicit cascade would archive work the caller never named. A whole-tree Arch
 archived work *findable*; it does not make archiving *contagious*.
 
 Because undo must never be behind a toggle, disabling the Archive page leaves **Open archive**
-in the project controls, which enables and opens it.
+in the project controls, which enables and opens it. The control is available from the root
+navigation context and from a nested project's More menu, and it navigates only after the root
+page context has reconciled successfully. If reconciliation fails after enabling, the current
+location is preserved and a read-only retry is offered.
 
-*Partly landed in Slice 25.2: enabling a page is the one write the archive freeze does not
-cover, so the Archive page can always be turned back on — on an archived root included. The
-**Open archive** control and the page it opens are Slice 25.6's; today's undo surface is still
-the per-canvas region.*
+*Landed in Slice 25.6: the per-canvas Archived region was replaced by the root-wide Archive
+page, which keeps cascade members and effectively hidden live work findable, explains blockers,
+and delegates every restore to the existing canonical domain operation. Disabling the page no
+longer makes undo unreachable.*
 
 *The same slice made the rest of this section's visibility promise real, and the two halves of
 it are not the same rule. **Archived owners** are excluded by the `status` filter each aggregate
@@ -1520,12 +1513,11 @@ Edit Layout Mode reveals:
 
 This avoids permanently cluttering the normal workspace.
 
-§31's **Archived** region is *not* layout chrome and stays visible in View Mode: it is content,
+The **Archive** page is *not* layout chrome and stays reachable in View Mode: it is content,
 and it is the undo for removal. Gating it behind Edit Layout Mode would hide it exactly when
 someone needs it — right after a removal they did not mean. The per-row archive control in §34
 is likewise a row affordance rather than a layout one. The same reasoning carries to the
-Archive page that replaces the region: it is a page of content, reachable in View Mode, and
-reachable through project controls even when its tab is disabled.
+project controls that open the page even when its tab is disabled.
 
 Shortcut placements (§27) are layout. Adding and removing one belongs to Edit Layout Mode; the
 source content a placement renders does not become editable there.
@@ -1611,7 +1603,7 @@ restore
 Archiving a task takes its subtasks with it, and restoring it brings back exactly those — a
 subtask archived on its own beforehand stays archived. A subtask cannot be restored on its own
 while its parent or its section is archived; restore the one that took it down instead.
-Archived rows are reached through §31's Archived region.
+Archived rows are reached through §31's Archive page.
 
 Prefer a side drawer over a modal for detailed task editing so workspace context remains visible.
 
@@ -2337,11 +2329,15 @@ Slice 25.5 adds `get_project_todos`, the first tool to need more than one grant:
 answering with the half it was allowed to read. `WorkManagerTool` carries the extra grants in an
 optional `additionalPermissions`, and the transports publish the complete list under
 `_meta["local.canvas-work-manager/requiredPermissions"]` beside the unchanged singular key.
-`get_project_archive` projects a page that has no renderer yet and arrives with it in Slice 25.6.
-Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
+`get_project_archive` and the Archive page landed in Slice 25.6. The query requires
+`projects.read`, `tasks.read` and `reflections.read` together, returns archived and effectively
+hidden work with origin/cause/blocker guidance, and does not depend on the Archive tab being
+enabled. Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
 `add_section_shortcut` / `remove_section_shortcut` under `projects.write`; the list returns
 placement and source identity only, never source rows. Canonical archive/restore tools remain
-Slice 25.6's.*
+the same operations used by the UI: `archive_project` / `restore_project`, `remove_section` /
+`restore_section`, `archive_task` / `restore_task`, and `archive_reflection` /
+`restore_reflection`. Project restoration requires an explicit non-archived status.*
 
 ---
 
@@ -3560,7 +3556,9 @@ The MVP specification should not be finalized until these have answers.
 
 ## Archive
 
-- Is a whole-tree Archive page used, or only the undo immediately after a mistake?
+- Is a whole-tree Archive page used, or only the undo immediately after a mistake? **Answered in
+  Slice 25.6:** the root-wide Archive page is the canonical discovery and recovery surface;
+  project controls can enable it and open it even when its tab is disabled.
 - Is permanent deletion needed once archived work is easy to find?
 
 ## Dashboard

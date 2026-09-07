@@ -3,6 +3,7 @@ import type {
   ActorContext,
   DashboardService,
   ProjectPageService,
+  ProjectArchiveService,
   ProjectService,
   ProjectTodosService,
   ReflectionService,
@@ -27,6 +28,8 @@ export interface WorkManagerServices {
   pages: ProjectPageService;
   /** §34's chronology across a root's whole tree. A read of two categories, never an owner. */
   todos: ProjectTodosService;
+  /** §31's whole-tree Archive projection. */
+  archive: ProjectArchiveService;
   tasks: TaskService;
   reflections: ReflectionService;
   /** §31's frame affordances, and the containers that own tasks and reflections. */

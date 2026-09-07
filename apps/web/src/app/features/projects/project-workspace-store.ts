@@ -53,6 +53,10 @@ export class ProjectWorkspaceStore {
   private projectWrites = 0;
   private projectRefreshQueued = false;
   private contextRefresh: Promise<void> | null = null;
+  /** Invalidates an Archive enable/reconciliation when the route changes or a newer toggle wins. */
+  private contextWriteEpoch = 0;
+  private contextWritePending = false;
+  private destroyed = false;
 
   private readonly projectState = signal<Project | null>(null);
   private readonly ancestorsState = signal<Project[]>([]);
@@ -91,7 +95,13 @@ export class ProjectWorkspaceStore {
       (event) => this.onLiveEvent(event),
       () => this.onLiveConnected(),
     );
-    inject(DestroyRef).onDestroy(unsubscribe);
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.loadGeneration += 1;
+      this.contextWriteEpoch += 1;
+      this.requestedProjectId = undefined;
+      unsubscribe();
+    });
   }
 
   /**
@@ -133,7 +143,7 @@ export class ProjectWorkspaceStore {
    * answer than an error the user did not cause.
    */
   private refreshContext(): void {
-    if (this.projectWrites > 0) {
+    if (this.projectWrites > 0 || this.contextWritePending) {
       this.projectRefreshQueued = true;
       return;
     }
@@ -148,13 +158,19 @@ export class ProjectWorkspaceStore {
     const projectId = this.requestedProjectId;
     if (projectId === undefined) return;
     const generation = this.loadGeneration;
+    const epoch = this.contextWriteEpoch;
 
     const refresh = this.track(async () => {
       do {
         this.projectRefreshQueued = false;
         try {
           const context = await this.readContext(projectId);
-          if (generation === this.loadGeneration && this.requestedProjectId === projectId) {
+          if (
+            !this.destroyed &&
+            epoch === this.contextWriteEpoch &&
+            generation === this.loadGeneration &&
+            this.requestedProjectId === projectId
+          ) {
             this.applyContext(context);
             this.errorState.set(null);
           }
@@ -164,10 +180,22 @@ export class ProjectWorkspaceStore {
       } while (
         this.projectRefreshQueued &&
         this.projectWrites === 0 &&
-        generation === this.loadGeneration
+        generation === this.loadGeneration &&
+        epoch === this.contextWriteEpoch &&
+        !this.destroyed
       );
     }).finally(() => {
       if (this.contextRefresh === refresh) this.contextRefresh = null;
+      if (
+        this.contextRefresh === null &&
+        this.projectRefreshQueued &&
+        this.projectWrites === 0 &&
+        !this.contextWritePending &&
+        !this.destroyed
+      ) {
+        this.projectRefreshQueued = false;
+        this.refreshContext();
+      }
     });
     this.contextRefresh = refresh;
   }
@@ -177,7 +205,9 @@ export class ProjectWorkspaceStore {
    * see must fail as "not found" rather than racing reads that would report it less clearly.
    */
   load(projectId: ProjectId): Promise<void> {
+    if (this.destroyed) return Promise.resolve();
     const generation = ++this.loadGeneration;
+    this.contextWriteEpoch += 1;
     const current = () => generation === this.loadGeneration;
     this.requestedProjectId = projectId;
     this.projectRefreshQueued = false;
@@ -234,6 +264,107 @@ export class ProjectWorkspaceStore {
     this.descendantsState.set(context.projects);
   }
 
+  /**
+   * §31–32: Archive is reachable from project controls even when its tab is disabled. Enabling
+   * it is a real page write, so navigation waits for both the write and a fresh context before
+   * changing the URL. A failed refresh after a committed enable is surfaced as a retryable
+   * write error rather than toggling the page again.
+   */
+  openArchive(): Promise<boolean> {
+    return this.track(async () => {
+      const root = this.root();
+      const routedProjectId = this.requestedProjectId;
+      const routedProject = this.projectState();
+      if (
+        this.destroyed ||
+        root === null ||
+        routedProject === null ||
+        routedProject.id !== routedProjectId ||
+        routedProjectId === undefined
+      ) return false;
+      if (this.pagesState().some((page) => page.kind === 'archive' && page.enabled)) return true;
+      if (this.contextWritePending) return false;
+
+      const generation = this.loadGeneration;
+      const epoch = ++this.contextWriteEpoch;
+      this.contextWritePending = true;
+      this.writeErrorState.set(null);
+      try {
+        try {
+          await this.gateway.pages.setEnabled(root.id, { kind: 'archive', enabled: true });
+        } catch (error) {
+          if (!this.destroyed && generation === this.loadGeneration && epoch === this.contextWriteEpoch) {
+            this.writeErrorState.set(messageOf(error));
+          }
+          return false;
+        }
+
+        if (
+          this.destroyed ||
+          generation !== this.loadGeneration ||
+          epoch !== this.contextWriteEpoch ||
+          this.requestedProjectId !== routedProjectId
+        ) return false;
+        try {
+          const context = await this.readContext(routedProjectId);
+          if (
+            this.destroyed ||
+            generation !== this.loadGeneration ||
+            epoch !== this.contextWriteEpoch ||
+            this.requestedProjectId !== routedProjectId
+          ) return false;
+          this.applyContext(context);
+          return true;
+        } catch (error) {
+          if (!this.destroyed && generation === this.loadGeneration && epoch === this.contextWriteEpoch) {
+            this.writeErrorState.set(`Archive was enabled, but navigation could not refresh: ${messageOf(error)}`);
+          }
+          return false;
+        }
+      } finally {
+        this.contextWritePending = false;
+        if (!this.destroyed && this.projectWrites === 0 && this.projectRefreshQueued) {
+          this.projectRefreshQueued = false;
+          this.refreshContext();
+        }
+      }
+    });
+  }
+
+  /** Read-only retry after an Archive page enable committed but context reconciliation failed. */
+  retryArchiveContext(): Promise<boolean> {
+    return this.track(async () => {
+      const routedProjectId = this.requestedProjectId;
+      const routedProject = this.projectState();
+      if (
+        this.destroyed ||
+        routedProject === null ||
+        routedProject.id !== routedProjectId ||
+        routedProjectId === undefined
+      ) return false;
+      if (this.contextWritePending) return false;
+      const generation = this.loadGeneration;
+      const epoch = ++this.contextWriteEpoch;
+      try {
+        const context = await this.readContext(routedProjectId);
+        if (
+          this.destroyed ||
+          generation !== this.loadGeneration ||
+          epoch !== this.contextWriteEpoch ||
+          this.requestedProjectId !== routedProjectId
+        ) return false;
+        this.applyContext(context);
+        this.writeErrorState.set(null);
+        return true;
+      } catch (error) {
+        if (!this.destroyed && generation === this.loadGeneration && epoch === this.contextWriteEpoch) {
+          this.writeErrorState.set(`Archive was enabled, but navigation could not refresh: ${messageOf(error)}`);
+        }
+        return false;
+      }
+    });
+  }
+
   /** Root first. A visited set stops a hand-edited parent cycle from walking forever. */
   private async readAncestors(project: Project): Promise<Project[]> {
     const chain: Project[] = [];
@@ -267,7 +398,7 @@ export class ProjectWorkspaceStore {
   private async readProgress(projectId: ProjectId, generation: number): Promise<void> {
     try {
       const result = await this.gateway.progress.get(projectId);
-      if (generation === this.loadGeneration && this.requestedProjectId === projectId) {
+      if (!this.destroyed && generation === this.loadGeneration && this.requestedProjectId === projectId) {
         this.progressState.set(result);
       }
     } catch {

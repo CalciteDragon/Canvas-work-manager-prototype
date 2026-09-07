@@ -64,6 +64,12 @@
   </form>
 
   <div class="more-menu__row">
+    <button type="button" data-project-open-archive (click)="openArchiveRequested.emit()">
+      Open archive
+    </button>
+  </div>
+
+  <div class="more-menu__row">
     <button type="button" data-project-archive class="more-menu__danger" (click)="confirming.set(true)">
       Archive project
     </button>

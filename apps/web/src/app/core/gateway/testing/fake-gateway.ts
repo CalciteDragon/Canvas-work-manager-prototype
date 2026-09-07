@@ -8,6 +8,7 @@ import { ProjectSchema, type
   DashboardResult,
   Identity,
   ProgressResult,
+  ProjectArchiveResult,
   Project,
   ProjectId,
   ProjectPage,
@@ -34,6 +35,7 @@ import { GatewayError } from '../gateway-error';
 import type {
   ActivityGateway,
   AgentGateway,
+  ArchiveGateway,
   ProjectGateway,
   ProjectPageGateway,
   SectionGateway,
@@ -60,6 +62,8 @@ export interface FakeGatewayOptions {
   timeline?: TimelineResult;
   /** §34's chronology, seeded whole: the fake orders nothing, the domain does. */
   todos?: ProjectTodosResult;
+  /** §31's whole-tree recovery projection. */
+  archive?: ProjectArchiveResult;
   reflections?: Reflection[];
   dashboard?: DashboardResult;
   agentConnections?: AgentConnection[];
@@ -192,6 +196,21 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       ),
   };
 
+  readonly archive: ArchiveGateway = {
+    get: (projectId: ProjectId) => {
+      const configured = this.options.archive?.projectId === projectId ? this.options.archive : undefined;
+      if (configured !== undefined) return this.answer('archive.get', projectId, configured);
+      const root = (this.options.projects ?? []).find(
+        (project): project is Extract<Project, { kind: 'root' }> => project.id === projectId && project.kind === 'root',
+      );
+      return this.answer('archive.get', projectId, {
+        projectId,
+        root: root ?? (this.find(this.options.projects, projectId, 'project') as Extract<Project, { kind: 'root' }>),
+        items: [],
+      });
+    },
+  };
+
   readonly reflections = {
     // Archive filtering is faithful, not ignored: a store that forgot `includeArchived`
     // would otherwise pass here and show archived rows in a live section.
@@ -226,8 +245,8 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     // The toggle, echoed: enabling a kind the project does not have yet answers with a new
     // record, matching the service's upsert, so a store spec sees the same two shapes it
     // would over HTTP.
-    setEnabled: (projectId: ProjectId, input: SetProjectPageEnabledInput) =>
-      this.answer('pages.setEnabled', { projectId, input }, {
+    setEnabled: (projectId: ProjectId, input: SetProjectPageEnabledInput) => {
+      const updated = {
         ...(this.pagesOf(projectId).find(({ kind }) => kind === input.kind) ?? {
           id: `page-${projectId}-${input.kind}` as ProjectPageId,
           projectId,
@@ -236,7 +255,13 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
           updatedAt: COMPLETED_AT,
         }),
         enabled: input.enabled,
-      }),
+      };
+      this.options.pages = [
+        ...(this.options.pages ?? []).filter((page) => !(page.projectId === projectId && page.kind === input.kind)),
+        updated,
+      ];
+      return this.answer('pages.setEnabled', { projectId, input }, updated);
+    },
   };
 
   readonly sections: SectionGateway = {
@@ -315,7 +340,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
   readonly tasks: TaskGateway = {
     // Honours `sectionId`, because a Task List section now renders only what its own
     // container owns — a fake that ignored it would let a broken scope pass. It honours
-    // `projectId` and `includeArchived` for the same reason: the Archived region reads by
+    // `projectId` and `includeArchived` for the same reason: the root Archive projection reads by
     // project and asks for archived rows, and a fake that answered everything regardless
     // would let a store that forgot either one look correct.
     list: (query) =>

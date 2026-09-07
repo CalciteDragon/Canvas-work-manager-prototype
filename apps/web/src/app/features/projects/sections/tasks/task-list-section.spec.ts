@@ -135,7 +135,7 @@ describe('TaskListSection (§30, §66)', () => {
     expect(gateway.argumentTo('tasks.archive')).toBe('task-1');
   });
 
-  it('tells the page a successful archive happened, so the Archived region re-reads', async () => {
+  it('tells the page a successful archive happened, so projections can refresh', async () => {
     const { fixture, onProjectDataChange } = await render();
 
     query(fixture, '[data-task-archive]')!.click();
@@ -201,8 +201,8 @@ describe('TaskListSection — the per-row Archive control (§34)', () => {
   });
 
   it('tells the page after a successful archive', async () => {
-    // The row moves from this list into the page's Archived region, which re-reads on the
-    // data revision — so a silent success would leave the region a reload behind.
+    // The row moves out of this live list; the shell callback lets the owner refresh its
+    // projections without coupling this section to the root Archive store.
     const { fixture, onProjectDataChange } = await render();
 
     query(fixture, '[data-task-archive]')!.click();

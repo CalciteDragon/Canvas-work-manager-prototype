@@ -6,6 +6,7 @@ import {
   SectionIdSchema,
   UpdateSectionInputSchema,
 } from '@cwm/contracts';
+import { z } from 'zod';
 import { defineTool, type WorkManagerTool } from '../tool';
 
 /**
@@ -17,9 +18,9 @@ import { defineTool, type WorkManagerTool } from '../tool';
  * rows takes a policy rather than a confirmation: it owns them, so the service refuses to
  * guess between archiving them with it and moving them elsewhere first.
  *
- * There is no archive or restore tool: §54 lists none, and an agent has no undo surface to
- * build one for. `list_sections` is live-only for the same reason — the agent's canvas is
- * the person's canvas.
+ * Archive and restore are separate canonical operations so an agent can undo the same
+ * operation the person sees in Archive. `list_sections` remains live-only — the agent's
+ * canvas is the person's canvas.
  */
 export const sectionTools: readonly WorkManagerTool[] = [
   defineTool({
@@ -56,5 +57,13 @@ export const sectionTools: readonly WorkManagerTool[] = [
     // is undoable rather than inferring it from a bare id. Returned directly by the service:
     // a second `get` would demand `projects.read`, which this tool does not require.
     execute: ({ sectionId, ...input }, { actor, services }) => services.sections.remove(actor, sectionId, input),
+  }),
+  defineTool({
+    name: 'restore_section',
+    description:
+      'Restore an archived section with the tasks or reflections that were archived with it. The operation is refused when the owning project is archived, and it never revives rows archived independently.',
+    permission: 'projects.write',
+    inputSchema: z.object({ sectionId: SectionIdSchema }),
+    execute: ({ sectionId }, { actor, services }) => services.sections.restoreSection(actor, sectionId),
   }),
 ];

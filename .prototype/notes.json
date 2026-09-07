@@ -657,6 +657,14 @@
       "projectId": "project-renovation",
       "slice": 25.5,
       "note": "With §46's failure rate at 25% the refused completion behaved well — row rolled back to Active, the host's message shown, other rows still usable — but the same 25% was applied to *reads*, so getting to that state took four page loads, each of which failed somewhere different (project record, sub-projects section, the chronology itself). A rate that could be scoped to writes would make the write-failure path testable by hand in one attempt instead of by persistence."
+    },
+    {
+      "id": "note-2026-09-06-010",
+      "createdAt": "2026-09-06T12:00:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 25.6,
+      "note": "The first real-app check could not reach the Archive page: both the host and Angular dev server stop during startup because the installed workspace is missing `esbuild` (Vitest also cannot resolve its nested Vite package, and Playwright/Storybook packages are absent). The implementation and type checks are runnable, but browser/MCP acceptance remains unobserved until dependencies are repaired."
     }
   ]
 }

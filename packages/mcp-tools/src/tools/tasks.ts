@@ -46,4 +46,20 @@ export const taskTools: readonly WorkManagerTool[] = [
     inputSchema: z.object({ taskId: TaskIdSchema }),
     execute: ({ taskId }, { actor, services }) => services.tasks.complete(actor, taskId),
   }),
+  defineTool({
+    name: 'archive_task',
+    description:
+      'Archive a task and the live descendants beneath it, recording exact cascade markers so one restore can undo only this operation.',
+    permission: 'tasks.write',
+    inputSchema: z.object({ taskId: TaskIdSchema }),
+    execute: ({ taskId }, { actor, services }) => services.tasks.archive(actor, taskId),
+  }),
+  defineTool({
+    name: 'restore_task',
+    description:
+      'Restore an archived task and exactly the descendants archived with it. The operation is refused when an archived section, project or task ancestor must be restored first.',
+    permission: 'tasks.write',
+    inputSchema: z.object({ taskId: TaskIdSchema }),
+    execute: ({ taskId }, { actor, services }) => services.tasks.restore(actor, taskId),
+  }),
 ];

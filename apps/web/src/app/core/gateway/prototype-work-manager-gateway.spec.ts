@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import {
+  ProjectArchiveResultSchema,
   ResolvedSectionShortcutSchema,
   ShortcutSourceSchema,
   type CreateTaskInput,
@@ -92,6 +93,27 @@ const todos = {
     },
   ],
 };
+const archive = ProjectArchiveResultSchema.parse({
+  projectId: 'project-1',
+  root: project,
+  items: [
+    {
+      kind: 'task',
+      task: { ...task, archivedAt: at },
+      origin: {
+        projectId: 'project-1',
+        pageId: 'page-project-1',
+        pageKind: 'home',
+        pageEnabled: true,
+        breadcrumb: [{ projectId: 'project-1', name: 'Personal workspace' }],
+        sectionId: 'section-1',
+        sectionName: 'Task List',
+      },
+      cause: { kind: 'own' },
+      restoration: { kind: 'ready', operation: 'restore_task', permission: 'tasks.write' },
+    },
+  ],
+});
 const reflection = { id: 'reflection-1', projectId: 'project-1', sectionId: 'section-1', body: 'A useful note', createdAt: at, updatedAt: at };
 const shortcut = ResolvedSectionShortcutSchema.parse({
   id: 'shortcut-1',
@@ -281,6 +303,17 @@ describe('PrototypeWorkManagerGateway — Slice 10 reads and reflections', () =>
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1/todos');
     expect((lastCall().init.headers as Record<string, string>)['x-prototype-user']).toBe('user-demo');
     expect(result.items[0]?.kind).toBe('task');
+  });
+
+  it('reads §31’s root-wide archive without depending on a page tab', async () => {
+    fetchMock.mockImplementation(jsonResponse(archive));
+
+    const result = await gateway().archive.get('project-1' as ProjectId);
+
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/archive');
+    expect(lastCall().init.method).toBe('GET');
+    expect(result.items[0]?.kind).toBe('task');
+    expect(result.items[0]?.origin.pageEnabled).toBe(true);
   });
 
   it('rejects malformed derived and reflection bodies', async () => {

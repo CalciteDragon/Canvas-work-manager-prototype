@@ -113,8 +113,8 @@ export class TaskListSection {
   }
 
   /**
-   * The row leaves this list and appears in the page's Archived region, so the page has to
-   * hear about it: the region re-reads on the same data revision every section does.
+   * The row leaves this list and the shell needs to hear about it, so the root Archive page and
+   * progress projection can refresh through the existing page callback.
    */
   async archive(id: TaskId): Promise<void> {
     if (this.readOnly()) return;

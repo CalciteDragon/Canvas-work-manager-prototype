@@ -1,0 +1,41 @@
+<section class="archive-page" data-archive-page aria-labelledby="archive-page-title">
+  <div class="archive-page__intro">
+    <div>
+      <p class="archive-page__eyebrow">Project recovery</p>
+      <h2 id="archive-page-title">Archive</h2>
+      <p class="archive-page__description">
+        Archived work and live work hidden beneath an archived project stay here until you restore
+        the container that owns them.
+      </p>
+      @if (rootArchived()) {
+        <p data-archive-root-guidance class="archive-page__description">
+          The root is archived. Use More project actions above to choose a non-archived status.
+        </p>
+      }
+    </div>
+    @if (store.items().length > 0) {
+      <span data-archive-count class="archive-page__count">{{ store.items().length }} items</span>
+    }
+  </div>
+
+  @if (store.loading()) {
+    <p data-archive-loading class="archive-page__muted">Loading archive…</p>
+  } @else if (store.error(); as error) {
+    <p data-archive-error class="archive-page__error" role="alert">{{ error }}</p>
+    <button data-archive-retry type="button" class="archive-page__retry" (click)="store.retry()">
+      Try again
+    </button>
+  }
+
+  @if (!store.loading()) {
+    @if (store.items().length === 0 && store.error() === null) {
+      <p data-archive-empty class="archive-page__empty">Nothing is archived in this project.</p>
+    }
+    <app-archived-region
+      [items]="store.items()"
+      [restoreBlocked]="restoreBlocked()"
+      [restoring]="store.restoring()"
+      (restoreRequested)="restore($event)"
+    />
+  }
+</section>

@@ -8,16 +8,15 @@ import { agent, buildHarness, FOREIGN_PROJECT, OPEN_TASK, PROJECT } from '../tes
 const registry = buildHarness().registry;
 
 describe('the tool registry', () => {
-  it('registers exactly the twenty-four tools the spec and the canvas ask for', () => {
+  it('registers exactly the thirty-two tools the spec and the canvas ask for', () => {
     const registered = registry.list().map(({ name }) => name);
 
     // Both directions: a missing tool and an extra one are different defects, and a
     // subset assertion would catch only the first.
     expect([...registered].sort()).toEqual([...SPEC_TOOL_NAMES].sort());
-    // §54's fourteen, plus the four section tools, three page tools and three shortcut tools.
-    // §54 names one more page tool — `get_project_archive` — which projects a page that does
-    // not exist yet and arrives with it in Slice 25.6.
-    expect(registered).toHaveLength(24);
+    // §54's fourteen, plus the four section tools, three page tools, three shortcut tools,
+    // and eight canonical archive/recovery tools added for Slice 25.6.
+    expect(registered).toHaveLength(32);
     // The sorted comparison above catches membership; this catches a shortcut tool being
     // spread in a different position from the declared registry order.
     expect(registered).toEqual([...SPEC_TOOL_NAMES]);

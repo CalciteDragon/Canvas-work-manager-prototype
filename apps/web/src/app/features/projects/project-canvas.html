@@ -186,19 +186,6 @@
   </div>
 }
 
-<!-- Below the canvas, and outside the edit-mode gate above it: the region is content,
-   not layout chrome (§32), so the undo is reachable in View Mode. It is scoped to this
-   page, because a canvas is a page (§27) — Home must not offer to restore a section
-   archived from another one. -->
-<app-archived-region
-  [projectId]="projectId()"
-  [pageId]="pageId()"
-  [projectDataRevision]="store.projectDataRevision()"
-  [restoreBlocked]="restoreBlocked()"
-  (sectionRestored)="store.sectionRestored()"
-  (rowRestored)="store.rowRestored()"
-/>
-
 @if (store.removalPrompt(); as prompt) {
   <app-section-removal-dialog
     [prompt]="prompt"

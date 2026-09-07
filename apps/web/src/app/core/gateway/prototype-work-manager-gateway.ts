@@ -4,6 +4,7 @@ import {
   AgentConnectionSchema,
   DashboardResultSchema,
   ProjectPageSchema,
+  ProjectArchiveResultSchema,
   ProjectSchema,
   ProjectSectionSchema,
   ResolvedSectionShortcutSchema,
@@ -48,7 +49,7 @@ import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
-import type { ActivityGateway, AgentGateway, DashboardGateway, ProgressGateway, ProjectGateway, ProjectPageGateway, ReflectionGateway, SectionGateway, SectionShortcutGateway, TaskGateway, TimelineGateway, TodosGateway, WorkManagerGateway } from './work-manager-gateway';
+import type { ActivityGateway, AgentGateway, ArchiveGateway, DashboardGateway, ProgressGateway, ProjectGateway, ProjectPageGateway, ReflectionGateway, SectionGateway, SectionShortcutGateway, TaskGateway, TimelineGateway, TodosGateway, WorkManagerGateway } from './work-manager-gateway';
 
 /**
  * The §10 adapter: Angular → `localhost:4310`. Everything transport-shaped lives here —
@@ -88,6 +89,10 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
 
   readonly todos: TodosGateway = {
     get: (projectId) => this.send('GET', `/api/projects/${encodeURIComponent(projectId)}/todos`, ProjectTodosResultSchema),
+  };
+
+  readonly archive: ArchiveGateway = {
+    get: (projectId) => this.send('GET', `/api/projects/${encodeURIComponent(projectId)}/archive`, ProjectArchiveResultSchema),
   };
 
   readonly reflections: ReflectionGateway = {

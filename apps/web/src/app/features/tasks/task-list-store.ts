@@ -275,7 +275,7 @@ export class TaskListStore {
 
   /**
    * §34's per-row archive, which the domain has had since the ownership phase and no UI
-   * called. It takes the row's live subtasks with it, and the Archived region is the undo.
+   * called. It takes the row's live subtasks with it, and the root Archive page is the undo.
    *
    * Not optimistic, unlike `complete`: `TaskGateway.archive` answers `Promise<void>` (§9),
    * so there is no updated row to paint. The list re-reads instead, and a failure leaves the

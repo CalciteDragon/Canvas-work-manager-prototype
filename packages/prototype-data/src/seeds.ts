@@ -539,7 +539,14 @@ const agentHeavy = (): PrototypeDocument => {
       ),
     ],
     agentConnections: [
-      agentConnection('agent-claude', 'Claude', ['projects.read', 'tasks.read', 'tasks.write', 'workspace.read'], {
+      agentConnection('agent-claude', 'Claude', [
+        'projects.read',
+        'tasks.read',
+        'tasks.write',
+        'reflections.read',
+        'reflections.write',
+        'workspace.read',
+      ], {
         lastUsedAt: '2026-08-24T15:32:00.000Z',
       }),
       agentConnection('agent-cursor', 'Cursor', ['projects.read', 'tasks.read']),

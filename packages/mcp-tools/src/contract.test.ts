@@ -28,6 +28,7 @@ const ALL_PERMISSIONS = AgentPermissionSchema.options;
 interface ToolCase {
   input: unknown;
   mutates?: boolean;
+  prepare?: (harness: ReturnType<typeof buildHarness>) => Promise<void>;
   verify: (result: any, harness: ReturnType<typeof buildHarness>) => Promise<void> | void;
 }
 
@@ -62,6 +63,24 @@ const CASES: Record<string, ToolCase> = {
       );
     },
   },
+  archive_project: {
+    input: { projectId: SHORTCUT_SOURCE_PROJECT },
+    mutates: true,
+    verify: async (_result, harness) => {
+      expect((await harness.services.projects.get(agent(['projects.read']), SHORTCUT_SOURCE_PROJECT)).status).toBe('archived');
+    },
+  },
+  restore_project: {
+    input: { projectId: SHORTCUT_SOURCE_PROJECT, status: 'active' },
+    mutates: true,
+    prepare: async (harness) => {
+      await harness.services.projects.archive(agent(['projects.write']), SHORTCUT_SOURCE_PROJECT);
+    },
+    verify: async (result, harness) => {
+      expect(result.status).toBe('active');
+      expect((await harness.services.projects.get(agent(['projects.read']), SHORTCUT_SOURCE_PROJECT)).status).toBe('active');
+    },
+  },
   list_project_pages: {
     input: { projectId: PROJECT },
     verify: (result) => {
@@ -77,6 +96,14 @@ const CASES: Record<string, ToolCase> = {
       expect(result).toMatchObject({ projectId: PROJECT, kind: 'reflections', enabled: true });
       const listed = await harness.services.pages.list(agent(['projects.read']), PROJECT);
       expect(listed.map(({ id }) => id)).toContain(result.id);
+    },
+  },
+  get_project_archive: {
+    input: { projectId: PROJECT },
+    verify: (result) => {
+      expect(result.projectId).toBe(PROJECT);
+      expect(result.root.id).toBe(PROJECT);
+      expect(result.items).toEqual([]);
     },
   },
   list_tasks: {
@@ -115,6 +142,25 @@ const CASES: Record<string, ToolCase> = {
       expect((await harness.services.tasks.get(agent(['tasks.read']), OPEN_TASK)).status).toBe('done');
     },
   },
+  archive_task: {
+    input: { taskId: OPEN_TASK },
+    mutates: true,
+    verify: async (result, harness) => {
+      expect(result.archivedAt).toBeDefined();
+      expect((await harness.services.tasks.get(agent(['tasks.read']), OPEN_TASK)).archivedAt).toBeDefined();
+    },
+  },
+  restore_task: {
+    input: { taskId: OPEN_TASK },
+    mutates: true,
+    prepare: async (harness) => {
+      await harness.services.tasks.archive(agent(['tasks.write']), OPEN_TASK);
+    },
+    verify: async (result, harness) => {
+      expect(result.archivedAt).toBeUndefined();
+      expect((await harness.services.tasks.get(agent(['tasks.read']), OPEN_TASK)).archivedAt).toBeUndefined();
+    },
+  },
   list_reflections: {
     input: { projectId: OPS_PROJECT },
     verify: (result) => expect(result[0].title).toBe('Grants drift'),
@@ -125,6 +171,25 @@ const CASES: Record<string, ToolCase> = {
     verify: async (result, harness) => {
       const listed = await harness.services.reflections.list(agent(['reflections.read']), PROJECT);
       expect(listed.map(({ id }) => id)).toContain(result.id);
+    },
+  },
+  archive_reflection: {
+    input: { reflectionId: 'reflection-agent-scope' },
+    mutates: true,
+    verify: async (result, harness) => {
+      expect(result.archivedAt).toBeDefined();
+      expect((await harness.services.reflections.list(agent(['reflections.read']), OPS_PROJECT))[0]?.archivedAt).toBeDefined();
+    },
+  },
+  restore_reflection: {
+    input: { reflectionId: 'reflection-agent-scope' },
+    mutates: true,
+    prepare: async (harness) => {
+      await harness.services.reflections.archive(agent(['reflections.write']), 'reflection-agent-scope' as never);
+    },
+    verify: async (result, harness) => {
+      expect(result.archivedAt).toBeUndefined();
+      expect((await harness.services.reflections.list(agent(['reflections.read']), OPS_PROJECT))[0]?.archivedAt).toBeUndefined();
     },
   },
   list_sections: {
@@ -172,6 +237,17 @@ const CASES: Record<string, ToolCase> = {
       expect(result.archivedAt).toBeDefined();
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
       expect(listed.map(({ id }) => id)).not.toContain(VIEW_SECTION);
+    },
+  },
+  restore_section: {
+    input: { sectionId: VIEW_SECTION },
+    mutates: true,
+    prepare: async (harness) => {
+      await harness.services.sections.remove(agent(['projects.write']), VIEW_SECTION);
+    },
+    verify: async (result, harness) => {
+      expect(result.archivedAt).toBeUndefined();
+      expect((await harness.services.sections.get(agent(['projects.read']), VIEW_SECTION)).archivedAt).toBeUndefined();
     },
   },
   list_section_shortcuts: {
@@ -278,12 +354,14 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
       const required = requiredPermissions(tool);
 
       it(`succeeds with ${required.join(' + ')} alone`, async () => {
+        await testCase.prepare?.(harness);
         const result = await harness.registry.call(tool.name, testCase.input, agent([...required]));
 
         await testCase.verify(result, harness);
       });
 
       it(testCase.mutates === true ? 'persists its change' : 'writes nothing', async () => {
+        await testCase.prepare?.(harness);
         const before = harness.store.persistCalls;
 
         await harness.registry.call(tool.name, testCase.input, agent([...required]));

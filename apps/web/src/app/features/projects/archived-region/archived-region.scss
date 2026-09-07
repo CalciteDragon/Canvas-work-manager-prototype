@@ -22,6 +22,10 @@
   font-size: var(--font-size-sm);
 }
 
+.archived-region__meta {
+  overflow-wrap: anywhere;
+}
+
 .archived-region__error {
   margin: 0;
   color: var(--color-danger);
@@ -42,13 +46,36 @@
   gap: var(--space-3);
 }
 
-.archived-region__name {
+.archived-region__identity {
+  display: grid;
   flex: 1;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.archived-region__name {
   min-width: 0;
   overflow: hidden;
   color: var(--color-text);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.archived-region__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.archived-region__status select {
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
 }
 
 .archived-region__entry button {

@@ -36,7 +36,7 @@ export class ReflectionService {
    * reflections section renders what it owns, not everything the project holds.
    *
    * The filters travel as the shared `ReflectionQuery` rather than a parallel options type,
-   * so the Archived region can ask for `{ includeArchived: true }` without a placeholder
+   * so the root Archive projection can ask for `{ includeArchived: true }` without a placeholder
    * argument. The mandatory project scope is written **last**, so an untyped caller cannot
    * override it from inside the query object.
    */

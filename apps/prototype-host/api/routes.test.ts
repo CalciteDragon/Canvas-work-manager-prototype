@@ -1,5 +1,5 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
@@ -107,6 +107,7 @@ const routesFor = (store: DataStore): RouteTable => {
     progress: new ProgressService({ projects, tasks }),
     timeline: new TimelineService({ projects, tasks, milestones }),
     todos: new ProjectTodosService({ projects, tasks, sections, pages }),
+    archive: new ProjectArchiveService({ projects, pages, sections, tasks, reflections }),
     reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     agents: connections,
@@ -1029,5 +1030,29 @@ describe('Todos projection route (§34, §54)', () => {
     expect(withoutTasks.body).toMatchObject({ message: expect.stringContaining('tasks.read') });
     expect(withoutProjects.status).toBe(403);
     expect(withoutProjects.body).toMatchObject({ message: expect.stringContaining('projects.read') });
+  });
+});
+
+describe('Archive projection route (§31, §32, §54)', () => {
+  it('is queryable while the optional Archive page is absent, and returns archived rows', async () => {
+    const routes = buildRoutes();
+    const task = await newTask(routes, { title: 'Recover me' });
+    await call(routes, 'POST', `/api/tasks/${task.id}/archive`);
+
+    const response = await call(routes, 'GET', `/api/projects/${MINE}/archive`);
+
+    expect(response.status).toBe(200);
+    const result = ProjectArchiveResultSchema.parse(response.body);
+    expect(result.projectId).toBe(MINE);
+    expect(result.items).toContainEqual(expect.objectContaining({ kind: 'task', task: expect.objectContaining({ id: task.id }) }));
+  });
+
+  it('requires all three read grants and refuses a unit of work', async () => {
+    const routes = buildRoutes();
+    expect((await call(routes, 'GET', `/api/projects/${THEIRS}/archive`)).status).toBe(404);
+    const unit = ProjectSchema.parse(
+      (await call(routes, 'POST', '/api/projects', { body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'subproject', parentProjectId: MINE, name: 'Unit' } })).body,
+    );
+    expect((await call(routes, 'GET', `/api/projects/${unit.id}/archive`)).status).toBe(409);
   });
 });

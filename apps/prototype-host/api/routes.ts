@@ -30,7 +30,7 @@ import {
   UpdateSectionShortcutInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveIdentityUser } from './context.ts';
 import type { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
@@ -49,6 +49,8 @@ export interface ApiDependencies {
   timeline: TimelineService;
   /** §34's chronology. Its own service because it reads two categories and grants both (§54). */
   todos: ProjectTodosService;
+  /** §31's whole-tree archive projection; it reads all three content categories. */
+  archive: ProjectArchiveService;
   reflections: ReflectionService;
   dashboard: DashboardService;
   agents: AgentConnectionService;
@@ -63,8 +65,8 @@ export interface ApiDependencies {
 const ok = (body: unknown): RouteResult => ({ status: 200, contentType: 'application/json', body });
 const created = (body: unknown): RouteResult => ({ status: 201, contentType: 'application/json', body });
 /**
- * Removal archives, and the archived record is available through `GET` and the Archived
- * region, so the DELETE response still carries no body. The web gateway discards the
+ * Removal archives, and the archived record is available through `GET` and the root Archive
+ * projection, so the DELETE response still carries no body. The web gateway discards the
  * service's return value; `remove_section` over MCP is the caller that needs it.
  */
 const noContent = (): RouteResult => ({ status: 204, contentType: 'application/json', body: undefined });
@@ -108,7 +110,7 @@ const shortcutPageQuery = (query: URLSearchParams): Record<string, unknown> => (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, reflections, dashboard, agents, authenticator } =
+  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, archive, reflections, dashboard, agents, authenticator } =
     dependencies;
   // Async now: an agent request has to resolve its token against the live connection
   // before the handler runs, because that read is what carries the permission set (§51).
@@ -189,6 +191,11 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'GET /api/projects/:id/todos': async (request) =>
       ok(await todos.derive(await actorFor(request), projectId(request))),
 
+    // §31's Archive is a root-wide projection and remains readable when its optional page is
+    // disabled or the root itself is archived.
+    'GET /api/projects/:id/archive': async (request) =>
+      ok(await archive.derive(await actorFor(request), projectId(request))),
+
     'GET /api/reflections': async (request) => {
       // A reflections section renders what it owns, so the list narrows to one container
       // when the caller names one. The project stays required: it is what scopes the read,
@@ -226,7 +233,7 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     // — a section only exists on one project's canvas — and addressed directly for the
     // rest, because the frame has the id and nothing else needs re-stating.
     'GET /api/projects/:projectId/sections': async (request) => {
-      // The Archived region is the one caller that asks for archived sections, and a page
+      // The root Archive projection is the one caller that asks for archived sections, and a page
       // read is the one that narrows to a canvas. Only those two are **forwarded**: the path
       // already fixed the project, and a query `projectId` must not redirect it.
       //

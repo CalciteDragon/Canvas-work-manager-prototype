@@ -125,6 +125,23 @@ describe('ProjectHeader (§26)', () => {
     expect(query(fixture, '[data-project-more-menu]')).toBeNull();
   });
 
+  it('keeps Archive and status recovery controls keyboard-reachable in More', async () => {
+    const fixture = await render({ project: root({ status: 'archived' }) });
+    let opened = 0;
+    fixture.componentInstance.openArchiveRequested.subscribe(() => (opened += 1));
+    await openMore(fixture);
+
+    const archive = query(fixture, '[data-project-open-archive]') as HTMLButtonElement;
+    expect(archive.tagName).toBe('BUTTON');
+    archive.focus();
+    expect(document.activeElement).toBe(archive);
+    const statuses = [...fixture.nativeElement.querySelectorAll('[data-project-status-option]')] as HTMLButtonElement[];
+    expect(statuses.map((option) => option.dataset['status'])).toEqual(['planning', 'active', 'on_hold', 'completed']);
+
+    archive.click();
+    expect(opened).toBe(1);
+  });
+
   it('asks for a rename and a description without touching a gateway itself', async () => {
     const fixture = await render({ project: workUnit() });
     const renames: string[] = [];

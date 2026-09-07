@@ -29,6 +29,7 @@ export class ProjectMoreMenu {
   /** `null` clears it, which is what puts the header's "No target date" branch in reach. */
   readonly targetDateRequested = output<string | null>();
   readonly archiveRequested = output<void>();
+  readonly openArchiveRequested = output<void>();
   /** "I am done here" with nothing to write — see `submitRename`. */
   readonly dismissed = output<void>();
 

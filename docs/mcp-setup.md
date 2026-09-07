@@ -1,8 +1,8 @@
 # MCP setup
 
-Canvas Work Manager serves the same twenty-four tools over Streamable HTTP and stdio (§59) —
-§54's fourteen, the four section tools the canvas needs, §54's three page tools, and Slice 25.4's
-three shortcut tools.
+Canvas Work Manager serves the same thirty-two tools over Streamable HTTP and stdio (§59) —
+§54's fourteen, the four section tools the canvas needs, §54's three page tools, Slice 25.4's
+three shortcut tools, and Slice 25.6's eight archive/recovery tools.
 Both use the fake local credentials from the `agent-heavy` seed; they have no security value
 and the HTTP host binds only to `127.0.0.1`.
 
@@ -19,7 +19,7 @@ Useful fixture tokens:
 
 | Token | Connection | Grants |
 |---|---|---|
-| `prototype-user-a-readwrite` | Claude | project/task reads, task writes, workspace reads |
+| `prototype-user-a-readwrite` | Claude | project reads; task/reflection reads and writes; workspace reads |
 | `prototype-user-a-readonly` | Cursor | project/task reads |
 | `prototype-user-a-revoked` | Retired assistant | always refused |
 
@@ -29,7 +29,9 @@ Every listed tool advertises its grant under
 that needs one grant; §54's derived pages need more than one, and `get_project_todos` is the first
 — it declares `["projects.read", "tasks.read"]`. Denied calls also name the missing permission in
 their tool error, and a derived page is refused outright rather than answering with the half it was
-allowed to read.
+allowed to read. `get_project_archive` is the other combined read: it declares
+`["projects.read", "tasks.read", "reflections.read"]` and remains queryable when the Archive
+tab is disabled.
 
 ## Streamable HTTP
 
@@ -155,6 +157,20 @@ archived containers and anything beneath an archived project are excluded. Each 
 canonical project, page and container that owns it, so an agent can complete what it finds with
 `complete_task` or `update_project` — the same operation a person uses on the canvas. Reading the
 chronology neither creates the Todos page nor depends on it being switched on.
+
+### Archive
+
+Slice 25.6 adds `get_project_archive` (`projects.read`, `tasks.read` and `reflections.read`):
+the root-wide recovery projection across archived and effectively hidden subprojects, sections,
+tasks and reflections. Each item carries its owning project/page/container breadcrumb, archive
+cause, and the current blocker or canonical restore operation. It remains queryable when the
+Archive page is disabled and does not create the page.
+
+The matching canonical writes are `archive_project` / `restore_project`, `remove_section` /
+`restore_section`, `archive_task` / `restore_task`, and `archive_reflection` /
+`restore_reflection`. Project restoration requires an explicit non-archived status; restoring a
+section or row restores exactly the members marked as taken down by that operation, leaving
+independently archived work archived.
 
 ### Home shortcuts
 

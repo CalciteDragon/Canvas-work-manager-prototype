@@ -70,10 +70,13 @@ export class ProjectWorkspaceShell {
   private noticedFor: string | null = null;
   private readonly narrowState = signal(false);
   private readonly collapsedState = signal(false);
+  private readonly archiveNavigationPendingState = signal(false);
 
   readonly notice = this.noticeState.asReadonly();
   /** §23's narrow-width collapse. The column is simply present at desktop widths. */
   readonly collapsed = computed(() => this.narrowState() && this.collapsedState());
+  readonly archiveNavigationPending = this.archiveNavigationPendingState.asReadonly();
+  readonly archiveRetryNeeded = computed(() => this.store.writeError()?.startsWith('Archive was enabled') ?? false);
 
   /**
    * §68's rule, run over what the store loaded. `null` until there is a project to decide
@@ -225,6 +228,32 @@ export class ProjectWorkspaceShell {
 
   setTargetDate(targetDate: string | null): void {
     void this.store.setTargetDate(targetDate);
+  }
+
+  async openArchive(): Promise<void> {
+    if (this.archiveNavigationPendingState()) return;
+    this.archiveNavigationPendingState.set(true);
+    try {
+      if (await this.store.openArchive()) {
+        const root = this.store.root();
+        if (root !== null) await this.router.navigate(['/projects', root.id, 'pages', 'archive']);
+      }
+    } finally {
+      this.archiveNavigationPendingState.set(false);
+    }
+  }
+
+  async retryArchiveOpen(): Promise<void> {
+    if (this.archiveNavigationPendingState()) return;
+    this.archiveNavigationPendingState.set(true);
+    try {
+      if (await this.store.retryArchiveContext()) {
+        const root = this.store.root();
+        if (root !== null) await this.router.navigate(['/projects', root.id, 'pages', 'archive']);
+      }
+    } finally {
+      this.archiveNavigationPendingState.set(false);
+    }
   }
 
   /**

@@ -15,7 +15,7 @@ const ROW_NOUN: Record<OwnedDataKind, { one: string; many: string }> = {
 
 /**
  * §31's remove, once ownership has made it a question rather than a confirmation. A view
- * and an empty container never reach this — they archive silently, and the Archived region
+ * and an empty container never reach this — they archive silently, and the root Archive page
  * is their undo; a container still holding **live** rows has to say what becomes of them
  * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
  *

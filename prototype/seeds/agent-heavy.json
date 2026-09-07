@@ -466,6 +466,8 @@
         "projects.read",
         "tasks.read",
         "tasks.write",
+        "reflections.read",
+        "reflections.write",
         "workspace.read"
       ],
       "revoked": false,

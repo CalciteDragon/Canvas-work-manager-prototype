@@ -3,6 +3,7 @@ import {
   CreateSubprojectInputSchema,
   ProjectIdSchema,
   ProjectQuerySchema,
+  RestoreProjectInputSchema,
   UpdateProjectInputSchema,
 } from '@cwm/contracts';
 import { z } from 'zod';
@@ -53,5 +54,21 @@ export const projectTools: readonly WorkManagerTool[] = [
     permission: 'projects.write',
     inputSchema: UpdateProjectInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.projects.update(actor, projectId, input),
+  }),
+  defineTool({
+    name: 'archive_project',
+    description:
+      'Archive a project. This is reversible, hides the project and its descendants from ordinary live reads, and refuses when a live child project would make the operation ambiguous.',
+    permission: 'projects.write',
+    inputSchema: z.object({ projectId: ProjectIdSchema }),
+    execute: ({ projectId }, { actor, services }) => services.projects.archive(actor, projectId),
+  }),
+  defineTool({
+    name: 'restore_project',
+    description:
+      'Restore an archived project with the explicit non-archived status supplied by the caller. Restoration never guesses the project’s prior status and does not cascade into archived descendants.',
+    permission: 'projects.write',
+    inputSchema: RestoreProjectInputSchema.extend({ projectId: ProjectIdSchema }),
+    execute: ({ projectId, status }, { actor, services }) => services.projects.update(actor, projectId, { status }),
   }),
 ];

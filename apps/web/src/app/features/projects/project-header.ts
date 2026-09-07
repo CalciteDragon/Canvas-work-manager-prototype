@@ -40,6 +40,7 @@ export class ProjectHeader {
   /** `null` clears it, which is what puts the "No due date" branch in reach. */
   readonly targetDateRequested = output<string | null>();
   readonly archiveRequested = output<void>();
+  readonly openArchiveRequested = output<void>();
 
   readonly moreOpen = signal(false);
 
@@ -63,5 +64,10 @@ export class ProjectHeader {
   archive(): void {
     this.closeMore();
     this.archiveRequested.emit();
+  }
+
+  openArchive(): void {
+    this.closeMore();
+    this.openArchiveRequested.emit();
   }
 }

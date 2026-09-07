@@ -1,83 +1,142 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output } from '@angular/core';
-import type { OwnedDataKind, ProjectId, ProjectPageId, SectionId } from '@cwm/contracts';
-import { ArchivedRegionStore, type ArchivedRowEntry, type ArchivedSectionEntry } from './archived-region-store';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { nameOf, type ProjectArchiveItem, type ProjectRestoreStatus } from '@cwm/contracts';
 
-/** `1 task`, never `1 tasks` — the same rule `SectionRemovalDialog` follows. */
-const ROW_NOUN: Record<OwnedDataKind, { one: string; many: string }> = {
-  tasks: { one: 'task', many: 'tasks' },
-  reflections: { one: 'reflection', many: 'reflections' },
-};
+export interface ArchiveRestoreRequest {
+  item: ProjectArchiveItem;
+  status: ProjectRestoreStatus;
+}
 
 /**
- * **Archived**, at the foot of the project canvas: what removal took, and one click to get
- * it back. It is the undo §31 now promises, and the reason a view or an empty container can
- * archive silently — a silent *delete* would not have been safe.
- *
- * It is **content, not layout chrome**, so unlike §31's remove control it shows in View Mode
- * too (§32). Hiding the undo behind Edit Layout Mode would hide it exactly when someone
- * needs it: right after a removal they did not mean.
- *
- * Hidden entirely when there is nothing archived. Views appear here alongside containers —
- * removal archives every section — and simply show no row count, because a `progress`
- * section owning `0 tasks` would be a lie rather than a count.
+ * The shared Archive list. It is deliberately presentational: the root Archive page owns the
+ * whole-tree query and the canonical restore writes, while this component is also useful to
+ * story the list in isolation. The old page-local Archived store was a second archive model;
+ * §31 now has one projection and one set of restore affordances.
  */
 @Component({
   selector: 'app-archived-region',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [ArchivedRegionStore],
+  imports: [RouterLink],
   templateUrl: './archived-region.html',
   styleUrl: './archived-region.scss',
 })
 export class ArchivedRegion {
-  readonly projectId = input.required<ProjectId>();
-  /** §27: the region is a canvas's undo, and a canvas is a page. */
-  readonly pageId = input.required<ProjectPageId>();
-  /** The page's §62 invalidation signal — the same input every section frame takes. */
-  readonly projectDataRevision = input.required<number>();
-  /**
-   * True while the project is archived, or while a write to the project record is in flight.
-   * Restoring into an archived project is a domain refusal, so the control is disabled with
-   * guidance rather than offered and refused — and the pending half is what stops an
-   * optimistic `active` paint from enabling it before the reactivation has actually landed.
-   */
+  readonly items = input.required<readonly ProjectArchiveItem[]>();
   readonly restoreBlocked = input(false);
+  readonly restoring = input<ReadonlySet<string>>(new Set());
 
-  readonly sectionRestored = output<SectionId>();
-  readonly rowRestored = output<void>();
+  readonly restoreRequested = output<ArchiveRestoreRequest>();
+  private readonly selectedProjectStatuses = signal<Record<string, ProjectRestoreStatus>>({});
 
-  readonly store = inject(ArchivedRegionStore);
+  protected readonly projectStatuses: ProjectRestoreStatus[] = ['planning', 'active', 'on_hold', 'completed'];
 
-  readonly sections = computed(() => this.store.sections());
-  readonly rows = computed(() => this.store.rows());
-  readonly hidden = computed(() => this.store.empty());
+  readonly hidden = computed(() => this.items().length === 0);
 
-  constructor() {
-    // The same rule every section follows: read on mount, and again whenever the page says
-    // the project's data moved. A per-row archive publishes that revision, so a row archived
-    // in a Task List appears here without a reload.
-    effect(() => {
-      this.projectDataRevision();
-      void this.store.load(this.projectId(), this.pageId());
-    });
+  private readonly pageLabels: Record<string, string> = {
+    home: 'Home',
+    work: 'Work canvas',
+    todos: 'Todos',
+    archive: 'Archive',
+    reflections: 'Reflections',
+  };
+
+  label(item: ProjectArchiveItem): string {
+    switch (item.kind) {
+      case 'subproject':
+        return item.project.name;
+      case 'section':
+        return nameOf(item.section);
+      case 'task':
+        return item.task.title;
+      case 'reflection':
+        return item.reflection.title?.trim() || 'Reflection';
+    }
   }
 
-  rowCountLabel(entry: ArchivedSectionEntry): string | null {
-    if (entry.rowCount === undefined || entry.ownedKind === undefined) return null;
-    const noun = ROW_NOUN[entry.ownedKind];
-    return `${entry.rowCount} ${entry.rowCount === 1 ? noun.one : noun.many}`;
+  typeLabel(item: ProjectArchiveItem): string {
+    switch (item.kind) {
+      case 'subproject':
+        return 'Sub-project';
+      case 'section':
+        return 'Section';
+      case 'task':
+        return 'Task';
+      case 'reflection':
+        return 'Reflection';
+    }
   }
 
-  restoring(id: string): boolean {
-    return this.store.restoring().has(id);
+  originPageLabel(item: ProjectArchiveItem): string {
+    const label = this.pageLabels[item.origin.pageKind] ?? item.origin.pageKind;
+    if (!item.origin.pageEnabled) return `${label} (disabled)`;
+    return item.origin.pageKind === 'reflections' ? `${label} (not rendered yet)` : label;
   }
 
-  async restoreSection(entry: ArchivedSectionEntry): Promise<void> {
-    if (this.restoreBlocked()) return;
-    if (await this.store.restoreSection(entry.id)) this.sectionRestored.emit(entry.id);
+  originRoute(item: ProjectArchiveItem): readonly unknown[] | null {
+    if (!item.origin.pageEnabled) return null;
+    if (item.origin.pageKind === 'home') {
+      return ['/projects', item.origin.projectId, 'pages', 'home'];
+    }
+    if (item.origin.pageKind === 'work') return ['/projects', item.origin.projectId];
+    return null;
   }
 
-  async restoreRow(entry: ArchivedRowEntry): Promise<void> {
-    if (this.restoreBlocked()) return;
-    if (await this.store.restoreRow(entry)) this.rowRestored.emit();
+  originFragment(item: ProjectArchiveItem): string | undefined {
+    return item.origin.sectionId === undefined ? undefined : `section-${item.origin.sectionId}`;
+  }
+
+  causeLabel(item: ProjectArchiveItem): string {
+    switch (item.cause.kind) {
+      case 'own':
+        return 'Archived directly';
+      case 'section-cascade':
+        return 'Archived with its section';
+      case 'task-cascade':
+        return 'Archived with its task';
+      case 'hidden-by-project':
+        return 'Hidden by an archived project';
+    }
+  }
+
+  blockerLabel(item: ProjectArchiveItem): string | null {
+    if (item.restoration.kind === 'ready') return null;
+    return `Restore “${item.restoration.blocker.name}” first`;
+  }
+
+  canRestore(item: ProjectArchiveItem): boolean {
+    return !this.restoreBlocked() && this.restoring().size === 0 && item.restoration.kind === 'ready';
+  }
+
+  isRestoring(item: ProjectArchiveItem): boolean {
+    return this.restoring().has(this.idOf(item));
+  }
+
+  projectStatus(item: ProjectArchiveItem): ProjectRestoreStatus {
+    return this.selectedProjectStatuses()[this.idOf(item)] ?? 'active';
+  }
+
+  selectProjectStatus(item: ProjectArchiveItem, event: Event): void {
+    if (item.kind !== 'subproject') return;
+    const status = (event.target as HTMLSelectElement).value as ProjectRestoreStatus;
+    if (!this.projectStatuses.includes(status)) return;
+    this.selectedProjectStatuses.update((statuses) => ({ ...statuses, [item.project.id]: status }));
+  }
+
+  restore(item: ProjectArchiveItem): void {
+    if (!this.canRestore(item)) return;
+    this.restoreRequested.emit({ item, status: this.projectStatus(item) });
+  }
+
+  idOf(item: ProjectArchiveItem): string {
+    switch (item.kind) {
+      case 'subproject':
+        return item.project.id;
+      case 'section':
+        return item.section.id;
+      case 'task':
+        return item.task.id;
+      case 'reflection':
+        return item.reflection.id;
+    }
   }
 }

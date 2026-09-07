@@ -177,7 +177,7 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
     `Authorization: Bearer prototype-user-a-readwrite`. Cursor reads `.cursor/mcp.json`; any
     client that takes JSON MCP configuration uses the same entry. The client connects and
     negotiates protocol `2026-07-28`.
-34. **Tool discovery.** Ask the client to list tools. Twenty-four come back, each with a
+34. **Tool discovery.** Ask the client to list tools. Thirty-two come back, each with a
     description and an input schema, and each advertising the permission it needs under
     `_meta["local.canvas-work-manager/requiredPermission"]` — plus the complete list under
     `_meta["local.canvas-work-manager/requiredPermissions"]`, which differs only for a derived

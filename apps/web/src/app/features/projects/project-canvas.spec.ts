@@ -665,45 +665,12 @@ describe('ProjectCanvas — the gridProjectLayout flag (§47)', () => {
   });
 });
 
-describe('ProjectCanvas — Archived (§31, §32)', () => {
-  const archivedSection = () =>
-    section('section-backlog', 'task-list', 2, { title: 'Backlog', archivedAt: AT });
-
-  it('hides the region entirely when nothing has been removed', async () => {
-    const { fixture } = await render();
-
-    expect(query(fixture, '[data-archived-region]')).toBeNull();
-  });
-
-  it('shows the region in View Mode, because the undo is content and not layout chrome', async () => {
-    // §32 gates the remove control, and this deliberately sits on the other side of that
-    // line: hiding the undo behind Edit Layout Mode would hide it exactly when someone
-    // needs it, right after a removal they did not mean.
+describe('ProjectCanvas — Archive boundary (§31, §32)', () => {
+  it('does not render a page-local archive region, even when an archived section is returned', async () => {
     const { fixture } = await render({
-      sections: [section('section-text', 'rich-text', 0), archivedSection()],
+      sections: [section('section-text', 'rich-text', 0), section('section-backlog', 'task-list', 2, { archivedAt: AT })],
     });
 
-    expect(query(fixture, '[data-section-remove]')).toBeNull();
-    expect(query(fixture, '[data-archived-region]')).not.toBeNull();
-    expect(query(fixture, '[data-archived-section]')?.textContent).toContain('Backlog');
-  });
-
-  it('restores a section and paints it back onto the canvas without a reload', async () => {
-    const gatewaySections = [section('section-text', 'rich-text', 0), archivedSection()];
-    const { fixture, gateway } = await render({ sections: gatewaySections });
-    expect(queryAll(fixture, '[data-section-frame]')).toHaveLength(1);
-
-    // The host answers the restore, and the reconcile that follows re-reads the canvas —
-    // which is what makes the new frame appear.
-    gateway.options.sections = [
-      section('section-text', 'rich-text', 0),
-      section('section-backlog', 'task-list', 1, { title: 'Backlog' }),
-    ];
-    query(fixture, '[data-archived-section-restore]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(queryAll(fixture, '[data-section-frame]')).toHaveLength(2);
     expect(query(fixture, '[data-archived-region]')).toBeNull();
   });
 });

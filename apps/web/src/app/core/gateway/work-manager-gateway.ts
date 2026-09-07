@@ -18,6 +18,7 @@ import type {
   ProjectPage,
   ProjectQuery,
   ProjectSection,
+  ProjectArchiveResult,
   ProjectTodosResult,
   Reflection,
   ReflectionId,
@@ -112,12 +113,17 @@ export interface TodosGateway {
   get(projectId: ProjectId): Promise<ProjectTodosResult>;
 }
 
+/** §31's whole-tree recovery projection. It is queryable whether Archive navigation is enabled. */
+export interface ArchiveGateway {
+  get(projectId: ProjectId): Promise<ProjectArchiveResult>;
+}
+
 export interface ReflectionGateway {
   /**
    * A reflections section renders what it owns, so the list narrows to one container. The
    * filters travel as the shared `ReflectionQuery` minus the project, which the first
    * argument already fixes — so a caller cannot broaden the scope from inside the object,
-   * and the Archived region can ask for `{ includeArchived: true }` without a placeholder.
+   * and the root Archive projection can ask for `{ includeArchived: true }` without a placeholder.
    */
   list(projectId: ProjectId, query?: Omit<ReflectionQuery, 'projectId'>): Promise<Reflection[]>;
   create(input: CreateReflectionInput): Promise<Reflection>;
@@ -150,11 +156,11 @@ export interface ProjectPageGateway {
  */
 export interface SectionGateway {
   /**
-   * Live-only by default; the Archived region is the one caller that asks for the rest.
+   * Live-only by default; the root Archive projection is the one caller that asks for the rest.
    *
    * `pageId` narrows to one canvas (§27). Absent, the read spans the project's pages, grouped
    * by page — which is what every caller wants while a project has one section-bearing page,
-   * and what the canvas keeps wanting for the Archived region after that.
+   * and what the canvas keeps wanting for the root Archive projection after that.
    */
   list(projectId: ProjectId, query?: Omit<SectionQuery, 'projectId'>): Promise<ProjectSection[]>;
   create(projectId: ProjectId, input: CreateSectionInput): Promise<ProjectSection>;
@@ -227,6 +233,7 @@ export interface WorkManagerGateway {
   progress: ProgressGateway;
   timeline: TimelineGateway;
   todos: TodosGateway;
+  archive: ArchiveGateway;
   reflections: ReflectionGateway;
   agents: AgentGateway;
   activity: ActivityGateway;

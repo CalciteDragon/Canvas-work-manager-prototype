@@ -38,7 +38,17 @@ const assertClient = async (client, title) => {
     arguments: { projectId: PROJECT, title: `Created over ${title}` },
   });
   check(result.isError !== true, `${title} creates a task`);
-  return result.structuredContent;
+  const task = result.structuredContent;
+  const archive = await client.callTool({
+    name: 'get_project_archive',
+    arguments: { projectId: PROJECT },
+  });
+  check(archive.isError !== true && Array.isArray(archive.structuredContent?.items), `${title} reads the Archive projection`);
+  const archived = await client.callTool({ name: 'archive_task', arguments: { taskId: task.id } });
+  check(archived.isError !== true, `${title} archives a task through the canonical tool`);
+  const restored = await client.callTool({ name: 'restore_task', arguments: { taskId: task.id } });
+  check(restored.isError !== true, `${title} restores a task through the canonical tool`);
+  return task;
 };
 
 const assertPersisted = async (path, task, title) => {

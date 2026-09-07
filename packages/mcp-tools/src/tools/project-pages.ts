@@ -1,4 +1,4 @@
-import { ProjectTodosQuerySchema, SetProjectPageEnabledInputSchema, ProjectIdSchema } from '@cwm/contracts';
+import { ProjectArchiveQuerySchema, ProjectTodosQuerySchema, SetProjectPageEnabledInputSchema, ProjectIdSchema } from '@cwm/contracts';
 import { z } from 'zod';
 import { defineTool, type WorkManagerTool } from '../tool';
 
@@ -6,8 +6,8 @@ import { defineTool, type WorkManagerTool } from '../tool';
  * §54's page surface: *"Pages get their own small surface — listing a root's pages, toggling an
  * optional one, and querying the derived Todos and Archive projections."*
  *
- * Three of the four here. `get_project_archive` is a projection of rows that has no page yet and
- * arrives with it in Slice 25.6.
+ * The four page reads here. Archive is a projection of rows rather than a page-owned canvas,
+ * so it remains queryable even when the optional Archive page is disabled.
  *
  * `get_project_todos` is the first tool that needs the read-permission composition §54 describes
  * — "a derived page that combines categories requires the grant for each category it returns,
@@ -47,5 +47,14 @@ export const projectPageTools: readonly WorkManagerTool[] = [
     additionalPermissions: ['tasks.read'],
     inputSchema: ProjectTodosQuerySchema,
     execute: ({ projectId }, { actor, services }) => services.todos.derive(actor, projectId),
+  }),
+  defineTool({
+    name: 'get_project_archive',
+    description:
+      'Read every archived row and every live row hidden beneath an archived project in one root project: sub-projects, sections, tasks and reflections, with the page and container each came from, why it is present, and whether the canonical restore operation is ready or blocked. It reads projects, tasks and reflections together and refuses rather than returning a partial answer. It does not depend on the Archive page being enabled.',
+    permission: 'projects.read',
+    additionalPermissions: ['tasks.read', 'reflections.read'],
+    inputSchema: ProjectArchiveQuerySchema,
+    execute: ({ projectId }, { actor, services }) => services.archive.derive(actor, projectId),
   }),
 ];

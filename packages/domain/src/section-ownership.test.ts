@@ -211,7 +211,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     await harness.sectionService.remove(harness.actor, list.id);
 
     // Off the canvas, still on the record: no policy is needed because there are no rows to
-    // settle, and the Archived region is what makes the silent removal safe.
+    // settle, and the root Archive page is what makes the silent removal safe.
     expect(await harness.sectionService.list(harness.actor, MINE)).toEqual([]);
     expect((await harness.sections.find(list.id))?.archivedAt).toBe(SEED_NOW);
   });
