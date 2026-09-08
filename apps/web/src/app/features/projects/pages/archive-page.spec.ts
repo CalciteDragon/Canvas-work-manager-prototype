@@ -52,6 +52,8 @@ const archive: ProjectArchiveResult = ProjectArchiveResultSchema.parse({
       origin: {
         projectId: PROJECT,
         pageId: section.pageId,
+        sectionId: section.id,
+        sectionName: 'Backlog',
         pageKind: 'home',
         pageEnabled: true,
         breadcrumb: [{ projectId: PROJECT, name: root.name }],

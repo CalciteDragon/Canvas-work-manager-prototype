@@ -11,6 +11,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
@@ -141,9 +142,10 @@ export class ProjectCanvas {
     effect(() => {
       const projectId = this.projectId();
       const pageId = this.pageId();
+      const shortcutsAllowed = this.shortcutsAllowed();
       this.addOpen.set(false);
       this.shortcutPickerOpen.set(false);
-      void this.store.load(projectId, pageId, this.shortcutsAllowed());
+      untracked(() => void this.store.load(projectId, pageId, shortcutsAllowed));
     });
     this.watchNavigationTarget();
   }

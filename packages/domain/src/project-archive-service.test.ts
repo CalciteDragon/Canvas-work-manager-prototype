@@ -71,6 +71,27 @@ describe('ProjectArchiveService (§31)', () => {
       cause: { kind: 'hidden-by-project', projectId: KITCHEN },
       restoration: { kind: 'not-archived', blocker: { kind: 'project', projectId: KITCHEN } },
     });
+
+    const hiddenCabinets = result.items.find((item) => item.kind === 'subproject' && item.project.id === 'project-cabinets');
+    expect(hiddenCabinets).toMatchObject({
+      cause: { kind: 'hidden-by-project', projectId: KITCHEN },
+      restoration: { kind: 'not-archived', blocker: { kind: 'project', projectId: KITCHEN } },
+    });
+  });
+
+  it('keeps independently archived sections and subprojects blocked by their archived ancestor', async () => {
+    const { harness, archive } = buildArchive();
+    const section = await harness.sectionService.add(harness.actor, KITCHEN, { type: 'rich-text' });
+    await harness.sectionService.remove(harness.actor, section.id);
+    await harness.projectService.archive(harness.actor, 'project-cabinets' as never);
+    await harness.projectService.archive(harness.actor, KITCHEN);
+
+    const result = await archive.derive(harness.actor, ROOT);
+    const blocked = { kind: 'blocked', blocker: { kind: 'project', projectId: KITCHEN } };
+    expect(result.items.find((item) => item.kind === 'section' && item.section.id === section.id))
+      .toMatchObject({ cause: { kind: 'own' }, restoration: blocked });
+    expect(result.items.find((item) => item.kind === 'subproject' && item.project.id === 'project-cabinets'))
+      .toMatchObject({ cause: { kind: 'own' }, restoration: blocked });
   });
 
   it('requires all combined read grants before touching repositories', async () => {

@@ -52,6 +52,11 @@ describe('Project Archive contracts (§31)', () => {
   });
 
   it('does not let a hidden live item claim direct restore', () => {
+    expect(ProjectArchiveRestorationSchema.safeParse({
+      kind: 'not-archived',
+      blocker: { kind: 'project', projectId: 'project-root', name: 'Root' },
+    }).success).toBe(true);
+
     const result = ProjectArchiveRestorationSchema.safeParse({
       kind: 'not-archived',
       blocker: { kind: 'project', projectId: 'project-root', name: 'Root' },

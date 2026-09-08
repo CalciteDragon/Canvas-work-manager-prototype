@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { CdkDrag } from '@angular/cdk/drag-drop';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, provideRouter } from '@angular/router';
@@ -19,6 +20,7 @@ import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
 import { ProjectCanvas } from './project-canvas';
+import { ProjectPageStore } from './project-page-store';
 import { SECTION_REGISTRY } from './sections/registry';
 
 const AT = '2026-08-27T16:00:00.000Z';
@@ -176,6 +178,29 @@ const enterEditMode = (fixture: Awaited<ReturnType<typeof render>>['fixture']) =
 };
 
 describe('ProjectCanvas (§27, §31, §32)', () => {
+  it('reloads for page inputs without tracking signals read inside the store load', async () => {
+    const internalState = signal(0);
+    const load = vi.spyOn(ProjectPageStore.prototype, 'load').mockImplementation(async () => {
+      internalState();
+    });
+    try {
+      const { fixture } = await render();
+      expect(load).toHaveBeenCalledTimes(1);
+      internalState.set(1);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(load).toHaveBeenCalledTimes(1);
+
+      fixture.componentRef.setInput('pageId', 'page-next');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(load).toHaveBeenLastCalledWith('project-a', 'page-next', false);
+      expect(load).toHaveBeenCalledTimes(2);
+    } finally {
+      load.mockRestore();
+    }
+  });
+
   it('renders every registered section inside one frame, in position order', async () => {
     const { fixture } = await render();
 
@@ -191,6 +216,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
   it('renders duplicate source placements as read-only frames without duplicate task drop lists', async () => {
     const { fixture } = await render({
+      shortcutsAllowed: true,
       shortcuts: [shortcut('shortcut-a', 2), shortcut('shortcut-b', 3)],
       tasks: [task('task-source', 'todo', 'section-source')],
     });
@@ -526,6 +552,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
   it('sends section and shortcut drops as positions in the same combined sequence', async () => {
     const { fixture, gateway } = await render({
+      shortcutsAllowed: true,
       sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 2)],
       shortcuts: [shortcut('shortcut-a', 1)],
       tasks: [task('task-source', 'todo', 'section-source')],

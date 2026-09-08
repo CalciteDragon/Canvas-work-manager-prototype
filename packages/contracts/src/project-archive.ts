@@ -62,7 +62,7 @@ export const ProjectArchiveRestorationSchema = z.discriminatedUnion('kind', [
     permission: AgentPermissionSchema,
   }),
   z.object({ kind: z.literal('blocked'), blocker: ProjectArchiveBlockerSchema }),
-  z.object({ kind: z.literal('not-archived'), blocker: ProjectArchiveBlockerSchema }),
+  z.strictObject({ kind: z.literal('not-archived'), blocker: ProjectArchiveBlockerSchema }),
 ]);
 export type ProjectArchiveRestoration = z.infer<typeof ProjectArchiveRestorationSchema>;
 

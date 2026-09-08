@@ -121,7 +121,7 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
 
     const first = store.restore(archived.items[0]!);
     expect(await store.restore(archived.items[0]!)).toBe(false);
-    expect(gateway.calls.filter(({ method }) => method === 'sections.restore')).toHaveLength(1);
+    expect(gateway.sections.restore).toHaveBeenCalledExactlyOnceWith(section.id);
 
     release(section);
     expect(await first).toBe(true);

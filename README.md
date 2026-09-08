@@ -14,6 +14,18 @@ lives in [development.md](development.md); the specification it implements is
 pnpm install
 ```
 
+If tools are missing but install reports “Already up to date”, rebuild the local dependency
+tree from the lockfile:
+
+```bash
+pnpm install --frozen-lockfile --force --optimistic-repeat-install=false
+```
+
+Use the pnpm version pinned in `package.json`. The optimistic repeat-install shortcut can
+skip checking package files when manifests are unchanged; `--force` alone did not bypass it
+in the local repair. This command retains locked versions and the workspace's approved builds.
+See [the repair evidence](docs/plans/25-dependency-repair.md).
+
 Then two processes, in **two terminals**:
 
 ```bash

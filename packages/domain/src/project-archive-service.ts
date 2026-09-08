@@ -87,7 +87,7 @@ export class ProjectArchiveService {
           restoration:
             projectBlocker === undefined
               ? this.ready('restore_project', 'projects.write')
-              : { kind: 'blocked', blocker: this.projectBlocker(projectBlocker) },
+              : { kind: project.status === 'archived' ? 'blocked' : 'not-archived', blocker: this.projectBlocker(projectBlocker) },
         });
       }
     }
@@ -101,7 +101,7 @@ export class ProjectArchiveService {
       if (!isVisibleInArchive) continue;
       const restoration =
         projectBlocker !== undefined
-          ? ({ kind: 'blocked', blocker: this.projectBlocker(projectBlocker) } satisfies ProjectArchiveRestoration)
+          ? ({ kind: section.archivedAt === undefined ? 'not-archived' : 'blocked', blocker: this.projectBlocker(projectBlocker) } satisfies ProjectArchiveRestoration)
           : this.ready('restore_section', 'projects.write');
       const item: ProjectArchiveItem = {
         kind: 'section',

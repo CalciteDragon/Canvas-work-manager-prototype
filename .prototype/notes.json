@@ -664,7 +664,15 @@
       "route": null,
       "projectId": null,
       "slice": 25.6,
-      "note": "The first real-app check could not reach the Archive page: both the host and Angular dev server stop during startup because the installed workspace is missing `esbuild` (Vitest also cannot resolve its nested Vite package, and Playwright/Storybook packages are absent). The implementation and type checks are runnable, but browser/MCP acceptance remains unobserved until dependencies are repaired."
+      "note": "The first real-app check could not reach the Archive page: both the host and Angular dev server stop during startup because the installed workspace is missing `esbuild` (Vitest also cannot resolve its nested Vite package, and Playwright/Storybook packages are absent). The implementation and type checks are runnable, but browser/MCP acceptance remains unobserved until dependencies are repaired. Resolved by the September 7 dependency repair; see docs/plans/25-dependency-repair.md."
+    },
+    {
+      "id": "note-2026-09-07-dependency-repair",
+      "createdAt": "2026-09-08T03:33:00.000Z",
+      "route": "/projects/:projectId/pages/todos",
+      "projectId": null,
+      "slice": 25,
+      "note": "Automated real-browser acceptance after dependency repair exposed a navigation freeze: following a Todos task into Kitchen stayed at Loading project despite successful HTTP responses. Canvas loading had subscribed to its own sections signal. Isolating the store call with untracked fixed the browser freeze and two test-worker memory crashes. All five browser journeys now pass, including Archive restore, subject-linked reflections, MCP live updates and Todos origin links. This was browser automation, not the broader manual design evaluation reserved for 25.8."
     }
   ]
 }
