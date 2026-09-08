@@ -1,9 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { ProjectPageSchema, ProjectSchema, type Project } from '@cwm/contracts';
+import { ProjectPageSchema, ProjectSchema, type Project, type ProjectPage } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { ProjectPageNavigation } from './project-page-navigation';
-import { PROJECT_PAGE_REGISTRY, navigablePages } from './project-page-registry';
 import type { WorkTreeNode } from './project-workspace-store';
 
 const AT = '2026-08-27T16:00:00.000Z';
@@ -34,7 +33,7 @@ const tree: WorkTreeNode[] = [
 
 const render = async (
   options: {
-    pages?: typeof PROJECT_PAGE_REGISTRY;
+    pages?: ProjectPage[];
     workTree?: WorkTreeNode[];
     currentProjectId?: string;
     activeKind?: 'home' | null;
@@ -46,7 +45,40 @@ const render = async (
   TestBed.configureTestingModule({ providers: [provideRouter([])] });
   const fixture = TestBed.createComponent(ProjectPageNavigation);
   fixture.componentRef.setInput('root', ROOT);
-  fixture.componentRef.setInput('pages', options.pages ?? [...PROJECT_PAGE_REGISTRY]);
+  fixture.componentRef.setInput('pages', options.pages ?? [
+    ProjectPageSchema.parse({
+      id: 'page-renovation-home',
+      projectId: ROOT.id,
+      kind: 'home',
+      enabled: true,
+      createdAt: AT,
+      updatedAt: AT,
+    }),
+    ProjectPageSchema.parse({
+      id: 'page-renovation-todos',
+      projectId: ROOT.id,
+      kind: 'todos',
+      enabled: true,
+      createdAt: AT,
+      updatedAt: AT,
+    }),
+    ProjectPageSchema.parse({
+      id: 'page-renovation-archive',
+      projectId: ROOT.id,
+      kind: 'archive',
+      enabled: true,
+      createdAt: AT,
+      updatedAt: AT,
+    }),
+    ProjectPageSchema.parse({
+      id: 'page-renovation-reflections',
+      projectId: ROOT.id,
+      kind: 'reflections',
+      enabled: true,
+      createdAt: AT,
+      updatedAt: AT,
+    }),
+  ]);
   fixture.componentRef.setInput('workTree', options.workTree ?? tree);
   fixture.componentRef.setInput('currentProjectId', options.currentProjectId ?? ROOT.id);
   // `?? 'home'` would swallow the `null` a sub-project renders with.
@@ -99,10 +131,121 @@ describe('ProjectPageNavigation (§23)', () => {
       }),
     );
 
-    const fixture = await render({ pages: navigablePages(enabled) });
+    const fixture = await render({ pages: enabled });
 
     expect(queryAll(fixture, '[data-project-page-tab]').map((tab) => tab.dataset['pageKind']))
       .toEqual(['home', 'reflections']);
+  });
+
+  it('shows Home as fixed and exposes every optional page through its manager', async () => {
+    const fixture = await render({
+      pages: [
+        ProjectPageSchema.parse({
+          id: 'page-renovation-home',
+          projectId: ROOT.id,
+          kind: 'home',
+          enabled: true,
+          createdAt: AT,
+          updatedAt: AT,
+        }),
+        ProjectPageSchema.parse({
+          id: 'page-renovation-todos',
+          projectId: ROOT.id,
+          kind: 'todos',
+          enabled: false,
+          createdAt: AT,
+          updatedAt: AT,
+        }),
+        ProjectPageSchema.parse({
+          id: 'page-renovation-archive',
+          projectId: ROOT.id,
+          kind: 'archive',
+          enabled: true,
+          createdAt: AT,
+          updatedAt: AT,
+        }),
+        ProjectPageSchema.parse({
+          id: 'page-renovation-reflections',
+          projectId: ROOT.id,
+          kind: 'reflections',
+          enabled: false,
+          createdAt: AT,
+          updatedAt: AT,
+        }),
+      ],
+    });
+
+    const home = query(fixture, '[data-page-toggle-kind="home"] input') as HTMLInputElement;
+    expect(home.checked).toBe(true);
+    expect(home.disabled).toBe(true);
+    expect(queryAll(fixture, '[data-page-toggle-kind]')).toHaveLength(4);
+    expect((query(fixture, '[data-page-toggle-kind="todos"] input') as HTMLInputElement).checked).toBe(false);
+    expect((query(fixture, '[data-page-toggle-kind="archive"] input') as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('emits an optional page change without changing the checked state itself', async () => {
+    const fixture = await render({
+      pages: [
+        ProjectPageSchema.parse({
+          id: 'page-renovation-home',
+          projectId: ROOT.id,
+          kind: 'home',
+          enabled: true,
+          createdAt: AT,
+          updatedAt: AT,
+        }),
+      ],
+    });
+    const emitted: unknown[] = [];
+    fixture.componentInstance.pageToggleRequested.subscribe((value) => emitted.push(value));
+
+    const todos = query(fixture, '[data-page-toggle-kind="todos"] input') as HTMLInputElement;
+    todos.click();
+
+    expect(emitted).toEqual([{ kind: 'todos', enabled: true }]);
+  });
+
+  it('reapplies the confirmed checked state after a failed native toggle', async () => {
+    const fixture = await render({
+      pages: [
+        ProjectPageSchema.parse({
+          id: 'page-renovation-home',
+          projectId: ROOT.id,
+          kind: 'home',
+          enabled: true,
+          createdAt: AT,
+          updatedAt: AT,
+        }),
+        ProjectPageSchema.parse({
+          id: 'page-renovation-todos',
+          projectId: ROOT.id,
+          kind: 'todos',
+          enabled: true,
+          createdAt: AT,
+          updatedAt: AT,
+        }),
+      ],
+    });
+    const todos = query(fixture, '[data-page-toggle-kind="todos"] input') as HTMLInputElement;
+    todos.click();
+    expect(todos.checked).toBe(true);
+    fixture.componentRef.setInput('pageWriteError', 'Could not save page');
+    fixture.detectChanges();
+    expect(todos.checked).toBe(true);
+  });
+
+  it('disables page controls and reports a pending or failed write', async () => {
+    const pending = await render();
+    pending.componentRef.setInput('pageWritePending', true);
+    pending.detectChanges();
+    expect(queryAll(pending, '[data-page-toggle-kind] input').every((input) => (input as HTMLInputElement).disabled))
+      .toBe(true);
+    expect(query(pending, '[data-page-toggle-pending]')?.textContent).toContain('Saving');
+
+    pending.componentRef.setInput('pageWritePending', false);
+    pending.componentRef.setInput('pageWriteError', 'Could not save page');
+    pending.detectChanges();
+    expect(query(pending, '[data-page-toggle-error]')?.textContent).toContain('Could not save page');
   });
 
   it('marks the open page with aria-current, and nothing else', async () => {

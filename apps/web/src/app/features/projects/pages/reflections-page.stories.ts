@@ -79,6 +79,24 @@ const journal = ProjectJournalResultSchema.parse({
   }],
 });
 
+const reopenedJournal = ProjectJournalResultSchema.parse({
+  ...journal,
+  items: [{
+    ...journal.items[0]!,
+    reflection: { ...journal.items[0]!.reflection, id: 'reflection-reopened-story' },
+    subject: { ...subject, status: 'todo', completedAt: undefined },
+  }],
+});
+
+const archivedJournal = ProjectJournalResultSchema.parse({
+  ...journal,
+  items: [{
+    ...journal.items[0]!,
+    reflection: { ...journal.items[0]!.reflection, id: 'reflection-archived-subject-story' },
+    subject: { ...subject, archived: true },
+  }],
+});
+
 const unlinkedJournal = ProjectJournalResultSchema.parse({
   projectId: PROJECT,
   items: [{
@@ -88,7 +106,7 @@ const unlinkedJournal = ProjectJournalResultSchema.parse({
   }],
 });
 
-const gatewayFor = (answer: 'full' | 'unlinked' | 'empty' | 'no-container' | 'loading' | 'journal-error' | 'picker-error' | 'failed') => {
+const gatewayFor = (answer: 'full' | 'unlinked' | 'reopened' | 'archived' | 'empty' | 'no-container' | 'loading' | 'journal-error' | 'picker-error' | 'failed') => {
   const completedWork = ProjectCompletedWorkResultSchema.parse({
     projectId: PROJECT,
     candidates: answer === 'full' ? [subject] : [],
@@ -97,7 +115,16 @@ const gatewayFor = (answer: 'full' | 'unlinked' | 'empty' | 'no-container' | 'lo
     projects: [root],
     pages: [page],
     sections: answer === 'no-container' ? [] : [section],
-    journal: answer === 'unlinked' ? unlinkedJournal : answer === 'full' ? journal : { projectId: PROJECT, items: [] },
+    journal:
+      answer === 'unlinked'
+        ? unlinkedJournal
+        : answer === 'full'
+          ? journal
+          : answer === 'reopened'
+            ? reopenedJournal
+            : answer === 'archived'
+              ? archivedJournal
+              : { projectId: PROJECT, items: [] },
     completedWork,
   });
   if (answer === 'loading') {
@@ -153,6 +180,14 @@ export const FullJournal: Story = {
 
 export const UnlinkedOnly: Story = {
   decorators: [applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor('unlinked') }] })],
+};
+
+export const RetainedReopenedSubject: Story = {
+  decorators: [applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor('reopened') }] })],
+};
+
+export const RetainedArchivedSubject: Story = {
+  decorators: [applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor('archived') }] })],
 };
 
 export const Empty: Story = {

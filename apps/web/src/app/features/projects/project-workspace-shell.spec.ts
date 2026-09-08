@@ -330,6 +330,35 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
     expect(query(harness, '[data-page-notice]')).toBeNull();
     expect(query(harness, '[data-section-canvas]')).not.toBeNull();
   });
+
+  it('offers to re-enable the exact disabled page, then navigates to it after reconciliation', async () => {
+    const { harness, router } = await open('/projects/project-renovation/pages/todos', {
+      pages: [
+        page('page-renovation-home', 'project-renovation', 'home'),
+        page('page-renovation-todos', 'project-renovation', 'todos', false),
+      ],
+    });
+
+    const enable = query(harness, '[data-page-notice-enable]') as HTMLButtonElement;
+    expect(enable).not.toBeNull();
+    expect(enable.textContent).toContain('Todos');
+
+    enable.click();
+    await settle(harness);
+
+    expect(router.url).toBe('/projects/project-renovation/pages/todos');
+    expect(query(harness, '[data-todos-empty]')).not.toBeNull();
+    expect(query(harness, '[data-page-notice]')).toBeNull();
+  });
+
+  it('keeps the root-scoped page manager on a subproject without offering a work toggle', async () => {
+    const { harness } = await open('/projects/project-kitchen');
+
+    expect(query(harness, '[data-project-page-manager]')).not.toBeNull();
+    expect(query(harness, '[data-page-toggle-kind="work"]')).toBeNull();
+    expect(queryAll(harness, '[data-page-toggle-kind]').map((control) => control.dataset['pageToggleKind']))
+      .toEqual(['home', 'todos', 'archive', 'reflections']);
+  });
 });
 
 describe('ProjectWorkspaceShell — §23’s narrow widths', () => {

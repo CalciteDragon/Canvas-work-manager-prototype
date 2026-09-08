@@ -99,6 +99,14 @@ The three open clarifications were resolved by the user on 2026-09-04:
   was done is a worse record than one that shows it. Archived entities, and anything beneath
   an archived ancestor, are excluded.
 
+The integrated 25.8 pass exercised the resulting shape in the running product: a root with
+optional pages and a three-level live branch, an independently archived intermediate project
+with a live descendant, and a separate persona-owned root. The root project column stayed the
+navigation context while nested routes showed only their one work canvas; the data and route
+checks survived reload. This supports the root/workspace split and the ownership chain, but one
+showcase pass does not answer whether people want nesting beyond the tested depth or every page
+kind.
+
 **Current decision**
 
 Roots and subprojects are one discriminated `Project` union sharing an ID space and a
@@ -157,22 +165,22 @@ code already does rather than from taste, and both were reachable only by readin
 
 Medium for the page *kinds*. Four navigable kinds is a guess. Todos and Archive in particular may turn out to
 be one page, or to be better as filters on Home, and the capability-entry design is what keeps
-that cheap to find out.
+that cheap to find out. The integrated pass made the current set coherent enough to evaluate,
+but did not turn the guess into a long-term product finding.
 
 Medium-low for read-only shortcuts. It is the conservative first pass, and the honest risk is
 that a read-only embed is a half-measure people route around by opening the source every time
 — in which case the answer is either editable embedding or no shortcuts at all.
 
-Low for retaining completed rows on Todos, which is a preference stated without use behind it.
-
-None of this is browser-confidence. Nothing here has been used.
+Low-to-medium for retaining completed rows on Todos, because the integrated showcase deliberately
+exercised completed and cancelled rows but did not provide a multiweek usage signal.
 
 **Revisit when**
 
-The first real week of use on a multi-page root. Specifically: whether any optional page gets
-disabled after being enabled, whether shortcuts are created and then abandoned, whether
-Todos's retained completed rows are read or scrolled past, and whether nesting past depth two
-is ever wanted. Also when a fifth *navigable* page kind is proposed — that is the test of whether the
+The first real week of use on a multi-page root, extending the 25.8 showcase pass. Specifically:
+whether any optional page gets disabled after being enabled, whether shortcuts are created and then
+abandoned, whether Todos's retained completed rows are read or scrolled past, and whether nesting
+past depth two is ever wanted. Also when a fifth *navigable* page kind is proposed — that is the test of whether the
 capability table generalises or whether it has quietly become the page builder §80 forbids.
 
 The subproject work canvas is deliberately not that fifth kind, and the distinction is worth

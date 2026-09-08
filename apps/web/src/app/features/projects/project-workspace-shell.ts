@@ -16,13 +16,20 @@ import type { ProjectId, ProjectPageKind } from '@cwm/contracts';
 import { ProjectHeader } from './project-header';
 import { ProjectPageNavigation } from './project-page-navigation';
 import type { ProjectPageRendererInputs } from './project-page-contract';
-import { navigablePages, resolveProjectPage, type ProjectPageResolution } from './project-page-registry';
+import {
+  isOptionalProjectPageKind,
+  pageDefinitionFor,
+  resolveProjectPage,
+  type OptionalProjectPageKind,
+  type ProjectPageResolution,
+} from './project-page-registry';
 import { ProjectWorkspaceStore } from './project-workspace-store';
 import type { SettableProjectStatus } from './project-more-menu';
 
 /** How a fallback's reason travels a redirect. See `noticeFromNavigation`. */
 interface PageNoticeState {
   pageNotice?: string;
+  pageEnableKind?: OptionalProjectPageKind;
 }
 
 const NARROW = '(max-width: 60rem)';
@@ -66,6 +73,7 @@ export class ProjectWorkspaceShell {
   private readonly location = inject(Location);
 
   private readonly noticeState = signal<string | null>(null);
+  private readonly noticeEnableKindState = signal<OptionalProjectPageKind | null>(null);
   /** The page the current notice was read for; see the resolve effect. */
   private noticedFor: string | null = null;
   private readonly narrowState = signal(false);
@@ -73,6 +81,7 @@ export class ProjectWorkspaceShell {
   private readonly archiveNavigationPendingState = signal(false);
 
   readonly notice = this.noticeState.asReadonly();
+  readonly noticeEnableKind = this.noticeEnableKindState.asReadonly();
   /** §23's narrow-width collapse. The column is simply present at desktop widths. */
   readonly collapsed = computed(() => this.narrowState() && this.collapsedState());
   readonly archiveNavigationPending = this.archiveNavigationPendingState.asReadonly();
@@ -107,7 +116,7 @@ export class ProjectWorkspaceShell {
     return resolution?.outcome === 'unavailable' ? resolution.reason : null;
   });
 
-  readonly pages = computed(() => navigablePages(this.store.pages()));
+  readonly pages = this.store.pages;
 
   /** `null` on a sub-project: its work canvas is not one of the root's tabs (§26). */
   readonly activeKind = computed<ProjectPageKind | null>(() => {
@@ -162,7 +171,10 @@ export class ProjectWorkspaceShell {
       if (resolution.outcome === 'redirect') {
         void this.router.navigate(resolution.to, {
           replaceUrl: true,
-          state: { pageNotice: resolution.reason } satisfies PageNoticeState,
+          state: {
+            pageNotice: resolution.reason,
+            ...(resolution.enableKind === undefined ? {} : { pageEnableKind: resolution.enableKind }),
+          } satisfies PageNoticeState,
         });
         return;
       }
@@ -175,7 +187,9 @@ export class ProjectWorkspaceShell {
       untracked(() => {
         if (this.noticedFor === settled) return;
         this.noticedFor = settled;
-        this.noticeState.set(this.noticeFromNavigation());
+        const notice = this.noticeFromNavigation();
+        this.noticeState.set(notice?.pageNotice ?? null);
+        this.noticeEnableKindState.set(notice?.pageEnableKind ?? null);
       });
     });
 
@@ -196,9 +210,24 @@ export class ProjectWorkspaceShell {
     }
   }
 
-  private noticeFromNavigation(): string | null {
+  private noticeFromNavigation(): PageNoticeState | null {
     const state = this.location.getState() as PageNoticeState | null;
-    return state?.pageNotice ?? null;
+    if (state === null || typeof state.pageNotice !== 'string') return null;
+    return {
+      pageNotice: state.pageNotice,
+      ...(this.isOptionalNoticeKind(state.pageEnableKind) ? { pageEnableKind: state.pageEnableKind } : {}),
+    };
+  }
+
+  private isOptionalNoticeKind(kind: unknown): kind is OptionalProjectPageKind {
+    return typeof kind === 'string' &&
+      (kind === 'todos' || kind === 'archive' || kind === 'reflections') &&
+      isOptionalProjectPageKind(kind as ProjectPageKind);
+  }
+
+  noticePageLabel(): string {
+    const kind = this.noticeEnableKindState();
+    return kind === null ? 'page' : pageDefinitionFor(kind)?.label ?? kind;
   }
 
   toggleNavigation(): void {
@@ -211,7 +240,25 @@ export class ProjectWorkspaceShell {
    */
   dismissNotice(): void {
     this.noticeState.set(null);
+    this.noticeEnableKindState.set(null);
     this.location.replaceState(this.location.path(), '', {});
+  }
+
+  setPageEnabled(kind: OptionalProjectPageKind, enabled: boolean): void {
+    void this.store.setPageEnabled(kind, enabled);
+  }
+
+  retryPageContext(): void {
+    void this.store.retryPageContext();
+  }
+
+  async enableNoticedPage(): Promise<void> {
+    const kind = this.noticeEnableKindState();
+    const root = this.store.root();
+    if (kind === null || root === null) return;
+    if (!await this.store.setPageEnabled(kind, true)) return;
+    this.dismissNotice();
+    await this.router.navigate(['/projects', root.id, 'pages', kind]);
   }
 
   rename(name: string): void {

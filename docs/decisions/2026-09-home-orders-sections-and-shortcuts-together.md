@@ -24,6 +24,11 @@ The browser also needs one owner. `ProjectPageStore` already owns one page's gen
 quiet refreshes, optimistic reorder and write deferral, so it owns both arrays and exposes a
 combined `placements()` signal. `ShortcutStore` is limited to the picker source read.
 
+The 25.8 showcase put four Home shortcut placements beside all seven registered section kinds and
+used both Flow and Grid. The combined order remained stable through source updates and removal,
+while the source frame stayed read-only and linked to its canonical owner. The pass supports one
+ordering for interaction, though the resulting Home density still merits broader observation.
+
 **Current decision**
 
 Sections and shortcut placements share one dense, position-then-id order per page. New placements
@@ -32,10 +37,12 @@ changing another page. `sections()` remains section-only for row-container opera
 
 **Confidence**
 
-High. Domain tests cover every position-changing path and the canvas test exercises drops of both
-kinds through one sequence.
+High for the ownership and ordering rule: domain tests cover every position-changing path, the canvas
+test exercises both kinds through one sequence, and the integrated pass used four live placements.
+Medium for the visual density of that combined canvas after the Flow/Grid choice.
 
 **Revisit when**
 
-The canvas gains a placement type with ordering semantics that are not section-like, or real use
-shows that a single dense order makes drag targets ambiguous on the grid.
+The canvas gains a placement type with ordering semantics that are not section-like, or broader use
+shows that a single dense order makes drag targets ambiguous on the grid. The 25.8 pass surfaced
+density as an observation, not a reason to split the order.

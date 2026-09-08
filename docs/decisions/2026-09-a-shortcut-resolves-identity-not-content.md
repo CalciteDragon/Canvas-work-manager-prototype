@@ -21,6 +21,11 @@ its local layout, the canonical `ProjectSection`, source project/page identity, 
 availability state — never a row collection. The read-only Angular content component then uses the
 same gateway path as the owning canvas, so `tasks.read` or `reflections.read` remains independent.
 
+The 25.8 browser/MCP pass used a nested Task List and a Reflections-page source. The frame showed
+canonical source identity and live source updates, while removing the placement changed neither
+the source section nor its rows. A revoked content grant also left discovery separate from source
+content access, as intended.
+
 **Current decision**
 
 `list_section_shortcuts` and the picker require `projects.read` and return placement/source
@@ -30,10 +35,12 @@ wants the rows reads the source section through its own content grant.
 
 **Confidence**
 
-High. The service boundary makes the forbidden result unrepresentable, and the MCP contract test
-checks the read with `projects.read` alone.
+High. The service boundary makes the forbidden result unrepresentable, the MCP contract test checks
+the read with `projects.read` alone, and the integrated browser/MCP pass confirmed nested, cross-page,
+read-only and remove-placement behavior.
 
 **Revisit when**
 
-Agents need a bulk read model that combines layout and content intentionally; that API must name
-each content grant rather than widening shortcut discovery.
+Agents need a bulk read model that combines layout and content intentionally, or use shows that
+read-only source frames create more navigation than value; either change must name each content
+grant rather than widening shortcut discovery.

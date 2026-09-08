@@ -2,7 +2,9 @@ import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
 import { provideRouter } from '@angular/router';
 import type { ProjectId, ProjectPageId, SectionId } from '@cwm/contracts';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
+import { GatewayError } from '../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { ProjectPageStore } from '../project-page-store';
 import { ShortcutPicker } from './shortcut-picker';
@@ -98,4 +100,45 @@ export const AlreadyPlaced: Story = {
       ],
     }),
   ],
+};
+
+export const Loading: Story = {
+  decorators: [
+    moduleMetadata({
+      providers: [
+        {
+          provide: WORK_MANAGER_GATEWAY,
+          useValue: (() => {
+            const gateway = new FakeWorkManagerGateway();
+            gateway.shortcuts.sources = () => new Promise(() => undefined);
+            return gateway;
+          })(),
+        },
+      ],
+    }),
+  ],
+};
+
+export const Unreadable: Story = {
+  decorators: [
+    moduleMetadata({
+      providers: [
+        {
+          provide: WORK_MANAGER_GATEWAY,
+          useValue: new FakeWorkManagerGateway({
+            failOn: { 'shortcuts.sources': new GatewayError('unreachable', 0, 'The prototype host is not answering.') },
+          }),
+        },
+      ],
+    }),
+  ],
+};
+
+export const AddSource: Story = {
+  args: { added: fn() },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Add' }));
+    await expect(args.added).toHaveBeenCalled();
+  },
 };

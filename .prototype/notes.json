@@ -673,6 +673,14 @@
       "projectId": null,
       "slice": 25,
       "note": "Automated real-browser acceptance after dependency repair exposed a navigation freeze: following a Todos task into Kitchen stayed at Loading project despite successful HTTP responses. Canvas loading had subscribed to its own sections signal. Isolating the store call with untracked fixed the browser freeze and two test-worker memory crashes. All five browser journeys now pass, including Archive restore, subject-linked reflections, MCP live updates and Todos origin links. This was browser automation, not the broader manual design evaluation reserved for 25.8."
+    },
+    {
+      "id": "note-2026-09-08-001",
+      "createdAt": "2026-09-08T08:37:04.457Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 25,
+      "note": "Saving one field in the More menu closes it; editing a second project field requires reopening More. The close makes each write clear, but multi-field edits feel interrupted."
     }
   ]
 }

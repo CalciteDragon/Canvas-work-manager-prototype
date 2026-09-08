@@ -15,6 +15,10 @@
   overflow-y: auto;
 }
 
+.project-nav[hidden] {
+  display: none;
+}
+
 // Desktop-first, like the rest of the shell (§23): the column is simply there, and the
 // toggle exists for the narrow widths where it is not.
 .project-nav__toggle {
@@ -111,6 +115,75 @@
 .project-nav__pages a[aria-current='page'] {
   background: var(--color-surface-raised);
   color: var(--color-accent);
+}
+
+.project-nav__manager {
+  padding: var(--space-2);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.project-nav__manager summary {
+  color: var(--color-text);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.project-nav__manager-help {
+  margin: var(--space-2) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.project-nav__page-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.project-nav__page-control {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.project-nav__page-control:hover,
+.project-nav__page-control:focus-within {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.project-nav__page-control small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.project-nav__manager-status,
+.project-nav__manager-error {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.project-nav__manager-error p {
+  margin: 0 0 var(--space-1);
+  color: var(--color-danger);
+}
+
+.project-nav__manager-error button {
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
 }
 
 .project-nav__heading {

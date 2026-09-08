@@ -12,6 +12,7 @@ import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { applicationConfig } from '@storybook/angular-vite';
 import { GatewayError } from '../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../../../core/gateway/work-manager-gateway';
+import { expect, userEvent, within } from 'storybook/test';
 import { TodosPage } from './todos-page';
 
 const AT = '2026-09-05T10:00:00.000Z';
@@ -83,7 +84,10 @@ const MIXED: ProjectTodoItem[] = [
 ];
 
 /** A gateway that answers one shape and nothing else — the stories never write. */
-const gatewayFor = (answer: ProjectTodosResult | GatewayError | 'pending'): WorkManagerGateway =>
+const gatewayFor = (
+  answer: ProjectTodosResult | GatewayError | 'pending',
+  completion: 'success' | 'pending' | 'failed' = 'success',
+): WorkManagerGateway =>
   ({
     todos: {
       get: () =>
@@ -97,7 +101,11 @@ const gatewayFor = (answer: ProjectTodosResult | GatewayError | 'pending'): Work
     // host does, so the row settles instead of hanging in its pending state.
     tasks: {
       complete: (id: string) =>
-        Promise.resolve(TaskSchema.parse({ ...taskRowTask(id), status: 'done', completedAt: AT })),
+        completion === 'pending'
+          ? new Promise(() => undefined)
+          : completion === 'failed'
+            ? Promise.reject(new GatewayError('unreachable', 0, 'Completion was refused.'))
+            : Promise.resolve(TaskSchema.parse({ ...taskRowTask(id), status: 'done', completedAt: AT })),
     },
     projects: { update: () => Promise.resolve(unit('completed')) },
   }) as unknown as WorkManagerGateway;
@@ -150,4 +158,27 @@ export const Unreadable: Story = {
       ],
     }),
   ],
+};
+
+export const CompletionPending: Story = {
+  decorators: [
+    applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor(result(MIXED), 'pending') }] }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Complete Chase the plumber’s quote' }));
+    await expect(canvas.getByText('Completing…')).toBeVisible();
+  },
+};
+
+export const CompletionRefused: Story = {
+  decorators: [
+    applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor(result(MIXED), 'failed') }] }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Complete Chase the plumber’s quote' }));
+    await expect(canvas.getByRole('alert').textContent).toContain('Completion was refused.');
+    await expect(canvas.getByRole('button', { name: 'Complete Chase the plumber’s quote' })).toBeVisible();
+  },
 };

@@ -8,6 +8,7 @@ import {
   PrototypeDocumentSchema,
   ReflectionSchema,
   SCHEMA_VERSION,
+  SectionShortcutSchema,
   TaskSchema,
   type ActivityEvent,
   type AgentConnection,
@@ -16,6 +17,7 @@ import {
   type ProjectPage,
   type PrototypeDocument,
   type Reflection,
+  type SectionShortcut,
   type Task,
 } from '@cwm/contracts';
 import { PERSONAS } from './personas';
@@ -42,8 +44,10 @@ const project = (
   options: {
     description?: string;
     icon?: string;
+    workspaceId?: string;
     status?: 'planning' | 'active' | 'on_hold' | 'completed' | 'archived';
     targetDate?: string;
+    completedAt?: string;
     parentProjectId?: string;
     projectLayoutMode?: 'flow' | 'grid';
     progressFormula?: 'count' | 'weighted' | 'manual';
@@ -52,7 +56,7 @@ const project = (
 ): Project =>
   ProjectSchema.parse({
     id,
-    workspaceId: DEMO_WORKSPACE_ID,
+    workspaceId: options.workspaceId ?? DEMO_WORKSPACE_ID,
     // A parent is what makes something a unit of work rather than a workspace (§26).
     kind: options.parentProjectId === undefined ? 'root' : 'subproject',
     name,
@@ -60,6 +64,7 @@ const project = (
     icon: options.icon,
     status: options.status ?? 'active',
     targetDate: options.targetDate,
+    completedAt: options.completedAt,
     parentProjectId: options.parentProjectId,
     projectLayoutMode: options.projectLayoutMode ?? 'flow',
     progressFormula: options.progressFormula ?? 'count',
@@ -80,6 +85,10 @@ const task = (
     dueAt?: string;
     completedAt?: string;
     estimate?: number;
+    parentTaskId?: string;
+    archivedAt?: string;
+    archivedWithSectionId?: string;
+    archivedWithTaskId?: string;
     /** Override for a project whose task list is not the conventional one below. */
     sectionId?: string;
   } = {},
@@ -99,6 +108,10 @@ const task = (
     dueAt: options.dueAt,
     completedAt: options.completedAt,
     estimate: options.estimate,
+    parentTaskId: options.parentTaskId,
+    archivedAt: options.archivedAt,
+    archivedWithSectionId: options.archivedWithSectionId,
+    archivedWithTaskId: options.archivedWithTaskId,
     createdAt: CREATED_AT,
     updatedAt: UPDATED_AT,
   });
@@ -124,16 +137,25 @@ const canonicalPage = (project: Project): ProjectPage =>
     updatedAt: UPDATED_AT,
   });
 
-const section = (id: string, projectId: string, type: string, position: number, config: object = {}) =>
+const section = (
+  id: string,
+  projectId: string,
+  type: string,
+  position: number,
+  config: object = {},
+  options: { pageId?: string; title?: string; archivedAt?: string } = {},
+) =>
   ProjectSectionSchema.parse({
     id,
     projectId,
-    pageId: canonicalPageId(projectId),
+    pageId: options.pageId ?? canonicalPageId(projectId),
     type,
+    title: options.title,
     position,
     columnSpan: 12,
     collapsed: false,
     config,
+    archivedAt: options.archivedAt,
     createdAt: CREATED_AT,
     updatedAt: UPDATED_AT,
   });
@@ -203,6 +225,24 @@ const sliceTenCanvas = (projectId: string, brief: string) => [
   section(`section-${projectId}-timeline`, projectId, 'timeline', 5),
 ];
 
+const sectionShortcut = (
+  id: string,
+  pageId: string,
+  sourceSectionId: string,
+  position: number,
+  options: { columnSpan?: 12 | 8 | 6 | 4; collapsed?: boolean } = {},
+): SectionShortcut =>
+  SectionShortcutSchema.parse({
+    id,
+    pageId,
+    sourceSectionId,
+    position,
+    columnSpan: options.columnSpan ?? 12,
+    collapsed: options.collapsed ?? false,
+    createdAt: CREATED_AT,
+    updatedAt: UPDATED_AT,
+  });
+
 const milestone = (
   id: string,
   projectId: string,
@@ -216,15 +256,27 @@ const reflection = (
   id: string,
   projectId: string,
   body: string,
-  options: { title?: string; prompt?: string; createdAt?: string; updatedAt?: string; sectionId?: string } = {},
+  options: {
+    title?: string;
+    prompt?: string;
+    createdAt?: string;
+    updatedAt?: string;
+    sectionId?: string;
+    subject?: { kind: 'task' | 'subproject'; id: string };
+    archivedAt?: string;
+    archivedWithSectionId?: string;
+  } = {},
 ): Reflection =>
   ReflectionSchema.parse({
     id,
     projectId,
     sectionId: options.sectionId ?? reflectionsSectionId(projectId),
+    subject: options.subject,
     title: options.title,
     body,
     prompt: options.prompt,
+    archivedAt: options.archivedAt,
+    archivedWithSectionId: options.archivedWithSectionId,
     createdAt: options.createdAt ?? CREATED_AT,
     updatedAt: options.updatedAt ?? options.createdAt ?? CREATED_AT,
   });
@@ -372,7 +424,7 @@ const nestedProjects = (): PrototypeDocument => {
     project('project-kitchen', 'Kitchen', {
       parentProjectId: 'project-renovation',
       icon: '🍳',
-      targetDate: '2026-10-30',
+      targetDate: '2026-09-04',
     }),
     project('project-cabinets', 'Cabinets', {
       parentProjectId: 'project-kitchen',
@@ -383,41 +435,155 @@ const nestedProjects = (): PrototypeDocument => {
       parentProjectId: 'project-renovation',
       icon: '🌿',
       targetDate: '2026-11-20',
+      status: 'completed',
+      completedAt: '2026-08-22T17:00:00.000Z',
+    }),
+    project('project-legacy', 'Legacy attic', {
+      parentProjectId: 'project-renovation',
+      icon: '🏚️',
+      status: 'archived',
+    }),
+    project('project-legacy-child', 'Legacy shelving', {
+      parentProjectId: 'project-legacy',
+      icon: '🪵',
+      targetDate: '2026-10-01',
+    }),
+    project('project-alex-private', 'Alex private plan', {
+      workspaceId: 'workspace-alex',
+      icon: '🔒',
     }),
   ];
+  const renovation = projects[0]!;
+  const kitchen = projects[1]!;
+  const garden = projects[3]!;
+  const homePageId = canonicalPageId(renovation.id);
+  const todosPageId = `page-${renovation.id}-todos`;
+  const archivePageId = `page-${renovation.id}-archive`;
+  const reflectionsPageId = `page-${renovation.id}-reflections`;
+  const kitchenTaskSectionId = tasksSectionId(kitchen.id);
+  const renovationReflectionsPageSectionId = `section-${renovation.id}-reflections-page`;
+
   return document({
     projects,
-    // `project-cabinets` deliberately gets no sections: an empty canvas is a state the
-    // project page has to handle, and a leaf sub-project nobody has set up yet is the most
-    // honest place to find one. It therefore holds no rows either — under ownership an
-    // empty canvas and an unrendered task are the same defect, not two separate states.
+    projectPages: [
+      canonicalPage(renovation),
+      ProjectPageSchema.parse({
+        id: todosPageId,
+        projectId: renovation.id,
+        kind: 'todos',
+        enabled: true,
+        createdAt: CREATED_AT,
+        updatedAt: UPDATED_AT,
+      }),
+      ProjectPageSchema.parse({
+        id: archivePageId,
+        projectId: renovation.id,
+        kind: 'archive',
+        enabled: true,
+        createdAt: CREATED_AT,
+        updatedAt: UPDATED_AT,
+      }),
+      ProjectPageSchema.parse({
+        id: reflectionsPageId,
+        projectId: renovation.id,
+        kind: 'reflections',
+        enabled: true,
+        createdAt: CREATED_AT,
+        updatedAt: UPDATED_AT,
+      }),
+      ...projects.slice(1).map(canonicalPage),
+    ],
     sections: [
-      ...sliceTenCanvas(projects[0]!.id, 'Whole-house plan. Kitchen first, garden in the spring.'),
-      ...projectCanvas(projects[1]!.id, 'Appliances and finishes before cabinets are ordered.'),
-      ...projectCanvas(projects[3]!.id, 'Autumn planting only. Structural work waits for next year.'),
+      ...sliceTenCanvas(renovation.id, 'Whole-house plan. Kitchen first, garden in the spring.'),
+      section(`section-${renovation.id}-recent-activity`, renovation.id, 'recent-activity', 6),
+      section(`section-${renovation.id}-archived-notes`, renovation.id, 'rich-text', 7, { text: 'Old attic notes' }, {
+        archivedAt: '2026-08-20T16:00:00.000Z',
+      }),
+      ...sliceTenCanvas(kitchen.id, 'Appliances and finishes before cabinets are ordered.'),
+      section(`section-${kitchen.id}-recent-activity`, kitchen.id, 'recent-activity', 6),
+      ...projectCanvas(garden.id, 'Autumn planting only. Structural work waits for next year.'),
+      section(renovationReflectionsPageSectionId, renovation.id, 'reflections', 0, {}, { pageId: reflectionsPageId }),
     ],
     tasks: [
-      task('task-renovation-budget', projects[0]!.id, 'Confirm renovation budget', {
+      task('task-renovation-budget', renovation.id, 'Confirm renovation budget', {
         priority: 'high',
         startAt: '2026-08-24T16:00:00.000Z',
         dueAt: '2026-09-04T23:00:00.000Z',
       }),
-      task('task-kitchen-appliances', projects[1]!.id, 'Choose appliance finishes', {
+      // Deliberately inserted in reverse id order: the derived Todos page must apply §34's
+      // equal-instant kind/id tie-break rather than trusting JSON insertion order.
+      task('task-renovation-equal-z', renovation.id, 'Confirm tile samples', {
+        priority: 'medium',
+        dueAt: '2026-09-04T23:59:59.999Z',
+      }),
+      task('task-renovation-equal-a', renovation.id, 'Confirm tap samples', {
+        priority: 'medium',
+        dueAt: '2026-09-04T23:59:59.999Z',
+      }),
+      task('task-renovation-done', renovation.id, 'Approve the lighting plan', {
+        status: 'done',
+        dueAt: '2026-09-04T23:59:59.999Z',
+        completedAt: '2026-08-23T17:00:00.000Z',
+      }),
+      task('task-renovation-cancelled', renovation.id, 'Compare a cancelled quote', {
+        status: 'cancelled',
+        dueAt: '2026-09-05T23:00:00.000Z',
+      }),
+      task('task-renovation-undated', renovation.id, 'Call the salvage yard'),
+      task('task-renovation-archived', renovation.id, 'Old permit copy', {
+        archivedAt: '2026-08-20T16:00:00.000Z',
+      }),
+      task('task-kitchen-appliances', kitchen.id, 'Choose appliance finishes', {
         startAt: '2026-09-08T16:00:00.000Z',
         dueAt: '2026-09-18T23:00:00.000Z',
       }),
-      task('task-garden-plan', projects[3]!.id, 'Sketch autumn planting plan', { priority: 'low' }),
+      task('task-kitchen-completed', kitchen.id, 'Approve the cabinet measurements', {
+        status: 'done',
+        completedAt: '2026-08-22T18:00:00.000Z',
+      }),
+      task('task-garden-plan', garden.id, 'Sketch autumn planting plan', { priority: 'low' }),
     ],
     milestones: [
-      milestone('milestone-renovation-design-lock', projects[0]!.id, 'Design locked', '2026-09-25'),
-      milestone('milestone-kitchen-cabinet-order', projects[1]!.id, 'Cabinet order placed', '2026-10-02'),
+      milestone('milestone-renovation-design-lock', renovation.id, 'Design locked', '2026-09-25'),
+      milestone('milestone-kitchen-cabinet-order', kitchen.id, 'Cabinet order placed', '2026-10-02'),
     ],
     reflections: [
-      reflection('reflection-renovation-sequence', projects[0]!.id, 'Kitchen decisions need to land before garden work begins.', {
+      reflection('reflection-renovation-general', renovation.id, 'Kitchen decisions need to land before garden work begins.', {
         title: 'Sequence matters',
         prompt: 'What should happen next?',
         createdAt: '2026-08-23T17:00:00.000Z',
+        sectionId: renovationReflectionsPageSectionId,
       }),
+      reflection('reflection-renovation-task', renovation.id, 'The lighting plan finally feels settled.', {
+        title: 'A clear decision',
+        subject: { kind: 'task', id: 'task-renovation-done' },
+        createdAt: '2026-08-24T17:00:00.000Z',
+        sectionId: renovationReflectionsPageSectionId,
+      }),
+      reflection('reflection-renovation-project', renovation.id, 'Garden work is ready for its next season.', {
+        title: 'Garden handoff',
+        subject: { kind: 'subproject', id: garden.id },
+        createdAt: '2026-08-22T17:00:00.000Z',
+        sectionId: renovationReflectionsPageSectionId,
+      }),
+    ],
+    sectionShortcuts: [
+      sectionShortcut('shortcut-renovation-kitchen-tasks', homePageId, kitchenTaskSectionId, 7, { columnSpan: 8 }),
+      sectionShortcut('shortcut-renovation-kitchen-reflections', homePageId, `section-${kitchen.id}-reflections`, 8),
+      sectionShortcut('shortcut-renovation-reflections-page', homePageId, renovationReflectionsPageSectionId, 9, { columnSpan: 8 }),
+      sectionShortcut('shortcut-renovation-garden-brief', homePageId, `section-${garden.id}-brief`, 10),
+    ],
+    agentConnections: [
+      agentConnection('agent-claude', 'Claude', [
+        'projects.read',
+        'projects.write',
+        'tasks.read',
+        'tasks.write',
+        'reflections.read',
+        'reflections.write',
+        'workspace.read',
+      ], { lastUsedAt: '2026-08-24T15:32:00.000Z' }),
+      agentConnection('agent-cursor', 'Cursor', ['projects.read', 'tasks.read']),
     ],
   });
 };

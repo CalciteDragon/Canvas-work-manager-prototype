@@ -47,7 +47,7 @@
   }
 
   <ul class="project-nav__pages">
-    @for (page of pages(); track page.kind) {
+    @for (page of visiblePages(); track page.kind) {
       <li>
         <a
           data-project-page-tab
@@ -60,6 +60,48 @@
       </li>
     }
   </ul>
+
+  <details data-project-page-manager class="project-nav__manager">
+    <summary>Manage pages</summary>
+    <p class="project-nav__manager-help">Choose which optional views appear in this project.</p>
+    <div class="project-nav__page-controls">
+      <label data-page-toggle-kind="home" class="project-nav__page-control">
+        <input type="checkbox" checked disabled aria-label="Home page is required" />
+        <span aria-hidden="true">🏠</span>
+        <span>Home</span>
+        <small>Required</small>
+      </label>
+
+      @for (definition of optionalPageDefinitions; track definition.kind) {
+        <label
+          class="project-nav__page-control"
+          [attr.data-page-toggle-kind]="definition.kind"
+        >
+          <input
+            type="checkbox"
+            [checked]="pageEnabled(definition.kind)"
+            [disabled]="pageWritePending()"
+            [attr.aria-label]="'Show ' + definition.label + ' page'"
+            (change)="requestPageToggle(definition.kind, $event)"
+          />
+          <span aria-hidden="true">{{ definition.icon }}</span>
+          <span>{{ definition.label }}</span>
+        </label>
+      }
+    </div>
+
+    @if (pageWritePending()) {
+      <p data-page-toggle-pending class="project-nav__manager-status" role="status">Saving page settings…</p>
+    }
+    @if (pageWriteError(); as error) {
+      <div data-page-toggle-error class="project-nav__manager-error" role="alert">
+        <p>{{ error }}</p>
+        @if (pageWriteRetryKind() !== null) {
+          <button type="button" data-page-toggle-retry (click)="retryPageRequested.emit()">Retry refresh</button>
+        }
+      </div>
+    }
+  </details>
 
   <hr />
 

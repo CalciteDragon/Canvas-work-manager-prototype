@@ -17,8 +17,13 @@
         [activeKind]="activeKind()"
         [breadcrumbs]="store.breadcrumbs()"
         [collapsed]="collapsed()"
+        [pageWritePending]="store.pageWritePending()"
+        [pageWriteError]="store.pageWriteError()"
+        [pageWriteRetryKind]="store.pageWriteRetryKind()"
         (toggleRequested)="toggleNavigation()"
         (openArchiveRequested)="openArchive()"
+        (pageToggleRequested)="setPageEnabled($event.kind, $event.enabled)"
+        (retryPageRequested)="retryPageContext()"
       />
     }
 
@@ -45,7 +50,12 @@
            was already replaced; this is the sentence that goes with it. -->
       @if (notice(); as notice) {
         <p data-page-notice class="project-workspace__page-notice" role="status">
-          {{ notice }}
+          <span>{{ notice }}</span>
+          @if (noticeEnableKind() !== null) {
+            <button type="button" data-page-notice-enable (click)="enableNoticedPage()">
+              Enable {{ noticePageLabel() }}
+            </button>
+          }
           <button type="button" data-page-notice-dismiss (click)="dismissNotice()">Dismiss</button>
         </p>
       }

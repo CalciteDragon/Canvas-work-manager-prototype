@@ -279,7 +279,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     // The toggle, echoed: enabling a kind the project does not have yet answers with a new
     // record, matching the service's upsert, so a store spec sees the same two shapes it
     // would over HTTP.
-    setEnabled: (projectId: ProjectId, input: SetProjectPageEnabledInput) => {
+    setEnabled: async (projectId: ProjectId, input: SetProjectPageEnabledInput) => {
       const updated = {
         ...(this.pagesOf(projectId).find(({ kind }) => kind === input.kind) ?? {
           id: `page-${projectId}-${input.kind}` as ProjectPageId,
@@ -290,11 +290,18 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         }),
         enabled: input.enabled,
       };
+      const answer = await this.answer('pages.setEnabled', { projectId, input }, updated);
+      // Model persistence only after the gateway answers. A rejected write must not silently
+      // change the next read, which is the failure boundary the non-optimistic page manager
+      // needs to exercise.
       this.options.pages = [
         ...(this.options.pages ?? []).filter((page) => !(page.projectId === projectId && page.kind === input.kind)),
+        ...(this.options.pages?.some((page) => page.projectId === projectId) ?? false
+          ? []
+          : this.pagesOf(projectId).filter((page) => page.kind !== input.kind)),
         updated,
       ];
-      return this.answer('pages.setEnabled', { projectId, input }, updated);
+      return answer;
     },
   };
 

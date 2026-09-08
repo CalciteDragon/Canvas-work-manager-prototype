@@ -58,7 +58,11 @@ clickable.
 
 The ordering rules are the part with the least evidence behind them. Nothing in real use has yet
 produced two rows at the same instant by accident; the sub-millisecond case is a schema
-possibility an agent could write, not something observed.
+possibility an agent could write, not something observed accidentally. The integrated 25.8
+showcase deliberately inserted an equal-instant work/task pair, completed and cancelled rows, and
+an undated row; the browser and MCP journeys observed the required deterministic order and retained
+states. That validates the fixture and behavior, not yet a multiweek preference for the resulting
+chronology.
 
 **Current decision**
 
@@ -72,13 +76,14 @@ visit only.
 **Confidence**
 
 High for the scope, the permission pair and "arrival writes nothing" — all three are enforced by
-tests that fail loudly and were watched in the app. Medium for the tie-break: it is deterministic
-and defensible, but no real use has depended on it yet. Medium-low for one-way completion; the
-first person who completes the wrong row will say whether that was right.
+tests that fail loudly and were watched in the app. High for deterministic behavior in the tested
+fixture; medium for whether the tie-break and retained completed/cancelled rows feel right in daily
+use. Medium-low for one-way completion; the first person who completes the wrong row will say
+whether that was right.
 
 **Revisit when**
 
-Slice 25.6 adds the Archive page (a second derived projection, and the second user of the
-multi-grant tool metadata), or 25.8's integrated walkthrough puts a person in front of a full week
-of work. Watch for: rows people expect to reorder, a wish to reopen from the list, and whether the
-origin breadcrumb or the container name is what people actually navigate by.
+After a multiweek pass with a full week of work. Slice 25.6's Archive page and 25.8's integrated
+walkthrough have now exercised the projection; keep watching for rows people expect to reorder, a
+wish to reopen from the list, and whether the origin breadcrumb or the container name is what
+people actually navigate by.

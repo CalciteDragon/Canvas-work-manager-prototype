@@ -29,6 +29,12 @@ export interface ProjectPageDefinition {
   component: Type<ProjectPageRenderer>;
 }
 
+/** Root page kinds the navigation manager may toggle. Canonical pages are intentionally absent. */
+export type OptionalProjectPageKind = Exclude<ProjectPageKind, 'home' | 'work'>;
+export type OptionalProjectPageDefinition = Omit<ProjectPageDefinition, 'kind'> & {
+  kind: OptionalProjectPageKind;
+};
+
 /**
  * §26's four root pages, minus the ones nothing can draw yet.
  *
@@ -44,6 +50,11 @@ export const PROJECT_PAGE_REGISTRY: readonly ProjectPageDefinition[] = [
   { kind: 'archive', label: 'Archive', icon: '🗄️', component: ArchivePage },
   { kind: 'reflections', label: 'Reflections', icon: '📓', component: ReflectionsPage },
 ];
+
+export const OPTIONAL_PROJECT_PAGE_DEFINITIONS: readonly OptionalProjectPageDefinition[] =
+  PROJECT_PAGE_REGISTRY.filter(
+    (definition): definition is OptionalProjectPageDefinition => definition.kind !== 'home' && definition.kind !== 'work',
+  );
 
 export const pageDefinitionFor = (kind: ProjectPageKind): ProjectPageDefinition | undefined =>
   PROJECT_PAGE_REGISTRY.find((definition) => definition.kind === kind);
@@ -64,7 +75,7 @@ export const navigablePages = (pages: readonly ProjectPage[]): ProjectPageDefini
  */
 export type ProjectPageResolution =
   | { outcome: 'render'; kind: ProjectPageKind; pageId: ProjectPageId; component: Type<ProjectPageRenderer> }
-  | { outcome: 'redirect'; to: unknown[]; reason: string }
+  | { outcome: 'redirect'; to: unknown[]; reason: string; enableKind?: OptionalProjectPageKind }
   | { outcome: 'unavailable'; reason: string };
 
 export const resolveProjectPage = (input: {
@@ -110,7 +121,12 @@ export const resolveProjectPage = (input: {
   }
   const page = ownPages.find((candidate) => candidate.kind === kind);
   if (page === undefined || !page.enabled) {
-    return toHome(`The ${labelFor(kind)} page is switched off for this project. Showing Home instead.`);
+    const fallback = toHome(`The ${labelFor(kind)} page is switched off for this project. Showing Home instead.`);
+    // Only a real, disabled optional record gets an enable affordance. A missing record is the
+    // first-enable case, while Home/work and unknown kinds are different fallbacks entirely.
+    return page !== undefined && !page.enabled && isOptionalProjectPageKind(kind) && fallback.outcome === 'redirect'
+      ? { ...fallback, enableKind: kind }
+      : fallback;
   }
   if (definition === undefined) {
     return toHome(`The ${labelFor(kind)} page is not built yet. Showing Home instead.`);
@@ -121,6 +137,9 @@ export const resolveProjectPage = (input: {
 /** Read from the contract rather than restated: §11 defines the kinds once. */
 const isPageKind = (kind: string): kind is ProjectPageKind =>
   (ProjectPageKindSchema.options as readonly string[]).includes(kind);
+
+export const isOptionalProjectPageKind = (kind: ProjectPageKind): kind is OptionalProjectPageKind =>
+  kind !== 'home' && kind !== 'work';
 
 /** A kind's name in a sentence, whether or not this build can draw it. */
 const labelFor = (kind: ProjectPageKind): string =>

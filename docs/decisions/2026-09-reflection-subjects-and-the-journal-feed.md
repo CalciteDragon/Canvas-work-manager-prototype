@@ -35,6 +35,12 @@ The page composer writes to its single page container; ordinary canvases display
 linked marker. The completed-work picker is a separate read model and excludes incomplete,
 archived, hidden and foreign work.
 
+The 25.8 browser/MCP pass used the root's general entry, a completed task and a completed nested
+subproject, then reopened one subject. The root feed retained the linked entry and displayed its
+current state; the composer wrote to the page-owned container, and the HTTP write appeared in the
+open browser surface. The ownership and retention behavior is supported, while feed density and
+picker wording remain design questions.
+
 ## Current decision
 
 Use the optional typed subject on `Reflection`, validate it only when newly assigned or changed,
@@ -48,11 +54,11 @@ the canonical owning canvas for editing.
 ## Confidence
 
 Medium-high for ownership, retention and permission semantics: they are covered by contract,
-domain, route and page-store tests. Medium for the feed density, neutral marker and picker
-wording until the missing browser dependencies allow the full prototype journey to be used.
+domain, route and page-store tests and survived the integrated browser/MCP journey. Medium for the
+feed density, neutral marker and picker wording after one realistic showcase pass.
 
 ## Revisit when
 
-After the integrated 25.8 browser/MCP acceptance pass, or sooner if using a realistic root tree
-shows that the origin breadcrumbs, current-state labels or single-container composer make a
-reflection hard to find or understand.
+After a multiweek pass with several journal entries, or sooner if using a realistic root tree shows
+that the origin breadcrumbs, current-state labels or single-container composer make a reflection
+hard to find or understand.

@@ -938,6 +938,12 @@ Today the column lists Home, any enabled optional page this build can render, an
 hierarchy. Archive and Reflections are both registered renderers; Archive also remains reachable
 through the project controls when its tab is disabled.
 
+*Slice 25.8 exercised the column as a product surface:* a root's **Manage pages** disclosure keeps
+Home fixed and lets a person toggle the three optional kinds in View Mode. The same root-owned
+column remains available on a nested work route, while the work canvas is not presented as a
+toggleable page. Keyboard navigation and the existing collapsed-column breakpoint were checked
+against the integrated showcase.
+
 ---
 
 # 24. Home Dashboard
@@ -1130,6 +1136,12 @@ The canvas matches the fragment against the sections **that page actually loaded
 interpolating it into a selector; an unmatched one leaves the canvas usable and says so. Arriving
 writes nothing — a collapsed target is opened for that visit only.*
 
+*Slice 25.8 completed the person-facing optional-page path. The project navigation manager shows
+the root's actual page records, updates navigation only after the page write and fresh context read
+settle, and preserves the confirmed state on refusal. A URL for a disabled optional page falls back
+to Home with an exact re-enable action for that kind; unknown, unbuilt, Home, work and subproject
+page requests do not acquire an enable action.*
+
 ---
 
 # 27. Section Canvas
@@ -1280,6 +1292,12 @@ content is mounted read-only with an **Open source** link. Placement writes requ
 Home and project-write rules; archived source sections show `source_archived`, while a source
 project or ancestor archived beneath it shows `source_hidden`. A disabled source page remains a
 valid source because disabling hides navigation, not data.*
+
+*The integrated 25.8 showcase put all seven registered section kinds and four shortcut placements
+on root Home, used a Reflections-page source and a nested work source, and observed source updates
+without copying rows. The source frame stayed read-only and identified its canonical owner; removal
+changed only the placement. This is browser/MCP evidence for the ownership boundary, not a decision
+that embedded shortcuts are yet an MVP requirement.*
 
 ---
 
@@ -1479,6 +1497,11 @@ section is unavailable in place, and live content whose project or ancestor is a
 hidden in place, even though a direct read naming that section can still answer. Reactivating
 the source owner or restoring the source section revives the reference.*
 
+*The 25.8 integrated browser/MCP journey exercised direct task and section recovery from the root
+Archive page, then reactivated an archived intermediate subproject with an explicitly chosen status.
+Its live descendant returned after reload, while independently archived rows stayed archived. The
+manager and **Open archive** path kept recovery reachable from nested navigation.*
+
 Example:
 
 ```text
@@ -1647,6 +1670,11 @@ rows stay on the list with no control, and reopening uses the canonical canvas t
 which is also where a row's link lands, at its own container
 ([entry](docs/decisions/2026-09-todos-chronology-and-canonical-navigation.md)).
 
+*The 25.8 showcase deliberately inserted a dated work/task tie, completed and cancelled rows, and
+an undated work unit in scrambled order. The browser and MCP journeys observed the deterministic
+chronology, retained finished states, and followed a nested row to its canonical work container;
+the source rows remained singly owned.*
+
 ---
 
 # 35. Milestones
@@ -1737,6 +1765,11 @@ whole-tree subject read.
 *Landed in Slice 25.7. The page, root journal projection and completed-work picker are backed by
 the same contracts and domain read rules over HTTP; the root journal is also available through
 MCP.*
+
+*The 25.8 showcase combined general, task-linked and subproject-linked entries, then reopened one
+subject. The root feed retained the entry and displayed the subject's current state, while the
+page composer continued writing to its one canonical container. A real HTTP MCP write appeared in
+the open browser surface, confirming the aggregate is a projection rather than a second owner.*
 
 ---
 
@@ -2350,6 +2383,13 @@ adds `get_project_journal` with the same three read grants: it aggregates live j
 from the root tree, resolves current linked-subject state (including an archived subject), and
 does not depend on the Reflections tab being enabled.*
 
+*The 25.8 HTTP acceptance exercised the combined Todos, Archive and Journal reads with the declared
+grant matrix, including no-partial-result denials and a read-only connection's write refusal. The
+Settings path was also used to remove `tasks.read` from Claude; the denied call named the exact
+missing grant (`connection "agent-claude" is missing permission "tasks.read"`) before the grant
+was restored. Successful writes were visible in the connection/project activity with Claude
+attribution.*
+
 ---
 
 # 55. MCP Experimental Tool Registry
@@ -2883,6 +2923,11 @@ fallback replaces the URL and carries its reason in navigation state, which is w
 explanation survive the sub-project case, where the redirect crosses route configurations and
 destroys the component.*
 
+*The 25.8 page-manager path now makes the disabled-page re-enable promise executable: a disabled
+optional route carries its exact kind to an **Enable …** action, and navigation waits for persisted
+state plus fresh page context. The manager is root-scoped and remains visible from descendant work
+routes; `/pages/work` and subproject page requests carry no enable action.*
+
 ---
 
 # 69. Testing Strategy
@@ -2960,21 +3005,29 @@ Keep only a few.
 ### Web
 
 ```text
-load seed
-→ create project
-→ create task
-→ dashboard shows task
+load nested-projects showcase
+→ create root and manage optional pages
+→ navigate nested work and canonical shortcut sources
+→ verify Todos, Reflections and Archive projections
+→ inject a failed task/page write and switch persona
+→ reload and confirm ownership/recovery
 ```
 
 ### MCP
 
 ```text
-agent calls create_task
-→ task appears in web UI
-→ activity feed shows agent
+open browser aggregate
+→ real Streamable HTTP client mutates nested task/page/shortcut/reflection state
+→ browser receives the committed event without reload
+→ canonical HTTP reads and activity attribution agree
+→ missing-grant, read-only and foreign-root calls are refused without partial results
 ```
 
-This second test is one of the most important prototype tests.
+The web and MCP journeys are kept isolated from the offline `pnpm test` suite and use their own
+data file. Focused aggregate journeys remain separate so the integrated pass can prove composition
+without duplicating every fixture. Slice 25.8 ran the integrated browser/MCP checks and the
+workbench states against the nested showcase; the remaining product questions are about sustained
+use, not whether these paths can be exercised.
 
 ---
 
@@ -3475,6 +3528,16 @@ The first genuinely useful prototype should support:
 - persona switcher
 - feature flags
 
+### Multi-page integration
+
+The 25.8 closure pass now exercises the user-requested multi-page direction as one coherent
+milestone path: a root workspace with persisted Home/Todos/Archive/Reflections pages; nested
+subproject work canvases; read-only cross-page and nested shortcuts; chronological Todos with
+canonical owner links; root-wide Archive recovery; retained subject-linked reflections; page
+management and disabled-route re-enable; MCP live updates, grants and activity attribution; and
+the same data ownership through reload. This is an exercised prototype path, not a claim that
+each optional page or shortcut has earned MVP status.
+
 ---
 
 # 82. Second Prototype Milestone
@@ -3513,6 +3576,11 @@ tested, staged as Slices 25.0–25.8 in `development.md`. The candidates above w
 It is worth being honest about which kind of input this was. It is a **user-requested
 direction**, not a finding the prototype produced by being used — the distinction §77 and §79
 exist to keep. Use is what will judge it.
+
+The 25.8 closure pass is the first coherent browser/MCP use of that direction: it made the root
+workspace, nested work units, optional pages, shortcuts, Todos, Archive and Reflections usable
+together. It is evidence that the model is evaluable and that the ownership seams hold; it is not
+yet evidence from sustained use that the full set belongs in the MVP.
 
 ---
 
@@ -3564,6 +3632,10 @@ The MVP specification should not be finalized until these have answers.
 - Daily?
 - Project-specific?
 - Do reflections attached to completed work get written, or is the journal enough?
+
+The 25.8 pass proved that completed task and subproject subjects can be reflected on, retained
+through reopening, and found in the root journal. Whether that is valuable often enough to keep is
+still open.
 
 ## Archive
 

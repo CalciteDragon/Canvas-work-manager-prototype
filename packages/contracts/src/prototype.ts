@@ -78,14 +78,18 @@ export type SetAIProviderInput = z.infer<typeof SetAIProviderInputSchema>;
  * 23 carry `route: null` and 16 carry a real route, so a schema using `.optional()` would
  * not round-trip the file and one using `z.null()` would reject two thirds of it. `slice`
  * is optional because a note captured from the running app knows the route but not which
- * slice is being built — the panel stamps it, and a hand-written entry may not.
+ * slice is being built — the panel stamps it, and a hand-written entry may not. Slice names
+ * may be fractional (`25.8`) because the development roadmap uses decimal sub-slices.
  */
 export const PrototypeNoteSchema = z.object({
   id: z.string().min(1),
   createdAt: IsoDateTimeSchema,
   route: z.string().nullable(),
   projectId: ProjectIdSchema.nullable(),
-  slice: z.number().int().positive().optional(),
+  /** Historical §79 metadata; keep it when the host appends a newer note. */
+  resolvedAt: IsoDateTimeSchema.optional(),
+  resolution: z.string().min(1).optional(),
+  slice: z.number().positive().optional(),
   note: z.string().min(1),
 });
 export type PrototypeNote = z.infer<typeof PrototypeNoteSchema>;
@@ -103,6 +107,6 @@ export const CreatePrototypeNoteInputSchema = z.object({
   note: z.string().min(1).max(2000),
   route: z.string().nullable(),
   projectId: ProjectIdSchema.nullable(),
-  slice: z.number().int().positive().optional(),
+  slice: z.number().positive().optional(),
 });
 export type CreatePrototypeNoteInput = z.infer<typeof CreatePrototypeNoteInputSchema>;

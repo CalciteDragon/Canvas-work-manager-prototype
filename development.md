@@ -1019,15 +1019,15 @@ explicit project reactivation and canonical archive/restore MCP tools.
 
 ## Planned overhaul — Multi-page projects (Slices 25.0–25.8)
 
-**Status:** in progress — dependency-aware roadmap:
+**Status:** done — dependency-aware roadmap:
 [docs/plans/25-multi-page-projects-overhaul.md](docs/plans/25-multi-page-projects-overhaul.md),
 decision:
 [docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md](docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md).
 Requested direction: root projects become workspaces with required Home and optional
 Todos, Archive and Reflections pages; subprojects become distinct, nestable single-page
 work units. Home can render shortcuts to canonical sections elsewhere in the root tree.
-The roadmap records proposed semantics; it does not describe features as already
-implemented or supersede the completed phases above.
+The roadmap records the settled prototype semantics and the integrated 25.8 pass now documents
+what was exercised; it does not promote the candidate features below into scope.
 
 The three clarifications the roadmap left open were answered by the user on 2026-09-04 and
 are now settled in the decision entry: a **bounded v2→v3 converter** carries live data over
@@ -1044,9 +1044,9 @@ ascending with undated last, retaining completed and cancelled rows.
 | 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | done — plan: [docs/plans/25.3-workspace-shell-and-subproject-canvas.md](docs/plans/25.3-workspace-shell-and-subproject-canvas.md) |
 | 25.4 | Home shortcuts | 25.3 | done — plan: [docs/plans/25.4-home-shortcuts.md](docs/plans/25.4-home-shortcuts.md) |
 | 25.5 | Chronological Todos | 25.3 | done — plan: [docs/plans/25.5-chronological-todos.md](docs/plans/25.5-chronological-todos.md) |
-| 25.6 | Root Archive and reachable undo | 25.3 | in progress — implementation and automated browser/MCP gates pass; integrated/manual sign-off remains in 25.8: [docs/plans/25.6-root-archive-and-reachable-undo.md](docs/plans/25.6-root-archive-and-reachable-undo.md) |
-| 25.7 | Completed-work reflections | 25.3 | in progress — implementation and automated browser/MCP gates pass; integrated/manual sign-off remains in 25.8: [docs/plans/25.7-completed-work-reflections.md](docs/plans/25.7-completed-work-reflections.md) |
-| 25.8 | Integrated acceptance and documentation closure | 25.4–25.7 | not started |
+| 25.6 | Root Archive and reachable undo | 25.3 | done — integrated/manual sign-off closed in 25.8: [docs/plans/25.6-root-archive-and-reachable-undo.md](docs/plans/25.6-root-archive-and-reachable-undo.md) |
+| 25.7 | Completed-work reflections | 25.3 | done — integrated/manual sign-off closed in 25.8: [docs/plans/25.7-completed-work-reflections.md](docs/plans/25.7-completed-work-reflections.md) |
+| 25.8 | Integrated acceptance and documentation closure | 25.4–25.7 | done — plan: [docs/plans/25.8-integrated-acceptance-and-documentation-closure.md](docs/plans/25.8-integrated-acceptance-and-documentation-closure.md) |
 
 **25.1, done.** `Project` is a Zod discriminated union on `kind`, so a workspace and a unit of
 work differ by what the parser enforces rather than by what each call site remembers. Every
@@ -1188,17 +1188,19 @@ status on Home without reload. Archiving the source section changed the frame to
 state and restoring it brought the content back; archiving the source project changed it to the
 hidden-source state. The child project had to be archived first because the archive rule protects
 active descendants — recorded as `note-2026-09-06-005`. The pre-test `.prototype/data.json` was
-restored after the run, so the checked-in seed remains `sectionShortcuts: []` as required by §25.8.
+restored after the run. At the end of 25.4 the checked-in seed remained
+`sectionShortcuts: []`; 25.8 later replaced that deliberate empty fixture with the integrated
+showcase placements.
 
 Verified with `pnpm test` (178 contracts, 124 repositories, 94 seed, 354 domain, 96 MCP, 160
 host, and 521 web tests), `pnpm lint`, `pnpm build`, `pnpm storybook:build`, the two-transport MCP
 acceptance, and the unchanged `pnpm e2e` suite (2 passed). The production build still reports the
 existing warning-only 850 kB initial-bundle budget overage; it remains below the 1 MB error budget.
 
-Known: the initial bundle is 883 kB against an 850 kB **warning** budget (the error budget is
-1 MB, so the build passes). §68's feature routes are eager by an existing decision, and this slice
-adds a shell, a header, a column and a work item. Whether to move the budget again is a §78
-question for 25.8 rather than a silent edit here.
+Known: the initial bundle was 883 kB against an 850 kB **warning** budget (the error budget is
+1 MB, so the build passed). §68's feature routes are eager by an existing decision, and this slice
+added a shell, a header, a column and a work item. The 25.8 final build still reports the same
+warning-only condition at 969.58 kB; the budget was not moved.
 
 **25.5, done.** A root's optional Todos page is the second entry in `PROJECT_PAGE_REGISTRY`, and
 the first page that is a *projection* rather than a canvas. `ProjectTodosService.derive` walks one
@@ -1270,8 +1272,20 @@ The implementation includes contract, repository-integrity, domain, host-route, 
 page-store, component and e2e coverage, plus the living spec and decision entry. No seed or JSON
 repository change was needed. The [dependency repair follow-up](docs/plans/25-dependency-repair.md)
 restored the locked toolchain and passed full tests, lint, builds, automated browser journeys
-and runtime MCP acceptance. 25.8 retains integrated/manual design evaluation and Storybook
+and runtime MCP acceptance. 25.8 closed the integrated/manual design evaluation and Storybook
 interactions; missing dependencies no longer block those checks.
+
+**25.8, done.** The `nested-projects` showcase now covers a root workspace with optional pages,
+three-level work, mixed Home sections and shortcuts, deterministic Todos inputs, archived ancestry,
+linked reflections and isolated agent connections. The project navigation manager supplies the
+remaining human page-toggle and disabled-route re-enable path, with confirmed-state failure and
+fresh-context reconciliation behavior.
+
+The integrated browser/MCP journeys covered canonical ownership, aggregate page links, archive
+recovery, subject retention, injected task/page failures, persona isolation, real Streamable HTTP
+live updates, grant denial and activity attribution. The manual pass also exercised keyboard paths,
+Flow/Grid at the required widths, dark/light Storybook states, Settings grant changes, stdio
+separation and a real prototype-panel note. Final command results are recorded in the 25.8 plan.
 
 **Done when:** the roadmap's integrated browser/MCP journey passes: a multi-page root
 and nested work units retain canonical data ownership, shortcuts reflect source content,

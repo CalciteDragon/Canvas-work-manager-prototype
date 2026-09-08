@@ -57,15 +57,20 @@ already lived, which is undo.
 
 Default resolution can never land on a disabled page, because a canonical page cannot be disabled.
 
+The 25.8 browser journey confirmed the user-facing half of the rule: disabling Todos hid its tab,
+the old URL fell back to Home with an exact **Enable Todos** action, and the setting returned after
+save and fresh context reconciliation. Existing page data and references remained intact, and the
+same manager was usable from a nested work route without exposing a work-page toggle.
+
 **Confidence**
 
 High. The placement/editing line is stated by §27 itself once the two sentences are read as being
-about different things, and the enumeration is exhaustive over the three services rather than a
-sample.
+about different things, the enumeration is exhaustive over the three services rather than a sample,
+and the 25.8 browser/MCP and failure paths confirmed that disabling a page is non-destructive.
 
 **Revisit when**
 
-Slice 25.4's shortcuts arrive. A placement is content on Home that *points* at a source on a
-disabled page, which is the first case where "placement" and "the page the data lives on" are two
-different pages — and the shortcut rules say the source stays valid, so the answer should be that
-the destination's state is what governs. Worth confirming against a real one rather than assuming.
+The next multiweek use pass. Slice 25.4's shortcut case is now confirmed in 25.8: a placement on
+Home can point at a source on a disabled page, and the source remains available by identity. Keep
+watching whether the destination/source distinction is understandable in practice and whether
+people expect disabled-page editing to be discoverable elsewhere.

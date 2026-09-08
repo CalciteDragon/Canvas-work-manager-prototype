@@ -6,6 +6,7 @@ import {
   ProjectArchiveResultSchema,
   ProjectSchema,
   ProjectSectionSchema,
+  SubprojectSchema,
   type ProjectArchiveResult,
   type ProjectId,
   type ProjectPageId,
@@ -14,6 +15,7 @@ import { GatewayError } from '../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../../../core/gateway/work-manager-gateway';
 import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
+import { expect, userEvent, within } from 'storybook/test';
 import { ArchivePage } from './archive-page';
 
 const AT = '2026-09-05T10:00:00.000Z';
@@ -88,7 +90,72 @@ const archive: ProjectArchiveResult = ProjectArchiveResultSchema.parse({
   ],
 });
 
-const gatewayFor = (answer: ProjectArchiveResult | GatewayError | 'pending'): WorkManagerGateway =>
+const archivedAncestor = SubprojectSchema.parse({
+  id: 'project-legacy-story',
+  workspaceId: 'workspace-story',
+  kind: 'subproject',
+  parentProjectId: PROJECT,
+  name: 'Legacy attic',
+  status: 'archived',
+  projectLayoutMode: 'flow',
+  createdAt: AT,
+  updatedAt: AT,
+});
+const hiddenDescendant = SubprojectSchema.parse({
+  id: 'project-legacy-child-story',
+  workspaceId: 'workspace-story',
+  kind: 'subproject',
+  parentProjectId: archivedAncestor.id,
+  name: 'Legacy shelving',
+  status: 'active',
+  projectLayoutMode: 'flow',
+  createdAt: AT,
+  updatedAt: AT,
+});
+const ancestorArchive: ProjectArchiveResult = ProjectArchiveResultSchema.parse({
+  ...archive,
+  items: [
+    ProjectArchiveItemSchema.parse({
+      kind: 'subproject',
+      project: archivedAncestor,
+      origin: {
+        ...archive.items[0]!.origin,
+        projectId: archivedAncestor.id,
+        breadcrumb: [
+          { projectId: PROJECT, name: root.name },
+          { projectId: archivedAncestor.id, name: archivedAncestor.name },
+        ],
+      },
+      cause: { kind: 'own' },
+      restoration: { kind: 'ready', operation: 'restore_project', permission: 'projects.write' },
+    }),
+    ProjectArchiveItemSchema.parse({
+      kind: 'subproject',
+      project: hiddenDescendant,
+      origin: {
+        ...archive.items[0]!.origin,
+        projectId: hiddenDescendant.id,
+        pageId: 'page-project-legacy-child-story' as ProjectPageId,
+        pageKind: 'work',
+        breadcrumb: [
+          { projectId: PROJECT, name: root.name },
+          { projectId: archivedAncestor.id, name: archivedAncestor.name },
+          { projectId: hiddenDescendant.id, name: hiddenDescendant.name },
+        ],
+      },
+      cause: { kind: 'hidden-by-project', projectId: archivedAncestor.id },
+      restoration: {
+        kind: 'blocked',
+        blocker: { kind: 'project', projectId: archivedAncestor.id, name: archivedAncestor.name },
+      },
+    }),
+  ],
+});
+
+const gatewayFor = (
+  answer: ProjectArchiveResult | GatewayError | 'pending',
+  restore: 'ready' | 'pending' | 'failed' = 'ready',
+): WorkManagerGateway =>
   ({
     archive: {
       get: () =>
@@ -98,7 +165,14 @@ const gatewayFor = (answer: ProjectArchiveResult | GatewayError | 'pending'): Wo
             ? Promise.reject(answer)
             : Promise.resolve(answer),
     },
-    sections: { restore: () => Promise.resolve(section) },
+    sections: {
+      restore: () =>
+        restore === 'pending'
+          ? new Promise(() => undefined)
+          : restore === 'failed'
+            ? Promise.reject(new GatewayError('unreachable', 0, 'Restore was refused.'))
+            : Promise.resolve(section),
+    },
   }) as unknown as WorkManagerGateway;
 
 const meta: Meta<ArchivePage> = {
@@ -145,5 +219,37 @@ export const Unreadable: Story = {
         },
       ],
     }),
+  ],
+};
+
+export const ReadyRestore: Story = {
+  decorators: [
+    applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor(archive) }] }),
+  ],
+};
+
+export const AncestorBlocked: Story = {
+  args: { restoreBlocked: false },
+  decorators: [
+    applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor(ancestorArchive) }] }),
+  ],
+};
+
+export const Restoring: Story = {
+  decorators: [
+    applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor(archive, 'pending') }] }),
+  ],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Restore This week' }));
+    await expect(canvas.getByRole('button', { name: 'Restore This week' }).textContent).toContain('Restoring…');
+  },
+};
+
+/** A root-level refusal disables every restore control and explains the reactivation step. */
+export const ReactivationRefused: Story = {
+  args: { restoreBlocked: true },
+  decorators: [
+    applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor(archive) }] }),
   ],
 };

@@ -7,6 +7,7 @@ import {
   TaskSchema,
   type ResolvedSectionShortcut,
 } from '@cwm/contracts';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { ShortcutFrame } from './shortcut-frame';
@@ -107,4 +108,31 @@ export const SourceHidden: Story = {
 };
 export const ReadOnlyTaskList: Story = {
   args: { shortcut: taskShortcut() },
+};
+
+export const NestedSource: Story = {
+  args: { shortcut: shortcut({ breadcrumb: ['Home renovation', 'Kitchen', 'Cabinets'] }) },
+};
+
+export const ReflectionsPageSource: Story = {
+  args: {
+    shortcut: shortcut({
+      sourcePageKind: 'reflections',
+      breadcrumb: ['Home renovation', 'Reflections'],
+    }),
+  },
+};
+
+/** An unavailable source keeps its placement and explains why content is absent. */
+export const PermissionDenied: Story = {
+  args: { shortcut: shortcut({ availability: 'source_hidden' }) },
+};
+
+export const RemovePlacement: Story = {
+  args: { editMode: true, removeRequested: fn() },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Remove shortcut to Rich Text' }));
+    await expect(args.removeRequested).toHaveBeenCalledWith('shortcut-story');
+  },
 };

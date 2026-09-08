@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { applicationConfig, componentWrapperDecorator } from '@storybook/angular-vite';
 import { provideRouter } from '@angular/router';
-import { ProjectSchema, type Project } from '@cwm/contracts';
-import { PROJECT_PAGE_REGISTRY } from './project-page-registry';
+import { ProjectPageSchema, ProjectSchema, type Project, type ProjectPage } from '@cwm/contracts';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import { ProjectPageNavigation } from './project-page-navigation';
 import type { WorkTreeNode } from './project-workspace-store';
 
@@ -31,6 +31,17 @@ const workTree: WorkTreeNode[] = [
   { project: GARDEN, children: [] },
 ];
 
+const page = (id: string, kind: ProjectPage['kind'], enabled = true): ProjectPage =>
+  ProjectPageSchema.parse({ id, projectId: ROOT.id, kind, enabled, createdAt: AT, updatedAt: AT });
+
+const HOME_ONLY: ProjectPage[] = [page('page-home', 'home')];
+const ALL_ENABLED: ProjectPage[] = [
+  page('page-home', 'home'),
+  page('page-todos', 'todos'),
+  page('page-archive', 'archive'),
+  page('page-reflections', 'reflections'),
+];
+
 /**
  * §23's project navigation column. Presentational, so a story is the whole component: it
  * injects nothing and every state below is an input.
@@ -53,7 +64,7 @@ const meta: Meta<ProjectPageNavigation> = {
   ],
   args: {
     root: ROOT,
-    pages: [...PROJECT_PAGE_REGISTRY],
+    pages: ALL_ENABLED,
     workTree,
     currentProjectId: ROOT.id,
     activeKind: 'home',
@@ -68,6 +79,19 @@ type Story = StoryObj<ProjectPageNavigation>;
 /** A root: its required Home is current, and the work hierarchy sits beneath it. */
 export const Root: Story = {};
 
+/** A new root starts with its required Home and no optional page records. */
+export const HomeOnly: Story = {
+  args: { pages: HOME_ONLY },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByText('Manage pages'));
+    await expect(canvas.getByRole('checkbox', { name: 'Show Home page' })).toBeDisabled();
+  },
+};
+
+/** Every currently implemented optional page is enabled. */
+export const AllEnabled: Story = { args: { pages: ALL_ENABLED } };
+
 /**
  * A unit of work three levels down. The column is still its **root's** — §23's "opening a
  * subproject keeps its root's column" — so no page tab is current, the open work unit is
@@ -75,6 +99,11 @@ export const Root: Story = {};
  */
 export const SubprojectWithBreadcrumbs: Story = {
   args: { currentProjectId: CABINETS.id, activeKind: null, breadcrumbs: [ROOT, KITCHEN] },
+};
+
+/** The same root-owned manager remains available while a descendant work canvas is open. */
+export const SubprojectContext: Story = {
+  args: { currentProjectId: KITCHEN.id, activeKind: null, breadcrumbs: [ROOT], pages: ALL_ENABLED },
 };
 
 /**
@@ -89,4 +118,28 @@ export const Collapsed: Story = {
 /** A root with nothing under it yet: the empty hierarchy says so rather than showing nothing. */
 export const NoWorkYet: Story = {
   args: { workTree: [] },
+};
+
+/** The manager stays usable while a non-optimistic page write is in flight. */
+export const Pending: Story = {
+  args: { pages: HOME_ONLY, pageWritePending: true },
+};
+
+/** A failed write or context read is visible beside the controls. */
+export const Refused: Story = {
+  args: {
+    pages: HOME_ONLY,
+    pageWriteError: 'The Archive page could not be saved.',
+  },
+};
+
+/** The disclosure and its event binding are real, even though the story has no gateway. */
+export const ToggleOptionalPage: Story = {
+  args: { pages: HOME_ONLY, pageToggleRequested: fn() },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByText('Manage pages'));
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Show Todos page' }));
+    await expect(args.pageToggleRequested).toHaveBeenCalledWith({ kind: 'todos', enabled: true });
+  },
 };

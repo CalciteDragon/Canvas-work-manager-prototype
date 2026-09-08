@@ -1,8 +1,12 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import type { Project, ProjectId, ProjectPageKind } from '@cwm/contracts';
+import type { Project, ProjectId, ProjectPage, ProjectPageKind } from '@cwm/contracts';
 import type { WorkTreeNode } from './project-workspace-store';
-import type { ProjectPageDefinition } from './project-page-registry';
+import {
+  OPTIONAL_PROJECT_PAGE_DEFINITIONS,
+  navigablePages,
+  type OptionalProjectPageKind,
+} from './project-page-registry';
 import { ProjectWorkItem } from './project-work-item';
 
 /**
@@ -26,7 +30,8 @@ import { ProjectWorkItem } from './project-work-item';
 })
 export class ProjectPageNavigation {
   readonly root = input.required<Project>();
-  readonly pages = input.required<ProjectPageDefinition[]>();
+  /** Every root page, including disabled records: the manager needs both states. */
+  readonly pages = input.required<readonly ProjectPage[]>();
   readonly workTree = input.required<WorkTreeNode[]>();
   /** The project the route names, so the column can mark the open unit of work. */
   readonly currentProjectId = input.required<ProjectId>();
@@ -35,8 +40,39 @@ export class ProjectPageNavigation {
   /** Root first, immediate parent last. Empty on a root. */
   readonly breadcrumbs = input<Project[]>([]);
   readonly collapsed = input<boolean>(false);
+  readonly pageWritePending = input<boolean>(false);
+  readonly pageWriteError = input<string | null>(null);
+  readonly pageWriteRetryKind = input<OptionalProjectPageKind | null>(null);
+
+  readonly visiblePages = () => navigablePages(this.pages());
+  readonly optionalPageDefinitions = OPTIONAL_PROJECT_PAGE_DEFINITIONS;
 
   readonly toggleRequested = output<void>();
   /** Archive remains reachable even when its optional tab is disabled (§31–32). */
   readonly openArchiveRequested = output<void>();
+  readonly pageToggleRequested = output<{ kind: OptionalProjectPageKind; enabled: boolean }>();
+  readonly retryPageRequested = output<void>();
+
+  pageEnabled(kind: OptionalProjectPageKind): boolean {
+    // A failed native checkbox click leaves the `pages` array referentially unchanged. Read the
+    // write feedback too, so the OnPush view is checked when the failed operation settles and
+    // Angular reapplies the last confirmed `checked` value rather than leaving the DOM preview.
+    this.pageWritePending();
+    this.pageWriteError();
+    this.pageWriteRetryKind();
+    return this.pages().some((page) => page.kind === kind && page.enabled);
+  }
+
+  requestPageToggle(kind: OptionalProjectPageKind, event: Event): void {
+    const control = event.target as HTMLInputElement;
+    this.pageToggleRequested.emit({
+      kind,
+      enabled: control.checked,
+    });
+    // `[checked]` is a one-way binding, and Angular quite correctly does not write the same
+    // boolean again just because a native checkbox changed it. This control is deliberately
+    // non-optimistic, so restore the last confirmed value immediately; a successful context
+    // read changes `pages` and the binding then paints the new state.
+    control.checked = this.pageEnabled(kind);
+  }
 }

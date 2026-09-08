@@ -646,13 +646,19 @@ describe('shortcut routes (§27, §68)', () => {
       `/api/projects/${root}/shortcut-sources?pageId=${home}&projectId=project-kitchen`,
     );
 
-    expect(placements).toMatchObject({ status: 200, body: [] });
+    const existingPlacements = ResolvedSectionShortcutSchema.array().parse(placements.body);
+    expect(placements.status).toBe(200);
+    expect(existingPlacements).toHaveLength(4);
+    expect(existingPlacements.every(({ pageId }) => pageId === home)).toBe(true);
     expect(ShortcutSourceSchema.array().parse(candidates.body).map(({ sourceSectionId }) => sourceSectionId)).toContain(source);
   });
 
   it('round-trips POST, PATCH, move and DELETE for one placement', async () => {
     const routes = nestedRoutes();
     const before = TaskSchema.array().parse((await call(routes, 'GET', `/api/tasks?sectionId=${source}`)).body);
+    const shortcutsBefore = ResolvedSectionShortcutSchema.array().parse(
+      (await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).body,
+    );
 
     const created = await call(routes, 'POST', `/api/projects/${root}/shortcuts`, {
       body: { pageId: home, sourceSectionId: source },
@@ -675,7 +681,12 @@ describe('shortcut routes (§27, §68)', () => {
 
     const removed = await call(routes, 'DELETE', `/api/shortcuts/${shortcut.id}`);
     expect(removed.status).toBe(204);
-    expect((await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).body).toEqual([]);
+    const shortcutsAfter = ResolvedSectionShortcutSchema.array().parse(
+      (await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).body,
+    );
+    const identity = (items: typeof shortcutsBefore) =>
+      items.map(({ id, pageId, position, sourceSectionId }) => ({ id, pageId, position, sourceSectionId }));
+    expect(identity(shortcutsAfter)).toEqual(identity(shortcutsBefore));
     expect(TaskSchema.array().parse((await call(routes, 'GET', `/api/tasks?sectionId=${source}`)).body)).toEqual(before);
   });
 

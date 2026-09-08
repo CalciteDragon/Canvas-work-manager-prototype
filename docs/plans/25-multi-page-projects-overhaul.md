@@ -1,6 +1,11 @@
 # Multi-page projects overhaul — dependency-aware implementation roadmap
 
-**Status:** 25.0–25.5 done; 25.6 implementation and diff review complete with browser/MCP sign-off blocked by missing workspace dependencies; 25.7 implementation and diff review complete with the same verification blocker; 25.8 not started. This is a multi-phase roadmap, not authorization to implement every phase in one change. Before each phase, re-read its touched code and write its bounded implementation plan under the AGENTS.md protocol, including iterative review and red/green tests.
+**Status:** 25.0–25.8 done. The integrated browser/MCP journeys, Storybook workbench states and
+manual design pass completed the remaining sign-off; the exact commands and observations are
+recorded in the 25.8 phase plan and `development.md`. This is a multi-phase roadmap, not
+authorization to implement every phase in one change. Before each phase, re-read its touched code
+and write its bounded implementation plan under the AGENTS.md protocol, including iterative review
+and red/green tests.
 
 **Resolved in 25.0** (user, 2026-09-04 — recorded in [docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md](../decisions/2026-09-project-workspaces-and-subproject-work-units.md)): the data cutover uses a bounded v2→v3 converter rather than a disposable reset; Archive means hidden from ordinary surfaces plus a whole-tree Archive page, with **Open archive** in project controls when the tab is disabled; Todos carries root tasks plus every descendant subproject and task, due date ascending with undated last and deterministic ties, retaining completed and cancelled rows. The two "clarification pending" rows in the table below are therefore settled as proposed.
 
@@ -155,7 +160,7 @@ Paths are repository-relative. Files marked **new** do not exist yet. For each l
 
 **Depends on:** 25.3 and Archive wording decision. **Spec:** §31–34, §52–55, §62–63.
 
-**Implementation plan:** [25.6-root-archive-and-reachable-undo.md](25.6-root-archive-and-reachable-undo.md). Implementation and diff review are complete; the [dependency repair](25-dependency-repair.md) passed automated browser/MCP gates. Broader integrated/manual sign-off remains in 25.8.
+**Implementation plan:** [25.6-root-archive-and-reachable-undo.md](25.6-root-archive-and-reachable-undo.md). Implementation, diff review and integrated/manual sign-off are complete; the [dependency repair](25-dependency-repair.md) and 25.8 closure pass passed the automated browser/MCP gates.
 
 - Implemented **new** `packages/contracts/src/project-archive.ts` and `packages/domain/src/project-archive-service.ts`: root-tree archive query with explicit entity kind, origin, archive cause, and restore eligibility. The combined endpoint requires projects/tasks/reflections read permissions and adds no cascade semantics.
 - Reviewed the existing `project-service.ts`, `section-service.ts`, `task-service.ts` and `reflection-service.ts` restore rules; no domain mutation changes were needed. The UI and MCP project restore paths use explicit non-archived status selection, not guessed prior status, and retain independent archive markers.
@@ -180,25 +185,33 @@ Paths are repository-relative. Files marked **new** do not exist yet. For each l
 
 **Done when:** complete a task and nested subproject, write one reflection for each, view both alongside existing journals on root Reflections, and reopen a subject without losing history. Create a subject-linked reflection through MCP and observe the live UI update.
 
-**Implementation status:** complete in [the bounded phase plan](25.7-completed-work-reflections.md).
+**Implementation status:** complete in [the bounded phase plan](25.7-completed-work-reflections.md), with integrated/manual sign-off closed by 25.8.
 Contracts, subject eligibility and retention, the repository-only journal projection, HTTP and MCP
 reads, the page gateway/store/composer, the Reflections renderer, and the existing canvas marker
 are implemented with targeted tests. The phase intentionally made no seed or JSON repository
 change. The [dependency repair follow-up](25-dependency-repair.md) restored the local toolchain
-and passed full tests, lint, builds, automated browser journeys and live MCP acceptance.
-25.8 retains the broader integrated/manual design evaluation and Storybook interaction sweep.
+and passed full tests, lint, builds, automated browser journeys and live MCP acceptance. 25.8 closed
+the broader integrated/manual design evaluation and Storybook interaction sweep.
 
 ### 25.8 — Integrated acceptance and documentation closure
 
 **Depends on:** 25.4–25.7. **Spec:** §62–63, §69, §77–79, §81.
 
+**Implementation plan:** [25.8-integrated-acceptance-and-documentation-closure.md](25.8-integrated-acceptance-and-documentation-closure.md). Iterative review, implementation, diff review and acceptance are complete with no remaining substantive findings.
+
 - Extend `apps/e2e/web.spec.ts`, `mcp.spec.ts`, `seed.ts` with the combined journey and permission/live-update paths; keep these outside `pnpm test`.
 - Update `prototype/seeds/nested-projects.json` via the seed builder with multi-page roots, deep work units, undated/equal-date work, archived ancestors, linked reflections and shortcut sources. Add Storybook states beside new navigation/page/shortcut components.
-- Update `docs/first-milestone-walkthrough.md`, `docs/mcp-setup.md`, `development.md`, the spec and affected decision entries; archive child implementation plans when complete. Update AGENTS.md only if orientation or architectural rules actually change. Record observed browser friction in `.prototype/notes.json`; do not invent findings from unit tests.
+- Update `docs/first-milestone-walkthrough.md`, `docs/mcp-setup.md`, `development.md`, the spec and affected decision entries. Keep child implementation plans in place as linked historical records; close their status and add implementation closeout instead of moving them. Update AGENTS.md only if orientation or architectural rules actually change. Record observed browser friction in `.prototype/notes.json`; do not invent findings from unit tests.
 
 **Executable acceptance journey:** load realistic seed → create root → verify mandatory Home → enable optional pages → create subproject and nested subproject → edit description/due date → add each existing section kind to Home and a work canvas → add cross-page and nested-source shortcuts → verify chronology → complete task/subproject and reflect → archive/restore section/task/subproject → hide/re-enable pages → reload → perform equivalent key MCP mutations and watch browser refresh. Repeat key writes with injected failures and alternate persona/denied grants. All source data remains singly owned.
 
-**Required checks:** targeted red/green checks per phase, including loading persisted documents written by the preceding phase whenever a stored shape changes; at final integration run `pnpm test`, `pnpm lint`, `pnpm build`, `pnpm storybook:build`, `pnpm e2e`. Start `pnpm dev:host` and `pnpm dev:web` separately for manual acceptance. Run checks once per relevant changed state; report skipped or blocked checks honestly. Obtain diff reviews for correctness/spec, boundaries, and acceptance/living docs, fix substantiated findings, then record actual browser/MCP observations.
+**Required checks:** targeted red/green checks per phase, including loading persisted documents written by the preceding phase whenever a stored shape changes; at final integration run `pnpm test`, `pnpm lint`, `pnpm build`, `pnpm storybook:build`, `pnpm e2e`, `pnpm --filter @cwm/prototype-host mcp-acceptance`, and `pnpm --filter @cwm/prototype-host live-acceptance`. Start `pnpm dev:host` and `pnpm dev:web` separately for manual acceptance. Run checks once per relevant changed state; report skipped or blocked checks honestly. Obtain diff reviews for correctness/spec, boundaries, and acceptance/living docs, fix substantiated findings, then record actual browser/MCP observations.
+
+**25.8 closeout:** the `nested-projects` showcase now contains the multi-page, deep-work,
+chronology, archive, reflection and shortcut cases; the root navigation manager closes the last
+human page-toggle seam. The integrated browser/MCP journeys, page-manager/store tests, Storybook
+states, settings grant denial and prototype-panel note path were exercised. See the bounded 25.8
+plan for the final command results and the observed design evidence.
 
 ## Boundaries and scope guards
 

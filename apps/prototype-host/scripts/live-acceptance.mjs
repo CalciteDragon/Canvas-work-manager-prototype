@@ -201,8 +201,14 @@ try {
   const [frame] = seen;
   check(frame !== undefined, 'a frame arrived');
   check(
-    JSON.stringify(frame.event) ===
-      JSON.stringify({ type: 'task.completed', entityType: 'task', entityId: TASK, projectId: PROJECT }),
+      JSON.stringify(frame.event) ===
+      JSON.stringify({
+        type: 'task.completed',
+        entityType: 'task',
+        entityId: TASK,
+        projectId: PROJECT,
+        rootProjectId: PROJECT,
+      }),
     `it is §62's event for the completed task: ${JSON.stringify(frame.event)}`,
   );
   check(

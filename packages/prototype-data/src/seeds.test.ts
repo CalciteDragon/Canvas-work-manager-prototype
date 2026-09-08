@@ -175,10 +175,11 @@ describe('seed scenarios', () => {
     ).toBe(true);
     expect(
       document.sections
-        .filter(({ projectId }) => projectId === renovation?.id)
+        .filter(({ projectId, pageId, archivedAt }) =>
+          projectId === renovation?.id && pageId === `page-${renovation?.id}` && archivedAt === undefined)
         .sort((left, right) => left.position - right.position)
         .map(({ type }) => type),
-    ).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline']);
+    ).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
     expect(
       document.tasks.some(
         ({ projectId, startAt, dueAt }) =>
@@ -313,10 +314,10 @@ describe('seed file writer', () => {
 });
 
 describe('seeded project canvases (§30)', () => {
-  const sectionsByProject = (document: PrototypeDocument) => {
+  const sectionsByPage = (document: PrototypeDocument) => {
     const grouped = new Map<string, typeof document.sections>();
     for (const section of document.sections) {
-      grouped.set(section.projectId, [...(grouped.get(section.projectId) ?? []), section]);
+      grouped.set(section.pageId, [...(grouped.get(section.pageId) ?? []), section]);
     }
     return grouped;
   };
@@ -327,17 +328,19 @@ describe('seeded project canvases (§30)', () => {
       const document = buildSeed(seedName);
 
       expect(document.sections.length).toBeGreaterThan(0);
-      for (const sections of sectionsByProject(document).values()) {
-        expect(sections.slice(0, 2).map((section) => [section.type, section.position])).toEqual([
-          ['rich-text', 0],
-          ['task-list', 1],
-        ]);
+      for (const sections of sectionsByPage(document).values()) {
+        if (sections.some(({ type }) => type === 'rich-text')) {
+          expect(sections.slice(0, 2).map((section) => [section.type, section.position])).toEqual([
+            ['rich-text', 0],
+            ['task-list', 1],
+          ]);
+        }
       }
     },
   );
 
-  it.each(SEED_NAMES)('%s numbers sections densely within each project', (seedName) => {
-    for (const sections of sectionsByProject(buildSeed(seedName)).values()) {
+  it.each(SEED_NAMES)('%s numbers sections densely within each page', (seedName) => {
+    for (const sections of sectionsByPage(buildSeed(seedName)).values()) {
       // A gap or a repeat has no meaning the canvas could render.
       expect([...sections].map((section) => section.position).sort()).toEqual(sections.map((_, index) => index));
     }
@@ -347,10 +350,11 @@ describe('seeded project canvases (§30)', () => {
     const document = buildSeed('nested-projects');
 
     const withoutSections = document.projects.filter(
-      (project) => !document.sections.some((section) => section.projectId === project.id),
+      (project) => project.workspaceId === 'workspace-demo' &&
+        !document.sections.some((section) => section.projectId === project.id),
     );
 
-    expect(withoutSections.map((project) => project.name)).toEqual(['Cabinets']);
+    expect(withoutSections.map((project) => project.name)).toEqual(['Cabinets', 'Legacy attic', 'Legacy shelving']);
   });
 });
 
@@ -449,11 +453,11 @@ describe('seeded owner kinds and pages', () => {
 
     for (const project of document.projects) {
       const pages = document.projectPages.filter((page) => page.projectId === project.id);
-      expect(pages).toEqual([
-        expect.objectContaining({ kind: project.kind === 'root' ? 'home' : 'work', enabled: true }),
+      expect(pages.filter(({ kind }) => kind === (project.kind === 'root' ? 'home' : 'work'))).toEqual([
+        expect.objectContaining({ enabled: true }),
       ]);
     }
-    expect(document.projectPages).toHaveLength(document.projects.length);
+    expect(document.projectPages.length).toBeGreaterThanOrEqual(document.projects.length);
   });
 
   it.each(SEED_NAMES)('puts every section in %s on a page of its own project', (seedName) => {
@@ -471,7 +475,91 @@ describe('seeded owner kinds and pages', () => {
     }
   });
 
-  it('reserves the shortcut collection empty until slice 25.8', () => {
-    expect(buildSeed('nested-projects').sectionShortcuts).toEqual([]);
+  it('nested-projects is the integrated multi-page showcase', () => {
+    const document = buildSeed('nested-projects');
+    const root = document.projects.find(({ id }) => id === 'project-renovation')!;
+    const rootPages = document.projectPages.filter(({ projectId }) => projectId === root.id);
+    const home = rootPages.find(({ kind }) => kind === 'home')!;
+    const kitchenWork = document.projectPages.find(({ projectId, kind }) => projectId === 'project-kitchen' && kind === 'work')!;
+
+    expect(rootPages.map(({ kind, enabled }) => [kind, enabled])).toEqual([
+      ['home', true],
+      ['todos', true],
+      ['archive', true],
+      ['reflections', true],
+    ]);
+    expect(document.sections.filter(({ pageId, archivedAt }) => pageId === home.id && archivedAt === undefined).map(({ type }) => type)).toEqual([
+      'rich-text',
+      'task-list',
+      'sub-projects',
+      'progress',
+      'reflections',
+      'timeline',
+      'recent-activity',
+    ]);
+    expect(document.sections.filter(({ pageId }) => pageId === kitchenWork.id).map(({ type }) => type)).toEqual([
+      'rich-text',
+      'task-list',
+      'sub-projects',
+      'progress',
+      'reflections',
+      'timeline',
+      'recent-activity',
+    ]);
+    expect(document.sections.some(({ projectId, pageId, type }) =>
+      projectId === root.id && pageId.endsWith('-reflections') && type === 'reflections')).toBe(true);
+    expect(document.sectionShortcuts.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('showcase chronology contains equal and undated inputs in scrambled insertion order', () => {
+    const document = buildSeed('nested-projects');
+    const rootTasks = document.tasks.filter(({ projectId }) => projectId === 'project-renovation');
+    const equalDateTasks = rootTasks.filter(({ dueAt, status }) =>
+      dueAt === '2026-09-04T23:59:59.999Z' && status === 'todo');
+
+    expect(rootTasks.map(({ id }) => id)).toEqual(expect.arrayContaining([
+      'task-renovation-equal-a',
+      'task-renovation-equal-z',
+      'task-renovation-done',
+      'task-renovation-cancelled',
+      'task-renovation-undated',
+    ]));
+    expect(equalDateTasks.map(({ id }) => id)).toEqual(['task-renovation-equal-z', 'task-renovation-equal-a']);
+    expect(rootTasks.find(({ id }) => id === 'task-renovation-undated')?.dueAt).toBeUndefined();
+    expect(rootTasks.find(({ id }) => id === 'task-renovation-done')?.status).toBe('done');
+    expect(rootTasks.find(({ id }) => id === 'task-renovation-cancelled')?.status).toBe('cancelled');
+  });
+
+  it('showcase shortcuts preserve canonical ownership', () => {
+    const document = buildSeed('nested-projects');
+    const pages = new Map(document.projectPages.map((page) => [page.id, page]));
+    const sections = new Map(document.sections.map((section) => [section.id, section]));
+
+    expect(document.sectionShortcuts.every(({ sourceSectionId }) => sections.has(sourceSectionId))).toBe(true);
+    expect(document.sectionShortcuts.every(({ pageId }) => pages.get(pageId)?.kind === 'home')).toBe(true);
+    expect(document.sectionShortcuts.every(({ pageId, sourceSectionId }) => pages.get(pageId)?.id !== sections.get(sourceSectionId)?.pageId)).toBe(true);
+    expect(document.sectionShortcuts.some(({ sourceSectionId }) => sections.get(sourceSectionId)?.projectId === 'project-kitchen')).toBe(true);
+    expect(document.sectionShortcuts.some(({ sourceSectionId }) => sections.get(sourceSectionId)?.pageId !== 'page-project-renovation')).toBe(true);
+  });
+
+  it('showcase reflections include general and typed completed-work history', () => {
+    const document = buildSeed('nested-projects');
+    const reflections = document.reflections.filter(({ projectId }) => projectId === 'project-renovation');
+
+    expect(reflections.some(({ subject }) => subject === undefined)).toBe(true);
+    expect(reflections.some(({ subject }) => subject?.kind === 'task')).toBe(true);
+    expect(reflections.some(({ subject }) => subject?.kind === 'subproject')).toBe(true);
+    expect(reflections.every(({ sectionId }) => sectionId === 'section-project-renovation-reflections-page')).toBe(true);
+  });
+
+  it('showcase archived ancestry is valid and recoverable', () => {
+    const document = buildSeed('nested-projects');
+    const archived = document.projects.find(({ id }) => id === 'project-legacy')!;
+    const hiddenChild = document.projects.find(({ id }) => id === 'project-legacy-child')!;
+
+    expect(archived.status).toBe('archived');
+    expect(hiddenChild.parentProjectId).toBe(archived.id);
+    expect(hiddenChild.status).not.toBe('archived');
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
   });
 });

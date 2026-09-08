@@ -20,6 +20,12 @@ restore operations already know the exact marker members to restore, so a second
 would drift. Project restoration has no stored prior status and therefore needs an explicit
 non-archived choice. A disabled recovery tab must not make the recovery surface unreachable.
 
+The 25.8 browser/MCP pass used the root-wide projection for an independently archived task and
+section, then reactivated an archived intermediate project so its live descendant returned. The
+same IDs survived reload; independently archived work stayed archived, and the disabled-page
+manager/Open archive path remained reachable from nested navigation. The full tree is recoverable,
+although the display density and blocker wording still deserve use beyond a showcase.
+
 ## Current decision
 
 Slice 25.6 uses a root-wide Archive page and `get_project_archive` read model. Items are ordered
@@ -32,11 +38,10 @@ explicit non-archived status selector.
 
 ## Confidence
 
-High for reachability and domain semantics; medium for the display density and blocker wording
-until the full browser journey has been used with realistic archived trees.
+High for reachability and domain semantics after the integrated browser/MCP journey; medium for the
+display density and blocker wording because the archived tree was still a deliberate showcase.
 
 ## Revisit when
 
-After Slice 25.7's Reflections renderer and the integrated 25.8 acceptance pass, or sooner if
-browser use shows that the root-wide list, stable ordering or explicit recovery guidance does not
-make the next action obvious.
+After a multiweek pass with several archive/recovery cases, or sooner if browser use shows that the
+root-wide list, stable ordering or explicit recovery guidance does not make the next action obvious.

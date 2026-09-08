@@ -209,6 +209,22 @@ say it:
 `list_sections` takes an optional `pageId` for the same reason. Without one it answers with the
 whole project, grouped by page.
 
+### Run the integrated page workflow
+
+For the multi-page showcase, seed `nested-projects` and open the root Home or a nested work canvas
+in the browser. Over Streamable HTTP, use the same fake Claude token to create/update/complete a
+nested task, add and remove a Home shortcut, attach a subject-linked reflection, archive and restore
+the task, and toggle an optional page. The open browser surface receives each committed write through
+the host event stream; verify each result with its canonical read rather than treating a projection as
+another copy of the row. Page toggles likewise appear only after the host has persisted the setting and
+the browser has reconciled fresh page context.
+
+In **Settings → AI & Agents**, remove `tasks.read` from Claude and call `get_project_todos`. The
+response is an MCP tool error with the exact missing-grant message
+`connection "agent-claude" is missing permission "tasks.read"` and no partial structured content.
+Restore the grant before continuing. A read-only Cursor token can query its permitted project/task
+data but cannot perform writes; the revoked fixture token is refused at authentication.
+
 ### Important file-store limitation
 
 Do not run mutation-capable stdio and HTTP/UI sessions concurrently against the same

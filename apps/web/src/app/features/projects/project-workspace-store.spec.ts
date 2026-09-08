@@ -1,9 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import {
+  ProjectPageSchema,
   ProjectSchema,
   ProjectStatusSchema,
   type Project,
   type ProjectId,
+  type ProjectPage,
   type ProjectQuery,
 } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
@@ -47,6 +49,9 @@ const child = (
     updatedAt: AT,
     ...overrides,
   });
+
+const page = (id: string, projectId: string, kind: ProjectPage['kind'], enabled = true): ProjectPage =>
+  ProjectPageSchema.parse({ id, projectId, kind, enabled, createdAt: AT, updatedAt: AT });
 
 /** The `nested-projects` shape: renovation → kitchen → cabinets, plus a sibling garden. */
 const renovation = () => [
@@ -385,6 +390,157 @@ describe('ProjectWorkspaceStore and live updates (§62)', () => {
     TestBed.resetTestingModule();
 
     expect(live.listenerCount).toBe(0);
+  });
+});
+
+describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)', () => {
+  it('keeps the confirmed page state until the write and fresh context both finish', async () => {
+    const pages = [page('page-project-renovation-home', 'project-renovation', 'home')];
+    const gateway = new FakeWorkManagerGateway({ projects: renovation(), pages });
+    const write = deferred<ProjectPage>();
+    const read = deferred<ProjectPage[]>();
+    gateway.pages.setEnabled = () => write.promise;
+    gateway.pages.list = () => read.promise;
+    TestBed.configureTestingModule({
+      providers: [
+        ProjectWorkspaceStore,
+        { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+        { provide: LIVE_UPDATES, useValue: new FakeLiveUpdates() },
+      ],
+    });
+    const store = TestBed.inject(ProjectWorkspaceStore);
+    // The first load needs a completed page read; only later reads are held.
+    gateway.pages.list = async () => pages;
+    await store.load('project-renovation' as ProjectId);
+    gateway.pages.list = () => read.promise;
+
+    const toggling = store.setPageEnabled('todos', true);
+    expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
+    expect(store.pageWritePending()).toBe(true);
+
+    write.resolve(page('page-project-renovation-todos', 'project-renovation', 'todos'));
+    await Promise.resolve();
+    expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
+
+    read.resolve([
+      pages[0]!,
+      page('page-project-renovation-todos', 'project-renovation', 'todos'),
+    ]);
+    expect(await toggling).toBe(true);
+    expect(store.pages().map(({ kind }) => kind)).toEqual(['home', 'todos']);
+    expect(store.pageWritePending()).toBe(false);
+  });
+
+  it('keeps confirmed state and reports a failed page write', async () => {
+    const { store } = storeWith({
+      projects: renovation(),
+      pages: [page('page-project-renovation-home', 'project-renovation', 'home')],
+      failOn: { 'pages.setEnabled': new GatewayError('conflict', 409, 'page settings changed') },
+    });
+    await store.load('project-renovation' as ProjectId);
+
+    expect(await store.setPageEnabled('todos', true)).toBe(false);
+    expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
+    expect(store.pageWriteError()).toContain('page settings changed');
+    expect(store.pageWriteRetryKind()).toBeNull();
+  });
+
+  it('offers a read-only retry after a committed toggle cannot refresh context', async () => {
+    const pages = [page('page-project-renovation-home', 'project-renovation', 'home')];
+    const gateway = new FakeWorkManagerGateway({ projects: renovation(), pages });
+    let pageReads = 0;
+    const originalList = gateway.pages.list.bind(gateway.pages);
+    gateway.pages.list = (projectId) => {
+      pageReads += 1;
+      if (pageReads === 2) return Promise.reject(new GatewayError('unreachable', 503, 'pages read failed'));
+      return originalList(projectId);
+    };
+    TestBed.configureTestingModule({
+      providers: [
+        ProjectWorkspaceStore,
+        { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+        { provide: LIVE_UPDATES, useValue: new FakeLiveUpdates() },
+      ],
+    });
+    const store = TestBed.inject(ProjectWorkspaceStore);
+    await store.load('project-renovation' as ProjectId);
+
+    expect(await store.setPageEnabled('todos', true)).toBe(false);
+    expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
+    expect(store.pageWriteError()).toContain('was enabled');
+    expect(store.pageWriteRetryKind()).toBe('todos');
+
+    expect(await store.retryPageContext()).toBe(true);
+    expect(store.pages().map(({ kind }) => kind)).toEqual(['home', 'todos']);
+    expect(store.pageWriteError()).toBeNull();
+  });
+
+  it('does not apply a late toggle after the route changes', async () => {
+    const projects = renovation();
+    const pages = [page('page-project-renovation-home', 'project-renovation', 'home')];
+    const gateway = new FakeWorkManagerGateway({ projects, pages });
+    const write = deferred<ProjectPage>();
+    gateway.pages.setEnabled = () => write.promise;
+    TestBed.configureTestingModule({
+      providers: [
+        ProjectWorkspaceStore,
+        { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+        { provide: LIVE_UPDATES, useValue: new FakeLiveUpdates() },
+      ],
+    });
+    const store = TestBed.inject(ProjectWorkspaceStore);
+    await store.load('project-renovation' as ProjectId);
+
+    const toggling = store.setPageEnabled('todos', true);
+    await store.load('project-garden' as ProjectId);
+    write.resolve(page('page-project-renovation-todos', 'project-renovation', 'todos'));
+
+    expect(await toggling).toBe(false);
+    expect(store.project()?.id).toBe('project-garden');
+    expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
+  });
+
+  it('does not apply a late toggle after the store is destroyed', async () => {
+    const pages = [page('page-project-renovation-home', 'project-renovation', 'home')];
+    const gateway = new FakeWorkManagerGateway({ projects: renovation(), pages });
+    const write = deferred<ProjectPage>();
+    gateway.pages.setEnabled = () => write.promise;
+    TestBed.configureTestingModule({
+      providers: [
+        ProjectWorkspaceStore,
+        { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+        { provide: LIVE_UPDATES, useValue: new FakeLiveUpdates() },
+      ],
+    });
+    const store = TestBed.inject(ProjectWorkspaceStore);
+    await store.load('project-renovation' as ProjectId);
+    const toggling = store.setPageEnabled('todos', true);
+
+    TestBed.resetTestingModule();
+    write.resolve(page('page-project-renovation-todos', 'project-renovation', 'todos'));
+
+    await expect(toggling).resolves.toBe(false);
+  });
+
+  it('keeps Open archive reachable for an archived root', async () => {
+    const archivedRoot = root('project-renovation', 'Home renovation', { status: 'archived' });
+    const { store } = storeWith({
+      projects: [archivedRoot],
+      pages: [page('page-project-renovation-home', 'project-renovation', 'home')],
+    });
+    await store.load('project-renovation' as ProjectId);
+
+    expect(await store.openArchive()).toBe(true);
+    expect(store.pages().find(({ kind }) => kind === 'archive')?.enabled).toBe(true);
+  });
+
+  it('does not offer work or canonical-page toggles', async () => {
+    const { store } = storeWith({ projects: renovation() });
+    await store.load('project-renovation' as ProjectId);
+
+    expect(await store.setPageEnabled('home', false)).toBe(false);
+    expect(await store.setPageEnabled('work', true)).toBe(false);
+    expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
   });
 });
 

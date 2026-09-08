@@ -7,6 +7,7 @@ import {
   type Project,
   type ProjectId,
   type ProjectPage,
+  type ProjectPageKind,
   type ProjectStatus,
   type UpdateProjectInput,
 } from '@cwm/contracts';
@@ -18,6 +19,7 @@ const messageOf = (error: unknown): string =>
 
 /** Navigation, so archived projects have no business in it (§31) — as in `ShellStore`. */
 const NAVIGABLE_STATUSES = ProjectStatusSchema.options.filter((status) => status !== 'archived');
+type ConfigurablePageKind = Exclude<ProjectPageKind, 'home' | 'work'>;
 
 /**
  * A subproject and the work under it. **Derived view state, not an entity**, for the same
@@ -53,9 +55,8 @@ export class ProjectWorkspaceStore {
   private projectWrites = 0;
   private projectRefreshQueued = false;
   private contextRefresh: Promise<void> | null = null;
-  /** Invalidates an Archive enable/reconciliation when the route changes or a newer toggle wins. */
+  /** Invalidates a page enable/reconciliation when the route changes or a newer toggle wins. */
   private contextWriteEpoch = 0;
-  private contextWritePending = false;
   private destroyed = false;
 
   private readonly projectState = signal<Project | null>(null);
@@ -67,6 +68,10 @@ export class ProjectWorkspaceStore {
   private readonly loadingState = signal(true);
   private readonly errorState = signal<string | null>(null);
   private readonly writeErrorState = signal<string | null>(null);
+  private readonly pageWritePendingState = signal(false);
+  private readonly pageWriteErrorState = signal<string | null>(null);
+  private readonly pageWriteRetryKindState = signal<ConfigurablePageKind | null>(null);
+  private readonly pageWriteRetryEnabledState = signal<boolean | null>(null);
   private readonly projectWritesState = signal(0);
 
   readonly project = this.projectState.asReadonly();
@@ -79,6 +84,9 @@ export class ProjectWorkspaceStore {
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly writeError = this.writeErrorState.asReadonly();
+  readonly pageWritePending = this.pageWritePendingState.asReadonly();
+  readonly pageWriteError = this.pageWriteErrorState.asReadonly();
+  readonly pageWriteRetryKind = this.pageWriteRetryKindState.asReadonly();
   readonly progressResult = this.progressState.asReadonly();
 
   readonly root = computed<Project | null>(() => this.ancestorsState()[0] ?? this.projectState());
@@ -143,7 +151,7 @@ export class ProjectWorkspaceStore {
    * answer than an error the user did not cause.
    */
   private refreshContext(): void {
-    if (this.projectWrites > 0 || this.contextWritePending) {
+    if (this.projectWrites > 0 || this.pageWritePendingState()) {
       this.projectRefreshQueued = true;
       return;
     }
@@ -190,7 +198,7 @@ export class ProjectWorkspaceStore {
         this.contextRefresh === null &&
         this.projectRefreshQueued &&
         this.projectWrites === 0 &&
-        !this.contextWritePending &&
+        !this.pageWritePendingState() &&
         !this.destroyed
       ) {
         this.projectRefreshQueued = false;
@@ -218,6 +226,9 @@ export class ProjectWorkspaceStore {
       // A failed write belongs to the project it was made on; one component instance serves
       // every project, so without this a failed rename follows the user to the next one.
       this.writeErrorState.set(null);
+      this.pageWriteErrorState.set(null);
+      this.pageWriteRetryKindState.set(null);
+      this.pageWriteRetryEnabledState.set(null);
       this.progressState.set(null);
       try {
         const context = await this.readContext(projectId);
@@ -265,12 +276,40 @@ export class ProjectWorkspaceStore {
   }
 
   /**
-   * §31–32: Archive is reachable from project controls even when its tab is disabled. Enabling
-   * it is a real page write, so navigation waits for both the write and a fresh context before
-   * changing the URL. A failed refresh after a committed enable is surfaced as a retryable
-   * write error rather than toggling the page again.
+   * §26's page manager. The confirmed page record is deliberately not painted optimistically:
+   * a tab is navigation, so changing it before the write and fresh context agree would make the
+   * browser offer a route the store cannot yet resolve. Home and work are structural records and
+   * are refused here as a defensive second boundary behind the presentational control.
    */
+  setPageEnabled(kind: ProjectPageKind, enabled: boolean): Promise<boolean> {
+    if (kind === 'home' || kind === 'work') return Promise.resolve(false);
+    return this.writePage(kind, enabled, 'page');
+  }
+
+  /** §31–32: Archive remains reachable from project controls when its optional tab is disabled. */
   openArchive(): Promise<boolean> {
+    return this.writePage('archive', true, 'archive');
+  }
+
+  /** Read-only retry after a committed optional-page write could not reconcile its context. */
+  retryPageContext(): Promise<boolean> {
+    const kind = this.pageWriteRetryKindState();
+    const enabled = this.pageWriteRetryEnabledState();
+    return kind === null || enabled === null
+      ? Promise.resolve(false)
+      : this.reconcilePageContext(kind, enabled, 'page');
+  }
+
+  /** Read-only retry after an Archive page enable committed but context reconciliation failed. */
+  retryArchiveContext(): Promise<boolean> {
+    return this.reconcilePageContext('archive', true, 'archive');
+  }
+
+  private writePage(
+    kind: ConfigurablePageKind,
+    enabled: boolean,
+    surface: 'page' | 'archive',
+  ): Promise<boolean> {
     return this.track(async () => {
       const root = this.root();
       const routedProjectId = this.requestedProjectId;
@@ -280,59 +319,50 @@ export class ProjectWorkspaceStore {
         root === null ||
         routedProject === null ||
         routedProject.id !== routedProjectId ||
-        routedProjectId === undefined
+        routedProjectId === undefined ||
+        this.pageWritePendingState()
       ) return false;
-      if (this.pagesState().some((page) => page.kind === 'archive' && page.enabled)) return true;
-      if (this.contextWritePending) return false;
+      if (surface === 'archive' && this.pagesState().some((page) => page.kind === 'archive' && page.enabled)) return true;
 
       const generation = this.loadGeneration;
       const epoch = ++this.contextWriteEpoch;
-      this.contextWritePending = true;
-      this.writeErrorState.set(null);
+      this.pageWritePendingState.set(true);
+      this.clearPageFeedback(surface);
       try {
         try {
-          await this.gateway.pages.setEnabled(root.id, { kind: 'archive', enabled: true });
+          await this.gateway.pages.setEnabled(root.id, { kind, enabled });
         } catch (error) {
-          if (!this.destroyed && generation === this.loadGeneration && epoch === this.contextWriteEpoch) {
-            this.writeErrorState.set(messageOf(error));
+          if (this.pageOperationCurrent(generation, epoch, routedProjectId)) {
+            this.setPageOperationError(surface, messageOf(error));
           }
           return false;
         }
 
-        if (
-          this.destroyed ||
-          generation !== this.loadGeneration ||
-          epoch !== this.contextWriteEpoch ||
-          this.requestedProjectId !== routedProjectId
-        ) return false;
+        if (!this.pageOperationCurrent(generation, epoch, routedProjectId)) return false;
         try {
           const context = await this.readContext(routedProjectId);
-          if (
-            this.destroyed ||
-            generation !== this.loadGeneration ||
-            epoch !== this.contextWriteEpoch ||
-            this.requestedProjectId !== routedProjectId
-          ) return false;
+          if (!this.pageOperationCurrent(generation, epoch, routedProjectId)) return false;
           this.applyContext(context);
+          this.clearPageFeedback(surface);
           return true;
         } catch (error) {
-          if (!this.destroyed && generation === this.loadGeneration && epoch === this.contextWriteEpoch) {
-            this.writeErrorState.set(`Archive was enabled, but navigation could not refresh: ${messageOf(error)}`);
+          if (this.pageOperationCurrent(generation, epoch, routedProjectId)) {
+            this.setPageOperationError(surface, this.pageRefreshError(kind, enabled, error), kind, enabled);
           }
           return false;
         }
       } finally {
-        this.contextWritePending = false;
-        if (!this.destroyed && this.projectWrites === 0 && this.projectRefreshQueued) {
-          this.projectRefreshQueued = false;
-          this.refreshContext();
-        }
+        this.pageWritePendingState.set(false);
+        this.resumeQueuedContextRefresh();
       }
     });
   }
 
-  /** Read-only retry after an Archive page enable committed but context reconciliation failed. */
-  retryArchiveContext(): Promise<boolean> {
+  private reconcilePageContext(
+    kind: ConfigurablePageKind,
+    enabled: boolean,
+    surface: 'page' | 'archive',
+  ): Promise<boolean> {
     return this.track(async () => {
       const routedProjectId = this.requestedProjectId;
       const routedProject = this.projectState();
@@ -340,29 +370,68 @@ export class ProjectWorkspaceStore {
         this.destroyed ||
         routedProject === null ||
         routedProject.id !== routedProjectId ||
-        routedProjectId === undefined
+        routedProjectId === undefined ||
+        this.pageWritePendingState()
       ) return false;
-      if (this.contextWritePending) return false;
       const generation = this.loadGeneration;
       const epoch = ++this.contextWriteEpoch;
+      this.pageWritePendingState.set(true);
       try {
         const context = await this.readContext(routedProjectId);
-        if (
-          this.destroyed ||
-          generation !== this.loadGeneration ||
-          epoch !== this.contextWriteEpoch ||
-          this.requestedProjectId !== routedProjectId
-        ) return false;
+        if (!this.pageOperationCurrent(generation, epoch, routedProjectId)) return false;
         this.applyContext(context);
-        this.writeErrorState.set(null);
+        this.clearPageFeedback(surface);
         return true;
       } catch (error) {
-        if (!this.destroyed && generation === this.loadGeneration && epoch === this.contextWriteEpoch) {
-          this.writeErrorState.set(`Archive was enabled, but navigation could not refresh: ${messageOf(error)}`);
+        if (this.pageOperationCurrent(generation, epoch, routedProjectId)) {
+          this.setPageOperationError(surface, this.pageRefreshError(kind, enabled, error), kind, enabled);
         }
         return false;
+      } finally {
+        this.pageWritePendingState.set(false);
+        this.resumeQueuedContextRefresh();
       }
     });
+  }
+
+  private pageOperationCurrent(generation: number, epoch: number, projectId: ProjectId): boolean {
+    return !this.destroyed && generation === this.loadGeneration && epoch === this.contextWriteEpoch && this.requestedProjectId === projectId;
+  }
+
+  private clearPageFeedback(surface: 'page' | 'archive'): void {
+    if (surface === 'page') {
+      this.pageWriteErrorState.set(null);
+      this.pageWriteRetryKindState.set(null);
+      this.pageWriteRetryEnabledState.set(null);
+    } else {
+      this.writeErrorState.set(null);
+    }
+  }
+
+  private setPageOperationError(
+    surface: 'page' | 'archive',
+    message: string,
+    retryKind?: ConfigurablePageKind,
+    retryEnabled?: boolean,
+  ): void {
+    if (surface === 'page') {
+      this.pageWriteErrorState.set(message);
+      this.pageWriteRetryKindState.set(retryKind ?? null);
+      this.pageWriteRetryEnabledState.set(retryEnabled ?? null);
+    } else {
+      this.writeErrorState.set(message);
+    }
+  }
+
+  private pageRefreshError(kind: ConfigurablePageKind, enabled: boolean, error: unknown): string {
+    return `${kind.charAt(0).toUpperCase() + kind.slice(1)} was ${enabled ? 'enabled' : 'disabled'}, but navigation could not refresh: ${messageOf(error)}`;
+  }
+
+  private resumeQueuedContextRefresh(): void {
+    if (!this.destroyed && this.projectWrites === 0 && this.projectRefreshQueued) {
+      this.projectRefreshQueued = false;
+      this.refreshContext();
+    }
   }
 
   /** Root first. A visited set stops a hand-edited parent cycle from walking forever. */
