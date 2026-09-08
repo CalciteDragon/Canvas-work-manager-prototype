@@ -1,5 +1,5 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
@@ -48,6 +48,29 @@ const homePage = (projectId: string) =>
     updatedAt: at,
   });
 
+const workPage = (projectId: string) =>
+  PrototypeDocumentSchema.shape.projectPages.element.parse({
+    id: `page-${projectId}`,
+    projectId,
+    kind: 'work',
+    enabled: true,
+    createdAt: at,
+    updatedAt: at,
+  });
+
+const subproject = (id: string, parentProjectId: string, status: string) =>
+  PrototypeDocumentSchema.shape.projects.element.parse({
+    id,
+    workspaceId: PERSONAS[0]!.workspace.id,
+    kind: 'subproject',
+    parentProjectId,
+    name: `Project ${id}`,
+    status,
+    projectLayoutMode: 'flow',
+    createdAt: at,
+    updatedAt: at,
+  });
+
 const document = (withProjects = true) => {
   const projects = withProjects
     ? [project('project-mine', PERSONAS[0]!.workspace.id), project('project-theirs', PERSONAS[1]!.workspace.id)]
@@ -66,6 +89,40 @@ const document = (withProjects = true) => {
     reflections: [],
     activityEvents: [],
     agentConnections: [],
+  });
+};
+
+const completedWorkUnderArchivedAncestor = () => {
+  const base = document();
+  const middle = subproject('project-archived-middle', 'project-mine', 'archived');
+  const leaf = subproject('project-completed-leaf', middle.id, 'completed');
+  const section = ProjectSectionSchema.parse({
+    id: 'section-journal-archived-tree',
+    projectId: 'project-mine',
+    pageId: 'page-project-mine',
+    type: 'reflections',
+    position: 0,
+    columnSpan: 12,
+    collapsed: false,
+    config: {},
+    createdAt: at,
+    updatedAt: at,
+  });
+  const reflection = ReflectionSchema.parse({
+    id: 'reflection-archived-tree',
+    projectId: 'project-mine',
+    sectionId: section.id,
+    subject: { kind: 'subproject', id: leaf.id },
+    body: 'A retained reflection',
+    createdAt: at,
+    updatedAt: at,
+  });
+  return PrototypeDocumentSchema.parse({
+    ...base,
+    projects: [...base.projects, middle, leaf],
+    projectPages: [...base.projectPages, workPage(middle.id), workPage(leaf.id)],
+    sections: [section],
+    reflections: [reflection],
   });
 };
 
@@ -108,7 +165,8 @@ const routesFor = (store: DataStore): RouteTable => {
     timeline: new TimelineService({ projects, tasks, milestones }),
     todos: new ProjectTodosService({ projects, tasks, sections, pages }),
     archive: new ProjectArchiveService({ projects, pages, sections, tasks, reflections }),
-    reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
+    journal: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
+    reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     agents: connections,
     authenticator: new PrototypeAgentAuthenticator({ agents, users, connections }),
@@ -1031,6 +1089,36 @@ describe('Todos projection route (§34, §54)', () => {
     expect(withoutProjects.status).toBe(403);
     expect(withoutProjects.body).toMatchObject({ message: expect.stringContaining('projects.read') });
   });
+
+  it('denies the journal once per missing read grant before touching its projection', async () => {
+    const routes = buildAgentRoutes();
+    const READONLY = 'prototype-user-a-readonly';
+
+    await call(routes, 'PATCH', '/api/agent-connections/agent-cursor', {
+      user: 'user-demo',
+      body: { permissions: ['projects.read', 'tasks.read'] },
+    });
+    const withoutReflections = await call(routes, 'GET', '/api/projects/project-work-manager/journal', { token: READONLY });
+
+    await call(routes, 'PATCH', '/api/agent-connections/agent-cursor', {
+      user: 'user-demo',
+      body: { permissions: ['projects.read', 'reflections.read'] },
+    });
+    const withoutTasks = await call(routes, 'GET', '/api/projects/project-work-manager/journal', { token: READONLY });
+
+    await call(routes, 'PATCH', '/api/agent-connections/agent-cursor', {
+      user: 'user-demo',
+      body: { permissions: ['tasks.read', 'reflections.read'] },
+    });
+    const withoutProjects = await call(routes, 'GET', '/api/projects/project-work-manager/journal', { token: READONLY });
+
+    expect(withoutReflections.status).toBe(403);
+    expect(withoutReflections.body).toMatchObject({ message: expect.stringContaining('reflections.read') });
+    expect(withoutTasks.status).toBe(403);
+    expect(withoutTasks.body).toMatchObject({ message: expect.stringContaining('tasks.read') });
+    expect(withoutProjects.status).toBe(403);
+    expect(withoutProjects.body).toMatchObject({ message: expect.stringContaining('projects.read') });
+  });
 });
 
 describe('Archive projection route (§31, §32, §54)', () => {
@@ -1054,5 +1142,96 @@ describe('Archive projection route (§31, §32, §54)', () => {
       (await call(routes, 'POST', '/api/projects', { body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'subproject', parentProjectId: MINE, name: 'Unit' } })).body,
     );
     expect((await call(routes, 'GET', `/api/projects/${unit.id}/archive`)).status).toBe(409);
+  });
+});
+
+describe('Journal projection routes (§36, §54)', () => {
+  it('returns the root journal and completed-work picker through HTTP', async () => {
+    const routes = buildRoutes();
+    const task = await newTask(routes, { title: 'Ship it', status: 'done' });
+    const created = await call(routes, 'POST', '/api/reflections', {
+      body: {
+        projectId: MINE,
+        body: 'The release is out.',
+        subject: { kind: 'task', id: task.id },
+      },
+    });
+
+    expect(created.status).toBe(201);
+    const journal = await call(routes, 'GET', `/api/projects/${MINE}/journal`);
+    expect(journal.status).toBe(200);
+    expect(ProjectJournalResultSchema.parse(journal.body).items).toContainEqual(
+      expect.objectContaining({ reflection: expect.objectContaining({ id: (created.body as { id: string }).id }) }),
+    );
+
+    const picker = await call(routes, 'GET', `/api/projects/${MINE}/completed-work`);
+    expect(picker.status).toBe(200);
+    expect(ProjectCompletedWorkResultSchema.parse(picker.body).candidates).toContainEqual(
+      expect.objectContaining({ kind: 'task', id: task.id, status: 'done' }),
+    );
+  });
+
+  it('allows a write-only connection to attach a subject, while collapsing its refusals', async () => {
+    const routes = buildAgentRoutes();
+    const token = 'prototype-user-a-readwrite';
+    await call(routes, 'PATCH', '/api/agent-connections/agent-claude', {
+      user: 'user-demo',
+      body: { permissions: ['reflections.write'] },
+    });
+
+    const created = await call(routes, 'POST', '/api/reflections', {
+      token,
+      body: {
+        projectId: 'project-work-manager',
+        body: 'A write-only subject note',
+        subject: { kind: 'task', id: 'task-agent-deployment' },
+      },
+    });
+    expect(created.status).toBe(201);
+    expect(created.body).toMatchObject({ subject: { kind: 'task', id: 'task-agent-deployment' } });
+    expect(created.body).not.toHaveProperty('subject.name');
+
+    const missing = await call(routes, 'POST', '/api/reflections', {
+      token,
+      body: {
+        projectId: 'project-work-manager',
+        body: 'Missing subject',
+        subject: { kind: 'task', id: 'task-does-not-exist' },
+      },
+    });
+    const incomplete = await call(routes, 'POST', '/api/reflections', {
+      token,
+      body: {
+        projectId: 'project-work-manager',
+        body: 'Incomplete subject',
+        subject: { kind: 'task', id: 'task-agent-schema' },
+      },
+    });
+    expect(missing.status).toBe(409);
+    expect(incomplete.status).toBe(409);
+    expect(missing.body).toEqual(incomplete.body);
+  });
+
+  it('keeps the derived reads all-or-nothing and rejects foreign or non-root ids', async () => {
+    const routes = buildRoutes();
+    expect((await call(routes, 'GET', `/api/projects/${THEIRS}/journal`)).status).toBe(404);
+    expect((await call(routes, 'GET', '/api/projects/project-nowhere/completed-work')).status).toBe(404);
+  });
+
+  it('keeps a retained journal subject visible while excluding it from the picker under an archived ancestor', async () => {
+    const routes = routesFor(new InMemoryDataStore(completedWorkUnderArchivedAncestor()));
+
+    const journal = await call(routes, 'GET', '/api/projects/project-mine/journal');
+    expect(journal.status).toBe(200);
+    expect(ProjectJournalResultSchema.parse(journal.body).items[0]?.subject).toMatchObject({
+      kind: 'subproject',
+      id: 'project-completed-leaf',
+      status: 'completed',
+      hiddenByArchivedAncestor: true,
+    });
+
+    const picker = await call(routes, 'GET', '/api/projects/project-mine/completed-work');
+    expect(picker.status).toBe(200);
+    expect(ProjectCompletedWorkResultSchema.parse(picker.body).candidates).toEqual([]);
   });
 });

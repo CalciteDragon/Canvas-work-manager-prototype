@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import { agentActorFor, buildHarness, MINE, seedContainer, THEIRS } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
 
 describe('ReflectionService', () => {
@@ -41,6 +41,136 @@ describe('ReflectionService permissions (§51, §53)', () => {
     await expect(
       harness.reflectionService.create(agentActorFor(0, ['reflections.read']), { projectId: MINE, body: 'No' }),
     ).rejects.toThrow('connection "agent-claude" is missing permission "reflections.write"');
+  });
+});
+
+describe('ReflectionService completed-work subjects (§36)', () => {
+  const completedTask = async (harness: ReturnType<typeof buildHarness>) => {
+    const sectionId = await seedContainer(harness, MINE);
+    return harness.taskService.create(harness.actor, {
+      projectId: MINE,
+      sectionId,
+      title: 'Ship the release',
+      status: 'done',
+    });
+  };
+
+  it('attaches completed tasks and sub-projects without changing ownership', async () => {
+    const harness = buildHarness();
+    const task = await completedTask(harness);
+    const child = await harness.projectService.create(harness.actor, {
+      kind: 'subproject',
+      workspaceId: 'workspace-demo' as never,
+      parentProjectId: MINE,
+      name: 'Launch',
+    });
+    const completedChild = await harness.projectService.update(harness.actor, child.id, { status: 'completed' });
+
+    const taskReflection = await harness.reflectionService.create(harness.actor, {
+      projectId: MINE,
+      body: 'Task note',
+      subject: { kind: 'task', id: task.id },
+    });
+    const projectReflection = await harness.reflectionService.create(harness.actor, {
+      projectId: MINE,
+      body: 'Project note',
+      subject: { kind: 'subproject', id: completedChild.id },
+    });
+
+    expect(taskReflection).toMatchObject({ projectId: MINE, subject: { kind: 'task', id: task.id } });
+    expect(projectReflection).toMatchObject({ projectId: MINE, subject: { kind: 'subproject', id: child.id } });
+    expect((await harness.reflectionService.list(harness.actor, MINE)).map(({ projectId }) => projectId)).toEqual([
+      MINE,
+      MINE,
+    ]);
+  });
+
+  it('rejects incomplete, archived, root and cross-root subjects before creating a container', async () => {
+    const harness = buildHarness();
+    const sectionId = await seedContainer(harness, MINE);
+    const incomplete = await harness.taskService.create(harness.actor, { projectId: MINE, sectionId, title: 'Not done' });
+    const beforeSections = (await harness.sections.list({ projectId: MINE, includeArchived: true })).length;
+
+    await expect(
+      harness.reflectionService.create(harness.actor, {
+        projectId: MINE,
+        body: 'No',
+        subject: { kind: 'task', id: incomplete.id },
+      }),
+    ).rejects.toThrow(/not completed/);
+    await expect(
+      harness.reflectionService.create(harness.actor, {
+        projectId: MINE,
+        body: 'No',
+        subject: { kind: 'subproject', id: MINE },
+      }),
+    ).rejects.toThrow(/root project/);
+    await expect(
+      harness.reflectionService.create(harness.actor, {
+        projectId: MINE,
+        body: 'No',
+        subject: { kind: 'task', id: 'task-missing' as never },
+      }),
+    ).rejects.toBeInstanceOf(EntityNotFoundError);
+    expect((await harness.sections.list({ projectId: MINE, includeArchived: true })).length).toBe(beforeSections);
+  });
+
+  it('collapses subject eligibility failures for an agent without the relevant read grant', async () => {
+    const harness = buildHarness();
+    const sectionId = await seedContainer(harness, MINE);
+    const incomplete = await harness.taskService.create(harness.actor, { projectId: MINE, sectionId, title: 'Not done' });
+    const actor = agentActorFor(0, ['reflections.write']);
+
+    await expect(
+      harness.reflectionService.create(actor, {
+        projectId: MINE,
+        body: 'No',
+        subject: { kind: 'task', id: incomplete.id },
+      }),
+    ).rejects.toThrow('that subject cannot be reflected on');
+  });
+
+  it('retains a subject through reopen and archive, while an explicit replacement is revalidated', async () => {
+    const harness = buildHarness();
+    const task = await completedTask(harness);
+    const reflection = await harness.reflectionService.create(harness.actor, {
+      projectId: MINE,
+      body: 'Before',
+      subject: { kind: 'task', id: task.id },
+    });
+
+    await harness.taskService.update(harness.actor, task.id, { status: 'todo' });
+    const reopened = await harness.reflectionService.update(harness.actor, reflection.id, { body: 'After reopen' });
+    expect(reopened.subject).toEqual({ kind: 'task', id: task.id });
+
+    await harness.taskService.archive(harness.actor, task.id);
+    const archived = await harness.reflectionService.update(harness.actor, reflection.id, { body: 'After archive' });
+    expect(archived.subject).toEqual({ kind: 'task', id: task.id });
+
+    const incomplete = await harness.taskService.create(harness.actor, {
+      projectId: MINE,
+      sectionId: task.sectionId,
+      title: 'Still open',
+    });
+    await expect(
+      harness.reflectionService.update(harness.actor, reflection.id, {
+        subject: { kind: 'task', id: incomplete.id },
+      }),
+    ).rejects.toThrow(/not completed/);
+  });
+
+  it('assigns a subject through update and clears it with null', async () => {
+    const harness = buildHarness();
+    const task = await completedTask(harness);
+    const reflection = await harness.reflectionService.create(harness.actor, { projectId: MINE, body: 'Unlinked first' });
+
+    const linked = await harness.reflectionService.update(harness.actor, reflection.id, {
+      subject: { kind: 'task', id: task.id },
+    });
+    expect(linked.subject).toEqual({ kind: 'task', id: task.id });
+
+    const cleared = await harness.reflectionService.update(harness.actor, reflection.id, { subject: null });
+    expect(cleared.subject).toBeUndefined();
   });
 });
 

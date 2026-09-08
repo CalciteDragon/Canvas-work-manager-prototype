@@ -1368,3 +1368,53 @@ describe('page ownership integrity', () => {
     expect(() => new InMemoryDataStore(nonHome)).toThrow(/must be placed on a Home page/);
   });
 });
+
+describe('reflection subject integrity (§36)', () => {
+  const withSubproject = () => {
+    const document = validDocument();
+    document.projects.push(
+      PrototypeDocumentSchema.shape.projects.element.parse({
+        id: 'project-child',
+        workspaceId: 'workspace-1',
+        kind: 'subproject',
+        parentProjectId: 'project-1',
+        name: 'Child',
+        status: 'active',
+        projectLayoutMode: 'flow',
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    document.projectPages.push(
+      PrototypeDocumentSchema.shape.projectPages.element.parse({
+        id: 'page-child',
+        projectId: 'project-child',
+        kind: 'work',
+        enabled: true,
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    return document;
+  };
+
+  it('accepts existing task and sub-project subjects without enforcing their current state', () => {
+    const taskSubject = validDocument();
+    taskSubject.reflections[0]!.subject = { kind: 'task', id: 'task-1' as never };
+    expect(() => new InMemoryDataStore(taskSubject)).not.toThrow();
+
+    const projectSubject = withSubproject();
+    projectSubject.reflections[0]!.subject = { kind: 'subproject', id: 'project-child' as never };
+    expect(() => new InMemoryDataStore(projectSubject)).not.toThrow();
+  });
+
+  it('rejects a missing subject and a root named as a sub-project subject', () => {
+    const missing = validDocument();
+    missing.reflections[0]!.subject = { kind: 'task', id: 'task-gone' as never };
+    expect(() => new InMemoryDataStore(missing)).toThrow(/missing subject task/);
+
+    const root = validDocument();
+    root.reflections[0]!.subject = { kind: 'subproject', id: 'project-1' as never };
+    expect(() => new InMemoryDataStore(root)).toThrow(/cannot be about root project/);
+  });
+});

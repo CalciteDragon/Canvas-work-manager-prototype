@@ -11,6 +11,7 @@ const registryFor = (api: ReturnType<typeof createApi>): ToolRegistry =>
     pages: api.pages,
     todos: api.todos,
     archive: api.archive,
+    journal: api.journal,
     tasks: api.tasks,
     reflections: api.reflections,
     sections: api.sections,

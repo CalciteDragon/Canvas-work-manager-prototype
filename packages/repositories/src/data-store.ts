@@ -292,6 +292,20 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   for (const reflection of document.reflections) {
     projectFor('reflection', reflection.id, reflection.projectId);
     containerFor('reflection', reflection, 'reflections');
+    const subject = reflection.subject;
+    if (subject?.kind === 'task') {
+      if (!tasks.has(subject.id)) {
+        fail(`reflection "${reflection.id}" has missing subject task "${subject.id}"`);
+      }
+    } else if (subject?.kind === 'subproject') {
+      const subjectProject = projects.get(subject.id);
+      if (subjectProject === undefined) {
+        fail(`reflection "${reflection.id}" has missing subject project "${subject.id}"`);
+      }
+      if (subjectProject !== undefined && subjectProject.kind !== 'subproject') {
+        fail(`reflection "${reflection.id}" cannot be about root project "${subject.id}"`);
+      }
+    }
   }
   for (const task of document.tasks) {
     projectFor('task', task.id, task.projectId);

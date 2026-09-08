@@ -1,6 +1,41 @@
 import { z } from 'zod';
 import { IsoDateTimeSchema } from './common';
-import { ProjectIdSchema, ReflectionIdSchema, SectionIdSchema } from './ids';
+import { ProjectIdSchema, ReflectionIdSchema, SectionIdSchema, TaskIdSchema } from './ids';
+import { TodoBreadcrumbStepSchema } from './project-todos';
+import { ProjectStatusSchema } from './project';
+import { TaskStatusSchema } from './task';
+
+/** §36's optional link from a reflection to the completed work it is about. */
+export const ReflectionSubjectSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('task'), id: TaskIdSchema }),
+  z.object({ kind: z.literal('subproject'), id: ProjectIdSchema }),
+]);
+export type ReflectionSubject = z.infer<typeof ReflectionSubjectSchema>;
+
+/** The current, read-only subject facts shown beside a journal entry or in its picker. */
+export const ReflectionSubjectViewSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('task'),
+    id: TaskIdSchema,
+    name: z.string().min(1),
+    status: TaskStatusSchema,
+    completedAt: IsoDateTimeSchema.optional(),
+    archived: z.boolean(),
+    hiddenByArchivedAncestor: z.boolean(),
+    breadcrumb: z.array(TodoBreadcrumbStepSchema).min(1),
+  }),
+  z.object({
+    kind: z.literal('subproject'),
+    id: ProjectIdSchema,
+    name: z.string().min(1),
+    status: ProjectStatusSchema,
+    completedAt: IsoDateTimeSchema.optional(),
+    archived: z.boolean(),
+    hiddenByArchivedAncestor: z.boolean(),
+    breadcrumb: z.array(TodoBreadcrumbStepSchema).min(1),
+  }),
+]);
+export type ReflectionSubjectView = z.infer<typeof ReflectionSubjectViewSchema>;
 
 /**
  * A lightweight project journal (§36), not a task. Whether reflections end up freeform,
@@ -11,6 +46,7 @@ export const ReflectionSchema = z.object({
   projectId: ProjectIdSchema,
   /** The `reflections` container that owns this row — see `Task.sectionId`. */
   sectionId: SectionIdSchema,
+  subject: ReflectionSubjectSchema.optional(),
 
   title: z.string().optional(),
   body: z.string().min(1),

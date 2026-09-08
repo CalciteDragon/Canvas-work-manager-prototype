@@ -30,7 +30,7 @@ import {
   UpdateSectionShortcutInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveIdentityUser } from './context.ts';
 import type { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
@@ -51,6 +51,8 @@ export interface ApiDependencies {
   todos: ProjectTodosService;
   /** §31's whole-tree archive projection; it reads all three content categories. */
   archive: ProjectArchiveService;
+  /** §36's root-wide reflection feed and completed-work picker. */
+  journal: ProjectJournalService;
   reflections: ReflectionService;
   dashboard: DashboardService;
   agents: AgentConnectionService;
@@ -110,7 +112,7 @@ const shortcutPageQuery = (query: URLSearchParams): Record<string, unknown> => (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, archive, reflections, dashboard, agents, authenticator } =
+  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, archive, journal, reflections, dashboard, agents, authenticator } =
     dependencies;
   // Async now: an agent request has to resolve its token against the live connection
   // before the handler runs, because that read is what carries the permission set (§51).
@@ -195,6 +197,12 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     // disabled or the root itself is archived.
     'GET /api/projects/:id/archive': async (request) =>
       ok(await archive.derive(await actorFor(request), projectId(request))),
+
+    'GET /api/projects/:id/journal': async (request) =>
+      ok(await journal.journal(await actorFor(request), projectId(request))),
+
+    'GET /api/projects/:id/completed-work': async (request) =>
+      ok(await journal.completedWork(await actorFor(request), projectId(request))),
 
     'GET /api/reflections': async (request) => {
       // A reflections section renders what it owns, so the list narrows to one container

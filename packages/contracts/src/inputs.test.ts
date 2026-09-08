@@ -125,10 +125,22 @@ describe('project inputs', () => {
 });
 
 describe('reflection inputs', () => {
-  it('accepts a body-only reflection and rejects an empty one', () => {
+  it('accepts a body-only reflection and an optional completed-work subject', () => {
     expect(CreateReflectionInputSchema.parse({ projectId: 'project-a', body: 'Slow week.' }).title).toBeUndefined();
+    expect(
+      CreateReflectionInputSchema.parse({
+        projectId: 'project-a',
+        body: 'Slow week.',
+        subject: { kind: 'task', id: 'task-a' },
+      }).subject,
+    ).toEqual({ kind: 'task', id: 'task-a' });
     expect(CreateReflectionInputSchema.safeParse({ projectId: 'project-a', body: '' }).success).toBe(false);
     expect(UpdateReflectionInputSchema.parse({ title: null }).title).toBeNull();
+    expect(UpdateReflectionInputSchema.parse({ subject: null }).subject).toBeNull();
+    expect(UpdateReflectionInputSchema.parse({ subject: { kind: 'subproject', id: 'project-child' } }).subject).toEqual({
+      kind: 'subproject',
+      id: 'project-child',
+    });
     expect(UpdateReflectionInputSchema.safeParse({ body: '' }).success).toBe(false);
   });
 });

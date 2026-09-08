@@ -4,6 +4,7 @@ import { IsoDateSchema, IsoDateTimeSchema, PositionSchema } from './common';
 import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema, TaskIdSchema, WorkspaceIdSchema } from './ids';
 import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectStatusSchema } from './project';
 import { ProjectPageKindSchema } from './project-page';
+import { ReflectionSubjectSchema } from './reflection';
 import { SectionColumnSpanSchema, SectionConfigSchema } from './section';
 import { TaskPrioritySchema, TaskStatusSchema } from './task';
 
@@ -220,6 +221,7 @@ export const CreateReflectionInputSchema = z.object({
   sectionId: SectionIdSchema.optional(),
   /** The page to resolve on; see `CreateTaskInput.pageId`. */
   pageId: ProjectPageIdSchema.optional(),
+  subject: ReflectionSubjectSchema.optional(),
   title: z.string().optional(),
   body: z.string().min(1),
   prompt: z.string().optional(),
@@ -229,6 +231,7 @@ export type CreateReflectionInput = z.infer<typeof CreateReflectionInputSchema>;
 export const UpdateReflectionInputSchema = z.object({
   title: z.string().nullable().optional(),
   body: z.string().min(1).optional(),
+  subject: ReflectionSubjectSchema.nullable().optional(),
 });
 export type UpdateReflectionInput = z.infer<typeof UpdateReflectionInputSchema>;
 

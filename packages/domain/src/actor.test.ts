@@ -1,6 +1,6 @@
 import type { AgentPermission } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import { assertPermitted, assertUserActor, assertValidActor, type ActorContext } from './actor';
+import { assertPermitted, assertUserActor, assertValidActor, holds, type ActorContext } from './actor';
 import { DomainRuleError, PermissionDeniedError } from './errors';
 
 const workspaceId = 'workspace-1' as ActorContext['workspaceId'];
@@ -57,6 +57,18 @@ describe('assertPermitted', () => {
 
   it('never checks a system actor', () => {
     expect(() => assertPermitted({ actor: 'system', workspaceId }, 'projects.write')).not.toThrow();
+  });
+});
+
+describe('holds', () => {
+  it('treats people and system actors as holding every permission', () => {
+    expect(holds({ actor: 'user', workspaceId, userId: 'user-1' as never }, 'tasks.read')).toBe(true);
+    expect(holds({ actor: 'system', workspaceId }, 'tasks.read')).toBe(true);
+  });
+
+  it('checks the connection grants for an agent', () => {
+    expect(holds(agent(['tasks.read']), 'tasks.read')).toBe(true);
+    expect(holds(agent(['tasks.read']), 'tasks.write')).toBe(false);
   });
 });
 

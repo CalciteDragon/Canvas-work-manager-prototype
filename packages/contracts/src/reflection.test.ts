@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ReflectionSchema } from './reflection';
+import type { TaskId } from './ids';
+import { ReflectionSchema, ReflectionSubjectSchema, type ReflectionSubject } from './reflection';
 
 const reflection = {
   id: 'reflection-1',
@@ -32,6 +33,34 @@ describe('ReflectionSchema', () => {
     const { sectionId, ...orphan } = reflection;
     expect(ReflectionSchema.safeParse(orphan).success).toBe(false);
   });
+
+  it('accepts either a task or a sub-project as an optional subject (§36)', () => {
+    expect(ReflectionSchema.parse({ ...reflection, subject: { kind: 'task', id: 'task-1' } }).subject).toEqual({
+      kind: 'task',
+      id: 'task-1',
+    });
+    expect(ReflectionSchema.parse({ ...reflection, subject: { kind: 'subproject', id: 'project-child' } }).subject).toEqual({
+      kind: 'subproject',
+      id: 'project-child',
+    });
+  });
+
+  it('rejects an unknown kind, a missing id, and an empty id', () => {
+    expect(ReflectionSubjectSchema.safeParse({ kind: 'milestone', id: 'milestone-1' }).success).toBe(false);
+    expect(ReflectionSubjectSchema.safeParse({ kind: 'task' }).success).toBe(false);
+    expect(ReflectionSubjectSchema.safeParse({ kind: 'task', id: '' }).success).toBe(false);
+  });
+
+  it('keeps task and sub-project id brands distinct at the type level', () => {
+    // Branded ids are a compile-time distinction; the runtime schema only sees non-empty strings.
+    expect(ReflectionSubjectSchema.safeParse({ kind: 'subproject', id: 'task-1' }).success).toBe(true);
+    const taskId = 'task-1' as TaskId;
+    const subject: ReflectionSubject = { kind: 'task', id: taskId };
+    expect(subject.kind).toBe('task');
+    // @ts-expect-error A task id cannot occupy the sub-project branch.
+    const wrongKind: ReflectionSubject = { kind: 'subproject', id: taskId };
+    expect(wrongKind.kind).toBe('subproject');
+  });
 });
 
 describe('ReflectionSchema archive marker', () => {
@@ -46,4 +75,3 @@ describe('ReflectionSchema archive marker', () => {
     expect(ReflectionSchema.parse(reflection).archivedWithSectionId).toBeUndefined();
   });
 });
-

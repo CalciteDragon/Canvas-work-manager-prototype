@@ -15,6 +15,7 @@ import {
 import type { ProjectPageRepository, ProjectRepository, SectionRepository, TaskRepository } from '@cwm/repositories';
 import { assertPermitted, type ActorContext } from './actor';
 import { DomainRuleError, EntityNotFoundError } from './errors';
+import { compareInstants, compareText, instantOf, type Instant } from './instants';
 import { archivedAncestry } from './project-visibility';
 
 export interface ProjectTodosServiceDependencies {
@@ -23,46 +24,6 @@ export interface ProjectTodosServiceDependencies {
   sections: SectionRepository;
   pages: ProjectPageRepository;
 }
-
-/**
- * An instant, split so it can be compared **losslessly as text**.
- *
- * §11's `IsoDateTimeSchema` is `z.iso.datetime()`, which accepts `10:00Z` with the seconds
- * omitted and a fraction of any length — so `…:00.0001Z` and `…:00.0009Z` are two instants that
- * `Date.parse` collapses into one millisecond, and `10:00Z` and `10:00:00.0Z` are one instant
- * that raw string comparison would call two. Neither is hypothetical: a date-only due control
- * writes `23:59:59.999Z`, and an agent writes whatever it likes.
- *
- * `prefix` is therefore always the fixed-width whole-second form, and `fraction` the digits
- * after the point with no assumption about how many there are.
- */
-interface Instant {
-  prefix: string;
-  fraction: string;
-}
-
-const instantOf = (value: string): Instant => {
-  // Always UTC: the schema rejects an offset, so dropping the trailing `Z` leaves the fields.
-  const body = value.endsWith('Z') ? value.slice(0, -1) : value;
-  const point = body.indexOf('.');
-  const whole = point === -1 ? body : body.slice(0, point);
-  return {
-    // `YYYY-MM-DDTHH:MM` is 16 characters; anything longer already carries its seconds.
-    prefix: whole.length === 16 ? `${whole}:00` : whole,
-    fraction: point === -1 ? '' : body.slice(point + 1),
-  };
-};
-
-/** Ordinal, never `localeCompare`: a collation that sorts ids by locale is not a chronology. */
-const compareText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
-
-const compareInstants = (a: Instant, b: Instant): number => {
-  const byPrefix = compareText(a.prefix, b.prefix);
-  if (byPrefix !== 0) return byPrefix;
-  // Right-padded so `.1` and `.100` are equal rather than "shorter sorts first".
-  const width = Math.max(a.fraction.length, b.fraction.length);
-  return compareText(a.fraction.padEnd(width, '0'), b.fraction.padEnd(width, '0'));
-};
 
 /** §34's tie-break: a unit of work before a task, then the id. */
 const KIND_ORDER = { subproject: 0, task: 1 } as const;

@@ -1,13 +1,13 @@
-import { ProjectArchiveQuerySchema, ProjectTodosQuerySchema, SetProjectPageEnabledInputSchema, ProjectIdSchema } from '@cwm/contracts';
+import { ProjectArchiveQuerySchema, ProjectJournalQuerySchema, ProjectTodosQuerySchema, SetProjectPageEnabledInputSchema, ProjectIdSchema } from '@cwm/contracts';
 import { z } from 'zod';
 import { defineTool, type WorkManagerTool } from '../tool';
 
 /**
  * §54's page surface: *"Pages get their own small surface — listing a root's pages, toggling an
- * optional one, and querying the derived Todos and Archive projections."*
+ * optional one, and querying the derived Todos, Archive and Reflections projections."*
  *
- * The four page reads here. Archive is a projection of rows rather than a page-owned canvas,
- * so it remains queryable even when the optional Archive page is disabled.
+ * The page reads here. Archive and Reflections are projections of rows rather than page-owned
+ * canvases, so they remain queryable even when their optional pages are disabled.
  *
  * `get_project_todos` is the first tool that needs the read-permission composition §54 describes
  * — "a derived page that combines categories requires the grant for each category it returns,
@@ -56,5 +56,14 @@ export const projectPageTools: readonly WorkManagerTool[] = [
     additionalPermissions: ['tasks.read', 'reflections.read'],
     inputSchema: ProjectArchiveQuerySchema,
     execute: ({ projectId }, { actor, services }) => services.archive.derive(actor, projectId),
+  }),
+  defineTool({
+    name: 'get_project_journal',
+    description:
+      'Read the Reflections journal for one root project: reflections from its Home, its Reflections page container and every descendant work canvas, newest first. Each entry keeps its canonical owner and, when linked, the current status of the completed task or sub-project it is about; subjectless journal entries remain ordinary entries. It reads projects, tasks and reflections together and refuses rather than returning a partial answer. It does not depend on the Reflections page being enabled. Use the completed-work picker in the app to choose an eligible subject; this tool writes a reflection through add_reflection.',
+    permission: 'projects.read',
+    additionalPermissions: ['tasks.read', 'reflections.read'],
+    inputSchema: ProjectJournalQuerySchema,
+    execute: ({ projectId }, { actor, services }) => services.journal.journal(actor, projectId),
   }),
 ];

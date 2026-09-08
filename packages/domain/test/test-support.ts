@@ -11,6 +11,7 @@ import { DashboardService } from '../src/dashboard-service';
 import { PrototypeAIProvider } from '../src/prototype-ai-provider';
 import { ProjectPageService } from '../src/project-page-service';
 import { ProjectService } from '../src/project-service';
+import { ProjectJournalService } from '../src/project-journal-service';
 import { ProgressService } from '../src/progress-service';
 import { ReflectionService } from '../src/reflection-service';
 import { SectionService } from '../src/section-service';
@@ -205,7 +206,8 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     dashboardService: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     agentService: new AgentConnectionService({ agents, activity, clock, unitOfWork }),
     timelineService: new TimelineService({ projects, tasks, milestones }),
-    reflectionService: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
+    reflectionService: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
+    projectJournalService: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
     sectionService,
     sectionShortcutService,
     workspaceService: new WorkspaceService({ projects, tasks, reflections, clock }),

@@ -26,6 +26,8 @@ const modernClient = (name) =>
     { versionNegotiation: { mode: { pin: '2026-07-28' } } },
   );
 
+// Slice 15's two-transport acceptance check, extended by Slice 25.7 (§36) with a
+// subject-linked journal write and a restart/re-read through both transports.
 const assertClient = async (client, title) => {
   check(client.getProtocolEra() === 'modern', `${title} negotiated 2026-07-28`);
   const listed = await client.listTools();
@@ -48,14 +50,50 @@ const assertClient = async (client, title) => {
   check(archived.isError !== true, `${title} archives a task through the canonical tool`);
   const restored = await client.callTool({ name: 'restore_task', arguments: { taskId: task.id } });
   check(restored.isError !== true, `${title} restores a task through the canonical tool`);
-  return task;
+  const reflection = await client.callTool({
+    name: 'add_reflection',
+    arguments: {
+      projectId: PROJECT,
+      body: `What changed over ${title}`,
+      subject: { kind: 'task', id: 'task-agent-deployment' },
+    },
+  });
+  check(reflection.isError !== true, `${title} adds a subject-linked reflection`);
+  check(
+    reflection.structuredContent?.subject?.id === 'task-agent-deployment' &&
+      reflection.structuredContent?.subject?.name === undefined,
+    `${title} returns the stored subject as ids only`,
+  );
+  const journal = await client.callTool({
+    name: 'get_project_journal',
+    arguments: { projectId: PROJECT },
+  });
+  check(
+    journal.isError !== true &&
+      journal.structuredContent?.items?.some(({ reflection: item }) => item.id === reflection.structuredContent?.id),
+    `${title} reads the linked reflection from the journal`,
+  );
+  return { task, reflectionId: reflection.structuredContent?.id };
 };
 
-const assertPersisted = async (path, task, title) => {
+const assertPersisted = async (path, result, title) => {
   const document = JSON.parse(await readFile(path, 'utf8'));
   check(
-    document.tasks.some(({ id, title: taskTitle }) => id === task.id && taskTitle === task.title),
+    document.tasks.some(({ id, title: taskTitle }) => id === result.task.id && taskTitle === result.task.title),
     `${title} task is present in data.json`,
+  );
+  check(
+    document.reflections.some(({ id, subject }) => id === result.reflectionId && subject?.id === 'task-agent-deployment'),
+    `${title} subject-linked reflection is present in data.json`,
+  );
+};
+
+const assertJournalAfterRestart = async (client, result, title) => {
+  const journal = await client.callTool({ name: 'get_project_journal', arguments: { projectId: PROJECT } });
+  check(
+    journal.isError !== true &&
+      journal.structuredContent?.items?.some(({ reflection }) => reflection.id === result.reflectionId),
+    `${title} re-reads the linked reflection after restart`,
   );
 };
 
@@ -145,12 +183,26 @@ try {
       authProvider: { token: async () => TOKEN },
     }),
   );
-  const httpTask = await assertClient(httpClient, 'HTTP');
+  const httpResult = await assertClient(httpClient, 'HTTP');
   await httpClient.close();
   httpClient = undefined;
   await stopHost(host);
   host = undefined;
-  await assertPersisted(httpFile, httpTask, 'HTTP');
+  await assertPersisted(httpFile, httpResult, 'HTTP');
+
+  const restarted = await startHost(httpFile);
+  host = restarted.child;
+  httpClient = modernClient('slice-15-http-acceptance-restart');
+  await httpClient.connect(
+    new StreamableHTTPClientTransport(new globalThis.URL(restarted.url), {
+      authProvider: { token: async () => TOKEN },
+    }),
+  );
+  await assertJournalAfterRestart(httpClient, httpResult, 'HTTP');
+  await httpClient.close();
+  httpClient = undefined;
+  await stopHost(host);
+  host = undefined;
 
   console.log('\n2. stdio');
   stdioClient = modernClient('slice-15-stdio-acceptance');
@@ -163,10 +215,24 @@ try {
       stderr: 'inherit',
     }),
   );
-  const stdioTask = await assertClient(stdioClient, 'stdio');
+  const stdioResult = await assertClient(stdioClient, 'stdio');
   await stdioClient.close();
   stdioClient = undefined;
-  await assertPersisted(stdioFile, stdioTask, 'stdio');
+  await assertPersisted(stdioFile, stdioResult, 'stdio');
+
+  stdioClient = modernClient('slice-15-stdio-acceptance-restart');
+  await stdioClient.connect(
+    new StdioClientTransport({
+      command: process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
+      args: ['--silent', '--dir', workspaceRoot, 'mcp:stdio'],
+      cwd: workspaceRoot,
+      env: { ...getDefaultEnvironment(), CWM_DATA_FILE: stdioFile, CWM_MCP_TOKEN: TOKEN },
+      stderr: 'inherit',
+    }),
+  );
+  await assertJournalAfterRestart(stdioClient, stdioResult, 'stdio');
+  await stdioClient.close();
+  stdioClient = undefined;
 
   console.log('\nMCP acceptance: both transports passed');
 } catch (error) {

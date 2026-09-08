@@ -1,5 +1,5 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { ProjectArchiveResultSchema, ProjectTodosResultSchema, PrototypeDocumentSchema } from '@cwm/contracts';
+import { ProjectArchiveResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, PrototypeDocumentSchema } from '@cwm/contracts';
 import { createToolRegistry, requiredPermissions, SPEC_TOOL_NAMES } from '@cwm/mcp-tools';
 import { buildSeed } from '@cwm/prototype-data';
 import {
@@ -47,6 +47,7 @@ const buildServer = () => {
     pages: api.pages,
     todos: api.todos,
     archive: api.archive,
+    journal: api.journal,
     tasks: api.tasks,
     reflections: api.reflections,
     sections: api.sections,
@@ -148,6 +149,30 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
 
       expect(result.isError).not.toBe(true);
       expect(ProjectArchiveResultSchema.parse(result.structuredContent).projectId).toBe('project-work-manager');
+    } finally {
+      await client.close();
+      await handler.close();
+    }
+  });
+
+  it('publishes all Journal read grants and returns the shared journal projection', async () => {
+    const { client, handler } = await build();
+
+    try {
+      const listed = await client.listTools();
+      const journal = listed.tools.find(({ name }) => name === 'get_project_journal');
+      expect(journal?._meta).toMatchObject({
+        [REQUIRED_PERMISSION_META_KEY]: 'projects.read',
+        [REQUIRED_PERMISSIONS_META_KEY]: ['projects.read', 'tasks.read', 'reflections.read'],
+      });
+
+      const result = await client.callTool({
+        name: 'get_project_journal',
+        arguments: { projectId: 'project-work-manager' },
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(ProjectJournalResultSchema.parse(result.structuredContent).projectId).toBe('project-work-manager');
     } finally {
       await client.close();
       await handler.close();

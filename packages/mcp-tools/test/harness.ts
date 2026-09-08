@@ -15,6 +15,7 @@ import {
   DashboardService,
   ProjectPageService,
   ProjectArchiveService,
+  ProjectJournalService,
   ProjectService,
   ProjectTodosService,
   PrototypeAIProvider,
@@ -202,8 +203,9 @@ export const buildHarness = () => {
     pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
     todos: new ProjectTodosService({ projects, tasks, sections, pages }),
     archive: new ProjectArchiveService({ projects, pages, sections, tasks, reflections }),
+    journal: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
-    reflections: new ReflectionService({ reflections, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
+    reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     workspace: new WorkspaceService({ projects, tasks, reflections, clock }),
   };

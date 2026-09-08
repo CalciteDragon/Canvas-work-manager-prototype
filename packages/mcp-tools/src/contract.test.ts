@@ -106,6 +106,13 @@ const CASES: Record<string, ToolCase> = {
       expect(result.items).toEqual([]);
     },
   },
+  get_project_journal: {
+    input: { projectId: PROJECT },
+    verify: (result) => {
+      expect(result.projectId).toBe(PROJECT);
+      expect(result.items).toEqual([]);
+    },
+  },
   list_tasks: {
     input: { projectId: PROJECT },
     verify: (result) => expect(result.length).toBeGreaterThan(0),
@@ -178,7 +185,10 @@ const CASES: Record<string, ToolCase> = {
     mutates: true,
     verify: async (result, harness) => {
       expect(result.archivedAt).toBeDefined();
-      expect((await harness.services.reflections.list(agent(['reflections.read']), OPS_PROJECT))[0]?.archivedAt).toBeDefined();
+      const reader = agent(['reflections.read']);
+      const archived = await harness.services.reflections.list(reader, OPS_PROJECT, { includeArchived: true });
+      expect(archived.find(({ id }) => id === result.id)?.archivedAt).toBeDefined();
+      expect((await harness.services.reflections.list(reader, OPS_PROJECT)).map(({ id }) => id)).not.toContain(result.id);
     },
   },
   restore_reflection: {

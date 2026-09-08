@@ -60,6 +60,10 @@ export const assertPermitted = (actor: ActorContext, permission: AgentPermission
   }
 };
 
+/** Whether a caller has a grant, without throwing — useful for deliberately collapsed errors. */
+export const holds = (actor: ActorContext, permission: AgentPermission): boolean =>
+  actor.actor !== 'agent' || actor.permissions.includes(permission);
+
 /**
  * The gate on `AgentConnectionService`: managing connections is a **person's** act.
  *
