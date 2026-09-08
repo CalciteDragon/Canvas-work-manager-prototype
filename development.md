@@ -789,6 +789,8 @@ resolution are all out of scope (§62).
 
 ### Slice 17 — Design Lab, Storybook, and the end-to-end tests
 
+**Dependency repair follow-up:** done — [plan and verification evidence](docs/plans/25-dependency-repair.md). Restored the locked install and fixed exposed runtime/test defects; full tests, lint, builds, automated browser journeys and both MCP transports pass.
+
 **Status:** done — plan: [docs/plans/17-design-lab-storybook-and-e2e.md](docs/plans/17-design-lab-storybook-and-e2e.md).
 The First Prototype Milestone is closed: [docs/first-milestone-walkthrough.md](docs/first-milestone-walkthrough.md)
 carries a numbered click-path for every §81 bullet across all eight groups, naming the seed
@@ -1042,8 +1044,8 @@ ascending with undated last, retaining completed and cancelled rows.
 | 25.3 | Secondary sidebar, Home and subproject canvas | 25.2 | done — plan: [docs/plans/25.3-workspace-shell-and-subproject-canvas.md](docs/plans/25.3-workspace-shell-and-subproject-canvas.md) |
 | 25.4 | Home shortcuts | 25.3 | done — plan: [docs/plans/25.4-home-shortcuts.md](docs/plans/25.4-home-shortcuts.md) |
 | 25.5 | Chronological Todos | 25.3 | done — plan: [docs/plans/25.5-chronological-todos.md](docs/plans/25.5-chronological-todos.md) |
-| 25.6 | Root Archive and reachable undo | 25.3 | in progress — implementation and diff review complete; browser/MCP sign-off is blocked by missing workspace dependencies: [docs/plans/25.6-root-archive-and-reachable-undo.md](docs/plans/25.6-root-archive-and-reachable-undo.md) |
-| 25.7 | Completed-work reflections | 25.3 | not started |
+| 25.6 | Root Archive and reachable undo | 25.3 | in progress — implementation and automated browser/MCP gates pass; integrated/manual sign-off remains in 25.8: [docs/plans/25.6-root-archive-and-reachable-undo.md](docs/plans/25.6-root-archive-and-reachable-undo.md) |
+| 25.7 | Completed-work reflections | 25.3 | in progress — implementation and automated browser/MCP gates pass; integrated/manual sign-off remains in 25.8: [docs/plans/25.7-completed-work-reflections.md](docs/plans/25.7-completed-work-reflections.md) |
 | 25.8 | Integrated acceptance and documentation closure | 25.4–25.7 | not started |
 
 **25.1, done.** `Project` is a Zod discriminated union on `kind`, so a workspace and a unit of
@@ -1254,6 +1256,22 @@ Verified with `pnpm test` (186 contracts, 124 repositories, 94 seed, 373 domain,
 host, and 560 web tests), `pnpm lint`, `pnpm build`, `pnpm storybook:build`, and `pnpm e2e`
 (3 passed, including the new `todos.spec.ts` journey). The production build's initial-bundle
 warning is now 921 kB against the 850 kB warning budget, still below the 1 MB error budget.
+
+**25.7, implementation complete.** Reflections may now retain an optional subject ID for a
+currently completed task or subproject in the same root tree. The new `ProjectJournalService`
+projects Home, the Reflections page and descendant work canvases into one newest-first feed, and
+projects currently completed work into a separate picker; it resolves retained subjects with
+their current reopened or archived state without moving the reflection or changing its owning
+container. The page owns one Reflections container, the canvas shows only a neutral linked marker,
+and `get_project_journal` exposes the read model over both MCP transports with its three read
+grants.
+
+The implementation includes contract, repository-integrity, domain, host-route, gateway, MCP,
+page-store, component and e2e coverage, plus the living spec and decision entry. No seed or JSON
+repository change was needed. The [dependency repair follow-up](docs/plans/25-dependency-repair.md)
+restored the locked toolchain and passed full tests, lint, builds, automated browser journeys
+and runtime MCP acceptance. 25.8 retains integrated/manual design evaluation and Storybook
+interactions; missing dependencies no longer block those checks.
 
 **Done when:** the roadmap's integrated browser/MCP journey passes: a multi-page root
 and nested work units retain canonical data ownership, shortcuts reflect source content,

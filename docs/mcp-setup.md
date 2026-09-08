@@ -1,8 +1,8 @@
 # MCP setup
 
-Canvas Work Manager serves the same thirty-two tools over Streamable HTTP and stdio (§59) —
+Canvas Work Manager serves the same thirty-three tools over Streamable HTTP and stdio (§59) —
 §54's fourteen, the four section tools the canvas needs, §54's three page tools, Slice 25.4's
-three shortcut tools, and Slice 25.6's eight archive/recovery tools.
+three shortcut tools, Slice 25.6's eight archive/recovery tools, and Slice 25.7's journal tool.
 Both use the fake local credentials from the `agent-heavy` seed; they have no security value
 and the HTTP host binds only to `127.0.0.1`.
 
@@ -171,6 +171,16 @@ The matching canonical writes are `archive_project` / `restore_project`, `remove
 `restore_reflection`. Project restoration requires an explicit non-archived status; restoring a
 section or row restores exactly the members marked as taken down by that operation, leaving
 independently archived work archived.
+
+### Reflections
+
+Slice 25.7 adds `get_project_journal` (`projects.read`, `tasks.read` and `reflections.read`). It
+returns the root-wide newest-first reflection feed across Home, the Reflections page and nested
+work canvases, with each entry's canonical origin. A subject-linked entry retains only its task or
+subproject ID in the write; the journal resolves the current name, status, archive state and
+breadcrumb when the caller has the declared read grants. A subject can therefore remain visible
+after its work is reopened or archived. The separate completed-work picker is a page/API read,
+not another MCP tool, and the journal does not require the Reflections tab to be enabled.
 
 ### Home shortcuts
 

@@ -934,9 +934,9 @@ padding, so the column sits flush against the global sidebar with no shell state
 column is sticky, so a long canvas scrolls beneath it rather than taking it along; at ≤ 60rem it
 collapses behind a labelled button and its links leave the tab order with it.
 
-Today the column lists Home, Todos where a root has enabled it, and the work hierarchy. Archive
-and Reflections have records and no renderers, so Slices 25.6 and 25.7 each add one line to
-`PROJECT_PAGE_REGISTRY`.
+Today the column lists Home, any enabled optional page this build can render, and the work
+hierarchy. Archive and Reflections are both registered renderers; Archive also remains reachable
+through the project controls when its tab is disabled.
 
 ---
 
@@ -1117,10 +1117,10 @@ pages are listed and toggled through `ProjectPageService`, `GET`/`PATCH
 its first enable, and disabling one writes a single boolean and keeps everything on it
 ([why](docs/decisions/2026-09-optional-pages-are-created-on-first-enable.md)). Slice 25.3 added the
 **navigation**: §23's second column, §68's two routes, and the renderer behind Home and a
-sub-project's work canvas. Slice 25.5 added the first optional renderer, Todos (§34); Archive and
-Reflections are still planned (Slices 25.6–25.7), and until a kind has a renderer it is not
-advertised in the column and a URL pointing at it falls back to Home saying it is not built yet. A
-sub-project's `/pages/…` URL is refused the same way, because it has no pages to name.
+sub-project's work canvas. Slice 25.5 added Todos (§34), Slice 25.6 added Archive (§31), and
+Slice 25.7 added Reflections (§36). A page kind without a renderer is still not advertised in the
+column and a URL pointing at it falls back to Home saying it is not built yet. A sub-project's
+`/pages/…` URL is refused the same way, because it has no pages to name.
 
 Slice 25.5 adds a **fragment** to both project routes — `#section-<id>` — so §34's Todos rows can
 link to the container that owns them and not merely to the page. It is handled by the canvas rather
@@ -1380,15 +1380,15 @@ page kind declares a capability, and it is not a hand-maintained list of section
 container the page does not accept — a Task List on the Reflections page — is refused by the
 domain, not merely hidden by the UI.
 
-*Landed across Slices 25.1, 25.2 and 25.4. The coarse answer — does this page hold sections at all —
+*Landed across Slices 25.1, 25.2, 25.4, 25.6 and 25.7. The coarse answer — does this page hold sections at all —
 is `pageAcceptsSections`; the narrow one is `pageAcceptsSectionType`, which reads Reflections'
 capability out of `SECTION_OWNERSHIP` rather than naming section types, so a type registered
 later needs no entry. `SectionService` refuses on the way in and `validateDocumentIntegrity`
 refuses at load, because a hand-edited `data.json` (§14) must fail then rather than at whichever
 request first renders it. Slice 25.4 adds the Home-only shortcut placement beside the registered
 types. Slice 25.5 registers the Todos renderer — a derived list that holds no sections, so nothing
-about this table changes for it. Slice 25.6 adds the Archive renderer; Reflections remains the
-next page renderer in Slice 25.7.*
+about this table changes for it. Slice 25.6 adds the Archive renderer and Slice 25.7 adds the
+Reflections renderer; both remain derived/page-owned surfaces as shown above.*
 
 ---
 
@@ -1710,9 +1710,11 @@ A reflection may optionally name what it is *about*:
 subject?: { kind: 'task' | 'subproject'; id }
 ```
 
-The subject is validated to exist within the same root tree. It is **separate from ownership**:
-the reflection still belongs to the reflections container it was written into, and attaching a
-subject moves nothing.
+When it is assigned, the subject must exist as completed, visible work in the same root tree. It
+is **separate from ownership**: the reflection still belongs to the reflections container it was
+written into, and attaching a subject moves nothing. The stored link carries ids only; the
+journal resolves current subject facts separately. If later reparenting takes the subject out of
+the root tree, the historical link remains but its resolved view is omitted.
 
 The completed-work composer requires a subject that is currently completed — the point is to
 reflect on finished work while it is fresh. General journal entries with no subject remain
@@ -1728,9 +1730,13 @@ status would be worthless as a record.
 A root's optional **Reflections** page shows the journal: newest reflection first, aggregated
 from Home, from the page's own container and from descendant work canvases — aggregated, not
 moved. Alongside it sits a picker of completed work to reflect on. The page's composer names
-the container it writes into rather than resolving one invisibly.
+the container it writes into rather than resolving one invisibly. The feed is read-only and links
+back to each canonical owner; a canvas shows only a neutral linked marker, so it does not need a
+whole-tree subject read.
 
-*Planned in Slice 25.7.*
+*Landed in Slice 25.7. The page, root journal projection and completed-work picker are backed by
+the same contracts and domain read rules over HTTP; the root journal is also available through
+MCP.*
 
 ---
 
@@ -2298,7 +2304,7 @@ not one call whose meaning depends on whether a parent happened to be passed. A 
 kind and parent contradict each other is rejected rather than reinterpreted.
 
 Pages get their own small surface — listing a root's pages, toggling an optional one, and
-querying the derived Todos and Archive projections:
+querying the derived Todos, Archive and Reflections projections:
 
 ```text
 list_project_pages
@@ -2308,6 +2314,8 @@ set_project_page_enabled
 get_project_todos
 
 get_project_archive
+
+get_project_journal
 ```
 
 Shortcuts (§27) are created and removed through their own tools, and archive/restore become
@@ -2337,7 +2345,10 @@ enabled. Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
 placement and source identity only, never source rows. Canonical archive/restore tools remain
 the same operations used by the UI: `archive_project` / `restore_project`, `remove_section` /
 `restore_section`, `archive_task` / `restore_task`, and `archive_reflection` /
-`restore_reflection`. Project restoration requires an explicit non-archived status.*
+`restore_reflection`. Project restoration requires an explicit non-archived status. Slice 25.7
+adds `get_project_journal` with the same three read grants: it aggregates live journal entries
+from the root tree, resolves current linked-subject state (including an archived subject), and
+does not depend on the Reflections tab being enabled.*
 
 ---
 

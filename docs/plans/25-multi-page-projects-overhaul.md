@@ -1,6 +1,6 @@
 # Multi-page projects overhaul — dependency-aware implementation roadmap
 
-**Status:** 25.0–25.5 done; 25.6 onward not started. This is a multi-phase roadmap, not authorization to implement every phase in one change. Before each phase, re-read its touched code and write its bounded implementation plan under the AGENTS.md protocol, including iterative review and red/green tests.
+**Status:** 25.0–25.5 done; 25.6 implementation and diff review complete with browser/MCP sign-off blocked by missing workspace dependencies; 25.7 implementation and diff review complete with the same verification blocker; 25.8 not started. This is a multi-phase roadmap, not authorization to implement every phase in one change. Before each phase, re-read its touched code and write its bounded implementation plan under the AGENTS.md protocol, including iterative review and red/green tests.
 
 **Resolved in 25.0** (user, 2026-09-04 — recorded in [docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md](../decisions/2026-09-project-workspaces-and-subproject-work-units.md)): the data cutover uses a bounded v2→v3 converter rather than a disposable reset; Archive means hidden from ordinary surfaces plus a whole-tree Archive page, with **Open archive** in project controls when the tab is disabled; Todos carries root tasks plus every descendant subproject and task, due date ascending with undated last and deterministic ties, retaining completed and cancelled rows. The two "clarification pending" rows in the table below are therefore settled as proposed.
 
@@ -155,7 +155,7 @@ Paths are repository-relative. Files marked **new** do not exist yet. For each l
 
 **Depends on:** 25.3 and Archive wording decision. **Spec:** §31–34, §52–55, §62–63.
 
-**Implementation plan:** [25.6-root-archive-and-reachable-undo.md](25.6-root-archive-and-reachable-undo.md). Implementation and diff review are complete; browser/MCP sign-off is blocked by missing workspace dependencies.
+**Implementation plan:** [25.6-root-archive-and-reachable-undo.md](25.6-root-archive-and-reachable-undo.md). Implementation and diff review are complete; the [dependency repair](25-dependency-repair.md) passed automated browser/MCP gates. Broader integrated/manual sign-off remains in 25.8.
 
 - Implemented **new** `packages/contracts/src/project-archive.ts` and `packages/domain/src/project-archive-service.ts`: root-tree archive query with explicit entity kind, origin, archive cause, and restore eligibility. The combined endpoint requires projects/tasks/reflections read permissions and adds no cascade semantics.
 - Reviewed the existing `project-service.ts`, `section-service.ts`, `task-service.ts` and `reflection-service.ts` restore rules; no domain mutation changes were needed. The UI and MCP project restore paths use explicit non-archived status selection, not guessed prior status, and retain independent archive markers.
@@ -171,7 +171,7 @@ Paths are repository-relative. Files marked **new** do not exist yet. For each l
 
 **Depends on:** 25.3 (including 25.1 completion semantics). **Spec:** §11–12, §36, §45, §52–55, §62–63.
 
-- Modify `packages/contracts/src/reflection.ts`, `inputs.ts`, `packages/repositories/src/data-store.ts`, `json-repositories.ts` for optional typed subject, root-tree integrity and filtering; legacy general reflections remain valid.
+- Modify `packages/contracts/src/reflection.ts`, `inputs.ts` and `packages/repositories/src/data-store.ts` for an optional typed subject and persistence integrity; `JsonReflectionRepository` already filters by owner, section and archive query, so it needs no change. Legacy general reflections remain valid.
 - Modify `packages/domain/src/reflection-service.ts`: same-root subject existence, eligible completion on new subject assignment, independent container ownership, and historical retention after reopen/archive. Inject task repository for validation; no new TaskService↔ReflectionService cycle. Subject picker requires projects/tasks read grants; create validates internally without unnecessarily requiring read grants in addition to reflections.write.
 - Wire host routes, gateways and `packages/mcp-tools/src/tools/reflections.ts`; update schema descriptions so agents can discover and attach subjects.
 - Add **new** `apps/web/src/app/features/projects/pages/reflections-page.{ts,html,scss}`, `reflections-page-store.ts`; adapt `sections/reflections/reflections-{section,store}.ts` to show subject identity/status and reuse composition controls. Register page; default composer explicitly resolves its page container. Feed aggregates reflections from Home, the Reflections page and descendant canvases without moving them.
@@ -179,6 +179,14 @@ Paths are repository-relative. Files marked **new** do not exist yet. For each l
 **Tests first:** `reflection can target completed task or subproject`; `unfinished/foreign/missing subject rejected`; `journal entry remains valid`; `subject does not change container ownership`; `reopened or archived subject keeps existing reflection visible with state`; `new write to archived owner refused`; `hidden page toggle preserves entries`; `agent write-only subject validation succeeds without leaking subject content`; `failed create leaves draft and no phantom row`.
 
 **Done when:** complete a task and nested subproject, write one reflection for each, view both alongside existing journals on root Reflections, and reopen a subject without losing history. Create a subject-linked reflection through MCP and observe the live UI update.
+
+**Implementation status:** complete in [the bounded phase plan](25.7-completed-work-reflections.md).
+Contracts, subject eligibility and retention, the repository-only journal projection, HTTP and MCP
+reads, the page gateway/store/composer, the Reflections renderer, and the existing canvas marker
+are implemented with targeted tests. The phase intentionally made no seed or JSON repository
+change. The [dependency repair follow-up](25-dependency-repair.md) restored the local toolchain
+and passed full tests, lint, builds, automated browser journeys and live MCP acceptance.
+25.8 retains the broader integrated/manual design evaluation and Storybook interaction sweep.
 
 ### 25.8 — Integrated acceptance and documentation closure
 
