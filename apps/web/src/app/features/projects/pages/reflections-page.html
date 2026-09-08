@@ -1,0 +1,132 @@
+<section class="reflections-page" data-reflections-page aria-labelledby="reflections-page-title">
+  <header class="reflections-page__header">
+    <div>
+      <p class="reflections-page__eyebrow">Project journal</p>
+      <h2 id="reflections-page-title">Reflections</h2>
+      <p class="reflections-page__description">
+        Notes from this project’s canvases, gathered in one chronology.
+      </p>
+    </div>
+    @if (!store.journalLoading() && store.items().length > 0) {
+      <span data-reflections-count class="reflections-page__count">{{ store.items().length }} entries</span>
+    }
+  </header>
+
+  @if (store.refreshError(); as error) {
+    <p data-reflections-refresh-error class="reflections-page__notice" role="status">
+      This journal may be out of date — {{ error }}
+    </p>
+    <button data-reflections-refresh-retry type="button" (click)="store.retryRefresh()">Retry journal read</button>
+  }
+
+  <section data-reflections-composer-region class="reflections-page__region" aria-labelledby="reflections-compose-title">
+    <div class="reflections-page__region-heading">
+      <h3 id="reflections-compose-title">Write a reflection</h3>
+      @if (store.container(); as container) {
+        <span data-reflections-container-name class="reflections-page__muted">{{ container.title ?? 'Reflections' }}</span>
+        @if (store.containerCount() > 1) {
+          <span data-reflections-container-note class="reflections-page__muted">
+            Other Reflections containers are included in the journal below.
+          </span>
+        }
+      }
+    </div>
+
+    @if (store.containerLoading()) {
+      <p data-reflections-container-loading class="reflections-page__muted">Loading the Reflections container…</p>
+    } @else if (store.containerError(); as error) {
+      <p data-reflections-container-error class="reflections-page__error" role="alert">{{ error }}</p>
+      <button data-reflections-container-retry type="button" (click)="store.retryContainer()">Try again</button>
+    } @else if (store.container(); as container) {
+      <app-reflection-composer
+        [readOnly]="pageWritesBlocked()"
+        [subject]="selectedSubject()"
+        [error]="store.writeError()"
+        (submitted)="create($event)"
+        (subjectRemoved)="removeSubject()"
+      />
+    } @else {
+      <p data-reflections-no-container class="reflections-page__muted">
+        This page has no Reflections container yet.
+      </p>
+      @if (!pageWritesBlocked()) {
+        <button data-reflections-add-container type="button" (click)="addContainer()" [disabled]="store.creatingContainer()">
+          {{ store.creatingContainer() ? 'Adding…' : 'Add reflections container' }}
+        </button>
+      }
+    }
+  </section>
+
+  <section data-reflections-picker class="reflections-page__region" aria-labelledby="reflections-picker-title">
+    <div class="reflections-page__region-heading">
+      <h3 id="reflections-picker-title">About completed work</h3>
+      <span class="reflections-page__muted">Optional</span>
+    </div>
+    @if (store.pickerLoading()) {
+      <p data-reflections-picker-loading class="reflections-page__muted">Loading completed work…</p>
+    } @else if (store.pickerError(); as error) {
+      <p data-reflections-picker-error class="reflections-page__error" role="alert">{{ error }}</p>
+      <button data-reflections-picker-retry type="button" (click)="store.retryCompletedWork()">Try again</button>
+    } @else {
+      <select data-reflections-subject-picker [value]="selectedSubject() ? subjectValue(selectedSubject()!) : ''" (change)="selectSubject($any($event.target).value)">
+        <option value="">No subject</option>
+        @for (candidate of store.candidates(); track subjectValue(candidate)) {
+          <option [value]="subjectValue(candidate)" [attr.data-subject-id]="candidate.id">{{ subjectLabel(candidate) }}</option>
+        }
+      </select>
+      @if (store.candidates().length === 0) {
+        <p data-reflections-picker-empty class="reflections-page__muted">No completed work is available to link yet.</p>
+      }
+    }
+  </section>
+
+  <section data-reflections-feed class="reflections-page__region" aria-labelledby="reflections-feed-title">
+    <div class="reflections-page__region-heading">
+      <h3 id="reflections-feed-title">Journal</h3>
+      <span class="reflections-page__muted">Newest first</span>
+    </div>
+    @if (store.journalLoading()) {
+      <p data-reflections-loading class="reflections-page__muted">Loading reflections…</p>
+    } @else if (store.journalError(); as error) {
+      <p data-reflections-error class="reflections-page__error" role="alert">{{ error }}</p>
+      <button data-reflections-retry type="button" (click)="store.retryJournal()">Try again</button>
+    } @else if (store.items().length === 0) {
+      <p data-reflections-empty class="reflections-page__muted">No reflections yet.</p>
+    } @else {
+      <ol class="reflections-page__feed">
+        @for (entry of store.items(); track entry.reflection.id) {
+          <li data-reflections-entry [attr.data-reflection-id]="entry.reflection.id">
+            <article>
+              <header>
+                <strong>{{ titleOf(entry) }}</strong>
+                <time [attr.datetime]="entry.reflection.createdAt">{{ entry.reflection.createdAt }}</time>
+              </header>
+              @if (entry.reflection.prompt) { <small>{{ entry.reflection.prompt }}</small> }
+              <p>{{ entry.reflection.body }}</p>
+              @if (subjectOf(entry); as subject) {
+                <p data-reflections-subject class="reflections-page__subject">
+                  About <strong>{{ subject.name }}</strong> · {{ subjectStatus(entry) }}
+                  @if (subject.archived) { · Archived }
+                  @if (subject.hiddenByArchivedAncestor) { · Hidden by an archived project }
+                </p>
+              } @else if (entry.reflection.subject) {
+                <p data-reflections-subject-unavailable class="reflections-page__muted">The linked work is no longer in this project tree.</p>
+              }
+              <a
+                data-reflections-owner-link
+                class="reflections-page__owner-link"
+                [routerLink]="ownerLink(entry)"
+                [fragment]="ownerFragment(entry)"
+              >
+                {{ entry.origin.breadcrumb[entry.origin.breadcrumb.length - 1]?.name }} · {{ entry.origin.sectionName }}
+              </a>
+              @if (entry.reflection.updatedAt !== entry.reflection.createdAt) {
+                <small>Edited <time [attr.datetime]="entry.reflection.updatedAt">{{ entry.reflection.updatedAt }}</time></small>
+              }
+            </article>
+          </li>
+        }
+      </ol>
+    }
+  </section>
+</section>

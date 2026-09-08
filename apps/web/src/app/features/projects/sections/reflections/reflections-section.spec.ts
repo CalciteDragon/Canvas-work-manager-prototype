@@ -75,7 +75,7 @@ describe('ReflectionsSection (§36)', () => {
       createdAt: '2026-08-24T16:00:00.000Z',
       updatedAt: '2026-08-24T16:00:00.000Z',
     });
-    const { fixture } = await render(new FakeWorkManagerGateway({ reflections: [older, reflection()] }));
+    const { fixture } = await render(new FakeWorkManagerGateway({ reflections: [reflection(), older] }));
 
     const options = [...fixture.nativeElement.querySelectorAll('[data-reflection-prompt] option')].map(
       (option: HTMLOptionElement) => option.textContent?.trim(),
@@ -134,6 +134,19 @@ describe('ReflectionsSection (§36)', () => {
     expect(query(fixture, '[data-reflection-create]')).toBeNull();
     expect(query(fixture, '[data-reflection-edit]')).toBeNull();
     expect(gateway.calls.filter(({ method }) => method === 'reflections.list').length).toBeGreaterThan(0);
+  });
+
+  it('marks a linked reflection without resolving or exposing its subject', async () => {
+    const { fixture, gateway } = await render(
+      new FakeWorkManagerGateway({
+        reflections: [reflection({ subject: { kind: 'task', id: 'task-completed' } })],
+      }),
+    );
+
+    expect(query(fixture, '[data-reflection-subject-linked]')?.textContent).toContain('About completed work');
+    expect(fixture.nativeElement.textContent).not.toContain('task-completed');
+    expect(gateway.calls.map(({ method }) => method)).not.toContain('tasks.get');
+    expect(gateway.calls.map(({ method }) => method)).not.toContain('journal.get');
   });
 
   it('re-reads on data revision but ignores hierarchy-only revision', async () => {

@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import {
   ProjectArchiveResultSchema,
+  ProjectCompletedWorkResultSchema,
+  ProjectJournalResultSchema,
   ResolvedSectionShortcutSchema,
   ShortcutSourceSchema,
   type CreateTaskInput,
@@ -783,5 +785,21 @@ describe('PrototypeWorkManagerGateway — project pages (§26)', () => {
     await expect(
       gateway().pages.setEnabled('project-1' as ProjectId, { kind: 'home', enabled: false }),
     ).rejects.toBeInstanceOf(GatewayError);
+  });
+});
+
+describe('PrototypeWorkManagerGateway — Reflections journal (§36)', () => {
+  it('reads the root journal projection and completed-work picker through separate routes', async () => {
+    fetchMock.mockImplementationOnce(jsonResponse(ProjectJournalResultSchema.parse({ projectId: 'project-1', items: [] })));
+    fetchMock.mockImplementationOnce(jsonResponse(ProjectCompletedWorkResultSchema.parse({ projectId: 'project-1', candidates: [] })));
+
+    const subject = gateway();
+    await expect(subject.journal.get('project-1' as ProjectId)).resolves.toMatchObject({ projectId: 'project-1', items: [] });
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/journal');
+    expect(lastCall().init.method).toBe('GET');
+
+    await expect(subject.journal.completedWork('project-1' as ProjectId)).resolves.toMatchObject({ projectId: 'project-1', candidates: [] });
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/completed-work');
+    expect(lastCall().init.method).toBe('GET');
   });
 });

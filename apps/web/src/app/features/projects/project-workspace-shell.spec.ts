@@ -225,12 +225,6 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
 describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
   it.each([
     [
-      'an enabled kind this build cannot draw',
-      '/projects/project-renovation/pages/reflections',
-      [page('page-renovation-home', 'project-renovation', 'home'), page('page-renovation-reflections', 'project-renovation', 'reflections')],
-      'not built yet',
-    ],
-    [
       'a disabled kind',
       '/projects/project-renovation/pages/todos',
       [page('page-renovation-home', 'project-renovation', 'home'), page('page-renovation-todos', 'project-renovation', 'todos', false)],
@@ -453,6 +447,18 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
       method: 'pages.setEnabled',
       argument: { projectId: RENOVATION.id, input: { kind: 'archive', enabled: true } },
     });
+  });
+
+  it('renders the enabled Reflections page through the page registry', async () => {
+    const { harness, router } = await open('/projects/project-renovation/pages/reflections', {
+      pages: [
+        page('page-renovation-home', 'project-renovation', 'home'),
+        page('page-renovation-reflections', 'project-renovation', 'reflections'),
+      ],
+    });
+
+    expect(router.url).toBe('/projects/project-renovation/pages/reflections');
+    expect(query(harness, '[data-reflections-page]')).not.toBeNull();
   });
 
   it('moves header progress when a row on the canvas changes, through the renderer’s callback', async () => {

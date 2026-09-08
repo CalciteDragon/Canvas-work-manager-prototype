@@ -68,7 +68,7 @@ describe('ReflectionsStore (§36)', () => {
     expect(store.reflections().map(({ id }) => id)).toEqual(['reflection-trailing']);
   });
 
-  it('loads its own container and sorts the response newest-first', async () => {
+  it('loads its own container and renders the gateway order without client sorting', async () => {
     const gateway = new FakeWorkManagerGateway({
       reflections: [
         reflection(),
@@ -84,7 +84,9 @@ describe('ReflectionsStore (§36)', () => {
       projectId: 'project-a',
       sectionId: section().id,
     });
-    expect(store.reflections().map(({ id }) => id)).toEqual(['reflection-new', 'reflection-a']);
+    // The domain/gateway owns chronology. The section must not apply a second, locale-sensitive
+    // ordering that could disagree with the root journal.
+    expect(store.reflections().map(({ id }) => id)).toEqual(['reflection-a', 'reflection-new']);
   });
 
   it('sends the section as a query filter beside the project, not in place of it', async () => {

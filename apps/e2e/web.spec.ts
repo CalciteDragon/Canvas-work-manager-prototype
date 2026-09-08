@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { seed, setClock } from './seed';
+import { PROTOTYPE_HOST, seed, setClock } from './seed';
 
 /**
  * §69's web path: load a seed, create a project, create a task, see it on the dashboard —
@@ -36,6 +36,20 @@ test('create a project, add a task list, add a task, and see it on Today', async
   await expect(page.locator('[data-project-name]')).toHaveText('Prototype review');
   await expect(page.locator('[data-project-status]')).toHaveText('planning');
   await expect(page.locator('[data-project]')).toHaveText('Prototype review');
+
+  // Slice 25.7's optional renderer is a persisted page capability, not a second canvas. Enable
+  // it through the host, visit the canonical route, and return to Home before continuing the
+  // existing task/archive journey.
+  const projectId = new URL(page.url()).pathname.split('/').at(-1)!;
+  const enabled = await page.request.patch(`${PROTOTYPE_HOST}/api/projects/${projectId}/pages/reflections`, {
+    headers: { 'content-type': 'application/json', 'x-prototype-user': 'user-demo' },
+    data: { enabled: true },
+  });
+  expect(enabled.ok()).toBe(true);
+  await page.goto(`/projects/${projectId}/pages/reflections`);
+  await expect(page.locator('[data-reflections-page]')).toBeVisible();
+  await page.goto(`/projects/${projectId}`);
+  await expect(page.locator('[data-project-name]')).toHaveText('Prototype review');
 
   // Quick add renders only under §32's Edit Layout Mode.
   await page.locator('[data-layout-edit-toggle]').click();

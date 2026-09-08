@@ -1,0 +1,22 @@
+@if (!readOnly()) {
+  <form #formElement data-reflection-create class="reflection-composer" (submit)="submit($any($event), body, title, prompt)">
+    <input data-reflection-title #title type="text" placeholder="Optional title" />
+    <select data-reflection-prompt #prompt>
+      <option value="">No prompt</option>
+      @for (item of prompts(); track item) {
+        <option [value]="item">{{ item }}</option>
+      }
+    </select>
+    <textarea data-reflection-body #body rows="3" placeholder="Write a reflection"></textarea>
+    @if (subject(); as selected) {
+      <div data-reflection-subject class="reflection-composer__subject">
+        <span>About {{ selected.name }}</span>
+        <button data-reflection-subject-remove type="button" (click)="subjectRemoved.emit()">Remove</button>
+      </div>
+    }
+    <button type="submit">Add reflection</button>
+  </form>
+}
+@if (error(); as message) {
+  <p data-reflection-compose-error class="reflection-composer__error" role="alert">{{ message }}</p>
+}

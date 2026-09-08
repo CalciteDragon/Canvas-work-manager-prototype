@@ -70,15 +70,13 @@ describe('ProjectPageNavigation (§23)', () => {
     const fixture = await render();
 
     expect(queryAll(fixture, '[data-project-page-tab]').map((tab) => tab.textContent?.replace(/\s+/g, ' ').trim()))
-      .toEqual(['🏠 Home', '🗓️ Todos', '🗄️ Archive']);
+      .toEqual(['🏠 Home', '🗓️ Todos', '🗄️ Archive', '📓 Reflections']);
     // Recursive, not one level: the `nested-projects` seed is three deep counting the root.
     expect(queryAll(fixture, '[data-work-project]').map((link) => link.querySelector('.name')?.textContent))
       .toEqual(['Kitchen', 'Cabinets', 'Garden']);
   });
 
-  // The rule the roadmap asks for: a page the root enabled but this build cannot draw is not
-  // advertised. `navigablePages` is the filter, and the column renders what it is handed.
-  it('advertises no page kind without a renderer, even when the root enabled it', async () => {
+  it('advertises enabled optional pages and filters disabled ones', async () => {
     // Parsed rather than cast, so the fixture cannot outlive the contract's shape.
     const enabled = ['home', 'reflections'].map((kind) =>
       ProjectPageSchema.parse({
@@ -90,11 +88,21 @@ describe('ProjectPageNavigation (§23)', () => {
         updatedAt: AT,
       }),
     );
+    enabled.push(
+      ProjectPageSchema.parse({
+        id: 'page-archive',
+        projectId: ROOT.id,
+        kind: 'archive',
+        enabled: false,
+        createdAt: AT,
+        updatedAt: AT,
+      }),
+    );
 
     const fixture = await render({ pages: navigablePages(enabled) });
 
     expect(queryAll(fixture, '[data-project-page-tab]').map((tab) => tab.dataset['pageKind']))
-      .toEqual(['home']);
+      .toEqual(['home', 'reflections']);
   });
 
   it('marks the open page with aria-current, and nothing else', async () => {

@@ -19,6 +19,8 @@ import type {
   ProjectQuery,
   ProjectSection,
   ProjectArchiveResult,
+  ProjectCompletedWorkResult,
+  ProjectJournalResult,
   ProjectTodosResult,
   Reflection,
   ReflectionId,
@@ -116,6 +118,12 @@ export interface TodosGateway {
 /** §31's whole-tree recovery projection. It is queryable whether Archive navigation is enabled. */
 export interface ArchiveGateway {
   get(projectId: ProjectId): Promise<ProjectArchiveResult>;
+}
+
+/** §36's root-wide journal and the completed-work picker used to compose into it. */
+export interface JournalGateway {
+  get(projectId: ProjectId): Promise<ProjectJournalResult>;
+  completedWork(projectId: ProjectId): Promise<ProjectCompletedWorkResult>;
 }
 
 export interface ReflectionGateway {
@@ -234,6 +242,7 @@ export interface WorkManagerGateway {
   timeline: TimelineGateway;
   todos: TodosGateway;
   archive: ArchiveGateway;
+  journal: JournalGateway;
   reflections: ReflectionGateway;
   agents: AgentGateway;
   activity: ActivityGateway;

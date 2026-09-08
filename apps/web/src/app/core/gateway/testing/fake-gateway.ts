@@ -9,6 +9,8 @@ import { ProjectSchema, type
   Identity,
   ProgressResult,
   ProjectArchiveResult,
+  ProjectCompletedWorkResult,
+  ProjectJournalResult,
   Project,
   ProjectId,
   ProjectPage,
@@ -36,6 +38,7 @@ import type {
   ActivityGateway,
   AgentGateway,
   ArchiveGateway,
+  JournalGateway,
   ProjectGateway,
   ProjectPageGateway,
   SectionGateway,
@@ -64,6 +67,9 @@ export interface FakeGatewayOptions {
   todos?: ProjectTodosResult;
   /** §31's whole-tree recovery projection. */
   archive?: ProjectArchiveResult;
+  /** §36's root-wide journal and completed-work picker. */
+  journal?: ProjectJournalResult;
+  completedWork?: ProjectCompletedWorkResult;
   reflections?: Reflection[];
   dashboard?: DashboardResult;
   agentConnections?: AgentConnection[];
@@ -211,6 +217,25 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     },
   };
 
+  readonly journal: JournalGateway = {
+    get: (projectId: ProjectId) =>
+      this.answer(
+        'journal.get',
+        projectId,
+        this.options.journal?.projectId === projectId
+          ? this.options.journal
+          : { projectId, items: [] },
+      ),
+    completedWork: (projectId: ProjectId) =>
+      this.answer(
+        'journal.completedWork',
+        projectId,
+        this.options.completedWork?.projectId === projectId
+          ? this.options.completedWork
+          : { projectId, candidates: [] },
+      ),
+  };
+
   readonly reflections = {
     // Archive filtering is faithful, not ignored: a store that forgot `includeArchived`
     // would otherwise pass here and show archived rows in a live section.
@@ -230,7 +255,16 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       // in for that rather than leaving the row unowned.
       id: 'reflection-created' as ReflectionId, sectionId: 'section-resolved' as SectionId, ...input, createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT,
     }),
-    update: (id: ReflectionId, input: Parameters<WorkManagerGateway['reflections']['update']>[1]) => this.answer('reflections.update', { id, input }, { ...this.find(this.options.reflections, id, 'reflection'), ...input, title: input.title === null ? undefined : input.title ?? this.find(this.options.reflections, id, 'reflection').title }),
+    update: (id: ReflectionId, input: Parameters<WorkManagerGateway['reflections']['update']>[1]) => {
+      const current = this.find(this.options.reflections, id, 'reflection');
+      const updated = { ...current };
+      if (input.title === null) delete updated.title;
+      else if (input.title !== undefined) updated.title = input.title;
+      if (input.body !== undefined) updated.body = input.body;
+      if (input.subject === null) delete updated.subject;
+      else if (input.subject !== undefined) updated.subject = input.subject;
+      return this.answer('reflections.update', { id, input }, updated);
+    },
     archive: (id: ReflectionId) =>
       this.answer('reflections.archive', id, {
         ...this.find(this.options.reflections, id, 'reflection'),

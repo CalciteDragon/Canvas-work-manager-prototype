@@ -1,0 +1,127 @@
+:host {
+  display: block;
+}
+
+.reflections-page {
+  display: grid;
+  gap: var(--space-5);
+  max-width: var(--layout-reading-width);
+  padding: var(--space-5);
+}
+
+.reflections-page__header,
+.reflections-page__region-heading,
+.reflections-page__feed article header {
+  display: flex;
+  gap: var(--space-3);
+  align-items: start;
+  justify-content: space-between;
+}
+
+.reflections-page__header {
+  gap: var(--space-4);
+}
+
+.reflections-page__eyebrow {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+}
+
+.reflections-page h2,
+.reflections-page h3 {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.reflections-page h2 {
+  font-size: var(--font-size-xl);
+}
+
+.reflections-page h3 {
+  font-size: var(--font-size-md);
+}
+
+.reflections-page__description,
+.reflections-page__muted,
+.reflections-page__notice,
+.reflections-page__error {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.reflections-page__error {
+  color: var(--color-danger);
+}
+
+.reflections-page__notice {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.reflections-page__count {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.reflections-page__region {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.reflections-page__feed {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reflections-page__feed article {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-inline-start: var(--border-focus) solid var(--color-accent);
+}
+
+.reflections-page__feed time,
+.reflections-page__feed small,
+.reflections-page__owner-link,
+.reflections-page__subject {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.reflections-page__feed p {
+  margin: 0;
+}
+
+.reflections-page__subject {
+  color: var(--color-text);
+}
+
+.reflections-page__feed a {
+  color: var(--color-accent);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 40rem) {
+  .reflections-page {
+    padding: var(--space-3);
+  }
+
+  .reflections-page__header,
+  .reflections-page__region-heading,
+  .reflections-page__feed article header {
+    flex-direction: column;
+  }
+}
