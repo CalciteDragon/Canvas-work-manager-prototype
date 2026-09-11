@@ -36,7 +36,9 @@ Its guiding trade-off:
 `pnpm docs:api` builds the API reference into `docs/api/` (git-ignored); the `how.md`
 files link into it by symbol. `pnpm docs:check`, part of `pnpm lint`, fails on a broken
 structure, a broken link, a symbol that no longer exists, an unindexed decision, or a
-stale board.
+stale board. `pnpm docs:site` serves all of it — these files, the architecture tree, the
+decisions and the roadmap — as a browsable site with search and rendered Mermaid
+([protocol §9](docs/documentation-protocol.md)); the Markdown remains the source of truth.
 
 ### Stack
 

@@ -32,3 +32,8 @@ Thumbs.db
 # Compodoc's generated API reference. `pnpm docs:api` rebuilds it from the sources; the
 # hand-written documentation under docs/ links into it by symbol name.
 docs/api/
+
+# The documentation site's build output and the Compodoc copy it serves.
+.vitepress/dist/
+.vitepress/cache/
+.vitepress/public/

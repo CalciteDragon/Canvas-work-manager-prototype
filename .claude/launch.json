@@ -36,6 +36,14 @@
         "storybook"
       ],
       "port": 6006
+    },
+    {
+      "name": "docs",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "docs:site"
+      ],
+      "port": 5173
     }
   ]
 }

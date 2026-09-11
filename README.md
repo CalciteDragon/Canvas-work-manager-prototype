@@ -183,10 +183,18 @@ pnpm e2e
 ## Documentation
 
 ```bash
+pnpm docs:site         # the documentation site at http://localhost:5173, with live reload
+pnpm docs:site:build   # build it, API reference included → .vitepress/dist/ (git-ignored)
+pnpm docs:site:preview # serve that build
 pnpm docs:api          # Compodoc API reference → docs/api/ (git-ignored)
 pnpm docs:api:serve    # the same, served at http://localhost:4320
 pnpm docs:check        # structure, links, symbols, roadmap board — also part of pnpm lint
 ```
+
+`pnpm docs:site` reads the same Markdown files, so nothing about writing documentation
+changes: it adds navigation, search and rendered Mermaid diagrams, and mounts the Compodoc
+reference at `/docs/api/`. Every push to `main` publishes it to GitHub Pages
+(`.github/workflows/docs.yml`).
 
 The hand-written documentation is a tree under [docs/architecture](docs/architecture/overview.md)
 that mirrors the systems of the repository — one folder per system, with an overview, the
