@@ -23,10 +23,16 @@
     "storybook:build": "pnpm --filter web storybook:build",
     "docs:api": "compodoc -p tsconfig.compodoc.json -d docs/api --silent --disableSourceCode",
     "docs:api:serve": "compodoc -p tsconfig.compodoc.json -d docs/api --silent --disableSourceCode -s -r 4320",
-    "docs:check": "node scripts/check-docs.mjs"
+    "docs:check": "node scripts/check-docs.mjs",
+    "docs:site": "node scripts/docs-site-assets.mjs && vitepress dev",
+    "docs:site:build": "pnpm docs:api && node scripts/docs-site-assets.mjs && vitepress build",
+    "docs:site:preview": "vitepress preview"
   },
   "devDependencies": {
     "@compodoc/compodoc": "2.0.0",
-    "typescript": "~6.0.2"
+    "mermaid": "^11.17.2",
+    "typescript": "~6.0.2",
+    "vitepress": "^1.6.4",
+    "vitepress-plugin-mermaid": "^2.0.17"
   }
 }

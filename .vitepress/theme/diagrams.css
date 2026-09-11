@@ -1,0 +1,15 @@
+/*
+ * Mermaid renders the architecture diagrams at their natural size — the domain's class
+ * diagram is a few thousand pixels wide — and scaling one to the column width makes its
+ * labels unreadable. So a wide diagram keeps its size and scrolls sideways in its own box,
+ * the way a wide code block or table does.
+ */
+.vp-doc .mermaid {
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.vp-doc .mermaid svg {
+  max-width: none !important;
+  height: auto;
+}
