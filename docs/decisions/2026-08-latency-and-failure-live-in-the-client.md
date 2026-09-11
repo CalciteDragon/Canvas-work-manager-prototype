@@ -2,7 +2,7 @@
 
 **Question**
 
-`development.md`'s Slice 12 build list asks for "Host endpoints backing it: load seed,
+the build order's Slice 12 build list asks for "Host endpoints backing it: load seed,
 reset, set simulated date, **set latency, set failure rate**". §46 lists Network Delay and
 Failure Rate among the panel's controls, and §63 says "the development panel's failure
 injection should test these flows" — meaning the optimistic paint-then-revert. Where does
@@ -56,7 +56,7 @@ loading state §46 most wants to evaluate, and it is currently never delayed.
 
 **Host owns** seed, simulated date, AI provider and note capture — the things with no
 client-side existence. **Client owns** network delay, failure rate, feature flags and theme.
-`development.md`'s Slice 12 *Build* bullet was edited in the same change to say so, rather
+the build order's Slice 12 *Build* bullet was edited in the same change to say so, rather
 than left standing as a superseded instruction.
 
 **Confidence**

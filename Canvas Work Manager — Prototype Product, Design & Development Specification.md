@@ -3251,7 +3251,7 @@ pnpm test
 End-to-end:
 
 ```text
-pnpm test:e2e
+pnpm e2e
 ```
 
 ---
@@ -3571,7 +3571,7 @@ Do not automatically implement everything in the original product idea.
 One direction has been raised by the user that takes priority over that list: a single canvas
 per project conflates *a place to work* with *a piece of work*. The multi-page root and the
 subproject work unit described in §23, §26–27, §30–32, §34, §36 and §54 are the answer being
-tested, staged as Slices 25.0–25.8 in `development.md`. The candidates above wait behind it.
+tested, staged as Slices 25.0–25.8 in `docs/roadmap/` (see `docs/roadmap/progress.md`). The candidates above wait behind it.
 
 It is worth being honest about which kind of input this was. It is a **user-requested
 direction**, not a finding the prototype produced by being used — the distinction §77 and §79

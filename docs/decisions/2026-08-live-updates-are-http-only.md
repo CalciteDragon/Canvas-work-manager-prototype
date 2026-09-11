@@ -18,7 +18,7 @@ completed by `pnpm mcp:stdio` tick the checkbox in a running UI?
 
 `pnpm mcp:stdio` is a separate OS process with its own `JsonDataStore`. Slice 15 already
 documented the consequence — two processes with independently cached documents can lose each
-other's writes — and `docs/mcp-setup.md` already tells the reader to use the HTTP transport
+other's writes — and `docs/guides/mcp-setup.md` already tells the reader to use the HTTP transport
 whenever the UI is open. Live updates do not add a *new* limitation; they add a second,
 much more visible symptom of the one that is already there.
 
@@ -37,7 +37,7 @@ does not recommend.
 
 - §62's stream is a property of the HTTP transport. One process owns the document and the
   hub; the browser and the HTTP MCP endpoint are both clients of it (§6's diagram, exactly).
-- `docs/mcp-setup.md` says so, beside the existing concurrency guidance.
+- `docs/guides/mcp-setup.md` says so, beside the existing concurrency guidance.
 - `pnpm mcp:stdio` remains the way to point a client at the workspace when the UI is *not*
   open — which is what it is for.
 

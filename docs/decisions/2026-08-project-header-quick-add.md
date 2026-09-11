@@ -1,5 +1,10 @@
 # The project header's Quick Add adds a section
 
+> **Amended since (noted 2026-09-10).** "The header's More control is inert" stopped being true
+> in Slice 17, when
+> [the project create/edit/archive surface](2026-08-project-create-edit-archive-surface.md)
+> gave More its Rename, Status, Target date and Archive controls.
+
 > **Superseded in part, Slice 25.3.** *What* Quick Add adds is unchanged and still current: a
 > section. *Where it lives* is not — a root now has several canvases and one header, so it moved
 > to the canvas controls row beside Edit Layout, and §26's header list was amended to match. See

@@ -56,5 +56,5 @@ the browser with `PORT=4200` still set in the environment.
 **Revisit when**
 
 Slice 15 adds the MCP endpoint on the same host. If a client ever needs the host somewhere
-other than 4310, this is the variable it will use — and `docs/mcp-setup.md` should name it
+other than 4310, this is the variable it will use — and `docs/guides/mcp-setup.md` should name it
 rather than `PORT`.

@@ -1,5 +1,13 @@
 # Task status transitions, `completedAt`, and how a task is archived
 
+> **Amended since (noted 2026-09-10).** The archive undo this entry left open exists since the
+> archive phase: `TaskService.restore` clears `archivedAt`, and an archive cascades to live
+> descendants under `archivedWithTaskId` with restore as its mirror
+> ([what undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md)).
+> Tasks also name the section that owns them
+> ([sections own their data](2026-09-sections-own-their-data.md)). Move-to-project is still
+> refused and still belongs to Slice 20.
+
 **Question**
 
 §33 names five task statuses and a `completedAt`, but no rules: which transitions are
@@ -20,7 +28,7 @@ None in use yet — the API is one day old. Considered, and one reversed during 
   confirmation rules, and §54's initial MCP tools have no `archive_task` at all. The rule
   it forces — "an archived task cannot be completed" — becomes incomprehensible to a user
   who cancelled a task deliberately and now cannot finish it.
-- *Drop `TaskService.archive` from this slice.* Rejected: `development.md`'s build list
+- *Drop `TaskService.archive` from this slice.* Rejected: the build order's build list
   names it, and §9 pins it on the gateway Slice 6 builds against.
 - *A full transition table between the five statuses.* Rejected: §83 asks which statuses
   are useful, and a table invented before anyone has used them prejudges the answer.
@@ -48,7 +56,7 @@ name matching it (`archive()`) is decorative when the exposed route is `PATCH`.
   `task.archived`, everything else `task.updated`. §57's feed renders the verb, so
   "updated" for a completion would be a visible loss.
 - **Moving a task between projects is refused** with a `DomainRuleError`.
-  `UpdateTaskInputSchema` carries `projectId`, but `development.md` gives move-to-project
+  `UpdateTaskInputSchema` carries `projectId`, but the build order (now `docs/roadmap/completed/`) gives move-to-project
   to Slice 20 along with the parent/child semantics that make it hard. Slice 5 owes only
   that it must not corrupt the document — `validateDocumentIntegrity` fails a subtask
   whose parent sits in another project. Refusing beats removing the field: these schemas

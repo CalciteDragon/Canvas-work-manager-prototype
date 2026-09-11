@@ -154,7 +154,7 @@ within the owning root tree and **separate from container ownership**. The compl
 composer requires a currently-completed subject; general journal entries remain first-class.
 A reflection survives its subject being reopened or archived and shows the current state.
 
-The full staging is `docs/plans/25-multi-page-projects-overhaul.md`, Slices 25.0–25.8. A page
+The full staging is `docs/roadmap/completed/25-multi-page-projects-overhaul.md`, Slices 25.0–25.8. A page
 is never a permission bypass: layout access does not grant content, and a combined query needs
 every grant it returns.
 

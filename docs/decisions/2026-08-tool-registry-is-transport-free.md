@@ -25,7 +25,7 @@ port") is satisfiable without any of it. `@modelcontextprotocol/sdk` is in `pnpm
 only as Angular CLI's transitive dependency, at v1.30.0; nothing in this workspace imports it.
 
 The cost is honest and bounded: **three obligations move to Slice 15**, and are written into
-its `development.md` entry rather than left implied.
+its build-order entry rather than left implied.
 
 - **`tools/list`.** This slice asserts the registry's *name set* against `SPEC_TOOL_NAMES`;
   the protocol response is the handler's.
@@ -79,7 +79,7 @@ registry test assert against one list across a boundary that does not exist yet.
 
 **Confidence**
 
-High on the SDK deferral — the slice boundary is explicit in `development.md`, and nothing
+High on the SDK deferral — the slice boundary is explicit in the build order (now `docs/roadmap/completed/`), and nothing
 in the registry will have to change to be served. Medium on the unfiltered `tools/list`: it
 is the right answer for a prototype whose point is to watch agents discover the permission
 model, but a production tool list that advertises fourteen tools an agent can call three of

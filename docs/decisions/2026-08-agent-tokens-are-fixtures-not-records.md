@@ -49,4 +49,4 @@ High. This is throwaway prototype auth (§71) and the shape is doing the one job
 
 Slice 15 points a real MCP client at the host and someone has to get a token out of the
 panel and into a client config. If copy-and-paste from the roster is awkward,
-`docs/mcp-setup.md` may want the tokens written out instead.
+`docs/guides/mcp-setup.md` may want the tokens written out instead.

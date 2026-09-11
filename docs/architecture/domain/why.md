@@ -1,0 +1,116 @@
+# Why the domain exists
+
+## The problem it solves
+
+Three callers change the workspace — a person in the browser, an agent over MCP, and the
+development panel — and §57 requires each change to be attributed and §53 requires each
+agent change to be permitted. If the rules lived in routes, the tool layer would need a
+copy; if they lived in tools, the UI would; and the copy nobody tested would be the one
+that drifted. §12 puts every rule in one package that none of the three transports can
+bypass, and §70 says that package is what survives into the MVP.
+
+## Forces
+
+- **Reusable means transport-free.** A service that imported `fs`, `fetch` or a JSON
+  adapter would be a service the MVP could not lift out. The import allowlist exists so
+  that this is checked rather than hoped.
+- **Time must be injectable** (§45): "Friday afternoon" and "deadline tomorrow" are
+  scenarios the dev panel sets, and a frozen clock in tests must be a real, running one in
+  the host — so there is one `Clock` interface and two implementations.
+- **Agents change the threat model of a permission check.** An agent that could edit its
+  own connection could grant itself what it was just denied; write paths that look their
+  targets up must not demand a read grant the caller was not given.
+- **The document is one file**, so every derived page can afford to walk the whole
+  workspace, and none of them should store a projection that could go stale.
+
+## The shape, and the alternatives rejected
+
+**Services take repository interfaces and a `Clock`, and compose each other only along
+acyclic edges.** `TaskService` and `ReflectionService` compose `SectionService` to resolve
+a container; `SectionService` holds repositories and never a row service. Rejected: a
+service locator or a global unit of work — either would hide the edges the lint checks.
+
+**Permissions live on the actor** and are asserted inside the domain, not at the transport
+([decision](../../decisions/2026-08-permissions-live-on-the-actor.md)). `AgentConnectionService`
+is user-actors-only and there is no `agents.*` permission. Each service has a private
+unchecked lookup for its own write paths, so a `tasks.write`-only grant is usable.
+
+**Workspace scoping is applied last and a foreign id is 404** — never 409, so a refusal
+cannot confirm that someone else's project exists
+([decision](../../decisions/2026-08-workspace-scoping-and-not-found.md)).
+
+**Archive is a field, not a status; removal archives, restore is exact.** `archivedAt` on
+tasks, reflections and sections, with `archivedWithSectionId` / `archivedWithTaskId`
+marking what one operation took down so that restore brings back exactly that and nothing
+independently archived ([decision](../../decisions/2026-09-what-undo-means-for-an-archived-row.md)).
+Nothing hard-deletes except a shortcut placement.
+
+**Archiving a project reaches down without cascading.** A project with a live child
+refuses to archive; live work beneath an archived ancestor is hidden from ordinary reads
+and cannot be newly created or reactivated there. The rule is pure functions over the
+project list (`project-visibility.ts`) so every read model shares one answer
+([decision](../../decisions/2026-09-reactivating-under-an-archived-ancestor.md)).
+
+**Combined reads assert every grant they return.** `get_project_todos`, the Archive and
+the journal need more than one read permission and are refused outright rather than
+answering with the half they were allowed — and `WorkspaceService` exists because
+composing checked services would have demanded three grants where §53 offers one
+([decision](../../decisions/2026-08-workspace-tools-need-their-own-service.md)).
+
+**Live frames ride the activity record.** Emission is in `ActivityService.record`, held
+until commit, so it is at most one frame per operation and never one for a no-op
+([decision](../../decisions/2026-08-live-events-ride-the-activity-record.md)).
+
+**Instants are compared as text.** `IsoDateTimeSchema` permits omitted seconds and
+fractions of any length; `Date.parse` would collapse distinct values. `Instant` splits an
+ISO string so ordering stays lossless without a clock or timezone
+([decision](../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)).
+
+## Consequences
+
+- Adding a rule is one failing domain test and one service edit; every transport gets it.
+- A domain test needs no server, no file and no browser: an `InMemoryDataStore`, a
+  `PrototypeClock` and an actor.
+- The domain cannot express "who is asking" beyond the actor it is handed. The host and
+  the stdio process construct actors; a mismatched pair is caught only at commit by
+  document integrity (the `workspace-scoping` entry's *revisit when*).
+- Derived pages recompute on every read. On a JSON document this is fine; it is also
+  why `projectId` stays on rows beside `sectionId` rather than being derived through a
+  join.
+
+## Decisions that shape this system
+
+Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
+
+- [Root Archive recovery guidance](../../decisions/2026-09-root-archive-recovery-guidance.md)
+- [Reflection subjects and the root journal feed](../../decisions/2026-09-reflection-subjects-and-the-journal-feed.md)
+- [What the Todos page decides for itself](../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)
+- [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)
+- [A shortcut resolves source identity, not source content](../../decisions/2026-09-a-shortcut-resolves-identity-not-content.md)
+- [Live work under an archived ancestor is hidden, and cannot be newly created](../../decisions/2026-09-reactivating-under-an-archived-ancestor.md)
+- [Reassigning a container's rows may cross pages within a project](../../decisions/2026-09-reassign-may-cross-pages.md)
+- [A disabled page refuses new content and keeps everything already on it](../../decisions/2026-09-a-disabled-page-hides-navigation-not-data.md)
+- [A root's optional pages are created on first enable](../../decisions/2026-09-optional-pages-are-created-on-first-enable.md)
+- [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md)
+- [What undo means for an archived row](../../decisions/2026-09-what-undo-means-for-an-archived-row.md)
+- [A section has a name, and the default is derived rather than stored](../../decisions/2026-09-a-section-has-a-name.md)
+- [Container sections own their rows; view sections own nothing](../../decisions/2026-09-sections-own-their-data.md)
+- [Where a live event is emitted, and when it is delivered](../../decisions/2026-08-live-events-ride-the-activity-record.md)
+- [A section's activity event names its project, not the section](../../decisions/2026-08-section-activity-targets-the-project.md)
+- [What counts as AI in the prototype](../../decisions/2026-08-prototype-ai-scope-and-fun-fact.md)
+- [Reflections use reverse chronology and optional prompts](../../decisions/2026-08-reflection-chronology-and-prompts.md)
+- [Timeline derives ranges without inventing a project start date](../../decisions/2026-08-timeline-range-semantics.md)
+- [Progress formulas are selectable per project](../../decisions/2026-08-progress-formula-experiment.md) · [Project progress has one canonical formula](../../decisions/2026-08-project-progress-count-based.md)
+- [Why `workspace.read` needed a service of its own](../../decisions/2026-08-workspace-tools-need-their-own-service.md)
+- [How §53's "Last used" is recorded](../../decisions/2026-08-last-used-is-a-throttled-write.md)
+- [Where the agent permission model is enforced](../../decisions/2026-08-permissions-live-on-the-actor.md)
+- [Workspace scoping, and why a foreign id is 404 rather than 409](../../decisions/2026-08-workspace-scoping-and-not-found.md)
+- [Task status transitions, `completedAt`, and how a task is archived](../../decisions/2026-08-task-status-transitions-and-archive.md)
+- [Project nesting rules and what archiving a parent does](../../decisions/2026-08-project-nesting-and-archive-rules.md)
+
+## Spec sections
+
+§12 domain package · §27 who owns what and where a write lands · §31 archive · §33–§34
+tasks and the Todos page · §36 reflections and the journal · §38–§39 timeline and
+progress · §40 search · §42–§43 AI · §45 time · §53 permissions · §57 activity · §62
+live-update emission.

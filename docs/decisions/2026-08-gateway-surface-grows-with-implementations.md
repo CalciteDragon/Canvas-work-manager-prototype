@@ -31,7 +31,7 @@ one. `create`/`update` wait for the UI that writes.
 
 `TaskGateway` is the deliberate exception to that inward rule, and two reviewers
 questioned it. It is implemented in full with no caller, because §9 pins it and
-`development.md` names tasks explicitly. The cost is four methods with tests and no UI for
+the build order (now `docs/roadmap/completed/`) names tasks explicitly. The cost is four methods with tests and no UI for
 one slice; the alternative is diverging from both authoritative documents to save them.
 
 **Current decision**

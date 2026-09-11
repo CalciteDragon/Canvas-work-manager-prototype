@@ -1,5 +1,14 @@
 # Project nesting rules and what archiving a parent does
 
+> **Extended since (noted 2026-09-10).** These rules still hold. The 25.x overhaul added on top
+> of them: a root has no parent and a subproject must have one
+> ([project workspaces and subproject work units](2026-09-project-workspaces-and-subproject-work-units.md));
+> live work beneath an archived ancestor is hidden from ordinary reads and cannot be newly
+> created or reactivated there
+> ([reactivating under an archived ancestor](2026-09-reactivating-under-an-archived-ancestor.md));
+> and recovery happens on a root-wide Archive page
+> ([root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md)).
+
 **Question**
 
 §26 gives projects a `parentProjectId` and §83 asks whether nesting is worth keeping at

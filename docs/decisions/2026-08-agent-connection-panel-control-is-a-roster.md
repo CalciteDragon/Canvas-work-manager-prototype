@@ -51,5 +51,5 @@ straight to that connection in Settings, which was noted as friction while using
 **Revisit when**
 
 Slice 15, when a real MCP client is being configured for the first time — that is the moment
-this control either pays for itself or turns out to want the whole `docs/mcp-setup.md`
+this control either pays for itself or turns out to want the whole `docs/guides/mcp-setup.md`
 snippet on the clipboard rather than a bare token.
