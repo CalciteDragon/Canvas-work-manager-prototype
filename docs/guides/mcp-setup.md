@@ -130,7 +130,7 @@ An agent that names the sections it creates is the difference between a legible 
 seven identical frames — a person looking at three `Task List` headers cannot tell which one
 an agent filled. Note that `list_sections` returns the stored `title` and not a resolved
 name, so a section with no `title` has no name in the tool output to read back; that is
-deliberate ([why](decisions/2026-09-a-section-has-a-name.md)).
+deliberate ([why](../decisions/2026-09-a-section-has-a-name.md)).
 
 ### Say which kind of project, and which page
 
@@ -241,7 +241,7 @@ endpoint share one process, so an agent's write over `/mcp` appears in an open p
 second. A stdio process owns a separate store and cannot reach the running host's event
 stream, so its writes leave the UI unchanged — the visible symptom of the same limitation
 above. Use HTTP whenever the UI is open
-([why](decisions/2026-08-live-updates-are-http-only.md)).
+([why](../decisions/2026-08-live-updates-are-http-only.md)).
 
 ## Verify and troubleshoot
 

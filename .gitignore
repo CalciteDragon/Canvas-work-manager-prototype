@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Build output
 dist/
@@ -23,6 +24,11 @@ apps/e2e/playwright-report/
 
 # Editors / OS
 .idea/
+.claude/settings.local.json
 .DS_Store
 Thumbs.db
 *.log
+
+# Compodoc's generated API reference. `pnpm docs:api` rebuilds it from the sources; the
+# hand-written documentation under docs/ links into it by symbol name.
+docs/api/

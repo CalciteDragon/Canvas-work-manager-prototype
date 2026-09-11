@@ -12,17 +12,21 @@
     "dev:web": "pnpm --filter web start",
     "dev:host": "pnpm --filter @cwm/prototype-host dev",
     "build": "pnpm -r --if-present build",
-    "test": "pnpm -r --if-present test",
-    "lint": "pnpm -r --if-present lint",
+    "test": "node --test scripts/roadmap.test.mjs scripts/check-docs.test.mjs && pnpm -r --if-present test",
+    "lint": "pnpm -r --if-present lint && node scripts/check-docs.mjs",
     "prototype:seed": "pnpm --filter @cwm/prototype-data seed",
     "prototype:reset": "pnpm --filter @cwm/prototype-data seed personal-workspace",
     "prototype:upgrade": "pnpm --filter @cwm/prototype-data upgrade-data",
     "mcp:stdio": "pnpm --silent --filter @cwm/prototype-host mcp:stdio",
     "e2e": "pnpm --filter @cwm/e2e e2e",
     "storybook": "pnpm --filter web storybook",
-    "storybook:build": "pnpm --filter web storybook:build"
+    "storybook:build": "pnpm --filter web storybook:build",
+    "docs:api": "compodoc -p tsconfig.compodoc.json -d docs/api --silent --disableSourceCode",
+    "docs:api:serve": "compodoc -p tsconfig.compodoc.json -d docs/api --silent --disableSourceCode -s -r 4320",
+    "docs:check": "node scripts/check-docs.mjs"
   },
   "devDependencies": {
+    "@compodoc/compodoc": "2.0.0",
     "typescript": "~6.0.2"
   }
 }

@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "experimentalDecorators": true,
+    "baseUrl": "."
+  },
+  "include": [
+    "apps/web/src/**/*.ts",
+    "apps/prototype-host/**/*.ts",
+    "packages/*/src/**/*.ts"
+  ],
+  "exclude": [
+    "**/node_modules/**",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.stories.ts",
+    "**/testing/**",
+    "**/test/**",
+    "**/dist/**",
+    "apps/web/storybook-static/**"
+  ]
+}

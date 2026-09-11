@@ -19,9 +19,10 @@ import type { StorybookConfig } from '@storybook/angular-vite';
  * whole workspace off `vitest@4`. `play` functions run in the Storybook UI without it.
  */
 const config: StorybookConfig = {
-  // Compodoc is off: it is a separate CLI this repository does not install, and with it on
-  // (the default) every start fails with `Command "compodoc" not found` before Vite runs.
-  // What it buys is auto-generated argTypes documentation, which these stories do not need.
+  // Compodoc is off here. The repository does install it — `pnpm docs:api` builds the API
+  // reference under docs/api/ from the whole workspace — but Storybook only uses it for
+  // auto-generated argTypes documentation, which these stories do not need, and with it on
+  // (the default) every start would pay a full compodoc pass before Vite runs.
   framework: { name: '@storybook/angular-vite', options: { compodoc: false } },
   stories: ['../src/**/*.stories.ts'],
   addons: ['@storybook/addon-themes'],
