@@ -20,7 +20,7 @@ completed implementation experiment.
 
 **Current decision**
 
-Open [Slice 27](../roadmap/planned/27-direct-canvas-editing.md) with the approved feature
+Open [Slice 27](../roadmap/active/27-direct-canvas-editing.md) with the approved feature
 specification before writing an implementation plan. It is the authoritative record of
 the accepted interactions and acceptance criteria. Keep the existing 4/6/8/12 widths and
 ordered, wrapping layout; empty areas offer insertion rather than reserved cells. Preserve

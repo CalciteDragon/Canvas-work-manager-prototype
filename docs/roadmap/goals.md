@@ -53,10 +53,10 @@ would implement and the scope guards it inherits.
 
 ## Now
 
-**Next development chunk: [Slice 27 — Direct canvas editing and navigation cleanup](planned/27-direct-canvas-editing.md).**
+**Active: [Slice 27 — Direct canvas editing and navigation cleanup](active/27-direct-canvas-editing.md).**
 The user approved its feature specification and recommendations on 2026-09-13, including
-the existing width snaps and wrapping-grid insertion. It is recorded in `planned/`;
-implementation planning has not started. The [decision](../decisions/2026-09-direct-canvas-editing-direction.md)
+the existing width snaps and wrapping-grid insertion. The slice started the same day; its
+implementation plan is in `active/`. The [decision](../decisions/2026-09-direct-canvas-editing-direction.md)
 records the direction without claiming the new behavior is implemented.
 
 **Use the prototype.** The standing instruction since Slice 17, restated after 25.8: load a
