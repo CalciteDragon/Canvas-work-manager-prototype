@@ -98,6 +98,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 | Entry | Settled | Status |
 |---|---|---|
+| [Direct canvas editing is the next development direction](2026-09-direct-canvas-editing-direction.md) | Approved Slice 27 specification; contextual controls and existing width snaps | approved direction; not implemented |
 | [The gateway interface grows with its implementations](2026-08-gateway-surface-grows-with-implementations.md) | No stubbed gateway members | current |
 | [A theme change lasts the session, not the persona](2026-08-theme-selection-is-session-only.md) | `ThemeService` owns `data-theme`; nothing persists it | current |
 | [How live reconnects recover derived project views](2026-08-live-recovery-invalidates-derived-views.md) | Reconnect invalidates derived reads quietly | current |

@@ -96,6 +96,7 @@ opens a collapsed target through a transient input that leaves the record alone
 
 ## Decisions that shape this system
 
+- [Direct canvas editing is the next development direction](../../../decisions/2026-09-direct-canvas-editing-direction.md) (approved scope for Slice 27; not implemented)
 - [Flow and grid both remain prototype layout candidates](../../../decisions/2026-08-flow-vs-grid-layout-experiment.md)
 - [View Mode shows work; Edit Layout Mode shows canvas chrome](../../../decisions/2026-08-view-mode-section-chrome.md)
 - [The project header's Quick Add adds a section](../../../decisions/2026-08-project-header-quick-add.md) (amended)

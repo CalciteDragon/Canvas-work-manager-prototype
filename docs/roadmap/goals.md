@@ -53,6 +53,12 @@ would implement and the scope guards it inherits.
 
 ## Now
 
+**Next development chunk: [Slice 27 — Direct canvas editing and navigation cleanup](planned/27-direct-canvas-editing.md).**
+The user approved its feature specification and recommendations on 2026-09-13, including
+the existing width snaps and wrapping-grid insertion. It is recorded in `planned/`;
+implementation planning has not started. The [decision](../decisions/2026-09-direct-canvas-editing-direction.md)
+records the direction without claiming the new behavior is implemented.
+
 **Use the prototype.** The standing instruction since Slice 17, restated after 25.8: load a
 realistic seed, do real work in it, drive it through a real MCP client, and write the
 friction down in `.prototype/notes.json` (§79). The next slice is chosen from that friction.
