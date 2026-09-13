@@ -3,22 +3,22 @@
 ## Structure
 
 ```mermaid
-flowchart TB
+flowchart LR
   subgraph ports["Interfaces (what the app depends on)"]
-    gw["WorkManagerGateway + 14 sub-interfaces<br/>WORK_MANAGER_GATEWAY"]
     id["IdentityProvider<br/>IDENTITY_PROVIDER"]
     lu["LiveUpdates<br/>LIVE_UPDATES (inert default)"]
+    gw["WorkManagerGateway + 14 sub-interfaces<br/>WORK_MANAGER_GATEWAY"]
     err["GatewayError"]
   end
   subgraph adapters["Prototype adapters (the only transport-aware files)"]
-    pgw["PrototypeWorkManagerGateway<br/>fetch, URLs, envelope → GatewayError, delay/failure injection"]
     pid["PrototypeIdentityProvider<br/>GET /api/me"]
-    plu["PrototypeLiveUpdates<br/>EventSource, exponential reconnect"]
+    pgw["PrototypeWorkManagerGateway<br/>fetch, URLs, envelope → GatewayError, delay/failure injection"]
     cfg["PROTOTYPE_API_BASE_URL"]
+    plu["PrototypeLiveUpdates<br/>EventSource, exponential reconnect"]
   end
   subgraph settings["Settings and theme"]
-    ps["PrototypeSettings<br/>flags, delay, failure — sessionStorage"]
     th["ThemeService<br/>data-theme on html"]
+    ps["PrototypeSettings<br/>flags, delay, failure — sessionStorage"]
   end
   subgraph shell["Shell"]
     as["AppShell"]
@@ -52,12 +52,12 @@ sequenceDiagram
   participant S as Feature store
   participant G as WORK_MANAGER_GATEWAY
   participant L as LIVE_UPDATES
-  P->>S: provided at the page; load()
+  P->>S: provided at the page, load()
   S->>G: tasks.list(query)
   G-->>S: Task[] or GatewayError
   S->>L: subscribe(listener)
   L-->>S: frame { type, projectId, rootProjectId }
-  S->>S: route; if pendingWrites > 0 defer; else quiet re-read
+  S->>S: route, if pendingWrites > 0 defer, else quiet re-read
   S->>G: tasks.list(query)
 ```
 

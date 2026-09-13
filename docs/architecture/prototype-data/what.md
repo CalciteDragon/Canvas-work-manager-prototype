@@ -3,7 +3,7 @@
 ## Structure
 
 ```mermaid
-flowchart LR
+flowchart TB
   subgraph src["packages/prototype-data/src"]
     personas["personas.ts<br/>PERSONAS: Demo User, Alex, Sam"]
     tokens["agent-tokens.ts<br/>token → connection id"]
@@ -12,16 +12,16 @@ flowchart LR
     upgrade["upgrade-project-pages.ts<br/>upgradeProjectPages (v2 → v3)"]
     upcli["upgrade-cli.ts"]
   end
+  contracts["@cwm/contracts<br/>PrototypeDocumentSchema"]
   snapshots["prototype/seeds/*.json<br/>committed, byte-compared"]
   data[".prototype/data.json"]
-  contracts["@cwm/contracts<br/>PrototypeDocumentSchema"]
   store["@cwm/repositories<br/>JsonDataStore"]
   seeds --> personas
   seeds --> tokens
   seeds --> contracts
   seedcli --> seeds
-  seedcli --> store
   seedcli --> data
+  seedcli --> store
   upcli --> upgrade
   upgrade --> contracts
   seeds -. "snapshot" .-> snapshots

@@ -115,6 +115,12 @@ Mermaid, inline, rendered by GitHub and most editors. C4 diagrams use Mermaid's 
 under the name shown. Keep diagrams small enough to read without zooming; split rather
 than crowd.
 
+Mind the punctuation. In a `sequenceDiagram`, `;` separates statements, so a semicolon
+inside a message ends the message and the rest is read as syntax — use a comma or an em
+dash. A diagram that fails to parse does not show an error on the site: the container is
+left empty and the page renders a heading followed by blank space. `docs:check` parses
+every fence for exactly this reason.
+
 ---
 
 ## 4. Compodoc — the API reference
@@ -227,6 +233,7 @@ on any of these; `pnpm lint` includes it.
 | Roadmap markers well-formed, status matches folder, ids unique, board in sync, completed records have written prose under `## Outcome` | A plan in the wrong state; a stale board |
 | `docs/decisions/README.md` lists every entry; every entry has the six §78 sections | An unindexed or malformed decision |
 | Templates present | A protocol nobody can follow |
+| Every Mermaid fence parses, using the same mermaid the site renders with | A diagram that silently renders as blank space |
 
 What it cannot catch — and what review must: prose that describes a behaviour the code no
 longer has. Reviewers (AGENTS.md step 4) check the touched systems' four files against the

@@ -36,7 +36,7 @@ sequenceDiagram
   C->>H: POST /mcp (Authorization: Bearer …)
   H->>H: Host/Origin localhost? else 403
   H->>A: authenticate(token)
-  A->>A: token → connectionId; read live connection; revoked/absent → 401
+  A->>A: token → connectionId, read live connection, revoked/absent → 401
   A-->>H: agent ActorContext { permissions }
   H->>S: handle(request, actor)
   S->>R: call(name, input, { actor })

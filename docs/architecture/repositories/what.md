@@ -50,7 +50,7 @@ sequenceDiagram
   D->>F: write temp file, rename over data.json
   D->>D: release held live frames
   D-->>S: result
-  Note over D: any throw discards provisional state; a stale or outside write is rejected
+  Note over D: any throw discards provisional state, a stale or outside write is rejected
 ```
 
 ## Inventory
