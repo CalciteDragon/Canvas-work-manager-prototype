@@ -11,6 +11,9 @@ importers:
       '@compodoc/compodoc':
         specifier: 2.0.0
         version: 2.0.0(@egjs/hammerjs@2.0.17)(component-emitter@2.0.0)(keycharm@0.4.0)(supports-color@10.2.2)(typescript@6.0.3)(vis-data@8.0.5(uuid@14.0.1)(vis-util@6.0.2(@egjs/hammerjs@2.0.17)(component-emitter@2.0.0)))(vis-util@6.0.2(@egjs/hammerjs@2.0.17)(component-emitter@2.0.0))
+      jsdom:
+        specifier: ^28.1.0
+        version: 28.1.0(supports-color@10.2.2)
       mermaid:
         specifier: ^11.17.2
         version: 11.17.2

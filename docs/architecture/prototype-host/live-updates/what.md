@@ -34,7 +34,7 @@ sequenceDiagram
   D->>D: validate, write temp, rename
   D->>H: release held frames
   H-->>B: data: {"type":"task.completed","entityId":"…","projectId":"…","rootProjectId":"…"}
-  B->>B: route on type + projectId; stores re-read quietly
+  B->>B: route on type + projectId, stores re-read quietly
 ```
 
 ## Inventory

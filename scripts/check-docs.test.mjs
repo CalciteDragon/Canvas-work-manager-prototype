@@ -23,3 +23,18 @@ test('built Compodoc links reject missing fragments on an existing page', (t) =>
     unlinkSync(fixture);
   }
 });
+
+test('a Mermaid diagram that does not parse fails the check', () => {
+  // A broken fence renders as blank space rather than as an error (docs/documentation-
+  // protocol.md §3), so the check is the only thing that can notice.
+  const fixture = join(ROOT, 'docs/guides/mermaid-parse-regression.md');
+  assert.equal(existsSync(fixture), false);
+  try {
+    writeFileSync(fixture, ['```mermaid', 'sequenceDiagram', '  A->>B: settle; pendingWrites--', '```', ''].join('\n'));
+    assert.throws(() => execFileSync(process.execPath, ['scripts/check-docs.mjs'], {
+      cwd: ROOT, encoding: 'utf8', stdio: 'pipe',
+    }), (error) => error.status === 1 && error.stderr.includes('does not parse'));
+  } finally {
+    unlinkSync(fixture);
+  }
+});

@@ -18,6 +18,8 @@
  *   6. docs/decisions/README.md indexes every decision entry, and each entry carries the
  *      six §78 sections.
  *   7. The templates the protocol tells an agent to copy exist.
+ *   8. Every ```mermaid fence parses, because a diagram that does not renders as blank
+ *      space on the site rather than as an error.
  *
  * The rules are described for people in docs/documentation-protocol.md; keep the two in
  * step when one changes.
@@ -173,6 +175,53 @@ for (const name of readdirSync(decisionsDir).filter((n) => n.endsWith('.md') && 
 
 // 7. Templates.
 for (const name of TEMPLATES) if (!existsSync(join(DOCS, 'templates', name))) problem(join(DOCS, 'templates', name), 'template missing');
+
+// 8. Every ```mermaid fence parses.
+//
+// A diagram that fails to parse does not announce itself: vitepress-plugin-mermaid catches
+// the throw and leaves the container empty, so the page shows a heading followed by blank
+// space and only the browser console knows. Parsing every fence here — with the same
+// mermaid the site renders with — turns that silence into a failing check. The usual cause
+// is punctuation mermaid reads as syntax: a ';' inside a sequence diagram message ends the
+// message and starts a new statement.
+const mermaidBlocks = [];
+for (const file of [...docFiles, ...walk(join(DOCS, 'templates'), (p, isDir) => isDir || p.endsWith('.md'))]) {
+  const lines = read(file).split('\n');
+  let open = -1;
+  for (const [i, line] of lines.entries()) {
+    if (open < 0) {
+      if (/^\s*```mermaid\s*$/.test(line)) open = i;
+    } else if (/^\s*```\s*$/.test(line)) {
+      mermaidBlocks.push({ file, line: open + 2, text: lines.slice(open + 1, i).join('\n') });
+      open = -1;
+    }
+  }
+  if (open >= 0) problem(file, `unterminated \`\`\`mermaid fence opened at line ${open + 1}`);
+}
+if (mermaidBlocks.length) {
+  // Mermaid sanitises every label through DOMPurify, which needs a window to exist before
+  // mermaid is imported — hence jsdom, and hence the import order below.
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM('<!doctype html><body></body>');
+  globalThis.window ??= dom.window;
+  globalThis.document ??= dom.window.document;
+  const mermaid = (await import('mermaid')).default;
+  for (const block of mermaidBlocks) {
+    try {
+      await mermaid.parse(block.text);
+    } catch (error) {
+      // Mermaid reports "Parse error on line N" counted from the start of the fence, and
+      // puts what it expected on the last line; point at the line in the file instead.
+      const lines = String(error?.message ?? error).split('\n').map((l) => l.trim()).filter(Boolean);
+      const within = Number(lines[0]?.match(/on line (\d+)/)?.[1]);
+      const where = Number.isFinite(within) ? block.line + within - 1 : block.line;
+      // The "Expecting …" list runs to every token in the grammar; only what it got helps.
+      const got = lines.at(-1)?.match(/got '(.+)'$/)?.[1];
+      const detail = got ? `unexpected ${JSON.stringify(got)}` : lines.join(' ');
+      problem(block.file, `the mermaid diagram at line ${block.line} does not parse (line ${where}): ${detail}`);
+    }
+  }
+}
 
 if (problems.length) {
   for (const p of problems) console.error(`docs: ${p}`);

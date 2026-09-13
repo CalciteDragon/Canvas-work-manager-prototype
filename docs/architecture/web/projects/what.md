@@ -62,7 +62,7 @@ sequenceDiagram
   S->>C: mount renderer via NgComponentOutlet with ProjectPageRendererInputs
   C->>P: load(projectId, pageId): sections + shortcut placements, one combined order
   P-->>C: placements → frames (sections) and ShortcutFrames
-  Note over W,P: live: progress on any frame for this project; record on project.*; sections via refreshSections(); tree on rootProjectId
+  Note over W,P: live — progress on any frame for this project, record on project.*, sections via refreshSections(), tree on rootProjectId
 ```
 
 ## Inventory

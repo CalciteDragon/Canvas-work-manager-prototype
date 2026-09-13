@@ -43,7 +43,7 @@ sequenceDiagram
   S->>H: POST /prototype/seed (127.0.0.1, not localhost)
   PW->>W: drive the journey
   PW->>H: (mcp.spec) real MCP client creates a task
-  W-->>PW: the task appears with no reload; the feed names the agent
+  W-->>PW: the task appears with no reload, the feed names the agent
 ```
 
 ## Inventory

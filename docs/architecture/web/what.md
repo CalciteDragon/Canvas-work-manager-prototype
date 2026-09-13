@@ -2,35 +2,57 @@
 
 ## Components
 
+Two views of the same set, because one diagram of all nine components crosses its own
+edges. First the shell — what composes the app, and the only parts that speak to the host:
+
 ```mermaid
 C4Component
-  title web — components
+  title web — the shell and its edges
   Container_Boundary(web, "web (Angular 22, :4200)") {
     Component(app, "App + app.config.ts", "composition root", "Provides the four adapters; mounts the dev panel globally")
     Component(core, "core/", "boundary and shell", "gateway, identity, live, config, shell, theme")
-    Component(projects, "features/projects", "project workspace", "shell, navigation column, pages, canvas, sections, shortcuts")
-    Component(dashboard, "features/dashboard", "/app", "widget registry over one read")
-    Component(tasks, "features/tasks", "task UI", "TaskRow, drawer, per-section store")
-    Component(activity, "features/activity", "feed", "ActivityFeed, ActivityStore")
-    Component(settings, "features/settings", "agents", "permission grid, revoke")
     Component(proto, "prototype/", "tooling", "dev panel, state inspector, design lab, control port")
   }
   System_Ext(host, "prototype-host", "/api, /prototype, SSE")
   Rel(app, core, "provides adapters for")
+  Rel(proto, core, "PrototypeSettings, ThemeService")
+  Rel(core, host, "fetch + EventSource")
+  Rel(proto, host, "PrototypeHttpControl → /prototype/*")
+  UpdateRelStyle(app, core, $offsetX="0", $offsetY="-70")
+  UpdateRelStyle(proto, core, $offsetX="0", $offsetY="-70")
+  UpdateRelStyle(core, host, $offsetX="-60", $offsetY="-30")
+  UpdateRelStyle(proto, host, $offsetX="60", $offsetY="-30")
+```
+
+`core/` never depends on `prototype/`: the dev panel hangs off `App`, the view's
+composition root, which is the one place a development surface may attach to a
+production-shaped shell.
+
+Then the features. None of them reaches the host directly — every one goes through the
+adapters `core/` provides:
+
+```mermaid
+C4Component
+  title web — features over core
+  Container_Boundary(web, "web (Angular 22, :4200)") {
+    Component(projects, "features/projects", "project workspace", "shell, navigation column, pages, canvas, sections, shortcuts")
+    Component(core, "core/", "boundary and shell", "gateway, identity, live, config, shell, theme")
+    Component(dashboard, "features/dashboard", "/app", "widget registry over one read")
+    Component(tasks, "features/tasks", "task UI", "TaskRow, drawer, per-section store")
+    Component(activity, "features/activity", "feed", "ActivityFeed, ActivityStore")
+    Component(settings, "features/settings", "agents", "permission grid, revoke")
+  }
+  UpdateLayoutConfig($c4ShapeInRow="3")
   Rel(projects, core, "gateway, live, identity")
   Rel(dashboard, core, "gateway, identity, live")
   Rel(tasks, core, "gateway, live")
   Rel(projects, tasks, "Task List section")
   Rel(projects, activity, "Recent Activity section")
   Rel(dashboard, activity, "Recent Agent Activity widget")
-  Rel(proto, core, "PrototypeSettings, ThemeService")
-  Rel(core, host, "fetch + EventSource")
-  Rel(proto, host, "PrototypeHttpControl → /prototype/*")
+  UpdateRelStyle(projects, core, $offsetX="0", $offsetY="-70")
+  UpdateRelStyle(dashboard, core, $offsetX="0", $offsetY="-70")
+  UpdateRelStyle(tasks, core, $offsetX="160", $offsetY="0")
 ```
-
-`core/` never depends on `prototype/`: the dev panel hangs off `App`, the view's
-composition root, which is the one place a development surface may attach to a
-production-shaped shell.
 
 ## The route map (§68)
 

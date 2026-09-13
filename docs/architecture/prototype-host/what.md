@@ -2,21 +2,23 @@
 
 ## Components
 
+Two views, because one diagram of all ten shapes crosses its own edges. Inside first —
+`router.ts` is the hub, and `persistence/store.ts` is the only thing that touches the file:
+
 ```mermaid
 C4Component
-  title prototype-host — components
+  title prototype-host — inside the host
   Container_Boundary(host, "prototype-host (127.0.0.1:4310)") {
-    Component(main, "main.ts", "entry", "Port, data file, clock, AI provider, services, registry, server")
-    Component(router, "router.ts", "route table", "'METHOD /path' → handler; raw routes for MCP and SSE")
-    Component(api, "api/", "REST", "context, services, routes, errors, real-ai-provider")
+    Component(persist, "persistence/store.ts", "file", "loadPersistence, CWM_DATA_FILE")
     Component(mcp, "mcp/", "MCP", "handler, server, stdio; auth/ authenticator")
     Component(events, "events/", "SSE", "LiveEventHub, event stream handler")
+    Component(api, "api/", "REST", "context, services, routes, errors, real-ai-provider")
+    Component(router, "router.ts", "route table", "'METHOD /path' → handler; raw routes for MCP and SSE")
     Component(proto, "prototype/", "rig", "runtime, routes, notes, switchable AI provider")
-    Component(persist, "persistence/store.ts", "file", "loadPersistence, CWM_DATA_FILE")
+    Component(main, "main.ts", "entry", "Port, data file, clock, AI provider, services, registry, server")
   }
-  System_Ext(web, "web app", "gateway, identity, live updates, dev panel")
-  System_Ext(agent, "MCP client")
   ContainerDb(data, ".prototype/data.json")
+  UpdateLayoutConfig($c4ShapeInRow="3")
   Rel(main, router, "starts with")
   Rel(router, api, "/api/*")
   Rel(router, mcp, "/mcp")
@@ -24,14 +26,32 @@ C4Component
   Rel(router, proto, "/prototype/*")
   Rel(api, persist, "unit of work")
   Rel(persist, data, "load, atomic write")
-  Rel(web, api, "JSON over HTTP")
-  Rel(web, events, "EventSource")
-  Rel(web, proto, "rig commands")
-  Rel(agent, mcp, "Streamable HTTP")
+  UpdateRelStyle(router, proto, $offsetX="0", $offsetY="90")
+  UpdateRelStyle(persist, data, $offsetX="0", $offsetY="-25")
 ```
 
 `main.ts` is the composition root; everything else is a module with one job and a test
 beside it. The four `Rel`s from `router` are the three route families plus the stream.
+
+Then the callers, and which module each one reaches:
+
+```mermaid
+C4Component
+  title prototype-host — who calls what
+  Container_Boundary(host, "prototype-host (127.0.0.1:4310)") {
+    Component(api, "api/", "REST", "context, services, routes, errors, real-ai-provider")
+    Component(events, "events/", "SSE", "LiveEventHub, event stream handler")
+    Component(proto, "prototype/", "rig", "runtime, routes, notes, switchable AI provider")
+    Component(mcp, "mcp/", "MCP", "handler, server, stdio; auth/ authenticator")
+  }
+  System_Ext(web, "web app", "gateway, identity, live updates, dev panel")
+  System_Ext(agent, "MCP client")
+  Rel(web, api, "JSON over HTTP")
+  Rel(web, events, "EventSource")
+  Rel(web, proto, "rig commands")
+  Rel(agent, mcp, "Streamable HTTP")
+  UpdateRelStyle(web, proto, $offsetX="0", $offsetY="45")
+```
 
 ## Startup
 

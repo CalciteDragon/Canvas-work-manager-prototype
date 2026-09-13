@@ -8,6 +8,7 @@ C4Context
   Person(person, "Person", "Works in the browser as one of three personas")
   System_Ext(agent, "MCP client", "Claude, Cursor or a script acting through an agent connection")
   System(cwm, "Canvas Work Manager prototype", "Real product behaviour over fake infrastructure")
+  UpdateLayoutConfig($c4ShapeInRow="2")
   Rel(person, cwm, "Uses", "http://localhost:4200")
   Rel(agent, cwm, "Calls tools", "Streamable HTTP /mcp, or stdio")
 ```
@@ -19,22 +20,24 @@ decide what the agent may do (§51–§53).
 ## Containers
 
 ```mermaid
+%%{init: {'c4': {'c4ShapeMargin': 80}}}%%
 C4Container
   title Canvas Work Manager prototype — containers
   Person(person, "Person")
   System_Ext(agent, "MCP client")
   Container_Boundary(proto, "Prototype") {
     Container(web, "web", "Angular 22, :4200", "Shell, dashboard, project workspaces, development tooling")
-    Container(host, "prototype-host", "Node, 127.0.0.1:4310", "Fake API, MCP endpoint, event stream, rig controls")
     Container(stdio, "mcp:stdio", "Node child process", "The same tool registry over stdio, with its own store")
+    Container(host, "prototype-host", "Node, 127.0.0.1:4310", "Fake API, MCP endpoint, event stream, rig controls")
     ContainerDb(data, ".prototype/data.json", "JSON document, schema version 3", "The whole workspace")
   }
+  UpdateLayoutConfig($c4ShapeInRow="2")
   Rel(person, web, "Uses")
-  Rel(web, host, "JSON over HTTP; Server-Sent Events", "/api, /prototype")
+  Rel(web, host, "JSON over HTTP, SSE", "/api, /prototype")
   Rel(agent, host, "MCP", "/mcp")
   Rel(agent, stdio, "MCP", "stdin/stdout")
-  Rel(host, data, "Loads once; writes atomically per unit of work")
-  Rel(stdio, data, "Reloads per call; writes atomically")
+  Rel(host, data, "Loads once", "atomic write")
+  Rel(stdio, data, "Reloads per call", "atomic write")
 ```
 
 The web app never touches the file. The host loads it once at start and writes it through

@@ -3,14 +3,14 @@
 ## Structure
 
 ```mermaid
-flowchart LR
+flowchart TB
   panel["DevPanelControls / StateInspectorPage<br/>(web, via PROTOTYPE_CONTROL)"] -- "/prototype/*" --> routes["prototype/routes.ts<br/>createPrototypeRoutes"]
-  routes --> runtime["PrototypeRuntime<br/>{ persistence, clock, ai }"]
-  runtime --> clock["SimulatedClock<br/>(the services' clock)"]
-  runtime --> ai["SwitchableAIProvider<br/>(the services' AIProvider)"]
-  runtime --> store["DataStore.replaceActiveDocument<br/>through the unit-of-work lock"]
   routes --> notes["prototype/notes.ts<br/>append to .prototype/notes.json"]
   routes --> hub["LiveEventHub<br/>prototype.reloaded"]
+  routes --> runtime["PrototypeRuntime<br/>{ persistence, clock, ai }"]
+  runtime --> store["DataStore.replaceActiveDocument<br/>through the unit-of-work lock"]
+  runtime --> clock["SimulatedClock<br/>(the services' clock)"]
+  runtime --> ai["SwitchableAIProvider<br/>(the services' AIProvider)"]
   ai --> mock["PrototypeAIProvider"]
   ai --> real["RealAIProvider (stub)"]
 ```

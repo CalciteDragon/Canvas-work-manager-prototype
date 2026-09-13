@@ -8,14 +8,22 @@
  * fitting the column is still the nicer result and nothing is changed.
  *
  * The work is done on the rendered SVG because only Mermaid knows a diagram's natural
- * width — it records it as the element's max-width once the diagram is drawn.
+ * width — it records it as the element's max-width once the diagram is drawn, except for
+ * the C4 renderers, which set no max-width at all and leave the width at 100%. Those are
+ * the diagrams that most need this, so the viewBox is read as a fallback.
  */
 const TOO_WIDE = 1.4;
+
+const naturalWidth = (svg: SVGElement) => {
+  const fromStyle = Number.parseFloat(svg.style.maxWidth);
+  if (Number.isFinite(fromStyle) && fromStyle > 0) return fromStyle;
+  return (svg as SVGSVGElement).viewBox?.baseVal?.width ?? Number.NaN;
+};
 
 const widen = (svg: SVGElement) => {
   const container = svg.parentElement;
   if (!container || svg.dataset.cwmSized) return;
-  const natural = Number.parseFloat(svg.style.maxWidth);
+  const natural = naturalWidth(svg);
   if (!Number.isFinite(natural) || natural <= 0) return;
   svg.dataset.cwmSized = 'true';
   if (natural > container.clientWidth * TOO_WIDE) {

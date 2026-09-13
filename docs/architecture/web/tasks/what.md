@@ -3,7 +3,8 @@
 ## Structure
 
 ```mermaid
-flowchart LR
+flowchart TB
+  live["LIVE_UPDATES task.*"] --> store
   subgraph owners["Who provides the store"]
     tls["TaskListSection<br/>(projects/sections/tasks)"]
     todos["TodosPage<br/>(own store; canonical completes)"]
@@ -21,7 +22,6 @@ flowchart LR
   lab --> row
   row -->|intent| store
   drawer -->|intent| store
-  live["LIVE_UPDATES task.*"] --> store
 ```
 
 ## Optimistic completion
@@ -33,15 +33,15 @@ sequenceDiagram
   participant G as TaskGateway
   participant L as LIVE_UPDATES
   R->>S: complete(id)
-  S->>S: paint done; pendingWrites++; epoch++
+  S->>S: paint done, pendingWrites++, epoch++
   S->>G: tasks.complete(id)
   L-->>S: task.completed frame (host flushed at commit)
   S->>S: deferred — a write is in flight
   G-->>S: Task (or GatewayError)
   alt success
-    S->>S: settle; pendingWrites--; re-read
+    S->>S: settle, pendingWrites--, re-read
   else failure
-    S->>S: revert to prior status; show error; pendingWrites--
+    S->>S: revert to prior status, show error, pendingWrites--
   end
 ```
 

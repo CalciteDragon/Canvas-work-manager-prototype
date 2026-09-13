@@ -6,18 +6,29 @@
 flowchart LR
   id["IdentityProvider<br/>UserPreferences.dashboardWidgets"] -->|layout| store["DashboardStore"]
   reg["DASHBOARD_WIDGET_REGISTRY<br/>type → component, queryFrom"] --> store
-  store -->|merged query| gw["DashboardGateway.load"]
-  gw --> host["GET /api/dashboard<br/>(DashboardService, one clock reading)"]
+  live["LIVE_UPDATES"] -->|frame| store
   store --> page["DashboardPage"]
   page --> frame["DashboardWidgetFrame<br/>small · medium · wide · full"]
-  frame --> w1["TodayWidget"]
-  frame --> w2["UpcomingWidget"]
-  frame --> w3["ActiveProjectsWidget"]
-  frame --> w4["RecentProgressWidget"]
-  frame --> w5["DailyDigestWidget"]
-  frame --> w6["FunFactWidget"]
-  frame --> w7["RecentAgentActivityWidget → ActivityFeed"]
-  live["LIVE_UPDATES"] -->|frame| store
+  subgraph widgets["One component per registered type"]
+    w1["TodayWidget"]
+    w2["UpcomingWidget"]
+    w3["ActiveProjectsWidget"]
+    w4["RecentProgressWidget"]
+    w5["DailyDigestWidget"]
+    w6["FunFactWidget"]
+    w7["RecentAgentActivityWidget → ActivityFeed"]
+  end
+  frame --> w1
+  frame --> w2
+  frame --> w3
+  frame --> w4
+  frame --> w5
+  frame --> w6
+  frame --> w7
+  subgraph read["One read per load"]
+    gw["DashboardGateway.load"] --> host["GET /api/dashboard<br/>(DashboardService, one clock reading)"]
+  end
+  store -->|merged query| gw
 ```
 
 ## Inventory
