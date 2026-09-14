@@ -78,6 +78,11 @@
   for event recording. A new edge is an AGENTS.md boundary change and needs saying so.
 - **Every state change records exactly one event** through `ActivityService.record`; a
   no-op write records nothing and therefore announces nothing.
+- **Section and shortcut creation positions** are optional zero-based indexes in the page's
+  combined placement order. Each service resolves and validates its target (and, for a shortcut,
+  its source) before insertion, clamps a position past the end, inserts and calls
+  `renumberPlacements` within the same unit of work, then records only the creation event.
+  Without a position it appends. Refused writes leave sibling positions untouched.
 - **Reads drop archived ancestry the same way** — through `archivedAncestry` — and each
   query walks its own chain (a shared memo was wrong on cycles).
 

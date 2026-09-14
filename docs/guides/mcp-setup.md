@@ -132,6 +132,14 @@ an agent filled. Note that `list_sections` returns the stored `title` and not a 
 name, so a section with no `title` has no name in the tool output to read back; that is
 deliberate ([why](../decisions/2026-09-a-section-has-a-name.md)).
 
+### Insert a section at a chosen position
+
+`create_section` accepts an optional zero-based `position` in the destination page's combined
+placement order. On a root Home page, that order includes both sections and shortcuts; on other
+section-bearing pages it includes the sections there. Omit `position` to append, or give a value
+beyond the current end to insert at the end. For example, `position: 0` inserts before the first
+placement. The insertion and renumbering happen as one `projects.write` operation.
+
 ### Say which kind of project, and which page
 
 `create_project` takes a required `kind`. A **root** is a workspace: it starts with a Home page
@@ -189,7 +197,8 @@ Slice 25.4 adds three placement tools:
 - `list_section_shortcuts` (`projects.read`) lists Home placements with source project, page,
   section and breadcrumb identity, plus availability; it returns no task or reflection rows.
 - `add_section_shortcut` (`projects.write`) places a read-only reference to a source section in
-  the same root tree.
+  the same root tree. It accepts the same optional zero-based `position` in Home's combined
+  section/shortcut order; omission appends.
 - `remove_section_shortcut` (`projects.write`) deletes only the placement; the source section and
   its rows remain.
 

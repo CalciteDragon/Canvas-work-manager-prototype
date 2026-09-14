@@ -20,6 +20,15 @@ Contracts have no runtime of their own; they are parsed at boundaries.
 6. **Web** — the gateway adapter types its responses with the inferred types; forms build
    inputs of the input types. The browser trusts the host and does not re-parse.
 
+## Section create positions
+
+`CreateSectionInputSchema` and `CreateSectionShortcutInputSchema` each accept an optional
+`position` using `PositionSchema`. It is a non-negative integer interpreted by the domain as a
+zero-based insertion point in the target page's combined placement order. Omitting it preserves
+append behavior; a value past the end is clamped to the end. HTTP and MCP parse these shared
+schemas, so they enforce the same input shape. The shortcut input remains strict about undeclared
+fields.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
@@ -27,6 +36,7 @@ Contracts have no runtime of their own; they are parsed at boundaries.
 | `PrototypeDocumentSchema` | const | The whole `data.json` | [API](../../api/miscellaneous/variables.html#PrototypeDocumentSchema) |
 | `SCHEMA_VERSION` | const | `3`; bump when an existing file would be wrong | [API](../../api/miscellaneous/variables.html#SCHEMA_VERSION) |
 | `IsoDateTimeSchema` | const | `z.iso.datetime()`; seconds may be omitted, fractions any length — see `Instant` in domain | [API](../../api/miscellaneous/variables.html#IsoDateTimeSchema) |
+| `PositionSchema` | const | Non-negative zero-based position for list, canvas or dashboard order | [API](../../api/miscellaneous/variables.html#PositionSchema) |
 | `isRootProject` | function | Type guard on `Project.kind` | [API](../../api/miscellaneous/variables.html#isRootProject) |
 | `NAVIGABLE_PAGE_KINDS` | const | `home`, `todos`, `archive`, `reflections` — `work` is a page but not a tab | [API](../../api/miscellaneous/variables.html#NAVIGABLE_PAGE_KINDS) |
 | `SECTION_OWNERSHIP` | const | Container type → owned row kind; absence makes a type a view | [API](../../api/miscellaneous/variables.html#SECTION_OWNERSHIP) |

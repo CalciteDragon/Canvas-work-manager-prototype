@@ -16,6 +16,15 @@
    `connection "agent-claude" is missing permission "tasks.read"` — and never partial
    structured content.
 
+## Section and shortcut creation
+
+`create_section` and `add_section_shortcut` extend their inputs from
+`@cwm/contracts`; each accepts an optional zero-based `position` in the destination page's
+combined section/shortcut order. A position beyond the current end is clamped to the end, and
+omitting it appends. Both tools keep their declared `projects.write` permission and call the
+matching domain service, which commits the insert and renumbering together. The contract tests
+exercise each tool at a specified position under exactly that grant.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
