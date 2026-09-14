@@ -713,6 +713,30 @@
       "projectId": "project-renovation",
       "slice": 29,
       "note": "Slice 29 Archive: the two-step recovery worked through the UI and a real MCP client (an agent-built list with an archived parent and two subtasks showed 3 tasks / 0 restore with the section / restore its archived task separately; one parent Restore brought back both subtasks). Minor copy noise: \"0 tasks restore with this section\" repeats what the two-step guidance already says and could be hidden at zero."
+    },
+    {
+      "id": "note-2026-09-14-004",
+      "createdAt": "2026-09-14T10:23:45.552Z",
+      "route": "C:/Program Files/Git/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 30,
+      "note": "Slice 30 Undo through a real MCP client on nested-projects: removed Home Progress, moved a shortcut to the top of Home, then undo_operation put Progress back between Sub-Projects and Reflections (strategy previous); a cascaded 6-task Home list and a reassigned Garden list both came back exactly, and the open canvas refreshed live on every remove and undo. Placement by neighbours felt right."
+    },
+    {
+      "id": "note-2026-09-14-005",
+      "createdAt": "2026-09-14T10:23:45.656Z",
+      "route": "C:/Program Files/Git/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 30,
+      "note": "Slice 30 Undo friction: a receipt exists only in the remove_section response. I called remove_section twice by mistake; the second call was refused as already archived and nothing lets an agent recover the first undoId (no read tool for records), so Undo was lost and only restore_section (append) remained. Consider returning the existing receipt on that refusal, or a way to find one's own receipts."
+    },
+    {
+      "id": "note-2026-09-14-006",
+      "createdAt": "2026-09-14T10:23:45.765Z",
+      "route": "C:/Program Files/Git/projects/project-garden",
+      "projectId": "project-garden",
+      "slice": 30,
+      "note": "Slice 30 Undo friction: after a subtask was added under a reassigned task, undo_operation answered \"undo_conflict: task task-b5747a22 new-dependent\" - correct and safe, but the text names an id with no title and no next step; the agent has to know to archive or move that subtask (then retry) or fall back to restore_section, which loses the original position."
     }
   ]
 }
