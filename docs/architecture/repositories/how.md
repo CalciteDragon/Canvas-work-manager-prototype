@@ -55,8 +55,10 @@
   only write path is the unit's commit.
 - **The document is valid at every commit**, by the same function that validates it at
   load. The invariants it holds are listed in [why](why.md).
-- **No hard delete** except `SectionRepository.remove` (a kept seam, unused by the
-  domain), shortcut placements, and pruned Undo records — nothing references a record.
+- **Section deletion is limited to safe disposable removals.** `SectionService` uses
+  `SectionRepository.remove` only after recovery policy and canonical-reference checks pass;
+  shortcut placements and pruned Undo records are the other deletions. The integrity checks
+  still reject dangling row and shortcut references.
 - **Undo records are checked for owner scope only**: unique id, a workspace, a project in it,
   an actor in it, and a `sequence` unique per workspace. Their snapshots' section, page,
   shortcut and row ids are deliberately not resolved, so a retained inverse may outlive what it

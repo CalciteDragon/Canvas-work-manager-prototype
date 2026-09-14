@@ -83,6 +83,12 @@ store and page specs. One refinement found while implementing: when an archived 
 cascade is non-zero but smaller than its content, the copy says how many other rows stay
 archived and need their own Restore, rather than showing two-step copy only at zero.
 
+**Amended, 2026-09-14 — preserved through Slice 31 removal.** A requested `reassign` remains a
+no-op when only independently archived rows remain; their owner section stays listed as the first
+recovery step. When live rows do require reassignment, all assigned rows, including pre-archived
+subtrees, move together. A review found a newer implementation had drifted from this existing
+rule, so `settleRows` and its service/projection tests now pin both cases.
+
 Not yet evidence: the extended `archive.spec.ts` browser/MCP journey and the real-application
 pass could not be run in this session because a developer `pnpm dev:host` held the e2e port. The
 confidence levels above therefore stand until that journey and real use are recorded here.
@@ -111,3 +117,11 @@ chain in the UI and through a real MCP client. It raised copy questions rather t
 changes — identically named Notes entries need a preview, and a zero "restore with this section"
 count reads as noise — recorded as `note-2026-09-14-001`–`003`. Confidence in the text threshold
 is now high for plain prose; revisit the entry density when those notes are acted on.
+
+**Amended, 2026-09-14 — deletion boundary landed in Slice 31.** This policy still decides what
+Archive lists; it does not by itself authorize deletion. Removal settles owned rows, evaluates
+`sectionRecoveryOf`, then applies a separate canonical-reference guard before deleting an
+excluded section. Tasks and reflections (including archived rows) and shortcut sources keep their
+referenced section alive. These retained shortcut tombstones remain absent from Archive, and no
+old tombstones are purged. The content projection and existing Archive Restore behavior are
+unchanged.

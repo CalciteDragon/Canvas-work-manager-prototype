@@ -84,11 +84,12 @@
         data-section-remove
         class="section-frame__remove"
         type="button"
-        title="Archive section"
-        [attr.aria-label]="'Archive section ' + name()"
-        (click)="removeRequested.emit(section().id)"
+        [attr.aria-disabled]="removalPending()"
+        title="Remove section"
+        [attr.aria-label]="'Remove section ' + name()"
+        (click)="requestRemoval()"
       >
-        <app-canvas-icon name="archive" />
+        <app-canvas-icon name="remove" />
       </button>
     </div>
   </header>

@@ -1,4 +1,4 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionRemovalResultSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema, UndoRefusalDetailsSchema, UndoResultSchema } from '@cwm/contracts';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema, UndoRefusalDetailsSchema, UndoResultSchema } from '@cwm/contracts';
 import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryUndoRecorder, SectionService, SectionShortcutService, TaskService, TimelineService, UndoService } from '@cwm/domain';
 import {
   InMemoryDataStore,
@@ -562,15 +562,20 @@ describe('section routes', () => {
     expect((await call(routes, method, path('section-nope'), { body })).status).toBe(404);
   });
 
-  it('answers 409 for a section that was already removed — the record still exists', async () => {
+  it('returns the exact actor’s receipt when a retained section is removed again', async () => {
     const routes = buildRoutes();
     const section = await newSection(routes);
 
-    expect((await call(routes, 'DELETE', `/api/sections/${section.id}`)).status).toBe(200);
-    // Removal archives, so the second call is not a 404: the section is there, and removing
-    // something already removed is a rule error rather than a second archive.
+    const first = await call(routes, 'DELETE', `/api/sections/${section.id}`);
+    expect(first.status).toBe(200);
+    const result = SectionRemovalResultSchema.parse(first.body);
     const again = await call(routes, 'DELETE', `/api/sections/${section.id}`);
     expect(again).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
+    expect(SectionAlreadyRemovedDetailsSchema.parse((again.body as { details: unknown }).details)).toEqual({
+      reason: 'section_already_removed',
+      sectionId: section.id,
+      undo: result.undo,
+    });
   });
 
   it('restores an archived section and the rows it took down, and retries idempotently', async () => {
@@ -590,7 +595,7 @@ describe('section routes', () => {
 
   it('answers archived sections only when the query string asks, parsing the boolean', async () => {
     const routes = buildRoutes();
-    const section = await newSection(routes);
+    const section = await newSection(routes, { type: 'rich-text', config: { text: 'Keep this in Archive' } });
     await call(routes, 'DELETE', `/api/sections/${section.id}`);
 
     const live = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
@@ -1308,6 +1313,33 @@ describe('section removal receipts and Undo (Slice 30)', () => {
     expect(store.snapshot().undoRecords).toEqual([]);
   });
 
+  it('recovers a hard-deleted section receipt only for its exact actor, then executes it', async () => {
+    const { store, routes } = withStore();
+    const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'progress' } });
+    const section = ProjectSectionSchema.parse(created.body);
+    const removed = await call(routes, 'DELETE', `/api/sections/${section.id}`);
+    const result = SectionRemovalResultSchema.parse(removed.body);
+    const afterRemoval = store.snapshot();
+    expect(afterRemoval.sections.some(({ id }) => id === section.id)).toBe(false);
+
+    const repeated = await call(routes, 'DELETE', `/api/sections/${section.id}`);
+
+    expect(repeated.status).toBe(409);
+    expect(SectionAlreadyRemovedDetailsSchema.parse((repeated.body as { details: unknown }).details)).toEqual({
+      reason: 'section_already_removed',
+      sectionId: section.id,
+      undo: result.undo,
+    });
+    expect(store.snapshot()).toEqual(afterRemoval);
+    expect((await call(routes, 'DELETE', `/api/sections/${section.id}`, { user: ALEX })).status).toBe(404);
+
+    const undone = await call(routes, 'POST', `/api/undo/${result.undo.undoId}`);
+    expect(undone.status).toBe(200);
+    const restored = store.snapshot().sections.find(({ id }) => id === section.id);
+    expect(restored).toBeDefined();
+    expect(restored).not.toHaveProperty('archivedAt');
+  });
+
   it('undoes with 200, then refuses the repeat with 409 undo_consumed details', async () => {
     const { routes } = withStore();
     const { section, result } = await removeNotes(routes);
@@ -1335,7 +1367,13 @@ describe('section removal receipts and Undo (Slice 30)', () => {
     expect(UndoRefusalDetailsSchema.parse((conflict.body as { details: unknown }).details)).toEqual({
       reason: 'undo_conflict',
       undoId: conflicting.result.undo.undoId,
-      conflicts: [{ entityType: 'section', id: conflicting.section.id, problem: 'not-archived' }],
+      conflicts: [{
+        entityType: 'section',
+        id: conflicting.section.id,
+        title: 'Rich Text',
+        problem: 'not-archived',
+        nextStep: 'nothing-to-undo',
+      }],
     });
 
     clock.setNow(new Date(expiring.undo.expiresAt));

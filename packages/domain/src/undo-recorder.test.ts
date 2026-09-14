@@ -97,6 +97,59 @@ describe('RepositoryUndoRecorder', () => {
     });
   });
 
+  describe('outstandingFor', () => {
+    it('returns the highest-sequence live receipt for the exact actor and section', async () => {
+      const harness = buildHarness();
+      const older = await record(harness, 'section-shared');
+      const newest = await record(harness, 'section-shared');
+
+      await expect(harness.undoRecorder.outstandingFor(harness.actor, 'section-shared' as SectionId)).resolves.toEqual(newest);
+      expect(newest.undoId).not.toBe(older.undoId);
+    });
+
+    it('does not reveal an outstanding receipt to a different actor when that actor owns the highest sequence', async () => {
+      const harness = buildHarness();
+      const sectionId = 'section-shared' as SectionId;
+      const userReceipt = await record(harness, sectionId);
+      const agent = agentActorFor(0, ['projects.write']);
+      const agentReceipt = await harness.store.runUnitOfWork(() =>
+        harness.undoRecorder.record(agent, { projectId: MINE, label: 'Agent removal', operation: operation(sectionId) }),
+      );
+
+      await expect(harness.undoRecorder.outstandingFor(harness.actor, sectionId)).resolves.toBeNull();
+      await expect(harness.undoRecorder.outstandingFor(agent, sectionId)).resolves.toEqual(agentReceipt);
+      expect(userReceipt.undoId).not.toBe(agentReceipt.undoId);
+    });
+
+    it.each([
+      ['consumed', { consumedAt: SEED_NOW }],
+      ['expired', EXPIRED],
+    ])('does not resurrect a lower-sequence receipt when the newest record is %s', async (_, state) => {
+      const harness = buildHarness();
+      const sectionId = 'section-shared' as SectionId;
+      const first = await record(harness, sectionId);
+      const newest = await record(harness, sectionId);
+      const current = await harness.undoRecords.find(newest.undoId);
+      expect(current).not.toBeNull();
+      await harness.store.runUnitOfWork(() => harness.undoRecords.update(UndoRecordSchema.parse({ ...current, ...state })));
+
+      await expect(harness.undoRecorder.outstandingFor(harness.actor, sectionId)).resolves.toBeNull();
+      expect(first.undoId).not.toBe(newest.undoId);
+    });
+
+    it('is a read-only lookup over the workspace record collection', async () => {
+      const harness = buildHarness();
+      const receipt = await record(harness, 'section-shared');
+      const before = harness.store.snapshot();
+      const writes = harness.store.persistCalls;
+
+      await expect(harness.undoRecorder.outstandingFor(harness.actor, 'section-shared' as SectionId)).resolves.toEqual(receipt);
+
+      expect(harness.store.snapshot()).toEqual(before);
+      expect(harness.store.persistCalls).toBe(writes);
+    });
+  });
+
   it('increments the sequence per workspace', async () => {
     const harness = buildHarness();
     await record(harness, 'section-a');

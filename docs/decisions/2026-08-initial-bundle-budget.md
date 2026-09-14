@@ -70,3 +70,16 @@ with it and needs a decision rather than a number bump.
 Our own next lever is lazy-loading the development panel, which needs a decision about how
 §46's chord reaches a route whose panel is not loaded; raising the number a third time without
 pulling that lever would be the failure Slice 12's note warned about.
+
+**Amended, 2026-09-14 — Slice 31 kept the error ceiling.** Adding the receipt notice and removal
+flow first measured a 1.03 MB initial bundle, above the existing 1 MB error. The budget remains
+unchanged, and project routes remain eager. `ProjectCanvas` now defers its conditional section
+creation dialog, removal dialog and Undo notice until their controls are used; `ArchivePage`
+defers the archive list until its read completes. The production build then measured a 993.82 kB
+initial bundle, under the error ceiling, while retaining the existing 850 kB warning. The browser
+suite covers the resulting interactions. This keeps the prototype route map simple while using
+the existing lazy-boundary mechanism for UI that is not initially visible.
+
+**Final Slice 31 verification, 2026-09-14.** After review-driven retry-state and documentation
+corrections, the production build measured a 995.34 kB initial bundle, still under the unchanged
+1 MB error ceiling. The 850 kB warning remains visible; no budget was raised.

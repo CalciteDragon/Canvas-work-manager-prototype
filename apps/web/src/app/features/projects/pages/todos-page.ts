@@ -51,6 +51,7 @@ export class TodosPage {
   readonly restoreBlocked = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});
   readonly onProjectHierarchyChange = input<() => void>(() => {});
+  readonly onOpenArchive = input<() => void>(() => {});
 
   readonly store = inject(TodosPageStore);
 

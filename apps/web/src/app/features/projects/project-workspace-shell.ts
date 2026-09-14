@@ -132,6 +132,7 @@ export class ProjectWorkspaceShell {
    */
   private readonly onProjectDataChange = (): void => void this.store.refreshProgress();
   private readonly onProjectHierarchyChange = (): void => this.store.notifyHierarchyChanged();
+  private readonly onOpenArchive = (): void => void this.openArchive();
 
   readonly rendererInputs = computed<ProjectPageRendererInputs | null>(() => {
     const rendered = this.rendered();
@@ -150,6 +151,7 @@ export class ProjectWorkspaceShell {
       shortcutsAllowed: project.kind === 'root' && rendered.kind === 'home',
       onProjectDataChange: this.onProjectDataChange,
       onProjectHierarchyChange: this.onProjectHierarchyChange,
+      onOpenArchive: this.onOpenArchive,
     };
   });
 

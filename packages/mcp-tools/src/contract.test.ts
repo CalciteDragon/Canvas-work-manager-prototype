@@ -17,6 +17,7 @@ import {
 } from '../test/harness';
 
 const ALL_PERMISSIONS = AgentPermissionSchema.options;
+const CONTENT_SECTION = 'section-project-work-manager-brief';
 
 /**
  * One case per tool. `mutates` says which half of the store assertion applies; `verify` is
@@ -273,14 +274,14 @@ const CASES: Record<string, ToolCase> = {
     },
   },
   restore_section: {
-    input: { sectionId: VIEW_SECTION },
+    input: { sectionId: CONTENT_SECTION },
     mutates: true,
     prepare: async (harness) => {
-      await harness.services.sections.remove(agent(['projects.write']), VIEW_SECTION);
+      await harness.services.sections.remove(agent(['projects.write']), CONTENT_SECTION as never);
     },
     verify: async (result, harness) => {
       expect(result.archivedAt).toBeUndefined();
-      expect((await harness.services.sections.get(agent(['projects.read']), VIEW_SECTION)).archivedAt).toBeUndefined();
+      expect((await harness.services.sections.get(agent(['projects.read']), CONTENT_SECTION as never)).archivedAt).toBeUndefined();
     },
   },
   undo_operation: {
@@ -481,5 +482,42 @@ describe('undo_operation refusals, as an agent sees them', () => {
     const harness = buildHarness();
 
     await expect(harness.registry.call('undo_operation', { undoId: 'undo-1', force: true }, writer())).rejects.toThrow();
+  });
+});
+
+describe('remove_section lost-receipt recovery over the registry', () => {
+  it('returns the exact outstanding receipt in refusal text and discloses none to another connection', async () => {
+    const harness = buildHarness();
+    const actor = agent(['projects.write']);
+    const removed = (await harness.registry.call('remove_section', { sectionId: VIEW_SECTION }, actor)) as {
+      undo: { undoId: string; expiresAt: string };
+    };
+    const beforeRepeat = harness.store.snapshot();
+    let refusal: unknown;
+    try {
+      await harness.registry.call('remove_section', { sectionId: VIEW_SECTION }, actor);
+    } catch (error) {
+      refusal = error;
+    }
+
+    expect(refusal).toBeInstanceOf(Error);
+    expect((refusal as Error).message).toMatch(/^section_already_removed:/);
+    expect((refusal as Error).message).toContain(removed.undo.undoId);
+    expect((refusal as Error).message).toContain(removed.undo.expiresAt);
+    expect(harness.store.snapshot()).toEqual(beforeRepeat);
+
+    const otherConnection = { ...actor, agentConnectionId: 'agent-other' } as typeof actor;
+    await expect(
+      harness.registry.call('remove_section', { sectionId: VIEW_SECTION }, otherConnection),
+    ).rejects.toThrow(expect.objectContaining({ name: 'EntityNotFoundError' }));
+  });
+
+  it('documents when a section may be deleted and how the same connection recovers a lost receipt', () => {
+    const harness = buildHarness();
+    const remove = harness.registry.list().find(({ name }) => name === 'remove_section');
+
+    expect(remove?.description).toContain('Disposable views');
+    expect(remove?.description).toContain('same connection');
+    expect(remove?.description).toContain('expiresAt');
   });
 });

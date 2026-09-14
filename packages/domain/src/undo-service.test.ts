@@ -1,9 +1,12 @@
 import {
   PrototypeDocumentSchema,
+  UndoRecordSchema,
+  type SectionRemoveUndoOperation,
   type ActivityEvent,
   type SectionId,
   type UndoRecordId,
   type UserId,
+  type UndoConflict,
   type WorkspaceId,
 } from '@cwm/contracts';
 import { PERSONAS, SEED_NOW } from '@cwm/prototype-data';
@@ -73,6 +76,93 @@ const homeWithShortcut = async (harness: Harness) => {
 };
 
 describe('UndoService.undo — placement', () => {
+  it('recreates a deleted disposable view from its receipt snapshot in its old placement', async () => {
+    const harness = buildHarness();
+    const before = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Keep' } });
+    const progress = await harness.sectionService.add(harness.actor, MINE, {
+      type: 'progress', title: 'Burn-up', columnSpan: 6, config: { milestoneIds: ['m-1'] },
+    });
+    const after = await harness.sectionService.add(harness.actor, MINE, { type: 'timeline' });
+    await harness.sectionService.update(harness.actor, progress.id, { collapsed: true });
+
+    const { undo } = await harness.sectionService.remove(harness.actor, progress.id);
+    expect(await harness.sections.find(progress.id)).toBeNull();
+    expect(harness.store.snapshot().undoRecords.at(-1)?.operation).toMatchObject({ disposition: 'deleted' });
+
+    const result = await harness.undoService.undo(harness.actor, undo.undoId);
+
+    expect(result.section).toMatchObject({
+      id: progress.id,
+      type: 'progress',
+      title: 'Burn-up',
+      config: { milestoneIds: ['m-1'] },
+      columnSpan: 6,
+      collapsed: true,
+    });
+    expect(await order(harness)).toEqual([before.id, progress.id, after.id]);
+  });
+
+  it('executes a retained version-1 record with no disposition as before Slice 31', async () => {
+    const harness = buildHarness();
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Prose' } });
+    const { undo } = await harness.sectionService.remove(harness.actor, notes.id);
+    const record = await harness.undoRecords.find(undo.undoId);
+    expect(record).not.toBeNull();
+    const { disposition: _disposition, ...legacyOperation } = record!.operation as SectionRemoveUndoOperation;
+    await harness.store.runUnitOfWork(() =>
+      harness.undoRecords.update(UndoRecordSchema.parse({ ...record!, operation: legacyOperation })),
+    );
+
+    await expect(harness.undoService.undo(harness.actor, undo.undoId)).resolves.toMatchObject({
+      outcome: 'restored', section: { id: notes.id, config: { text: 'Prose' } },
+    });
+  });
+
+  it('does not overwrite a live section that reused a deleted section id', async () => {
+    const harness = buildHarness();
+    const progress = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', title: 'Old' });
+    const { undo } = await harness.sectionService.remove(harness.actor, progress.id);
+    const original = (await harness.undoRecords.find(undo.undoId))!.operation;
+    if (original.type !== 'section.remove') throw new Error('unexpected operation');
+    const replacement = { ...original.section, title: 'Replacement', position: 0, updatedAt: LATER };
+    await harness.store.runUnitOfWork(() => harness.sections.insert(replacement));
+    const before = state(harness);
+
+    const refusal = await refusalOf(harness.undoService.undo(harness.actor, undo.undoId));
+
+    expect(refusal.details).toEqual({
+      reason: 'undo_conflict',
+      undoId: undo.undoId,
+      conflicts: [{
+        entityType: 'section', id: progress.id, title: 'Replacement', problem: 'not-archived', nextStep: 'nothing-to-undo',
+      }],
+    });
+    expect(state(harness)).toEqual(before);
+  });
+
+  it('classifies an archived section that reused a deleted section id as archived differently', async () => {
+    const harness = buildHarness();
+    const progress = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', title: 'Old' });
+    const { undo } = await harness.sectionService.remove(harness.actor, progress.id);
+    const original = (await harness.undoRecords.find(undo.undoId))!.operation;
+    if (original.type !== 'section.remove') throw new Error('unexpected operation');
+    await harness.store.runUnitOfWork(() => harness.sections.insert({
+      ...original.section, title: 'Replacement', position: 0, archivedAt: LATER, updatedAt: LATER,
+    }));
+    const before = state(harness);
+
+    const refusal = await refusalOf(harness.undoService.undo(harness.actor, undo.undoId));
+
+    expect(refusal.details).toEqual({
+      reason: 'undo_conflict', undoId: undo.undoId,
+      conflicts: [{
+        entityType: 'section', id: progress.id, title: 'Replacement', problem: 'archived-differently',
+        nextStep: 'use-later-receipt-or-archive',
+      }],
+    });
+    expect(state(harness)).toEqual(before);
+  });
+
   it('restores a disposable view exactly, between the same neighbours, and consumes the record', async () => {
     const harness = buildHarness();
     const { notes, progress, shortcut } = await homeWithShortcut(harness);
@@ -238,7 +328,7 @@ describe('UndoService.undo — rows', () => {
 
 describe('UndoService.undo — conflicts', () => {
   /** Refuses with exactly these problems, and writes nothing, records nothing, consumes nothing. */
-  const expectConflict = async (harness: Harness, undoId: UndoRecordId, conflicts: Array<[string, string, string]>) => {
+  const expectConflict = async (harness: Harness, undoId: UndoRecordId, conflicts: UndoConflict[]) => {
     const before = state(harness);
 
     const refusal = await refusalOf(harness.undoService.undo(harness.actor, undoId));
@@ -247,20 +337,27 @@ describe('UndoService.undo — conflicts', () => {
     expect(refusal.details).toEqual({
       reason: 'undo_conflict',
       undoId,
-      conflicts: conflicts.map(([entityType, id, problem]) => ({ entityType, id, problem })),
+      conflicts,
     });
-    expect(refusal.message).toBe(`undo_conflict: ${conflicts.map((conflict) => conflict.join(' ')).join('; ')}`);
+    expect(refusal.message).toMatch(/^undo_conflict: /);
+    for (const conflict of conflicts) {
+      expect(refusal.message).toContain(conflict.problem);
+      expect(refusal.message).toContain(conflict.id);
+      if (conflict.title !== undefined) expect(refusal.message).toContain(`"${conflict.title}"`);
+    }
     expect(state(harness)).toEqual(before);
     expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
   };
 
   it('refuses after Archive Restore brought the section back', async () => {
     const harness = buildHarness();
-    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text' });
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', title: 'Notes', config: { text: 'Prose' } });
     const { undo } = await harness.sectionService.remove(harness.actor, notes.id);
     await harness.sectionService.restoreSection(harness.actor, notes.id);
 
-    await expectConflict(harness, undo.undoId, [['section', notes.id, 'not-archived']]);
+    await expectConflict(harness, undo.undoId, [{
+      entityType: 'section', id: notes.id, title: 'Notes', problem: 'not-archived', nextStep: 'nothing-to-undo',
+    }]);
   });
 
   it.each([
@@ -269,7 +366,7 @@ describe('UndoService.undo — conflicts', () => {
     ['with the clock set backwards', -60_000, ['archived-differently', 'superseded']],
   ])('refuses an older removal of a section restored and removed again %s, and the newer still undoes', async (_, shift, problems) => {
     const harness = buildHarness(undefined, { ids: new DescendingIdGenerator() });
-    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text' });
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', title: 'Notes', config: { text: 'Prose' } });
     const { undo: older } = await harness.sectionService.remove(harness.actor, notes.id);
     await harness.sectionService.restoreSection(harness.actor, notes.id);
     harness.clock.setNow(new Date(Date.parse(SEED_NOW) + shift));
@@ -277,7 +374,14 @@ describe('UndoService.undo — conflicts', () => {
     // The newer receipt's id sorts *before* the older one's.
     expect(newer.undoId < older.undoId).toBe(true);
 
-    await expectConflict(harness, older.undoId, problems.map((problem) => ['section', notes.id, problem]));
+    const nextSteps = {
+      'archived-differently': 'use-later-receipt-or-archive',
+      superseded: 'use-later-receipt-or-archive',
+    } as const;
+    await expectConflict(harness, older.undoId, problems.map((problem) => ({
+      entityType: 'section', id: notes.id, title: 'Notes', problem: problem as UndoConflict['problem'],
+      nextStep: nextSteps[problem as keyof typeof nextSteps],
+    })));
     await expect(harness.undoService.undo(harness.actor, newer.undoId)).resolves.toMatchObject({ outcome: 'restored' });
   });
 
@@ -300,7 +404,9 @@ describe('UndoService.undo — conflicts', () => {
     const other = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
     await harness.taskService.update(harness.actor, live.id, { sectionId: other.id });
 
-    await expectConflict(harness, undo.undoId, [['task', live.id, 'moved']]);
+    await expectConflict(harness, undo.undoId, [{
+      entityType: 'task', id: live.id, title: 'Live', problem: 'moved', nextStep: 'move-back-and-retry',
+    }]);
   });
 
   it('refuses when a reassigned row has since been archived', async () => {
@@ -308,7 +414,10 @@ describe('UndoService.undo — conflicts', () => {
     const { live, undo } = await reassigned(harness);
     await harness.taskService.archive(harness.actor, live.id);
 
-    await expectConflict(harness, undo.undoId, [['task', live.id, 'archive-state-changed']]);
+    await expectConflict(harness, undo.undoId, [{
+      entityType: 'task', id: live.id, title: 'Live', problem: 'archive-state-changed',
+      nextStep: 'restore-state-and-retry',
+    }]);
   });
 
   it('refuses when a subtask was created under a moved parent', async () => {
@@ -316,7 +425,10 @@ describe('UndoService.undo — conflicts', () => {
     const { live, undo } = await reassigned(harness);
     const subtask = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Sub', parentTaskId: live.id });
 
-    await expectConflict(harness, undo.undoId, [['task', subtask.id, 'new-dependent']]);
+    await expectConflict(harness, undo.undoId, [{
+      entityType: 'task', id: subtask.id, title: 'Sub', problem: 'new-dependent',
+      nextStep: 'restore-or-move-dependent-and-retry',
+    }]);
   });
 
   it('refuses when a reassigned row was reparented, listing every problem at once', async () => {
@@ -327,8 +439,14 @@ describe('UndoService.undo — conflicts', () => {
     await harness.taskService.restore(harness.actor, filed.id);
 
     await expectConflict(harness, undo.undoId, [
-      ['task', live.id, 'reparented'],
-      ['task', filed.id, 'archive-state-changed'],
+      {
+        entityType: 'task', id: live.id, title: 'Live', problem: 'reparented',
+        nextStep: 'move-back-and-retry',
+      },
+      {
+        entityType: 'task', id: filed.id, title: 'Filed', problem: 'archive-state-changed',
+        nextStep: 'use-later-receipt-or-archive',
+      },
     ]);
   });
 });
@@ -343,7 +461,9 @@ describe('UndoService.undo — archived projects', () => {
 
     const refusal = await refusalOf(harness.undoService.undo(harness.actor, undo.undoId));
 
-    expect(refusal.details).toEqual({ reason: 'undo_blocked', undoId: undo.undoId, blockingProjectId: MINE });
+    expect(refusal.details).toEqual({
+      reason: 'undo_blocked', undoId: undo.undoId, blockingProjectId: MINE, blockingProjectTitle: 'Project project-mine',
+    });
     expect(state(harness)).toEqual(before);
     await harness.projectService.update(harness.actor, MINE, { status: 'active' });
     await expect(harness.undoService.undo(harness.actor, undo.undoId)).resolves.toMatchObject({ outcome: 'restored' });
@@ -432,7 +552,9 @@ describe('UndoService.undo — scope and grants', () => {
 
 describe('UndoService.undo — consumption, expiry and failure', () => {
   const removedNotes = async (harness: Harness) => {
-    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', title: 'Kickoff' });
+    const notes = await harness.sectionService.add(harness.actor, MINE, {
+      type: 'rich-text', title: 'Kickoff', config: { text: 'Keep this prose' },
+    });
     return { notes, undo: (await harness.sectionService.remove(harness.actor, notes.id)).undo };
   };
 

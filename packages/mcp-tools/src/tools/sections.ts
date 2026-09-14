@@ -14,9 +14,10 @@ import { defineTool, type WorkManagerTool } from '../tool';
  * canvas. Without them an agent can write all three layers' worth of data and none of the
  * layout, which is the gap docs/decisions/2026-09-sections-own-their-data.md closes.
  *
- * Removal archives rather than deletes, so it is undoable. A container still holding live
- * rows takes a policy rather than a confirmation: it owns them, so the service refuses to
- * guess between archiving them with it and moving them elsewhere first.
+ * Removal can delete disposable views and empty containers, while content-bearing sections
+ * stay recoverable in Archive. A container still holding live rows takes a policy rather than
+ * a confirmation: it owns them, so the service refuses to guess between archiving them with it
+ * and moving them elsewhere first.
  *
  * Archive and restore are separate canonical operations so an agent can undo the same
  * operation the person sees in Archive. `list_sections` remains live-only — the agent's
@@ -26,7 +27,7 @@ export const sectionTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'list_sections',
     description:
-      'List a project’s canvas sections in the order they are laid out, grouped by the page each sits on. Name a pageId to read one page. Container sections (task-list, reflections) own the rows they render; view sections (progress, timeline, recent-activity, sub-projects) render data they do not own. Removed sections are archived rather than deleted and do not appear here.',
+      'List a project’s canvas sections in the order they are laid out, grouped by the page each sits on. Name a pageId to read one page. Container sections (task-list, reflections) own the rows they render; view sections (progress, timeline, recent-activity, sub-projects) render data they do not own. Removed sections do not appear here; content-bearing sections remain recoverable in Archive, while disposable views may be deleted.',
     permission: 'projects.read',
     inputSchema: SectionQuerySchema.pick({ pageId: true }).extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...query }, { actor, services }) => services.sections.list(actor, projectId, query),
@@ -50,11 +51,11 @@ export const sectionTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'remove_section',
     description:
-      'Remove a section from a project’s canvas. This archives the section rather than deleting it, so it can be restored with everything it took down. A container still holding live rows needs a policy: "cascade" archives those rows with the section, or "reassign" moves them to another live container of the same type named by reassignToSectionId. A view, an empty container, and a container holding only archived rows need no policy. Removing a section that is already archived is refused. The result is { section, undo }: the archived section and an Undo receipt whose undoId undo_operation accepts for 24 hours, restoring the section between the same neighbours with exactly the rows this removal changed.',
+      'Remove a section from a project’s canvas. Disposable views, empty containers and empty rich-text sections are deleted; sections that hold content remain recoverable in Archive. A container still holding live rows needs a policy: "cascade" archives those rows with the section, or "reassign" moves them to another live container of the same type named by reassignToSectionId. A view, an empty container, and a container holding only archived rows need no policy. The result is { section, undo }: section is the final archived-shaped removal result, even when the stored section was deleted; undo is a receipt whose undoId undo_operation accepts for 24 hours, restoring the section between the same neighbours and restoring exactly the rows this removal changed. If a removal response is lost, repeat remove_section on the same section from the same connection to recover its outstanding undoId and expiresAt; the repeat does not write again.',
     permission: 'projects.write',
     inputSchema: RemoveSectionInputSchema.extend({ sectionId: SectionIdSchema }),
-    // The archived section and its Undo receipt, so the agent can see `archivedAt` and hold the
-    // undoId rather than inferring either. Returned directly by the service: a second `get` would
+    // The final archived-shaped result and Undo receipt, so the agent can hold the `undoId`
+    // rather than infer it. Returned directly by the service: a second `get` would
     // demand `projects.read`, which this tool does not require.
     execute: ({ sectionId, ...input }, { actor, services }) => services.sections.remove(actor, sectionId, input),
   }),

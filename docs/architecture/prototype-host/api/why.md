@@ -38,6 +38,14 @@ record such as `{ reason: 'section_not_empty', liveRowCount }`) is forwarded in 
 body, so a UI can open the right dialog without parsing prose; the browser preserves it
 untrusted ([decision](../../../decisions/2026-09-a-section-has-a-name.md)).
 
+**A lost section-removal response can be recovered without turning a refusal into a
+write.** A repeat stays a 409 and returns only the highest-sequence, unconsumed, unexpired
+receipt belonging to that exact actor. The route forwards typed `section_already_removed`
+details; inverse snapshots never cross the boundary. The result of a successful disposable
+removal remains `{ section, undo }`, where `section` is an archived-shaped snapshot even
+though the stored section is absent
+([decision](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+
 **`GET /api/me` and CORS came with the shell, not the spec.** §18 cannot be honoured
 without an identity read, and the non-simple `x-prototype-user` header makes the
 preflight load-bearing ([decision](../../../decisions/2026-08-identity-contract-and-me-route.md),
@@ -63,10 +71,9 @@ returns: `/todos`, `/archive`, `/journal`, `/completed-work` under a project, an
 - [The gateway interface grows with its implementations](../../../decisions/2026-08-gateway-surface-grows-with-implementations.md)
 - [Workspace scoping, and why a foreign id is 404 rather than 409](../../../decisions/2026-08-workspace-scoping-and-not-found.md)
 - [A section has a name](../../../decisions/2026-09-a-section-has-a-name.md) — typed refusal details across the boundary
+- [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)
 
 ## Spec sections
 
 §9 gateway shape · §10 prototype adapter · §18 authentication contract · §61 prototype
 API · §63 optimistic UI (what the statuses feed).
-
-Planning only: [Slice 31's disposable removal and immediate Undo choices](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.

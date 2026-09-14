@@ -247,6 +247,36 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
       }
     });
 
+    it('recovers a lost receipt after hard deletion on the same connection without a second write', async () => {
+      const { api, client, handler, persistence } = await build();
+      await grantProjectsWrite(api);
+
+      try {
+        const removed = await client.callTool({ name: 'remove_section', arguments: { sectionId: SECTION } });
+        expect(removed.isError).not.toBe(true);
+        const receipt = (removed.structuredContent as { undo: { undoId: string; expiresAt: string } }).undo;
+        expect(persistence.store.snapshot().sections.some(({ id }) => id === SECTION)).toBe(false);
+        const beforeRepeat = persistence.store.snapshot();
+
+        const repeated = await client.callTool({ name: 'remove_section', arguments: { sectionId: SECTION } });
+        const text = repeated.content?.find((item) => item.type === 'text')?.text ?? '';
+        expect(repeated.isError).toBe(true);
+        expect(text).toMatch(/^section_already_removed:/);
+        expect(text).toContain(receipt.undoId);
+        expect(text).toContain(receipt.expiresAt);
+        expect(persistence.store.snapshot()).toEqual(beforeRepeat);
+
+        const undone = await client.callTool({ name: 'undo_operation', arguments: { undoId: receipt.undoId } });
+        expect(undone.isError).not.toBe(true);
+        const restored = persistence.store.snapshot().sections.find(({ id }) => id === SECTION);
+        expect(restored).toBeDefined();
+        expect(restored).not.toHaveProperty('archivedAt');
+      } finally {
+        await client.close();
+        await handler.close();
+      }
+    });
+
     it('refuses a receipt once its connection is revoked, leaving the record unconsumed', async () => {
       const { api, client, handler, persistence } = await build();
       await grantProjectsWrite(api);

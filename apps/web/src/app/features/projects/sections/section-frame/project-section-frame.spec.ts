@@ -146,6 +146,20 @@ describe('ProjectSectionFrame (§31)', () => {
     ]);
   });
 
+  it('keeps the remove control focusable and blocks duplicate removal while pending', () => {
+    const fixture = render();
+    const remove = query(fixture, '[data-section-remove]') as HTMLButtonElement;
+    const requested = vi.fn();
+    fixture.componentInstance.removeRequested.subscribe(requested);
+    fixture.componentRef.setInput('removalPending', true);
+    fixture.detectChanges();
+
+    expect(remove.disabled).toBe(false);
+    expect(remove.getAttribute('aria-disabled')).toBe('true');
+    remove.click();
+    expect(requested).not.toHaveBeenCalled();
+  });
+
   it('hides the content when the section is collapsed', () => {
     const fixture = render({ collapsed: true });
 

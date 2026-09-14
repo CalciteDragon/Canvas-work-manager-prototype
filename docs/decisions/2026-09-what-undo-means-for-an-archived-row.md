@@ -195,3 +195,12 @@ unit and `UndoService` executes once for the same actor within 24 hours
 ([section removal Undo records](2026-09-section-removal-undo-records.md)). The medium-confidence
 note above ("someone restoring a section they removed a minute ago may expect it back where it
 was") is what Undo answers; Archive Restore keeps appending because it has no placement snapshot.
+
+**Amended, 2026-09-14 — landed in Slice 31.** The earlier statement that every removal keeps a
+section tombstone is narrowed by the [reference-safe disposable-removal decision](2026-09-disposable-removal-and-immediate-undo.md).
+After row settlement, a section excluded from recovery is deleted only when no canonical task,
+reflection or shortcut still references it. Content-bearing or uncertain sections remain
+recoverable through Archive; shortcut-backed sources retain an unlisted integrity tombstone.
+Existing tombstones are not purged. Archive Restore remains durable and append-placed, while
+receipt-based Undo can recreate a safely deleted section at its prior placement. A deletion
+result's archived-shaped `section` is an operation snapshot, not evidence that it remains stored.

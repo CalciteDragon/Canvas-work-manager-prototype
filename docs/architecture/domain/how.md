@@ -12,11 +12,13 @@
    `LivePublication` to the `LiveEventPublisher` — held by the store until commit.
 4. On commit the store validates the whole document and persists it; on any throw the
    provisional state is discarded and the caller sees one of the three errors.
-5. An **undoable** write (section removal today) also calls `UndoRecorder.record` inside the same
-   unit, after its activity event: one versioned inverse record, never inside the event or the
-   frame. The receipt it returns is real once the unit commits. `UndoService.undo` later executes
-   that record in one unit of its own: exact-actor lookup, consumed/expired checks, the
-   per-type executor (conflicts collected before any write), `consumedAt`, one activity event.
+5. A section removal settles owned rows, decides whether recovery or an integrity reference
+   requires retaining the section, then archives or deletes it in the same unit as its activity
+   event and `UndoRecorder.record`. The inverse records the disposition; the receipt never carries
+   snapshot data. `UndoService.undo` later executes that record in one unit of its own:
+   exact-actor lookup, consumed/expired checks, the per-type executor (conflicts collected before
+   any write), `consumedAt`, one activity event. A repeated removal can read back only the exact
+   actor's newest outstanding receipt through the recorder, without writing or extending it.
 6. Derived read services skip step 3's writes: they read the repositories, scope by the
    actor's visible projects, drop everything under an archived ancestor, and compute.
 
@@ -35,8 +37,8 @@
 | `ActivityService` | class | Records events and publishes live frames | [API](../../api/classes/ActivityService.html) |
 | `ProjectService` | class | Project rules | [API](../../api/classes/ProjectService.html) |
 | `ProjectPageService` | class | Page listing and optional-page toggles | [API](../../api/classes/ProjectPageService.html) |
-| `SectionService` | class | Section lifecycle and container resolution; `remove` returns an Undo receipt | [API](../../api/classes/SectionService.html) |
-| `UndoRecorder` | interface | The seam an undoable write records its inverse through, inside the caller's unit | [API](../../api/interfaces/UndoRecorder.html) |
+| `SectionService` | class | Section lifecycle and container resolution; `remove` safely retains/deletes and returns an Undo receipt | [API](../../api/classes/SectionService.html) |
+| `UndoRecorder` | interface | Records an inverse and reads the exact actor's newest outstanding receipt inside the caller's unit | [API](../../api/interfaces/UndoRecorder.html) |
 | `RepositoryUndoRecorder` | class | Stores a record, computes `sequence`, prunes expired and over-limit records | [API](../../api/classes/RepositoryUndoRecorder.html) |
 | `UndoService` | class | Executes one receipt for the exact actor under `projects.write` | [API](../../api/classes/UndoService.html) |
 | `SectionShortcutService` | class | Home shortcut placements | [API](../../api/classes/SectionShortcutService.html) |
@@ -95,15 +97,24 @@
   difference refuses with `undo_conflict` before a write. Non-structural edits are preserved.
   Every refusal message starts with its reason token (`undo_consumed: …`), because MCP carries
   message text only.
+- **A removal refusal does not disclose a deleted id.** For a missing section, `SectionService`
+  consults the read-only recorder only after `projects.write` and workspace visibility checks; it
+  returns a receipt only when the newest record for that section is outstanding and belongs to
+  the exact actor. No older receipt is revived after a newer actor, consumed, expired or pruned
+  record.
 - **`sequence` is the only order between Undo records.** Timestamps can repeat or go backwards
   under the settable clock, and ids are random.
 - **Every state change records exactly one event** through `ActivityService.record`; a
   no-op write records nothing and therefore announces nothing.
-- **Archive keeps every tombstone and projects only content.** Removal writes `archivedAt` on
-  every branch; `sectionRecoveryOf` decides only whether Archive lists the section, from the rows
-  actually still assigned (after reassignment, not the requested policy). It reads no
-  repositories, clock or config beyond the recovery-relevant keys, and must not become a
-  deletion-eligibility check.
+- **Archive and deletion share the content policy but use separate checks.** A removal policy
+  settles a container only when live rows remain: cascade archives those live rows, while
+  reassign moves every assigned row, including independently archived subtrees. If only
+  pre-archived rows remain, even an explicit reassign is a no-op so the owner section stays as
+  their first Archive recovery step. After settlement, `sectionRecoveryOf` decides whether
+  content must remain recoverable. Canonical task/reflection references and Home shortcut sources
+  independently prevent deletion. New disposable sections with no such reference are deleted;
+  historical tombstones are never purged. Archive projects retained content only and never
+  decides deletion eligibility by itself.
 - **Section and shortcut creation positions** are optional zero-based indexes in the page's
   combined placement order. Each service resolves and validates its target (and, for a shortcut,
   its source) before insertion, clamps a position past the end, inserts and calls

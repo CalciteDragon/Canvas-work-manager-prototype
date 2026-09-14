@@ -89,5 +89,5 @@ placements on a root's Home that reference a section elsewhere in the same tree.
 | `LiveEventSchema` | `src/live.ts` | `type`, `entityId`, `entityType`, `projectId`, `rootProjectId` |
 | Dashboard, progress, timeline, todos, archive, journal schemas | `src/dashboard.ts` … `src/project-journal.ts` | Derived read models; Archive section entries add `recovery` metadata |
 | Prototype state and commands | `src/prototype.ts` | What the dev panel and `/prototype/*` agree on |
-| `UndoOperationSchema`, `UndoRecordSchema`, `UndoReceiptSchema`, `SectionRemovalResultSchema`, `UndoInputSchema`, `UndoResultSchema`, `UndoRefusalDetailsSchema` | `src/undo.ts` | Versioned inverse records and the shapes that cross a transport around them |
+| `UndoOperationSchema`, `SectionRemovalDispositionSchema`, `UndoRecordSchema`, `UndoReceiptSchema`, `SectionRemovalResultSchema`, `SectionAlreadyRemovedDetailsSchema`, `UndoInputSchema`, `UndoResultSchema`, `UndoRefusalDetailsSchema` | `src/undo.ts` | Versioned retained/deleted inverses and receipt-only transport shapes |
 | Branded ids | `src/ids.ts` | `UserId`, `WorkspaceId`, `ProjectId`, `SectionId`, `TaskId`, `UndoRecordId`, … |

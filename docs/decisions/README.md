@@ -21,7 +21,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [The web app and the host start separately](2026-08-web-and-host-start-separately.md) | `pnpm dev` prints two commands and exits; `concurrently` hung `tsx watch` | current |
 | [The host's port variable is `CWM_HOST_PORT`, not `PORT`](2026-08-host-port-is-not-the-generic-port.md) | The host ignores the generic `PORT` entirely | current |
-| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning budget with the measurement behind it; 25.x builds exceed it warning-only | current |
+| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning and error ceilings, with measured lazy boundaries | amended; Slice 31 kept the 1 MB error ceiling |
 
 ## Contracts
 
@@ -49,12 +49,12 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Timeline derives ranges without inventing a project start date](2026-08-timeline-range-semantics.md) | How timeline ranges are derived | current |
 | [Reflections use reverse chronology and optional prompts](2026-08-reflection-chronology-and-prompts.md) | Body required; prompts are suggestions | current |
 | [What counts as AI in the prototype](2026-08-prototype-ai-scope-and-fun-fact.md) | Fun Fact is a fixture rotation, not `AIProvider` | current |
-| [A section's activity event names its project, not the section](2026-08-section-activity-targets-the-project.md) | `project.section_*` events target the project | amended |
-| [Where a live event is emitted, and when it is delivered](2026-08-live-events-ride-the-activity-record.md) | At most one frame per operation, on `ActivityService.record`, after commit | amended (Undo adds no channel, Slice 30) |
-| [Container sections own their rows; view sections own nothing](2026-09-sections-own-their-data.md) | `sectionId` on rows; cascade or reassign on removal | amended |
+| [A section's activity event names its project, not the section](2026-08-section-activity-targets-the-project.md) | Section removal targets the project; disposable deletion emits `project.section_removed` | amended |
+| [Where a live event is emitted, and when it is delivered](2026-08-live-events-ride-the-activity-record.md) | One post-commit frame per operation; removal action reflects retained or deleted disposition | amended (Slices 30–31) |
+| [Container sections own their rows; view sections own nothing](2026-09-sections-own-their-data.md) | Every row keeps a live section reference; Slice 31 adds reference-checked deletion for disposable sections | amended |
 | [A section has a name, and the default is derived rather than stored](2026-09-a-section-has-a-name.md) | `nameOf` over `type`, optional `title` override | amended |
-| [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Removal archives; restore is exact; nothing hard-deletes | amended; content projection landed in Slice 29; Archive Restore distinct from Undo (Slice 30) |
-| [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | current (Slice 29) |
+| [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Archive Restore remains durable; safe disposable removal can delete after a reference audit | amended; content projection in Slice 29; operation Undo in Slices 30–31 |
+| [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | amended; projection in Slice 29, deletion boundary in Slice 31 |
 | [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | current |
 | [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | current |
 | [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | current |
@@ -66,8 +66,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [What the Todos page decides for itself](2026-09-todos-chronology-and-canonical-navigation.md) | Instants compared as text; no tab required; completion one-way | current |
 | [Reflection subjects and the root journal feed](2026-09-reflection-subjects-and-the-journal-feed.md) | Optional subject id; journal resolves current state | current |
 | [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | What the Archive projection says about each item's restore path | amended |
-| [A section removal commits one scoped, expiring Undo record](2026-09-section-removal-undo-records.md) | Defaulted v3 collection, 24 h / 50 bound, exact-actor scope, structural conflicts, neighbor placement | current (Slice 30) |
-| [Disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md) | Reference-safe deletion, canvas-local action, own-receipt recovery and actionable refusals | planning choice; pending Slice 31 |
+| [A section removal commits one scoped, expiring Undo record](2026-09-section-removal-undo-records.md) | Defaulted v3 collection, 24 h / 50 bound, exact-actor scope, structural conflicts, neighbor placement | amended; Slice 31 adds deletion disposition and repeat-receipt recovery |
+| [Disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md) | Reference-safe deletion, canvas-local action, own-receipt recovery and actionable refusals | current (Slice 31) |
 
 ## Repositories
 

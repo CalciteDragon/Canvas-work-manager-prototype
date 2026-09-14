@@ -10,8 +10,10 @@
 3. The body, if any, is parsed with the contract's input schema; a Zod failure is a 400.
 4. The handler calls one service method and returns its result as JSON with the status
    the route declares (200, or 201 for creates). `DELETE /api/sections/:id` answers 200 with
-   `SectionRemovalResult` — the archived section and its Undo receipt — and
-   `POST /api/undo/:id` answers `UndoResult`.
+   `SectionRemovalResult` — the final archived-shaped result and its Undo receipt. When the
+   section was disposable, that result is a snapshot and the stored row is absent. A repeat can
+   answer 409 with the exact actor's outstanding receipt in typed details. `POST /api/undo/:id`
+   answers `UndoResult`.
 5. A thrown error goes through `api/errors.ts`: the domain's three errors map to 404,
    409 and 403; a `DomainRuleError` with `details` forwards them; `AgentAuthenticationError`
    is 401; anything else is 500 `{"error":"internal_error"}` with the stack on the
@@ -60,6 +62,10 @@
   each carry `details` that parse as `UndoRefusalDetails`; a receipt another actor was issued is
   404; a connection whose grant or token changed after the receipt is 403 or 401, re-read per
   call by the authenticator. `routes.test.ts` pins each.
+- **A repeated removal stays a refusal.** Only the exact actor's newest unconsumed, unexpired
+  receipt is returned, including when the section was deleted. It produces no second write or
+  event; a different actor sees the normal not-found response. The route forwards the shared
+  `SectionAlreadyRemovedDetailsSchema` unchanged.
 - **Projections are forwarded, not filtered.** `GET /api/projects/:projectId/archive` returns
   `ProjectArchiveService.derive` as-is, including each section entry's `recovery` metadata;
   `routes.test.ts` pins that a removed view is absent and prose is present without route logic.

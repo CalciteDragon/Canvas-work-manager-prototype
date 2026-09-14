@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 31 | Slice 31 — Disposable removal and immediate Undo UI | Safely delete disposable sections and expose receipt-driven Undo through the gateway and canvas | [31-disposable-removal-and-undo-ui.md](active/31-disposable-removal-and-undo-ui.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -71,4 +69,5 @@ verification follow-ups rather than feature slices.
 | 28 | Slice 28 — Archive, removal and Undo planning | 2026-09-13 | Imported the proposed refactor spec and reviewed five dependency-ordered implementation candidates | [28-archive-removal-undo-planning.md](completed/28-archive-removal-undo-planning.md) |
 | 29 | Slice 29 — Recovery policy and content-oriented Archive | 2026-09-14 | Archive projects recoverable content via one capability source and a pure domain policy, with recovery metadata and two-step guidance | [29-recovery-policy-and-archive.md](completed/29-recovery-policy-and-archive.md) |
 | 30 | Slice 30 — Atomic, placement-aware section removal Undo | 2026-09-14 | Every section removal returns a receipt that undoes it once, for the same actor, between its old neighbours, over HTTP and MCP | [30-atomic-section-removal-undo.md](completed/30-atomic-section-removal-undo.md) |
+| 31 | Slice 31 — Disposable removal and immediate Undo UI | 2026-09-14 | Safely remove disposable sections and restore them through a reviewed, tested canvas-local Undo flow | [31-disposable-removal-and-undo-ui.md](completed/31-disposable-removal-and-undo-ui.md) |
 <!-- roadmap:end -->

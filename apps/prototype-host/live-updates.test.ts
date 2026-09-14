@@ -187,8 +187,8 @@ describe('live updates through the host (§62)', () => {
       const removed = await persona(routes, 'DELETE', `/api/sections/${SECTION}`);
       expect(removed.status).toBe(200);
       expect(delivered).toHaveLength(1);
-      expect(delivered[0]).toMatchObject({ event: { type: 'project.section_archived' }, records: 1 });
-      expect(delivered[0]?.archivedAtDelivery).toBeDefined();
+      expect(delivered[0]).toMatchObject({ event: { type: 'project.section_removed' }, records: 1 });
+      expect(delivered[0]?.archivedAtDelivery).toBeUndefined();
 
       const { undo } = removed.body as { undo: { undoId: string } };
       const undone = await persona(routes, 'POST', `/api/undo/${undo.undoId}`);

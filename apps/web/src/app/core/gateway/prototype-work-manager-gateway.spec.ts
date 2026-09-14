@@ -4,13 +4,16 @@ import {
   ProjectCompletedWorkResultSchema,
   ProjectJournalResultSchema,
   ResolvedSectionShortcutSchema,
+  SectionRemovalResultSchema,
   ShortcutSourceSchema,
+  UndoResultSchema,
   type CreateTaskInput,
   type Identity,
   type ProjectId,
   type ReflectionId,
   type SectionId,
   type TaskId,
+  type UndoRecordId,
 } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
@@ -55,6 +58,18 @@ const projectSection = {
   createdAt: at,
   updatedAt: at,
 };
+
+const removalResult = SectionRemovalResultSchema.parse({
+  section: { ...projectSection, archivedAt: at },
+  undo: {
+    undoId: 'undo-1', operation: 'section.remove', label: 'Removed Kickoff', createdAt: at,
+    expiresAt: '2026-08-02T16:00:00.000Z',
+  },
+});
+const undoResult = UndoResultSchema.parse({
+  undoId: 'undo-1', operation: 'section.remove', outcome: 'restored', section: projectSection,
+  placement: { pageId: 'page-project-1', index: 0, strategy: 'index', pageEnabled: true }, restoredRowCount: 0,
+});
 
 const task = {
   id: 'task-1',
@@ -434,15 +449,31 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
     expect(copy.id).toBe('section-2');
   });
 
-  it('removes through DELETE and ignores the receipt body the host now returns', async () => {
-    // The host answers 200 with `SectionRemovalResult`; the adapter does not consume the receipt
-    // yet, so an unvalidated body must not break the call.
-    fetchMock.mockImplementation(jsonResponse({ section: projectSection, undo: { undoId: 'undo-1' } }));
+  it('removes through DELETE and validates the returned receipt contract', async () => {
+    fetchMock.mockImplementation(jsonResponse(removalResult));
 
-    await expect(gateway().sections.remove('section-1' as SectionId)).resolves.toBeUndefined();
+    await expect(gateway().sections.remove('section-1' as SectionId)).resolves.toEqual(removalResult);
 
     expect(lastCall().url).toBe('http://host.test/api/sections/section-1');
     expect(lastCall().init.method).toBe('DELETE');
+  });
+
+  it('executes Undo by receipt id and validates the committed result', async () => {
+    fetchMock.mockImplementation(jsonResponse(undoResult));
+
+    await expect(gateway().undo.execute('undo-1' as UndoRecordId)).resolves.toEqual(undoResult);
+
+    expect(lastCall().url).toBe('http://host.test/api/undo/undo-1');
+    expect(lastCall().init.method).toBe('POST');
+    expect(lastCall().init.body).toBeUndefined();
+  });
+
+  it('rejects a removal receipt body outside the shared contract', async () => {
+    fetchMock.mockImplementation(jsonResponse({ section: projectSection, undo: { undoId: 'undo-1' } }));
+
+    await expect(gateway().sections.remove('section-1' as SectionId)).rejects.toMatchObject({
+      code: 'invalid_response', status: 0,
+    });
   });
 
   it('rejects a section body that is not its contract (§11)', async () => {

@@ -302,11 +302,11 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     // through `fetch` and every client here already builds query strings. Removing a
     // container that still holds **live** rows without one answers 409 naming the count,
     // which is what lets the canvas offer cascade or reassign rather than guess. Removing
-    // a section that is already archived answers 409 too — the record still exists, so
-    // this is a rule error rather than the 404 a hard delete used to give.
+    // a repeat from the exact actor may recover its outstanding receipt in the 409 details,
+    // even when removal deleted the section. Other callers still get the ordinary 404.
     //
-    // A successful removal answers 200 with `SectionRemovalResult`: the archived section and the
-    // Undo receipt for it. A refusal issues no receipt.
+    // A successful removal answers 200 with `SectionRemovalResult`: the final archived-shaped
+    // section and the Undo receipt for it. The section itself may have been deleted.
     'DELETE /api/sections/:id': async (request) =>
       ok(
         await sections.remove(

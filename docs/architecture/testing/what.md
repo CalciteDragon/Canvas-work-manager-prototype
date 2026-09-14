@@ -23,8 +23,8 @@ flowchart TB
   end
   subgraph real["Run deliberately"]
     acc["acceptance scripts: second host on a temp file"]
-    sb["Storybook: TaskRow, ProjectSectionFrame, canvas, navigation, pages, shortcuts, archive"]
-    e2e["Playwright: web, canvas editing, mcp, todos, archive, reflections — own servers, own data file"]
+    sb["Storybook: TaskRow, ProjectSectionFrame, canvas, removal Undo notice, navigation, pages, shortcuts, archive"]
+    e2e["Playwright: web, canvas editing/removal Undo, MCP, todos, archive, reflections — own servers, own data file"]
     use["§77: use it in the real app; notes.json"]
   end
 ```
@@ -60,5 +60,5 @@ sequenceDiagram
 | Token lint | `apps/web/scripts/check-design-tokens.mjs`, `expect-failure.mjs` | §21; the self-test pins each fixture |
 | Docs check | `scripts/check-docs.mjs`, `scripts/roadmap.mjs check` | The documentation protocol's rules |
 | Acceptance | `apps/prototype-host/scripts/{acceptance,agent-acceptance,mcp-acceptance,live-acceptance}.mjs` | Slices 5, 13, 15, 16 |
-| E2E | `apps/e2e/playwright.config.ts`, `seed.ts`, `web.spec.ts`, `canvas-editing.spec.ts`, `mcp.spec.ts`, `todos.spec.ts`, `archive.spec.ts`, `reflections.spec.ts` | §69's journeys and the 25.x/27 additions |
+| E2E | `apps/e2e/playwright.config.ts`, `seed.ts`, `web.spec.ts`, `canvas-editing.spec.ts`, `removal-undo.spec.ts`, `mcp.spec.ts`, `todos.spec.ts`, `archive.spec.ts`, `reflections.spec.ts` | §69's journeys; Slice 31 exercises disposable deletion, receipt recovery, exact placement and content Archive Restore |
 | Milestone walkthrough | `docs/guides/first-milestone-walkthrough.md` | The manual click-path for every §81 bullet |

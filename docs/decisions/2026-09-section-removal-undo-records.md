@@ -149,3 +149,14 @@ Implementation settled three details the plan left implicit: `undo_blocked` name
 archived project on the chain (reactivating anything below it still leaves the tree frozen); a
 record and its operation omit absent optional keys rather than storing `undefined`, so the record in
 memory is the record on disk; and receipts label the operation `Removed the <name> section`.
+
+**Amended, 2026-09-14 — landed in Slice 31.** The version-1 section-removal inverse has an
+optional `disposition`; absence continues to mean `retained`, while `deleted` permits safe
+recreation only if the id remains absent and the recorded structural checks pass.
+`SectionRemovalResult.section` for a deletion is the final archived-shaped operation snapshot.
+Repeating removal returns the highest-sequence, unconsumed, unexpired receipt only to its exact
+actor, including after hard deletion; the refusal performs no write or activity event. HTTP
+details and MCP text expose receipt fields but never inverse data. The browser holds a successful
+receipt only in the current canvas session, with Undo, explicit retry after a lost response, and
+typed conflict guidance. Reload, leaving the page/project or changing persona clears that local
+action. Existing version-3 storage and the 24-hour/50-record bounds remain unchanged.

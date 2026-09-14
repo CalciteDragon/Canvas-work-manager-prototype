@@ -90,12 +90,15 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 *Seed: `nested-projects`; open Home renovation, then Kitchen.*
 
 10. **Direct canvas controls.** There is no separate editing mode. Hover or keyboard-focus a
-    section to reveal its move grip, resize handles and archive control; the collapse control
-    and title stay available. On a touch screen, the controls remain visible without hover.
-11. **Add, reorder, resize and archive.** Choose an insertion plus between sections, select a
+    section to reveal its move grip, resize handles and **Remove section** action; the collapse
+    control and title stay available. On a touch screen, the controls remain visible without hover.
+11. **Add, reorder, resize and remove.** Choose an insertion plus between sections, select a
     type and optionally name it, then create. Drag from the grip or use its arrow keys to move
-    a placement. Drag a side handle to resize it, or use its keyboard controls. The archive icon
-    removes a section through the existing archive flow; reload to confirm position and width.
+    a placement. Drag a side handle to resize it, or use its keyboard controls. Add a disposable
+    view between two known neighbors, remove it, then choose **Undo** in the canvas and confirm
+    that it returns with its width and placement. Disposable views are absent from Archive;
+    retained content such as nonempty notes or cascaded rows can be restored from Archive. The
+    immediate Undo notice is local to this canvas and clears when you leave or reload.
 12. **Collapse and rename.** Click the collapse control to hide a section's body while leaving
     its heading visible. Click the title to rename it; Enter or blur saves, and Escape restores
     the previous name. Following a Todos owner link can open a collapsed target for that visit,

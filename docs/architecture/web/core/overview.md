@@ -12,7 +12,7 @@ sidebar and top bar (§23). Nothing in `core/` depends on `prototype/` or on any
 
 ## Responsibilities
 
-- `WorkManagerGateway` and its fourteen sub-interfaces (`TaskGateway`,
+- `WorkManagerGateway` and its fifteen sub-interfaces (`TaskGateway`,
   `ProjectGateway`, `SectionGateway`, … `ActivityGateway`), injected through
   `WORK_MANAGER_GATEWAY`; `GatewayError` as the only failure type the UI sees.
 - `PrototypeWorkManagerGateway`: every URL, `fetch`, header and status code, plus §63's

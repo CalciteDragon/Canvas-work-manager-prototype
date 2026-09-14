@@ -14,6 +14,7 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { EntityNotFoundError, undoRefusal } from './errors';
 import { executeSectionRemovalUndo } from './section-removal-undo';
+import { undoRecordBelongsToActor } from './undo-recorder';
 
 /** Repository interfaces, `ActivityService` and a clock — deliberately no section, task or reflection service. */
 export interface UndoServiceDependencies {
@@ -28,14 +29,6 @@ export interface UndoServiceDependencies {
   clock: Clock;
   unitOfWork: UnitOfWork;
 }
-
-/** The exact actor identity that created a record: the same user, connection, or system. */
-const isOwnedBy = (record: UndoRecord, actor: ActorContext): boolean => {
-  if (record.workspaceId !== actor.workspaceId || record.actor !== actor.actor) return false;
-  if (actor.actor === 'user') return record.actorUserId === actor.userId;
-  if (actor.actor === 'agent') return record.actorAgentConnectionId === actor.agentConnectionId;
-  return true;
-};
 
 /**
  * **Executes one stored Undo record**, scoped to the actor that created it, under a current
@@ -68,7 +61,7 @@ export class UndoService {
       const { undoRecords, clock, activity } = this.dependencies;
       const record = await undoRecords.find(undoId);
       // One not-found for absent, foreign and someone else's: anything else would confirm the id.
-      if (record === null || !isOwnedBy(record, actor)) throw new EntityNotFoundError('undoRecord', undoId);
+      if (record === null || !undoRecordBelongsToActor(record, actor)) throw new EntityNotFoundError('undoRecord', undoId);
 
       if (record.consumedAt !== undefined) {
         throw undoRefusal(

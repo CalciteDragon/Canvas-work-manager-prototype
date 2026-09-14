@@ -49,11 +49,14 @@ unchecked lookup for its own write paths, so a `tasks.write`-only grant is usabl
 cannot confirm that someone else's project exists
 ([decision](../../decisions/2026-08-workspace-scoping-and-not-found.md)).
 
-**Archive is a field, not a status; removal archives, restore is exact.** `archivedAt` on
+**Archive is a field, not a status; retained removal archives, restore is exact.** `archivedAt` on
 tasks, reflections and sections, with `archivedWithSectionId` / `archivedWithTaskId`
 marking what one operation took down so that restore brings back exactly that and nothing
 independently archived ([decision](../../decisions/2026-09-what-undo-means-for-an-archived-row.md)).
-Nothing hard-deletes except a shortcut placement.
+New section removal deletes only after the content policy says nothing needs recovery and an
+independent audit proves no task, reflection or shortcut still references the section. Required
+references retain an integrity tombstone; existing tombstones are never purged
+([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
 **Undo is a scoped inverse record, not a replay and not the activity log.** A section removal
 records one versioned `section.remove` inverse beside the canonical writes, in the same unit —
@@ -103,6 +106,7 @@ ISO string so ordering stays lossless without a clock or timezone
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
 - [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md)
+- [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)
 - [Root Archive recovery guidance](../../decisions/2026-09-root-archive-recovery-guidance.md)
 - [Content-oriented Archive policy](../../decisions/2026-09-content-oriented-archive-policy.md)
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md)
@@ -141,9 +145,9 @@ live-update emission.
 **Archive projects recoverable content, judged on current state.** `sectionRecoveryOf`
 (`section-recovery-policy.ts`, package-internal) is a pure function: contracts capability plus the
 rows still assigned to the section. `ProjectArchiveService` applies it to section entries only;
-disposable view tombstones stay stored but unlisted, uncertain rich-text config and unknown types
-are kept, and a container holding only independently archived rows stays listed as the first step
-of their recovery rather than gaining a new restore operation. It decides a projection, never
-deletion ([decision](../../decisions/2026-09-content-oriented-archive-policy.md)).
-
-Planning only: [Slice 31's disposable removal and immediate Undo choices](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.
+retained disposable view tombstones stay stored but unlisted, uncertain rich-text config and
+unknown types are kept, and a container holding only independently archived rows stays listed as
+the first step of their recovery. New removal consults this policy after settling rows, then makes
+a separate canonical-reference check before deleting. Archive remains a projection, not the
+deletion gate ([content policy](../../decisions/2026-09-content-oriented-archive-policy.md),
+[disposable removal](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).

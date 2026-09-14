@@ -23,6 +23,9 @@ contract inputs and answer contract shapes; they hold no rules.
 - Map errors: validation → 400, `EntityNotFoundError` → 404, `DomainRuleError` → 409
   (with its typed `details` forwarded), `PermissionDeniedError` → 403, anything else →
   500 `internal_error` with the explanation on the console.
+- Forward section-removal results as `{ section, undo }`; a deleted disposable section's
+  `section` is an archived-shaped response snapshot. A repeated removal remains a 409 and
+  may carry only the exact actor's newest outstanding receipt in typed `details`.
 
 ## Not responsible for
 

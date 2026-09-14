@@ -98,7 +98,10 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
   await expect(page.locator(`[data-archived-item][data-archived-id="${child.id}"]`)).toContainText('Restore “Parent task” first');
   await expect(page.locator(`[data-archived-item][data-archived-id="${leaf.id}"]`)).toBeVisible();
 
-  await page.locator(`[data-archived-item][data-archived-id="${section.id}"] [data-archived-restore]`).click();
+  const restoreSection = page.locator(`[data-archived-item][data-archived-id="${section.id}"] [data-archived-restore]`);
+  await expect(restoreSection).toHaveText('Restore saved content');
+  await expect(restoreSection).toHaveAttribute('aria-label', 'Restore saved content for Cascade section');
+  await restoreSection.click();
   await expect(page.locator(`[data-archived-item][data-archived-id="${section.id}"]`)).toHaveCount(0);
   expect(await archiveKeys(root.id)).not.toContain(`section:${section.id}`);
 

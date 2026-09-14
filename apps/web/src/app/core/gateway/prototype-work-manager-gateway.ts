@@ -13,8 +13,10 @@ import {
   ProgressResultSchema,
   ProjectTodosResultSchema,
   ReflectionSchema,
+  SectionRemovalResultSchema,
   TaskSchema,
   TimelineResultSchema,
+  UndoResultSchema,
   ShortcutSourceSchema,
   type ActivityQuery,
   type AgentConnectionId,
@@ -45,13 +47,14 @@ import {
   type TaskQuery,
   type UpdateSectionInput,
   type UpdateTaskInput,
+  type UndoRecordId,
 } from '@cwm/contracts';
 import { z } from 'zod';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
-import type { ActivityGateway, AgentGateway, ArchiveGateway, DashboardGateway, JournalGateway, ProgressGateway, ProjectGateway, ProjectPageGateway, ReflectionGateway, SectionGateway, SectionShortcutGateway, TaskGateway, TimelineGateway, TodosGateway, WorkManagerGateway } from './work-manager-gateway';
+import type { ActivityGateway, AgentGateway, ArchiveGateway, DashboardGateway, JournalGateway, ProgressGateway, ProjectGateway, ProjectPageGateway, ReflectionGateway, SectionGateway, SectionShortcutGateway, TaskGateway, TimelineGateway, TodosGateway, UndoGateway, WorkManagerGateway } from './work-manager-gateway';
 
 /**
  * The §10 adapter: Angular → `localhost:4310`. Everything transport-shaped lives here —
@@ -147,14 +150,13 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/move`, ProjectSectionSchema, input),
     duplicate: (id: SectionId) =>
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/duplicate`, ProjectSectionSchema),
-    // The host answers 200 with the archived section and an Undo receipt (`SectionRemovalResult`).
-    // This adapter does not consume the receipt yet — the canvas re-reads, and a browser Undo
-    // surface is a later slice — so the body is neither read nor validated.
-    // The policy rides on the query string, matching the host route.
+    // The policy rides on the query string, matching the host route. The result carries only
+    // the public receipt; the inverse remains on the server.
     remove: (id: SectionId, input: RemoveSectionInput = {}) =>
-      this.sendWithoutBody(
+      this.send(
         'DELETE',
         `/api/sections/${encodeURIComponent(id)}${queryString(removeSectionParams(input))}`,
+        SectionRemovalResultSchema,
       ),
     restore: (id: SectionId) =>
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/restore`, ProjectSectionSchema),
@@ -212,6 +214,11 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
   readonly activity: ActivityGateway = {
     list: (query: ActivityQuery) =>
       this.send('GET', `/api/activity${queryString(activityQueryParams(query))}`, ActivityFeedEntrySchema.array()),
+  };
+
+  readonly undo: UndoGateway = {
+    execute: (id: UndoRecordId) =>
+      this.send('POST', `/api/undo/${encodeURIComponent(id)}`, UndoResultSchema),
   };
 
   private async send<T>(method: string, path: string, schema: z.ZodType<T>, body?: unknown): Promise<T> {

@@ -730,9 +730,8 @@ test('inline rename, archive choices, shortcut removal and type settings remain 
   await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-rich-text-body]`).fill('Body editing is available without a mode.');
   await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-rich-text-body]`).press('Tab');
 
-  // An ordinary view archives without a choice; the section and its typed identity remain
-  // recoverable from the root Archive page (a Rich Text section keeps its config, so Archive lists it).
-  await expect(page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`)).toHaveAttribute('aria-label', 'Archive section Keep draft after failure');
+  // Removal keeps meaningful Rich Text in Archive, while the action describes the operation.
+  await expect(page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`)).toHaveAttribute('aria-label', 'Remove section Keep draft after failure');
   await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`).click();
   await expect(page.locator(`[data-section-item][data-section-id="${view.id}"]`)).toHaveCount(0);
   await page.locator('[data-project-more]').click();
@@ -770,7 +769,7 @@ test('inline rename, archive choices, shortcut removal and type settings remain 
   expect((await api.get<unknown[]>(`/api/tasks?projectId=${root.id}&includeArchived=true`)).some((task) => JSON.stringify(task).includes(firstTask.id))).toBe(true);
 });
 
-test('keyboard users can insert, move sections and shortcuts, resize, rename and archive', async ({ page }) => {
+test('keyboard users can insert, move sections and shortcuts, resize, rename and remove', async ({ page }) => {
   await seed('empty');
   await setClock(PINNED_NOW);
   const root = await createRoot('Keyboard journey');
@@ -829,7 +828,8 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   await insertedWrapper.locator('[data-section-remove]').press('Enter');
   await expect(insertedWrapper).toHaveCount(0);
   const archived = await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?includeArchived=true&pageId=${home}`);
-  expect(archived.find(({ id }) => id === insertedSection.id)?.archivedAt).toBeTruthy();
+  expect(archived.some(({ id }) => id === insertedSection.id)).toBe(false);
+  await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
   expect((await orderOf(root.id, home)).map(({ id }) => id)).toEqual([first.id, shortcut.id, second.id]);
 });
 

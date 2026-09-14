@@ -31,11 +31,18 @@
     @if (store.items().length === 0 && store.error() === null) {
       <p data-archive-empty class="archive-page__empty">Nothing is archived in this project.</p>
     }
+  }
+
+  @defer (when !store.loading()) {
     <app-archived-region
       [items]="store.items()"
       [restoreBlocked]="restoreBlocked()"
       [restoring]="store.restoring()"
       (restoreRequested)="restore($event)"
     />
+  } @placeholder {
+    @if (!store.loading()) {
+      <p data-archive-content-loading class="archive-page__muted" role="status">Preparing archived items…</p>
+    }
   }
 </section>

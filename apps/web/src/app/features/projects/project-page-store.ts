@@ -2,6 +2,8 @@ import { DestroyRef, Injectable, PendingTasks, inject, signal } from '@angular/c
 import {
   SectionConfigSchema,
   SectionRemovalRefusalDetailsSchema,
+  SectionAlreadyRemovedDetailsSchema,
+  UndoRefusalDetailsSchema,
   nameOf,
   ownedKindOf,
   type OwnedDataKind,
@@ -13,6 +15,9 @@ import {
   type CreateSectionShortcutInput,
   type UpdateSectionShortcutInput,
   type RemoveSectionInput,
+  type UndoReceipt,
+  type UndoRefusalDetails,
+  type UndoResult,
   type SectionColumnSpan,
   type SectionConfig,
   type SectionId,
@@ -26,6 +31,9 @@ import type { SectionDefinition } from './sections/registry';
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+const FAILED_REMOVAL_GUARD_MESSAGE =
+  'Retry or dismiss the unresolved removal above before removing another section.';
 
 const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position - b.position;
 
@@ -59,6 +67,23 @@ export interface SectionRemovalPrompt {
   rowCount: number;
   ownedKind: OwnedDataKind;
   targets: ProjectSection[];
+}
+
+/** The receipt and current outcome shown by the canvas-local Undo notice. */
+export interface SectionUndoNoticeState {
+  kind: 'available' | 'already-removed' | 'result' | 'refusal' | 'terminal' | 'error';
+  receipt: UndoReceipt | null;
+  message: string;
+  result?: UndoResult;
+  refusal?: UndoRefusalDetails;
+  refreshFailed?: boolean;
+}
+
+/** An explicit Retry remove repeats the exact canvas action after an uncertain failure. */
+export interface FailedSectionRemoval {
+  sectionId: SectionId;
+  input: RemoveSectionInput;
+  message: string;
 }
 
 /** A canvas creation result belongs to its popup, so failures are returned instead of stored. */
@@ -112,11 +137,15 @@ export class ProjectPageStore {
    */
   private loaded = false;
   private activeLoad: Promise<void> | null = null;
+  private destroyed = false;
   private fullRecoveryQueued = false;
   private readonly errorState = signal<string | null>(null);
   private readonly sectionErrorState = signal<string | null>(null);
   /** Set when a container refuses removal because it still holds rows — see `removeSection`. */
   private readonly removalPromptState = signal<SectionRemovalPrompt | null>(null);
+  private readonly undoNoticeState = signal<SectionUndoNoticeState | null>(null);
+  private readonly failedRemovalState = signal<FailedSectionRemoval | null>(null);
+  private readonly removalUndoPendingState = signal(false);
   private readonly canvasRevisionState = signal(0);
   private readonly projectDataRevisionState = signal(0);
   private readonly projectHierarchyRevisionState = signal(0);
@@ -131,6 +160,7 @@ export class ProjectPageStore {
    * be lost until a reload.
    */
   private pendingSectionWrites = 0;
+  private readonly sectionWriteWaiters: Array<{ threshold: number; resolve: () => void }> = [];
   /**
    * Bumped as each section write begins. `pendingSectionWrites` only stops a re-read from
    * *starting* during a write; a re-read already in flight when a write begins can answer after
@@ -153,6 +183,9 @@ export class ProjectPageStore {
   readonly canvasRevision = this.canvasRevisionState.asReadonly();
   readonly projectDataRevision = this.projectDataRevisionState.asReadonly();
   readonly removalPrompt = this.removalPromptState.asReadonly();
+  readonly undoNotice = this.undoNoticeState.asReadonly();
+  readonly failedRemoval = this.failedRemovalState.asReadonly();
+  readonly removalUndoPending = this.removalUndoPendingState.asReadonly();
   readonly projectHierarchyRevision = this.projectHierarchyRevisionState.asReadonly();
 
   constructor() {
@@ -163,7 +196,11 @@ export class ProjectPageStore {
       (event) => this.onLiveEvent(event),
       () => this.onLiveConnected(),
     );
-    inject(DestroyRef).onDestroy(unsubscribe);
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.loadGeneration += 1;
+      unsubscribe();
+    });
   }
 
   /**
@@ -357,6 +394,9 @@ export class ProjectPageStore {
     this.requestedProjectId = projectId;
     this.requestedPageId = pageId;
     this.requestedShortcutsAllowed = shortcutsAllowed;
+    this.undoNoticeState.set(null);
+    this.failedRemovalState.set(null);
+    this.removalPromptState.set(null);
     this.orderCompleteState.set(false);
     if (!shortcutsAllowed) this.setCanvas(this.composePlacements(this.sectionsState(), []));
     this.loaded = false;
@@ -407,6 +447,7 @@ export class ProjectPageStore {
    */
   private current(generation: number, projectId: ProjectId, pageId: ProjectPageId): boolean {
     return (
+      !this.destroyed &&
       generation === this.loadGeneration &&
       this.requestedProjectId === projectId &&
       this.requestedPageId === pageId
@@ -675,45 +716,231 @@ export class ProjectPageStore {
   }
 
   /**
-   * Removal **archives**. A view, an empty container, and a container holding only archived
-   * rows go without ceremony — this sends no policy and the domain archives them, and the
-   * root Archive page is what makes that safe. A container still holding
-   * *live* rows answers 409 `rule_violation` carrying a discriminated `section_not_empty`
-   * payload; that is not an error to render, it is a **question to ask**, so it opens
-   * `removalPrompt` instead of `sectionError`.
-   *
-   * **Only that payload opens the dialog.** A 409 with missing, malformed, zero-valued or
-   * differently discriminated details is not safely identifiable as the question this dialog
-   * can answer, so it surfaces as an ordinary error. The count still comes from the domain
-   * rather than from a client-side row count, so the dialog and the rule cannot disagree.
+   * Removes or retains one section and keeps its public receipt in this canvas. The receipt
+   * is captured before the authoritative re-read, so a read failure cannot lose the Undo
+   * action. A live-row refusal remains a question for the existing policy dialog.
    */
   removeSection(id: SectionId, input: RemoveSectionInput = {}): Promise<boolean> {
-    return this.mutate(async ({ current, projectId, pageId, generation }) => {
+    if (this.removalUndoPendingState()) return Promise.resolve(false);
+    const savedInput = { ...input };
+    const unresolved = this.failedRemovalState();
+    if (unresolved !== null && !this.isSameFailedRemoval(unresolved, id, savedInput)) {
+      this.sectionErrorState.set(FAILED_REMOVAL_GUARD_MESSAGE);
+      return Promise.resolve(false);
+    }
+    this.removalUndoPendingState.set(true);
+    let failed = false;
+    const operation = this.mutate(async ({ current, projectId, pageId, generation }) => {
+      let result: Awaited<ReturnType<typeof this.gateway.sections.remove>>;
       try {
-        await this.gateway.sections.remove(id, input);
+        result = await this.gateway.sections.remove(id, savedInput);
       } catch (error) {
-        if (current() && error instanceof GatewayError && error.code === 'rule_violation') {
+        if (!current()) return;
+        if (error instanceof GatewayError && error.code === 'rule_violation') {
+          const available = SectionAlreadyRemovedDetailsSchema.safeParse(error.details);
+          if (available.success && available.data.sectionId === id) {
+            this.removalPromptState.set(null);
+            this.clearFailedRemovalFor(id);
+            this.undoNoticeState.set({
+              kind: 'already-removed',
+              receipt: available.data.undo,
+              message: 'Already removed. Undo is available.',
+            });
+            this.removePlacement(id);
+            this.notifyProjectDataChanged();
+            await this.waitForOtherSectionWrites();
+            const refreshed = await this.reconcileSections(projectId, pageId, generation);
+            if (!refreshed) this.markUndoRefreshFailed(current);
+            return;
+          }
           const refusal = SectionRemovalRefusalDetailsSchema.safeParse(error.details);
           if (refusal.success) {
+            this.clearFailedRemovalFor(id);
             this.removalPromptState.set(this.removalPromptFor(id, refusal.data.liveRowCount));
-            // Swallowed on purpose: `mutate` would otherwise park the domain's sentence in
-            // `sectionError`, beside a dialog already asking the question properly.
             return;
           }
         }
-        throw error;
+        this.failedRemovalState.set({ sectionId: id, input: savedInput, message: messageOf(error) });
+        failed = true;
+        return;
       }
       if (!current()) return;
       this.removalPromptState.set(null);
-      // Removing the render item is safe; filling the persisted position gap belongs to
-      // SectionService and arrives through the authoritative re-read below.
-      this.setCanvas(
-        this.placementsState().filter((placement) => !(placement.kind === 'section' && placement.section.id === id)),
-      );
-      await this.reconcileSections(projectId, pageId, generation);
-      // A cascade or a reassign moved rows, so every container has to re-read.
-      if (input.policy !== undefined) this.notifyProjectDataChanged();
+      this.clearFailedRemovalFor(id);
+      this.undoNoticeState.set({
+        kind: 'available',
+        receipt: result.undo,
+        message: 'Section removed. Undo is available on this page. Leaving clears this notice; the receipt stays on the server.',
+      });
+      // Paint the committed removal immediately. Neighbor positions still come from the
+      // authoritative read, and the receipt above survives if that read fails.
+      this.removePlacement(id);
+      if (savedInput.policy !== undefined) this.notifyProjectDataChanged();
+      await this.waitForOtherSectionWrites();
+      const refreshed = await this.reconcileSections(projectId, pageId, generation);
+      if (!refreshed) this.markUndoRefreshFailed(current);
     });
+    return operation
+      .then((succeeded) => succeeded && !failed)
+      .finally(() => this.removalUndoPendingState.set(false));
+  }
+
+  /** Retry uses the exact section id and policy the user selected; it is never automatic. */
+  retryFailedRemoval(): Promise<boolean> {
+    const failed = this.failedRemovalState();
+    return failed === null ? Promise.resolve(false) : this.removeSection(failed.sectionId, failed.input);
+  }
+
+  /** Executes only the held receipt id; all inverse data and actor checks stay on the server. */
+  undoSectionRemoval(): Promise<UndoResult | null> {
+    const notice = this.undoNoticeState();
+    const receipt = notice?.receipt;
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    if (receipt === undefined || receipt === null || projectId === undefined || pageId === undefined || this.removalUndoPendingState()) {
+      return Promise.resolve(null);
+    }
+    const generation = this.loadGeneration;
+    const current = () => this.current(generation, projectId, pageId);
+    this.removalUndoPendingState.set(true);
+    return this.track(() => this.whileWriting(async () => {
+      try {
+        const result = await this.gateway.undo.execute(receipt.undoId);
+        if (!current()) return null;
+        this.undoNoticeState.set({
+          kind: 'result',
+          receipt: null,
+          result,
+          message: this.undoResultMessage(result),
+        });
+        this.notifyProjectDataChanged();
+        await this.waitForOtherSectionWrites();
+        const refreshed = await this.reconcileSections(projectId, pageId, generation);
+        if (!refreshed) this.markUndoRefreshFailed(current);
+        return result;
+      } catch (error) {
+        if (!current()) return null;
+        this.handleUndoFailure(receipt, error);
+        const state = this.undoNoticeState();
+        if (state?.kind === 'terminal' && state.refusal?.reason === 'undo_consumed') {
+          this.notifyProjectDataChanged();
+          await this.waitForOtherSectionWrites();
+          const refreshed = await this.reconcileSections(projectId, pageId, generation);
+          if (!refreshed) this.markUndoRefreshFailed(current);
+        }
+        return null;
+      }
+    })).finally(() => this.removalUndoPendingState.set(false));
+  }
+
+  /** Retries only the read after a committed mutation, never the remove or Undo request. */
+  retryUndoRefresh(): Promise<boolean> {
+    const notice = this.undoNoticeState();
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    if (!notice?.refreshFailed || projectId === undefined || pageId === undefined || this.removalUndoPendingState()) {
+      return Promise.resolve(false);
+    }
+    const generation = this.loadGeneration;
+    const current = () => this.current(generation, projectId, pageId);
+    this.removalUndoPendingState.set(true);
+    return this.track(async () => {
+      await this.waitForOtherSectionWrites(0);
+      if (!current()) return false;
+      const refreshed = await this.reconcileSections(projectId, pageId, generation);
+      if (current() && refreshed) {
+        this.undoNoticeState.update((state) => state === null ? null : { ...state, refreshFailed: false });
+      }
+      return current() && refreshed;
+    }).finally(() => this.removalUndoPendingState.set(false));
+  }
+
+  dismissUndoNotice(): void {
+    this.undoNoticeState.set(null);
+  }
+
+  /** Dismisses only the failed remove message; any prior Undo receipt remains available. */
+  dismissFailedRemoval(): void {
+    this.failedRemovalState.set(null);
+    if (this.sectionErrorState() === FAILED_REMOVAL_GUARD_MESSAGE) this.sectionErrorState.set(null);
+  }
+
+  private clearFailedRemovalFor(id: SectionId): void {
+    if (this.failedRemovalState()?.sectionId === id) this.failedRemovalState.set(null);
+  }
+
+  private isSameFailedRemoval(
+    failed: FailedSectionRemoval,
+    id: SectionId,
+    input: RemoveSectionInput,
+  ): boolean {
+    return failed.sectionId === id &&
+      failed.input.policy === input.policy &&
+      failed.input.reassignToSectionId === input.reassignToSectionId;
+  }
+
+  private removePlacement(id: SectionId): void {
+    this.setCanvas(
+      this.placementsState().filter((placement) => !(placement.kind === 'section' && placement.section.id === id)),
+    );
+  }
+
+  private undoResultMessage(result: UndoResult): string {
+    const name = nameOf(result.section);
+    if (!result.placement.pageEnabled) {
+      const destination = result.outcome === 'partial' ? 'another disabled page' : 'a disabled page';
+      return `Undo restored ${name} to ${destination} (${result.placement.pageId}). Enable that page to see it.`;
+    }
+    if (result.outcome === 'partial') {
+      return `Undo restored ${name} to another available page (${result.placement.pageId}).`;
+    }
+    return `Undo restored ${name}.`;
+  }
+
+  private handleUndoFailure(receipt: UndoReceipt, error: unknown): void {
+    const currentNotice = this.undoNoticeState();
+    const parsed = error instanceof GatewayError ? UndoRefusalDetailsSchema.safeParse(error.details) : null;
+    if (error instanceof GatewayError && error.code === 'not_found') {
+      this.undoNoticeState.set({ kind: 'terminal', receipt: null, message: 'This Undo receipt is no longer available.' });
+      return;
+    }
+    if (error instanceof GatewayError && parsed?.success && error.code === 'rule_violation') {
+      const refusal = parsed.data;
+      if (refusal.reason === 'undo_consumed') {
+        this.undoNoticeState.set({
+          kind: 'terminal', receipt: null, refusal,
+          message: 'Undo was already completed. The canvas has been refreshed.',
+        });
+      } else if (refusal.reason === 'undo_expired') {
+        this.undoNoticeState.set({
+          kind: 'terminal', receipt: null, refusal,
+          message: `This Undo receipt expired at ${refusal.expiresAt}.`,
+        });
+      } else {
+        this.undoNoticeState.set({ kind: 'refusal', receipt, refusal, message: error.message });
+      }
+      return;
+    }
+    this.undoNoticeState.set({
+      kind: 'error',
+      receipt,
+      message: messageOf(error),
+      ...(currentNotice?.refreshFailed === true ? { refreshFailed: true } : {}),
+    });
+  }
+
+  private markUndoRefreshFailed(current: () => boolean): void {
+    if (!current()) return;
+    this.undoNoticeState.update((state) => state === null ? null : {
+      ...state,
+      refreshFailed: true,
+      message: state.message || 'The change was saved, but this canvas could not be refreshed.',
+    });
+  }
+
+  private async waitForOtherSectionWrites(threshold = 1): Promise<void> {
+    if (this.pendingSectionWrites <= threshold) return;
+    await new Promise<void>((resolve) => this.sectionWriteWaiters.push({ threshold, resolve }));
   }
 
   /**
@@ -926,34 +1153,33 @@ export class ProjectPageStore {
   /**
    * Re-reads the canvas after a successful write, and **swallows its own failure**. The
    * write already landed; reporting a failed re-read as a failed write would tell the user
-   * their remove did not happen and invite them to click it again — which now answers the
-   * already-archived 409, because removal archives and the record is still there. The
-   * render-only update above is close enough to live with until the next load. Persisted
+   * their remove did not happen. The receipt is already held locally, and a deliberate retry
+   * can recover it from the exact-actor refusal without repeating the mutation. Persisted
    * sibling positions remain untouched unless they came from the host.
    */
   private async reconcileSections(
     projectId = this.requestedProjectId,
     pageId = this.requestedPageId,
     generation = this.loadGeneration,
-  ): Promise<void> {
-    if (projectId === undefined || pageId === undefined) return;
+  ): Promise<boolean> {
+    if (projectId === undefined || pageId === undefined) return false;
     const [sectionsResult, shortcutsResult] = await Promise.allSettled([
       this.gateway.sections.list(projectId, { pageId }),
       this.readShortcuts(projectId, pageId),
     ]);
-    if (!this.current(generation, projectId, pageId)) return;
+    if (!this.current(generation, projectId, pageId)) return false;
     this.orderCompleteState.set(
       !this.requestedShortcutsAllowed || shortcutsResult.status === 'fulfilled',
     );
     if (shortcutsResult.status === 'rejected') {
       this.sectionErrorState.set(messageOf(shortcutsResult.reason));
     }
-    if (sectionsResult.status === 'fulfilled') {
-      const shortcuts = shortcutsResult.status === 'fulfilled' ? shortcutsResult.value : this.shortcutsState();
-      this.setCanvas(this.composePlacements([...sectionsResult.value].sort(byPosition), shortcuts));
-      this.loaded = true;
-      if (shortcutsResult.status === 'fulfilled') this.sectionErrorState.set(null);
-    }
+    if (sectionsResult.status === 'rejected') return false;
+    const shortcuts = shortcutsResult.status === 'fulfilled' ? shortcutsResult.value : this.shortcutsState();
+    this.setCanvas(this.composePlacements([...sectionsResult.value].sort(byPosition), shortcuts));
+    this.loaded = true;
+    if (shortcutsResult.status === 'fulfilled') this.sectionErrorState.set(null);
+    return shortcutsResult.status === 'fulfilled';
   }
 
   private track<T>(operation: () => Promise<T>): Promise<T> {
@@ -971,6 +1197,12 @@ export class ProjectPageStore {
     this.sectionWriteEpoch += 1;
     return operation().finally(() => {
       this.pendingSectionWrites -= 1;
+      const waiting: typeof this.sectionWriteWaiters = [];
+      for (const waiter of this.sectionWriteWaiters) {
+        if (this.pendingSectionWrites <= waiter.threshold) waiter.resolve();
+        else waiting.push(waiter);
+      }
+      this.sectionWriteWaiters.splice(0, this.sectionWriteWaiters.length, ...waiting);
       if (this.pendingSectionWrites === 0 && this.sectionRefreshQueued) {
         this.sectionRefreshQueued = false;
         void this.refreshSections();

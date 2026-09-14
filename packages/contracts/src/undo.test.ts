@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   SectionRemovalResultSchema,
+  SectionAlreadyRemovedDetailsSchema,
   SectionRemoveUndoOperationSchema,
   UndoInputSchema,
   UndoOperationSchema,
@@ -109,7 +110,8 @@ describe('SectionRemoveUndoOperationSchema', () => {
   it.each([
     ['an unknown type', { ...viewOperation, type: 'task.archive' }],
     ['a later version', { ...viewOperation, version: 2 }],
-    ['an extra key', { ...viewOperation, disposition: 'deleted' }],
+    ['an extra key', { ...viewOperation, unexpected: true }],
+    ['an invalid disposition', { ...viewOperation, disposition: 'purged' }],
     ['reassign without a target', { ...reassignOperation, reassignToSectionId: undefined }],
     ['a target without reassign', { ...cascadeOperation, reassignToSectionId: 'section-2' }],
     ['rows with no applied policy', { ...viewOperation, section: section('task-list'), rows: cascadeOperation.rows }],
@@ -120,6 +122,12 @@ describe('SectionRemoveUndoOperationSchema', () => {
     ['a placement on another page', { ...viewOperation, placement: { ...placement, pageId: 'page-b' } }],
   ])('rejects %s — the union is typed and versioned, never arbitrary JSON', (_, operation) => {
     expect(UndoOperationSchema.safeParse(operation).success).toBe(false);
+  });
+
+  it('keeps old version-1 records retained while new records may record deletion', () => {
+    expect(UndoOperationSchema.parse(viewOperation)).not.toHaveProperty('disposition');
+    expect(UndoOperationSchema.parse({ ...viewOperation, disposition: 'retained' })).toMatchObject({ disposition: 'retained' });
+    expect(UndoOperationSchema.parse({ ...viewOperation, disposition: 'deleted' })).toMatchObject({ disposition: 'deleted' });
   });
 
   it('keeps the version-1 operation type addressable for later operation versions', () => {
@@ -195,9 +203,17 @@ describe('UndoRefusalDetailsSchema', () => {
     {
       reason: 'undo_conflict',
       undoId: 'undo-1',
-      conflicts: [{ entityType: 'section', id: 'section-1', problem: 'superseded' }],
+      conflicts: [
+        {
+          entityType: 'section',
+          id: 'section-1',
+          title: 'Backlog',
+          problem: 'superseded',
+          nextStep: 'use-later-receipt-or-archive',
+        },
+      ],
     },
-    { reason: 'undo_blocked', undoId: 'undo-1', blockingProjectId: 'project-a' },
+    { reason: 'undo_blocked', undoId: 'undo-1', blockingProjectId: 'project-a', blockingProjectTitle: 'Kitchen' },
     { reason: 'undo_unavailable', undoId: 'undo-1', problem: 'no-compatible-page' },
   ])('parses $reason', (details) => {
     expect(UndoRefusalDetailsSchema.parse(details)).toEqual(details);
@@ -208,5 +224,39 @@ describe('UndoRefusalDetailsSchema', () => {
       false,
     );
     expect(UndoRefusalDetailsSchema.safeParse({ reason: 'undo_maybe', undoId: 'undo-1' }).success).toBe(false);
+  });
+
+  it('requires a typed next step and omits titles for missing entities', () => {
+    const missing = {
+      entityType: 'task',
+      id: 'task-missing',
+      problem: 'missing',
+      nextStep: 'nothing-to-restore',
+    };
+    expect(UndoRefusalDetailsSchema.safeParse({
+      reason: 'undo_conflict', undoId: 'undo-1', conflicts: [missing],
+    }).success).toBe(true);
+    expect(UndoRefusalDetailsSchema.safeParse({
+      reason: 'undo_conflict', undoId: 'undo-1', conflicts: [{ ...missing, nextStep: undefined }],
+    }).success).toBe(false);
+    expect(UndoRefusalDetailsSchema.safeParse({
+      reason: 'undo_conflict', undoId: 'undo-1', conflicts: [{ ...missing, title: 'Gone' }],
+    }).success).toBe(false);
+    expect(UndoRefusalDetailsSchema.safeParse({
+      reason: 'undo_conflict', undoId: 'undo-1', conflicts: [{ ...missing, nextStep: 'guess' }],
+    }).success).toBe(false);
+  });
+
+  it('carries the exact outstanding removal receipt on a repeat-removal refusal', () => {
+    const removalReceipt = {
+      undoId: 'undo-1',
+      operation: 'section.remove',
+      label: 'Removed the Backlog section',
+      createdAt: AT,
+      expiresAt: LATER,
+    };
+    const details = { reason: 'section_already_removed', sectionId: 'section-a', undo: removalReceipt };
+    expect(SectionAlreadyRemovedDetailsSchema.parse(details)).toEqual(details);
+    expect(SectionAlreadyRemovedDetailsSchema.safeParse({ ...details, operationData: {} }).success).toBe(false);
   });
 });

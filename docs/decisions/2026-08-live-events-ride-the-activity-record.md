@@ -96,3 +96,10 @@ dropped on rollback. The Undo record — snapshot, placement, rows — is stored
 event, never inside it or the frame; `live-updates.test.ts` pins both frames and that a removal whose
 persistence fails delivers nothing
 ([section removal Undo records](2026-09-section-removal-undo-records.md), rule 2).
+
+**Amended, 2026-09-14 — Slice 31 disposable deletion.** The one-frame, post-commit rule is
+unchanged. A retained section removal publishes `project.section_archived`; a disposable section
+that passes recovery classification and the canonical reference audit publishes
+`project.section_removed`. Undo still publishes one `project.section_removal_undone` frame.
+`live-updates.test.ts` verifies the deleted-removal frame, Undo, and the absence of a frame on
+rollback; `section-service.test.ts` asserts that retained removals record `project.section_archived`.

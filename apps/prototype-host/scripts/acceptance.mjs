@@ -3,8 +3,9 @@
  *
  * Creates a project, a task in it, completes the task, reads the resulting
  * ActivityEvents, then restarts the host and confirms the work survived — proving the
- * writes went through a unit of work to `.prototype/data.json` (§15). Slice 30 adds a section
- * removal receipt and its Undo, back at the page's first placement, refused on repeat.
+ * writes went through a unit of work to `.prototype/data.json` (§15). Slices 30–31 add
+ * receipt-based section Undo, safe disposable deletion, and exact-actor recovery after a
+ * repeated removal of an already deleted section.
  *
  * Runs against a temporary data file via CWM_DATA_FILE, never the developer's own
  * workspace: an acceptance check that mutates the file you were about to demo is worse
@@ -12,7 +13,7 @@
  * hence copying the committed seed rather than calling `writeSeedFile`.
  */
 import { spawn } from 'node:child_process';
-import { copyFile, mkdtemp, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -144,6 +145,28 @@ try {
 
   const repeated = await request('POST', `/api/undo/${removed.body.undo.undoId}`);
   check(repeated.status === 409 && repeated.body.details?.reason === 'undo_consumed', 'a repeat Undo is refused as undo_consumed');
+
+  const disposableResponse = await request('POST', '/api/projects/project-personal/sections', { type: 'progress' });
+  const disposable = disposableResponse.body;
+  check(disposableResponse.status === 201, 'a disposable view can be created for recovery acceptance');
+  const hardRemoved = await request('DELETE', `/api/sections/${disposable.id}`);
+  check(hardRemoved.status === 200 && hardRemoved.body.section.archivedAt !== undefined, 'removal returns the final section and receipt');
+  const afterHardDelete = await readFile(dataFile, 'utf8');
+  check(!JSON.parse(afterHardDelete).sections.some(({ id }) => id === disposable.id), 'the disposable view is absent from persisted sections');
+  const recovered = await request('DELETE', `/api/sections/${disposable.id}`);
+  check(
+    recovered.status === 409 &&
+      recovered.body.details?.reason === 'section_already_removed' &&
+      recovered.body.details?.sectionId === disposable.id &&
+      recovered.body.details?.undo?.undoId === hardRemoved.body.undo.undoId &&
+      recovered.body.details?.undo?.expiresAt === hardRemoved.body.undo.expiresAt,
+    'the same actor recovers the receipt after hard deletion',
+  );
+  check((await readFile(dataFile, 'utf8')) === afterHardDelete, 'receipt recovery writes no second event or record');
+  const restoredDisposable = await request('POST', `/api/undo/${hardRemoved.body.undo.undoId}`);
+  check(restoredDisposable.status === 200 && restoredDisposable.body.section.id === disposable.id, 'the recovered receipt recreates the original section');
+  const persistedUndo = JSON.parse(await readFile(dataFile, 'utf8')).undoRecords.find(({ id }) => id === hardRemoved.body.undo.undoId);
+  check(typeof persistedUndo?.consumedAt === 'string', 'the hard-deletion inverse persisted and was consumed after Undo');
 
   console.log('\nacceptance: all checks passed');
 } catch (error) {

@@ -7,7 +7,7 @@ flowchart LR
   subgraph ports["Interfaces (what the app depends on)"]
     id["IdentityProvider<br/>IDENTITY_PROVIDER"]
     lu["LiveUpdates<br/>LIVE_UPDATES (inert default)"]
-    gw["WorkManagerGateway + 14 sub-interfaces<br/>WORK_MANAGER_GATEWAY"]
+    gw["WorkManagerGateway + 15 sub-interfaces<br/>WORK_MANAGER_GATEWAY"]
     err["GatewayError"]
   end
   subgraph adapters["Prototype adapters (the only transport-aware files)"]
@@ -40,7 +40,7 @@ flowchart LR
 ## Sub-interfaces of `WorkManagerGateway`
 
 `tasks`, `projects`, `dashboard`, `progress`, `timeline`, `todos`, `archive`, `journal`,
-`reflections`, `projectPages`, `sections`, `sectionShortcuts`, `agents`, `activity` — each
+`reflections`, `projectPages`, `sections`, `sectionShortcuts`, `agents`, `activity`, `undo` — each
 a small interface in `work-manager-gateway.ts`, each with a fake in `gateway/testing`.
 A member exists only when an implementation and a caller exist.
 

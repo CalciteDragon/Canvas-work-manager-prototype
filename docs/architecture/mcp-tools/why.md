@@ -89,11 +89,10 @@ unknown-tool response.
 - [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md) — one combined index space for sections and shortcuts
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md) — accepted contextual insertion
 - [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `remove_section` receipts, `undo_operation`, reason-token refusal messages
+- [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — safe deletion and exact-actor recovery after a lost response
 
 ## Spec sections
 
 §48 goals · §49 architecture · §54 initial tools (and the roots/work-units/pages
 additions) · §55 experimental tool registry · §56 tool experiments · §60 tests without a
 server.
-
-Planning only: [Slice 31's disposable removal and immediate Undo choices](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.

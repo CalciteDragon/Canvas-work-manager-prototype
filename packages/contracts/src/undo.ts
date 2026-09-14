@@ -96,10 +96,13 @@ const ROW_KIND_FOR_OWNED = { tasks: 'task', reflections: 'reflection' } as const
  * `none`. `rows` holds exactly the rows the removal wrote — for cascade the live rows it archived,
  * for reassign every row it moved, pre-archived ones included.
  *
- * There is deliberately no disposition field: hard deletion does not exist yet. The slice that
- * adds it must add an optional field or a `version: 2` and keep executing retained version-1
- * records.
+ * `disposition` is optional for compatibility with records written before Slice 31; an absent
+ * value means the section was retained. New records state whether the section was retained or
+ * deleted. Only a recorded deletion allows Undo to recreate a missing section.
  */
+export const SectionRemovalDispositionSchema = z.enum(['retained', 'deleted']);
+export type SectionRemovalDisposition = z.infer<typeof SectionRemovalDispositionSchema>;
+
 export const SectionRemoveUndoOperationSchema = z
   .strictObject({
     version: z.literal(1),
@@ -110,6 +113,7 @@ export const SectionRemoveUndoOperationSchema = z
     appliedPolicy: AppliedRemovalPolicySchema,
     reassignToSectionId: SectionIdSchema.optional(),
     rows: z.array(UndoRowChangeSchema),
+    disposition: SectionRemovalDispositionSchema.optional(),
     /** The `archivedAt` removal wrote, which Undo compares against to detect a later restore. */
     postSectionArchivedAt: IsoDateTimeSchema,
   })
@@ -192,7 +196,19 @@ export const UndoReceiptSchema = z.strictObject({
 });
 export type UndoReceipt = z.infer<typeof UndoReceiptSchema>;
 
-/** `DELETE /api/sections/:id` and `remove_section`: the archived section and its receipt. */
+/** A repeat remove can recover only the latest outstanding receipt owned by the exact actor. */
+export const SectionAlreadyRemovedDetailsSchema = z.strictObject({
+  reason: z.literal('section_already_removed'),
+  sectionId: SectionIdSchema,
+  undo: UndoReceiptSchema,
+});
+export type SectionAlreadyRemovedDetails = z.infer<typeof SectionAlreadyRemovedDetailsSchema>;
+
+/**
+ * `DELETE /api/sections/:id` and `remove_section`: the final archived-shaped removal result and
+ * its receipt. A disposable deleted section appears here as a result snapshot, not as a claim
+ * that the section is still stored.
+ */
 export const SectionRemovalResultSchema = z.object({
   section: ProjectSectionSchema,
   undo: UndoReceiptSchema,
@@ -235,12 +251,32 @@ export const UndoConflictProblemSchema = z.enum([
 ]);
 export type UndoConflictProblem = z.infer<typeof UndoConflictProblemSchema>;
 
+/** Server-selected repair guidance; the UI renders this field and never parses refusal text. */
+export const UndoConflictNextStepSchema = z.enum([
+  'move-back-and-retry',
+  'restore-state-and-retry',
+  'restore-or-move-dependent-and-retry',
+  'use-later-receipt-or-archive',
+  'nothing-to-undo',
+  'nothing-to-restore',
+]);
+export type UndoConflictNextStep = z.infer<typeof UndoConflictNextStepSchema>;
+
 /** One entity Undo would have overwritten, and how it changed. */
-export const UndoConflictSchema = z.object({
+export const UndoConflictSchema = z
+  .strictObject({
   entityType: z.enum(['section', 'task', 'reflection']),
   id: z.string().min(1),
+  /** The current display name, omitted when the entity no longer exists. */
+  title: z.string().min(1).optional(),
   problem: UndoConflictProblemSchema,
-});
+  nextStep: UndoConflictNextStepSchema,
+})
+  .superRefine((conflict, ctx) => {
+    if (conflict.problem === 'missing' && conflict.title !== undefined) {
+      ctx.addIssue({ code: 'custom', path: ['title'], message: 'a missing entity has no current title' });
+    }
+  });
 export type UndoConflict = z.infer<typeof UndoConflictSchema>;
 
 /**
@@ -251,7 +287,12 @@ export const UndoRefusalDetailsSchema = z.discriminatedUnion('reason', [
   z.object({ reason: z.literal('undo_consumed'), undoId: UndoRecordIdSchema, consumedAt: IsoDateTimeSchema }),
   z.object({ reason: z.literal('undo_expired'), undoId: UndoRecordIdSchema, expiresAt: IsoDateTimeSchema }),
   z.object({ reason: z.literal('undo_conflict'), undoId: UndoRecordIdSchema, conflicts: z.array(UndoConflictSchema).min(1) }),
-  z.object({ reason: z.literal('undo_blocked'), undoId: UndoRecordIdSchema, blockingProjectId: ProjectIdSchema }),
+  z.object({
+    reason: z.literal('undo_blocked'),
+    undoId: UndoRecordIdSchema,
+    blockingProjectId: ProjectIdSchema,
+    blockingProjectTitle: z.string().min(1),
+  }),
   z.object({
     reason: z.literal('undo_unavailable'),
     undoId: UndoRecordIdSchema,

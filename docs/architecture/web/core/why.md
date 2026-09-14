@@ -79,10 +79,9 @@ get one.
 - [A theme change lasts the session, not the persona](../../../decisions/2026-08-theme-selection-is-session-only.md)
 - [Where the project navigation column lives](../../../decisions/2026-09-where-the-project-navigation-column-lives.md) — why it is *not* here
 - [CORS on the host, not a dev-server proxy](../../../decisions/2026-08-host-cors-over-dev-proxy.md) — why the adapter talks to `:4310` directly
+- [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the receipt-only `UndoGateway` beside section removal
 
 ## Spec sections
 
 §8 core boundary · §9 gateway · §10 adapter · §18 identity · §19–§20 stores · §21–§23
 tokens, themes, shell · §47 flags · §62–§63 live updates and optimistic UI.
-
-Planning only: [Slice 31's disposable removal and immediate Undo choices](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.

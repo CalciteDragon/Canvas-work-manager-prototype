@@ -62,6 +62,14 @@ The actions gain `project.section_archived` and `project.section_restored`.
 `project.section_removed` stays in the union with nothing producing it, for the events already
 written into `data.json` — history is not rewritten.
 
+**Amended, 2026-09-14 — Slice 31 disposable deletion.** The statement above described the
+Archive-only behavior that held from Slice 29 through Slice 30. Slice 31 now produces
+`project.section_removed` when a disposable section is safely hard-deleted; retained removals
+continue to produce `project.section_archived`. Both target the owning project, so deleted
+section history remains valid. The legacy action stays in the union for records already written,
+and `project.section_restored` remains available for restoration of archived sections. See the
+[Slice 31 removal decision](2026-09-disposable-removal-and-immediate-undo.md).
+
 **Confidence**
 
 High. The alternative is not a worse design, it is a document that fails to load — and that

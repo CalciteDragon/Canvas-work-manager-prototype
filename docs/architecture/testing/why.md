@@ -45,6 +45,9 @@ rather than importing TypeScript, set `CWM_DATA_FILE` and `CWM_HOST_PORT`, and c
 beside a live session. Each stands where the slice's *done when* stands: the Slice 16
 script insists the frame arrives within a second *and* that the write is already
 readable.
+Slice 31 extends those transport checks with repeat-removal receipt recovery over HTTP
+and MCP; its separate Playwright journey verifies the visible Undo action against persisted
+deletion, recreation, Archive projection and reload.
 
 **The e2e suite owns its servers and its data file.** Playwright's `webServer` takes an
 array — the deciding reason over Cypress — and each entry names the address its server

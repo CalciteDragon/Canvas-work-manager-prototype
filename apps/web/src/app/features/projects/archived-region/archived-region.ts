@@ -163,6 +163,17 @@ export class ArchivedRegion {
     return this.restoring().has(this.idOf(item));
   }
 
+  restoreActionLabel(item: ProjectArchiveItem): string {
+    if (this.isRestoring(item)) return 'Restoring…';
+    return item.kind === 'section' ? 'Restore saved content' : 'Restore';
+  }
+
+  restoreActionAriaLabel(item: ProjectArchiveItem): string {
+    return item.kind === 'section'
+      ? `Restore saved content for ${this.label(item)}`
+      : `Restore ${this.label(item)}`;
+  }
+
   projectStatus(item: ProjectArchiveItem): ProjectRestoreStatus {
     return this.selectedProjectStatuses()[this.idOf(item)] ?? 'active';
   }

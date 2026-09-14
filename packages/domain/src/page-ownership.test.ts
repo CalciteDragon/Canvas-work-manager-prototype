@@ -159,7 +159,9 @@ describe('a page owns its sections (§27, §30)', () => {
 describe('ordering is per page (§27)', () => {
   const stage = async (harness: Harness) => {
     const { home, reflections } = await rootWithReflections(harness);
-    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list', pageId: home.id });
+    const first = await harness.sectionService.add(harness.actor, MINE, {
+      type: 'rich-text', pageId: home.id, config: { text: 'Keep this section for the ordering test' },
+    });
     const second = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', pageId: home.id });
     const journal = await harness.sectionService.add(harness.actor, MINE, {
       type: 'reflections',
@@ -219,7 +221,9 @@ describe('ordering is per page (§27)', () => {
     const sourceProject = await subprojectOf(harness, MINE, 'Kitchen');
     const source = await harness.sectionService.add(harness.actor, sourceProject.id, { type: 'task-list' });
     const { home } = await rootWithReflections(harness);
-    const own = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    const own = await harness.sectionService.add(harness.actor, MINE, {
+      type: 'rich-text', pageId: home.id, config: { text: 'Keep this canvas note' },
+    });
     const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, {
       pageId: home.id,
       sourceSectionId: source.id,
@@ -245,8 +249,9 @@ describe('ordering is per page (§27)', () => {
   it('answers the canonical canvas when no page is named, in both branches', async () => {
     const harness = buildHarness();
     const { home, reflections, first, journal } = await stage(harness);
+    await harness.reflectionService.create(harness.actor, { projectId: MINE, sectionId: journal.id, body: 'Archive content' });
     await harness.sectionService.remove(harness.actor, first.id);
-    await harness.sectionService.remove(harness.actor, journal.id);
+    await harness.sectionService.remove(harness.actor, journal.id, { policy: 'cascade' });
 
     const pagesIn = (sections: ProjectSection[]) => new Set(sections.map(({ pageId }) => pageId));
     const live = await harness.sectionService.list(harness.actor, MINE);
@@ -268,6 +273,7 @@ describe('ordering is per page (§27)', () => {
   it('scopes a list to one page in both branches, and resolves a page it cannot own', async () => {
     const harness = buildHarness();
     const { home, reflections, first, journal } = await stage(harness);
+    await harness.reflectionService.create(harness.actor, { projectId: MINE, sectionId: journal.id, body: 'Keep this container' });
     await harness.sectionService.remove(harness.actor, first.id);
 
     const liveHome = await harness.sectionService.list(harness.actor, MINE, { pageId: home.id });

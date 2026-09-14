@@ -146,7 +146,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     (type) => `section-project-renovation-${type}`,
   );
 
-  it('keeps disposable view tombstones in storage but out of Archive', async () => {
+  it('deletes empty disposable views and keeps legacy tombstones out of Archive', async () => {
     const { harness, archive } = buildArchive();
     for (const id of VIEWS) await harness.sectionService.remove(harness.actor, id as never);
     // A legacy tombstone written before this projection existed, carrying display config.
@@ -158,8 +158,9 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
 
     const keys = (await archive.derive(harness.actor, ROOT)).items.map(keyOf);
 
+    for (const id of VIEWS) expect(await harness.sections.find(id as never)).toBeNull();
+    expect((await harness.sections.find('section-project-kitchen-timeline' as never))?.archivedAt).toBeDefined();
     for (const id of [...VIEWS, 'section-project-kitchen-timeline']) {
-      expect((await harness.sections.find(id as never))?.archivedAt).toBeDefined();
       expect(keys).not.toContain(`section:${id}`);
     }
     // Rows, projects and meaningful sections are untouched by the section filter.
@@ -173,15 +174,16 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     );
   });
 
-  it('still restores a hidden disposable tombstone directly through the section service', async () => {
+  it('restores a deleted disposable view through its receipt, outside Archive', async () => {
     const { harness, archive } = buildArchive();
     const progress = 'section-project-renovation-progress' as never;
-    await harness.sectionService.remove(harness.actor, progress);
+    const { undo } = await harness.sectionService.remove(harness.actor, progress);
     expect(sectionItem((await archive.derive(harness.actor, ROOT)).items, progress)).toBeUndefined();
+    expect(await harness.sections.find(progress)).toBeNull();
 
-    const restored = await harness.sectionService.restoreSection(harness.actor, progress);
+    const restored = await harness.undoService.undo(harness.actor, undo.undoId);
 
-    expect(restored.archivedAt).toBeUndefined();
+    expect(restored.section.archivedAt).toBeUndefined();
     expect((await harness.sectionService.list(harness.actor, ROOT)).map(({ id }) => id)).toContain(progress);
   });
 
@@ -244,7 +246,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     });
   });
 
-  it('leaves out a source emptied by reassignment, which took its archived subtree along', async () => {
+  it('deletes a source emptied by reassignment, which takes its archived subtree along', async () => {
     const { harness, archive } = buildArchive();
     const source = await harness.sectionService.add(harness.actor, ROOT, { type: 'task-list' });
     const target = await harness.sectionService.add(harness.actor, ROOT, { type: 'task-list' });
@@ -261,7 +263,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
 
     const { items } = await archive.derive(harness.actor, ROOT);
 
-    expect((await harness.sections.find(source.id))?.archivedAt).toBeDefined();
+    expect(await harness.sections.find(source.id)).toBeNull();
     expect(sectionItem(items, source.id)).toBeUndefined();
     for (const id of [live.id, parent.id, child.id]) expect((await harness.tasks.find(id))?.sectionId).toBe(target.id);
     expect(items.find((item) => keyOf(item) === `task:${child.id}`)).toMatchObject({
@@ -270,26 +272,32 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     });
   });
 
-  it('keeps an archived-only container visible even when reassign was asked for', async () => {
+  it('keeps an archived-only owner as the recovery path when reassign is requested', async () => {
     const { harness, archive } = buildArchive();
     const source = await harness.sectionService.add(harness.actor, ROOT, { type: 'reflections' });
     const target = await harness.sectionService.add(harness.actor, ROOT, { type: 'reflections' });
     const filed = await harness.reflectionService.create(harness.actor, { projectId: ROOT, sectionId: source.id, body: 'Filed' });
     await harness.reflectionService.archive(harness.actor, filed.id);
-    // No live rows, so `settleRows` has no question to ask and nothing moves.
-    await harness.sectionService.remove(harness.actor, source.id, { policy: 'reassign', reassignToSectionId: target.id });
+    const { undo } = await harness.sectionService.remove(harness.actor, source.id, {
+      policy: 'reassign',
+      reassignToSectionId: target.id,
+    });
 
     const { items } = await archive.derive(harness.actor, ROOT);
 
     expect((await harness.reflections.find(filed.id))?.sectionId).toBe(source.id);
+    expect((await harness.sections.find(source.id))?.archivedAt).toBeDefined();
     expect(sectionItem(items, source.id)).toMatchObject({
-      cascadeCount: 0,
-      recovery: { kind: 'owned-content', ownedData: 'reflections', contentCount: 1, separateRestoreCount: 1 },
-      restoration: { kind: 'ready' },
+      recovery: { kind: 'owned-content', contentCount: 1 },
+      restoration: { kind: 'ready', operation: 'restore_section' },
     });
     expect(items.find((item) => keyOf(item) === `reflection:${filed.id}`)).toMatchObject({
       restoration: { kind: 'blocked', blocker: { kind: 'section', sectionId: source.id } },
     });
+
+    await harness.undoService.undo(harness.actor, undo.undoId);
+    expect((await harness.reflections.find(filed.id))?.sectionId).toBe(source.id);
+    expect((await harness.sections.find(source.id))?.archivedAt).toBeUndefined();
   });
 
   it('makes a pre-archived-only container the first step of recovering its rows', async () => {

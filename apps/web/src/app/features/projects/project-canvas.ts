@@ -30,6 +30,7 @@ import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { ProjectPageStore, type ProjectCanvasPlacement } from './project-page-store';
 import { SectionCreateDialog } from './section-create-dialog';
 import { SectionRemovalDialog } from './section-removal-dialog';
+import { SectionUndoNotice } from './section-undo-notice';
 import { CanvasIcon } from './canvas-chrome/canvas-icon';
 import { gridInsertionGaps } from './canvas-chrome/grid-insertion-gaps';
 import { InsertionPoint, type InsertionIntent } from './canvas-chrome/insertion-point';
@@ -62,6 +63,7 @@ interface GridInsertionTarget {
     ProjectSectionFrame,
     SectionCreateDialog,
     SectionRemovalDialog,
+    SectionUndoNotice,
     SectionResizeHandle,
     ShortcutFrame,
   ],
@@ -77,6 +79,7 @@ export class ProjectCanvas {
   readonly restoreBlocked = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});
   readonly onProjectHierarchyChange = input<() => void>(() => {});
+  readonly onOpenArchive = input<() => void>(() => {});
 
   readonly store = inject(ProjectPageStore);
   readonly registry = SECTION_REGISTRY;
@@ -94,6 +97,12 @@ export class ProjectCanvas {
   private readonly fragment = toSignal(inject(ActivatedRoute).fragment, { initialValue: null });
   private readonly releasedTarget = signal<SectionId | null>(null);
   private lastTargetKey: string | null = null;
+  private pendingUndoFocus: {
+    projectId: ProjectId;
+    pageId: ProjectPageId;
+    undoId: string;
+    originalTarget: HTMLElement | null;
+  } | null = null;
 
   readonly targetSectionId = computed<SectionId | null>(() => {
     const requested = requestedSectionId(this.fragment());
@@ -330,11 +339,179 @@ export class ProjectCanvas {
   }
 
   cascadeAndRemove(id: SectionId): void {
-    void this.store.removeSection(id, { policy: 'cascade' });
+    void this.removeSectionFromCanvas(id, { policy: 'cascade' });
   }
 
   reassignAndRemove(id: SectionId, reassignToSectionId: SectionId): void {
-    void this.store.removeSection(id, { policy: 'reassign', reassignToSectionId });
+    void this.removeSectionFromCanvas(id, { policy: 'reassign', reassignToSectionId });
+  }
+
+  async removeSectionFromCanvas(id: SectionId, input: Parameters<ProjectPageStore['removeSection']>[1] = {}): Promise<boolean> {
+    const projectId = this.projectId();
+    const pageId = this.pageId();
+    this.pendingUndoFocus = null;
+    const focusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusStartedInRemoval = this.focusIsInSectionOrDialog(id) || this.focusIsInUndoNotice();
+    const previousReceiptId = this.store.undoNotice()?.receipt?.undoId ?? null;
+    const removed = await this.store.removeSection(id, input);
+    if (this.projectId() !== projectId || this.pageId() !== pageId) return removed;
+
+    const prompt = this.store.removalPrompt();
+    if (prompt?.sectionId === id && focusStartedInRemoval) {
+      afterNextRender(() => {
+        if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.removalPrompt() !== prompt) return;
+        this.host.nativeElement.querySelector<HTMLButtonElement>('[data-section-removal-cancel]')?.focus();
+      }, { injector: this.injector });
+      return removed;
+    }
+
+    if (!removed) return false;
+    const notice = this.store.undoNotice();
+    if (notice?.receipt === null || notice?.receipt === undefined) return true;
+    const recovered = notice.kind === 'already-removed';
+    if (!recovered && notice.receipt.undoId === previousReceiptId) return true;
+    const active = document.activeElement;
+    const focusWasNotMovedElsewhere = active === document.body || active === focusedElement;
+    if (focusStartedInRemoval && focusWasNotMovedElsewhere) {
+      this.pendingUndoFocus = { projectId, pageId, undoId: notice.receipt.undoId, originalTarget: focusedElement };
+      afterNextRender(() => {
+        this.focusPendingUndo();
+      }, { injector: this.injector });
+    }
+    return true;
+  }
+
+  /** Called by the deferred notice after it renders so slow chunk loading cannot lose focus. */
+  focusPendingUndo(): void {
+    const pending = this.pendingUndoFocus;
+    if (pending === null) return;
+    const notice = this.store.undoNotice();
+    if (
+      this.projectId() !== pending.projectId ||
+      this.pageId() !== pending.pageId ||
+      notice?.receipt?.undoId !== pending.undoId
+    ) {
+      this.pendingUndoFocus = null;
+      return;
+    }
+    const active = document.activeElement;
+    if (active !== document.body && active !== pending.originalTarget) {
+      this.pendingUndoFocus = null;
+      return;
+    }
+    const undo = this.host.nativeElement.querySelector<HTMLButtonElement>('[data-undo-action]');
+    if (undo === null) return;
+    this.pendingUndoFocus = null;
+    undo.focus();
+  }
+
+  async undoFromNotice(): Promise<void> {
+    const projectId = this.projectId();
+    const pageId = this.pageId();
+    const result = await this.store.undoSectionRemoval();
+    if (this.projectId() !== projectId || this.pageId() !== pageId) return;
+    if (result === null) {
+      const notice = this.store.undoNotice();
+      if (notice === null) return;
+      afterNextRender(() => {
+        if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.undoNotice() !== notice) return;
+        if (this.host.nativeElement.querySelector('[data-undo-action]') === null) this.focusUndoNotice();
+      }, { injector: this.injector });
+      return;
+    }
+    const notice = this.store.undoNotice();
+    if (notice?.kind !== 'result' || notice.result !== result) return;
+    afterNextRender(() => {
+      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.undoNotice() !== notice) return;
+      const restoredTitle = result.placement.pageId === pageId
+        ? this.findSectionElement(result.section.id)?.querySelector<HTMLElement>('[data-section-title]')
+        : null;
+      if (restoredTitle !== null && restoredTitle !== undefined) restoredTitle.focus();
+      else this.focusUndoNotice();
+    }, { injector: this.injector });
+  }
+
+  dismissUndoNotice(): void {
+    this.pendingUndoFocus = null;
+    const projectId = this.projectId();
+    const pageId = this.pageId();
+    this.store.dismissUndoNotice();
+    afterNextRender(() => {
+      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.undoNotice() !== null) return;
+      const retry = this.store.failedRemoval() === null
+        ? null
+        : this.host.nativeElement.querySelector<HTMLElement>('[data-retry-remove]');
+      const firstTitle = this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]');
+      (retry ?? firstTitle ?? this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]'))?.focus();
+    }, { injector: this.injector });
+  }
+
+  dismissFailedRemoval(): void {
+    const projectId = this.projectId();
+    const pageId = this.pageId();
+    const failedSectionId = this.store.failedRemoval()?.sectionId;
+    this.store.dismissFailedRemoval();
+    afterNextRender(() => {
+      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.failedRemoval() !== null) return;
+      if (this.store.undoNotice() !== null) {
+        const undoAction = this.host.nativeElement.querySelector<HTMLElement>('[data-undo-action]');
+        const archiveAction = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]');
+        const notice = this.host.nativeElement.querySelector<HTMLElement>('[data-undo-notice]');
+        (undoAction ?? archiveAction ?? notice)?.focus();
+        return;
+      }
+      const dismissedSectionTitle = failedSectionId === undefined
+        ? null
+        : this.findSectionElement(failedSectionId)?.querySelector<HTMLElement>('[data-section-title]');
+      const firstTitle = this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]');
+      (dismissedSectionTitle ?? firstTitle ?? this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]'))?.focus();
+    }, { injector: this.injector });
+  }
+
+  openArchiveFromNotice(): void {
+    this.onOpenArchive()();
+  }
+
+  cancelRemovalPrompt(id: SectionId): void {
+    const projectId = this.projectId();
+    const pageId = this.pageId();
+    this.store.dismissRemovalPrompt();
+    afterNextRender(() => {
+      if (this.projectId() !== projectId || this.pageId() !== pageId) return;
+      const frame = this.findSectionElement(id);
+      const removeButton = frame?.querySelector<HTMLElement>('[data-section-remove], [data-unknown-section-remove]');
+      (removeButton ?? frame?.querySelector<HTMLElement>('[data-section-title]'))?.focus();
+    }, { injector: this.injector });
+  }
+
+  retryFailedRemoval(): void {
+    const failed = this.store.failedRemoval();
+    if (failed !== null) void this.removeSectionFromCanvas(failed.sectionId, failed.input);
+  }
+
+  retryUndoRefresh(): void {
+    void this.store.retryUndoRefresh();
+  }
+
+  private focusIsInSectionOrDialog(id: SectionId): boolean {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return false;
+    if (this.findSectionElement(id)?.contains(active)) return true;
+    return this.store.removalPrompt()?.sectionId === id && active.closest('[data-section-removal-dialog]') !== null;
+  }
+
+  private focusIsInUndoNotice(): boolean {
+    const active = document.activeElement;
+    return active instanceof HTMLElement && active.closest('app-section-undo-notice') !== null;
+  }
+
+  private findSectionElement(id: SectionId): HTMLElement | undefined {
+    return [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-section-id]')]
+      .find((element) => element.getAttribute('data-section-id') === id);
+  }
+
+  private focusUndoNotice(): void {
+    this.host.nativeElement.querySelector<HTMLElement>('[data-undo-notice]')?.focus();
   }
 
   collapse(event: { id: SectionId; collapsed: boolean }): void {

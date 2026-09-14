@@ -101,8 +101,8 @@ sequenceDiagram
 | `calendar.ts`, `task-windows.ts`, `page-placements.ts` | `src/` | UTC date arithmetic; the open/overdue/upcoming questions; the combined section+shortcut order |
 | `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard |
 | `ProjectPageService` | `src/project-page-service.ts` | A project's pages; enable/disable a root's optional three |
-| `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, remove (cascade/reassign, returning an Undo receipt), Archive Restore; container resolution |
-| `UndoRecorder`, `RepositoryUndoRecorder`, `UNDO_RECORD_LIFETIME_MS`, `UNDO_RECORD_LIMIT` | `src/undo-recorder.ts` | Records one inverse inside the caller's unit; 24-hour expiry, 50 per workspace, `sequence` order |
+| `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, settle and remove by content/reference policy, Archive Restore; container resolution |
+| `UndoRecorder`, `RepositoryUndoRecorder`, `UNDO_RECORD_LIFETIME_MS`, `UNDO_RECORD_LIMIT` | `src/undo-recorder.ts` | Records an inverse and reads the newest exact-actor receipt; 24-hour expiry, 50 per workspace, `sequence` order |
 | `UndoService` | `src/undo-service.ts` | Exact-actor, `projects.write`, consume-once execution with typed refusals |
 | Capture and inverse functions | `src/section-removal-undo.ts`, `src/owned-rows.ts` | Package-internal: `section.remove` capture, pure `resolveUndoDestination`, conflict collection and execution; row reads and schema-parsed writes shared with removal |
 | `snapshotPlacement`, `resolveRestoreIndex`, `findHighestWriteBlocker` | `src/page-placements.ts`, `src/project-visibility.ts` | Neighbour snapshot and restore index; the highest archived project blocking a write |

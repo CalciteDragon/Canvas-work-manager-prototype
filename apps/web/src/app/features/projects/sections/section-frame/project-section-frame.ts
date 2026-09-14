@@ -35,6 +35,7 @@ export class ProjectSectionFrame {
   readonly definition = input.required<SectionDefinition>();
   readonly movePending = input(false);
   readonly moveAllowed = input(true);
+  readonly removalPending = input(false);
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
   /**
@@ -87,6 +88,10 @@ export class ProjectSectionFrame {
 
   toggleCollapsed(): void {
     this.collapseToggled.emit({ id: this.section().id, collapsed: !this.effectiveCollapsed() });
+  }
+
+  requestRemoval(): void {
+    if (!this.removalPending()) this.removeRequested.emit(this.section().id);
   }
 
   toggleConfig(): void {

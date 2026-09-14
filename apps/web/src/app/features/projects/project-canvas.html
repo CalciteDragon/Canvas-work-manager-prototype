@@ -7,6 +7,23 @@
   </div>
 </section>
 
+@defer (when store.undoNotice() !== null || store.failedRemoval() !== null) {
+  @if (store.undoNotice() !== null || store.failedRemoval() !== null) {
+    <app-section-undo-notice
+      [state]="store.undoNotice()"
+      [failedRemoval]="store.failedRemoval()"
+      [busy]="store.removalUndoPending()"
+      (undo)="undoFromNotice()"
+      (retryRemove)="retryFailedRemoval()"
+      (retryRefresh)="retryUndoRefresh()"
+      (openArchive)="openArchiveFromNotice()"
+      (dismissUndo)="dismissUndoNotice()"
+      (dismissFailure)="dismissFailedRemoval()"
+      (ready)="focusPendingUndo()"
+    />
+  }
+}
+
 <div data-canvas-live-region class="visually-hidden" aria-live="polite" aria-atomic="true">
   {{ liveAnnouncement() }}
 </div>
@@ -34,6 +51,7 @@
 } @else if (canvasMounted()) {
   <div
     data-section-canvas
+    tabindex="-1"
     cdkDropList
     [cdkDropListDisabled]="!store.orderComplete()"
     class="section-canvas"
@@ -106,6 +124,7 @@
                 [rename]="renameSection"
                 [movePending]="keyboardMovePending().has(placement.section.id)"
                 [moveAllowed]="store.orderComplete()"
+                [removalPending]="store.removalUndoPending()"
                 [transientlyExpanded]="transientTargetId() === placement.section.id"
                 [projectDataRevision]="store.projectDataRevision()"
                 [projectHierarchyRevision]="store.projectHierarchyRevision()"
@@ -114,7 +133,7 @@
                 (configChanged)="saveConfig($event)"
                 (projectDataChanged)="projectDataChanged()"
                 (projectHierarchyChanged)="projectHierarchyChanged()"
-                (removeRequested)="store.removeSection($event)"
+                (removeRequested)="removeSectionFromCanvas($event)"
               />
             } @else {
               <section data-unknown-section class="unknown-section">
@@ -131,10 +150,11 @@
                   <button
                     data-unknown-section-remove
                     type="button"
-                    title="Archive section"
-                    [attr.aria-label]="'Archive unrecognised section ' + placement.section.type"
-                    (click)="store.removeSection(placement.section.id)"
-                  ><app-canvas-icon name="archive" /></button>
+                    [attr.aria-disabled]="store.removalUndoPending()"
+                    title="Remove section"
+                    [attr.aria-label]="'Remove unrecognised section ' + placement.section.type"
+                    (click)="removeSectionFromCanvas(placement.section.id)"
+                  ><app-canvas-icon name="remove" /></button>
                 </header>
                 <p>Nothing in this build knows how to render a “{{ placement.section.type }}” section.</p>
               </section>
@@ -189,23 +209,28 @@
   </div>
 }
 
-@if (createDialogOpen()) {
-  <app-section-create-dialog
-    [types]="registry"
-    [projectId]="projectId()"
-    [pageId]="pageId()"
-    [shortcutsAllowed]="shortcutsAllowed()"
-    [create]="createSectionFromDialog"
-    [createShortcut]="createShortcutFromDialog"
-    (closed)="closeCreate()"
-  />
+@defer (when createDialogOpen()) {
+  @if (createDialogOpen()) {
+    <app-section-create-dialog
+      [types]="registry"
+      [projectId]="projectId()"
+      [pageId]="pageId()"
+      [shortcutsAllowed]="shortcutsAllowed()"
+      [create]="createSectionFromDialog"
+      [createShortcut]="createShortcutFromDialog"
+      (closed)="closeCreate()"
+    />
+  }
 }
 
-@if (store.removalPrompt(); as prompt) {
-  <app-section-removal-dialog
-    [prompt]="prompt"
-    (cancelled)="store.dismissRemovalPrompt()"
-    (cascadeChosen)="cascadeAndRemove(prompt.sectionId)"
-    (reassignChosen)="reassignAndRemove(prompt.sectionId, $event)"
-  />
+@defer (when store.removalPrompt() !== null) {
+  @if (store.removalPrompt(); as prompt) {
+    <app-section-removal-dialog
+      [prompt]="prompt"
+      [pending]="store.removalUndoPending()"
+      (cancelled)="cancelRemovalPrompt(prompt.sectionId)"
+      (cascadeChosen)="cascadeAndRemove(prompt.sectionId)"
+      (reassignChosen)="reassignAndRemove(prompt.sectionId, $event)"
+    />
+  }
 }

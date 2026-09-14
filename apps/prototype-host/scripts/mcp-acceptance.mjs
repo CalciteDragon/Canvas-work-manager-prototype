@@ -29,8 +29,9 @@ const modernClient = (name) =>
   );
 
 // Slice 15's two-transport acceptance check, extended by Slice 25.7 (§36) with a
-// subject-linked journal write and a restart/re-read through both transports.
-const assertClient = async (client, title) => {
+// subject-linked journal write and Slice 31 with disposable removal, receipt recovery
+// and persisted Undo through both transports.
+const assertClient = async (client, title, dataFile) => {
   check(client.getProtocolEra() === 'modern', `${title} negotiated 2026-07-28`);
   const listed = await client.listTools();
   check(
@@ -75,15 +76,15 @@ const assertClient = async (client, title) => {
       journal.structuredContent?.items?.some(({ reflection: item }) => item.id === reflection.structuredContent?.id),
     `${title} reads the linked reflection from the journal`,
   );
-  const undoId = await assertUndo(client, title);
-  return { task, reflectionId: reflection.structuredContent?.id, undoId };
+  const undo = await assertUndo(client, title, dataFile);
+  return { task, reflectionId: reflection.structuredContent?.id, ...undo };
 };
 
 /**
  * Slice 30: remove_section returns a receipt; undo_operation restores the section between the
  * same neighbours with its cascaded tasks live again; a repeat is refused with its reason token.
  */
-const assertUndo = async (client, title) => {
+const assertUndo = async (client, title, dataFile) => {
   const canvas = async () => {
     const listed = await client.callTool({ name: 'list_sections', arguments: { projectId: PROJECT } });
     return JSON.parse(listed.content[0].text).map(({ id }) => id);
@@ -114,7 +115,28 @@ const assertUndo = async (client, title) => {
     repeated.isError === true && repeated.content?.some(({ text }) => typeof text === 'string' && text.startsWith('undo_consumed:')),
     `${title} a repeat is refused with undo_consumed:`,
   );
-  return undoId;
+
+  const created = await client.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type: 'progress' } });
+  check(created.isError !== true && typeof created.structuredContent?.id === 'string', `${title} creates a disposable view`);
+  const disposableSectionId = created.structuredContent.id;
+  const hardRemoved = await client.callTool({ name: 'remove_section', arguments: { sectionId: disposableSectionId } });
+  check(hardRemoved.isError !== true, `${title} hard-removes the disposable view`);
+  const recoveredReceipt = hardRemoved.structuredContent.undo;
+  check(typeof recoveredReceipt?.undoId === 'string', `${title} removal returns an Undo receipt`);
+  check(!(await canvas()).includes(disposableSectionId), `${title} the deleted view leaves list_sections`);
+  const afterDelete = await readFile(dataFile, 'utf8');
+  check(!JSON.parse(afterDelete).sections.some(({ id }) => id === disposableSectionId), `${title} hard deletion is persisted`);
+
+  const lostReceipt = await client.callTool({ name: 'remove_section', arguments: { sectionId: disposableSectionId } });
+  const lostReceiptText = lostReceipt.content?.find(({ type }) => type === 'text')?.text ?? '';
+  check(lostReceipt.isError === true && lostReceiptText.startsWith('section_already_removed:'), `${title} repeat removal stays a refusal`);
+  check(lostReceiptText.includes(recoveredReceipt.undoId) && lostReceiptText.includes(recoveredReceipt.expiresAt), `${title} refusal recovers undoId and expiresAt`);
+  check((await readFile(dataFile, 'utf8')) === afterDelete, `${title} receipt recovery writes no second activity or inverse`);
+
+  const restoredDeleted = await client.callTool({ name: 'undo_operation', arguments: { undoId: recoveredReceipt.undoId } });
+  check(restoredDeleted.isError !== true && restoredDeleted.structuredContent?.section?.id === disposableSectionId, `${title} recovered receipt recreates the deleted view`);
+  check((await canvas()).includes(disposableSectionId), `${title} the recreated view is listed again`);
+  return { undoId, disposableSectionId, recoveredUndoId: recoveredReceipt.undoId };
 };
 
 const assertPersisted = async (path, result, title) => {
@@ -134,6 +156,14 @@ const assertPersisted = async (path, result, title) => {
   check(
     document.undoRecords.some(({ id, consumedAt }) => id === result.undoId && typeof consumedAt === 'string'),
     `${title} Undo record is consumed in data.json`,
+  );
+  check(
+    document.sections.some(({ id, archivedAt }) => id === result.disposableSectionId && archivedAt === undefined),
+    `${title} hard-deleted section is recreated in data.json`,
+  );
+  check(
+    document.undoRecords.some(({ id, consumedAt }) => id === result.recoveredUndoId && typeof consumedAt === 'string'),
+    `${title} recovered hard-deletion receipt is consumed in data.json`,
   );
 };
 
@@ -241,7 +271,7 @@ try {
       authProvider: { token: async () => TOKEN },
     }),
   );
-  const httpResult = await assertClient(httpClient, 'HTTP');
+  const httpResult = await assertClient(httpClient, 'HTTP', httpFile);
   await httpClient.close();
   httpClient = undefined;
   await stopHost(host);
@@ -273,7 +303,7 @@ try {
       stderr: 'inherit',
     }),
   );
-  const stdioResult = await assertClient(stdioClient, 'stdio');
+  const stdioResult = await assertClient(stdioClient, 'stdio', stdioFile);
   await stdioClient.close();
   stdioClient = undefined;
   await assertPersisted(stdioFile, stdioResult, 'stdio');

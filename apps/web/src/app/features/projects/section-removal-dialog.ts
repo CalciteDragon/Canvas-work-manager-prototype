@@ -1,4 +1,15 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { nameOf, type OwnedDataKind, type SectionId } from '@cwm/contracts';
 import type { SectionRemovalPrompt } from './project-page-store';
 
@@ -15,8 +26,8 @@ const ROW_NOUN: Record<OwnedDataKind, { one: string; many: string }> = {
 
 /**
  * §31's remove, once ownership has made it a question rather than a confirmation. A view
- * and an empty container never reach this — they archive silently, and the root Archive page
- * is their undo; a container still holding **live** rows has to say what becomes of them
+ * and an empty container never reach this — they are removed directly; a container still
+ * holding **live** rows has to say what becomes of them
  * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
  *
  * **The prose is the UI's, not the domain's.** The domain's sentence answers an agent: it
@@ -36,6 +47,7 @@ const ROW_NOUN: Record<OwnedDataKind, { one: string; many: string }> = {
 })
 export class SectionRemovalDialog {
   readonly prompt = input.required<SectionRemovalPrompt>();
+  readonly pending = input(false);
 
   readonly cancelled = output<void>();
   readonly cascadeChosen = output<void>();
@@ -44,6 +56,60 @@ export class SectionRemovalDialog {
   /** Unset until the user picks: the first offered container is the default answer. */
   readonly targetId = signal<SectionId | null>(null);
   readonly chosenTarget = computed(() => this.targetId() ?? (this.prompt().targets[0]?.id as SectionId));
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+
+  constructor() {
+    afterNextRender(() => {
+      this.host.nativeElement.querySelector<HTMLButtonElement>('[data-section-removal-cancel]')?.focus();
+    }, { injector: this.injector });
+  }
+
+  cancel(): void {
+    if (!this.pending()) this.cancelled.emit();
+  }
+
+  reassign(): void {
+    if (!this.pending()) this.reassignChosen.emit(this.chosenTarget());
+  }
+
+  cascade(): void {
+    if (!this.pending()) this.cascadeChosen.emit();
+  }
+
+  selectTarget(event: Event): void {
+    if (!this.pending()) this.targetId.set((event.target as HTMLSelectElement).value as SectionId);
+  }
+
+  keydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancel();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = [...this.host.nativeElement.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+    )];
+    if (focusable.length === 0) {
+      event.preventDefault();
+      this.host.nativeElement.querySelector<HTMLElement>('[data-section-removal-dialog]')?.focus();
+      return;
+    }
+    const first = focusable[0]!;
+    const last = focusable.at(-1)!;
+    const activeIndex = focusable.indexOf(document.activeElement as HTMLElement);
+    if (activeIndex === -1) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && activeIndex === 0) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && activeIndex === focusable.length - 1) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   /** `1 task`, never the domain's `1 tasks`. Pluralisation is a UI concern. */
   readonly rowCountLabel = computed(() => {

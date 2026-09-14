@@ -7,6 +7,7 @@ import {
   SectionRemoveUndoOperationSchema,
   type AppliedRemovalPolicy,
   type OwnedDataKind,
+  type SectionRemovalDisposition,
   type PlacementSnapshot,
   type ProjectPage,
   type ProjectSection,
@@ -18,6 +19,7 @@ import {
   type Task,
   type TaskStructuralState,
   type UndoConflict,
+  type UndoConflictNextStep,
   type UndoRecord,
   type UndoResult,
   type UndoRowChange,
@@ -91,6 +93,7 @@ export const captureSectionRemoval = (input: {
   section: ProjectSection;
   placement: PlacementSnapshot;
   settled: SettledRows;
+  disposition: SectionRemovalDisposition;
   postSectionArchivedAt: string;
 }): SectionRemoveUndoOperation =>
   SectionRemoveUndoOperationSchema.parse({
@@ -102,6 +105,7 @@ export const captureSectionRemoval = (input: {
     // Omitted rather than `undefined`, so the record in memory is the record written to disk.
     ...(input.settled.reassignToSectionId === undefined ? {} : { reassignToSectionId: input.settled.reassignToSectionId }),
     rows: input.settled.rows,
+    disposition: input.disposition,
     postSectionArchivedAt: input.postSectionArchivedAt,
   });
 
@@ -151,10 +155,89 @@ export interface SectionRemovalUndoRepositories {
 
 const sameValue = (left: string | undefined, right: string | undefined): boolean => left === right;
 
+const nextStepFor = (
+  problem: UndoConflict['problem'],
+  expectedLive: boolean,
+): UndoConflictNextStep => {
+  switch (problem) {
+    case 'superseded':
+    case 'archived-differently':
+      return 'use-later-receipt-or-archive';
+    case 'not-archived':
+      return 'nothing-to-undo';
+    case 'missing':
+      return 'nothing-to-restore';
+    case 'moved':
+    case 'reparented':
+      return 'move-back-and-retry';
+    case 'archive-state-changed':
+      return expectedLive ? 'restore-state-and-retry' : 'use-later-receipt-or-archive';
+    case 'new-dependent':
+      return 'restore-or-move-dependent-and-retry';
+  }
+};
+
+const makeConflict = (
+  entityType: UndoConflict['entityType'],
+  id: string,
+  problem: UndoConflict['problem'],
+  options: { title?: string; expectedLive?: boolean } = {},
+): UndoConflict => ({
+  entityType,
+  id,
+  ...(problem === 'missing' || options.title === undefined ? {} : { title: options.title }),
+  problem,
+  nextStep: nextStepFor(problem, options.expectedLive ?? false),
+});
+
+const conflictNextStepText = (nextStep: UndoConflictNextStep): string => {
+  switch (nextStep) {
+    case 'move-back-and-retry':
+      return 'move it back to its recorded section or parent, then retry Undo';
+    case 'restore-state-and-retry':
+      return 'restore it from Archive to the live state removal left behind, then retry Undo';
+    case 'restore-or-move-dependent-and-retry':
+      return 'restore or move the dependent item to its recorded state, then retry Undo';
+    case 'use-later-receipt-or-archive':
+      return 'use the later receipt if available, or recover retained content from Archive';
+    case 'nothing-to-undo':
+      return 'there is nothing left to undo';
+    case 'nothing-to-restore':
+      return 'Undo cannot recreate this state; use Archive to recover retained content if it remains there';
+  }
+};
+
+/** Bounded MCP-safe refusal text, grouped by problem and carrying names only for current entities. */
+const conflictMessage = (section: ProjectSection, conflicts: readonly UndoConflict[]): string => {
+  const shown = conflicts.slice(0, 5);
+  const groups = new Map<string, { problem: UndoConflict['problem']; nextStep: UndoConflictNextStep; entities: string[] }>();
+  for (const conflict of shown) {
+    const key = `${conflict.problem}:${conflict.nextStep}`;
+    let group = groups.get(key);
+    if (group === undefined) {
+      group = { problem: conflict.problem, nextStep: conflict.nextStep, entities: [] };
+      groups.set(key, group);
+    }
+    const title = conflict.title === undefined ? '' : ` "${conflict.title}"`;
+    group.entities.push(`${conflict.entityType}${title} [${conflict.id}]`);
+  }
+  const summary = [...groups.values()]
+    .map(({ problem, nextStep, entities }) => `${problem}: ${entities.join(', ')} — ${conflictNextStepText(nextStep)}`)
+    .join('; ');
+  const more = conflicts.length > shown.length ? `; and ${conflicts.length - shown.length} more` : '';
+  return `undo_conflict: Undo for section "${nameOf(section)}" [${section.id}] was refused: ${summary}${more}. Open Archive to restore saved content when available`;
+};
+
 /** The problems a snapshot row's current structure has against what removal left, in a fixed order. */
 const rowProblems = (change: UndoRowChange, current: OwnedRow): UndoConflict[] => {
   const problems: UndoConflict[] = [];
-  const conflict = (problem: UndoConflict['problem']) => problems.push({ entityType: change.kind, id: change.id, problem });
+  const title =
+    change.kind === 'task'
+      ? (current as Task).title.trim() || 'Untitled task'
+      : (current as Reflection).title?.trim() || 'Untitled reflection';
+  const expectedLive = change.after.archivedAt === undefined;
+  const conflict = (problem: UndoConflict['problem']) =>
+    problems.push(makeConflict(change.kind, change.id, problem, { title, expectedLive }));
   const now = change.kind === 'task' ? taskStructureOf(current as Task) : reflectionStructureOf(current as Reflection);
   const after = change.after as Partial<TaskStructuralState>;
   const present = now as Partial<TaskStructuralState>;
@@ -184,12 +267,18 @@ const collectConflicts = async (
 ): Promise<UndoConflict[]> => {
   const conflicts: UndoConflict[] = [];
   const sectionId = operation.section.id;
-  const sectionConflict = (problem: UndoConflict['problem']) => conflicts.push({ entityType: 'section', id: sectionId, problem });
+  const sectionConflict = (problem: UndoConflict['problem']) =>
+    conflicts.push(makeConflict('section', sectionId, problem, { title: section === null ? undefined : nameOf(section) }));
 
-  if (section === null) sectionConflict('missing');
-  else if (section.archivedAt === undefined) sectionConflict('not-archived');
-  else if (section.archivedAt !== operation.postSectionArchivedAt) sectionConflict('archived-differently');
-  if (section !== null && section.pageId !== operation.section.pageId) sectionConflict('moved');
+  if (operation.disposition === 'deleted') {
+    if (section !== null) sectionConflict(section.archivedAt === undefined ? 'not-archived' : 'archived-differently');
+  } else if (section === null) {
+    sectionConflict('missing');
+  } else {
+    if (section.archivedAt === undefined) sectionConflict('not-archived');
+    else if (section.archivedAt !== operation.postSectionArchivedAt) sectionConflict('archived-differently');
+    if (section.pageId !== operation.section.pageId) sectionConflict('moved');
+  }
 
   // Timestamps cannot tell two removals of the same section apart — an Archive Restore and a
   // re-removal can land in one clock instant, or under a clock set backwards — so a newer record
@@ -206,7 +295,7 @@ const collectConflicts = async (
 
   for (const change of operation.rows) {
     const current = change.kind === 'task' ? tasksById.get(change.id) : reflectionsById.get(change.id);
-    if (current === undefined) conflicts.push({ entityType: change.kind, id: change.id, problem: 'missing' });
+    if (current === undefined) conflicts.push(makeConflict(change.kind, change.id, 'missing'));
     else conflicts.push(...rowProblems(change, current));
   }
 
@@ -220,12 +309,16 @@ const collectConflicts = async (
       (task.parentTaskId !== undefined && movedTasks.has(task.parentTaskId)) ||
       (task.archivedWithTaskId !== undefined && movedTasks.has(task.archivedWithTaskId));
     if (task.archivedWithSectionId === sectionId || dependsOnMoved) {
-      conflicts.push({ entityType: 'task', id: task.id, problem: 'new-dependent' });
+      conflicts.push(makeConflict('task', task.id, 'new-dependent', { title: task.title.trim() || 'Untitled task' }));
     }
   }
   for (const reflection of reflections) {
     if (!recorded.has(reflection.id) && reflection.archivedWithSectionId === sectionId) {
-      conflicts.push({ entityType: 'reflection', id: reflection.id, problem: 'new-dependent' });
+      conflicts.push(
+        makeConflict('reflection', reflection.id, 'new-dependent', {
+          title: reflection.title?.trim() || 'Untitled reflection',
+        }),
+      );
     }
   }
   return conflicts;
@@ -247,32 +340,35 @@ export const executeSectionRemovalUndo = async (
   if (project === null) throw new EntityNotFoundError('project', record.projectId);
   const blocker = await findHighestWriteBlocker(repositories.projects, project.id);
   if (blocker !== undefined) {
+    const blockingProject = await repositories.projects.find(blocker);
+    const blockingProjectTitle = blockingProject?.name ?? blocker;
     throw undoRefusal(
-      { reason: 'undo_blocked', undoId: record.id, blockingProjectId: blocker },
-      `project "${blocker}" is archived; reactivate it before undoing this removal`,
+      { reason: 'undo_blocked', undoId: record.id, blockingProjectId: blocker, blockingProjectTitle },
+      `project "${blockingProjectTitle}" [${blocker}] is archived; reactivate it before undoing this removal`,
     );
   }
 
   const section = await repositories.sections.find(operation.section.id);
   const conflicts = await collectConflicts(repositories, record, operation, section);
-  if (conflicts.length > 0 || section === null) {
+  if (conflicts.length > 0) {
     throw undoRefusal(
       { reason: 'undo_conflict', undoId: record.id, conflicts },
-      conflicts.map(({ entityType, id, problem }) => `${entityType} ${id} ${problem}`).join('; '),
+      conflictMessage(operation.section, conflicts).replace(/^undo_conflict: /, ''),
     );
   }
 
+  const sectionToRestore = section ?? operation.section;
   const canonicalPage = (await repositories.pages.list({ projectId: project.id, kind: canonicalPageKindFor(project.kind) }))[0];
   const destination = resolveUndoDestination({
-    originalPage: await repositories.pages.find(section.pageId),
+    originalPage: await repositories.pages.find(sectionToRestore.pageId),
     canonicalPage,
-    section,
+    section: sectionToRestore,
     shortcutsOnCanonicalPage: canonicalPage === undefined ? [] : await repositories.shortcuts.list({ pageId: canonicalPage.id }),
   });
   if (destination.kind === 'unavailable') {
     throw undoRefusal(
       { reason: 'undo_unavailable', undoId: record.id, problem: destination.problem },
-      `the ${nameOf(section)} section has no page it can return to (${destination.problem})`,
+      `the ${nameOf(sectionToRestore)} section has no page it can return to (${destination.problem})`,
     );
   }
 
@@ -284,7 +380,7 @@ export const executeSectionRemovalUndo = async (
       : resolveRestoreIndex(operation.placement, current);
 
   const restored = ProjectSectionSchema.parse({
-    ...section,
+    ...sectionToRestore,
     pageId: destination.page.id,
     position: index,
     updatedAt: clock.now().toISOString(),
@@ -292,12 +388,13 @@ export const executeSectionRemovalUndo = async (
   delete (restored as { archivedAt?: string }).archivedAt;
   // Written explicitly: when its stale position already equals `index`, the renumber below would
   // skip it and it would never become live.
-  await repositories.sections.update(restored);
+  if (section === null) await repositories.sections.insert(restored);
+  else await repositories.sections.update(restored);
   const ordered = [...current];
   ordered.splice(index, 0, { kind: 'section', value: restored });
   await renumberPlacements(repositories, clock, ordered, { kind: 'section', id: restored.id });
 
-  const owned = ownedKindOf(section.type);
+  const owned = ownedKindOf(sectionToRestore.type);
   for (const change of operation.rows) {
     if (owned === undefined) break;
     const row =

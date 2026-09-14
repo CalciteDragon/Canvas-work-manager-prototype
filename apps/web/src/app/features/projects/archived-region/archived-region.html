@@ -72,10 +72,10 @@
             data-archived-restore
             type="button"
             [disabled]="!canRestore(item)"
-            [attr.aria-label]="'Restore ' + label(item)"
+            [attr.aria-label]="restoreActionAriaLabel(item)"
             (click)="restore(item)"
           >
-            {{ isRestoring(item) ? 'Restoring…' : 'Restore' }}
+            {{ restoreActionLabel(item) }}
           </button>
         </li>
       }

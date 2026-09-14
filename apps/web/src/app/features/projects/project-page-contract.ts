@@ -3,7 +3,7 @@ import type { ProjectId, ProjectLayoutMode, ProjectPageId } from '@cwm/contracts
 /**
  * What every page renderer receives from `ProjectWorkspaceShell`.
  *
- * The two `on…` members are **callbacks, not outputs**, and that is forced rather than
+ * The three `on…` members are **callbacks, not outputs**, and that is forced rather than
  * preferred: the shell mounts a renderer through `NgComponentOutlet`, which has an inputs
  * record and no output API at all. `SectionContentInputs` solved the same problem the same
  * way one level down, and its rule applies here too — the callback's identity must be
@@ -22,6 +22,8 @@ export interface ProjectPageRendererInputs extends Record<string, unknown> {
   onProjectDataChange: () => void;
   /** Something on this page may have moved the work hierarchy — the column re-reads it. */
   onProjectHierarchyChange: () => void;
+  /** Open the root Archive through the shell's existing enable-and-navigate path. */
+  onOpenArchive: () => void;
 }
 
 /**
@@ -37,4 +39,5 @@ export interface ProjectPageRenderer {
   readonly shortcutsAllowed: unknown;
   readonly onProjectDataChange: unknown;
   readonly onProjectHierarchyChange: unknown;
+  readonly onOpenArchive: unknown;
 }

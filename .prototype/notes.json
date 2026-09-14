@@ -737,6 +737,14 @@
       "projectId": "project-garden",
       "slice": 30,
       "note": "Slice 30 Undo friction: after a subtask was added under a reassigned task, undo_operation answered \"undo_conflict: task task-b5747a22 new-dependent\" - correct and safe, but the text names an id with no title and no next step; the agent has to know to archive or move that subtask (then retry) or fall back to restore_section, which loses the original position."
+    },
+    {
+      "id": "note-2026-09-14-007",
+      "createdAt": "2026-09-14T18:35:20.000Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 31,
+      "note": "Automated real-browser acceptance on the nested-projects seed removed Home Progress, confirmed it disappeared from Archive, and Undo restored the same view and order. The browser journeys also covered blank Rich Text, durable Archive restore and reassignment Undo; HTTP and stdio MCP acceptance recovered a lost receipt and recreated a deleted view. No new product friction surfaced in this pass."
     }
   ]
 }

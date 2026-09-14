@@ -63,7 +63,7 @@ order is:
    capability source and meaningful-content projection over retained state.
 2. [30 — Atomic removal Undo](completed/30-atomic-section-removal-undo.md) (done): typed
    inverse storage, scoped execution and neighbor-aware placement, before hard deletion.
-3. [31 — Disposable removal and Undo UI](active/31-disposable-removal-and-undo-ui.md):
+3. [31 — Disposable removal and Undo UI](completed/31-disposable-removal-and-undo-ui.md) (done):
    safe deletion plus a receipt-driven browser recovery action.
 4. [32 — Other section operations](planned/32-section-edit-undo.md): add, movement and
    settings Undo, without a generic command framework.
@@ -77,10 +77,11 @@ candidates against preceding outcomes. Preserve one active slice and small green
 
 The order deliberately moves Refactor §23's Undo and placement work ahead of hard deletion,
 following Refactor §27.8. Redo and a standalone ArchiveItem aggregate remain optional future
-work (Refactor §23 phases 6–7), with no implementation commitment. Current behavior and old
-decisions stay true until implementation lands; each adopting slice must add a §78 decision,
-append dated amendments to conflicting decisions, and update the main spec and affected
-architecture folders together. No production infrastructure, event sourcing or global store.
+work (Refactor §23 phases 6–7), with no implementation commitment. Each slice makes its adopted
+behavior current through a §78 decision, dated amendments to conflicting decisions, and updates
+to the main spec and affected architecture folders. Slices 29–31 now record those shipped rules;
+planned candidates remain proposals only. No production infrastructure, event sourcing or global
+store.
 
 **Slice 29 closed on 2026-09-14.** [Slice 29 — Recovery policy and Archive](completed/29-recovery-policy-and-archive.md)
 makes Archive project recoverable content through one contracts capability source and a pure
@@ -91,8 +92,12 @@ makes every section removal return a receipt that undoes it once, for the same a
 hours, back between its old neighbours — over HTTP and MCP, not yet in the browser
 ([decision](../decisions/2026-09-section-removal-undo-records.md)). Its real-use notes
 (`note-2026-09-14-005`, `-006`: a lost receipt cannot be recovered; conflict text names ids
-without a next step) feed Slice 31, the next start. [Slice 28 — Archive, removal and Undo planning](completed/28-archive-removal-undo-planning.md)
-closed the documentation-only planning work on 2026-09-13. Slice 31 is active for implementation planning and iterative review only; implementation has not started. Slices 32–33 remain candidates.
+without a next step) fed Slice 31, the next start. [Slice 28 — Archive, removal and Undo planning](completed/28-archive-removal-undo-planning.md)
+closed the documentation-only planning work on 2026-09-13. **Slice 31 closed on 2026-09-14.**
+[Disposable removal and Undo UI](completed/31-disposable-removal-and-undo-ui.md) now safely
+deletes unreferenced disposable views and restores them through a canvas-local receipt action;
+retained content, exact-owner receipt recovery, browser journeys and both MCP transports are
+verified. Slices 32–33 remain candidates.
 The latest runtime change, [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md),
 closed 2026-09-13. Its implementation establishes direct canvas editing, contextual
 positioned creation, width resizing, and the navigation changes. The

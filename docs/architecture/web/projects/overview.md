@@ -23,7 +23,8 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
   placed beside the sidebar by one `:has()` rule.
 - `ProjectCanvas` + `ProjectPageStore`: one page's sections and shortcut placements in
   flow or grid, direct drag, contextual insertion, snapped resizing, inline naming and
-  removal, plus canonical navigation to `#section-<id>`.
+  removal, plus canonical navigation to `#section-<id>`. A canvas-local notice holds the
+  committed removal receipt and offers immediate Undo, retry guidance and Archive access.
 - `SECTION_REGISTRY` and the section types: Rich Text, Task List, Sub-Projects,
   Progress, Reflections, Timeline, Recent Activity — each its own folder inside
   `ProjectSectionFrame`.
@@ -31,6 +32,8 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
   store over the matching derived read.
 - Home shortcuts: `ShortcutFrame` (read-only source content), `ShortcutPicker`,
   `ShortcutStore`.
+- `SectionUndoNotice`: accessible, in-memory feedback for one removal receipt or an
+  uncertain removal request; it does not persist Undo state across page changes or reloads.
 
 ## Not responsible for
 

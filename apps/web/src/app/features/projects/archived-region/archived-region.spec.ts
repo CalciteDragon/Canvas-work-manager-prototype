@@ -156,6 +156,17 @@ describe('ArchivedRegion', () => {
     expect(buttons[1]!.disabled).toBe(true);
   });
 
+  it('labels archived sections as saved content and leaves other restore labels intact', async () => {
+    const fixture = await render();
+    const sectionRestore = fixture.nativeElement.querySelector('[data-archived-kind="section"] [data-archived-restore]') as HTMLButtonElement;
+    const taskRestore = fixture.nativeElement.querySelector('[data-archived-kind="task"] [data-archived-restore]') as HTMLButtonElement;
+
+    expect(sectionRestore.textContent?.trim()).toBe('Restore saved content');
+    expect(sectionRestore.getAttribute('aria-label')).toBe('Restore saved content for Backlog');
+    expect(taskRestore.textContent?.trim()).toBe('Restore');
+    expect(taskRestore.getAttribute('aria-label')).toBe('Restore Ship it');
+  });
+
   it('lets a project restore choose an explicit non-archived status', async () => {
     const fixture = await render();
     const restored = vi.fn();

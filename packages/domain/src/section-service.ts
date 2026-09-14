@@ -4,6 +4,7 @@ import {
   pageAcceptsSections,
   ProjectSectionSchema,
   SectionIdSchema,
+  SectionAlreadyRemovedDetailsSchema,
   containerTypeFor,
   nameOf,
   normaliseSectionTitle,
@@ -16,7 +17,9 @@ import {
   type SectionId,
   type SectionQuery,
   type SectionRemovalRefusalDetails,
+  type SectionRemovalDisposition,
   type SectionRemovalResult,
+  type UndoReceipt,
   type ProjectPage,
   type ProjectPageId,
   type UpdateSectionInput,
@@ -39,6 +42,7 @@ import { assertProjectWritable } from './project-visibility';
 import { rowsOf, writeRow, type OwnedRow } from './owned-rows';
 import { listPlacements, renumberPlacements, snapshotPlacement, type PagePlacement } from './page-placements';
 import { captureSectionRemoval, NOTHING_SETTLED, rowChangeOf, type SettledRows } from './section-removal-undo';
+import { sectionRecoveryOf } from './section-recovery-policy';
 import type { UndoRecorder } from './undo-recorder';
 
 export interface SectionServiceDependencies {
@@ -78,8 +82,8 @@ type SectionAction =
   | 'project.section_added'
   | 'project.section_updated'
   | 'project.section_moved'
-  // Removal archives, so nothing produces this any more. It stays in the union for the
-  // events already written into `data.json` (§14) — history is not rewritten.
+  // Disposable removals emit `project.section_removed`; retained content uses
+  // `project.section_archived`. Both verbs remain meaningful in activity history.
   | 'project.section_removed'
   | 'project.section_archived'
   | 'project.section_restored';
@@ -467,10 +471,9 @@ export class SectionService {
   }
 
   /**
-   * §31's remove: **it archives, on every branch, and nothing is deleted.** A view archives
-   * with its `config` — a Notes section's prose lives nowhere else — and so does an empty
-   * container, and so does one holding only already-archived rows, which is the case the
-   * old hard delete left dangling with no policy able to reach it.
+   * §31's remove: settle owned rows, then retain content-bearing or reference-bearing sections
+   * and hard-delete only disposable sections that nothing canonically references. The returned
+   * section is the removal snapshot in either case; a deleted one exists only in the receipt.
    *
    * A container holding **live** rows still needs a policy, because the question is what
    * should happen to the *rows*: `cascade` archives them with the section and stamps each
@@ -478,14 +481,13 @@ export class SectionService {
    * same type and archives the emptied section, marking nothing — the rows left under their
    * own policy, so they are not "archived with" anything.
    *
-   * Every branch keeps a tombstone; whether Archive *lists* it is a projection question
-   * (`sectionRecoveryOf`), so a removed disposable view is retained but not shown.
+   * Archive inclusion and deletion safety are separate checks. `sectionRecoveryOf` keeps
+   * meaningful or uncertain content recoverable; a second canonical-reference check keeps rows
+   * and Home shortcuts from dangling. Old tombstones are never purged by this operation.
    *
-   * Deliberately **not** idempotent: an already-archived section is refused rather than
-   * archived twice. Removing something already removed is not a second archive, and a silent
-   * success would write a second activity event. Permanent deletion is the operation that
-   * case really wants, and it is deferred
-   * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
+   * Deliberately **not** idempotent: a repeated removal is still a refusal, but the exact actor
+   * may recover the newest outstanding receipt. A missing hard-deleted id remains not-found to
+   * everyone else.
    *
    * Allowed inside an archived project, unlike every other section write: the freeze stops
    * work coming *back* into a project someone has put away, not someone tidying one. It still
@@ -503,9 +505,18 @@ export class SectionService {
     assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
-      const current = await this.require(actor, id);
+      const current = await this.dependencies.sections.find(id);
+      if (current === null) {
+        const receipt = await this.dependencies.undo.outstandingFor(actor, id);
+        if (receipt !== null) throw this.repeatRemoval(id, receipt);
+        throw new EntityNotFoundError('section', id);
+      }
+      // Do not use a receipt lookup to turn a foreign section into an existence oracle.
+      if (!(await this.isProjectVisible(actor, current.projectId))) throw new EntityNotFoundError('section', id);
       if (current.archivedAt !== undefined) {
-        throw new DomainRuleError(`section "${id}" is already archived`);
+        const receipt = await this.dependencies.undo.outstandingFor(actor, id);
+        if (receipt !== null) throw this.repeatRemoval(id, receipt);
+        throw new DomainRuleError(`section "${id}" is already archived; restore it from Archive before removing it again`);
       }
       const owned = ownedKindOf(current.type);
       const archivedAt = this.dependencies.clock.now().toISOString();
@@ -515,27 +526,40 @@ export class SectionService {
       // Before the section archives or the page renumbers: the placement Undo returns to is the one
       // the canvas showed.
       const placement = snapshotPlacement(await this.placementsOnPage(current.pageId), { kind: 'section', id });
+      // Recovery is judged after cascade/reassign has actually settled. It answers whether
+      // meaningful or uncertain content remains; canonical references are checked separately.
+      const disposition = await this.removalDisposition(current);
 
       const archived = ProjectSectionSchema.parse({
         ...current,
         archivedAt,
         updatedAt: this.dependencies.clock.now().toISOString(),
       });
-      await this.dependencies.sections.update(archived);
-      // Archived first, then renumber: `orderedOnPage` is live-only, so the surviving siblings
-      // close to the same dense sequence deleting produced. The archived section keeps its
-      // now-stale position — uniqueness is a property of the live page, and
-      // `restoreSection` overwrites the value when it appends.
+      if (disposition === 'retained') await this.dependencies.sections.update(archived);
+      else await this.dependencies.sections.remove(id);
+      // Retain/delete first, then renumber: `orderedOnPage` is live-only, so surviving siblings
+      // close to the same dense sequence. A retained tombstone keeps its stale position.
       await renumberPlacements(
         this.dependencies,
         this.dependencies.clock,
         await this.placementsOnPage(current.pageId),
       );
-      await this.record(actor, archived, 'project.section_archived', 'Archived');
+      await this.record(
+        actor,
+        archived,
+        disposition === 'deleted' ? 'project.section_removed' : 'project.section_archived',
+        disposition === 'deleted' ? 'Removed' : 'Archived',
+      );
       const undo = await this.dependencies.undo.record(actor, {
         projectId: current.projectId,
         label: `Removed the ${nameOf(current)} section`,
-        operation: captureSectionRemoval({ section: current, placement, settled, postSectionArchivedAt: archivedAt }),
+        operation: captureSectionRemoval({
+          section: current,
+          placement,
+          settled,
+          disposition,
+          postSectionArchivedAt: archivedAt,
+        }),
       });
       return { section: archived, undo };
     });
@@ -598,19 +622,38 @@ export class SectionService {
     });
   }
 
+  private repeatRemoval(sectionId: SectionId, receipt: UndoReceipt): DomainRuleError {
+    const details = SectionAlreadyRemovedDetailsSchema.parse({ reason: 'section_already_removed', sectionId, undo: receipt });
+    return new DomainRuleError(
+      `section_already_removed: this removal already committed; use undo_operation with undoId "${receipt.undoId}" before ${receipt.expiresAt}`,
+      details,
+    );
+  }
+
+  /** Content policy decides retention for recovery; references independently protect integrity. */
+  private async removalDisposition(section: ProjectSection): Promise<SectionRemovalDisposition> {
+    const [tasks, reflections, shortcuts] = await Promise.all([
+      this.dependencies.tasks.list({ projectId: section.projectId, includeArchived: true }),
+      this.dependencies.reflections.list({ projectId: section.projectId, includeArchived: true }),
+      this.dependencies.shortcuts.list(),
+    ]);
+    const hasRowReference =
+      tasks.some((row) => row.sectionId === section.id || row.archivedWithSectionId === section.id) ||
+      reflections.some((row) => row.sectionId === section.id || row.archivedWithSectionId === section.id);
+    const hasShortcutReference = shortcuts.some((shortcut) => shortcut.sourceSectionId === section.id);
+    const recovery = sectionRecoveryOf(section, { tasks, reflections });
+    return recovery.include || hasRowReference || hasShortcutReference ? 'retained' : 'deleted';
+  }
+
   /**
-   * Cascade or reassign, decided against the rows that are still *live*: an archived row is
-   * already unrendered, so it neither forces a policy nor needs archiving twice. Reassign
-   * still repoints the archived ones — they keep a live container to come back to, and
-   * their `archivedWithTaskId` groups move whole, because a subtask shares its parent's
-   * section.
+   * Cascade changes only live rows. Reassign moves every row, including archived rows, when at
+   * least one live row makes settlement necessary; their archive markers remain attached.
    *
-   * No live rows means no question to ask, so the section archives with no policy. That is
-   * the second dangle the hard delete produced and no policy ever reached: a container
-   * holding only archived rows was deleted out from under them.
+   * No live rows means nothing to settle, even when a caller supplies a policy and target. In
+   * particular, an archived-only owner and its rows stay together for the existing Archive
+   * recovery path.
    *
-   * Returns what it **applied**, for the Undo record: `none` when nothing was live whatever the
-   * caller sent — a `reassign` with no target succeeds here — and every row it wrote.
+   * Returns what it **applied**, for the Undo record.
    */
   private async settleRows(
     actor: ActorContext,

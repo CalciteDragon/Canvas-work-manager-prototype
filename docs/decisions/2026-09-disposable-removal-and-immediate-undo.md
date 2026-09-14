@@ -30,7 +30,7 @@ instruction would be false.
 ## Current decision
 
 **Planning choice, 2026-09-14 — pending Slice 31 implementation.** The
-[active plan](../roadmap/active/31-disposable-removal-and-undo-ui.md) specifies:
+[Slice 31 plan](../roadmap/completed/31-disposable-removal-and-undo-ui.md) specifies:
 
 - Evaluate recovery after row settlement; hard-delete excluded sections only when no
   canonical row or shortcut still references them. Retain shortcut-backed tombstones,
@@ -67,3 +67,40 @@ canvas-local lifetime and repair copy until keyboard, touch, failure and real-us
 Users need Undo after navigation, want to undo an agent's removal from the browser, or
 shortcut placeholders create unacceptable friction. Revise and review the plan before
 changing those choices; append implementation evidence after acceptance.
+
+**Amended, 2026-09-14 — landed in Slice 31.** The implementation follows the reviewed choices
+above. Disposable and empty sections are deleted only after owned-row settlement, recovery
+classification and a canonical task/reflection/shortcut reference audit. Meaningful and uncertain
+content stays in Archive, shortcut-backed sources remain hidden integrity tombstones, and older
+tombstones are untouched. The optional inverse disposition preserves old records and lets Undo
+recreate a deleted section without overwriting a reused id. The canvas-local notice captures the
+receipt before refresh; exact-owner repeated removal recovers only the outstanding receipt and
+stays a write-free refusal. Typed next steps and current titles make Undo conflicts repairable
+without parsing transport text.
+
+Evidence: `pnpm test` passed (including 691 web tests), `pnpm lint`, and `pnpm docs:check` passed;
+`pnpm build` passed with a 995.34 kB initial bundle under the unchanged 1 MB error ceiling, and
+`pnpm e2e` passed all 26 browser journeys. Both prototype-host acceptance scripts passed, including
+MCP over stdio and Streamable HTTP with receipt recovery and persisted deletion/recreation. The
+seeded `nested-projects` journeys removed disposable views and restored their config, layout and
+order through Undo; they also exercised shortcut placeholders, reload/Archive restoration and
+reassignment. The Slice 31 plan records the independent implementation review rounds and detailed
+verification evidence.
+
+**Amended, 2026-09-14 — archived-only reassignment and refusal guidance.** The sentence above
+about pre-archived rows moving applies only when live rows make reassignment necessary. With only
+pre-archived rows, an explicit `reassign` does not settle or move them; the section stays as their
+Archive recovery path, matching the existing Slice 29 policy. The previous branch and its tests
+had drifted from the reviewed Slice 31 matrix; `SectionService.settleRows`, the Archive projection
+tests and the spec now preserve the no-op branch. An archived section with no eligible receipt
+also directs the caller to restore it from Archive; an expiry-boundary domain test pins that
+message. The Slice 31 plan records the review findings and their re-review status.
+
+**Amended, 2026-09-14 — activity action and retry-state review.** Safely deleted disposable
+sections emit `project.section_removed`; retained removals emit `project.section_archived`, and
+both name the durable project. The earlier activity decision now records that distinction without
+rewriting its historical Archive-only conclusion. The canvas also protects its single failed
+removal retry descriptor: a different removal cannot replace it until the user dismisses it, and
+its guard alert clears on dismissal. The correctness reviewer re-read the final guard and found no
+remaining substantive issues; the boundary/documentation reviewer verifies the activity amendment
+before closure.

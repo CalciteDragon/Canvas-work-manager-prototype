@@ -45,6 +45,9 @@ import type {
   UpdateProjectInput,
   UpdateTaskInput,
   RemoveSectionInput,
+  SectionRemovalResult,
+  UndoRecordId,
+  UndoResult,
 } from '@cwm/contracts';
 
 /**
@@ -155,13 +158,7 @@ export interface ProjectPageGateway {
   setEnabled(projectId: ProjectId, input: SetProjectPageEnabledInput): Promise<ProjectPage>;
 }
 
-/**
- * §31's frame affordances, as a gateway. `move` is deliberately absent: nothing in the UI
- * reorders sections until Slice 9 wires Angular CDK drag-drop, and this file's rule is that
- * a method the UI cannot exercise is a claim no test backs. The domain service and
- * `POST /api/sections/:id/move` both exist — the gateway method arrives with the drop
- * handler that calls it.
- */
+/** §27 and §31's canvas section reads and writes, including the typed removal receipt. */
 export interface SectionGateway {
   /**
    * Live-only by default; the root Archive projection is the one caller that asks for the rest.
@@ -175,18 +172,14 @@ export interface SectionGateway {
   update(id: SectionId, input: UpdateSectionInput): Promise<ProjectSection>;
   move(id: SectionId, input: MoveSectionInput): Promise<ProjectSection>;
   duplicate(id: SectionId): Promise<ProjectSection>;
-  /**
-   * Removal **archives**: the section leaves the canvas and `restore` brings it back with
-   * the rows it took down. A container that still holds live rows refuses without a policy,
-   * and the caller surfaces the refusal as a choice rather than swallowing it — see
-   * docs/decisions/2026-09-what-undo-means-for-an-archived-row.md.
-   *
-   * `Promise<void>` deliberately: the canvas re-reads. The host now answers with an Undo receipt
-   * as well, which this gateway does not expose yet; receipt-driven Undo in the browser is a
-   * later slice.
-   */
-  remove(id: SectionId, input?: RemoveSectionInput): Promise<void>;
+  /** Removes or retains the section according to content and references, and returns its Undo receipt. */
+  remove(id: SectionId, input?: RemoveSectionInput): Promise<SectionRemovalResult>;
   restore(id: SectionId): Promise<ProjectSection>;
+}
+
+/** The receipt id is the only input to Undo; the server owns inverse data and actor checks. */
+export interface UndoGateway {
+  execute(id: UndoRecordId): Promise<UndoResult>;
 }
 
 /** §27's layout-only reference gateway. Sources identify canonical sections; they never carry rows. */
@@ -248,6 +241,7 @@ export interface WorkManagerGateway {
   reflections: ReflectionGateway;
   agents: AgentGateway;
   activity: ActivityGateway;
+  undo: UndoGateway;
 }
 
 export const WORK_MANAGER_GATEWAY = new InjectionToken<WorkManagerGateway>('WORK_MANAGER_GATEWAY');

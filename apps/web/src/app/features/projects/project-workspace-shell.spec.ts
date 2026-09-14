@@ -480,6 +480,22 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     });
   });
 
+  it('passes a stable Archive callback through the page outlet', async () => {
+    const { harness, gateway, router } = await open('/projects/project-renovation');
+    const shell = harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell)).componentInstance as ProjectWorkspaceShell;
+    const callback = shell.rendererInputs()!.onOpenArchive;
+
+    expect(shell.rendererInputs()!.onOpenArchive).toBe(callback);
+    callback();
+    await settle(harness);
+
+    expect(router.url).toBe('/projects/project-renovation/pages/archive');
+    expect(gateway.calls).toContainEqual({
+      method: 'pages.setEnabled',
+      argument: { projectId: RENOVATION.id, input: { kind: 'archive', enabled: true } },
+    });
+  });
+
   it('renders the enabled Reflections page through the page registry', async () => {
     const { harness, router } = await open('/projects/project-renovation/pages/reflections', {
       pages: [

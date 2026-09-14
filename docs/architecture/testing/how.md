@@ -8,7 +8,10 @@
    transport and persistence tests use isolated localhost servers and temporary files.
 2. `pnpm lint` runs each workspace's `lint` — `tsc --noEmit` plus the import, date and
    token lints where they apply — and then `node scripts/check-docs.mjs`.
-3. `pnpm build` builds the web app (with the bundle budgets) and type-checks the rest.
+3. `pnpm build` builds the web app (with the bundle budgets) and type-checks the rest. Slice 31
+   keeps project routes eager and uses conditional Angular `@defer` boundaries for the canvas
+   dialogs, Undo notice and Archive list; the production initial bundle is 993.82 kB against
+   the existing 1 MB error ceiling.
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
    starts a second host on a temp file and walks a slice's *done when*. Since Slice 30,
    `acceptance` removes `personal-workspace`'s first Home placement, undoes it through
@@ -16,10 +19,12 @@
    `mcp-acceptance` grants `projects.write` to the token's connection **in its copied temp
    files** (the seed is unchanged), cascades the middle `agent-heavy` task list away with
    `remove_section`, restores it with `undo_operation` over both transports, and checks the
-   persisted file shows the section live and the record consumed.
+   persisted file shows the section live and the record consumed. Slice 31 extends both:
+   HTTP and MCP acceptance delete a disposable Progress section, repeat the removal to
+   recover the exact receipt, undo it, and inspect persisted recreation and consumption.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) starts both processes,
-   seeds before each spec, and runs the six journeys, including the canvas editing
-   geometry and touch checks.
+   seeds before each spec, and runs the web, canvas editing/removal Undo, MCP, Todos,
+   Archive and Reflections specs, including keyboard/touch geometry and receipt recovery.
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`
    produces a static build the 25.x closeouts used as a check.
 7. After every slice, §77: seed, use, try it through MCP, write the friction down.
@@ -99,6 +104,10 @@ pnpm storybook                                        # :6006
   pre-archived-only containers are present with recovery metadata; reload; append after an
   interposed Home shortcut; retry idempotency; the disabled tab reopened from a nested route;
   and the same projection and canonical restores through a real MCP client.
+- **Removal Undo acceptance** lives in `removal-undo.spec.ts`: disposable views leave both
+  the canvas and Archive and return with their saved config/order; meaningful content and
+  cascaded rows remain durably recoverable; reassign removes the empty section and Undo
+  reverses all moved rows; reload preserves Archive and section state.
 - **The trap:** a test that passes before the implementation, or fails on a typo. Watch
   it fail for the right reason first.
 

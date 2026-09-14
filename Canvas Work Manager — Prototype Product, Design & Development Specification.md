@@ -354,11 +354,22 @@ interface WorkManagerGateway {
   projects: ProjectGateway;
   tasks: TaskGateway;
   sections: SectionGateway;
+  undo: UndoGateway;
   milestones: MilestoneGateway;
   reflections: ReflectionGateway;
   dashboard: DashboardGateway;
   search: SearchGateway;
   activity: ActivityGateway;
+}
+```
+
+```ts
+interface SectionGateway {
+  remove(id: SectionId, input?: RemoveSectionInput): Promise<SectionRemovalResult>;
+}
+
+interface UndoGateway {
+  execute(undoId: UndoRecordId): Promise<UndoResult>;
 }
 ```
 
@@ -380,6 +391,12 @@ interface TaskGateway {
 person has lost (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md). It restores
 the task and every descendant that came down with it. `archive` keeps its `Promise<void>`, so
 a caller that needs the updated row re-reads.
+
+*Landed in Slice 31.* `sections.remove` returns `{ section, undo }`; `section` is an
+archived-shaped result snapshot even when the domain deleted the disposable section.
+`undo.execute` accepts only the receipt id; inverse data and actor checks remain server-side.
+Removal and Undo are interface members shared by the HTTP gateway and its fake
+([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
 The frontend depends on these interfaces.
 
@@ -1288,6 +1305,13 @@ of silently appending. Grid gaps are insertion targets in the existing wrapping 
 The chosen supported width is retained if neighboring placements change while the dialog is open
 ([why](docs/decisions/2026-09-contextual-insertion-names-its-position.md)).
 
+*Landed in Slice 31.* A section removed from the current canvas yields its server receipt to
+an accessible, page-local Undo action. The notice keeps only that receipt in memory; it clears
+on leaving the canvas or reloading, and does not depend on Archive being enabled. When the
+remove response is uncertain, the canvas exposes an explicit retry with the original action
+after the section has disappeared from a live refresh. A live refresh never repeats a write
+([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+
 ## Shortcuts on Home
 
 A root's Home may show a section that canonically lives somewhere else in the same root tree —
@@ -1479,12 +1503,14 @@ restores the type's default. Clicking the title does not drag or collapse the fr
 rename keeps the entered text available to correct or retry
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
-**Remove archives; it does not delete.** It sets `archivedAt` on the section — a retained
-tombstone, whether or not Archive lists it — which leaves the canvas and keeps everything it held — a Notes section's prose, a Progress section's milestone
-selection, and the rows a container took down with it. A container still holding *live* rows
-first asks what should happen to them: archive them with the section, or move them to another
-container of the same type. A view, an empty container, and a container holding only archived
-rows need no question and archive silently.
+**Remove preserves what the person can lose and deletes only an unreferenced disposable.**
+The domain first settles any row policy: a container with live rows asks whether to archive
+them with the section or move them to a same-type container. It then retains the section when
+recoverable or uncertain content remains, or when any canonical task, reflection or Home
+shortcut still references it. Otherwise it deletes the section: known disposable views,
+empty containers and whitespace-only Rich Text do not need permanent tombstones. Archived
+rows and shortcut source ids count in the reference audit. Existing tombstones are not purged
+by this operation. No row or shortcut is silently deleted.
 
 ## Where archived work is found
 
@@ -1526,18 +1552,23 @@ removed or hidden section is listed only when something in it remains to recover
 or Reflections container with any rows still assigned to it (archived rows included), Rich Text
 whose only config is prose that trims to something (an empty config holds nothing), or a type or config the domain cannot read as
 empty (listed conservatively as unknown content). Removed Progress, Timeline, Recent Activity and
-Sub-Projects views — and a container emptied by reassignment, or blank prose — keep their
-tombstones in storage but are not listed. Archived sub-projects, tasks and reflections are
+Sub-Projects views — and a container emptied by reassignment, or blank prose — are deleted
+when no canonical row or shortcut references them. Historical tombstones remain unlisted;
+shortcut-backed disposable sections keep an internal tombstone, leaving Home's source
+unavailable placeholder intact. Archived sub-projects, tasks and reflections are
 listed exactly as before. Each section entry carries the domain's recovery metadata: the total
 rows still in the container, apart from the exact count that restores with it and the number of
 row restores still needed afterwards (a subtask archived with its parent comes back with it). A container
 holding only independently archived rows stays listed on purpose — it is the first step of their
-recovery: restore the section, then restore those rows individually. A live container beneath an
+recovery: restore the section, then restore those rows individually. Supplying `reassign` does
+not change this branch: no rows move unless at least one live row makes settlement necessary.
+When live rows do require reassignment, all rows assigned to the source, including independently
+archived subtrees, move together. A live container beneath an
 archived project needs only that project's reactivation. Restore itself is unchanged: it appends
 to the page's current combined order, revives exactly its cascade, and a retry changes nothing
 ([why](docs/decisions/2026-09-content-oriented-archive-policy.md)).
 
-*Landed in Slice 30: **Undo** is distinct from Archive Restore.* Every successful removal records
+*Landed in Slice 30 and extended in Slice 31: **Undo** is distinct from Archive Restore.* Every successful removal records
 one scoped inverse in the same unit of work and returns a receipt. Undo, by that receipt, puts the
 section back on its page **between the neighbours it left** — after the surviving previous section
 or shortcut, else before the next, else at its old index — with exactly the rows the removal
@@ -1546,7 +1577,19 @@ to the same person or agent connection that removed, under `projects.write`, and
 rather than overwrite a later structural change (the section restored or removed again, a moved
 row, a new subtask under a moved task), while the project or an ancestor is archived, or after it
 has been used or has expired. Archive Restore remains the durable path: no receipt, no expiry,
-appended ([why](docs/decisions/2026-09-section-removal-undo-records.md)). The browser does not offer Undo yet.
+appended ([why](docs/decisions/2026-09-section-removal-undo-records.md)).
+
+The browser holds the receipt in the current canvas session and offers **Undo** there; dismissal
+removes the notice, successful Undo replaces it with a result, and a newer successful removal
+replaces the receipt. Page/project navigation or reload clears the local state.
+The server receipt remains independently scoped to the exact actor for 24 hours. If a removal
+response is lost, repeating it remains a refusal; the exact actor receives their newest
+outstanding receipt in HTTP `details` or MCP error text, without a second write or event. The
+browser also offers an explicit retry of the original removal after a live refresh removes its
+frame. A deleted disposable section's `{ section, undo }` response uses an archived-shaped
+snapshot for compatibility and does not claim the section remains stored. Archive is available
+as a recovery destination for retained content; it does not promise to recreate a deleted view
+([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
 *Landed in Slice 25.6: the per-canvas Archived region was replaced by the root-wide Archive
 page, which keeps cascade members and effectively hidden live work findable, explains blockers,
@@ -1620,11 +1663,14 @@ resize, creation and removal operations. Rename and dialog callbacks return writ
 visible control can preserve input and report an error rather than losing a failed action
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
-The **Archive** page is *not* canvas chrome and stays reachable: it is content,
-and it is the recovery path for removal (Archive Restore, the durable path; receipt-based Undo exists over HTTP and MCP since Slice 30, and its browser surface is still to come). Gating it behind Edit Layout Mode would hide it exactly when
-someone needs it — right after a removal they did not mean. The per-row archive control in §34
-is likewise a row affordance rather than a layout one. The same reasoning carries to the
-project controls that open the page even when its tab is disabled.
+The **Archive** page is *not* canvas chrome and stays reachable: it is content. Archive Restore
+remains the durable recovery path for retained content; a receipt-based Undo action is also
+available in the canvas that made the removal. The canvas's **Open Archive** action lets a
+person check saved content without promising that a deleted disposable view will appear there.
+Gating recovery behind Edit Layout Mode would hide it exactly when someone needs it — right
+after a removal they did not mean. The per-row archive control in §34 is likewise a row
+affordance rather than a layout one. The same reasoning carries to the project controls that
+open the page even when its tab is disabled.
 
 Shortcut placements (§27) are layout. Adding and removing one uses the same contextual
 insertion and removal controls as sections; the source content a placement renders remains
@@ -2440,10 +2486,9 @@ get_project_archive
 get_project_journal
 ```
 
-Shortcuts (§27) are created and removed through their own tools, and archive/restore become
-canonical tools on projects, sections, tasks and reflections so an agent has the same undo a
-person does. (Since Slice 30 an agent also holds receipt-based `undo_operation` for its own section
-removals, which the browser does not surface yet.)
+Shortcuts (§27) are created and removed through their own tools, and archive/restore are
+canonical tools on projects, sections, tasks and reflections. An agent can execute the same
+section-removal receipt that a person gets from the canvas using `undo_operation`.
 
 **A page is never a permission bypass.** Resolving a shortcut's source content requires the
 read permission for the *content*, not merely permission to see the layout that references it:
@@ -2475,12 +2520,18 @@ adds `get_project_journal` with the same three read grants: it aggregates live j
 from the root tree, resolves current linked-subject state (including an archived subject), and
 does not depend on the Reflections tab being enabled.*
 
-*Landed in Slice 30: `remove_section` returns `{ section, undo }` — the archived section and an
-Undo receipt — and `undo_operation` (`projects.write`, input `{ undoId }`) executes a receipt for
-the connection it was issued to. MCP errors carry no structured details, so every Undo refusal's
-text starts with its reason: `undo_consumed:`, `undo_expired:`, `undo_conflict:` (listing
-`<entity> <id> <problem>` pairs), `undo_blocked:` or `undo_unavailable:`. The registry holds
-thirty-four tools ([why](docs/decisions/2026-09-section-removal-undo-records.md)).*
+*Landed in Slices 30–31: `remove_section` returns `{ section, undo }` — the final
+archived-shaped section snapshot and an Undo receipt — and `undo_operation` (`projects.write`,
+input `{ undoId }`) executes a receipt for the exact actor it was issued to. A disposable
+section can be absent from storage even though that response snapshot carries `archivedAt`.
+MCP errors carry no structured details, so refusal text starts with its reason. Repeating a
+removal recovers only that actor's newest outstanding receipt in `section_already_removed:`;
+it remains a refusal with no second write. Undo conflicts include current names and ids plus
+typed next steps, capped at five; blocked refusals name the blocking project. Other refusal
+prefixes are `undo_consumed:`, `undo_expired:`, `undo_conflict:`, `undo_blocked:` and
+`undo_unavailable:`. The registry still holds thirty-four tools
+([decision](docs/decisions/2026-09-section-removal-undo-records.md),
+[Slice 31 decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).*
 
 *The 25.8 HTTP acceptance exercised the combined Todos, Archive and Journal reads with the declared
 grant matrix, including no-partial-result denials and a read-only connection's write refusal. The
@@ -2727,10 +2778,14 @@ These do not need to be considered final production routes.
 
 Their main purpose is to exercise the Angular gateway boundary realistically.
 
-*Landed in Slice 30: `DELETE /api/sections/:id` answers 200 with the archived section and its Undo
-receipt, and `POST /api/undo/:id` executes a receipt. Undo refusals are 409s whose `details` carry a
-typed reason (`undo_consumed`, `undo_expired`, `undo_conflict`, `undo_blocked`,
-`undo_unavailable`); a receipt issued to someone else is 404.*
+*Landed in Slices 30–31: `DELETE /api/sections/:id` answers 200 with the final
+archived-shaped section snapshot and its Undo receipt; a disposable section may already be
+absent from storage. `POST /api/undo/:id` executes a receipt. Undo refusals are 409s whose
+`details` carry a typed reason (`undo_consumed`, `undo_expired`, `undo_conflict`,
+`undo_blocked`, `undo_unavailable`); a receipt issued to someone else is 404. Repeating a
+removal remains 409 but returns `section_already_removed` details with the exact actor's
+newest outstanding receipt and no new write or event. The API still forwards only contracts,
+never inverse snapshots.*
 
 ---
 
@@ -2773,8 +2828,10 @@ The frontend then refreshes relevant state.
 
 Do not build full real-time synchronization infrastructure.
 
-*Slice 30: a removal and its Undo each publish only their one activity frame, after commit, and
-nothing on rollback. No frame carries Undo snapshot data.*
+*Slices 30–31: each successful removal and its Undo publishes only its one activity frame after
+commit, and nothing on rollback. A deleted disposable removal emits `project.section_removed`;
+a retained removal emits `project.section_archived`. No frame carries Undo snapshot data, and a
+repeated-removal refusal emits no frame.*
 
 ---
 
@@ -2805,6 +2862,14 @@ show error
 ```
 
 The development panel's failure injection should test these flows.
+
+For section removal, the canvas reports success only after it receives the server receipt. It
+stores the receipt before refreshing so a failed refresh cannot hide the committed mutation;
+**Retry refresh** repeats only the read. Undo sends the held receipt id and refreshes the
+authoritative section list. If a remove response is uncertain, **Retry remove** is an explicit
+repeat of the exact original action; it is never triggered by a live refresh. Navigation and
+generation guards prevent stale receipts or responses from affecting another canvas
+([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
 ---
 

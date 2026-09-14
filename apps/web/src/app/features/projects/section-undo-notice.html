@@ -1,0 +1,99 @@
+@if (state(); as notice) {
+  <div
+    data-undo-notice
+    class="section-undo-notice"
+    [class.section-undo-notice--alert]="isAlert()"
+    [attr.aria-busy]="busy()"
+    tabindex="-1"
+  >
+    <div class="section-undo-notice__copy">
+      <p
+        data-undo-message
+        class="section-undo-notice__message"
+        [attr.role]="isAlert() ? 'alert' : 'status'"
+        [attr.aria-live]="isAlert() ? 'assertive' : 'polite'"
+      >{{ notice.message }}</p>
+      @if (notice.receipt; as receipt) {
+        <p data-undo-expiry class="section-undo-notice__meta">
+          Undo is available until <time [attr.datetime]="receipt.expiresAt">{{ receipt.expiresAt }}</time>.
+        </p>
+      }
+      @if (typedGuidance(); as guidance) {
+        <p data-undo-typed-guidance class="section-undo-notice__meta">{{ guidance }}</p>
+      }
+      @if (conflicts().length > 0) {
+        <ul class="section-undo-notice__conflicts" aria-label="Undo conflicts">
+          @for (conflict of conflicts(); track conflict.entityType + ':' + conflict.id) {
+            <li data-undo-conflict>
+              <span>{{ conflictSubject(conflict) }}:</span>
+              <span data-undo-next-step>{{ nextStepCopy(conflict.nextStep) }}</span>
+            </li>
+          }
+        </ul>
+      }
+      @if (notice.refreshFailed) {
+        <p data-undo-refresh-error class="section-undo-notice__meta">
+          The change was saved, but this canvas could not be refreshed.
+        </p>
+      }
+    </div>
+
+    <div class="section-undo-notice__actions">
+      @if (canUndo()) {
+        <button
+          data-undo-action
+          type="button"
+          [attr.aria-disabled]="busy()"
+          (click)="requestUndo()"
+        >
+          {{ busy() ? 'Undoing…' : 'Undo' }}
+        </button>
+      }
+      @if (notice.refreshFailed) {
+        <button
+          data-retry-undo-refresh
+          type="button"
+          [attr.aria-disabled]="busy()"
+          (click)="requestRetryRefresh()"
+        >Retry refresh</button>
+      }
+      <button
+        data-open-archive
+        type="button"
+        [attr.aria-disabled]="busy()"
+        (click)="requestOpenArchive()"
+      >Open Archive</button>
+      <button
+        data-dismiss-undo-notice
+        type="button"
+        [attr.aria-disabled]="busy()"
+        aria-label="Dismiss Undo notice"
+        (click)="requestDismissUndo()"
+      >Dismiss</button>
+    </div>
+  </div>
+}
+
+@if (failedRemoval(); as failure) {
+  <div data-removal-error class="section-undo-notice section-undo-notice--alert">
+    <div class="section-undo-notice__copy">
+      <p class="section-undo-notice__message" role="alert" aria-live="assertive">
+        Could not remove the section. {{ failure.message }}
+      </p>
+    </div>
+    <div class="section-undo-notice__actions">
+      <button
+        data-retry-remove
+        type="button"
+        [attr.aria-disabled]="busy()"
+        (click)="requestRetryRemove()"
+      >Retry remove</button>
+      <button
+        data-dismiss-removal-error
+        type="button"
+        [attr.aria-disabled]="busy()"
+        (click)="requestDismissFailure()"
+      >Dismiss</button>
+    </div>
+  </div>
+}

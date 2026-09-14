@@ -195,23 +195,29 @@ independently archived work archived.
 
 ### Undoing a section removal
 
-Since Slice 30 `remove_section` (`projects.write`) returns `{ section, undo }`: the archived
-section and a receipt `{ undoId, operation, label, createdAt, expiresAt }`. Pass the `undoId` to
-`undo_operation` (`projects.write`) to reverse that one removal — the section returns to its
-page between the neighbours it left (Archive Restore appends instead), with exactly the rows the
-removal archived or moved, and later non-structural edits such as renamed tasks are kept.
+`remove_section` (`projects.write`) returns `{ section, undo }`: an archived-shaped final
+section snapshot and a receipt `{ undoId, operation, label, createdAt, expiresAt }`. A
+disposable section may already be absent from storage; the response snapshot is not evidence it
+remains there. Pass `undoId` to `undo_operation` (`projects.write`) to reverse that removal —
+the section returns between the neighbours it left (Archive Restore appends instead), with
+exactly the rows the removal archived or moved, while later non-structural edits such as renamed
+tasks are kept.
 
 A receipt is usable once, for 24 hours, by the same agent connection that made the removal; any
-other connection, including another of the same person, gets not-found. Refusals are MCP errors
-whose text starts with a reason token:
+other connection, including another of the same person, gets not-found. If the remove response
+was lost, repeating `remove_section` for the same id is still a refusal. `section_already_removed:`
+includes the exact connection's newest outstanding `undoId` and `expiresAt`, even after a
+disposable section was deleted. It performs no second write or activity event; consumed,
+expired, pruned or superseded receipts are not returned. Other actors receive no receipt.
+Refusals are MCP errors whose text starts with a reason token:
 
 | Prefix | Meaning | What to do |
 |---|---|---|
 | `undo_consumed:` | Already undone | Nothing; the section is back |
 | `undo_expired:` | Older than 24 hours | `restore_section`, which appends |
-| `undo_conflict:` | Something the removal touched changed since; the text lists `<entity> <id> <problem>` pairs | Inspect those entities; `restore_section` is still available |
+| `undo_conflict:` | Something the removal touched changed; text names available titles and ids with a next step | Follow the listed repair, retry Undo, or check Archive for retained content |
 | `undo_blocked:` | The project or an ancestor is archived | Reactivate the named project, then retry |
-| `undo_unavailable:` | No page can take the section back | `restore_section` |
+| `undo_unavailable:` | No page can take the section back | Make a compatible page available and retry Undo; Archive may contain retained content |
 
 The `agent-heavy` fixture token's connection does not hold `projects.write`; grant it in
 **Settings → AI & Agents** before trying either tool.

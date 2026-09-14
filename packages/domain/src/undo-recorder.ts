@@ -3,6 +3,7 @@ import {
   UndoRecordIdSchema,
   UndoRecordSchema,
   type ProjectId,
+  type SectionId,
   type UndoOperation,
   type UndoReceipt,
   type UndoRecord,
@@ -35,6 +36,11 @@ export interface UndoRecordEntry {
  */
 export interface UndoRecorder {
   record(actor: ActorContext, entry: UndoRecordEntry): Promise<UndoReceipt>;
+  /**
+   * Read the newest usable receipt for this section only when the exact actor owns it. Called
+   * inside the caller's unit of work; it is read-only and never opens a transaction.
+   */
+  outstandingFor(actor: ActorContext, sectionId: SectionId): Promise<UndoReceipt | null>;
 }
 
 /** One repository, a clock and ids — never a unit of work, which the caller owns. */
@@ -50,6 +56,14 @@ export const subjectSectionOf = (record: UndoRecord): string => {
     case 'section.remove':
       return record.operation.section.id;
   }
+};
+
+/** The receipt belongs to a user, an agent connection or the system as one exact actor. */
+export const undoRecordBelongsToActor = (record: UndoRecord, actor: ActorContext): boolean => {
+  if (record.workspaceId !== actor.workspaceId || record.actor !== actor.actor) return false;
+  if (actor.actor === 'user') return record.actorUserId === actor.userId;
+  if (actor.actor === 'agent') return record.actorAgentConnectionId === actor.agentConnectionId;
+  return true;
 };
 
 /**
@@ -93,6 +107,36 @@ export class RepositoryUndoRecorder implements UndoRecorder {
       label: record.label,
       createdAt: record.createdAt,
       expiresAt: record.expiresAt,
+    });
+  }
+
+  /**
+   * Recovers a receipt after a committed remove response was lost. The newest record by
+   * workspace sequence wins before owner or status checks: a consumed, expired, pruned, or
+   * other actor's newer record must never make an older receipt usable again. This is a read
+   * only lookup; it does not extend retention or prune.
+   */
+  async outstandingFor(actor: ActorContext, sectionId: SectionId): Promise<UndoReceipt | null> {
+    const records = await this.dependencies.undoRecords.list({ workspaceId: actor.workspaceId });
+    const latest = records
+      .filter((record) => subjectSectionOf(record) === sectionId)
+      .reduce<UndoRecord | undefined>((highest, record) =>
+        highest === undefined || record.sequence > highest.sequence ? record : highest,
+      undefined);
+    if (
+      latest === undefined ||
+      latest.consumedAt !== undefined ||
+      this.dependencies.clock.now().getTime() >= Date.parse(latest.expiresAt) ||
+      !undoRecordBelongsToActor(latest, actor)
+    ) {
+      return null;
+    }
+    return UndoReceiptSchema.parse({
+      undoId: latest.id,
+      operation: latest.operation.type,
+      label: latest.label,
+      createdAt: latest.createdAt,
+      expiresAt: latest.expiresAt,
     });
   }
 

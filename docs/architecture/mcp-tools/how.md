@@ -27,13 +27,21 @@ exercise each tool at a specified position under exactly that grant.
 
 ## Removal receipts and `undo_operation`
 
-`remove_section` returns `SectionRemovalResult`: the archived section and a receipt whose
-`undoId` `undo_operation` accepts. The MCP transport carries a refusal's message and not its
-`details`, so every Undo refusal message starts with its reason token — `undo_consumed:`,
-`undo_expired:`, `undo_conflict:`, `undo_blocked:`, `undo_unavailable:` — and the tool's
-description tells an agent so. A receipt issued to another connection, even of the same person,
-is not found. `contract.test.ts` pins the minimal grant, the consumed prefix and that scope;
-the host's `handler.test.ts` pins the prefix over the real transport.
+`remove_section` returns `SectionRemovalResult`: a final archived-shaped section snapshot and a
+receipt whose `undoId` `undo_operation` accepts. Disposable views and empty sections may be
+deleted; the result snapshot does not claim that the section is still stored. If the response is
+lost, repeating `remove_section` for that id on the same connection returns a refusal containing
+the exact actor's newest outstanding `undoId` and `expiresAt`, without another write. It does so
+for a hard-deleted section only after the write grant and workspace visibility checks. Other
+actors see not-found, and consumed, expired, pruned or superseded receipts are not revived.
+
+The MCP transport carries refusal text rather than typed `details`, so every Undo refusal message
+starts with its reason token — `section_already_removed:`, `undo_consumed:`, `undo_expired:`,
+`undo_conflict:`, `undo_blocked:`, `undo_unavailable:` — and tool descriptions explain the
+recovery path. Conflict text includes current names with ids and actionable next steps, capped at
+five conflicts; blocked text names the blocking project. A receipt issued to another connection,
+even of the same person, is not found. `contract.test.ts` pins the minimal grant, receipt recovery
+and scope; the host's `handler.test.ts` pins the message over the real transport.
 
 ## Key symbols
 

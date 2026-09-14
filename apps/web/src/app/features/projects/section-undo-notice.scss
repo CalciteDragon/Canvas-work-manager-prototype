@@ -1,0 +1,76 @@
+:host {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.section-undo-notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hairline) solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.section-undo-notice--alert {
+  border-color: var(--color-danger);
+  background: var(--color-danger-surface);
+}
+
+.section-undo-notice__copy {
+  display: grid;
+  flex: 1 1 var(--layout-reading-width);
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.section-undo-notice__message,
+.section-undo-notice__meta {
+  margin: 0;
+}
+
+.section-undo-notice__meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.section-undo-notice__conflicts {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  padding-inline-start: var(--space-5);
+}
+
+.section-undo-notice__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.section-undo-notice button {
+  min-block-size: var(--size-hit-target);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.section-undo-notice button[aria-disabled='true'] {
+  cursor: progress;
+  opacity: 0.65;
+}
+
+.section-undo-notice button:focus-visible,
+.section-undo-notice:focus-visible {
+  outline: var(--border-focus) solid var(--color-accent);
+  outline-offset: var(--space-1);
+}

@@ -25,7 +25,7 @@ const section = (
     ...overrides,
   });
 
-const render = (overrides: Partial<SectionRemovalPrompt> = {}) => {
+const render = (overrides: Partial<SectionRemovalPrompt> = {}, pending = false) => {
   const prompt: SectionRemovalPrompt = {
     sectionId: 'section-tasks' as SectionId,
     sectionName: 'Backlog',
@@ -36,6 +36,7 @@ const render = (overrides: Partial<SectionRemovalPrompt> = {}) => {
   };
   const fixture = TestBed.createComponent(SectionRemovalDialog);
   fixture.componentRef.setInput('prompt', prompt);
+  fixture.componentRef.setInput('pending', pending);
   fixture.detectChanges();
   return { fixture, prompt, text: fixture.nativeElement.textContent as string };
 };
@@ -74,11 +75,11 @@ describe('SectionRemovalDialog (§31)', () => {
     // Removal archives the section as well as settling its rows, so both labels have to say
     // so — and both stay derived from `ownedKind` rather than hard-coded to tasks.
     const tasks = render({ targets: [section('section-b', 1)] }).text;
-    expect(tasks).toContain('Move the tasks out, then archive');
+    expect(tasks).toContain('Move the tasks out, then remove the section');
     expect(tasks).toContain('Archive the section and its tasks');
 
     const reflections = render({ ownedKind: 'reflections', targets: [section('section-b', 1)] }).text;
-    expect(reflections).toContain('Move the reflections out, then archive');
+    expect(reflections).toContain('Move the reflections out, then remove the section');
     expect(reflections).toContain('Archive the section and its reflections');
   });
 
@@ -142,5 +143,34 @@ describe('SectionRemovalDialog (§31)', () => {
     fixture.nativeElement.querySelector('[data-section-removal-cascade]').click();
 
     expect(seen).toEqual(['section-b', 'section-c', 'cascade']);
+  });
+
+  it('keeps the dialog actions focusable while a policy removal is pending and ignores duplicates', () => {
+    const { fixture } = render({ targets: [section('section-b', 1)] }, true);
+    const chosen = vi.fn();
+    fixture.componentInstance.cascadeChosen.subscribe(chosen);
+    const button = fixture.nativeElement.querySelector('[data-section-removal-cascade]') as HTMLButtonElement;
+
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    button.click();
+
+    expect(chosen).not.toHaveBeenCalled();
+  });
+
+  it('focuses the first choice and closes with Escape', async () => {
+    const { fixture } = render();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const cancelled = vi.fn();
+    fixture.componentInstance.cancelled.subscribe(cancelled);
+    const cancel = fixture.nativeElement.querySelector('[data-section-removal-cancel]') as HTMLButtonElement;
+
+    expect(document.activeElement).toBe(cancel);
+    fixture.nativeElement.querySelector('[data-section-removal-dialog]')!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+    );
+
+    expect(cancelled).toHaveBeenCalledOnce();
   });
 });

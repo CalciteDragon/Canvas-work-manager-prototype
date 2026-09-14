@@ -90,6 +90,7 @@ const setup = (options: {
     todos: { get: vi.fn(async (projectId) => ({ projectId, items: [] })) },
     archive: { get: vi.fn(async (projectId) => ({ projectId, root: project(projectId) as Extract<Project, { kind: 'root' }>, items: [] })) },
     journal: { get: vi.fn(async (projectId) => ({ projectId, items: [] })), completedWork: vi.fn(async (projectId) => ({ projectId, candidates: [] })) },
+    undo: { execute: vi.fn() as WorkManagerGateway['undo']['execute'] },
     projects: {
       list: vi.fn(async () => projects),
       get: vi.fn(async () => projects[0]!),

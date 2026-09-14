@@ -91,6 +91,7 @@ for a chain of one (§14, §71).
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md) — accepted contextual insertion
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — `kind`, `ProjectPage`, schema v3
 - [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `undo.ts`, defaulted `undoRecords` inside schema v3
+- [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — compatible removal disposition, exact-owner repeat receipt, typed repair steps
 
 ## Spec sections
 
@@ -104,4 +105,4 @@ beside the unchanged exact `cascadeCount`. Optional so older fixtures parse; the
 on every section entry. Stored sections and `SCHEMA_VERSION` are untouched
 ([decision](../../decisions/2026-09-content-oriented-archive-policy.md)).
 
-Planning only: [Slice 31's disposable removal and immediate Undo choices](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.
+**A removal result can describe a deleted section.** `SectionRemovalResult.section` is the final archived-shaped operation result, not a guarantee that the row remains stored. The version-1 inverse records the disposition so Undo recreates only a section that this operation deleted; legacy records default to retained.

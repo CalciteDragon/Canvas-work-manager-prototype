@@ -20,8 +20,16 @@
    `ProjectPageStore.orderComplete` withholds insertion points and blocks move writes
    when Home's combined section/shortcut order could not be fully read. Writes go through
    the gateway behind the store's in-flight guards. A refused removal with
-   `section_not_empty` details opens
-   the existing cascade/reassign dialog.
+   `section_not_empty` details opens the existing cascade/reassign dialog. A successful
+   removal stores its server receipt in the current `ProjectPageStore` before refreshing,
+   so an unavailable refresh does not lose Undo. `SectionUndoNotice` offers the receipt
+   action, typed refusal guidance, Archive access and a read-only refresh retry. If a remove
+   response is uncertain and a live frame has already removed the section, the store keeps
+   the exact removal input and exposes an explicit Retry remove. Neither path guesses
+   retention or reconstructs inverse state. Leaving the page/project clears this local notice.
+   Angular `@defer` loads the create dialog, removal dialog and Undo notice when needed; the
+   Archive page loads `ArchivedRegion` after its read completes. These boundaries keep the
+   eager route graph under the 1 MB initial-bundle error ceiling.
 5. Live frames: progress re-reads on any frame naming the project; the record on
    `project.*`; sections through `refreshSections()` unless a write is in flight; the
    tree on `rootProjectId`. Root pages re-read their projection on the same frames.
@@ -41,6 +49,7 @@
 | `ProjectCanvas` | component | One page's canvas, contextual editing and stable callback inputs | [API](../../../api/components/ProjectCanvas.html) |
 | `ProjectPageStore` | injectable | Sections and placements of one page | [API](../../../api/injectables/ProjectPageStore.html) |
 | `SectionRemovalDialog`, `SectionRemovalPrompt` | component / interface | Cascade or reassign | [API](../../../api/components/SectionRemovalDialog.html) |
+| `SectionUndoNotice`, `SectionUndoNoticeState` | component / interface | In-memory receipt action, typed refusal guidance and explicit recovery retries | [API](../../../api/components/SectionUndoNotice.html) |
 | `SECTION_REGISTRY`, `SectionDefinition` | const / interface | §29 | [API](../../../api/miscellaneous/variables.html#SECTION_REGISTRY) |
 | `SectionContentComponent`, `SectionContentInputs` | interfaces | Content contract | [API](../../../api/interfaces/SectionContentComponent.html) |
 | `ProjectSectionFrame` | component | §31's chrome | [API](../../../api/components/ProjectSectionFrame.html) |
@@ -60,7 +69,7 @@
 **Depends on**
 
 - [core](../core/overview.md) — `WORK_MANAGER_GATEWAY` (`projects`, `projectPages`,
-  `sections`, `sectionShortcuts`, `progress`, `todos`, `archive`, `journal`,
+  `sections`, `sectionShortcuts`, `undo`, `progress`, `todos`, `archive`, `journal`,
   `reflections`, `timeline`), `LIVE_UPDATES`, `PrototypeSettings` for the layout flags.
 - [tasks](../tasks/overview.md) — `TaskListStore`, `TaskRow`, `TaskDetailDrawer` inside
   the Task List section and on the Todos page.
@@ -92,6 +101,9 @@
   `pendingWrites`; a stale response after navigation is discarded.
 - **The UI never decides a rule.** Where a write lands, whether a page accepts a kind,
   whether a removal is safe — the host answers; a refusal is shown, never softened.
+- **A removal receipt is a server capability, not local inverse data.** The notice holds only
+  the public receipt for this canvas session. Its state clears on navigation, while an explicit
+  Retry remove uses the saved id and policy only after an uncertain response.
 - **No `#section-<id>` selector interpolation** — the canvas matches ids it loaded.
 - **Tokens only** in every `.scss` here — the token lint.
 
@@ -99,8 +111,8 @@
 
 ```bash
 pnpm --filter web test -- projects      # the feature's specs
-pnpm storybook                          # ProjectCanvas, SectionCreateDialog, ProjectPageNavigation, frame, pages, shortcuts, archive list
-pnpm e2e                                # web, canvas-editing, MCP, todos, archive, reflections
+pnpm storybook                          # ProjectCanvas, SectionUndoNotice, SectionCreateDialog, navigation, pages, shortcuts, archive list
+pnpm e2e                                # web, canvas editing/removal Undo, MCP, todos, archive, reflections
 ```
 
 ## Changing it

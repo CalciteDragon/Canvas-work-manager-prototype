@@ -1,7 +1,16 @@
 <!-- Only a container still holding live rows gets here: a view, and an empty container,
    have already archived by the time this could render. The count is the domain's, so the
    question and the rule cannot disagree; the words around it are this component's. -->
-<div class="removal-dialog" role="dialog" aria-modal="true" aria-labelledby="removal-dialog-title">
+<div
+  data-section-removal-dialog
+  class="removal-dialog"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="removal-dialog-title"
+  [attr.aria-busy]="pending()"
+  tabindex="-1"
+  (keydown)="keydown($event)"
+>
   <div class="removal-dialog__panel">
     <h2 id="removal-dialog-title" class="removal-dialog__title">
       Remove “{{ prompt().sectionName }}”?
@@ -16,7 +25,8 @@
         <select
           data-section-removal-target
           [value]="chosenTarget()"
-          (change)="targetId.set($any($event.target).value)"
+          [attr.aria-disabled]="pending()"
+          (change)="selectTarget($event)"
         >
           @for (target of targetOptions(); track target.id) {
             <option [value]="target.id">{{ target.label }}</option>
@@ -26,25 +36,26 @@
     }
 
     <div class="removal-dialog__actions">
-      <button data-section-removal-cancel type="button" (click)="cancelled.emit()">
+      <button data-section-removal-cancel type="button" [attr.aria-disabled]="pending()" (click)="cancel()">
         Keep the section
       </button>
       @if (targetOptions().length > 0) {
         <button
           data-section-removal-reassign
           type="button"
-          (click)="reassignChosen.emit(chosenTarget())"
+          [attr.aria-disabled]="pending()"
+          (click)="reassign()"
         >
-          Move the {{ rowNoun() }} out, then archive
+          Move the {{ rowNoun() }} out, then remove the section
         </button>
       }
-      <!-- Archive, not delete, and the section comes down with the rows: both are undoable
-         from the root Archive page, in one canonical operation. -->
+      <!-- This policy keeps the section and the rows in Archive for canonical Restore. -->
       <button
         data-section-removal-cascade
         type="button"
         class="removal-dialog__danger"
-        (click)="cascadeChosen.emit()"
+        [attr.aria-disabled]="pending()"
+        (click)="cascade()"
       >
         Archive the section and its {{ rowNoun() }}
       </button>

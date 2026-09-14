@@ -152,3 +152,16 @@ A view section wants scoping to a single container ("progress of the Backlog lis
 would give views a config that points at a container and blur a split that is currently
 clean. Or when milestones want a container of their own, which is the first test of whether
 `kind` generalises past the three types that have it now.
+
+**Amended, 2026-09-14 — Slice 31's reference-safe removal.** The preceding removal amendment
+records the behavior before Slice 31; its claim that every branch archives and nothing is
+deleted no longer describes the current write path. Disposable views, empty prose and empty
+containers may now be deleted after owned-row settlement and a canonical reference audit.
+Meaningful or uncertain content remains archived for durable recovery. A shortcut-backed
+disposable section stays as an internal tombstone so the shortcut and every row continue to
+reference an existing section. Cascade retains a content-bearing container and archives its
+owned rows; reassign moves all rows when live rows require reassignment and deletes the emptied
+source only when it is safe. If only pre-archived rows remain, explicit reassign leaves their
+container in place. Receipt-based Undo restores the removed section and reverses recorded moves;
+Archive remains the recovery path for retained content. The full policy and matrix are recorded
+in [disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md).

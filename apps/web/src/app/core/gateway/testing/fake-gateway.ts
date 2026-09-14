@@ -21,12 +21,15 @@ import { ProjectSchema, type
   Reflection,
   ReflectionId,
   SectionId,
+  SectionRemovalResult,
   SectionShortcutId,
   ShortcutSource,
   SetProjectPageEnabledInput,
   Task,
   TaskId,
   TimelineResult,
+  UndoRecordId,
+  UndoResult,
   UpdateProjectInput,
   UpdateSectionInput,
   CreateSectionShortcutInput,
@@ -44,6 +47,7 @@ import type {
   SectionGateway,
   SectionShortcutGateway,
   TaskGateway,
+  UndoGateway,
   WorkManagerGateway,
 } from '../work-manager-gateway';
 
@@ -91,6 +95,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   private createdSectionSequence = 0;
   private createdShortcutSequence = 0;
+  private readonly removedSections = new Map<UndoRecordId, ProjectSection>();
 
   /** Every call the spec made, in order, so a test can assert the query that was sent. */
   readonly calls: Array<{ method: string; argument: unknown }> = [];
@@ -182,6 +187,30 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
           (entry) => query.projectId === undefined || entry.projectId === query.projectId,
         ),
       ),
+  };
+
+  readonly undo: UndoGateway = {
+    execute: (id) => {
+      const saved = this.removedSections.get(id);
+      if (saved === undefined) throw new GatewayError('not_found', 404, `no such undo "${id}"`);
+      const current = this.sectionFor(saved.id);
+      const restored: ProjectSection = { ...saved };
+      delete restored.archivedAt;
+      const result: UndoResult = {
+        undoId: id,
+        operation: 'section.remove',
+        outcome: 'restored',
+        section: restored,
+        placement: { pageId: restored.pageId, index: restored.position, strategy: 'index', pageEnabled: true },
+        restoredRowCount: 0,
+      };
+      return this.answer('undo.execute', id, result).then((undone) => {
+        Object.assign(current, restored);
+        delete current.archivedAt;
+        this.removedSections.delete(id);
+        return undone;
+      });
+    },
   };
 
   readonly progress = {
@@ -366,11 +395,25 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         ...this.sectionFor(id),
         id: `${id}-copy` as SectionId,
       }),
-    // The policy is recorded too: a removal that swallowed it would look identical here.
-    remove: (id, input) => {
+    // The policy and public receipt are recorded too; no inverse snapshot crosses the gateway.
+    remove: (id, input = {}) => {
       const current = this.sectionFor(id);
-      return this.answer('sections.remove', { id, input: input ?? {} }, undefined).then(() => {
+      const undoId = `undo-${id}` as UndoRecordId;
+      const original = { ...current };
+      const result: SectionRemovalResult = {
+        section: { ...original, archivedAt: COMPLETED_AT },
+        undo: {
+          undoId,
+          operation: 'section.remove',
+          label: `Remove ${id}`,
+          createdAt: COMPLETED_AT,
+          expiresAt: '2026-08-28T16:00:00.000Z',
+        },
+      };
+      return this.answer('sections.remove', { id, input }, result).then((removed) => {
+        this.removedSections.set(undoId, original);
         current.archivedAt = COMPLETED_AT;
+        return removed;
       });
     },
     restore: (id) => {

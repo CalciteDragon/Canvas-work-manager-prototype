@@ -26,6 +26,7 @@ export class ArchivePage implements ProjectPageRenderer {
   readonly shortcutsAllowed = input.required<boolean>();
   readonly onProjectDataChange = input.required<() => void>();
   readonly onProjectHierarchyChange = input.required<() => void>();
+  readonly onOpenArchive = input<() => void>(() => {});
 
   readonly store = inject(ArchivePageStore);
 

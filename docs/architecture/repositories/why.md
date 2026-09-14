@@ -45,9 +45,11 @@ AND, an empty array matches nothing, `includeArchived` is opt-in, and archived r
 excluded by default ([decision](../../decisions/2026-08-repository-query-semantics.md)).
 The JSON implementation is the reference; a Postgres one would have to match.
 
-**Deletion exists for two things only.** Sections expose `remove` as the seam for a
-future permanent delete, and shortcut placements delete because they own no content and
-no activity target. Everything else archives.
+**Deletion exists only for safe disposable sections, shortcut placements and pruned Undo
+records.** A section's `remove` seam is used only after `SectionService` settles owned rows,
+checks whether content needs recovery, and verifies no canonical task, reflection or shortcut
+still refers to the section. Integrity remains strict, and old tombstones are not purged
+([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
 **An `InMemoryDataStore` beside the `JsonDataStore`.** Same base, no disk — what every
 domain, tool and host test runs on.
@@ -70,10 +72,9 @@ domain, tool and host test runs on.
 - [What undo means for an archived row](../../decisions/2026-09-what-undo-means-for-an-archived-row.md) — the integrity invariants
 - [Container sections own their rows; view sections own nothing](../../decisions/2026-09-sections-own-their-data.md) — `sectionId` references
 - [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — the `undoRecords` collection and its owner-only integrity
+- [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the canonical-reference gate before section deletion
 
 ## Spec sections
 
 §13 repository interfaces · §14 local prototype storage · §15 JSON persistence behaviour
 · §74 repository migration · §76 reset.
-
-Planning only: [Slice 31's disposable removal and immediate Undo choices](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.
