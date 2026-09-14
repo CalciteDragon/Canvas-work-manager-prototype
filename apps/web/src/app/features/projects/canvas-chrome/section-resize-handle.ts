@@ -9,22 +9,30 @@ export interface ResizeMeasurement {
   columnGap: number;
 }
 
-/** A pointer-captured width handle with a keyboard equivalent on its end edge. */
+/**
+ * A pointer-captured width handle with a keyboard equivalent on its end edge.
+ *
+ * The end edge is an ARIA `slider` — the role that may carry a current value — so assistive
+ * technology announces "Resize Notes, slider, 6 of 12 columns" and follows each step. The start
+ * edge is a second grip onto the same value for pointers only: it is neither focusable nor in
+ * the accessibility tree, so the value has exactly one keyboard control.
+ */
 @Component({
   selector: 'app-section-resize-handle',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CanvasIcon],
   template: `
-    <button
-      type="button"
+    <div
       data-resize-handle
-      [attr.aria-label]="accessibleName()"
-      [attr.aria-hidden]="edge() === 'start' ? 'true' : null"
-      [attr.aria-valuenow]="displayedSpan()"
-      [attr.aria-valuemin]="4"
-      [attr.aria-valuemax]="12"
-      [attr.aria-valuetext]="displayedSpan() + ' of 12 columns'"
-      [attr.tabindex]="edge() === 'end' ? 0 : -1"
+      [attr.role]="isSlider() ? 'slider' : null"
+      [attr.tabindex]="isSlider() ? 0 : null"
+      [attr.aria-hidden]="isSlider() ? null : 'true'"
+      [attr.aria-label]="isSlider() ? 'Resize ' + name() : null"
+      [attr.aria-orientation]="isSlider() ? 'horizontal' : null"
+      [attr.aria-valuemin]="isSlider() ? 4 : null"
+      [attr.aria-valuemax]="isSlider() ? 12 : null"
+      [attr.aria-valuenow]="isSlider() ? displayedSpan() : null"
+      [attr.aria-valuetext]="isSlider() ? displayedSpan() + ' of 12 columns' : null"
       (pointerdown)="pointerDown($event)"
       (pointermove)="pointerMove($event)"
       (pointerup)="pointerUp($event)"
@@ -34,10 +42,15 @@ export interface ResizeMeasurement {
       (blur)="commitKeyboardPreview()"
     >
       <app-canvas-icon name="resize" />
-    </button>
+    </div>
   `,
   styleUrl: './section-resize-handle.scss',
-  host: { '[attr.data-edge]': 'edge()' },
+  host: {
+    '[attr.data-edge]': 'edge()',
+    // The pressed handle never takes focus (pointerdown's default is prevented), so Escape
+    // during a drag has to be heard wherever focus happens to be.
+    '(document:keydown.escape)': 'escapeDuringPointerDrag($event)',
+  },
 })
 export class SectionResizeHandle {
   /** Which side the handle controls; dragging the start edge reverses pointer direction. */
@@ -64,11 +77,11 @@ export class SectionResizeHandle {
     startX: number;
     startSpan: SectionColumnSpan;
     previewSpan: SectionColumnSpan;
-    button: HTMLButtonElement;
+    button: HTMLElement;
   } | null = null;
 
-  /** The label follows the live width so the focused slider announces its current value. */
-  readonly accessibleName = () => `Resize ${this.name()}, ${this.displayedSpan()} of 12 columns`;
+  /** Only the end edge is a keyboard control; see the class comment. */
+  readonly isSlider = () => this.edge() === 'end';
 
   /** The local keyboard draft takes precedence until it is committed or cancelled. */
   readonly displayedSpan = () => this.keyboardSpan() ?? this.columnSpan();
@@ -76,7 +89,7 @@ export class SectionResizeHandle {
   /** Starts pointer capture so mouse, pen, and touch can leave the small handle safely. */
   pointerDown(event: PointerEvent): void {
     if (event.button !== 0 || this.pointerDrag !== null) return;
-    const button = event.currentTarget as HTMLButtonElement;
+    const button = event.currentTarget as HTMLElement;
     const startSpan = this.columnSpan();
     this.keyboardSpan.set(null);
     this.pointerDrag = {
@@ -153,8 +166,8 @@ export class SectionResizeHandle {
 
     let next: SectionColumnSpan | null = null;
     const current = this.displayedSpan();
-    if (event.key === 'ArrowRight' || event.key === 'ArrowUp') next = stepColumnSpan(current, 1);
-    else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown')
+    if (event.key === 'ArrowRight' || event.key === 'ArrowUp' || event.key === 'PageUp') next = stepColumnSpan(current, 1);
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown' || event.key === 'PageDown')
       next = stepColumnSpan(current, -1);
     else if (event.key === 'Home') next = 4;
     else if (event.key === 'End') next = 12;
@@ -164,6 +177,14 @@ export class SectionResizeHandle {
     if (next === current) return;
     this.keyboardSpan.set(next);
     this.preview.emit(next);
+  }
+
+  /** Escape anywhere cancels an active pointer drag; without one it is left to its target. */
+  escapeDuringPointerDrag(event: Event): void {
+    if (this.pointerDrag === null) return;
+    this.cancelPointerDrag();
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   /** Blur is the keyboard handle's second commit path, matching inline title editing. */

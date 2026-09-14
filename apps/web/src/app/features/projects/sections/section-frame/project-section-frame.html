@@ -45,6 +45,7 @@
           type="text"
           autocomplete="off"
           [value]="nameDraft()"
+          [placeholder]="definition().displayName"
           [disabled]="renamePending()"
           [attr.aria-label]="'Name of ' + name()"
           (input)="nameDraft.set($any($event.target).value)"
@@ -72,6 +73,7 @@
           data-section-config
           type="button"
           [attr.aria-expanded]="configOpen()"
+          title="Section settings"
           [attr.aria-label]="'Settings for ' + name()"
           (click)="toggleConfig()"
         >
@@ -82,6 +84,7 @@
         data-section-remove
         class="section-frame__remove"
         type="button"
+        title="Archive section"
         [attr.aria-label]="'Archive section ' + name()"
         (click)="removeRequested.emit(section().id)"
       >

@@ -1,6 +1,20 @@
 <!-- completed-record id="27" closed="2026-09-13" summary="Direct canvas editing, positioned creation, resizing, navigation cleanup and MCP acceptance are implemented and verified." -->
 # Slice 27 — Direct canvas editing and navigation cleanup
 
+> **Dated note, 2026-09-13 (after closure).** The Outcome below is left as recorded, but its
+> claims that the browser acceptance and visual review passed did not hold. A later
+> real-browser review found that hover and focus never revealed canvas chrome (inline custom
+> properties outranked the reveal rules, and visibility assertions ignore opacity); that a grid
+> section's end resize handle was covered by its neighbour's start handle; that resize buttons
+> and the trailing insertion plus overflowed the workspace, unpinning the navigation column;
+> that Escape could not cancel a pointer resize; and that unavailable grips trapped Tab. The
+> sidebar scroll assertion scrolled the window rather than the workspace. All were fixed with
+> regression tests. The same follow-up made the resize handle a real ARIA slider, replaced
+> Chromium-only `field-sizing` in Rich Text with a script fit, and stopped renumbering from
+> changing shifted siblings' `updatedAt`. What is true now lives in
+> [the canvas chrome decision](../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)
+> and [`docs/architecture/`](../../architecture/overview.md).
+
 ## Goal
 
 Make organizing sections available where the user is working, through contextual controls, while fixing navigation height and section indicators.

@@ -42,6 +42,10 @@
   display: grid;
   gap: var(--space-4);
   min-width: 0;
+  // The trailing insertion overlay sits below the last item, where no gap follows. End padding
+  // the size of the plus holds it, so the plus never extends the workspace's scrollable height
+  // past the sticky navigation column's containing block.
+  padding-block-end: var(--size-hit-target);
 }
 
 .section-canvas--flow {
@@ -99,14 +103,18 @@
   grid-column: span 4;
 }
 
+// Item hover and the touch media query also set `--canvas-overlay-opacity` on the item, which
+// is closer than the list, so a sort hides insertion overlays through a variable no item sets.
 .section-canvas.cdk-drop-list-dragging {
   --canvas-overlay-pointer-events: none;
   --canvas-overlay-opacity: 0;
+  --canvas-insertion-opacity: 0;
 }
 
 :host ::ng-deep .cdk-drag-preview {
   --canvas-overlay-pointer-events: none;
   --canvas-overlay-opacity: 0;
+  --canvas-insertion-opacity: 0;
 }
 
 .section-canvas__item.cdk-drag-placeholder {

@@ -12,7 +12,8 @@
   background: var(--color-surface-sunken);
   color: var(--color-text);
   font: inherit;
-  field-sizing: content;
+  // Height is fitted to the content by the component; see its class comment.
+  overflow: hidden;
   resize: none;
 }
 

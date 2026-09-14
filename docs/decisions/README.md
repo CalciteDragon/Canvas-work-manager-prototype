@@ -61,7 +61,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Live work under an archived ancestor is hidden, and cannot be newly created](2026-09-reactivating-under-an-archived-ancestor.md) | The archived-ancestor rule and its transition check | current |
 | [A shortcut resolves source identity, not source content](2026-09-a-shortcut-resolves-identity-not-content.md) | `SectionShortcutService` never reads rows | current |
 | [Home orders sections and shortcuts together](2026-09-home-orders-sections-and-shortcuts-together.md) | One combined placement sequence per page | current |
-| [Contextual insertion remembers its target and creates in one positioned write](2026-09-contextual-insertion-names-its-position.md) | Optional domain `position`; UI resolves stable anchors; Grid gaps are transient targets | current |
+| [Contextual insertion remembers its target and creates in one positioned write](2026-09-contextual-insertion-names-its-position.md) | Optional domain `position`; UI resolves stable anchors; Grid gaps are transient targets; renumbering leaves shifted siblings' `updatedAt` amended | amended |
 | [What the Todos page decides for itself](2026-09-todos-chronology-and-canonical-navigation.md) | Instants compared as text; no tab required; completion one-way | current |
 | [Reflection subjects and the root journal feed](2026-09-reflection-subjects-and-the-journal-feed.md) | Optional subject id; journal resolves current state | current |
 | [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | What the Archive projection says about each item's restore path | amended |
@@ -100,7 +100,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | Entry | Settled | Status |
 |---|---|---|
 | [Direct canvas editing is the next development direction](2026-09-direct-canvas-editing-direction.md) | Approved direction, implemented in Slice 27 | implemented in Slice 27 |
-| [Canvas chrome is revealed in place, not gated by an editing mode](2026-09-canvas-chrome-is-revealed-not-moded.md) | Contextual reveal, keyboard and touch behavior, optimistic resize; pending shortcut writes and complete-order movement guards amended | amended |
+| [Canvas chrome is revealed in place, not gated by an editing mode](2026-09-canvas-chrome-is-revealed-not-moded.md) | Contextual reveal, keyboard and touch behavior, optimistic resize; pending shortcut writes, complete-order movement guards and browser-review reveal and handle fixes, slider handle and script-fitted Rich Text amended | amended |
 | [The gateway interface grows with its implementations](2026-08-gateway-surface-grows-with-implementations.md) | No stubbed gateway members | current |
 | [A theme change lasts the session, not the persona](2026-08-theme-selection-is-session-only.md) | `ThemeService` owns `data-theme`; nothing persists it | current |
 | [How live reconnects recover derived project views](2026-08-live-recovery-invalidates-derived-views.md) | Reconnect invalidates derived reads quietly | current |

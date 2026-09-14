@@ -417,7 +417,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   it.each(['flow', 'grid'] as const)('previews and commits a snapped width in %s without moving its position', async (mode) => {
     const { fixture, gateway } = await render({ project: project({ projectLayoutMode: mode }) });
     const target = query(fixture, '[data-section-item]')!;
-    const handle = query(fixture, 'app-section-resize-handle[data-edge="end"] button')!;
+    const handle = query(fixture, 'app-section-resize-handle[data-edge="end"] [data-resize-handle]')!;
     handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
     fixture.detectChanges();
     expect(target.classList).toContain('section-canvas__item--span-8');
@@ -438,7 +438,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       failOn: { 'sections.update': new GatewayError('unreachable', 0, 'resize could not be saved') },
     });
     const target = query(fixture, '[data-section-item]')!;
-    const handle = query(fixture, 'app-section-resize-handle[data-edge="end"] button')!;
+    const handle = query(fixture, 'app-section-resize-handle[data-edge="end"] [data-resize-handle]')!;
     handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
     fixture.detectChanges();
     expect(target.classList).toContain('section-canvas__item--span-8');

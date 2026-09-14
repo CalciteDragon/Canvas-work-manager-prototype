@@ -33,6 +33,7 @@ import { SectionRemovalDialog } from './section-removal-dialog';
 import { CanvasIcon } from './canvas-chrome/canvas-icon';
 import { gridInsertionGaps } from './canvas-chrome/grid-insertion-gaps';
 import { InsertionPoint, type InsertionIntent } from './canvas-chrome/insertion-point';
+import { moveDirectionFor } from './canvas-chrome/move-keys';
 import { SectionResizeHandle, type ResizeMeasurement } from './canvas-chrome/section-resize-handle';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
 import { SECTION_REGISTRY, definitionFor } from './sections/registry';
@@ -90,7 +91,6 @@ export class ProjectCanvas {
   private readonly injector = inject(Injector);
   private pendingInsertion = signal<InsertionIntent | null>(null);
   private returnFocusTo: HTMLElement | null = null;
-  private readonly resizeMeasures = new Map<string, () => ResizeMeasurement>();
   private readonly fragment = toSignal(inject(ActivatedRoute).fragment, { initialValue: null });
   private readonly releasedTarget = signal<SectionId | null>(null);
   private lastTargetKey: string | null = null;
@@ -204,20 +204,15 @@ export class ProjectCanvas {
     return this.resizePreview()[placementId(placement)] ?? placementSpan(placement);
   }
 
-  resizeMeasureFor(id: string): () => ResizeMeasurement {
-    let measure = this.resizeMeasures.get(id);
-    if (measure !== undefined) return measure;
-    measure = () => {
-      const canvas = this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]');
-      const style = canvas === null ? null : getComputedStyle(canvas);
-      return {
-        trackWidth: canvas?.getBoundingClientRect().width ?? 0,
-        columnGap: style === null ? 0 : Number.parseFloat(style.columnGap) || 0,
-      };
+  /** Every handle measures the same track, so one stable function serves them all. */
+  readonly measureCanvas = (): ResizeMeasurement => {
+    const canvas = this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]');
+    const style = canvas === null ? null : getComputedStyle(canvas);
+    return {
+      trackWidth: canvas?.getBoundingClientRect().width ?? 0,
+      columnGap: style === null ? 0 : Number.parseFloat(style.columnGap) || 0,
     };
-    this.resizeMeasures.set(id, measure);
-    return measure;
-  }
+  };
 
   setResizePreview(id: string, span: SectionColumnSpan): void {
     this.resizePreview.update((current) => ({ ...current, [id]: span }));
@@ -261,21 +256,11 @@ export class ProjectCanvas {
   }
 
   unknownMoveKeydown(event: KeyboardEvent, id: string): void {
-    if (!this.store.orderComplete()) {
-      event.preventDefault();
-      return;
-    }
-    if (this.keyboardMovePending().has(id)) {
-      event.preventDefault();
-      return;
-    }
-    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
-      event.preventDefault();
-      void this.moveWithKeyboard(id, 'previous');
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
-      event.preventDefault();
-      void this.moveWithKeyboard(id, 'next');
-    }
+    const direction = moveDirectionFor(event.key);
+    if (direction === null) return;
+    event.preventDefault();
+    if (!this.store.orderComplete() || this.keyboardMovePending().has(id)) return;
+    void this.moveWithKeyboard(id, direction);
   }
 
   closeCreate(): void {

@@ -99,3 +99,14 @@
   outline: var(--border-focus) solid var(--color-accent);
   outline-offset: var(--space-1);
 }
+
+// A long source list scrolls inside the dialog so Back and Cancel stay in view.
+.section-create-dialog:has(> app-shortcut-picker) {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow-y: hidden;
+}
+
+.section-create-dialog > app-shortcut-picker {
+  min-block-size: 0;
+  overflow-y: auto;
+}

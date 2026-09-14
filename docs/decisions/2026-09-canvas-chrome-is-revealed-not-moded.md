@@ -82,3 +82,29 @@ position.
 create dialog stays in shortcut mode and disables Back, Cancel and Escape until the request settles.
 Success closes the dialog; refusal leaves the picker and its error visible. This avoids implying
 that a write was canceled when the host may already have committed it.
+
+**Amended, 2026-09-13 (post-closure browser review).** Driving the running app found that the
+reveal had never worked on a pointer device: the canvas wrapper also bound the two reveal custom
+properties as inline styles, which outrank the stylesheet's `:hover`, `:focus-within` and touch
+rules, so controls stayed transparent (automated visibility checks ignore opacity). The inline
+bindings are gone. Three details of the decision are now explicit:
+
+- An insertion line and plus reveal when their own gap target is hovered or focused, not whenever
+  the section below is hovered; hover-less and coarse-pointer devices still show them.
+- Each resize handle straddles its own frame border, half in the gap and half over the frame's
+  padding. A handle that reached across the whole gap was covered by the next grid item's start
+  handle, so dragging a section's right edge resized its neighbour. The handle's button shrinks
+  to the handle's width, so it no longer widens the scrollable workspace; the canvas's end padding
+  holds the trailing plus so the navigation column stays pinned when the canvas is scrolled to the
+  bottom.
+- Escape cancels a pointer resize wherever focus is, because the pressed handle never takes focus.
+  A grip that cannot move swallows only its move keys, so Tab still leaves it; Enter or Escape on
+  an inline rename returns focus to the title.
+
+**Amended, 2026-09-13 (follow-up).** The resize handle's end edge is an ARIA `slider` with
+`aria-valuenow`, `aria-valuemin`, `aria-valuemax` and a "*n* of 12 columns" value text, rather
+than a `<button>` carrying value attributes a button may not have; PageUp and PageDown step like
+the arrows. The start edge is a pointer-only grip outside the tab order and the accessibility
+tree. Rich Text fits its height to its content in script — on typing, on a saved-text change and
+on a width change — instead of CSS `field-sizing: content`, so Flow resizing reflows in every
+browser, not only Chromium.

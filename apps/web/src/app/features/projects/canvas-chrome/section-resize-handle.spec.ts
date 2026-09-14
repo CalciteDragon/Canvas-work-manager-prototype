@@ -12,7 +12,7 @@ const render = (edge: 'start' | 'end' = 'end') => {
   fixture.componentRef.setInput('columnSpan', 6);
   fixture.componentRef.setInput('measure', () => measurement);
   fixture.detectChanges();
-  const button = fixture.nativeElement.querySelector('[data-resize-handle]') as HTMLButtonElement;
+  const button = fixture.nativeElement.querySelector('[data-resize-handle]') as HTMLElement;
   Object.assign(button, {
     setPointerCapture: vi.fn(),
     hasPointerCapture: vi.fn(() => true),
@@ -60,6 +60,23 @@ describe('SectionResizeHandle (§27)', () => {
     expect(cancelled).toHaveBeenCalledOnce();
   });
 
+  it('Escape pressed elsewhere during a pointer drag cancels, since the pressed handle never takes focus', () => {
+    const { button, handle } = render();
+    const commits: number[] = [];
+    const cancelled = vi.fn();
+    handle.commit.subscribe((span) => commits.push(span));
+    handle.cancel.subscribe(cancelled);
+
+    button.dispatchEvent(pointer('pointerdown', 300));
+    button.dispatchEvent(pointer('pointermove', 520));
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    button.dispatchEvent(pointer('pointerup', 520));
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+    expect(commits).toEqual([]);
+    expect(cancelled).toHaveBeenCalledOnce();
+  });
+
   it('arrows and Home/End preview supported spans, while Enter and blur commit', () => {
     const { fixture, button, handle } = render();
     const previews: number[] = [];
@@ -95,12 +112,35 @@ describe('SectionResizeHandle (§27)', () => {
     expect(cancelled).toHaveBeenCalledOnce();
   });
 
-  it('keeps the start edge pointer-only and labels the keyboard end edge', () => {
+  it('exposes the end edge as a labelled slider and keeps the start edge out of focus and the tree', () => {
     const start = render('start');
     const end = render('end');
 
-    expect(start.button.tabIndex).toBe(-1);
+    expect(start.button.tagName).not.toBe('BUTTON');
+    expect(start.button.hasAttribute('tabindex')).toBe(false);
+    expect(start.button.getAttribute('role')).toBeNull();
     expect(start.button.getAttribute('aria-hidden')).toBe('true');
-    expect(end.button.getAttribute('aria-label')).toBe('Resize Notes, 6 of 12 columns');
+    expect(start.button.hasAttribute('aria-valuenow')).toBe(false);
+
+    expect(end.button.getAttribute('role')).toBe('slider');
+    expect(end.button.tabIndex).toBe(0);
+    expect(end.button.getAttribute('aria-label')).toBe('Resize Notes');
+    expect(end.button.getAttribute('aria-orientation')).toBe('horizontal');
+    expect(end.button.getAttribute('aria-valuemin')).toBe('4');
+    expect(end.button.getAttribute('aria-valuemax')).toBe('12');
+    expect(end.button.getAttribute('aria-valuenow')).toBe('6');
+    expect(end.button.getAttribute('aria-valuetext')).toBe('6 of 12 columns');
+  });
+
+  it('treats PageUp and PageDown as slider steps', () => {
+    const { button, handle } = render();
+    const previews: number[] = [];
+    handle.preview.subscribe((span) => previews.push(span));
+
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'PageUp', bubbles: true }));
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'PageDown', bubbles: true }));
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'PageDown', bubbles: true }));
+
+    expect(previews).toEqual([8, 6, 4]);
   });
 });

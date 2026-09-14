@@ -1,14 +1,17 @@
+// Revealed by hovering or focusing the insertion target itself, not the whole section: a
+// line and plus over every hovered section would read as clutter and cover its top edge.
+// `--canvas-insertion-opacity` is set to 0 only by the canvas while CDK sorts.
 :host {
   position: absolute;
   z-index: 1;
   display: block;
   pointer-events: var(--canvas-overlay-pointer-events, auto);
-  opacity: var(--canvas-overlay-opacity, var(--canvas-chrome-opacity, 1));
+  opacity: 0;
 }
 
 :host(:hover),
 :host(:focus-within) {
-  opacity: var(--canvas-overlay-opacity, 1);
+  opacity: var(--canvas-insertion-opacity, 1);
 }
 
 :host([data-insertion-point='before']) {
@@ -71,6 +74,6 @@ app-canvas-icon {
 
 @media (hover: none), (any-pointer: coarse) {
   :host {
-    opacity: var(--canvas-overlay-opacity, 1);
+    opacity: var(--canvas-insertion-opacity, 1);
   }
 }

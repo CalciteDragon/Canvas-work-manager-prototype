@@ -1593,6 +1593,50 @@ describe('ProjectPageStore and live updates (§62)', () => {
     await moving;
   });
 
+  it('discards a live re-read that was already in flight when a write began, and reads again', async () => {
+    const text = section('section-text', 'rich-text', 0);
+    const tasks = section('section-tasks', 'task-list', 1);
+    let hostOrder = [text, tasks];
+    let heldRead: ReturnType<typeof deferred<ProjectSection[]>> | null = null;
+    const { store, gateway, live } = setup({
+      sectionOverrides: {
+        list: vi.fn(async () => {
+          if (heldRead !== null) {
+            const held = heldRead;
+            heldRead = null;
+            return held.promise;
+          }
+          return [...hostOrder];
+        }),
+        move: vi.fn(async (id, input) => {
+          hostOrder = [
+            { ...tasks, position: 0 },
+            { ...text, position: 1 },
+          ];
+          return { ...(id === tasks.id ? tasks : text), position: input.position };
+        }),
+      },
+    });
+    await store.load(PROJECT, PAGE);
+
+    // Someone else's change starts a re-read, which answers with the order before the move.
+    const staleRead = deferred<ProjectSection[]>();
+    heldRead = staleRead;
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await settleLive();
+
+    await store.moveSection('section-tasks' as SectionId, 0);
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-tasks', 'section-text']);
+    const readsBeforeStaleAnswer = calls(gateway.sections.list);
+
+    staleRead.resolve([text, tasks]);
+    await settleLive();
+
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-tasks', 'section-text']);
+    // The discarded answer is replaced by a read that started after the write.
+    expect(calls(gateway.sections.list)).toBe(readsBeforeStaleAnswer + 1);
+  });
+
   it('reloads the canvas when the host state is replaced', async () => {
     const { store, gateway, live } = setup();
     await store.load(PROJECT, PAGE);

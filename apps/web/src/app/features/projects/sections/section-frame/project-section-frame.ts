@@ -17,6 +17,7 @@ import { nameOf, type ProjectSection, type SectionConfig, type SectionId } from 
 import type { SectionContentInputs } from '../section-contract';
 import type { SectionDefinition } from '../registry';
 import { CanvasIcon } from '../../canvas-chrome/canvas-icon';
+import { moveDirectionFor } from '../../canvas-chrome/move-keys';
 
 /**
  * §31's always-available section chrome. It emits intent and never touches a gateway, so one
@@ -106,7 +107,7 @@ export class ProjectSectionFrame {
   cancelRename(): void {
     if (this.renamePending()) return;
     this.nameDraft.set(this.override());
-    this.editingName.set(false);
+    this.finishRename(true);
   }
 
   async saveRename(event: Event): Promise<void> {
@@ -114,9 +115,11 @@ export class ProjectSectionFrame {
     if (this.renamePending() || !this.editingName()) return;
     const trimmed = input.value.trim();
     const next = trimmed === '' ? null : trimmed;
+    // Enter keeps the keyboard user on the title; a blur already moved focus where it belongs.
+    const returnFocus = event.type === 'keydown';
     if ((next ?? '') === this.override()) {
       this.nameDraft.set(this.override());
-      this.editingName.set(false);
+      this.finishRename(returnFocus);
       return;
     }
 
@@ -131,7 +134,7 @@ export class ProjectSectionFrame {
       this.renamePending.set(false);
     }
     if (saved) {
-      this.editingName.set(false);
+      this.finishRename(returnFocus);
     } else {
       this.nameDraft.set(input.value);
       afterNextRender(
@@ -141,17 +144,22 @@ export class ProjectSectionFrame {
     }
   }
 
+  private finishRename(returnFocus: boolean): void {
+    this.editingName.set(false);
+    if (!returnFocus) return;
+    // Removing the focused input would otherwise drop focus to the document body.
+    afterNextRender(
+      () => this.host.nativeElement.querySelector<HTMLButtonElement>('[data-section-title-edit]')?.focus(),
+      { injector: this.injector },
+    );
+  }
+
   moveKeydown(event: KeyboardEvent): void {
-    if (this.movePending() || !this.moveAllowed()) {
-      event.preventDefault();
-      return;
-    }
-    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
-      event.preventDefault();
-      this.moveRequested.emit('previous');
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
-      event.preventDefault();
-      this.moveRequested.emit('next');
-    }
+    const direction = moveDirectionFor(event.key);
+    if (direction === null) return;
+    // Only move keys are swallowed while a move is unavailable; Tab must still leave the grip.
+    event.preventDefault();
+    if (this.movePending() || !this.moveAllowed()) return;
+    this.moveRequested.emit(direction);
   }
 }

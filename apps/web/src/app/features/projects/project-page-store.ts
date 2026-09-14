@@ -131,6 +131,13 @@ export class ProjectPageStore {
    * be lost until a reload.
    */
   private pendingSectionWrites = 0;
+  /**
+   * Bumped as each section write begins. `pendingSectionWrites` only stops a re-read from
+   * *starting* during a write; a re-read already in flight when a write begins can answer after
+   * that write's own reconcile, with the order from before it. Its answer is discarded and the
+   * read issued again — otherwise the next keyboard move is computed from a stale index.
+   */
+  private sectionWriteEpoch = 0;
   private sectionRefresh: Promise<void> | null = null;
   private sectionRefreshQueued = false;
   private readonly columnSpanWrites = new Map<string, ColumnSpanWriteState>();
@@ -256,11 +263,17 @@ export class ProjectPageStore {
     const refresh = this.track(async () => {
       do {
         this.sectionRefreshQueued = false;
+        const epoch = this.sectionWriteEpoch;
         const [sectionsResult, shortcutsResult] = await Promise.allSettled([
           this.gateway.sections.list(projectId, { pageId }),
           this.readShortcuts(projectId, pageId),
         ]);
         if (!this.current(generation, projectId, pageId)) continue;
+        if (epoch !== this.sectionWriteEpoch) {
+          // Loops now if the write has settled; otherwise `whileWriting` runs the queued read.
+          this.sectionRefreshQueued = true;
+          continue;
+        }
         this.orderCompleteState.set(
           !this.requestedShortcutsAllowed || shortcutsResult.status === 'fulfilled',
         );
@@ -312,10 +325,15 @@ export class ProjectPageStore {
       return Promise.resolve();
     }
     const generation = this.loadGeneration;
+    const epoch = this.sectionWriteEpoch;
     return this.track(async () => {
       try {
         const shortcuts = await this.gateway.shortcuts.list(projectId, { pageId });
         if (!this.current(generation, projectId, pageId)) return;
+        if (epoch !== this.sectionWriteEpoch) {
+          void this.refreshSections();
+          return;
+        }
         this.setCanvas(this.composePlacements(this.sectionsState(), shortcuts));
         this.orderCompleteState.set(true);
         this.sectionErrorState.set(null);
@@ -950,6 +968,7 @@ export class ProjectPageStore {
    */
   private whileWriting<T>(operation: () => Promise<T>): Promise<T> {
     this.pendingSectionWrites += 1;
+    this.sectionWriteEpoch += 1;
     return operation().finally(() => {
       this.pendingSectionWrites -= 1;
       if (this.pendingSectionWrites === 0 && this.sectionRefreshQueued) {

@@ -76,8 +76,6 @@
           [class.section-canvas__item--span-8]="displayedSpan(placement) === 8"
           [class.section-canvas__item--span-6]="displayedSpan(placement) === 6"
           [class.section-canvas__item--span-4]="displayedSpan(placement) === 4"
-          [style.--canvas-chrome-opacity]="0"
-          [style.--canvas-overlay-opacity]="0"
         >
           @if (store.orderComplete()) {
             <app-insertion-point
@@ -133,6 +131,7 @@
                   <button
                     data-unknown-section-remove
                     type="button"
+                    title="Archive section"
                     [attr.aria-label]="'Archive unrecognised section ' + placement.section.type"
                     (click)="store.removeSection(placement.section.id)"
                   ><app-canvas-icon name="archive" /></button>
@@ -147,7 +146,7 @@
             [mode]="layoutMode()"
             [name]="placementName(placement)"
             [columnSpan]="displayedSpan(placement)"
-            [measure]="resizeMeasureFor(placementId(placement))"
+            [measure]="measureCanvas"
             (preview)="setResizePreview(placementId(placement), $event)"
             (commit)="commitResize(placement, $event)"
             (cancel)="cancelResize(placement)"
@@ -157,7 +156,7 @@
             [mode]="layoutMode()"
             [name]="placementName(placement)"
             [columnSpan]="displayedSpan(placement)"
-            [measure]="resizeMeasureFor(placementId(placement))"
+            [measure]="measureCanvas"
             (preview)="setResizePreview(placementId(placement), $event)"
             (commit)="commitResize(placement, $event)"
             (cancel)="cancelResize(placement)"

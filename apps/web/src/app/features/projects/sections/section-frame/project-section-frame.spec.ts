@@ -263,6 +263,52 @@ describe('ProjectSectionFrame (§31)', () => {
     expect(fixture.debugElement.query(By.directive(CdkDragHandle))).not.toBeNull();
   });
 
+  it('an unavailable grip swallows move keys but lets Tab leave it', () => {
+    const fixture = render();
+    fixture.componentRef.setInput('movePending', true);
+    fixture.detectChanges();
+    const grip = query(fixture, '[data-section-drag-handle]')!;
+    const moves: unknown[] = [];
+    fixture.componentInstance.moveRequested.subscribe((direction) => moves.push(direction));
+
+    const arrow = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    grip.dispatchEvent(arrow);
+    grip.dispatchEvent(tab);
+
+    expect(moves).toEqual([]);
+    expect(arrow.defaultPrevented).toBe(true);
+    expect(tab.defaultPrevented).toBe(false);
+  });
+
+  it('returns focus to the title after Enter or Escape settles an inline rename', async () => {
+    const fixture = render({ title: 'Backlog' });
+    document.body.appendChild(fixture.nativeElement);
+    try {
+      query(fixture, '[data-section-title-edit]')!.click();
+      fixture.detectChanges();
+      const input = query(fixture, '[data-section-name]') as HTMLInputElement;
+      expect(input.placeholder).toBe('Test Content');
+      input.value = 'Shipped';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await fixture.whenStable();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(document.activeElement).toBe(query(fixture, '[data-section-title-edit]'));
+
+      query(fixture, '[data-section-title-edit]')!.click();
+      fixture.detectChanges();
+      (query(fixture, '[data-section-name]') as HTMLInputElement).dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+      );
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(document.activeElement).toBe(query(fixture, '[data-section-title-edit]'));
+    } finally {
+      fixture.nativeElement.remove();
+    }
+  });
+
   /**
    * §34's Todos links land on a container that may be collapsed. Opening it is a property of the
    * visit, not a layout change, so the canonical record the content store is given must still say

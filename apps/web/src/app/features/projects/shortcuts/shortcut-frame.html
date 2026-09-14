@@ -46,6 +46,7 @@
         data-shortcut-remove
         class="shortcut-frame__remove"
         type="button"
+        title="Remove shortcut"
         [attr.aria-label]="'Remove shortcut to ' + sourceName()"
         (click)="removeRequested.emit(shortcut().id)"
       >

@@ -81,7 +81,7 @@ sequenceDiagram
 | `ProjectPageStore`, `CanvasWriteResult`, `SectionRemovalPrompt` | `project-page-store.ts` | Sections and placements of one page; positioned creation, optimistic width writes and typed removal refusal |
 | `SectionRemovalDialog` | `section-removal-dialog.ts` | Cascade or reassign, containers by name |
 | `SectionCreateDialog` | `section-create-dialog.ts` | Section or Home shortcut creation at the selected canvas position |
-| `CanvasIcon`, `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps` | `canvas-chrome/` | Shared SVG canvas controls, insertion overlays, snapped resize and sparse-grid gap targets |
+| `CanvasIcon`, `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor` | `canvas-chrome/` | Shared SVG canvas controls, insertion overlays, snapped resize, sparse-grid gap targets and grip move keys |
 | `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with inline completion and canonical links |
 | `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's root-wide projection and restores |
 | `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal |

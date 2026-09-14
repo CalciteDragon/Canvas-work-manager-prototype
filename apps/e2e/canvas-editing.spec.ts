@@ -122,7 +122,15 @@ test('the navigation column follows the viewport and keeps long and narrow navig
   await page.goto(`/projects/${HOME_RENOVATION}`);
   await expect(page.locator('[data-section-frame]')).toHaveCount(7);
   await checkViewportHeight();
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  // The shell's workspace region is the scroller, not the window; scrolling the window moves
+  // nothing and would let a column that scrolls away with the canvas pass.
+  const scrolled = await page.evaluate(() => {
+    const workspace = document.querySelector<HTMLElement>('main.workspace');
+    if (workspace === null) throw new Error('Workspace scroller did not render');
+    workspace.scrollTop = workspace.scrollHeight;
+    return workspace.scrollTop;
+  });
+  expect(scrolled).toBeGreaterThan(0);
   await checkViewportHeight();
 
   await seed('empty');
@@ -278,6 +286,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   await page.locator('[data-create-section-type]').selectOption('rich-text');
   await page.locator('[data-create-section-name]').fill('Last placement');
   await page.locator('[data-create-section-submit]').click();
+  await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
   const afterAppend = await orderOf(root.id, home);
   expect(afterAppend.at(-1)?.position).toBe(afterAppend.length - 1);
   await expect(page.locator('[data-section-frame]', { hasText: 'Last placement' })).toBeVisible();
@@ -307,6 +316,8 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   await page.locator('[data-create-section-type]').selectOption('rich-text');
   await page.locator('[data-create-section-name]').fill('After live insertion');
   await page.locator('[data-create-section-submit]').click();
+  // The dialog closes only once the create resolved; reading before that races the write.
+  await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
   const afterLive = await orderOf(root.id, home);
   const anchorIndex = afterLive.findIndex(({ id }) => id === anchor.id);
   expect(afterLive[anchorIndex - 1]?.position).toBe(anchorIndex - 1);
@@ -374,6 +385,7 @@ test('grid insertion fills only supported gaps and insertion overlays stay inert
   await page.locator('[data-create-section-type]').selectOption('rich-text');
   await page.locator('[data-create-section-name]').fill('Fills the gap');
   await page.locator('[data-create-section-submit]').click();
+  await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
   const fitted = await orderOf(root.id);
   const fittedSection = fitted.find(({ id }) => id !== wide.id && id !== narrow.id)!;
   expect(fitted.map(({ id }) => id)).toEqual([wide.id, fittedSection.id, narrow.id]);
@@ -508,6 +520,14 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   await seed('empty');
   await setClock(PINNED_NOW);
   await page.setViewportSize({ width: 1440, height: 900 });
+  // Failure injection logs errors on purpose; a ResizeObserver loop report never belongs here.
+  const resizeObserverErrors: string[] = [];
+  page.on('console', (message) => {
+    if (message.text().includes('ResizeObserver')) resizeObserverErrors.push(message.text());
+  });
+  page.on('pageerror', (error) => {
+    if (error.message.includes('ResizeObserver')) resizeObserverErrors.push(error.message);
+  });
   const root = await createRoot('Resize journey');
   await setLayout(root.id, 'grid');
   const wide = await addSection(root.id, { type: 'rich-text', title: 'Resizable notes', columnSpan: 12 });
@@ -610,7 +630,8 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   await flowText.press('Tab');
   await expect.poll(async () => (await orderOf(root.id)).map(({ id }) => id).indexOf(neighbor.id)).toBe(1);
   const nextBefore = await nextWrapper.boundingBox();
-  if (nextBefore === null) throw new Error('Flow neighbor did not render');
+  const textBeforeResize = await flowText.boundingBox();
+  if (nextBefore === null || textBeforeResize === null) throw new Error('Flow neighbor did not render');
   await dragResize(
     page,
     flowWrapper.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]'),
@@ -619,8 +640,12 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   const textAfterResize = await flowText.boundingBox();
   const nextAfter = await nextWrapper.boundingBox();
   if (textAfterResize === null || nextAfter === null) throw new Error('Flow resize geometry did not render');
+  // The editor itself grows to the rewrapped text in any engine, not only where CSS
+  // `field-sizing` exists, and that growth is what moves the neighbour down.
+  expect(textAfterResize.height).toBeGreaterThan(textBeforeResize.height);
   expect(nextAfter.y).toBeGreaterThan(nextBefore.y);
   expect((await orderOf(root.id)).map(({ id }) => id).indexOf(neighbor.id)).toBe(1);
+  expect(resizeObserverErrors).toEqual([]);
 });
 
 test('inline rename, archive choices, shortcut removal and type settings remain available on the canvas', async ({ page }) => {
@@ -769,6 +794,7 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   await page.locator('[data-create-section-type]').selectOption('rich-text');
   await page.locator('[data-create-section-name]').fill('Keyboard inserted section');
   await page.locator('[data-create-section-submit]').press('Enter');
+  await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
   const insertedSection = (await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?pageId=${home}`)).find(({ title }) => title === 'Keyboard inserted section');
   if (insertedSection === undefined) throw new Error('Keyboard insertion did not create a section');
   await expect.poll(async () => (await orderOf(root.id, home))[1]?.id).toBe(insertedSection.id);
@@ -776,6 +802,10 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   const moveHandle = page.locator(`[data-section-item][data-section-id="${insertedSection.id}"] [data-section-drag-handle]`);
   await moveHandle.press('ArrowDown');
   await expect.poll(async () => (await orderOf(root.id, home)).findIndex(({ id }) => id === insertedSection.id)).toBe(2);
+  // The host commits before it answers, and the grip's pending state renders a tick after the
+  // key: neither the API order nor `aria-disabled="false"` alone proves the move settled, and a
+  // key pressed while it is pending is deliberately ignored. The announcement follows the answer.
+  await expect(page.locator('[data-canvas-live-region]')).toContainText('position 3 of 4');
   await expect(moveHandle).toHaveAttribute('aria-disabled', 'false');
   await moveHandle.press('ArrowDown');
   await expect.poll(async () => (await orderOf(root.id, home)).findIndex(({ id }) => id === insertedSection.id)).toBe(3);
@@ -992,4 +1022,78 @@ test('revealing controls does not shift the canvas or turn text and edge interac
   page.off('request', observeMoves);
   expect(moveRequests).toBe(0);
   expect((await orderOf(root.id)).map(({ id }) => id)).toEqual([notes.id, list.id]);
+});
+
+test('hover and focus actually reveal chrome, neighbouring handles resize their own section, and chrome never overflows', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const root = await createRoot('Revealed chrome');
+  await setLayout(root.id, 'grid');
+  const left = await addSection(root.id, { type: 'rich-text', title: 'Left half', columnSpan: 6 });
+  const right = await addSection(root.id, { type: 'rich-text', title: 'Right half', columnSpan: 6 });
+  await addSection(root.id, { type: 'rich-text', title: 'Below', columnSpan: 12 });
+  await page.goto(`/projects/${root.id}`);
+  const leftItem = page.locator(`[data-section-item][data-section-id="${left.id}"]`);
+  const rightItem = page.locator(`[data-section-item][data-section-id="${right.id}"]`);
+  await expect(leftItem).toBeVisible();
+
+  // `toBeVisible` ignores opacity, which is exactly how an always-transparent reveal passed.
+  const opacityOf = (locator: Locator) => locator.evaluate((element) => getComputedStyle(element).opacity);
+  const grip = leftItem.locator('[data-section-drag-handle]');
+  const before = rightItem.locator(':scope > app-insertion-point[data-insertion-point="before"]');
+  await page.mouse.move(5, 5);
+  expect(await opacityOf(grip)).toBe('0');
+  await leftItem.hover({ position: { x: 200, y: 60 } });
+  expect(await opacityOf(grip)).toBe('1');
+  expect(await opacityOf(leftItem.locator('app-section-resize-handle').first())).toBe('1');
+  // Hovering a section does not paint its insertion line; hovering or focusing the line does.
+  expect(await opacityOf(leftItem.locator(':scope > app-insertion-point'))).toBe('0');
+  await page.mouse.move(5, 5);
+  await rightItem.locator('[data-section-remove]').focus();
+  expect(await opacityOf(rightItem.locator('.section-frame__controls'))).toBe('1');
+  await before.locator('button').focus();
+  expect(await opacityOf(before)).toBe('1');
+
+  const overflow = await page.evaluate(() => {
+    const workspace = document.querySelector<HTMLElement>('main.workspace')!;
+    return workspace.scrollWidth - workspace.clientWidth;
+  });
+  expect(overflow).toBe(0);
+
+  // Adjacent grid items: the left section's end handle is on top at its own centre.
+  const endHandle = leftItem.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]');
+  await leftItem.hover();
+  const endBox = await endHandle.boundingBox();
+  if (endBox === null) throw new Error('End handle has no browser geometry');
+  const hitsOwnHandle = await endHandle.evaluate((button, point) => {
+    const hit = document.elementFromPoint(point.x, point.y);
+    return hit !== null && button.contains(hit);
+  }, { x: endBox.x + endBox.width / 2, y: endBox.y + endBox.height / 2 });
+  expect(hitsOwnHandle).toBe(true);
+  const frameBox = await leftItem.locator('[data-section-frame]').boundingBox();
+  const contentBox = await leftItem.locator('[data-section-content]').boundingBox();
+  if (frameBox === null || contentBox === null) throw new Error('Frame has no browser geometry');
+  expect(endBox.x).toBeGreaterThanOrEqual(contentBox.x + contentBox.width);
+
+  // Escape cancels a pointer resize even though the pressed handle never takes focus.
+  let patches = 0;
+  const observePatches = (request: import('@playwright/test').Request): void => {
+    if (request.method() === 'PATCH' && new URL(request.url()).pathname.startsWith('/api/sections/')) patches += 1;
+  };
+  page.on('request', observePatches);
+  const canvas = page.locator('[data-section-canvas]');
+  await page.mouse.move(endBox.x + endBox.width / 2, endBox.y + endBox.height / 2);
+  await page.mouse.down();
+  const delta = await resizeDelta(canvas, 6, 8);
+  for (let step = 1; step <= 6; step += 1) {
+    await page.mouse.move(endBox.x + endBox.width / 2 + (delta * step) / 6, endBox.y + endBox.height / 2);
+  }
+  await expect(leftItem).toHaveClass(/section-canvas__item--span-8/);
+  await page.keyboard.press('Escape');
+  await expect(leftItem).toHaveClass(/section-canvas__item--span-6/);
+  await page.mouse.up();
+  page.off('request', observePatches);
+  expect(patches).toBe(0);
+  expect((await orderOf(root.id)).map(({ columnSpan }) => columnSpan)).toEqual([6, 6, 12]);
 });

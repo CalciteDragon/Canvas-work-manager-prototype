@@ -12,6 +12,7 @@ import {
 import type { SectionContentInputs } from '../sections/section-contract';
 import { definitionFor } from '../sections/registry';
 import { CanvasIcon } from '../canvas-chrome/canvas-icon';
+import { moveDirectionFor } from '../canvas-chrome/move-keys';
 
 /** §27's read-only reference frame. It owns placement chrome and never the source's content. */
 @Component({
@@ -62,17 +63,12 @@ export class ShortcutFrame {
   }
 
   moveKeydown(event: KeyboardEvent): void {
-    if (this.movePending() || !this.moveAllowed()) {
-      event.preventDefault();
-      return;
-    }
-    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
-      event.preventDefault();
-      this.moveRequested.emit('previous');
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
-      event.preventDefault();
-      this.moveRequested.emit('next');
-    }
+    const direction = moveDirectionFor(event.key);
+    if (direction === null) return;
+    // Only move keys are swallowed while a move is unavailable; Tab must still leave the grip.
+    event.preventDefault();
+    if (this.movePending() || !this.moveAllowed()) return;
+    this.moveRequested.emit(direction);
   }
 }
 
