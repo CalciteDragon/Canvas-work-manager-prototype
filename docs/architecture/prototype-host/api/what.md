@@ -24,7 +24,8 @@ Read-only unless marked. Every write parses its body with the matching contract 
 | Projects | `GET /api/projects`, `POST /api/projects`, `GET /api/projects/:id`, `PATCH /api/projects/:id` |
 | Derived per project | `GET /api/projects/:id/progress`, `/timeline`, `/todos`, `/archive`, `/journal`, `/completed-work` |
 | Pages | `GET /api/projects/:projectId/pages`, `PATCH /api/projects/:projectId/pages/:kind` |
-| Sections | `GET /api/projects/:projectId/sections`, `POST /api/projects/:projectId/sections`, `PATCH /api/sections/:id`, `DELETE /api/sections/:id`, `POST /api/sections/:id/move`, `/duplicate`, `/restore` |
+| Sections | `GET /api/projects/:projectId/sections`, `POST /api/projects/:projectId/sections`, `PATCH /api/sections/:id`, `DELETE /api/sections/:id` (200 with an Undo receipt), `POST /api/sections/:id/move`, `/duplicate`, `/restore` |
+| Undo | `POST /api/undo/:id` — execute a receipt for the actor it was issued to |
 | Shortcuts | `GET /api/projects/:projectId/shortcuts`, `GET /api/projects/:projectId/shortcut-sources`, `POST /api/projects/:projectId/shortcuts`, `PATCH /api/shortcuts/:id`, `DELETE /api/shortcuts/:id`, `POST /api/shortcuts/:id/move` |
 | Tasks | `GET /api/tasks`, `POST /api/tasks`, `GET /api/tasks/:id`, `PATCH /api/tasks/:id`, `POST /api/tasks/:id/complete`, `/archive`, `/restore` |
 | Reflections | `GET /api/reflections`, `POST /api/reflections`, `PATCH /api/reflections/:id`, `POST /api/reflections/:id/archive`, `/restore` |

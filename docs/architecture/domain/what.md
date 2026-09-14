@@ -21,7 +21,12 @@ flowchart TB
     task[TaskService]
     reflection[ReflectionService]
     agent[AgentConnectionService]
+    undo[UndoService]
     activity[ActivityService]
+  end
+  subgraph undoable["Undo seam"]
+    recorder["undo-recorder.ts<br/>UndoRecorder, RepositoryUndoRecorder"]
+    inverse["section-removal-undo.ts, owned-rows.ts<br/>capture and inverse functions"]
   end
   subgraph readers["Derived read services"]
     dashboard[DashboardService]
@@ -38,7 +43,10 @@ flowchart TB
   end
   task --> section
   reflection --> section
-  project & page & section & shortcut & task & reflection & agent --> activity
+  project & page & section & shortcut & task & reflection & agent & undo --> activity
+  section --> recorder
+  section -. captures through .-> inverse
+  undo -. executes through .-> inverse
   activity --> live
   dashboard --> aiport
   mock -. implements .-> aiport
@@ -48,7 +56,10 @@ flowchart TB
 
 Writing services own one entity each and record activity; the two arrows into
 `SectionService` resolve which container a row lands in. Writing services also compose
-`ActivityService` to record events; these service edges are acyclic. Derived read services
+`ActivityService` to record events; these service edges are acyclic. `SectionService` records
+each removal's inverse through the `UndoRecorder` interface, and `UndoService` executes it
+through the same function modules — neither composes the other, and `UndoService` composes no
+section, task or reflection service. Derived read services
 compose no other services: each reads
 repositories directly, asserts every grant its result needs, and computes from canonical
 records. `project-visibility.ts` is pure functions shared by both groups so that every
@@ -90,7 +101,11 @@ sequenceDiagram
 | `calendar.ts`, `task-windows.ts`, `page-placements.ts` | `src/` | UTC date arithmetic; the open/overdue/upcoming questions; the combined section+shortcut order |
 | `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard |
 | `ProjectPageService` | `src/project-page-service.ts` | A project's pages; enable/disable a root's optional three |
-| `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, remove (cascade/reassign), restore; container resolution |
+| `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, remove (cascade/reassign, returning an Undo receipt), Archive Restore; container resolution |
+| `UndoRecorder`, `RepositoryUndoRecorder`, `UNDO_RECORD_LIFETIME_MS`, `UNDO_RECORD_LIMIT` | `src/undo-recorder.ts` | Records one inverse inside the caller's unit; 24-hour expiry, 50 per workspace, `sequence` order |
+| `UndoService` | `src/undo-service.ts` | Exact-actor, `projects.write`, consume-once execution with typed refusals |
+| Capture and inverse functions | `src/section-removal-undo.ts`, `src/owned-rows.ts` | Package-internal: `section.remove` capture, pure `resolveUndoDestination`, conflict collection and execution; row reads and schema-parsed writes shared with removal |
+| `snapshotPlacement`, `resolveRestoreIndex`, `findHighestWriteBlocker` | `src/page-placements.ts`, `src/project-visibility.ts` | Neighbour snapshot and restore index; the highest archived project blocking a write |
 | `SectionShortcutService` | `src/section-shortcut-service.ts` | Home placements; identity and availability, never content |
 | `TaskService` | `src/task-service.ts` | Create, update, complete, archive (cascading to subtasks), restore, move within a project |
 | `ReflectionService` | `src/reflection-service.ts` | Write, edit, archive, restore; optional subject |

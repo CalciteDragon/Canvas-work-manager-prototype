@@ -186,3 +186,12 @@ page's current combined order, revives exactly its cascade and is a no-op on ret
 is only what Archive *lists*: disposable view tombstones are retained but unlisted. The section
 service's comments now call its restore **Archive Restore**, distinct from the operation-level
 Undo that later slices plan.
+
+**Amended, 2026-09-14 — Slice 30.** `restoreSection` is no longer "the canonical undo". It is
+**Archive Restore**: durable, receipt-free, appended to the page's current order, and unchanged in
+every rule above. Reversing one removal *as an operation* — back between the neighbours it left,
+with exactly the rows it changed — is now receipt-based Undo, which a removal records in the same
+unit and `UndoService` executes once for the same actor within 24 hours
+([section removal Undo records](2026-09-section-removal-undo-records.md)). The medium-confidence
+note above ("someone restoring a section they removed a minute ago may expect it back where it
+was") is what Undo answers; Archive Restore keeps appending because it has no placement snapshot.

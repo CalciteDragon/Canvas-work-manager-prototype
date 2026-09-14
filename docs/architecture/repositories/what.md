@@ -7,7 +7,7 @@ flowchart TB
   subgraph interfaces["interfaces.ts — what the domain sees"]
     uow["UnitOfWork"]
     ds["DataStore<br/>unitOfWorkFor(actor)"]
-    repos["ProjectRepository · ProjectPageRepository · TaskRepository<br/>SectionRepository · SectionShortcutRepository · MilestoneRepository<br/>ReflectionRepository · ActivityRepository · AgentConnectionRepository · UserRepository"]
+    repos["ProjectRepository · ProjectPageRepository · TaskRepository<br/>SectionRepository · SectionShortcutRepository · MilestoneRepository<br/>ReflectionRepository · ActivityRepository · AgentConnectionRepository · UserRepository<br/>UndoRecordRepository"]
   end
   subgraph store["data-store.ts — the implementation"]
     base["BaseDataStore<br/>queue, provisional document, commit, integrity"]
@@ -63,5 +63,5 @@ sequenceDiagram
 | `InMemoryDataStore` | `src/data-store.ts` | Seeded from a literal; no disk |
 | `JsonDataStore` | `src/data-store.ts` | Loads a path, persists with temp-and-rename |
 | `validateDocumentIntegrity` | `src/data-store.ts` | Whole-document parse plus reference, uniqueness, scope and ownership checks |
-| `JsonCollectionRepository`, `Json*Repository` | `src/json-repositories.ts` | The ten implementations over the provisional document |
+| `JsonCollectionRepository`, `Json*Repository` | `src/json-repositories.ts` | The eleven implementations over the provisional document, including `JsonUndoRecordRepository` |
 | `RepositoryConflictError`, `RepositoryNotFoundError`, `UnitOfWorkInProgressError` | `src/errors.ts`, `src/data-store.ts` | Storage-level failures the domain maps or lets through as bugs |

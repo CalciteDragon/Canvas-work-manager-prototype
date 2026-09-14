@@ -29,6 +29,21 @@ append behavior; a value past the end is clamped to the end. HTTP and MCP parse 
 schemas, so they enforce the same input shape. The shortcut input remains strict about undeclared
 fields.
 
+## Undo records
+
+`undo.ts` holds every Undo shape. `UndoOperationSchema` is a discriminated union on `type` whose
+one member, `SectionRemoveUndoOperationSchema`, is strict and pinned to `version: 1`: an unknown
+type, a later version or an extra key fails parsing, so a stored record can never smuggle
+arbitrary JSON into an executor. Its refinements hold the record to what removal can actually
+produce — rows exactly when a policy was applied, a reassign target exactly for reassign, unique
+rows of the kind the section owns, a live pre-removal section on the placement's page.
+`UndoRecordSchema` shares `assertActorIsAttributable` with activity. The receipt is strict and
+carries only `undoId`, `operation`, `label`, `createdAt` and `expiresAt`. `UndoRefusalDetailsSchema`
+is the typed half of a 409; MCP carries only the message, which starts with the same `reason`.
+
+`PrototypeDocumentSchema.undoRecords` is defaulted to `[]`, which is why it arrived inside
+schema version 3 without a converter: an older file parses with every collection unchanged.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
@@ -45,6 +60,12 @@ fields.
 | `ownedKindOf` | function | Lookup over that map | [API](../../api/miscellaneous/variables.html#ownedKindOf) |
 | `nameOf` | function | A section's display name: `title` override, else derived from `type` | [API](../../api/miscellaneous/variables.html#nameOf) |
 | `ProjectArchiveSectionRecoverySchema` | const | Archive section entry's recovery metadata union | [API](../../api/miscellaneous/variables.html#ProjectArchiveSectionRecoverySchema) |
+| `UndoOperationSchema` | const | Typed, versioned union of undoable operations; `section.remove` v1 only | [API](../../api/miscellaneous/variables.html#UndoOperationSchema) |
+| `UndoRecordSchema` | const | A stored inverse: owner, actor, `sequence`, expiry, `consumedAt`, operation | [API](../../api/miscellaneous/variables.html#UndoRecordSchema) |
+| `UndoReceiptSchema` | const | What a caller holds after a committed removal; no inverse data | [API](../../api/miscellaneous/variables.html#UndoReceiptSchema) |
+| `UndoResultSchema` | const | Outcome, restored section, placement strategy and row count | [API](../../api/miscellaneous/variables.html#UndoResultSchema) |
+| `UndoRefusalDetailsSchema` | const | 409 details discriminated on `reason` | [API](../../api/miscellaneous/variables.html#UndoRefusalDetailsSchema) |
+| `assertActorIsAttributable` | function | The user/agent/system attribution rule, shared by events and Undo records | [API](../../api/miscellaneous/variables.html#assertActorIsAttributable) |
 
 ## Dependencies
 

@@ -123,3 +123,29 @@ the canonical-page fallback (proven only as a pure resolver here) can run end to
 Slice 31 shows the Undo action and needs a different visible lifetime, or a person wants to undo
 an agent's removal; Slice 31's hard delete adds a `deleted` section disposition; Slice 32 adds
 operation types with other grants; or real use shows records expiring or pruning before use.
+
+**Amended, 2026-09-14 — landed in Slice 30.** Rules 1–8 are implemented as written and are no
+longer pending. Evidence, by rule: the version-3 fixture `nested-projects-v3.json` (the snapshot as
+it was before this collection) loads, persists and reloads with every collection equal and
+`undoRecords: []`; integrity accepts records naming missing sections, pages, shortcuts and tasks
+and rejects duplicate per-workspace sequences and foreign owners (1); removal publishes one frame
+and stores an event with no inverse keys (2); the recorder computes `sequence` before pruning,
+prunes expired then lowest records to exactly 50 including consumed ones, and takes lower
+same-section records with each pruned one (3); a repeat is `undo_consumed` with no second event,
+and activity and persistence failures leave the record unconsumed (4); every non-owner — foreign
+persona, a second user in the same workspace, the person's own agent, another connection, system —
+gets the identical not-found, a missing grant is denied before the record is read, and revocation or
+grant removal after a receipt answers 401/403 with the record unconsumed (5); conflict suites cover
+Archive Restore, restore-and-remove-again under an advanced, frozen and backwards clock with ids that
+sort against insertion order, moved, archived and reparented reassigned rows, and a subtask under a
+moved parent, each writing nothing (6); placement suites cover previous, next, clamped index, a moved
+shortcut neighbour, an interposed insert that leaves shifted siblings' `updatedAt` alone, and a
+disabled original page, while the missing-page fallback is proven only through the pure
+`resolveUndoDestination` (7); `UndoService` composes only `ActivityService`, and the import lint
+admits `UndoRecordRepository` but not its JSON implementation (8). Host and MCP acceptance ran over
+real transports and persisted files.
+
+Implementation settled three details the plan left implicit: `undo_blocked` names the **highest**
+archived project on the chain (reactivating anything below it still leaves the tree frozen); a
+record and its operation omit absent optional keys rather than storing `undefined`, so the record in
+memory is the record on disk; and receipts label the operation `Removed the <name> section`.

@@ -3,8 +3,8 @@
 `@cwm/contracts` is the one place every entity in the prototype is defined (§11): Zod
 schemas with inferred types for users, workspaces, projects, pages, sections, shortcuts,
 tasks, milestones, reflections, activity, agent connections, dashboard widgets, the
-derived read models, the write inputs, the live-event frame, the prototype controls, and
-the `data.json` document itself. Angular forms, the host's routes, the MCP tool input
+derived read models, the write inputs, the live-event frame, the prototype controls, Undo
+records with their receipts and refusals, and the `data.json` document itself. Angular forms, the host's routes, the MCP tool input
 schemas, the seeds and every test import from here; there is no second definition of any
 of these shapes anywhere in the repository.
 

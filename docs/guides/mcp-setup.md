@@ -1,6 +1,6 @@
 # MCP setup
 
-Canvas Work Manager serves the same thirty-three tools over Streamable HTTP and stdio (§59) —
+Canvas Work Manager serves the same thirty-four tools over Streamable HTTP and stdio (§59) —
 §54's fourteen, the four section tools the canvas needs, §54's three page tools, Slice 25.4's
 three shortcut tools, Slice 25.6's eight archive/recovery tools, and Slice 25.7's journal tool.
 Both use the fake local credentials from the `agent-heavy` seed; they have no security value
@@ -192,6 +192,29 @@ The matching canonical writes are `archive_project` / `restore_project`, `remove
 `restore_reflection`. Project restoration requires an explicit non-archived status; restoring a
 section or row restores exactly the members marked as taken down by that operation, leaving
 independently archived work archived.
+
+### Undoing a section removal
+
+Since Slice 30 `remove_section` (`projects.write`) returns `{ section, undo }`: the archived
+section and a receipt `{ undoId, operation, label, createdAt, expiresAt }`. Pass the `undoId` to
+`undo_operation` (`projects.write`) to reverse that one removal — the section returns to its
+page between the neighbours it left (Archive Restore appends instead), with exactly the rows the
+removal archived or moved, and later non-structural edits such as renamed tasks are kept.
+
+A receipt is usable once, for 24 hours, by the same agent connection that made the removal; any
+other connection, including another of the same person, gets not-found. Refusals are MCP errors
+whose text starts with a reason token:
+
+| Prefix | Meaning | What to do |
+|---|---|---|
+| `undo_consumed:` | Already undone | Nothing; the section is back |
+| `undo_expired:` | Older than 24 hours | `restore_section`, which appends |
+| `undo_conflict:` | Something the removal touched changed since; the text lists `<entity> <id> <problem>` pairs | Inspect those entities; `restore_section` is still available |
+| `undo_blocked:` | The project or an ancestor is archived | Reactivate the named project, then retry |
+| `undo_unavailable:` | No page can take the section back | `restore_section` |
+
+The `agent-heavy` fixture token's connection does not hold `projects.write`; grant it in
+**Settings → AI & Agents** before trying either tool.
 
 ### Reflections
 

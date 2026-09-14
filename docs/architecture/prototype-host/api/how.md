@@ -9,7 +9,9 @@
    record — never from the request.
 3. The body, if any, is parsed with the contract's input schema; a Zod failure is a 400.
 4. The handler calls one service method and returns its result as JSON with the status
-   the route declares (200, or 201 for creates).
+   the route declares (200, or 201 for creates). `DELETE /api/sections/:id` answers 200 with
+   `SectionRemovalResult` — the archived section and its Undo receipt — and
+   `POST /api/undo/:id` answers `UndoResult`.
 5. A thrown error goes through `api/errors.ts`: the domain's three errors map to 404,
    409 and 403; a `DomainRuleError` with `details` forwards them; `AgentAuthenticationError`
    is 401; anything else is 500 `{"error":"internal_error"}` with the stack on the
@@ -19,7 +21,7 @@
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
-| `createApi` | function | Wire the services; returns `HostServices` | [API](../../../api/miscellaneous/variables.html#createApi) |
+| `createApi` | function | Wire the services, including the `RepositoryUndoRecorder` removal records through and `UndoService`; returns `HostServices` | [API](../../../api/miscellaneous/variables.html#createApi) |
 | `HostServices` | interface | Every service plus `authenticator`; what routes and the registry receive | [API](../../../api/interfaces/HostServices.html) |
 | `CreateApiOptions` | interface | `clock` and `ai` overrides — the runtime's instances | [API](../../../api/interfaces/CreateApiOptions.html) |
 | `aiProviderFor` | function | `real` → `RealAIProvider`, anything else → `PrototypeAIProvider` | [API](../../../api/miscellaneous/variables.html#aiProviderFor) |
@@ -54,6 +56,10 @@
 - **Every route has a case in `routes.test.ts`**, run in-process against an
   `InMemoryDataStore` — no port.
 - **The workspace is never read from the request.**
+- **Undo refusals are ordinary 409s.** Consumed, expired, conflicting, blocked and unavailable
+  each carry `details` that parse as `UndoRefusalDetails`; a receipt another actor was issued is
+  404; a connection whose grant or token changed after the receipt is 403 or 401, re-read per
+  call by the authenticator. `routes.test.ts` pins each.
 - **Projections are forwarded, not filtered.** `GET /api/projects/:projectId/archive` returns
   `ProjectArchiveService.derive` as-is, including each section entry's `recovery` metadata;
   `routes.test.ts` pins that a removed view is absent and prose is present without route logic.

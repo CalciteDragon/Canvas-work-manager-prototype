@@ -12,7 +12,12 @@
    `LivePublication` to the `LiveEventPublisher` — held by the store until commit.
 4. On commit the store validates the whole document and persists it; on any throw the
    provisional state is discarded and the caller sees one of the three errors.
-5. Derived read services skip step 3's writes: they read the repositories, scope by the
+5. An **undoable** write (section removal today) also calls `UndoRecorder.record` inside the same
+   unit, after its activity event: one versioned inverse record, never inside the event or the
+   frame. The receipt it returns is real once the unit commits. `UndoService.undo` later executes
+   that record in one unit of its own: exact-actor lookup, consumed/expired checks, the
+   per-type executor (conflicts collected before any write), `consumedAt`, one activity event.
+6. Derived read services skip step 3's writes: they read the repositories, scope by the
    actor's visible projects, drop everything under an archived ancestor, and compute.
 
 ## Key symbols
@@ -30,7 +35,10 @@
 | `ActivityService` | class | Records events and publishes live frames | [API](../../api/classes/ActivityService.html) |
 | `ProjectService` | class | Project rules | [API](../../api/classes/ProjectService.html) |
 | `ProjectPageService` | class | Page listing and optional-page toggles | [API](../../api/classes/ProjectPageService.html) |
-| `SectionService` | class | Section lifecycle and container resolution | [API](../../api/classes/SectionService.html) |
+| `SectionService` | class | Section lifecycle and container resolution; `remove` returns an Undo receipt | [API](../../api/classes/SectionService.html) |
+| `UndoRecorder` | interface | The seam an undoable write records its inverse through, inside the caller's unit | [API](../../api/interfaces/UndoRecorder.html) |
+| `RepositoryUndoRecorder` | class | Stores a record, computes `sequence`, prunes expired and over-limit records | [API](../../api/classes/RepositoryUndoRecorder.html) |
+| `UndoService` | class | Executes one receipt for the exact actor under `projects.write` | [API](../../api/classes/UndoService.html) |
 | `SectionShortcutService` | class | Home shortcut placements | [API](../../api/classes/SectionShortcutService.html) |
 | `TaskService` | class | Task lifecycle | [API](../../api/classes/TaskService.html) |
 | `ReflectionService` | class | Reflection lifecycle | [API](../../api/classes/ReflectionService.html) |
@@ -75,7 +83,20 @@
   `additionalPermissions`, which is what proves a grant sufficient, not only necessary.
 - **The service graph is acyclic**: `TaskService` and `ReflectionService` compose
   `SectionService` for container resolution; writing services compose `ActivityService`
-  for event recording. A new edge is an AGENTS.md boundary change and needs saying so.
+  for event recording; `SectionService` records its removal inverse through an `UndoRecorder`
+  (an interface over one repository that never opens a unit). `UndoService` composes only
+  `ActivityService` — no section, task or reflection service — and shares the inverse with
+  removal through function modules (`owned-rows.ts`, `section-removal-undo.ts`,
+  `page-placements.ts`, `project-visibility.ts`). A new edge is an AGENTS.md boundary change
+  and needs saying so.
+- **Undo never overwrites a later write.** The executor compares only the structural fields it
+  would write (section archive state and page; each recorded row's section, parent and archive
+  markers), a newer record for the same section by `sequence`, and unrecorded dependents; any
+  difference refuses with `undo_conflict` before a write. Non-structural edits are preserved.
+  Every refusal message starts with its reason token (`undo_consumed: …`), because MCP carries
+  message text only.
+- **`sequence` is the only order between Undo records.** Timestamps can repeat or go backwards
+  under the settable clock, and ids are random.
 - **Every state change records exactly one event** through `ActivityService.record`; a
   no-op write records nothing and therefore announces nothing.
 - **Archive keeps every tombstone and projects only content.** Removal writes `archivedAt` on
@@ -90,7 +111,9 @@
   Without a position it appends. Refused writes leave sibling positions untouched.
 - **Renumbering is not editing.** `renumberPlacements` changes `updatedAt` only on the
   placement a move names as its subject; siblings shifted by an insert, move or removal keep
-  the `updatedAt` of their last real edit.
+  the `updatedAt` of their last real edit. Undo's restore uses the same rule: only the restored
+  section's `updatedAt` moves. Its index comes from `resolveRestoreIndex` — after the surviving
+  previous neighbour, else before the next, else the clamped original index.
 - **Reads drop archived ancestry the same way** — through `archivedAncestry` — and each
   query walks its own chain (a shared memo was wrong on cycles).
 

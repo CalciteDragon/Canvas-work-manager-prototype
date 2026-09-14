@@ -191,7 +191,7 @@ standalone connection matrix. Both processes still running. Full setup in
     `Authorization: Bearer prototype-user-a-readwrite`. Cursor reads `.cursor/mcp.json`; any
     client that takes JSON MCP configuration uses the same entry. The client connects and
     negotiates protocol `2026-07-28`.
-35. **Tool discovery.** Ask the client to list tools. Thirty-three come back, each with a
+35. **Tool discovery.** Ask the client to list tools. Thirty-four come back, each with a
     description and an input schema, and each advertising the permission it needs under
     `_meta["local.canvas-work-manager/requiredPermission"]` — plus the complete list under
     `_meta["local.canvas-work-manager/requiredPermissions"]`, which differs only for a derived
@@ -205,7 +205,10 @@ standalone connection matrix. Both processes still running. Full setup in
     write to *Claude*.
 39. **Cross-page writes.** Ask the agent to add and remove a Home shortcut, create a subject-linked
     reflection and toggle an optional page. Each write is visible through its canonical page/read;
-    removing the shortcut leaves the source section and rows unchanged.
+    removing the shortcut leaves the source section and rows unchanged. Then ask it to remove a
+    Home section: `remove_section` returns an Undo receipt, and `undo_operation` with its `undoId`
+    puts the section back between the same neighbours; asking again is refused with a message
+    starting `undo_consumed:`.
 40. **Aggregate pages.** Call `get_project_todos`, `get_project_archive` and
     `get_project_journal`; the responses retain canonical project/page/container origins. Archive
     remains queryable even when its navigation page is disabled.

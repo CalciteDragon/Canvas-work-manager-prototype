@@ -10,7 +10,13 @@
    token lints where they apply — and then `node scripts/check-docs.mjs`.
 3. `pnpm build` builds the web app (with the bundle budgets) and type-checks the rest.
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
-   starts a second host on a temp file and walks a slice's *done when*.
+   starts a second host on a temp file and walks a slice's *done when*. Since Slice 30,
+   `acceptance` removes `personal-workspace`'s first Home placement, undoes it through
+   `POST /api/undo/:id` and checks it returns first and a repeat is `undo_consumed`;
+   `mcp-acceptance` grants `projects.write` to the token's connection **in its copied temp
+   files** (the seed is unchanged), cascades the middle `agent-heavy` task list away with
+   `remove_section`, restores it with `undo_operation` over both transports, and checks the
+   persisted file shows the section live and the record consumed.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) starts both processes,
    seeds before each spec, and runs the six journeys, including the canvas editing
    geometry and touch checks.

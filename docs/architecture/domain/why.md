@@ -55,6 +55,16 @@ marking what one operation took down so that restore brings back exactly that an
 independently archived ([decision](../../decisions/2026-09-what-undo-means-for-an-archived-row.md)).
 Nothing hard-deletes except a shortcut placement.
 
+**Undo is a scoped inverse record, not a replay and not the activity log.** A section removal
+records one versioned `section.remove` inverse beside the canonical writes, in the same unit —
+the pre-removal section, its neighbours in the combined page order, and exactly the rows it
+changed — and returns a receipt. `UndoService` executes it once, for the exact actor, within 24
+hours, refusing with a typed reason rather than overwriting a later structural write. Archive
+Restore stays the durable, append-placed recovery. Rejected: inverse data on `ActivityEvent`
+(activity is audit), a generic command bus, and routing Undo through `SectionService` or the
+row services (a cycle) — the inverse lives in function modules both sides share
+([decision](../../decisions/2026-09-section-removal-undo-records.md)).
+
 **Archiving a project reaches down without cascading.** A project with a live child
 refuses to archive; live work beneath an archived ancestor is hidden from ordinary reads
 and cannot be newly created or reactivated there. The rule is pure functions over the
@@ -92,7 +102,7 @@ ISO string so ordering stays lossless without a clock or timezone
 
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
-- [Section removal Undo records](../../decisions/2026-09-section-removal-undo-records.md) — planning choice for Slice 30, pending implementation; removal records no Undo yet
+- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md)
 - [Root Archive recovery guidance](../../decisions/2026-09-root-archive-recovery-guidance.md)
 - [Content-oriented Archive policy](../../decisions/2026-09-content-oriented-archive-policy.md)
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md)

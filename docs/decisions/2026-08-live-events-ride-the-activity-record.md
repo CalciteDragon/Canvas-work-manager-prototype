@@ -88,3 +88,11 @@ Something needs a live frame without a feed line, or the reverse. `touch` becomi
 §53's UI would be the first sign; so would an event volume high enough that "one frame per
 feed line" is too chatty for a busy agent, at which point the hub — not the domain — is where
 coalescing belongs.
+
+**Amended, 2026-09-14 — Slice 30.** Undo keeps this rule rather than adding a channel. A section
+removal still publishes its one `project.section_archived` frame, and an Undo publishes one
+`project.section_removal_undone` frame through `ActivityService.record`, both held until commit and
+dropped on rollback. The Undo record — snapshot, placement, rows — is stored beside the activity
+event, never inside it or the frame; `live-updates.test.ts` pins both frames and that a removal whose
+persistence fails delivers nothing
+([section removal Undo records](2026-09-section-removal-undo-records.md), rule 2).

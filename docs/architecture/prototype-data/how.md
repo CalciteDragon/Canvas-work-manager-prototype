@@ -13,7 +13,10 @@
    beside it as `.backup-<timestamp>.json`, then write through a temp file.
 4. Tests: `seeds.test.ts` parses every builder's output with `PrototypeDocumentSchema`,
    and compares it byte-for-byte to `prototype/seeds/<name>.json` serialised with LF;
-   `upgrade-project-pages.test.ts` converts the committed v2 corpus.
+   `upgrade-project-pages.test.ts` converts the committed v2 corpus;
+   `version-3-undo-compatibility.test.ts` loads, persists and reloads
+   `test/fixtures/nested-projects-v3.json` — the `nested-projects` snapshot as it was before Undo
+   records existed — and proves every collection survives with an empty `undoRecords`.
 5. Other packages import the builders directly: the MCP harness and the host tests seed
    an `InMemoryDataStore` from `agent-heavy`; the acceptance scripts copy the committed
    JSON because they run under plain `node`.
@@ -52,7 +55,11 @@
   reference instant.
 - **Tokens are not in the contracts.** `AgentConnectionSchema` has no token field; the
   token table lives here and is asserted absent from `GET /api/agent-connections`.
-- **No migration chain.** One converter, called explicitly, registered nowhere.
+- **No migration chain.** One converter, called explicitly, registered nowhere. A defaulted
+  collection added inside version 3 (`undoRecords`) needs no converter; the v3 fixture test is
+  the evidence an older file still loads without loss.
+- **Seeds hold no Undo history.** Every snapshot carries `"undoRecords": []`, and loading a seed
+  replaces the document — so it discards every outstanding receipt.
 
 ## Commands
 

@@ -4,7 +4,7 @@
 
 1. The host calls `createToolRegistry` once with the `WorkManagerServices` that
    `createApi` built — projects, pages, todos, archive, journal, tasks, reflections,
-   sections, shortcuts, dashboard, workspace.
+   sections, shortcuts, dashboard, workspace, undo.
 2. `registry.list()` gives the host what it publishes in `tools/list`: name, description,
    the input schema as JSON Schema, and the permission metadata under
    `_meta["local.canvas-work-manager/…"]`.
@@ -24,6 +24,16 @@ combined section/shortcut order. A position beyond the current end is clamped to
 omitting it appends. Both tools keep their declared `projects.write` permission and call the
 matching domain service, which commits the insert and renumbering together. The contract tests
 exercise each tool at a specified position under exactly that grant.
+
+## Removal receipts and `undo_operation`
+
+`remove_section` returns `SectionRemovalResult`: the archived section and a receipt whose
+`undoId` `undo_operation` accepts. The MCP transport carries a refusal's message and not its
+`details`, so every Undo refusal message starts with its reason token — `undo_consumed:`,
+`undo_expired:`, `undo_conflict:`, `undo_blocked:`, `undo_unavailable:` — and the tool's
+description tells an agent so. A receipt issued to another connection, even of the same person,
+is not found. `contract.test.ts` pins the minimal grant, the consumed prefix and that scope;
+the host's `handler.test.ts` pins the prefix over the real transport.
 
 ## Key symbols
 

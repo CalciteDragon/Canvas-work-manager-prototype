@@ -49,4 +49,5 @@ flowchart TB
 | `upgradeProjectPages` | `src/upgrade-project-pages.ts` | The bounded v2 → v3 converter |
 | Upgrade CLI | `src/upgrade-cli.ts` | Validates, backs up as `.backup-<timestamp>.json`, writes through a temp file |
 | v2 corpus | `test/fixtures/nested-projects-v2.json` | What the converter is tested against, kept because the seeds it would read were regenerated |
+| Pre-Undo v3 corpus | `test/fixtures/nested-projects-v3.json` | The `nested-projects` snapshot before `undoRecords` existed; proves a version-3 file loads, persists and reloads without loss |
 | Snapshots | `prototype/seeds/*.json` | The builders' output, committed for plain-Node scripts and byte comparison |

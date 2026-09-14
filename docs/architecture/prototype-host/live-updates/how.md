@@ -48,6 +48,10 @@
   drives a real service through a real store and asserts both.
 - **No workspace id on the wire**; scoping happens in the hub.
 - **A no-op announces nothing**, because it records nothing.
+- **Undo adds no frame of its own.** A section removal and its Undo each publish only their one
+  activity frame (`project.section_archived`, `project.section_removal_undone`); the Undo record
+  and its snapshot never reach a frame. `live-updates.test.ts` pins both, and that a removal whose
+  persistence fails delivers nothing and keeps no record.
 - **Frames carry ids, never entities.** The browser re-reads through the gateway; a
   frame is "go and look", not a state delta (§62).
 

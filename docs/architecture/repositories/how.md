@@ -29,7 +29,8 @@
 | `InMemoryDataStore` | class | The test store | [API](../../api/classes/InMemoryDataStore.html) |
 | `validateDocumentIntegrity` | function | The whole-document check at load and commit | [API](../../api/miscellaneous/variables.html#validateDocumentIntegrity) |
 | `TaskRepository`, `SectionRepository`, … | interfaces | One per collection | [API](../../api/interfaces/TaskRepository.html) |
-| `JsonCollectionRepository` | class | Shared helpers the ten implementations extend | [API](../../api/classes/JsonCollectionRepository.html) |
+| `UndoRecordRepository` | interface | Undo records; the one collection that deletes routinely, because records are pruned |
+| `JsonCollectionRepository` | class | Shared helpers the eleven implementations extend | [API](../../api/classes/JsonCollectionRepository.html) |
 | `UnitOfWorkInProgressError` | class | A write outside or after its unit | [API](../../api/classes/UnitOfWorkInProgressError.html) |
 
 ## Dependencies
@@ -55,7 +56,11 @@
 - **The document is valid at every commit**, by the same function that validates it at
   load. The invariants it holds are listed in [why](why.md).
 - **No hard delete** except `SectionRepository.remove` (a kept seam, unused by the
-  domain) and shortcut placements.
+  domain), shortcut placements, and pruned Undo records — nothing references a record.
+- **Undo records are checked for owner scope only**: unique id, a workspace, a project in it,
+  an actor in it, and a `sequence` unique per workspace. Their snapshots' section, page,
+  shortcut and row ids are deliberately not resolved, so a retained inverse may outlive what it
+  names (hard deletion depends on that).
 - **Seeds are committed byte-for-byte** as LF JSON and compared in
   `packages/prototype-data`'s tests, which is why `.gitattributes` normalises line
   endings.

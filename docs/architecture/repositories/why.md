@@ -69,6 +69,7 @@ domain, tool and host test runs on.
 - [How repository queries combine and compare values](../../decisions/2026-08-repository-query-semantics.md)
 - [What undo means for an archived row](../../decisions/2026-09-what-undo-means-for-an-archived-row.md) — the integrity invariants
 - [Container sections own their rows; view sections own nothing](../../decisions/2026-09-sections-own-their-data.md) — `sectionId` references
+- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — the `undoRecords` collection and its owner-only integrity
 
 ## Spec sections
 

@@ -580,6 +580,13 @@ a framework nothing else uses. See
 *Landed in Slice 25.1. `SCHEMA_VERSION` is 3, and `pnpm prototype:upgrade <path>` converts a
 version-2 file in place, keeping a backup beside it.*
 
+*Landed in Slice 30: `undoRecords` joined the document **inside** version 3, with no bump and no
+converter. The collection is defaulted, so a version-3 file written before it existed loads with
+every other collection unchanged and its next commit writes `"undoRecords": []`; an older build,
+whose document schema is not strict, would strip the collection — undo history lost, user data not.
+Integrity checks a record's owner scope only, never the ids its snapshot names
+([why](docs/decisions/2026-09-section-removal-undo-records.md)).*
+
 ---
 
 # 15. JSON Persistence Behavior
@@ -1530,6 +1537,17 @@ archived project needs only that project's reactivation. Restore itself is uncha
 to the page's current combined order, revives exactly its cascade, and a retry changes nothing
 ([why](docs/decisions/2026-09-content-oriented-archive-policy.md)).
 
+*Landed in Slice 30: **Undo** is distinct from Archive Restore.* Every successful removal records
+one scoped inverse in the same unit of work and returns a receipt. Undo, by that receipt, puts the
+section back on its page **between the neighbours it left** — after the surviving previous section
+or shortcut, else before the next, else at its old index — with exactly the rows the removal
+archived or moved, keeping later edits such as a renamed task. It is available once, for 24 hours,
+to the same person or agent connection that removed, under `projects.write`, and it refuses
+rather than overwrite a later structural change (the section restored or removed again, a moved
+row, a new subtask under a moved task), while the project or an ancestor is archived, or after it
+has been used or has expired. Archive Restore remains the durable path: no receipt, no expiry,
+appended ([why](docs/decisions/2026-09-section-removal-undo-records.md)). The browser does not offer Undo yet.
+
 *Landed in Slice 25.6: the per-canvas Archived region was replaced by the root-wide Archive
 page, which keeps cascade members and effectively hidden live work findable, explains blockers,
 and delegates every restore to the existing canonical domain operation. Disabling the page no
@@ -2456,6 +2474,13 @@ adds `get_project_journal` with the same three read grants: it aggregates live j
 from the root tree, resolves current linked-subject state (including an archived subject), and
 does not depend on the Reflections tab being enabled.*
 
+*Landed in Slice 30: `remove_section` returns `{ section, undo }` — the archived section and an
+Undo receipt — and `undo_operation` (`projects.write`, input `{ undoId }`) executes a receipt for
+the connection it was issued to. MCP errors carry no structured details, so every Undo refusal's
+text starts with its reason: `undo_consumed:`, `undo_expired:`, `undo_conflict:` (listing
+`<entity> <id> <problem>` pairs), `undo_blocked:` or `undo_unavailable:`. The registry holds
+thirty-four tools ([why](docs/decisions/2026-09-section-removal-undo-records.md)).*
+
 *The 25.8 HTTP acceptance exercised the combined Todos, Archive and Journal reads with the declared
 grant matrix, including no-partial-result denials and a read-only connection's write refusal. The
 Settings path was also used to remove `tasks.read` from Claude; the denied call named the exact
@@ -2577,6 +2602,10 @@ agent action
 system action
 ```
 
+*Landed in Slice 30: an Undo records one `project.section_removal_undone` event against the
+project ("Undid removing the Notes section"), attributed like any other write. The inverse it
+executed is stored in its own record, never on the event.*
+
 ---
 
 # 58. Agent Confirmation Experiments
@@ -2697,6 +2726,11 @@ These do not need to be considered final production routes.
 
 Their main purpose is to exercise the Angular gateway boundary realistically.
 
+*Landed in Slice 30: `DELETE /api/sections/:id` answers 200 with the archived section and its Undo
+receipt, and `POST /api/undo/:id` executes a receipt. Undo refusals are 409s whose `details` carry a
+typed reason (`undo_consumed`, `undo_expired`, `undo_conflict`, `undo_blocked`,
+`undo_unavailable`); a receipt issued to someone else is 404.*
+
 ---
 
 # 62. Live Updates
@@ -2737,6 +2771,9 @@ Event:
 The frontend then refreshes relevant state.
 
 Do not build full real-time synchronization infrastructure.
+
+*Slice 30: a removal and its Undo each publish only their one activity frame, after commit, and
+nothing on rollback. No frame carries Undo snapshot data.*
 
 ---
 

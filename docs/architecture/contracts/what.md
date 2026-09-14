@@ -33,7 +33,11 @@ flowchart TB
     live["live.ts<br/>LiveEvent"]
     prototype["prototype.ts<br/>/prototype/* state and commands"]
     document["document.ts<br/>SCHEMA_VERSION, PrototypeDocumentSchema"]
+    undo["undo.ts<br/>Undo operation, record, receipt, result, refusals"]
   end
+  undo --> section
+  undo --> activity
+  document --> undo
   entities --> base
   derived --> entities
   inputs --> entities
@@ -85,4 +89,5 @@ placements on a root's Home that reference a section elsewhere in the same tree.
 | `LiveEventSchema` | `src/live.ts` | `type`, `entityId`, `entityType`, `projectId`, `rootProjectId` |
 | Dashboard, progress, timeline, todos, archive, journal schemas | `src/dashboard.ts` … `src/project-journal.ts` | Derived read models; Archive section entries add `recovery` metadata |
 | Prototype state and commands | `src/prototype.ts` | What the dev panel and `/prototype/*` agree on |
-| Branded ids | `src/ids.ts` | `UserId`, `WorkspaceId`, `ProjectId`, `SectionId`, `TaskId`, … |
+| `UndoOperationSchema`, `UndoRecordSchema`, `UndoReceiptSchema`, `SectionRemovalResultSchema`, `UndoInputSchema`, `UndoResultSchema`, `UndoRefusalDetailsSchema` | `src/undo.ts` | Versioned inverse records and the shapes that cross a transport around them |
+| Branded ids | `src/ids.ts` | `UserId`, `WorkspaceId`, `ProjectId`, `SectionId`, `TaskId`, `UndoRecordId`, … |
