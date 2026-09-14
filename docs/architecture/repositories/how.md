@@ -29,7 +29,7 @@
 | `InMemoryDataStore` | class | The test store | [API](../../api/classes/InMemoryDataStore.html) |
 | `validateDocumentIntegrity` | function | The whole-document check at load and commit | [API](../../api/miscellaneous/variables.html#validateDocumentIntegrity) |
 | `TaskRepository`, `SectionRepository`, … | interfaces | One per collection | [API](../../api/interfaces/TaskRepository.html) |
-| `UndoRecordRepository` | interface | Undo records; the one collection that deletes routinely, because records are pruned |
+| `UndoRecordRepository` | interface | Undo records; the one collection that deletes routinely, because records are pruned | [API](../../api/interfaces/UndoRecordRepository.html) |
 | `JsonCollectionRepository` | class | Shared helpers the eleven implementations extend | [API](../../api/classes/JsonCollectionRepository.html) |
 | `UnitOfWorkInProgressError` | class | A write outside or after its unit | [API](../../api/classes/UnitOfWorkInProgressError.html) |
 

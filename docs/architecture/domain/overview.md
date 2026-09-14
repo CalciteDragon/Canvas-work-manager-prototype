@@ -23,6 +23,9 @@ service through an acyclic edge. They never know about HTTP, MCP, JSON or seeds.
   archived-ancestor rule; reflection subjects.
 - **Activity.** One `ActivityEvent` per state-changing operation, with the actor, through
   `ActivityService.record` — which is also where a live frame is published, after commit.
+- **Undo.** A section removal records one scoped, expiring inverse through `UndoRecorder` in
+  its own unit and returns a receipt; `UndoService` executes it once for the exact actor,
+  with neighbour-aware placement and typed refusals instead of overwriting later writes.
 - **Time.** All timestamps come from the injected `Clock`. `new Date()` is banned here by
   lint.
 - **Derived reads.** The dashboard, progress, timeline, workspace search, upcoming work,

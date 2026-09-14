@@ -15,6 +15,7 @@ import type { Clock } from './clock';
 import { EntityNotFoundError, undoRefusal } from './errors';
 import { executeSectionRemovalUndo } from './section-removal-undo';
 
+/** Repository interfaces, `ActivityService` and a clock — deliberately no section, task or reflection service. */
 export interface UndoServiceDependencies {
   undoRecords: UndoRecordRepository;
   sections: SectionRepository;
@@ -52,6 +53,12 @@ const isOwnedBy = (record: UndoRecord, actor: ActorContext): boolean => {
 export class UndoService {
   constructor(private readonly dependencies: UndoServiceDependencies) {}
 
+  /**
+   * Executes the receipt `undoId` for `actor`, or refuses: `EntityNotFoundError` when the record is
+   * absent or not this exact actor's, `PermissionDeniedError` without `projects.write`, and a
+   * `DomainRuleError` from `undoRefusal` (consumed, expired, blocked, conflict, unavailable) that
+   * writes nothing and leaves the record usable.
+   */
   async undo(actor: ActorContext, undoId: UndoRecordId): Promise<UndoResult> {
     assertValidActor(actor);
     // Before any read, so a connection without the grant learns nothing about the record.

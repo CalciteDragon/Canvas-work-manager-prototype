@@ -25,5 +25,13 @@ export * from './task-service';
 export * from './task-windows';
 export * from './timeline-service';
 export * from './workspace-service';
-export * from './undo-recorder';
+// Named, not `*`: the recorder module's `subjectSectionOf` helper stays package-internal.
+export {
+  RepositoryUndoRecorder,
+  UNDO_RECORD_LIFETIME_MS,
+  UNDO_RECORD_LIMIT,
+  type RepositoryUndoRecorderDependencies,
+  type UndoRecordEntry,
+  type UndoRecorder,
+} from './undo-recorder';
 export * from './undo-service';

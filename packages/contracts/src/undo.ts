@@ -199,6 +199,7 @@ export const SectionRemovalResultSchema = z.object({
 });
 export type SectionRemovalResult = z.infer<typeof SectionRemovalResultSchema>;
 
+/** `POST /api/undo/:id` and `undo_operation`: the receipt id, and nothing a caller could steer. */
 export const UndoInputSchema = z.strictObject({ undoId: UndoRecordIdSchema });
 export type UndoInput = z.infer<typeof UndoInputSchema>;
 
@@ -221,6 +222,7 @@ export const UndoResultSchema = z.object({
 });
 export type UndoResult = z.infer<typeof UndoResultSchema>;
 
+/** What changed since the removal, for one entity, that makes executing its inverse unsafe. */
 export const UndoConflictProblemSchema = z.enum([
   'missing',
   'not-archived',
@@ -233,6 +235,7 @@ export const UndoConflictProblemSchema = z.enum([
 ]);
 export type UndoConflictProblem = z.infer<typeof UndoConflictProblemSchema>;
 
+/** One entity Undo would have overwritten, and how it changed. */
 export const UndoConflictSchema = z.object({
   entityType: z.enum(['section', 'task', 'reflection']),
   id: z.string().min(1),

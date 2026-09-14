@@ -457,7 +457,7 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   const sequences = new Set<string>();
   for (const record of document.undoRecords) {
     if (!workspaces.has(record.workspaceId)) fail(`undo record "${record.id}" has missing workspace "${record.workspaceId}"`);
-    const sequenceKey = `${record.workspaceId} ${record.sequence}`;
+    const sequenceKey = `${record.workspaceId} ${record.sequence}`;
     if (sequences.has(sequenceKey)) {
       fail(`undo record "${record.id}" has duplicate sequence ${record.sequence} in workspace "${record.workspaceId}"`);
     }

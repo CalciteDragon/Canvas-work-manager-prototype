@@ -1621,7 +1621,7 @@ visible control can preserve input and report an error rather than losing a fail
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
 The **Archive** page is *not* canvas chrome and stays reachable: it is content,
-and it is the recovery path for removal (Archive Restore; a separate removal Undo is future work). Gating it behind Edit Layout Mode would hide it exactly when
+and it is the recovery path for removal (Archive Restore, the durable path; receipt-based Undo exists over HTTP and MCP since Slice 30, and its browser surface is still to come). Gating it behind Edit Layout Mode would hide it exactly when
 someone needs it — right after a removal they did not mean. The per-row archive control in §34
 is likewise a row affordance rather than a layout one. The same reasoning carries to the
 project controls that open the page even when its tab is disabled.
@@ -2442,7 +2442,8 @@ get_project_journal
 
 Shortcuts (§27) are created and removed through their own tools, and archive/restore become
 canonical tools on projects, sections, tasks and reflections so an agent has the same undo a
-person does.
+person does. (Since Slice 30 an agent also holds receipt-based `undo_operation` for its own section
+removals, which the browser does not surface yet.)
 
 **A page is never a permission bypass.** Resolving a shortcut's source content requires the
 read permission for the *content*, not merely permission to see the layout that references it:

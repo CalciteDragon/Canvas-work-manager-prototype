@@ -19,6 +19,7 @@ export const UNDO_RECORD_LIFETIME_MS = 24 * 60 * 60 * 1000;
 /** A workspace keeps at most this many records, consumed ones included. */
 export const UNDO_RECORD_LIMIT = 50;
 
+/** What an undoable write hands the recorder; owner, actor, sequence and times are the recorder's. */
 export interface UndoRecordEntry {
   projectId: ProjectId;
   /** What the receipt says the operation was, e.g. `Removed the Backlog section`. */
@@ -36,6 +37,7 @@ export interface UndoRecorder {
   record(actor: ActorContext, entry: UndoRecordEntry): Promise<UndoReceipt>;
 }
 
+/** One repository, a clock and ids — never a unit of work, which the caller owns. */
 export interface RepositoryUndoRecorderDependencies {
   undoRecords: UndoRecordRepository;
   clock: Clock;
