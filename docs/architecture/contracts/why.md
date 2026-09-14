@@ -92,3 +92,7 @@ for a chain of one (§14, §71).
 §11 shared contracts · §14 local storage and the document · §25 widget model · §26–§27
 pages and ownership · §33 task model · §35 milestones · §36 reflections · §52 agent
 connections · §57 activity events · §62 the live frame.
+
+Pending implementation choice: [Content-oriented Archive policy](../../decisions/2026-09-content-oriented-archive-policy.md).
+Slice 29 planning records the proposed capability source and content projection; current runtime
+behavior described above remains unchanged until implementation lands.

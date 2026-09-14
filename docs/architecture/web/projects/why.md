@@ -121,3 +121,7 @@ opens a collapsed target through a transient input that leaves the record alone
 shortcuts · §28 layout flag · §29 registry · §30 section types · §31 frame and archive ·
 §32 editing · §34 the Todos page · §36 the Reflections page · §66 section structure ·
 §68 routes.
+
+Pending implementation choice: [Content-oriented Archive policy](../../../decisions/2026-09-content-oriented-archive-policy.md).
+Slice 29 planning records the proposed content counts and recovery guidance; current runtime
+behavior described above remains unchanged until implementation lands.

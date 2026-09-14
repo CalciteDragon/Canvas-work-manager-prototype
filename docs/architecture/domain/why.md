@@ -125,3 +125,7 @@ Newest first. The full list with status is in the [decision index](../../decisio
 tasks and the Todos page · §36 reflections and the journal · §38–§39 timeline and
 progress · §40 search · §42–§43 AI · §45 time · §53 permissions · §57 activity · §62
 live-update emission.
+
+Pending implementation choice: [Content-oriented Archive policy](../../decisions/2026-09-content-oriented-archive-policy.md).
+Slice 29 planning records the proposed pure policy and dependency-container recovery path;
+current runtime behavior described above remains unchanged until implementation lands.

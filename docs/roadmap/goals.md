@@ -59,7 +59,7 @@ on 2026-09-13. This authorizes planning; it does not mark the proposal implement
 its open product choices. Slice 28 records the planning work. The recommended dependency
 order is:
 
-1. [29 — Recovery policy and Archive](planned/29-recovery-policy-and-archive.md): one
+1. [29 — Recovery policy and Archive](active/29-recovery-policy-and-archive.md): one
    capability source and meaningful-content projection over retained state.
 2. [30 — Atomic removal Undo](planned/30-atomic-section-removal-undo.md): typed inverse
    storage, scoped execution and neighbor-aware placement, before hard deletion.
@@ -82,8 +82,9 @@ decisions stay true until implementation lands; each adopting slice must add a �
 append dated amendments to conflicting decisions, and update the main spec and affected
 architecture folders together. No production infrastructure, event sourcing or global store.
 
-**No slice is active.** [Slice 28 — Archive, removal and Undo planning](completed/28-archive-removal-undo-planning.md)
-closed the documentation-only planning work on 2026-09-13; slices 29–33 have not started.
+**Slice 29 is active for implementation planning and review.** The current user request is
+plan-only; runtime implementation has not started. [Slice 28 — Archive, removal and Undo planning](completed/28-archive-removal-undo-planning.md)
+closed the documentation-only planning work on 2026-09-13; slices 30–33 remain candidates.
 The latest runtime change, [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md),
 closed 2026-09-13. Its implementation establishes direct canvas editing, contextual
 positioned creation, width resizing, and the navigation changes. The

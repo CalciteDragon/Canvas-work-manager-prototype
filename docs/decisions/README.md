@@ -30,7 +30,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Persona contract fields](2026-08-persona-contract-fields.md) | `id`/`workspaceId` spelling and the preference shape | current |
 | [Project statuses, milestone statuses, task priorities](2026-08-status-and-priority-value-sets.md) | The starting value sets, flagged as guesses (§83) | current |
 | [A date-only task due date is stored at UTC end-of-day](2026-08-task-date-only-due-time.md) | How a date-only due date becomes an instant | current |
-| [A section config is an object at rest, replaced whole on write](2026-08-section-config-ownership.md) | Config keys belong to the section definition; no partial writes | current |
+| [A section config is an object at rest, replaced whole on write](2026-08-section-config-ownership.md) | Config keys belong to the section definition; no partial writes | amended; recovery inspection planned |
 | [What an `Identity` is, and where it comes from](2026-08-identity-contract-and-me-route.md) | The `Identity` contract and `GET /api/me` | current |
 | [What `ActivityEvent.summary` is for, and what it is not](2026-08-activity-summary-ownership.md) | `summary` is a log line the domain writes; the UI composes its own | current |
 
@@ -53,7 +53,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Where a live event is emitted, and when it is delivered](2026-08-live-events-ride-the-activity-record.md) | At most one frame per operation, on `ActivityService.record`, after commit | current |
 | [Container sections own their rows; view sections own nothing](2026-09-sections-own-their-data.md) | `sectionId` on rows; cascade or reassign on removal | amended |
 | [A section has a name, and the default is derived rather than stored](2026-09-a-section-has-a-name.md) | `nameOf` over `type`, optional `title` override | amended |
-| [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Removal archives; restore is exact; nothing hard-deletes | current |
+| [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Removal archives; restore is exact; nothing hard-deletes | amended; content projection planned |
+| [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | planning choice; pending Slice 29 implementation |
 | [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | current |
 | [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | current |
 | [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | current |

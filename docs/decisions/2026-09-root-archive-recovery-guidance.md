@@ -51,3 +51,8 @@ The project's More menu opens the Archive page from root and nested work routes,
 the optional Archive tab is disabled. The entry point still navigates only after page context
 reconciliation succeeds; the recovery model and its canonical operations are unchanged. See
 [the contextual chrome decision](2026-09-canvas-chrome-is-revealed-not-moded.md).
+
+**Amended, 2026-09-13 (planning only).** Slice 29's [content-oriented Archive policy](2026-09-content-oriented-archive-policy.md)
+plans to filter section entries by meaningful remaining content, retaining owner entries
+needed by independently archived rows and preserving the existing row/project guidance.
+This is a pending projection change; the More-menu entry and current runtime remain unchanged.

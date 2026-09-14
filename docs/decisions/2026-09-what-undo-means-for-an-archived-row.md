@@ -170,3 +170,10 @@ restore tools (§54 lists none today) or `includeArchived` on the three list too
 
 Or when restoring a section wants its old position back, which would mean the canvas
 reserving positions it currently reuses.
+
+**Amended, 2026-09-13 (planning only).** The [content-oriented Archive policy](2026-09-content-oriented-archive-policy.md)
+records Slice 29's reviewed direction: separate visible recovery content from retained
+tombstones, while preserving exact cascade membership, append placement and idempotency.
+The implementation plan keeps owner containers visible for pre-archived-only rows. Runtime
+still follows this entry's existing removal/restore rules; the projection change and the
+distinction from future operation-level Undo will be documented as landed only after implementation.

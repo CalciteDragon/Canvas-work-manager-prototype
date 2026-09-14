@@ -1,0 +1,64 @@
+# Content-oriented Archive policy
+
+## Question
+
+Which removed sections should the existing root Archive project, and how can it exclude
+disposable views without stranding independently archived rows?
+
+## Options tested
+
+Planning review of the current code and Refactor specification; no implementation or browser
+experiment is claimed yet. Compared: all tombstones; only cascade-marked containers; a new
+blocker-recovery operation; and content-based entries that retain necessary owner containers.
+For uncertain rich-text config, compared treating it as empty with retaining it conservatively.
+
+## What we learned
+
+`ProjectArchiveService` already returns canonical rows, origins, causes and typed blockers.
+`SectionService.restoreSection` restores only rows carrying its cascade marker. Independently
+archived rows still need their owner section restored first. `settleRows` moves all rows during
+reassignment when live rows exist, but returns immediately when only archived rows remain.
+The web editor falls back to empty text for malformed config; that display fallback is not
+evidence that the stored config has nothing worth keeping.
+
+## Current decision
+
+**Planning choice, 2026-09-13 — pending Slice 29 implementation.** The
+[active plan](../roadmap/active/29-recovery-policy-and-archive.md) specifies one contracts
+capability source, a pure domain recovery policy, and the existing Archive projection.
+Current runtime continues to list section tombstones until that implementation lands.
+
+Task List and Reflections own rows and are included when any canonical rows remain assigned,
+including pre-archived-only content. Their section entry is the dependency recovery path:
+restore it, then independently restore archived rows. Show total content separately from exact
+cascade count; section Restore must not silently restore preexisting archives.
+
+Rich Text with only a string `text` key is meaningful when JavaScript `trim()` leaves text.
+Whitespace-only text is empty. Missing/non-string text or extra config keys are uncertain and
+retained visibly without coercion or rewriting. The domain inspects recovery-relevant keys;
+the section folder keeps its editor schema and whole-config replacement behavior.
+Unknown section types are also included conservatively and never treated as known disposable
+types. Progress, Timeline, Recent Activity and Sub-Projects views have no recoverable content,
+regardless of display config; actual subproject records and their work remain recoverable.
+
+Empty containers after reassignment have no section entry. Archived-only containers remain
+visible even if a caller supplies reassign, because the current mutation moves no rows on that
+branch. No ownership or mutation semantics change, no hard deletion, no Undo record, and no
+new recovery service or automatic dependency restore are part of Slice 29.
+
+The planned metadata extends the existing section item; storage stays at schema version 3.
+Existing origins, scope, grants, highest blockers, row-level entries, deterministic append
+placement and idempotent Restore remain. Main §§29–32 and §54 will be reconciled when the
+projection lands, not described as implemented during this planning session.
+
+## Confidence
+
+High that visible owner containers preserve existing recovery paths without new write rules.
+Medium for the conservative text threshold and display density until implementation tests
+and a realistic Archive browser/MCP pass provide evidence.
+
+## Revisit when
+
+Slice 29 browser use finds confusing counts or recovery steps, unknown config becomes common,
+or a later slice introduces hard deletion or typed rich-text formats. Append implementation
+evidence after acceptance; do not infer deletion eligibility from this projection alone.
