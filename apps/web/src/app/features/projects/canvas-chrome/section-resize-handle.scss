@@ -1,0 +1,45 @@
+:host {
+  position: absolute;
+  z-index: 2;
+  inset-block: 0;
+  display: grid;
+  inline-size: var(--size-resize-handle);
+  place-items: center;
+  pointer-events: var(--canvas-overlay-pointer-events, auto);
+  opacity: var(--canvas-overlay-opacity, var(--canvas-chrome-opacity, 1));
+  touch-action: none;
+}
+
+:host([data-edge='start']) {
+  inset-inline-start: calc(var(--space-4) * -1);
+}
+
+:host([data-edge='end']) {
+  inset-inline-end: calc(var(--space-4) * -1);
+}
+
+button {
+  display: grid;
+  inline-size: 100%;
+  block-size: var(--size-hit-target);
+  padding: var(--space-1);
+  place-items: center;
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+button:focus-visible {
+  outline: var(--border-focus) solid var(--color-accent);
+  outline-offset: var(--space-1);
+}
+
+@media (hover: none), (any-pointer: coarse) {
+  :host {
+    opacity: var(--canvas-overlay-opacity, 1);
+  }
+}
