@@ -46,6 +46,18 @@ describe('upgradeProjectPages', () => {
 
     expect(() => new InMemoryDataStore(document)).not.toThrow();
     expect((document as { schemaVersion: number }).schemaVersion).toBe(SCHEMA_VERSION);
+    // Version 3 gained a defaulted Undo collection; a converted file starts with no history.
+    expect(rows(document, 'undoRecords')).toEqual([]);
+  });
+
+  it('leaves a version-3 file written before Undo records unchanged, apart from the defaulted collection', async () => {
+    const path = fileURLToPath(new URL('../test/fixtures/nested-projects-v3.json', import.meta.url));
+    const before = JSON.parse(await readFile(path, 'utf8')) as Record<string, unknown>;
+
+    const { document, changed } = upgradeProjectPages(before);
+
+    expect(changed).toBe(false);
+    expect(document).toEqual({ ...before, undoRecords: [] });
   });
 
   it('preserves ids, section order and every field it does not own', async () => {
