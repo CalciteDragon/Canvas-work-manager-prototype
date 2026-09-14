@@ -24,7 +24,7 @@ evidence that the stored config has nothing worth keeping.
 ## Current decision
 
 **Planning choice, 2026-09-13 — pending Slice 29 implementation.** The
-[active plan](../roadmap/active/29-recovery-policy-and-archive.md) specifies one contracts
+[plan](../roadmap/completed/29-recovery-policy-and-archive.md) specifies one contracts
 capability source, a pure domain recovery policy, and the existing Archive projection.
 Current runtime continues to list section tombstones until that implementation lands.
 
@@ -101,3 +101,13 @@ confidence levels above therefore stand until that journey and real use are reco
    Non-string `text` and extra keys remain unknown. This narrows the earlier "missing text is
    uncertain" rule only for the zero-key object; it was preferred over giving the domain a
    default config per type, which would put section-folder knowledge in domain.
+
+**Amended, 2026-09-14 — acceptance evidence.** The "not yet evidence" gap above is closed. The
+extended `archive.spec.ts` and the full `pnpm e2e` suite (22/22) pass, covering created-id
+projection, reload, disabled-tab entry from a nested route, append after an interposed shortcut,
+retry idempotency, the separate-restore count and an MCP-created unconfigured Notes section
+staying out of Archive. A real-application pass over `nested-projects` confirmed the recovery
+chain in the UI and through a real MCP client. It raised copy questions rather than policy
+changes — identically named Notes entries need a preview, and a zero "restore with this section"
+count reads as noise — recorded as `note-2026-09-14-001`–`003`. Confidence in the text threshold
+is now high for plain prose; revisit the entry density when those notes are acted on.

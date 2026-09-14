@@ -689,6 +689,30 @@
       "projectId": "project-renovation",
       "slice": 27,
       "note": "Used the realistic nested-projects Home for navigation, indicators, theme and archive flows, plus focused real-app canvases for contextual insertion, resize, rename, keyboard and touch journeys. A real MCP client inserted a section and a shortcut at their requested combined positions; both appeared in the open canvas without a reload and stayed in order after reload. No new product friction surfaced in this acceptance pass."
+    },
+    {
+      "id": "note-2026-09-14-001",
+      "createdAt": "2026-09-14T07:20:29.664Z",
+      "route": "/projects/project-renovation/pages/archive",
+      "projectId": "project-renovation",
+      "slice": 29,
+      "note": "Slice 29 Archive: two removed Notes sections both appear as \"Rich Text / Keeps its text\" with identical origins (Home renovation / Home / Rich Text). Nothing tells them apart without restoring one; an entry needs a short text preview or the frame title to be distinguishable."
+    },
+    {
+      "id": "note-2026-09-14-002",
+      "createdAt": "2026-09-14T07:20:49.699Z",
+      "route": "/projects/project-renovation/pages/archive",
+      "projectId": "project-renovation",
+      "slice": 29,
+      "note": "Slice 29 Archive: after removing Progress, Timeline, Recent Activity and Sub-Projects from Home they are gone from Archive as intended, but the frame control still says \"Archive section Progress\" and there is no immediate Undo, so an accidental removal of a configured view has no visible way back. Confirms Slices 30-31 (removal Undo, disposable wording) are the next need."
+    },
+    {
+      "id": "note-2026-09-14-003",
+      "createdAt": "2026-09-14T07:21:10.058Z",
+      "route": "/projects/project-renovation/pages/archive",
+      "projectId": "project-renovation",
+      "slice": 29,
+      "note": "Slice 29 Archive: the two-step recovery worked through the UI and a real MCP client (an agent-built list with an archived parent and two subtasks showed 3 tasks / 0 restore with the section / restore its archived task separately; one parent Restore brought back both subtasks). Minor copy noise: \"0 tasks restore with this section\" repeats what the two-step guidance already says and could be hidden at zero."
     }
   ]
 }

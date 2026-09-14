@@ -1,4 +1,4 @@
-<!-- plan id="29" status="active" summary="Project meaningful recovery content through the existing Archive service while retaining integrity tombstones" -->
+<!-- completed-record id="29" closed="2026-09-14" summary="Archive projects recoverable content via one capability source and a pure domain policy, with recovery metadata and two-step guidance" -->
 # Slice 29 — Recovery policy and content-oriented Archive
 
 ## Goal
@@ -301,7 +301,7 @@ files were changed. Slice 29 remains active and has no implementation Outcome ye
 
 Runtime implementation began in a later session on 2026-09-13; `CURRENT_SLICE` is 29. The
 "Planning status" and "Planning verification" sections above are the historical record of the
-plan-only session. No Outcome yet: the slice stays active until acceptance steps 3–5 are run.
+plan-only session. This section records the first implementation session; the Outcome below closes the slice.
 
 **Landed, tests first.** Contracts capabilities and recovery metadata (`section.ts`,
 `project-archive.ts`), the pure `section-recovery-policy.ts`, the filtered/annotated section loop
@@ -341,3 +341,53 @@ tombstone still restores directly. Recorded, not fixed here:
   unknown content — conservative by design, possibly noisy; revisit after real use.
 - The frame's remove control still reads "Archive section …" although a removed disposable view
   is no longer listed; wording belongs to the removal/Undo UI slice (31), a non-goal here.
+
+## Outcome
+
+**Deliverables.** Archive now lists recoverable content rather than every section tombstone.
+[`SECTION_CAPABILITIES`](../../../packages/contracts/src/section.ts) declares the seven registered
+types, with ownership derived from it; the pure
+[`sectionRecoveryOf`](../../../packages/domain/src/section-recovery-policy.ts) decides which section
+entries [`ProjectArchiveService`](../../../packages/domain/src/project-archive-service.ts) projects
+and emits `recovery` metadata (`owned-content` with `contentCount` and `separateRestoreCount`,
+`config`, `unknown`) beside the exact `cascadeCount`. The host route and `get_project_archive`
+forward it unchanged, and [`ArchivedRegion`](../../../apps/web/src/app/features/projects/archived-region/archived-region.ts)
+words it: total content, what restores with the section, and the two-step path for rows archived
+on their own, or reactivation only for live content beneath an archived project. Tombstones,
+cascade markers, append placement, exact membership and idempotent restore are unchanged.
+
+**Deliberate choices.** A container holding only independently archived rows stays listed as
+the first step of their recovery instead of a new blocker operation or automatic multi-step
+restore. Uncertain Rich Text config and unknown types are kept as unknown content. Two
+refinements followed review at the user's request: copy counts Restore calls rather than rows
+(subtasks archived with a parent come back with it), and an empty Rich Text config (`{}`, which
+`create_section` stores without `config`) is empty. See the
+[content-oriented Archive policy](../../decisions/2026-09-content-oriented-archive-policy.md).
+
+**Deviations from the plan.** Listed under Implementation status above, plus: the
+`separateRestoreCount` field and the zero-key Rich Text rule were added after the first review;
+the plan's `nested-projects-showcase` seed is `nested-projects`; the content journey is a second
+test in `archive.spec.ts`. The first session could not run e2e because a developer host held the
+port; the closing session ran it with that host stopped.
+
+**Deferred.** Removal Undo, disposable-removal wording ("Archive section …" on a view that
+Archive no longer lists) and hard deletion remain Slices 30–31. Real use recorded three notes
+(`note-2026-09-14-001`–`003`): two removed Notes sections are indistinguishable in Archive
+without a text preview; a removed view has no visible way back until Undo lands; and
+"0 tasks restore with this section" repeats the two-step guidance.
+
+**Open questions.** Whether Archive entries need a content preview or frame title for
+duplicated section names, and whether a zero cascade count should be hidden. Both are copy and
+density questions for the next Archive or Undo UI slice, not blockers here.
+
+**Documentation and verification.** Updated main spec §§29–32 and §54; contracts, domain,
+web/projects, prototype-host/api, mcp-tools and testing architecture pages; the MCP setup
+guide; the new policy decision and amendments to the undo, root-archive guidance and
+section-config decisions, plus the index; goals; and `.prototype/notes.json`. `pnpm test`,
+`pnpm lint` (with `pnpm docs:api` and `pnpm docs:check`) pass, and `pnpm e2e` passes 22/22,
+including both Archive journeys. The real-application pass used `pnpm dev:host`/`dev:web` with
+`nested-projects` loaded from the dev panel: views, an empty Reflections section and a Rich Text
+brief removed through the canvas; a Task List cascade-removed through the dialog; a real MCP
+client building a list with an archived parent and two subtasks and an unconfigured Notes
+section; Archive opened from the Kitchen route's More menu with its tab disabled; and the
+section-then-row recovery, with restored sections appended after the Home shortcuts.
