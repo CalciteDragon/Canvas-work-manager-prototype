@@ -96,7 +96,7 @@ test('create a project, add a task list, add a task, and see it on Today', async
   await expect(page).toHaveURL(/\/projects\/[^/]+\/pages\/archive$/);
   await expect(page.locator('[data-archive-page]')).toBeVisible();
   await expect(page.locator('[data-archived-item][data-archived-kind="section"]')).toContainText('Task List');
-  await expect(page.locator('[data-archived-cascade-count]')).toHaveText('1 task with it');
+  await expect(page.locator('[data-archived-cascade-count]')).toHaveText('1 task restores with this section');
 
   await page.locator('[data-archived-item][data-archived-kind="section"] [data-archived-restore]').click();
 
