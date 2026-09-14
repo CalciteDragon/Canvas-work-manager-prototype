@@ -223,6 +223,28 @@ describe('the §31 section write inputs', () => {
     expect(CreateSectionInputSchema.parse({ type: 'rich-text' })).toEqual({ type: 'rich-text' });
   });
 
+  it('accepts an optional non-negative integer position on section and shortcut creates', () => {
+    expect(CreateSectionInputSchema.parse({ type: 'rich-text', position: 0 }).position).toBe(0);
+    expect(
+      CreateSectionShortcutInputSchema.parse({
+        pageId: 'page-home',
+        sourceSectionId: 'section-source',
+        position: 0,
+      }).position,
+    ).toBe(0);
+
+    for (const position of [-1, 1.5]) {
+      expect(CreateSectionInputSchema.safeParse({ type: 'rich-text', position }).success).toBe(false);
+      expect(
+        CreateSectionShortcutInputSchema.safeParse({
+          pageId: 'page-home',
+          sourceSectionId: 'section-source',
+          position,
+        }).success,
+      ).toBe(false);
+    }
+  });
+
   it('rejects an empty type and a column span outside the §27 presets', () => {
     expect(CreateSectionInputSchema.safeParse({ type: '' }).success).toBe(false);
     expect(CreateSectionInputSchema.safeParse({ type: 'rich-text', columnSpan: 7 }).success).toBe(false);
@@ -283,13 +305,6 @@ describe('the §27 shortcut placement inputs', () => {
 
   it('rejects fields the caller cannot set and an incomplete create', () => {
     expect(CreateSectionShortcutInputSchema.safeParse({ sourceSectionId: 'section-source' }).success).toBe(false);
-    expect(
-      CreateSectionShortcutInputSchema.safeParse({
-        pageId: 'page-home',
-        sourceSectionId: 'section-source',
-        position: 0,
-      }).success,
-    ).toBe(false);
     expect(
       CreateSectionShortcutInputSchema.safeParse({
         pageId: 'page-home',

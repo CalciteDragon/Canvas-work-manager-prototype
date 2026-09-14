@@ -160,6 +160,8 @@ export const CreateSectionInputSchema = z.object({
   pageId: ProjectPageIdSchema.optional(),
   title: SectionTitleSchema.optional(),
   columnSpan: SectionColumnSpanSchema.optional(),
+  /** §27: insert into the page's combined section/shortcut order; absent, append. */
+  position: PositionSchema.optional(),
   config: SectionConfigSchema.optional(),
 });
 export type CreateSectionInput = z.infer<typeof CreateSectionInputSchema>;
@@ -199,6 +201,8 @@ export const CreateSectionShortcutInputSchema = z.strictObject({
   pageId: ProjectPageIdSchema,
   sourceSectionId: SectionIdSchema,
   columnSpan: SectionColumnSpanSchema.optional(),
+  /** §27: insert into Home's combined section/shortcut order; absent, append. */
+  position: PositionSchema.optional(),
 });
 export type CreateSectionShortcutInput = z.infer<typeof CreateSectionShortcutInputSchema>;
 

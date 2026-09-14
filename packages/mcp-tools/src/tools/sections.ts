@@ -34,7 +34,7 @@ export const sectionTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'create_section',
     description:
-      'Add a section to the end of a page’s canvas, given a section type such as task-list, reflections, rich-text, progress or timeline. Without a pageId it lands on the project’s canonical canvas — a root’s Home, a sub-project’s sole work canvas. With one, it lands there, provided that page holds that kind of section: Home and a work canvas take every type, a Reflections page takes only a reflections container, and Todos and Archive hold none because they project rows they do not own. A disabled page takes nothing new.',
+      'Add a section at the optional zero-based position in the page’s combined section and shortcut order. Clamp positions past the end; if omitted, append. Give a section type such as task-list, reflections, rich-text, progress or timeline. Without a pageId it lands on the project’s canonical canvas — a root’s Home, a sub-project’s sole work canvas. With one, it lands there, provided that page holds that kind of section: Home and a work canvas take every type, a Reflections page takes only a reflections container, and Todos and Archive hold none because they project rows they do not own. A disabled page takes nothing new.',
     permission: 'projects.write',
     inputSchema: CreateSectionInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.sections.add(actor, projectId, input),

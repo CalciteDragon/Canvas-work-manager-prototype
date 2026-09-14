@@ -1,6 +1,7 @@
+import type { ProjectPageId } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
-import { DomainRuleError, EntityNotFoundError } from './errors';
-import { buildHarness, MINE, THEIRS } from '../test/test-support';
+import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
+import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
 
 const setupNestedSource = async () => {
   const harness = buildHarness();
@@ -17,6 +18,28 @@ const setupNestedSource = async () => {
   });
   const home = (await harness.pages.list({ projectId: MINE, kind: 'home' }))[0]!;
   return { harness, child, childPage, source, home };
+};
+
+const homeOrder = async (harness: ReturnType<typeof buildHarness>, pageId: ProjectPageId) => {
+  const sections = await harness.sections.list({ pageId });
+  const shortcuts = await harness.shortcuts.list({ pageId });
+  return [
+    ...sections.map(({ id, position }) => ({ kind: 'section' as const, id, position })),
+    ...shortcuts.map(({ id, position }) => ({ kind: 'shortcut' as const, id, position })),
+  ].sort((a, b) => a.position - b.position);
+};
+
+const setupPlacedHome = async () => {
+  const state = await setupNestedSource();
+  const section = await state.harness.sectionService.add(state.harness.actor, MINE, {
+    type: 'rich-text',
+    pageId: state.home.id,
+  });
+  const shortcut = await state.harness.sectionShortcutService.create(state.harness.actor, MINE, {
+    pageId: state.home.id,
+    sourceSectionId: state.source.id,
+  });
+  return { ...state, section, shortcut };
 };
 
 describe('SectionShortcutService', () => {
@@ -70,6 +93,87 @@ describe('SectionShortcutService', () => {
     await harness.sectionShortcutService.move(harness.actor, shortcut.id, { position: 2 });
     expect((await harness.shortcuts.find(shortcut.id))?.position).toBe(2);
     expect((await harness.sections.list({ pageId: home.id })).sort((a, b) => a.position - b.position).map((item) => item.position)).toEqual([0, 1]);
+  });
+
+  it('creates a shortcut at a position among sections in the combined order', async () => {
+    const { harness, source, home } = await setupNestedSource();
+    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    const second = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', pageId: home.id });
+    const eventsBefore = harness.store.snapshot().activityEvents.length;
+
+    const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, {
+      pageId: home.id,
+      sourceSectionId: source.id,
+      position: 1,
+    });
+
+    expect(await homeOrder(harness, home.id)).toEqual([
+      { kind: 'section', id: first.id, position: 0 },
+      { kind: 'shortcut', id: shortcut.id, position: 1 },
+      { kind: 'section', id: second.id, position: 2 },
+    ]);
+    expect(harness.store.snapshot().activityEvents.slice(eventsBefore).map(({ action }) => action)).toEqual([
+      'project.shortcut_added',
+    ]);
+  });
+
+  it('does not renumber placements when a positioned create is refused outside Home', async () => {
+    const { harness, home, source } = await setupPlacedHome();
+    const reflections = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+      kind: 'reflections',
+      enabled: true,
+    });
+    const before = await homeOrder(harness, home.id);
+
+    await expect(
+      harness.sectionShortcutService.create(harness.actor, MINE, {
+        pageId: reflections.id,
+        sourceSectionId: source.id,
+        position: 0,
+      }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+
+    expect(await homeOrder(harness, home.id)).toEqual(before);
+  });
+
+  it('does not renumber placements when a positioned create is refused for a cross-root source', async () => {
+    const { harness, home } = await setupPlacedHome();
+    const otherRoot = await harness.projectService.create(harness.actor, {
+      workspaceId: harness.actor.workspaceId,
+      kind: 'root',
+      name: 'Another root',
+    });
+    const otherHome = (await harness.pages.list({ projectId: otherRoot.id, kind: 'home' }))[0]!;
+    const foreignSource = await harness.sectionService.add(harness.actor, otherRoot.id, {
+      type: 'rich-text',
+      pageId: otherHome.id,
+    });
+    const before = await homeOrder(harness, home.id);
+
+    await expect(
+      harness.sectionShortcutService.create(harness.actor, MINE, {
+        pageId: home.id,
+        sourceSectionId: foreignSource.id,
+        position: 0,
+      }),
+    ).rejects.toBeInstanceOf(EntityNotFoundError);
+
+    expect(await homeOrder(harness, home.id)).toEqual(before);
+  });
+
+  it('does not renumber placements when a positioned create is refused for missing permission', async () => {
+    const { harness, home, source } = await setupPlacedHome();
+    const before = await homeOrder(harness, home.id);
+
+    await expect(
+      harness.sectionShortcutService.create(agentActorFor(0), MINE, {
+        pageId: home.id,
+        sourceSectionId: source.id,
+        position: 0,
+      }),
+    ).rejects.toBeInstanceOf(PermissionDeniedError);
+
+    expect(await homeOrder(harness, home.id)).toEqual(before);
   });
 
   it('marks an archived source section unavailable, then restores availability', async () => {

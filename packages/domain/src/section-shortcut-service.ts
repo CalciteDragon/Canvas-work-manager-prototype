@@ -139,18 +139,22 @@ export class SectionShortcutService {
       const byProject = new Map(projects.map((project) => [project.id, project]));
       await this.assertSourceUsable(source, destination, byProject);
       const placements = await listPlacements(this.dependencies, destination.page.id);
+      const position = Math.min(Math.max(input.position ?? placements.length, 0), placements.length);
       const now = this.dependencies.clock.now().toISOString();
       const shortcut = SectionShortcutSchema.parse({
         id: this.dependencies.ids.next('shortcut'),
         pageId: destination.page.id,
         sourceSectionId: source.id,
-        position: placements.length,
+        position,
         columnSpan: input.columnSpan ?? 12,
         collapsed: false,
         createdAt: now,
         updatedAt: now,
       });
       await this.dependencies.shortcuts.insert(shortcut);
+      const ordered = [...placements];
+      ordered.splice(position, 0, { kind: 'shortcut', value: shortcut });
+      await renumberPlacements(this.dependencies, this.dependencies.clock, ordered);
       await this.record(actor, destination.project, 'project.shortcut_added', `Added a shortcut to ${nameOf(source)}`);
       return this.resolve(actor, shortcut, destination, projects);
     });

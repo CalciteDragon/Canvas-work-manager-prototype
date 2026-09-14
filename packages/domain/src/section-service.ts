@@ -194,6 +194,7 @@ export class SectionService {
     await this.assertProjectWritable(projectId);
     const page = await this.resolvePage(projectId, input.pageId, input.type);
     const siblings = await this.placementsOnPage(page.id);
+    const position = Math.min(Math.max(input.position ?? siblings.length, 0), siblings.length);
 
     const now = this.dependencies.clock.now().toISOString();
     const section = ProjectSectionSchema.parse({
@@ -204,7 +205,7 @@ export class SectionService {
       // Normalised here as well as in `SectionTitleSchema`: this package is a public API,
       // and a caller that did not traverse a write input must not store `"  "` as a name.
       title: normaliseSectionTitle(input.title),
-      position: siblings.length,
+      position,
       // §27's presets. Full width until something asks otherwise — the grid that makes a
       // narrower span visible does not exist until Slice 9.
       columnSpan: input.columnSpan ?? 12,
@@ -218,6 +219,9 @@ export class SectionService {
     });
 
     await this.dependencies.sections.insert(section);
+    const ordered = [...siblings];
+    ordered.splice(position, 0, { kind: 'section', value: section });
+    await renumberPlacements(this.dependencies, this.dependencies.clock, ordered);
     await this.record(actor, section, 'project.section_added', 'Added');
     return section;
   }
