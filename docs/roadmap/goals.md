@@ -53,11 +53,11 @@ would implement and the scope guards it inherits.
 
 ## Now
 
-**Active: [Slice 27 — Direct canvas editing and navigation cleanup](active/27-direct-canvas-editing.md).**
-The user approved its feature specification and recommendations on 2026-09-13, including
-the existing width snaps and wrapping-grid insertion. The slice started the same day; its
-implementation plan is in `active/`. The [decision](../decisions/2026-09-direct-canvas-editing-direction.md)
-records the direction without claiming the new behavior is implemented.
+**No slice is active.** [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md)
+closed 2026-09-13. Its implementation establishes direct canvas editing, contextual
+positioned creation, width resizing, and the navigation changes. The
+[direction decision](../decisions/2026-09-direct-canvas-editing-direction.md) records the
+adopted behavior and when to revisit it.
 
 **Use the prototype.** The standing instruction since Slice 17, restated after 25.8: load a
 realistic seed, do real work in it, drive it through a real MCP client, and write the

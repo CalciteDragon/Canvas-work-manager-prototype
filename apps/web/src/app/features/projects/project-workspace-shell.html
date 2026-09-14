@@ -21,7 +21,6 @@
         [pageWriteError]="store.pageWriteError()"
         [pageWriteRetryKind]="store.pageWriteRetryKind()"
         (toggleRequested)="toggleNavigation()"
-        (openArchiveRequested)="openArchive()"
         (pageToggleRequested)="setPageEnabled($event.kind, $event.enabled)"
         (retryPageRequested)="retryPageContext()"
       />

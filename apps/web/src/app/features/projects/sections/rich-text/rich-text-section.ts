@@ -3,9 +3,9 @@ import { nameOf, type ProjectSection, type SectionConfig } from '@cwm/contracts'
 import { readRichTextConfig } from './rich-text-config';
 
 /**
- * §30's Rich Text section. Plain text in a textarea: a formatting toolbar is not a question
- * this prototype has to answer, and the §83 question the section exists to test is whether
- * free-form notes belong on a project canvas at all.
+ * §30's Rich Text section. Plain text in a content-sized textarea: a formatting toolbar is
+ * not a question this prototype has to answer, and the §83 question the section exists to test
+ * is whether free-form notes belong on a project canvas at all.
  */
 @Component({
   selector: 'app-rich-text-section',

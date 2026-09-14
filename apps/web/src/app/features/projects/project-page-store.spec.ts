@@ -455,6 +455,24 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(gateway.shortcuts.list).not.toHaveBeenCalled();
   });
 
+  it('refuses section and shortcut moves while Home has an incomplete combined order', async () => {
+    const { store, gateway } = setup({
+      shortcuts: [shortcut('shortcut-a', 2)],
+      shortcutList: vi.fn(async () => {
+        throw new GatewayError('unreachable', 0, 'shortcut placements unavailable');
+      }),
+    });
+    await store.load(PROJECT, PAGE, true);
+    const original = store.placements();
+
+    expect(store.orderComplete()).toBe(false);
+    expect(await store.moveSection('section-text' as SectionId, 1)).toBe(false);
+    expect(await store.moveShortcut('shortcut-a' as ResolvedSectionShortcut['id'], 0)).toBe(false);
+    expect(gateway.sections.move).not.toHaveBeenCalled();
+    expect(gateway.shortcuts.move).not.toHaveBeenCalled();
+    expect(store.placements()).toEqual(original);
+  });
+
   it('keeps a failed section read loud and paints no placements even when shortcuts answer', async () => {
     const { store } = setup({
       sectionOverrides: {

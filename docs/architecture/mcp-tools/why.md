@@ -42,8 +42,9 @@ grid offers one ([decision](../../decisions/2026-08-workspace-tools-need-their-o
 the domain inserts and renumbers atomically under their existing `projects.write` grant. A
 tool-level create-then-move sequence was rejected because it would record two mutations for one
 placement. The caller-selected insertion follows the approved direct-editing direction
-([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)); sections and Home
-shortcuts still share one ordering rule
+([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)), with its atomic
+positioning rule recorded in [contextual insertion names its position](../../decisions/2026-09-contextual-insertion-names-its-position.md).
+Sections and Home shortcuts still share one ordering rule
 ([decision](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)).
 
 **Permission metadata is namespaced.** Every tool advertises

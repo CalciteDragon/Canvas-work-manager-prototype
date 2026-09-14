@@ -60,6 +60,7 @@ export class LivePanels {
   protected readonly now = Date.parse('2026-08-27T16:00:00.000Z');
 
   protected readonly sectionDefinition = stubSectionDefinition();
+  protected readonly renameSection = async (): Promise<boolean> => true;
   protected readonly fullWidth = labSection({ id: 'section-full', title: 'Full width', columnSpan: 12 });
   protected readonly halfWidth = labSection({ id: 'section-half', title: 'Half width', columnSpan: 6 });
   protected readonly collapsed = labSection({ id: 'section-collapsed', title: 'Collapsed', collapsed: true });

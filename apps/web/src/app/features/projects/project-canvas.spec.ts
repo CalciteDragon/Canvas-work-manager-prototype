@@ -11,6 +11,8 @@ import {
   type Project,
   type ProjectSection,
   type ResolvedSectionShortcut,
+  type SectionId,
+  type ShortcutSource,
   type Task,
 } from '@cwm/contracts';
 import { BehaviorSubject } from 'rxjs';
@@ -91,6 +93,18 @@ const shortcut = (id: string, position: number, sourceSectionId = 'section-sourc
     availability: 'available',
   });
 
+const shortcutSource: ShortcutSource = {
+  sourceSectionId: 'section-source' as SectionId,
+  type: 'task-list',
+  name: 'Source list',
+  projectId: 'project-a' as Project['id'],
+  projectName: 'Website launch',
+  pageId: 'page-source' as ProjectSection['pageId'],
+  pageKind: 'work',
+  breadcrumb: ['Website launch', 'Source'],
+  alreadyPlaced: false,
+};
+
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
@@ -109,6 +123,7 @@ const render = async (
     restoreBlocked?: boolean;
     sections?: ProjectSection[];
     shortcuts?: ResolvedSectionShortcut[];
+    shortcutSources?: ShortcutSource[];
     tasks?: Task[];
     failWith?: GatewayError;
     failOn?: Record<string, GatewayError>;
@@ -128,6 +143,7 @@ const render = async (
     ],
     tasks: renderedTasks,
     shortcuts: options.shortcuts,
+    shortcutSources: options.shortcutSources,
     progress: { projectId: renderedProject.id, formula: 'count', percentage: renderedTasks.length === 0 ? null : Math.round(renderedTasks.filter(({ status }) => status === 'done').length / renderedTasks.length * 100), completed: renderedTasks.filter(({ status }) => status === 'done').length, total: renderedTasks.length, explanation: renderedTasks.length === 0 ? 'No tasks to measure' : 'Count based' },
     failWith: options.failWith,
     failOn: options.failOn,
@@ -171,11 +187,6 @@ const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector:
 
 const queryAll = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector: string) =>
   [...fixture.nativeElement.querySelectorAll(selector)] as HTMLElement[];
-
-const enterEditMode = (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
-  query(fixture, '[data-layout-edit-toggle]')!.click();
-  fixture.detectChanges();
-};
 
 describe('ProjectCanvas (§27, §31, §32)', () => {
   it('reloads for page inputs without tracking signals read inside the store load', async () => {
@@ -269,11 +280,189 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   it('invites the user to add something when the canvas is empty', async () => {
     const { fixture } = await render({ sections: [] });
 
-    expect(query(fixture, '[data-empty-canvas]')?.textContent).toContain('Edit Layout Mode');
-    expect(query(fixture, '[data-project-quick-add]')).toBeNull();
-    enterEditMode(fixture);
-    expect(query(fixture, '[data-project-quick-add]')).not.toBeNull();
+    expect(query(fixture, '[data-empty-canvas]')?.textContent).toContain('Add a section');
+    expect(query(fixture, '[data-empty-canvas-add]')).not.toBeNull();
     expect(queryAll(fixture, '[data-section-frame]')).toHaveLength(0);
+  });
+
+  it('creates the first empty-canvas section at position zero and ignores a repeated submit', async () => {
+    const { fixture, gateway } = await render({ sections: [] });
+    query(fixture, '[data-empty-canvas-add]')!.click();
+    fixture.detectChanges();
+    const submit = query(fixture, '[data-create-section-submit]') as HTMLButtonElement;
+    submit.click();
+    submit.click();
+    expect(gateway.calls.filter(({ method }) => method === 'sections.create')).toHaveLength(1);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(gateway.argumentTo('sections.create')).toMatchObject({
+      input: { type: 'rich-text', pageId: 'page-project-a', position: 0, columnSpan: 12 },
+    });
+    expect(queryAll(fixture, '[data-section-item]')).toHaveLength(1);
+    expect(query(fixture, '[data-section-create-dialog]')).toBeNull();
+  });
+
+  it('cancels contextual creation on Cancel and Escape without writing', async () => {
+    const { fixture, gateway } = await render({ sections: [] });
+    query(fixture, '[data-empty-canvas-add]')!.click();
+    fixture.detectChanges();
+    query(fixture, '[data-create-section-cancel]')!.click();
+    expect(gateway.calls.some(({ method }) => method === 'sections.create')).toBe(false);
+
+    query(fixture, '[data-empty-canvas-add]')!.click();
+    fixture.detectChanges();
+    query(fixture, '[data-section-create-dialog]')!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    fixture.detectChanges();
+    expect(gateway.calls.some(({ method }) => method === 'sections.create')).toBe(false);
+    expect(query(fixture, '[data-section-create-dialog]')).toBeNull();
+  });
+
+  it('creates into a grid gap with the widest span that fits the selected row', async () => {
+    const { fixture, gateway } = await render({
+      project: project({ projectLayoutMode: 'grid' }),
+      sections: [
+        section('section-wide', 'rich-text', 0, { columnSpan: 8 }),
+        section('section-next-row', 'task-list', 1, { columnSpan: 6 }),
+      ],
+    });
+    const gap = query(fixture, 'app-insertion-point[data-insertion-point="gap"] button');
+    expect(gap).not.toBeNull();
+    gap!.click();
+    fixture.detectChanges();
+    query(fixture, '[data-create-section-submit]')!.click();
+    await fixture.whenStable();
+
+    expect(gateway.argumentTo('sections.create')).toMatchObject({
+      input: { position: 1, columnSpan: 4 },
+    });
+  });
+
+  it('resolves the remembered anchor after a live placement is added', async () => {
+    const { fixture, gateway } = await render({
+      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)],
+    });
+    fixture.nativeElement.querySelector(
+      'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
+    ).click();
+    fixture.detectChanges();
+    const definition = SECTION_REGISTRY.find(({ type }) => type === 'progress')!;
+    const result = await fixture.componentInstance.store.addSection(definition, { position: 2 });
+    expect(result.ok).toBe(true);
+    fixture.detectChanges();
+
+    query(fixture, '[data-create-section-submit]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const creates = gateway.calls.filter(({ method }) => method === 'sections.create');
+    expect((creates.at(-1)?.argument as { input: { position: number } }).input.position).toBe(1);
+  });
+
+  it('keeps the dialog open and reports when its remembered anchor disappeared', async () => {
+    const { fixture, gateway } = await render({
+      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)],
+    });
+    fixture.nativeElement.querySelector(
+      'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
+    ).click();
+    fixture.detectChanges();
+    gateway.options.sections = [section('section-text', 'rich-text', 0)];
+    await fixture.componentInstance.store.load('project-a' as Project['id'], 'page-project-a' as ProjectSection['pageId'], false);
+    fixture.detectChanges();
+
+    query(fixture, '[data-create-section-submit]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-create-section-error]')?.textContent).toContain('no longer available');
+    expect(query(fixture, '[data-section-create-dialog]')).not.toBeNull();
+    expect(gateway.calls.some(({ method }) => method === 'sections.create')).toBe(false);
+  });
+
+  it('hides insertion controls when a Home shortcut read leaves the combined order incomplete', async () => {
+    const { fixture } = await render({
+      shortcutsAllowed: true,
+      failOn: { 'shortcuts.list': new GatewayError('unreachable', 0, 'shortcut placements unavailable') },
+    });
+
+    expect(query(fixture, '[data-placement-order-incomplete]')).not.toBeNull();
+    expect(queryAll(fixture, 'app-insertion-point')).toHaveLength(0);
+    expect(query(fixture, '[data-section-drag-handle]')?.getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('adds a Home shortcut through the same popup and remembers its insertion position', async () => {
+    const { fixture, gateway } = await render({ shortcutsAllowed: true, shortcutSources: [shortcutSource] });
+    query(fixture, '[data-insertion-point-button]')!.click();
+    fixture.detectChanges();
+    query(fixture, '[data-create-shortcut-mode]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    query(fixture, '[data-shortcut-add]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(gateway.argumentTo('shortcuts.create')).toMatchObject({
+      input: {
+        pageId: 'page-project-a',
+        sourceSectionId: 'section-source',
+        position: 0,
+        columnSpan: 12,
+      },
+    });
+    expect(queryAll(fixture, '[data-shortcut-frame]')).toHaveLength(1);
+    expect(query(fixture, '[data-section-create-dialog]')).toBeNull();
+  });
+
+  it.each(['flow', 'grid'] as const)('previews and commits a snapped width in %s without moving its position', async (mode) => {
+    const { fixture, gateway } = await render({ project: project({ projectLayoutMode: mode }) });
+    const target = query(fixture, '[data-section-item]')!;
+    const handle = query(fixture, 'app-section-resize-handle[data-edge="end"] button')!;
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    fixture.detectChanges();
+    expect(target.classList).toContain('section-canvas__item--span-8');
+    expect(queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId'])).toEqual([
+      'section-text',
+      'section-tasks',
+    ]);
+
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(gateway.argumentTo('sections.update')).toMatchObject({ id: 'section-text', input: { columnSpan: 8 } });
+    expect(target.classList).toContain('section-canvas__item--span-8');
+  });
+
+  it('restores the saved width after a rejected resize commit', async () => {
+    const { fixture } = await render({
+      failOn: { 'sections.update': new GatewayError('unreachable', 0, 'resize could not be saved') },
+    });
+    const target = query(fixture, '[data-section-item]')!;
+    const handle = query(fixture, 'app-section-resize-handle[data-edge="end"] button')!;
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    fixture.detectChanges();
+    expect(target.classList).toContain('section-canvas__item--span-8');
+    handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(target.classList).toContain('section-canvas__item--span-12');
+    expect(query(fixture, '[data-section-error]')?.textContent).toContain('resize could not be saved');
+  });
+
+  it('moves a section by keyboard, announces its position, and restores focus', async () => {
+    const { fixture, gateway } = await render();
+    const firstGrip = query(fixture, '[data-section-item] [data-section-drag-handle]')!;
+    firstGrip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(gateway.argumentTo('sections.move')).toEqual({ id: 'section-text', input: { position: 1 } });
+    expect(queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId'])).toEqual([
+      'section-tasks',
+      'section-text',
+    ]);
+    expect(query(fixture, '[data-canvas-live-region]')?.textContent).toContain('Moved Rich Text to position 2 of 2');
+    expect(document.activeElement).toBe(query(fixture, '[data-section-item][data-section-id="section-text"] [data-section-drag-handle]'));
   });
 
   it('renders a removable fallback for a section type nothing registers', async () => {
@@ -283,9 +472,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     });
 
     expect(query(fixture, '[data-unknown-section]')?.textContent).toContain('unknown-future-type');
-    expect(query(fixture, '[data-unknown-section-remove]')).toBeNull();
-    enterEditMode(fixture);
-    // And it must not leave the user stuck with a card they can never get rid of.
+    // It must not leave the user stuck with a card they can never get rid of.
     query(fixture, '[data-unknown-section-remove]')!.click();
     await fixture.whenStable();
 
@@ -293,45 +480,52 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(gateway.argumentTo('sections.remove')).toEqual({ id: 'section-unknown', input: {} });
   });
 
-  it('adds a section of a chosen registry type from Quick Add', async () => {
-    const { fixture, gateway } = await render();
-
-    enterEditMode(fixture);
-    query(fixture, '[data-project-quick-add]')!.click();
-    fixture.detectChanges();
-    const richText = queryAll(fixture, '[data-add-section]').find(
-      (button) => button.getAttribute('data-section-type') === 'rich-text',
-    );
-    richText!.click();
-    await fixture.whenStable();
-
-    // The registry's default config *and* the canvas's own page: §27 resolves an unnamed
-    // write onto the project's canonical page, which is the wrong answer for any other page
-    // a root shows.
-    expect(gateway.argumentTo('sections.create')).toEqual({
-      projectId: 'project-a',
-      input: { type: 'rich-text', pageId: 'page-project-a', config: { text: '' } },
+  it('inserts a named section before the selected anchor from the contextual dialog', async () => {
+    const { fixture, gateway } = await render({
+      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)],
     });
+    const beforeTasks = fixture.nativeElement.querySelector(
+      'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
+    ) as HTMLButtonElement;
+    beforeTasks.click();
+    fixture.detectChanges();
+    const type = query(fixture, '[data-create-section-type]') as HTMLSelectElement;
+    type.value = 'rich-text';
+    type.dispatchEvent(new Event('change'));
+    const name = query(fixture, '[data-create-section-name]') as HTMLInputElement;
+    name.value = 'Release notes';
+    name.dispatchEvent(new Event('input'));
+    query(fixture, '[data-create-section-submit]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(gateway.argumentTo('sections.create')).toMatchObject({
+      projectId: 'project-a',
+      input: { type: 'rich-text', pageId: 'page-project-a', position: 1, columnSpan: 12, title: 'Release notes' },
+    });
+    expect(queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId'])).toEqual([
+      'section-text',
+      expect.stringContaining('section'),
+      'section-tasks',
+    ]);
   });
 
   // Test 31 of the plan: the same write, on the one canvas whose page is not canonical for
   // the project the caller would otherwise resolve to.
-  it('creates on a sub-project’s work page, not on the root’s Home', async () => {
+  it('creates on a sub-project’s work page and does not offer shortcut mode', async () => {
     const { fixture, gateway } = await render({
       pageId: 'page-work',
       sections: [section('section-work', 'rich-text', 0, { pageId: 'page-work' })],
     });
 
-    enterEditMode(fixture);
-    query(fixture, '[data-project-quick-add]')!.click();
+    query(fixture, '[data-insertion-point-button]')!.click();
     fixture.detectChanges();
-    queryAll(fixture, '[data-add-section]')
-      .find((button) => button.getAttribute('data-section-type') === 'rich-text')!
-      .click();
+    expect(query(fixture, '[data-create-shortcut-mode]')).toBeNull();
+    query(fixture, '[data-create-section-submit]')!.click();
     await fixture.whenStable();
 
-    expect((gateway.argumentTo('sections.create') as { input: { pageId?: string } }).input.pageId)
-      .toBe('page-work');
+    expect((gateway.argumentTo('sections.create') as { input: { pageId?: string; position?: number } }).input)
+      .toMatchObject({ pageId: 'page-work', position: 0 });
   });
 
   it('gives two Task List sections on one project their own rows', async () => {
@@ -365,17 +559,16 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(reported).toBeGreaterThan(0);
   });
 
-  it('names a section from the frame’s Settings panel, and resets the field when the write fails', async () => {
+  it('renames a section inline on Enter and persists the override', async () => {
     const { fixture, gateway } = await render({
       sections: [section('section-tasks', 'task-list', 0)],
     });
-    enterEditMode(fixture);
-    query(fixture, '[data-section-config]')!.click();
+    query(fixture, '[data-section-title-edit]')!.click();
     fixture.detectChanges();
     const input = query(fixture, '[data-section-name]') as HTMLInputElement;
 
     input.value = 'Backlog';
-    input.dispatchEvent(new Event('change'));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -384,7 +577,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       input: { title: 'Backlog' },
     });
     expect(query(fixture, '.section-frame__title')?.textContent).toContain('Backlog');
-    expect((query(fixture, '[data-section-name]') as HTMLInputElement).value).toBe('Backlog');
+    expect(query(fixture, '[data-section-name]')).toBeNull();
   });
 
   it('leaves the header and the field on the persisted name when a rename fails', async () => {
@@ -394,18 +587,16 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       sections: [section('section-tasks', 'task-list', 0, { title: 'Backlog' })],
       failOn: { 'sections.update': new GatewayError('unreachable', 0, 'could not reach the prototype host') },
     });
-    enterEditMode(fixture);
-    query(fixture, '[data-section-config]')!.click();
+    query(fixture, '[data-section-title-edit]')!.click();
     fixture.detectChanges();
     const input = query(fixture, '[data-section-name]') as HTMLInputElement;
 
     input.value = 'Shipped';
-    input.dispatchEvent(new Event('change'));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '.section-frame__title')?.textContent).toContain('Backlog');
-    expect((query(fixture, '[data-section-name]') as HTMLInputElement).value).toBe('Backlog');
+    expect((query(fixture, '[data-section-name]') as HTMLInputElement).value).toBe('Shipped');
     expect(query(fixture, '[data-section-error]')?.textContent).toContain('could not reach');
   });
 
@@ -427,9 +618,6 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
         ),
       },
     });
-    fixture.componentInstance.toggleEditMode();
-    fixture.detectChanges();
-
     const frames = queryAll(fixture, '[data-section-frame]');
     frames[0]!.querySelector<HTMLElement>('[data-section-remove]')!.click();
     await fixture.whenStable();
@@ -515,39 +703,29 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     ).toEqual(['section-text', 'section-unknown', 'section-tasks']);
   });
 
-  it('keeps layout chrome out of View Mode and closes Quick Add when editing ends', async () => {
-    const { fixture } = await render();
-
-    expect(query(fixture, '[data-project-quick-add]')).toBeNull();
-    expect(query(fixture, '[data-section-size]')).toBeNull();
-    expect(query(fixture, '[data-section-remove]')).toBeNull();
-    enterEditMode(fixture);
-    expect(query(fixture, '[data-project-quick-add]')).not.toBeNull();
-    expect(query(fixture, '[data-section-size]')).not.toBeNull();
-
-    query(fixture, '[data-project-quick-add]')!.click();
-    fixture.detectChanges();
-    expect(query(fixture, '[data-add-section-menu]')).not.toBeNull();
-    query(fixture, '[data-layout-edit-toggle]')!.click();
-    fixture.detectChanges();
-    enterEditMode(fixture);
-    expect(query(fixture, '[data-add-section-menu]')).toBeNull();
-  });
-
-  it('offers Add shortcut only for a root Home while editing', async () => {
+  it('shows direct canvas controls without edit mode, Quick Add, size or duplicate controls', async () => {
     const root = await render({ shortcutsAllowed: true });
-    expect(query(root.fixture, '[data-project-add-shortcut]')).toBeNull();
-    enterEditMode(root.fixture);
-    expect(query(root.fixture, '[data-project-add-shortcut]')).not.toBeNull();
-
-    TestBed.resetTestingModule();
-    const subproject = await render({
-      project: project({ id: 'project-child', kind: 'subproject', parentProjectId: 'project-parent' }),
-      pageId: 'page-work',
-      sections: [section('section-work', 'rich-text', 0, { projectId: 'project-child', pageId: 'page-work' })],
-    });
-    enterEditMode(subproject.fixture);
-    expect(query(subproject.fixture, '[data-project-add-shortcut]')).toBeNull();
+    expect(query(root.fixture, '[data-section-drag-handle]')).not.toBeNull();
+    expect(query(root.fixture, '[data-section-collapse]')).not.toBeNull();
+    expect(query(root.fixture, '[data-section-remove]')).not.toBeNull();
+    expect(query(root.fixture, '[data-section-size]')).toBeNull();
+    expect(query(root.fixture, '[data-section-duplicate]')).toBeNull();
+    for (const selector of [
+      '[data-layout-edit-toggle]',
+      '[data-project-quick-add]',
+      '[data-project-add-shortcut]',
+      '[data-add-section-menu]',
+    ]) {
+      expect(query(root.fixture, selector), selector).toBeNull();
+    }
+    query(root.fixture, '[data-insertion-point-button]')!.click();
+    root.fixture.detectChanges();
+    expect(query(root.fixture, '[data-create-shortcut-mode]')).not.toBeNull();
+    query(root.fixture, '[data-section-create-dialog]')!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
+    root.fixture.detectChanges();
+    expect(query(root.fixture, '[data-section-create-dialog]')).toBeNull();
   });
 
   it('sends section and shortcut drops as positions in the same combined sequence', async () => {
@@ -557,8 +735,6 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       shortcuts: [shortcut('shortcut-a', 1)],
       tasks: [task('task-source', 'todo', 'section-source')],
     });
-    enterEditMode(fixture);
-
     await fixture.componentInstance.drop({
       previousIndex: 1,
       currentIndex: 0,
@@ -588,8 +764,6 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
         section('section-tasks', 'task-list', 2),
       ],
     });
-    enterEditMode(fixture);
-
     await fixture.componentInstance.drop({
       previousIndex: 0,
       currentIndex: 2,
@@ -607,7 +781,6 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       project: project({ projectLayoutMode: 'grid' }),
       failOn: { 'sections.move': new GatewayError('unreachable', 0, 'move did not persist') },
     });
-    enterEditMode(fixture);
     const canvas = query(fixture, '[data-section-canvas]')!;
     const [first, second] = queryAll(fixture, '[data-section-item]');
     canvas.insertBefore(second!, first!);

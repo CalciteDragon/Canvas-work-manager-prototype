@@ -1,4 +1,4 @@
-<!-- plan id="27" status="active" summary="Contextual section creation, snapped resizing, inline naming and hover controls, plus sidebar and indicator fixes" -->
+<!-- completed-record id="27" closed="2026-09-13" summary="Direct canvas editing, positioned creation, resizing, navigation cleanup and MCP acceptance are implemented and verified." -->
 # Slice 27 — Direct canvas editing and navigation cleanup
 
 ## Goal
@@ -221,7 +221,10 @@ What the code says, where it changes the shape of the work:
 - **One popup:** `SectionCreateDialog`, written for this slice rather than borrowed from
   `SectionRemovalDialog`, which has no focus or Escape handling. `role="dialog"`,
   `aria-modal="true"`, labelled; focus moves to the type list on open, Tab cycles within, Escape
-  and Cancel close, and focus returns to the element that opened it. Inputs: `types`
+  and Cancel close, and focus returns to the element that opened it. Switching to shortcut mode
+  focuses the persistent mode-switch control while sources load; Tab also recovers when focus is
+  not on a currently rendered control. Once shortcut creation starts, focus moves to the dialog
+  while every action is disabled, and Tab / Shift+Tab stay there until the write settles. Inputs: `types`
   (`SECTION_REGISTRY` — Home and a work canvas accept every registered type, §30, and the domain
   still refuses anything else), `shortcutsAllowed`, `projectId`, `pageId`, `targetLabel`,
   `columnSpan`, and `create = input.required<(draft: { type: string; title: string | null }) =>
@@ -235,8 +238,10 @@ What the code says, where it changes the shape of the work:
   **New section | Add shortcut**. Add shortcut swaps the fields for the existing `ShortcutPicker`
   rendered inside the dialog — its own heading and Close go, since it has no standalone use left and
   the dialog's Cancel closes — with a `create` callback of the same result shape taking `sourceSectionId`. The picker owns a pending
-  state that disables every Add button and an inline error that keeps the list open. The
-  standalone **Add shortcut** button in the controls row goes.
+  state that disables every Add button and an inline error that keeps the list open. It reports
+  pending state to the dialog, which disables Back and Cancel and ignores Escape until the write
+  settles; success closes the dialog and refusal leaves the picker error visible. The standalone
+  **Add shortcut** button in the controls row goes.
 - **Atomic placement:** `CreateSectionInputSchema` and `CreateSectionShortcutInputSchema` gain an
   optional `position` (`PositionSchema`). Both services insert at `clamp(position, 0, n)` in the
   combined order and renumber with `renumberPlacements`, inside the unit of work they already run,
@@ -274,9 +279,10 @@ What the code says, where it changes the shape of the work:
   of 12 columns"): ArrowRight/ArrowUp widen, ArrowLeft/ArrowDown narrow, Home/End jump to 4/12 —
   all as preview — Enter or blur commits, Escape cancels. The start handle is pointer-only.
 - `ProjectCanvas` holds one `resizePreview = signal<{ id, columnSpan } | null>`; the span classes
-  read preview-or-record. In grid the following items reflow around the preview; flow is a single
-  left-aligned column, so there the preview changes only the item's own width. Order never
-  changes. Both edges resize in both modes: the item stays anchored at its start, and dragging
+  read preview-or-record. In grid the following items reflow around the preview. Flow remains a
+  single left-aligned column: the Rich Text editor sizes its height to wrapped content, so
+  narrowing it can move later items down as the content grows. Order never changes. Both edges resize
+  in both modes: the item stays anchored at its start, and dragging
   the start edge outward widens it, which the preview shows before release. Commit with an
   unchanged span writes nothing.
 - `ProjectPageStore.setColumnSpan`/`setColumnSpanShortcut` become optimistic: paint the new span
@@ -374,22 +380,25 @@ rate in a `finally` — the pattern `web.spec.ts` already uses. Request counts c
 5. **Insertion, grid.** On a grid root built with spans `[8, 6]`, the gap plus beside the 8 creates a
    4-column section at index 1, and the 8's bounding box is unchanged; after reload it is still at
    index 1 with span 4. A root built with `[4, 6, 12]` (a 2-column remainder) shows no gap plus in
-   its first row. On a root built with `[8, 6, 12]`, dragging the 12 by its grip, holding the
-   pointer over the empty columns beside the 8 (where its gap overlay sits) and releasing there
-   does not swap with the 8: the API order is still the 8 first, proving overlays are inert during
-   a drag. The test first asserts `document.elementFromPoint` at that point returns an element
-   inside the 8's wrapper (the gap overlay) when no drag is active, so it cannot pass vacuously,
-   and moves the pointer in intermediate `mouse.move` steps because CDK sorts only on moves.
+   its first row. On a root built with `[8, 6, 12]`, dragging the 12 by its grip along a path
+   outside the other placement boxes, holding the pointer over the empty columns beside the 8
+   (where its gap overlay sits) and releasing there does not swap with the 8: the API order is still
+   the 8 first. During the drag the gap overlay has `pointer-events: none`; before the drag, the
+   test asserts `document.elementFromPoint` at that point returns an element inside the 8's wrapper,
+   so the inertness check cannot pass vacuously. Intermediate mouse moves are dispatched because
+   CDK sorts only on moves. At 375px, the gap target is hidden after items become full width.
 6. **Popup behaviour.** Cancel and Escape create nothing (API list unchanged). With failure rate 1,
    Create shows the injected error inside the popup and keeps type and name; at rate 0 a second
    Create succeeds and exactly one new section exists. A double-click on Create issues exactly one
    `POST /api/projects/:id/sections`. The empty root shows `[data-canvas-add-first]`, which creates
    at position 0. With the popup open, a section added through the API (a live frame) does not move
    the chosen insertion point.
-7. **Resize.** Dragging a 12-wide grid section's end handle left previews 8 then 6 while the next
-   item moves up beside it; release commits 6 and reload keeps 6. Escape mid-drag restores 12 and
-   issues no `PATCH`. With failure rate 1, release shows the error and the span returns to 12. The
-   start handle and the keyboard path (item 10) reach the same result. A Home shortcut resizes and
+7. **Resize.** In grid, dragging a 12-wide section's end handle left previews 8 then 6 while the
+   next item moves up beside it; release commits 6 and reload keeps 6. In flow, resizing a long
+   Rich Text section narrower grows the editor to its wrapped content and moves the following
+   section down, without changing order. Escape mid-drag restores the previous layout and issues
+   no `PATCH`. With failure rate 1, release shows the error and the span returns to its saved value.
+   The start handle and keyboard path (item 10) reach the same result. A Home shortcut resizes and
    persists the same way. At 375px no resize handle is visible, and the API span is unchanged.
 8. **Rename.** Title click → input; Enter saves (one `PATCH`); blur saves; Escape restores and issues
    no `PATCH`; clearing shows the type's default name and the API `title` is `null`; with failure
@@ -408,8 +417,8 @@ rate in a `finally` — the pattern `web.spec.ts` already uses. Request counts c
 11. **Touch.** In a context with `hasTouch: true`, `isMobile: true` and a 1024×1366 viewport (the test
     first asserts `matchMedia('(hover: none), (any-pointer: coarse)').matches`): grip, resize handle,
     insertion plus and archive icon are visible without hover; tapping creates, renames and
-    archives; a touch drag of the resize handle and of the grip, dispatched through a CDP session's
-    `Input.dispatchTouchEvent` (Playwright's `touchscreen` only taps), persists a new span and a new
+    archives; touch drags of the resize handle and grip, dispatched through a CDP session's
+    `Input.dispatchTouchEvent` (Playwright's `touchscreen` only taps), persist a new span and a new
     order.
 12. **No layout shift and no conflicts.** Hovering and focusing a section changes no placement's
     bounding box. Typing in a Rich Text section, selecting text in a task row, and clicking within
@@ -417,9 +426,10 @@ rate in a `finally` — the pattern `web.spec.ts` already uses. Request counts c
     within 8px inside a frame's side edge is non-empty. At the Design Lab's lowest spacing density,
     under touch emulation, `elementFromPoint` at the centre of each header grip and collapse button
     returns that control, not an insertion plus.
-13. **MCP** *(manual)*: `create_section` and `add_section_shortcut` with `position` from a real MCP
-    client land where asked, and the open canvas repaints in place.
-14. **Friction** from the manual pass is recorded in `.prototype/notes.json` *(manual)*.
+13. **MCP:** `apps/e2e/mcp.spec.ts` connects a real `@modelcontextprotocol/client`, creates a
+    section and a shortcut at explicit combined positions, verifies the open canvas repaints
+    without a reload, then verifies both placements and their order after reload.
+14. **Friction:** findings from the real-app and MCP pass are recorded in `.prototype/notes.json`.
 
 ## File-level change list
 
@@ -458,6 +468,7 @@ Paths under `apps/web/src/app/features/projects/` are abbreviated `projects/`.
 | `projects/sections/section-frame/project-section-frame.ts`, `.html`, `.scss` | modify | Template rewritten as UTF-8 without a BOM; SVG grip button and chevron; inline title editing with a draft and settle guard; settings icon only with an inspector; archive icon; reads `--canvas-chrome-opacity`; drop `editMode`, `resized`, `duplicateRequested`, `renamed`, the Size select and the Name field; class doc comment. |
 | `projects/sections/section-frame/project-section-frame.spec.ts` | modify | Tests below; remove edit-mode tests. |
 | `projects/sections/section-frame/project-section-frame.stories.ts` | modify | Drop `Editing`; add `WithInspector` and `RenamingTitle`. |
+| `projects/sections/rich-text/rich-text-section.ts`, `.scss` | modify | Make the editor height follow wrapped content so Flow resize reflows later sections; remove manual vertical resizing. |
 | `projects/shortcuts/shortcut-frame.ts`, `.html`, `.scss` | modify | SVG grip button and chevron, remove icon, reads `--canvas-chrome-opacity`; drop `editMode`, `resized` and the Size select. |
 | `projects/shortcuts/shortcut-frame.spec.ts`, `.stories.ts` | modify | Remove edit-mode cases; controls present without a mode; title not editable. |
 | `projects/shortcuts/shortcut-picker.ts`, `.html`, `.scss` | modify | Heading and Close removed; `create` input; pending disables Add; inline write error. |
@@ -470,10 +481,12 @@ Paths under `apps/web/src/app/features/projects/` are abbreviated `projects/`.
 | `apps/web/src/app/prototype/design-lab/section-canvas-frame.ts` | modify | Mirror the canvas wrapper's reveal custom properties. |
 | `apps/web/src/app/prototype/dev-panel/dev-panel-store.ts` | modify | `CURRENT_SLICE = 27`. |
 | `apps/e2e/seed.ts` | modify | `createRoot`, `createSubprojects`, `addSection`, `setLayout` API helpers. |
-| `apps/e2e/canvas-editing.spec.ts` | create | Acceptance items 1–12. |
+| `apps/e2e/canvas-editing.spec.ts` | create | Acceptance items 1–12, including rendered Flow content-height reflow during resize as well as Grid placement reflow. |
+| `apps/e2e/mcp.spec.ts` | modify | Real Streamable HTTP MCP client inserts a section and shortcut at explicit combined positions, checks the live canvas without a reload, then reloads to verify persistence. |
 | `apps/e2e/web.spec.ts` | modify | Replace Edit layout, Quick add and column Open archive steps with the insertion popup, the archive icon and More → Open archive. |
 | `apps/e2e/archive.spec.ts` | modify | Open archive through the More menu. |
-| `Canvas Work Manager — Prototype Product, Design & Development Specification.md` | modify | §23: the column fills the workspace height and Archive's control is the More menu; §26: the Quick Add paragraph; §27: the flow "Supports" list, "Quick Add and an agent's `create_task`" (line ~1235), and a *Landed in Slice 27* note that adds may insert at a position; §31: the frame list and Open archive placement; §32: rewritten from two modes to contextual controls, including the 25.4 shortcut note — each change with a *Landed in Slice 27* note. |
+| `.prototype/notes.json` | modify | Record Slice 27 friction (or the absence of new friction) after using the UI and MCP acceptance path. |
+| `Canvas Work Manager — Prototype Product, Design & Development Specification.md` | modify | §23: the column fills the workspace height and Archive's control is the More menu; §26: the Quick Add paragraph; §27: the flow "Supports" list, section creation and agent `create_task` resolution, and a *Landed in Slice 27* note that adds may insert at a position; §31: the frame list and Open archive placement; §32: rewritten from two modes to contextual controls, including the 25.4 shortcut note — each change with a *Landed in Slice 27* note. |
 | `docs/decisions/2026-09-contextual-insertion-names-its-position.md` | create | Optional `position` on create, atomic in the domain; create-then-move rejected; anchors not indices in the UI; grid gaps are targets, not cells, fitted when chosen — a neighbour's live span change while the popup is open does not re-fit the remembered span. |
 | `docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md` | create | Reserved-space reveal through inherited custom properties, `hover: none`/`any-pointer: coarse`, drag-inert overlays, keyboard move and resize, optimistic resize with column-only rollback, callback rename and dialog results, the three defaulted questions below. |
 | `docs/decisions/2026-08-view-mode-section-chrome.md` | modify | `Superseded by` banner. |
@@ -483,18 +496,21 @@ Paths under `apps/web/src/app/features/projects/` are abbreviated `projects/`.
 | `docs/decisions/2026-09-root-archive-recovery-guidance.md` | modify | Dated amendment: Open archive lives in the More menu on root and nested routes. |
 | `docs/decisions/2026-09-direct-canvas-editing-direction.md` | modify | Link to `active/` (done at start); dated amendment at close naming the two new entries. |
 | `docs/decisions/README.md` | modify | Index the new entries; statuses of the amended and superseded ones. |
+| `docs/architecture/contracts/why.md`, `how.md` | modify | Link the insertion decision; document optional `position` on the two create inputs and its shared HTTP/MCP contract. |
+| `docs/architecture/domain/why.md`, `how.md` | modify | Link the insertion decision; document clamped insertion and dense combined-order renumbering inside the existing unit of work. |
+| `docs/architecture/mcp-tools/why.md`, `how.md` | modify | Link the insertion decision; document that `create_section` and `add_section_shortcut` accept an optional position. |
 | `docs/architecture/web/projects/overview.md`, `why.md`, `what.md`, `how.md` | modify | Canvas responsibilities; frame label in the structure diagram; `canvas-chrome/` and `SectionCreateDialog` in the inventory and key symbols; runtime-flow step 4; *Changing it* (a new canvas write returns a result where a popup reports it); the e2e command list; decisions list. |
 | `docs/architecture/web/prototype-tooling/what.md` | modify | `SectionCanvasFrame` mirrors the canvas wrapper's reveal rules. |
 | `docs/architecture/testing/what.md` | modify | `canvas-editing.spec.ts` in the e2e inventory. |
+| `docs/architecture/testing/overview.md`, `how.md` | modify | E2E responsibilities and journeys; `pnpm e2e` and the §77 real-app acceptance steps. |
 | `docs/guides/first-milestone-walkthrough.md` | modify | §3 steps 10–15 rewritten for contextual controls; step 17's "Edit Layout Mode exposes" corrected. |
 | `docs/guides/mcp-setup.md` | modify | Optional `position` on `create_section` and `add_section_shortcut`. |
 | `docs/roadmap/goals.md` | modify | *Now* points at `active/` (done at start); updated again at close. |
 | `docs/roadmap/active/27-direct-canvas-editing.md` | modify | Revisions, then Outcome. |
 
 Checked and unchanged: `apps/prototype-host/api/routes.ts` (parses the contract schemas);
-`docs/architecture/mcp-tools/{what,how}.md`, `docs/architecture/domain/how.md` and
-`docs/architecture/contracts/how.md` (none describes create positioning or tool inputs);
-`README.md` (no command or URL changes).
+`docs/architecture/{contracts,domain,mcp-tools}/what.md` (their diagrams and inventories stay
+accurate); `README.md` (no command or URL changes).
 
 ## Test plan — tests first
 
@@ -521,7 +537,9 @@ Checked and unchanged: `apps/prototype-host/api/routes.ts` (parses the contract 
 | `…: Create is disabled while pending, so a double click and Enter call create once` | No duplicates. |
 | `…: a failure result keeps the chosen type and typed name and shows the message` | Failed submission. |
 | `…: on root Home it switches to Add shortcut and hosts the picker; elsewhere it offers no shortcut mode` | Shortcut mode and its rule. |
+| `…: a pending shortcut write disables Back and Cancel, traps Tab and Shift+Tab in the dialog, ignores Escape and preserves the picker failure` | The parent dialog cannot imply that an in-flight placement was canceled or let focus leave while all controls are disabled. |
 | `…: focuses the type list on open, keeps Tab inside, and returns focus to the opener on close` | Keyboard. |
+| `…: while shortcut sources load, focus stays on the persistent mode switch and Tab recovers from an unlisted active element` | Loading does not move keyboard focus outside the modal. |
 | `shortcuts/shortcut-picker.spec.ts: it calls create with the source once and disables every Add while pending` | Positioned shortcut; pending guard. |
 | `…: a failed create keeps the list open and shows the message` | Shortcut-mode failure. |
 | `project-page-store.spec.ts: addSection sends position, span and title and inserts at that index before reconciling` | Positioned create. |
@@ -529,6 +547,7 @@ Checked and unchanged: `apps/prototype-host/api/routes.ts` (parses the contract 
 | `…: addShortcut sends position and span, and resolves a failure result on refusal` | Positioned placement and its failure. |
 | `…: orderComplete is false when the shortcut read failed on a shortcut-allowed page` | Insertion is withheld when indices would lie. |
 | `…: orderComplete stays false when a later refresh fails the shortcut read again, and recovers to true after a successful one` | Every read path, both directions. |
+| `…: refuses section and shortcut moves while Home has an incomplete combined order` | Position-based writes cannot corrupt an order the canvas could not fully read. |
 | `…: setColumnSpan paints immediately and a live frame during the write does not overwrite the paint` | `pendingWrites` guard. |
 | `…: a failed setColumnSpan restores only columnSpan, keeping a collapse that landed meanwhile, and sets sectionError` | Column-only rollback. |
 | `…: an older failed resize does not clobber a newer resize of the same section` | Sequence guard. |
@@ -551,6 +570,7 @@ Checked and unchanged: `apps/prototype-host/api/routes.ts` (parses the contract 
 | `…: a grid-gap creation sends the gap's span` | Initial fit. |
 | `…: an empty canvas offers Add a section, which creates at position 0` | Empty state. |
 | `…: hides insertion affordances when orderComplete is false` | Partial read failure. |
+| `…: disables movement and marks the grip unavailable when orderComplete is false` | The visible keyboard and pointer controls agree with the store guard. |
 | `…: resize preview changes the rendered span without changing order, and an unchanged commit writes nothing` | Preview state. |
 | `…: renders resize handles for sections, shortcuts and an unrecognised section` | One implementation. |
 | `…: grip ArrowDown moves a section one place, announces it, and keeps focus on the moved grip` | Keyboard move. |
@@ -652,9 +672,78 @@ realistic Home — the direction decision's own *Revisit when*.
   low-density touch checks; hover-none rules and `touch-action: none` stated for overlays and the
   grip; the picker's unused standalone mode dropped; and the gap-refit limit recorded for the
   insertion decision. The plan is closed for implementation.
+- **Round 3 (2026-09-13):** the independent review found two gaps: architecture documentation for
+  the new contract, domain behavior and MCP inputs was omitted, and resize verification covered
+  only Grid despite the approved Build requiring both modes. Added the contracts/domain/MCP-tools
+  `why.md` and `how.md` files to the change list, and specified/added Flow verification for
+  content-driven vertical reflow while preserving the single-column order. The approved Build and
+  Done-when text remain unchanged.
+- **Round 4 (2026-09-13):** review found that the planned Flow fixture used a Rich Text textarea
+  with fixed rows, so wrapped text could not grow its height. Added Rich Text intrinsic-height
+  behavior and real-browser verification to the plan, and removed the textarea's manual vertical
+  resizing to preserve the slice's width-only sizing rule.
+- **Implementation review (2026-09-13):** the partial-read state already withheld insertion, but
+  code review showed moves also send a combined-order position. Added a store guard for section and
+  shortcut moves, disabled CDK drag and keyboard movement while the order is incomplete, and
+  covered both paths. The notice now says those operations are unavailable rather than claiming
+  every control is hidden.
+- **Diff review follow-up (2026-09-13):** independent review found three implementation gaps and
+  one test-path ambiguity. Grid gap targets are now hidden when the 48rem breakpoint makes every
+  item full width. `ShortcutPicker` reports pending state so Back, Cancel, mode changes and Escape
+  cannot dismiss an in-flight placement; a browser and unit regression verify that behavior. The
+  dialog focuses its persistent mode switch while shortcut sources load and recovers Tab when focus
+  is not on a rendered control. The mixed-grid drag assertion now routes around other placement
+  boxes and verifies active-drag `pointer-events: none`, rather than attributing a legitimate CDK
+  reorder to the gap overlay. A final keyboard review found that disabling the currently focused
+  Add button during its write could move focus outside the dialog; a failing regression drove focus
+  to the dialog and traps both Tab directions while its controls are disabled. The token lint also
+  caught a color-mix expression in the dialog backdrop; it now uses the existing theme background
+  token on a separate translucent backdrop layer. The browser keyboard journey now waits for the
+  grip's pending state to clear before sending its next move, matching the explicit input guard.
+- **Living-documentation review (2026-09-13):** linked the positioned-insertion decision from the
+  contracts, domain and MCP-tools rationale; corrected the Quick Add implementation note to mark
+  it as historical; updated the Storybook inventory and the spec file-list description; and added
+  the real-MCP e2e case and `.prototype/notes.json` to the plan's change list. Follow-up review
+  added the testing architecture overview and how-to pages that document the browser-acceptance
+  responsibilities and command.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
 ## Outcome
 
-<!-- Written at phase close. -->
+**Deliverables.** Home and work canvases now create sections at a chosen position, and root Home
+can place a shortcut in the same combined order. People can rename sections inline, resize section
+and shortcut widths by pointer or keyboard in Flow and Grid, collapse and archive from the canvas,
+and reach Archive from the project menu. The navigation column fills the viewport; Rich Text grows
+with its contents in Flow. The gateway seam remains in `ProjectPageStore` and `ShortcutStore`, and
+the MCP path uses the same domain operation. The browser acceptance suite passes 20/20, including
+the real-MCP insert-and-reload journey. The canvas and write behavior live in
+[ProjectCanvas](../../../apps/web/src/app/features/projects/project-canvas.ts) and
+[ProjectPageStore](../../../apps/web/src/app/features/projects/project-page-store.ts), with the
+browser journey in [canvas-editing.spec.ts](../../../apps/e2e/canvas-editing.spec.ts).
+
+**Deliberate choices.** Creation stores one position across sections and shortcuts; the popup
+retains an anchor identity until submit, while a removed anchor refuses the write. Grid gaps are
+insertion targets rather than cells, and their span is fitted when selected. Canvas controls
+appear on hover or focus without shifting content or entering an editing mode. These choices are
+recorded in [contextual insertion](../../decisions/2026-09-contextual-insertion-names-its-position.md)
+and [revealed canvas chrome](../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md).
+
+**Deviations from the plan.** The Flow resize acceptance exposed that fixed-row Rich Text could not
+grow vertically, so the textarea now measures its content and no longer offers manual vertical
+resize. Diff review added guards for incomplete section-plus-shortcut reads, hid grid-gap controls
+at the full-width breakpoint, and kept keyboard focus inside the shortcut dialog while a write
+disables its controls. The keyboard browser journey waits for the grip's pending state to clear
+between moves.
+
+**Deferred and open questions.** Fixed cells, vertical resizing, new section types, broader
+infrastructure and other explicit non-goals remain out of scope. The prototype run across the
+nested-projects seed, light and dark themes, touch and keyboard paths, and the MCP create flow
+surfaced no new friction. Sustained use should still test whether contextual controls are
+discoverable; choose the next slice from `.prototype/notes.json` and the open §83 questions.
+
+**Documentation and verification.** Updated the product specification; web, contract, domain,
+MCP and testing architecture pages; decisions and index; walkthrough and MCP guide; roadmap goals;
+and `.prototype/notes.json`. `pnpm test`, `pnpm e2e` (20/20), `pnpm lint`, `pnpm docs:api`, and
+`pnpm docs:check` passed. Visual review covered section and shortcut headers in both themes and
+expanded/collapsed states.

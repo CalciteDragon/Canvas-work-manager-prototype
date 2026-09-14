@@ -27,9 +27,10 @@ read-only references to sections elsewhere in the tree (§26–§27).
 **One shell for both routes, one header per project.** `ProjectWorkspaceShell` serves
 `/projects/:id` and `/projects/:id/pages/:kind`; Angular reuses the instance across a
 parameter change, so moving between pages keeps the project loaded. The header moved
-here from the canvas because it would otherwise vanish when Todos mounted; Quick Add
-moved *to* the canvas because a root has several
-([decision](../../../decisions/2026-08-project-header-quick-add.md), amended).
+here from the canvas because it would otherwise vanish when Todos mounted. Creation and
+layout controls stay with the current canvas: insertion targets name their position,
+and controls reveal on hover, focus, or touch without a separate editing mode
+([direct canvas chrome](../../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
 **Two stores: project and page.** `ProjectWorkspaceStore` holds the record, progress,
 writes and work tree; `ProjectPageStore` holds one page's sections and placements,
@@ -56,10 +57,11 @@ prevents a re-render loop in a zoneless app (`project-page-contract.ts`,
 `section-contract.ts`).
 
 **Flow and grid both remain**, persisted per project; no freeform canvas
-([decision](../../../decisions/2026-08-flow-vs-grid-layout-experiment.md)). View Mode
-keeps collapse and content interactions; Edit Layout Mode reveals drag, size, settings,
-duplicate, remove and Quick Add
-([decision](../../../decisions/2026-08-view-mode-section-chrome.md)).
+([decision](../../../decisions/2026-08-flow-vs-grid-layout-experiment.md)). Direct canvas
+controls replace the View/Edit split: users move from a grip, resize in supported column
+steps, rename at the title, and create at a visible insertion point. Settings appear only
+for a type with an inspector; removal retains the archive and cascade/reassign rules
+([canvas chrome](../../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
 **Section stores follow ownership.** A Task List provides its own `TaskListStore`, a
 Reflections section its `ReflectionsStore`, Progress its `ProgressStore` — one per
@@ -96,9 +98,11 @@ opens a collapsed target through a transient input that leaves the record alone
 
 ## Decisions that shape this system
 
-- [Direct canvas editing is the next development direction](../../../decisions/2026-09-direct-canvas-editing-direction.md) (approved scope for Slice 27; not implemented)
+- [Direct canvas editing direction](../../../decisions/2026-09-direct-canvas-editing-direction.md) (implemented in Slice 27)
+- [Contextual insertion names its position](../../../decisions/2026-09-contextual-insertion-names-its-position.md)
+- [Canvas chrome is revealed, not moded](../../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)
 - [Flow and grid both remain prototype layout candidates](../../../decisions/2026-08-flow-vs-grid-layout-experiment.md)
-- [View Mode shows work; Edit Layout Mode shows canvas chrome](../../../decisions/2026-08-view-mode-section-chrome.md)
+- [View Mode shows work; Edit Layout Mode shows canvas chrome](../../../decisions/2026-08-view-mode-section-chrome.md) (superseded)
 - [The project header's Quick Add adds a section](../../../decisions/2026-08-project-header-quick-add.md) (amended)
 - [The smallest surface that makes §81's project verbs demonstrable](../../../decisions/2026-08-project-create-edit-archive-surface.md)
 - [Where the project navigation column lives](../../../decisions/2026-09-where-the-project-navigation-column-lives.md)

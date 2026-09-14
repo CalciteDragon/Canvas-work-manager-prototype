@@ -23,33 +23,32 @@ import type {
   SectionConfig,
   SectionId,
   SectionShortcutId,
+  ShortcutSource,
 } from '@cwm/contracts';
+import { nameOf } from '@cwm/contracts';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
-import { ProjectPageStore } from './project-page-store';
+import { ProjectPageStore, type ProjectCanvasPlacement } from './project-page-store';
+import { SectionCreateDialog } from './section-create-dialog';
 import { SectionRemovalDialog } from './section-removal-dialog';
+import { CanvasIcon } from './canvas-chrome/canvas-icon';
+import { gridInsertionGaps } from './canvas-chrome/grid-insertion-gaps';
+import { InsertionPoint, type InsertionIntent } from './canvas-chrome/insertion-point';
+import { SectionResizeHandle, type ResizeMeasurement } from './canvas-chrome/section-resize-handle';
 import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
 import { SECTION_REGISTRY, definitionFor } from './sections/registry';
 import { ShortcutFrame } from './shortcuts/shortcut-frame';
-import { ShortcutPicker } from './shortcuts/shortcut-picker';
 import { ShortcutStore } from './shortcuts/shortcut-store';
 
-/**
- * §27's section canvas, for **one page**: the controls row, the drag-drop canvas and the
- * removal dialog. Archive is a root-wide page now, rather than a footer on each canvas. It is the renderer for a root's Home and for a
- * sub-project's sole work canvas, which after §26 are the same component — the two kinds
- * differ in their *header*, and the header belongs to `ProjectWorkspaceShell`.
- *
- * It is mounted through `NgComponentOutlet`, which binds **inputs only**. The two ways the
- * canvas has to tell the shell something — progress may have moved, the work hierarchy may
- * have moved — therefore arrive as callback inputs with stable identity, exactly as
- * `ProjectSectionFrame` hands callbacks to its content components.
- *
- * Section stores follow ownership. Progress, Task List and Reflections provide their own
- * stores at the content boundary. A shortcut never gets one of those stores from this canvas:
- * its source content is mounted read-only by `ShortcutFrame`, so the source remains the only
- * owner of writable content. Progress is provided by each Progress section because a Home may
- * reference Progress from another project.
- */
+interface GridInsertionTarget {
+  index: number;
+  availableColumns: number;
+  columnSpan: SectionColumnSpan;
+  hostId: string;
+  beforeId: string | null;
+  hostSpan: SectionColumnSpan;
+}
+
+/** §27's single-page canvas: always-available drag, insertion, resize and removal chrome. */
 @Component({
   selector: 'app-project-canvas',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,107 +56,117 @@ import { ShortcutStore } from './shortcuts/shortcut-store';
     CdkDrag,
     CdkDragHandle,
     CdkDropList,
+    CanvasIcon,
+    InsertionPoint,
     ProjectSectionFrame,
+    SectionCreateDialog,
     SectionRemovalDialog,
+    SectionResizeHandle,
     ShortcutFrame,
-    ShortcutPicker,
   ],
   providers: [ProjectPageStore, ShortcutStore],
   templateUrl: './project-canvas.html',
   styleUrl: './project-canvas.scss',
-  // Quick Add's menu closes on Escape from anywhere on the canvas, which is what a menu
-  // opened with the pointer needs — the keystroke rarely lands inside the menu itself. The
-  // More menu declares its own, in the header that owns it.
-  host: { '(document:keydown.escape)': 'closeAdd()' },
 })
 export class ProjectCanvas {
   readonly projectId = input.required<ProjectId>();
-  /** §27: a canvas is a page. Every read and write this store makes names it. */
   readonly pageId = input.required<ProjectPageId>();
   readonly projectLayoutMode = input.required<ProjectLayoutMode>();
-  /** Shortcut placement is a Home-only root capability (§27). */
   readonly shortcutsAllowed = input.required<boolean>();
-  /** Whether the root Archive page may offer a Restore at all — the shell knows, not the canvas. */
   readonly restoreBlocked = input<boolean>(false);
-  /** Progress may have moved. Called, not emitted: `NgComponentOutlet` has no output API. */
   readonly onProjectDataChange = input<() => void>(() => {});
-  /** The work hierarchy may have moved — a Sub-Projects section created a child. */
   readonly onProjectHierarchyChange = input<() => void>(() => {});
 
   readonly store = inject(ProjectPageStore);
   readonly registry = SECTION_REGISTRY;
-  readonly addOpen = signal(false);
-  readonly shortcutPickerOpen = signal(false);
+  readonly createDialogOpen = signal(false);
   readonly canvasMounted = signal(true);
-  readonly shortcutStore = inject(ShortcutStore);
+  readonly resizePreview = signal<Record<string, SectionColumnSpan>>({});
+  readonly keyboardMovePending = signal<ReadonlySet<string>>(new Set());
+  readonly liveAnnouncement = signal('');
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly settings = inject(PrototypeSettings);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
-  /**
-   * §34's Todos links arrive at a container, not just at a page. The canvas handles the fragment
-   * itself rather than through the router's global anchor scrolling, because the app scrolls its
-   * own region and a canvas is loaded asynchronously — a scroll attempted at navigation time
-   * lands before the section exists.
-   */
+  private pendingInsertion = signal<InsertionIntent | null>(null);
+  private returnFocusTo: HTMLElement | null = null;
+  private readonly resizeMeasures = new Map<string, () => ResizeMeasurement>();
   private readonly fragment = toSignal(inject(ActivatedRoute).fragment, { initialValue: null });
-  /** Set when the reader collapses the very section this visit opened for them. */
   private readonly releasedTarget = signal<SectionId | null>(null);
   private lastTargetKey: string | null = null;
 
-  /**
-   * The container this visit is aimed at — **only** once this page's own sections have loaded and
-   * one of them is it. A fragment naming something else is never turned into a selector.
-   */
   readonly targetSectionId = computed<SectionId | null>(() => {
     const requested = requestedSectionId(this.fragment());
     if (requested === null) return null;
     return this.store.sections().some(({ id }) => id === requested) ? requested : null;
   });
-
-  /** A fragment this page cannot honour. The canvas stays entirely usable; it just says so. */
   readonly targetMissing = computed(
     () => requestedSectionId(this.fragment()) !== null && !this.store.loading() && this.targetSectionId() === null,
   );
-
-  /** The transient open state handed to one frame: released as soon as the reader collapses it. */
   readonly transientTargetId = computed<SectionId | null>(() => {
     const target = this.targetSectionId();
     return target === null || target === this.releasedTarget() ? null : target;
   });
-
-  /**
-   * §28's mode, gated by §47's `gridProjectLayout`. The project keeps whatever it has
-   * stored — the flag decides what is *rendered*, so turning grid off is a rendering
-   * experiment rather than a data migration, and turning it back on restores the project's
-   * own choice.
-   */
   readonly layoutMode = computed<ProjectLayoutMode>(() =>
     this.settings.flags().gridProjectLayout ? this.projectLayoutMode() : 'flow',
   );
+  readonly insertionGaps = computed<GridInsertionTarget[]>(() => {
+    if (!this.store.orderComplete() || this.layoutMode() !== 'grid') return [];
+    const placements = this.store.placements();
+    return gridInsertionGaps(placements.map((placement) => placementSpan(placement))).flatMap((gap) => {
+      const hostPlacement = placements[gap.index - 1];
+      if (hostPlacement === undefined) return [];
+      return [{
+        ...gap,
+        hostId: placementId(hostPlacement),
+        beforeId: placements[gap.index] === undefined ? null : placementId(placements[gap.index]!),
+        hostSpan: placementSpan(hostPlacement),
+      }];
+    });
+  });
+
+  readonly renameSection = async (id: SectionId, title: string | null): Promise<boolean> =>
+    this.store.renameSection(id, title);
+  readonly createSectionFromDialog = async (type: string, title: string | null): Promise<string | null> => {
+    const intent = this.pendingInsertion();
+    if (intent === null) return 'Choose an insertion point before creating a section.';
+    const position = this.resolvePosition(intent);
+    if (position === null) return 'That insertion point is no longer available. Close this dialog and choose another point.';
+    const definition = definitionFor(type);
+    if (definition === undefined) return 'This section type is not available.';
+    const result = await this.store.addSection(definition, {
+      position,
+      columnSpan: intent.columnSpan,
+      ...(title === null ? {} : { title }),
+    });
+    return result.ok ? null : result.message;
+  };
+  readonly createShortcutFromDialog = async (source: ShortcutSource): Promise<string | null> => {
+    const intent = this.pendingInsertion();
+    if (intent === null) return 'Choose an insertion point before creating a shortcut.';
+    const position = this.resolvePosition(intent);
+    if (position === null) return 'That insertion point is no longer available. Close this dialog and choose another point.';
+    const result = await this.store.addShortcut({
+      pageId: this.pageId(),
+      sourceSectionId: source.sourceSectionId,
+      position,
+      columnSpan: intent.columnSpan,
+    });
+    return result.ok ? null : result.message;
+  };
 
   constructor() {
-    // Re-loads when the page changes, which the column does without re-creating this
-    // component, and which the shell also does when the route moves to another project.
     effect(() => {
       const projectId = this.projectId();
       const pageId = this.pageId();
       const shortcutsAllowed = this.shortcutsAllowed();
-      this.addOpen.set(false);
-      this.shortcutPickerOpen.set(false);
+      this.createDialogOpen.set(false);
+      this.pendingInsertion.set(null);
       untracked(() => void this.store.load(projectId, pageId, shortcutsAllowed));
     });
     this.watchNavigationTarget();
   }
 
-  /**
-   * Arrival: expand the target for this visit, put the reader at its heading, and scroll it into
-   * view. Registered from an effect so it waits for the data, and run after the next render so it
-   * waits for the DOM — the frame has to have drawn its content before the heading can be focused.
-   *
-   * `lastTargetKey` is what stops it running twice for one arrival, and what makes a *new* target
-   * or a page change a fresh arrival rather than a repeat of the old one.
-   */
   private watchNavigationTarget(): void {
     effect(() => {
       const pageId = this.pageId();
@@ -165,11 +174,8 @@ export class ProjectCanvas {
       const key = target === null ? null : `${pageId}:${target}`;
       if (key === this.lastTargetKey) return;
       this.lastTargetKey = key;
-      // A new target — or none — starts with no release: the previous one belonged to a
-      // container the reader has navigated away from.
       this.releasedTarget.set(null);
-      if (target === null) return;
-      afterNextRender(() => this.revealTarget(target), { injector: this.injector });
+      if (target !== null) afterNextRender(() => this.revealTarget(target), { injector: this.injector });
     });
   }
 
@@ -178,7 +184,6 @@ export class ProjectCanvas {
       (element) => element.getAttribute('data-section-id') === sectionId,
     ) as HTMLElement | undefined;
     if (wrapper === undefined) return;
-    // Optional: jsdom has no layout, and a canvas that could not scroll must still focus.
     wrapper.scrollIntoView?.({ block: 'start' });
     (wrapper.querySelector('[data-section-title]') as HTMLElement | null)?.focus({ preventScroll: true });
   }
@@ -187,22 +192,104 @@ export class ProjectCanvas {
     return definitionFor(type);
   }
 
-  toggleAdd(): void {
-    this.addOpen.update((open) => !open);
+  placementId(placement: ProjectCanvasPlacement): string {
+    return placementId(placement);
   }
 
-  closeAdd(): void {
-    this.addOpen.set(false);
-    this.shortcutPickerOpen.set(false);
+  placementName(placement: ProjectCanvasPlacement): string {
+    return placement.kind === 'section' ? nameOf(placement.section) : nameOf(placement.shortcut.source);
   }
 
-  toggleEditMode(): void {
-    const editing = !this.store.editMode();
-    this.store.setEditMode(editing);
-    if (!editing) {
-      this.addOpen.set(false);
-      this.shortcutPickerOpen.set(false);
+  displayedSpan(placement: ProjectCanvasPlacement): SectionColumnSpan {
+    return this.resizePreview()[placementId(placement)] ?? placementSpan(placement);
+  }
+
+  resizeMeasureFor(id: string): () => ResizeMeasurement {
+    let measure = this.resizeMeasures.get(id);
+    if (measure !== undefined) return measure;
+    measure = () => {
+      const canvas = this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]');
+      const style = canvas === null ? null : getComputedStyle(canvas);
+      return {
+        trackWidth: canvas?.getBoundingClientRect().width ?? 0,
+        columnGap: style === null ? 0 : Number.parseFloat(style.columnGap) || 0,
+      };
+    };
+    this.resizeMeasures.set(id, measure);
+    return measure;
+  }
+
+  setResizePreview(id: string, span: SectionColumnSpan): void {
+    this.resizePreview.update((current) => ({ ...current, [id]: span }));
+  }
+
+  clearResizePreview(id: string): void {
+    this.resizePreview.update((current) => {
+      if (!(id in current)) return current;
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  }
+
+  commitResize(placement: ProjectCanvasPlacement, span: SectionColumnSpan): void {
+    const id = placementId(placement);
+    this.clearResizePreview(id);
+    if (span === placementSpan(placement)) return;
+    if (placement.kind === 'section') void this.store.setColumnSpan(placement.section.id, span);
+    else void this.store.setColumnSpanShortcut(placement.shortcut.id, span);
+  }
+
+  cancelResize(placement: ProjectCanvasPlacement): void {
+    this.clearResizePreview(placementId(placement));
+  }
+
+  gapTargetsAfter(placement: ProjectCanvasPlacement): GridInsertionTarget[] {
+    const id = placementId(placement);
+    return this.insertionGaps().filter((target) => target.hostId === id);
+  }
+
+  gapWidth(target: GridInsertionTarget): string {
+    return `calc((100% + var(--space-4)) / ${target.hostSpan} * ${target.availableColumns} - var(--space-4))`;
+  }
+
+  openCreate(intent: InsertionIntent): void {
+    if (!this.store.orderComplete()) return;
+    this.pendingInsertion.set(intent);
+    this.returnFocusTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.createDialogOpen.set(true);
+  }
+
+  unknownMoveKeydown(event: KeyboardEvent, id: string): void {
+    if (!this.store.orderComplete()) {
+      event.preventDefault();
+      return;
     }
+    if (this.keyboardMovePending().has(id)) {
+      event.preventDefault();
+      return;
+    }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+      event.preventDefault();
+      void this.moveWithKeyboard(id, 'previous');
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      void this.moveWithKeyboard(id, 'next');
+    }
+  }
+
+  closeCreate(): void {
+    this.createDialogOpen.set(false);
+    this.pendingInsertion.set(null);
+    const focusTarget = this.returnFocusTo;
+    this.returnFocusTo = null;
+    afterNextRender(() => focusTarget?.isConnected && focusTarget.focus(), { injector: this.injector });
+  }
+
+  resolvePosition(intent: InsertionIntent): number | null {
+    if (intent.beforeId === null) return this.store.placements().length;
+    const index = this.store.placements().findIndex((placement) => placementId(placement) === intent.beforeId);
+    return index < 0 ? null : index;
   }
 
   async drop(event: CdkDragDrop<unknown>): Promise<void> {
@@ -214,8 +301,6 @@ export class ProjectCanvas {
       ? await this.store.moveShortcut(id as SectionShortcutId, event.currentIndex)
       : await this.store.moveSection(id as SectionId, event.currentIndex);
     if (!persisted && this.pageId() === droppedPageId) {
-      // Mixed-orientation CDK moves DOM nodes directly. A rejected write must destroy that
-      // physical order before recreating the canvas from the canonical store array.
       this.canvasMounted.set(false);
       this.changeDetector.detectChanges();
       this.canvasMounted.set(true);
@@ -223,47 +308,42 @@ export class ProjectCanvas {
     }
   }
 
-  async add(type: string): Promise<void> {
-    const definition = definitionFor(type);
-    if (definition === undefined) return;
-    await this.store.addSection(definition);
-    this.addOpen.set(false);
-  }
-
-  openShortcutPicker(): void {
-    if (!this.shortcutsAllowed()) return;
-    this.addOpen.set(false);
-    this.shortcutPickerOpen.set(true);
-    void this.shortcutStore.load(this.projectId(), this.pageId());
-  }
-
-  closeShortcutPicker(): void {
-    this.shortcutPickerOpen.set(false);
-  }
-
-  shortcutAdded(): void {
-    this.shortcutPickerOpen.set(false);
-    void this.shortcutStore.refresh(this.projectId(), this.pageId());
+  async moveWithKeyboard(id: string, direction: 'previous' | 'next'): Promise<void> {
+    if (!this.store.orderComplete()) return;
+    const placements = this.store.placements();
+    const from = placements.findIndex((placement) => placementId(placement) === id);
+    if (from < 0) return;
+    const position = from + (direction === 'previous' ? -1 : 1);
+    if (position < 0 || position >= placements.length) return;
+    const moved = placements[from]!;
+    this.keyboardMovePending.update((current) => new Set(current).add(id));
+    const ok = moved.kind === 'section'
+      ? await this.store.moveSection(moved.section.id, position)
+      : await this.store.moveShortcut(moved.shortcut.id, position);
+    if (ok) {
+      this.liveAnnouncement.set(`Moved ${this.placementName(moved)} to position ${position + 1} of ${placements.length}.`);
+    }
+    afterNextRender(() => {
+      const handle = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-section-drag-handle], [data-shortcut-drag-handle]')]
+        .find((element) => element.closest<HTMLElement>('[data-section-id], [data-shortcut-id]')?.dataset['sectionId'] === id
+          || element.closest<HTMLElement>('[data-section-id], [data-shortcut-id]')?.dataset['shortcutId'] === id);
+      handle?.focus();
+      this.keyboardMovePending.update((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    }, { injector: this.injector });
   }
 
   collapseShortcut(event: { id: SectionShortcutId; collapsed: boolean }): void {
     void this.store.setCollapsedShortcut(event.id, event.collapsed);
   }
 
-  resizeShortcut(event: { id: SectionShortcutId; columnSpan: SectionColumnSpan }): void {
-    void this.store.setColumnSpanShortcut(event.id, event.columnSpan);
-  }
-
   removeShortcut(id: SectionShortcutId): void {
     void this.store.removeShortcut(id);
   }
 
-  /**
-   * Both halves of §31's remove, once the dialog has asked which one the user meant.
-   * `cascade` archives the section **and** its rows — undoable from Archived, in one click —
-   * and `reassign` hands the rows to another container of the same type, then archives the
-   * emptied section.
-   */
   cascadeAndRemove(id: SectionId): void {
     void this.store.removeSection(id, { policy: 'cascade' });
   }
@@ -272,20 +352,9 @@ export class ProjectCanvas {
     void this.store.removeSection(id, { policy: 'reassign', reassignToSectionId });
   }
 
-  renameSection(event: { id: SectionId; title: string | null }): void {
-    void this.store.renameSection(event.id, event.title);
-  }
-
   collapse(event: { id: SectionId; collapsed: boolean }): void {
-    // Collapsing the container this visit opened is the reader saying "I am done with it": the
-    // transient override is released and the canonical operation runs, exactly as on any other
-    // frame. Arriving wrote nothing; this is the first write either way.
     if (event.id === this.targetSectionId()) this.releasedTarget.set(event.id);
     void this.store.setCollapsed(event.id, event.collapsed);
-  }
-
-  resize(event: { id: SectionId; columnSpan: SectionColumnSpan }): void {
-    void this.store.setColumnSpan(event.id, event.columnSpan);
   }
 
   saveConfig(event: { id: SectionId; config: SectionConfig }): void {
@@ -303,7 +372,12 @@ export class ProjectCanvas {
   }
 }
 
-/** The section id a fragment names, if it names one at all. Ids are never trusted as selectors. */
+const placementId = (placement: ProjectCanvasPlacement): string =>
+  placement.kind === 'section' ? placement.section.id : placement.shortcut.id;
+
+const placementSpan = (placement: ProjectCanvasPlacement): SectionColumnSpan =>
+  placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan;
+
 const requestedSectionId = (fragment: string | null): SectionId | null => {
   if (fragment === null || !fragment.startsWith('section-')) return null;
   const id = fragment.slice('section-'.length);

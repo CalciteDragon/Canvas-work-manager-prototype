@@ -9,6 +9,7 @@
  * `PROTOTYPE_API_BASE_URL` string.
  */
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
+import type { CreateSectionInput, Project, ProjectLayoutMode, ProjectSection } from '@cwm/contracts';
 
 const HOST = 'http://127.0.0.1:4310';
 
@@ -64,6 +65,41 @@ export const seed = (name: string): Promise<void> => post('/prototype/seed', { s
 
 /** §45's simulated clock, so the dashboard's date arithmetic is deterministic. */
 export const setClock = (now: string | null): Promise<void> => post('/prototype/clock', { now });
+
+/** Create a root project in the current Demo workspace for focused canvas journeys. */
+export const createRoot = async (name: string): Promise<Project> => {
+  const { workspace } = await api.get<{ workspace: { id: string } }>('/api/me');
+  return api.post<Project>('/api/projects', {
+    workspaceId: workspace.id,
+    kind: 'root',
+    name,
+  });
+};
+
+/** Add a predictable work tree under a root, retaining the returned ids in display order. */
+export const createSubprojects = async (rootId: string, count: number): Promise<Project[]> => {
+  const { workspace } = await api.get<{ workspace: { id: string } }>('/api/me');
+  const projects: Project[] = [];
+  for (let index = 0; index < count; index += 1) {
+    projects.push(
+      await api.post<Project>('/api/projects', {
+        workspaceId: workspace.id,
+        kind: 'subproject',
+        parentProjectId: rootId,
+        name: `Work unit ${String(index + 1).padStart(2, '0')}`,
+      }),
+    );
+  }
+  return projects;
+};
+
+/** Create a section on the project's canonical canvas, optionally at a combined-order index. */
+export const addSection = (projectId: string, input: CreateSectionInput): Promise<ProjectSection> =>
+  api.post(`/api/projects/${projectId}/sections`, input);
+
+/** Persist the project layout flag through the same host API used by the development panel. */
+export const setLayout = (projectId: string, projectLayoutMode: ProjectLayoutMode): Promise<Project> =>
+  api.patch<Project>(`/api/projects/${projectId}`, { projectLayoutMode });
 
 /** A real MCP client for the live HTTP journey, not a fetch-shaped protocol imitation. */
 export const connectMcp = async (token: string, name = 'cwm-e2e'): Promise<Client> => {

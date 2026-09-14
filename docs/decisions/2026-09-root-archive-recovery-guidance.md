@@ -45,3 +45,9 @@ display density and blocker wording because the archived tree was still a delibe
 
 After a multiweek pass with several archive/recovery cases, or sooner if browser use shows that the
 root-wide list, stable ordering or explicit recovery guidance does not make the next action obvious.
+
+**Amended, 2026-09-13.** Slice 27 removes **Open archive** from the project navigation column.
+The project's More menu opens the Archive page from root and nested work routes, including when
+the optional Archive tab is disabled. The entry point still navigates only after page context
+reconciliation succeeds; the recovery model and its canonical operations are unchanged. See
+[the contextual chrome decision](2026-09-canvas-chrome-is-revealed-not-moded.md).

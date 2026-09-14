@@ -86,7 +86,8 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
 
   await page.goto(`/projects/${root.id}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Archive journey');
-  await page.locator('[data-project-nav-open-archive]').click();
+  await page.locator('[data-project-more]').click();
+  await page.locator('[data-project-open-archive]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
   await expect(page.locator('[data-archive-page]')).toBeVisible();
 
@@ -154,8 +155,8 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
   await api('PATCH', `/api/projects/${root.id}/pages/archive`, { enabled: false });
   await page.goto(`/projects/${root.id}/pages/archive`);
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/home$`));
-  await expect(page.locator('[data-project-nav-open-archive]')).toBeVisible();
-  await page.locator('[data-project-nav-open-archive]').click();
+  await page.locator('[data-project-more]').click();
+  await page.locator('[data-project-open-archive]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
   await expect(page.locator('[data-archive-page]')).toBeVisible();
 });

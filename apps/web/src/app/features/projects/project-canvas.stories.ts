@@ -102,15 +102,9 @@ export const Grid: Story = {
   decorators: canvas(GRID),
 };
 
-/**
- * §32's Edit Layout Mode is entered from the canvas's own control, so this story is Flow with
- * the toggle waiting — drag handles, sizing, remove and Quick add all appear behind it.
- */
-export const EditLayout: Story = {
+/** Layout controls and insertion affordances are part of the canvas at all times. */
+export const DirectCanvasEditing: Story = {
   decorators: canvas(FLOW),
-  play: async ({ canvasElement }) => {
-    canvasElement.querySelector<HTMLButtonElement>('[data-layout-edit-toggle]')?.click();
-  },
 };
 
 /** The state a new page starts in, and the one that has to invite rather than look broken. */

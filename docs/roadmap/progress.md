@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 27 | Slice 27 — Direct canvas editing and navigation cleanup | Contextual section creation, snapped resizing, inline naming and hover controls, plus sidebar and indicator fixes | [27-direct-canvas-editing.md](active/27-direct-canvas-editing.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -65,4 +63,5 @@ verification follow-ups rather than feature slices.
 | 25.7 | Slice 25.7 — Completed-work reflections | 2026-09-07 | Subject-linked reflections, the root journal feed, the completed-work picker and get_project_journal | [25.7-completed-work-reflections.md](completed/25.7-completed-work-reflections.md) |
 | 25.8 | Slice 25.8 — Integrated acceptance and documentation closure | 2026-09-08 | Integrated browser and MCP acceptance on the nested-projects showcase, and documentation closure | [25.8-integrated-acceptance-and-documentation-closure.md](completed/25.8-integrated-acceptance-and-documentation-closure.md) |
 | 26 | Slice 26 — Documentation overhaul | 2026-09-10 | Living documentation tree and roadmap; Compodoc links and completion guards verified | [26-documentation-overhaul.md](completed/26-documentation-overhaul.md) |
+| 27 | Slice 27 — Direct canvas editing and navigation cleanup | 2026-09-13 | Direct canvas editing, positioned creation, resizing, navigation cleanup and MCP acceptance are implemented and verified. | [27-direct-canvas-editing.md](completed/27-direct-canvas-editing.md) |
 <!-- roadmap:end -->

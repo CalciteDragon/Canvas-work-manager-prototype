@@ -22,8 +22,8 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
 - `ProjectPageNavigation`: the column — pages, optional-page toggles, the work tree —
   placed beside the sidebar by one `:has()` rule.
 - `ProjectCanvas` + `ProjectPageStore`: one page's sections and shortcut placements in
-  flow or grid, CDK drag-drop, View versus Edit Layout Mode, Quick Add, the removal
-  dialog with its cascade/reassign choice, canonical navigation to `#section-<id>`.
+  flow or grid, direct drag, contextual insertion, snapped resizing, inline naming and
+  removal, plus canonical navigation to `#section-<id>`.
 - `SECTION_REGISTRY` and the section types: Rich Text, Task List, Sub-Projects,
   Progress, Reflections, Timeline, Recent Activity — each its own folder inside
   `ProjectSectionFrame`.

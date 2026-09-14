@@ -51,10 +51,11 @@ test('create a project, add a task list, add a task, and see it on Today', async
   await page.goto(`/projects/${projectId}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Prototype review');
 
-  // Quick add renders only under §32's Edit Layout Mode.
-  await page.locator('[data-layout-edit-toggle]').click();
-  await page.locator('[data-project-quick-add]').click();
-  await page.locator('[data-add-section][data-section-type="task-list"]').click();
+  // Slice 27 creates the first section from the empty canvas itself; task entry remains
+  // available inside the section without enabling a separate layout mode.
+  await page.locator('[data-empty-canvas-add]').click();
+  await page.locator('[data-create-section-type]').selectOption('task-list');
+  await page.locator('[data-create-section-submit]').click();
   await expect(page.locator('[data-section-frame][data-section-type="task-list"]')).toBeVisible();
 
   await page.locator('[data-quick-task-title]').fill('Write the walkthrough');
@@ -83,15 +84,15 @@ test('create a project, add a task list, add a task, and see it on Today', async
   await page.locator('[data-project]').click();
   await expect(page.locator('[data-task-row]')).toHaveCount(1);
 
-  await page.locator('[data-layout-edit-toggle]').click();
   await page.locator('[data-section-remove]').click();
   // A container still holding live rows asks what should happen to them.
   await page.locator('[data-section-removal-cascade]').click();
   await expect(page.locator('[data-section-frame][data-section-type="task-list"]')).toHaveCount(0);
 
-  // Archive is a root-wide page, so the navigation-context affordance enables and opens it
-  // even though this fixture never enabled the optional tab.
-  await page.locator('[data-project-nav-open-archive]').click();
+  // Archive is root-wide. The project menu can enable and open it even though this fixture
+  // never enabled the optional tab.
+  await page.locator('[data-project-more]').click();
+  await page.locator('[data-project-open-archive]').click();
   await expect(page).toHaveURL(/\/projects\/[^/]+\/pages\/archive$/);
   await expect(page.locator('[data-archive-page]')).toBeVisible();
   await expect(page.locator('[data-archived-item][data-archived-kind="section"]')).toContainText('Task List');
@@ -184,7 +185,6 @@ test('nested-projects is a coherent multi-page showcase across chronology, short
   expect(afterComplete.sections).toEqual(beforeComplete.sections);
   expect(afterComplete.shortcuts).toEqual(beforeComplete.shortcuts);
 
-  await page.locator('[data-layout-edit-toggle]').click();
   await kitchenShortcut.locator('[data-shortcut-remove]').click();
   await expect(page.locator('[data-shortcut-frame]', { hasText: 'Choose appliance finishes' })).toHaveCount(0);
   const afterRemove = await sourceSnapshot();

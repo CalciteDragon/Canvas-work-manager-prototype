@@ -88,7 +88,6 @@ const meta: Meta<ShortcutFrame> = {
   ],
   args: {
     shortcut: shortcut(),
-    editMode: false,
     projectDataRevision: 0,
     projectHierarchyRevision: 0,
   },
@@ -98,7 +97,7 @@ export default meta;
 type Story = StoryObj<ShortcutFrame>;
 
 export const ReadOnly: Story = {};
-export const Editing: Story = { args: { editMode: true } };
+export const DirectChrome: Story = {};
 export const Collapsed: Story = { args: { shortcut: shortcut({ collapsed: true }) } };
 export const SourceArchived: Story = {
   args: { shortcut: shortcut({ availability: 'source_archived' }) },
@@ -129,7 +128,7 @@ export const PermissionDenied: Story = {
 };
 
 export const RemovePlacement: Story = {
-  args: { editMode: true, removeRequested: fn() },
+  args: { removeRequested: fn() },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Remove shortcut to Rich Text' }));

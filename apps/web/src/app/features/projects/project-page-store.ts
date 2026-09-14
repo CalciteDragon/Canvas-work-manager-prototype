@@ -447,10 +447,9 @@ export class ProjectPageStore {
   }
 
   /**
-   * §26's Quick Add. The registry's default config is what reaches persistence, and the
-   * canvas's own `pageId` travels with it: §27 resolves an unnamed write onto the project's
-   * canonical page, which is the right answer for Home and a work canvas and the wrong one
-   * for every other page a root can show.
+   * Creates a section at a position in this page's combined placement order. The canvas
+   * passes the registry's default config and resolves its remembered anchor before calling
+   * here; an absent `position` still appends through the shared contract and domain rule.
    */
   addSection(
     definition: SectionDefinition,
@@ -502,6 +501,7 @@ export class ProjectPageStore {
     const projectId = this.requestedProjectId;
     const pageId = this.requestedPageId;
     if (!this.loaded || projectId === undefined || pageId === undefined) return Promise.resolve(false);
+    if (!this.orderCompleteState()) return Promise.resolve(false);
 
     const before = this.placementsState();
     const from = before.findIndex((placement) => placement.kind === 'section' && placement.section.id === id);
@@ -590,6 +590,7 @@ export class ProjectPageStore {
     if (!this.loaded || this.requestedProjectId === undefined || this.requestedPageId === undefined) {
       return Promise.resolve(false);
     }
+    if (!this.orderCompleteState()) return Promise.resolve(false);
     const before = this.placementsState();
     const from = before.findIndex((placement) => placement.kind === 'shortcut' && placement.shortcut.id === id);
     if (from < 0) return Promise.resolve(false);

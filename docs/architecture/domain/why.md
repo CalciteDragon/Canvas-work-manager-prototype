@@ -35,8 +35,9 @@ optional zero-based `position`; the service inserts it into the page's combined 
 renumbers the affected placements inside the existing unit of work. Creating at the end and
 then calling `move` was rejected because it would split one creation into two writes and two
 activity events. The caller-selected insertion follows the approved direct-editing direction
-([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)); the order itself is
-shared by sections and shortcuts
+([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)); the create-position rule
+is recorded in [contextual insertion names its position](../../decisions/2026-09-contextual-insertion-names-its-position.md).
+The order itself is shared by sections and shortcuts
 ([decision](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)).
 
 **Permissions live on the actor** and are asserted inside the domain, not at the transport

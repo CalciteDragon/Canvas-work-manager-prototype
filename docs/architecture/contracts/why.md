@@ -34,8 +34,9 @@ without a transport-specific field or a second move operation. The existing comb
 order for sections and Home shortcuts remains the ordering base
 ([decision](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)); the
 optional insertion behavior follows the approved direct-editing direction
-([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)). The domain applies it
-as part of creation.
+([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)), with the create-position
+rule recorded in [contextual insertion names its position](../../decisions/2026-09-contextual-insertion-names-its-position.md).
+The domain applies it as part of creation.
 
 **`Project` is a discriminated union on `kind`** (`root` | `subproject`) since 25.1, so a
 workspace and a unit of work differ by what the parser enforces rather than by what each

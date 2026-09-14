@@ -41,6 +41,12 @@ describe('RichTextSection (§30)', () => {
     expect(textarea.value).toBe('Launch week notes');
   });
 
+  it('lets wrapped content determine the editor height instead of exposing vertical resizing', () => {
+    const { textarea } = render({ text: 'A note that wraps as the section becomes narrower.' });
+
+    expect(getComputedStyle(textarea).resize).toBe('none');
+  });
+
   it('does not report project data changes for section-local text', () => {
     const { textarea, onProjectDataChange } = render({ text: 'before' });
     textarea.value = 'after'; textarea.dispatchEvent(new Event('blur'));

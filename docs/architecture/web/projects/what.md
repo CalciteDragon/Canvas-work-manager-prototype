@@ -19,7 +19,7 @@ flowchart TB
   tstore["TodosPageStore"]
   astore["ArchivePageStore"]
   rstore["ReflectionsPageStore"]
-  frame["ProjectSectionFrame<br/>chrome: drag, title, collapse, settings, size, duplicate, remove"]
+  frame["ProjectSectionFrame<br/>chrome: drag, inline title, collapse, settings, archive"]
   sreg["SECTION_REGISTRY"]
   subgraph sections["Section contents (SectionContentComponent)"]
     rt["RichTextSection"]
@@ -32,6 +32,7 @@ flowchart TB
   end
   sc["ShortcutFrame (read-only source) · ShortcutPicker · ShortcutStore"]
   dialog["SectionRemovalDialog"]
+  create["SectionCreateDialog · InsertionPoint · SectionResizeHandle"]
   shell --> wstore
   shell --> nav
   shell --> header
@@ -43,6 +44,7 @@ flowchart TB
   canvas --> frame --> sreg --> sections
   canvas --> sc
   canvas --> dialog
+  canvas --> create
 ```
 
 ## Opening a root's Home
@@ -75,14 +77,16 @@ sequenceDiagram
 | `ProjectHeader`, `ProjectMoreMenu` | `project-header.ts`, `project-more-menu.ts` | Name, status, progress, target date; rename/status/date/archive |
 | `PROJECT_PAGE_REGISTRY`, `ProjectPageDefinition` | `project-page-registry.ts` | Navigable kinds → renderer and label |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | `project-page-contract.ts` | What every renderer receives |
-| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: controls row, drag-drop, removal dialog, arrival at `#section-<id>` |
-| `ProjectPageStore`, `SectionRemovalPrompt` | `project-page-store.ts` | Sections and placements of one page; the typed refusal |
+| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, removal dialog and arrival at `#section-<id>` |
+| `ProjectPageStore`, `CanvasWriteResult`, `SectionRemovalPrompt` | `project-page-store.ts` | Sections and placements of one page; positioned creation, optimistic width writes and typed removal refusal |
 | `SectionRemovalDialog` | `section-removal-dialog.ts` | Cascade or reassign, containers by name |
+| `SectionCreateDialog` | `section-create-dialog.ts` | Section or Home shortcut creation at the selected canvas position |
+| `CanvasIcon`, `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps` | `canvas-chrome/` | Shared SVG canvas controls, insertion overlays, snapped resize and sparse-grid gap targets |
 | `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with inline completion and canonical links |
 | `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's root-wide projection and restores |
 | `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal |
 | `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29 |
 | `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |
-| `ProjectSectionFrame` | `sections/section-frame/` | §31's chrome, with the Name field in its inspector |
+| `ProjectSectionFrame` | `sections/section-frame/` | §31's always-available drag, collapse, inline title, optional inspector and archive controls |
 | Seven section types | `sections/{rich-text,tasks,sub-projects,progress,reflections,timeline,activity}/` | Content components and their stores |
 | `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's Home shortcuts |

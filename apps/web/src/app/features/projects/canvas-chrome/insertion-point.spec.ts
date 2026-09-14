@@ -43,8 +43,8 @@ describe('InsertionPoint (§27)', () => {
     const end = render('end', null, 12, 'Add section at the end');
     const before = render('before', 'section-b', 8, 'Add section before Backlog');
 
-    expect(end.nativeElement.querySelector('[data-insertion-point="end"]')).not.toBeNull();
-    expect(before.nativeElement.querySelector('[data-insertion-point="before"]')).not.toBeNull();
+    expect(end.nativeElement.matches('[data-insertion-point="end"]')).toBe(true);
+    expect(before.nativeElement.matches('[data-insertion-point="before"]')).toBe(true);
     const seen: unknown[] = [];
     end.componentInstance.selected.subscribe((intent) => seen.push(intent));
     end.nativeElement.querySelector('button')?.click();

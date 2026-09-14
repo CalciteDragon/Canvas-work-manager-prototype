@@ -1,5 +1,7 @@
 # View Mode shows work; Edit Layout Mode shows canvas chrome
 
+> **Superseded by [Canvas chrome is revealed in place, not gated by an editing mode](2026-09-canvas-chrome-is-revealed-not-moded.md), 2026-09-13.** Slice 27 removes Edit Layout Mode and its visibility rules. This entry remains the record of the earlier design and why it was chosen then.
+
 **Question**
 
 Which section-frame controls belong in the normal workspace, and which should appear only

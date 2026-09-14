@@ -20,7 +20,7 @@ completed implementation experiment.
 
 **Current decision**
 
-Open [Slice 27](../roadmap/active/27-direct-canvas-editing.md) with the approved feature
+Open [Slice 27](../roadmap/completed/27-direct-canvas-editing.md) with the approved feature
 specification before writing an implementation plan. It is the authoritative record of
 the accepted interactions and acceptance criteria. Keep the existing 4/6/8/12 widths and
 ordered, wrapping layout; empty areas offer insertion rather than reserved cells. Preserve
@@ -43,3 +43,15 @@ keyboard and touch verification during development.
 
 Slice 27 is implemented and used with realistic mixed-width content, especially grid-gap
 insertion, resize reflow and discoverability without hover.
+
+**Amended, 2026-09-13.** Slice 27 implements the approved direct-editing direction. The settled
+positioning contract is recorded in [Contextual insertion remembers its target and creates in
+one positioned write](2026-09-contextual-insertion-names-its-position.md); the in-place,
+accessible canvas controls and failure behavior are recorded in
+[Canvas chrome is revealed in place, not gated by an editing mode](2026-09-canvas-chrome-is-revealed-not-moded.md).
+The product spec now describes the landed behavior in §23, §26–§27 and §31–§32. This entry's
+original text remains the record of the approved direction before implementation.
+
+**Amended, 2026-09-13.** The implementation phase is closed; see the
+[completed Slice 27 record](../roadmap/completed/27-direct-canvas-editing.md) for its outcome
+and verification.

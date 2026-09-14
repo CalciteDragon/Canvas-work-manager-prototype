@@ -61,9 +61,10 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Live work under an archived ancestor is hidden, and cannot be newly created](2026-09-reactivating-under-an-archived-ancestor.md) | The archived-ancestor rule and its transition check | current |
 | [A shortcut resolves source identity, not source content](2026-09-a-shortcut-resolves-identity-not-content.md) | `SectionShortcutService` never reads rows | current |
 | [Home orders sections and shortcuts together](2026-09-home-orders-sections-and-shortcuts-together.md) | One combined placement sequence per page | current |
+| [Contextual insertion remembers its target and creates in one positioned write](2026-09-contextual-insertion-names-its-position.md) | Optional domain `position`; UI resolves stable anchors; Grid gaps are transient targets | current |
 | [What the Todos page decides for itself](2026-09-todos-chronology-and-canonical-navigation.md) | Instants compared as text; no tab required; completion one-way | current |
 | [Reflection subjects and the root journal feed](2026-09-reflection-subjects-and-the-journal-feed.md) | Optional subject id; journal resolves current state | current |
-| [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | What the Archive projection says about each item's restore path | current |
+| [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | What the Archive projection says about each item's restore path | amended |
 
 ## Repositories
 
@@ -98,7 +99,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 | Entry | Settled | Status |
 |---|---|---|
-| [Direct canvas editing is the next development direction](2026-09-direct-canvas-editing-direction.md) | Approved Slice 27 specification; contextual controls and existing width snaps | approved direction; not implemented |
+| [Direct canvas editing is the next development direction](2026-09-direct-canvas-editing-direction.md) | Approved direction, implemented in Slice 27 | implemented in Slice 27 |
+| [Canvas chrome is revealed in place, not gated by an editing mode](2026-09-canvas-chrome-is-revealed-not-moded.md) | Contextual reveal, keyboard and touch behavior, optimistic resize; pending shortcut writes and complete-order movement guards amended | amended |
 | [The gateway interface grows with its implementations](2026-08-gateway-surface-grows-with-implementations.md) | No stubbed gateway members | current |
 | [A theme change lasts the session, not the persona](2026-08-theme-selection-is-session-only.md) | `ThemeService` owns `data-theme`; nothing persists it | current |
 | [How live reconnects recover derived project views](2026-08-live-recovery-invalidates-derived-views.md) | Reconnect invalidates derived reads quietly | current |
@@ -106,11 +108,11 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [The dashboard splits layout from content](2026-08-dashboard-layout-and-content-split.md) | Widgets from `IdentityProvider`, content from one read | current |
 | [Where dashboard widgets live](2026-08-dashboard-widget-ownership.md) | One folder per widget, one registry line | current |
 | [Flow and grid both remain prototype layout candidates](2026-08-flow-vs-grid-layout-experiment.md) | Both modes persist per project; no freeform canvas | open experiment |
-| [View Mode shows work; Edit Layout Mode shows canvas chrome](2026-08-view-mode-section-chrome.md) | Which controls each mode reveals | current |
-| [The project header's Quick Add adds a section](2026-08-project-header-quick-add.md) | Registry-driven add; it now lives on the canvas | amended |
+| [View Mode shows work; Edit Layout Mode shows canvas chrome](2026-08-view-mode-section-chrome.md) | Earlier mode-based visibility rules | superseded |
+| [The project header's Quick Add adds a section](2026-08-project-header-quick-add.md) | Quick Add's former meaning and placement | amended |
 | [The smallest surface that makes §81's project verbs demonstrable](2026-08-project-create-edit-archive-surface.md) | Sidebar create; More menu for rename, status, date, archive | current |
 | [§4's *Agent Modified* task row has no data behind it](2026-08-agent-modified-has-no-data-behind-it.md) | Six of seven `TaskRow` variants; the seventh is a §58 question | current |
-| [Where the project navigation column lives, and what moved with it](2026-09-where-the-project-navigation-column-lives.md) | In the projects feature, placed by one `:has()` rule | current |
+| [Where the project navigation column lives, and what moved with it](2026-09-where-the-project-navigation-column-lives.md) | In the projects feature; height and recovery entry amended in Slice 27 | amended |
 | [Optional page management lives in project navigation](2026-09-optional-page-management-lives-in-project-navigation.md) | The page toggles sit in the navigation column | current |
 | [The development panel is an overlay and a route, sharing one control set](2026-08-development-panel-surface.md) | `DevPanelControls` is the one implementation of every control | current |
 | [What §46's Agent Connection control is](2026-08-agent-connection-panel-control-is-a-roster.md) | A read-only roster with copyable tokens | current |

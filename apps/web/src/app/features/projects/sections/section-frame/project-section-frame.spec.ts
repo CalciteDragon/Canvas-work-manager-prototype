@@ -3,7 +3,7 @@ import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { By } from '@angular/platform-browser';
 import { TestBed } from '@angular/core/testing';
 import { ProjectSectionSchema, type ProjectSection, type SectionConfig } from '@cwm/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { SectionDefinition } from '../registry';
 import { ProjectSectionFrame } from './project-section-frame';
 
@@ -86,13 +86,13 @@ const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefiniti
 const render = (
   overrides: Record<string, unknown> = {},
   definitionOverrides: Partial<SectionDefinition> = {},
-  editMode = true,
+  rename: (id: string, title: string | null) => Promise<boolean> = async () => true,
 ) => {
   inputChanges = 0;
   const fixture = TestBed.createComponent(ProjectSectionFrame);
   fixture.componentRef.setInput('section', section(overrides));
   fixture.componentRef.setInput('definition', definition(definitionOverrides));
-  fixture.componentRef.setInput('editMode', editMode);
+  fixture.componentRef.setInput('rename', rename);
   fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.componentRef.setInput('projectHierarchyRevision', 0);
   fixture.detectChanges();
@@ -103,14 +103,16 @@ const query = (fixture: ReturnType<typeof render>, selector: string) =>
   fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
 describe('ProjectSectionFrame (§31)', () => {
-  it('renders the registered content component inside the shared chrome', () => {
+  it('renders always-available SVG chrome and the registered content component', () => {
     const fixture = render();
 
     expect(query(fixture, '[data-section-drag-handle]')).not.toBeNull();
     expect(query(fixture, '[data-section-collapse]')).not.toBeNull();
-    expect(query(fixture, '[data-section-size]')).not.toBeNull();
-    expect(query(fixture, '[data-section-duplicate]')).not.toBeNull();
     expect(query(fixture, '[data-section-remove]')).not.toBeNull();
+    expect(query(fixture, '[data-section-size]')).toBeNull();
+    expect(query(fixture, '[data-section-duplicate]')).toBeNull();
+    expect(query(fixture, '[data-section-frame]')?.textContent).not.toMatch(/[⠿▸▾â]/);
+    expect(query(fixture, '[data-section-drag-handle] svg')).not.toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Test Content');
     expect(query(fixture, '[data-test-save]')).not.toBeNull();
   });
@@ -121,22 +123,16 @@ describe('ProjectSectionFrame (§31)', () => {
     expect(fixture.nativeElement.textContent).toContain('This week');
   });
 
-  it('emits collapse, resize, duplicate, remove and config-change intent without a gateway', () => {
+  it('emits collapse and remove intent and forwards content changes without a gateway', () => {
     const fixture = render();
     const frame = fixture.componentInstance;
     const seen: unknown[] = [];
     frame.collapseToggled.subscribe((event) => seen.push(['collapse', event]));
-    frame.resized.subscribe((event) => seen.push(['resize', event]));
-    frame.duplicateRequested.subscribe((event) => seen.push(['duplicate', event]));
     frame.removeRequested.subscribe((event) => seen.push(['remove', event]));
     frame.configChanged.subscribe((event) => seen.push(['config', event]));
     frame.projectHierarchyChanged.subscribe(() => seen.push(['hierarchy']));
 
     query(fixture, '[data-section-collapse]')!.click();
-    const size = query(fixture, '[data-section-size]') as HTMLSelectElement;
-    size.value = '6';
-    size.dispatchEvent(new Event('change'));
-    query(fixture, '[data-section-duplicate]')!.click();
     query(fixture, '[data-section-remove]')!.click();
     // Config-change is the one hop that carries a section's actual content upward.
     query(fixture, '[data-test-save]')!.click();
@@ -144,8 +140,6 @@ describe('ProjectSectionFrame (§31)', () => {
 
     expect(seen).toEqual([
       ['collapse', { id: 'section-a', collapsed: true }],
-      ['resize', { id: 'section-a', columnSpan: 6 }],
-      ['duplicate', 'section-a'],
       ['remove', 'section-a'],
       ['config', { id: 'section-a', config: { text: 'edited' } }],
       ['hierarchy'],
@@ -182,15 +176,9 @@ describe('ProjectSectionFrame (§31)', () => {
     expect(inputChanges).toBe(1);
   });
 
-  it('renders the definition’s inspector when it has one, and the name field either way', () => {
+  it('offers a settings icon only when the definition has an inspector', () => {
     const withoutInspector = render();
-    query(withoutInspector, '[data-section-config]')!.click();
-    withoutInspector.detectChanges();
-    // Every registered section now has at least a name, so the "no settings" branch is
-    // unreachable and gone. Asserting the name field is present proves nothing about that —
-    // this is the assertion that does.
-    expect(query(withoutInspector, '[data-section-no-settings]')).toBeNull();
-    expect(query(withoutInspector, '[data-section-name]')).not.toBeNull();
+    expect(query(withoutInspector, '[data-section-config]')).toBeNull();
 
     const withInspector = render({}, { inspectorComponent: TestInspector });
     query(withInspector, '[data-section-config]')!.click();
@@ -206,94 +194,73 @@ describe('ProjectSectionFrame (§31)', () => {
     expect(query(fixture, '.section-frame__title')!.textContent).toContain('Sub-Projects');
   });
 
-  const openInspector = (fixture: ReturnType<typeof render>) => {
-    query(fixture, '[data-section-config]')!.click();
-    fixture.detectChanges();
-    return query(fixture, '[data-section-name]') as HTMLInputElement;
-  };
-
-  it('emits a rename from the inspector, and clears the override for a blank name', () => {
+  it('edits the title inline and commits Enter once, including clearing to the default', async () => {
     const fixture = render({ title: 'Backlog' });
     const seen: unknown[] = [];
-    fixture.componentInstance.renamed.subscribe((event) => seen.push(event));
-    const input = openInspector(fixture);
+    fixture.componentRef.setInput('rename', async (id: string, title: string | null) => {
+      seen.push({ id, title });
+      return true;
+    });
+    fixture.detectChanges();
+    query(fixture, '[data-section-title-edit]')!.click();
+    fixture.detectChanges();
+    const input = query(fixture, '[data-section-name]') as HTMLInputElement;
     expect(input.value).toBe('Backlog');
 
-    for (const typed of ['Shipped', '  Shipped  ', '', '   ']) {
-      input.value = typed;
-      input.dispatchEvent(new Event('change'));
-    }
-
-    // Chrome only: the frame emits intent and never touches a gateway. Blank means fall
-    // back to the derived default, which is why `title` is a nullable override.
-    expect(seen).toEqual([
-      { id: 'section-a', title: 'Shipped' },
-      { id: 'section-a', title: 'Shipped' },
-      { id: 'section-a', title: null },
-      { id: 'section-a', title: null },
-    ]);
+    input.value = 'Shipped';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(seen).toEqual([{ id: 'section-a', title: 'Shipped' }]);
+    expect(query(fixture, '[data-section-name]')).toBeNull();
   });
 
-  it('leaves the field on the persisted name while a rename is pending', () => {
-    // Against the **untitled** default: an Angular property binding writes to the DOM only
-    // when the bound expression changes, so committing whitespace on a section whose
-    // expression is already `''` would otherwise leave three spaces in the field beside a
-    // header still reading `Test Content`. A titled fixture tests the case never broken.
-    const fixture = render();
-    const input = openInspector(fixture);
-
+  it('clears the override for a blank name and restores the persisted name on Escape', async () => {
+    const fixture = render({ title: 'Backlog' });
+    const rename = vi.fn(async () => true);
+    fixture.componentRef.setInput('rename', rename);
+    query(fixture, '[data-section-title-edit]')!.click();
+    fixture.detectChanges();
+    const input = query(fixture, '[data-section-name]') as HTMLInputElement;
     input.value = '   ';
-    input.dispatchEvent(new Event('change'));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    expect(rename).toHaveBeenCalledWith('section-a', null);
 
-    expect(input.value).toBe('');
-    expect(query(fixture, '.section-frame__title')!.textContent).toContain('Test Content');
+    fixture.detectChanges();
+    query(fixture, '[data-section-title-edit]')!.click();
+    fixture.detectChanges();
+    const secondInput = query(fixture, '[data-section-name]') as HTMLInputElement;
+    secondInput.value = 'Unsaved';
+    secondInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(query(fixture, '[data-section-name]')).toBeNull();
+    expect(rename).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves collapse usable in view mode but hides every layout-editing control', () => {
-    const fixture = render({}, {}, false);
-    const seen: unknown[] = [];
-    fixture.componentInstance.collapseToggled.subscribe((event) => seen.push(event));
-
-    expect(query(fixture, '[data-section-drag-handle]')).toBeNull();
-    expect(query(fixture, '[data-section-size]')).toBeNull();
-    expect(query(fixture, '[data-section-config]')).toBeNull();
-    expect(query(fixture, '[data-section-duplicate]')).toBeNull();
-    expect(query(fixture, '[data-section-remove]')).toBeNull();
-    expect(query(fixture, '[data-section-content]')).not.toBeNull();
-
-    query(fixture, '[data-section-collapse]')!.click();
-    expect(seen).toEqual([{ id: 'section-a', collapsed: true }]);
-  });
-
-  it('attaches a real CDK drag handle only in Edit Layout Mode', () => {
+  it('keeps failed rename text for correction and exposes keyboard move intent', async () => {
     const fixture = render();
+    const rename = vi.fn(async () => false);
+    fixture.componentRef.setInput('rename', rename);
+    fixture.detectChanges();
+    query(fixture, '[data-section-title-edit]')!.click();
+    fixture.detectChanges();
+    const input = query(fixture, '[data-section-name]') as HTMLInputElement;
+    input.value = 'Retained draft';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect((query(fixture, '[data-section-name]') as HTMLInputElement).value).toBe('Retained draft');
+    expect(query(fixture, '[data-section-name]')).not.toBeNull();
+
+    const moves: unknown[] = [];
+    fixture.componentInstance.moveRequested.subscribe((direction) => moves.push(direction));
+    query(fixture, '[data-section-drag-handle]')!.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+    );
+    expect(moves).toEqual(['next']);
 
     expect(fixture.debugElement.query(By.directive(CdkDragHandle))).not.toBeNull();
-    expect(query(fixture, '[data-section-size]')).not.toBeNull();
-    expect(query(fixture, '[data-section-config]')).not.toBeNull();
-    expect(query(fixture, '[data-section-duplicate]')).not.toBeNull();
-    expect(query(fixture, '[data-section-remove]')).not.toBeNull();
-
-    fixture.componentRef.setInput('editMode', false);
-    fixture.detectChanges();
-
-    expect(fixture.debugElement.query(By.directive(CdkDragHandle))).toBeNull();
-  });
-
-  it('closes an open inspector when Edit Layout Mode ends and does not reopen it', () => {
-    const fixture = render({}, { inspectorComponent: TestInspector });
-    query(fixture, '[data-section-config]')!.click();
-    fixture.detectChanges();
-    expect(query(fixture, '[data-section-inspector]')).not.toBeNull();
-
-    fixture.componentRef.setInput('editMode', false);
-    fixture.detectChanges();
-    expect(query(fixture, '[data-section-inspector]')).toBeNull();
-
-    fixture.componentRef.setInput('editMode', true);
-    fixture.detectChanges();
-    expect(query(fixture, '[data-section-inspector]')).toBeNull();
-    expect(query(fixture, '[data-section-config]')!.getAttribute('aria-expanded')).toBe('false');
   });
 
   /**
@@ -302,7 +269,7 @@ describe('ProjectSectionFrame (§31)', () => {
    * `collapsed: true` while everything the reader sees says otherwise.
    */
   it('opens a collapsed section for one visit without changing the record it renders', () => {
-    const fixture = render({ collapsed: true }, {}, false);
+    const fixture = render({ collapsed: true });
     expect(query(fixture, '[data-section-content]')).toBeNull();
 
     fixture.componentRef.setInput('transientlyExpanded', true);
@@ -317,7 +284,7 @@ describe('ProjectSectionFrame (§31)', () => {
   });
 
   it('reads collapse intent off what the reader can see', () => {
-    const fixture = render({ collapsed: true }, {}, false);
+    const fixture = render({ collapsed: true });
     fixture.componentRef.setInput('transientlyExpanded', true);
     fixture.detectChanges();
     const seen: unknown[] = [];
@@ -330,7 +297,7 @@ describe('ProjectSectionFrame (§31)', () => {
   });
 
   it('leaves an ordinary frame exactly as it was, and offers a heading a canvas can focus', () => {
-    const fixture = render({ collapsed: true }, {}, false);
+    const fixture = render({ collapsed: true });
 
     expect(query(fixture, '[data-section-content]')).toBeNull();
     expect(query(fixture, '[data-section-collapse]')!.getAttribute('aria-expanded')).toBe('false');

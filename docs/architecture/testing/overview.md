@@ -23,8 +23,8 @@ unit-test builder, `@playwright/test`, `@modelcontextprotocol/client`, `storyboo
   the variant sets §4 names, with a theme toolbar.
 - **Acceptance scripts** for four slices' *done when*, against a second host on a temp
   file.
-- **End-to-end**: the web path, the MCP path, and the todos, archive and reflections
-  journeys, each seeding the host itself.
+- **End-to-end**: the web path, direct canvas editing, MCP, and the todos, archive and
+  reflections journeys, each seeding the host itself.
 - **Root tooling tests**: roadmap Outcome and built Compodoc anchor guards, using Node's built-in test runner.
 - **Lints**: package imports, no direct `Date`, design tokens, and the documentation
   structure.

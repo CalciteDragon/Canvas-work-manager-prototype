@@ -12,7 +12,8 @@
   background: var(--color-surface-sunken);
   color: var(--color-text);
   font: inherit;
-  resize: vertical;
+  field-sizing: content;
+  resize: none;
 }
 
 .rich-text__body:focus-visible {

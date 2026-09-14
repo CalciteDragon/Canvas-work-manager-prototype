@@ -103,6 +103,9 @@
   --layout-top-bar-height: 3rem;
   --border-hairline: 1px;
   --border-focus: 2px;
+  --size-icon-sm: 1rem;
+  --size-hit-target: 2.75rem;
+  --size-resize-handle: 0.75rem;
 }
 
 // Base literals only. Anything derived above must **not** reappear here, or the knob that

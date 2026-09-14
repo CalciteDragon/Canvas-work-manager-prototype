@@ -938,6 +938,12 @@ Today the column lists Home, any enabled optional page this build can render, an
 hierarchy. Archive and Reflections are both registered renderers; Archive also remains reachable
 through the project controls when its tab is disabled.
 
+*Landed in Slice 27.* The column fills the available workspace height below the top bar and
+keeps its own long navigation list scrollable while the canvas scrolls independently. The
+column has no **Open archive** action. The project's **More** menu opens Archive from root
+and nested work routes, including when the Archive tab is disabled
+([why](docs/decisions/2026-09-root-archive-recovery-guidance.md)).
+
 *Slice 25.8 exercised the column as a product surface:* a root's **Manage pages** disclosure keeps
 Home fixed and lets a person toggle the three optional kinds in View Mode. The same root-owned
 column remains available on a nested work route, while the work canvas is not presented as a
@@ -1048,10 +1054,14 @@ Target Date  (Due date, on a unit of work)
 More
 ```
 
-**Quick Add is a canvas control, not a header one.** It was in this list while a project had one
-canvas; a root now has several and one header, and "add a section" acts on *a canvas*. It sits in
-the Controls row beside Edit Layout, still gated by §32's Edit Layout Mode
-([why](docs/decisions/2026-09-where-the-project-navigation-column-lives.md)).
+**Section creation belongs to the canvas, not the project header.** Contextual insertion points
+open one creation dialog at the selected location; they do not use a Quick Add header or controls
+row. Root Home's dialog also offers **Add shortcut**. The project **More** menu keeps the
+project-level actions, including **Open archive** when the Archive page is disabled
+([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
+
+*Landed in Slice 27.* The former Quick Add and Edit Layout controls are removed; the canvas
+owns section and Home shortcut creation at the point where each will appear.
 
 The header itself is rendered **once per project** — at the top of the workspace track, beside
 §23's full-height navigation column and above whichever page is showing. It describes the
@@ -1166,7 +1176,11 @@ Supports:
 
 - drag reorder
 - collapse
-- size presets
+- snapped width resizing
+
+*Landed in Slice 27.* Flow keeps one ordered column. Width handles snap to the supported
+4, 6, 8 or 12 column spans, and content height remains intrinsic so sections reflow vertically
+as their contents change.
 
 ---
 
@@ -1232,9 +1246,9 @@ that names no page spans the project grouped by page, since two pages both numbe
 
 ## Where a write lands when nobody said
 
-Quick Add and an agent's `create_task` both have to resolve a container. With pages, "the
-project's task container" is no longer a single answer, so the resolution is stated rather
-than inferred:
+A person creating a section and an agent's `create_task` both have to resolve a canvas or
+container. With pages, "the project's task container" is no longer a single answer, so the
+resolution is stated rather than inferred:
 
 - **Nothing supplied** — a root resolves a matching container on Home; a subproject resolves
   one on its sole canvas.
@@ -1246,8 +1260,9 @@ than inferred:
 A write never lands on a disabled page. Silent placement somewhere invisible is worse than a
 refusal, because the writer believes it worked.
 
-*Landed in Slice 25.2, in `SectionService`. All three cases hold for a person through Quick
-Add, for HTTP, and for `create_task`/`add_reflection` over MCP, and they stay reachable with
+*Landed in Slice 25.2, in `SectionService`. At that time, all three cases were reachable for a
+person through Quick Add; Slice 27 replaced that control with contextual canvas creation. HTTP
+and `create_task`/`add_reflection` over MCP retain the same resolution and stay reachable with
 `tasks.write` or `reflections.write` alone — resolution runs through the unchecked doors a row
 write already uses on its own behalf, and acquires no `projects.read`.*
 
@@ -1257,6 +1272,14 @@ new content on a disabled page is refused — adding or duplicating a section th
 moving a row into a container there, reassigning rows there — while everything already there
 stays readable, editable, reorderable, removable and restorable. Undo is never behind a toggle
 ([why](docs/decisions/2026-09-a-disabled-page-hides-navigation-not-data.md)).*
+
+*Landed in Slice 27.* Section and Home shortcut creation may include an optional `position`.
+The domain inserts at that point and densely renumbers the page's combined section/shortcut
+order in the same operation. The canvas remembers an insertion anchor by placement ID and
+resolves its current position when the dialog is submitted; a missing anchor is reported instead
+of silently appending. Grid gaps are insertion targets in the existing wrapping order, not cells.
+The chosen supported width is retained if neighboring placements change while the dialog is open
+([why](docs/decisions/2026-09-contextual-insertion-names-its-position.md)).
 
 ## Shortcuts on Home
 
@@ -1419,20 +1442,26 @@ Frame provides:
 ```text
 drag handle
 
-title
+title with inline naming
 
 collapse
 
-configuration
+configuration, when the type provides an inspector
 
-size
-
-duplicate
+horizontal resize handles
 
 remove
 ```
 
 The content component handles only its feature.
+
+*Landed in Slice 27.* The title itself opens rename. Resize handles snap the section or
+shortcut placement to 4, 6, 8 or 12 columns. The frame has no Size dropdown or Duplicate
+button; settings remain available through a compact icon only when the registered type declares
+an inspector. Enter or blur saves the name; Escape restores the previous value, and clearing it
+restores the type's default. Clicking the title does not drag or collapse the frame. A failed
+rename keeps the entered text available to correct or retry
+([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
 **Remove archives; it does not delete.** It sets `archivedAt` on the section, which leaves the
 canvas and keeps everything it held — a Notes section's prose, a Progress section's milestone
@@ -1468,10 +1497,13 @@ an implicit cascade would archive work the caller never named. A whole-tree Arch
 archived work *findable*; it does not make archiving *contagious*.
 
 Because undo must never be behind a toggle, disabling the Archive page leaves **Open archive**
-in the project controls, which enables and opens it. The control is available from the root
-navigation context and from a nested project's More menu, and it navigates only after the root
-page context has reconciled successfully. If reconciliation fails after enabling, the current
-location is preserved and a read-only retry is offered.
+in the project **More** menu, which enables and opens it. The control is available from root and
+nested work routes, and it navigates only after the root page context has reconciled successfully.
+If reconciliation fails after enabling, the current location is preserved and a read-only retry
+is offered.
+
+*Landed in Slice 27.* The secondary navigation column has no Open archive button; the project's
+More menu is the single recovery entry point from root and nested work routes.
 
 *Landed in Slice 25.6: the per-canvas Archived region was replaced by the root-wide Archive
 page, which keeps cascade members and effectively hidden live work findable, explains blockers,
@@ -1514,40 +1546,54 @@ ProjectSectionFrame
 
 # 32. Section Editing
 
-Support:
+Canvas organization uses contextual controls rather than a separate layout-editing mode.
+Sections and Home shortcut placements share the page's ordered layout. Their drag handles,
+collapse controls, rename affordance, resize handles and removal controls are reserved in the
+frame but revealed on hover or keyboard focus. Controls remain visible on hoverless or coarse-
+pointer devices. Revealing them does not shift content, and the overlays are inert while a drag
+is in progress.
 
-```text
-View Mode
-```
+The canvas provides insertion points before placements and at the end; Grid also exposes
+insertion targets in available gaps, but only when a supported width fits. A gap is an
+opportunity in the existing ordered layout, not a reserved cell. Selecting one opens the
+creation dialog at that location. The dialog provides section types permitted on the current
+page, a name field, Create and Cancel; a blank name uses the type's default. Cancel or Escape
+creates nothing, and a pending submission cannot create duplicates. A failed write preserves
+the entered values and displays an error. Root Home additionally offers the eligible-source
+picker for **Add shortcut**; subproject work canvases do not. A shortcut's source remains
+read-only and is edited through **Open source** (§27).
 
-and:
+Widths snap to the supported 4, 6, 8 or 12 column spans in Flow and Grid. Dragging previews the
+new arrangement and releasing saves it; Escape cancels. Order remains stable through resize, and
+placements reflow without overlap or canvas overflow. Keyboard users can move a placement and
+preview resize steps, commit a resize with Enter or blur, and cancel with Escape. Resize saves
+are optimistic: a failure restores only the previous column span, preserving unrelated placement
+changes. On narrow screens that render placements full-width, resize handles are hidden while
+the saved desktop spans remain unchanged.
 
-```text
-Edit Layout Mode
-```
+*Landed in Slice 27.* The separate Edit Layout Mode and its toggle are removed. Canvas controls
+are available in place, and accessible keyboard and touch interactions cover the same movement,
+resize, creation and removal operations. Rename and dialog callbacks return write results so the
+visible control can preserve input and report an error rather than losing a failed action
+([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
-Edit Layout Mode reveals:
-
-- drag handles
-- sizing controls
-- remove controls
-- add-section buttons
-- section configuration
-
-This avoids permanently cluttering the normal workspace.
-
-The **Archive** page is *not* layout chrome and stays reachable in View Mode: it is content,
+The **Archive** page is *not* canvas chrome and stays reachable: it is content,
 and it is the undo for removal. Gating it behind Edit Layout Mode would hide it exactly when
 someone needs it — right after a removal they did not mean. The per-row archive control in §34
 is likewise a row affordance rather than a layout one. The same reasoning carries to the
 project controls that open the page even when its tab is disabled.
 
-Shortcut placements (§27) are layout. Adding and removing one belongs to Edit Layout Mode; the
-source content a placement renders does not become editable there.
+Shortcut placements (§27) are layout. Adding and removing one uses the same contextual
+insertion and removal controls as sections; the source content a placement renders remains
+read-only.
 
-*Landed in Slice 25.4: **Add shortcut** and **Remove shortcut** are available only in Edit
-Layout Mode, while collapse, span and the combined CDK order belong to the placement. The
-embedded source stays read-only; removing the placement does not archive its source.*
+*Landed in Slice 25.4: **Add shortcut** and **Remove shortcut** operate on a placement, while
+collapse, span and the combined CDK order belong to that placement. The embedded source stays
+read-only; removing the placement does not archive its source.*
+
+*Landed in Slice 27.* Root Home's contextual creation dialog adds eligible shortcuts at the
+selected position; the shortcut frame exposes remove in place. Neither action is gated by an
+editing mode, and subproject work canvases do not offer shortcut creation.
 
 Angular CDK should be used for reorderable drag/drop interactions rather than implementing pointer sorting from scratch.
 
