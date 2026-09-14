@@ -5,6 +5,7 @@ import {
   nameOf,
   ownedKindOf,
   type OwnedDataKind,
+  type CreateSectionInput,
   type ProjectId,
   type ProjectPageId,
   type ProjectSection,
@@ -60,6 +61,16 @@ export interface SectionRemovalPrompt {
   targets: ProjectSection[];
 }
 
+/** A canvas creation result belongs to its popup, so failures are returned instead of stored. */
+export type CanvasWriteResult = { ok: true } | { ok: false; message: string };
+
+interface ColumnSpanWriteState {
+  nextSequence: number;
+  confirmedSequence: number;
+  confirmedSpan: SectionColumnSpan;
+  pending: Map<number, SectionColumnSpan>;
+}
+
 /**
  * §19's canvas store: **the sections and shortcut placements of one page**, feature-scoped and provided by
  * `ProjectCanvas` alone (§20).
@@ -74,8 +85,8 @@ export interface SectionRemovalPrompt {
  * store, and re-reads on `projectDataRevision` like every other container. This store bumps
  * that revision.
  *
- * §32's `editMode` is transient page state: it changes chrome, never persistence. A page
- * change resets it so layout affordances do not leak from one canvas into another.
+ * Canvas writes stay here behind the gateway interface. Positioned creates paint the returned
+ * placement immediately, while direct width changes keep a field-only optimistic preview.
  */
 @Injectable()
 export class ProjectPageStore {
@@ -85,6 +96,7 @@ export class ProjectPageStore {
   private readonly sectionsState = signal<ProjectSection[]>([]);
   private readonly shortcutsState = signal<ResolvedSectionShortcut[]>([]);
   private readonly placementsState = signal<ProjectCanvasPlacement[]>([]);
+  private readonly orderCompleteState = signal(false);
   // Starts true: before the first load resolves the page has no project, no error and no
   // loading flag, which matches none of the template's branches and paints blank.
   private readonly loadingState = signal(true);
@@ -103,7 +115,6 @@ export class ProjectPageStore {
   private fullRecoveryQueued = false;
   private readonly errorState = signal<string | null>(null);
   private readonly sectionErrorState = signal<string | null>(null);
-  private readonly editModeState = signal(false);
   /** Set when a container refuses removal because it still holds rows — see `removeSection`. */
   private readonly removalPromptState = signal<SectionRemovalPrompt | null>(null);
   private readonly canvasRevisionState = signal(0);
@@ -114,22 +125,24 @@ export class ProjectPageStore {
    * (the host flushes at commit) and `moveSection` paints optimistically — so a live re-read
    * landing in that window would replace the preview with the pre-write value for a frame.
    *
-   * Deferred, **not** dropped. Only three of the section writes reconcile the canvas
-   * afterwards (`moveSection`, `duplicateSection`, `removeSection`); `addSection` and
-   * `updateSection` patch the array in place. So an agent adding a section while the user
-   * happens to be collapsing one would otherwise be lost until a reload.
+   * Deferred, **not** dropped. Positioned creates and section moves reconcile the canvas after
+   * their write; removals and ordinary field updates patch or remove the current placement.
+   * So an agent adding a section while the user happens to be collapsing one would otherwise
+   * be lost until a reload.
    */
   private pendingSectionWrites = 0;
   private sectionRefresh: Promise<void> | null = null;
   private sectionRefreshQueued = false;
+  private readonly columnSpanWrites = new Map<string, ColumnSpanWriteState>();
 
   readonly sections = this.sectionsState.asReadonly();
   readonly shortcuts = this.shortcutsState.asReadonly();
   readonly placements = this.placementsState.asReadonly();
+  /** True while every placement kind that the page permits has been read successfully. */
+  readonly orderComplete = this.orderCompleteState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly sectionError = this.sectionErrorState.asReadonly();
-  readonly editMode = this.editModeState.asReadonly();
   readonly canvasRevision = this.canvasRevisionState.asReadonly();
   readonly projectDataRevision = this.projectDataRevisionState.asReadonly();
   readonly removalPrompt = this.removalPromptState.asReadonly();
@@ -248,6 +261,12 @@ export class ProjectPageStore {
           this.readShortcuts(projectId, pageId),
         ]);
         if (!this.current(generation, projectId, pageId)) continue;
+        this.orderCompleteState.set(
+          !this.requestedShortcutsAllowed || shortcutsResult.status === 'fulfilled',
+        );
+        if (shortcutsResult.status === 'rejected') {
+          this.sectionErrorState.set(messageOf(shortcutsResult.reason));
+        }
         if (sectionsResult.status === 'rejected') {
           // Quiet — see above. Keep the currently painted canvas intact.
           continue;
@@ -260,7 +279,6 @@ export class ProjectPageStore {
           // A shortcut read is a partial failure: the canonical section canvas remains useful,
           // and the stale shortcut state is not silently discarded.
           this.setCanvas(this.composePlacements(sections, this.shortcutsState()));
-          this.sectionErrorState.set(messageOf(shortcutsResult.reason));
         }
         // A recovery is a load. Without this a canvas that recovered from a failed first
         // read rendered every control and silently refused every write — no request, no
@@ -290,6 +308,7 @@ export class ProjectPageStore {
     if (projectId === undefined || pageId === undefined) return Promise.resolve();
     if (!this.requestedShortcutsAllowed) {
       this.setCanvas(this.composePlacements(this.sectionsState(), []));
+      this.orderCompleteState.set(true);
       return Promise.resolve();
     }
     const generation = this.loadGeneration;
@@ -298,9 +317,13 @@ export class ProjectPageStore {
         const shortcuts = await this.gateway.shortcuts.list(projectId, { pageId });
         if (!this.current(generation, projectId, pageId)) return;
         this.setCanvas(this.composePlacements(this.sectionsState(), shortcuts));
+        this.orderCompleteState.set(true);
         this.sectionErrorState.set(null);
       } catch (error) {
-        if (this.current(generation, projectId, pageId)) this.sectionErrorState.set(messageOf(error));
+        if (this.current(generation, projectId, pageId)) {
+          this.orderCompleteState.set(false);
+          this.sectionErrorState.set(messageOf(error));
+        }
       }
     });
   }
@@ -316,12 +339,12 @@ export class ProjectPageStore {
     this.requestedProjectId = projectId;
     this.requestedPageId = pageId;
     this.requestedShortcutsAllowed = shortcutsAllowed;
+    this.orderCompleteState.set(false);
     if (!shortcutsAllowed) this.setCanvas(this.composePlacements(this.sectionsState(), []));
     this.loaded = false;
     // A refresh in flight for the page being left exits on the generation check without
     // consuming this, and the flag would otherwise buy the *next* page a gratuitous re-read.
     this.sectionRefreshQueued = false;
-    this.editModeState.set(false);
 
     const operation = this.track(async () => {
       this.loadingState.set(true);
@@ -332,6 +355,7 @@ export class ProjectPageStore {
         this.readShortcuts(projectId, pageId),
       ]);
       if (!current()) return;
+      this.orderCompleteState.set(!shortcutsAllowed || shortcutsResult.status === 'fulfilled');
       if (sectionsResult.status === 'rejected') {
         this.setCanvas([]);
         this.errorState.set(messageOf(sectionsResult.reason));
@@ -428,11 +452,11 @@ export class ProjectPageStore {
    * canonical page, which is the right answer for Home and a work canvas and the wrong one
    * for every other page a root can show.
    */
-  addSection(definition: SectionDefinition): Promise<boolean> {
-    const projectId = this.requestedProjectId;
-    const pageId = this.requestedPageId;
-    if (projectId === undefined || pageId === undefined) return Promise.resolve(false);
-    return this.mutate(async ({ current }) => {
+  addSection(
+    definition: SectionDefinition,
+    options: Pick<CreateSectionInput, 'position' | 'columnSpan' | 'title'> = {},
+  ): Promise<CanvasWriteResult> {
+    return this.mutateWithResult(async ({ current, projectId, pageId, generation }) => {
       // Parsed, not cast: §29 types `createDefaultConfig` as `unknown`, and a definition
       // that returns a non-object should fail here rather than at the host.
       const config = SectionConfigSchema.parse(definition.createDefaultConfig());
@@ -440,30 +464,33 @@ export class ProjectPageStore {
         type: definition.type,
         pageId,
         config,
+        ...options,
       });
       if (!current()) return;
-      this.replaceSection(created);
+      this.insertPlacement({ kind: 'section', section: created }, created.position);
+      await this.reconcileSections(projectId, pageId, generation);
     });
   }
 
   /** Adds a placement to this Home canvas; the source remains owned by its canonical page. */
-  addShortcut(input: CreateSectionShortcutInput): Promise<boolean> {
-    const projectId = this.requestedProjectId;
-    const pageId = this.requestedPageId;
-    if (projectId === undefined || pageId === undefined || input.pageId !== pageId) return Promise.resolve(false);
-    return this.mutate(async ({ current }) => {
+  addShortcut(input: CreateSectionShortcutInput): Promise<CanvasWriteResult> {
+    return this.mutateWithResult(async ({ current, projectId, pageId, generation }) => {
+      if (input.pageId !== pageId) throw new Error('The shortcut destination does not match this canvas');
       const created = await this.gateway.shortcuts.create(projectId, input);
       if (!current()) return;
-      this.replaceShortcut(created);
+      this.insertPlacement({ kind: 'shortcut', shortcut: created }, created.position);
+      await this.reconcileSections(projectId, pageId, generation);
     });
+  }
+
+  private insertPlacement(placement: ProjectCanvasPlacement, position: number): void {
+    const next = [...this.placementsState()];
+    next.splice(Math.max(0, Math.min(position, next.length)), 0, placement);
+    this.setCanvas(next);
   }
 
   setCollapsed(id: SectionId, collapsed: boolean): Promise<boolean> {
     return this.updateSection(id, { collapsed });
-  }
-
-  setEditMode(editing: boolean): void {
-    this.editModeState.set(editing);
   }
 
   /**
@@ -521,16 +548,34 @@ export class ProjectPageStore {
     );
   }
 
+  /** Resizes one section optimistically, with rollback limited to its width field. */
   setColumnSpan(id: SectionId, columnSpan: SectionColumnSpan): Promise<boolean> {
-    return this.updateSection(id, { columnSpan });
+    return this.resizeColumnSpan(
+      `section:${id}`,
+      columnSpan,
+      () => this.sectionsState().find((section) => section.id === id)?.columnSpan,
+      (span) => this.patchSectionColumnSpan(id, span),
+      async () => this.gateway.sections.update(id, { columnSpan }),
+      (section) => section.columnSpan,
+      (section) => this.replaceSection(section),
+    );
   }
 
   setCollapsedShortcut(id: SectionShortcutId, collapsed: boolean): Promise<boolean> {
     return this.updateShortcut(id, { collapsed });
   }
 
+  /** Resizes one shortcut placement without changing its source section. */
   setColumnSpanShortcut(id: SectionShortcutId, columnSpan: SectionColumnSpan): Promise<boolean> {
-    return this.updateShortcut(id, { columnSpan });
+    return this.resizeColumnSpan(
+      `shortcut:${id}`,
+      columnSpan,
+      () => this.shortcutsState().find((shortcut) => shortcut.id === id)?.columnSpan,
+      (span) => this.patchShortcutColumnSpan(id, span),
+      async () => this.gateway.shortcuts.update(id, { columnSpan }),
+      (shortcut) => shortcut.columnSpan,
+      (shortcut) => this.replaceShortcut(shortcut),
+    );
   }
 
   updateShortcut(id: SectionShortcutId, input: UpdateSectionShortcutInput): Promise<boolean> {
@@ -608,24 +653,6 @@ export class ProjectPageStore {
 
   updateConfig(id: SectionId, config: SectionConfig): Promise<boolean> {
     return this.updateSection(id, { config });
-  }
-
-  duplicateSection(id: SectionId): Promise<boolean> {
-    return this.mutate(async ({ current, projectId, pageId, generation }) => {
-      const copy = await this.gateway.sections.duplicate(id);
-      if (!current()) return;
-      // Insert only into the render order, then reconcile. The domain has already
-      // renumbered siblings, but only the returned copy is authoritative here; changing
-      // every sibling's persisted `position` would duplicate SectionService's rule.
-      const preview = [...this.placementsState()];
-      preview.splice(
-        Math.max(0, Math.min(copy.position, preview.length)),
-        0,
-        { kind: 'section', section: copy },
-      );
-      this.setCanvas(preview);
-      await this.reconcileSections(projectId, pageId, generation);
-    });
   }
 
   /**
@@ -708,6 +735,104 @@ export class ProjectPageStore {
     });
   }
 
+  private patchSectionColumnSpan(id: SectionId, columnSpan: SectionColumnSpan): void {
+    const section = this.sectionsState().find((candidate) => candidate.id === id);
+    if (section !== undefined) this.replaceSection({ ...section, columnSpan });
+  }
+
+  private patchShortcutColumnSpan(id: SectionShortcutId, columnSpan: SectionColumnSpan): void {
+    const shortcut = this.shortcutsState().find((candidate) => candidate.id === id);
+    if (shortcut !== undefined) this.replaceShortcut({ ...shortcut, columnSpan });
+  }
+
+  /** Width-only optimism keeps newer canvas chrome fields when a resize is refused. */
+  private resizeColumnSpan<T>(
+    key: string,
+    columnSpan: SectionColumnSpan,
+    readCurrent: () => SectionColumnSpan | undefined,
+    paint: (span: SectionColumnSpan) => void,
+    write: () => Promise<T>,
+    readSavedSpan: (record: T) => SectionColumnSpan,
+    applySaved: (record: T) => void,
+  ): Promise<boolean> {
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    if (!this.loaded || projectId === undefined || pageId === undefined) return Promise.resolve(false);
+    const before = readCurrent();
+    if (before === undefined) return Promise.resolve(false);
+    const generation = this.loadGeneration;
+    const current = () => this.current(generation, projectId, pageId);
+    const stateKey = `${generation}:${key}`;
+    let state = this.columnSpanWrites.get(stateKey);
+    if (state === undefined) {
+      state = {
+        nextSequence: 0,
+        confirmedSequence: 0,
+        confirmedSpan: before,
+        pending: new Map(),
+      };
+      this.columnSpanWrites.set(stateKey, state);
+    }
+    const sequence = ++state.nextSequence;
+    state.pending.set(sequence, columnSpan);
+    const latest = () => state!.nextSequence === sequence;
+
+    return this.track(() =>
+      this.whileWriting(async () => {
+        if (current()) {
+          this.sectionErrorState.set(null);
+          paint(columnSpan);
+        }
+        try {
+          const saved = await write();
+          state!.pending.delete(sequence);
+          if (!current()) {
+            this.cleanupColumnSpanWrite(stateKey, state!);
+            return true;
+          }
+          const savedSpan = readSavedSpan(saved);
+          if (sequence > state!.confirmedSequence) {
+            state!.confirmedSequence = sequence;
+            state!.confirmedSpan = savedSpan;
+          }
+          if (latest()) applySaved(saved);
+          this.paintColumnSpanWrite(state!, paint);
+          this.cleanupColumnSpanWrite(stateKey, state!);
+          return true;
+        } catch (error) {
+          state!.pending.delete(sequence);
+          if (current()) {
+            this.paintColumnSpanWrite(state!, paint);
+            if (latest()) this.sectionErrorState.set(messageOf(error));
+          }
+          this.cleanupColumnSpanWrite(stateKey, state!);
+          return false;
+        }
+      }),
+    );
+  }
+
+  private paintColumnSpanWrite(
+    state: ColumnSpanWriteState,
+    paint: (span: SectionColumnSpan) => void,
+  ): void {
+    let pendingSequence = state.confirmedSequence;
+    let pendingSpan: SectionColumnSpan | undefined;
+    for (const [sequence, span] of state.pending) {
+      if (sequence > pendingSequence) {
+        pendingSequence = sequence;
+        pendingSpan = span;
+      }
+    }
+    paint(pendingSpan ?? state.confirmedSpan);
+  }
+
+  private cleanupColumnSpanWrite(key: string, state: ColumnSpanWriteState): void {
+    if (state.pending.size === 0 && this.columnSpanWrites.get(key) === state) {
+      this.columnSpanWrites.delete(key);
+    }
+  }
+
   /**
    * The canvas is left exactly as it was when a write fails, with the reason visible. A
    * silent failure on a remove or a config save is the one that costs the user work.
@@ -741,6 +866,45 @@ export class ProjectPageStore {
   }
 
   /**
+   * A popup-owned create returns its failure text directly and must not clear or replace the
+   * canvas error signal. Writes for a page that changed while the request was in flight are
+   * considered complete because the popup has already closed.
+   */
+  private mutateWithResult(
+    operation: (context: {
+      current: () => boolean;
+      projectId: ProjectId;
+      pageId: ProjectPageId;
+      generation: number;
+    }) => Promise<void>,
+  ): Promise<CanvasWriteResult> {
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    if (!this.loaded || projectId === undefined || pageId === undefined) {
+      return Promise.resolve({ ok: false, message: 'The canvas has not finished loading' });
+    }
+    if (!this.orderCompleteState()) {
+      return Promise.resolve({
+        ok: false,
+        message: this.sectionErrorState() ?? 'The canvas order is incomplete',
+      });
+    }
+    const generation = this.loadGeneration;
+    const current = () => this.current(generation, projectId, pageId);
+
+    return this.track(() =>
+      this.whileWriting(async (): Promise<CanvasWriteResult> => {
+        try {
+          await operation({ current, projectId, pageId, generation });
+          return { ok: true };
+        } catch (error) {
+          return current() ? { ok: false, message: messageOf(error) } : { ok: true };
+        }
+      }),
+    );
+  }
+
+  /**
    * Re-reads the canvas after a successful write, and **swallows its own failure**. The
    * write already landed; reporting a failed re-read as a failed write would tell the user
    * their remove did not happen and invite them to click it again — which now answers the
@@ -759,6 +923,12 @@ export class ProjectPageStore {
       this.readShortcuts(projectId, pageId),
     ]);
     if (!this.current(generation, projectId, pageId)) return;
+    this.orderCompleteState.set(
+      !this.requestedShortcutsAllowed || shortcutsResult.status === 'fulfilled',
+    );
+    if (shortcutsResult.status === 'rejected') {
+      this.sectionErrorState.set(messageOf(shortcutsResult.reason));
+    }
     if (sectionsResult.status === 'fulfilled') {
       const shortcuts = shortcutsResult.status === 'fulfilled' ? shortcutsResult.value : this.shortcutsState();
       this.setCanvas(this.composePlacements([...sectionsResult.value].sort(byPosition), shortcuts));
