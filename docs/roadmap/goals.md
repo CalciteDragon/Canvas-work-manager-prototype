@@ -61,8 +61,9 @@ order is:
 
 1. [29 — Recovery policy and Archive](completed/29-recovery-policy-and-archive.md) (done): one
    capability source and meaningful-content projection over retained state.
-2. [30 — Atomic removal Undo](planned/30-atomic-section-removal-undo.md): typed inverse
-   storage, scoped execution and neighbor-aware placement, before hard deletion.
+2. [30 — Atomic removal Undo](active/30-atomic-section-removal-undo.md) (active, planned
+   2026-09-14): typed inverse storage, scoped execution and neighbor-aware placement, before
+   hard deletion.
 3. [31 — Disposable removal and Undo UI](planned/31-disposable-removal-and-undo-ui.md):
    safe deletion plus a receipt-driven browser recovery action.
 4. [32 — Other section operations](planned/32-section-edit-undo.md): add, movement and
@@ -85,7 +86,10 @@ architecture folders together. No production infrastructure, event sourcing or g
 **Slice 29 closed on 2026-09-14.** [Slice 29 — Recovery policy and Archive](completed/29-recovery-policy-and-archive.md)
 makes Archive project recoverable content through one contracts capability source and a pure
 domain policy, with browser, MCP and real-use evidence. Its friction notes (indistinguishable
-Notes entries, no way back for a removed view until Undo) point to Slice 30 as the next start. [Slice 28 — Archive, removal and Undo planning](completed/28-archive-removal-undo-planning.md)
+Notes entries, no way back for a removed view until Undo) point to Slice 30 as the next start.
+**Slice 30 started on 2026-09-14** as a plan-only activation: [its plan](active/30-atomic-section-removal-undo.md)
+and a pending [Undo records decision](../decisions/2026-09-section-removal-undo-records.md) settle
+its gates; no runtime Undo exists yet. [Slice 28 — Archive, removal and Undo planning](completed/28-archive-removal-undo-planning.md)
 closed the documentation-only planning work on 2026-09-13; slices 30–33 remain candidates.
 The latest runtime change, [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md),
 closed 2026-09-13. Its implementation establishes direct canvas editing, contextual

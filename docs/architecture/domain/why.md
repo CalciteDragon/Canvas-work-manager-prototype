@@ -92,6 +92,7 @@ ISO string so ordering stays lossless without a clock or timezone
 
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
+- [Section removal Undo records](../../decisions/2026-09-section-removal-undo-records.md) — planning choice for Slice 30, pending implementation; removal records no Undo yet
 - [Root Archive recovery guidance](../../decisions/2026-09-root-archive-recovery-guidance.md)
 - [Content-oriented Archive policy](../../decisions/2026-09-content-oriented-archive-policy.md)
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md)
