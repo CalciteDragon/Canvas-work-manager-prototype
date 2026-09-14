@@ -84,3 +84,5 @@ get one.
 
 §8 core boundary · §9 gateway · §10 adapter · §18 identity · §19–§20 stores · §21–§23
 tokens, themes, shell · §47 flags · §62–§63 live updates and optimistic UI.
+
+Planning only: [Slice 31's disposable removal and immediate Undo choices](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.

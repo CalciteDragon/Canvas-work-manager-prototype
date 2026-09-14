@@ -145,3 +145,5 @@ disposable view tombstones stay stored but unlisted, uncertain rich-text config 
 are kept, and a container holding only independently archived rows stays listed as the first step
 of their recovery rather than gaining a new restore operation. It decides a projection, never
 deletion ([decision](../../decisions/2026-09-content-oriented-archive-policy.md)).
+
+Planning only: [Slice 31's disposable removal and immediate Undo choices](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.

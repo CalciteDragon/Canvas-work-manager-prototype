@@ -63,7 +63,7 @@ order is:
    capability source and meaningful-content projection over retained state.
 2. [30 — Atomic removal Undo](completed/30-atomic-section-removal-undo.md) (done): typed
    inverse storage, scoped execution and neighbor-aware placement, before hard deletion.
-3. [31 — Disposable removal and Undo UI](planned/31-disposable-removal-and-undo-ui.md):
+3. [31 — Disposable removal and Undo UI](active/31-disposable-removal-and-undo-ui.md):
    safe deletion plus a receipt-driven browser recovery action.
 4. [32 — Other section operations](planned/32-section-edit-undo.md): add, movement and
    settings Undo, without a generic command framework.
@@ -92,7 +92,7 @@ hours, back between its old neighbours — over HTTP and MCP, not yet in the bro
 ([decision](../decisions/2026-09-section-removal-undo-records.md)). Its real-use notes
 (`note-2026-09-14-005`, `-006`: a lost receipt cannot be recovered; conflict text names ids
 without a next step) feed Slice 31, the next start. [Slice 28 — Archive, removal and Undo planning](completed/28-archive-removal-undo-planning.md)
-closed the documentation-only planning work on 2026-09-13; slices 31–33 remain candidates.
+closed the documentation-only planning work on 2026-09-13. Slice 31 is active for implementation planning and iterative review only; implementation has not started. Slices 32–33 remain candidates.
 The latest runtime change, [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md),
 closed 2026-09-13. Its implementation establishes direct canvas editing, contextual
 positioned creation, width resizing, and the navigation changes. The

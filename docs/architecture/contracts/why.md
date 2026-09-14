@@ -103,3 +103,5 @@ is a discriminated union (`owned-content` with a positive `contentCount` and a `
 beside the unchanged exact `cascadeCount`. Optional so older fixtures parse; the domain emits it
 on every section entry. Stored sections and `SCHEMA_VERSION` are untouched
 ([decision](../../decisions/2026-09-content-oriented-archive-policy.md)).
+
+Planning only: [Slice 31's disposable removal and immediate Undo choices](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.

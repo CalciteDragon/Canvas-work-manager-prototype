@@ -67,6 +67,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Reflection subjects and the root journal feed](2026-09-reflection-subjects-and-the-journal-feed.md) | Optional subject id; journal resolves current state | current |
 | [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | What the Archive projection says about each item's restore path | amended |
 | [A section removal commits one scoped, expiring Undo record](2026-09-section-removal-undo-records.md) | Defaulted v3 collection, 24 h / 50 bound, exact-actor scope, structural conflicts, neighbor placement | current (Slice 30) |
+| [Disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md) | Reference-safe deletion, canvas-local action, own-receipt recovery and actionable refusals | planning choice; pending Slice 31 |
 
 ## Repositories
 

@@ -75,3 +75,5 @@ domain, tool and host test runs on.
 
 §13 repository interfaces · §14 local prototype storage · §15 JSON persistence behaviour
 · §74 repository migration · §76 reset.
+
+Planning only: [Slice 31's disposable removal and immediate Undo choices](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.

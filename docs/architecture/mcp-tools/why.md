@@ -95,3 +95,5 @@ unknown-tool response.
 §48 goals · §49 architecture · §54 initial tools (and the roots/work-units/pages
 additions) · §55 experimental tool registry · §56 tool experiments · §60 tests without a
 server.
+
+Planning only: [Slice 31's disposable removal and immediate Undo choices](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.

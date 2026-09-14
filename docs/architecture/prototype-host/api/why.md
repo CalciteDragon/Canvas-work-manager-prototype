@@ -68,3 +68,5 @@ returns: `/todos`, `/archive`, `/journal`, `/completed-work` under a project, an
 
 §9 gateway shape · §10 prototype adapter · §18 authentication contract · §61 prototype
 API · §63 optimistic UI (what the statuses feed).
+
+Planning only: [Slice 31's disposable removal and immediate Undo choices](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.

@@ -129,3 +129,5 @@ shortcuts · §28 layout flag · §29 registry · §30 section types · §31 fra
 the two steps for an archived container whose rows were archived on their own. A live container
 beneath an archived project gets reactivation guidance only
 ([decision](../../../decisions/2026-09-content-oriented-archive-policy.md)).
+
+Planning only: [Slice 31's disposable removal and immediate Undo choices](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md) are pending implementation; the runtime described here is unchanged.
