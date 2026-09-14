@@ -50,12 +50,12 @@ export const sectionTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'remove_section',
     description:
-      'Remove a section from a project’s canvas. This archives the section rather than deleting it, so it can be restored with everything it took down. A container still holding live rows needs a policy: "cascade" archives those rows with the section, or "reassign" moves them to another live container of the same type named by reassignToSectionId. A view, an empty container, and a container holding only archived rows need no policy. Removing a section that is already archived is refused.',
+      'Remove a section from a project’s canvas. This archives the section rather than deleting it, so it can be restored with everything it took down. A container still holding live rows needs a policy: "cascade" archives those rows with the section, or "reassign" moves them to another live container of the same type named by reassignToSectionId. A view, an empty container, and a container holding only archived rows need no policy. Removing a section that is already archived is refused. The result is { section, undo }: the archived section and an Undo receipt whose undoId undo_operation accepts for 24 hours, restoring the section between the same neighbours with exactly the rows this removal changed.',
     permission: 'projects.write',
     inputSchema: RemoveSectionInputSchema.extend({ sectionId: SectionIdSchema }),
-    // The archived section itself, so the agent can see `archivedAt` and know the operation
-    // is undoable rather than inferring it from a bare id. Returned directly by the service:
-    // a second `get` would demand `projects.read`, which this tool does not require.
+    // The archived section and its Undo receipt, so the agent can see `archivedAt` and hold the
+    // undoId rather than inferring either. Returned directly by the service: a second `get` would
+    // demand `projects.read`, which this tool does not require.
     execute: ({ sectionId, ...input }, { actor, services }) => services.sections.remove(actor, sectionId, input),
   }),
   defineTool({

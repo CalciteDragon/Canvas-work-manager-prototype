@@ -7,6 +7,7 @@ import { reflectionTools } from './tools/reflections';
 import { sectionTools } from './tools/sections';
 import { shortcutTools } from './tools/shortcuts';
 import { taskTools } from './tools/tasks';
+import { undoTools } from './tools/undo';
 import { workspaceTools } from './tools/workspace';
 
 /**
@@ -44,6 +45,7 @@ export const SPEC_TOOL_NAMES = [
   'update_section',
   'remove_section',
   'restore_section',
+  'undo_operation',
   'list_section_shortcuts',
   'add_section_shortcut',
   'remove_section_shortcut',
@@ -80,6 +82,7 @@ export const createToolRegistry = (services: WorkManagerServices): ToolRegistry 
     ...taskTools,
     ...reflectionTools,
     ...sectionTools,
+    ...undoTools,
     ...shortcutTools,
     ...workspaceTools,
   ];

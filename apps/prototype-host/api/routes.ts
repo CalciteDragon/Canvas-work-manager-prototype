@@ -28,9 +28,10 @@ import {
   UpdateReflectionInputSchema,
   UpdateSectionInputSchema,
   UpdateSectionShortcutInputSchema,
+  UndoRecordIdSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService, UndoService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveIdentityUser } from './context.ts';
 import type { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
@@ -56,6 +57,8 @@ export interface ApiDependencies {
   reflections: ReflectionService;
   dashboard: DashboardService;
   agents: AgentConnectionService;
+  /** Receipt-based Undo; its refusals ride the 409 envelope with `UndoRefusalDetails`. */
+  undo: UndoService;
   /**
    * §51's bearer tokens. Optional so `createApiRouteTable` and the concurrency tests keep
    * their one-argument form — without it every request is a persona request, which is
@@ -67,9 +70,8 @@ export interface ApiDependencies {
 const ok = (body: unknown): RouteResult => ({ status: 200, contentType: 'application/json', body });
 const created = (body: unknown): RouteResult => ({ status: 201, contentType: 'application/json', body });
 /**
- * Removal archives, and the archived record is available through `GET` and the root Archive
- * projection, so the DELETE response still carries no body. The web gateway discards the
- * service's return value; `remove_section` over MCP is the caller that needs it.
+ * For the operations that answer nothing worth reading. Section removal is no longer one of them:
+ * its DELETE answers 200 with the archived section and its Undo receipt.
  */
 const noContent = (): RouteResult => ({ status: 204, contentType: 'application/json', body: undefined });
 
@@ -112,7 +114,7 @@ const shortcutPageQuery = (query: URLSearchParams): Record<string, unknown> => (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, archive, journal, reflections, dashboard, agents, authenticator } =
+  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, archive, journal, reflections, dashboard, agents, undo, authenticator } =
     dependencies;
   // Async now: an agent request has to resolve its token against the live connection
   // before the handler runs, because that read is what carries the permission set (§51).
@@ -290,8 +292,9 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'POST /api/sections/:id/duplicate': async (request) =>
       created(await sections.duplicate(await actorFor(request), sectionId(request))),
 
-    // The undo for the DELETE below, and the only way an archived section or a row that
-    // came down with one returns. Idempotent, so a retry cannot move the canvas.
+    // Archive Restore for the DELETE below: durable, receipt-free and appended. Receipt-based Undo,
+    // which returns a section between its old neighbours, is `POST /api/undo/:id`. A row that
+    // came down with a section returns through either. Idempotent, so a retry cannot move the canvas.
     'POST /api/sections/:id/restore': async (request) =>
       ok(await sections.restoreSection(await actorFor(request), sectionId(request))),
 
@@ -301,14 +304,23 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     // which is what lets the canvas offer cascade or reassign rather than guess. Removing
     // a section that is already archived answers 409 too — the record still exists, so
     // this is a rule error rather than the 404 a hard delete used to give.
-    'DELETE /api/sections/:id': async (request) => {
-      await sections.remove(
-        await actorFor(request),
-        sectionId(request),
-        RemoveSectionInputSchema.parse(queryObject(request.query, [])),
-      );
-      return noContent();
-    },
+    //
+    // A successful removal answers 200 with `SectionRemovalResult`: the archived section and the
+    // Undo receipt for it. A refusal issues no receipt.
+    'DELETE /api/sections/:id': async (request) =>
+      ok(
+        await sections.remove(
+          await actorFor(request),
+          sectionId(request),
+          RemoveSectionInputSchema.parse(queryObject(request.query, [])),
+        ),
+      ),
+
+    // Receipt-based Undo. Only the actor that made the operation finds its record (404
+    // otherwise); consumed, expired, conflicting, blocked and unavailable are 409s whose
+    // `details` parse as `UndoRefusalDetails`; a connection without `projects.write` is a 403.
+    'POST /api/undo/:id': async (request) =>
+      ok(await undo.undo(await actorFor(request), UndoRecordIdSchema.parse(request.params['id']))),
 
     // §27's layout-only references. The domain resolves source identity and availability;
     // these routes never read or return the source's row collection.

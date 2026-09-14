@@ -264,8 +264,10 @@ const CASES: Record<string, ToolCase> = {
       // The archived section itself, not a bare id: the agent can see `archivedAt` and know
       // the operation is undoable. It arrives from `projects.write` alone, so the tool has
       // not acquired a hidden `projects.read` requirement by reading the record back.
-      expect(result).toMatchObject({ id: VIEW_SECTION });
-      expect(result.archivedAt).toBeDefined();
+      expect(result.section).toMatchObject({ id: VIEW_SECTION });
+      expect(result.section.archivedAt).toBeDefined();
+      // And a receipt with no inverse data in it: the id, what it undoes, and its window.
+      expect(Object.keys(result.undo).sort()).toEqual(['createdAt', 'expiresAt', 'label', 'operation', 'undoId']);
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
       expect(listed.map(({ id }) => id)).not.toContain(VIEW_SECTION);
     },
@@ -278,6 +280,19 @@ const CASES: Record<string, ToolCase> = {
     },
     verify: async (result, harness) => {
       expect(result.archivedAt).toBeUndefined();
+      expect((await harness.services.sections.get(agent(['projects.read']), VIEW_SECTION)).archivedAt).toBeUndefined();
+    },
+  },
+  undo_operation: {
+    // The receipt ids are deterministic in the harness, so the removal below issues `undo-1` —
+    // made by the same connection the success case then undoes with.
+    input: { undoId: 'undo-1' },
+    mutates: true,
+    prepare: async (harness) => {
+      await harness.services.sections.remove(agent(['projects.write']), VIEW_SECTION);
+    },
+    verify: async (result, harness) => {
+      expect(result).toMatchObject({ undoId: 'undo-1', outcome: 'restored', section: { id: VIEW_SECTION } });
       expect((await harness.services.sections.get(agent(['projects.read']), VIEW_SECTION)).archivedAt).toBeUndefined();
     },
   },
@@ -430,5 +445,41 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
 
   it('denies a connection holding nothing at all', async () => {
     await expect(harness.registry.call('list_tasks', {}, agent())).rejects.toThrow(PermissionDeniedError);
+  });
+});
+
+/**
+ * MCP carries a refusal's message and nothing else, so an agent tells Undo's refusals apart by
+ * the reason token each message starts with (docs/decisions/2026-09-section-removal-undo-records.md).
+ */
+describe('undo_operation refusals, as an agent sees them', () => {
+  const writer = () => agent(['projects.write']);
+
+  it('refuses a repeat with a message starting undo_consumed:', async () => {
+    const harness = buildHarness();
+    const { undo } = (await harness.registry.call('remove_section', { sectionId: VIEW_SECTION }, writer())) as {
+      undo: { undoId: string };
+    };
+    await harness.registry.call('undo_operation', { undoId: undo.undoId }, writer());
+
+    await expect(harness.registry.call('undo_operation', { undoId: undo.undoId }, writer())).rejects.toThrow(/^undo_consumed: /);
+  });
+
+  it('answers not-found for a receipt another connection of the same person was issued', async () => {
+    const harness = buildHarness();
+    const { undo } = (await harness.registry.call('remove_section', { sectionId: VIEW_SECTION }, writer())) as {
+      undo: { undoId: string };
+    };
+    const otherConnection = { ...writer(), agentConnectionId: 'agent-other' } as ReturnType<typeof agent>;
+
+    await expect(harness.registry.call('undo_operation', { undoId: undo.undoId }, otherConnection)).rejects.toThrow(
+      expect.objectContaining({ name: 'EntityNotFoundError' }),
+    );
+  });
+
+  it('rejects anything but an undoId', async () => {
+    const harness = buildHarness();
+
+    await expect(harness.registry.call('undo_operation', { undoId: 'undo-1', force: true }, writer())).rejects.toThrow();
   });
 });

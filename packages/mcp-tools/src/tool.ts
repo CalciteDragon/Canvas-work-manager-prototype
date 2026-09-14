@@ -11,6 +11,7 @@ import type {
   SectionService,
   SectionShortcutService,
   TaskService,
+  UndoService,
   WorkspaceService,
 } from '@cwm/domain';
 import type { z, ZodType } from 'zod';
@@ -41,6 +42,8 @@ export interface WorkManagerServices {
   shortcuts: SectionShortcutService;
   dashboard: DashboardService;
   workspace: WorkspaceService;
+  /** Receipt-based Undo for the exact actor that made an undoable operation. */
+  undo: UndoService;
 }
 
 /**

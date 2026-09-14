@@ -13,6 +13,7 @@ import {
   JsonSectionRepository,
   JsonSectionShortcutRepository,
   JsonTaskRepository,
+  JsonUndoRecordRepository,
   JsonUserRepository,
   unitOfWorkFor,
 } from '@cwm/repositories';
@@ -35,6 +36,7 @@ const inMemoryPersistence = () => {
     activities: new JsonActivityRepository(store),
     agents: new JsonAgentConnectionRepository(store),
     users: new JsonUserRepository(store),
+    undoRecords: new JsonUndoRecordRepository(store),
     unitOfWork: unitOfWorkFor(store),
   };
 };
@@ -54,6 +56,7 @@ const buildServer = () => {
     shortcuts: api.shortcuts,
     dashboard: api.dashboard,
     workspace: api.workspace,
+    undo: api.undo,
   });
   const authenticate = vi.spyOn(api.authenticator!, 'authenticate');
   const handler = createAuthenticatedMcpHandler({ registry, authenticator: api.authenticator! });
@@ -199,6 +202,66 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
       await client.close();
       await handler.close();
     }
+  });
+
+  /** Slice 30. The token's connection is granted `projects.write` first; the seed does not hold it. */
+  describe('remove_section receipts and undo_operation over the transport', () => {
+    const PERSON = { actor: 'user' as const, workspaceId: 'workspace-demo' as never, userId: 'user-demo' as never };
+    const SECTION = 'section-project-work-manager-activity';
+
+    const grantProjectsWrite = (api: ReturnType<typeof buildServer>['api']) =>
+      api.agents.updatePermissions(PERSON, 'agent-claude' as never, [
+        'projects.read',
+        'projects.write',
+        'tasks.read',
+        'tasks.write',
+        'workspace.read',
+      ]);
+
+    const removeWithReceipt = async (client: Awaited<ReturnType<typeof build>>['client']) => {
+      const removed = await client.callTool({ name: 'remove_section', arguments: { sectionId: SECTION } });
+      expect(removed.isError).not.toBe(true);
+      return (removed.structuredContent as { undo: { undoId: string } }).undo.undoId;
+    };
+
+    it('undoes once, then refuses the repeat with text starting undo_consumed:', async () => {
+      const { api, client, handler, persistence } = await build();
+      await grantProjectsWrite(api);
+
+      try {
+        const undoId = await removeWithReceipt(client);
+
+        const undone = await client.callTool({ name: 'undo_operation', arguments: { undoId } });
+        expect(undone.isError).not.toBe(true);
+        expect(undone.structuredContent).toMatchObject({ outcome: 'restored', section: { id: SECTION } });
+        expect(persistence.store.snapshot().sections.find(({ id }) => id === SECTION)?.archivedAt).toBeUndefined();
+
+        const again = await client.callTool({ name: 'undo_operation', arguments: { undoId } });
+        expect(again.isError).toBe(true);
+        expect(again.content).toContainEqual(
+          expect.objectContaining({ type: 'text', text: expect.stringMatching(/^undo_consumed: /) }),
+        );
+      } finally {
+        await client.close();
+        await handler.close();
+      }
+    });
+
+    it('refuses a receipt once its connection is revoked, leaving the record unconsumed', async () => {
+      const { api, client, handler, persistence } = await build();
+      await grantProjectsWrite(api);
+
+      try {
+        const undoId = await removeWithReceipt(client);
+        await api.agents.revoke(PERSON, 'agent-claude' as never);
+
+        await expect(client.callTool({ name: 'undo_operation', arguments: { undoId } })).rejects.toThrow();
+        expect(persistence.store.snapshot().undoRecords.find(({ id }) => id === undoId)?.consumedAt).toBeUndefined();
+      } finally {
+        await client.close();
+        await handler.close();
+      }
+    });
   });
 
   it('returns a tool error when the live connection lacks tasks.write', async () => {

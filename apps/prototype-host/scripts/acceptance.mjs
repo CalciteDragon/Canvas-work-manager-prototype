@@ -3,7 +3,8 @@
  *
  * Creates a project, a task in it, completes the task, reads the resulting
  * ActivityEvents, then restarts the host and confirms the work survived — proving the
- * writes went through a unit of work to `.prototype/data.json` (§15).
+ * writes went through a unit of work to `.prototype/data.json` (§15). Slice 30 adds a section
+ * removal receipt and its Undo, back at the page's first placement, refused on repeat.
  *
  * Runs against a temporary data file via CWM_DATA_FILE, never the developer's own
  * workspace: an acceptance check that mutates the file you were about to demo is worse
@@ -77,6 +78,8 @@ try {
 
   const project = await request('POST', '/api/projects', {
     workspaceId: 'workspace-demo',
+    // Required since projects split into roots and sub-projects (schema version 3).
+    kind: 'root',
     name: 'Acceptance project',
   });
   check(project.status === 201, 'POST /api/projects answers 201');
@@ -114,6 +117,33 @@ try {
   check(afterRestart.status === 200, 'GET /api/tasks answers after a restart');
   check(afterRestart.body.length === 1, 'the task survived the restart');
   check(afterRestart.body[0].status === 'done', 'so did its completion');
+
+  // Slice 30: a removal answers with a receipt, and Undo puts the section back where it was —
+  // at the page's *first* placement, which Archive Restore's append would not reproduce.
+  console.log('\nsection removal Undo...\n');
+  const HOME = 'section-project-personal-brief';
+  const canvas = async () =>
+    (await request('GET', '/api/projects/project-personal/sections')).body.map((section) => section.id);
+  const before = await canvas();
+  check(before[0] === HOME && before.length > 1, 'the brief is the first of several placements on Home');
+
+  const removed = await request('DELETE', `/api/sections/${HOME}`);
+  check(removed.status === 200, 'DELETE /api/sections/:id answers 200');
+  check(removed.body.section.archivedAt !== undefined, 'the removed section is archived');
+  check(typeof removed.body.undo.undoId === 'string', 'the removal carries an Undo receipt');
+  check(
+    JSON.stringify(Object.keys(removed.body.undo).sort()) === JSON.stringify(['createdAt', 'expiresAt', 'label', 'operation', 'undoId']),
+    'the receipt carries no inverse data',
+  );
+  check(!(await canvas()).includes(HOME), 'the section has left the canvas');
+
+  const undone = await request('POST', `/api/undo/${removed.body.undo.undoId}`);
+  check(undone.status === 200, 'POST /api/undo/:id answers 200');
+  check(undone.body.outcome === 'restored' && undone.body.placement.index === 0, 'Undo reports the original index');
+  check(JSON.stringify(await canvas()) === JSON.stringify(before), 'the section is back first, with its neighbours in order');
+
+  const repeated = await request('POST', `/api/undo/${removed.body.undo.undoId}`);
+  check(repeated.status === 409 && repeated.body.details?.reason === 'undo_consumed', 'a repeat Undo is refused as undo_consumed');
 
   console.log('\nacceptance: all checks passed');
 } catch (error) {

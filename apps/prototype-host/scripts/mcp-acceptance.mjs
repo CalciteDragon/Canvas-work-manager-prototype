@@ -1,6 +1,6 @@
 /** Slice 15's two-transport acceptance check (§49, §50, §59). */
 import { spawn } from 'node:child_process';
-import { copyFile, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +14,8 @@ const workspaceRoot = join(hostRoot, '..', '..');
 const seedPath = join(hostRoot, '..', '..', 'prototype', 'seeds', 'agent-heavy.json');
 const TOKEN = 'prototype-user-a-readwrite';
 const PROJECT = 'project-work-manager';
+/** The middle of the seed's three Home placements: a task list with live tasks (Slice 30). */
+const UNDO_SECTION = 'section-project-work-manager-tasks';
 
 const check = (condition, description) => {
   if (!condition) throw new Error(`FAILED: ${description}`);
@@ -73,7 +75,46 @@ const assertClient = async (client, title) => {
       journal.structuredContent?.items?.some(({ reflection: item }) => item.id === reflection.structuredContent?.id),
     `${title} reads the linked reflection from the journal`,
   );
-  return { task, reflectionId: reflection.structuredContent?.id };
+  const undoId = await assertUndo(client, title);
+  return { task, reflectionId: reflection.structuredContent?.id, undoId };
+};
+
+/**
+ * Slice 30: remove_section returns a receipt; undo_operation restores the section between the
+ * same neighbours with its cascaded tasks live again; a repeat is refused with its reason token.
+ */
+const assertUndo = async (client, title) => {
+  const canvas = async () => {
+    const listed = await client.callTool({ name: 'list_sections', arguments: { projectId: PROJECT } });
+    return JSON.parse(listed.content[0].text).map(({ id }) => id);
+  };
+  const liveTasks = async () => {
+    const listed = await client.callTool({ name: 'list_tasks', arguments: { projectId: PROJECT } });
+    return JSON.parse(listed.content[0].text).filter(({ sectionId }) => sectionId === UNDO_SECTION).map(({ id }) => id).sort();
+  };
+  const before = await canvas();
+  const tasksBefore = await liveTasks();
+  const index = before.indexOf(UNDO_SECTION);
+  // The seed places it second of three; add_reflection above may have appended a container since.
+  check(index > 0 && index < before.length - 1, `${title} sees the task list between two neighbours`);
+  check(tasksBefore.length > 0, `${title} sees live tasks in it`);
+
+  const removed = await client.callTool({ name: 'remove_section', arguments: { sectionId: UNDO_SECTION, policy: 'cascade' } });
+  check(removed.isError !== true && typeof removed.structuredContent?.undo?.undoId === 'string', `${title} remove_section returns a receipt`);
+  check((await liveTasks()).length === 0, `${title} cascade archived the tasks`);
+  const { undoId } = removed.structuredContent.undo;
+
+  const undone = await client.callTool({ name: 'undo_operation', arguments: { undoId } });
+  check(undone.isError !== true && undone.structuredContent?.outcome === 'restored', `${title} undo_operation restores`);
+  check(JSON.stringify(await canvas()) === JSON.stringify(before), `${title} the list is back between the same neighbours`);
+  check(JSON.stringify(await liveTasks()) === JSON.stringify(tasksBefore), `${title} its tasks are live again`);
+
+  const repeated = await client.callTool({ name: 'undo_operation', arguments: { undoId } });
+  check(
+    repeated.isError === true && repeated.content?.some(({ text }) => typeof text === 'string' && text.startsWith('undo_consumed:')),
+    `${title} a repeat is refused with undo_consumed:`,
+  );
+  return undoId;
 };
 
 const assertPersisted = async (path, result, title) => {
@@ -85,6 +126,14 @@ const assertPersisted = async (path, result, title) => {
   check(
     document.reflections.some(({ id, subject }) => id === result.reflectionId && subject?.id === 'task-agent-deployment'),
     `${title} subject-linked reflection is present in data.json`,
+  );
+  check(
+    document.sections.some(({ id, archivedAt }) => id === UNDO_SECTION && archivedAt === undefined),
+    `${title} undone section is live in data.json`,
+  );
+  check(
+    document.undoRecords.some(({ id, consumedAt }) => id === result.undoId && typeof consumedAt === 'string'),
+    `${title} Undo record is consumed in data.json`,
   );
 };
 
@@ -173,6 +222,15 @@ let stdioClient;
 
 try {
   await Promise.all([copyFile(seedPath, httpFile), copyFile(seedPath, stdioFile)]);
+  // The token's connection lacks projects.write in the seed, and section removal needs it. Granted
+  // in the copied temp files only; the committed seed is unchanged.
+  for (const file of [httpFile, stdioFile]) {
+    const document = JSON.parse(await readFile(file, 'utf8'));
+    const connection = document.agentConnections.find(({ id }) => id === 'agent-claude');
+    connection.permissions = [...new Set([...connection.permissions, 'projects.write'])];
+    await writeFile(file, `${JSON.stringify(document, null, 2)}
+`, 'utf8');
+  }
 
   console.log('1. Streamable HTTP');
   const started = await startHost(httpFile);

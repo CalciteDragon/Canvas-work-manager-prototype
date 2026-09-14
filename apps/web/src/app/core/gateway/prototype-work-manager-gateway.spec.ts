@@ -434,9 +434,10 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
     expect(copy.id).toBe('section-2');
   });
 
-  it('removes through DELETE and tolerates the host’s empty 204', async () => {
-    // Reading `.json()` off a 204 throws; the remove path must not go looking for a body.
-    fetchMock.mockImplementation(() => new Response(null, { status: 204 }));
+  it('removes through DELETE and ignores the receipt body the host now returns', async () => {
+    // The host answers 200 with `SectionRemovalResult`; the adapter does not consume the receipt
+    // yet, so an unvalidated body must not break the call.
+    fetchMock.mockImplementation(jsonResponse({ section: projectSection, undo: { undoId: 'undo-1' } }));
 
     await expect(gateway().sections.remove('section-1' as SectionId)).resolves.toBeUndefined();
 

@@ -147,8 +147,9 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/move`, ProjectSectionSchema, input),
     duplicate: (id: SectionId) =>
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/duplicate`, ProjectSectionSchema),
-    // The host answers 204 with no body, so there is nothing to validate — unlike
-    // `tasks.archive`, which discards a body it still checks.
+    // The host answers 200 with the archived section and an Undo receipt (`SectionRemovalResult`).
+    // This adapter does not consume the receipt yet — the canvas re-reads, and a browser Undo
+    // surface is a later slice — so the body is neither read nor validated.
     // The policy rides on the query string, matching the host route.
     remove: (id: SectionId, input: RemoveSectionInput = {}) =>
       this.sendWithoutBody(
@@ -229,7 +230,10 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
     return parsed.data;
   }
 
-  /** For the one route that answers 204: reading `.json()` off an empty body would throw. */
+  /**
+   * For routes whose body the caller does not use: a 204 (reading `.json()` off an empty body
+   * would throw) or, for section removal, a 200 body this adapter deliberately ignores.
+   */
   private async sendWithoutBody(method: string, path: string): Promise<void> {
     await this.request(method, path);
   }

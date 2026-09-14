@@ -181,7 +181,9 @@ export interface SectionGateway {
    * and the caller surfaces the refusal as a choice rather than swallowing it — see
    * docs/decisions/2026-09-what-undo-means-for-an-archived-row.md.
    *
-   * `Promise<void>` deliberately: the host answers 204, and the canvas re-reads.
+   * `Promise<void>` deliberately: the canvas re-reads. The host now answers with an Undo receipt
+   * as well, which this gateway does not expose yet; receipt-driven Undo in the browser is a
+   * later slice.
    */
   remove(id: SectionId, input?: RemoveSectionInput): Promise<void>;
   restore(id: SectionId): Promise<ProjectSection>;

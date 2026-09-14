@@ -152,6 +152,7 @@ describe('live updates through the host (§62)', () => {
       shortcuts: api.shortcuts,
       dashboard: api.dashboard,
       workspace: api.workspace,
+      undo: api.undo,
     });
 
     await registry.call('complete_task', { taskId: OPEN_TASK }, AGENT);
@@ -160,5 +161,57 @@ describe('live updates through the host (§62)', () => {
     expect(frames[0]?.event.type).toBe('task.completed');
     expect(frames[0]?.event.entityId).toBe(OPEN_TASK);
     expect(frames[0]?.statusAtDelivery).toBe('done');
+  });
+
+  /** Slice 30: removal and its Undo each publish only their one activity frame, after commit. */
+  describe('section removal and Undo', () => {
+    const SECTION = 'section-project-work-manager-activity';
+
+    const watchSection = (persistence: Awaited<ReturnType<typeof harness>>['persistence'], events: LiveEventHub) => {
+      const delivered: Array<{ event: LiveEvent; archivedAtDelivery: string | undefined; records: number }> = [];
+      events.subscribe((event) => {
+        const document = persistence.store.snapshot();
+        delivered.push({
+          event,
+          archivedAtDelivery: document.sections.find(({ id }) => id === SECTION)?.archivedAt,
+          records: document.undoRecords.length,
+        });
+      });
+      return delivered;
+    };
+
+    it('delivers one committed frame for the removal and one for its Undo, with no inverse data', async () => {
+      const { routes, persistence, events } = await harness();
+      const delivered = watchSection(persistence, events);
+
+      const removed = await persona(routes, 'DELETE', `/api/sections/${SECTION}`);
+      expect(removed.status).toBe(200);
+      expect(delivered).toHaveLength(1);
+      expect(delivered[0]).toMatchObject({ event: { type: 'project.section_archived' }, records: 1 });
+      expect(delivered[0]?.archivedAtDelivery).toBeDefined();
+
+      const { undo } = removed.body as { undo: { undoId: string } };
+      const undone = await persona(routes, 'POST', `/api/undo/${undo.undoId}`);
+      expect(undone.status).toBe(200);
+      expect(delivered).toHaveLength(2);
+      expect(delivered[1]?.event.type).toBe('project.section_removal_undone');
+      expect(delivered[1]?.archivedAtDelivery).toBeUndefined();
+      expect(JSON.stringify(delivered.map(({ event }) => event))).not.toMatch(/undo-|placement|rows/);
+    });
+
+    it('delivers nothing and keeps no record when persisting the removal fails', async () => {
+      const { routes, persistence, events } = await harness();
+      const delivered = watchSection(persistence, events);
+      persistence.store.persist = async () => {
+        throw new Error('disk full');
+      };
+
+      const removed = await persona(routes, 'DELETE', `/api/sections/${SECTION}`);
+
+      expect(removed.status).toBe(500);
+      expect(delivered).toEqual([]);
+      expect(persistence.store.snapshot().undoRecords).toEqual([]);
+      expect(persistence.store.snapshot().sections.find(({ id }) => id === SECTION)?.archivedAt).toBeUndefined();
+    });
   });
 });

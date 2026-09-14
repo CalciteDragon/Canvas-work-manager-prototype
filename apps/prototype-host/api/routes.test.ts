@@ -1,5 +1,5 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionRemovalResultSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema, UndoRefusalDetailsSchema, UndoResultSchema } from '@cwm/contracts';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryUndoRecorder, SectionService, SectionShortcutService, TaskService, TimelineService, UndoService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
@@ -11,6 +11,7 @@ import {
   JsonSectionRepository,
   JsonSectionShortcutRepository,
   JsonTaskRepository,
+  JsonUndoRecordRepository,
   JsonUserRepository,
   unitOfWorkFor,
 } from '@cwm/repositories';
@@ -134,8 +135,7 @@ const buildRoutes = (withProjects = true, seeded?: ReturnType<typeof document>):
  * persistence case below can point two successive stores at one file — a restart, without a
  * process to restart.
  */
-const routesFor = (store: DataStore): RouteTable => {
-  const clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'));
+const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'))): RouteTable => {
   const ids = new PrototypeIdGenerator();
   const projects = new JsonProjectRepository(store);
   const pages = new JsonProjectPageRepository(store);
@@ -147,10 +147,12 @@ const routesFor = (store: DataStore): RouteTable => {
   const reflections = new JsonReflectionRepository(store);
   const agents = new JsonAgentConnectionRepository(store);
   const users = new JsonUserRepository(store);
+  const undoRecords = new JsonUndoRecordRepository(store);
   const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids });
   const unitOfWork = unitOfWorkFor(store);
   const connections = new AgentConnectionService({ agents, activity, clock, unitOfWork });
-  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const undo = new RepositoryUndoRecorder({ undoRecords, clock, ids });
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, undo, clock, ids, unitOfWork });
   const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
 
   return createApiRoutes({
@@ -169,6 +171,7 @@ const routesFor = (store: DataStore): RouteTable => {
     reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     agents: connections,
+    undo: new UndoService({ undoRecords, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
     authenticator: new PrototypeAgentAuthenticator({ agents, users, connections }),
   });
 };
@@ -482,7 +485,7 @@ describe('section routes', () => {
     expect(ProjectSectionSchema.parse(duplicated.body)).toMatchObject({ type: 'rich-text', position: 2 });
 
     const removed = await call(routes, 'DELETE', `/api/sections/${sibling.id}`);
-    expect(removed.status).toBe(204);
+    expect(removed.status).toBe(200);
     const remaining = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
     expect(ProjectSectionSchema.array().parse(remaining.body).map((item) => item.position)).toEqual([0, 1]);
   });
@@ -511,7 +514,7 @@ describe('section routes', () => {
     expect(String((refused.body as { message: string }).message)).toContain('holds 1 tasks');
 
     const cascaded = await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
-    expect(cascaded.status).toBe(204);
+    expect(cascaded.status).toBe(200);
     // Archived, not deleted — the removal is undoable, and the section comes down too, so
     // the row's container still exists to come back to.
     const archived = await call(routes, 'GET', `/api/tasks/${task.id}`);
@@ -532,7 +535,7 @@ describe('section routes', () => {
       `/api/sections/${task.sectionId}?policy=reassign&reassignToSectionId=${target.id}`,
     );
 
-    expect(removed.status).toBe(204);
+    expect(removed.status).toBe(200);
     expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).sectionId).toBe(target.id);
   });
 
@@ -563,7 +566,7 @@ describe('section routes', () => {
     const routes = buildRoutes();
     const section = await newSection(routes);
 
-    expect((await call(routes, 'DELETE', `/api/sections/${section.id}`)).status).toBe(204);
+    expect((await call(routes, 'DELETE', `/api/sections/${section.id}`)).status).toBe(200);
     // Removal archives, so the second call is not a 404: the section is there, and removing
     // something already removed is a rule error rather than a second archive.
     const again = await call(routes, 'DELETE', `/api/sections/${section.id}`);
@@ -1154,7 +1157,7 @@ describe('Archive projection route (§31, §32, §54)', () => {
     const notes = await add({ type: 'rich-text', config: { text: 'Measure twice' } });
     const blank = await add({ type: 'rich-text', config: { text: '   ' } });
     for (const { id } of [progress, notes, blank]) {
-      expect((await call(routes, 'DELETE', `/api/sections/${id}`)).status).toBe(204);
+      expect((await call(routes, 'DELETE', `/api/sections/${id}`)).status).toBe(200);
     }
     const eventsBefore = ((await call(routes, 'GET', '/api/activity')).body as unknown[]).length;
 
@@ -1265,5 +1268,137 @@ describe('Journal projection routes (§36, §54)', () => {
     const picker = await call(routes, 'GET', '/api/projects/project-mine/completed-work');
     expect(picker.status).toBe(200);
     expect(ProjectCompletedWorkResultSchema.parse(picker.body).candidates).toEqual([]);
+  });
+});
+
+describe('section removal receipts and Undo (Slice 30)', () => {
+  const READWRITE = 'prototype-user-a-readwrite';
+  const AGENT_PROJECT = 'project-work-manager';
+
+  const withStore = (seeded = document(true), clock?: PrototypeClock) => {
+    const store = new InMemoryDataStore(seeded);
+    return { store, routes: routesFor(store, clock) };
+  };
+
+  const removeNotes = async (routes: RouteTable) => {
+    const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', config: { text: 'Kept' } } });
+    const section = ProjectSectionSchema.parse(created.body);
+    const removed = await call(routes, 'DELETE', `/api/sections/${section.id}`);
+    return { section, removed, result: SectionRemovalResultSchema.parse(removed.body) };
+  };
+
+  it('answers a removal with 200, the archived section and a receipt carrying no inverse data', async () => {
+    const { routes } = withStore();
+
+    const { section, removed, result } = await removeNotes(routes);
+
+    expect(removed.status).toBe(200);
+    expect(result.section).toMatchObject({ id: section.id, archivedAt: '2026-08-24T16:00:00.000Z' });
+    expect(Object.keys(result.undo).sort()).toEqual(['createdAt', 'expiresAt', 'label', 'operation', 'undoId']);
+  });
+
+  it('issues no receipt for a refused removal', async () => {
+    const { store, routes } = withStore();
+    const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Live' } })).body);
+
+    const refused = await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
+
+    expect(refused.status).toBe(409);
+    expect(refused.body).not.toHaveProperty('undo');
+    expect(store.snapshot().undoRecords).toEqual([]);
+  });
+
+  it('undoes with 200, then refuses the repeat with 409 undo_consumed details', async () => {
+    const { routes } = withStore();
+    const { section, result } = await removeNotes(routes);
+
+    const undone = await call(routes, 'POST', `/api/undo/${result.undo.undoId}`);
+    expect(undone.status).toBe(200);
+    expect(UndoResultSchema.parse(undone.body)).toMatchObject({ outcome: 'restored', section: { id: section.id } });
+
+    const again = await call(routes, 'POST', `/api/undo/${result.undo.undoId}`);
+    expect(again).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
+    const details = UndoRefusalDetailsSchema.parse((again.body as { details: unknown }).details);
+    expect(details).toMatchObject({ reason: 'undo_consumed', undoId: result.undo.undoId });
+    expect((again.body as { message: string }).message).toMatch(/^undo_consumed: /);
+  });
+
+  it('answers 409 undo_expired and undo_conflict with typed details', async () => {
+    const clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'));
+    const { routes } = withStore(document(true), clock);
+    const expiring = (await removeNotes(routes)).result;
+    const conflicting = await removeNotes(routes);
+    await call(routes, 'POST', `/api/sections/${conflicting.section.id}/restore`);
+
+    const conflict = await call(routes, 'POST', `/api/undo/${conflicting.result.undo.undoId}`);
+    expect(conflict.status).toBe(409);
+    expect(UndoRefusalDetailsSchema.parse((conflict.body as { details: unknown }).details)).toEqual({
+      reason: 'undo_conflict',
+      undoId: conflicting.result.undo.undoId,
+      conflicts: [{ entityType: 'section', id: conflicting.section.id, problem: 'not-archived' }],
+    });
+
+    clock.setNow(new Date(expiring.undo.expiresAt));
+    const expired = await call(routes, 'POST', `/api/undo/${expiring.undo.undoId}`);
+    expect(expired.status).toBe(409);
+    expect(UndoRefusalDetailsSchema.parse((expired.body as { details: unknown }).details)).toMatchObject({ reason: 'undo_expired' });
+  });
+
+  it('answers 404 to another persona and for an unknown receipt', async () => {
+    const { routes } = withStore();
+    const { result } = await removeNotes(routes);
+
+    expect((await call(routes, 'POST', `/api/undo/${result.undo.undoId}`, { user: ALEX })).status).toBe(404);
+    expect((await call(routes, 'POST', '/api/undo/undo-nope')).status).toBe(404);
+  });
+
+  describe('an agent whose access changes after the receipt was issued', () => {
+    /** agent-heavy's read/write connection, granted `projects.write` so it can remove and undo. */
+    const agentReceipt = async () => {
+      const { store, routes } = withStore(PrototypeDocumentSchema.parse(buildSeed('agent-heavy')));
+      await call(routes, 'PATCH', '/api/agent-connections/agent-claude', {
+        user: 'user-demo',
+        body: { permissions: ['projects.read', 'projects.write', 'tasks.read', 'tasks.write'] },
+      });
+      const created = await call(routes, 'POST', `/api/projects/${AGENT_PROJECT}/sections`, {
+        token: READWRITE,
+        body: { type: 'progress' },
+      });
+      const removed = await call(routes, 'DELETE', `/api/sections/${ProjectSectionSchema.parse(created.body).id}`, {
+        token: READWRITE,
+      });
+      expect(removed.status).toBe(200);
+      const { undo } = SectionRemovalResultSchema.parse(removed.body);
+      const unconsumed = () => store.snapshot().undoRecords.find(({ id }) => id === undo.undoId)?.consumedAt === undefined;
+      return { routes, undo, unconsumed };
+    };
+
+    it('answers 401 once the connection is revoked, leaving the record unconsumed', async () => {
+      const { routes, undo, unconsumed } = await agentReceipt();
+      await call(routes, 'POST', '/api/agent-connections/agent-claude/revoke', { user: 'user-demo' });
+
+      expect((await call(routes, 'POST', `/api/undo/${undo.undoId}`, { token: READWRITE })).status).toBe(401);
+      expect(unconsumed()).toBe(true);
+    });
+
+    it('answers 403 once projects.write is removed, leaving the record unconsumed', async () => {
+      const { routes, undo, unconsumed } = await agentReceipt();
+      await call(routes, 'PATCH', '/api/agent-connections/agent-claude', {
+        user: 'user-demo',
+        body: { permissions: ['projects.read', 'tasks.read', 'tasks.write'] },
+      });
+
+      const denied = await call(routes, 'POST', `/api/undo/${undo.undoId}`, { token: READWRITE });
+      expect(denied).toMatchObject({ status: 403, body: { error: 'permission_denied' } });
+      expect(unconsumed()).toBe(true);
+    });
+
+    it('undoes for the same connection while it still holds projects.write', async () => {
+      const { routes, undo } = await agentReceipt();
+
+      expect((await call(routes, 'POST', `/api/undo/${undo.undoId}`, { token: READWRITE })).status).toBe(200);
+      // The person does not own their agent's receipt (exact-actor scope).
+      expect((await call(routes, 'POST', `/api/undo/${undo.undoId}`, { user: 'user-demo' })).status).toBe(404);
+    });
   });
 });

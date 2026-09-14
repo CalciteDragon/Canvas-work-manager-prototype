@@ -1,4 +1,4 @@
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, SimulatedClock, TaskService, TimelineService, WorkspaceService } from '@cwm/domain';
+import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryUndoRecorder, SectionService, SectionShortcutService, SimulatedClock, TaskService, TimelineService, UndoService, WorkspaceService } from '@cwm/domain';
 import type { AIProvider } from '@cwm/domain';
 import { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
 import { LiveEventHub } from '../events/hub.ts';
@@ -41,7 +41,7 @@ export interface HostServices extends ApiDependencies {
 export const createApi = (persistence: Persistence, options: CreateApiOptions = {}): HostServices => {
   const clock = options.clock ?? new SimulatedClock();
   const ids = new PrototypeIdGenerator();
-  const { store, projects, pages, sections, shortcuts, tasks, milestones, reflections, activities, agents, users } = persistence;
+  const { store, projects, pages, sections, shortcuts, tasks, milestones, reflections, activities, agents, users, undoRecords } = persistence;
 
   // §62. The wrapped unit of work is built **locally** and handed to the services;
   // `persistence.unitOfWork` is left alone, because `PrototypeRuntime`'s seed swap runs
@@ -54,7 +54,10 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
 
   // Built ahead of the table: task and reflection writes resolve their container through
   // it, so it has to exist before they do.
-  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  // Removal records its Undo inverse in its own unit; the same hub-wrapped unit carries Undo, so
+  // both publish only their one activity frame, after commit.
+  const undo = new RepositoryUndoRecorder({ undoRecords, clock, ids });
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, undo, clock, ids, unitOfWork });
   const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
 
   return {
@@ -74,6 +77,7 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
     reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai }),
     workspace: new WorkspaceService({ projects, tasks, reflections, clock }),
+    undo: new UndoService({ undoRecords, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
     agents: connections,
     // §51's tokens only work on localhost — `main.ts` binds to 127.0.0.1 for this reason.
     authenticator: new PrototypeAgentAuthenticator({ agents, users, connections }),

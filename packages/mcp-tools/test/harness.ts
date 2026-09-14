@@ -21,9 +21,11 @@ import {
   PrototypeAIProvider,
   PrototypeClock,
   ReflectionService,
+  RepositoryUndoRecorder,
   SectionService,
   SectionShortcutService,
   TaskService,
+  UndoService,
   WorkspaceService,
   type ActorContext,
   type IdGenerator,
@@ -40,6 +42,7 @@ import {
   JsonSectionRepository,
   JsonSectionShortcutRepository,
   JsonTaskRepository,
+  JsonUndoRecordRepository,
   JsonUserRepository,
   unitOfWorkFor,
 } from '@cwm/repositories';
@@ -181,6 +184,7 @@ export const buildHarness = () => {
   const agents = new JsonAgentConnectionRepository(store);
   const users = new JsonUserRepository(store);
   const milestones = new JsonMilestoneRepository(store);
+  const undoRecords = new JsonUndoRecordRepository(store);
   const activity = new ActivityService({
     activities,
     projects,
@@ -193,7 +197,8 @@ export const buildHarness = () => {
     ids,
   });
 
-  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const undo = new RepositoryUndoRecorder({ undoRecords, clock, ids });
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, undo, clock, ids, unitOfWork });
   const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
 
   const services = {
@@ -208,6 +213,7 @@ export const buildHarness = () => {
     reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     workspace: new WorkspaceService({ projects, tasks, reflections, clock }),
+    undo: new UndoService({ undoRecords, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
   };
 
   return { store, clock, activity, services, registry: createToolRegistry(services) };

@@ -12,6 +12,7 @@ import {
   JsonSectionRepository,
   JsonSectionShortcutRepository,
   JsonTaskRepository,
+  JsonUndoRecordRepository,
   JsonUserRepository,
   unitOfWorkFor,
   type DataStore,
@@ -55,6 +56,8 @@ export interface Persistence {
   /** §52's connections and the users that own them, for §51's authenticator and §53's UI. */
   agents: JsonAgentConnectionRepository;
   users: JsonUserRepository;
+  /** Scoped, expiring Undo records, kept beside the canonical collections they reverse. */
+  undoRecords: JsonUndoRecordRepository;
   unitOfWork: ReturnType<typeof unitOfWorkFor>;
 }
 
@@ -76,6 +79,7 @@ export const loadPersistence = async (path = dataFilePath()): Promise<Persistenc
     activities: new JsonActivityRepository(store),
     agents: new JsonAgentConnectionRepository(store),
     users: new JsonUserRepository(store),
+    undoRecords: new JsonUndoRecordRepository(store),
     unitOfWork: unitOfWorkFor(store),
   };
 };
