@@ -25,3 +25,5 @@ export * from './task-service';
 export * from './task-windows';
 export * from './timeline-service';
 export * from './workspace-service';
+export * from './undo-recorder';
+export * from './undo-service';

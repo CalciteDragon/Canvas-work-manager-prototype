@@ -1,7 +1,7 @@
 import { PrototypeDocumentSchema, type Project, type ProjectId, type ProjectStatus } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { DomainRuleError } from './errors';
-import { archivedAncestry, assertProjectWritable } from './project-visibility';
+import { archivedAncestry, assertProjectWritable, findHighestWriteBlocker } from './project-visibility';
 
 const AT = '2026-08-01T16:00:00.000Z';
 
@@ -167,5 +167,26 @@ describe('assertProjectWritable', () => {
     const cyclic = [project('a', 'active', 'b'), project('b', 'active', 'a')];
 
     await expect(assertProjectWritable(repositoryOf(cyclic), id('a'))).resolves.toBeUndefined();
+  });
+});
+
+describe('findHighestWriteBlocker', () => {
+  it('answers nothing for a live project in a live tree, or one it cannot find', async () => {
+    await expect(findHighestWriteBlocker(repositoryOf([project('root', 'active')]), id('root'))).resolves.toBeUndefined();
+    await expect(findHighestWriteBlocker(repositoryOf([]), id('gone'))).resolves.toBeUndefined();
+  });
+
+  it('names the project itself when only it is archived', async () => {
+    await expect(findHighestWriteBlocker(repositoryOf([project('root', 'archived')]), id('root'))).resolves.toBe('root');
+  });
+
+  it('names the highest archived project in the chain', async () => {
+    await expect(findHighestWriteBlocker(repositoryOf(archivedRootTree()), id('grandchild'))).resolves.toBe('root');
+    await expect(findHighestWriteBlocker(repositoryOf(archivedMiddleTree()), id('grandchild'))).resolves.toBe('child');
+  });
+
+  it('terminates on a cyclic parent chain', async () => {
+    const cyclic = [project('a', 'archived', 'b'), project('b', 'active', 'a')];
+    await expect(findHighestWriteBlocker(repositoryOf(cyclic), id('b'))).resolves.toBe('a');
   });
 });

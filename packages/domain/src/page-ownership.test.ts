@@ -192,7 +192,7 @@ describe('ordering is per page (§27)', () => {
     const { home, reflections, first } = await stage(harness);
     const before = await positionsOn(harness, reflections);
 
-    const archived = await harness.sectionService.remove(harness.actor, first.id);
+    const { section: archived } = await harness.sectionService.remove(harness.actor, first.id);
     expect(await positionsOn(harness, reflections)).toEqual(before);
 
     const restored = await harness.sectionService.restoreSection(harness.actor, archived.id);
@@ -370,7 +370,7 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     await expect(harness.sectionService.move(harness.actor, journal.id, 0)).resolves.toBeDefined();
 
     // Undo is never behind a toggle (§31): removal and restore both work on a disabled page.
-    const archived = await harness.sectionService.remove(harness.actor, journal.id, { policy: 'cascade' });
+    const { section: archived } = await harness.sectionService.remove(harness.actor, journal.id, { policy: 'cascade' });
     const restored = await harness.sectionService.restoreSection(harness.actor, archived.id);
     expect(restored.pageId).toBe(reflections.id);
     expect((await harness.reflections.list({ sectionId: journal.id }))[0]?.archivedAt).toBeUndefined();

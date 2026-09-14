@@ -125,3 +125,24 @@ export const assertProjectWritable = async (projects: ProjectRepository, project
     ancestorId = ancestor.parentProjectId;
   }
 };
+
+/**
+ * The same freeze as `assertProjectWritable`, answered rather than thrown: the **highest**
+ * archived project on the chain from `projectId` up — itself included — or `undefined` when
+ * nothing blocks a write. Undo reports it as `undo_blocked`, whose details need an id, not a
+ * sentence. Highest, because reactivating anything below it still leaves the tree frozen.
+ */
+export const findHighestWriteBlocker = async (
+  projects: ProjectRepository,
+  projectId: ProjectId,
+): Promise<ProjectId | undefined> => {
+  let blocker: ProjectId | undefined;
+  const seen = new Set<ProjectId>();
+  let current = await projects.find(projectId);
+  while (current !== null && !seen.has(current.id)) {
+    if (current.status === 'archived') blocker = current.id;
+    seen.add(current.id);
+    current = current.parentProjectId === undefined ? null : await projects.find(current.parentProjectId);
+  }
+  return blocker;
+};

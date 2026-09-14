@@ -3,9 +3,7 @@ import {
   pageAcceptsSectionType,
   pageAcceptsSections,
   ProjectSectionSchema,
-  ReflectionSchema,
   SectionIdSchema,
-  TaskSchema,
   containerTypeFor,
   nameOf,
   normaliseSectionTitle,
@@ -14,12 +12,11 @@ import {
   type OwnedDataKind,
   type ProjectId,
   type ProjectSection,
-  type Reflection,
   type RemoveSectionInput,
   type SectionId,
   type SectionQuery,
   type SectionRemovalRefusalDetails,
-  type Task,
+  type SectionRemovalResult,
   type ProjectPage,
   type ProjectPageId,
   type UpdateSectionInput,
@@ -39,7 +36,10 @@ import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
 import { assertProjectWritable } from './project-visibility';
-import { listPlacements, renumberPlacements, type PagePlacement } from './page-placements';
+import { rowsOf, writeRow, type OwnedRow } from './owned-rows';
+import { listPlacements, renumberPlacements, snapshotPlacement, type PagePlacement } from './page-placements';
+import { captureSectionRemoval, NOTHING_SETTLED, rowChangeOf, type SettledRows } from './section-removal-undo';
+import type { UndoRecorder } from './undo-recorder';
 
 export interface SectionServiceDependencies {
   sections: SectionRepository;
@@ -52,13 +52,16 @@ export interface SectionServiceDependencies {
   tasks: TaskRepository;
   reflections: ReflectionRepository;
   activity: ActivityService;
+  /**
+   * Makes a removal undoable. An interface over one repository that never opens a unit, used
+   * the way `activity.record` is — the one new kind of edge Undo adds, and acyclic: the recorder
+   * depends on nothing here, and `UndoService` composes no section service.
+   */
+  undo: UndoRecorder;
   clock: Clock;
   ids: IdGenerator;
   unitOfWork: UnitOfWork;
 }
-
-/** A row of an owned kind: everything this service needs to archive or repoint one. */
-type OwnedRow = Task | Reflection;
 
 /** `null` clears and `undefined` leaves alone — §11's `dueAt` example is the pattern. */
 const apply = <T extends object>(section: T, key: keyof T, value: unknown): void => {
@@ -485,9 +488,17 @@ export class SectionService {
    * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
    *
    * Allowed inside an archived project, unlike every other section write: the freeze stops
-   * work coming *back* into a project someone has put away, not someone tidying one.
+   * work coming *back* into a project someone has put away, not someone tidying one. It still
+   * returns a receipt, which Undo answers `undo_blocked` until the project is reactivated.
+   *
+   * **Every successful removal returns one Undo receipt**, recorded in this unit beside the
+   * canonical writes: the pre-removal section, its placement between neighbours, and exactly the
+   * rows `settleRows` wrote. A refusal records nothing. The receipt is real only once the unit
+   * commits, which is when `unitOfWork.run` resolves **for a top-level call** — `unitOfWorkFor`
+   * joins a nested call, so a composer that nests this inside its own unit must not hand the
+   * receipt on before that unit commits (nothing nests it today).
    */
-  async remove(actor: ActorContext, id: SectionId, input: RemoveSectionInput = {}): Promise<ProjectSection> {
+  async remove(actor: ActorContext, id: SectionId, input: RemoveSectionInput = {}): Promise<SectionRemovalResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
@@ -496,9 +507,12 @@ export class SectionService {
       if (current.archivedAt !== undefined) {
         throw new DomainRuleError(`section "${id}" is already archived`);
       }
+      // Before any write: the placement Undo returns to is the one the canvas showed.
+      const placement = snapshotPlacement(await this.placementsOnPage(current.pageId), { kind: 'section', id });
       const owned = ownedKindOf(current.type);
       const archivedAt = this.dependencies.clock.now().toISOString();
-      if (owned !== undefined) await this.settleRows(actor, current, owned, input, archivedAt);
+      const settled =
+        owned === undefined ? NOTHING_SETTLED : await this.settleRows(actor, current, owned, input, archivedAt);
 
       const archived = ProjectSectionSchema.parse({
         ...current,
@@ -516,15 +530,20 @@ export class SectionService {
         await this.placementsOnPage(current.pageId),
       );
       await this.record(actor, archived, 'project.section_archived', 'Archived');
-      return archived;
+      const undo = await this.dependencies.undo.record(actor, {
+        projectId: current.projectId,
+        label: `Removed the ${nameOf(current)} section`,
+        operation: captureSectionRemoval({ section: current, placement, settled, postSectionArchivedAt: archivedAt }),
+      });
+      return { section: archived, undo };
     });
   }
 
   /**
    * **Archive Restore** for `remove`, and the **only** way an archived section — or a row that
    * came down with one — comes back. Under `projects.write`, like every other section write.
-   * It is not the receipt-based Undo planned for later slices: it reverses the archive, not the
-   * removal's placement, and nothing about it is persisted beyond the canonical records.
+   * It is not receipt-based Undo (`UndoService`): it needs no receipt and never expires, but it
+   * reverses the archive rather than the removal's placement, and it consumes no Undo record.
    *
    * It restores exactly what the removal took: the section, and the rows whose
    * `archivedWithSectionId` names it. A row archived on its own beforehand carries no marker
@@ -563,7 +582,7 @@ export class SectionService {
 
       const owned = ownedKindOf(current.type);
       if (owned !== undefined) {
-        for (const row of await this.rowsOf(current.id, owned)) {
+        for (const row of await rowsOf(this.dependencies, current.id, owned)) {
           if (row.archivedWithSectionId !== current.id) continue;
           const next = { ...row };
           delete next.archivedAt;
@@ -587,6 +606,9 @@ export class SectionService {
    * No live rows means no question to ask, so the section archives with no policy. That is
    * the second dangle the hard delete produced and no policy ever reached: a container
    * holding only archived rows was deleted out from under them.
+   *
+   * Returns what it **applied**, for the Undo record: `none` when nothing was live whatever the
+   * caller sent — a `reassign` with no target succeeds here — and every row it wrote.
    */
   private async settleRows(
     actor: ActorContext,
@@ -594,10 +616,10 @@ export class SectionService {
     owned: OwnedDataKind,
     input: RemoveSectionInput,
     archivedAt: string,
-  ): Promise<void> {
-    const rows = await this.rowsOf(section.id, owned);
+  ): Promise<SettledRows> {
+    const rows = await rowsOf(this.dependencies, section.id, owned);
     const live = rows.filter((row) => row.archivedAt === undefined);
-    if (live.length === 0) return;
+    if (live.length === 0) return NOTHING_SETTLED;
 
     if (input.policy === undefined) {
       // The sentence stays for MCP and `curl` callers, who have no UI to compose one. The
@@ -611,10 +633,13 @@ export class SectionService {
     if (input.policy === 'cascade') {
       // The marker is what makes the cascade reversible: `restoreSection` brings back
       // exactly the rows naming this section, and nothing else it happened to hold.
+      const changes = [];
       for (const row of live) {
-        await this.writeRow(owned, { ...row, archivedAt, archivedWithSectionId: section.id });
+        const next = { ...row, archivedAt, archivedWithSectionId: section.id };
+        changes.push(rowChangeOf(owned, row, next));
+        await this.writeRow(owned, next);
       }
-      return;
+      return { appliedPolicy: 'cascade', rows: changes };
     }
 
     if (input.reassignToSectionId === undefined) {
@@ -638,25 +663,18 @@ export class SectionService {
     // docs/decisions/2026-09-reassign-may-cross-pages.md. The destination still has to be
     // somewhere a write may land, which is the one page rule that applies.
     await this.assertWritablePage(target);
-    for (const row of rows) await this.writeRow(owned, { ...row, sectionId: target.id });
+    const changes = [];
+    for (const row of rows) {
+      const next = { ...row, sectionId: target.id };
+      changes.push(rowChangeOf(owned, row, next));
+      await this.writeRow(owned, next);
+    }
+    return { appliedPolicy: 'reassign', reassignToSectionId: target.id, rows: changes };
   }
 
-  private async rowsOf(sectionId: SectionId, owned: OwnedDataKind): Promise<OwnedRow[]> {
-    return owned === 'tasks'
-      ? this.dependencies.tasks.list({ sectionId, includeArchived: true })
-      : this.dependencies.reflections.list({ sectionId, includeArchived: true });
-  }
-
-  /**
-   * Rows are written through the schema rather than through the owning service: this is one
-   * step of a removal the caller has already been permitted for, and routing it back through
-   * `TaskService` would make `SectionService` depend on the services that depend on it.
-   * `updatedAt` moves, so a live client sees the row change.
-   */
+  /** See `owned-rows.ts` for why rows are written through the schema, not their service. */
   private async writeRow(owned: OwnedDataKind, row: OwnedRow): Promise<void> {
-    const updatedAt = this.dependencies.clock.now().toISOString();
-    if (owned === 'tasks') await this.dependencies.tasks.update(TaskSchema.parse({ ...row, updatedAt }));
-    else await this.dependencies.reflections.update(ReflectionSchema.parse({ ...row, updatedAt }));
+    await writeRow(this.dependencies, this.dependencies.clock, owned, row);
   }
 
   private async commit(

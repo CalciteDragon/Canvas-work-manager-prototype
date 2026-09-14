@@ -1,9 +1,10 @@
-import { ProjectSectionSchema, type ProjectId, type SectionId } from '@cwm/contracts';
+import { ActivityEventShape, LiveEventSchema, ProjectSectionSchema, type ProjectId, type SectionId } from '@cwm/contracts';
 import { SEED_NOW } from '@cwm/prototype-data';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, MINE, seedContainer, THEIRS } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
+import type { LivePublication } from './live-events';
 
 const NOW = '2026-08-24T16:00:00.000Z';
 
@@ -364,7 +365,7 @@ describe('SectionService.remove', () => {
     const harness = buildHarness();
     const [, second] = await withThree(harness);
 
-    const archived = await harness.sectionService.remove(harness.actor, second.id);
+    const { section: archived } = await harness.sectionService.remove(harness.actor, second.id);
 
     // Nothing is deleted, so `get` — which resolves through the unchecked lookup restore
     // depends on — still answers, and `list` is what stops it reaching the canvas.
@@ -451,7 +452,7 @@ describe('SectionService.remove', () => {
     const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Done with' });
     await harness.taskService.archive(harness.actor, task.id);
 
-    const archived = await harness.sectionService.remove(harness.actor, task.sectionId);
+    const { section: archived } = await harness.sectionService.remove(harness.actor, task.sectionId);
 
     expect(archived.archivedAt).toBe(SEED_NOW);
     // The row keeps a section, and it carries no marker — it was not archived *with* this.
@@ -786,7 +787,7 @@ describe('SectionService.restoreSection', () => {
     );
     await expect(harness.sectionService.duplicate(harness.actor, second.id)).rejects.toBeInstanceOf(DomainRuleError);
     // Tidying is still allowed.
-    await expect(harness.sectionService.remove(harness.actor, second.id)).resolves.toMatchObject({ id: second.id });
+    await expect(harness.sectionService.remove(harness.actor, second.id)).resolves.toMatchObject({ section: { id: second.id } });
 
     await harness.projectService.update(harness.actor, MINE, { status: 'active' });
     expect((await harness.sectionService.restoreSection(harness.actor, section.id)).archivedAt).toBeUndefined();
@@ -883,5 +884,202 @@ describe('SectionService page ownership', () => {
 
     const container = await harness.sectionService.get(harness.actor, task.sectionId);
     expect(container.pageId).toBe((await canonicalPageOf(harness, MINE)).id);
+  });
+});
+
+/**
+ * Slice 30: a removal returns one Undo receipt, recorded in the same unit of work as the
+ * canonical writes — docs/decisions/2026-09-section-removal-undo-records.md.
+ */
+describe('SectionService.remove — Undo receipt', () => {
+  /** Every collection a removal can write, for "nothing changed" assertions. */
+  const writable = (harness: Harness) => {
+    const { sections, tasks, reflections, activityEvents, undoRecords, sectionShortcuts } = harness.store.snapshot();
+    return { sections, tasks, reflections, activityEvents, undoRecords, sectionShortcuts };
+  };
+
+  /** A task list holding a parent with two subtasks and one row archived on its own beforehand. */
+  const listWithSubtree = async (harness: Harness) => {
+    const parent = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Parent' });
+    const first = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'One', parentTaskId: parent.id });
+    const second = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Two', parentTaskId: parent.id });
+    const filed = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Filed' });
+    await harness.taskService.archive(harness.actor, filed.id);
+    return { listId: parent.sectionId, parent, first, second, filed };
+  };
+
+  it('returns one receipt, stores one record and records one activity event for a multirow cascade', async () => {
+    const harness = buildHarness();
+    const { listId, parent, first, second } = await listWithSubtree(harness);
+    const eventsBefore = harness.store.snapshot().activityEvents.length;
+
+    const result = await harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' });
+
+    expect(result.section).toMatchObject({ id: listId, archivedAt: SEED_NOW });
+    expect(result.undo).toEqual({
+      undoId: 'undo-1',
+      operation: 'section.remove',
+      label: 'Removed the Task List section',
+      createdAt: SEED_NOW,
+      expiresAt: '2026-08-25T16:00:00.000Z',
+    });
+    expect(harness.store.snapshot().undoRecords).toHaveLength(1);
+    const events = harness.store.snapshot().activityEvents.slice(eventsBefore);
+    expect(events.map(({ action }) => action)).toEqual(['project.section_archived']);
+    // The three live rows, not the one filed away beforehand.
+    expect(harness.store.snapshot().undoRecords[0]!.operation.rows.map(({ id }) => id)).toEqual([parent.id, first.id, second.id]);
+  });
+
+  it.each([
+    ['an empty container', 'task-list'],
+    ['a view', 'progress'],
+  ])('accepts reassign with no target on %s, as before, and records the policy it applied', async (_, type) => {
+    const harness = buildHarness();
+    const section = await add(harness, type);
+
+    await harness.sectionService.remove(harness.actor, section.id, { policy: 'reassign' });
+
+    expect(harness.store.snapshot().undoRecords[0]!.operation).toMatchObject({ appliedPolicy: 'none', rows: [] });
+    expect(harness.store.snapshot().undoRecords[0]!.operation).not.toHaveProperty('reassignToSectionId');
+  });
+
+  it('returns a receipt for a removal inside an archived project, which Undo blocks until reactivation', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'rich-text', { config: { text: 'Kept' } });
+    await harness.projectService.update(harness.actor, MINE, { status: 'archived' });
+
+    const { undo } = await harness.sectionService.remove(harness.actor, section.id);
+
+    const refusal = await harness.undoService.undo(harness.actor, undo.undoId).then(() => null, (error: unknown) => error);
+    expect((refusal as DomainRuleError).message).toMatch(/^undo_blocked: /);
+    expect((refusal as DomainRuleError).details).toEqual({ reason: 'undo_blocked', undoId: undo.undoId, blockingProjectId: MINE });
+
+    await harness.projectService.update(harness.actor, MINE, { status: 'active' });
+    await expect(harness.undoService.undo(harness.actor, undo.undoId)).resolves.toMatchObject({ outcome: 'restored' });
+  });
+
+  const refusals: Array<[string, (harness: Harness) => Promise<() => Promise<unknown>>]> = [
+    [
+      'an already archived section',
+      async (harness) => {
+        const section = await add(harness);
+        await harness.sectionService.remove(harness.actor, section.id);
+        return () => harness.sectionService.remove(harness.actor, section.id);
+      },
+    ],
+    [
+      'a container with live rows and no policy',
+      async (harness) => {
+        const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Live' });
+        return () => harness.sectionService.remove(harness.actor, task.sectionId);
+      },
+    ],
+    [
+      'a reassign onto itself',
+      async (harness) => {
+        const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Live' });
+        return () =>
+          harness.sectionService.remove(harness.actor, task.sectionId, { policy: 'reassign', reassignToSectionId: task.sectionId });
+      },
+    ],
+    [
+      'a reassign onto an archived target',
+      async (harness) => {
+        const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Live' });
+        const target = await add(harness, 'task-list');
+        await harness.sectionService.remove(harness.actor, target.id);
+        return () =>
+          harness.sectionService.remove(harness.actor, task.sectionId, { policy: 'reassign', reassignToSectionId: target.id });
+      },
+    ],
+    [
+      'a foreign section',
+      async (harness) => {
+        const theirs = await harness.sectionService.add(harness.other, THEIRS, { type: 'rich-text' });
+        return () => harness.sectionService.remove(harness.actor, theirs.id);
+      },
+    ],
+  ];
+
+  it.each(refusals)('refuses %s and creates no record, event or receipt', async (_, arrange) => {
+    const harness = buildHarness();
+    const act = await arrange(harness);
+    const before = writable(harness);
+
+    await expect(act()).rejects.toThrow();
+
+    expect(writable(harness)).toEqual(before);
+  });
+
+  describe('rolls back every write when recording or committing fails', () => {
+    const arrange = async (harness: Harness) => {
+      const { listId } = await listWithSubtree(harness);
+      return { listId, before: writable(harness), persistCalls: harness.store.persistCalls };
+    };
+
+    it('when the recorder throws', async () => {
+      const harness = buildHarness(undefined, {
+        recorder: () => ({ record: () => Promise.reject(new Error('recorder unavailable')) }),
+      });
+      const { listId, before, persistCalls } = await arrange(harness);
+
+      await expect(harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' })).rejects.toThrow(
+        'recorder unavailable',
+      );
+
+      expect(writable(harness)).toEqual(before);
+      expect(harness.store.persistCalls).toBe(persistCalls);
+    });
+
+    it.each([
+      ['names a project from another workspace', { projectId: THEIRS }],
+      ['names a user actor that does not exist', { actorUserId: 'user-gone' }],
+    ])('when the recorder stores a schema-valid record that %s, failing commit-time integrity', async (_, corruption) => {
+      const harness: Harness = buildHarness(undefined, {
+        recorder: (real) => ({
+          record: async (actor, entry) => {
+            const receipt = await real.record(actor, entry);
+            const stored = (await harness.undoRecords.find(receipt.undoId))!;
+            await harness.undoRecords.update({ ...stored, ...corruption } as typeof stored);
+            return receipt;
+          },
+        }),
+      });
+      const { listId, before, persistCalls } = await arrange(harness);
+
+      await expect(harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' })).rejects.toThrow(/undo record/);
+
+      expect(writable(harness)).toEqual(before);
+      expect(harness.store.persistCalls).toBe(persistCalls);
+    });
+
+    it('when persistence throws', async () => {
+      const harness = buildHarness();
+      const { listId, before, persistCalls } = await arrange(harness);
+      harness.store.persistFailure = new Error('disk full');
+
+      await expect(harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' })).rejects.toThrow('disk full');
+
+      harness.store.persistFailure = undefined;
+      expect(writable(harness)).toEqual(before);
+      expect(harness.store.persistCalls).toBe(persistCalls);
+    });
+  });
+
+  it('publishes one frame carrying only the live event, and stores an event with no inverse data', async () => {
+    const frames: LivePublication[] = [];
+    const harness = buildHarness(undefined, { events: { publish: (publication) => void frames.push(publication) } });
+    const { listId } = await listWithSubtree(harness);
+    frames.length = 0;
+    const eventsBefore = harness.store.snapshot().activityEvents.length;
+
+    await harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' });
+
+    expect(frames).toHaveLength(1);
+    expect(Object.keys(frames[0]!).sort()).toEqual(['event', 'workspaceId']);
+    expect(Object.keys(frames[0]!.event).every((key) => Object.hasOwn(LiveEventSchema.shape, key))).toBe(true);
+    const [event] = harness.store.snapshot().activityEvents.slice(eventsBefore);
+    expect(Object.keys(event!).every((key) => Object.hasOwn(ActivityEventShape.shape, key))).toBe(true);
+    expect(JSON.stringify([frames, event])).not.toMatch(/undo|placement|rows|appliedPolicy/);
   });
 });

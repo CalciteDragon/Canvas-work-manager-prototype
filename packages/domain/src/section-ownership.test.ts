@@ -270,7 +270,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     const { task, list } = await projectWithWork(harness);
     await harness.taskService.archive(harness.actor, task.id);
 
-    const archived = await harness.sectionService.remove(harness.actor, list.id);
+    const { section: archived } = await harness.sectionService.remove(harness.actor, list.id);
 
     expect(archived.archivedAt).toBe(SEED_NOW);
     expect((await harness.tasks.find(task.id))?.sectionId).toBe(list.id);
@@ -390,5 +390,91 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
 
     await harness.sectionService.restoreSection(harness.actor, reflection.sectionId);
     expect(await harness.reflectionService.list(harness.actor, MINE)).toHaveLength(1);
+  });
+});
+
+/**
+ * Slice 30: the Undo record captures exactly the rows a removal changed —
+ * docs/decisions/2026-09-section-removal-undo-records.md, rule 6.
+ */
+describe('SectionService.remove — what the Undo record captures', () => {
+  const recorded = (harness: ReturnType<typeof buildHarness>) => harness.store.snapshot().undoRecords.at(-1)!.operation;
+
+  it('captures a view with its config and placement, and no rows', async () => {
+    const harness = buildHarness();
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Prose' } });
+    const progress = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', title: 'Burn-up', columnSpan: 6 });
+    const timeline = await harness.sectionService.add(harness.actor, MINE, { type: 'timeline' });
+    await harness.sectionService.update(harness.actor, progress.id, { collapsed: true, config: { milestoneIds: ['m-1'] } });
+    const before = await harness.sections.find(progress.id);
+
+    await harness.sectionService.remove(harness.actor, progress.id, { policy: 'cascade' });
+
+    expect(recorded(harness)).toEqual({
+      version: 1,
+      type: 'section.remove',
+      section: before,
+      placement: {
+        pageId: `page-${MINE}`,
+        previous: { kind: 'section', id: notes.id },
+        next: { kind: 'section', id: timeline.id },
+        index: 1,
+      },
+      appliedPolicy: 'none',
+      rows: [],
+      postSectionArchivedAt: SEED_NOW,
+    });
+  });
+
+  it('captures a cascade as the live rows only, with the section marker in their after state', async () => {
+    const harness = buildHarness();
+    const parent = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Parent' });
+    const child = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Child', parentTaskId: parent.id });
+    const filed = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Filed' });
+    await harness.taskService.archive(harness.actor, filed.id);
+
+    await harness.sectionService.remove(harness.actor, parent.sectionId, { policy: 'cascade' });
+
+    const archived = { archivedAt: SEED_NOW, archivedWithSectionId: parent.sectionId };
+    expect(recorded(harness)).toMatchObject({ appliedPolicy: 'cascade' });
+    expect(recorded(harness)).not.toHaveProperty('reassignToSectionId');
+    expect(recorded(harness).rows).toEqual([
+      { kind: 'task', id: parent.id, before: { sectionId: parent.sectionId }, after: { sectionId: parent.sectionId, ...archived } },
+      {
+        kind: 'task',
+        id: child.id,
+        before: { sectionId: parent.sectionId, parentTaskId: parent.id },
+        after: { sectionId: parent.sectionId, parentTaskId: parent.id, ...archived },
+      },
+    ]);
+  });
+
+  it('captures a reassign as every moved row, pre-archived subtrees included with their markers intact', async () => {
+    const harness = buildHarness();
+    const parent = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Parent' });
+    const oldParent = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Old parent' });
+    const oldChild = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Old child', parentTaskId: oldParent.id });
+    await harness.taskService.archive(harness.actor, oldParent.id);
+    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
+    const source = parent.sectionId;
+
+    await harness.sectionService.remove(harness.actor, source, { policy: 'reassign', reassignToSectionId: target.id });
+
+    expect(recorded(harness)).toMatchObject({ appliedPolicy: 'reassign', reassignToSectionId: target.id });
+    expect(recorded(harness).rows).toEqual([
+      { kind: 'task', id: parent.id, before: { sectionId: source }, after: { sectionId: target.id } },
+      {
+        kind: 'task',
+        id: oldParent.id,
+        before: { sectionId: source, archivedAt: SEED_NOW },
+        after: { sectionId: target.id, archivedAt: SEED_NOW },
+      },
+      {
+        kind: 'task',
+        id: oldChild.id,
+        before: { sectionId: source, parentTaskId: oldParent.id, archivedAt: SEED_NOW, archivedWithTaskId: oldParent.id },
+        after: { sectionId: target.id, parentTaskId: oldParent.id, archivedAt: SEED_NOW, archivedWithTaskId: oldParent.id },
+      },
+    ]);
   });
 });

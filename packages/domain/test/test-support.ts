@@ -1,6 +1,6 @@
 import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type PrototypeDocument, type SectionId, type UserId, type WorkspaceId } from '@cwm/contracts';
 import { PERSONAS, SEED_NOW } from '@cwm/prototype-data';
-import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonSectionShortcutRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
+import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonSectionShortcutRepository, JsonTaskRepository, JsonUndoRecordRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
 import type { ActorContext } from '../src/actor';
 import { PrototypeClock } from '../src/clock';
 import type { IdGenerator } from '../src/ids';
@@ -18,13 +18,18 @@ import { SectionService } from '../src/section-service';
 import { SectionShortcutService } from '../src/section-shortcut-service';
 import { TaskService } from '../src/task-service';
 import { TimelineService } from '../src/timeline-service';
+import { RepositoryUndoRecorder, type UndoRecorder } from '../src/undo-recorder';
+import { UndoService } from '../src/undo-service';
 import { WorkspaceService } from '../src/workspace-service';
 
 /** `data-store.test.ts`'s tracking store is test-local; several tests here count persists. */
 export class CountingDataStore extends InMemoryDataStore {
   persistCalls = 0;
+  /** Set to make the next commits fail at persistence — the rollback seam after every write ran. */
+  persistFailure: Error | undefined;
 
   override async persist(): Promise<void> {
+    if (this.persistFailure !== undefined) throw this.persistFailure;
     await super.persist();
     this.persistCalls += 1;
   }
@@ -158,12 +163,16 @@ export const agentActorFor = (index: 0 | 1, permissions: AgentPermission[] = [])
 export interface HarnessOptions {
   /** §62's publisher, when a test wants to observe the live frames a mutation emits. */
   events?: LiveEventPublisher;
+  /** Replaces the Undo recorder `SectionService` records through — the recorder-failure seam. */
+  recorder?: (real: UndoRecorder) => UndoRecorder;
+  /** Replaces the counting id generator, for tests where id order must not match insertion order. */
+  ids?: IdGenerator;
 }
 
 export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(), options: HarnessOptions = {}) => {
   const store = new CountingDataStore(document);
   const clock = new PrototypeClock(new Date(SEED_NOW));
-  const ids = new CountingIdGenerator();
+  const ids = options.ids ?? new CountingIdGenerator();
   const unitOfWork = unitOfWorkFor(store);
   const projects = new JsonProjectRepository(store);
   const pages = new JsonProjectPageRepository(store);
@@ -175,11 +184,14 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
   const activities = new JsonActivityRepository(store);
   const agents = new JsonAgentConnectionRepository(store);
   const users = new JsonUserRepository(store);
+  const undoRecords = new JsonUndoRecordRepository(store);
   const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids, events: options.events });
 
   // Built ahead of the object literal: task and reflection writes resolve their container
   // through it, so it has to exist before they do.
-  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
+  const realRecorder = new RepositoryUndoRecorder({ undoRecords, clock, ids });
+  const undoRecorder = options.recorder?.(realRecorder) ?? realRecorder;
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, undo: undoRecorder, clock, ids, unitOfWork });
   const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
 
   return {
@@ -196,6 +208,8 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     activities,
     agents,
     users,
+    undoRecords,
+    undoRecorder,
     activity,
     actor: actorFor(0),
     other: actorFor(1),
@@ -211,5 +225,6 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     sectionService,
     sectionShortcutService,
     workspaceService: new WorkspaceService({ projects, tasks, reflections, clock }),
+    undoService: new UndoService({ undoRecords, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
   };
 };
