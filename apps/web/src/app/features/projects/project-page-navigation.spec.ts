@@ -98,6 +98,12 @@ const queryAll = (fixture: Awaited<ReturnType<typeof render>>, selector: string)
   [...fixture.nativeElement.querySelectorAll(selector)] as HTMLElement[];
 
 describe('ProjectPageNavigation (§23)', () => {
+  it('keeps Archive out of the navigation column actions', async () => {
+    const fixture = await render();
+
+    expect(query(fixture, '[data-project-nav-open-archive]')).toBeNull();
+  });
+
   it('lists the root’s pages, then the work hierarchy beneath it', async () => {
     const fixture = await render();
 

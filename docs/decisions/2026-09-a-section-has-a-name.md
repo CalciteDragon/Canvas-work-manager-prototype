@@ -131,3 +131,10 @@ deriving it today would produce `Sub Projects`, which is wrong. Or when a second
 an entry in `SECTION_DISPLAY_NAMES` (`ai-summary`, Slice 24), which is the first test of
 whether the escape hatch stays a hatch. Or when §56's tool-shape experiments want a
 `rename_section` tool distinct from `update_section` (Slice 24).
+
+**Amended, 2026-09-13.** Slice 27 moves the person's name control from the inspector to the
+section title itself. Clicking the title edits it inline; Enter or blur saves, Escape cancels,
+and clearing it restores the derived default. The rename callback reports failure so the frame
+keeps the entered text available for correction or retry. The optional `title` override and
+`nameOf` derivation remain unchanged; see
+[the contextual chrome decision](2026-09-canvas-chrome-is-revealed-not-moded.md).

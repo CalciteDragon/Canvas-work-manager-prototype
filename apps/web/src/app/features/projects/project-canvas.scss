@@ -1,6 +1,7 @@
 :host {
   display: grid;
   gap: var(--space-5);
+  min-width: 0;
 }
 
 .project-canvas__muted {
@@ -36,39 +37,15 @@
   font-size: var(--font-size-sm);
 }
 
-.project-controls__actions {
-  display: flex;
-  flex: 0 0 auto;
-  gap: var(--space-2);
-}
-
-.project-controls button {
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--color-accent);
-  border-radius: var(--radius-sm);
-  background: var(--color-accent-surface);
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.project-controls__quick-add {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-}
-
-.project-controls__add-menu {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
 .section-canvas {
+  position: relative;
+  display: grid;
   gap: var(--space-4);
+  min-width: 0;
+  // The trailing insertion overlay sits below the last item, where no gap follows. End padding
+  // the size of the plus holds it, so the plus never extends the workspace's scrollable height
+  // past the sticky navigation column's containing block.
+  padding-block-end: var(--size-hit-target);
 }
 
 .section-canvas--flow {
@@ -78,12 +55,20 @@
 }
 
 .section-canvas--grid {
-  display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
 }
 
 .section-canvas__item {
+  position: relative;
   min-width: 0;
+  --canvas-chrome-opacity: 0;
+  --canvas-overlay-opacity: 0;
+}
+
+.section-canvas__item:hover,
+.section-canvas__item:focus-within {
+  --canvas-chrome-opacity: 1;
+  --canvas-overlay-opacity: 1;
 }
 
 .section-canvas--flow .section-canvas__item--span-12 {
@@ -118,43 +103,101 @@
   grid-column: span 4;
 }
 
+// Item hover and the touch media query also set `--canvas-overlay-opacity` on the item, which
+// is closer than the list, so a sort hides insertion overlays through a variable no item sets.
+.section-canvas.cdk-drop-list-dragging {
+  --canvas-overlay-pointer-events: none;
+  --canvas-overlay-opacity: 0;
+  --canvas-insertion-opacity: 0;
+}
+
+:host ::ng-deep .cdk-drag-preview {
+  --canvas-overlay-pointer-events: none;
+  --canvas-overlay-opacity: 0;
+  --canvas-insertion-opacity: 0;
+}
+
 .section-canvas__item.cdk-drag-placeholder {
   opacity: 0.35;
 }
 
+.project-canvas__empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: var(--border-hairline) dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-sunken);
+}
+
+.project-canvas__empty button,
+.unknown-section button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--size-hit-target);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.project-canvas__empty button {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 .unknown-section {
-  position: relative;
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
   padding: var(--space-4);
   border: var(--border-hairline) dashed var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface-sunken);
 }
 
-.unknown-section__handle {
-  float: inline-start;
-  margin-inline-end: var(--space-2);
-  color: var(--color-text-muted);
+.unknown-section header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.unknown-section header button {
+  opacity: var(--canvas-chrome-opacity, 1);
+}
+
+.unknown-section header button:first-child {
   cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.unknown-section header button:last-child {
+  color: var(--color-danger);
 }
 
 .unknown-section h2 {
-  margin: 0 0 var(--space-1);
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
   font-size: var(--font-size-lg);
 }
 
 .unknown-section p {
-  margin: 0 0 var(--space-3);
+  margin: 0;
   color: var(--color-text-muted);
 }
 
-.unknown-section button {
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  color: var(--color-danger);
-  font: inherit;
-  cursor: pointer;
+@media (hover: none), (any-pointer: coarse) {
+  .section-canvas__item {
+    --canvas-chrome-opacity: 1;
+    --canvas-overlay-opacity: 1;
+  }
 }
 
 @media (max-width: 48rem) {
@@ -167,5 +210,13 @@
   .section-canvas--grid .section-canvas__item {
     grid-column: span 12;
     width: 100%;
+  }
+
+  .section-canvas__item app-section-resize-handle {
+    display: none;
+  }
+
+  .section-canvas--grid .section-canvas__item app-insertion-point[data-insertion-point='gap'] {
+    display: none;
   }
 }

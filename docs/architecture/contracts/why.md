@@ -28,6 +28,16 @@ session (§11).
 set. Rejected: `Entity.partial()` as the update input — it would let a caller write
 `createdAt` and would make "clear this field" indistinguishable from "leave it alone".
 
+**Section and shortcut creation carry an optional insertion position.** Both write inputs use
+the shared `PositionSchema`, so a browser request and an MCP call can ask for the same place
+without a transport-specific field or a second move operation. The existing combined canvas
+order for sections and Home shortcuts remains the ordering base
+([decision](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)); the
+optional insertion behavior follows the approved direct-editing direction
+([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)), with the create-position
+rule recorded in [contextual insertion names its position](../../decisions/2026-09-contextual-insertion-names-its-position.md).
+The domain applies it as part of creation.
+
 **`Project` is a discriminated union on `kind`** (`root` | `subproject`) since 25.1, so a
 workspace and a unit of work differ by what the parser enforces rather than by what each
 call site remembers ([decision](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md)).
@@ -73,6 +83,8 @@ for a chain of one (§14, §71).
 - [What `ActivityEvent.summary` is for, and what it is not](../../decisions/2026-08-activity-summary-ownership.md)
 - [Container sections own their rows; view sections own nothing](../../decisions/2026-09-sections-own-their-data.md) — `sectionId`, `SECTION_OWNERSHIP`
 - [A section has a name, and the default is derived rather than stored](../../decisions/2026-09-a-section-has-a-name.md) — `nameOf`, `title`
+- [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md) — one combined index space for sections and shortcuts
+- [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md) — accepted contextual insertion
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — `kind`, `ProjectPage`, schema v3
 
 ## Spec sections

@@ -1,10 +1,12 @@
 :host {
   display: block;
+  min-width: 0;
 }
 
 .shortcut-frame {
   display: grid;
   gap: var(--space-4);
+  min-width: 0;
   padding: var(--space-4);
   border: var(--border-hairline) solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -21,13 +23,44 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+  min-width: 0;
+}
+
+.shortcut-frame__handle,
+.shortcut-frame__controls {
+  opacity: var(--canvas-chrome-opacity, 1);
+}
+
+.shortcut-frame__handle,
+.shortcut-frame__collapse,
+.shortcut-frame__controls button {
+  display: grid;
+  flex: 0 0 var(--size-hit-target);
+  inline-size: var(--size-hit-target);
+  block-size: var(--size-hit-target);
+  padding: var(--space-1);
+  place-items: center;
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font: inherit;
+  cursor: pointer;
 }
 
 .shortcut-frame__handle {
-  color: var(--color-text-muted);
   cursor: grab;
   touch-action: none;
   user-select: none;
+}
+
+.shortcut-frame__handle[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+.shortcut-frame__chevron--collapsed {
+  display: block;
+  transform: rotate(-90deg);
 }
 
 .shortcut-frame__heading {
@@ -62,30 +95,9 @@
 
 .shortcut-frame__controls {
   display: flex;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
   align-items: center;
   gap: var(--space-2);
-}
-
-.shortcut-frame__size {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.shortcut-frame__collapse,
-.shortcut-frame__controls select,
-.shortcut-frame__controls button {
-  padding: var(--space-1) var(--space-2);
-  border: var(--border-hairline) solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  font: inherit;
-  font-size: var(--font-size-sm);
-  cursor: pointer;
 }
 
 .shortcut-frame__remove {
@@ -113,4 +125,9 @@
 
 .shortcut-frame__footer a {
   color: var(--color-accent);
+}
+
+button:focus-visible {
+  outline: var(--border-focus) solid var(--color-accent);
+  outline-offset: var(--space-1);
 }

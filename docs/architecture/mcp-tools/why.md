@@ -37,6 +37,16 @@ necessary. That test is what forced `WorkspaceService` into existence — compos
 checked services inside `search_workspace` would have demanded three grants where §53's
 grid offers one ([decision](../../decisions/2026-08-workspace-tools-need-their-own-service.md)).
 
+**Canvas placement is part of the create call.** `create_section` and
+`add_section_shortcut` accept the same optional `position` defined by the shared contracts;
+the domain inserts and renumbers atomically under their existing `projects.write` grant. A
+tool-level create-then-move sequence was rejected because it would record two mutations for one
+placement. The caller-selected insertion follows the approved direct-editing direction
+([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)), with its atomic
+positioning rule recorded in [contextual insertion names its position](../../decisions/2026-09-contextual-insertion-names-its-position.md).
+Sections and Home shortcuts still share one ordering rule
+([decision](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)).
+
 **Permission metadata is namespaced.** Every tool advertises
 `_meta["local.canvas-work-manager/requiredPermission"]` and the complete list under
 `requiredPermissions` beside it, so a client can show what a tool needs before calling it
@@ -76,6 +86,8 @@ unknown-tool response.
 - [Why `workspace.read` needed a service of its own](../../decisions/2026-08-workspace-tools-need-their-own-service.md)
 - [Where the agent permission model is enforced](../../decisions/2026-08-permissions-live-on-the-actor.md)
 - [A section has a name](../../decisions/2026-09-a-section-has-a-name.md) — `list_sections` returns the stored `title`, deliberately not a resolved name
+- [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md) — one combined index space for sections and shortcuts
+- [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md) — accepted contextual insertion
 
 ## Spec sections
 

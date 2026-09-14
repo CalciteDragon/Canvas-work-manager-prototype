@@ -48,8 +48,6 @@ export class ProjectPageNavigation {
   readonly optionalPageDefinitions = OPTIONAL_PROJECT_PAGE_DEFINITIONS;
 
   readonly toggleRequested = output<void>();
-  /** Archive remains reachable even when its optional tab is disabled (§31–32). */
-  readonly openArchiveRequested = output<void>();
   readonly pageToggleRequested = output<{ kind: OptionalProjectPageKind; enabled: boolean }>();
   readonly retryPageRequested = output<void>();
 

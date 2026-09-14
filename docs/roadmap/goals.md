@@ -53,6 +53,12 @@ would implement and the scope guards it inherits.
 
 ## Now
 
+**No slice is active.** [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md)
+closed 2026-09-13. Its implementation establishes direct canvas editing, contextual
+positioned creation, width resizing, and the navigation changes. The
+[direction decision](../decisions/2026-09-direct-canvas-editing-direction.md) records the
+adopted behavior and when to revisit it.
+
 **Use the prototype.** The standing instruction since Slice 17, restated after 25.8: load a
 realistic seed, do real work in it, drive it through a real MCP client, and write the
 friction down in `.prototype/notes.json` (§79). The next slice is chosen from that friction.

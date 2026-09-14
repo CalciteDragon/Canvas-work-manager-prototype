@@ -1,0 +1,66 @@
+<div class="section-create-backdrop" (click)="close()">
+  <section
+    data-section-create-dialog
+    class="section-create-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="section-create-title"
+    [attr.aria-busy]="busy()"
+    tabindex="-1"
+    (click)="$event.stopPropagation()"
+    (keydown)="keydown($event)"
+  >
+    <header class="section-create-dialog__header">
+      <h2 id="section-create-title">{{ mode() === 'section' ? 'Add a section' : 'Add a shortcut' }}</h2>
+      @if (shortcutsAllowed() && mode() === 'section') {
+        <button data-create-shortcut-mode type="button" (click)="switchToShortcut()">Add shortcut</button>
+      } @else if (mode() === 'shortcut') {
+        <button data-create-section-mode type="button" [disabled]="busy()" (click)="switchToSection()">Add a section</button>
+      }
+    </header>
+
+    @if (mode() === 'section') {
+      <form class="section-create-dialog__form" (submit)="$event.preventDefault(); submit()">
+        <label>
+          <span>Section type</span>
+          <select data-create-section-type [value]="selectedType()" (change)="selectType($event)">
+            @for (definition of types(); track definition.type) {
+              <option [value]="definition.type">{{ definition.displayName }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Name <small>(optional)</small></span>
+          <input
+            data-create-section-name
+            type="text"
+            autocomplete="off"
+            [value]="name()"
+            (input)="setName($event)"
+          />
+        </label>
+        @if (error(); as message) {
+          <p data-create-section-error class="section-create-dialog__error" role="alert">{{ message }}</p>
+        }
+        <footer>
+          <button data-create-section-cancel type="button" [disabled]="busy()" (click)="close()">Cancel</button>
+          <button data-create-section-submit type="submit" [disabled]="busy() || types().length === 0">
+            {{ pending() ? 'Creating…' : 'Create' }}
+          </button>
+        </footer>
+      </form>
+    } @else {
+      <app-shortcut-picker
+        [projectId]="projectId()"
+        [pageId]="pageId()"
+        [create]="createShortcut()"
+        (pendingChanged)="shortcutPendingChanged($event)"
+        (added)="shortcutCreated()"
+      />
+      <footer class="section-create-dialog__footer">
+        <button data-create-section-cancel type="button" [disabled]="busy()" (click)="switchToSection()">Back</button>
+        <button data-create-dialog-close type="button" [disabled]="busy()" (click)="close()">Cancel</button>
+      </footer>
+    }
+  </section>
+</div>

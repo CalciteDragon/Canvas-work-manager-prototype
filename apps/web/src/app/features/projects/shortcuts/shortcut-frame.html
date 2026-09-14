@@ -6,9 +6,17 @@
   [attr.aria-labelledby]="'shortcut-title-' + shortcut().id"
 >
   <header class="shortcut-frame__header">
-    @if (editMode()) {
-      <span data-shortcut-drag-handle cdkDragHandle class="shortcut-frame__handle" aria-hidden="true">⠿</span>
-    }
+    <button
+      data-shortcut-drag-handle
+      cdkDragHandle
+      class="shortcut-frame__handle"
+      type="button"
+      [attr.aria-label]="'Move shortcut to ' + sourceName()"
+      [attr.aria-disabled]="movePending() || !moveAllowed()"
+      (keydown)="moveKeydown($event)"
+    >
+      <app-canvas-icon name="grip" />
+    </button>
 
     <button
       data-shortcut-collapse
@@ -18,7 +26,9 @@
       [attr.aria-label]="(shortcut().collapsed ? 'Expand ' : 'Collapse ') + sourceName()"
       (click)="toggleCollapsed()"
     >
-      {{ shortcut().collapsed ? '▸' : '▾' }}
+      <span [class.shortcut-frame__chevron--collapsed]="shortcut().collapsed">
+        <app-canvas-icon name="chevron" />
+      </span>
     </button>
 
     <div class="shortcut-frame__heading">
@@ -31,32 +41,18 @@
       </p>
     </div>
 
-    @if (editMode()) {
-      <div class="shortcut-frame__controls">
-        <label class="shortcut-frame__size">
-          <span>Size</span>
-          <select
-            data-shortcut-size
-            [value]="shortcut().columnSpan"
-            [attr.aria-label]="'Width of ' + sourceName()"
-            (change)="resize($any($event.target).value)"
-          >
-            @for (span of columnSpans; track span) {
-              <option [value]="span" [selected]="span === shortcut().columnSpan">{{ span }}</option>
-            }
-          </select>
-        </label>
-        <button
-          data-shortcut-remove
-          class="shortcut-frame__remove"
-          type="button"
-          [attr.aria-label]="'Remove shortcut to ' + sourceName()"
-          (click)="removeRequested.emit(shortcut().id)"
-        >
-          Remove
-        </button>
-      </div>
-    }
+    <div class="shortcut-frame__controls">
+      <button
+        data-shortcut-remove
+        class="shortcut-frame__remove"
+        type="button"
+        title="Remove shortcut"
+        [attr.aria-label]="'Remove shortcut to ' + sourceName()"
+        (click)="removeRequested.emit(shortcut().id)"
+      >
+        <app-canvas-icon name="remove" />
+      </button>
+    </div>
   </header>
 
   @if (shortcut().availability !== 'available') {

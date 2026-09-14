@@ -218,12 +218,15 @@ const CASES: Record<string, ToolCase> = {
     },
   },
   create_section: {
-    input: { projectId: PROJECT, type: 'progress' },
+    input: { projectId: PROJECT, type: 'progress', position: 1 },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toMatchObject({ projectId: PROJECT, type: 'progress', position: 4 });
+      expect(result).toMatchObject({ projectId: PROJECT, type: 'progress', position: 1 });
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
-      expect(listed.map(({ id }) => id)).toContain(result.id);
+      expect(listed.find(({ id }) => id === result.id)?.position).toBe(1);
+      expect(await harness.services.shortcuts.list(agent(['projects.read']), PROJECT, { pageId: SHORTCUT_DESTINATION_PAGE })).toMatchObject([
+        { id: SEEDED_SHORTCUT, position: 4 },
+      ]);
     },
   },
   update_section: {
@@ -274,14 +277,20 @@ const CASES: Record<string, ToolCase> = {
       projectId: PROJECT,
       pageId: SHORTCUT_DESTINATION_PAGE,
       sourceSectionId: SHORTCUT_SOURCE_SECTION,
+      position: 1,
     },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toMatchObject({ sourceSectionId: SHORTCUT_SOURCE_SECTION, sourcePageKind: 'work' });
+      expect(result).toMatchObject({ sourceSectionId: SHORTCUT_SOURCE_SECTION, sourcePageKind: 'work', position: 1 });
+      const shortcuts = await harness.services.shortcuts.list(agent(['projects.read']), PROJECT, {
+        pageId: SHORTCUT_DESTINATION_PAGE,
+      });
       expect(
-        (await harness.services.shortcuts.list(agent(['projects.read']), PROJECT, { pageId: SHORTCUT_DESTINATION_PAGE }))
-          .map(({ sourceSectionId }) => sourceSectionId),
-      ).toContain(SHORTCUT_SOURCE_SECTION);
+        [...shortcuts].sort((a, b) => a.position - b.position).map(({ id, position }) => [id, position]),
+      ).toEqual([
+        [result.id, 1],
+        [SEEDED_SHORTCUT, 4],
+      ]);
     },
   },
   remove_section_shortcut: {

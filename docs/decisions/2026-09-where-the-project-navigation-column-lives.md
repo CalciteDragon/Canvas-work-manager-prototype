@@ -68,3 +68,10 @@ itself) becomes worth its seven-file change the moment a second full-bleed route
 
 A second route wants the full bleed; or the column needs state that outlives one project's page,
 which is the first honest reason to reopen where it lives.
+
+**Amended, 2026-09-13.** Slice 27 removes Quick Add, since creation belongs to a canvas and
+not the shared project header. The navigation column has no **Open archive** button; that
+recovery action is in the project's More menu on root and nested work routes. The column now
+fills the available workspace height below the top bar and scrolls its own long contents while
+the canvas scrolls independently. These changes keep the original feature ownership decision;
+see [the contextual chrome decision](2026-09-canvas-chrome-is-revealed-not-moded.md).

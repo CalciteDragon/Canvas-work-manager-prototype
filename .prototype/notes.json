@@ -681,6 +681,14 @@
       "projectId": "project-kitchen",
       "slice": 25,
       "note": "Saving one field in the More menu closes it; editing a second project field requires reopening More. The close makes each write clear, but multi-field edits feel interrupted."
+    },
+    {
+      "id": "note-2026-09-13-001",
+      "createdAt": "2026-09-14T01:20:51.000Z",
+      "route": "/projects/project-renovation/pages/home",
+      "projectId": "project-renovation",
+      "slice": 27,
+      "note": "Used the realistic nested-projects Home for navigation, indicators, theme and archive flows, plus focused real-app canvases for contextual insertion, resize, rename, keyboard and touch journeys. A real MCP client inserted a section and a shortcut at their requested combined positions; both appeared in the open canvas without a reload and stayed in order after reload. No new product friction surfaced in this acceptance pass."
     }
   ]
 }

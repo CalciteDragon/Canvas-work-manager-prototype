@@ -30,6 +30,16 @@ acyclic edges.** `TaskService` and `ReflectionService` compose `SectionService` 
 a container; `SectionService` holds repositories and never a row service. Rejected: a
 service locator or a global unit of work — either would hide the edges the lint checks.
 
+**Canvas creation inserts in one domain operation.** A section or shortcut may carry an
+optional zero-based `position`; the service inserts it into the page's combined order and
+renumbers the affected placements inside the existing unit of work. Creating at the end and
+then calling `move` was rejected because it would split one creation into two writes and two
+activity events. The caller-selected insertion follows the approved direct-editing direction
+([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)); the create-position rule
+is recorded in [contextual insertion names its position](../../decisions/2026-09-contextual-insertion-names-its-position.md).
+The order itself is shared by sections and shortcuts
+([decision](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)).
+
 **Permissions live on the actor** and are asserted inside the domain, not at the transport
 ([decision](../../decisions/2026-08-permissions-live-on-the-actor.md)). `AgentConnectionService`
 is user-actors-only and there is no `agents.*` permission. Each service has a private
@@ -83,6 +93,7 @@ ISO string so ordering stays lossless without a clock or timezone
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
 - [Root Archive recovery guidance](../../decisions/2026-09-root-archive-recovery-guidance.md)
+- [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md)
 - [Reflection subjects and the root journal feed](../../decisions/2026-09-reflection-subjects-and-the-journal-feed.md)
 - [What the Todos page decides for itself](../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)
 - [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)

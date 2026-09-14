@@ -190,6 +190,78 @@ test('MCP mutates the nested showcase and the open browser follows every aggrega
   await expect(activity.first().locator('[data-activity-actor]')).toHaveText('Claude');
 });
 
+test('MCP inserts a section and shortcut at their combined canvas positions and preserves them on reload', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+
+  const streamOpen = page.waitForResponse(
+    (response) => response.url().includes('/prototype/events') && response.status() === 200,
+  );
+  await page.goto(`/projects/${SHOWCASE_ROOT}`);
+  await expect(page.locator('[data-project-name]')).toHaveText('Home renovation');
+  await streamOpen;
+
+  const client = await connectMcp(TOKEN, 'cwm-mcp-positioned-canvas-e2e');
+  let createdSectionId: string | undefined;
+  let createdShortcutId: string | undefined;
+  try {
+    const section = await client.callTool({
+      name: 'create_section',
+      arguments: {
+        projectId: SHOWCASE_ROOT,
+        pageId: SHOWCASE_HOME,
+        type: 'rich-text',
+        title: 'MCP positioned note',
+        columnSpan: 4,
+        position: 1,
+      },
+    });
+    expect(section.isError).not.toBe(true);
+    createdSectionId = (section.structuredContent as { id: string }).id;
+    await expect(page.locator('#section-' + createdSectionId)).toBeVisible({ timeout: 15_000 });
+
+    const shortcut = await client.callTool({
+      name: 'add_section_shortcut',
+      arguments: {
+        projectId: SHOWCASE_ROOT,
+        pageId: SHOWCASE_HOME,
+        sourceSectionId: 'section-project-kitchen-brief',
+        columnSpan: 4,
+        position: 2,
+      },
+    });
+    expect(shortcut.isError).not.toBe(true);
+    createdShortcutId = (shortcut.structuredContent as { id: string }).id;
+    await expect(page.locator(`[data-shortcut-id="${createdShortcutId}"]`)).toBeVisible({ timeout: 15_000 });
+
+    const readCombinedOrder = async (): Promise<string[]> => {
+      const [sections, shortcuts] = await Promise.all([
+        requestApi.get<Array<{ id: string; position: number }>>(`/api/projects/${SHOWCASE_ROOT}/sections?pageId=${SHOWCASE_HOME}`),
+        requestApi.get<Array<{ id: string; position: number }>>(`/api/projects/${SHOWCASE_ROOT}/shortcuts?pageId=${SHOWCASE_HOME}`),
+      ]);
+      return [...sections, ...shortcuts].sort((left, right) => left.position - right.position).map(({ id }) => id);
+    };
+
+    const expectedOrder = await readCombinedOrder();
+    expect(expectedOrder[1]).toBe(createdSectionId);
+    expect(expectedOrder[2]).toBe(createdShortcutId);
+    await expect
+      .poll(() => page.locator('[data-section-item], [data-shortcut-item]').evaluateAll((items) => items.map((item) =>
+        item.getAttribute('data-section-id') ?? item.getAttribute('data-shortcut-id'),
+      )))
+      .toEqual(expectedOrder);
+
+    await page.reload();
+    await expect(page.locator('#section-' + createdSectionId)).toBeVisible();
+    await expect(page.locator(`[data-shortcut-id="${createdShortcutId}"]`)).toBeVisible();
+    await expect(page.locator('[data-section-item], [data-shortcut-item]').evaluateAll((items) => items.map((item) =>
+      item.getAttribute('data-section-id') ?? item.getAttribute('data-shortcut-id'),
+    ))).resolves.toEqual(expectedOrder);
+  } finally {
+    await client.close();
+  }
+});
+
 test('MCP derived reads require every grant, hide foreign roots, and the read-only token cannot write', async () => {
   await seed('nested-projects');
   await setClock(PINNED_NOW);

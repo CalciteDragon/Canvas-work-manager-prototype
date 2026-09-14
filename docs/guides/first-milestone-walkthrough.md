@@ -89,24 +89,27 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 
 *Seed: `nested-projects`; open Home renovation, then Kitchen.*
 
-10. **Edit Layout Mode.** Below the header, press **Edit layout**. The button becomes *Finish
-    editing layout*, and each section grows a drag handle and its layout controls.
-11. **Add, reorder and remove.** Press **Quick add** and choose a type. Drag a section by its
-    **⠿** handle, change its size, and remove the disposable section. Positions are dense within
-    the page; reload to confirm the surviving order.
-12. **Collapse without editing.** Click a section's collapse control in View Mode. Its body
-    hides while the heading remains. Following a Todos owner link can open a collapsed target for
-    that visit, but it does not persist the expansion.
+10. **Direct canvas controls.** There is no separate editing mode. Hover or keyboard-focus a
+    section to reveal its move grip, resize handles and archive control; the collapse control
+    and title stay available. On a touch screen, the controls remain visible without hover.
+11. **Add, reorder, resize and archive.** Choose an insertion plus between sections, select a
+    type and optionally name it, then create. Drag from the grip or use its arrow keys to move
+    a placement. Drag a side handle to resize it, or use its keyboard controls. The archive icon
+    removes a section through the existing archive flow; reload to confirm position and width.
+12. **Collapse and rename.** Click the collapse control to hide a section's body while leaving
+    its heading visible. Click the title to rename it; Enter or blur saves, and Escape restores
+    the previous name. Following a Todos owner link can open a collapsed target for that visit,
+    but it does not persist the expansion.
 13. **Switch Flow/Grid mode.** Use the development panel's **project layout** control, or
     `/prototype/state`. The choice is per project: Home renovation and Kitchen can be inspected
     independently in Flow and Grid. In Grid, a half-width section sits beside its neighbour.
 14. **Seven section kinds.** On both the root Home and Kitchen's work canvas, inspect Rich Text,
     Task List, Sub-Projects, Progress, Reflections, Timeline and Recent Activity. Home may also
     contain shortcuts; Todos and Archive are derived pages and hold no sections.
-15. **Shortcuts are placements.** In Home's Edit Layout Mode use **Add shortcut** to choose a
-    nested Task List or a section on another root page. The frame identifies its source and has
-    **Open source**; its embedded content is read-only. Remove the placement and confirm the
-    source section and its rows remain unchanged.
+15. **Shortcuts are placements.** On Home, choose an insertion plus, then **Add shortcut** in
+    the creation popup to choose an eligible nested Task List or a section on another root page.
+    The frame identifies its source and has **Open source**; its embedded content is read-only.
+    Remove the placement and confirm the source section and its rows remain unchanged.
 
 ---
 
@@ -116,8 +119,9 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 
 16. **Tasks.** A **Task List** owns the task rows and quick-add field. The root Home and Kitchen
     work canvas each have their own canonical list; a shortcut never copies either list.
-17. **Rich text and progress.** Rich Text shows stored prose. Progress shows the percentage and
-    its formula explanation; Edit Layout Mode exposes count, weighted and manual settings.
+17. **Rich text and progress.** Rich Text shows stored prose and grows with its wrapped content.
+    Progress shows the percentage and its formula explanation; its settings control exposes
+    count, weighted and manual settings without changing modes.
 18. **Sub-projects and timeline.** The Sub-Projects frame mirrors the work hierarchy and links
     into it. Timeline shows the project's dated records in order.
 19. **Todos.** Open the root's Todos tab. It is one chronological projection across root tasks,

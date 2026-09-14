@@ -464,10 +464,12 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     expect(accepted.router.url).toBe('/app');
   });
 
-  it('opens the root Archive from navigation after enabling its disabled page', async () => {
+  it('opens the root Archive from More after enabling its disabled page', async () => {
     const { harness, gateway, router } = await open('/projects/project-renovation');
 
-    query(harness, '[data-project-nav-open-archive]')!.click();
+    query(harness, '[data-project-more]')!.click();
+    harness.fixture.detectChanges();
+    query(harness, '[data-project-open-archive]')!.click();
     await settle(harness);
 
     expect(router.url).toBe('/projects/project-renovation/pages/archive');

@@ -1,0 +1,56 @@
+:host {
+  position: absolute;
+  z-index: 2;
+  inset-block: 0;
+  display: grid;
+  inline-size: var(--size-resize-handle);
+  place-items: center;
+  pointer-events: var(--canvas-overlay-pointer-events, auto);
+  opacity: var(--canvas-overlay-opacity, var(--canvas-chrome-opacity, 1));
+  touch-action: none;
+}
+
+// Each handle straddles its own frame border: half in the canvas gap, half over the frame's
+// padding, never its content box. Neighbours in a grid row each keep a separate hit area; a
+// handle reaching across the whole gap was covered by the next item's start handle, so a
+// section's right edge resized its neighbour.
+:host([data-edge='start']) {
+  inset-inline-start: calc(var(--size-resize-handle) / -2);
+}
+
+:host([data-edge='end']) {
+  inset-inline-end: calc(var(--size-resize-handle) / -2);
+}
+
+// The host's inline size is the hit area. The grip and its icon shrink to fit it, so the
+// handle never reaches into the frame's content box or widens the scrollable workspace.
+[data-resize-handle] {
+  display: grid;
+  inline-size: 100%;
+  min-inline-size: 0;
+  block-size: var(--size-hit-target);
+  padding: 0;
+  place-items: center;
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+app-canvas-icon {
+  inline-size: 100%;
+}
+
+[data-resize-handle]:focus-visible {
+  outline: var(--border-focus) solid var(--color-accent);
+  outline-offset: var(--space-1);
+}
+
+@media (hover: none), (any-pointer: coarse) {
+  :host {
+    opacity: var(--canvas-overlay-opacity, 1);
+  }
+}

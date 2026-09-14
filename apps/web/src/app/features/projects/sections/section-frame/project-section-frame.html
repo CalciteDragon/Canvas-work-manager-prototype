@@ -1,4 +1,4 @@
-﻿<section
+<section
   data-section-frame
   class="section-frame"
   [attr.data-section-type]="section().type"
@@ -7,11 +7,17 @@
   [attr.aria-labelledby]="'section-title-' + section().id"
 >
   <header class="section-frame__header">
-    @if (editMode()) {
-      <span data-section-drag-handle cdkDragHandle class="section-frame__handle" aria-hidden="true"
-        >â ¿</span
-      >
-    }
+    <button
+      data-section-drag-handle
+      cdkDragHandle
+      class="section-frame__handle"
+      type="button"
+      [attr.aria-label]="'Move ' + name()"
+      [attr.aria-disabled]="movePending() || !moveAllowed()"
+      (keydown)="moveKeydown($event)"
+    >
+      <app-canvas-icon name="grip" />
+    </button>
 
     <button
       data-section-collapse
@@ -21,87 +27,78 @@
       [attr.aria-label]="(effectiveCollapsed() ? 'Expand ' : 'Collapse ') + name()"
       (click)="toggleCollapsed()"
     >
-      {{ effectiveCollapsed() ? 'â–¸' : 'â–¾' }}
+      <span [class.section-frame__chevron--collapsed]="effectiveCollapsed()">
+        <app-canvas-icon name="chevron" />
+      </span>
     </button>
 
-    <!-- `tabindex="-1"` so a canvas that was navigated to a container can put the reader at its
-       heading. It is not in the tab order: only a script focuses it. -->
+    <!-- The heading remains focusable by canvas navigation; the button is in the tab order. -->
     <h2
       data-section-title
       tabindex="-1"
       [id]="'section-title-' + section().id"
       class="section-frame__title"
     >
-      <span class="section-frame__icon" aria-hidden="true">{{ definition().icon }}</span>
-      {{ name() }}
+      @if (editingName()) {
+        <input
+          data-section-name
+          type="text"
+          autocomplete="off"
+          [value]="nameDraft()"
+          [placeholder]="definition().displayName"
+          [disabled]="renamePending()"
+          [attr.aria-label]="'Name of ' + name()"
+          (input)="nameDraft.set($any($event.target).value)"
+          (keydown.enter)="$event.preventDefault(); saveRename($event)"
+          (keydown.escape)="$event.preventDefault(); cancelRename()"
+          (blur)="saveRename($event)"
+        />
+      } @else {
+        <button
+          data-section-title-edit
+          class="section-frame__title-button"
+          type="button"
+          [attr.aria-label]="'Rename ' + name()"
+          (click)="beginRename()"
+        >
+          <span class="section-frame__icon" aria-hidden="true">{{ definition().icon }}</span>
+          <span>{{ name() }}</span>
+        </button>
+      }
     </h2>
 
-    @if (editMode()) {
-      <div class="section-frame__controls">
-        <label class="section-frame__size">
-          <span>Size</span>
-          <select
-            data-section-size
-            [value]="section().columnSpan"
-            [attr.aria-label]="'Width of ' + name()"
-            (change)="resize($any($event.target).value)"
-          >
-            @for (span of columnSpans; track span) {
-              <option [value]="span" [selected]="span === section().columnSpan">{{ span }}</option>
-            }
-          </select>
-        </label>
-
+    <div class="section-frame__controls">
+      @if (definition().inspectorComponent) {
         <button
           data-section-config
           type="button"
           [attr.aria-expanded]="configOpen()"
+          title="Section settings"
           [attr.aria-label]="'Settings for ' + name()"
           (click)="toggleConfig()"
         >
-          Settings
+          <app-canvas-icon name="settings" />
         </button>
-        <button
-          data-section-duplicate
-          type="button"
-          [attr.aria-label]="'Duplicate ' + name()"
-          (click)="duplicateRequested.emit(section().id)"
-        >
-          Duplicate
-        </button>
-        <button
-          data-section-remove
-          class="section-frame__remove"
-          type="button"
-          [attr.aria-label]="'Remove ' + name()"
-          (click)="removeRequested.emit(section().id)"
-        >
-          Remove
-        </button>
-      </div>
-    }
+      }
+      <button
+        data-section-remove
+        class="section-frame__remove"
+        type="button"
+        title="Archive section"
+        [attr.aria-label]="'Archive section ' + name()"
+        (click)="removeRequested.emit(section().id)"
+      >
+        <app-canvas-icon name="archive" />
+      </button>
+    </div>
   </header>
 
-  @if (editMode() && configOpen()) {
-    <div data-section-inspector class="section-frame__inspector">
-      <!-- Every registered type has a name, so this is above the type-specific inspector
-         rather than inside one — and it is why the "no settings" branch is gone. -->
-      <label class="section-frame__name">
-        <span>Name</span>
-        <input
-          data-section-name
-          type="text"
-          [value]="override()"
-          [attr.placeholder]="definition().displayName"
-          [attr.aria-label]="'Name of ' + name()"
-          (change)="rename($any($event.target))"
-        />
-      </label>
-
-      @if (definition().inspectorComponent; as inspector) {
+  @if (configOpen()) {
+    @if (definition().inspectorComponent; as inspector) {
+      <div data-section-inspector class="section-frame__inspector">
         <ng-container [ngComponentOutlet]="inspector" [ngComponentOutletInputs]="contentInputs()" />
-      }
-    </div>
+      </div>
+    }
   }
 
   @if (!effectiveCollapsed()) {

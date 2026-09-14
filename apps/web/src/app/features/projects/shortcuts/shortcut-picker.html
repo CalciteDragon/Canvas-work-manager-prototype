@@ -1,14 +1,4 @@
-<section data-shortcut-picker class="shortcut-picker" aria-label="Add shortcut">
-  <header class="shortcut-picker__header">
-    <div>
-      <h2>Add shortcut</h2>
-      <p>Choose a section from this project tree. Its content stays owned by the source.</p>
-    </div>
-    <button data-shortcut-picker-close type="button" aria-label="Close shortcut picker" (click)="closed.emit()">
-      Close
-    </button>
-  </header>
-
+<div data-shortcut-picker class="shortcut-picker">
   @if (store.loading()) {
     <p data-shortcut-picker-loading class="shortcut-picker__muted">Finding sections…</p>
   } @else if (store.error(); as error) {
@@ -26,13 +16,16 @@
           <button
             data-shortcut-add
             type="button"
-            [disabled]="source.alreadyPlaced"
+            [disabled]="source.alreadyPlaced || pending()"
             (click)="add(source)"
           >
-            {{ source.alreadyPlaced ? 'Added' : 'Add' }}
+            {{ source.alreadyPlaced ? 'Added' : pending() ? 'Adding…' : 'Add' }}
           </button>
         </li>
       }
     </ul>
   }
-</section>
+  @if (createError(); as error) {
+    <p data-shortcut-picker-create-error class="shortcut-picker__error" role="alert">{{ error }}</p>
+  }
+</div>

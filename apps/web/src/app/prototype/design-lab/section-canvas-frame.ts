@@ -29,7 +29,15 @@ import type { SectionColumnSpan } from '@cwm/contracts';
       grid-template-columns: repeat(12, minmax(0, 1fr));
     }
     .canvas__item {
+      position: relative;
       min-width: 0;
+      --canvas-chrome-opacity: 0;
+      --canvas-overlay-opacity: 0;
+    }
+    .canvas__item:hover,
+    .canvas__item:focus-within {
+      --canvas-chrome-opacity: 1;
+      --canvas-overlay-opacity: 1;
     }
     .canvas--flow .canvas__item--span-12 { width: 100%; }
     .canvas--flow .canvas__item--span-8 { width: 66.666%; }
@@ -39,6 +47,12 @@ import type { SectionColumnSpan } from '@cwm/contracts';
     .canvas--grid .canvas__item--span-8 { grid-column: span 8; }
     .canvas--grid .canvas__item--span-6 { grid-column: span 6; }
     .canvas--grid .canvas__item--span-4 { grid-column: span 4; }
+    @media (hover: none), (any-pointer: coarse) {
+      .canvas__item {
+        --canvas-chrome-opacity: 1;
+        --canvas-overlay-opacity: 1;
+      }
+    }
   `,
   template: `
     <div

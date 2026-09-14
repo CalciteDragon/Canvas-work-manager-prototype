@@ -1,76 +1,17 @@
-<!-- §26's Project Navigation / Controls row, minus the navigation, which is the shell's
-     column. Quick Add lives here rather than in the header because a root has several
-     canvases and one header: "add a section" acts on *this* canvas. -->
-<section class="project-controls" aria-label="Project layout controls">
+<section class="project-controls" aria-label="Project layout">
   <div>
     <strong data-layout-name>{{ layoutMode() === 'flow' ? 'Flow layout' : 'Grid layout' }}</strong>
     <span class="project-controls__hint">
       Switch layout in the development panel — Ctrl/Cmd+Shift+D — or at /prototype/state.
     </span>
   </div>
-  <div class="project-controls__actions">
-    @if (store.editMode()) {
-      <button
-        data-project-quick-add
-        type="button"
-        class="project-controls__quick-add"
-        [attr.aria-expanded]="addOpen()"
-        (click)="toggleAdd()"
-      >
-        Quick add
-      </button>
-      @if (shortcutsAllowed()) {
-        <button
-          data-project-add-shortcut
-          type="button"
-          class="project-controls__shortcut"
-          [attr.aria-expanded]="shortcutPickerOpen()"
-          (click)="openShortcutPicker()"
-        >
-          Add shortcut
-        </button>
-      }
-    }
-    <button
-      data-layout-edit-toggle
-      type="button"
-      [attr.aria-pressed]="store.editMode()"
-      (click)="toggleEditMode()"
-    >
-      {{ store.editMode() ? 'Finish editing layout' : 'Edit layout' }}
-    </button>
-  </div>
-
-  @if (addOpen()) {
-    <ul data-add-section-menu class="project-controls__add-menu">
-      @for (definition of registry; track definition.type) {
-        <li>
-          <button
-            data-add-section
-            type="button"
-            [attr.data-section-type]="definition.type"
-            (click)="add(definition.type)"
-          >
-            <span aria-hidden="true">{{ definition.icon }}</span> {{ definition.displayName }}
-          </button>
-        </li>
-      }
-    </ul>
-  }
-
-  @if (shortcutPickerOpen()) {
-    <app-shortcut-picker
-      [projectId]="projectId()"
-      [pageId]="pageId()"
-      (closed)="closeShortcutPicker()"
-      (added)="shortcutAdded()"
-    />
-  }
 </section>
 
+<div data-canvas-live-region class="visually-hidden" aria-live="polite" aria-atomic="true">
+  {{ liveAnnouncement() }}
+</div>
+
 @if (targetMissing()) {
-  <!-- A link to a container that is not on this canvas: the page is still the right page, so
-     this explains rather than redirecting or scrolling somewhere arbitrary. -->
   <p data-section-target-missing class="project-canvas__muted" role="status">
     The container this link points at is not on this page any more.
   </p>
@@ -80,59 +21,81 @@
   <p data-section-error class="project-canvas__error" role="alert">{{ sectionError }}</p>
 }
 
-<!-- One chain, not two independent blocks: an empty canvas, a loading canvas and an unreadable
-     one are three different things to say, and saying two of them at once is how "This canvas
-     is empty" ends up printed over a canvas nobody could read. -->
+@if (!store.orderComplete()) {
+  <p data-placement-order-incomplete class="project-canvas__error" role="status">
+    Some placements could not be loaded. Add and move operations are unavailable until the full order can be loaded.
+  </p>
+}
+
 @if (store.loading()) {
   <p data-canvas-loading class="project-canvas__muted">Loading canvas…</p>
 } @else if (store.error(); as error) {
-  <!-- A failed section list, not a missing project: the header and the column above are
-       still standing, so this is a message on the canvas rather than a blank page. -->
   <p data-canvas-error class="project-canvas__error" role="alert">{{ error }}</p>
 } @else if (canvasMounted()) {
   <div
     data-section-canvas
     cdkDropList
+    [cdkDropListDisabled]="!store.orderComplete()"
     class="section-canvas"
     [class.section-canvas--flow]="layoutMode() === 'flow'"
     [class.section-canvas--grid]="layoutMode() === 'grid'"
     [cdkDropListOrientation]="layoutMode() === 'grid' ? 'mixed' : 'vertical'"
-    [cdkDropListDisabled]="!store.editMode()"
     (cdkDropListDropped)="drop($event)"
   >
     @if (store.placements().length === 0) {
-      <p data-empty-canvas class="project-canvas__muted">
-        @if (store.editMode()) {
-          This canvas is empty. Use Quick add to put a section on it.
-        } @else {
-          This canvas is empty. Enter Edit Layout Mode to add a section.
+      <div data-empty-canvas class="project-canvas__empty">
+        <p class="project-canvas__muted">This canvas is empty.</p>
+        @if (store.orderComplete()) {
+          <button
+            data-empty-canvas-add
+            type="button"
+            (click)="openCreate({ kind: 'end', beforeId: null, columnSpan: 12 })"
+          >
+            <app-canvas-icon name="plus" /> Add a section
+          </button>
         }
-      </p>
+      </div>
     } @else {
-      @for (placement of store.placements(); track store.canvasRevision() + ':' + (placement.kind === 'section' ? placement.section.id : placement.shortcut.id)) {
+      @for (
+        placement of store.placements();
+        track store.canvasRevision() + ':' + placementId(placement);
+        let index = $index;
+        let last = $last
+      ) {
         <div
           [attr.id]="placement.kind === 'section' ? 'section-' + placement.section.id : null"
           [attr.data-section-item]="placement.kind === 'section' ? '' : null"
           [attr.data-shortcut-item]="placement.kind === 'shortcut' ? '' : null"
           cdkDrag
+          [cdkDragDisabled]="!store.orderComplete()"
           class="section-canvas__item"
           [attr.data-section-id]="placement.kind === 'section' ? placement.section.id : null"
           [attr.data-shortcut-id]="placement.kind === 'shortcut' ? placement.shortcut.id : null"
-          [cdkDragData]="{ kind: placement.kind, id: placement.kind === 'section' ? placement.section.id : placement.shortcut.id }"
-          [cdkDragDisabled]="!store.editMode()"
-          [class.section-canvas__item--span-12]="(placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan) === 12"
-          [class.section-canvas__item--span-8]="(placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan) === 8"
-          [class.section-canvas__item--span-6]="(placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan) === 6"
-          [class.section-canvas__item--span-4]="(placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan) === 4"
+          [cdkDragData]="{ kind: placement.kind, id: placementId(placement) }"
+          [class.section-canvas__item--span-12]="displayedSpan(placement) === 12"
+          [class.section-canvas__item--span-8]="displayedSpan(placement) === 8"
+          [class.section-canvas__item--span-6]="displayedSpan(placement) === 6"
+          [class.section-canvas__item--span-4]="displayedSpan(placement) === 4"
         >
+          @if (store.orderComplete()) {
+            <app-insertion-point
+              kind="before"
+              [beforeId]="placementId(placement)"
+              [columnSpan]="12"
+              [label]="'Insert before ' + placementName(placement)"
+              (selected)="openCreate($event)"
+            />
+          }
+
           @if (placement.kind === 'shortcut') {
             <app-shortcut-frame
               [shortcut]="placement.shortcut"
-              [editMode]="store.editMode()"
+              [movePending]="keyboardMovePending().has(placement.shortcut.id)"
+              [moveAllowed]="store.orderComplete()"
               [projectDataRevision]="store.projectDataRevision()"
               [projectHierarchyRevision]="store.projectHierarchyRevision()"
               (collapseToggled)="collapseShortcut($event)"
-              (resized)="resizeShortcut($event)"
+              (moveRequested)="moveWithKeyboard(placement.shortcut.id, $event)"
               (removeRequested)="removeShortcut($event)"
             />
           } @else {
@@ -140,50 +103,102 @@
               <app-project-section-frame
                 [section]="placement.section"
                 [definition]="definition"
+                [rename]="renameSection"
+                [movePending]="keyboardMovePending().has(placement.section.id)"
+                [moveAllowed]="store.orderComplete()"
                 [transientlyExpanded]="transientTargetId() === placement.section.id"
-                [editMode]="store.editMode()"
                 [projectDataRevision]="store.projectDataRevision()"
                 [projectHierarchyRevision]="store.projectHierarchyRevision()"
                 (collapseToggled)="collapse($event)"
-                (resized)="resize($event)"
+                (moveRequested)="moveWithKeyboard(placement.section.id, $event)"
                 (configChanged)="saveConfig($event)"
-                (renamed)="renameSection($event)"
                 (projectDataChanged)="projectDataChanged()"
                 (projectHierarchyChanged)="projectHierarchyChanged()"
-                (duplicateRequested)="store.duplicateSection($event)"
                 (removeRequested)="store.removeSection($event)"
               />
             } @else {
-              <!-- `data.json` is hand-editable and outlives any one registry, so an unknown
-                 type stays in the same sortable list and remains removable in edit mode. -->
               <section data-unknown-section class="unknown-section">
-                @if (store.editMode()) {
-                  <span
+                <header>
+                  <button
                     data-unknown-section-drag-handle
                     cdkDragHandle
-                    class="unknown-section__handle"
-                    aria-hidden="true"
-                    >⠿</span
-                  >
-                }
-                <h2>Unrecognised section</h2>
-                <p>Nothing in this build knows how to render a “{{ placement.section.type }}” section.</p>
-                @if (store.editMode()) {
+                    type="button"
+                    [attr.aria-disabled]="keyboardMovePending().has(placement.section.id) || !store.orderComplete()"
+                    [attr.aria-label]="'Move unrecognised section ' + placement.section.type"
+                    (keydown)="unknownMoveKeydown($event, placement.section.id)"
+                  ><app-canvas-icon name="grip" /></button>
+                  <h2>Unrecognised section</h2>
                   <button
                     data-unknown-section-remove
                     type="button"
+                    title="Archive section"
+                    [attr.aria-label]="'Archive unrecognised section ' + placement.section.type"
                     (click)="store.removeSection(placement.section.id)"
-                  >
-                    Remove it
-                  </button>
-                }
+                  ><app-canvas-icon name="archive" /></button>
+                </header>
+                <p>Nothing in this build knows how to render a “{{ placement.section.type }}” section.</p>
               </section>
             }
+          }
+
+          <app-section-resize-handle
+            edge="start"
+            [mode]="layoutMode()"
+            [name]="placementName(placement)"
+            [columnSpan]="displayedSpan(placement)"
+            [measure]="measureCanvas"
+            (preview)="setResizePreview(placementId(placement), $event)"
+            (commit)="commitResize(placement, $event)"
+            (cancel)="cancelResize(placement)"
+          />
+          <app-section-resize-handle
+            edge="end"
+            [mode]="layoutMode()"
+            [name]="placementName(placement)"
+            [columnSpan]="displayedSpan(placement)"
+            [measure]="measureCanvas"
+            (preview)="setResizePreview(placementId(placement), $event)"
+            (commit)="commitResize(placement, $event)"
+            (cancel)="cancelResize(placement)"
+          />
+
+          @if (last && store.orderComplete()) {
+            <app-insertion-point
+              kind="end"
+              [beforeId]="null"
+              [columnSpan]="12"
+              label="Insert at the end"
+              (selected)="openCreate($event)"
+            />
+          }
+
+          @for (gap of gapTargetsAfter(placement); track gap.index) {
+            <app-insertion-point
+              kind="gap"
+              [beforeId]="gap.beforeId"
+              [columnSpan]="gap.columnSpan"
+              [label]="'Insert in grid space after ' + placementName(placement)"
+              [style.--gap-columns]="'var(--space-4)'"
+              [style.--gap-width]="gapWidth(gap)"
+              (selected)="openCreate($event)"
+            />
           }
         </div>
       }
     }
   </div>
+}
+
+@if (createDialogOpen()) {
+  <app-section-create-dialog
+    [types]="registry"
+    [projectId]="projectId()"
+    [pageId]="pageId()"
+    [shortcutsAllowed]="shortcutsAllowed()"
+    [create]="createSectionFromDialog"
+    [createShortcut]="createShortcutFromDialog"
+    (closed)="closeCreate()"
+  />
 }
 
 @if (store.removalPrompt(); as prompt) {

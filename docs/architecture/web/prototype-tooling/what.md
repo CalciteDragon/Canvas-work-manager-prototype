@@ -49,5 +49,5 @@ flowchart TB
 | `DevPanelStore`, `CURRENT_SLICE`, `StoredSettings` | `dev-panel/dev-panel-store.ts` | Panel state, notes, reload rule |
 | `StateInspectorPage`, `StateInspectorStore`, `ProjectLayoutControl` | `dev-panel/state-inspector-page.ts`, `state-inspector-store.ts`, `project-layout-control.ts` | §68's inspector and §28's list |
 | `DesignLabPage`, `DesignLabStore`, `DesignLabToken`, `DesignLabExport` | `design-lab/` | §67 |
-| `LivePanels`, `PrimitivePanels`, `SectionCanvasFrame`, `StubSectionContent` | `design-lab/panels/`, `design-lab/section-canvas-frame.ts` | The catalogue |
+| `LivePanels`, `PrimitivePanels`, `SectionCanvasFrame`, `StubSectionContent` | `design-lab/panels/`, `design-lab/section-canvas-frame.ts` | The catalogue; `SectionCanvasFrame` mirrors the canvas wrapper's reveal properties so shared section controls appear correctly |
 | Fixtures | `design-lab/design-lab-fixtures.ts` | The data the live panels render |

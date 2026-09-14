@@ -359,11 +359,12 @@ describe('ProjectPageStore (§19, §26)', () => {
     const newLoad = store.load(other, OTHER_PAGE);
     current.resolve([]);
     await newLoad;
-    previous.resolve([]);
+    previous.reject(new GatewayError('unreachable', 0, 'old shortcut read failed'));
     await oldLoad;
 
     expect(store.shortcuts()).toEqual([]);
     expect(store.sections().map(({ id }) => id)).toEqual(['section-b']);
+    expect(store.orderComplete()).toBe(true);
   });
 
   it('keeps a successfully loaded section canvas when the placement read fails, and reports it', async () => {
@@ -379,6 +380,97 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.placements().every((placement) => placement.kind === 'section')).toBe(true);
     expect(store.sectionError()).toContain('shortcut read failed');
     expect(store.error()).toBeNull();
+  });
+
+  it('marks the combined order incomplete on a load or refreshSections read failure and recovers', async () => {
+    const { store, live } = setup({
+      shortcutList: vi.fn()
+        .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'load shortcut read failed'))
+        .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'refresh shortcut read failed'))
+        .mockResolvedValue([shortcut('shortcut-a', 2)]),
+    });
+
+    await store.load(PROJECT, PAGE);
+    expect(store.orderComplete()).toBe(false);
+    expect(store.sectionError()).toContain('load shortcut read failed');
+
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await settleLive();
+    expect(store.orderComplete()).toBe(false);
+    expect(store.sectionError()).toContain('refresh shortcut read failed');
+
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await settleLive();
+    expect(store.orderComplete()).toBe(true);
+    expect(store.sectionError()).toBeNull();
+  });
+
+  it('updates orderComplete on refreshShortcuts and reconcileSections reads', async () => {
+    const shortcutReads = vi.fn()
+      .mockResolvedValueOnce([shortcut('shortcut-a', 2)])
+      .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'shortcut refresh failed'))
+      .mockResolvedValueOnce([shortcut('shortcut-a', 2)])
+      .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'shortcut reconcile failed'))
+      .mockResolvedValue([shortcut('shortcut-a', 2)]);
+    const { store, live } = setup({
+      shortcuts: [shortcut('shortcut-a', 2)],
+      shortcutList: shortcutReads,
+    });
+    await store.load(PROJECT, PAGE);
+    expect(store.orderComplete()).toBe(true);
+
+    const descendantChanged = {
+      type: 'project.updated' as const,
+      entityType: 'project' as const,
+      entityId: 'project-source',
+      projectId: 'project-source' as ProjectId,
+      rootProjectId: PROJECT,
+    };
+    live.emit(descendantChanged);
+    await settleLive();
+    expect(store.orderComplete()).toBe(false);
+
+    live.emit(descendantChanged);
+    await settleLive();
+    expect(store.orderComplete()).toBe(true);
+
+    expect(await store.moveSection('section-text' as SectionId, 1)).toBe(true);
+    expect(store.orderComplete()).toBe(false);
+
+    live.emit(descendantChanged);
+    await settleLive();
+    expect(store.orderComplete()).toBe(true);
+  });
+
+  it('keeps orderComplete true on a page that does not allow shortcuts', async () => {
+    const { store, gateway } = setup({
+      shortcutList: vi.fn(async () => {
+        throw new GatewayError('unreachable', 0, 'must not read shortcuts');
+      }),
+    });
+
+    await store.load(PROJECT, PAGE, false);
+
+    expect(store.orderComplete()).toBe(true);
+    expect(gateway.shortcuts.list).not.toHaveBeenCalled();
+  });
+
+  it('refuses section and shortcut moves while Home has an incomplete combined order', async () => {
+    const { store, gateway } = setup({
+      shortcuts: [shortcut('shortcut-a', 2)],
+      shortcutList: vi.fn(async () => {
+        throw new GatewayError('unreachable', 0, 'shortcut placements unavailable');
+      }),
+    });
+    await store.load(PROJECT, PAGE, true);
+    const original = store.placements();
+
+    expect(store.orderComplete()).toBe(false);
+    expect(await store.moveSection('section-text' as SectionId, 1)).toBe(false);
+    expect(await store.moveShortcut('shortcut-a' as ResolvedSectionShortcut['id'], 0)).toBe(false);
+    expect(gateway.sections.move).not.toHaveBeenCalled();
+    expect(gateway.shortcuts.move).not.toHaveBeenCalled();
+    expect(store.placements()).toEqual(original);
   });
 
   it('keeps a failed section read loud and paints no placements even when shortcuts answer', async () => {
@@ -483,7 +575,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     const { store, gateway } = setup();
     await store.load(PROJECT, PAGE);
 
-    expect(await store.addSection(definition())).toBe(true);
+    expect(await store.addSection(definition())).toEqual({ ok: true });
 
     // The registry's default is what has to reach persistence — otherwise a new type's
     // config would silently start life as `{}`.
@@ -502,13 +594,204 @@ describe('ProjectPageStore (§19, §26)', () => {
     await store.load(PROJECT, PAGE);
 
     // §29 types `createDefaultConfig()` as `unknown`; this is where that stops being safe.
-    // It surfaces as a visible section error, not a thrown page crash — a broken definition
-    // is a bug to see, not a reason to lose the canvas.
-    expect(await store.addSection(definition({ createDefaultConfig: () => 'not an object' }))).toBe(
-      false,
-    );
+    // The popup owns the failure message; this write does not overwrite the canvas error line.
+    expect(await store.addSection(definition({ createDefaultConfig: () => 'not an object' }))).toEqual({
+      ok: false,
+      message: expect.any(String),
+    });
     expect(gateway.sections.create).not.toHaveBeenCalled();
-    expect(store.sectionError()).not.toBeNull();
+    expect(store.sectionError()).toBeNull();
+  });
+
+  it('adds a section at its requested position before reconciling the canonical combined order', async () => {
+    const reconcile = deferred<ProjectSection[]>();
+    const existingSections = [
+      section('section-text', 'rich-text', 0),
+      section('section-tasks', 'task-list', 2),
+    ];
+    const inserted = section('section-new', 'rich-text', 1, {
+      title: 'Research',
+      columnSpan: 6,
+      config: { text: '' },
+    });
+    const { store, gateway } = setup({
+      sections: existingSections,
+      shortcuts: [shortcut('shortcut-a', 1)],
+      sectionOverrides: {
+        list: vi.fn()
+          .mockResolvedValueOnce(existingSections)
+          .mockImplementationOnce(() => reconcile.promise),
+        create: vi.fn(async () => inserted),
+      },
+      shortcutList: vi.fn()
+        .mockResolvedValueOnce([shortcut('shortcut-a', 1)])
+        .mockResolvedValue([shortcut('shortcut-a', 2)]),
+    });
+    await store.load(PROJECT, PAGE);
+
+    const adding = store.addSection(definition(), { position: 1, columnSpan: 6, title: 'Research' });
+    await settleLive();
+
+    expect(gateway.sections.create).toHaveBeenCalledWith(PROJECT, {
+      type: 'rich-text',
+      pageId: PAGE,
+      config: { text: '' },
+      position: 1,
+      columnSpan: 6,
+      title: 'Research',
+    });
+    expect(store.placements().map((placement) =>
+      placement.kind === 'section' ? placement.section.id : placement.shortcut.id,
+    )).toEqual(['section-text', 'section-new', 'shortcut-a', 'section-tasks']);
+
+    reconcile.resolve([existingSections[0]!, inserted, section('section-tasks', 'task-list', 3)]);
+    expect(await adding).toEqual({ ok: true });
+    expect(store.placements().map((placement) =>
+      placement.kind === 'section' ? placement.section.id : placement.shortcut.id,
+    )).toEqual(['section-text', 'section-new', 'shortcut-a', 'section-tasks']);
+  });
+
+  it('returns a create failure without changing the canvas or section error', async () => {
+    const { store } = setup({
+      sectionOverrides: {
+        create: vi.fn(async () => {
+          throw new GatewayError('rule_violation', 409, 'section create refused');
+        }),
+        update: vi.fn(async () => {
+          throw new GatewayError('rule_violation', 409, 'section update refused');
+        }),
+      },
+    });
+    await store.load(PROJECT, PAGE);
+    await store.setCollapsed('section-text' as SectionId, true);
+    const sectionError = store.sectionError();
+    const before = store.placements();
+
+    expect(await store.addSection(definition())).toEqual({
+      ok: false,
+      message: 'section create refused',
+    });
+
+    expect(store.placements()).toEqual(before);
+    expect(store.sectionError()).toBe(sectionError);
+  });
+
+  it('refuses positioned creates while a shortcut-allowed canvas order is incomplete', async () => {
+    const { store, gateway } = setup({
+      shortcutList: vi.fn(async () => {
+        throw new GatewayError('unreachable', 0, 'shortcut read failed');
+      }),
+    });
+    await store.load(PROJECT, PAGE);
+    const sectionError = store.sectionError();
+
+    expect(store.orderComplete()).toBe(false);
+    expect(await store.addSection(definition(), { position: 1 })).toEqual({
+      ok: false,
+      message: sectionError,
+    });
+    expect(await store.addShortcut({
+      pageId: PAGE,
+      sourceSectionId: 'section-source' as SectionId,
+      position: 1,
+      columnSpan: 6,
+    })).toEqual({
+      ok: false,
+      message: sectionError,
+    });
+
+    expect(gateway.sections.create).not.toHaveBeenCalled();
+    expect(gateway.shortcuts.create).not.toHaveBeenCalled();
+    expect(store.sectionError()).toBe(sectionError);
+  });
+
+  it('returns a loading result before the first canvas read and treats a stale create as complete', async () => {
+    const { store } = setup();
+    expect(await store.addSection(definition())).toEqual({
+      ok: false,
+      message: 'The canvas has not finished loading',
+    });
+
+    TestBed.resetTestingModule();
+    const gate = deferred<ProjectSection>();
+    const other = 'project-b' as ProjectId;
+    const stale = setup({
+      projectGet: vi.fn(async (id: ProjectId) => project({ id })),
+      sectionOverrides: {
+        list: vi.fn(async (projectId: ProjectId) =>
+          projectId === PROJECT
+            ? [section('section-text', 'rich-text', 0)]
+            : [section('section-b', 'rich-text', 0, { projectId: other, pageId: OTHER_PAGE })],
+        ),
+        create: vi.fn(() => gate.promise),
+      },
+    });
+    await stale.store.load(PROJECT, PAGE);
+    const adding = stale.store.addSection(definition(), { position: 1, columnSpan: 6 });
+    await stale.store.load(other, OTHER_PAGE);
+    gate.resolve(section('section-created', 'rich-text', 1));
+
+    expect(await adding).toEqual({ ok: true });
+    expect(stale.store.sections().map(({ id }) => id)).toEqual(['section-b']);
+  });
+
+  it('adds a shortcut at its requested position before reconciling, and reports a refusal as a result', async () => {
+    const reconcile = deferred<ResolvedSectionShortcut[]>();
+    const initialSections = [
+      section('section-text', 'rich-text', 0),
+      section('section-tasks', 'task-list', 2),
+    ];
+    const inserted = shortcut('shortcut-new', 1, {
+      sourceSectionId: 'section-source',
+      columnSpan: 6,
+    });
+    const { store, gateway } = setup({
+      sections: initialSections,
+      shortcuts: [shortcut('shortcut-a', 1)],
+      sectionOverrides: {
+        list: vi.fn()
+          .mockResolvedValueOnce(initialSections)
+          .mockResolvedValue([initialSections[0]!, section('section-tasks', 'task-list', 3)]),
+      },
+      shortcutList: vi.fn()
+        .mockResolvedValueOnce([shortcut('shortcut-a', 1)])
+        .mockImplementationOnce(() => reconcile.promise)
+        .mockResolvedValue([shortcut('shortcut-a', 2)]),
+      shortcutOverrides: {
+        create: vi.fn()
+          .mockResolvedValueOnce(inserted)
+          .mockRejectedValueOnce(new GatewayError('rule_violation', 409, 'shortcut refused')),
+      },
+    });
+    await store.load(PROJECT, PAGE);
+
+    const adding = store.addShortcut({
+      pageId: PAGE,
+      sourceSectionId: 'section-source' as SectionId,
+      position: 1,
+      columnSpan: 6,
+    });
+    await settleLive();
+
+    expect(gateway.shortcuts.create).toHaveBeenCalledWith(PROJECT, {
+      pageId: PAGE,
+      sourceSectionId: 'section-source',
+      position: 1,
+      columnSpan: 6,
+    });
+    expect(store.placements().map((placement) =>
+      placement.kind === 'section' ? placement.section.id : placement.shortcut.id,
+    )).toEqual(['section-text', 'shortcut-new', 'shortcut-a', 'section-tasks']);
+
+    reconcile.resolve([inserted, shortcut('shortcut-a', 2)]);
+    expect(await adding).toEqual({ ok: true });
+    expect(await store.addShortcut({
+      pageId: PAGE,
+      sourceSectionId: 'section-source' as SectionId,
+      position: 0,
+      columnSpan: 8,
+    })).toEqual({ ok: false, message: 'shortcut refused' });
+    expect(store.sectionError()).toBeNull();
   });
 
   it('collapses, resizes and re-configures a section through the gateway', async () => {
@@ -531,17 +814,148 @@ describe('ProjectPageStore (§19, §26)', () => {
     });
   });
 
-  it('duplicates a section and re-reads the positions the host renumbered', async () => {
-    const { store } = setup();
+  it('paints a section resize immediately and defers a live canvas refresh until it settles', async () => {
+    const resize = deferred<ProjectSection>();
+    const { store, gateway, live } = setup({
+      sectionOverrides: { update: vi.fn(() => resize.promise) },
+    });
+    await store.load(PROJECT, PAGE);
+    const sectionReads = calls(gateway.sections.list);
+
+    const saving = store.setColumnSpan('section-text' as SectionId, 8);
+    expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(8);
+
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await settleLive();
+    expect(calls(gateway.sections.list)).toBe(sectionReads);
+    expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(8);
+
+    resize.resolve(section('section-text', 'rich-text', 0, { columnSpan: 8 }));
+    expect(await saving).toBe(true);
+    expect(gateway.sections.update).toHaveBeenCalledWith('section-text', { columnSpan: 8 });
+  });
+
+  it('rolls back only the section width after a failure, preserving a concurrent collapse and rename', async () => {
+    const resize = deferred<ProjectSection>();
+    let persisted = section('section-text', 'rich-text', 0);
+    const update = vi.fn(async (
+      _id: SectionId,
+      input: Parameters<WorkManagerGateway['sections']['update']>[1],
+    ) => {
+      if ('columnSpan' in input) return resize.promise;
+      persisted = { ...persisted, ...input } as ProjectSection;
+      return persisted;
+    });
+    const { store } = setup({ sectionOverrides: { update } });
     await store.load(PROJECT, PAGE);
 
-    expect(await store.duplicateSection('section-text' as SectionId)).toBe(true);
+    const saving = store.setColumnSpan('section-text' as SectionId, 8);
+    expect(await store.setCollapsed('section-text' as SectionId, true)).toBe(true);
+    expect(await store.renameSection('section-text' as SectionId, 'Backlog')).toBe(true);
+    resize.reject(new GatewayError('unreachable', 0, 'resize refused'));
 
-    expect(store.sections().map(({ id, position }) => [id, position])).toEqual([
-      ['section-text', 0],
-      ['section-text-copy', 1],
-      ['section-tasks', 2],
-    ]);
+    expect(await saving).toBe(false);
+    expect(store.sections().find(({ id }) => id === 'section-text')).toMatchObject({
+      columnSpan: 12,
+      collapsed: true,
+      title: 'Backlog',
+    });
+    expect(store.sectionError()).toContain('resize refused');
+  });
+
+  it('does not let an older failed section resize roll back a newer width', async () => {
+    const older = deferred<ProjectSection>();
+    const newer = deferred<ProjectSection>();
+    const { store } = setup({
+      sectionOverrides: {
+        update: vi.fn()
+          .mockImplementationOnce(() => older.promise)
+          .mockImplementationOnce(() => newer.promise),
+      },
+    });
+    await store.load(PROJECT, PAGE);
+
+    const first = store.setColumnSpan('section-text' as SectionId, 8);
+    const second = store.setColumnSpan('section-text' as SectionId, 4);
+    expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(4);
+
+    older.reject(new GatewayError('unreachable', 0, 'older resize failed'));
+    expect(await first).toBe(false);
+    expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(4);
+
+    newer.resolve(section('section-text', 'rich-text', 0, { columnSpan: 4 }));
+    expect(await second).toBe(true);
+    expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(4);
+  });
+
+  it('restores the last confirmed width when every overlapping section resize fails', async () => {
+    const older = deferred<ProjectSection>();
+    const newer = deferred<ProjectSection>();
+    const { store } = setup({
+      sectionOverrides: {
+        update: vi.fn()
+          .mockImplementationOnce(() => older.promise)
+          .mockImplementationOnce(() => newer.promise),
+      },
+    });
+    await store.load(PROJECT, PAGE);
+
+    const first = store.setColumnSpan('section-text' as SectionId, 8);
+    const second = store.setColumnSpan('section-text' as SectionId, 4);
+    expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(4);
+
+    older.reject(new GatewayError('unreachable', 0, 'older resize failed'));
+    expect(await first).toBe(false);
+    expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(4);
+
+    newer.reject(new GatewayError('unreachable', 0, 'newer resize failed'));
+    expect(await second).toBe(false);
+    expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(12);
+    expect(store.sectionError()).toContain('newer resize failed');
+  });
+
+  it('keeps the earlier preview until its request also fails when the newer resize fails first', async () => {
+    const older = deferred<ProjectSection>();
+    const newer = deferred<ProjectSection>();
+    const { store } = setup({
+      sectionOverrides: {
+        update: vi.fn()
+          .mockImplementationOnce(() => older.promise)
+          .mockImplementationOnce(() => newer.promise),
+      },
+    });
+    await store.load(PROJECT, PAGE);
+
+    const first = store.setColumnSpan('section-text' as SectionId, 8);
+    const second = store.setColumnSpan('section-text' as SectionId, 4);
+    newer.reject(new GatewayError('unreachable', 0, 'newer resize failed'));
+
+    expect(await second).toBe(false);
+    expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(8);
+
+    older.reject(new GatewayError('unreachable', 0, 'older resize failed'));
+    expect(await first).toBe(false);
+    expect(store.sections().find(({ id }) => id === 'section-text')?.columnSpan).toBe(12);
+    expect(store.sectionError()).toContain('newer resize failed');
+  });
+
+  it('paints a shortcut resize immediately and restores only its width on failure', async () => {
+    const { store, gateway } = setup({
+      shortcuts: [shortcut('shortcut-a', 1, { collapsed: true })],
+      shortcutOverrides: {
+        update: vi.fn(async () => {
+          throw new GatewayError('unreachable', 0, 'shortcut resize failed');
+        }),
+      },
+    });
+    await store.load(PROJECT, PAGE);
+
+    const saving = store.setColumnSpanShortcut('shortcut-a' as never, 6);
+    expect(store.shortcuts()[0]).toMatchObject({ columnSpan: 6, collapsed: true });
+    expect(await saving).toBe(false);
+    expect(gateway.shortcuts.update).toHaveBeenCalledWith('shortcut-a', { columnSpan: 6 });
+    expect(store.shortcuts()[0]).toMatchObject({ columnSpan: 12, collapsed: true });
+    expect(store.sectionError()).toContain('shortcut resize failed');
   });
 
   it('removes a section and closes the position gap', async () => {
@@ -552,28 +966,6 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(store.sections().map(({ id, position }) => [id, position])).toEqual([
       ['section-tasks', 0],
-    ]);
-  });
-
-  it('does not fabricate sibling positions when a successful duplicate cannot be re-read', async () => {
-    let listCalls = 0;
-    const { store } = setup({
-      sectionOverrides: {
-        list: vi.fn(async () => {
-          if (listCalls++ === 0)
-            return [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)];
-          throw new GatewayError('unreachable', 0, 're-read failed');
-        }),
-      },
-    });
-    await store.load(PROJECT, PAGE);
-
-    expect(await store.duplicateSection('section-text' as SectionId)).toBe(true);
-
-    expect(store.sections().map(({ id, position }) => [id, position])).toEqual([
-      ['section-text', 0],
-      ['section-text-copy', 1],
-      ['section-tasks', 1],
     ]);
   });
 
@@ -759,17 +1151,6 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sectionError()).toContain('move did not persist');
   });
 
-  it('resets Edit Layout Mode when page navigation starts', async () => {
-    const { store } = setup();
-    await store.load(PROJECT, PAGE);
-    store.setEditMode(true);
-
-    const next = store.load('project-b' as ProjectId, OTHER_PAGE);
-
-    expect(store.editMode()).toBe(false);
-    await next;
-  });
-
   it('ignores a move answer for the project left during the write', async () => {
     const gate = deferred<ProjectSection>();
     const other = 'project-b' as ProjectId;
@@ -813,13 +1194,12 @@ describe('ProjectPageStore (§19, §26)', () => {
     const add = store.addSection(definition());
     await store.load(other, OTHER_PAGE);
     gate.resolve(section('section-created', 'rich-text', 1));
-    await add;
+    expect(await add).toEqual({ ok: true });
 
     expect(store.sections().map(({ id }) => id)).toEqual(['section-b']);
   });
 
-  it('does not append a duplicate or leak a rejected update after navigation', async () => {
-    const duplicateGate = deferred<ProjectSection>();
+  it('does not leak a rejected update after navigation', async () => {
     const updateGate = deferred<ProjectSection>();
     const other = 'project-b' as ProjectId;
     const { store } = setup({
@@ -830,18 +1210,15 @@ describe('ProjectPageStore (§19, §26)', () => {
             ? [section('section-text', 'rich-text', 0)]
             : [section('section-b', 'rich-text', 0, { projectId: other })],
         ),
-        duplicate: vi.fn(() => duplicateGate.promise),
         update: vi.fn(() => updateGate.promise),
       },
     });
     await store.load(PROJECT, PAGE);
 
-    const duplicate = store.duplicateSection('section-text' as SectionId);
     const update = store.setCollapsed('section-text' as SectionId, true);
     await store.load(other, OTHER_PAGE);
-    duplicateGate.resolve(section('section-copy', 'rich-text', 1));
     updateGate.reject(new GatewayError('unreachable', 0, 'old project write failed'));
-    await Promise.all([duplicate, update]);
+    await update;
 
     expect(store.sections().map(({ id }) => id)).toEqual(['section-b']);
     expect(store.sectionError()).toBeNull();
@@ -1214,6 +1591,50 @@ describe('ProjectPageStore and live updates (§62)', () => {
 
     move.resolve(section('section-tasks', 'task-list', 0));
     await moving;
+  });
+
+  it('discards a live re-read that was already in flight when a write began, and reads again', async () => {
+    const text = section('section-text', 'rich-text', 0);
+    const tasks = section('section-tasks', 'task-list', 1);
+    let hostOrder = [text, tasks];
+    let heldRead: ReturnType<typeof deferred<ProjectSection[]>> | null = null;
+    const { store, gateway, live } = setup({
+      sectionOverrides: {
+        list: vi.fn(async () => {
+          if (heldRead !== null) {
+            const held = heldRead;
+            heldRead = null;
+            return held.promise;
+          }
+          return [...hostOrder];
+        }),
+        move: vi.fn(async (id, input) => {
+          hostOrder = [
+            { ...tasks, position: 0 },
+            { ...text, position: 1 },
+          ];
+          return { ...(id === tasks.id ? tasks : text), position: input.position };
+        }),
+      },
+    });
+    await store.load(PROJECT, PAGE);
+
+    // Someone else's change starts a re-read, which answers with the order before the move.
+    const staleRead = deferred<ProjectSection[]>();
+    heldRead = staleRead;
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await settleLive();
+
+    await store.moveSection('section-tasks' as SectionId, 0);
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-tasks', 'section-text']);
+    const readsBeforeStaleAnswer = calls(gateway.sections.list);
+
+    staleRead.resolve([text, tasks]);
+    await settleLive();
+
+    expect(store.sections().map(({ id }) => id)).toEqual(['section-tasks', 'section-text']);
+    // The discarded answer is replaced by a read that started after the write.
+    expect(calls(gateway.sections.list)).toBe(readsBeforeStaleAnswer + 1);
   });
 
   it('reloads the canvas when the host state is replaced', async () => {

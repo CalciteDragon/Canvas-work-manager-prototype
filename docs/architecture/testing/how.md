@@ -12,7 +12,8 @@
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
    starts a second host on a temp file and walks a slice's *done when*.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) starts both processes,
-   seeds before each spec, and runs the five journeys.
+   seeds before each spec, and runs the six journeys, including the canvas editing
+   geometry and touch checks.
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`
    produces a static build the 25.x closeouts used as a check.
 7. After every slice, §77: seed, use, try it through MCP, write the friction down.

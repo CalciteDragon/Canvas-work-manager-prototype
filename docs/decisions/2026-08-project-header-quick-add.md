@@ -55,3 +55,9 @@ Medium for adding sections; low for the missing task-capture path.
 The project page gains a general capture action, or a canvas without a Task List is tested
 with real users. The unresolved question is now task capture, not where section addition
 belongs.
+
+**Amended, 2026-09-13.** Slice 27 removes Quick Add. Section creation now starts from a
+contextual insertion point on the canvas, and root Home's creation dialog can add an eligible
+shortcut at that same position. There is no Quick Add header or controls-row action; see
+[the contextual chrome decision](2026-09-canvas-chrome-is-revealed-not-moded.md) and
+[the positioned insertion decision](2026-09-contextual-insertion-names-its-position.md).

@@ -30,7 +30,7 @@ const meta: Meta<ProjectSectionFrame> = {
   args: {
     section: labSection({ title: 'Launch notes' }),
     definition: stubSectionDefinition(),
-    editMode: false,
+    rename: async () => true,
     projectDataRevision: 0,
     projectHierarchyRevision: 0,
   },
@@ -52,8 +52,8 @@ export const Collapsed: Story = {
   args: { section: labSection({ title: 'Launch notes', collapsed: true }) },
 };
 
-/** §32's Edit Layout Mode, which is what reveals the frame's layout and destructive controls. */
-export const Editing: Story = { args: { editMode: true } };
+/** Layout and archive controls are available in the frame without a separate mode. */
+export const DirectChrome: Story = {};
 
 export const EmptyContent: Story = {
   args: { section: labSection({ title: 'Reflections', config: { state: 'empty' } }) },

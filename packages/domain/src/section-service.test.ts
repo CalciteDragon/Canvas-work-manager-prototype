@@ -108,6 +108,134 @@ describe('SectionService and Home shortcut ordering (§27)', () => {
     expect((await harness.shortcuts.find(shortcut.id))?.position).toBe(0);
   });
 
+  it('inserts at a position in the combined section and shortcut order', async () => {
+    const { harness, shortcut } = await withShortcut();
+    const first = await add(harness, 'rich-text');
+    const second = await add(harness, 'progress');
+
+    const inserted = await add(harness, 'task-list', { position: 1 });
+
+    const placements = [
+      ...(await harness.sections.list({ pageId: shortcut.pageId })).map((value) => ({
+        kind: 'section',
+        id: value.id,
+        position: value.position,
+      })),
+      ...(await harness.shortcuts.list({ pageId: shortcut.pageId })).map((value) => ({
+        kind: 'shortcut',
+        id: value.id,
+        position: value.position,
+      })),
+    ].sort((a, b) => a.position - b.position);
+
+    expect(placements).toEqual([
+      { kind: 'shortcut', id: shortcut.id, position: 0 },
+      { kind: 'section', id: inserted.id, position: 1 },
+      { kind: 'section', id: first.id, position: 2 },
+      { kind: 'section', id: second.id, position: 3 },
+    ]);
+  });
+
+  it('clamps a position past the end and appends when position is absent', async () => {
+    const { harness, shortcut } = await withShortcut();
+    const first = await add(harness, 'rich-text');
+
+    const clamped = await add(harness, 'task-list', { position: 99 });
+    const appended = await add(harness, 'progress');
+
+    expect((await harness.shortcuts.find(shortcut.id))?.position).toBe(0);
+    expect([first.position, clamped.position, appended.position]).toEqual([1, 2, 3]);
+  });
+
+  it('shifts siblings for a positioned add without claiming they were edited', async () => {
+    const harness = buildHarness();
+    const [first, second] = [await add(harness, 'rich-text'), await add(harness, 'progress')];
+    harness.clock.setNow(new Date('2026-12-01T09:00:00.000Z'));
+
+    const inserted = await add(harness, 'task-list', { position: 0 });
+
+    const stored = await harness.sectionService.list(harness.actor, MINE);
+    const byId = new Map(stored.map((section) => [section.id, section]));
+    expect(inserted.updatedAt).toBe('2026-12-01T09:00:00.000Z');
+    expect(byId.get(first.id)).toMatchObject({ position: 1, updatedAt: first.updatedAt });
+    expect(byId.get(second.id)).toMatchObject({ position: 2, updatedAt: second.updatedAt });
+  });
+
+  it('marks only the moved section as updated when a move renumbers its siblings', async () => {
+    const harness = buildHarness();
+    const [first, second, third] = await withThree(harness);
+    harness.clock.setNow(new Date('2026-12-01T09:00:00.000Z'));
+
+    const moved = await harness.sectionService.move(harness.actor, third.id, 0);
+
+    const byId = new Map((await harness.sectionService.list(harness.actor, MINE)).map((section) => [section.id, section]));
+    expect(moved.updatedAt).toBe('2026-12-01T09:00:00.000Z');
+    expect(byId.get(first.id)).toMatchObject({ position: 1, updatedAt: first.updatedAt });
+    expect(byId.get(second.id)).toMatchObject({ position: 2, updatedAt: second.updatedAt });
+  });
+
+  it('records one added event and no move event for a positioned add', async () => {
+    const harness = buildHarness();
+    await add(harness, 'rich-text');
+    await add(harness, 'progress');
+    const before = harness.store.snapshot().activityEvents.length;
+
+    await add(harness, 'task-list', { position: 1 });
+
+    expect(harness.store.snapshot().activityEvents.slice(before).map(({ action }) => action)).toEqual([
+      'project.section_added',
+    ]);
+  });
+
+  it('does not renumber sections when a positioned add is refused for a disabled page', async () => {
+    const harness = buildHarness();
+    const page = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+      kind: 'reflections',
+      enabled: true,
+    });
+    await harness.sectionService.add(harness.actor, MINE, { type: 'reflections', pageId: page.id });
+    await harness.sectionService.add(harness.actor, MINE, { type: 'reflections', pageId: page.id });
+    const before = (await harness.sections.list({ pageId: page.id })).map(({ id, position }) => [id, position]);
+    await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'reflections', enabled: false });
+
+    await expect(
+      harness.sectionService.add(harness.actor, MINE, { type: 'reflections', pageId: page.id, position: 0 }),
+    ).rejects.toThrow(/disabled/);
+
+    expect((await harness.sections.list({ pageId: page.id })).map(({ id, position }) => [id, position])).toEqual(before);
+  });
+
+  it('does not renumber sections when a positioned add is refused for an archived project', async () => {
+    const harness = buildHarness();
+    const first = await add(harness, 'rich-text');
+    const second = await add(harness, 'progress');
+    await harness.projectService.archive(harness.actor, MINE);
+
+    await expect(harness.sectionService.add(harness.actor, MINE, { type: 'task-list', position: 0 })).rejects.toThrow(
+      /archived; reactivate it first/,
+    );
+
+    expect((await harness.sections.list({ pageId: first.pageId })).map(({ id, position }) => [id, position])).toEqual([
+      [first.id, 0],
+      [second.id, 1],
+    ]);
+  });
+
+  it('does not renumber sections when a positioned add is refused for missing permission', async () => {
+    const harness = buildHarness();
+    const first = await add(harness, 'rich-text');
+    const second = await add(harness, 'progress');
+
+    await expect(
+      harness.sectionService.add(agentActorFor(0), MINE, { type: 'task-list', position: 0 }),
+    ).rejects.toBeInstanceOf(PermissionDeniedError);
+
+    expect((await harness.sections.list({ pageId: first.pageId })).map(({ id, position }) => [id, position])).toEqual([
+      [first.id, 0],
+      [second.id, 1],
+    ]);
+  });
+
   it('moves a section past a shortcut using the combined target index', async () => {
     const { harness, shortcut } = await withShortcut();
     const first = await add(harness, 'rich-text');

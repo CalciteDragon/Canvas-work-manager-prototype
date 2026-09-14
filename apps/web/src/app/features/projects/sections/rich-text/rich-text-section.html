@@ -3,6 +3,7 @@
        carries an `aria-label`. A visually-hidden one would be a second name for the same
        control. -->
   <textarea
+    #body
     data-rich-text-body
     class="rich-text__body"
     rows="4"
@@ -10,6 +11,7 @@
     [attr.aria-label]="'Notes for ' + name()"
     [readonly]="readOnly()"
     placeholder="What is this project about?"
+    (input)="fit()"
     (blur)="save($any($event.target).value)"
   ></textarea>
 </div>

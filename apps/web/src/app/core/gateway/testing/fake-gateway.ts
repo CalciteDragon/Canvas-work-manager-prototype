@@ -89,6 +89,9 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
    */
   constructor(readonly options: FakeGatewayOptions = {}) {}
 
+  private createdSectionSequence = 0;
+  private createdShortcutSequence = 0;
+
   /** Every call the spec made, in order, so a test can assert the query that was sent. */
   readonly calls: Array<{ method: string; argument: unknown }> = [];
 
@@ -321,30 +324,62 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
             (query.includeArchived === true || section.archivedAt === undefined),
         ),
       ),
-    // The write answers echo the request over the first seeded section, which is enough for
-    // a store spec: what matters is the argument that reached the boundary, not the body.
-    create: (projectId, input) =>
-      this.answer(
-        'sections.create',
-        { projectId, input },
-        { ...this.firstSection(), ...input, projectId },
-      ),
-    update: (id, input) =>
-      this.answer('sections.update', { id, input }, applyUpdate(this.sectionFor(id), input)),
-    move: (id, input) =>
-      this.answer(
-        'sections.move',
-        { id, input },
-        { ...this.sectionFor(id), position: input.position },
-      ),
+    create: (projectId, input) => {
+      const pageId = input.pageId ?? (`page-${projectId}` as ProjectPageId);
+      const position = this.positionForCreate(projectId, pageId, input.position);
+      const now = COMPLETED_AT;
+      const created: ProjectSection = {
+        id: `section-created-${++this.createdSectionSequence}` as SectionId,
+        projectId,
+        pageId,
+        type: input.type,
+        position,
+        columnSpan: input.columnSpan ?? 12,
+        collapsed: false,
+        config: input.config ?? {},
+        title: input.title,
+        createdAt: now,
+        updatedAt: now,
+      };
+      return this.answer('sections.create', { projectId, input }, created).then((section) => {
+        (this.options.sections ??= []).push(section);
+        this.placeAt(projectId, pageId, position, { kind: 'section', value: section });
+        return section;
+      });
+    },
+    update: (id, input) => {
+      const current = this.sectionFor(id);
+      return this.answer('sections.update', { id, input }, applyUpdate(current, input)).then((updated) => {
+        Object.assign(current, updated);
+        return updated;
+      });
+    },
+    move: (id, input) => {
+      const current = this.sectionFor(id);
+      return this.answer('sections.move', { id, input }, { ...current, position: input.position }).then((updated) => {
+        this.placeAt(current.projectId, current.pageId, input.position, { kind: 'section', value: current });
+        return updated;
+      });
+    },
     duplicate: (id) =>
       this.answer('sections.duplicate', id, {
         ...this.sectionFor(id),
         id: `${id}-copy` as SectionId,
       }),
     // The policy is recorded too: a removal that swallowed it would look identical here.
-    remove: (id, input) => this.answer('sections.remove', { id, input: input ?? {} }, undefined),
-    restore: (id) => this.answer('sections.restore', id, restored(this.sectionFor(id))),
+    remove: (id, input) => {
+      const current = this.sectionFor(id);
+      return this.answer('sections.remove', { id, input: input ?? {} }, undefined).then(() => {
+        current.archivedAt = COMPLETED_AT;
+      });
+    },
+    restore: (id) => {
+      const current = this.sectionFor(id);
+      return this.answer('sections.restore', id, restored(current)).then((updated) => {
+        Object.assign(current, updated);
+        return updated;
+      });
+    },
   };
 
   readonly shortcuts: SectionShortcutGateway = {
@@ -363,19 +398,45 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         // filtering it by the source page would silently erase every valid picker option.
         this.options.shortcutSources ?? [],
       ),
-    create: (projectId: ProjectId, input: CreateSectionShortcutInput) =>
-      this.answer('shortcuts.create', { projectId, input }, {
+    create: (projectId: ProjectId, input: CreateSectionShortcutInput) => {
+      const position = this.positionForCreate(projectId, input.pageId, input.position);
+      const created: ResolvedSectionShortcut = {
         ...this.shortcutForCreate(projectId, input),
-        id: 'shortcut-created' as SectionShortcutId,
+        id: `shortcut-created-${++this.createdShortcutSequence}` as SectionShortcutId,
         pageId: input.pageId,
         sourceSectionId: input.sourceSectionId,
+        position,
         columnSpan: input.columnSpan ?? this.shortcutForCreate(projectId, input).columnSpan,
+      };
+      return this.answer('shortcuts.create', { projectId, input }, created).then((shortcut) => {
+        (this.options.shortcuts ??= []).push(shortcut);
+        this.placeAt(projectId, input.pageId, position, { kind: 'shortcut', value: shortcut });
+        return shortcut;
+      });
+    },
+    update: (id: SectionShortcutId, input: UpdateSectionShortcutInput) => {
+      const current = this.shortcutFor(id);
+      return this.answer('shortcuts.update', { id, input }, { ...current, ...input }).then((updated) => {
+        Object.assign(current, updated);
+        return updated;
+      });
+    },
+    move: (id: SectionShortcutId, input: MoveSectionShortcutInput) => {
+      const current = this.shortcutFor(id);
+      return this.answer('shortcuts.move', { id, input }, { ...current, position: input.position }).then((updated) => {
+        this.placeAt(
+          this.projectForPage(current.pageId, current.sourceProjectId as ProjectId),
+          current.pageId,
+          input.position,
+          { kind: 'shortcut', value: current },
+        );
+        return updated;
+      });
+    },
+    remove: (id: SectionShortcutId) =>
+      this.answer('shortcuts.remove', id, undefined).then(() => {
+        this.options.shortcuts = (this.options.shortcuts ?? []).filter((shortcut) => shortcut.id !== id);
       }),
-    update: (id: SectionShortcutId, input: UpdateSectionShortcutInput) =>
-      this.answer('shortcuts.update', { id, input }, { ...this.shortcutFor(id), ...input }),
-    move: (id: SectionShortcutId, input: MoveSectionShortcutInput) =>
-      this.answer('shortcuts.move', { id, input }, { ...this.shortcutFor(id), position: input.position }),
-    remove: (id: SectionShortcutId) => this.answer('shortcuts.remove', id, undefined),
   };
 
   readonly tasks: TaskGateway = {
@@ -428,11 +489,37 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     return found;
   }
 
-  private firstSection(): ProjectSection {
-    const [section] = this.options.sections ?? [];
-    if (section === undefined)
-      throw new Error('the fake gateway was given no sections to answer with');
-    return section;
+  private positionForCreate(projectId: ProjectId, pageId: ProjectPageId, requested?: number): number {
+    const count = (this.options.sections ?? []).filter((section) => section.projectId === projectId && section.pageId === pageId && section.archivedAt === undefined).length +
+      (this.options.shortcuts ?? []).filter((shortcut) => shortcut.pageId === pageId).length;
+    return Math.max(0, Math.min(requested ?? count, count));
+  }
+
+  private projectForPage(pageId: ProjectPageId, fallback: ProjectId): ProjectId {
+    return this.options.pages?.find((page) => page.id === pageId)?.projectId ??
+      this.options.projects?.find((project) => `page-${project.id}` === pageId)?.id ??
+      fallback;
+  }
+
+  private placeAt(
+    projectId: ProjectId,
+    pageId: ProjectPageId,
+    position: number,
+    inserted: { kind: 'section'; value: ProjectSection } | { kind: 'shortcut'; value: ResolvedSectionShortcut },
+  ): void {
+    const ordered = [
+      ...(this.options.sections ?? [])
+        .filter((section) => section.projectId === projectId && section.pageId === pageId && section.archivedAt === undefined)
+        .map((section) => ({ kind: 'section' as const, value: section })),
+      ...(this.options.shortcuts ?? [])
+        .filter((shortcut) => shortcut.pageId === pageId)
+        .map((shortcut) => ({ kind: 'shortcut' as const, value: shortcut })),
+    ].filter((entry) => entry.value.id !== inserted.value.id);
+    ordered.sort((a, b) => a.value.position - b.value.position || a.value.id.localeCompare(b.value.id));
+    ordered.splice(Math.max(0, Math.min(position, ordered.length)), 0, inserted);
+    ordered.forEach((entry, index) => {
+      entry.value.position = index;
+    });
   }
 
   private sectionFor(id: SectionId): ProjectSection {

@@ -36,10 +36,9 @@ const shortcut = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   });
 
-const render = (value = shortcut(), editMode = false) => {
+const render = (value = shortcut()) => {
   const fixture = TestBed.createComponent(ShortcutFrame);
   fixture.componentRef.setInput('shortcut', value);
-  fixture.componentRef.setInput('editMode', editMode);
   fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.componentRef.setInput('projectHierarchyRevision', 0);
   fixture.detectChanges();
@@ -58,16 +57,16 @@ describe('ShortcutFrame (§27)', () => {
     expect(query(fixture, '[data-rich-text-body]')).not.toBeNull();
     expect(query(fixture, '[data-rich-text-body]')?.hasAttribute('readonly')).toBe(true);
     expect(query(fixture, '[data-shortcut-open-source]')).not.toBeNull();
-    expect(query(fixture, '[data-shortcut-remove]')).toBeNull();
+    expect(query(fixture, '[data-shortcut-remove]')?.getAttribute('aria-label')).toBe('Remove shortcut to Rich Text');
   });
 
-  it('keeps placement controls in edit mode but does not expose source editing controls', () => {
+  it('keeps layout controls available without exposing source editing or sizing controls', () => {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
-    const fixture = render(shortcut(), true);
+    const fixture = render();
 
     expect(query(fixture, '[data-shortcut-drag-handle]')).not.toBeNull();
-    expect(query(fixture, '[data-shortcut-size]')).not.toBeNull();
     expect(query(fixture, '[data-shortcut-remove]')).not.toBeNull();
+    expect(query(fixture, '[data-shortcut-size]')).toBeNull();
     expect(query(fixture, '[data-section-config]')).toBeNull();
   });
 
