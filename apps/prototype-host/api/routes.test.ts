@@ -1146,6 +1146,27 @@ describe('Archive projection route (§31, §32, §54)', () => {
     expect(result.items).toContainEqual(expect.objectContaining({ kind: 'task', task: expect.objectContaining({ id: task.id }) }));
   });
 
+  it('forwards the content projection and its recovery metadata without filtering of its own', async () => {
+    const routes = buildRoutes();
+    const add = async (body: unknown) =>
+      ProjectSectionSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body })).body);
+    const progress = await add({ type: 'progress' });
+    const notes = await add({ type: 'rich-text', config: { text: 'Measure twice' } });
+    const blank = await add({ type: 'rich-text', config: { text: '   ' } });
+    for (const { id } of [progress, notes, blank]) {
+      expect((await call(routes, 'DELETE', `/api/sections/${id}`)).status).toBe(204);
+    }
+    const eventsBefore = ((await call(routes, 'GET', '/api/activity')).body as unknown[]).length;
+
+    const result = ProjectArchiveResultSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}/archive`)).body);
+
+    const sections = result.items.filter((item) => item.kind === 'section');
+    expect(sections.map((item) => item.section.id)).toEqual([notes.id]);
+    expect(sections[0]).toMatchObject({ recovery: { kind: 'config' }, section: { config: { text: 'Measure twice' } } });
+    // A read: no projection writes and no activity.
+    expect(((await call(routes, 'GET', '/api/activity')).body as unknown[]).length).toBe(eventsBefore);
+  });
+
   it('requires all three read grants and refuses a unit of work', async () => {
     const routes = buildRoutes();
     expect((await call(routes, 'GET', `/api/projects/${THEIRS}/archive`)).status).toBe(404);

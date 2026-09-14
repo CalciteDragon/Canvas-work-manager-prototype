@@ -18,6 +18,10 @@ export const createRichTextConfig = (): RichTextConfig => ({ text: '' });
  * A section whose config is malformed still renders. The data file is hand-editable (§14)
  * and an older section may predate a key, so an unreadable config falls back to the default
  * rather than blanking the canvas.
+ *
+ * That fallback is a display choice, not evidence the config is empty: the domain's Archive
+ * recovery policy (`section-recovery-policy.ts`) inspects the stored keys itself and keeps a
+ * malformed config visible as unknown content. The two deliberately do not share a schema.
  */
 export const readRichTextConfig = (config: unknown): RichTextConfig => {
   const parsed = RichTextConfigSchema.safeParse(config);

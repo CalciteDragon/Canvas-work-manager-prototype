@@ -100,10 +100,28 @@ const CASES: Record<string, ToolCase> = {
   },
   get_project_archive: {
     input: { projectId: PROJECT },
+    // Nonempty on purpose: a removed view (absent), removed prose (config) and a cascaded
+    // container (owned content) prove the domain's projection reaches the agent unchanged.
+    prepare: async (harness) => {
+      const writer = agent(['projects.write', 'tasks.write']);
+      await harness.services.sections.remove(writer, VIEW_SECTION);
+      const notes = await harness.services.sections.add(writer, PROJECT, { type: 'rich-text', config: { text: 'Keep me' } });
+      await harness.services.sections.remove(writer, notes.id);
+      await harness.services.sections.remove(writer, TASK_CONTAINER, { policy: 'cascade' });
+    },
     verify: (result) => {
       expect(result.projectId).toBe(PROJECT);
       expect(result.root.id).toBe(PROJECT);
-      expect(result.items).toEqual([]);
+      const sections = result.items.filter((item: { kind: string }) => item.kind === 'section');
+      expect(sections.map((item: { section: { id: string } }) => item.section.id)).not.toContain(VIEW_SECTION);
+      expect(sections).toContainEqual(expect.objectContaining({ section: expect.objectContaining({ type: 'rich-text' }), recovery: { kind: 'config' } }));
+      expect(sections).toContainEqual(
+        expect.objectContaining({
+          section: expect.objectContaining({ id: TASK_CONTAINER }),
+          cascadeCount: expect.any(Number),
+          recovery: expect.objectContaining({ kind: 'owned-content', ownedData: 'tasks' }),
+        }),
+      );
     },
   },
   get_project_journal: {

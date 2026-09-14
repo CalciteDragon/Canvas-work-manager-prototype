@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { nameOf, type ProjectArchiveItem, type ProjectRestoreStatus } from '@cwm/contracts';
+import { nameOf, ownedKindOf, type ProjectArchiveItem, type ProjectRestoreStatus } from '@cwm/contracts';
 
 export interface ArchiveRestoreRequest {
   item: ProjectArchiveItem;
@@ -103,6 +103,55 @@ export class ArchivedRegion {
     return `Restore “${item.restoration.blocker.name}” first`;
   }
 
+  /**
+   * Copy for the domain's `recovery` verdict. Presentational only: whether a section is listed,
+   * and what it holds, was decided by `sectionRecoveryOf` — nothing here re-derives it.
+   */
+  contentLabel(item: ProjectArchiveItem): string | null {
+    if (item.kind !== 'section' || item.recovery === undefined) return null;
+    switch (item.recovery.kind) {
+      case 'owned-content':
+        return `${this.rows(item.recovery.ownedData, item.recovery.contentCount)} in this section`;
+      case 'config':
+        return 'Keeps its text';
+      case 'unknown':
+        return 'Content this version cannot read — kept to be safe';
+    }
+  }
+
+  /** The exact `archivedWithSectionId` count, only for a section that is actually archived. */
+  cascadeLabel(item: ProjectArchiveItem): string | null {
+    if (item.kind !== 'section' || item.cascadeCount === undefined || item.section.archivedAt === undefined) return null;
+    const ownedData = item.recovery?.kind === 'owned-content' ? item.recovery.ownedData : (ownedKindOf(item.section.type) ?? 'tasks');
+    const verb = item.cascadeCount === 1 ? 'restores' : 'restore';
+    return `${this.rows(ownedData, item.cascadeCount)} ${verb} with this section`;
+  }
+
+  /**
+   * What recovering the rows a section Restore will *not* bring back takes. An archived
+   * container's other rows were archived on their own, so they need their own Restore after
+   * it. A live container hidden beneath an archived project needs no restore at all — only the
+   * project's reactivation, which the blocker names — so it never gets row instructions.
+   */
+  recoveryGuidance(item: ProjectArchiveItem): string | null {
+    if (item.kind !== 'section' || item.recovery?.kind !== 'owned-content') return null;
+    if (item.restoration.kind === 'not-archived') {
+      return `Still on its canvas: reactivate “${item.restoration.blocker.name}” to see it again.`;
+    }
+    const cascade = item.cascadeCount ?? 0;
+    const remaining = item.recovery.contentCount - cascade;
+    if (remaining <= 0) return null;
+    const rows = this.noun(item.recovery.ownedData, remaining);
+    if (cascade > 0) {
+      return remaining === 1
+        ? `1 other ${rows} stays archived; restore it separately afterwards.`
+        : `${remaining} other ${rows} stay archived; restore them separately afterwards.`;
+    }
+    return item.restoration.kind === 'blocked'
+      ? `Then restore this section, then restore its archived ${rows} separately.`
+      : `Restore this section first, then restore its archived ${rows} separately.`;
+  }
+
   canRestore(item: ProjectArchiveItem): boolean {
     return !this.restoreBlocked() && this.restoring().size === 0 && item.restoration.kind === 'ready';
   }
@@ -125,6 +174,15 @@ export class ArchivedRegion {
   restore(item: ProjectArchiveItem): void {
     if (!this.canRestore(item)) return;
     this.restoreRequested.emit({ item, status: this.projectStatus(item) });
+  }
+
+  private rows(ownedData: 'tasks' | 'reflections', count: number): string {
+    return `${count} ${this.noun(ownedData, count)}`;
+  }
+
+  private noun(ownedData: 'tasks' | 'reflections', count: number): string {
+    const singular = ownedData === 'tasks' ? 'task' : 'reflection';
+    return count === 1 ? singular : `${singular}s`;
   }
 
   idOf(item: ProjectArchiveItem): string {

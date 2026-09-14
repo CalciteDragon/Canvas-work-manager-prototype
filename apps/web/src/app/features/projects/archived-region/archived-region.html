@@ -40,17 +40,17 @@
               }
             </span>
             <span data-archived-cause class="archived-region__meta">{{ causeLabel(item) }}</span>
-            @if (item.kind === 'section' && item.cascadeCount !== undefined) {
-              <span data-archived-cascade-count class="archived-region__meta">
-                {{ item.cascadeCount }}
-                {{ item.section.type === 'reflections'
-                  ? (item.cascadeCount === 1 ? 'reflection' : 'reflections')
-                  : (item.cascadeCount === 1 ? 'task' : 'tasks') }}
-                with it
-              </span>
+            @if (contentLabel(item); as content) {
+              <span data-archived-content class="archived-region__meta">{{ content }}</span>
+            }
+            @if (cascadeLabel(item); as cascade) {
+              <span data-archived-cascade-count class="archived-region__meta">{{ cascade }}</span>
             }
             @if (blockerLabel(item); as blocker) {
               <span data-archived-blocker class="archived-region__meta">{{ blocker }}</span>
+            }
+            @if (recoveryGuidance(item); as guidance) {
+              <span data-archived-recovery-guidance class="archived-region__meta">{{ guidance }}</span>
             }
           </div>
           @if (item.kind === 'subproject' && item.restoration.kind === 'ready') {

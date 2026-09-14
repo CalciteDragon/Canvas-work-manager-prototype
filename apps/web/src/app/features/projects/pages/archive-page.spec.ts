@@ -60,6 +60,7 @@ const archive: ProjectArchiveResult = ProjectArchiveResultSchema.parse({
       },
       cause: { kind: 'own' },
       cascadeCount: 0,
+      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 2 },
       restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
     }),
   ],
@@ -106,6 +107,22 @@ describe('ArchivePage (§31)', () => {
     expect(fixture.nativeElement.querySelector('[data-archived-origin-link]')?.getAttribute('href')).toBe(
       '/projects/project-archive-page/pages/home#section-section-archive-page',
     );
+  });
+
+  it('renders the domain projection’s content and two-step guidance as supplied', async () => {
+    const { fixture } = await render();
+
+    expect(fixture.nativeElement.querySelector('[data-archived-content]')?.textContent).toContain('2 tasks in this section');
+    expect(fixture.nativeElement.querySelector('[data-archived-recovery-guidance]')?.textContent).toContain(
+      'Restore this section first, then restore its archived tasks separately.',
+    );
+  });
+
+  it('says nothing is archived for an empty projection', async () => {
+    const { fixture } = await render({ ...archive, items: [] });
+
+    expect(fixture.nativeElement.querySelector('[data-archive-empty]')?.textContent).toContain('Nothing is archived');
+    expect(fixture.nativeElement.querySelector('[data-archived-item]')).toBeNull();
   });
 
   it('awaits a canonical restore and tells the shell what changed', async () => {

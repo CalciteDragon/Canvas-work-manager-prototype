@@ -61,6 +61,7 @@ const archivedItems: ProjectArchiveItem[] = [
     origin,
     cause: { kind: 'own' },
     cascadeCount: 1,
+    recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 1 },
     restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
   }),
   ProjectArchiveItemSchema.parse({
@@ -79,6 +80,41 @@ const archivedItems: ProjectArchiveItem[] = [
   }),
 ];
 
+const recoveryItems: ProjectArchiveItem[] = [
+  ProjectArchiveItemSchema.parse({
+    kind: 'section',
+    section: { ...section, id: 'section-notes', type: 'rich-text', title: 'Site notes', config: { text: 'Keep the old hosting login steps.' } },
+    origin,
+    cause: { kind: 'own' },
+    recovery: { kind: 'config' },
+    restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
+  }),
+  ProjectArchiveItemSchema.parse({
+    kind: 'section',
+    section: { ...section, id: 'section-calendar', type: 'calendar', title: undefined, config: { view: 'month' } },
+    origin,
+    cause: { kind: 'own' },
+    recovery: { kind: 'unknown' },
+    restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
+  }),
+  ProjectArchiveItemSchema.parse({
+    kind: 'section',
+    section: { ...section, id: 'section-old-list', title: 'Old list' },
+    origin,
+    cause: { kind: 'own' },
+    cascadeCount: 0,
+    recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 2 },
+    restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
+  }),
+  ProjectArchiveItemSchema.parse({
+    kind: 'task',
+    task: { ...task, id: 'task-filed', sectionId: 'section-old-list', title: 'Filed before the list was removed' },
+    origin: { ...origin, sectionId: 'section-old-list', sectionName: 'Old list' },
+    cause: { kind: 'own' },
+    restoration: { kind: 'blocked', blocker: { kind: 'section', sectionId: 'section-old-list', name: 'Old list' } },
+  }),
+];
+
 const meta: Meta<ArchivedRegion> = {
   title: 'Projects/ArchivedRegion',
   component: ArchivedRegion,
@@ -92,3 +128,5 @@ export const Empty: Story = { args: { items: [] } };
 export const ArchivedSectionsAndRows: Story = {};
 export const ArchivedProjectWithStatusChoice: Story = { args: { items: archivedItems.slice(2, 3) } };
 export const RootArchived: Story = { args: { restoreBlocked: true } };
+export const ContentAndUnknownSections: Story = { args: { items: recoveryItems.slice(0, 2) } };
+export const PreArchivedOnlyContainer: Story = { args: { items: recoveryItems.slice(2) } };

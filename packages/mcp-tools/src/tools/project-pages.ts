@@ -51,7 +51,7 @@ export const projectPageTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'get_project_archive',
     description:
-      'Read every archived row and every live row hidden beneath an archived project in one root project: sub-projects, sections, tasks and reflections, with the page and container each came from, why it is present, and whether the canonical restore operation is ready or blocked. It reads projects, tasks and reflections together and refuses rather than returning a partial answer. It does not depend on the Archive page being enabled.',
+      'Read every archived row and every live row hidden beneath an archived project in one root project: sub-projects, sections, tasks and reflections, with the page and container each came from, why it is present, and whether the canonical restore operation is ready or blocked. Sections are listed only when they hold something to recover — rows still assigned to a Task List or Reflections container (owned-content, with contentCount of all its rows and cascadeCount of exactly the rows restore_section brings back), Rich Text prose (config), or a type or config it cannot read as empty (unknown); removed Progress, Timeline, Recent Activity and Sub-Projects views stay retained but unlisted. A container with cascadeCount 0 is the first step for its independently archived rows: restore_section, then restore_task or restore_reflection. It reads projects, tasks and reflections together and refuses rather than returning a partial answer. It does not depend on the Archive page being enabled.',
     permission: 'projects.read',
     additionalPermissions: ['tasks.read', 'reflections.read'],
     inputSchema: ProjectArchiveQuerySchema,

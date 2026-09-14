@@ -1,4 +1,4 @@
-import { displayNameOf } from '@cwm/contracts';
+import { SECTION_CAPABILITIES, displayNameOf, sectionCapabilityOf, sectionKindOf } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { SECTION_REGISTRY, definitionFor } from './registry';
 
@@ -30,6 +30,16 @@ describe('SECTION_REGISTRY (§29)', () => {
     for (const definition of SECTION_REGISTRY) {
       expect(definition.displayName).toBe(displayNameOf(definition.type));
     }
+  });
+
+  it('gives every registered type exactly one contracts capability, and declares no unregistered one', () => {
+    // Adding a type means declaring what removing it leaves worth recovering. Without an entry
+    // the domain treats the type as unknown content and keeps its tombstones visible.
+    for (const definition of SECTION_REGISTRY) {
+      expect(sectionCapabilityOf(definition.type), definition.type).toBeDefined();
+      expect(definition.kind).toBe(sectionKindOf(definition.type));
+    }
+    expect(Object.keys(SECTION_CAPABILITIES).sort()).toEqual(SECTION_REGISTRY.map(({ type }) => type).sort());
   });
 
   it('keeps every type unique, so a lookup is unambiguous', () => {

@@ -4,6 +4,7 @@ import {
   ProjectArchiveResultSchema,
   ProjectSchema,
   ProjectSectionSchema,
+  TaskSchema,
   type ProjectArchiveResult,
   type ProjectId,
   type ProjectSection,
@@ -89,6 +90,60 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
 
     expect(restored).toBe(true);
     expect(gateway.calls.filter(({ method }) => method === 'sections.restore')).toHaveLength(1);
+    expect(store.items()).toEqual([]);
+  });
+
+  it('passes recovery metadata through unchanged and restores a container before its own archived row', async () => {
+    const list = ProjectSectionSchema.parse({ ...section, id: 'section-old-list', type: 'task-list', config: {} });
+    const task = TaskSchema.parse({
+      id: 'task-filed',
+      projectId: PROJECT,
+      sectionId: list.id,
+      title: 'Filed away',
+      status: 'todo',
+      priority: 'medium',
+      archivedAt: AT,
+      createdAt: AT,
+      updatedAt: AT,
+    });
+    const origin = { ...archived.items[0]!.origin, sectionId: list.id, sectionName: 'Task List' };
+    const sectionItem = ProjectArchiveItemSchema.parse({
+      kind: 'section',
+      section: list,
+      origin,
+      cause: { kind: 'own' },
+      cascadeCount: 0,
+      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 1 },
+      restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
+    });
+    const blockedTask = (restoration: unknown) =>
+      ProjectArchiveItemSchema.parse({ kind: 'task', task, origin, cause: { kind: 'own' }, restoration });
+    const first = ProjectArchiveResultSchema.parse({
+      ...archived,
+      items: [sectionItem, blockedTask({ kind: 'blocked', blocker: { kind: 'section', sectionId: list.id, name: 'Task List' } })],
+    });
+    const second = ProjectArchiveResultSchema.parse({
+      ...archived,
+      items: [blockedTask({ kind: 'ready', operation: 'restore_task', permission: 'tasks.write' })],
+    });
+    const { store, gateway } = setup({ sections: [list], tasks: [task] });
+    gateway.archive.get = vi.fn()
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce(second)
+      .mockResolvedValueOnce({ ...archived, items: [] });
+
+    await store.load(PROJECT);
+    expect(store.items()[0]).toEqual(sectionItem);
+    // A blocked row is refused without a write; the UI never works around the domain's order.
+    expect(await store.restore(store.items()[1]!)).toBe(false);
+
+    expect(await store.restore(store.items()[0]!)).toBe(true);
+    expect(await store.restore(store.items()[0]!)).toBe(true);
+
+    expect(gateway.calls.map(({ method }) => method).filter((method) => method.endsWith('.restore'))).toEqual([
+      'sections.restore',
+      'tasks.restore',
+    ]);
     expect(store.items()).toEqual([]);
   });
 
