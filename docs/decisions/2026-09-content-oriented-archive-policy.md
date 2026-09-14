@@ -86,3 +86,18 @@ archived and need their own Restore, rather than showing two-step copy only at z
 Not yet evidence: the extended `archive.spec.ts` browser/MCP journey and the real-application
 pass could not be run in this session because a developer `pnpm dev:host` held the e2e port. The
 confidence levels above therefore stand until that journey and real use are recorded here.
+
+**Amended, 2026-09-14 — two refinements after review, at the user's request.**
+
+1. *Count Restores, not rows.* "N other tasks stay archived" counted subtasks that come back with
+   their parent, overstating the work. `owned-content` now carries `separateRestoreCount`: archived
+   rows whose marker does not name this section and whose `archivedWithTaskId` parent is not
+   archived in the same container. The copy uses it; `contentCount` and `cascadeCount` are
+   unchanged. Chosen over UI-side counting so eligibility-like arithmetic stays in the domain, and
+   over dropping the number, because the count is what tells someone how much is left to do.
+2. *An empty Rich Text config is empty.* `create_section` without `config` stores `{}` (the web's
+   default is `{ text: '' }`), so agent-created Notes removed untouched were listed as unknown
+   content. A config with **no keys** holds nothing to lose and is now excluded, like blank prose.
+   Non-string `text` and extra keys remain unknown. This narrows the earlier "missing text is
+   uncertain" rule only for the zero-key object; it was preferred over giving the domain a
+   default config per type, which would put section-folder knowledge in domain.

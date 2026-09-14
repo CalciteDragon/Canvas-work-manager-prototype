@@ -104,7 +104,7 @@ describe('ProjectArchiveService (§31)', () => {
 
   it('keeps independently archived sections and subprojects blocked by their archived ancestor', async () => {
     const { harness, archive } = buildArchive();
-    const section = await harness.sectionService.add(harness.actor, KITCHEN, { type: 'rich-text' });
+    const section = await harness.sectionService.add(harness.actor, KITCHEN, { type: 'rich-text', config: { text: 'Kitchen notes' } });
     await harness.sectionService.remove(harness.actor, section.id);
     await harness.projectService.archive(harness.actor, 'project-cabinets' as never);
     await harness.projectService.archive(harness.actor, KITCHEN);
@@ -189,8 +189,9 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     const { harness, archive } = buildArchive();
     const empty = await harness.sectionService.add(harness.actor, ROOT, { type: 'rich-text', config: { text: ' \n\t ' } });
     const unconfigured = await harness.sectionService.add(harness.actor, ROOT, { type: 'rich-text' });
+    const malformed = await harness.sectionService.add(harness.actor, ROOT, { type: 'rich-text', config: { text: 7 } });
     const unknown = await harness.sectionService.add(harness.actor, ROOT, { type: 'calendar', config: { view: 'month' } });
-    for (const { id } of [empty, unconfigured, unknown]) await harness.sectionService.remove(harness.actor, id);
+    for (const { id } of [empty, unconfigured, malformed, unknown]) await harness.sectionService.remove(harness.actor, id);
 
     const { items } = await archive.derive(harness.actor, ROOT);
 
@@ -207,7 +208,8 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     });
     expect(sectionItem(items, 'section-project-renovation-archived-notes')?.cascadeCount).toBeUndefined();
     expect(sectionItem(items, empty.id)).toBeUndefined();
-    expect(sectionItem(items, unconfigured.id)).toMatchObject({ recovery: { kind: 'unknown' }, section: { config: {} } });
+    expect(sectionItem(items, unconfigured.id)).toBeUndefined();
+    expect(sectionItem(items, malformed.id)).toMatchObject({ recovery: { kind: 'unknown' }, section: { config: { text: 7 } } });
     expect(sectionItem(items, unknown.id)).toMatchObject({ recovery: { kind: 'unknown' }, section: { config: { view: 'month' } } });
     expect(items.every((item) => item.kind !== 'section' || item.recovery !== undefined)).toBe(true);
     // The sort is untouched: owner, then kind, then id — rebuilt independently, shuffled first.
@@ -238,7 +240,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
 
     expect(sectionItem(items, list.id)).toMatchObject({
       cascadeCount: 2,
-      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 3 },
+      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 3, separateRestoreCount: 1 },
     });
   });
 
@@ -282,7 +284,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     expect((await harness.reflections.find(filed.id))?.sectionId).toBe(source.id);
     expect(sectionItem(items, source.id)).toMatchObject({
       cascadeCount: 0,
-      recovery: { kind: 'owned-content', ownedData: 'reflections', contentCount: 1 },
+      recovery: { kind: 'owned-content', ownedData: 'reflections', contentCount: 1, separateRestoreCount: 1 },
       restoration: { kind: 'ready' },
     });
     expect(items.find((item) => keyOf(item) === `reflection:${filed.id}`)).toMatchObject({
@@ -306,7 +308,8 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     const first = await archive.derive(harness.actor, ROOT);
     expect(sectionItem(first.items, list.id)).toMatchObject({
       cascadeCount: 0,
-      recovery: { kind: 'owned-content', contentCount: 2 },
+      // Parent and child are two rows, but one Restore: the child returns with its parent.
+      recovery: { kind: 'owned-content', contentCount: 2, separateRestoreCount: 1 },
       restoration: { kind: 'ready', operation: 'restore_section' },
     });
     expect(first.items.find((item) => keyOf(item) === `task:${parent.id}`)).toMatchObject({

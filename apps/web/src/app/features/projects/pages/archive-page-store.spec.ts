@@ -113,7 +113,7 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
       origin,
       cause: { kind: 'own' },
       cascadeCount: 0,
-      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 1 },
+      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 1, separateRestoreCount: 1 },
       restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
     });
     const blockedTask = (restoration: unknown) =>

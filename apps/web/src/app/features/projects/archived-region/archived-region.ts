@@ -139,18 +139,20 @@ export class ArchivedRegion {
     if (item.restoration.kind === 'not-archived') {
       return `Still on its canvas: reactivate “${item.restoration.blocker.name}” to see it again.`;
     }
-    const cascade = item.cascadeCount ?? 0;
-    const remaining = item.recovery.contentCount - cascade;
-    if (remaining <= 0) return null;
-    const rows = this.noun(item.recovery.ownedData, remaining);
-    if (cascade > 0) {
-      return remaining === 1
+    // Restore calls, not rows: the domain already excludes cascade members and subtasks that
+    // return with an archived parent.
+    const separate = item.recovery.separateRestoreCount;
+    if (separate === 0) return null;
+    const rows = this.noun(item.recovery.ownedData, separate);
+    if ((item.cascadeCount ?? 0) > 0) {
+      return separate === 1
         ? `1 other ${rows} stays archived; restore it separately afterwards.`
-        : `${remaining} other ${rows} stay archived; restore them separately afterwards.`;
+        : `${separate} other ${rows} stay archived; restore them separately afterwards.`;
     }
+    const which = separate === 1 ? `its archived ${rows}` : `its ${separate} archived ${rows}`;
     return item.restoration.kind === 'blocked'
-      ? `Then restore this section, then restore its archived ${rows} separately.`
-      : `Restore this section first, then restore its archived ${rows} separately.`;
+      ? `Then restore this section, then restore ${which} separately.`
+      : `Restore this section first, then restore ${which} separately.`;
   }
 
   canRestore(item: ProjectArchiveItem): boolean {

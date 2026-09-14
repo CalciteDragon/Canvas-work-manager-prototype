@@ -13,8 +13,8 @@ export type SectionRecoveryDecision =
 
 /** The canonical rows in scope, archived included; the policy picks the ones assigned to the section. */
 export interface SectionRecoveryContent {
-  tasks: readonly Pick<Task, 'sectionId'>[];
-  reflections: readonly Pick<Reflection, 'sectionId'>[];
+  tasks: readonly Pick<Task, 'id' | 'sectionId' | 'archivedAt' | 'archivedWithSectionId' | 'archivedWithTaskId'>[];
+  reflections: readonly Pick<Reflection, 'sectionId' | 'archivedAt' | 'archivedWithSectionId'>[];
 }
 
 const EXCLUDE: SectionRecoveryDecision = { include: false };
@@ -29,8 +29,9 @@ const UNKNOWN: SectionRecoveryDecision = { include: true, recovery: { kind: 'unk
  * the section is the dependency their own Restore needs), and rich text is content while its
  * prose trims to something. It evaluates state after removal or reassignment, never intent.
  *
- * Uncertainty is kept, not dropped: an unregistered type, or rich-text config with a missing
- * or non-string `text` or any other key, is `unknown`. Nothing here decides deletion; it only
+ * Uncertainty is kept, not dropped: an unregistered type, or rich-text config with a non-string
+ * `text` or any other key, is `unknown`. An empty rich-text config (`{}`) holds nothing and is
+ * excluded like blank prose. Nothing here decides deletion; it only
  * decides a projection. No repositories, clock or mutation.
  */
 export const sectionRecoveryOf = (
@@ -47,14 +48,45 @@ export const sectionRecoveryOf = (
       return richTextRecovery(section.config);
     case 'owned-content': {
       const ownedData = capability.ownedData!;
-      const rows: readonly Pick<Task | Reflection, 'sectionId'>[] =
-        ownedData === 'tasks' ? content.tasks : content.reflections;
-      const contentCount = rows.filter(({ sectionId }) => sectionId === section.id).length;
-      return contentCount === 0
-        ? EXCLUDE
-        : { include: true, recovery: { kind: 'owned-content', ownedData, contentCount } };
+      const rows =
+        ownedData === 'tasks'
+          ? content.tasks.filter(({ sectionId }) => sectionId === section.id)
+          : content.reflections.filter(({ sectionId }) => sectionId === section.id);
+      if (rows.length === 0) return EXCLUDE;
+      return {
+        include: true,
+        recovery: {
+          kind: 'owned-content',
+          ownedData,
+          contentCount: rows.length,
+          separateRestoreCount: separateRestores(section.id, rows),
+        },
+      };
     }
   }
+};
+
+/**
+ * The Restore calls an archived container's rows need after the section's own: an archived row
+ * returns with the section when its marker names it, and with its parent task when that parent
+ * is archived in the same container (task Restore brings its `archivedWithTaskId` group back).
+ * Everything else archived needs its own.
+ */
+interface ArchivableRow {
+  id?: string;
+  archivedAt?: string;
+  archivedWithSectionId?: string;
+  archivedWithTaskId?: string;
+}
+
+const separateRestores = (sectionId: ProjectSection['id'], rows: readonly ArchivableRow[]): number => {
+  const archivedIds = new Set(rows.flatMap((row) => (row.archivedAt !== undefined && row.id !== undefined ? [row.id] : [])));
+  return rows.filter(
+    (row) =>
+      row.archivedAt !== undefined &&
+      row.archivedWithSectionId !== sectionId &&
+      (row.archivedWithTaskId === undefined || !archivedIds.has(row.archivedWithTaskId)),
+  ).length;
 };
 
 /**
@@ -64,6 +96,8 @@ export const sectionRecoveryOf = (
  */
 const richTextRecovery = (config: ProjectSection['config']): SectionRecoveryDecision => {
   const keys = Object.keys(config);
+  // `create_section` without a config stores `{}`: no keys, so nothing to lose.
+  if (keys.length === 0) return EXCLUDE;
   if (keys.length !== 1 || keys[0] !== 'text') return UNKNOWN;
   const text: unknown = config['text'];
   if (typeof text !== 'string') return UNKNOWN;

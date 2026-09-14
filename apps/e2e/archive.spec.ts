@@ -206,6 +206,12 @@ test('Archive lists recoverable content only, and independently archived rows ke
 
   const oldTasks = await addSection({ type: 'task-list', title: 'Old tasks' });
   const oldTask = await addTask(oldTasks.id, 'Archived on its own');
+  const oldSubtask = await api<{ id: string }>('POST', '/api/tasks', {
+    projectId: ROOT,
+    sectionId: oldTasks.id,
+    parentTaskId: oldTask.id,
+    title: 'Archived with its parent',
+  });
   await api('POST', `/api/tasks/${oldTask.id}/archive`);
   await api('DELETE', `/api/sections/${oldTasks.id}`);
 
@@ -228,15 +234,16 @@ test('Archive lists recoverable content only, and independently archived rows ke
     expect(entry(notes.id)).toMatchObject({ recovery: { kind: 'config' }, section: { config: { text: 'Measure the hallway shelf' } } });
     expect(entry(cascaded.id)).toMatchObject({
       cascadeCount: 1,
-      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 2 },
+      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 2, separateRestoreCount: 1 },
     });
+    // Two rows, one Restore: the subtask comes back with its parent.
     expect(entry(oldTasks.id)).toMatchObject({
       cascadeCount: 0,
-      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 1 },
+      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 2, separateRestoreCount: 1 },
     });
     expect(entry(oldReflections.id)).toMatchObject({
       cascadeCount: 0,
-      recovery: { kind: 'owned-content', ownedData: 'reflections', contentCount: 1 },
+      recovery: { kind: 'owned-content', ownedData: 'reflections', contentCount: 1, separateRestoreCount: 1 },
     });
     expect(keys).toEqual(
       expect.arrayContaining([
@@ -260,6 +267,7 @@ test('Archive lists recoverable content only, and independently archived rows ke
   for (const id of [...views, blank.id, reassigned.id]) await expect(row(id)).toHaveCount(0);
   await expect(row(cascaded.id)).toContainText('2 tasks in this section');
   await expect(row(cascaded.id)).toContainText('1 task restores with this section');
+  await expect(row(cascaded.id)).toContainText('1 other task stays archived; restore it separately afterwards.');
   await expect(row(oldTasks.id)).toContainText('Restore this section first, then restore its archived task separately.');
   await expect(row(oldTask.id)).toContainText('Restore “Old tasks” first');
 
@@ -282,8 +290,10 @@ test('Archive lists recoverable content only, and independently archived rows ke
   await expect(row(oldTasks.id)).toHaveCount(0);
   expect(await placements()).toEqual([...before, oldTasks.id]);
   await expect(row(oldTask.id).locator('[data-archived-restore]')).toBeEnabled();
+  await expect(row(oldSubtask.id)).toContainText('Restore “Archived on its own” first');
   await row(oldTask.id).locator('[data-archived-restore]').click();
   await expect(row(oldTask.id)).toHaveCount(0);
+  await expect(row(oldSubtask.id)).toHaveCount(0);
 
   // A cascaded container brings back exactly its cascade; the earlier archive stays put.
   await row(cascaded.id).locator('[data-archived-restore]').click();
@@ -320,6 +330,16 @@ test('Archive lists recoverable content only, and independently archived rows ke
       restoration: { kind: 'ready' },
     });
     for (const id of views) expect(items.map(keyOf)).not.toContain(`section:${id}`);
+
+    // An agent's Notes section created without config stores `{}`; removed untouched, it holds
+    // nothing and stays out of Archive.
+    const agentNotes = await client.callTool({ name: 'create_section', arguments: { projectId: ROOT, type: 'rich-text' } });
+    expect(agentNotes.isError).not.toBe(true);
+    const agentNotesId = (agentNotes.structuredContent as { id: string; config: Record<string, unknown> }).id;
+    expect((agentNotes.structuredContent as { config: Record<string, unknown> }).config).toEqual({});
+    expect((await client.callTool({ name: 'remove_section', arguments: { sectionId: agentNotesId } })).isError).not.toBe(true);
+    const afterAgent = await client.callTool({ name: 'get_project_archive', arguments: { projectId: ROOT } });
+    expect((afterAgent.structuredContent as { items: ProjectedItem[] }).items.map(keyOf)).not.toContain(`section:${agentNotesId}`);
 
     const steps = [
       { name: 'restore_section', arguments: { sectionId: oldReflections.id } },

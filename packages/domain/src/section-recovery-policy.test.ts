@@ -14,8 +14,18 @@ const OTHER_ID = 'section-b' as ProjectSection['id'];
 const section = (type: string, config: Record<string, unknown> = {}) =>
   ({ id: SECTION_ID, type, config }) as Pick<ProjectSection, 'id' | 'type' | 'config'>;
 
-const row = (sectionId: ProjectSection['id'], archived = false) =>
-  ({ sectionId, ...(archived ? { archivedAt: '2026-09-01T00:00:00.000Z' } : {}) }) as unknown as Task & Reflection;
+let nextRow = 0;
+const row = (
+  sectionId: ProjectSection['id'],
+  archived = false,
+  markers: { id?: string; archivedWithSectionId?: string; archivedWithTaskId?: string } = {},
+) =>
+  ({
+    id: `row-${(nextRow += 1)}`,
+    sectionId,
+    ...(archived ? { archivedAt: '2026-09-01T00:00:00.000Z' } : {}),
+    ...markers,
+  }) as unknown as Task & Reflection;
 
 const none = { tasks: [], reflections: [] };
 
@@ -36,14 +46,37 @@ describe('sectionRecoveryOf — containers, by the rows still assigned', () => {
     const content = { tasks: [row(SECTION_ID), row(SECTION_ID, true), row(SECTION_ID, true), row(OTHER_ID)], reflections: [row(SECTION_ID)] };
     expect(sectionRecoveryOf(section('task-list'), content)).toEqual({
       include: true,
-      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 3 },
+      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 3, separateRestoreCount: 2 },
+    });
+  });
+
+  it('counts only the rows that need their own Restore — not cascade members or subtasks returning with a parent', () => {
+    const parent = row(SECTION_ID, true, { id: 'task-parent' });
+    const content = {
+      tasks: [
+        parent,
+        row(SECTION_ID, true, { archivedWithTaskId: 'task-parent' }),
+        row(SECTION_ID, true, { id: 'task-child-parent', archivedWithTaskId: 'task-parent' }),
+        row(SECTION_ID, true, { archivedWithTaskId: 'task-child-parent' }),
+        row(SECTION_ID, true, { archivedWithSectionId: SECTION_ID }),
+        // A marker naming a parent that is not archived here returns with nothing: it needs its own.
+        row(SECTION_ID, true, { archivedWithTaskId: 'task-elsewhere' }),
+        // A marker naming another section is not this section's cascade.
+        row(SECTION_ID, true, { archivedWithSectionId: OTHER_ID }),
+        row(SECTION_ID),
+      ],
+      reflections: [],
+    };
+    expect(sectionRecoveryOf(section('task-list'), content)).toEqual({
+      include: true,
+      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 8, separateRestoreCount: 3 },
     });
   });
 
   it('includes a container holding only pre-archived rows — the dependency they need', () => {
     expect(sectionRecoveryOf(section('reflections'), { tasks: [], reflections: [row(SECTION_ID, true)] })).toEqual({
       include: true,
-      recovery: { kind: 'owned-content', ownedData: 'reflections', contentCount: 1 },
+      recovery: { kind: 'owned-content', ownedData: 'reflections', contentCount: 1, separateRestoreCount: 1 },
     });
   });
 
@@ -76,8 +109,12 @@ describe('sectionRecoveryOf — rich text is meaningful plain prose', () => {
     expect(sectionRecoveryOf(section('rich-text', { text }), none)).toEqual({ include: false });
   });
 
+  it('leaves out a Notes section created with no config at all — an empty object holds nothing', () => {
+    // `create_section` without `config` stores `{}`; the web's default is `{ text: '' }`.
+    expect(sectionRecoveryOf(section('rich-text', {}), none)).toEqual({ include: false });
+  });
+
   it.each([
-    ['missing text', {}],
     ['non-string text', { text: 42 }],
     ['null text', { text: null }],
     ['an extra key beside empty text', { text: '', format: 'html' }],

@@ -177,7 +177,7 @@ describe('ArchivedRegion', () => {
         origin,
         cause: { kind: 'own' },
         cascadeCount: 0,
-        recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 3 },
+        recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 3, separateRestoreCount: 3 },
         restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
         ...overrides,
       });
@@ -186,7 +186,9 @@ describe('ArchivedRegion', () => {
     const kitchenBlocker = { kind: 'project', projectId: subproject.id, name: 'Kitchen' };
 
     it('shows total content apart from the exact cascade count', async () => {
-      const fixture = await render([sectionEntry({ cascadeCount: 2 })]);
+      const fixture = await render([
+        sectionEntry({ cascadeCount: 2, recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 3, separateRestoreCount: 1 } }),
+      ]);
 
       expect(text(fixture, '[data-archived-content]')).toBe('3 tasks in this section');
       expect(text(fixture, '[data-archived-cascade-count]')).toBe('2 tasks restore with this section');
@@ -194,7 +196,9 @@ describe('ArchivedRegion', () => {
     });
 
     it('makes the two steps explicit for an archived zero-cascade container', async () => {
-      const fixture = await render([sectionEntry({ recovery: { kind: 'owned-content', ownedData: 'reflections', contentCount: 1 } })]);
+      const fixture = await render([
+        sectionEntry({ recovery: { kind: 'owned-content', ownedData: 'reflections', contentCount: 1, separateRestoreCount: 1 } }),
+      ]);
 
       expect(text(fixture, '[data-archived-content]')).toBe('1 reflection in this section');
       expect(text(fixture, '[data-archived-cascade-count]')).toBe('0 reflections restore with this section');
@@ -204,6 +208,32 @@ describe('ArchivedRegion', () => {
       expect((all(fixture, '[data-archived-restore]')[0] as HTMLButtonElement).disabled).toBe(false);
     });
 
+    it('counts Restore calls, not rows, when subtasks return with their archived parent', async () => {
+      // A parent archived with its two subtasks, then a second task archived on its own: four
+      // rows, two Restores.
+      const fixture = await render([
+        sectionEntry({ recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 4, separateRestoreCount: 2 } }),
+        sectionEntry({
+          section: { ...section, id: 'section-partial' },
+          cascadeCount: 1,
+          recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 4, separateRestoreCount: 1 },
+        }),
+      ]);
+
+      expect(all(fixture, '[data-archived-recovery-guidance]').map((element) => element.textContent?.trim())).toEqual([
+        'Restore this section first, then restore its 2 archived tasks separately.',
+        '1 other task stays archived; restore it separately afterwards.',
+      ]);
+    });
+
+    it('offers no row guidance when every archived row returns with the section', async () => {
+      const fixture = await render([
+        sectionEntry({ cascadeCount: 2, recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 3, separateRestoreCount: 0 } }),
+      ]);
+
+      expect(fixture.nativeElement.querySelector('[data-archived-recovery-guidance]')).toBeNull();
+    });
+
     it('names the highest project blocker before the two steps', async () => {
       const fixture = await render([sectionEntry({ restoration: { kind: 'blocked', blocker: kitchenBlocker } })]);
 
@@ -211,7 +241,7 @@ describe('ArchivedRegion', () => {
       expect(identity.indexOf('Restore “Kitchen” first')).toBeGreaterThan(-1);
       expect(identity.indexOf('Restore “Kitchen” first')).toBeLessThan(identity.indexOf('Then restore this section'));
       expect(text(fixture, '[data-archived-recovery-guidance]')).toBe(
-        'Then restore this section, then restore its archived tasks separately.',
+        'Then restore this section, then restore its 3 archived tasks separately.',
       );
       expect((all(fixture, '[data-archived-restore]')[0] as HTMLButtonElement).disabled).toBe(true);
     });
@@ -225,7 +255,7 @@ describe('ArchivedRegion', () => {
         sectionEntry({
           section: live,
           cause: { kind: 'hidden-by-project', projectId: subproject.id },
-          recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount },
+          recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount, separateRestoreCount: contentCount - 3 },
           restoration: { kind: 'not-archived', blocker: kitchenBlocker },
         }),
       ]);

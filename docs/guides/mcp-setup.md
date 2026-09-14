@@ -175,13 +175,15 @@ cause, and the current blocker or canonical restore operation. It remains querya
 Archive page is disabled and does not create the page.
 
 Since Slice 29 section entries are **content-only**: removed Progress, Timeline, Recent Activity
-and Sub-Projects views, blank Notes and containers emptied by reassignment are retained in storage
-but not listed. Each listed section carries `recovery` — `owned-content` (with `ownedData` and
-`contentCount`, every row still in the container), `config` (Notes prose) or `unknown` (a type or
-config the prototype cannot read as empty) — beside `cascadeCount`, exactly the rows that
-`restore_section` brings back. An *archived* container (`restoration` ready or blocked) with
-`cascadeCount: 0` holds rows archived on their own: call `restore_section` first, then
-`restore_task` / `restore_reflection` for each row (a parent task before its child). A live
+and Sub-Projects views, blank Notes (including one created with no `config`, which stores `{}`)
+and containers emptied by reassignment are retained in storage but not listed. Each listed section
+carries `recovery` — `owned-content` (with `ownedData`; `contentCount`, every row still in the
+container; and `separateRestoreCount`, the row restores still needed after the section's own),
+`config` (Notes prose) or `unknown` (a type or config the prototype cannot read as empty) — beside
+`cascadeCount`, exactly the rows that `restore_section` brings back. An *archived* container
+(`restoration` ready or blocked) with a `separateRestoreCount` above zero holds rows archived on
+their own: call `restore_section` first, then `restore_task` / `restore_reflection` for each row
+entry that becomes ready (a parent task brings back the subtasks archived with it). A live
 container hidden beneath an archived project has `restoration.kind: "not-archived"`; nothing in it
 needs restoring — reactivate the project its blocker names.
 

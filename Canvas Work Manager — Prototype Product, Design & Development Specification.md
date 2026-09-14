@@ -1517,12 +1517,13 @@ More menu is the single recovery entry point from root and nested work routes.
 *Landed in Slice 29: Archive lists **recoverable content**, not every section tombstone.* A
 removed or hidden section is listed only when something in it remains to recover: a Task List
 or Reflections container with any rows still assigned to it (archived rows included), Rich Text
-whose only config is prose that trims to something, or a type or config the domain cannot read as
+whose only config is prose that trims to something (an empty config holds nothing), or a type or config the domain cannot read as
 empty (listed conservatively as unknown content). Removed Progress, Timeline, Recent Activity and
 Sub-Projects views — and a container emptied by reassignment, or blank prose — keep their
 tombstones in storage but are not listed. Archived sub-projects, tasks and reflections are
 listed exactly as before. Each section entry carries the domain's recovery metadata: the total
-rows still in the container, apart from the exact count that restores with it. A container
+rows still in the container, apart from the exact count that restores with it and the number of
+row restores still needed afterwards (a subtask archived with its parent comes back with it). A container
 holding only independently archived rows stays listed on purpose — it is the first step of their
 recovery: restore the section, then restore those rows individually. A live container beneath an
 archived project needs only that project's reactivation. Restore itself is unchanged: it appends
@@ -2444,7 +2445,7 @@ optional `additionalPermissions`, and the transports publish the complete list u
 `projects.read`, `tasks.read` and `reflections.read` together, returns archived and effectively
 hidden work with origin/cause/blocker guidance, and does not depend on the Archive tab being
 enabled. Since Slice 29 its section entries are the recoverable-content projection of §31, each
-with `recovery` metadata (`owned-content` with `contentCount`, `config`, or `unknown`) beside the
+with `recovery` metadata (`owned-content` with `contentCount` and `separateRestoreCount`, `config`, or `unknown`) beside the
 exact `cascadeCount`; the tool's shape is otherwise unchanged. Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
 `add_section_shortcut` / `remove_section_shortcut` under `projects.write`; the list returns
 placement and source identity only, never source rows. Canonical archive/restore tools remain

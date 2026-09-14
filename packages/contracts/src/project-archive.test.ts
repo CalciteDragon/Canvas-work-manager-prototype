@@ -104,8 +104,8 @@ describe('Project Archive contracts (§31)', () => {
 
     it('accepts owned content with a positive count, config and unknown content', () => {
       for (const recovery of [
-        { kind: 'owned-content', ownedData: 'tasks', contentCount: 3 },
-        { kind: 'owned-content', ownedData: 'reflections', contentCount: 1 },
+        { kind: 'owned-content', ownedData: 'tasks', contentCount: 3, separateRestoreCount: 2 },
+        { kind: 'owned-content', ownedData: 'reflections', contentCount: 1, separateRestoreCount: 0 },
         { kind: 'config' },
         { kind: 'unknown' },
       ]) {
@@ -116,10 +116,13 @@ describe('Project Archive contracts (§31)', () => {
 
     it('rejects malformed metadata', () => {
       for (const recovery of [
-        { kind: 'owned-content', ownedData: 'tasks', contentCount: 0 },
-        { kind: 'owned-content', ownedData: 'tasks', contentCount: 1.5 },
-        { kind: 'owned-content', ownedData: 'milestones', contentCount: 1 },
-        { kind: 'owned-content', ownedData: 'tasks' },
+        { kind: 'owned-content', ownedData: 'tasks', contentCount: 0, separateRestoreCount: 0 },
+        { kind: 'owned-content', ownedData: 'tasks', contentCount: 1.5, separateRestoreCount: 0 },
+        { kind: 'owned-content', ownedData: 'milestones', contentCount: 1, separateRestoreCount: 0 },
+        { kind: 'owned-content', ownedData: 'tasks', separateRestoreCount: 0 },
+        { kind: 'owned-content', ownedData: 'tasks', contentCount: 2 },
+        { kind: 'owned-content', ownedData: 'tasks', contentCount: 2, separateRestoreCount: -1 },
+        { kind: 'owned-content', ownedData: 'tasks', contentCount: 2, separateRestoreCount: 3 },
         { kind: 'disposable' },
         { contentCount: 2 },
       ]) {

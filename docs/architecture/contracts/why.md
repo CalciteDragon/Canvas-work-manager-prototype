@@ -98,7 +98,7 @@ pages and ownership · §33 task model · §35 milestones · §36 reflections ·
 connections · §57 activity events · §62 the live frame.
 
 **Archive section entries carry recovery metadata, optionally.** `ProjectArchiveSectionItem.recovery`
-is a discriminated union (`owned-content` with a positive `contentCount`, `config`, `unknown`),
+is a discriminated union (`owned-content` with a positive `contentCount` and a `separateRestoreCount` no larger than it, `config`, `unknown`),
 beside the unchanged exact `cascadeCount`. Optional so older fixtures parse; the domain emits it
 on every section entry. Stored sections and `SCHEMA_VERSION` are untouched
 ([decision](../../decisions/2026-09-content-oriented-archive-policy.md)).

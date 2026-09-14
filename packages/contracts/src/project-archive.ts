@@ -83,15 +83,23 @@ export type ProjectArchiveSubprojectItem = z.infer<typeof ProjectArchiveSubproje
  * What a section entry is in Archive *for*, from the domain's recovery policy. `contentCount`
  * is every row still assigned to the container, archived or not, counted once; it is not a
  * promise that restoring the section revives them — `cascadeCount` is that, exactly.
+ * `separateRestoreCount` is how many Restore calls the archived rows need beyond the section's
+ * own: independently archived rows, not counting cascade members or subtasks that come back
+ * with an archived parent in the same container.
  * `unknown` is a conservative keep: a type or config the policy cannot read as empty.
  * See docs/decisions/2026-09-content-oriented-archive-policy.md.
  */
 export const ProjectArchiveSectionRecoverySchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('owned-content'),
-    ownedData: OwnedDataKindSchema,
-    contentCount: z.number().int().positive(),
-  }),
+  z
+    .object({
+      kind: z.literal('owned-content'),
+      ownedData: OwnedDataKindSchema,
+      contentCount: z.number().int().positive(),
+      separateRestoreCount: z.number().int().nonnegative(),
+    })
+    .refine(({ contentCount, separateRestoreCount }) => separateRestoreCount <= contentCount, {
+      message: 'separateRestoreCount cannot exceed contentCount',
+    }),
   z.object({ kind: z.literal('config') }),
   z.object({ kind: z.literal('unknown') }),
 ]);

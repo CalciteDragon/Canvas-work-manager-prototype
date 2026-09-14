@@ -60,7 +60,7 @@ const archive: ProjectArchiveResult = ProjectArchiveResultSchema.parse({
       },
       cause: { kind: 'own' },
       cascadeCount: 0,
-      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 2 },
+      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 2, separateRestoreCount: 2 },
       restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
     }),
   ],
@@ -114,7 +114,7 @@ describe('ArchivePage (§31)', () => {
 
     expect(fixture.nativeElement.querySelector('[data-archived-content]')?.textContent).toContain('2 tasks in this section');
     expect(fixture.nativeElement.querySelector('[data-archived-recovery-guidance]')?.textContent).toContain(
-      'Restore this section first, then restore its archived tasks separately.',
+      'Restore this section first, then restore its 2 archived tasks separately.',
     );
   });
 

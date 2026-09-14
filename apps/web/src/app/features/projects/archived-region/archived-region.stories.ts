@@ -61,7 +61,7 @@ const archivedItems: ProjectArchiveItem[] = [
     origin,
     cause: { kind: 'own' },
     cascadeCount: 1,
-    recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 1 },
+    recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 1, separateRestoreCount: 0 },
     restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
   }),
   ProjectArchiveItemSchema.parse({
@@ -103,7 +103,7 @@ const recoveryItems: ProjectArchiveItem[] = [
     origin,
     cause: { kind: 'own' },
     cascadeCount: 0,
-    recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 2 },
+    recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 2, separateRestoreCount: 1 },
     restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
   }),
   ProjectArchiveItemSchema.parse({
