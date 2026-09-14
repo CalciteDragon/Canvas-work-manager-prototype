@@ -62,9 +62,12 @@ export const ActivityEventShape = z.object({
  * a user action names the user, an agent action names the connection that made it, and a
  * system action names neither. Without this, an agent write could be recorded that the
  * activity feed cannot attribute to anything.
+ *
+ * Typed over the three attribution fields alone, so an Undo record — which answers "whose
+ * record is this?" with the same fields — shares the rule instead of copying it.
  */
 export const assertActorIsAttributable = (
-  event: z.infer<typeof ActivityEventShape>,
+  event: Pick<z.infer<typeof ActivityEventShape>, 'actor' | 'actorUserId' | 'actorAgentConnectionId'>,
   ctx: z.RefinementCtx,
 ): void => {
   if (event.actor === 'user' && event.actorUserId === undefined) {

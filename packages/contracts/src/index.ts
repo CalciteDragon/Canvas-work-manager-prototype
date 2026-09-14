@@ -24,5 +24,6 @@ export * from './section';
 export * from './section-shortcut';
 export * from './task';
 export * from './timeline';
+export * from './undo';
 export * from './user';
 export * from './workspace';

@@ -3,7 +3,7 @@ import type {
   MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageQuery, ProjectQuery, ProjectSection,
   Reflection, ReflectionId, ReflectionQuery, SectionShortcut, SectionShortcutId, SectionShortcutQuery,
   SectionId, SectionQuery,
-  Task, TaskId, TaskQuery, User, UserId,
+  Task, TaskId, TaskQuery, UndoRecord, UndoRecordId, UndoRecordQuery, User, UserId,
 } from '@cwm/contracts';
 
 /**
@@ -103,4 +103,20 @@ export interface UserRepository {
   list(): Promise<User[]>;
   insert(user: User): Promise<void>;
   update(user: User): Promise<void>;
+}
+
+/**
+ * Scoped, expiring Undo records (docs/decisions/2026-09-section-removal-undo-records.md).
+ *
+ * `remove` exists because records are **pruned** — by expiry and by the per-workspace cap —
+ * inside the unit that records a new one. That is safe where deleting other entities is not:
+ * nothing references a record. Activity events name the project, never a record, and a receipt
+ * holds only its id, which answers not-found once pruned.
+ */
+export interface UndoRecordRepository {
+  find(id: UndoRecordId): Promise<UndoRecord | null>;
+  list(query?: UndoRecordQuery): Promise<UndoRecord[]>;
+  insert(record: UndoRecord): Promise<void>;
+  update(record: UndoRecord): Promise<void>;
+  remove(id: UndoRecordId): Promise<void>;
 }

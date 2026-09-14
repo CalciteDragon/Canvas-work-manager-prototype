@@ -444,6 +444,40 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     }
   }
 
+  /**
+   * **Undo records: owner scope only.** A record must belong to a workspace, name a project in
+   * it, and be attributable to an actor in it — the scope Undo checks before it reveals
+   * anything. Its snapshot's section, page, shortcut, task and reflection ids are deliberately
+   * **not** resolved: a retained inverse can outlive what it names, and the hard delete Slice 31
+   * plans would otherwise fail every commit that deletes a section some record mentions.
+   *
+   * `sequence` is the only order between records, so it must be unique per workspace.
+   */
+  uniqueMap('undoRecords', document.undoRecords);
+  const sequences = new Set<string>();
+  for (const record of document.undoRecords) {
+    if (!workspaces.has(record.workspaceId)) fail(`undo record "${record.id}" has missing workspace "${record.workspaceId}"`);
+    const sequenceKey = `${record.workspaceId} ${record.sequence}`;
+    if (sequences.has(sequenceKey)) {
+      fail(`undo record "${record.id}" has duplicate sequence ${record.sequence} in workspace "${record.workspaceId}"`);
+    }
+    sequences.add(sequenceKey);
+
+    const project = projects.get(record.projectId) ??
+      fail(`undo record "${record.id}" has missing project "${record.projectId}"`);
+    if (project.workspaceId !== record.workspaceId) fail(`undo record "${record.id}" names a project from another workspace`);
+
+    if (record.actor === 'user') {
+      const actor = users.get(record.actorUserId ?? '') ?? fail(`undo record "${record.id}" has a missing user actor`);
+      if (actor.workspaceId !== record.workspaceId) fail(`undo record "${record.id}" has a user actor from another workspace`);
+    } else if (record.actor === 'agent') {
+      const connection = agents.get(record.actorAgentConnectionId ?? '') ??
+        fail(`undo record "${record.id}" has a missing agent actor`);
+      const actor = users.get(connection.userId) ?? fail(`agent connection "${connection.id}" has a missing user`);
+      if (actor.workspaceId !== record.workspaceId) fail(`undo record "${record.id}" has an agent actor from another workspace`);
+    }
+  }
+
   return document;
 };
 

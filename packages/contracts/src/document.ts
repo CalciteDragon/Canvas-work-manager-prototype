@@ -9,6 +9,7 @@ import { ProjectSectionSchema } from './section';
 import { SectionShortcutSchema } from './section-shortcut';
 import { TaskSchema } from './task';
 import { UserSchema, WorkspaceSchema } from './user';
+import { UndoRecordSchema } from './undo';
 
 /**
  * The version of the `.prototype/data.json` shape below. §14's example shows `4`; this
@@ -21,6 +22,11 @@ import { UserSchema, WorkspaceSchema } from './user';
  * There is still no migration *runner*. Version 3 ships with one bounded converter,
  * `pnpm prototype:upgrade`, because by then a real file was worth keeping (§14). It is a
  * one-off, not a chain: the next cutover writes its own or resets.
+ *
+ * `undoRecords` arrived inside version 3 with no bump: it is a defaulted collection, so an
+ * existing file loads with every other collection unchanged and nothing it held becomes wrong.
+ * An older build (this schema is not strict) strips the collection on its next commit — undo
+ * history is lost, user data is not. See docs/decisions/2026-09-section-removal-undo-records.md.
  */
 export const SCHEMA_VERSION = 3;
 
@@ -46,5 +52,10 @@ export const PrototypeDocumentSchema = z.object({
   reflections: z.array(ReflectionSchema),
   activityEvents: z.array(ActivityEventSchema),
   agentConnections: z.array(AgentConnectionSchema),
+  /**
+   * Scoped, expiring inverses of section removals — never inside `activityEvents`. Defaulted,
+   * so a version-3 file written before Undo existed parses to `[]`.
+   */
+  undoRecords: z.array(UndoRecordSchema).default(() => []),
 });
 export type PrototypeDocument = z.infer<typeof PrototypeDocumentSchema>;

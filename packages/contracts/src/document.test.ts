@@ -23,7 +23,14 @@ describe('PrototypeDocumentSchema', () => {
   });
 
   it('accepts the §14 document', () => {
-    expect(PrototypeDocumentSchema.parse(document)).toEqual(document);
+    expect(PrototypeDocumentSchema.parse(document)).toEqual({ ...document, undoRecords: [] });
+  });
+
+  it('parses a version-3 document written before Undo records existed, with an empty collection', () => {
+    // No bump and no converter: the collection is defaulted, so every existing file still loads.
+    expect(SCHEMA_VERSION).toBe(3);
+    expect(document).not.toHaveProperty('undoRecords');
+    expect(PrototypeDocumentSchema.parse(document).undoRecords).toEqual([]);
   });
 
   it('rejects a file written by an older schema', () => {

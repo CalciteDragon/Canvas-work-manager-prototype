@@ -3,13 +3,13 @@ import type {
   MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageQuery, ProjectQuery, ProjectSection,
   PrototypeDocument, Reflection,
   ReflectionId, ReflectionQuery, SectionId, SectionQuery, SectionShortcut, SectionShortcutId,
-  SectionShortcutQuery, Task, TaskId, TaskQuery, User, UserId,
+  SectionShortcutQuery, Task, TaskId, TaskQuery, UndoRecord, UndoRecordId, UndoRecordQuery, User, UserId,
 } from '@cwm/contracts';
 import { assertCanMutateDataStore, type DataStore, getActiveDocument } from './data-store';
 import { RepositoryConflictError, RepositoryNotFoundError } from './errors';
 import type {
   ActivityRepository, AgentConnectionRepository, MilestoneRepository, ProjectPageRepository, ProjectRepository,
-  ReflectionRepository, SectionRepository, SectionShortcutRepository, TaskRepository, UserRepository,
+  ReflectionRepository, SectionRepository, SectionShortcutRepository, TaskRepository, UndoRecordRepository, UserRepository,
 } from './interfaces';
 
 type StoredCollection = Exclude<keyof PrototypeDocument, 'schemaVersion' | 'workspaces'>;
@@ -223,4 +223,18 @@ export class JsonAgentConnectionRepository
 export class JsonUserRepository extends JsonCollectionRepository<User> implements UserRepository {
   constructor(store: DataStore) { super(store, 'users'); }
   override find(id: UserId): Promise<User | null> { return super.find(id); }
+}
+
+export class JsonUndoRecordRepository extends JsonCollectionRepository<UndoRecord> implements UndoRecordRepository {
+  constructor(store: DataStore) { super(store, 'undoRecords'); }
+
+  override async list(query: UndoRecordQuery = {}): Promise<UndoRecord[]> {
+    const records = await super.list();
+    return records.filter((record) => query.workspaceId === undefined || record.workspaceId === query.workspaceId);
+  }
+
+  override find(id: UndoRecordId): Promise<UndoRecord | null> { return super.find(id); }
+
+  /** Pruning — see `UndoRecordRepository`. */
+  remove(id: UndoRecordId): Promise<void> { return this.delete(id); }
 }

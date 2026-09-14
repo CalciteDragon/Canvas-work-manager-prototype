@@ -9,6 +9,8 @@ import {
   type Reflection,
   type SectionShortcut,
   type Task,
+  UndoRecordSchema,
+  type UndoRecord,
   type User, SCHEMA_VERSION, } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { InMemoryDataStore, unitOfWorkFor } from './data-store';
@@ -22,6 +24,7 @@ import {
   JsonSectionRepository,
   JsonSectionShortcutRepository,
   JsonTaskRepository,
+  JsonUndoRecordRepository,
   JsonUserRepository,
 } from './json-repositories';
 
@@ -574,5 +577,73 @@ describe('JsonSectionShortcutRepository', () => {
     await repository.remove(shortcut.id);
 
     expect(await repository.find(shortcut.id)).toBeNull();
+  });
+});
+
+const undoRecord = (id: string, workspaceId = 'workspace-1', sequence = 1): UndoRecord =>
+  UndoRecordSchema.parse({
+    id,
+    workspaceId,
+    projectId: 'project-1',
+    actor: 'user',
+    actorUserId: 'user-1',
+    sequence,
+    label: 'Remove the Notes section',
+    createdAt: at,
+    expiresAt: '2026-08-27T10:00:00.000Z',
+    operation: {
+      version: 1,
+      type: 'section.remove',
+      section: {
+        id: 'section-notes',
+        projectId: 'project-1',
+        pageId: 'page-1',
+        type: 'rich-text',
+        position: 0,
+        columnSpan: 12,
+        collapsed: false,
+        config: { text: 'Prose' },
+        createdAt: at,
+        updatedAt: at,
+      },
+      placement: { pageId: 'page-1', index: 0 },
+      appliedPolicy: 'none',
+      rows: [],
+      postSectionArchivedAt: at,
+    },
+  });
+
+describe('JsonUndoRecordRepository', () => {
+  it('inserts, finds, lists by workspace, updates and removes records', async () => {
+    const repository = new JsonUndoRecordRepository(new InMemoryDataStore(baseDocument()));
+    const mine = undoRecord('undo-1');
+    const foreign = undoRecord('undo-2', 'workspace-other', 1);
+    await repository.insert(mine);
+    await repository.insert(foreign);
+
+    expect(await repository.find(mine.id)).toEqual(mine);
+    expect(await repository.list({ workspaceId: 'workspace-1' as never })).toEqual([mine]);
+    expect(await repository.list()).toEqual([mine, foreign]);
+
+    const consumed = { ...mine, consumedAt: at };
+    await repository.update(consumed);
+    expect(await repository.find(mine.id)).toEqual(consumed);
+
+    // Records are pruned, so this collection deletes; nothing references a record.
+    await repository.remove(mine.id);
+    expect(await repository.find(mine.id)).toBeNull();
+    await expect(repository.remove(mine.id)).rejects.toBeInstanceOf(RepositoryNotFoundError);
+  });
+
+  it('refuses a write from outside the unit of work that is open', async () => {
+    const store = new InMemoryDataStore(baseDocument());
+    const repository = new JsonUndoRecordRepository(store);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const unit = store.runUnitOfWork(() => held);
+
+    await expect(repository.insert(undoRecord('undo-1'))).rejects.toBeInstanceOf(UnitOfWorkInProgressError);
+    release();
+    await unit;
   });
 });

@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rename as renameFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PrototypeDocumentSchema, type PrototypeDocument, SCHEMA_VERSION } from '@cwm/contracts';
+import { PrototypeDocumentSchema, type PrototypeDocument, SCHEMA_VERSION, UndoRecordSchema } from '@cwm/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type DataStore, type FileOperations, InMemoryDataStore, JsonDataStore, unitOfWorkFor } from './data-store';
 import { DocumentIntegrityError, UnitOfWorkInProgressError } from './errors';
@@ -1416,5 +1416,94 @@ describe('reflection subject integrity (§36)', () => {
     const root = validDocument();
     root.reflections[0]!.subject = { kind: 'subproject', id: 'project-1' as never };
     expect(() => new InMemoryDataStore(root)).toThrow(/cannot be about root project/);
+  });
+});
+
+describe('undo record integrity', () => {
+  const record = (overrides: Record<string, unknown> = {}) =>
+    UndoRecordSchema.parse({
+      id: 'undo-1',
+      workspaceId: 'workspace-1',
+      projectId: 'project-1',
+      actor: 'user',
+      actorUserId: 'user-1',
+      sequence: 1,
+      label: 'Remove the Backlog section',
+      createdAt: at,
+      expiresAt: '2026-08-27T10:00:00.000Z',
+      operation: {
+        version: 1,
+        type: 'section.remove',
+        // Every id below names something the document does not hold.
+        section: {
+          id: 'section-gone',
+          projectId: 'project-1',
+          pageId: 'page-gone',
+          type: 'task-list',
+          position: 0,
+          columnSpan: 12,
+          collapsed: false,
+          config: {},
+          createdAt: at,
+          updatedAt: at,
+        },
+        placement: { pageId: 'page-gone', previous: { kind: 'shortcut', id: 'shortcut-gone' }, index: 1 },
+        appliedPolicy: 'cascade',
+        rows: [
+          {
+            kind: 'task',
+            id: 'task-gone',
+            before: { sectionId: 'section-gone' },
+            after: { sectionId: 'section-gone', archivedAt: at, archivedWithSectionId: 'section-gone' },
+          },
+        ],
+        postSectionArchivedAt: at,
+      },
+      ...overrides,
+    });
+
+  const withRecords = (...records: ReturnType<typeof record>[]) => {
+    const document = withSecondWorkspace();
+    document.undoRecords.push(...records);
+    return document;
+  };
+
+  it('accepts a record whose snapshot names a missing section, page, shortcut and task', () => {
+    // Snapshot storage is separate from live-reference integrity: a retained inverse may outlive
+    // what it names, which hard deletion will depend on.
+    expect(() => new InMemoryDataStore(withRecords(record()))).not.toThrow();
+  });
+
+  it('accepts agent and system records whose actor belongs to the workspace', () => {
+    const agent = record({ id: 'undo-2', sequence: 2, actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-1' });
+    const system = record({ id: 'undo-3', sequence: 3, actor: 'system', actorUserId: undefined });
+    expect(() => new InMemoryDataStore(withRecords(record(), agent, system))).not.toThrow();
+  });
+
+  it.each([
+    ['a duplicate id', [record(), record({ sequence: 2 })], /undoRecords contains duplicate id/],
+    ['a duplicate sequence within a workspace', [record(), record({ id: 'undo-2' })], /duplicate sequence 1/],
+    ['a missing workspace', [record({ workspaceId: 'workspace-gone' })], /missing workspace/],
+    ['a missing project', [record({ projectId: 'project-gone' })], /missing project/],
+    ['a project from another workspace', [record({ projectId: 'project-2' })], /project from another workspace/],
+    ['a missing user actor', [record({ actorUserId: 'user-gone' })], /missing user actor/],
+    ['a user actor from another workspace', [record({ actorUserId: 'user-2' })], /user actor from another workspace/],
+    [
+      'a missing agent actor',
+      [record({ actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-gone' })],
+      /missing agent actor/,
+    ],
+    [
+      'an agent actor from another workspace',
+      [record({ actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-2' })],
+      /agent actor from another workspace/,
+    ],
+  ])('rejects %s', (_, records, message) => {
+    expect(() => new InMemoryDataStore(withRecords(...records))).toThrow(message);
+  });
+
+  it('allows the same sequence in two workspaces', () => {
+    const theirs = record({ id: 'undo-2', workspaceId: 'workspace-2', projectId: 'project-2', actorUserId: 'user-2' });
+    expect(() => new InMemoryDataStore(withRecords(record(), theirs))).not.toThrow();
   });
 });

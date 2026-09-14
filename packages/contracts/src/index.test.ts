@@ -2,7 +2,15 @@
 // inferred types — and resolves by its package specifier, the way every consumer
 // (Angular, the host, MCP tools, seeds) will import it.
 import { describe, expect, it } from 'vitest';
-import { ProjectTodosResultSchema, SCHEMA_VERSION, TaskSchema, TaskStatusSchema } from '@cwm/contracts';
+import {
+  ProjectTodosResultSchema,
+  SCHEMA_VERSION,
+  TaskSchema,
+  TaskStatusSchema,
+  UndoReceiptSchema,
+  UndoRefusalDetailsSchema,
+  UndoResultSchema,
+} from '@cwm/contracts';
 import type { ProjectTodosResult, Task, TaskStatus } from '@cwm/contracts';
 
 describe('@cwm/contracts entrypoint', () => {
@@ -29,5 +37,12 @@ describe('@cwm/contracts entrypoint', () => {
     const empty: ProjectTodosResult = ProjectTodosResultSchema.parse({ projectId: 'project-a', items: [] });
 
     expect(empty.items).toEqual([]);
+  });
+
+  // The host, the MCP tools and the domain all name Undo's shapes; none of them redeclares one.
+  it('exports the Undo receipt, result and refusal schemas', () => {
+    expect(UndoReceiptSchema.shape.undoId).toBeDefined();
+    expect(UndoResultSchema.shape.outcome.options).toEqual(['restored', 'partial']);
+    expect(UndoRefusalDetailsSchema.safeParse({ reason: 'undo_expired', undoId: 'undo-1', expiresAt: '2026-09-14T10:00:00.000Z' }).success).toBe(true);
   });
 });
