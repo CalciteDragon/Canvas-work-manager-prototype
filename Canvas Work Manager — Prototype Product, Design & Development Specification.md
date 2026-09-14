@@ -1373,6 +1373,15 @@ Register definitions:
 SECTION_REGISTRY
 ```
 
+*Landed in Slice 29.* Every registered type also declares one capability in the contracts
+package's `SECTION_CAPABILITIES`: which rows it owns, if any, and what removing it could leave
+worth recovering — owned rows (Task List, Reflections), config prose (Rich Text) or nothing
+(Sub-Projects, Progress, Timeline, Recent Activity). Ownership (`SECTION_OWNERSHIP`) is derived
+from it, and the registry test fails when a registered type has no declaration, so adding a type
+now touches its folder, one registry line and one capability line. A type nothing declares — a
+stale or hand-edited `type` — has *unknown* recovery, never "nothing to recover"
+([why](docs/decisions/2026-09-content-oriented-archive-policy.md)).
+
 ---
 
 # 30. Initial Section Types
@@ -1423,7 +1432,7 @@ domain, not merely hidden by the UI.
 
 *Landed across Slices 25.1, 25.2, 25.4, 25.6 and 25.7. The coarse answer — does this page hold sections at all —
 is `pageAcceptsSections`; the narrow one is `pageAcceptsSectionType`, which reads Reflections'
-capability out of `SECTION_OWNERSHIP` rather than naming section types, so a type registered
+capability out of `SECTION_OWNERSHIP` (derived from `SECTION_CAPABILITIES` since Slice 29) rather than naming section types, so a type registered
 later needs no entry. `SectionService` refuses on the way in and `validateDocumentIntegrity`
 refuses at load, because a hand-edited `data.json` (§14) must fail then rather than at whichever
 request first renders it. Slice 25.4 adds the Home-only shortcut placement beside the registered
@@ -1463,8 +1472,8 @@ restores the type's default. Clicking the title does not drag or collapse the fr
 rename keeps the entered text available to correct or retry
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
-**Remove archives; it does not delete.** It sets `archivedAt` on the section, which leaves the
-canvas and keeps everything it held — a Notes section's prose, a Progress section's milestone
+**Remove archives; it does not delete.** It sets `archivedAt` on the section — a retained
+tombstone, whether or not Archive lists it — which leaves the canvas and keeps everything it held — a Notes section's prose, a Progress section's milestone
 selection, and the rows a container took down with it. A container still holding *live* rows
 first asks what should happen to them: archive them with the section, or move them to another
 container of the same type. A view, an empty container, and a container holding only archived
@@ -1504,6 +1513,21 @@ is offered.
 
 *Landed in Slice 27.* The secondary navigation column has no Open archive button; the project's
 More menu is the single recovery entry point from root and nested work routes.
+
+*Landed in Slice 29: Archive lists **recoverable content**, not every section tombstone.* A
+removed or hidden section is listed only when something in it remains to recover: a Task List
+or Reflections container with any rows still assigned to it (archived rows included), Rich Text
+whose only config is prose that trims to something, or a type or config the domain cannot read as
+empty (listed conservatively as unknown content). Removed Progress, Timeline, Recent Activity and
+Sub-Projects views — and a container emptied by reassignment, or blank prose — keep their
+tombstones in storage but are not listed. Archived sub-projects, tasks and reflections are
+listed exactly as before. Each section entry carries the domain's recovery metadata: the total
+rows still in the container, apart from the exact count that restores with it. A container
+holding only independently archived rows stays listed on purpose — it is the first step of their
+recovery: restore the section, then restore those rows individually. A live container beneath an
+archived project needs only that project's reactivation. Restore itself is unchanged: it appends
+to the page's current combined order, revives exactly its cascade, and a retry changes nothing
+([why](docs/decisions/2026-09-content-oriented-archive-policy.md)).
 
 *Landed in Slice 25.6: the per-canvas Archived region was replaced by the root-wide Archive
 page, which keeps cascade members and effectively hidden live work findable, explains blockers,
@@ -1578,7 +1602,7 @@ visible control can preserve input and report an error rather than losing a fail
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
 The **Archive** page is *not* canvas chrome and stays reachable: it is content,
-and it is the undo for removal. Gating it behind Edit Layout Mode would hide it exactly when
+and it is the recovery path for removal (Archive Restore; a separate removal Undo is future work). Gating it behind Edit Layout Mode would hide it exactly when
 someone needs it — right after a removal they did not mean. The per-row archive control in §34
 is likewise a row affordance rather than a layout one. The same reasoning carries to the
 project controls that open the page even when its tab is disabled.
@@ -2419,7 +2443,9 @@ optional `additionalPermissions`, and the transports publish the complete list u
 `get_project_archive` and the Archive page landed in Slice 25.6. The query requires
 `projects.read`, `tasks.read` and `reflections.read` together, returns archived and effectively
 hidden work with origin/cause/blocker guidance, and does not depend on the Archive tab being
-enabled. Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
+enabled. Since Slice 29 its section entries are the recoverable-content projection of §31, each
+with `recovery` metadata (`owned-content` with `contentCount`, `config`, or `unknown`) beside the
+exact `cascadeCount`; the tool's shape is otherwise unchanged. Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
 `add_section_shortcut` / `remove_section_shortcut` under `projects.write`; the list returns
 placement and source identity only, never source rows. Canonical archive/restore tools remain
 the same operations used by the UI: `archive_project` / `restore_project`, `remove_section` /

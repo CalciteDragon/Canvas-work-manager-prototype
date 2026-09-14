@@ -62,3 +62,27 @@ and a realistic Archive browser/MCP pass provide evidence.
 Slice 29 browser use finds confusing counts or recovery steps, unknown config becomes common,
 or a later slice introduces hard deletion or typed rich-text formats. Append implementation
 evidence after acceptance; do not infer deletion eligibility from this projection alone.
+
+**Amended, 2026-09-13 — landed in Slice 29.** The planning choice above is now runtime
+behavior. `SECTION_CAPABILITIES` in `packages/contracts/src/section.ts` declares the seven
+registered types, with `SECTION_OWNERSHIP` derived from it and unknown/prototype-key types left
+undeclared. `sectionRecoveryOf` (`packages/domain/src/section-recovery-policy.ts`) is the pure
+policy; `ProjectArchiveService` filters only section entries through it and emits
+`recovery` metadata on each. `ArchivedRegion` words that metadata, including the two-step
+guidance for archived zero-cascade containers and reactivation-only guidance for live containers
+beneath an archived project.
+
+Evidence: contract tests for capabilities and metadata; a policy table covering disposable
+views, empty/whitespace/Unicode-whitespace prose, literal markup, missing/non-string text, extra
+keys, unknown and prototype-key types; projection tests over the `nested-projects` seed for
+legacy view tombstones, cascade versus total counts, reassignment with archived subtrees,
+archived-only containers under a requested reassign, the section-then-row recovery chain,
+highest-ancestor blockers, exact read grants refused before any repository call, and root scope;
+host route and MCP contract cases showing the metadata passes through unchanged; web component,
+store and page specs. One refinement found while implementing: when an archived container's
+cascade is non-zero but smaller than its content, the copy says how many other rows stay
+archived and need their own Restore, rather than showing two-step copy only at zero.
+
+Not yet evidence: the extended `archive.spec.ts` browser/MCP journey and the real-application
+pass could not be run in this session because a developer `pnpm dev:host` held the e2e port. The
+confidence levels above therefore stand until that journey and real use are recorded here.

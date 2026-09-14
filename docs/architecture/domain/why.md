@@ -93,6 +93,7 @@ ISO string so ordering stays lossless without a clock or timezone
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
 - [Root Archive recovery guidance](../../decisions/2026-09-root-archive-recovery-guidance.md)
+- [Content-oriented Archive policy](../../decisions/2026-09-content-oriented-archive-policy.md)
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md)
 - [Reflection subjects and the root journal feed](../../decisions/2026-09-reflection-subjects-and-the-journal-feed.md)
 - [What the Todos page decides for itself](../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)
@@ -126,6 +127,10 @@ tasks and the Todos page · §36 reflections and the journal · §38–§39 time
 progress · §40 search · §42–§43 AI · §45 time · §53 permissions · §57 activity · §62
 live-update emission.
 
-Pending implementation choice: [Content-oriented Archive policy](../../decisions/2026-09-content-oriented-archive-policy.md).
-Slice 29 planning records the proposed pure policy and dependency-container recovery path;
-current runtime behavior described above remains unchanged until implementation lands.
+**Archive projects recoverable content, judged on current state.** `sectionRecoveryOf`
+(`section-recovery-policy.ts`, package-internal) is a pure function: contracts capability plus the
+rows still assigned to the section. `ProjectArchiveService` applies it to section entries only;
+disposable view tombstones stay stored but unlisted, uncertain rich-text config and unknown types
+are kept, and a container holding only independently archived rows stays listed as the first step
+of their recovery rather than gaining a new restore operation. It decides a projection, never
+deletion ([decision](../../decisions/2026-09-content-oriented-archive-policy.md)).

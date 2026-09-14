@@ -52,7 +52,7 @@
 | `ProgressStore`, `ReflectionsStore`, `SubProjectsStore`, `TimelineStore` | injectables | Per-section stores | [API](../../../api/injectables/ProgressStore.html) |
 | `TodosPage`, `ArchivePage`, `ReflectionsPage` | components | Root pages | [API](../../../api/components/TodosPage.html) |
 | `TodosPageStore`, `ArchivePageStore`, `ReflectionsPageStore` | injectables | Their stores | [API](../../../api/injectables/TodosPageStore.html) |
-| `ArchivedRegion` | component | Presentational archive list | [API](../../../api/components/ArchivedRegion.html) |
+| `ArchivedRegion` | component | Presentational archive list; labels domain-supplied recovery metadata and two-step guidance | [API](../../../api/components/ArchivedRegion.html) |
 | `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | components / injectable | Home shortcuts | [API](../../../api/components/ShortcutFrame.html) |
 
 ## Dependencies
@@ -83,7 +83,10 @@
 
 - **Registry lists are pinned** — `sections/registry.spec.ts` and
   `project-page-registry.spec.ts`; `registry.spec.ts` also fails when a type incurs the
-  display-name cost without a `SECTION_DISPLAY_NAMES` entry.
+  display-name cost without a `SECTION_DISPLAY_NAMES` entry, or when a registered type has no
+  `SECTION_CAPABILITIES` declaration.
+- **Archive lists what the domain projected.** `ArchivePageStore.items` passes the projection
+  through unchanged; `ArchivedRegion` only words its `recovery` metadata.
 - **Callback inputs have stable identity** — class-property arrows, `computed()` records.
 - **Stores are guarded** on project, page and generation, and defer re-reads behind
   `pendingWrites`; a stale response after navigation is discarded.

@@ -87,6 +87,12 @@ pnpm storybook                                        # :6006
   `check-package-imports.mjs` + `import-lint.test.ts`.
 - **A new e2e journey:** seed in `seed.ts`, spec beside the others, and an assertion that
   cannot pass vacuously — 25.5's review found one that could.
+- **Archive acceptance** lives in `archive.spec.ts`: the original cascade/subproject journey,
+  and Slice 29's content journey over `nested-projects` — created-id assertions that removed
+  views, blank prose and reassigned sources are absent while prose, cascaded and
+  pre-archived-only containers are present with recovery metadata; reload; append after an
+  interposed Home shortcut; retry idempotency; the disabled tab reopened from a nested route;
+  and the same projection and canonical restores through a real MCP client.
 - **The trap:** a test that passes before the implementation, or fails on a typo. Watch
   it fail for the right reason first.
 

@@ -113,6 +113,7 @@ opens a collapsed target through a transient input that leaves the record alone
 - [Home orders sections and shortcuts together](../../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)
 - [What the Todos page decides for itself](../../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)
 - [Root Archive recovery guidance](../../../decisions/2026-09-root-archive-recovery-guidance.md)
+- [Content-oriented Archive policy](../../../decisions/2026-09-content-oriented-archive-policy.md)
 - [Reflection subjects and the root journal feed](../../../decisions/2026-09-reflection-subjects-and-the-journal-feed.md)
 
 ## Spec sections
@@ -122,6 +123,9 @@ shortcuts · §28 layout flag · §29 registry · §30 section types · §31 fra
 §32 editing · §34 the Todos page · §36 the Reflections page · §66 section structure ·
 §68 routes.
 
-Pending implementation choice: [Content-oriented Archive policy](../../../decisions/2026-09-content-oriented-archive-policy.md).
-Slice 29 planning records the proposed content counts and recovery guidance; current runtime
-behavior described above remains unchanged until implementation lands.
+**Archive copy renders the domain's recovery verdict; it never decides eligibility.**
+`ArchivedRegion` labels the supplied `recovery` metadata — total content apart from the exact
+"restores with this section" count, kept text, or conservative unknown content — and spells out
+the two steps for an archived container whose rows were archived on their own. A live container
+beneath an archived project gets reactivation guidance only
+([decision](../../../decisions/2026-09-content-oriented-archive-policy.md)).

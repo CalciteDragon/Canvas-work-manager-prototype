@@ -65,6 +65,10 @@ exercise each tool at a specified position under exactly that grant.
   "still there" assertion having done nothing.
 - **Foreign ids are not found, not forbidden**: the harness injects a foreign-workspace
   project because `agent-heavy` has none, so the branch is really tested.
+- **`get_project_archive` returns the domain projection unchanged.** Its description tells an
+  agent that section entries are content-only, what `contentCount` and `cascadeCount` mean, and
+  that a zero-cascade container is restored before its own archived rows; its contract case
+  seeds a removed view, removed prose and a cascaded container so the metadata is observed.
 - **The list is public**: `list()` is not filtered by grant; a client sees every tool and
   the metadata says what each needs.
 

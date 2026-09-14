@@ -42,11 +42,15 @@ The domain applies it as part of creation.
 workspace and a unit of work differ by what the parser enforces rather than by what each
 call site remembers ([decision](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md)).
 
-**Ownership is a map in contracts, not a registry entry in the web app.** Which section
-types own rows is needed by the domain (cascade on removal) and by the UI (registry
-`kind`), so `SECTION_OWNERSHIP` sits below both
-([decision](../../decisions/2026-09-sections-own-their-data.md)). The cost, recorded
-there: adding a *container* type touches two files.
+**Section capabilities are one map in contracts, not a registry entry in the web app.**
+Which section types own rows is needed by the domain (cascade on removal) and by the UI
+(registry `kind`), and what removing a type could leave worth recovering is needed by the
+Archive projection, so `SECTION_CAPABILITIES` sits below all of them and `SECTION_OWNERSHIP`
+is derived from it ([ownership](../../decisions/2026-09-sections-own-their-data.md),
+[recovery](../../decisions/2026-09-content-oriented-archive-policy.md)). The cost: every
+registered type declares a capability, which `registry.spec.ts` enforces. An undeclared type
+is *unknown*, never disposable. The capability is a declaration, not a verdict — the domain
+combines it with the content that actually remains.
 
 **Section names are derived, with an optional stored override.** `nameOf` over the
 `type` string plus a one-entry display-name table; `title` is optional
@@ -93,6 +97,8 @@ for a chain of one (§14, §71).
 pages and ownership · §33 task model · §35 milestones · §36 reflections · §52 agent
 connections · §57 activity events · §62 the live frame.
 
-Pending implementation choice: [Content-oriented Archive policy](../../decisions/2026-09-content-oriented-archive-policy.md).
-Slice 29 planning records the proposed capability source and content projection; current runtime
-behavior described above remains unchanged until implementation lands.
+**Archive section entries carry recovery metadata, optionally.** `ProjectArchiveSectionItem.recovery`
+is a discriminated union (`owned-content` with a positive `contentCount`, `config`, `unknown`),
+beside the unchanged exact `cascadeCount`. Optional so older fixtures parse; the domain emits it
+on every section entry. Stored sections and `SCHEMA_VERSION` are untouched
+([decision](../../decisions/2026-09-content-oriented-archive-policy.md)).

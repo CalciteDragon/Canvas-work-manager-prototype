@@ -54,7 +54,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Container sections own their rows; view sections own nothing](2026-09-sections-own-their-data.md) | `sectionId` on rows; cascade or reassign on removal | amended |
 | [A section has a name, and the default is derived rather than stored](2026-09-a-section-has-a-name.md) | `nameOf` over `type`, optional `title` override | amended |
 | [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Removal archives; restore is exact; nothing hard-deletes | amended; content projection planned |
-| [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | planning choice; pending Slice 29 implementation |
+| [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | landed in Slice 29; browser/MCP evidence pending |
 | [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | current |
 | [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | current |
 | [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | current |

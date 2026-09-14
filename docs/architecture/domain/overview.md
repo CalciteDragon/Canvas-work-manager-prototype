@@ -26,7 +26,7 @@ service through an acyclic edge. They never know about HTTP, MCP, JSON or seeds.
 - **Time.** All timestamps come from the injected `Clock`. `new Date()` is banned here by
   lint.
 - **Derived reads.** The dashboard, progress, timeline, workspace search, upcoming work,
-  the Todos chronology, the Archive projection and the journal feed, each computed from
+  the Todos chronology, the content-oriented Archive projection and the journal feed, each computed from
   canonical records on demand — never stored.
 - **The AI seam.** `AIProvider` is an interface here; the deterministic
   `PrototypeAIProvider` composes text from counts the caller already derived (§43).

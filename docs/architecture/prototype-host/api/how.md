@@ -54,6 +54,9 @@
 - **Every route has a case in `routes.test.ts`**, run in-process against an
   `InMemoryDataStore` — no port.
 - **The workspace is never read from the request.**
+- **Projections are forwarded, not filtered.** `GET /api/projects/:projectId/archive` returns
+  `ProjectArchiveService.derive` as-is, including each section entry's `recovery` metadata;
+  `routes.test.ts` pins that a removed view is absent and prose is present without route logic.
 
 ## Commands
 

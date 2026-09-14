@@ -40,7 +40,7 @@
 | `TimelineService` | class | §38's derived ranges | [API](../../api/classes/TimelineService.html) |
 | `WorkspaceService` | class | Search and upcoming work under one grant | [API](../../api/classes/WorkspaceService.html) |
 | `ProjectTodosService` | class | Root-wide chronology | [API](../../api/classes/ProjectTodosService.html) |
-| `ProjectArchiveService` | class | Root-wide archive projection | [API](../../api/classes/ProjectArchiveService.html) |
+| `ProjectArchiveService` | class | Root-wide archive projection; section entries filtered and annotated by the internal pure `sectionRecoveryOf` | [API](../../api/classes/ProjectArchiveService.html) |
 | `ProjectJournalService` | class | Root-wide reflection feed and completed-work picker | [API](../../api/classes/ProjectJournalService.html) |
 | `AIProvider` | interface | §42's two methods | [API](../../api/interfaces/AIProvider.html) |
 | `PrototypeAIProvider` | class | §43's deterministic composer | [API](../../api/classes/PrototypeAIProvider.html) |
@@ -78,6 +78,11 @@
   for event recording. A new edge is an AGENTS.md boundary change and needs saying so.
 - **Every state change records exactly one event** through `ActivityService.record`; a
   no-op write records nothing and therefore announces nothing.
+- **Archive keeps every tombstone and projects only content.** Removal writes `archivedAt` on
+  every branch; `sectionRecoveryOf` decides only whether Archive lists the section, from the rows
+  actually still assigned (after reassignment, not the requested policy). It reads no
+  repositories, clock or config beyond the recovery-relevant keys, and must not become a
+  deletion-eligibility check.
 - **Section and shortcut creation positions** are optional zero-based indexes in the page's
   combined placement order. Each service resolves and validates its target (and, for a shortcut,
   its source) before insertion, clamps a position past the end, inserts and calls

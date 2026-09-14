@@ -12,7 +12,7 @@ flowchart TB
     user["user.ts / workspace.ts"]
     project["project.ts<br/>Project = root | subproject"]
     page["project-page.ts<br/>ProjectPage, NAVIGABLE_PAGE_KINDS"]
-    section["section.ts<br/>ProjectSection, SECTION_OWNERSHIP, nameOf"]
+    section["section.ts<br/>ProjectSection, SECTION_CAPABILITIES, nameOf"]
     shortcut["section-shortcut.ts"]
     task["task.ts"]
     milestone["milestone.ts"]
@@ -75,7 +75,7 @@ placements on a root's Home that reference a section elsewhere in the same tree.
 | `SCHEMA_VERSION`, `PrototypeDocumentSchema` | `src/document.ts` | The `data.json` shape and its version (`3`) |
 | `ProjectSchema`, `isRootProject` | `src/project.ts` | Discriminated union on `kind`; status and `progressFormula` |
 | `ProjectPageSchema`, `NAVIGABLE_PAGE_KINDS` | `src/project-page.ts` | Four root kinds plus `work`; which are tabs |
-| `ProjectSectionSchema`, `SECTION_OWNERSHIP`, `ownedKindOf`, `nameOf` | `src/section.ts` | Sections, the container/view split, display names, grid presets |
+| `ProjectSectionSchema`, `SECTION_CAPABILITIES`, `SECTION_OWNERSHIP`, `ownedKindOf`, `nameOf` | `src/section.ts` | Sections, per-type capabilities, the container/view split, display names, grid presets |
 | `SectionShortcutSchema` | `src/section-shortcut.ts` | Home placements referencing a source section |
 | `TaskSchema` | `src/task.ts` | §33's task; `archivedAt`, `archivedWithSectionId`, `archivedWithTaskId` |
 | `ReflectionSchema` | `src/reflection.ts` | Body, optional title/prompt, optional subject, archive markers |
@@ -83,6 +83,6 @@ placements on a root's Home that reference a section elsewhere in the same tree.
 | `AgentConnectionSchema`, `AgentPermissionSchema` | `src/agent.ts` | Connections and the seven grants |
 | `Create*Input`, `Update*Input`, `*Query` | `src/inputs.ts` | Write inputs and query shapes |
 | `LiveEventSchema` | `src/live.ts` | `type`, `entityId`, `entityType`, `projectId`, `rootProjectId` |
-| Dashboard, progress, timeline, todos, archive, journal schemas | `src/dashboard.ts` … `src/project-journal.ts` | Derived read models |
+| Dashboard, progress, timeline, todos, archive, journal schemas | `src/dashboard.ts` … `src/project-journal.ts` | Derived read models; Archive section entries add `recovery` metadata |
 | Prototype state and commands | `src/prototype.ts` | What the dev panel and `/prototype/*` agree on |
 | Branded ids | `src/ids.ts` | `UserId`, `WorkspaceId`, `ProjectId`, `SectionId`, `TaskId`, … |

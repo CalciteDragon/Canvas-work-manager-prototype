@@ -174,6 +174,15 @@ tasks and reflections. Each item carries its owning project/page/container bread
 cause, and the current blocker or canonical restore operation. It remains queryable when the
 Archive page is disabled and does not create the page.
 
+Since Slice 29 section entries are **content-only**: removed Progress, Timeline, Recent Activity
+and Sub-Projects views, blank Notes and containers emptied by reassignment are retained in storage
+but not listed. Each listed section carries `recovery` — `owned-content` (with `ownedData` and
+`contentCount`, every row still in the container), `config` (Notes prose) or `unknown` (a type or
+config the prototype cannot read as empty) — beside `cascadeCount`, exactly the rows that
+`restore_section` brings back. A container with `cascadeCount: 0` holds rows archived on their
+own: call `restore_section` first, then `restore_task` / `restore_reflection` for each row (a
+parent task before its child).
+
 The matching canonical writes are `archive_project` / `restore_project`, `remove_section` /
 `restore_section`, `archive_task` / `restore_task`, and `archive_reflection` /
 `restore_reflection`. Project restoration requires an explicit non-archived status; restoring a

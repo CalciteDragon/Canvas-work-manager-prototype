@@ -177,3 +177,12 @@ tombstones, while preserving exact cascade membership, append placement and idem
 The implementation plan keeps owner containers visible for pre-archived-only rows. Runtime
 still follows this entry's existing removal/restore rules; the projection change and the
 distinction from future operation-level Undo will be documented as landed only after implementation.
+
+**Amended, 2026-09-13 — landed.** Slice 29 implemented the
+[content-oriented Archive policy](2026-09-content-oriented-archive-policy.md). This entry's rules
+are unchanged and re-tested: every removal branch keeps its tombstone, cascade stamps only live
+rows, reassign with live rows moves archived subtrees whole, `restoreSection` appends to the
+page's current combined order, revives exactly its cascade and is a no-op on retry. What changed
+is only what Archive *lists*: disposable view tombstones are retained but unlisted. The section
+service's comments now call its restore **Archive Restore**, distinct from the operation-level
+Undo that later slices plan.

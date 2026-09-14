@@ -56,3 +56,10 @@ reconciliation succeeds; the recovery model and its canonical operations are unc
 plans to filter section entries by meaningful remaining content, retaining owner entries
 needed by independently archived rows and preserving the existing row/project guidance.
 This is a pending projection change; the More-menu entry and current runtime remain unchanged.
+
+**Amended, 2026-09-13 — landed.** Slice 29 filters Archive's section entries by recoverable
+content. Row, sub-project and project guidance is unchanged. A container whose rows were archived
+independently stays listed and ready, with copy saying to restore it and then those rows; a live
+container beneath an archived project keeps its `not-archived` project blocker and gets only
+reactivation guidance. No new blocker kind, restore operation or automatic dependency restore was
+added.
