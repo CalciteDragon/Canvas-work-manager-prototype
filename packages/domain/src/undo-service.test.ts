@@ -197,6 +197,24 @@ describe('UndoService.undo — rows', () => {
     expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
   });
 
+  it('reverses a reflections-container cascade, leaving a reflection archived on its own archived', async () => {
+    const harness = buildHarness();
+    const live = await harness.reflectionService.create(harness.actor, { projectId: MINE, body: 'A quiet week' });
+    const filed = await harness.reflectionService.create(harness.actor, { projectId: MINE, body: 'Old news' });
+    await harness.reflectionService.archive(harness.actor, filed.id);
+    const filedBefore = await harness.reflections.find(filed.id);
+    const { undo } = await harness.sectionService.remove(harness.actor, live.sectionId, { policy: 'cascade' });
+
+    const result = await harness.undoService.undo(harness.actor, undo.undoId);
+
+    expect(result.restoredRowCount).toBe(1);
+    const restored = (await harness.reflections.find(live.id))!;
+    expect(restored.archivedAt).toBeUndefined();
+    expect(restored.archivedWithSectionId).toBeUndefined();
+    expect(await harness.reflections.find(filed.id)).toEqual(filedBefore);
+    expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
+  });
+
   it('reverses a reassign after later title and status edits, preserving the edits', async () => {
     const harness = buildHarness();
     const live = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Live' });
@@ -382,9 +400,10 @@ describe('UndoService.undo — scope and grants', () => {
       expect(refusal).toBeInstanceOf(EntityNotFoundError);
       expect(refusal.message).toBe(`undoRecord "${undo.undoId}" was not found`);
     }
-    await expect(harness.undoService.undo(harness.actor, 'undo-unknown' as UndoRecordId)).rejects.toBeInstanceOf(
-      EntityNotFoundError,
-    );
+    // The same shape of not-found for an id that never existed, so a refusal cannot confirm one did.
+    const unknown = await refusalOf(harness.undoService.undo(harness.actor, 'undo-unknown' as UndoRecordId));
+    expect(unknown).toBeInstanceOf(EntityNotFoundError);
+    expect(unknown.message).toBe('undoRecord "undo-unknown" was not found');
     expect(state(harness)).toEqual(before);
   });
 

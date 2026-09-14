@@ -507,12 +507,14 @@ export class SectionService {
       if (current.archivedAt !== undefined) {
         throw new DomainRuleError(`section "${id}" is already archived`);
       }
-      // Before any write: the placement Undo returns to is the one the canvas showed.
-      const placement = snapshotPlacement(await this.placementsOnPage(current.pageId), { kind: 'section', id });
       const owned = ownedKindOf(current.type);
       const archivedAt = this.dependencies.clock.now().toISOString();
+      // `settleRows` runs its refusals first and writes rows only, never a placement.
       const settled =
         owned === undefined ? NOTHING_SETTLED : await this.settleRows(actor, current, owned, input, archivedAt);
+      // Before the section archives or the page renumbers: the placement Undo returns to is the one
+      // the canvas showed.
+      const placement = snapshotPlacement(await this.placementsOnPage(current.pageId), { kind: 'section', id });
 
       const archived = ProjectSectionSchema.parse({
         ...current,

@@ -109,6 +109,12 @@ describe('resolveRestoreIndex', () => {
     expect(resolveRestoreIndex(snapshot, current)).toEqual({ index: 2, strategy: 'next' });
   });
 
+  it('treats a neighbour that moved to another page as gone — it is absent from this page’s order', () => {
+    // `current` is read per page, so a previous neighbour now elsewhere simply is not in it.
+    const current = [section('section-a', 0), section('section-d', 1)];
+    expect(resolveRestoreIndex(snapshot, current)).toEqual({ index: 1, strategy: 'next' });
+  });
+
   it('restores onto an empty page at index 0', () => {
     expect(resolveRestoreIndex(snapshot, [])).toEqual({ index: 0, strategy: 'index' });
   });
