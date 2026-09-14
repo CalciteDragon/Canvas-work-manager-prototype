@@ -23,6 +23,7 @@ import type {
 } from '@cwm/repositories';
 import { assertPermitted, type ActorContext } from './actor';
 import { DomainRuleError, EntityNotFoundError } from './errors';
+import { sectionRecoveryOf } from './section-recovery-policy';
 
 export interface ProjectArchiveServiceDependencies {
   projects: ProjectRepository;
@@ -38,6 +39,11 @@ const KIND_ORDER = { subproject: 0, section: 1, task: 2, reflection: 3 } as cons
 /**
  * §31's root-wide read model. It is deliberately repository-only: Archive composes the
  * canonical records and eligibility here, while all writes remain on their existing services.
+ *
+ * Section entries are **content-oriented**: a removed or hidden section is listed only when
+ * `sectionRecoveryOf` finds something to recover in it, and carries that verdict as `recovery`.
+ * Disposable view tombstones stay in storage but out of the list. Sub-project, task and
+ * reflection entries are not filtered. See docs/decisions/2026-09-content-oriented-archive-policy.md.
  */
 export class ProjectArchiveService {
   constructor(private readonly dependencies: ProjectArchiveServiceDependencies) {}
@@ -65,6 +71,11 @@ export class ProjectArchiveService {
     const pageById = new Map(pages.map((page) => [page.id, page]));
     const sectionById = new Map(sections.map((section) => [section.id, section]));
     const taskById = new Map(tasks.map((task) => [task.id, task]));
+    // Rows keep their section's project, so the tree scope is also the section's content scope.
+    const content = {
+      tasks: tasks.filter(({ projectId: owner }) => treeIds.has(owner)),
+      reflections: reflections.filter(({ projectId: owner }) => treeIds.has(owner)),
+    };
     const items: ProjectArchiveItem[] = [];
 
     for (const project of tree) {
@@ -99,6 +110,8 @@ export class ProjectArchiveService {
       const projectBlocker = this.highestArchivedProject(section.projectId, projectById, true);
       const isVisibleInArchive = section.archivedAt !== undefined || projectBlocker !== undefined;
       if (!isVisibleInArchive) continue;
+      const decision = sectionRecoveryOf(section, content);
+      if (!decision.include) continue;
       const restoration =
         projectBlocker !== undefined
           ? ({ kind: section.archivedAt === undefined ? 'not-archived' : 'blocked', blocker: this.projectBlocker(projectBlocker) } satisfies ProjectArchiveRestoration)
@@ -112,6 +125,7 @@ export class ProjectArchiveService {
             ? { kind: 'hidden-by-project', projectId: projectBlocker!.id }
             : { kind: 'own' },
         restoration,
+        recovery: decision.recovery,
       };
       if (ownedKindOf(section.type) !== undefined) {
         (item as Extract<ProjectArchiveItem, { kind: 'section' }>).cascadeCount =

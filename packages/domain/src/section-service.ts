@@ -475,6 +475,9 @@ export class SectionService {
    * same type and archives the emptied section, marking nothing — the rows left under their
    * own policy, so they are not "archived with" anything.
    *
+   * Every branch keeps a tombstone; whether Archive *lists* it is a projection question
+   * (`sectionRecoveryOf`), so a removed disposable view is retained but not shown.
+   *
    * Deliberately **not** idempotent: an already-archived section is refused rather than
    * archived twice. Removing something already removed is not a second archive, and a silent
    * success would write a second activity event. Permanent deletion is the operation that
@@ -518,8 +521,10 @@ export class SectionService {
   }
 
   /**
-   * The undo for `remove`, and the **only** way an archived section — or a row that came
-   * down with one — comes back. Under `projects.write`, like every other section write.
+   * **Archive Restore** for `remove`, and the **only** way an archived section — or a row that
+   * came down with one — comes back. Under `projects.write`, like every other section write.
+   * It is not the receipt-based Undo planned for later slices: it reverses the archive, not the
+   * removal's placement, and nothing about it is persisted beyond the canonical records.
    *
    * It restores exactly what the removal took: the section, and the rows whose
    * `archivedWithSectionId` names it. A row archived on its own beforehand carries no marker

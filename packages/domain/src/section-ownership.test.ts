@@ -302,6 +302,35 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     expect((await harness.taskService.get(harness.actor, task.id)).sectionId).toBe(target.id);
   });
 
+  it('moves an archived subtree whole on reassign, keeping its own markers', async () => {
+    const harness = buildHarness();
+    const { list } = await projectWithWork(harness);
+    const parent = await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: list.id, title: 'Parent' });
+    const child = await harness.taskService.create(harness.actor, { projectId: MINE, parentTaskId: parent.id, title: 'Child' });
+    await harness.taskService.archive(harness.actor, parent.id);
+    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
+
+    await harness.sectionService.remove(harness.actor, list.id, { policy: 'reassign', reassignToSectionId: target.id });
+
+    expect(await harness.tasks.list({ sectionId: list.id, includeArchived: true })).toEqual([]);
+    expect(await harness.tasks.find(child.id)).toMatchObject({ sectionId: target.id, archivedWithTaskId: parent.id });
+    expect((await harness.tasks.find(parent.id))?.archivedWithSectionId).toBeUndefined();
+  });
+
+  it('moves nothing when reassign is asked of a container holding only archived rows', async () => {
+    // `settleRows` returns before reading the policy: no live row, no question. The rows stay
+    // with their source, which is what keeps that source visible in Archive as their way back.
+    const harness = buildHarness();
+    const { task, list } = await projectWithWork(harness);
+    await harness.taskService.archive(harness.actor, task.id);
+    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
+
+    await harness.sectionService.remove(harness.actor, list.id, { policy: 'reassign', reassignToSectionId: target.id });
+
+    expect(await harness.tasks.find(task.id)).toMatchObject({ sectionId: list.id, archivedAt: SEED_NOW });
+    expect((await harness.tasks.find(task.id))?.archivedWithSectionId).toBeUndefined();
+  });
+
   it('refuses a reassign target that is archived, naming it', async () => {
     // `require` finds archived sections deliberately, and the checks after it were project
     // and type only — so this moved live rows into a container off the canvas.

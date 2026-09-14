@@ -718,6 +718,27 @@ describe('SectionService.restoreSection', () => {
     ]);
   });
 
+  it('appends after a shortcut placed while it was archived, and a retry changes nothing', async () => {
+    const { harness, shortcut } = await withShortcut();
+    const own = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: shortcut.pageId });
+    await harness.sectionService.remove(harness.actor, own.id);
+    // Interposed while the section was away: the combined order now ends at the shortcut.
+    const later = await harness.sectionShortcutService.create(harness.actor, MINE, {
+      pageId: shortcut.pageId,
+      sourceSectionId: (await harness.shortcuts.find(shortcut.id))!.sourceSectionId,
+    });
+
+    const restored = await harness.sectionService.restoreSection(harness.actor, own.id);
+    const events = harness.store.snapshot().activityEvents.length;
+    harness.clock.setNow(new Date('2026-09-30T00:00:00.000Z'));
+    const retried = await harness.sectionService.restoreSection(harness.actor, own.id);
+
+    expect((await harness.shortcuts.find(later.id))?.position).toBe(1);
+    expect(restored.position).toBe(2);
+    expect(retried).toEqual(restored);
+    expect(harness.store.snapshot().activityEvents).toHaveLength(events);
+  });
+
   it('is a no-op on a live section, preserving position, timestamps and history', async () => {
     const harness = buildHarness();
     const [first] = await withThree(harness);

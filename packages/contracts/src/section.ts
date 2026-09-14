@@ -36,25 +36,67 @@ export const OwnedDataKindSchema = z.enum(['tasks', 'reflections']);
 export type OwnedDataKind = z.infer<typeof OwnedDataKindSchema>;
 
 /**
- * Ownership lives here rather than in the Angular registry (§29) because `SectionService`
- * needs it and cannot import from `apps/web`; the registry reads `kind` back out of it, so
- * there is still one source. Keyed by the same open `type` strings the registry uses.
+ * What removing a section could leave worth recovering, declared per type. `owned-content`
+ * is a container whose rows remain; `config` is prose kept in the section record; `none` is a
+ * disposable view — it renders data owned elsewhere, whatever display settings it carries.
+ *
+ * A declaration, not a verdict: `section-recovery-policy.ts` in domain combines it with the
+ * content that actually remains, so an emptied container still reads as empty. There is
+ * deliberately no `unknown` member — an unregistered type has *no* capability, and callers
+ * must treat that absence as uncertain rather than as `none`.
+ * See docs/decisions/2026-09-content-oriented-archive-policy.md.
+ */
+export const SectionRecoveryCapabilitySchema = z.enum(['owned-content', 'config', 'none']);
+export type SectionRecoveryCapability = z.infer<typeof SectionRecoveryCapabilitySchema>;
+
+/** A type owns rows exactly when its recovery is `owned-content`; the refinement holds that. */
+export const SectionCapabilitySchema = z
+  .object({ ownedData: OwnedDataKindSchema.optional(), recovery: SectionRecoveryCapabilitySchema })
+  .refine(({ ownedData, recovery }) => (ownedData !== undefined) === (recovery === 'owned-content'), {
+    message: 'a section owns rows exactly when its recovery capability is owned-content',
+  });
+export type SectionCapability = z.infer<typeof SectionCapabilitySchema>;
+
+/**
+ * **The one capability source** for section types. It lives here rather than in the Angular
+ * registry (§29) because `SectionService` and `ProjectArchiveService` need it and cannot
+ * import from `apps/web`; the registry reads `kind` back out of it, and `registry.spec.ts`
+ * fails when a registered type has no entry — so a new type has to declare its recovery.
+ * Keyed by the same open `type` strings the registry uses.
+ *
+ * `rich-text` owns its data through `config.text` rather than through rows: it has nothing
+ * to cascade, and archiving the section keeps its text — `config` rides along on the record,
+ * so restoring returns the prose intact. That survival is why removal archives *every*
+ * section rather than only containers.
+ */
+export const SECTION_CAPABILITIES: Readonly<Record<string, SectionCapability>> = {
+  'task-list': { ownedData: 'tasks', recovery: 'owned-content' },
+  reflections: { ownedData: 'reflections', recovery: 'owned-content' },
+  'rich-text': { recovery: 'config' },
+  'sub-projects': { recovery: 'none' },
+  progress: { recovery: 'none' },
+  timeline: { recovery: 'none' },
+  'recent-activity': { recovery: 'none' },
+};
+
+// `Object.hasOwn`, not `in`: `'toString' in SECTION_CAPABILITIES` is true, and a section type
+// that happens to name an `Object.prototype` member must not read as a registered type.
+/** The declared capability, or `undefined` for a type nothing declares — unknown, not disposable. */
+export const sectionCapabilityOf = (type: string): SectionCapability | undefined =>
+  Object.hasOwn(SECTION_CAPABILITIES, type) ? SECTION_CAPABILITIES[type] : undefined;
+
+/**
+ * Which row collection each container owns, derived from `SECTION_CAPABILITIES`.
  *
  * **Types absent from this map are views**, so an unknown type can never cascade — the
  * failure mode for a stale or hand-edited `type` stays non-destructive.
- *
- * `rich-text` is a container conceptually, but it owns its data through `config.text`
- * rather than through rows: it has nothing to cascade, and archiving the section keeps its
- * text — `config` rides along on the record, so restoring returns the prose intact. That
- * survival is why removal archives *every* section rather than only containers.
  */
-export const SECTION_OWNERSHIP: Record<string, OwnedDataKind> = {
-  'task-list': 'tasks',
-  reflections: 'reflections',
-};
+export const SECTION_OWNERSHIP: Readonly<Record<string, OwnedDataKind>> = Object.fromEntries(
+  Object.entries(SECTION_CAPABILITIES).flatMap(([type, { ownedData }]) =>
+    ownedData === undefined ? [] : [[type, ownedData]],
+  ),
+);
 
-// `Object.hasOwn`, not `in`: `'toString' in SECTION_OWNERSHIP` is true, and a section type
-// that happens to name an `Object.prototype` member must not read as a container.
 export const sectionKindOf = (type: string): SectionKind =>
   Object.hasOwn(SECTION_OWNERSHIP, type) ? 'container' : 'view';
 
@@ -84,7 +126,7 @@ export const SECTION_DISPLAY_NAMES: Record<string, string> = { 'sub-projects': '
 /**
  * The name a section carries when it has no `title` override.
  *
- * `Object.hasOwn`, not `??` — for the reason stated above at `sectionKindOf`:
+ * `Object.hasOwn`, not `??` — for the reason stated above at `sectionCapabilityOf`:
  * `SECTION_DISPLAY_NAMES['constructor']` is `Object`, not `undefined`, so `??` would never
  * fire and this would return a *function* from a signature declaring `: string`, with the
  * `Record<string, string>` index signature hiding it from the compiler. `type` is an open

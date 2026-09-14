@@ -3,6 +3,8 @@ import {
   ProjectArchiveItemSchema,
   ProjectArchiveResultSchema,
   ProjectArchiveRestorationSchema,
+  ProjectArchiveSectionItemSchema,
+  ProjectArchiveSectionRecoverySchema,
   ProjectRestoreStatusSchema,
   RestoreProjectInputSchema,
 } from './project-archive';
@@ -76,5 +78,58 @@ describe('Project Archive contracts (§31)', () => {
     const result = ProjectArchiveResultSchema.safeParse({ projectId: root.id, root, items: [] });
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.items).toEqual([]);
+  });
+
+  describe('section recovery metadata', () => {
+    const sectionItem = {
+      kind: 'section' as const,
+      section: {
+        id: 'section-tasks',
+        projectId: 'project-root',
+        pageId: 'page-root',
+        type: 'task-list',
+        position: 0,
+        columnSpan: 12,
+        collapsed: false,
+        config: {},
+        createdAt: AT,
+        updatedAt: AT,
+        archivedAt: AT,
+      },
+      cascadeCount: 0,
+      origin: { ...origin, sectionId: 'section-tasks', sectionName: 'Tasks' },
+      cause: { kind: 'own' as const },
+      restoration: { kind: 'ready' as const, operation: 'restore_section' as const, permission: 'projects.write' as const },
+    };
+
+    it('accepts owned content with a positive count, config and unknown content', () => {
+      for (const recovery of [
+        { kind: 'owned-content', ownedData: 'tasks', contentCount: 3 },
+        { kind: 'owned-content', ownedData: 'reflections', contentCount: 1 },
+        { kind: 'config' },
+        { kind: 'unknown' },
+      ]) {
+        expect(ProjectArchiveSectionRecoverySchema.parse(recovery)).toEqual(recovery);
+        expect(ProjectArchiveSectionItemSchema.safeParse({ ...sectionItem, recovery }).success).toBe(true);
+      }
+    });
+
+    it('rejects malformed metadata', () => {
+      for (const recovery of [
+        { kind: 'owned-content', ownedData: 'tasks', contentCount: 0 },
+        { kind: 'owned-content', ownedData: 'tasks', contentCount: 1.5 },
+        { kind: 'owned-content', ownedData: 'milestones', contentCount: 1 },
+        { kind: 'owned-content', ownedData: 'tasks' },
+        { kind: 'disposable' },
+        { contentCount: 2 },
+      ]) {
+        expect(ProjectArchiveSectionRecoverySchema.safeParse(recovery).success).toBe(false);
+        expect(ProjectArchiveSectionItemSchema.safeParse({ ...sectionItem, recovery }).success).toBe(false);
+      }
+    });
+
+    it('still parses a section item written before the metadata existed', () => {
+      expect(ProjectArchiveSectionItemSchema.safeParse(sectionItem).success).toBe(true);
+    });
   });
 });

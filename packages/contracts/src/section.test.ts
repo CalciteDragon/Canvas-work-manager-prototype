@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   ProjectSectionSchema,
+  SECTION_CAPABILITIES,
+  SECTION_OWNERSHIP,
+  SectionCapabilitySchema,
+  sectionCapabilityOf,
   SectionColumnSpanSchema,
   SectionRemovalRefusalDetailsSchema,
   containerTypeFor,
@@ -94,6 +98,46 @@ describe('section ownership', () => {
   it('does not answer for inherited Object keys', () => {
     expect(sectionKindOf('toString')).toBe('view');
     expect(ownedKindOf('constructor')).toBeUndefined();
+  });
+});
+
+describe('section capabilities (Refactor §§6–8)', () => {
+  it('declares exactly the seven registered types, each with one recovery capability', () => {
+    expect(Object.keys(SECTION_CAPABILITIES).sort()).toEqual(
+      ['progress', 'recent-activity', 'reflections', 'rich-text', 'sub-projects', 'task-list', 'timeline'],
+    );
+    expect(SECTION_CAPABILITIES).toEqual({
+      'task-list': { ownedData: 'tasks', recovery: 'owned-content' },
+      reflections: { ownedData: 'reflections', recovery: 'owned-content' },
+      'rich-text': { recovery: 'config' },
+      'sub-projects': { recovery: 'none' },
+      progress: { recovery: 'none' },
+      timeline: { recovery: 'none' },
+      'recent-activity': { recovery: 'none' },
+    });
+    for (const capability of Object.values(SECTION_CAPABILITIES)) {
+      expect(SectionCapabilitySchema.parse(capability)).toEqual(capability);
+    }
+  });
+
+  it('refuses a capability whose owned data and recovery disagree', () => {
+    expect(SectionCapabilitySchema.safeParse({ recovery: 'owned-content' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ ownedData: 'tasks', recovery: 'none' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ ownedData: 'tasks' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ recovery: 'deletable' }).success).toBe(false);
+  });
+
+  it('derives the ownership map from the capabilities, so the two cannot drift', () => {
+    expect(SECTION_OWNERSHIP).toEqual({ 'task-list': 'tasks', reflections: 'reflections' });
+  });
+
+  it('answers undefined — unknown, never disposable — for an unregistered or inherited type', () => {
+    expect(sectionCapabilityOf('rich-text')).toEqual({ recovery: 'config' });
+    for (const type of ['something-nobody-registered', 'constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      expect(sectionCapabilityOf(type)).toBeUndefined();
+      expect(ownedKindOf(type)).toBeUndefined();
+      expect(sectionKindOf(type)).toBe('view');
+    }
   });
 });
 

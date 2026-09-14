@@ -3,7 +3,7 @@ import { AgentPermissionSchema } from './agent';
 import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema, TaskIdSchema } from './ids';
 import { ProjectPageKindSchema } from './project-page';
 import { ProjectStatusSchema, RootProjectSchema, SubprojectSchema } from './project';
-import { ProjectSectionSchema } from './section';
+import { OwnedDataKindSchema, ProjectSectionSchema } from './section';
 import { ReflectionSchema } from './reflection';
 import { TaskSchema } from './task';
 
@@ -79,11 +79,34 @@ export const ProjectArchiveSubprojectItemSchema = z.object({
 });
 export type ProjectArchiveSubprojectItem = z.infer<typeof ProjectArchiveSubprojectItemSchema>;
 
+/**
+ * What a section entry is in Archive *for*, from the domain's recovery policy. `contentCount`
+ * is every row still assigned to the container, archived or not, counted once; it is not a
+ * promise that restoring the section revives them — `cascadeCount` is that, exactly.
+ * `unknown` is a conservative keep: a type or config the policy cannot read as empty.
+ * See docs/decisions/2026-09-content-oriented-archive-policy.md.
+ */
+export const ProjectArchiveSectionRecoverySchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('owned-content'),
+    ownedData: OwnedDataKindSchema,
+    contentCount: z.number().int().positive(),
+  }),
+  z.object({ kind: z.literal('config') }),
+  z.object({ kind: z.literal('unknown') }),
+]);
+export type ProjectArchiveSectionRecovery = z.infer<typeof ProjectArchiveSectionRecoverySchema>;
+
 export const ProjectArchiveSectionItemSchema = z.object({
   kind: z.literal('section'),
   section: ProjectSectionSchema,
-  /** Present only for a container; views do not claim an owned-row count. */
+  /** Present only for a container: the rows whose `archivedWithSectionId` names this section. */
   cascadeCount: z.number().int().nonnegative().optional(),
+  /**
+   * Optional so older fixtures still parse; `ProjectArchiveService` emits it on every section
+   * entry it projects, and projects only sections with something to recover.
+   */
+  recovery: ProjectArchiveSectionRecoverySchema.optional(),
   ...archiveItemFields,
 });
 export type ProjectArchiveSectionItem = z.infer<typeof ProjectArchiveSectionItemSchema>;
