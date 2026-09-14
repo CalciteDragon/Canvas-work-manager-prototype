@@ -26,6 +26,11 @@ _Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/
 | 22 | Slice 22 — Agent confirmations | Confirmation before an agent archives or bulk-edits, using MCP's input-required pattern, behind the agentConfirmations flag | [22-agent-confirmations.md](planned/22-agent-confirmations.md) |
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
+| 29 | Slice 29 — Recovery policy and content-oriented Archive | Project meaningful recovery content through the existing Archive service while retaining integrity tombstones | [29-recovery-policy-and-archive.md](planned/29-recovery-policy-and-archive.md) |
+| 30 | Slice 30 — Atomic, placement-aware section removal Undo | Persist and execute one scoped inverse per section removal in the existing unit of work | [30-atomic-section-removal-undo.md](planned/30-atomic-section-removal-undo.md) |
+| 31 | Slice 31 — Disposable removal and immediate Undo UI | Safely delete disposable sections and expose receipt-driven Undo through the gateway and canvas | [31-disposable-removal-and-undo-ui.md](planned/31-disposable-removal-and-undo-ui.md) |
+| 32 | Slice 32 — Section creation, movement and settings Undo | Extend typed operation Undo to section add, move and settings updates | [32-section-edit-undo.md](planned/32-section-edit-undo.md) |
+| 33 | Slice 33 — Recovery and Undo integrated acceptance | Verify recovery, Undo, permissions and migration through browser and MCP journeys | [33-recovery-undo-integrated-acceptance.md](planned/33-recovery-undo-integrated-acceptance.md) |
 
 ### Completed
 
@@ -64,4 +69,5 @@ _Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/
 | 25.8 | Slice 25.8 — Integrated acceptance and documentation closure | 2026-09-08 | Integrated browser and MCP acceptance on the nested-projects showcase, and documentation closure | [25.8-integrated-acceptance-and-documentation-closure.md](completed/25.8-integrated-acceptance-and-documentation-closure.md) |
 | 26 | Slice 26 — Documentation overhaul | 2026-09-10 | Living documentation tree and roadmap; Compodoc links and completion guards verified | [26-documentation-overhaul.md](completed/26-documentation-overhaul.md) |
 | 27 | Slice 27 — Direct canvas editing and navigation cleanup | 2026-09-13 | Direct canvas editing, positioned creation, resizing, navigation cleanup and MCP acceptance are implemented and verified. | [27-direct-canvas-editing.md](completed/27-direct-canvas-editing.md) |
+| 28 | Slice 28 — Archive, removal and Undo planning | 2026-09-13 | Imported the proposed refactor spec and reviewed five dependency-ordered implementation candidates | [28-archive-removal-undo-planning.md](completed/28-archive-removal-undo-planning.md) |
 <!-- roadmap:end -->

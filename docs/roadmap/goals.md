@@ -53,7 +53,38 @@ would implement and the scope guards it inherits.
 
 ## Now
 
-**No slice is active.** [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md)
+**Requested planning direction — Archive, removal and Undo.** The user requested a branch,
+an imported [proposed specification](../specifications/README.md), and a development plan
+on 2026-09-13. This authorizes planning; it does not mark the proposal implemented or settle
+its open product choices. Slice 28 records the planning work. The recommended dependency
+order is:
+
+1. [29 — Recovery policy and Archive](planned/29-recovery-policy-and-archive.md): one
+   capability source and meaningful-content projection over retained state.
+2. [30 — Atomic removal Undo](planned/30-atomic-section-removal-undo.md): typed inverse
+   storage, scoped execution and neighbor-aware placement, before hard deletion.
+3. [31 — Disposable removal and Undo UI](planned/31-disposable-removal-and-undo-ui.md):
+   safe deletion plus a receipt-driven browser recovery action.
+4. [32 — Other section operations](planned/32-section-edit-undo.md): add, movement and
+   settings Undo, without a generic command framework.
+5. [33 — Integrated acceptance](planned/33-recovery-undo-integrated-acceptance.md): complete
+   the Refactor §26 browser/MCP evidence and documentation reconciliation.
+
+Each candidate stays in the template's five-section form until started. At activation,
+read the current code and both specs, expand the concrete file list and tests, settle its
+decision gates, then run iterative plan review and TDD under AGENTS.md §3. Re-review later
+candidates against preceding outcomes. Preserve one active slice and small green commits.
+
+The order deliberately moves Refactor §23's Undo and placement work ahead of hard deletion,
+following Refactor §27.8. Redo and a standalone ArchiveItem aggregate remain optional future
+work (Refactor §23 phases 6–7), with no implementation commitment. Current behavior and old
+decisions stay true until implementation lands; each adopting slice must add a §78 decision,
+append dated amendments to conflicting decisions, and update the main spec and affected
+architecture folders together. No production infrastructure, event sourcing or global store.
+
+**No slice is active.** [Slice 28 — Archive, removal and Undo planning](completed/28-archive-removal-undo-planning.md)
+closed the documentation-only planning work on 2026-09-13; slices 29–33 have not started.
+The latest runtime change, [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md),
 closed 2026-09-13. Its implementation establishes direct canvas editing, contextual
 positioned creation, width resizing, and the navigation changes. The
 [direction decision](../decisions/2026-09-direct-canvas-editing-direction.md) records the
