@@ -51,3 +51,7 @@ selection, though the resulting visual gap can differ from the one first selecte
 
 Use of real, mixed-width Home canvases shows that a remembered gap becoming visually different is
 confusing, or that callers need a different insertion contract than one optional ordered position.
+
+**Amended, 2026-09-13.** A positioned insert shifts its siblings' `position` without changing
+their `updatedAt`. Renumbering is not an edit: only a move's own subject is marked updated, so
+`updatedAt` keeps meaning "last edited" for every placement a neighbour's write displaces.

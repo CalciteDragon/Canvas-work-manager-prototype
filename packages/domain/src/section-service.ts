@@ -413,7 +413,7 @@ export class SectionService {
       const target = Math.min(Math.max(position, 0), without.length);
       without.splice(target, 0, { kind: 'section', value: current });
 
-      await renumberPlacements(this.dependencies, this.dependencies.clock, without);
+      await renumberPlacements(this.dependencies, this.dependencies.clock, without, { kind: 'section', id });
       const moved = await this.require(actor, id);
       if (moved.position === current.position) return current;
       await this.record(actor, moved, 'project.section_moved', 'Moved');

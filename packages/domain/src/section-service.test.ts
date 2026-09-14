@@ -147,6 +147,33 @@ describe('SectionService and Home shortcut ordering (§27)', () => {
     expect([first.position, clamped.position, appended.position]).toEqual([1, 2, 3]);
   });
 
+  it('shifts siblings for a positioned add without claiming they were edited', async () => {
+    const harness = buildHarness();
+    const [first, second] = [await add(harness, 'rich-text'), await add(harness, 'progress')];
+    harness.clock.setNow(new Date('2026-12-01T09:00:00.000Z'));
+
+    const inserted = await add(harness, 'task-list', { position: 0 });
+
+    const stored = await harness.sectionService.list(harness.actor, MINE);
+    const byId = new Map(stored.map((section) => [section.id, section]));
+    expect(inserted.updatedAt).toBe('2026-12-01T09:00:00.000Z');
+    expect(byId.get(first.id)).toMatchObject({ position: 1, updatedAt: first.updatedAt });
+    expect(byId.get(second.id)).toMatchObject({ position: 2, updatedAt: second.updatedAt });
+  });
+
+  it('marks only the moved section as updated when a move renumbers its siblings', async () => {
+    const harness = buildHarness();
+    const [first, second, third] = await withThree(harness);
+    harness.clock.setNow(new Date('2026-12-01T09:00:00.000Z'));
+
+    const moved = await harness.sectionService.move(harness.actor, third.id, 0);
+
+    const byId = new Map((await harness.sectionService.list(harness.actor, MINE)).map((section) => [section.id, section]));
+    expect(moved.updatedAt).toBe('2026-12-01T09:00:00.000Z');
+    expect(byId.get(first.id)).toMatchObject({ position: 1, updatedAt: first.updatedAt });
+    expect(byId.get(second.id)).toMatchObject({ position: 2, updatedAt: second.updatedAt });
+  });
+
   it('records one added event and no move event for a positioned add', async () => {
     const harness = buildHarness();
     await add(harness, 'rich-text');

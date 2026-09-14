@@ -38,15 +38,30 @@ export const listPlacements = async (
   ].sort(byPositionThenId);
 };
 
-/** Persist a dense combined order, touching only records whose position changed. */
+/** The one placement a write is about, as opposed to the siblings it shifts. */
+export interface PlacementSubject {
+  kind: PagePlacement['kind'];
+  id: string;
+}
+
+/**
+ * Persist a dense combined order, touching only records whose position changed.
+ *
+ * Only the `subject` — the placement a move was asked to move — gets a new `updatedAt`.
+ * Siblings shifted by an insert, a move or a removal keep theirs: nobody edited them, and
+ * an `updatedAt` that changes whenever a neighbour arrives would stop meaning "last edited".
+ */
 export const renumberPlacements = async (
   repositories: PagePlacementRepositories,
   clock: Clock,
   ordered: readonly PagePlacement[],
+  subject?: PlacementSubject,
 ): Promise<void> => {
-  const updatedAt = clock.now().toISOString();
+  const now = clock.now().toISOString();
   for (const [position, placement] of ordered.entries()) {
     if (placement.value.position === position) continue;
+    const isSubject = subject !== undefined && subject.kind === placement.kind && subject.id === placement.value.id;
+    const updatedAt = isSubject ? now : placement.value.updatedAt;
     if (placement.kind === 'section') {
       await repositories.sections.update(
         ProjectSectionSchema.parse({ ...placement.value, position, updatedAt }),

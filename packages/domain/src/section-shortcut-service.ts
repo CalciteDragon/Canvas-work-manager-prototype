@@ -205,7 +205,7 @@ export class SectionShortcutService {
       const [moved] = placements.splice(index, 1);
       if (moved === undefined) throw new EntityNotFoundError('sectionShortcut', id);
       without.splice(target, 0, moved);
-      await renumberPlacements(this.dependencies, this.dependencies.clock, without);
+      await renumberPlacements(this.dependencies, this.dependencies.clock, without, { kind: 'shortcut', id });
       const updated = await this.dependencies.shortcuts.find(id);
       if (updated === null) throw new EntityNotFoundError('sectionShortcut', id);
       if (updated.position === current.position) return this.resolveCurrent(actor, updated, destination);

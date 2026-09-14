@@ -83,6 +83,9 @@
   its source) before insertion, clamps a position past the end, inserts and calls
   `renumberPlacements` within the same unit of work, then records only the creation event.
   Without a position it appends. Refused writes leave sibling positions untouched.
+- **Renumbering is not editing.** `renumberPlacements` changes `updatedAt` only on the
+  placement a move names as its subject; siblings shifted by an insert, move or removal keep
+  the `updatedAt` of their last real edit.
 - **Reads drop archived ancestry the same way** — through `archivedAncestry` — and each
   query walks its own chain (a shared memo was wrong on cycles).
 

@@ -117,6 +117,20 @@ describe('SectionShortcutService', () => {
     ]);
   });
 
+  it('shifts sections for a positioned shortcut without changing their updatedAt', async () => {
+    const { harness, source, home } = await setupNestedSource();
+    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    harness.clock.setNow(new Date('2026-12-01T09:00:00.000Z'));
+
+    await harness.sectionShortcutService.create(harness.actor, MINE, {
+      pageId: home.id,
+      sourceSectionId: source.id,
+      position: 0,
+    });
+
+    expect((await harness.sections.find(first.id))).toMatchObject({ position: 1, updatedAt: first.updatedAt });
+  });
+
   it('does not renumber placements when a positioned create is refused outside Home', async () => {
     const { harness, home, source } = await setupPlacedHome();
     const reflections = await harness.projectPageService.setEnabled(harness.actor, MINE, {
