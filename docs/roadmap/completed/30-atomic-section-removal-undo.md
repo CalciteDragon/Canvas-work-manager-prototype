@@ -1,4 +1,4 @@
-<!-- plan id="30" status="active" summary="Persist and execute one scoped inverse per section removal in the existing unit of work" -->
+<!-- completed-record id="30" closed="2026-09-14" summary="Every section removal returns a receipt that undoes it once, for the same actor, between its old neighbours, over HTTP and MCP" -->
 # Slice 30 — Atomic, placement-aware section removal Undo
 
 ## Goal
@@ -36,6 +36,9 @@ Activated for the user's plan-only request on 2026-09-14. This document specifie
 implementation; no runtime changes or implementation acceptance are claimed. Slice 29 is
 complete. Stop after plan review and documentation validation; leave Slice 30 active for
 implementation. Bump `CURRENT_SLICE` to 30 when runtime implementation begins, before app use.
+
+**Implemented 2026-09-14** in a following session (`CURRENT_SLICE` bumped first); acceptance
+steps 1–7 were run and are recorded in the Outcome.
 
 ## Implementation design
 
@@ -472,6 +475,14 @@ should still note whether either feels wrong.
   corrected "Boundaries touched" (one new kind of edge; two comment files and a spec); acceptance
   now removes the first `personal-workspace` placement and the middle `agent-heavy` placement so Undo
   is distinguishable from Archive Restore's append; `live-updates.test.ts` hand-built services gain `undo`.
+- **Implementation diff review (2026-09-14, two reviewers: correctness/spec; boundaries/docs):**
+  No blockers. Fixed: a literal NUL byte committed in `data-store.ts`'s sequence key, which made
+  git treat the file as binary; `subjectSectionOf` leaking through a `*` re-export; missing doc
+  comments on new public symbols; stale Undo wording in spec §32 and §54, the domain overview,
+  a repositories Key symbols link and the mcp-transport acceptance note; added tests for a
+  reflections-container cascade Undo, a neighbour moved to another page and the unknown-id
+  message; the placement snapshot now runs after `settleRows`'s refusals, as the plan states.
+  Rejected after checking: "agent-actor integrity rejections are untested" — both cases exist.
 - **Round 3 (2026-09-14, closure check):** Sequence/pruning fix verified correct (sequences only
   increase; pruning same-section lower records loses nothing that could still pass). Two substantive
   acceptance gaps fixed: the MCP acceptance token's connection lacks `projects.write` (the script now
@@ -479,3 +490,71 @@ should still note whether either feels wrong.
   task list needing `policy: 'cascade'`, now named with its tasks asserted. Minor: split the conflict
   test row into three cases, pinned conflict-list order, and aligned decision rule 3 with the plan's
   "computed before pruning". No other substantive findings remained.
+
+## Outcome
+
+**Deliverables.** Every successful section removal now records one versioned inverse and returns
+a receipt. [`undo.ts`](../../../packages/contracts/src/undo.ts) defines the `section.remove` v1
+operation, record, receipt, result and refusal details once; `undoRecords` is a defaulted
+collection inside schema version 3 with owner-only integrity in
+[`data-store.ts`](../../../packages/repositories/src/data-store.ts).
+[`SectionService.remove`](../../../packages/domain/src/section-service.ts) snapshots the combined
+section/shortcut placement and the rows `settleRows` applied, and records through
+[`RepositoryUndoRecorder`](../../../packages/domain/src/undo-recorder.ts) in the same unit
+(24-hour expiry, 50 per workspace, per-workspace `sequence`).
+[`UndoService`](../../../packages/domain/src/undo-service.ts) executes a receipt once for the exact
+actor under `projects.write`, through
+[`section-removal-undo.ts`](../../../packages/domain/src/section-removal-undo.ts): typed
+`undo_consumed` / `undo_expired` / `undo_blocked` / `undo_conflict` / `undo_unavailable`
+refusals that write nothing, neighbour-aware placement, exact row inverse, one
+`project.section_removal_undone` event. `DELETE /api/sections/:id` answers 200 with
+`SectionRemovalResult`, `POST /api/undo/:id` executes, `remove_section` returns the receipt and
+`undo_operation` makes thirty-four MCP tools. Archive Restore is unchanged.
+
+**Evidence.** Tests first where the red was real (contracts, repositories, placement, receipt and
+capture tests failed on the missing behaviour); the Undo service suite was written beside the
+executor and mutation-checked (removing supersession, the explicit section write or the
+moved-dependent scan each fails tests). Final: `pnpm test` (contracts 235, repositories 140,
+domain 522, prototype-data 100, mcp-tools 145, host 187, web 662) and `pnpm lint` green;
+`acceptance`, `mcp-acceptance` (both transports), `live-acceptance` and `agent-acceptance`
+pass. Refactor §26 criteria 7–12 are covered by the named domain tests (frame/event key checks;
+recorder, integrity and persistence rollback; one receipt per multirow cascade; placement suite
+beside the unchanged Archive Restore append test; conflict suite and reload; the typed, versioned
+union with per-type dispatch). `pnpm e2e` was not run (no browser surface changed).
+
+**Real use.** Host and web on `nested-projects`, driven by an MCP SDK client over Streamable
+HTTP (the session's configured MCP server could not be reconnected from here): removed Home
+Progress, moved a shortcut to the top of Home as the person, undid — Progress returned between
+Sub-Projects and Reflections; cascaded the 6-task Home list and reassigned the Garden list, both
+undone exactly; a subtask added under a reassigned task made Undo refuse with
+`undo_conflict: task … new-dependent`. The open canvas refreshed live on every remove and undo.
+Notes `note-2026-09-14-004`–`006`. The user's `.prototype/data.json` was backed up before and
+restored after; the real-use result is kept beside it as a `.backup-*` file.
+
+**Deliberate choices.** `undo_blocked` names the highest archived project on the chain; records
+omit absent optional keys so memory matches disk; receipt labels read `Removed the <name> section`;
+the missing-page fallback is proven only through the pure resolver, as planned. See
+[section removal Undo records](../../decisions/2026-09-section-removal-undo-records.md).
+
+**Deviations from the plan.** `acceptance.mjs` had been failing since schema version 3 (its
+project create lacked `kind`); it was repaired to run this slice's check. MCP acceptance asserts
+the task list has neighbours on both sides rather than "middle of three", because the script's own
+`add_reflection` appends a container first. The placement snapshot moved after `settleRows` during
+review. Friction notes were recorded through the host's `/prototype/notes` endpoint the dev panel
+uses, not by clicking the panel.
+
+**Deferred.** Hard deletion, the browser Undo surface and receipt consumption in the gateway
+(Slice 31); Undo for other section operations (Slice 32). Real use surfaced two questions for
+Slice 31: a receipt lost with its response cannot be recovered (a repeated `remove_section` is
+refused without the existing receipt, and nothing lists one's own records), and conflict text
+names ids without titles or a next step.
+
+**Open questions.** Whether a refused repeat removal should return the outstanding receipt, or a
+caller should be able to find its own receipts; whether conflict messages should carry titles.
+Exact-actor scope and the 24-hour / 50-record bounds did not feel wrong in this pass.
+
+**Documentation updated.** Main spec §§14, 31, 32, 54, 57, 61, 62; AGENTS.md; README; architecture
+overview and the contracts, domain, repositories, prototype-data, prototype-host/api,
+live-updates, mcp-transport, mcp-tools and testing folders; the MCP setup guide and milestone
+walkthrough; the landed Undo records decision, amendments to the archived-row, combined-order and
+live-events decisions, and the decision index.

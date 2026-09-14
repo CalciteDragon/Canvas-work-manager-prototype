@@ -48,7 +48,7 @@ section live, and that MCP clients see refusal messages but not their typed deta
 **Current decision**
 
 **Planning choice, 2026-09-14 — pending Slice 30 implementation.** The
-[plan](../roadmap/active/30-atomic-section-removal-undo.md) specifies:
+[plan](../roadmap/completed/30-atomic-section-removal-undo.md) specifies:
 
 1. **Storage.** `SCHEMA_VERSION` stays 3. `PrototypeDocumentSchema` gains
    `undoRecords: UndoRecord[]`, defaulted to `[]`, so an existing version-3 file loads with every
