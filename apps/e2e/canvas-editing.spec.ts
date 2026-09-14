@@ -731,7 +731,7 @@ test('inline rename, archive choices, shortcut removal and type settings remain 
   await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-rich-text-body]`).press('Tab');
 
   // An ordinary view archives without a choice; the section and its typed identity remain
-  // recoverable from the root Archive page.
+  // recoverable from the root Archive page (a Rich Text section keeps its config, so Archive lists it).
   await expect(page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`)).toHaveAttribute('aria-label', 'Archive section Keep draft after failure');
   await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`).click();
   await expect(page.locator(`[data-section-item][data-section-id="${view.id}"]`)).toHaveCount(0);

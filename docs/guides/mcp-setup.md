@@ -179,9 +179,11 @@ and Sub-Projects views, blank Notes and containers emptied by reassignment are r
 but not listed. Each listed section carries `recovery` — `owned-content` (with `ownedData` and
 `contentCount`, every row still in the container), `config` (Notes prose) or `unknown` (a type or
 config the prototype cannot read as empty) — beside `cascadeCount`, exactly the rows that
-`restore_section` brings back. A container with `cascadeCount: 0` holds rows archived on their
-own: call `restore_section` first, then `restore_task` / `restore_reflection` for each row (a
-parent task before its child).
+`restore_section` brings back. An *archived* container (`restoration` ready or blocked) with
+`cascadeCount: 0` holds rows archived on their own: call `restore_section` first, then
+`restore_task` / `restore_reflection` for each row (a parent task before its child). A live
+container hidden beneath an archived project has `restoration.kind: "not-archived"`; nothing in it
+needs restoring — reactivate the project its blocker names.
 
 The matching canonical writes are `archive_project` / `restore_project`, `remove_section` /
 `restore_section`, `archive_task` / `restore_task`, and `archive_reflection` /

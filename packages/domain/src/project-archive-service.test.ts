@@ -173,6 +173,18 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     );
   });
 
+  it('still restores a hidden disposable tombstone directly through the section service', async () => {
+    const { harness, archive } = buildArchive();
+    const progress = 'section-project-renovation-progress' as never;
+    await harness.sectionService.remove(harness.actor, progress);
+    expect(sectionItem((await archive.derive(harness.actor, ROOT)).items, progress)).toBeUndefined();
+
+    const restored = await harness.sectionService.restoreSection(harness.actor, progress);
+
+    expect(restored.archivedAt).toBeUndefined();
+    expect((await harness.sectionService.list(harness.actor, ROOT)).map(({ id }) => id)).toContain(progress);
+  });
+
   it('lists meaningful prose with config metadata, and unknown content conservatively', async () => {
     const { harness, archive } = buildArchive();
     const empty = await harness.sectionService.add(harness.actor, ROOT, { type: 'rich-text', config: { text: ' \n\t ' } });
@@ -198,10 +210,18 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     expect(sectionItem(items, unconfigured.id)).toMatchObject({ recovery: { kind: 'unknown' }, section: { config: {} } });
     expect(sectionItem(items, unknown.id)).toMatchObject({ recovery: { kind: 'unknown' }, section: { config: { view: 'month' } } });
     expect(items.every((item) => item.kind !== 'section' || item.recovery !== undefined)).toBe(true);
-    // The sort is untouched: owner, then kind, then id.
-    const sorted = [...items].sort((a, b) =>
-      a.origin.projectId === b.origin.projectId ? 0 : a.origin.projectId < b.origin.projectId ? -1 : 1,
-    );
+    // The sort is untouched: owner, then kind, then id — rebuilt independently, shuffled first.
+    const order = ['subproject', 'section', 'task', 'reflection'];
+    const rank = (item: ProjectArchiveItem) =>
+      [item.origin.projectId, String(order.indexOf(item.kind)), keyOf(item).slice(item.kind.length + 1)] as const;
+    const sorted = [...items].reverse().sort((a, b) => {
+      const [x, y] = [rank(a), rank(b)];
+      for (let index = 0; index < x.length; index += 1) {
+        if (x[index] !== y[index]) return x[index]! < y[index]! ? -1 : 1;
+      }
+      return 0;
+    });
+    expect(items.length).toBeGreaterThan(3);
     expect(items.map(keyOf)).toEqual(sorted.map(keyOf));
   });
 

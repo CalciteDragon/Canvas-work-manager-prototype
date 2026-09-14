@@ -1483,8 +1483,8 @@ rows need no question and archive silently.
 
 Archived work does not appear on ordinary pages, views or read models — that is what archiving
 means. It is not deleted, so it has to be reachable somewhere, and that somewhere becomes the
-root's optional **Archive** page: every archived section, task, reflection and subproject
-across the whole root tree, each with its origin, what caused it to be archived, and whether it
+root's optional **Archive** page: every archived task, reflection and subproject, and every
+removed section that still holds something to recover, across the whole root tree, each with its origin, what caused it to be archived, and whether it
 can be restored.
 
 The root-wide **Archive** page is canonical. It lists the rows a canvas-scoped undo surface

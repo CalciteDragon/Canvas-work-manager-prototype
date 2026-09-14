@@ -296,3 +296,48 @@ read the installed Mermaid package under sandbox permissions; the same check pas
 access allowed. `git diff --check` passed. Runtime tests, lint and browser/MCP implementation
 acceptance are intentionally deferred: this request creates and reviews the plan, and no runtime
 files were changed. Slice 29 remains active and has no implementation Outcome yet.
+
+## Implementation status (2026-09-13)
+
+Runtime implementation began in a later session on 2026-09-13; `CURRENT_SLICE` is 29. The
+"Planning status" and "Planning verification" sections above are the historical record of the
+plan-only session. No Outcome yet: the slice stays active until acceptance steps 3–5 are run.
+
+**Landed, tests first.** Contracts capabilities and recovery metadata (`section.ts`,
+`project-archive.ts`), the pure `section-recovery-policy.ts`, the filtered/annotated section loop
+in `ProjectArchiveService`, ownership and restore regressions, host route and MCP contract
+pass-through cases, the MCP description, `ArchivedRegion` copy, store/page/registry specs and
+stories, the extended `archive.spec.ts` journey, and the documentation in the change list. New
+policy, projection and component assertions were observed failing for the missing behavior before
+implementation; the boundary, store, registry and several ownership/restore regressions passed on
+first run because they pin existing invariants, as step 1 anticipates.
+
+**Checks.** `pnpm test` and `pnpm lint` (including `pnpm docs:check`, after `pnpm docs:api`)
+pass. After review fixes: domain 446, MCP tools 139 and web projects 389 tests pass, and web/e2e
+type-checks and docs check pass.
+
+**Not run — needs the user.** Step 3 (`pnpm --filter @cwm/e2e e2e archive.spec.ts`) and step 5
+(real-application pass and notes) were not executed: a developer `pnpm dev:host` started earlier
+held port 4310, Playwright refuses to reuse servers, and stopping that process was declined by the
+session's permission policy. The e2e spec type-checks and a reviewer traced its routes, seed ids
+and selectors, but it has not passed. `.prototype/notes.json` has no Slice 29 entries yet.
+
+**Deviations.** `SectionCapabilitySchema.recovery` is required rather than optional, so every
+declared type states its recovery. The plan names the seed `nested-projects-showcase`; the seed is
+`nested-projects`. The journey is a second test in `archive.spec.ts` rather than a rewrite of the
+first. Copy also covers an archived container with a non-zero cascade smaller than its content
+("N other tasks stay archived"). Cascade copy changed from "N tasks with it" to "N task(s)
+restore(s) with this section", updating `web.spec.ts`.
+
+**Diff review (two subagents: correctness/spec; boundaries/docs).** No correctness bugs or
+boundary violations. Fixed: MCP description and guide gave zero-cascade restore steps that would
+misdirect a live hidden container; stale "planned" status in the decision index; spec §31's
+"every archived section"; remaining "undo" wording in `restoreSection`; ownership-map comment
+now says undeclared recovery is unknown; `cascadeLabel` keyed on restoration and no longer guesses
+"tasks"; a sort assertion that could pass vacuously; missing test that a hidden disposable
+tombstone still restores directly. Recorded, not fixed here:
+- The "N other tasks stay archived" count includes subtasks that return with their parent.
+- Rich Text created without config (MCP `create_section`) stores `{}` and appears in Archive as
+  unknown content — conservative by design, possibly noisy; revisit after real use.
+- The frame's remove control still reads "Archive section …" although a removed disposable view
+  is no longer listed; wording belongs to the removal/Undo UI slice (31), a non-goal here.

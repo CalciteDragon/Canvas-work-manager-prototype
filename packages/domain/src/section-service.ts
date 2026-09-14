@@ -528,7 +528,7 @@ export class SectionService {
    *
    * It restores exactly what the removal took: the section, and the rows whose
    * `archivedWithSectionId` names it. A row archived on its own beforehand carries no marker
-   * and stays archived, which is what makes this a canonical undo rather than a bulk
+   * and stays archived, which is what makes this an exact restore rather than a bulk
    * unarchive.
    *
    * The section returns at the **end** of the canvas, where `addWithin` puts a new one: its
@@ -549,8 +549,8 @@ export class SectionService {
       if (current.archivedAt === undefined) return current;
       await this.assertProjectWritable(current.projectId);
 
-      // Back onto its own page, at that page's end. Undo, so no disabled-page refusal: the
-      // section is returning to where it already lived (§31 — undo is never behind a toggle).
+      // Back onto its own page, at that page's end. Recovery, so no disabled-page refusal: the
+      // section is returning to where it already lived (§31 — recovery is never behind a toggle).
       const live = await this.placementsOnPage(current.pageId);
       const restored = ProjectSectionSchema.parse({
         ...current,

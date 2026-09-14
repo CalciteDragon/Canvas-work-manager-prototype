@@ -119,10 +119,11 @@ export class ArchivedRegion {
     }
   }
 
-  /** The exact `archivedWithSectionId` count, only for a section that is actually archived. */
+  /** The exact `archivedWithSectionId` count, only for an archived container (never a live hidden one). */
   cascadeLabel(item: ProjectArchiveItem): string | null {
-    if (item.kind !== 'section' || item.cascadeCount === undefined || item.section.archivedAt === undefined) return null;
-    const ownedData = item.recovery?.kind === 'owned-content' ? item.recovery.ownedData : (ownedKindOf(item.section.type) ?? 'tasks');
+    if (item.kind !== 'section' || item.cascadeCount === undefined || item.restoration.kind === 'not-archived') return null;
+    const ownedData = item.recovery?.kind === 'owned-content' ? item.recovery.ownedData : ownedKindOf(item.section.type);
+    if (ownedData === undefined) return null;
     const verb = item.cascadeCount === 1 ? 'restores' : 'restore';
     return `${this.rows(ownedData, item.cascadeCount)} ${verb} with this section`;
   }

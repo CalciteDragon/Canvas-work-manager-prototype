@@ -89,7 +89,8 @@ export const sectionCapabilityOf = (type: string): SectionCapability | undefined
  * Which row collection each container owns, derived from `SECTION_CAPABILITIES`.
  *
  * **Types absent from this map are views**, so an unknown type can never cascade — the
- * failure mode for a stale or hand-edited `type` stays non-destructive.
+ * failure mode for a stale or hand-edited `type` stays non-destructive. That is ownership only:
+ * an undeclared type's *recovery* is unknown, not disposable (`sectionCapabilityOf`).
  */
 export const SECTION_OWNERSHIP: Readonly<Record<string, OwnedDataKind>> = Object.fromEntries(
   Object.entries(SECTION_CAPABILITIES).flatMap(([type, { ownedData }]) =>
