@@ -6,12 +6,14 @@ const NEXT_STEP_COPY: Record<UndoConflictNextStep, string> = {
   'move-back-and-retry': 'Move it back to its previous section, then try Undo again.',
   'restore-state-and-retry': 'Restore its previous state, then try Undo again.',
   'restore-or-move-dependent-and-retry': 'Restore or move the new dependent, then try Undo again.',
+  'remove-reference-and-retry': 'Remove the reference, then try Undo again.',
   'use-later-receipt-or-archive': 'Use the later Undo receipt, or check Archive for retained content.',
+  'use-later-receipt': 'Use the later Undo receipt, or make the change again by hand.',
   'nothing-to-undo': 'It is already live, so there is nothing to undo for this item.',
   'nothing-to-restore': 'It no longer exists. Use Archive if it still has a saved copy.',
 };
 
-/** The canvas-local, accessible status and action for one section-removal receipt. */
+/** The canvas-local, accessible status and action for one section-operation receipt. */
 @Component({
   selector: 'app-section-undo-notice',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,13 +38,25 @@ export class SectionUndoNotice {
   }
 
   readonly hasReceipt = computed(() => this.state()?.receipt != null);
+  readonly showArchive = computed(() => {
+    const state = this.state();
+    return state?.receipt?.operation === 'section.remove' || state?.result?.operation === 'section.remove';
+  });
   readonly canUndo = computed(() =>
     this.hasReceipt() && ['available', 'already-removed', 'refusal', 'error'].includes(this.state()?.kind ?? ''),
   );
   readonly isAlert = computed(() => ['refusal', 'terminal', 'error'].includes(this.state()?.kind ?? ''));
   readonly conflicts = computed(() => {
     const refusal = this.state()?.refusal;
-    return refusal?.reason === 'undo_conflict' ? refusal.conflicts : [];
+    if (refusal?.reason !== 'undo_conflict') return [];
+    // One line per entity and repair: a section that both changed and was superseded needs one step.
+    const seen = new Set<string>();
+    return refusal.conflicts.filter(({ entityType, id, nextStep }) => {
+      const key = `${entityType}:${id}:${nextStep}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   });
   readonly typedGuidance = computed(() => this.guidanceFor(this.state()?.refusal));
 

@@ -32,7 +32,7 @@ flowchart TB
   end
   sc["ShortcutFrame (read-only source) · ShortcutPicker · ShortcutStore"]
   dialog["SectionRemovalDialog"]
-  notice["SectionUndoNotice<br/>canvas-local receipt, Undo, retry and Archive"]
+  notice["SectionUndoNotice<br/>page-local receipt, operation Undo, removal Archive"]
   create["SectionCreateDialog · InsertionPoint · SectionResizeHandle"]
   shell --> wstore
   shell --> nav
@@ -46,6 +46,7 @@ flowchart TB
   canvas --> sc
   canvas --> dialog
   canvas --> notice
+  refl --> notice
   canvas --> create
 ```
 
@@ -79,15 +80,15 @@ sequenceDiagram
 | `ProjectHeader`, `ProjectMoreMenu` | `project-header.ts`, `project-more-menu.ts` | Name, status, progress, target date; rename/status/date/archive |
 | `PROJECT_PAGE_REGISTRY`, `ProjectPageDefinition` | `project-page-registry.ts` | Navigable kinds → renderer and label |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | `project-page-contract.ts` | What every renderer receives |
-| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, removal dialog, receipt focus and arrival at `#section-<id>` |
-| `ProjectPageStore`, `CanvasWriteResult`, `SectionRemovalPrompt`, `SectionUndoNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation, typed removal refusal and canvas-local receipt state |
+| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, explicit edit receipts, removal dialog and arrival at `#section-<id>` |
+| `ProjectPageStore`, `CanvasWriteResult`, `SectionRemovalPrompt`, `SectionUndoNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation, typed refusal and sequence-selected operation receipt state |
 | `SectionRemovalDialog` | `section-removal-dialog.ts` | Cascade or reassign, containers by name |
-| `SectionUndoNotice` | `section-undo-notice.ts` | Accessible immediate Undo, explicit retry after uncertain removal, refresh retry, typed refusal guidance and Archive fallback |
+| `SectionUndoNotice` | `section-undo-notice.ts` | Accessible operation Undo, removal-only Archive, explicit retry after uncertain removal, refresh retry and typed refusal guidance |
 | `SectionCreateDialog` | `section-create-dialog.ts` | Section or Home shortcut creation at the selected canvas position |
 | `CanvasIcon`, `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor` | `canvas-chrome/` | Shared SVG canvas controls, insertion overlays, snapped resize, sparse-grid gap targets and grip move keys |
 | `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with inline completion and canonical links |
 | `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's root-wide content projection, recovery copy and restores |
-| `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal |
+| `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal; explicit Add container holds a page-local add receipt and reuses `SectionUndoNotice` |
 | `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29 |
 | `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |
 | `ProjectSectionFrame` | `sections/section-frame/` | §31's always-available drag, collapse, inline title, optional inspector and remove controls |

@@ -104,3 +104,9 @@ removal retry descriptor: a different removal cannot replace it until the user d
 its guard alert clears on dismissal. The correctness reviewer re-read the final guard and found no
 remaining substantive issues; the boundary/documentation reviewer verifies the activity amendment
 before closure.
+
+**Amended, 2026-09-14 — Slice 32 keeps Archive removal-specific.** The shared notice now hides
+Open Archive for add, move and settings receipts; edits are reversible in place but are not
+recoverable Archive content. The removal notice and its failed-removal retry remain unchanged.
+The same page-local lifetime applies to all new explicit section receipts: navigation or reload
+clears the browser action, while the server record retains its existing 24-hour scope.

@@ -607,6 +607,11 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await orderOf(root.id))[0]?.columnSpan).toBe(4);
 
+  // Each committed width offers an Undo notice fixed at the viewport's end corner; dismiss it so
+  // the pointer drag below reaches the shortcut's handle rather than the notice over it.
+  await page.locator('[data-dismiss-undo-notice]').click();
+  await expect(page.locator('[data-undo-notice]')).toHaveCount(0);
+
   const shortcutWrapper = page.locator(`[data-shortcut-item][data-shortcut-id="${shortcut.id}"]`);
   const shortcutHandle = shortcutWrapper.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]');
   await dragResize(page, shortcutHandle, await resizeDelta(canvas, 12, 8));
@@ -632,6 +637,8 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   const nextBefore = await nextWrapper.boundingBox();
   const textBeforeResize = await flowText.boundingBox();
   if (nextBefore === null || textBeforeResize === null) throw new Error('Flow neighbor did not render');
+  // The blur save offered an Undo notice over the viewport's end corner; clear it before dragging.
+  await page.locator('[data-dismiss-undo-notice]').click();
   await dragResize(
     page,
     flowWrapper.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]'),

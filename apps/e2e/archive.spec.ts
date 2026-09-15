@@ -44,14 +44,16 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
     kind: 'root',
     name: 'Archive journey',
   });
-  const section = await api<{ id: string }>('POST', `/api/projects/${root.id}/sections`, {
+  const sectionResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, {
     type: 'task-list',
     title: 'Cascade section',
   });
-  const taskSection = await api<{ id: string }>('POST', `/api/projects/${root.id}/sections`, {
+  const taskSectionResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, {
     type: 'task-list',
     title: 'Task section',
   });
+  const section = sectionResult.section;
+  const taskSection = taskSectionResult.section;
   const parent = await api<{ id: string }>('POST', '/api/tasks', {
     projectId: root.id,
     sectionId: taskSection.id,
@@ -185,7 +187,8 @@ test('Archive lists recoverable content only, and independently archived rows ke
   const ROOT = 'project-renovation';
   const HOME = 'page-project-renovation';
 
-  const addSection = (body: Record<string, unknown>) => api<{ id: string }>('POST', `/api/projects/${ROOT}/sections`, body);
+  const addSection = async (body: Record<string, unknown>) =>
+    (await api<{ section: { id: string } }>('POST', `/api/projects/${ROOT}/sections`, body)).section;
   const addTask = (sectionId: string, title: string) =>
     api<{ id: string }>('POST', '/api/tasks', { projectId: ROOT, sectionId, title });
 
@@ -338,8 +341,8 @@ test('Archive lists recoverable content only, and independently archived rows ke
     // nothing and stays out of Archive.
     const agentNotes = await client.callTool({ name: 'create_section', arguments: { projectId: ROOT, type: 'rich-text' } });
     expect(agentNotes.isError).not.toBe(true);
-    const agentNotesId = (agentNotes.structuredContent as { id: string; config: Record<string, unknown> }).id;
-    expect((agentNotes.structuredContent as { config: Record<string, unknown> }).config).toEqual({});
+    const agentNotesId = (agentNotes.structuredContent as { section: { id: string; config: Record<string, unknown> } }).section.id;
+    expect((agentNotes.structuredContent as { section: { config: Record<string, unknown> } }).section.config).toEqual({});
     expect((await client.callTool({ name: 'remove_section', arguments: { sectionId: agentNotesId } })).isError).not.toBe(true);
     const afterAgent = await client.callTool({ name: 'get_project_archive', arguments: { projectId: ROOT } });
     expect((afterAgent.structuredContent as { items: ProjectedItem[] }).items.map(keyOf)).not.toContain(`section:${agentNotesId}`);

@@ -50,10 +50,11 @@ test('completed work can receive retained reflections across the root journal, H
   });
   const reflectionsPage = await api<{ id: string }>('PATCH', `/api/projects/${root.id}/pages/reflections`, { enabled: true });
   await api('PATCH', `/api/projects/${root.id}/pages/todos`, { enabled: true });
-  const homeContainer = await api<{ id: string }>('POST', `/api/projects/${root.id}/sections`, {
+  const homeContainerResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, {
     type: 'reflections',
     title: 'Home journal',
   });
+  const homeContainer = homeContainerResult.section;
   const child = await api<{ id: string }>('POST', '/api/projects', {
     workspaceId: workspace.workspace.id,
     kind: 'subproject',
@@ -66,16 +67,19 @@ test('completed work can receive retained reflections across the root journal, H
     parentProjectId: child.id,
     name: 'Release',
   });
-  const childTasks = await api<{ id: string }>('POST', `/api/projects/${child.id}/sections`, { type: 'task-list', title: 'Launch tasks' });
-  const grandchildReflections = await api<{ id: string }>('POST', `/api/projects/${grandchild.id}/sections`, {
+  const childTasksResult = await api<{ section: { id: string } }>('POST', `/api/projects/${child.id}/sections`, { type: 'task-list', title: 'Launch tasks' });
+  const childTasks = childTasksResult.section;
+  const grandchildReflectionsResult = await api<{ section: { id: string } }>('POST', `/api/projects/${grandchild.id}/sections`, {
     type: 'reflections',
     title: 'Release journal',
   });
-  const pageContainer = await api<{ id: string }>('POST', `/api/projects/${root.id}/sections`, {
+  const grandchildReflections = grandchildReflectionsResult.section;
+  const pageContainerResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, {
     type: 'reflections',
     pageId: reflectionsPage.id,
     title: 'Page journal',
   });
+  const pageContainer = pageContainerResult.section;
   const firstTask = await api<{ id: string }>('POST', '/api/tasks', {
     projectId: child.id,
     sectionId: childTasks.id,

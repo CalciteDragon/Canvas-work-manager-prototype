@@ -1312,6 +1312,16 @@ remove response is uncertain, the canvas exposes an explicit retry with the orig
 after the section has disappeared from a live refresh. A live refresh never repeats a write
 ([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
+*Landed in Slice 32.* Explicit section creation, movement and editable settings writes use the
+same page-local receipt surface. A completed contextual add records `section.add`; a completed
+move records `section.move` against the page's combined section/shortcut order; and title,
+config, collapse and column-span changes record `section.update` with only the changed fields.
+Normalized no-ops, cancelled edits, a move clamped to its current position and implicit
+row-container creation record nothing. The receipt carries a public sequence so a page keeps the newest committed operation
+when concurrent responses arrive; the notice's Archive action remains removal-only. Undo is
+field-aware for settings, placement-aware for moves, and refuses when the recorded footprint is
+no longer safe to restore ([decision](docs/decisions/2026-09-section-edit-undo-boundaries.md)).
+
 ## Shortcuts on Home
 
 A root's Home may show a section that canonically lives somewhere else in the same root tree —
@@ -1511,6 +1521,14 @@ shortcut still references it. Otherwise it deletes the section: known disposable
 empty containers and whitespace-only Rich Text do not need permanent tombstones. Archived
 rows and shortcut source ids count in the reference audit. Existing tombstones are not purged
 by this operation. No row or shortcut is silently deleted.
+
+Creation, movement and settings edits are also explicit writes. The contextual create action
+returns a `section.add` receipt after the combined placement is committed. Drag and keyboard
+movement returns one `section.move` receipt only after the final placement is committed. Inline
+title, inspector configuration, collapse and supported width writes return a `section.update`
+receipt containing only the normalized fields that changed. The page-local notice offers Undo
+for all four operation families, while Archive is offered only for removal; a reload clears
+the in-memory notice.
 
 ## Where archived work is found
 
@@ -2488,7 +2506,7 @@ get_project_journal
 
 Shortcuts (§27) are created and removed through their own tools, and archive/restore are
 canonical tools on projects, sections, tasks and reflections. An agent can execute the same
-section-removal receipt that a person gets from the canvas using `undo_operation`.
+section-operation receipt that a person gets from the canvas using `undo_operation`.
 
 **A page is never a permission bypass.** Resolving a shortcut's source content requires the
 read permission for the *content*, not merely permission to see the layout that references it:
@@ -2520,18 +2538,24 @@ adds `get_project_journal` with the same three read grants: it aggregates live j
 from the root tree, resolves current linked-subject state (including an archived subject), and
 does not depend on the Reflections tab being enabled.*
 
-*Landed in Slices 30–31: `remove_section` returns `{ section, undo }` — the final
-archived-shaped section snapshot and an Undo receipt — and `undo_operation` (`projects.write`,
-input `{ undoId }`) executes a receipt for the exact actor it was issued to. A disposable
-section can be absent from storage even though that response snapshot carries `archivedAt`.
+*Landed in Slices 30–32: `create_section` and `remove_section` return `{ section, undo }`, while
+`move_section` and `update_section` return `{ section, undo }` with `undo: null` for a normalized
+no-op. The explicit section-write receipts are typed `section.add`, `section.move` or
+`section.update`; update records carry only changed title/config/collapse/span fields, and move
+records carry before/after placement anchors for the page's combined order. `remove_section`
+returns the final archived-shaped section snapshot and an Undo receipt — and `undo_operation`
+(`projects.write`, input `{ undoId }`) executes a receipt for the exact actor it was issued to.
+A disposable section can be absent from storage even though that response snapshot carries
+`archivedAt`.
 MCP errors carry no structured details, so refusal text starts with its reason. Repeating a
 removal recovers only that actor's newest outstanding receipt in `section_already_removed:`;
 it remains a refusal with no second write. Undo conflicts include current names and ids plus
 typed next steps, capped at five; blocked refusals name the blocking project. Other refusal
 prefixes are `undo_consumed:`, `undo_expired:`, `undo_conflict:`, `undo_blocked:` and
-`undo_unavailable:`. The registry still holds thirty-four tools
+`undo_unavailable:`. The registry now holds thirty-five tools, including `move_section`
 ([decision](docs/decisions/2026-09-section-removal-undo-records.md),
-[Slice 31 decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).*
+[Slice 31 decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md),
+[Slice 32 decision](docs/decisions/2026-09-section-edit-undo-boundaries.md)).*
 
 *The 25.8 HTTP acceptance exercised the combined Todos, Archive and Journal reads with the declared
 grant matrix, including no-partial-result denials and a read-only connection's write refusal. The
@@ -2654,9 +2678,10 @@ agent action
 system action
 ```
 
-*Landed in Slice 30: an Undo records one `project.section_removal_undone` event against the
-project ("Undid removing the Notes section"), attributed like any other write. The inverse it
-executed is stored in its own record, never on the event.*
+*Landed in Slices 30–32: an Undo records one operation-specific event against the project —
+`project.section_removal_undone`, `project.section_addition_undone`,
+`project.section_move_undone` or `project.section_update_undone` — attributed like any other
+write. The inverse it executed is stored in its own record, never on the event.*
 
 ---
 
@@ -2778,7 +2803,10 @@ These do not need to be considered final production routes.
 
 Their main purpose is to exercise the Angular gateway boundary realistically.
 
-*Landed in Slices 30–31: `DELETE /api/sections/:id` answers 200 with the final
+*Landed in Slices 30–32: `POST /api/projects/:projectId/sections` answers with a section and
+creation receipt; `PATCH /api/sections/:id` answers with a field-aware update result;
+`POST /api/sections/:id/move` answers with a placement-aware move result; and
+`DELETE /api/sections/:id` answers 200 with the final
 archived-shaped section snapshot and its Undo receipt; a disposable section may already be
 absent from storage. `POST /api/undo/:id` executes a receipt. Undo refusals are 409s whose
 `details` carry a typed reason (`undo_consumed`, `undo_expired`, `undo_conflict`,
@@ -2828,10 +2856,11 @@ The frontend then refreshes relevant state.
 
 Do not build full real-time synchronization infrastructure.
 
-*Slices 30–31: each successful removal and its Undo publishes only its one activity frame after
+*Slices 30–32: each successful section write and its Undo publishes only its one activity frame after
 commit, and nothing on rollback. A deleted disposable removal emits `project.section_removed`;
-a retained removal emits `project.section_archived`. No frame carries Undo snapshot data, and a
-repeated-removal refusal emits no frame.*
+a retained removal emits `project.section_archived`; add, move and update use the corresponding
+section-added, section-moved and section-updated actions. No frame carries Undo snapshot data,
+and any normalized no-op or repeated-removal refusal emits no frame.*
 
 ---
 
@@ -2870,6 +2899,12 @@ authoritative section list. If a remove response is uncertain, **Retry remove** 
 repeat of the exact original action; it is never triggered by a live refresh. Navigation and
 generation guards prevent stale receipts or responses from affecting another canvas
 ([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+
+The same receipt-before-refresh rule applies to section add, move and update. The notice keeps
+the newest committed receipt by its server sequence, blocks Undo while another section write is
+in flight, and refreshes authoritative state after Undo. Update Undo restores only its recorded
+fields, move Undo resolves its recorded anchors against the current combined order, and neither
+offers Archive. A reload clears all local operation notices.
 
 ---
 

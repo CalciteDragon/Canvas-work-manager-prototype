@@ -20,10 +20,13 @@
    files** (the seed is unchanged), cascades the middle `agent-heavy` task list away with
    `remove_section`, restores it with `undo_operation` over both transports, and checks the
    persisted file shows the section live and the record consumed. Slice 31 extends both:
-   HTTP and MCP acceptance delete a disposable Progress section, repeat the removal to
-   recover the exact receipt, undo it, and inspect persisted recreation and consumption.
+    HTTP and MCP acceptance delete a disposable Progress section, repeat the removal to
+    recover the exact receipt, undo it, and inspect persisted recreation and consumption.
+    MCP acceptance also runs add, update (including an unchanged `undo: null`) and move →
+    `undo_operation` journeys over both transports. Connection revocation after a receipt is
+    issued is pinned in `apps/prototype-host/mcp/handler.test.ts`.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) starts both processes,
-   seeds before each spec, and runs the web, canvas editing/removal Undo, MCP, Todos,
+    seeds before each spec, and runs the web, canvas editing and section edit/removal Undo, MCP, Todos,
    Archive and Reflections specs, including keyboard/touch geometry and receipt recovery.
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`
    produces a static build the 25.x closeouts used as a check.
@@ -108,6 +111,10 @@ pnpm storybook                                        # :6006
   the canvas and Archive and return with their saved config/order; meaningful content and
   cascaded rows remain durably recoverable; reassign removes the empty section and Undo
   reverses all moved rows; reload preserves Archive and section state.
+- **Section edit Undo acceptance** lives in `section-edit-undo.spec.ts`: explicit HTTP
+  add/update/move Undo, disjoint and overlapping agent edits over MCP, canvas contextual add,
+  rename, Rich Text blur save, collapse, keyboard resize and keyboard move Undo with reload, and
+  the Reflections-page container add, Undo and refusal once a reflection is authored.
 - **The trap:** a test that passes before the implementation, or fails on a typo. Watch
   it fail for the right reason first.
 

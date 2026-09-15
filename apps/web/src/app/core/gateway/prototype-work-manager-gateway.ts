@@ -14,6 +14,8 @@ import {
   ProjectTodosResultSchema,
   ReflectionSchema,
   SectionRemovalResultSchema,
+  SectionAddResultSchema,
+  SectionWriteResultSchema,
   TaskSchema,
   TimelineResultSchema,
   UndoResultSchema,
@@ -143,11 +145,11 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         ProjectSectionSchema.array(),
       ),
     create: (projectId: ProjectId, input: CreateSectionInput) =>
-      this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/sections`, ProjectSectionSchema, input),
+      this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/sections`, SectionAddResultSchema, input),
     update: (id: SectionId, input: UpdateSectionInput) =>
-      this.send('PATCH', `/api/sections/${encodeURIComponent(id)}`, ProjectSectionSchema, input),
+      this.send('PATCH', `/api/sections/${encodeURIComponent(id)}`, SectionWriteResultSchema, input),
     move: (id: SectionId, input: MoveSectionInput) =>
-      this.send('POST', `/api/sections/${encodeURIComponent(id)}/move`, ProjectSectionSchema, input),
+      this.send('POST', `/api/sections/${encodeURIComponent(id)}/move`, SectionWriteResultSchema, input),
     duplicate: (id: SectionId) =>
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/duplicate`, ProjectSectionSchema),
     // The policy rides on the query string, matching the host route. The result carries only

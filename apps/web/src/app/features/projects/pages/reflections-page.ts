@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ViewChild, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, Injector, ViewChild, afterNextRender, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type {
   ProjectId,
@@ -9,6 +9,7 @@ import type {
 } from '@cwm/contracts';
 import { ReflectionComposer, type ReflectionDraft } from '../sections/reflections/reflection-composer';
 import { ReflectionsPageStore } from './reflections-page-store';
+import { SectionUndoNotice } from '../section-undo-notice';
 import type { ProjectPageRenderer } from '../project-page-contract';
 
 const statusLabel = (status: string): string => status.replace('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -17,7 +18,7 @@ const statusLabel = (status: string): string => status.replace('_', ' ').replace
 @Component({
   selector: 'app-reflections-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReflectionComposer, RouterLink],
+  imports: [ReflectionComposer, RouterLink, SectionUndoNotice],
   providers: [ReflectionsPageStore],
   templateUrl: './reflections-page.html',
   styleUrl: './reflections-page.scss',
@@ -33,6 +34,8 @@ export class ReflectionsPage implements ProjectPageRenderer {
   readonly onOpenArchive = input<() => void>(() => {});
 
   readonly store = inject(ReflectionsPageStore);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   readonly selectedSubject = signal<ReflectionSubjectView | null>(null);
   readonly pageWritesBlocked = computed(() => this.restoreBlocked());
 
@@ -83,6 +86,24 @@ export class ReflectionsPage implements ProjectPageRenderer {
       this.selectedSubject.set(null);
       this.onProjectDataChange()();
     }
+  }
+
+  async undoContainer(): Promise<void> {
+    if (this.pageWritesBlocked()) return;
+    const result = await this.store.undoOperation();
+    if (result !== null) this.onProjectDataChange()();
+    // The Undo button leaves with its receipt, so focus would otherwise fall to the body.
+    afterNextRender(() => {
+      const target = this.host.nativeElement.querySelector<HTMLElement>('[data-undo-action]') ??
+        this.host.nativeElement.querySelector<HTMLElement>('[data-undo-notice]') ??
+        this.host.nativeElement.querySelector<HTMLElement>('[data-reflections-add-container]');
+      target?.focus();
+    }, { injector: this.injector });
+  }
+
+  focusUndoNotice(): void {
+    if (document.activeElement !== document.body && document.activeElement !== null) return;
+    this.host.nativeElement.querySelector<HTMLButtonElement>('[data-undo-action]')?.focus();
   }
 
   titleOf(entry: ProjectJournalEntry): string {

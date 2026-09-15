@@ -1,7 +1,7 @@
 # MCP tools
 
 `@cwm/mcp-tools` is the transport-free registry of the tools an agent can call (§54–§55):
-thirty-four `WorkManagerTool` definitions — name, description, required permission(s),
+thirty-five `WorkManagerTool` definitions — name, description, required permission(s),
 Zod input schema, `execute` — over the domain services, in a stable order. It knows
 nothing about MCP itself: no SDK, no transport, no server. The host mounts the same
 registry over Streamable HTTP and over stdio, and the contract tests exercise every tool

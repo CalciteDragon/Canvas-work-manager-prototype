@@ -1,7 +1,7 @@
 # MCP setup
 
-Canvas Work Manager serves the same thirty-four tools over Streamable HTTP and stdio (§59) —
-§54's fourteen, the four section tools the canvas needs, §54's three page tools, Slice 25.4's
+Canvas Work Manager serves the same thirty-five tools over Streamable HTTP and stdio (§59) —
+§54's fourteen, the five section-edit/removal tools the canvas needs, §54's three page tools, Slice 25.4's
 three shortcut tools, Slice 25.6's eight archive/recovery tools, and Slice 25.7's journal tool.
 Both use the fake local credentials from the `agent-heavy` seed; they have no security value
 and the HTTP host binds only to `127.0.0.1`.
@@ -140,6 +140,16 @@ section-bearing pages it includes the sections there. Omit `position` to append,
 beyond the current end to insert at the end. For example, `position: 0` inserts before the first
 placement. The insertion and renumbering happen as one `projects.write` operation.
 
+`move_section` uses the same combined order and returns `{ section, undo }`; `update_section`
+returns that envelope for title, config, collapse and span changes. An unchanged update, or a move
+clamped to the section's current position, returns the current section with `undo: null`. Hold the returned `undo.undoId` and pass it
+to `undo_operation` once; add Undo removes only the created section, move Undo restores its
+surviving neighbours, and update Undo restores only the fields recorded by that update. Receipts
+carry an opaque sequence for ordering, not inverse data. Automatic Reflections/Tasks container
+creation is intentionally receipt-free. Refusals use the reason tokens in the table under
+[Undoing a section removal](#undoing-a-section-removal); an edit conflict's repair is to use the
+later receipt or make the change again by hand, never Archive.
+
 ### Say which kind of project, and which page
 
 `create_project` takes a required `kind`. A **root** is a workspace: it starts with a Home page
@@ -196,7 +206,7 @@ independently archived work archived.
 ### Undoing a section removal
 
 `remove_section` (`projects.write`) returns `{ section, undo }`: an archived-shaped final
-section snapshot and a receipt `{ undoId, operation, label, createdAt, expiresAt }`. A
+section snapshot and a receipt `{ undoId, operation, sequence, label, createdAt, expiresAt }`. A
 disposable section may already be absent from storage; the response snapshot is not evidence it
 remains there. Pass `undoId` to `undo_operation` (`projects.write`) to reverse that removal —
 the section returns between the neighbours it left (Archive Restore appends instead), with

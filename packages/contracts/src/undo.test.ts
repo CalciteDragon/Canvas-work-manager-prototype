@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   SectionRemovalResultSchema,
   SectionAlreadyRemovedDetailsSchema,
+  SectionAddResultSchema,
+  SectionAddUndoOperationSchema,
+  SectionMoveUndoOperationSchema,
+  SectionUpdateUndoOperationSchema,
+  SectionWriteResultSchema,
   SectionRemoveUndoOperationSchema,
   UndoInputSchema,
   UndoOperationSchema,
@@ -95,6 +100,36 @@ const record = {
   operation: viewOperation,
 };
 
+const addOperation = {
+  version: 1,
+  type: 'section.add',
+  section: section('rich-text', { title: undefined, config: { text: 'Draft' } }),
+};
+
+const moveOperation = {
+  version: 1,
+  type: 'section.move',
+  sectionId: 'section-1',
+  projectId: 'project-a',
+  pageId: 'page-a',
+  placementBefore: placement,
+  placementAfter: { pageId: 'page-a', previous: { kind: 'section', id: 'section-2' }, index: 2 },
+};
+
+const updateOperation = {
+  version: 1,
+  type: 'section.update',
+  sectionId: 'section-1',
+  projectId: 'project-a',
+  pageId: 'page-a',
+  changes: [
+    { field: 'title', before: '', after: null },
+    { field: 'config', before: { text: 'old' }, after: { text: 'new' } },
+    { field: 'collapsed', before: false, after: true },
+    { field: 'columnSpan', before: 12, after: 6 },
+  ],
+};
+
 describe('SectionRemoveUndoOperationSchema', () => {
   it.each([
     ['none', viewOperation],
@@ -104,7 +139,7 @@ describe('SectionRemoveUndoOperationSchema', () => {
     const parsed = UndoOperationSchema.parse(operation);
 
     expect(parsed).toEqual(operation);
-    expect(parsed.section.config).toEqual({ milestoneIds: ['milestone-1'] });
+    if (parsed.type === 'section.remove') expect(parsed.section.config).toEqual({ milestoneIds: ['milestone-1'] });
   });
 
   it.each([
@@ -135,6 +170,28 @@ describe('SectionRemoveUndoOperationSchema', () => {
   });
 });
 
+describe('section add, move and update operation variants', () => {
+  it('round-trips strict version-1 operations and preserves a legacy title before value', () => {
+    expect(SectionAddUndoOperationSchema.parse(addOperation)).toEqual(addOperation);
+    expect(SectionMoveUndoOperationSchema.parse(moveOperation)).toEqual(moveOperation);
+    expect(SectionUpdateUndoOperationSchema.parse(updateOperation)).toEqual(updateOperation);
+    expect(UndoOperationSchema.parse(addOperation).type).toBe('section.add');
+    expect(UndoOperationSchema.parse(moveOperation).type).toBe('section.move');
+    expect(UndoOperationSchema.parse(updateOperation).type).toBe('section.update');
+  });
+
+  it.each([
+    ['an add with an archived snapshot', { ...addOperation, section: section('progress', { archivedAt: AT }) }],
+    ['a move on another page', { ...moveOperation, placementAfter: { ...moveOperation.placementAfter, pageId: 'page-b' } }],
+    ['an update with duplicate fields', { ...updateOperation, changes: [...updateOperation.changes, updateOperation.changes[0]] }],
+    ['an update with no fields', { ...updateOperation, changes: [] }],
+    ['an update with an unknown field', { ...updateOperation, changes: [{ field: 'position', before: 0, after: 1 }] }],
+    ['an operation with an extra key', { ...addOperation, extra: true }],
+  ])('rejects %s', (_, operation) => {
+    expect(UndoOperationSchema.safeParse(operation).success).toBe(false);
+  });
+});
+
 describe('UndoRecordSchema', () => {
   it('accepts user, agent and system records under the activity attribution rule', () => {
     expect(UndoRecordSchema.parse(record).actor).toBe('user');
@@ -160,11 +217,11 @@ describe('UndoRecordSchema', () => {
 });
 
 describe('UndoReceiptSchema', () => {
-  const receipt = { undoId: 'undo-1', operation: 'section.remove', label: 'Remove', createdAt: AT, expiresAt: LATER };
+  const receipt = { undoId: 'undo-1', operation: 'section.remove', sequence: 1, label: 'Remove', createdAt: AT, expiresAt: LATER };
 
   it('is strict and carries no operation, actor or row data', () => {
     expect(UndoReceiptSchema.parse(receipt)).toEqual(receipt);
-    expect(Object.keys(UndoReceiptSchema.shape).sort()).toEqual(['createdAt', 'expiresAt', 'label', 'operation', 'undoId']);
+    expect(Object.keys(UndoReceiptSchema.shape).sort()).toEqual(['createdAt', 'expiresAt', 'label', 'operation', 'sequence', 'undoId']);
     expect(UndoReceiptSchema.safeParse({ ...receipt, actor: 'user' }).success).toBe(false);
     expect(UndoReceiptSchema.safeParse({ ...receipt, rows: [] }).success).toBe(false);
   });
@@ -173,6 +230,10 @@ describe('UndoReceiptSchema', () => {
     expect(SectionRemovalResultSchema.parse({ section: section('progress', { archivedAt: AT }), undo: receipt }).undo).toEqual(
       receipt,
     );
+  });
+
+  it.each(['section.add', 'section.move', 'section.update'] as const)('accepts a %s receipt', (operation) => {
+    expect(UndoReceiptSchema.parse({ ...receipt, operation }).operation).toBe(operation);
   });
 });
 
@@ -194,6 +255,22 @@ describe('UndoInputSchema and UndoResultSchema', () => {
     expect(UndoResultSchema.parse(result)).toEqual(result);
     expect(UndoResultSchema.safeParse({ ...result, outcome: 'redone' }).success).toBe(false);
   });
+
+  it('discriminates the add result without inventing a live section', () => {
+    const result = {
+      undoId: 'undo-1', operation: 'section.add', outcome: 'removed',
+      sectionId: 'section-1', projectId: 'project-a', pageId: 'page-a',
+    };
+    expect(UndoResultSchema.parse(result)).toEqual(result);
+    expect(SectionAddResultSchema.parse({ section: section('progress'), undo: { undoId: 'undo-1', operation: 'section.add', sequence: 1, label: 'Add', createdAt: AT, expiresAt: LATER } }).undo.operation).toBe('section.add');
+  });
+
+  it('parses shared update and move forward results with a nullable no-op receipt', () => {
+    const undo = { undoId: 'undo-1', operation: 'section.update', sequence: 1, label: 'Update', createdAt: AT, expiresAt: LATER } as const;
+    expect(SectionWriteResultSchema.parse({ section: section('progress'), undo: null }).undo).toBeNull();
+    expect(SectionWriteResultSchema.parse({ section: section('progress'), undo }).undo?.operation).toBe('section.update');
+    expect(SectionWriteResultSchema.parse({ section: section('progress'), undo: { ...undo, operation: 'section.move' } }).undo?.operation).toBe('section.move');
+  });
 });
 
 describe('UndoRefusalDetailsSchema', () => {
@@ -211,6 +288,15 @@ describe('UndoRefusalDetailsSchema', () => {
           problem: 'superseded',
           nextStep: 'use-later-receipt-or-archive',
         },
+      ],
+    },
+    {
+      reason: 'undo_conflict',
+      undoId: 'undo-1',
+      conflicts: [
+        { entityType: 'section', id: 'section-1', problem: 'field-changed', nextStep: 'use-later-receipt-or-archive' },
+        { entityType: 'shortcut', id: 'shortcut-1', problem: 'shortcut-reference', nextStep: 'remove-reference-and-retry' },
+        { entityType: 'section', id: 'section-1', problem: 'archived-subject', nextStep: 'restore-state-and-retry' },
       ],
     },
     { reason: 'undo_blocked', undoId: 'undo-1', blockingProjectId: 'project-a', blockingProjectTitle: 'Kitchen' },
@@ -251,6 +337,7 @@ describe('UndoRefusalDetailsSchema', () => {
     const removalReceipt = {
       undoId: 'undo-1',
       operation: 'section.remove',
+      sequence: 1,
       label: 'Removed the Backlog section',
       createdAt: AT,
       expiresAt: LATER,

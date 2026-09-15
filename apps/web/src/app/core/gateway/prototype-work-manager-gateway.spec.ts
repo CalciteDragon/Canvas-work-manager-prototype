@@ -62,7 +62,7 @@ const projectSection = {
 const removalResult = SectionRemovalResultSchema.parse({
   section: { ...projectSection, archivedAt: at },
   undo: {
-    undoId: 'undo-1', operation: 'section.remove', label: 'Removed Kickoff', createdAt: at,
+    undoId: 'undo-1', operation: 'section.remove', sequence: 1, label: 'Removed Kickoff', createdAt: at,
     expiresAt: '2026-08-02T16:00:00.000Z',
   },
 });
@@ -401,7 +401,10 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
   });
 
   it('creates with a JSON body and accepts 201', async () => {
-    fetchMock.mockImplementation(jsonResponse(projectSection, 201));
+    fetchMock.mockImplementation(jsonResponse({
+      section: projectSection,
+      undo: { undoId: 'undo-add', operation: 'section.add', sequence: 2, label: 'Add rich-text', createdAt: at, expiresAt: '2026-08-02T16:00:00.000Z' },
+    }, 201));
 
     await gateway().sections.create('project-1' as ProjectId, { type: 'rich-text', config: { text: '' } });
 
@@ -411,28 +414,37 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
   });
 
   it('updates through PATCH, addressing the section directly', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...projectSection, collapsed: true }));
+    fetchMock.mockImplementation(jsonResponse({
+      section: { ...projectSection, collapsed: true },
+      undo: { undoId: 'undo-update', operation: 'section.update', sequence: 3, label: 'Update section-1', createdAt: at, expiresAt: '2026-08-02T16:00:00.000Z' },
+    }));
 
     const updated = await gateway().sections.update('section-1' as SectionId, { collapsed: true });
 
     expect(lastCall().url).toBe('http://host.test/api/sections/section-1');
     expect(lastCall().init.method).toBe('PATCH');
-    expect(updated.collapsed).toBe(true);
+    expect(updated.section.collapsed).toBe(true);
   });
 
   it('moves through the dedicated route and validates the authoritative section (§32)', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...projectSection, position: 2 }));
+    fetchMock.mockImplementation(jsonResponse({
+      section: { ...projectSection, position: 2 },
+      undo: { undoId: 'undo-move', operation: 'section.move', sequence: 4, label: 'Move section-1', createdAt: at, expiresAt: '2026-08-02T16:00:00.000Z' },
+    }));
 
     const moved = await gateway().sections.move('section-1' as SectionId, { position: 2 });
 
     expect(lastCall().url).toBe('http://host.test/api/sections/section-1/move');
     expect(lastCall().init.method).toBe('POST');
     expect(JSON.parse(lastCall().init.body as string)).toEqual({ position: 2 });
-    expect(moved.position).toBe(2);
+    expect(moved.section.position).toBe(2);
   });
 
   it('rejects a moved section body outside the shared contract', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...projectSection, position: -1 }));
+    fetchMock.mockImplementation(jsonResponse({
+      section: { ...projectSection, position: -1 },
+      undo: null,
+    }));
 
     await expect(gateway().sections.move('section-1' as SectionId, { position: 1 })).rejects.toBeInstanceOf(
       GatewayError,
@@ -477,7 +489,10 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
   });
 
   it('rejects a section body that is not its contract (§11)', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...projectSection, columnSpan: 7 }));
+    fetchMock.mockImplementation(jsonResponse({
+      section: { ...projectSection, columnSpan: 7 },
+      undo: null,
+    }));
 
     await expect(gateway().sections.update('section-1' as SectionId, { columnSpan: 6 })).rejects.toBeInstanceOf(
       GatewayError,

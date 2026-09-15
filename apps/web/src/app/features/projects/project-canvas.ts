@@ -408,7 +408,7 @@ export class ProjectCanvas {
   async undoFromNotice(): Promise<void> {
     const projectId = this.projectId();
     const pageId = this.pageId();
-    const result = await this.store.undoSectionRemoval();
+    const result = await this.store.undoOperation();
     if (this.projectId() !== projectId || this.pageId() !== pageId) return;
     if (result === null) {
       const notice = this.store.undoNotice();
@@ -423,7 +423,12 @@ export class ProjectCanvas {
     if (notice?.kind !== 'result' || notice.result !== result) return;
     afterNextRender(() => {
       if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.undoNotice() !== notice) return;
-      const restoredTitle = result.placement.pageId === pageId
+      const restoredPageId = result.operation === 'section.remove' || result.operation === 'section.move'
+        ? result.placement.pageId
+        : result.operation === 'section.update'
+          ? result.section.pageId
+          : null;
+      const restoredTitle = restoredPageId === pageId && result.operation !== 'section.add'
         ? this.findSectionElement(result.section.id)?.querySelector<HTMLElement>('[data-section-title]')
         : null;
       if (restoredTitle !== null && restoredTitle !== undefined) restoredTitle.focus();

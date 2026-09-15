@@ -8,6 +8,8 @@ import {
   ProjectCompletedWorkResultSchema,
   type ProjectId,
   type ProjectPageId,
+  type UndoRecordId,
+  type UndoReceipt,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
@@ -78,6 +80,14 @@ const journal = ProjectJournalResultSchema.parse({
   }],
 });
 const completedWork = ProjectCompletedWorkResultSchema.parse({ projectId: PROJECT, candidates: [subject] });
+const addReceipt: UndoReceipt = {
+  undoId: 'undo-reflections-page-add' as UndoRecordId,
+  operation: 'section.add',
+  sequence: 1,
+  label: 'Add reflections',
+  createdAt: AT,
+  expiresAt: '2026-09-06T10:00:00.000Z',
+};
 
 const render = async (options: { withSection?: boolean; onData?: () => void } = {}) => {
   const gateway = new FakeWorkManagerGateway({
@@ -156,7 +166,7 @@ describe('ReflectionsPage (§36)', () => {
     expect(query(fixture, '[data-reflections-no-container]')).not.toBeNull();
     expect(query(fixture, '[data-reflections-empty]')).toBeNull();
 
-    gateway.sections.create = vi.fn(async (_projectId, input) => ({ ...section, ...input }));
+    gateway.sections.create = vi.fn(async (_projectId, input) => ({ section: { ...section, ...input }, undo: addReceipt }));
     (query(fixture, '[data-reflections-add-container]') as HTMLButtonElement).click();
     await fixture.whenStable();
 

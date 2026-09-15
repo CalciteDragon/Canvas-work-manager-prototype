@@ -168,8 +168,14 @@ const nextStepFor = (
     case 'missing':
       return 'nothing-to-restore';
     case 'moved':
+    case 'page-changed':
     case 'reparented':
       return 'move-back-and-retry';
+    // Edit-only problems: a removal inverse never produces them, but the union is shared.
+    case 'field-changed':
+    case 'archived-subject':
+    case 'shortcut-reference':
+      return 'use-later-receipt-or-archive';
     case 'archive-state-changed':
       return expectedLive ? 'restore-state-and-retry' : 'use-later-receipt-or-archive';
     case 'new-dependent':
@@ -200,6 +206,10 @@ const conflictNextStepText = (nextStep: UndoConflictNextStep): string => {
       return 'restore or move the dependent item to its recorded state, then retry Undo';
     case 'use-later-receipt-or-archive':
       return 'use the later receipt if available, or recover retained content from Archive';
+    case 'remove-reference-and-retry':
+      return 'remove the reference or dependent item, then retry Undo';
+    case 'use-later-receipt':
+      return 'use the later receipt if available, or make the change again by hand';
     case 'nothing-to-undo':
       return 'there is nothing left to undo';
     case 'nothing-to-restore':

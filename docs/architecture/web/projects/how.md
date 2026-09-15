@@ -21,13 +21,20 @@
    when Home's combined section/shortcut order could not be fully read. Writes go through
    the gateway behind the store's in-flight guards. A refused removal with
    `section_not_empty` details opens the existing cascade/reassign dialog. A successful
-   removal stores its server receipt in the current `ProjectPageStore` before refreshing,
-   so an unavailable refresh does not lose Undo. `SectionUndoNotice` offers the receipt
-   action, typed refusal guidance, Archive access and a read-only refresh retry. If a remove
+   explicit add, update, move or removal stores its server receipt in the current
+   `ProjectPageStore` before refreshing, and the sequence high-water mark ignores stale
+   responses. `SectionUndoNotice` offers the operation's receipt action, typed refusal guidance,
+   Archive access only for removal and a read-only refresh retry, including after a committed
+   add or move whose follow-up read failed. An Undo response that lands after a newer receipt
+   was captured reconciles without replacing that notice. `ReflectionsPageStore` captures the
+   explicit container add's receipt by the same sequence rule; its Undo refreshes the container
+   and returns the page to the empty-container prompt. The notice is fixed at the viewport's end
+   corner rather than placed in flow, because each blur save, resize or move can offer one. If a remove
    response is uncertain and a live frame has already removed the section, the store keeps
    the exact removal input and exposes an explicit Retry remove. Neither path guesses
    retention or reconstructs inverse state. Leaving the page/project clears this local notice.
-   Angular `@defer` loads the create dialog, removal dialog and Undo notice when needed; the
+   Angular `@defer` loads the create dialog, removal dialog and Undo notice when needed (on the
+   canvas and the Reflections page); the
    Archive page loads `ArchivedRegion` after its read completes. These boundaries keep the
    eager route graph under the 1 MB initial-bundle error ceiling.
 5. Live frames: progress re-reads on any frame naming the project; the record on
@@ -112,7 +119,7 @@
 ```bash
 pnpm --filter web test -- projects      # the feature's specs
 pnpm storybook                          # ProjectCanvas, SectionUndoNotice, SectionCreateDialog, navigation, pages, shortcuts, archive list
-pnpm e2e                                # web, canvas editing/removal Undo, MCP, todos, archive, reflections
+pnpm e2e                                # web, canvas editing, removal and section edit Undo, MCP, todos, archive, reflections
 ```
 
 ## Changing it

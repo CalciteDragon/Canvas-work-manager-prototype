@@ -37,7 +37,7 @@ system. Dependencies flow downward on this list; the [what](what.md) page draws 
 - [repositories](repositories/overview.md) — `@cwm/repositories`: repository interfaces,
   the unit of work, and the JSON document store that implements them.
 - [mcp-tools](mcp-tools/overview.md) — `@cwm/mcp-tools`: the transport-free registry of
-  thirty-four tool definitions over the domain services.
+  thirty-five tool definitions over the domain services.
 - [prototype-data](prototype-data/overview.md) — `@cwm/prototype-data`: seeds, personas,
   agent tokens, the seed CLI and the one-off schema converter.
 - [prototype-host](prototype-host/overview.md) — `apps/prototype-host`: the Node process

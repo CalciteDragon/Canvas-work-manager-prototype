@@ -194,7 +194,7 @@ standalone connection matrix. Both processes still running. Full setup in
     `Authorization: Bearer prototype-user-a-readwrite`. Cursor reads `.cursor/mcp.json`; any
     client that takes JSON MCP configuration uses the same entry. The client connects and
     negotiates protocol `2026-07-28`.
-35. **Tool discovery.** Ask the client to list tools. Thirty-four come back, each with a
+35. **Tool discovery.** Ask the client to list tools. Thirty-five come back, each with a
     description and an input schema, and each advertising the permission it needs under
     `_meta["local.canvas-work-manager/requiredPermission"]` — plus the complete list under
     `_meta["local.canvas-work-manager/requiredPermissions"]`, which differs only for a derived

@@ -994,6 +994,7 @@ describe('SectionService.remove — Undo receipt', () => {
     expect(result.undo).toEqual({
       undoId: 'undo-1',
       operation: 'section.remove',
+      sequence: 1,
       label: 'Removed the Task List section',
       createdAt: SEED_NOW,
       expiresAt: '2026-08-25T16:00:00.000Z',
@@ -1002,7 +1003,9 @@ describe('SectionService.remove — Undo receipt', () => {
     const events = harness.store.snapshot().activityEvents.slice(eventsBefore);
     expect(events.map(({ action }) => action)).toEqual(['project.section_archived']);
     // The three live rows, not the one filed away beforehand.
-    expect(harness.store.snapshot().undoRecords[0]!.operation.rows.map(({ id }) => id)).toEqual([parent.id, first.id, second.id]);
+    const operation = harness.store.snapshot().undoRecords[0]!.operation;
+    if (operation.type !== 'section.remove') throw new Error('expected a section removal record');
+    expect(operation.rows.map(({ id }) => id)).toEqual([parent.id, first.id, second.id]);
   });
 
   it.each([
@@ -1014,8 +1017,10 @@ describe('SectionService.remove — Undo receipt', () => {
 
     await harness.sectionService.remove(harness.actor, section.id, { policy: 'reassign' });
 
-    expect(harness.store.snapshot().undoRecords[0]!.operation).toMatchObject({ appliedPolicy: 'none', rows: [] });
-    expect(harness.store.snapshot().undoRecords[0]!.operation).not.toHaveProperty('reassignToSectionId');
+    const operation = harness.store.snapshot().undoRecords.at(-1)!.operation;
+    if (operation.type !== 'section.remove') throw new Error('expected a section removal record');
+    expect(operation).toMatchObject({ appliedPolicy: 'none', rows: [] });
+    expect(operation).not.toHaveProperty('reassignToSectionId');
   });
 
   it('returns a receipt for a removal inside an archived project, which Undo blocks until reactivation', async () => {

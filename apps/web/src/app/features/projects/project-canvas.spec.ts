@@ -10,6 +10,7 @@ import {
   TaskSchema,
   type Project,
   type ProjectSection,
+  type SectionWriteResult,
   type ResolvedSectionShortcut,
   type SectionId,
   type ShortcutSource,
@@ -896,7 +897,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   });
 
   it('does not remount the new canvas when the page left behind rejects a move', async () => {
-    const gate = deferred<ProjectSection>();
+    const gate = deferred<SectionWriteResult>();
     const { fixture, gateway } = await render({
       sections: [
         section('section-text', 'rich-text', 0),

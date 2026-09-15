@@ -745,6 +745,38 @@
       "projectId": "project-renovation",
       "slice": 31,
       "note": "Automated real-browser acceptance on the nested-projects seed removed Home Progress, confirmed it disappeared from Archive, and Undo restored the same view and order. The browser journeys also covered blank Rich Text, durable Archive restore and reassignment Undo; HTTP and stdio MCP acceptance recovered a lost receipt and recreated a deleted view. No new product friction surfaced in this pass."
+    },
+    {
+      "id": "note-2026-09-15-001",
+      "createdAt": "2026-09-15T06:01:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 32,
+      "note": "Slice 32 notice size: after rename, blur save, resize or move on the Kitchen canvas the Undo notice now floats at the bottom-right corner, 640x128 px on a 1280x720 viewport. It no longer shifts the canvas (the in-flow version pushed everything down 96 px after an insert), but it covers a large corner, including end-edge resize handles, until dismissed. Worth trying a compact single-line form or auto-dismiss on the next canvas write."
+    },
+    {
+      "id": "note-2026-09-15-002",
+      "createdAt": "2026-09-15T06:02:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 32,
+      "note": "Slice 32 notice copy is vague for edits: \"Section updated\" and \"Undo restored Rich Text.\" do not say which field changed or came back (title, notes, width); after a resize Undo the only confirmation is the width snapping back. The expiry line shows a raw ISO instant."
+    },
+    {
+      "id": "note-2026-09-15-003",
+      "createdAt": "2026-09-15T06:03:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 32,
+      "note": "Slice 32 interleaving: user blur-saved Notes, an agent over real MCP replaced the same config, and browser Undo refused safely with the agent text kept. But the person sees the raw \"undo_conflict: ... [section-id]\" server sentence, the Undo button stays enabled although retrying can never succeed for a superseded receipt, and \"use the later Undo receipt\" points at a receipt only the agent holds."
+    },
+    {
+      "id": "note-2026-09-15-004",
+      "createdAt": "2026-09-15T06:04:00.000Z",
+      "route": "/projects/project-39ba6abf/pages/reflections",
+      "projectId": "project-39ba6abf",
+      "slice": 32,
+      "note": "Slice 32 Reflections page: Add container then Undo returned the empty prompt with focus on the notice. After authoring a reflection, Undo was refused and the reflection kept, but the step reads \"remove the reference or dependent item, then retry Undo\", which invites deleting authored work just to undo an empty-container add. For add Undo the better advice is probably that the container is now in use and there is nothing to undo."
     }
   ]
 }

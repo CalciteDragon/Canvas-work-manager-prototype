@@ -46,6 +46,8 @@ import type {
   UpdateTaskInput,
   RemoveSectionInput,
   SectionRemovalResult,
+  SectionAddResult,
+  SectionWriteResult,
   UndoRecordId,
   UndoResult,
 } from '@cwm/contracts';
@@ -168,9 +170,9 @@ export interface SectionGateway {
    * and what the canvas keeps wanting for the root Archive projection after that.
    */
   list(projectId: ProjectId, query?: Omit<SectionQuery, 'projectId'>): Promise<ProjectSection[]>;
-  create(projectId: ProjectId, input: CreateSectionInput): Promise<ProjectSection>;
-  update(id: SectionId, input: UpdateSectionInput): Promise<ProjectSection>;
-  move(id: SectionId, input: MoveSectionInput): Promise<ProjectSection>;
+  create(projectId: ProjectId, input: CreateSectionInput): Promise<SectionAddResult>;
+  update(id: SectionId, input: UpdateSectionInput): Promise<SectionWriteResult>;
+  move(id: SectionId, input: MoveSectionInput): Promise<SectionWriteResult>;
   duplicate(id: SectionId): Promise<ProjectSection>;
   /** Removes or retains the section according to content and references, and returns its Undo receipt. */
   remove(id: SectionId, input?: RemoveSectionInput): Promise<SectionRemovalResult>;

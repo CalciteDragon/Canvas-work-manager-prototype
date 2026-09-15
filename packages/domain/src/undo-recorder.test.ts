@@ -67,6 +67,7 @@ describe('RepositoryUndoRecorder', () => {
     expect(receipt).toEqual({
       undoId: 'undo-1',
       operation: 'section.remove',
+      sequence: 1,
       label: 'Removed section-a',
       createdAt: SEED_NOW,
       expiresAt,

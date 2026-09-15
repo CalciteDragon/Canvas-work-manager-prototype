@@ -1,4 +1,4 @@
-import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type PrototypeDocument, type SectionId, type UserId, type WorkspaceId } from '@cwm/contracts';
+import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type PrototypeDocument, type SectionId, type SectionRemovalUndoResult, type UserId, type WorkspaceId } from '@cwm/contracts';
 import { PERSONAS, SEED_NOW } from '@cwm/prototype-data';
 import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonSectionShortcutRepository, JsonTaskRepository, JsonUndoRecordRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
 import type { ActorContext } from '../src/actor';
@@ -193,6 +193,27 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
   const undoRecorder = options.recorder?.(realRecorder) ?? realRecorder;
   const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, undo: undoRecorder, clock, ids, unitOfWork });
   const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
+  /**
+   * The pre-Slice-32 domain tests use the section itself as the return value. Keep that small
+   * fixture convention isolated while production callers exercise the typed write envelopes
+   * through `sectionWriteService`; this prevents hundreds of archive/ownership assertions from
+   * obscuring the new receipt-focused tests.
+   */
+  const legacySectionService = Object.create(sectionService) as Omit<SectionService, 'add' | 'update' | 'move'> & {
+    add: (...args: Parameters<SectionService['add']>) => Promise<ProjectSection>;
+    update: (...args: Parameters<SectionService['update']>) => Promise<ProjectSection>;
+    move: (...args: Parameters<SectionService['move']>) => Promise<ProjectSection>;
+  };
+  legacySectionService.add = async (...args) => (await sectionService.add(...args)).section;
+  legacySectionService.update = async (...args) => (await sectionService.update(...args)).section;
+  legacySectionService.move = async (...args) => (await sectionService.move(...args)).section;
+
+  const undoService = new UndoService({ undoRecords, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork });
+  /** See `legacySectionService`: existing removal tests only exercise the removal result shape. */
+  const legacyUndoService = Object.create(undoService) as Omit<UndoService, 'undo'> & {
+    undo: (...args: Parameters<UndoService['undo']>) => Promise<SectionRemovalUndoResult>;
+  };
+  legacyUndoService.undo = async (...args) => (await undoService.undo(...args)) as SectionRemovalUndoResult;
 
   return {
     store,
@@ -222,9 +243,11 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     timelineService: new TimelineService({ projects, tasks, milestones }),
     reflectionService: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
     projectJournalService: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
-    sectionService,
+    sectionService: legacySectionService,
     sectionShortcutService,
     workspaceService: new WorkspaceService({ projects, tasks, reflections, clock }),
-    undoService: new UndoService({ undoRecords, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
+    undoService: legacyUndoService,
+    sectionWriteService: sectionService,
+    undoServiceWithEdits: undoService,
   };
 };

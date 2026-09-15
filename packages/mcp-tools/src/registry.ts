@@ -42,6 +42,7 @@ export const SPEC_TOOL_NAMES = [
   'restore_reflection',
   'list_sections',
   'create_section',
+  'move_section',
   'update_section',
   'remove_section',
   'restore_section',

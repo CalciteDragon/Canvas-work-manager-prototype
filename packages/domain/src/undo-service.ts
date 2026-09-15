@@ -14,6 +14,7 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { EntityNotFoundError, undoRefusal } from './errors';
 import { executeSectionRemovalUndo } from './section-removal-undo';
+import { executeSectionAddUndo, executeSectionMoveUndo, executeSectionUpdateUndo } from './section-edit-undo';
 import { undoRecordBelongsToActor } from './undo-recorder';
 
 /** Repository interfaces, `ActivityService` and a clock — deliberately no section, task or reflection service. */
@@ -66,14 +67,16 @@ export class UndoService {
       if (record.consumedAt !== undefined) {
         throw undoRefusal(
           { reason: 'undo_consumed', undoId: record.id, consumedAt: record.consumedAt },
-          `this removal was already undone at ${record.consumedAt}`,
+          `this ${OPERATION_NOUN[record.operation.type]} was already undone at ${record.consumedAt}`,
         );
       }
       const now = clock.now();
       if (now.getTime() >= Date.parse(record.expiresAt)) {
         throw undoRefusal(
           { reason: 'undo_expired', undoId: record.id, expiresAt: record.expiresAt },
-          `this Undo expired at ${record.expiresAt}; Archive can still restore the section`,
+          record.operation.type === 'section.remove'
+            ? `this removal Undo expired at ${record.expiresAt}; Archive can still restore the section`
+            : `this ${OPERATION_NOUN[record.operation.type]} Undo expired at ${record.expiresAt}; make the change again by hand instead`,
         );
       }
 
@@ -81,11 +84,11 @@ export class UndoService {
 
       await undoRecords.update(UndoRecordSchema.parse({ ...record, consumedAt: now.toISOString() }));
       await activity.record(actor, {
-        action: 'project.section_removal_undone',
+        action: activityActionFor(record.operation.type),
         entityType: 'project',
         entityId: record.projectId,
         projectId: record.projectId,
-        summary: `Undid removing the ${nameOf(result.section)} section`,
+        summary: undoSummary(record, result),
       });
       return result;
     });
@@ -97,10 +100,57 @@ export class UndoService {
     switch (operation.type) {
       case 'section.remove':
         return executeSectionRemovalUndo(this.dependencies, this.dependencies.clock, record, operation);
+      case 'section.add':
+        return executeSectionAddUndo(this.dependencies, this.dependencies.clock, record, operation);
+      case 'section.move':
+        return executeSectionMoveUndo(this.dependencies, this.dependencies.clock, record, operation);
+      case 'section.update':
+        return executeSectionUpdateUndo(this.dependencies, this.dependencies.clock, record, operation);
       default: {
-        const unknown: never = operation.type;
+        const unknown: never = operation;
         throw new TypeError(`no Undo executor for "${String(unknown)}"`);
       }
     }
   }
 }
+
+/** How refusal text names each operation, so a removal still reads "this removal". */
+const OPERATION_NOUN: Record<UndoRecord['operation']['type'], string> = {
+  'section.remove': 'removal',
+  'section.add': 'section addition',
+  'section.move': 'section move',
+  'section.update': 'section settings update',
+};
+
+const activityActionFor = (operation: UndoRecord['operation']['type']):
+  | 'project.section_removal_undone'
+  | 'project.section_addition_undone'
+  | 'project.section_move_undone'
+  | 'project.section_update_undone' => {
+  switch (operation) {
+    case 'section.remove': return 'project.section_removal_undone';
+    case 'section.add': return 'project.section_addition_undone';
+    case 'section.move': return 'project.section_move_undone';
+    case 'section.update': return 'project.section_update_undone';
+    default: {
+      const unknown: never = operation;
+      throw new TypeError(`no activity action for ${String(unknown)}`);
+    }
+  }
+};
+
+const undoSummary = (record: UndoRecord, result: UndoResult): string => {
+  switch (result.operation) {
+    case 'section.add': {
+      const operation = record.operation.type === 'section.add' ? record.operation : undefined;
+      return `Undid adding the ${operation === undefined ? 'section' : nameOf(operation.section)} section`;
+    }
+    case 'section.remove': return `Undid removing the ${nameOf(result.section)} section`;
+    case 'section.move': return `Undid moving the ${nameOf(result.section)} section`;
+    case 'section.update': return `Undid updating the ${nameOf(result.section)} section`;
+    default: {
+      const unknown: never = result;
+      throw new TypeError(`no Undo summary for ${String(unknown)}`);
+    }
+  }
+};

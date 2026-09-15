@@ -1,4 +1,4 @@
-<!-- plan id="32" status="active" summary="Extend typed operation Undo to section add, move and settings updates" -->
+<!-- completed-record id="32" closed="2026-09-15" summary="Explicit section add, move and settings writes return typed Undo receipts that reverse only their own changes across HTTP, MCP and the canvas" -->
 # Slice 32 — Section creation, movement and settings Undo
 
 ## Goal
@@ -30,10 +30,8 @@ Failing tests first cover each explicit action and no-op, exact field restoratio
 
 ## Planning status
 
-Activated for implementation planning only, at the user's request. Slice 31 is complete.
-This change writes and reviews the plan; runtime implementation, TDD and real-use acceptance
-remain future work. Do not close the slice on the strength of plan review.
-Independent review is complete after two rounds, with no substantive findings remaining.
+Implemented, reviewed, verified in real use and closed. The plan was reviewed over two rounds
+before implementation; the implementation review is recorded under Revisions and the Outcome.
 
 ## Implementation design and operation boundaries
 
@@ -341,3 +339,84 @@ re-slice and review that scope instead of quietly adding it.
   files absent. `node scripts/roadmap.mjs check` passed. `pnpm docs:check` passed (18 system
   folders, 197 documents) after running with access to linked dependencies; the sandboxed
   attempt could not read Mermaid's package. No runtime source was changed or feature tests run.
+- **Implementation review, 2026-09-15:** Implementation had paused before its review step with
+  two failing web store tests. A first review by the closing agent found and fixed: the lost
+  `already-removed` notice kind; a compatibility alias and a duplicated `sameValue`; fake page
+  objects and a malformed fallback section in edit conflict messages; one conflict per changed
+  field; missing Reflections-page focus after Undo; and large test gaps (forward recorder
+  rollback per family, add/update/move conflict rules, actor scope, removal-only receipt
+  recovery, store sequence ordering, the pending-write guard and Reflections-page Undo). Tests
+  for existing behaviour were written after the implementation; the new ordering test was
+  confirmed to fail with its guard disabled. Two independent subagents then reviewed the diff.
+  The correctness reviewer found a slow Undo response overwriting a newer receipt, edit refusals
+  pointing to Archive, no Retry refresh after a committed add/move whose read failed, a false
+  refresh failure on a queued Reflections read, and duplicate conflict keys; all verified and
+  fixed. Its remaining untested-case list is partly addressed (listed as deferred below). The
+  boundaries/docs reviewer found no boundary violation and 13 stale or missing documentation
+  items, all fixed. Running the acceptance checks exposed a stale MCP acceptance baseline, the
+  build over the 1 MB error ceiling, and the in-flow notice shifting the canvas.
+
+## Outcome
+
+**Deliverables.** Explicit section add, move and settings updates now commit one strict
+version-1 Undo record, one activity event and one live frame atomically with the write, and return
+`{ section, undo }` (`undo: null` for a true no-op) across the domain, HTTP, MCP and the gateway.
+`move_section` is the registry's 35th tool. `undo_operation` removes an added section only while
+nothing references or has changed it, restores only an update's recorded fields, and restores a
+move between its surviving neighbours in the combined section/shortcut order; overlapping newer
+writes refuse without mutation and disjoint edits survive. The canvas and the Reflections page's
+explicit Add container share an operation-neutral `SectionUndoNotice` that picks the newest
+receipt by server `sequence`. See [SectionService](../../../packages/domain/src/section-service.ts),
+[section-edit-undo.ts](../../../packages/domain/src/section-edit-undo.ts),
+[UndoService](../../../packages/domain/src/undo-service.ts),
+[the section tools](../../../packages/mcp-tools/src/tools/sections.ts),
+[ProjectPageStore](../../../apps/web/src/app/features/projects/project-page-store.ts) and
+[ReflectionsPageStore](../../../apps/web/src/app/features/projects/pages/reflections-page-store.ts).
+
+**Verification and real use.** `pnpm test` passed (703 web, 568 domain, 252 contracts, 190 host,
+150 MCP tools, 140 repositories, 100 prototype-data tests); `pnpm lint` and `pnpm docs:check`
+passed; `pnpm build` measured a 994.14 kB initial bundle under the unchanged 1 MB error ceiling.
+Host HTTP acceptance, MCP acceptance over Streamable HTTP and stdio, and all 24 Playwright
+journeys in the plan's list passed. With `pnpm dev:host` and `pnpm dev:web` started separately on
+`nested-projects`, the Kitchen work canvas exercised rename, keyboard resize and keyboard move
+with Undo, and a user blur save followed by an overlapping agent edit over a real MCP client
+(refused, agent text kept). A new root's Reflections page exercised add, Undo, and a refused add
+Undo after a reflection was authored. The browser pane was hidden, so keyboard input went through
+dispatched events rather than real key presses; pointer drag, snapped pointer resize and failure
+injection were covered by the Playwright journeys, not by hand. Four friction notes are in
+[`.prototype/notes.json`](../../../.prototype/notes.json).
+
+**Deliberate choices.** Edit refusals never name Archive (a new `use-later-receipt` step); the
+notice floats at the viewport's end corner instead of pushing the canvas down; an Undo response
+landing after a newer receipt leaves that notice alone; and `@cwm/contracts` declares
+`"sideEffects": false` to stay under the bundle ceiling. See the dated amendments to the
+[edit boundaries decision](../../decisions/2026-09-section-edit-undo-boundaries.md) and the
+[bundle budget decision](../../decisions/2026-08-initial-bundle-budget.md). Rejected: narrowing
+the removal conflict helper's problem type, which spread through its callers for no behavioural
+gain.
+
+**Deviations from the plan.** Routes needed no change (results pass through). The notice's
+position, the contracts package's bundler flag, the Reflections page `@defer`, and two
+`canvas-editing.spec.ts` journeys dismissing the floating notice before pointer drags were not in
+the file list; each came from acceptance evidence. Domain tests use a harness wrapper that keeps
+older tests on the bare-section return shape.
+
+**Deferred.** Test cases the implementation reviewer listed and this slice did not add: a
+missing-page refusal through repository doubles, update/move of an archived or page-changed
+subject, an archived-ancestor block, a shortcut as the previous neighbour, mixed-family pruning,
+per-family system-actor and foreign-workspace Undo, Undo-time persistence rollback, gateway
+refusal parsing for edit results, canvas/frame focus specs per result type, and browser journeys
+on a nested canvas with pointer drag. Slice 33's integrated refactor acceptance is the natural
+home. Notice size and copy, raw server conflict text in the browser, and add-Undo guidance that
+suggests deleting authored work are recorded as friction, not changed.
+
+**Open questions.** Should the notice stay a floating corner status (it can cover content until
+dismissed) or become something smaller, such as a single line or auto-dismiss on the next write?
+Should a superseded receipt disable its Undo button, since a retry cannot succeed?
+
+**Documentation updated.** Main specification §§32 and 54; AGENTS.md; contracts, domain, mcp-tools,
+prototype-host api and live-updates, web core and projects, and testing architecture folders; the
+MCP setup and first-milestone guides; the edit-boundaries, removal-records, disposable-removal and
+bundle-budget decisions and the decision index; this plan, goals and the generated board; the
+dev-panel slice marker and real-use notes.
+

@@ -49,8 +49,11 @@
 - **No workspace id on the wire**; scoping happens in the hub.
 - **A no-op announces nothing**, because it records nothing.
 - **Undo adds no frame of its own.** A retained section removal publishes `project.section_archived`,
-  a safely deleted disposable publishes `project.section_removed`, and Undo publishes
-  `project.section_removal_undone`; each operation publishes only its one activity frame. The Undo
+  a safely deleted disposable publishes `project.section_removed`, explicit add, move and settings
+  writes publish their usual one frame (a no-op publishes none), and Undo publishes one of
+  `project.section_removal_undone`, `project.section_addition_undone`,
+  `project.section_move_undone` or `project.section_update_undone`; each operation publishes only
+  its one activity frame. The Undo
   record and its snapshot never reach a frame. `live-updates.test.ts` pins the deleted-removal
   frame, Undo, and that a removal whose persistence fails delivers nothing and keeps no record;
   `section-service.test.ts` pins the retained-removal action at the domain.

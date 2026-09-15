@@ -160,3 +160,11 @@ details and MCP text expose receipt fields but never inverse data. The browser h
 receipt only in the current canvas session, with Undo, explicit retry after a lost response, and
 typed conflict guidance. Reload, leaving the page/project or changing persona clears that local
 action. Existing version-3 storage and the 24-hour/50-record bounds remain unchanged.
+
+**Amended, 2026-09-14 — Slice 32 extends the same recorder, not removal's guarantees.** The
+version-1 union now also stores explicit add, move and field-footprint update inverses. Their
+receipts carry the same exact-actor, expiry, grant, sequence and consume-once rules, but their
+executors refuse missing/archived subjects and overlapping newer edits rather than applying the
+conservative removal fallback. `UndoService` dispatches the four families inside its existing
+unit of work; the raw edit helpers remain package-internal. Existing `section.remove` records,
+repeat-removal recovery and Archive Restore remain unchanged.

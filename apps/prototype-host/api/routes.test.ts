@@ -1,4 +1,4 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema, UndoRefusalDetailsSchema, UndoResultSchema } from '@cwm/contracts';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema, UndoRefusalDetailsSchema, UndoResultSchema } from '@cwm/contracts';
 import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryUndoRecorder, SectionService, SectionShortcutService, TaskService, TimelineService, UndoService } from '@cwm/domain';
 import {
   InMemoryDataStore,
@@ -353,9 +353,9 @@ describe('task routes', () => {
   it('creates a task into a named container, moves it with PATCH, and lists by section', async () => {
     const routes = buildRoutes();
     const first = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'One' } })).body);
-    const second = ProjectSectionSchema.parse(
+    const second = SectionAddResultSchema.parse(
       (await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'task-list' } })).body,
-    );
+    ).section;
 
     const named = await call(routes, 'POST', '/api/tasks', {
       body: { projectId: MINE, title: 'Two', sectionId: second.id },
@@ -458,7 +458,7 @@ describe('identity route', () => {
 
 describe('section routes', () => {
   const newSection = async (routes: RouteTable, body: unknown = { type: 'rich-text' }, projectId = MINE) =>
-    ProjectSectionSchema.parse((await call(routes, 'POST', `/api/projects/${projectId}/sections`, { body })).body);
+    SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${projectId}/sections`, { body })).body).section;
 
   it('lists, creates, updates, moves, duplicates and removes a section', async () => {
     const routes = buildRoutes();
@@ -470,15 +470,15 @@ describe('section routes', () => {
       body: { type: 'rich-text', config: { text: 'Kickoff' } },
     });
     expect(created.status).toBe(201);
-    const section = ProjectSectionSchema.parse(created.body);
+    const section = SectionAddResultSchema.parse(created.body).section;
     expect(section).toMatchObject({ projectId: MINE, type: 'rich-text', position: 0, config: { text: 'Kickoff' } });
 
     const collapsed = await call(routes, 'PATCH', `/api/sections/${section.id}`, { body: { collapsed: true } });
-    expect(ProjectSectionSchema.parse(collapsed.body).collapsed).toBe(true);
+    expect(SectionWriteResultSchema.parse(collapsed.body).section.collapsed).toBe(true);
 
     const sibling = await newSection(routes, { type: 'task-list' });
     const moved = await call(routes, 'POST', `/api/sections/${section.id}/move`, { body: { position: 1 } });
-    expect(ProjectSectionSchema.parse(moved.body).position).toBe(1);
+    expect(SectionWriteResultSchema.parse(moved.body).section.position).toBe(1);
 
     const duplicated = await call(routes, 'POST', `/api/sections/${section.id}/duplicate`, {});
     expect(duplicated.status).toBe(201);
@@ -1157,7 +1157,7 @@ describe('Archive projection route (§31, §32, §54)', () => {
   it('forwards the content projection and its recovery metadata without filtering of its own', async () => {
     const routes = buildRoutes();
     const add = async (body: unknown) =>
-      ProjectSectionSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body })).body);
+      SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body })).body).section;
     const progress = await add({ type: 'progress' });
     const notes = await add({ type: 'rich-text', config: { text: 'Measure twice' } });
     const blank = await add({ type: 'rich-text', config: { text: '   ' } });
@@ -1287,7 +1287,7 @@ describe('section removal receipts and Undo (Slice 30)', () => {
 
   const removeNotes = async (routes: RouteTable) => {
     const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', config: { text: 'Kept' } } });
-    const section = ProjectSectionSchema.parse(created.body);
+    const section = SectionAddResultSchema.parse(created.body).section;
     const removed = await call(routes, 'DELETE', `/api/sections/${section.id}`);
     return { section, removed, result: SectionRemovalResultSchema.parse(removed.body) };
   };
@@ -1299,7 +1299,7 @@ describe('section removal receipts and Undo (Slice 30)', () => {
 
     expect(removed.status).toBe(200);
     expect(result.section).toMatchObject({ id: section.id, archivedAt: '2026-08-24T16:00:00.000Z' });
-    expect(Object.keys(result.undo).sort()).toEqual(['createdAt', 'expiresAt', 'label', 'operation', 'undoId']);
+    expect(Object.keys(result.undo).sort()).toEqual(['createdAt', 'expiresAt', 'label', 'operation', 'sequence', 'undoId']);
   });
 
   it('issues no receipt for a refused removal', async () => {
@@ -1316,7 +1316,7 @@ describe('section removal receipts and Undo (Slice 30)', () => {
   it('recovers a hard-deleted section receipt only for its exact actor, then executes it', async () => {
     const { store, routes } = withStore();
     const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'progress' } });
-    const section = ProjectSectionSchema.parse(created.body);
+    const section = SectionAddResultSchema.parse(created.body).section;
     const removed = await call(routes, 'DELETE', `/api/sections/${section.id}`);
     const result = SectionRemovalResultSchema.parse(removed.body);
     const afterRemoval = store.snapshot();
@@ -1402,7 +1402,7 @@ describe('section removal receipts and Undo (Slice 30)', () => {
         token: READWRITE,
         body: { type: 'progress' },
       });
-      const removed = await call(routes, 'DELETE', `/api/sections/${ProjectSectionSchema.parse(created.body).id}`, {
+      const removed = await call(routes, 'DELETE', `/api/sections/${SectionAddResultSchema.parse(created.body).section.id}`, {
         token: READWRITE,
       });
       expect(removed.status).toBe(200);

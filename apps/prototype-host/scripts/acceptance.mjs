@@ -133,7 +133,7 @@ try {
   check(removed.body.section.archivedAt !== undefined, 'the removed section is archived');
   check(typeof removed.body.undo.undoId === 'string', 'the removal carries an Undo receipt');
   check(
-    JSON.stringify(Object.keys(removed.body.undo).sort()) === JSON.stringify(['createdAt', 'expiresAt', 'label', 'operation', 'undoId']),
+    JSON.stringify(Object.keys(removed.body.undo).sort()) === JSON.stringify(['createdAt', 'expiresAt', 'label', 'operation', 'sequence', 'undoId']),
     'the receipt carries no inverse data',
   );
   check(!(await canvas()).includes(HOME), 'the section has left the canvas');
@@ -147,7 +147,7 @@ try {
   check(repeated.status === 409 && repeated.body.details?.reason === 'undo_consumed', 'a repeat Undo is refused as undo_consumed');
 
   const disposableResponse = await request('POST', '/api/projects/project-personal/sections', { type: 'progress' });
-  const disposable = disposableResponse.body;
+  const disposable = disposableResponse.body.section;
   check(disposableResponse.status === 201, 'a disposable view can be created for recovery acceptance');
   const hardRemoved = await request('DELETE', `/api/sections/${disposable.id}`);
   check(hardRemoved.status === 200 && hardRemoved.body.section.archivedAt !== undefined, 'removal returns the final section and receipt');

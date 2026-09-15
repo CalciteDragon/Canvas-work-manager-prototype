@@ -23,7 +23,7 @@
       }
       @if (conflicts().length > 0) {
         <ul class="section-undo-notice__conflicts" aria-label="Undo conflicts">
-          @for (conflict of conflicts(); track conflict.entityType + ':' + conflict.id) {
+          @for (conflict of conflicts(); track $index) {
             <li data-undo-conflict>
               <span>{{ conflictSubject(conflict) }}:</span>
               <span data-undo-next-step>{{ nextStepCopy(conflict.nextStep) }}</span>
@@ -57,12 +57,14 @@
           (click)="requestRetryRefresh()"
         >Retry refresh</button>
       }
-      <button
-        data-open-archive
-        type="button"
-        [attr.aria-disabled]="busy()"
-        (click)="requestOpenArchive()"
-      >Open Archive</button>
+      @if (showArchive()) {
+        <button
+          data-open-archive
+          type="button"
+          [attr.aria-disabled]="busy()"
+          (click)="requestOpenArchive()"
+        >Open Archive</button>
+      }
       <button
         data-dismiss-undo-notice
         type="button"

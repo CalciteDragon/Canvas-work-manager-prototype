@@ -10,6 +10,10 @@ sidebar and top bar (§23). Nothing in `core/` depends on `prototype/` or on any
 **Tests:** `*.spec.ts` beside each file; fakes in `gateway/testing`, `live/testing` ·
 **Parent:** [web](../overview.md)
 
+Section edit Undo stays inside this boundary: the gateway owns the typed add/update/move
+write envelopes and operation-discriminated Undo result, while feature stores own receipt lifetime
+and never see HTTP or inverse snapshots.
+
 ## Responsibilities
 
 - `WorkManagerGateway` and its fifteen sub-interfaces (`TaskGateway`,

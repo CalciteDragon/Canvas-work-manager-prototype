@@ -63,8 +63,10 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
     kind: 'root',
     name: 'Todos journey',
   });
-  const containerA = await api<{ id: string }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' });
-  const containerB = await api<{ id: string }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' });
+  const containerAResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' });
+  const containerA = containerAResult.section;
+  const containerBResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' });
+  const containerB = containerBResult.section;
   const kitchen = await api<{ id: string }>('POST', '/api/projects', {
     workspaceId,
     kind: 'subproject',

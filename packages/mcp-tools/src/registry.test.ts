@@ -8,7 +8,7 @@ import { agent, buildHarness, FOREIGN_PROJECT, OPEN_TASK, PROJECT } from '../tes
 const registry = buildHarness().registry;
 
 describe('the tool registry', () => {
-  it('registers exactly the thirty-four tools the spec and the canvas ask for', () => {
+  it('registers exactly the thirty-five tools the spec and the canvas ask for', () => {
     const registered = registry.list().map(({ name }) => name);
 
     // Both directions: a missing tool and an extra one are different defects, and a
@@ -16,8 +16,8 @@ describe('the tool registry', () => {
     expect([...registered].sort()).toEqual([...SPEC_TOOL_NAMES].sort());
     // §54's fourteen, plus the four section tools, five page tools (including the journal),
     // three shortcut tools, the eight canonical archive/recovery tools from Slice 25.6, and
-    // Slice 30's receipt-based undo_operation.
-    expect(registered).toHaveLength(34);
+    // Slice 30's receipt-based undo_operation and Slice 32's move_section.
+    expect(registered).toHaveLength(35);
     // The sorted comparison above catches membership; this catches a shortcut tool being
     // spread in a different position from the declared registry order.
     expect(registered).toEqual([...SPEC_TOOL_NAMES]);
@@ -82,7 +82,7 @@ describe('the tool registry', () => {
         { projectId: PROJECT, type: 'reflections', pageId: page.id },
         agent(['projects.write']),
       ),
-    ).resolves.toMatchObject({ pageId: page.id, type: 'reflections' });
+    ).resolves.toMatchObject({ section: { pageId: page.id, type: 'reflections' }, undo: { operation: 'section.add' } });
   });
 
   it('answers not found for another workspace’s project and page', async () => {

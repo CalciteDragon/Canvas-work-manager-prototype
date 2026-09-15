@@ -6,6 +6,7 @@ import { SectionUndoNotice } from './section-undo-notice';
 const receipt: UndoReceipt = {
   undoId: 'undo-story' as UndoRecordId,
   operation: 'section.remove',
+  sequence: 1,
   label: 'Removed Notes',
   createdAt: '2026-09-14T09:00:00.000Z',
   expiresAt: '2026-09-15T09:00:00.000Z',

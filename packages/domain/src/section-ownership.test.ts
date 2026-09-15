@@ -358,7 +358,9 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
 
     expect(result.section).toMatchObject({ id: section.id, archivedAt: SEED_NOW });
     expect(await harness.sections.find(section.id)).toBeNull();
-    expect(harness.store.snapshot().undoRecords.at(-1)?.operation).toMatchObject({ section: prior, disposition: 'deleted' });
+    const operation = harness.store.snapshot().undoRecords.at(-1)?.operation;
+    expect(operation).toMatchObject({ type: 'section.remove', section: prior, disposition: 'deleted' });
+    if (operation?.type !== 'section.remove') throw new Error('expected a section removal record');
     expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
   });
 
@@ -371,7 +373,9 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
 
     expect((await harness.sections.find(prose.id))?.archivedAt).toBe(SEED_NOW);
     expect((await harness.sections.find(task.sectionId))?.archivedAt).toBe(SEED_NOW);
-    expect(harness.store.snapshot().undoRecords.map(({ operation }) => operation.disposition)).toEqual(['retained', 'retained']);
+    expect(
+      harness.store.snapshot().undoRecords.map(({ operation }) => operation).filter((operation) => operation.type === 'section.remove').map((operation) => operation.disposition),
+    ).toEqual(['retained', 'retained']);
     const archive = await new ProjectArchiveService(harness).derive(harness.actor, MINE);
     expect(archive.items.filter((item) => item.kind === 'section').map((item) => item.section.id)).toEqual([prose.id, task.sectionId]);
   });
@@ -444,7 +448,11 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
  * docs/decisions/2026-09-section-removal-undo-records.md, rule 6.
  */
 describe('SectionService.remove — what the Undo record captures', () => {
-  const recorded = (harness: ReturnType<typeof buildHarness>) => harness.store.snapshot().undoRecords.at(-1)!.operation;
+const recorded = (harness: ReturnType<typeof buildHarness>) => {
+  const operation = harness.store.snapshot().undoRecords.at(-1)!.operation;
+  if (operation.type !== 'section.remove') throw new Error('expected a section removal record');
+  return operation;
+};
 
   it('captures a view with its config and placement, and no rows', async () => {
     const harness = buildHarness();

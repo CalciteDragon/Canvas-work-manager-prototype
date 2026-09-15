@@ -80,6 +80,7 @@ get one.
 - [Where the project navigation column lives](../../../decisions/2026-09-where-the-project-navigation-column-lives.md) — why it is *not* here
 - [CORS on the host, not a dev-server proxy](../../../decisions/2026-08-host-cors-over-dev-proxy.md) — why the adapter talks to `:4310` directly
 - [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the receipt-only `UndoGateway` beside section removal
+- [Explicit section edits reverse only their operation's changes](../../../decisions/2026-09-section-edit-undo-boundaries.md) — typed add/move/update envelopes and sequence selection
 
 ## Spec sections
 

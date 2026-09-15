@@ -217,7 +217,7 @@ test('MCP inserts a section and shortcut at their combined canvas positions and 
       },
     });
     expect(section.isError).not.toBe(true);
-    createdSectionId = (section.structuredContent as { id: string }).id;
+    createdSectionId = (section.structuredContent as { section: { id: string } }).section.id;
     await expect(page.locator('#section-' + createdSectionId)).toBeVisible({ timeout: 15_000 });
 
     const shortcut = await client.callTool({

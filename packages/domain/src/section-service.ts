@@ -19,6 +19,9 @@ import {
   type SectionRemovalRefusalDetails,
   type SectionRemovalDisposition,
   type SectionRemovalResult,
+  type SectionAddResult,
+  type SectionWriteResult,
+  type SectionFieldChange,
   type UndoReceipt,
   type ProjectPage,
   type ProjectPageId,
@@ -42,6 +45,7 @@ import { assertProjectWritable } from './project-visibility';
 import { rowsOf, writeRow, type OwnedRow } from './owned-rows';
 import { listPlacements, renumberPlacements, snapshotPlacement, type PagePlacement } from './page-placements';
 import { captureSectionRemoval, NOTHING_SETTLED, rowChangeOf, type SettledRows } from './section-removal-undo';
+import { captureSectionAdd, captureSectionMove, captureSectionUpdate, sameValue } from './section-edit-undo';
 import { sectionRecoveryOf } from './section-recovery-policy';
 import type { UndoRecorder } from './undo-recorder';
 
@@ -97,6 +101,25 @@ const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position 
  */
 const byPositionThenId = (a: ProjectSection, b: ProjectSection): number =>
   a.position === b.position ? a.id.localeCompare(b.id) : a.position - b.position;
+
+const sectionChangesFor = (current: ProjectSection, input: UpdateSectionInput): SectionFieldChange[] => {
+  const changes: SectionFieldChange[] = [];
+  if (input.title !== undefined) {
+    const before = current.title ?? null;
+    const after = normaliseSectionTitle(input.title) ?? null;
+    if (!sameValue(before, after)) changes.push({ field: 'title', before, after });
+  }
+  if (input.config !== undefined && !sameValue(current.config, input.config)) {
+    changes.push({ field: 'config', before: structuredClone(current.config), after: structuredClone(input.config) });
+  }
+  if (input.collapsed !== undefined && input.collapsed !== current.collapsed) {
+    changes.push({ field: 'collapsed', before: current.collapsed, after: input.collapsed });
+  }
+  if (input.columnSpan !== undefined && input.columnSpan !== current.columnSpan) {
+    changes.push({ field: 'columnSpan', before: current.columnSpan, after: input.columnSpan });
+  }
+  return changes;
+};
 
 /**
  * An archived section is off the canvas, and there is no edit to make on one that restoring
@@ -171,11 +194,20 @@ export class SectionService {
     );
   }
 
-  async add(actor: ActorContext, projectId: ProjectId, input: CreateSectionInput): Promise<ProjectSection> {
+  async add(actor: ActorContext, projectId: ProjectId, input: CreateSectionInput): Promise<SectionAddResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
-    return this.dependencies.unitOfWork.run(() => this.addWithin(actor, projectId, input));
+    return this.dependencies.unitOfWork.run(async () => {
+      const created = await this.addWithin(actor, projectId, input);
+      const section = await this.require(actor, created.id);
+      const undo = await this.dependencies.undo.record(actor, {
+        projectId,
+        label: `Added the ${nameOf(section)} section`,
+        operation: captureSectionAdd(section),
+      });
+      return { section, undo };
+    });
   }
 
   /**
@@ -378,7 +410,7 @@ export class SectionService {
     return section;
   }
 
-  async update(actor: ActorContext, id: SectionId, input: UpdateSectionInput): Promise<ProjectSection> {
+  async update(actor: ActorContext, id: SectionId, input: UpdateSectionInput): Promise<SectionWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
@@ -386,6 +418,7 @@ export class SectionService {
       const current = await this.require(actor, id);
       assertLive(current);
       await this.assertProjectWritable(current.projectId);
+      const changes = sectionChangesFor(current, input);
       const next = { ...current };
       // A blank name means the same thing `null` does — fall back to the derived default —
       // so the two do not have to be told apart by every caller upstream.
@@ -396,7 +429,7 @@ export class SectionService {
       // nothing here can decide which of them a partial write meant to keep.
       apply(next, 'config', input.config);
 
-      return this.commit(actor, current, next, 'project.section_updated', 'Updated');
+      return this.commit(actor, current, next, changes);
     });
   }
 
@@ -405,7 +438,7 @@ export class SectionService {
    * operation rather than a `position` field on `update`: one section's new position is
    * every other section's new position too.
    */
-  async move(actor: ActorContext, id: SectionId, position: number): Promise<ProjectSection> {
+  async move(actor: ActorContext, id: SectionId, position: number): Promise<SectionWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
@@ -415,16 +448,33 @@ export class SectionService {
       await this.assertProjectWritable(current.projectId);
       // Within the section's **page**: reordering one page must not renumber another (§27).
       const siblings = await this.placementsOnPage(current.pageId);
+      const beforePlacement = snapshotPlacement(siblings, { kind: 'section', id });
       const without = siblings.filter((placement) => !(placement.kind === 'section' && placement.value.id === id));
       // Clamped, not rejected: a caller that asks for "last" by overshooting means last.
       const target = Math.min(Math.max(position, 0), without.length);
       without.splice(target, 0, { kind: 'section', value: current });
 
+      // Compare the combined order before writing. In particular, a sparse or hand-edited
+      // page must not be silently normalized by a clamped no-op.
+      const from = siblings.findIndex((placement) => placement.kind === 'section' && placement.value.id === id);
+      if (from === target) return { section: current, undo: null };
+      const afterPlacement = snapshotPlacement(without, { kind: 'section', id });
+
       await renumberPlacements(this.dependencies, this.dependencies.clock, without, { kind: 'section', id });
       const moved = await this.require(actor, id);
-      if (moved.position === current.position) return current;
       await this.record(actor, moved, 'project.section_moved', 'Moved');
-      return moved;
+      const undo = await this.dependencies.undo.record(actor, {
+        projectId: current.projectId,
+        label: `Moved the ${nameOf(current)} section`,
+        operation: captureSectionMove({
+          sectionId: current.id,
+          projectId: current.projectId,
+          pageId: current.pageId,
+          placementBefore: beforePlacement,
+          placementAfter: afterPlacement,
+        }),
+      });
+      return { section: moved, undo };
     });
   }
 
@@ -726,16 +776,26 @@ export class SectionService {
     actor: ActorContext,
     current: ProjectSection,
     next: ProjectSection,
-    action: SectionAction,
-    verb: string,
-  ): Promise<ProjectSection> {
-    // A no-op write records nothing, matching `TaskService` and `ProjectService`.
-    if (JSON.stringify({ ...next, updatedAt: current.updatedAt }) === JSON.stringify(current)) return current;
+    changes: SectionFieldChange[],
+  ): Promise<SectionWriteResult> {
+    // A no-op write records nothing and returns no receipt, even when config object keys arrived
+    // in a different order.
+    if (changes.length === 0) return { section: current, undo: null };
 
     const updated = ProjectSectionSchema.parse({ ...next, updatedAt: this.dependencies.clock.now().toISOString() });
     await this.dependencies.sections.update(updated);
-    await this.record(actor, updated, action, verb);
-    return updated;
+    await this.record(actor, updated, 'project.section_updated', 'Updated');
+    const undo = await this.dependencies.undo.record(actor, {
+      projectId: current.projectId,
+      label: `Updated the ${nameOf(current)} section`,
+      operation: captureSectionUpdate({
+        sectionId: current.id,
+        projectId: current.projectId,
+        pageId: current.pageId,
+        changes,
+      }),
+    });
+    return { section: updated, undo };
   }
 
   /**

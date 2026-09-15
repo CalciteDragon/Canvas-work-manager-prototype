@@ -83,3 +83,10 @@ the existing lazy-boundary mechanism for UI that is not initially visible.
 **Final Slice 31 verification, 2026-09-14.** After review-driven retry-state and documentation
 corrections, the production build measured a 995.34 kB initial bundle, still under the unchanged
 1 MB error ceiling. The 850 kB warning remains visible; no budget was raised.
+
+**Amended, 2026-09-15 — Slice 32 kept the error ceiling.** The edit-Undo contracts and the
+Reflections page's notice first measured 1.01 MB. Deferring that page's notice like the canvas's
+brought it to 1.003 MB. The rest came from `@cwm/contracts` having no `sideEffects` declaration,
+so the bundler kept every schema module the web app never uses (the stored inverse schemas among
+them). The package only declares Zod schemas and pure helpers, so it now declares
+`"sideEffects": false`; the final Slice 32 build measured 994.14 kB, with no budget changed.

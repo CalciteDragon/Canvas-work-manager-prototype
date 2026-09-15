@@ -12,7 +12,7 @@
     <app-section-undo-notice
       [state]="store.undoNotice()"
       [failedRemoval]="store.failedRemoval()"
-      [busy]="store.removalUndoPending()"
+      [busy]="store.undoBusy()"
       (undo)="undoFromNotice()"
       (retryRemove)="retryFailedRemoval()"
       (retryRefresh)="retryUndoRefresh()"

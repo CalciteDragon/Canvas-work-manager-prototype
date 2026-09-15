@@ -22,6 +22,9 @@ import { ProjectSchema, type
   ReflectionId,
   SectionId,
   SectionRemovalResult,
+  SectionAddResult,
+  SectionWriteResult,
+  UndoReceipt,
   SectionShortcutId,
   ShortcutSource,
   SetProjectPageEnabledInput,
@@ -96,6 +99,8 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
   private createdSectionSequence = 0;
   private createdShortcutSequence = 0;
   private readonly removedSections = new Map<UndoRecordId, ProjectSection>();
+  private createdUndoSequence = 0;
+  private readonly editUndos = new Map<UndoRecordId, () => UndoResult>();
 
   /** Every call the spec made, in order, so a test can assert the query that was sent. */
   readonly calls: Array<{ method: string; argument: unknown }> = [];
@@ -191,6 +196,14 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   readonly undo: UndoGateway = {
     execute: (id) => {
+      const edit = this.editUndos.get(id);
+      if (edit !== undefined) {
+        const result = edit();
+        return this.answer('undo.execute', id, result).then((undone) => {
+          this.editUndos.delete(id);
+          return undone;
+        });
+      }
       const saved = this.removedSections.get(id);
       if (saved === undefined) throw new GatewayError('not_found', 404, `no such undo "${id}"`);
       const current = this.sectionFor(saved.id);
@@ -353,7 +366,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
             (query.includeArchived === true || section.archivedAt === undefined),
         ),
       ),
-    create: (projectId, input) => {
+    create: (projectId, input): Promise<SectionAddResult> => {
       const pageId = input.pageId ?? (`page-${projectId}` as ProjectPageId);
       const position = this.positionForCreate(projectId, pageId, input.position);
       const now = COMPLETED_AT;
@@ -370,24 +383,65 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         createdAt: now,
         updatedAt: now,
       };
-      return this.answer('sections.create', { projectId, input }, created).then((section) => {
+      const undoSequence = ++this.createdUndoSequence;
+      const undoId = `undo-section-add-${undoSequence}` as UndoRecordId;
+      const undo: UndoReceipt = {
+        undoId,
+        operation: 'section.add',
+        sequence: undoSequence,
+        label: `Add ${created.type}`,
+        createdAt: COMPLETED_AT,
+        expiresAt: '2026-08-28T16:00:00.000Z',
+      };
+      const result: SectionAddResult = { section: created, undo };
+      return this.answer('sections.create', { projectId, input }, result).then(({ section }) => {
         (this.options.sections ??= []).push(section);
         this.placeAt(projectId, pageId, position, { kind: 'section', value: section });
-        return section;
+        this.editUndos.set(undoId, () => {
+          this.options.sections = (this.options.sections ?? []).filter((candidate) => candidate.id !== section.id);
+          this.renumberCombined(projectId, pageId);
+          return { undoId, operation: 'section.add', outcome: 'removed', sectionId: section.id, projectId, pageId };
+        });
+        return { section, undo };
       });
     },
-    update: (id, input) => {
+    update: (id, input): Promise<SectionWriteResult> => {
       const current = this.sectionFor(id);
-      return this.answer('sections.update', { id, input }, applyUpdate(current, input)).then((updated) => {
+      const before = { ...current, config: structuredClone(current.config) };
+      const updated = applyUpdate(current, input);
+      if (sameValue(current, updated)) return this.answer('sections.update', { id, input }, { section: current, undo: null });
+      const undoSequence = ++this.createdUndoSequence;
+      const undoId = `undo-section-update-${undoSequence}` as UndoRecordId;
+      const undo: UndoReceipt = { undoId, operation: 'section.update', sequence: undoSequence, label: `Update ${id}`, createdAt: COMPLETED_AT, expiresAt: '2026-08-28T16:00:00.000Z' };
+      const result: SectionWriteResult = { section: updated, undo };
+      return this.answer('sections.update', { id, input }, result).then(({ section }) => {
         Object.assign(current, updated);
-        return updated;
+        this.editUndos.set(undoId, () => {
+          Object.assign(current, before);
+          return { undoId, operation: 'section.update', outcome: 'restored', section: { ...before } };
+        });
+        return { section, undo };
       });
     },
-    move: (id, input) => {
+    move: (id, input): Promise<SectionWriteResult> => {
       const current = this.sectionFor(id);
-      return this.answer('sections.move', { id, input }, { ...current, position: input.position }).then((updated) => {
-        this.placeAt(current.projectId, current.pageId, input.position, { kind: 'section', value: current });
-        return updated;
+      const before = current.position;
+      const count = this.combinedEntries(current.projectId, current.pageId).length;
+      const position = Math.max(0, Math.min(input.position, Math.max(0, count - 1)));
+      if (before === position) return this.answer('sections.move', { id, input }, { section: current, undo: null });
+      const updated = { ...current, position };
+      const undoSequence = ++this.createdUndoSequence;
+      const undoId = `undo-section-move-${undoSequence}` as UndoRecordId;
+      const undo: UndoReceipt = { undoId, operation: 'section.move', sequence: undoSequence, label: `Move ${id}`, createdAt: COMPLETED_AT, expiresAt: '2026-08-28T16:00:00.000Z' };
+      const result: SectionWriteResult = { section: updated, undo };
+      return this.answer('sections.move', { id, input }, result).then(({ section }) => {
+        this.placeAt(current.projectId, current.pageId, position, { kind: 'section', value: current });
+        Object.assign(current, section);
+        this.editUndos.set(undoId, () => {
+          this.placeAt(current.projectId, current.pageId, before, { kind: 'section', value: current });
+          return { undoId, operation: 'section.move', outcome: 'restored', section: { ...current }, placement: { pageId: current.pageId, index: before, strategy: 'index', pageEnabled: true } };
+        });
+        return { section, undo };
       });
     },
     duplicate: (id) =>
@@ -405,6 +459,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         undo: {
           undoId,
           operation: 'section.remove',
+          sequence: ++this.createdUndoSequence,
           label: `Remove ${id}`,
           createdAt: COMPLETED_AT,
           expiresAt: '2026-08-28T16:00:00.000Z',
@@ -533,9 +588,25 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
   }
 
   private positionForCreate(projectId: ProjectId, pageId: ProjectPageId, requested?: number): number {
-    const count = (this.options.sections ?? []).filter((section) => section.projectId === projectId && section.pageId === pageId && section.archivedAt === undefined).length +
-      (this.options.shortcuts ?? []).filter((shortcut) => shortcut.pageId === pageId).length;
+    const count = this.combinedEntries(projectId, pageId).length;
     return Math.max(0, Math.min(requested ?? count, count));
+  }
+
+  private combinedEntries(projectId: ProjectId, pageId: ProjectPageId): Array<{ kind: 'section'; value: ProjectSection } | { kind: 'shortcut'; value: ResolvedSectionShortcut }> {
+    return [
+      ...(this.options.sections ?? [])
+        .filter((section) => section.projectId === projectId && section.pageId === pageId && section.archivedAt === undefined)
+        .map((section) => ({ kind: 'section' as const, value: section })),
+      ...(this.options.shortcuts ?? [])
+        .filter((shortcut) => shortcut.pageId === pageId)
+        .map((shortcut) => ({ kind: 'shortcut' as const, value: shortcut })),
+    ];
+  }
+
+  private renumberCombined(projectId: ProjectId, pageId: ProjectPageId): void {
+    const ordered = this.combinedEntries(projectId, pageId)
+      .sort((a, b) => a.value.position - b.value.position || a.value.id.localeCompare(b.value.id));
+    ordered.forEach((entry, index) => entry.value.position = index);
   }
 
   private projectForPage(pageId: ProjectPageId, fallback: ProjectId): ProjectId {
@@ -550,14 +621,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     position: number,
     inserted: { kind: 'section'; value: ProjectSection } | { kind: 'shortcut'; value: ResolvedSectionShortcut },
   ): void {
-    const ordered = [
-      ...(this.options.sections ?? [])
-        .filter((section) => section.projectId === projectId && section.pageId === pageId && section.archivedAt === undefined)
-        .map((section) => ({ kind: 'section' as const, value: section })),
-      ...(this.options.shortcuts ?? [])
-        .filter((shortcut) => shortcut.pageId === pageId)
-        .map((shortcut) => ({ kind: 'shortcut' as const, value: shortcut })),
-    ].filter((entry) => entry.value.id !== inserted.value.id);
+    const ordered = this.combinedEntries(projectId, pageId).filter((entry) => entry.value.id !== inserted.value.id);
     ordered.sort((a, b) => a.value.position - b.value.position || a.value.id.localeCompare(b.value.id));
     ordered.splice(Math.max(0, Math.min(position, ordered.length)), 0, inserted);
     ordered.forEach((entry, index) => {
@@ -631,6 +695,18 @@ const restored = <T extends { archivedAt?: string; archivedWithSectionId?: strin
   delete next.archivedWithSectionId;
   delete next.archivedWithTaskId;
   return next;
+};
+
+const sameValue = (left: unknown, right: unknown): boolean => {
+  if (Object.is(left, right)) return true;
+  if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null) return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((value, index) => sameValue(value, right[index]));
+  }
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const keys = new Set([...Object.keys(leftRecord), ...Object.keys(rightRecord)]);
+  return [...keys].every((key) => sameValue(leftRecord[key], rightRecord[key]));
 };
 
 /**

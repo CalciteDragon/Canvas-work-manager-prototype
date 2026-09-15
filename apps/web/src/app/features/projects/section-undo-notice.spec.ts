@@ -7,6 +7,7 @@ import { SectionUndoNotice } from './section-undo-notice';
 const receipt: UndoReceipt = {
   undoId: 'undo-section-a' as UndoRecordId,
   operation: 'section.remove',
+  sequence: 1,
   label: 'Removed Notes',
   createdAt: '2026-09-14T09:00:00.000Z',
   expiresAt: '2026-09-15T09:00:00.000Z',
@@ -69,6 +70,18 @@ describe('SectionUndoNotice', () => {
     expect(fixture.nativeElement.textContent).toContain(state.message);
   });
 
+  it('does not offer Archive for an edit receipt', () => {
+    const editReceipt: UndoReceipt = {
+      ...receipt,
+      operation: 'section.update',
+      label: 'Updated Notes',
+    };
+    const fixture = render({ kind: 'available', receipt: editReceipt, message: 'Section updated. Undo is available.' });
+
+    expect(fixture.nativeElement.querySelector('[data-undo-action]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-open-archive]')).toBeNull();
+  });
+
   it('keeps pending actions focusable and guards duplicate activation', () => {
     const fixture = render({ kind: 'available', receipt, message: 'Section removed.' }, null, true);
     const undo = vi.fn();
@@ -115,4 +128,24 @@ describe('SectionUndoNotice', () => {
     expect(dismissUndo).toHaveBeenCalledOnce();
     expect(dismissFailure).toHaveBeenCalledOnce();
   });
+
+  it('shows one repair line when one section both changed and was superseded', () => {
+    const fixture = TestBed.createComponent(SectionUndoNotice);
+    const conflict = { entityType: 'section' as const, id: 'section-a', title: 'Notes', nextStep: 'use-later-receipt' as const };
+    fixture.componentRef.setInput('state', {
+      kind: 'refusal',
+      receipt: null,
+      message: 'undo_conflict: refused',
+      refusal: {
+        reason: 'undo_conflict',
+        undoId: 'undo-a',
+        conflicts: [{ ...conflict, problem: 'field-changed' }, { ...conflict, problem: 'superseded' }],
+      },
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('[data-undo-conflict]')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelector('[data-undo-next-step]')?.textContent).toContain('make the change again by hand');
+  });
 });
+

@@ -9,11 +9,12 @@
    record — never from the request.
 3. The body, if any, is parsed with the contract's input schema; a Zod failure is a 400.
 4. The handler calls one service method and returns its result as JSON with the status
-   the route declares (200, or 201 for creates). `DELETE /api/sections/:id` answers 200 with
-   `SectionRemovalResult` — the final archived-shaped result and its Undo receipt. When the
-   section was disposable, that result is a snapshot and the stored row is absent. A repeat can
-   answer 409 with the exact actor's outstanding receipt in typed details. `POST /api/undo/:id`
-   answers `UndoResult`.
+   the route declares (200, or 201 for creates). Section create answers `SectionAddResult`;
+   update and move answer `SectionWriteResult` and use `undo: null` for no-ops. `DELETE
+   /api/sections/:id` answers `SectionRemovalResult` — the final archived-shaped result and its
+   Undo receipt. When the section was disposable, that result is a snapshot and the stored row is
+   absent. A repeat can answer 409 with the exact actor's outstanding receipt in typed details.
+   `POST /api/undo/:id` answers the discriminated `UndoResult`.
 5. A thrown error goes through `api/errors.ts`: the domain's three errors map to 404,
    409 and 403; a `DomainRuleError` with `details` forwards them; `AgentAuthenticationError`
    is 401; anything else is 500 `{"error":"internal_error"}` with the stack on the
@@ -23,7 +24,7 @@
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
-| `createApi` | function | Wire the services, including the `RepositoryUndoRecorder` removal records through and `UndoService`; returns `HostServices` | [API](../../../api/miscellaneous/variables.html#createApi) |
+| `createApi` | function | Wire the services, including the `RepositoryUndoRecorder` that explicit section writes record through, and `UndoService`; returns `HostServices` | [API](../../../api/miscellaneous/variables.html#createApi) |
 | `HostServices` | interface | Every service plus `authenticator`; what routes and the registry receive | [API](../../../api/interfaces/HostServices.html) |
 | `CreateApiOptions` | interface | `clock` and `ai` overrides — the runtime's instances | [API](../../../api/interfaces/CreateApiOptions.html) |
 | `aiProviderFor` | function | `real` → `RealAIProvider`, anything else → `PrototypeAIProvider` | [API](../../../api/miscellaneous/variables.html#aiProviderFor) |
@@ -66,6 +67,8 @@
   receipt is returned, including when the section was deleted. It produces no second write or
   event; a different actor sees the normal not-found response. The route forwards the shared
   `SectionAlreadyRemovedDetailsSchema` unchanged.
+- **No-op section edits stay no-ops.** The host returns the current section with `undo: null`;
+  it does not create an activity event, Undo record or live mutation frame.
 - **Projections are forwarded, not filtered.** `GET /api/projects/:projectId/archive` returns
   `ProjectArchiveService.derive` as-is, including each section entry's `recovery` metadata;
   `routes.test.ts` pins that a removed view is absent and prose is present without route logic.

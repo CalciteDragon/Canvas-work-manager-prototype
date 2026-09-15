@@ -19,6 +19,21 @@
     <button data-reflections-refresh-retry type="button" (click)="store.retryRefresh()">Retry journal read</button>
   }
 
+  <!-- Deferred like the canvas notice, so the page does not pull it into the initial bundle. -->
+  @defer (when store.undoNotice() !== null) {
+    @if (store.undoNotice(); as undoNotice) {
+      <app-section-undo-notice
+        [state]="undoNotice"
+        [busy]="store.undoBusy()"
+        (undo)="undoContainer()"
+        (retryRefresh)="store.retryContainer()"
+        (openArchive)="onOpenArchive()"
+        (dismissUndo)="store.dismissUndoNotice()"
+        (ready)="focusUndoNotice()"
+      />
+    }
+  }
+
   <section data-reflections-composer-region class="reflections-page__region" aria-labelledby="reflections-compose-title">
     <div class="reflections-page__region-heading">
       <h3 id="reflections-compose-title">Write a reflection</h3>

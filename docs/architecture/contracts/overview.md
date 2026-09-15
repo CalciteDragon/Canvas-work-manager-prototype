@@ -8,6 +8,12 @@ records with their receipts and refusals, and the `data.json` document itself. A
 schemas, the seeds and every test import from here; there is no second definition of any
 of these shapes anywhere in the repository.
 
+Slice 32 extends the Undo contract with strict version-1 `section.add`, `section.move` and
+`section.update` operations. Explicit section writes return `{ section, undo }` (or `undo: null`
+for a normalized no-op); receipts carry a public workspace `sequence`, while the inverse and
+field footprint stay server-side. `UndoResult` is discriminated so add Undo reports a removed id,
+move Undo reports placement, and update Undo reports the restored section.
+
 **Code:** `packages/contracts/src` · **Tests:** `packages/contracts/src/*.test.ts`
 (vitest) · **Package:** `@cwm/contracts` · **Depends on:** `zod` only
 

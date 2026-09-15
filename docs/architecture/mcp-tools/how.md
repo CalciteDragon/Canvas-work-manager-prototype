@@ -25,6 +25,15 @@ omitting it appends. Both tools keep their declared `projects.write` permission 
 matching domain service, which commits the insert and renumbering together. The contract tests
 exercise each tool at a specified position under exactly that grant.
 
+## Section write receipts and `undo_operation`
+
+`create_section` returns `{ section, undo }`; `move_section` and `update_section` return the
+same envelope with `undo: null` for a normalized no-op. `move_section` targets the zero-based
+combined section/shortcut order and records one placement operation. `update_section` records
+only normalized title, config, collapse and span fields that changed. Every successful explicit
+write records one activity event and one sequence-ordered receipt; automatic row-container
+creation stays receipt-free. The receipt exposes no inverse data.
+
 ## Removal receipts and `undo_operation`
 
 `remove_section` returns `SectionRemovalResult`: a final archived-shaped section snapshot and a

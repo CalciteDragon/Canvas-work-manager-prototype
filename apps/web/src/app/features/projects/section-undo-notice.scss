@@ -1,6 +1,18 @@
+// A status beside the canvas, never above it: every explicit add, move, resize and blur-save can
+// offer a receipt, and a notice in flow would push the canvas down under the pointer. Below the
+// dialogs (z-index 20) so a create or removal dialog still covers it.
 :host {
+  position: fixed;
+  z-index: 10;
+  inset-block-end: var(--space-4);
+  inset-inline: auto var(--space-4);
   display: grid;
   gap: var(--space-2);
+  inline-size: min(var(--layout-reading-width), calc(100% - 2 * var(--space-4)));
+}
+
+.section-undo-notice {
+  box-shadow: var(--shadow-md);
 }
 
 .section-undo-notice {

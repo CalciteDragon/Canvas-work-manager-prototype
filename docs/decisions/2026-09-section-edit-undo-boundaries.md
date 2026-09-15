@@ -33,7 +33,7 @@ contains a restored section, which cannot honestly describe Undo of an add.
 **Current decision**
 
 **Planning choice, 2026-09-14 — pending implementation.** The
-[Slice 32 plan](../roadmap/active/32-section-edit-undo.md) defines the executable details:
+[Slice 32 plan](../roadmap/completed/32-section-edit-undo.md) defines the executable details:
 
 - One record per changed explicit add, completed move, title/config save, collapse toggle or
   committed width change. No record for preview, cancellation, no-op, duplicate, shortcut
@@ -70,3 +70,33 @@ atomicity have concrete tests planned; the single-notice interaction still needs
 Implementation or use reveals that people need a history stack, duplicate Undo, cross-page
 movement, per-key config editing, different authorization or recovery of lost create receipts.
 Those are scope changes to review, not implicit additions to Slice 32.
+
+**Amended, 2026-09-14 — landed in Slice 32.** The four explicit families are now implemented
+without broadening removal: `section.add`, `section.move` and `section.update` use strict
+version-1 operations, while automatic row-container creation remains receipt-free. Add Undo
+removes only the created section after a reference/content audit; update Undo restores only its
+recorded fields; move Undo resolves the current combined section/shortcut order from its saved
+neighbours. True no-ops return `undo: null`, and the public receipt adds a workspace sequence so
+the browser can retain the newest committed response even when requests arrive out of order.
+The same result envelopes cross HTTP, MCP and the gateway, and `move_section` is the registry's
+35th tool. The canvas and Reflections page share an operation-neutral notice; Archive is offered
+only for removal receipts, and pending writes block Undo. Missing or archived subjects/pages and
+overlapping newer edits refuse without mutation; disjoint field edits survive. Evidence is in
+the domain, host/MCP, gateway, web and Playwright suites.
+
+**Amended, 2026-09-15 — review and browser acceptance.** Three choices the plan left open:
+
+- *Edit refusals never name Archive.* Archive holds nothing an add, move or settings write
+  changed, so edit conflicts use a new `use-later-receipt` next step ("use the later receipt,
+  or make the change again by hand"), and a missing subject is `nothing-to-undo`. Removal keeps
+  `use-later-receipt-or-archive`.
+- *The notice floats instead of sitting above the canvas.* With a receipt after every add, move,
+  resize and blur save, the in-flow notice pushed the whole canvas down 96 px after an insert,
+  which broke the existing geometry journeys and moved content under the pointer. It is now
+  fixed at the viewport's end corner, below the dialogs. Rejected: keeping it in flow (the
+  canvas shifts on every write), and reserving permanent space above the canvas (a gap on every
+  page). Accepted cost: it can cover an end-edge resize handle or content until dismissed; the
+  resize journeys dismiss it first. Revisit if real use shows people fighting it.
+- *Commit order beats arrival order for Undo too.* An Undo response that lands after a newer
+  write's receipt was captured reconciles the canvas but leaves the newer notice alone, and a
+  committed add or move whose follow-up read fails keeps its receipt and offers Retry refresh.

@@ -65,6 +65,13 @@ an immediate canvas-local Undo action for its receipt
 ([canvas chrome](../../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md),
 [removal and Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
+**Edit receipts belong to the gesture that committed them.** Add, rename, Rich Text blur,
+collapse, snapped resize and completed move each capture one server receipt; previews, cancels,
+no-ops, shortcut-only actions and implicit row containers do not. The notice chooses by the
+server sequence high-water mark, blocks Undo while a section write is pending, and restores only
+the operation's field or placement footprint. Archive remains a removal-only repair path
+([section edit boundaries](../../../decisions/2026-09-section-edit-undo-boundaries.md)).
+
 **Section stores follow ownership.** A Task List provides its own `TaskListStore`, a
 Reflections section its `ReflectionsStore`, Progress its `ProgressStore` — one per
 section, synced against the page's data revision — because under
@@ -77,9 +84,12 @@ no rows, so the count in "It still holds 3 tasks" travels from the domain in
 `DomainRuleError.details`, and the dialog offers containers by name
 ([decision](../../../decisions/2026-09-a-section-has-a-name.md)).
 
-**Immediate Undo belongs to the canvas that removed the section.** `SectionUndoNotice`
+**Immediate Undo belongs to the page that committed the section operation.** `SectionUndoNotice`
 holds only the returned server receipt in memory, offers typed refusal guidance and an
-Archive path, and is cleared when the page or project changes. An uncertain remove has a
+Archive path only for removals, and is cleared when the page or project changes. It floats at the
+viewport's end corner instead of sitting above the canvas: once adds, moves, resizes and blur
+saves all offer a receipt, an in-flow notice pushed the canvas down under the pointer. The cost is
+that it can cover content near that corner until dismissed. An uncertain remove has a
 separate explicit retry using the original input; refresh retry only repeats the read.
 This keeps recovery in the current work context without claiming durable browser history
 ([decision](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).

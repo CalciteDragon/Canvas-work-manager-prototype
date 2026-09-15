@@ -224,6 +224,52 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
       return (removed.structuredContent as { undo: { undoId: string } }).undo.undoId;
     };
 
+    it('carries add, update and move receipts through the handler and blocks a revoked edit Undo', async () => {
+      const { api, client, handler, persistence } = await build();
+      await grantProjectsWrite(api);
+
+      try {
+        const created = await client.callTool({
+          name: 'create_section',
+          arguments: { projectId: 'project-work-manager', type: 'rich-text', title: 'Handler original', config: { text: 'before' } },
+        });
+        expect(created.isError).not.toBe(true);
+        const createdSection = (created.structuredContent as { section: { id: string; position: number } }).section;
+
+        const updated = await client.callTool({
+          name: 'update_section',
+          arguments: { sectionId: createdSection.id, title: 'Handler changed' },
+        });
+        expect(updated.isError).not.toBe(true);
+        const updateUndo = (updated.structuredContent as { undo: { undoId: string } }).undo.undoId;
+        const restored = await client.callTool({ name: 'undo_operation', arguments: { undoId: updateUndo } });
+        expect(restored.isError).not.toBe(true);
+        expect(restored.structuredContent).toMatchObject({ operation: 'section.update', section: { title: 'Handler original' } });
+
+        const moved = await client.callTool({
+          name: 'move_section',
+          arguments: { sectionId: createdSection.id, position: 0 },
+        });
+        expect(moved.isError).not.toBe(true);
+        const moveUndo = (moved.structuredContent as { undo: { undoId: string } }).undo.undoId;
+        const moveRestored = await client.callTool({ name: 'undo_operation', arguments: { undoId: moveUndo } });
+        expect(moveRestored.isError).not.toBe(true);
+        expect(moveRestored.structuredContent).toMatchObject({ operation: 'section.move', section: { id: createdSection.id } });
+
+        const revokedEdit = await client.callTool({
+          name: 'update_section',
+          arguments: { sectionId: createdSection.id, title: 'Pending revocation' },
+        });
+        const revokedUndo = (revokedEdit.structuredContent as { undo: { undoId: string } }).undo.undoId;
+        await api.agents.revoke(PERSON, 'agent-claude' as never);
+        await expect(client.callTool({ name: 'undo_operation', arguments: { undoId: revokedUndo } })).rejects.toThrow();
+        expect(persistence.store.snapshot().undoRecords.find(({ id }) => id === revokedUndo)?.consumedAt).toBeUndefined();
+      } finally {
+        await client.close();
+        await handler.close();
+      }
+    });
+
     it('undoes once, then refuses the repeat with text starting undo_consumed:', async () => {
       const { api, client, handler, persistence } = await build();
       await grantProjectsWrite(api);

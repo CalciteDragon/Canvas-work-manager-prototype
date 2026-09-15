@@ -107,7 +107,7 @@ const CASES: Record<string, ToolCase> = {
       const writer = agent(['projects.write', 'tasks.write']);
       await harness.services.sections.remove(writer, VIEW_SECTION);
       const notes = await harness.services.sections.add(writer, PROJECT, { type: 'rich-text', config: { text: 'Keep me' } });
-      await harness.services.sections.remove(writer, notes.id);
+      await harness.services.sections.remove(writer, notes.section.id);
       await harness.services.sections.remove(writer, TASK_CONTAINER, { policy: 'cascade' });
     },
     verify: (result) => {
@@ -240,19 +240,27 @@ const CASES: Record<string, ToolCase> = {
     input: { projectId: PROJECT, type: 'progress', position: 1 },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toMatchObject({ projectId: PROJECT, type: 'progress', position: 1 });
+      expect(result).toMatchObject({ section: { projectId: PROJECT, type: 'progress', position: 1 }, undo: { operation: 'section.add' } });
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
-      expect(listed.find(({ id }) => id === result.id)?.position).toBe(1);
+      expect(listed.find(({ id }) => id === result.section.id)?.position).toBe(1);
       expect(await harness.services.shortcuts.list(agent(['projects.read']), PROJECT, { pageId: SHORTCUT_DESTINATION_PAGE })).toMatchObject([
         { id: SEEDED_SHORTCUT, position: 4 },
       ]);
+    },
+  },
+  move_section: {
+    input: { sectionId: VIEW_SECTION, position: 0 },
+    mutates: true,
+    verify: async (result, harness) => {
+      expect(result).toMatchObject({ section: { id: VIEW_SECTION, position: 0 }, undo: { operation: 'section.move' } });
+      expect((await harness.services.sections.get(agent(['projects.read']), VIEW_SECTION)).position).toBe(0);
     },
   },
   update_section: {
     input: { sectionId: TASK_CONTAINER, title: 'This week' },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result.title).toBe('This week');
+      expect(result.section.title).toBe('This week');
       expect((await harness.services.sections.get(agent(['projects.read']), TASK_CONTAINER)).title).toBe('This week');
     },
   },
@@ -268,7 +276,7 @@ const CASES: Record<string, ToolCase> = {
       expect(result.section).toMatchObject({ id: VIEW_SECTION });
       expect(result.section.archivedAt).toBeDefined();
       // And a receipt with no inverse data in it: the id, what it undoes, and its window.
-      expect(Object.keys(result.undo).sort()).toEqual(['createdAt', 'expiresAt', 'label', 'operation', 'undoId']);
+      expect(Object.keys(result.undo).sort()).toEqual(['createdAt', 'expiresAt', 'label', 'operation', 'sequence', 'undoId']);
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
       expect(listed.map(({ id }) => id)).not.toContain(VIEW_SECTION);
     },

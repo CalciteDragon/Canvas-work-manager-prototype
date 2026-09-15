@@ -32,15 +32,16 @@ fields.
 ## Undo records
 
 `undo.ts` holds every Undo shape. `UndoOperationSchema` is a discriminated union on `type` whose
-one member, `SectionRemoveUndoOperationSchema`, is strict and pinned to `version: 1`: an unknown
-type, a later version or an extra key fails parsing, so a stored record can never smuggle
-arbitrary JSON into an executor. Its optional `disposition` is `retained` or `deleted`; an absent
-value means retained so records written before Slice 31 stay valid. Its refinements hold the
-record to what removal can actually produce — rows exactly when a policy was applied, a reassign
-target exactly for reassign, unique rows of the kind the section owns, a live pre-removal section
-on the placement's page.
+four strict members are pinned to `version: 1`: an unknown type, a later version or an extra key
+fails parsing, so a stored record can never smuggle arbitrary JSON into an executor. Removal keeps
+its optional `disposition` for the Slice 31 compatibility rule. Add captures the created section;
+move captures the subject page and before/after neighbours; update captures a unique set of title,
+config, collapsed and column-span changes. The refinements reject malformed self-neighbours,
+duplicate fields and invalid normalized titles. `UndoReceiptSchema` carries only the id,
+operation, workspace sequence, label and lifetime; no inverse data crosses HTTP, MCP or the
+gateway.
 `UndoRecordSchema` shares `assertActorIsAttributable` with activity. The receipt is strict and
-carries only `undoId`, `operation`, `label`, `createdAt` and `expiresAt`. `UndoRefusalDetailsSchema`
+carries only `undoId`, `operation`, `sequence`, `label`, `createdAt` and `expiresAt`. `UndoRefusalDetailsSchema`
 is the typed half of a 409; conflicts carry an optional current title and a required typed
 `nextStep`, while missing entities omit their title. `SectionAlreadyRemovedDetailsSchema` carries
 only the section id and the exact actor's outstanding receipt. MCP carries only the message, which
@@ -65,12 +66,15 @@ schema version 3 without a converter: an older file parses with every collection
 | `ownedKindOf` | function | Lookup over that map | [API](../../api/miscellaneous/variables.html#ownedKindOf) |
 | `nameOf` | function | A section's display name: `title` override, else derived from `type` | [API](../../api/miscellaneous/variables.html#nameOf) |
 | `ProjectArchiveSectionRecoverySchema` | const | Archive section entry's recovery metadata union | [API](../../api/miscellaneous/variables.html#ProjectArchiveSectionRecoverySchema) |
-| `UndoOperationSchema` | const | Typed, versioned union of undoable operations; `section.remove` v1 only | [API](../../api/miscellaneous/variables.html#UndoOperationSchema) |
+| `UndoOperationSchema` | const | Typed, versioned union of `section.add`, `section.move`, `section.update` and `section.remove` | [API](../../api/miscellaneous/variables.html#UndoOperationSchema) |
 | `SectionRemovalDispositionSchema` | const | `retained` or `deleted`; optional on v1 for legacy compatibility | [API](../../api/miscellaneous/variables.html#SectionRemovalDispositionSchema) |
 | `UndoRecordSchema` | const | A stored inverse: owner, actor, `sequence`, expiry, `consumedAt`, operation | [API](../../api/miscellaneous/variables.html#UndoRecordSchema) |
-| `UndoReceiptSchema` | const | What a caller holds after a committed removal; no inverse data | [API](../../api/miscellaneous/variables.html#UndoReceiptSchema) |
+| `UndoReceiptSchema` | const | What a caller holds after a committed section write; sequence-ordered and inverse-free | [API](../../api/miscellaneous/variables.html#UndoReceiptSchema) |
 | `SectionAlreadyRemovedDetailsSchema` | const | Exact-owner receipt carried by a repeated-removal 409 | [API](../../api/miscellaneous/variables.html#SectionAlreadyRemovedDetailsSchema) |
-| `UndoResultSchema` | const | Outcome, restored section, placement strategy and row count | [API](../../api/miscellaneous/variables.html#UndoResultSchema) |
+| `UndoResultSchema` | const | Discriminated add removal, field restoration, move placement or removal result | [API](../../api/miscellaneous/variables.html#UndoResultSchema) |
+| `SectionAddResultSchema` | const | `create_section` / `POST …/sections`: the created section and its required add receipt | [API](../../api/miscellaneous/variables.html#SectionAddResultSchema) |
+| `SectionWriteResultSchema` | const | Update and move: the section and a receipt, or `undo: null` for a true no-op | [API](../../api/miscellaneous/variables.html#SectionWriteResultSchema) |
+| `SectionFieldChangeSchema` | const | One recorded settings field (`title`, `config`, `collapsed`, `columnSpan`) with before and after values | [API](../../api/miscellaneous/variables.html#SectionFieldChangeSchema) |
 | `UndoRefusalDetailsSchema` | const | 409 details discriminated on `reason` | [API](../../api/miscellaneous/variables.html#UndoRefusalDetailsSchema) |
 | `assertActorIsAttributable` | function | The user/agent/system attribution rule, shared by events and Undo records | [API](../../api/miscellaneous/variables.html#assertActorIsAttributable) |
 

@@ -9,7 +9,7 @@
  * `PROTOTYPE_API_BASE_URL` string.
  */
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import type { CreateSectionInput, Project, ProjectLayoutMode, ProjectSection } from '@cwm/contracts';
+import type { CreateSectionInput, Project, ProjectLayoutMode, ProjectSection, SectionAddResult } from '@cwm/contracts';
 
 const HOST = 'http://127.0.0.1:4310';
 
@@ -94,8 +94,8 @@ export const createSubprojects = async (rootId: string, count: number): Promise<
 };
 
 /** Create a section on the project's canonical canvas, optionally at a combined-order index. */
-export const addSection = (projectId: string, input: CreateSectionInput): Promise<ProjectSection> =>
-  api.post(`/api/projects/${projectId}/sections`, input);
+export const addSection = async (projectId: string, input: CreateSectionInput): Promise<ProjectSection> =>
+  (await api.post<SectionAddResult>(`/api/projects/${projectId}/sections`, input)).section;
 
 /** Persist the project layout flag through the same host API used by the development panel. */
 export const setLayout = (projectId: string, projectLayoutMode: ProjectLayoutMode): Promise<Project> =>

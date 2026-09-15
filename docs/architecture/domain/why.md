@@ -58,15 +58,17 @@ independent audit proves no task, reflection or shortcut still references the se
 references retain an integrity tombstone; existing tombstones are never purged
 ([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
-**Undo is a scoped inverse record, not a replay and not the activity log.** A section removal
-records one versioned `section.remove` inverse beside the canonical writes, in the same unit —
-the pre-removal section, its neighbours in the combined page order, and exactly the rows it
-changed — and returns a receipt. `UndoService` executes it once, for the exact actor, within 24
-hours, refusing with a typed reason rather than overwriting a later structural write. Archive
-Restore stays the durable, append-placed recovery. Rejected: inverse data on `ActivityEvent`
-(activity is audit), a generic command bus, and routing Undo through `SectionService` or the
-row services (a cycle) — the inverse lives in function modules both sides share
-([decision](../../decisions/2026-09-section-removal-undo-records.md)).
+**Undo is a scoped inverse record, not a replay and not the activity log.** Explicit section add,
+move and settings writes now join removal in the same caller-owned unit and return a receipt.
+Their versioned inverses contain only the created snapshot, combined neighbours or changed-field
+footprint that their executor may safely touch. `UndoService` executes each once, for the exact
+actor, within 24 hours, refusing with a typed reason rather than overwriting a later structural
+write; sequence, not timestamp, chooses the newest browser receipt. Archive Restore stays the
+durable, append-placed recovery. Rejected: inverse data on `ActivityEvent` (activity is audit),
+a generic command bus, and routing Undo through `SectionService` or the row services (a cycle) —
+the inverse lives in package-internal function modules both sides share
+([decisions](../../decisions/2026-09-section-removal-undo-records.md),
+[section edit boundaries](../../decisions/2026-09-section-edit-undo-boundaries.md)).
 
 **Archiving a project reaches down without cascading.** A project with a live child
 refuses to archive; live work beneath an archived ancestor is hidden from ordinary reads
@@ -136,10 +138,6 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [Project nesting rules and what archiving a parent does](../../decisions/2026-08-project-nesting-and-archive-rules.md)
 
 ## Spec sections
-
-The [Slice 32 planning choice](../../decisions/2026-09-section-edit-undo-boundaries.md)
-defines the intended boundaries for additional section Undo operations. It is pending
-implementation; the current executor still supports removal only.
 
 §12 domain package · §27 who owns what and where a write lands · §31 archive · §33–§34
 tasks and the Todos page · §36 reflections and the journal · §38–§39 timeline and

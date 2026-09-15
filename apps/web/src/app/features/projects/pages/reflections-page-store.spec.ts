@@ -9,6 +9,8 @@ import {
   type Reflection,
   type ProjectId,
   type ProjectPageId,
+  type UndoRecordId,
+  type UndoReceipt,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
@@ -84,6 +86,14 @@ const completedWork = ProjectCompletedWorkResultSchema.parse({
   projectId: PROJECT,
   candidates: [journal.items[0]!.subject!],
 });
+const addReceipt: UndoReceipt = {
+  undoId: 'undo-reflections-add' as UndoRecordId,
+  operation: 'section.add',
+  sequence: 1,
+  label: 'Add reflections',
+  createdAt: AT,
+  expiresAt: '2026-09-06T10:00:00.000Z',
+};
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -216,7 +226,10 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
   it('creates the missing page container with pageId only', async () => {
     const { store, gateway } = setup();
     gateway.sections.list = async () => [];
-    gateway.sections.create = vi.fn(async (_projectId, input) => ({ ...container, ...input, projectId: PROJECT, pageId: PAGE }));
+    gateway.sections.create = vi.fn(async (_projectId, input) => ({
+      section: { ...container, ...input, projectId: PROJECT, pageId: PAGE },
+      undo: addReceipt,
+    }));
     await store.load(PROJECT, PAGE);
 
     expect(await store.ensureContainer()).toBe(true);
@@ -295,5 +308,63 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     expect(live.listenerCount).toBe(0);
     write.resolve(journal.items[0]!.reflection);
     expect(await creation).toBe(false);
+  });
+});
+
+describe('ReflectionsPageStore — container add Undo (Slice 32)', () => {
+  const addWithUndo = (gateway: FakeWorkManagerGateway, undoExecute: FakeWorkManagerGateway['undo']['execute']) => {
+    let listed: (typeof container)[] = [];
+    gateway.sections.list = async () => [...listed];
+    gateway.sections.create = vi.fn(async (_projectId, input) => {
+      listed = [container];
+      return { section: { ...container, ...input, projectId: PROJECT, pageId: PAGE }, undo: addReceipt };
+    });
+    gateway.undo.execute = vi.fn(async (undoId) => {
+      const result = await undoExecute(undoId);
+      listed = [];
+      return result;
+    });
+  };
+
+  it('holds the add receipt and Undo returns the page to its empty-container prompt', async () => {
+    const { store, gateway } = setup();
+    addWithUndo(gateway, async () => ({ undoId: addReceipt.undoId, operation: 'section.add', outcome: 'removed', sectionId: container.id, projectId: PROJECT, pageId: PAGE }));
+    await store.load(PROJECT, PAGE);
+
+    await store.ensureContainer();
+    expect(store.undoNotice()).toMatchObject({ kind: 'available', receipt: { undoId: addReceipt.undoId } });
+
+    await expect(store.undoOperation()).resolves.toMatchObject({ operation: 'section.add' });
+    expect(store.undoNotice()).toMatchObject({ kind: 'result', receipt: null });
+    expect(store.container()).toBeNull();
+    expect(store.containerCount()).toBe(0);
+  });
+
+  it('keeps the container and the receipt when the server refuses because a reflection was authored', async () => {
+    const { store, gateway } = setup();
+    addWithUndo(gateway, async () => {
+      throw new GatewayError('rule_violation', 409, 'undo_conflict: a reflection now lives in it', {
+        reason: 'undo_conflict',
+        undoId: addReceipt.undoId,
+        conflicts: [{ entityType: 'reflection', id: 'reflection-new', title: 'Kept', problem: 'new-dependent', nextStep: 'remove-reference-and-retry' }],
+      });
+    });
+    await store.load(PROJECT, PAGE);
+    await store.ensureContainer();
+
+    expect(await store.undoOperation()).toBeNull();
+
+    expect(store.undoNotice()).toMatchObject({ kind: 'refusal', receipt: { undoId: addReceipt.undoId }, refusal: { reason: 'undo_conflict' } });
+    expect(store.container()?.id).toBe(container.id);
+  });
+
+  it('clears the notice on navigation', async () => {
+    const { store, gateway } = setup();
+    addWithUndo(gateway, async () => { throw new Error('not reached'); });
+    await store.load(PROJECT, PAGE);
+    await store.ensureContainer();
+
+    await store.load(PROJECT, 'page-other' as ProjectPageId);
+    expect(store.undoNotice()).toBeNull();
   });
 });

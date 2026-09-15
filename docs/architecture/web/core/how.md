@@ -15,6 +15,8 @@
 4. A gateway call builds the URL from `PROTOTYPE_API_BASE_URL`, adds the persona header,
    waits the configured delay, fails with the configured probability, then `fetch`es;
    a non-2xx envelope becomes a `GatewayError` with the host's code, message and details.
+   Section create/update/move responses are parsed as their shared receipt envelopes; no-op
+   updates and moves preserve `undo: null`, and Undo results remain discriminated by operation.
 5. `AppShell` provides `ShellStore`, which loads projects, derives the tree
    (`ProjectTreeNode`), and re-reads on `project.*` frames.
 

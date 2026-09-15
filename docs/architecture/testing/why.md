@@ -49,6 +49,11 @@ Slice 31 extends those transport checks with repeat-removal receipt recovery ove
 and MCP; its separate Playwright journey verifies the visible Undo action against persisted
 deletion, recreation, Archive projection and reload.
 
+The same evidence covers typed add, move and update receipts: MCP acceptance runs each family
+and an unchanged `undo: null` over both transports, the handler suite pins connection revocation
+after a receipt is issued, and the browser journey checks interleaved MCP edits, that a reload
+clears local notices, and that the Reflections-page container uses the same Undo surface.
+
 **The e2e suite owns its servers and its data file.** Playwright's `webServer` takes an
 array — the deciding reason over Cypress — and each entry names the address its server
 actually binds (`127.0.0.1` for the host, `[::1]` for `ng serve`), refuses to reuse a

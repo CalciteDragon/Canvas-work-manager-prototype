@@ -23,10 +23,11 @@ service through an acyclic edge. They never know about HTTP, MCP, JSON or seeds.
   archived-ancestor rule; reflection subjects.
 - **Activity.** One `ActivityEvent` per state-changing operation, with the actor, through
   `ActivityService.record` — which is also where a live frame is published, after commit.
-- **Undo.** A section removal safely retains or deletes the section after settling rows and
-  checking canonical references, records one scoped, expiring inverse through `UndoRecorder`
-  in its own unit and returns a receipt; `UndoService` executes it once for the exact actor,
-  with neighbour-aware placement and typed refusals instead of overwriting later writes.
+- **Undo.** Explicit section add, move and settings writes, as well as removal, record one
+  scoped, expiring inverse through `UndoRecorder` in their caller-owned unit and return a
+  sequence-ordered receipt. `UndoService` executes the typed family once for the exact actor,
+  with field-aware conflicts, combined-neighbour placement and typed refusals instead of
+  overwriting later writes. Automatic row-container creation remains unrecorded.
 - **Time.** All timestamps come from the injected `Clock`. `new Date()` is banned here by
   lint.
 - **Derived reads.** The dashboard, progress, timeline, workspace search, upcoming work,

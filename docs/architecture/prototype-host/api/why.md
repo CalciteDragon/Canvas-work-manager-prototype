@@ -46,6 +46,12 @@ removal remains `{ section, undo }`, where `section` is an archived-shaped snaps
 though the stored section is absent
 ([decision](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
+**All explicit section edits keep the same receipt-only transport seam.** Add, update and move
+are pass-through domain results, so HTTP does not perform a second read that would require
+`projects.read`. Update and move expose `undo: null` for true no-ops; successful receipts carry
+only their public sequence and operation. The route does not know which fields an inverse may
+restore ([decision](../../../decisions/2026-09-section-edit-undo-boundaries.md)).
+
 **`GET /api/me` and CORS came with the shell, not the spec.** §18 cannot be honoured
 without an identity read, and the non-simple `x-prototype-user` header makes the
 preflight load-bearing ([decision](../../../decisions/2026-08-identity-contract-and-me-route.md),

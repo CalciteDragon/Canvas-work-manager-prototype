@@ -1,4 +1,4 @@
-import { DestroyRef, Injectable, PendingTasks, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
 import {
   SectionConfigSchema,
   SectionRemovalRefusalDetailsSchema,
@@ -79,6 +79,39 @@ export interface SectionUndoNoticeState {
   refreshFailed?: boolean;
 }
 
+/**
+ * The notice a failed Undo leaves behind, shared by every page that holds a section receipt.
+ * Consumed, expired and unknown receipts are terminal; a typed refusal or transport error keeps
+ * the receipt so the caller can retry.
+ */
+export const undoFailureNotice = (
+  receipt: UndoReceipt,
+  error: unknown,
+  currentNotice: SectionUndoNoticeState | null,
+  consumedFollowUp: string,
+): SectionUndoNoticeState => {
+  if (error instanceof GatewayError && error.code === 'not_found') {
+    return { kind: 'terminal', receipt: null, message: 'This Undo receipt is no longer available.' };
+  }
+  const parsed = error instanceof GatewayError ? UndoRefusalDetailsSchema.safeParse(error.details) : null;
+  if (error instanceof GatewayError && parsed?.success && error.code === 'rule_violation') {
+    const refusal = parsed.data;
+    if (refusal.reason === 'undo_consumed') {
+      return { kind: 'terminal', receipt: null, refusal, message: ['Undo was already completed.', consumedFollowUp].filter(Boolean).join(' ') };
+    }
+    if (refusal.reason === 'undo_expired') {
+      return { kind: 'terminal', receipt: null, refusal, message: `This Undo receipt expired at ${refusal.expiresAt}.` };
+    }
+    return { kind: 'refusal', receipt, refusal, message: error.message };
+  }
+  return {
+    kind: 'error',
+    receipt,
+    message: messageOf(error),
+    ...(currentNotice?.refreshFailed === true ? { refreshFailed: true } : {}),
+  };
+};
+
 /** An explicit Retry remove repeats the exact canvas action after an uncertain failure. */
 export interface FailedSectionRemoval {
   sectionId: SectionId;
@@ -146,6 +179,9 @@ export class ProjectPageStore {
   private readonly undoNoticeState = signal<SectionUndoNoticeState | null>(null);
   private readonly failedRemovalState = signal<FailedSectionRemoval | null>(null);
   private readonly removalUndoPendingState = signal(false);
+  private readonly pendingSectionWriteCountState = signal(0);
+  /** Receipts are ordered by the server's workspace sequence, never by arrival time. */
+  private undoReceiptHighWaterMark = 0;
   private readonly canvasRevisionState = signal(0);
   private readonly projectDataRevisionState = signal(0);
   private readonly projectHierarchyRevisionState = signal(0);
@@ -186,6 +222,7 @@ export class ProjectPageStore {
   readonly undoNotice = this.undoNoticeState.asReadonly();
   readonly failedRemoval = this.failedRemovalState.asReadonly();
   readonly removalUndoPending = this.removalUndoPendingState.asReadonly();
+  readonly undoBusy = computed(() => this.removalUndoPendingState() || this.pendingSectionWriteCountState() > 0);
   readonly projectHierarchyRevision = this.projectHierarchyRevisionState.asReadonly();
 
   constructor() {
@@ -395,6 +432,7 @@ export class ProjectPageStore {
     this.requestedPageId = pageId;
     this.requestedShortcutsAllowed = shortcutsAllowed;
     this.undoNoticeState.set(null);
+    this.undoReceiptHighWaterMark = 0;
     this.failedRemovalState.set(null);
     this.removalPromptState.set(null);
     this.orderCompleteState.set(false);
@@ -518,15 +556,16 @@ export class ProjectPageStore {
       // Parsed, not cast: §29 types `createDefaultConfig` as `unknown`, and a definition
       // that returns a non-object should fail here rather than at the host.
       const config = SectionConfigSchema.parse(definition.createDefaultConfig());
-      const created = await this.gateway.sections.create(projectId, {
+      const result = await this.gateway.sections.create(projectId, {
         type: definition.type,
         pageId,
         config,
         ...options,
       });
       if (!current()) return;
-      this.insertPlacement({ kind: 'section', section: created }, created.position);
-      await this.reconcileSections(projectId, pageId, generation);
+      this.insertPlacement({ kind: 'section', section: result.section }, result.section.position);
+      this.captureUndoReceipt(result.undo, 'Section added. Undo is available on this page.');
+      if (!(await this.reconcileSections(projectId, pageId, generation))) this.markForwardRefreshFailed(result.undo, current);
     });
   }
 
@@ -586,12 +625,13 @@ export class ProjectPageStore {
       this.whileWriting(async () => {
       if (current()) this.sectionErrorState.set(null);
       try {
-        await this.gateway.sections.move(id, { position });
+        const result = await this.gateway.sections.move(id, { position });
         if (!current()) return true;
+        this.captureUndoReceipt(result.undo, 'Section moved. Undo is available on this page.');
 
         // The preview remains visibly successful if the follow-up read fails. It is a
         // rendering order, not a second implementation of domain validation.
-        await this.reconcileSections(projectId, pageId, generation);
+        if (!(await this.reconcileSections(projectId, pageId, generation))) this.markForwardRefreshFailed(result.undo, current);
         return true;
       } catch (error) {
         if (current()) {
@@ -615,8 +655,9 @@ export class ProjectPageStore {
       () => this.sectionsState().find((section) => section.id === id)?.columnSpan,
       (span) => this.patchSectionColumnSpan(id, span),
       async () => this.gateway.sections.update(id, { columnSpan }),
-      (section) => section.columnSpan,
-      (section) => this.replaceSection(section),
+      (result) => result.section.columnSpan,
+      (result) => this.replaceSection(result.section),
+      (result) => this.captureUndoReceipt(result.undo, 'Section updated. Undo is available on this page.'),
     );
   }
 
@@ -741,11 +782,7 @@ export class ProjectPageStore {
           if (available.success && available.data.sectionId === id) {
             this.removalPromptState.set(null);
             this.clearFailedRemovalFor(id);
-            this.undoNoticeState.set({
-              kind: 'already-removed',
-              receipt: available.data.undo,
-              message: 'Already removed. Undo is available.',
-            });
+            this.captureUndoReceipt(available.data.undo, 'Already removed. Undo is available.', 'already-removed');
             this.removePlacement(id);
             this.notifyProjectDataChanged();
             await this.waitForOtherSectionWrites();
@@ -767,11 +804,10 @@ export class ProjectPageStore {
       if (!current()) return;
       this.removalPromptState.set(null);
       this.clearFailedRemovalFor(id);
-      this.undoNoticeState.set({
-        kind: 'available',
-        receipt: result.undo,
-        message: 'Section removed. Undo is available on this page. Leaving clears this notice; the receipt stays on the server.',
-      });
+      this.captureUndoReceipt(
+        result.undo,
+        'Section removed. Undo is available on this page. Leaving clears this notice; the receipt stays on the server.',
+      );
       // Paint the committed removal immediately. Neighbor positions still come from the
       // authoritative read, and the receipt above survives if that read fails.
       this.removePlacement(id);
@@ -792,12 +828,12 @@ export class ProjectPageStore {
   }
 
   /** Executes only the held receipt id; all inverse data and actor checks stay on the server. */
-  undoSectionRemoval(): Promise<UndoResult | null> {
+  undoOperation(): Promise<UndoResult | null> {
     const notice = this.undoNoticeState();
     const receipt = notice?.receipt;
     const projectId = this.requestedProjectId;
     const pageId = this.requestedPageId;
-    if (receipt === undefined || receipt === null || projectId === undefined || pageId === undefined || this.removalUndoPendingState()) {
+    if (receipt === undefined || receipt === null || projectId === undefined || pageId === undefined || this.removalUndoPendingState() || this.pendingSectionWrites > 0) {
       return Promise.resolve(null);
     }
     const generation = this.loadGeneration;
@@ -807,6 +843,13 @@ export class ProjectPageStore {
       try {
         const result = await this.gateway.undo.execute(receipt.undoId);
         if (!current()) return null;
+        // A write that committed while Undo was in flight owns the notice now; still reconcile.
+        if (this.undoReceiptHighWaterMark !== receipt.sequence) {
+          this.notifyProjectDataChanged();
+          await this.waitForOtherSectionWrites();
+          await this.reconcileSections(projectId, pageId, generation);
+          return result;
+        }
         this.undoNoticeState.set({
           kind: 'result',
           receipt: null,
@@ -819,7 +862,7 @@ export class ProjectPageStore {
         if (!refreshed) this.markUndoRefreshFailed(current);
         return result;
       } catch (error) {
-        if (!current()) return null;
+        if (!current() || this.undoReceiptHighWaterMark !== receipt.sequence) return null;
         this.handleUndoFailure(receipt, error);
         const state = this.undoNoticeState();
         if (state?.kind === 'terminal' && state.refusal?.reason === 'undo_consumed') {
@@ -885,48 +928,40 @@ export class ProjectPageStore {
     );
   }
 
+  private captureUndoReceipt(
+    receipt: UndoReceipt | null | undefined,
+    message: string,
+    kind: 'available' | 'already-removed' = 'available',
+  ): void {
+    if (receipt === null || receipt === undefined || receipt.sequence <= this.undoReceiptHighWaterMark) return;
+    this.undoReceiptHighWaterMark = receipt.sequence;
+    this.undoNoticeState.set({ kind, receipt, message });
+  }
+
   private undoResultMessage(result: UndoResult): string {
+    if (result.operation === 'section.add') return 'Undo removed the added section.';
+    if (result.operation === 'section.update') return `Undo restored ${nameOf(result.section)}.`;
     const name = nameOf(result.section);
     if (!result.placement.pageEnabled) {
-      const destination = result.outcome === 'partial' ? 'another disabled page' : 'a disabled page';
+      const destination = result.operation === 'section.remove' && result.outcome === 'partial'
+        ? 'another disabled page'
+        : 'a disabled page';
       return `Undo restored ${name} to ${destination} (${result.placement.pageId}). Enable that page to see it.`;
     }
-    if (result.outcome === 'partial') {
+    if (result.operation === 'section.remove' && result.outcome === 'partial') {
       return `Undo restored ${name} to another available page (${result.placement.pageId}).`;
     }
     return `Undo restored ${name}.`;
   }
 
   private handleUndoFailure(receipt: UndoReceipt, error: unknown): void {
-    const currentNotice = this.undoNoticeState();
-    const parsed = error instanceof GatewayError ? UndoRefusalDetailsSchema.safeParse(error.details) : null;
-    if (error instanceof GatewayError && error.code === 'not_found') {
-      this.undoNoticeState.set({ kind: 'terminal', receipt: null, message: 'This Undo receipt is no longer available.' });
-      return;
-    }
-    if (error instanceof GatewayError && parsed?.success && error.code === 'rule_violation') {
-      const refusal = parsed.data;
-      if (refusal.reason === 'undo_consumed') {
-        this.undoNoticeState.set({
-          kind: 'terminal', receipt: null, refusal,
-          message: 'Undo was already completed. The canvas has been refreshed.',
-        });
-      } else if (refusal.reason === 'undo_expired') {
-        this.undoNoticeState.set({
-          kind: 'terminal', receipt: null, refusal,
-          message: `This Undo receipt expired at ${refusal.expiresAt}.`,
-        });
-      } else {
-        this.undoNoticeState.set({ kind: 'refusal', receipt, refusal, message: error.message });
-      }
-      return;
-    }
-    this.undoNoticeState.set({
-      kind: 'error',
-      receipt,
-      message: messageOf(error),
-      ...(currentNotice?.refreshFailed === true ? { refreshFailed: true } : {}),
-    });
+    this.undoNoticeState.set(undoFailureNotice(receipt, error, this.undoNoticeState(), 'The canvas has been refreshed.'));
+  }
+
+  /** A committed write whose follow-up read failed keeps its receipt and offers read-only Retry refresh. */
+  private markForwardRefreshFailed(receipt: UndoReceipt | null, current: () => boolean): void {
+    if (receipt === null || this.undoNoticeState()?.receipt?.undoId !== receipt.undoId) return;
+    this.markUndoRefreshFailed(current);
   }
 
   private markUndoRefreshFailed(current: () => boolean): void {
@@ -977,7 +1012,8 @@ export class ProjectPageStore {
     return this.mutate(async ({ current }) => {
       const updated = await this.gateway.sections.update(id, input);
       if (!current()) return;
-      this.replaceSection(updated);
+      this.replaceSection(updated.section);
+      this.captureUndoReceipt(updated.undo, 'Section updated. Undo is available on this page.');
     });
   }
 
@@ -1000,6 +1036,7 @@ export class ProjectPageStore {
     write: () => Promise<T>,
     readSavedSpan: (record: T) => SectionColumnSpan,
     applySaved: (record: T) => void,
+    onSaved: (record: T) => void = () => {},
   ): Promise<boolean> {
     const projectId = this.requestedProjectId;
     const pageId = this.requestedPageId;
@@ -1042,6 +1079,7 @@ export class ProjectPageStore {
             state!.confirmedSpan = savedSpan;
           }
           if (latest()) applySaved(saved);
+          onSaved(saved);
           this.paintColumnSpanWrite(state!, paint);
           this.cleanupColumnSpanWrite(stateKey, state!);
           return true;
@@ -1194,9 +1232,11 @@ export class ProjectPageStore {
    */
   private whileWriting<T>(operation: () => Promise<T>): Promise<T> {
     this.pendingSectionWrites += 1;
+    this.pendingSectionWriteCountState.set(this.pendingSectionWrites);
     this.sectionWriteEpoch += 1;
     return operation().finally(() => {
       this.pendingSectionWrites -= 1;
+      this.pendingSectionWriteCountState.set(this.pendingSectionWrites);
       const waiting: typeof this.sectionWriteWaiters = [];
       for (const waiter of this.sectionWriteWaiters) {
         if (this.pendingSectionWrites <= waiter.threshold) waiter.resolve();

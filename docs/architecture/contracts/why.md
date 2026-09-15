@@ -59,6 +59,12 @@ combines it with the content that actually remains.
 **Section config is an opaque object replaced whole.** Only the section's own folder
 parses it ([decision](../../decisions/2026-08-section-config-ownership.md)).
 
+**Edit Undo records a field footprint, not a whole snapshot.** Title, config, collapse and span
+are the only explicit settings fields; config is still one structural replacement. A move stores
+combined neighbours, and an add stores only the created section needed for a safe non-cascading
+delete. The public receipt exposes only its operation and sequence, so transport clients cannot
+steer an inverse ([decision](../../decisions/2026-09-section-edit-undo-boundaries.md)).
+
 **`ActivityAction` is an open `entity.verb` string**, not an enum: §57 names no action
 list and every slice adds verbs. `LiveEvent.type` reuses it so a frame is the
 announcement of the activity record that was just written, not a parallel type.

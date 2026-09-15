@@ -44,6 +44,11 @@ flowchart LR
 a small interface in `work-manager-gateway.ts`, each with a fake in `gateway/testing`.
 A member exists only when an implementation and a caller exist.
 
+The section gateway returns shared contracts rather than bare entities: create returns
+`SectionAddResult`, update and move return `SectionWriteResult`, and `undo.execute` returns the
+discriminated `UndoResult`. The adapter validates those envelopes at the HTTP boundary, so no
+component imports a transport type or reconstructs a receipt.
+
 ## A store's three connections
 
 ```mermaid

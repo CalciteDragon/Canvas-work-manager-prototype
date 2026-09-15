@@ -42,7 +42,7 @@ describe('@cwm/contracts entrypoint', () => {
   // The host, the MCP tools and the domain all name Undo's shapes; none of them redeclares one.
   it('exports the Undo receipt, result and refusal schemas', () => {
     expect(UndoReceiptSchema.shape.undoId).toBeDefined();
-    expect(UndoResultSchema.shape.outcome.options).toEqual(['restored', 'partial']);
+    expect(UndoResultSchema.options).toHaveLength(4);
     expect(UndoRefusalDetailsSchema.safeParse({ reason: 'undo_expired', undoId: 'undo-1', expiresAt: '2026-09-14T10:00:00.000Z' }).success).toBe(true);
   });
 });

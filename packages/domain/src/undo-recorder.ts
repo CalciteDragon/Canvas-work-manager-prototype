@@ -55,6 +55,11 @@ export const subjectSectionOf = (record: UndoRecord): string => {
   switch (record.operation.type) {
     case 'section.remove':
       return record.operation.section.id;
+    case 'section.add':
+      return record.operation.section.id;
+    case 'section.move':
+    case 'section.update':
+      return record.operation.sectionId;
   }
 };
 
@@ -104,6 +109,7 @@ export class RepositoryUndoRecorder implements UndoRecorder {
     return UndoReceiptSchema.parse({
       undoId: record.id,
       operation: record.operation.type,
+      sequence: record.sequence,
       label: record.label,
       createdAt: record.createdAt,
       expiresAt: record.expiresAt,
@@ -125,6 +131,7 @@ export class RepositoryUndoRecorder implements UndoRecorder {
       undefined);
     if (
       latest === undefined ||
+      latest.operation.type !== 'section.remove' ||
       latest.consumedAt !== undefined ||
       this.dependencies.clock.now().getTime() >= Date.parse(latest.expiresAt) ||
       !undoRecordBelongsToActor(latest, actor)
@@ -134,6 +141,7 @@ export class RepositoryUndoRecorder implements UndoRecorder {
     return UndoReceiptSchema.parse({
       undoId: latest.id,
       operation: latest.operation.type,
+      sequence: latest.sequence,
       label: latest.label,
       createdAt: latest.createdAt,
       expiresAt: latest.expiresAt,

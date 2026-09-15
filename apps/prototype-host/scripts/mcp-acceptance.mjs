@@ -81,8 +81,8 @@ const assertClient = async (client, title, dataFile) => {
 };
 
 /**
- * Slice 30: remove_section returns a receipt; undo_operation restores the section between the
- * same neighbours with its cascaded tasks live again; a repeat is refused with its reason token.
+ * Slice 32: section writes return typed receipts; undo_operation restores a move/update or
+ * reverses a removal between the same neighbours with its cascaded tasks live again.
  */
 const assertUndo = async (client, title, dataFile) => {
   const canvas = async () => {
@@ -100,6 +100,45 @@ const assertUndo = async (client, title, dataFile) => {
   check(index > 0 && index < before.length - 1, `${title} sees the task list between two neighbours`);
   check(tasksBefore.length > 0, `${title} sees live tasks in it`);
 
+  const added = await client.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type: 'progress', title: `Added over ${title}` } });
+  check(added.isError !== true && added.structuredContent?.undo?.operation === 'section.add', `${title} create_section returns an add receipt`);
+  const addedId = added.structuredContent.section.id;
+  const undoneAdd = await client.callTool({ name: 'undo_operation', arguments: { undoId: added.structuredContent.undo.undoId } });
+  check(undoneAdd.isError !== true && undoneAdd.structuredContent?.operation === 'section.add', `${title} Undo removes an added section`);
+  check(!(await canvas()).includes(addedId), `${title} the added section is gone after Undo`);
+
+  const editable = await client.callTool({
+    name: 'create_section',
+    arguments: { projectId: PROJECT, type: 'rich-text', title: `Original ${title}`, config: { text: 'Before' } },
+  });
+  check(editable.isError !== true && typeof editable.structuredContent?.section?.id === 'string', `${title} creates an editable section`);
+  const editableId = editable.structuredContent.section.id;
+  const changed = await client.callTool({
+    name: 'update_section',
+    arguments: { sectionId: editableId, title: `Changed ${title}`, config: { text: 'After' }, collapsed: true },
+  });
+  check(changed.isError !== true && changed.structuredContent?.undo?.operation === 'section.update', `${title} update_section returns one update receipt`);
+  const noOp = await client.callTool({ name: 'update_section', arguments: { sectionId: editableId, title: `Changed ${title}` } });
+  check(noOp.isError !== true && noOp.structuredContent?.undo === null, `${title} an unchanged update returns undo: null`);
+  const undoneUpdate = await client.callTool({ name: 'undo_operation', arguments: { undoId: changed.structuredContent.undo.undoId } });
+  check(
+    undoneUpdate.isError !== true &&
+      undoneUpdate.structuredContent?.operation === 'section.update' &&
+      undoneUpdate.structuredContent?.section?.title === `Original ${title}`,
+    `${title} Undo restores only the edited fields`,
+  );
+
+  const moved = await client.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type: 'timeline', title: `Moved ${title}` } });
+  check(moved.isError !== true && typeof moved.structuredContent?.section?.id === 'string', `${title} creates a move target`);
+  const movedId = moved.structuredContent.section.id;
+  const beforeMove = await canvas();
+  const move = await client.callTool({ name: 'move_section', arguments: { sectionId: movedId, position: 0 } });
+  check(move.isError !== true && move.structuredContent?.undo?.operation === 'section.move', `${title} move_section returns a move receipt`);
+  const undoneMove = await client.callTool({ name: 'undo_operation', arguments: { undoId: move.structuredContent.undo.undoId } });
+  check(undoneMove.isError !== true && JSON.stringify(await canvas()) === JSON.stringify(beforeMove), `${title} Undo restores combined section order`);
+
+  // The edit journeys above leave two sections behind, so compare removal against this order.
+  const beforeRemoval = await canvas();
   const removed = await client.callTool({ name: 'remove_section', arguments: { sectionId: UNDO_SECTION, policy: 'cascade' } });
   check(removed.isError !== true && typeof removed.structuredContent?.undo?.undoId === 'string', `${title} remove_section returns a receipt`);
   check((await liveTasks()).length === 0, `${title} cascade archived the tasks`);
@@ -107,7 +146,7 @@ const assertUndo = async (client, title, dataFile) => {
 
   const undone = await client.callTool({ name: 'undo_operation', arguments: { undoId } });
   check(undone.isError !== true && undone.structuredContent?.outcome === 'restored', `${title} undo_operation restores`);
-  check(JSON.stringify(await canvas()) === JSON.stringify(before), `${title} the list is back between the same neighbours`);
+  check(JSON.stringify(await canvas()) === JSON.stringify(beforeRemoval), `${title} the list is back between the same neighbours`);
   check(JSON.stringify(await liveTasks()) === JSON.stringify(tasksBefore), `${title} its tasks are live again`);
 
   const repeated = await client.callTool({ name: 'undo_operation', arguments: { undoId } });
@@ -117,8 +156,8 @@ const assertUndo = async (client, title, dataFile) => {
   );
 
   const created = await client.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type: 'progress' } });
-  check(created.isError !== true && typeof created.structuredContent?.id === 'string', `${title} creates a disposable view`);
-  const disposableSectionId = created.structuredContent.id;
+  check(created.isError !== true && typeof created.structuredContent?.section?.id === 'string', `${title} creates a disposable view`);
+  const disposableSectionId = created.structuredContent.section.id;
   const hardRemoved = await client.callTool({ name: 'remove_section', arguments: { sectionId: disposableSectionId } });
   check(hardRemoved.isError !== true, `${title} hard-removes the disposable view`);
   const recoveredReceipt = hardRemoved.structuredContent.undo;
