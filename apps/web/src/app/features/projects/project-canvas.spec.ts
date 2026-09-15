@@ -558,6 +558,139 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(document.activeElement).toBe(query(fixture, '[data-retry-remove]'));
   });
 
+  /** Slice 33 (Refactor §26.9–10): where focus lands after each edit Undo result. */
+  describe('edit Undo focus', () => {
+    const settle = async (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
+      await fixture.whenStable();
+      fixture.detectChanges();
+      await completeDeferredBlocks(fixture);
+      await fixture.whenStable();
+      fixture.detectChanges();
+    };
+
+    const keyboardMove = async (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
+      const grip = query(fixture, '[data-section-id="section-text"] [data-section-drag-handle]')!;
+      grip.focus();
+      grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      await settle(fixture);
+    };
+
+    const clickUndo = async (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
+      const undo = query(fixture, '[data-undo-action]') as HTMLButtonElement;
+      expect(undo).not.toBeNull();
+      undo.focus();
+      undo.click();
+      await settle(fixture);
+      return undo;
+    };
+
+    const refusal = (details: Record<string, unknown>) =>
+      new GatewayError('rule_violation', 409, 'Undo was refused', { undoId: 'undo-section-move-1', ...details });
+
+    it('add Undo focuses notice after removing subject', async () => {
+      const { fixture } = await render({ sections: [] });
+      query(fixture, '[data-empty-canvas-add]')!.click();
+      fixture.detectChanges();
+      await completeDeferredBlocks(fixture);
+      query(fixture, '[data-create-section-submit]')!.click();
+      await settle(fixture);
+      expect(queryAll(fixture, '[data-section-item]')).toHaveLength(1);
+
+      await clickUndo(fixture);
+
+      expect(queryAll(fixture, '[data-section-item]')).toHaveLength(0);
+      expect(document.activeElement).toBe(query(fixture, '[data-undo-notice]'));
+    });
+
+    it('move/update Undo focuses surviving section title', async () => {
+      // A persisted title, so the fake's field restore has a prior value to put back.
+      const { fixture } = await render({
+        sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1, { title: 'Tasks' })],
+      });
+      await keyboardMove(fixture);
+      await clickUndo(fixture);
+      expect(queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId'])).toEqual(['section-text', 'section-tasks']);
+      expect(document.activeElement).toBe(query(fixture, '[data-section-id="section-text"] [data-section-title]'));
+
+      query(fixture, '[data-section-id="section-tasks"] [data-section-title-edit]')!.click();
+      fixture.detectChanges();
+      const input = query(fixture, '[data-section-name]') as HTMLInputElement;
+      input.value = 'Backlog';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await settle(fixture);
+      await clickUndo(fixture);
+
+      expect(query(fixture, '[data-section-id="section-tasks"] .section-frame__title')?.textContent).toContain('Tasks');
+      expect(document.activeElement).toBe(query(fixture, '[data-section-id="section-tasks"] [data-section-title]'));
+    });
+
+    it('refused Undo retains focus on the visible aria-disabled button for permanent refusal and remains retryable for reparable refusal', async () => {
+      const { fixture, gateway } = await render();
+      await keyboardMove(fixture);
+      const execute = vi.fn()
+        .mockRejectedValueOnce(refusal({ reason: 'undo_blocked', blockingProjectId: 'project-a', blockingProjectTitle: 'Website launch' }))
+        .mockRejectedValueOnce(refusal({
+          reason: 'undo_conflict',
+          conflicts: [{ entityType: 'section', id: 'section-text', title: 'Rich Text', problem: 'superseded', nextStep: 'use-later-receipt' }],
+        }));
+      gateway.undo.execute = execute;
+
+      const reparable = await clickUndo(fixture);
+      expect(query(fixture, '[data-undo-action]')).toBe(reparable);
+      expect(reparable.getAttribute('aria-disabled')).toBe('false');
+      expect(document.activeElement).toBe(reparable);
+
+      const permanent = await clickUndo(fixture);
+      expect(execute).toHaveBeenCalledTimes(2);
+      expect(query(fixture, '[data-undo-action]')).toBe(permanent);
+      expect(permanent.getAttribute('aria-disabled')).toBe('true');
+      expect(document.activeElement).toBe(permanent);
+
+      permanent.click();
+      await settle(fixture);
+      expect(execute).toHaveBeenCalledTimes(2);
+    });
+
+    it('late Undo cannot steal focus after navigation or newer receipt', async () => {
+      for (const interruption of ['navigation', 'newer receipt'] as const) {
+        TestBed.resetTestingModule();
+        const { fixture, gateway } = await render();
+        await keyboardMove(fixture);
+        const gate = deferred<void>();
+        const execute = gateway.undo.execute.bind(gateway.undo);
+        gateway.undo.execute = (id) => gate.promise.then(() => execute(id));
+        const outside = document.createElement('button');
+        document.body.appendChild(outside);
+        try {
+          const undo = query(fixture, '[data-undo-action]') as HTMLButtonElement;
+          undo.focus();
+          undo.click();
+          fixture.detectChanges();
+
+          if (interruption === 'navigation') {
+            fixture.componentRef.setInput('pageId', 'page-elsewhere');
+            fixture.detectChanges();
+          } else {
+            query(fixture, '[data-section-id="section-tasks"] [data-section-title-edit]')!.click();
+            fixture.detectChanges();
+            const input = query(fixture, '[data-section-name]') as HTMLInputElement;
+            input.value = 'Newer';
+            // Committed by blur, which deliberately leaves focus where the user put it.
+            input.focus();
+          }
+          outside.focus();
+          fixture.detectChanges();
+          gate.resolve();
+          await settle(fixture);
+
+          expect(document.activeElement, interruption).toBe(outside);
+        } finally {
+          outside.remove();
+        }
+      }
+    });
+  });
+
   it('renders a removable fallback for a section type nothing registers', async () => {
     // `data.json` is hand-editable and outlives any one registry, so this is a real state.
     const { fixture, gateway } = await render({

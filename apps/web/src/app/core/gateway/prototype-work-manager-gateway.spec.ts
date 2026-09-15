@@ -480,6 +480,60 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
     expect(lastCall().init.body).toBeUndefined();
   });
 
+  /** Slice 33 (Refactor §26.9): edit refusals cross the adapter whole, and never become recovery. */
+  it('preserves edit Undo refusal details and never invents Archive recovery', async () => {
+    const refusals = [
+      {
+        status: 409,
+        message: 'Undo for the update operation on Notes was refused: field-changed: section "Notes" [section-1]',
+        details: {
+          reason: 'undo_conflict',
+          undoId: 'undo-update',
+          conflicts: [{ entityType: 'section', id: 'section-1', title: 'Notes', problem: 'field-changed', nextStep: 'use-later-receipt' }],
+        },
+      },
+      {
+        status: 409,
+        message: 'project "Kitchen" [project-kitchen] is archived; reactivate it before undoing this operation',
+        details: { reason: 'undo_blocked', undoId: 'undo-move', blockingProjectId: 'project-kitchen', blockingProjectTitle: 'Kitchen' },
+      },
+      {
+        status: 409,
+        message: 'this section addition Undo expired at 2026-08-02T16:00:00.000Z; make the change again by hand instead',
+        details: { reason: 'undo_expired', undoId: 'undo-add', expiresAt: '2026-08-02T16:00:00.000Z' },
+      },
+      {
+        status: 409,
+        message: 'this section move was already undone at 2026-08-01T17:00:00.000Z',
+        details: { reason: 'undo_consumed', undoId: 'undo-move', consumedAt: '2026-08-01T17:00:00.000Z' },
+      },
+      { status: 404, message: 'undoRecord "undo-foreign" not found', details: undefined },
+    ] as const;
+
+    const adapter = gateway();
+    for (const refusal of refusals) {
+      fetchMock.mockImplementation(jsonResponse({
+        error: refusal.status === 404 ? 'not_found' : 'rule_violation',
+        message: refusal.message,
+        ...(refusal.details === undefined ? {} : { details: refusal.details }),
+        // A stray success-shaped field on an error must not turn it into a result.
+        section: projectSection,
+      }, refusal.status));
+
+      const error = await adapter.undo.execute((refusal.details?.undoId ?? 'undo-foreign') as UndoRecordId)
+        .then(() => null, (thrown: unknown) => thrown);
+
+      expect(error).toBeInstanceOf(GatewayError);
+      expect(error).toMatchObject({ code: refusal.status === 404 ? 'not_found' : 'rule_violation', status: refusal.status, message: refusal.message });
+      expect((error as GatewayError).details).toEqual(refusal.details);
+      expect(JSON.stringify((error as GatewayError).details ?? {})).not.toMatch(/archive|restore_section/i);
+    }
+
+    // A 200 whose body is not an Undo result is an adapter failure, never a silent success.
+    fetchMock.mockImplementation(jsonResponse({ undoId: 'undo-update', operation: 'section.update', outcome: 'restored' }));
+    await expect(adapter.undo.execute('undo-update' as UndoRecordId)).rejects.toMatchObject({ code: 'invalid_response' });
+  });
+
   it('rejects a removal receipt body outside the shared contract', async () => {
     fetchMock.mockImplementation(jsonResponse({ section: projectSection, undo: { undoId: 'undo-1' } }));
 
