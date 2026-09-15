@@ -28,7 +28,10 @@
    add or move whose follow-up read failed. An Undo response that lands after a newer receipt
    was captured reconciles without replacing that notice. `ReflectionsPageStore` captures the
    explicit container add's receipt by the same sequence rule; its Undo refreshes the container
-   and returns the page to the empty-container prompt. The notice is fixed at the viewport's end
+   and returns the page to the empty-container prompt. Once the server refuses a receipt with a
+   `superseded` or `missing` conflict, `isUndoRefusedForGood` keeps the Undo button visible but
+   `aria-disabled` with a reason, and both stores stop sending it; every other refusal stays
+   retryable after a repair. The notice is fixed at the viewport's end
    corner rather than placed in flow, because each blur save, resize or move can offer one. If a remove
    response is uncertain and a live frame has already removed the section, the store keeps
    the exact removal input and exposes an explicit Retry remove. Neither path guesses

@@ -100,3 +100,15 @@ the domain, host/MCP, gateway, web and Playwright suites.
 - *Commit order beats arrival order for Undo too.* An Undo response that lands after a newer
   write's receipt was captured reconciles the canvas but leaves the newer notice alone, and a
   committed add or move whose follow-up read fails keeps its receipt and offers Retry refresh.
+
+**Amended, 2026-09-15 — a receipt refused for good cannot be sent again.** After a refusal, the
+notice used to keep an active Undo button even when no repair could change the answer. The
+browser can only know a request will be refused from a refusal it has already received, so the
+rule is computed from that: a `superseded` conflict rests on a newer record that is never removed
+(consumed records still count), and Undo never recreates something `missing`. For those, the
+notice keeps the button visible but `aria-disabled`, says why, and both page stores refuse to send
+the receipt; the server's refusal remains the authority. Every other refusal (a reference to
+remove, an item to move back, an archived project, no compatible page) stays retryable.
+Rejected: hiding the button (focus would drop from the control just pressed) and predicting a
+refusal before the first attempt — live frames name only the project, so the browser cannot tell
+that an agent touched the same section, and expiry depends on the host's simulated clock.

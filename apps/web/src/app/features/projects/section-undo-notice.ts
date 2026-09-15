@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, afterNextRender, computed, input, output } from '@angular/core';
 import type { UndoConflictNextStep, UndoRefusalDetails } from '@cwm/contracts';
-import type { FailedSectionRemoval, SectionUndoNoticeState } from './project-page-store';
+import { isUndoRefusedForGood, type FailedSectionRemoval, type SectionUndoNoticeState } from './project-page-store';
 
 const NEXT_STEP_COPY: Record<UndoConflictNextStep, string> = {
   'move-back-and-retry': 'Move it back to its previous section, then try Undo again.',
@@ -45,6 +45,8 @@ export class SectionUndoNotice {
   readonly canUndo = computed(() =>
     this.hasReceipt() && ['available', 'already-removed', 'refusal', 'error'].includes(this.state()?.kind ?? ''),
   );
+  /** The server already refused this receipt for good; the button stays visible but cannot send it. */
+  readonly undoRefusedForGood = computed(() => isUndoRefusedForGood(this.state()));
   readonly isAlert = computed(() => ['refusal', 'terminal', 'error'].includes(this.state()?.kind ?? ''));
   readonly conflicts = computed(() => {
     const refusal = this.state()?.refusal;
@@ -65,6 +67,7 @@ export class SectionUndoNotice {
   }
 
   requestUndo(): void {
+    if (this.undoRefusedForGood()) return;
     this.activate(() => this.undo.emit());
   }
 

@@ -12,7 +12,7 @@ import type {
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
-import { undoFailureNotice, type SectionUndoNoticeState } from '../project-page-store';
+import { isUndoRefusedForGood, undoFailureNotice, type SectionUndoNoticeState } from '../project-page-store';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -184,7 +184,10 @@ export class ReflectionsPageStore {
     const receipt = notice?.receipt;
     const projectId = this.projectIdState();
     const pageId = this.pageIdState();
-    if (receipt === null || receipt === undefined || projectId === null || pageId === null || this.undoPendingState() || this.writingGeneration !== null) {
+    if (
+      receipt === null || receipt === undefined || projectId === null || pageId === null ||
+      this.undoPendingState() || this.writingGeneration !== null || isUndoRefusedForGood(notice)
+    ) {
       return null;
     }
     const generation = this.generation;

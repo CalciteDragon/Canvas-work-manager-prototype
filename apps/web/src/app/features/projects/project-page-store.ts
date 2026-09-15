@@ -80,6 +80,17 @@ export interface SectionUndoNoticeState {
 }
 
 /**
+ * Whether the server has already refused this receipt for a reason no repair can clear, so
+ * sending it again is known to fail. A `superseded` conflict rests on a newer record that never
+ * goes away, and Undo never recreates something `missing`. Every other refusal (a reference to
+ * remove, an item to move back, an archived project) can be fixed and retried.
+ */
+export const isUndoRefusedForGood = (state: SectionUndoNoticeState | null): boolean =>
+  state?.kind === 'refusal' &&
+  state.refusal?.reason === 'undo_conflict' &&
+  state.refusal.conflicts.some(({ problem }) => problem === 'superseded' || problem === 'missing');
+
+/**
  * The notice a failed Undo leaves behind, shared by every page that holds a section receipt.
  * Consumed, expired and unknown receipts are terminal; a typed refusal or transport error keeps
  * the receipt so the caller can retry.
@@ -833,7 +844,10 @@ export class ProjectPageStore {
     const receipt = notice?.receipt;
     const projectId = this.requestedProjectId;
     const pageId = this.requestedPageId;
-    if (receipt === undefined || receipt === null || projectId === undefined || pageId === undefined || this.removalUndoPendingState() || this.pendingSectionWrites > 0) {
+    if (
+      receipt === undefined || receipt === null || projectId === undefined || pageId === undefined ||
+      this.removalUndoPendingState() || this.pendingSectionWrites > 0 || isUndoRefusedForGood(notice)
+    ) {
       return Promise.resolve(null);
     }
     const generation = this.loadGeneration;

@@ -367,4 +367,23 @@ describe('ReflectionsPageStore — container add Undo (Slice 32)', () => {
     await store.load(PROJECT, 'page-other' as ProjectPageId);
     expect(store.undoNotice()).toBeNull();
   });
+
+  it('does not send the add receipt again once a newer change superseded it', async () => {
+    const { store, gateway } = setup();
+    const refuse = vi.fn(async () => {
+      throw new GatewayError('rule_violation', 409, 'undo_conflict: superseded', {
+        reason: 'undo_conflict',
+        undoId: addReceipt.undoId,
+        conflicts: [{ entityType: 'section', id: container.id, title: 'Reflections', problem: 'superseded', nextStep: 'use-later-receipt' }],
+      });
+    });
+    addWithUndo(gateway, refuse);
+    await store.load(PROJECT, PAGE);
+    await store.ensureContainer();
+
+    expect(await store.undoOperation()).toBeNull();
+    expect(await store.undoOperation()).toBeNull();
+
+    expect(refuse).toHaveBeenCalledOnce();
+  });
 });

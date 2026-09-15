@@ -2212,5 +2212,50 @@ describe('ProjectPageStore — section edit Undo receipts (Slice 32)', () => {
     expect(move).toHaveBeenCalledTimes(1);
     expect(store.undoNotice()).toMatchObject({ receipt: { undoId: 'undo-move' }, refreshFailed: false });
   });
-});
 
+  it.each([
+    ['superseded', 'use-later-receipt'],
+    ['missing', 'nothing-to-undo'],
+  ] as const)('does not send a receipt again after a %s refusal', async (problem, nextStep) => {
+    const text = section('section-text', 'rich-text', 0);
+    const update = vi.fn<WorkManagerGateway['sections']['update']>()
+      .mockResolvedValueOnce({ section: { ...text, title: 'Mine' }, undo: editReceipt('undo-mine', 'section.update', 7000) });
+    const undoExecute = vi.fn<WorkManagerGateway['undo']['execute']>(async () => {
+      throw new GatewayError('rule_violation', 409, 'undo_conflict: refused', {
+        reason: 'undo_conflict',
+        undoId: 'undo-mine',
+        conflicts: [{ entityType: 'section', id: text.id, problem, nextStep }],
+      });
+    });
+    const { store } = setup({ sections: [text], sectionOverrides: { update }, undoExecute });
+    await store.load(PROJECT, PAGE);
+    await store.renameSection(text.id, 'Mine');
+
+    expect(await store.undoOperation()).toBeNull();
+    expect(store.undoNotice()).toMatchObject({ kind: 'refusal', receipt: { undoId: 'undo-mine' } });
+    expect(await store.undoOperation()).toBeNull();
+
+    expect(undoExecute).toHaveBeenCalledOnce();
+  });
+
+  it('still sends a receipt again after a refusal that can be repaired', async () => {
+    const text = section('section-text', 'rich-text', 0);
+    const update = vi.fn<WorkManagerGateway['sections']['update']>()
+      .mockResolvedValueOnce({ section: { ...text, title: 'Mine' }, undo: editReceipt('undo-fixable', 'section.update', 7100) });
+    const undoExecute = vi.fn<WorkManagerGateway['undo']['execute']>(async () => {
+      throw new GatewayError('rule_violation', 409, 'undo_conflict: refused', {
+        reason: 'undo_conflict',
+        undoId: 'undo-fixable',
+        conflicts: [{ entityType: 'section', id: text.id, title: 'Mine', problem: 'field-changed', nextStep: 'use-later-receipt' }],
+      });
+    });
+    const { store } = setup({ sections: [text], sectionOverrides: { update }, undoExecute });
+    await store.load(PROJECT, PAGE);
+    await store.renameSection(text.id, 'Mine');
+
+    await store.undoOperation();
+    await store.undoOperation();
+
+    expect(undoExecute).toHaveBeenCalledTimes(2);
+  });
+});

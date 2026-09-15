@@ -81,6 +81,11 @@
   opacity: 0.65;
 }
 
+// Not waiting on anything: this receipt will never be accepted again.
+.section-undo-notice button.section-undo-notice__action--refused {
+  cursor: not-allowed;
+}
+
 .section-undo-notice button:focus-visible,
 .section-undo-notice:focus-visible {
   outline: var(--border-focus) solid var(--color-accent);

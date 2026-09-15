@@ -147,5 +147,47 @@ describe('SectionUndoNotice', () => {
     expect(fixture.nativeElement.querySelectorAll('[data-undo-conflict]')).toHaveLength(1);
     expect(fixture.nativeElement.querySelector('[data-undo-next-step]')?.textContent).toContain('make the change again by hand');
   });
-});
 
+  it('keeps Undo available after a refusal the person can fix', () => {
+    const fixture = render({
+      kind: 'refusal',
+      receipt,
+      message: 'undo_conflict: refused',
+      refusal: {
+        reason: 'undo_conflict',
+        undoId: receipt.undoId,
+        conflicts: [{ entityType: 'task', id: 'task-a', title: 'Ship launch', problem: 'moved', nextStep: 'move-back-and-retry' }],
+      },
+    });
+    const undo = vi.fn();
+    fixture.componentInstance.undo.subscribe(undo);
+
+    const button = fixture.nativeElement.querySelector('[data-undo-action]') as HTMLButtonElement;
+    expect(button.getAttribute('aria-disabled')).toBe('false');
+    expect(fixture.nativeElement.querySelector('[data-undo-refused-for-good]')).toBeNull();
+    button.click();
+    expect(undo).toHaveBeenCalledOnce();
+  });
+
+  it('disables Undo once the server refused the receipt for good, and explains why', () => {
+    const fixture = render({
+      kind: 'refusal',
+      receipt: { ...receipt, operation: 'section.update' },
+      message: 'undo_conflict: refused',
+      refusal: {
+        reason: 'undo_conflict',
+        undoId: receipt.undoId,
+        conflicts: [{ entityType: 'section', id: 'section-a', title: 'Notes', problem: 'superseded', nextStep: 'use-later-receipt' }],
+      },
+    });
+    const undo = vi.fn();
+    fixture.componentInstance.undo.subscribe(undo);
+
+    const button = fixture.nativeElement.querySelector('[data-undo-action]') as HTMLButtonElement;
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(button.getAttribute('aria-describedby')).toBe('section-undo-refused-for-good');
+    expect(fixture.nativeElement.querySelector('#section-undo-refused-for-good')?.textContent).toContain("can't be tried again");
+    button.click();
+    expect(undo).not.toHaveBeenCalled();
+  });
+});

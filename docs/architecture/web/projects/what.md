@@ -83,7 +83,7 @@ sequenceDiagram
 | `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, explicit edit receipts, removal dialog and arrival at `#section-<id>` |
 | `ProjectPageStore`, `CanvasWriteResult`, `SectionRemovalPrompt`, `SectionUndoNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation, typed refusal and sequence-selected operation receipt state |
 | `SectionRemovalDialog` | `section-removal-dialog.ts` | Cascade or reassign, containers by name |
-| `SectionUndoNotice` | `section-undo-notice.ts` | Accessible operation Undo, removal-only Archive, explicit retry after uncertain removal, refresh retry and typed refusal guidance |
+| `SectionUndoNotice` | `section-undo-notice.ts` | Accessible operation Undo (disabled once refused for good), removal-only Archive, explicit retry after uncertain removal, refresh retry and typed refusal guidance |
 | `SectionCreateDialog` | `section-create-dialog.ts` | Section or Home shortcut creation at the selected canvas position |
 | `CanvasIcon`, `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor` | `canvas-chrome/` | Shared SVG canvas controls, insertion overlays, snapped resize, sparse-grid gap targets and grip move keys |
 | `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with inline completion and canonical links |

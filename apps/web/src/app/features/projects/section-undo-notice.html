@@ -31,6 +31,11 @@
           }
         </ul>
       }
+      @if (undoRefusedForGood()) {
+        <p id="section-undo-refused-for-good" data-undo-refused-for-good class="section-undo-notice__meta">
+          Undo can't be tried again: a later change replaced this one, or what it changed no longer exists.
+        </p>
+      }
       @if (notice.refreshFailed) {
         <p data-undo-refresh-error class="section-undo-notice__meta">
           The change was saved, but this canvas could not be refreshed.
@@ -43,7 +48,9 @@
         <button
           data-undo-action
           type="button"
-          [attr.aria-disabled]="busy()"
+          [attr.aria-disabled]="busy() || undoRefusedForGood()"
+          [class.section-undo-notice__action--refused]="undoRefusedForGood()"
+          [attr.aria-describedby]="undoRefusedForGood() ? 'section-undo-refused-for-good' : null"
           (click)="requestUndo()"
         >
           {{ busy() ? 'Undoing…' : 'Undo' }}
