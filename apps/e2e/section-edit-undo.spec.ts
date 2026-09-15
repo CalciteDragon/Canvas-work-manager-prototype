@@ -196,3 +196,162 @@ test('canvas gestures and the Reflections page offer operation-neutral Undo afte
   await page.reload();
   await expect(page.locator('[data-reflections-entry]')).toContainText('Written after the add.');
 });
+
+/**
+ * Slice 33 (Refactor §26.8–10): real pointer gestures on the nested Kitchen canvas, an injected
+ * failure that must keep the receipt, and an agent's overlapping edit that must refuse Undo.
+ */
+const KITCHEN = 'project-kitchen';
+const KITCHEN_PAGE = 'page-project-kitchen';
+
+/** A sub-project canvas holds no shortcuts, so its order is its sections alone. */
+const kitchenOrder = async (): Promise<string[]> =>
+  (await api.get<ProjectSection[]>(`/api/projects/${KITCHEN}/sections?pageId=${KITCHEN_PAGE}`))
+    .sort((left, right) => left.position - right.position).map(({ id }) => id);
+
+const spanOf = async (sectionId: string): Promise<number | undefined> =>
+  (await api.get<ProjectSection[]>(`/api/projects/${KITCHEN}/sections?pageId=${KITCHEN_PAGE}`)).find(({ id }) => id === sectionId)?.columnSpan;
+
+const pointerResize = async (page: import('@playwright/test').Page, sectionId: string, from: 12 | 6, to: 12 | 6, mode: 'flow' | 'grid') => {
+  const canvas = page.locator('[data-section-canvas]');
+  const delta = await canvas.evaluate((element, spans) => {
+    const width = element.getBoundingClientRect().width;
+    const gap = Number.parseFloat(getComputedStyle(element).columnGap) || 0;
+    const column = (width - 11 * gap) / 12;
+    const widthFor = (span: number) => spans.mode === 'flow' ? (span / 12) * width : span * column + (span - 1) * gap;
+    return widthFor(spans.to) - widthFor(spans.from);
+  }, { from, to, mode });
+  const handle = page.locator(`[data-section-item][data-section-id="${sectionId}"] app-section-resize-handle[data-edge="end"] [data-resize-handle]`);
+  await handle.scrollIntoViewIfNeeded();
+  const box = await handle.boundingBox();
+  if (box === null) throw new Error('Resize handle has no browser box');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  for (let step = 1; step <= 8; step += 1) await page.mouse.move(box.x + box.width / 2 + (delta * step) / 8, box.y + box.height / 2);
+  await page.mouse.up();
+};
+
+const pointerMoveBefore = async (page: import('@playwright/test').Page, sectionId: string, targetId: string) => {
+  const grip = page.locator(`[data-section-item][data-section-id="${sectionId}"] [data-section-drag-handle]`);
+  const target = page.locator(`[data-section-item][data-section-id="${targetId}"]`);
+  await target.scrollIntoViewIfNeeded();
+  const gripBox = await grip.boundingBox();
+  const targetBox = await target.boundingBox();
+  if (gripBox === null || targetBox === null) throw new Error('Move geometry did not render');
+  const start = { x: gripBox.x + gripBox.width / 2, y: gripBox.y + gripBox.height / 2 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 12, start.y, { steps: 3 });
+  // CDK clones the item into a preview and a placeholder while sorting, so ask the list instead.
+  await expect(page.locator('[data-section-canvas]')).toHaveClass(/cdk-drop-list-dragging/);
+  const end = { x: targetBox.x + targetBox.width / 2, y: targetBox.y + 8 };
+  for (let step = 1; step <= 12; step += 1) {
+    await page.mouse.move(start.x + 12 + ((end.x - start.x - 12) * step) / 12, start.y + ((end.y - start.y) * step) / 12);
+  }
+  await page.mouse.up();
+};
+
+const openFailurePanel = async (page: import('@playwright/test').Page, rate: '0' | '1'): Promise<void> => {
+  await page.keyboard.press('Control+Shift+D');
+  const panel = page.locator('[data-dev-panel]');
+  await expect(panel).toBeVisible();
+  await panel.locator(`[data-panel-failure][data-rate="${rate}"]`).click();
+  await panel.locator('[data-dev-panel-close]').click();
+  await expect(panel).toHaveCount(0);
+};
+
+for (const mode of ['flow', 'grid'] as const) {
+  test(`nested pointer move and resize Undo preserve persisted layout (${mode})`, async ({ page }) => {
+    await seed('nested-projects');
+    await setClock(NOW);
+    await setLayout(KITCHEN, mode);
+    await page.setViewportSize({ width: 1440, height: 1200 });
+    const brief = 'section-project-kitchen-brief';
+    const subProjects = 'section-project-kitchen-sub-projects';
+    const originalOrder = await kitchenOrder();
+    await page.goto(`/projects/${KITCHEN}`);
+    await expect(page.locator('[data-project-name]')).toHaveText('Kitchen');
+
+    await pointerResize(page, brief, 12, 6, mode);
+    await expect.poll(() => spanOf(brief)).toBe(6);
+    await expect(page.locator(`[data-section-item][data-section-id="${brief}"]`)).toHaveClass(/section-canvas__item--span-6/);
+    await page.locator('[data-undo-action]').click();
+    await expect.poll(() => spanOf(brief)).toBe(12);
+    await page.reload();
+    await expect(page.locator(`[data-section-item][data-section-id="${brief}"]`)).toHaveClass(/section-canvas__item--span-12/);
+    expect(await spanOf(brief)).toBe(12);
+
+    await pointerMoveBefore(page, subProjects, brief);
+    await expect.poll(async () => (await kitchenOrder()).indexOf(subProjects)).toBe(0);
+    await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
+    await page.locator('[data-undo-action]').click();
+    await expect.poll(() => kitchenOrder()).toEqual(originalOrder);
+    await page.reload();
+    await expect(page.locator('[data-section-item]').first()).toHaveAttribute('data-section-id', brief);
+    expect(await kitchenOrder()).toEqual(originalOrder);
+  });
+}
+
+test('nested injected failure keeps receipt and allows retry', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(NOW);
+  const timeline = 'section-project-kitchen-timeline';
+  const originalOrder = await kitchenOrder();
+  await page.goto(`/projects/${KITCHEN}`);
+  const grip = page.locator(`[data-section-item][data-section-id="${timeline}"] [data-section-drag-handle]`);
+  await grip.focus();
+  await grip.press('ArrowUp');
+  await expect.poll(async () => (await kitchenOrder()).indexOf(timeline)).toBe(originalOrder.indexOf(timeline) - 1);
+  const moved = await kitchenOrder();
+  const undoRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && request.url().includes('/api/undo/')) undoRequests.push(request.url());
+  });
+
+  try {
+    // Reads have settled; only now make every client request fail before it reaches the host.
+    await openFailurePanel(page, '1');
+    await page.locator('[data-undo-action]').click();
+    await expect(page.locator('[data-undo-message]')).toContainText('prototype failure injection');
+    await expect(page.locator('[data-undo-action]')).toHaveAttribute('aria-disabled', 'false');
+    expect(undoRequests).toEqual([]);
+  } finally {
+    await openFailurePanel(page, '0');
+  }
+  expect(await kitchenOrder()).toEqual(moved);
+
+  await page.locator('[data-undo-action]').click();
+  await expect.poll(() => kitchenOrder()).toEqual(originalOrder);
+  expect(undoRequests).toHaveLength(1);
+  await page.reload();
+  expect(await kitchenOrder()).toEqual(originalOrder);
+});
+
+test('agent overlap refuses Undo without losing newer content', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(NOW);
+  const brief = 'section-project-kitchen-brief';
+  await page.goto(`/projects/${KITCHEN}`);
+  const frame = page.locator(`[data-section-item][data-section-id="${brief}"]`);
+  await frame.locator('[data-section-title-edit]').click();
+  await frame.locator('[data-section-name]').fill('User heading');
+  await frame.locator('[data-section-name]').press('Enter');
+  await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
+
+  const client = await connectMcp('prototype-user-a-readwrite', 'cwm-slice-33-overlap');
+  try {
+    const agentEdit = await client.callTool({ name: 'update_section', arguments: { sectionId: brief, title: 'Agent heading' } });
+    expect(agentEdit.isError).not.toBe(true);
+  } finally {
+    await client.close();
+  }
+  await expect(frame.locator('[data-section-title-edit]')).toContainText('Agent heading');
+
+  await page.locator('[data-undo-action]').click();
+  await expect(page.locator('[data-undo-conflict]')).toHaveCount(1);
+  await expect(page.locator('[data-undo-refused-for-good]')).toBeVisible();
+  await expect(page.locator('[data-undo-action]')).toHaveAttribute('aria-disabled', 'true');
+  await page.reload();
+  await expect(frame.locator('[data-section-title-edit]')).toContainText('Agent heading');
+  expect((await api.get<ProjectSection[]>(`/api/projects/${KITCHEN}/sections?pageId=${KITCHEN_PAGE}`)).find(({ id }) => id === brief)?.title).toBe('Agent heading');
+});

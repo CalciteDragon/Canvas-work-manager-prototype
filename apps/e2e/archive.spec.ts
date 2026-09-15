@@ -364,3 +364,85 @@ test('Archive lists recoverable content only, and independently archived rows ke
   expect(remaining).toContain(`section:${notes.id}`);
   expect(remaining).not.toContain(`section:${oldReflections.id}`);
 });
+
+/** Slice 33 (Refactor §26.10): one starting placement, two recoveries, two different answers. */
+test('Archive Restore appends while Undo returns between surviving shortcut neighbors', async ({ page }) => {
+  // nested-projects for its agent connection; the journey builds its own root beside the seeded one.
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const { workspace } = await api<{ workspace: { id: string } }>('GET', '/api/me');
+  const root = await api<{ id: string; name: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'root', name: 'Placement contrast' });
+  const child = await api<{ id: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'subproject', parentProjectId: root.id, name: 'Source unit' });
+  const home = (await api<{ id: string; kind: string }[]>('GET', `/api/projects/${root.id}/pages`)).find(({ kind }) => kind === 'home')!;
+  const add = async (projectId: string, body: Record<string, unknown>) =>
+    (await api<{ section: { id: string } }>('POST', `/api/projects/${projectId}/sections`, body)).section;
+  const source = await add(child.id, { type: 'rich-text', title: 'Shortcut source', config: { text: 'Source prose' } });
+  const first = await add(root.id, { type: 'rich-text', title: 'First notes', config: { text: 'First' } });
+  const shortcut = await api<{ id: string }>('POST', `/api/projects/${root.id}/shortcuts`, { pageId: home.id, sourceSectionId: source.id });
+  const middle = await add(root.id, { type: 'rich-text', title: 'Middle notes', config: { text: 'Keep the middle prose' } });
+  const last = await add(root.id, { type: 'progress', title: 'Last view' });
+  const combined = async () => {
+    const sections = await api<{ id: string; position: number }[]>('GET', `/api/projects/${root.id}/sections?pageId=${home.id}`);
+    const shortcuts = await api<{ id: string; position: number }[]>('GET', `/api/projects/${root.id}/shortcuts?pageId=${home.id}`);
+    return [...sections, ...shortcuts].sort((a, b) => a.position - b.position).map(({ id }) => id);
+  };
+  const initial = [first.id, shortcut.id, middle.id, last.id];
+  expect(await combined()).toEqual(initial);
+  const rendered = () => page.locator('[data-section-canvas] > [data-section-item], [data-section-canvas] > [data-shortcut-item]')
+    .evaluateAll((items) => items.map((item) => item.getAttribute('data-section-id') ?? item.getAttribute('data-shortcut-id')));
+
+  const client = new Client({ name: 'cwm-slice-33-placement', version: '0.0.0' }, { versionNegotiation: { mode: { pin: '2026-07-28' } } });
+  await client.connect(new StreamableHTTPClientTransport(new URL(`${PROTOTYPE_HOST}/mcp`), { authProvider: { token: async () => TOKEN } }));
+  const sdkSectionOrder = async () => {
+    const listed = await client.callTool({ name: 'list_sections', arguments: { projectId: root.id } });
+    return (JSON.parse((listed.content as { text: string }[])[0]!.text) as { id: string; position: number }[])
+      .sort((a, b) => a.position - b.position).map(({ id }) => id);
+  };
+  try {
+    await page.goto(`/projects/${root.id}`);
+    const middleFrame = page.locator(`[data-section-item][data-section-id="${middle.id}"]`);
+
+    // Undo: neighbour-aware, back between the shortcut and the view.
+    const firstRemoval = page.waitForResponse((response) => response.request().method() === 'DELETE' && response.url().endsWith(`/api/sections/${middle.id}`));
+    await middleFrame.locator('[data-section-remove]').click();
+    const firstReceipt = ((await (await firstRemoval).json()) as { undo: { undoId: string } }).undo;
+    await expect(middleFrame).toHaveCount(0);
+    expect(await archiveKeys(root.id)).toContain(`section:${middle.id}`);
+    await page.locator('[data-undo-action]').click();
+    await expect(middleFrame).toBeVisible();
+    await expect.poll(combined).toEqual(initial);
+    await page.reload();
+    await expect.poll(rendered).toEqual(initial);
+    expect(await sdkSectionOrder()).toEqual([first.id, middle.id, last.id]);
+
+    // Restore: durable and receipt-free, appended after everything on the page.
+    const secondRemoval = page.waitForResponse((response) => response.request().method() === 'DELETE' && response.url().endsWith(`/api/sections/${middle.id}`));
+    await middleFrame.locator('[data-section-remove]').click();
+    const secondReceipt = ((await (await secondRemoval).json()) as { undo: { undoId: string } }).undo;
+    await expect(middleFrame).toHaveCount(0);
+    await page.locator('[data-open-archive]').click();
+    await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
+    const row = page.locator(`[data-archived-item][data-archived-id="${middle.id}"]`);
+    await row.locator('[data-archived-restore]').click();
+    await expect(row).toHaveCount(0);
+    const appended = [first.id, shortcut.id, last.id, middle.id];
+    await expect.poll(combined).toEqual(appended);
+    await page.goto(`/projects/${root.id}`);
+    await expect.poll(rendered).toEqual(appended);
+    expect(await sdkSectionOrder()).toEqual([first.id, last.id, middle.id]);
+    expect((await api<{ config: { text: string } }[]>('GET', `/api/projects/${root.id}/sections?pageId=${home.id}`)).find((section) => (section as unknown as { id: string }).id === middle.id))
+      .toMatchObject({ config: { text: 'Keep the middle prose' } });
+
+    // Neither receipt can move the restored section again.
+    for (const receipt of [firstReceipt, secondReceipt]) {
+      const refused = await fetch(`${PROTOTYPE_HOST}/api/undo/${receipt.undoId}`, { method: 'POST', headers: PERSONA });
+      expect(refused.status).toBe(409);
+      expect(['undo_consumed', 'undo_conflict']).toContain(((await refused.json()) as { details: { reason: string } }).details.reason);
+    }
+    const sdkRepeat = await client.callTool({ name: 'undo_operation', arguments: { undoId: secondReceipt.undoId } });
+    expect(sdkRepeat.isError).toBe(true);
+    expect(await combined()).toEqual(appended);
+  } finally {
+    await client.close();
+  }
+});

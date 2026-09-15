@@ -93,6 +93,8 @@ test('disposable sections stay out of Archive and Undo restores config, layout, 
     await expect(page.locator('[data-undo-notice]')).toBeVisible();
     await expect(frame).toHaveCount(0);
     expect(await archiveHasSection(root.id, section.id)).toBe(false);
+    // Slice 33: unreferenced disposable removal is a deletion, not a hidden tombstone.
+    expect((await api.get<ProjectSection[]>('/api/projects/' + root.id + '/sections?includeArchived=true&pageId=' + home.id)).some(({ id }) => id === section.id)).toBe(false);
 
     const undo = page.locator('[data-undo-action]');
     if (index === 0) {
@@ -118,6 +120,14 @@ test('disposable sections stay out of Archive and Undo restores config, layout, 
     expect((await api.get<ProjectSection[]>('/api/projects/' + root.id + '/sections?pageId=' + home.id)).map(({ id }) => id)).toEqual(originalOrder);
     expect(await combinedLayout()).toEqual(originalLayout);
   }
+
+  // Slice 33: the same ids, configs and layout come back from the persisted file.
+  await page.reload();
+  expect(await combinedLayout()).toEqual(originalLayout);
+  const reloaded = await api.get<ProjectSection[]>('/api/projects/' + root.id + '/sections?pageId=' + home.id);
+  for (const section of sections) expect(reloaded.find(({ id }) => id === section.id)?.config).toEqual(section.config);
+  await expect(page.locator('[data-section-canvas] > [data-section-item], [data-section-canvas] > [data-shortcut-item]'))
+    .toHaveCount(originalLayout.length);
 });
 
 test('the nested-projects seeded canvas removes and restores its Progress view in place', async ({ page }) => {
@@ -220,6 +230,8 @@ test('a shortcut on another browser page follows source removal and same-page Un
       id: sourceSection.id,
       archivedAt: expect.any(String),
     });
+    // Slice 33: a reference-required tombstone keeps the shortcut's source id, and still no Archive entry.
+    expect(await archiveHasSection(homeProjectId, sourceSection.id)).toBe(false);
 
     await page.locator('[data-undo-action]').click();
     await expect(page).toHaveURL(sourceUrl);
@@ -255,6 +267,12 @@ test('retained content survives reload and Archive restore, while reassign Undo 
     sectionId: cascade.id,
     title: 'Keep this task',
   });
+  // Slice 33: an independently archived parent subtree inside the cascaded list needs its own restore.
+  const filedParentInCascade = await api.post<{ id: string }>('/api/tasks', { projectId: root.id, sectionId: cascade.id, title: 'Filed parent' });
+  const filedChildInCascade = await api.post<{ id: string }>('/api/tasks', {
+    projectId: root.id, sectionId: cascade.id, parentTaskId: filedParentInCascade.id, title: 'Filed child',
+  });
+  await api.post('/api/tasks/' + filedParentInCascade.id + '/archive', {});
   const reflectionSection = await addSection(root.id, {
     type: 'reflections',
     title: 'Saved reflections',
@@ -317,6 +335,17 @@ test('retained content survives reload and Archive restore, while reassign Undo 
   await expect.poll(async () => (await api.get<{ sectionId: string; archivedAt?: string }>(`/api/tasks/${cascadeTask.id}`)).archivedAt)
     .toBeUndefined();
   await expect.poll(async () => (await api.get<{ sectionId: string }>(`/api/tasks/${cascadeTask.id}`)).sectionId).toBe(cascade.id);
+  expect(await api.get<{ sectionId: string; archivedAt?: string }>('/api/tasks/' + filedParentInCascade.id)).toMatchObject({
+    sectionId: cascade.id, archivedAt: expect.any(String),
+  });
+  expect((await api.get<{ archivedWithSectionId?: string }>('/api/tasks/' + filedParentInCascade.id)).archivedWithSectionId).toBeUndefined();
+  expect(await api.get<{ archivedAt?: string; archivedWithTaskId?: string }>('/api/tasks/' + filedChildInCascade.id)).toMatchObject({
+    archivedAt: expect.any(String), archivedWithTaskId: filedParentInCascade.id,
+  });
+  const stillArchived = (await api.get<{ items: Array<{ kind: string; task?: { id: string } }> }>(`/api/projects/${root.id}/archive`)).items
+    .flatMap((item) => (item.kind === 'task' && item.task !== undefined ? [item.task.id] : []));
+  expect(stillArchived).toEqual(expect.arrayContaining([filedParentInCascade.id, filedChildInCascade.id]));
+  expect(stillArchived).not.toContain(cascadeTask.id);
 
   await reflectionRow.locator('[data-archived-restore]').click();
   await expect(reflectionRow).toHaveCount(0);
@@ -424,4 +453,69 @@ test('retained content survives reload and Archive restore, while reassign Undo 
     archivedAt: expect.any(String),
     archivedWithTaskId: filedParent.id,
   });
+});
+
+/**
+ * Slice 33 (Refactor §26.4, §26.9): Reflections leave Home for the Reflections page and come back
+ * under their own ids, with an independently archived reflection keeping its marker both ways.
+ * The browser removal dialog offers same-page targets only, so the cross-page reassignment is the
+ * HTTP write the domain permits; both browser pages observe it and its Undo.
+ */
+test('cross-page reassignment and Undo preserve every archived subtree marker', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const root = 'project-renovation';
+  const homeContainer = 'section-project-renovation-reflections';
+  const pageContainer = 'section-project-renovation-reflections-page';
+  const reflectionsOf = async (sectionId: string) =>
+    (await api.get<Array<{ id: string; sectionId: string; archivedAt?: string }>>(`/api/reflections?projectId=${root}&sectionId=${sectionId}&includeArchived=true`))
+      .map(({ id, sectionId: owner, archivedAt }) => ({ id, sectionId: owner, archived: archivedAt !== undefined }))
+      .sort((left, right) => left.id.localeCompare(right.id));
+  const untouched = await reflectionsOf(pageContainer);
+  expect(untouched.length).toBeGreaterThan(0);
+  const live = await api.post<{ id: string }>('/api/reflections', { projectId: root, sectionId: homeContainer, body: 'Moves across pages and back.' });
+  const filed = await api.post<{ id: string }>('/api/reflections', { projectId: root, sectionId: homeContainer, body: 'Archived on its own before the move.' });
+  await api.post(`/api/reflections/${filed.id}/archive`, {});
+  const homeRows = await reflectionsOf(homeContainer);
+  expect(homeRows).toEqual([
+    { id: live.id, sectionId: homeContainer, archived: false },
+    { id: filed.id, sectionId: homeContainer, archived: true },
+  ].sort((left, right) => left.id.localeCompare(right.id)));
+  const homeOrder = (await api.get<ProjectSection[]>(`/api/projects/${root}/sections?pageId=page-project-renovation`)).map(({ id }) => id);
+  const ownerHref = (sectionId: string) => new RegExp(`#section-${sectionId}$`);
+
+  await page.goto(`/projects/${root}`);
+  const homeFrame = page.locator(`[data-section-item][data-section-id="${homeContainer}"]`);
+  await expect(homeFrame).toContainText('Moves across pages and back.');
+  const reflectionsPage = await page.context().newPage();
+  try {
+    await reflectionsPage.goto(`/projects/${root}/pages/reflections`);
+    // The journal lists the whole root; the owner link says which container holds the entry.
+    const owner = reflectionsPage.locator(`[data-reflections-entry][data-reflection-id="${live.id}"] [data-reflections-owner-link]`);
+    await expect(reflectionsPage.locator('[data-reflections-page]')).toBeVisible();
+    await expect(owner).toHaveAttribute('href', ownerHref(homeContainer));
+
+    const removal = await api.delete<{ undo: { undoId: string } }>(`/api/sections/${homeContainer}?policy=reassign&reassignToSectionId=${pageContainer}`);
+    expect(await reflectionsOf(pageContainer)).toEqual([
+      ...untouched,
+      { id: live.id, sectionId: pageContainer, archived: false },
+      { id: filed.id, sectionId: pageContainer, archived: true },
+    ].sort((left, right) => left.id.localeCompare(right.id)));
+    expect(await archiveHasSection(root, homeContainer)).toBe(false);
+    await expect(homeFrame).toHaveCount(0);
+    await reflectionsPage.reload();
+    await expect(owner).toHaveAttribute('href', ownerHref(pageContainer));
+
+    await api.post(`/api/undo/${removal.undo.undoId}`, undefined);
+    expect(await reflectionsOf(homeContainer)).toEqual(homeRows);
+    expect(await reflectionsOf(pageContainer)).toEqual(untouched);
+    expect((await api.get<ProjectSection[]>(`/api/projects/${root}/sections?pageId=page-project-renovation`)).map(({ id }) => id)).toEqual(homeOrder);
+    await expect(homeFrame).toContainText('Moves across pages and back.');
+    await reflectionsPage.reload();
+    await expect(owner).toHaveAttribute('href', ownerHref(homeContainer));
+    await page.reload();
+    await expect(homeFrame).toContainText('Moves across pages and back.');
+  } finally {
+    await reflectionsPage.close();
+  }
 });
