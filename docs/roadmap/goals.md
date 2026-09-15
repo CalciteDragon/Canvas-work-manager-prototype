@@ -65,7 +65,7 @@ order is:
    inverse storage, scoped execution and neighbor-aware placement, before hard deletion.
 3. [31 — Disposable removal and Undo UI](completed/31-disposable-removal-and-undo-ui.md) (done):
    safe deletion plus a receipt-driven browser recovery action.
-4. [32 — Other section operations](planned/32-section-edit-undo.md): add, movement and
+4. [32 — Other section operations](active/32-section-edit-undo.md): add, movement and
    settings Undo, without a generic command framework.
 5. [33 — Integrated acceptance](planned/33-recovery-undo-integrated-acceptance.md): complete
    the Refactor §26 browser/MCP evidence and documentation reconciliation.
@@ -97,7 +97,8 @@ closed the documentation-only planning work on 2026-09-13. **Slice 31 closed on 
 [Disposable removal and Undo UI](completed/31-disposable-removal-and-undo-ui.md) now safely
 deletes unreferenced disposable views and restores them through a canvas-local receipt action;
 retained content, exact-owner receipt recovery, browser journeys and both MCP transports are
-verified. Slices 32–33 remain candidates.
+verified. Slice 32 is active for user-requested implementation planning and iterative plan
+review; runtime implementation has not started. Slice 33 remains a candidate.
 The latest runtime change, [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md),
 closed 2026-09-13. Its implementation establishes direct canvas editing, contextual
 positioned creation, width resizing, and the navigation changes. The

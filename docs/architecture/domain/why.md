@@ -137,6 +137,10 @@ Newest first. The full list with status is in the [decision index](../../decisio
 
 ## Spec sections
 
+The [Slice 32 planning choice](../../decisions/2026-09-section-edit-undo-boundaries.md)
+defines the intended boundaries for additional section Undo operations. It is pending
+implementation; the current executor still supports removal only.
+
 §12 domain package · §27 who owns what and where a write lands · §31 archive · §33–§34
 tasks and the Todos page · §36 reflections and the journal · §38–§39 timeline and
 progress · §40 search · §42–§43 AI · §45 time · §53 permissions · §57 activity · §62

@@ -68,6 +68,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | What the Archive projection says about each item's restore path | amended |
 | [A section removal commits one scoped, expiring Undo record](2026-09-section-removal-undo-records.md) | Defaulted v3 collection, 24 h / 50 bound, exact-actor scope, structural conflicts, neighbor placement | amended; Slice 31 adds deletion disposition and repeat-receipt recovery |
 | [Disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md) | Reference-safe deletion, canvas-local action, own-receipt recovery and actionable refusals | current (Slice 31) |
+| [Explicit section edits reverse only their operation's changes](2026-09-section-edit-undo-boundaries.md) | Explicit action boundaries, safe add, changed-field inverses and sequence-selected notices | planning choice; Slice 32 not implemented |
 
 ## Repositories
 
