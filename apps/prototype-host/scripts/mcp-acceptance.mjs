@@ -216,6 +216,24 @@ const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access)
   };
   const recordOf = async (undoId) => JSON.parse(await readFile(dataFile, 'utf8')).undoRecords.find(({ id }) => id === undoId);
 
+  // Refactor §26.1–2: each disposable view is deleted, never projected, and one Undo brings back the same id.
+  for (const type of ['progress', 'timeline', 'recent-activity']) {
+    const view = await client.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type, title: `Disposable ${type} ${title}` } });
+    const viewId = view.structuredContent.section.id;
+    const removedView = await client.callTool({ name: 'remove_section', arguments: { sectionId: viewId } });
+    check(removedView.isError !== true, `${title} removes a ${type} view`);
+    check(
+      !(await archivedSectionIds()).includes(viewId) && !JSON.parse(await readFile(dataFile, 'utf8')).sections.some(({ id }) => id === viewId),
+      `${title} the removed ${type} view is deleted and absent from get_project_archive`,
+    );
+    const restoredView = await client.callTool({ name: 'undo_operation', arguments: { undoId: removedView.structuredContent.undo.undoId } });
+    check(restoredView.isError !== true && restoredView.structuredContent.section.id === viewId, `${title} Undo recreates the ${type} view under its id`);
+    const afterUndo = await businessState(dataFile);
+    const repeat = await client.callTool({ name: 'undo_operation', arguments: { undoId: removedView.structuredContent.undo.undoId } });
+    check(repeat.isError === true && textOf(repeat).startsWith('undo_consumed:'), `${title} a repeated ${type} Undo is undo_consumed`);
+    check((await businessState(dataFile)) === afterUndo, `${title} the repeated ${type} Undo adds no event or record`);
+  }
+
   // Reassign: every row id moves to the target and back; the emptied source never reaches Archive.
   const original = await tasksIn(UNDO_SECTION);
   check(original.length > 0, `${title} recovery starts from live rows in ${UNDO_SECTION}`);
@@ -241,8 +259,10 @@ const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access)
   check((await archivedSectionIds()).includes(UNDO_SECTION), `${title} get_project_archive projects the cascaded list`);
   const receipt = cascade.structuredContent.undo;
 
+  const beforeForeign = await businessState(dataFile);
   const foreignText = await refusedText(() => foreign.callTool({ name: 'undo_operation', arguments: { undoId: receipt.undoId } }));
   check(foreignText !== null && foreignText.includes('was not found'), `${title} another connection gets not-found for the receipt`);
+  check((await businessState(dataFile)) === beforeForeign, `${title} the foreign refusal leaves the file's business collections unchanged`);
   check((await recordOf(receipt.undoId))?.consumedAt === undefined, `${title} the foreign attempt leaves the receipt unconsumed`);
 
   await access.setPermissions('agent-claude', ['projects.read', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write', 'workspace.read']);
@@ -263,7 +283,12 @@ const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access)
   await access.revoke('agent-cursor');
   const revokedState = await businessState(dataFile);
   const revokedText = await refusedText(() => foreign.callTool({ name: 'undo_operation', arguments: { undoId: foreignReceipt.structuredContent.undo.undoId } }));
-  check(revokedText !== null, `${title} a revoked connection cannot use its receipt`);
+  // HTTP answers the revoked bearer token with 401 (the SDK's UnauthorizedError); stdio re-authenticates
+  // on every call and refuses with AgentAuthenticationError's message. Any other failure is not revocation.
+  check(
+    revokedText !== null && /unauthori[sz]ed|401|not a usable agent connection/i.test(revokedText),
+    `${title} a revoked connection cannot use its receipt (${revokedText?.slice(0, 60)})`,
+  );
   check((await businessState(dataFile)) === revokedState, `HTTP/stdio revoked connection refuses issued receipt (${title})`);
   check(
     JSON.parse(await readFile(dataFile, 'utf8')).sections.some(({ id }) => id === foreignReceipt.structuredContent.section.id),

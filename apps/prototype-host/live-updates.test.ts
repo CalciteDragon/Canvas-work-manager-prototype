@@ -246,13 +246,16 @@ describe('live updates through the host (§62)', () => {
     const onDisk = (path: string) => canonical(JSON.parse(readFileSync(path, 'utf8')) as never);
 
     const watchCommits = ({ persistence, events }: Harness) => {
-      const delivered: Array<{ type: string; durableMatchesMemory: boolean; records: number }> = [];
+      const delivered: Array<{ type: string; durableMatchesMemory: boolean; records: number; consumedOnDisk: boolean; events: number }> = [];
       events.subscribe((event) => {
         const memory = canonical(persistence.store.snapshot());
         delivered.push({
           type: event.type,
           durableMatchesMemory: JSON.stringify(onDisk(persistence.path)) === JSON.stringify(memory),
           records: memory.undoRecords.length,
+          // An Undo adds no record, so only the consumed stamp tells a pre-commit Undo frame from a post-commit one.
+          consumedOnDisk: onDisk(persistence.path).undoRecords[0]?.consumedAt !== undefined,
+          events: memory.activityEvents.length,
         });
       });
       return delivered;
@@ -261,17 +264,18 @@ describe('live updates through the host (§62)', () => {
     it.each(familyNames)('%s publishes only after forward and inverse commit', async (family) => {
       const host = await harness();
       const delivered = watchCommits(host);
+      const eventsBefore = host.persistence.store.snapshot().activityEvents.length;
 
       const forward = await families[family](host.routes);
       expect([200, 201]).toContain(forward.status);
       const { undo } = forward.body as { undo: { undoId: string; operation: string } | null };
       expect(undo?.operation).toBe(`section.${family}`);
-      expect(delivered).toEqual([expect.objectContaining({ durableMatchesMemory: true, records: 1 })]);
+      expect(delivered).toEqual([expect.objectContaining({ durableMatchesMemory: true, records: 1, consumedOnDisk: false, events: eventsBefore + 1 })]);
 
       const undone = await persona(host.routes, 'POST', `/api/undo/${undo!.undoId}`);
       expect(undone.status).toBe(200);
       expect(delivered).toHaveLength(2);
-      expect(delivered[1]).toMatchObject({ type: expect.stringMatching(/_undone$/), durableMatchesMemory: true, records: 1 });
+      expect(delivered[1]).toMatchObject({ type: expect.stringMatching(/_undone$/), durableMatchesMemory: true, records: 1, consumedOnDisk: true, events: eventsBefore + 2 });
       expect(onDisk(host.persistence.path).undoRecords[0]?.consumedAt).toBeDefined();
     });
 

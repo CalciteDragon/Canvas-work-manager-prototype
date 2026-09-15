@@ -80,6 +80,7 @@ const expectReferentialIntegrity = (document: PrototypeDocument) => {
     check(task.id, 'sectionId', task.sectionId, sections);
     check(task.id, 'parentTaskId', task.parentTaskId, tasks);
     check(task.id, 'archivedWithSectionId', task.archivedWithSectionId, sections);
+    check(task.id, 'archivedWithTaskId', task.archivedWithTaskId, tasks);
   }
   for (const reflection of document.reflections) {
     check(reflection.id, 'projectId', reflection.projectId, projects);
@@ -155,7 +156,7 @@ describe('recovery and Undo over persisted files (Slice 33)', () => {
     await converted.api.undo.undo(DEMO, removed.undo.undoId);
     const afterUndo = await reopen(v2.path);
     expectReferentialIntegrity(await onDisk(v2.path));
-    expect(afterUndo.document().sections.find(({ id }) => id === brief)).toMatchObject({ position: 0, config: { text: expect.stringContaining('Whole-house') } });
+    expect(afterUndo.document().sections.find(({ id }) => id === brief)).toMatchObject({ position: 0, config: { text: 'Whole-house plan. Kitchen first, garden in the spring.' } });
     expect(afterUndo.document().sections.find(({ id }) => id === brief)?.archivedAt).toBeUndefined();
     expect(afterUndo.document().undoRecords[0]?.consumedAt).toBeDefined();
 
@@ -287,7 +288,7 @@ describe('recovery and Undo over persisted files (Slice 33)', () => {
 
     const final = await reopen(file.path);
     expectReferentialIntegrity(final.document());
-    expect(final.document().sections.find(({ id }) => id === prose)).toMatchObject({ config: { text: expect.any(String) } });
+    expect(final.document().sections.find(({ id }) => id === prose)).toMatchObject({ config: { text: 'Whole-house plan. Kitchen first, garden in the spring.' } });
     expect(final.document().sections.find(({ id }) => id === prose)?.archivedAt).toBeUndefined();
     expect(final.document().sections.find(({ id }) => id === container)?.archivedAt).toBeUndefined();
     for (const id of cascaded) expect(final.document().tasks.find((task) => task.id === id)?.archivedAt).toBeUndefined();

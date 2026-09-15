@@ -434,14 +434,18 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
       .toMatchObject({ config: { text: 'Keep the middle prose' } });
 
     // Neither receipt can move the restored section again.
-    for (const receipt of [firstReceipt, secondReceipt]) {
+    // The first was used; the second is superseded by Restore, which already brought the section back.
+    for (const [receipt, reason] of [[firstReceipt, 'undo_consumed'], [secondReceipt, 'undo_conflict']] as const) {
       const refused = await fetch(`${PROTOTYPE_HOST}/api/undo/${receipt.undoId}`, { method: 'POST', headers: PERSONA });
       expect(refused.status).toBe(409);
-      expect(['undo_consumed', 'undo_conflict']).toContain(((await refused.json()) as { details: { reason: string } }).details.reason);
+      expect(((await refused.json()) as { details: { reason: string } }).details.reason).toBe(reason);
     }
+    const eventsAfterRefusals = await api<unknown[]>('GET', '/api/activity?limit=5');
     const sdkRepeat = await client.callTool({ name: 'undo_operation', arguments: { undoId: secondReceipt.undoId } });
     expect(sdkRepeat.isError).toBe(true);
     expect(await combined()).toEqual(appended);
+    // Refusals are not activity (Refactor §26.7).
+    expect(await api<unknown[]>('GET', '/api/activity?limit=5')).toEqual(eventsAfterRefusals);
   } finally {
     await client.close();
   }

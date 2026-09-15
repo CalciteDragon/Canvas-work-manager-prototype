@@ -658,7 +658,8 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
         await keyboardMove(fixture);
         const gate = deferred<void>();
         const execute = gateway.undo.execute.bind(gateway.undo);
-        gateway.undo.execute = (id) => gate.promise.then(() => execute(id));
+        let executed = 0;
+        gateway.undo.execute = (id) => gate.promise.then(() => execute(id)).then((result) => { executed += 1; return result; });
         const outside = document.createElement('button');
         document.body.appendChild(outside);
         try {
@@ -683,6 +684,11 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
           gate.resolve();
           await settle(fixture);
 
+          // The late result really arrived, and the interruption really happened, so focus staying put is the guard.
+          expect(executed, interruption).toBe(1);
+          if (interruption === 'newer receipt') {
+            expect(gateway.calls.filter(({ method }) => method === 'sections.update').at(-1)?.argument).toMatchObject({ input: { title: 'Newer' } });
+          }
           expect(document.activeElement, interruption).toBe(outside);
         } finally {
           outside.remove();

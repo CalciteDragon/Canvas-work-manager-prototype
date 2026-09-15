@@ -461,7 +461,7 @@ test('retained content survives reload and Archive restore, while reassign Undo 
  * The browser removal dialog offers same-page targets only, so the cross-page reassignment is the
  * HTTP write the domain permits; both browser pages observe it and its Undo.
  */
-test('cross-page reassignment and Undo preserve every archived subtree marker', async ({ page }) => {
+test('cross-page reassignment and Undo preserve every reflection id and archive marker', async ({ page }) => {
   await seed('nested-projects');
   await setClock(PINNED_NOW);
   const root = 'project-renovation';
