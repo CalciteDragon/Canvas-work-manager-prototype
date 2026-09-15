@@ -67,7 +67,7 @@ order is:
    safe deletion plus a receipt-driven browser recovery action.
 4. [32 — Other section operations](completed/32-section-edit-undo.md): add, movement and
    settings Undo, without a generic command framework.
-5. [33 — Integrated acceptance](planned/33-recovery-undo-integrated-acceptance.md): complete
+5. [33 — Integrated acceptance](active/33-recovery-undo-integrated-acceptance.md): complete
    the Refactor §26 browser/MCP evidence and documentation reconciliation.
 
 Each candidate stays in the template's five-section form until started. At activation,
@@ -100,7 +100,7 @@ retained content, exact-owner receipt recovery, browser journeys and both MCP tr
 verified. **Slice 32 closed on 2026-09-15.** [Section edit Undo](completed/32-section-edit-undo.md)
 extends the same receipt to explicit add, move and settings writes, adds `move_section`, and
 shares the floating notice with the Reflections page; its deferred test cases and the notice's
-size and copy feed Slice 33, which remains a candidate.
+size and copy remain recorded friction. Slice 33 is active for implementation planning and review; its acceptance checks have not yet run.
 The latest runtime change, [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md),
 closed 2026-09-13. Its implementation establishes direct canvas editing, contextual
 positioned creation, width resizing, and the navigation changes. The
