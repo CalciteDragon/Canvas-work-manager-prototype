@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -213,5 +214,125 @@ describe('live updates through the host (§62)', () => {
       expect(persistence.store.snapshot().undoRecords).toEqual([]);
       expect(persistence.store.snapshot().sections.find(({ id }) => id === SECTION)?.archivedAt).toBeUndefined();
     });
+  });
+
+  /**
+   * Slice 33 (Refactor §26.7–8): for every receipt family, the mutation, its inverse metadata and
+   * the frame move together. "Committed" is checked against the bytes on disk at delivery, not
+   * only the in-memory snapshot.
+   */
+  describe('section edit families: forward and inverse commit before publication', () => {
+    const SECTION = 'section-project-work-manager-activity';
+    const PROJECT = 'project-work-manager';
+    type Harness = Awaited<ReturnType<typeof harness>>;
+
+    const families = {
+      add: (routes: RouteTable) => persona(routes, 'POST', `/api/projects/${PROJECT}/sections`, { type: 'progress', title: 'Acceptance' }),
+      update: (routes: RouteTable) => persona(routes, 'PATCH', `/api/sections/${SECTION}`, { title: 'Renamed activity', columnSpan: 6 }),
+      move: (routes: RouteTable) => persona(routes, 'POST', `/api/sections/${SECTION}/move`, { position: 0 }),
+      remove: (routes: RouteTable) => persona(routes, 'DELETE', `/api/sections/${SECTION}`),
+    } as const;
+    const familyNames = Object.keys(families) as Array<keyof typeof families>;
+
+    /** Everything a section write or its Undo may change, in memory and on disk. */
+    const canonical = (document: ReturnType<Harness['persistence']['store']['snapshot']>) => ({
+      sections: document.sections,
+      sectionShortcuts: document.sectionShortcuts,
+      tasks: document.tasks,
+      reflections: document.reflections,
+      activityEvents: document.activityEvents,
+      undoRecords: document.undoRecords,
+    });
+    const onDisk = (path: string) => canonical(JSON.parse(readFileSync(path, 'utf8')) as never);
+
+    const watchCommits = ({ persistence, events }: Harness) => {
+      const delivered: Array<{ type: string; durableMatchesMemory: boolean; records: number }> = [];
+      events.subscribe((event) => {
+        const memory = canonical(persistence.store.snapshot());
+        delivered.push({
+          type: event.type,
+          durableMatchesMemory: JSON.stringify(onDisk(persistence.path)) === JSON.stringify(memory),
+          records: memory.undoRecords.length,
+        });
+      });
+      return delivered;
+    };
+
+    it.each(familyNames)('%s publishes only after forward and inverse commit', async (family) => {
+      const host = await harness();
+      const delivered = watchCommits(host);
+
+      const forward = await families[family](host.routes);
+      expect([200, 201]).toContain(forward.status);
+      const { undo } = forward.body as { undo: { undoId: string; operation: string } | null };
+      expect(undo?.operation).toBe(`section.${family}`);
+      expect(delivered).toEqual([expect.objectContaining({ durableMatchesMemory: true, records: 1 })]);
+
+      const undone = await persona(host.routes, 'POST', `/api/undo/${undo!.undoId}`);
+      expect(undone.status).toBe(200);
+      expect(delivered).toHaveLength(2);
+      expect(delivered[1]).toMatchObject({ type: expect.stringMatching(/_undone$/), durableMatchesMemory: true, records: 1 });
+      expect(onDisk(host.persistence.path).undoRecords[0]?.consumedAt).toBeDefined();
+    });
+
+    it.each(familyNames)('%s: failed inverse persistence preserves canonical state, unconsumed receipt and publishes nothing', async (family) => {
+      const host = await harness();
+      const forward = await families[family](host.routes);
+      const { undo } = forward.body as { undo: { undoId: string } };
+      const delivered = watchCommits(host);
+      const before = canonical(host.persistence.store.snapshot());
+      const bytes = readFileSync(host.persistence.path, 'utf8');
+      const persist = host.persistence.store.persist;
+      host.persistence.store.persist = async () => {
+        throw new Error('disk full');
+      };
+
+      const failed = await persona(host.routes, 'POST', `/api/undo/${undo.undoId}`);
+
+      expect(failed.status).toBe(500);
+      expect(delivered).toEqual([]);
+      expect(canonical(host.persistence.store.snapshot())).toEqual(before);
+      expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
+
+      host.persistence.store.persist = persist;
+      const retried = await persona(host.routes, 'POST', `/api/undo/${undo.undoId}`);
+      expect(retried.status).toBe(200);
+      expect(delivered).toEqual([expect.objectContaining({ type: expect.stringMatching(/_undone$/), durableMatchesMemory: true, records: 1 })]);
+    });
+
+    it.each(familyNames.flatMap((family) => [[family, 'recorder'], [family, 'persistence']] as const))(
+      '%s: failed %s commits neither mutation nor receipt',
+      async (family, fault) => {
+        const host = await harness();
+        const delivered = watchCommits(host);
+        const before = canonical(host.persistence.store.snapshot());
+        const bytes = readFileSync(host.persistence.path, 'utf8');
+        const { store, undoRecords } = host.persistence;
+        const persist = store.persist;
+        const insert = undoRecords.insert;
+        if (fault === 'recorder') {
+          undoRecords.insert = async () => {
+            throw new Error('recorder unavailable');
+          };
+        } else {
+          store.persist = async () => {
+            throw new Error('disk full');
+          };
+        }
+
+        const failed = await families[family](host.routes);
+
+        expect(failed.status).toBe(500);
+        expect(delivered).toEqual([]);
+        expect(canonical(store.snapshot())).toEqual(before);
+        expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
+
+        store.persist = persist;
+        undoRecords.insert = insert;
+        const retried = await families[family](host.routes);
+        expect([200, 201]).toContain(retried.status);
+        expect(delivered).toEqual([expect.objectContaining({ durableMatchesMemory: true, records: 1 })]);
+      },
+    );
   });
 });
