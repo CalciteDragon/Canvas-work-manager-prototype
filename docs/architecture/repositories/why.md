@@ -45,10 +45,11 @@ AND, an empty array matches nothing, `includeArchived` is opt-in, and archived r
 excluded by default ([decision](../../decisions/2026-08-repository-query-semantics.md)).
 The JSON implementation is the reference; a Postgres one would have to match.
 
-**Deletion exists only for safe disposable sections, shortcut placements and pruned Undo
-records.** A section's `remove` seam is used only after `SectionService` settles owned rows,
-checks whether content needs recovery, and verifies no canonical task, reflection or shortcut
-still refers to the section. Integrity remains strict, and old tombstones are not purged
+**Deletion exists only for safe disposable sections, safe explicit-add Undo, shortcut placements
+and pruned Undo records.** A section's `remove` seam is used only after `SectionService` settles
+owned rows, checks whether content needs recovery, and verifies no canonical task, reflection or
+shortcut still refers to the section — or, for add Undo, when the added section is unchanged and no
+row, cascade marker or shortcut references it. Integrity remains strict, and old tombstones are not purged
 ([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
 **An `InMemoryDataStore` beside the `JsonDataStore`.** Same base, no disk — what every

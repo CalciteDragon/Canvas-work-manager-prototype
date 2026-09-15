@@ -67,7 +67,7 @@ order is:
    safe deletion plus a receipt-driven browser recovery action.
 4. [32 — Other section operations](completed/32-section-edit-undo.md): add, movement and
    settings Undo, without a generic command framework.
-5. [33 — Integrated acceptance](active/33-recovery-undo-integrated-acceptance.md): complete
+5. [33 — Integrated acceptance](completed/33-recovery-undo-integrated-acceptance.md) (done):
    the Refactor §26 browser/MCP evidence and documentation reconciliation.
 
 Each candidate stays in the template's five-section form until started. At activation,
@@ -100,7 +100,14 @@ retained content, exact-owner receipt recovery, browser journeys and both MCP tr
 verified. **Slice 32 closed on 2026-09-15.** [Section edit Undo](completed/32-section-edit-undo.md)
 extends the same receipt to explicit add, move and settings writes, adds `move_section`, and
 shares the floating notice with the Reflections page; its deferred test cases and the notice's
-size and copy remain recorded friction. Slice 33 is active for implementation planning and review; its acceptance checks have not yet run.
+size and copy remain recorded friction. **Slice 33 closed on 2026-09-15.**
+[Integrated acceptance](completed/33-recovery-undo-integrated-acceptance.md) records passing
+evidence for all twelve Refactor §26 criteria across the domain, host, browser and both MCP
+transports without a production change, which closes the Archive, removal and Undo direction.
+Redo and an `ArchiveItem` aggregate stay optional. Its real-use notes (`note-2026-09-15-005`…`-008`:
+person-facing conflict copy when an agent superseded the change, Open Archive offered with nothing to
+restore, Restore landing at the page end without warning, and the same-page-only reassign dialog)
+join Slice 32's notice friction as candidates for the next friction-chosen phase.
 The latest runtime change, [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md),
 closed 2026-09-13. Its implementation establishes direct canvas editing, contextual
 positioned creation, width resizing, and the navigation changes. The

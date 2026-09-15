@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 33 | Slice 33 — Recovery and Undo integrated acceptance | Verify recovery, Undo, permissions and migration through browser and MCP journeys | [33-recovery-undo-integrated-acceptance.md](active/33-recovery-undo-integrated-acceptance.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -71,4 +69,5 @@ verification follow-ups rather than feature slices.
 | 30 | Slice 30 — Atomic, placement-aware section removal Undo | 2026-09-14 | Every section removal returns a receipt that undoes it once, for the same actor, between its old neighbours, over HTTP and MCP | [30-atomic-section-removal-undo.md](completed/30-atomic-section-removal-undo.md) |
 | 31 | Slice 31 — Disposable removal and immediate Undo UI | 2026-09-14 | Safely remove disposable sections and restore them through a reviewed, tested canvas-local Undo flow | [31-disposable-removal-and-undo-ui.md](completed/31-disposable-removal-and-undo-ui.md) |
 | 32 | Slice 32 — Section creation, movement and settings Undo | 2026-09-15 | Explicit section add, move and settings writes return typed Undo receipts that reverse only their own changes across HTTP, MCP and the canvas | [32-section-edit-undo.md](completed/32-section-edit-undo.md) |
+| 33 | Slice 33 — Recovery and Undo integrated acceptance | 2026-09-15 | All twelve Refactor §26 criteria verified through domain, host, browser and both MCP transports; no production change | [33-recovery-undo-integrated-acceptance.md](completed/33-recovery-undo-integrated-acceptance.md) |
 <!-- roadmap:end -->

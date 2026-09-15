@@ -99,6 +99,9 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
     that it returns with its width and placement. Disposable views are absent from Archive;
     retained content such as nonempty notes or cascaded rows can be restored from Archive. The
     immediate Undo notice is local to this canvas and clears when you leave or reload.
+    To see the two recoveries disagree on purpose, remove a nonempty notes section that sits
+    between two placements and choose **Undo**: it returns between them. Remove it again, choose
+    **Open Archive** and **Restore saved content**: it returns at the **end** of the page.
 12. **Collapse and rename.** Click the collapse control to hide a section's body while leaving
     its heading visible. Click the title to rename it; Enter or blur saves, and Escape restores
     the previous name. Following a Todos owner link can open a collapsed target for that visit,

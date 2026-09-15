@@ -285,7 +285,7 @@ describe('RepositoryUndoRecorder', () => {
       expect(await harness.undoRecords.list({ workspaceId: actorFor(1).workspaceId })).toHaveLength(1);
     });
 
-    it('cap pruning over independent subjects ends at the limit and leaves no older removal answering', async () => {
+    it('cap pruning ends at exactly the limit and keeps independent subjects answering', async () => {
       const harness = buildHarness();
       // #1 removal and #2 move share a section; the other 49 are independent removals.
       await seedRecords(harness, UNDO_RECORD_LIMIT + 1, (index) => ({

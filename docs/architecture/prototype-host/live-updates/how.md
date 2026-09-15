@@ -56,6 +56,9 @@
   its one activity frame. The Undo
   record and its snapshot never reach a frame. `live-updates.test.ts` pins the deleted-removal
   frame, Undo, and that a removal whose persistence fails delivers nothing and keeps no record;
+  since Slice 33 it also checks, for add, update, move and removal, that the forward and Undo frames
+  arrive only once the bytes on disk hold the change and the consumed receipt, and that recorder,
+  forward-persistence and Undo-persistence failures deliver nothing;
   `section-service.test.ts` pins the retained-removal action at the domain.
 - **Frames carry ids, never entities.** The browser re-reads through the gateway; a
   frame is "go and look", not a state delta (§62).

@@ -1,4 +1,4 @@
-<!-- plan id="33" status="active" summary="Verify recovery, Undo, permissions and migration through browser and MCP journeys" -->
+<!-- completed-record id="33" closed="2026-09-15" summary="All twelve Refactor §26 criteria verified through domain, host, browser and both MCP transports; no production change" -->
 # Slice 33 — Recovery and Undo integrated acceptance
 
 ## Goal
@@ -30,10 +30,9 @@ All twelve Refactor §26 criteria have explicit passing evidence. Run pnpm test,
 
 ## Planning status
 
-Active for implementation planning only, at the user's request on 2026-09-15. Slice 32
-is complete. This turn writes and reviews the plan; it does not implement or claim passing
-Slice 33 acceptance. Bump `CURRENT_SLICE` at the first implementation step, before real use.
-Plan review is complete after two rounds with no substantive findings remaining. All implementation evidence below is **pending execution**, including tests reused from earlier slices.
+Planned and reviewed on 2026-09-15 (two rounds, no findings left). Implemented, reviewed and
+closed the same day at the user's request: `CURRENT_SLICE` was bumped to 33 at the first
+implementation step, and the ledger below carries this diff's evidence.
 
 ## Implementation approach
 
@@ -70,18 +69,18 @@ proof and must be recorded as such, without claiming the UI exposes private reco
 
 | §26 | Required behavior | Automated assertion | Browser / MCP observation | Evidence |
 |---|---|---|---|---|
-| 1 | Progress, Timeline and Recent Activity removals never appear in Archive | R1, M1: assert each created ID absent, retained tombstone fixture still stored | Remove each type; Archive is empty of those IDs over UI and `get_project_archive` | pending |
-| 2 | Disposable removals remain undoable | R1, M1: original ID, config, span, collapse and combined order restored; one consumption | Correct notice label and Undo; SDK `undo_operation` on own receipt | pending |
-| 3 | Cascaded task list has durable recovery | P1, R2: close/reopen file; exact cascade IDs recovered after expiry/pruning of receipt | Reload Archive; restore list; independently archived parent/subtree still need their own restore | pending |
-| 4 | Reassign-all source does not clutter Archive | R2, M1: task subtrees move between same-page lists; Reflections move across pages within one project; empty sources absent | Browser Reflections reassignment Home → Reflections page; SDK task-list reassign; Undo returns all original IDs and markers | pending |
-| 5 | Nonempty rich text is recoverable without owned rows | R2, P1: exact prose survives reopen and Restore; blank prose absent | Saved content label and body visible after restore; MCP projection names prose | pending |
-| 6 | Archive consumes a recovery projection | Existing archive/store/route/contract assertions plus R1/P1; created disposable IDs absent while prose/cascade IDs present | UI and `get_project_archive` match projected IDs/metadata; separate gateway-boundary review | pending |
-| 7 | Activity and Undo remain separate | S1, L1: separate collections, one attributable event and record forward; Undo consumes record and adds only one event | Activity feed remains readable after source deletion; MCP receipt/frame contains no inverse data | pending |
-| 8 | Mutation and promised inverse commit atomically | L1: recorder failure, persistence failure, Undo-time failure leave domain collections and receipt unchanged; zero published frames | Browser injected failure leaves saved state unchanged and retry usable; successful HTTP MCP frame reflects committed state | pending |
-| 9 | One Undo reverses one multi-row action | R2, M1: exact row-ID/parent/section/archive-marker sets; preserve later nonstructural edits; reject structural conflicts | One click/tool call reverses cascade/reassign; repeated call refused without another event | pending |
-| 10 | Restore appends; Undo restores by neighbors | R1/R2, D1: same initial placement, separate removals: Restore appends after shortcut; Undo uses previous/next/fallback | Observe both combined orders in browser and SDK reads; do not reuse a consumed/conflicted receipt | pending |
-| 11 | Migration preserves referential integrity | P1: v2 conversion and pre-Undo v3 load preserve unrelated collections; validate every reopen and mutation; shortcut-backed source retained | Converted temp file opened through host and MCP; source unavailable then restored with same ID; no dangling row/source references | pending |
-| 12 | Clear future Redo path without event sourcing | S1 plus boundary review: strict version/type union, unknown versions rejected, canonical reads work without Activity replay; Undo creates no new record | Browser and MCP execute four receipt families, with no Redo endpoint/control; review records extension seam, not implemented Redo | pending |
+| 1 | Progress, Timeline and Recent Activity removals never appear in Archive | R1, M1: assert each created ID absent, retained tombstone fixture still stored | Remove each type; Archive is empty of those IDs over UI and `get_project_archive` | PASS 2026-09-15. `removal-undo.spec.ts` “disposable sections stay out of Archive and Undo restores config, layout, and shortcut order” (each id absent from Archive and from `includeArchived` sections); `mcp-acceptance.mjs` “HTTP/stdio the removed progress/timeline/recent-activity view is deleted and absent from get_project_archive”; P1 “converted v2 and pre-Undo v3 files reopen…” (legacy Progress tombstone stored, unprojected). `pnpm e2e` 34 passed; `mcp-acceptance` both transports passed. |
+| 2 | Disposable removals remain undoable | R1, M1: original ID, config, span, collapse and combined order restored; one consumption | Correct notice label and Undo; SDK `undo_operation` on own receipt | PASS 2026-09-15. Same R1 test (same id/config/span/collapse/combined order after Undo and reload; keyboard focus Undo → title); M1 “Undo recreates the <type> view under its id” and “a repeated <type> Undo is undo_consumed … adds no event or record” on both transports; D2 mixed-family pruning. Real use: removal/Undo of a shortcut-backed empty Reflections container on Kitchen. |
+| 3 | Cascaded task list has durable recovery | P1, R2: close/reopen file; exact cascade IDs recovered after expiry/pruning of receipt | Reload Archive; restore list; independently archived parent/subtree still need their own restore | PASS 2026-09-15. P1 “Archive outlives expired and pruned receipts” (59 independent receipts, cap 50, pruned → not-found, expired → `undo_expired`, list restored from Archive after disk reopen, cascaded tasks live); `removal-undo.spec.ts` “retained content survives reload and Archive restore…” (cascade restore leaves the independently archived parent/child archived and listed). |
+| 4 | Reassign-all source does not clutter Archive | R2, M1: task subtrees move between same-page lists; Reflections move across pages within one project; empty sources absent | Browser Reflections reassignment Home → Reflections page; SDK task-list reassign; Undo returns all original IDs and markers | PASS 2026-09-15. `archive.spec.ts` content journey and `removal-undo.spec.ts` “retained content survives reload…” (same-page task reassign, source absent from Archive, Undo returns parent/child and archived subtree); “cross-page reassignment and Undo preserve every reflection id and archive marker” (**driven over HTTP**: the browser dialog lists same-page targets only; both browser pages observed); M1 “HTTP/stdio recovery preserves exact row and source IDs (reassign)”. |
+| 5 | Nonempty rich text is recoverable without owned rows | R2, P1: exact prose survives reopen and Restore; blank prose absent | Saved content label and body visible after restore; MCP projection names prose | PASS 2026-09-15. P1 exact prose `Whole-house plan. Kitchen first, garden in the spring.` survives remove → Undo → reopen and Archive Restore after pruning; `archive.spec.ts` placement-contrast test keeps `Keep the middle prose`; real use: Kitchen brief removed, “Keeps its text” row, Restore saved content brought the exact text back. |
+| 6 | Archive consumes a recovery projection | Existing archive/store/route/contract assertions plus R1/P1; created disposable IDs absent while prose/cascade IDs present | UI and `get_project_archive` match projected IDs/metadata; separate gateway-boundary review | PASS 2026-09-15. Existing `project-archive-service`/route/contract suites (`pnpm test` green) plus P1 legacy tombstone absent while prose/cascade present; `get_project_archive` over both transports (M1) and UI rows match. Boundary reviewer (2026-09-15) found no gateway or component violations. |
+| 7 | Activity and Undo remain separate | S1, L1: separate collections, one attributable event and record forward; Undo consumes record and adds only one event | Activity feed remains readable after source deletion; MCP receipt/frame contains no inverse data | PASS 2026-09-15. S1 `section-edit-undo.test.ts` “records exactly one record and event per changed operation, and Undo adds one event and no record”; L1 “%s publishes only after forward and inverse commit” now asserts `events` +1 forward and +1 Undo with `records` 1; `live-updates.test.ts` Slice 30 frame check has no inverse data; R2 placement test asserts refusals add no activity. Structural proof, UI corroboration only. |
+| 8 | Mutation and promised inverse commit atomically | L1: recorder failure, persistence failure, Undo-time failure leave domain collections and receipt unchanged; zero published frames | Browser injected failure leaves saved state unchanged and retry usable; successful HTTP MCP frame reflects committed state | PASS 2026-09-15. L1 “%s: failed inverse persistence…” and “%s: failed recorder/persistence commits neither mutation nor receipt” for add/update/move/remove (bytes on disk unchanged, no frame, one frame on retry); fault-checked by publishing Undo frames before commit. B1 “nested injected failure keeps receipt and allows retry”; real use: 100% failure left Kitchen order unchanged and the same receipt worked at 0%. |
+| 9 | One Undo reverses one multi-row action | R2, M1: exact row-ID/parent/section/archive-marker sets; preserve later nonstructural edits; reject structural conflicts | One click/tool call reverses cascade/reassign; repeated call refused without another event | PASS 2026-09-15. `undo-service.test.ts` cascade/reassign exact-row tests (S1); M1 reassign and cascade exact ids with one `undo_operation`; R2 cross-page and same-page Undo; repeated Undo refused without events (M1, R2); B1 “agent overlap refuses Undo without losing newer content”; real use: agent `move_section` superseded the browser move and Undo was refused for good. |
+| 10 | Restore appends; Undo restores by neighbors | R1/R2, D1: same initial placement, separate removals: Restore appends after shortcut; Undo uses previous/next/fallback | Observe both combined orders in browser and SDK reads; do not reuse a consumed/conflicted receipt | PASS 2026-09-15. `archive.spec.ts` “Archive Restore appends while Undo returns between surviving shortcut neighbors” (same start; Undo → `[first, shortcut, middle, last]`, Restore → `[first, shortcut, last, middle]`; browser DOM, HTTP and SDK `list_sections`; first receipt `undo_consumed`, second `undo_conflict`); D1 “move Undo follows a surviving previous shortcut”. Real use: Kitchen brief Restore appended last. |
+| 11 | Migration preserves referential integrity | P1: v2 conversion and pre-Undo v3 load preserve unrelated collections; validate every reopen and mutation; shortcut-backed source retained | Converted temp file opened through host and MCP; source unavailable then restored with same ID; no dangling row/source references | PASS 2026-09-15. P1 all three tests (`expectReferentialIntegrity` after every reopen; real `upgrade-cli.ts` subprocess; backup bytes identical; shortcut-backed Kitchen tasks retained under its id, then Undo). Step 3 real host: temp v2 copy (+ test-local `agent-claude` connection) converted by `pnpm prototype:upgrade`, backup `cmp`-identical, Archive viewed in browser, SDK remove → Archive → Undo, host restarted, repeat `undo_consumed`, section order and browser canvas intact. |
+| 12 | Clear future Redo path without event sourcing | S1 plus boundary review: strict version/type union, unknown versions rejected, canonical reads work without Activity replay; Undo creates no new record | Browser and MCP execute four receipt families, with no Redo endpoint/control; review records extension seam, not implemented Redo | PASS 2026-09-15. S1 `packages/contracts/src/undo.test.ts` “rejects %s — the union is typed and versioned, never arbitrary JSON” and version-1 retention tests; no Redo route, tool or control (`grep` of routes, tools and web). Four families executed in browser (B1, R1, section-edit-undo journeys) and MCP (M1, `assertUndo`). Reviewer: the versioned operation union is the extension seam; Redo not implemented. |
 
 ### Commands and execution order
 
@@ -165,6 +164,33 @@ original decisions. If this phase answers a new product question, add a small da
 index it in `docs/decisions/README.md`, link the relevant system `why.md`, and append dated
 amendments only where contradicted. No new product question is pre-settled by this plan.
 
+#### Audit results (2026-09-15)
+
+| Folder | Result |
+|---|---|
+| contracts | accurate, unchanged |
+| domain | accurate, unchanged |
+| repositories | `how.md` and `why.md` said deletion served disposable removal only; both now name safe explicit-add Undo (`executeSectionAddUndo`) |
+| mcp-tools | accurate, unchanged |
+| prototype-data | accurate, unchanged |
+| prototype-host/api | accurate, unchanged |
+| prototype-host/mcp-transport | accurate, unchanged (`why.md` names only Slice 30's round trip but defers to testing) |
+| prototype-host/live-updates | `how.md` credited `live-updates.test.ts` with the removal failure case only; now names the four-family commit and fault matrix |
+| web/core | accurate, unchanged |
+| web/projects | accurate, unchanged |
+| web/prototype-tooling | accurate, unchanged |
+| testing | all four files updated: integrated suite responsibility, inventory, rerun instructions, evidence split and fault-sensitivity rule; bundle figure refreshed |
+
+Main spec: §31's receipt-replacement sentence now says the newest explicit operation replaces the
+receipt, and §69 records Slice 33's integrated evidence; §§29–30, 32, 54, 61–63 were accurate.
+README (pre-Undo v3 files load as-is; path resolution), `mcp-setup.md` (grants checked when Undo
+runs, revocation, persistence, 50-record limit, stdio file sharing), the milestone walkthrough
+(Undo versus Archive Restore contrast) and `docs/specifications/README.md` (delivered coverage,
+Redo and `ArchiveItem` excluded) were updated. Decisions: no new product question; one dated
+amendment to [reassign may cross pages](../../decisions/2026-09-reassign-may-cross-pages.md),
+whose confidence note said the path had not been exercised. The other listed decisions are
+consistent with the shipped behaviour.
+
 ## Test plan — tests first
 
 | ID / file | Named assertions and what they prove |
@@ -223,7 +249,7 @@ must be recorded and resolved before expanding implementation.
 
 - **Draft (2026-09-15):** Grounded in Slices 29–32, current services, test harnesses and
   architecture. Activated through `roadmap.mjs`. Isolated migration composition in the host;
-  mapped all twelve criteria and every Slice 32 deferred test category. Review pending.
+  mapped all twelve criteria and every Slice 32 deferred test category. Review requested.
 
 - **Round 1 (2026-09-15):** Independent plan reviewer checked spec, boundaries, deferred
   cases and concrete harness feasibility. Corrected P1's evidence claim: its automated
@@ -239,4 +265,90 @@ must be recorded and resolved before expanding implementation.
   Planning validation: `node scripts/roadmap.mjs check` passed; `pnpm docs:check` passed
   (18 system folders, 197 documents). The initial sandboxed docs check could not resolve
   Mermaid through its Windows dependency junction; the same command passed with read access.
-  Runtime acceptance has not been run in this planning-only phase.
+  Runtime acceptance has not been run in this planning-only phase.- **Implementation (2026-09-15):** Tests-first per the test plan; every new assertion passed
+  against existing code, so each group was checked against a temporary, reverted fault (hub
+  delivery before commit; skipped page, archived-subject and ancestor checks; placement
+  previous-neighbour lookup; actor scoping; same-subject pruning and `outstandingFor`'s family
+  filter; Archive projection filter; the 50-record limit; dropped refusal details; canvas and
+  store stale-result guards; blur focus return). No defect was found, so no production file
+  changed beyond `CURRENT_SLICE`. Deviations: (1) the browser removal dialog offers same-page
+  reassign targets only (`ProjectPageStore.reassignTargets`), so cross-page Reflections
+  reassignment runs over HTTP with both browser pages observing it; (2) P1 undoes its four
+  receipts newest-first — undone out of order, two inverses can both follow the same surviving
+  previous neighbour, which is placement working as designed; (3) Kitchen is a sub-project with
+  no shortcuts, so B1 orders its sections only; (4) M1 revokes the second connection
+  (`agent-cursor`, granted `projects.write` in its temp files) so the primary token still serves
+  the restart checks, and removes the grant from the primary; (5) the "late Undo after
+  navigation" focus case is protected by redundant store and canvas guards and did not fail under
+  a single fault — the newer-receipt case did; (6) the step-3 v2 copy received a test-local
+  `agent-claude` connection so a real MCP client could authenticate against the converted file.
+- **Diff review (2026-09-15):** Two subagents reviewed `git diff 9f94650`. Correctness/acceptance
+  (verified and fixed): L1's Undo frame check could pass if published before commit — now asserts
+  the consumed receipt on disk and one activity event at delivery, fault-checked by publishing
+  only Undo frames early; M1 revocation accepted any error — now requires an authentication
+  refusal on each transport; the foreign refusal now compares business collections; M1 checks
+  Progress, Timeline and Recent Activity absent from `get_project_archive` and that a repeated
+  Undo adds nothing; P1 compares exact prose and `archivedWithTaskId`; the placement test asserts
+  each receipt's reason and no refusal activity; the late-Undo focus test proves the Undo resolved
+  and the rename committed; D2's cap test was renamed to what it proves (cap pruning always takes
+  the oldest records, so same-subject cap pruning cannot be isolated; the expiry matrix covers the
+  rule); the cross-page e2e title no longer claims a subtree. Boundaries: no violations; the only
+  production change is `CURRENT_SLICE`. Documentation (fixed): `repositories/why.md` deletion
+  sentence, `live-updates/how.md` test inventory, `goals.md` link, `mcp-setup.md` "writes
+  nothing" (the authenticator still stamps *Last used*), connection naming in `testing/how.md`,
+  and the HTTP-driven note in `testing/what.md`. Not taken: an out-of-order Undo placement check
+  for MCP clients (placement is best-effort by decision and `undo-service.test.ts` pins the
+  strategies); reflection subject references in the integrity helper (the fixtures carry none).
+  Invalidated checks rerun: host `recovery-undo-acceptance`/`live-updates` 26 passed, domain
+  `undo-recorder` 21 passed, canvas spec 48 passed, `mcp-acceptance` both transports passed,
+  `archive.spec.ts` 3 passed, the renamed cross-page test passed, `apps/e2e` `tsc` clean.
+
+## Outcome
+
+**Deliverables.** The Archive, removal and Undo refactor now has explicit, passing evidence for
+all twelve Refactor §26 criteria (the ledger above). New coverage: domain edit-inverse
+preconditions and mixed-family pruning ([section-edit-undo.test.ts](../../../packages/domain/src/section-edit-undo.test.ts),
+[undo-recorder.test.ts](../../../packages/domain/src/undo-recorder.test.ts)); a host
+commit-before-publish and fault matrix for every receipt family checked against the bytes on disk
+([live-updates.test.ts](../../../apps/prototype-host/live-updates.test.ts)); a persisted-file suite
+that runs the real upgrade CLI on v2 and pre-Undo v3 copies, reopens after Undo and proves Archive
+outlives pruned and expired receipts ([recovery-undo-acceptance.test.ts](../../../apps/prototype-host/recovery-undo-acceptance.test.ts));
+gateway refusal and Undo focus specs; MCP acceptance for exact ids, a foreign connection, a removed
+grant and revocation on both transports ([mcp-acceptance.mjs](../../../apps/prototype-host/scripts/mcp-acceptance.mjs));
+and browser journeys for placement contrast, cross-page reassignment, nested pointer move/resize
+Undo, injected failure with retry and agent overlap. Final runs: `pnpm docs:api`, `pnpm test`
+(contracts 252, repositories 140, prototype-data 100, domain 581, mcp-tools 150, host 209, web 715,
+root 9), `pnpm lint`, `pnpm build` (994.27 kB initial; the 850 kB warning budget is exceeded as
+before, under the 1 MB error ceiling), `pnpm e2e` 34 passed, and all four host acceptance scripts;
+tests changed after that run were rerun as listed under Revisions. The converted v2 file was also
+driven through a real host, the browser and an SDK client, restarted and reopened.
+
+**Deliberate choices.** Evidence sits at the lowest layer that can observe each guarantee, then is
+joined through the browser and both transports; shared seeds and snapshots are unchanged, and every
+scenario uses temp copies or test-local additions. Passing-first assertions were made to fail with
+reverted faults rather than by editing production code. Structural criteria (§26.6, 7, 12) are
+proven by contract, domain and review, with UI and MCP as corroboration only.
+
+**Deviations from the plan.** Listed under Revisions: cross-page reassignment is HTTP-driven because
+the dialog is same-page only; P1 undoes newest-first; Kitchen orders sections only; revocation uses
+the second connection; one focus case is guarded redundantly; the step-3 v2 copy gained a test-local
+agent connection.
+
+**Deferred.** Redo and an `ArchiveItem` aggregate remain unimplemented by design. Four friction notes
+from real use (`note-2026-09-15-005` … `-008`) are later candidates, not part of this refactor: raw
+`undo_conflict:` text and "use the later receipt" advice when the newer change was an agent's; the
+notice offering Open Archive for a shortcut-backed empty container Archive does not list; Archive
+Restore silently moving a brief to the end of its page; a failure message that does not say Undo is
+still available, and the same-page-only reassign dialog. Slice 32's notice size and copy friction also
+still stands — the notice covered a Task List row during real use.
+
+**Open questions.** Whether a person should be able to choose a cross-page reassign target in the
+dialog, and whether refusal copy should name the actor whose change superseded theirs. Both are for
+the next friction-chosen phase.
+
+**Documentation updated.** Architecture `testing` (all four files), `repositories/how.md` and
+`why.md`, `prototype-host/live-updates/how.md`; main spec §31 and §69; `README.md`;
+`docs/guides/mcp-setup.md` and `first-milestone-walkthrough.md`; `docs/specifications/README.md`
+(implemented through Refactor §23 phase 5); a dated amendment to
+[reassign may cross pages](../../decisions/2026-09-reassign-may-cross-pages.md) and its index row;
+`goals.md`.

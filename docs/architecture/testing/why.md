@@ -54,6 +54,19 @@ and an unchanged `undo: null` over both transports, the handler suite pins conne
 after a receipt is issued, and the browser journey checks interleaved MCP edits, that a reload
 clears local notices, and that the Reflections-page container uses the same Undo surface.
 
+**Integrated acceptance puts each guarantee at the lowest layer that can observe it.** Slice 33
+closed the Archive/removal/Undo refactor by tracing every Refactor §26 criterion to one named
+assertion, then joining those through the browser and real SDK clients. Commit-before-publish is
+proven against the bytes on disk at frame delivery (`live-updates.test.ts`), because an in-memory
+snapshot cannot tell a committed write from a pending one. Migration and retention are proven in
+the host, the one package allowed to compose the converter, the services and the JSON store, over
+temp copies of the committed fixtures, so no seed or snapshot changed. Grant removal and
+revocation are proven over both transports, because changing an in-memory actor would not
+exercise the authenticator's live lookup. Where a new assertion passed on first run — this slice
+added tests, not product code — each was checked against a temporary, reverted fault to prove it
+could fail. Rejected: a new shared acceptance seed, which would have meant re-snapshotting six
+seeds to test behaviour none of them lacked.
+
 **The e2e suite owns its servers and its data file.** Playwright's `webServer` takes an
 array — the deciding reason over Cypress — and each entry names the address its server
 actually binds (`127.0.0.1` for the host, `[::1]` for `ng serve`), refuses to reuse a

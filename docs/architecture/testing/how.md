@@ -10,8 +10,8 @@
    token lints where they apply — and then `node scripts/check-docs.mjs`.
 3. `pnpm build` builds the web app (with the bundle budgets) and type-checks the rest. Slice 31
    keeps project routes eager and uses conditional Angular `@defer` boundaries for the canvas
-   dialogs, Undo notice and Archive list; the production initial bundle is 993.82 kB against
-   the existing 1 MB error ceiling.
+   dialogs, Undo notice and Archive list; the production initial bundle measured 994.27 kB at Slice 33
+   against the existing 1 MB error ceiling; the 850 kB warning budget is exceeded and reported.
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
    starts a second host on a temp file and walks a slice's *done when*. Since Slice 30,
    `acceptance` removes `personal-workspace`'s first Home placement, undoes it through
@@ -24,7 +24,15 @@
     recover the exact receipt, undo it, and inspect persisted recreation and consumption.
     MCP acceptance also runs add, update (including an unchanged `undo: null`) and move →
     `undo_operation` journeys over both transports. Connection revocation after a receipt is
-    issued is pinned in `apps/prototype-host/mcp/handler.test.ts`.
+    issued is pinned in `apps/prototype-host/mcp/handler.test.ts`. Slice 33 adds, per transport,
+    reassign and cascade with exact row and section ids and the Archive projection, a second
+    connection (`prototype-user-a-readonly`, granted `projects.write` in the temp file) refused
+    as not-found, then removal of `projects.write` from the primary `agent-claude` connection and
+    revocation of the second (`agent-cursor`), plus Progress, Timeline and Recent Activity removal
+    absent from `get_project_archive` and a repeated Undo that adds nothing,
+    each refused with the file's business collections byte-identical. HTTP changes grants through
+    `PATCH /api/agent-connections/:id` and `POST …/revoke`; stdio edits its own temp file between
+    completed calls, which its per-call reload sees.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) starts both processes,
     seeds before each spec, and runs the web, canvas editing and section edit/removal Undo, MCP, Todos,
    Archive and Reflections specs, including keyboard/touch geometry and receipt recovery.
@@ -115,8 +123,18 @@ pnpm storybook                                        # :6006
   add/update/move Undo, disjoint and overlapping agent edits over MCP, canvas contextual add,
   rename, Rich Text blur save, collapse, keyboard resize and keyboard move Undo with reload, and
   the Reflections-page container add, Undo and refusal once a reflection is authored.
+- **Integrated recovery acceptance (Slice 33)** is a matrix, not one journey. The Refactor §26
+  ledger in [the Slice 33 record](../../roadmap/completed/33-recovery-undo-integrated-acceptance.md)
+  names each assertion. To rerun the failure and reopen evidence: `recovery-undo-acceptance.test.ts`
+  copies the committed fixtures under `packages/prototype-data/test/fixtures/` to temp files, runs
+  `upgrade-cli.ts` through `node --import tsx`, and reopens with `loadPersistence` each time;
+  `live-updates.test.ts` swaps `store.persist` or `undoRecords.insert` for a throwing function,
+  checks the bytes on disk are unchanged and no frame was delivered, then restores the original
+  and retries once. `section-edit-undo.spec.ts` sets the dev panel's failure rate to 100% only
+  after reads settle and back to 0% before re-reading.
 - **The trap:** a test that passes before the implementation, or fails on a typo. Watch
-  it fail for the right reason first.
+  it fail for the right reason first. When a new acceptance assertion passes against code that
+  already works, inject a temporary targeted fault, watch it fail, and revert the fault.
 
 The Compodoc fragment regression runs when generated API output exists; otherwise Node
 reports it skipped. Run `pnpm docs:api` before `pnpm test` to exercise it.

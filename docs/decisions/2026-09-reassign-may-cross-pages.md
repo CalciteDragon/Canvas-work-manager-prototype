@@ -47,3 +47,11 @@ is currently reachable through HTTP and MCP rather than through the removal dial
 Slice 25.3 gives the removal dialog a real choice of destination. If its picker turns out to want
 one page's containers, that is a UI default rather than a domain rule — but if a person is
 surprised by where their rows went, this is the entry to reopen.
+
+**Amended, 2026-09-15 (Slice 33).** Cross-page reassignment has now been exercised with its Undo:
+a Home Reflections container holding a live and an independently archived reflection was
+reassigned to the Reflections page container over HTTP, both browser pages followed it, and Undo
+returned both ids with the archived marker intact (`removal-undo.spec.ts`); MCP acceptance runs
+same-page reassign and Undo over both transports. The removal dialog still lists one page's
+containers, so the cross-page path remains API and MCP only. That is recorded as friction
+(`note-2026-09-15-008`), not a change to this decision.

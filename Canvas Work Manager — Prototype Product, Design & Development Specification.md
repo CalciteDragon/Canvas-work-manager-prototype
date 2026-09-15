@@ -1598,8 +1598,8 @@ has been used or has expired. Archive Restore remains the durable path: no recei
 appended ([why](docs/decisions/2026-09-section-removal-undo-records.md)).
 
 The browser holds the receipt in the current canvas session and offers **Undo** there; dismissal
-removes the notice, successful Undo replaces it with a result, and a newer successful removal
-replaces the receipt. Page/project navigation or reload clears the local state.
+removes the notice, successful Undo replaces it with a result, and the newest successful explicit
+section operation — add, move, settings update or removal — replaces the receipt. Page/project navigation or reload clears the local state.
 The server receipt remains independently scoped to the exact actor for 24 hours. If a removal
 response is lost, repeating it remains a refusal; the exact actor receives their newest
 outstanding receipt in HTTP `details` or MCP error text, without a second write or event. The
@@ -3239,6 +3239,16 @@ data file. Focused aggregate journeys remain separate so the integrated pass can
 without duplicating every fixture. Slice 25.8 ran the integrated browser/MCP checks and the
 workbench states against the nested showcase; the remaining product questions are about sustained
 use, not whether these paths can be exercised.
+
+*Slice 33 closed the Archive, removal and Undo refactor the same way.* Each Refactor §26
+criterion is traced to a named assertion at the lowest layer that can observe it — domain
+preconditions and pruning, commit-before-publish against the bytes on disk, converter and reopen
+over temp copies of the committed fixtures — and then joined through the browser (nested pointer
+move and resize Undo, an injected client failure with retry, an agent's overlapping edit, Archive
+Restore appending where Undo returns between neighbours) and both MCP transports (exact row ids
+through reassign and cascade, a foreign connection, a removed `projects.write` grant and a revoked
+connection, each refused without changing the file's business data). The shared seeds and their
+snapshots did not change.
 
 ---
 

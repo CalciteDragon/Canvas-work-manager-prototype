@@ -48,7 +48,9 @@ pnpm prototype:upgrade .prototype/data.json
 ```
 
 It validates the result before writing anything, leaves the original beside it as a
-`.backup-*.json`, and does nothing to a file already at the current version. `pnpm
+`.backup-*.json`, and does nothing to a file already at the current version — including a
+version-3 file written before Undo receipts existed, which loads as-is with an empty receipt
+history. Run it on an absolute path, or on one relative to where you typed the command. `pnpm
 prototype:reset` remains the other option — it discards the file and reseeds.
 
 | Process | URL | What it is |

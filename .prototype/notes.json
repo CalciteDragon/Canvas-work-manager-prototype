@@ -777,6 +777,38 @@
       "projectId": "project-39ba6abf",
       "slice": 32,
       "note": "Slice 32 Reflections page: Add container then Undo returned the empty prompt with focus on the notice. After authoring a reflection, Undo was refused and the reflection kept, but the step reads \"remove the reference or dependent item, then retry Undo\", which invites deleting authored work just to undo an empty-container add. For add Undo the better advice is probably that the container is now in use and there is nothing to undo."
+    },
+    {
+      "id": "note-2026-09-15-005",
+      "createdAt": "2026-09-15T22:58:28.920Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 33,
+      "note": "Slice 33 real use (isolated nested-projects copy, Kitchen canvas, pointer drag via the browser pane): moved Task List above Rich Text, then an HTTP MCP agent (prototype-user-a-readwrite) moved it again with move_section (receipt undo-a599b6fa). Browser Undo on my move was refused for good and kept focus on the aria-disabled button, which is right. But the notice leads with raw 'undo_conflict: Undo for the move operation on Task List was refused: superseded: section \"Task List\" [section-project-kitchen-tasks] — …' and the conflict row says 'Use the later Undo receipt' — that later receipt belongs to the agent connection, so a person cannot use it. Suggest a person-facing message that names who changed it and offers 'move it back by hand'."
+    },
+    {
+      "id": "note-2026-09-15-006",
+      "createdAt": "2026-09-15T22:58:30.924Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 33,
+      "note": "Slice 33 real use: removing Kitchen's empty Reflections container, which a Home shortcut still references, keeps an internal tombstone (Home shortcut shows source_archived) and correctly stays out of Archive — yet the Undo notice still offers Open Archive, which leads to a page with nothing to restore. Undo put it back and the shortcut became available again. The notice could offer Archive only when the removal is actually projected there."
+    },
+    {
+      "id": "note-2026-09-15-007",
+      "createdAt": "2026-09-15T22:58:32.943Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 33,
+      "note": "Slice 33 real use: Archive Restore of Kitchen's prose brief brought the text back but appended it at the bottom of the canvas (after Recent Activity). Correct per the append rule, but the Archive row does not say where the section will land, so the brief silently moves from first to last. A short 'returns at the end of its page' hint, or focusing the restored section, would set expectations."
+    },
+    {
+      "id": "note-2026-09-15-008",
+      "createdAt": "2026-09-15T22:58:34.978Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 33,
+      "note": "Slice 33 real use: with failure injection at 100% the Undo notice read 'could not reach the prototype host — prototype failure injection (§46 Failure Rate)' and kept Undo enabled and focused; after setting 0% the same receipt worked. The message does not say the change is still undoable, so a person may think Undo was lost. Also, the browser removal dialog only offers same-page reassign targets while HTTP/MCP allow cross-page (docs/decisions/2026-09-reassign-may-cross-pages.md), so Home-to-Reflections-page reassignment is only reachable through the API."
     }
   ]
 }

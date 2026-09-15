@@ -232,6 +232,17 @@ Refusals are MCP errors whose text starts with a reason token:
 The `agent-heavy` fixture token's connection does not hold `projects.write`; grant it in
 **Settings → AI & Agents** before trying either tool.
 
+**Grants are checked when Undo runs, not when the receipt was issued.** Unchecking
+`projects.write` refuses `undo_operation` with text naming the missing permission and changes
+none of your work (only the connection's *Last used* time); checking it again makes the same receipt usable for the rest of its 24 hours. A revoked
+connection can no longer call any tool, so its receipts are simply unusable — the section,
+rows and other people's work are untouched. Receipts are stored in the same `data.json` as the
+work they reverse, so they survive a host restart, but a workspace keeps only its newest 50;
+Archive, not the receipt, is the durable route for retained notes and cascaded rows. A stdio
+child reloads that file on every call: point it at a separate file, or never let it and the HTTP
+host write the same file at the same time (Slice 33's `mcp-acceptance` runs them one after the
+other).
+
 ### Reflections
 
 Slice 25.7 adds `get_project_journal` (`projects.read`, `tasks.read` and `reflections.read`). It

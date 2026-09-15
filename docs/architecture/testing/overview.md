@@ -18,7 +18,9 @@ unit-test builder, `@playwright/test`, `@modelcontextprotocol/client`, `storyboo
 - **Domain unit tests** (§69): every rule, over `InMemoryDataStore` and a frozen clock.
 - **Contract tests** for schemas (accept/reject) and for every MCP tool (success under
   minimal grants, denial per grant, store assertion) with no socket.
-- **Host tests**: routes, errors, auth, hub, SSE, MCP handler and stdio, all in-process.
+- **Host tests**: routes, errors, auth, hub, SSE, MCP handler and stdio, all in-process; plus
+  the integrated recovery acceptance that composes the converter, services and JSON store over
+  temp files.
 - **Component tests** for stores and components with fake gateways; **Storybook** for
   the variant sets §4 names, with a theme toolbar.
 - **Acceptance scripts** for four slices' *done when*, against a second host on a temp
