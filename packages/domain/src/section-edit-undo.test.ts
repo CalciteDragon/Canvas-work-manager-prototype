@@ -1,8 +1,12 @@
 import { type ProjectSection, type SectionId } from '@cwm/contracts';
+import { unitOfWorkFor } from '@cwm/repositories';
 import { describe, expect, it } from 'vitest';
-import { agentActorFor, buildHarness, MINE } from '../test/test-support';
+import type { ActorContext } from './actor';
+import { actorFor, agentActorFor, buildHarness, MINE } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import { captureSectionUpdate } from './section-edit-undo';
+import { listPlacements } from './page-placements';
+import { UndoService } from './undo-service';
 
 type Harness = ReturnType<typeof buildHarness>;
 
@@ -435,6 +439,143 @@ describe('SectionService edit receipts and Undo', () => {
     await harness.undoServiceWithEdits.undo(harness.actor, update.undo!.undoId);
 
     expect(await harness.sections.find(added.section.id)).toMatchObject({ title: 'Named', config: { text: 'one', nested: { a: [1, 2] } } });
+  });
+});
+
+/** Slice 33 (Refactor §26.8–10): the deferred edit-inverse preconditions, neighbours and scope. */
+describe('section edit Undo acceptance', () => {
+  const retainedNotes = async (harness: Harness, projectId = MINE) =>
+    harness.sectionWriteService.add(harness.actor, projectId, { type: 'rich-text', title: 'Notes', config: { text: 'Kept prose' } });
+
+  /** One receipt per edit family, each on its own section so no receipt supersedes another. */
+  const oneOfEach = async (harness: Harness, projectId = MINE, actor: ActorContext = harness.actor) => {
+    const add = await harness.sectionWriteService.add(actor, projectId, { type: 'rich-text', title: 'Added' });
+    const updatedSection = await harness.sectionWriteService.add(actor, projectId, { type: 'progress', title: 'Updated' });
+    const update = await harness.sectionWriteService.update(actor, updatedSection.section.id, { collapsed: true });
+    const movedSection = await harness.sectionWriteService.add(actor, projectId, { type: 'timeline', title: 'Moved' });
+    const move = await harness.sectionWriteService.move(actor, movedSection.section.id, 0);
+    return { add: add.undo, update: update.undo!, move: move.undo! };
+  };
+
+  it('edit Undo refuses a missing page before writing', async () => {
+    const harness = buildHarness();
+    const receipts = await oneOfEach(harness);
+    // A live section on a page that no longer resolves cannot be committed through a service,
+    // so the page repository is the double; every other collaborator is the real one.
+    const pages = Object.create(harness.pages) as typeof harness.pages;
+    pages.find = async () => null;
+    const undo = new UndoService({
+      undoRecords: harness.undoRecords, sections: harness.sections, shortcuts: harness.shortcuts, pages,
+      projects: harness.projects, tasks: harness.tasks, reflections: harness.reflections,
+      activity: harness.activity, clock: harness.clock, unitOfWork: unitOfWorkFor(harness.store),
+    });
+    const before = writable(harness);
+
+    for (const receipt of [receipts.add, receipts.update, receipts.move]) {
+      const refusal = await refusalOf(undo.undo(harness.actor, receipt.undoId));
+      expect(problemsOf(refusal)).toContain('page-changed');
+    }
+    expect(writable(harness)).toEqual(before);
+  });
+
+  it('update and move refuse archived or page-changed subjects', async () => {
+    const archived = buildHarness();
+    const notes = await retainedNotes(archived);
+    await archived.sectionWriteService.add(archived.actor, MINE, { type: 'progress' });
+    const update = await archived.sectionWriteService.update(archived.actor, notes.section.id, { collapsed: true });
+    const move = await archived.sectionWriteService.move(archived.actor, notes.section.id, 1);
+    // Prose is meaningful, so removal archives rather than deletes it.
+    await archived.sectionWriteService.remove(archived.actor, notes.section.id);
+    expect((await archived.sections.find(notes.section.id))?.archivedAt).toBeDefined();
+    const archivedBefore = writable(archived);
+
+    for (const receipt of [update.undo!, move.undo!]) {
+      expect(problemsOf(await refusalOf(archived.undoServiceWithEdits.undo(archived.actor, receipt.undoId)))).toContain('archived-subject');
+    }
+    expect(writable(archived)).toEqual(archivedBefore);
+
+    const moved = buildHarness();
+    const subject = await retainedNotes(moved);
+    await moved.sectionWriteService.add(moved.actor, MINE, { type: 'progress' });
+    const movedUpdate = await moved.sectionWriteService.update(moved.actor, subject.section.id, { columnSpan: 6 });
+    const movedMove = await moved.sectionWriteService.move(moved.actor, subject.section.id, 1);
+    // No service moves a section between pages; the corrupted state is written directly.
+    const current = (await moved.sections.find(subject.section.id))!;
+    await moved.sections.update({ ...current, pageId: 'page-project-theirs' as ProjectSection['pageId'] });
+    const movedBefore = writable(moved);
+
+    for (const receipt of [movedUpdate.undo!, movedMove.undo!]) {
+      expect(problemsOf(await refusalOf(moved.undoServiceWithEdits.undo(moved.actor, receipt.undoId)))).toEqual(['page-changed']);
+    }
+    expect(writable(moved)).toEqual(movedBefore);
+  });
+
+  it('each edit inverse blocks on an archived ancestor', async () => {
+    const harness = buildHarness();
+    const child = await harness.projectService.create(harness.actor, {
+      workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Kitchen',
+    });
+    const receipts = await oneOfEach(harness, child.id);
+    // A root cannot be archived over an active child; the refusal must name the highest blocker.
+    await harness.projectService.archive(harness.actor, child.id);
+    await harness.projectService.archive(harness.actor, MINE);
+    const before = writable(harness);
+
+    for (const receipt of [receipts.add, receipts.update, receipts.move]) {
+      const refusal = await refusalOf(harness.undoServiceWithEdits.undo(harness.actor, receipt.undoId));
+      expect(refusal.details).toMatchObject({ reason: 'undo_blocked', blockingProjectId: MINE });
+    }
+    expect(writable(harness)).toEqual(before);
+
+    await harness.projectService.update(harness.actor, MINE, { status: 'active' });
+    await harness.projectService.update(harness.actor, child.id, { status: 'active' });
+    for (const receipt of [receipts.add, receipts.update, receipts.move]) {
+      await expect(harness.undoServiceWithEdits.undo(harness.actor, receipt.undoId)).resolves.toMatchObject({ undoId: receipt.undoId });
+    }
+  });
+
+  it('move Undo follows a surviving previous shortcut', async () => {
+    const harness = buildHarness();
+    const kitchen = await harness.projectService.create(harness.actor, {
+      workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Kitchen',
+    });
+    const source = await harness.sectionWriteService.add(harness.actor, kitchen.id, { type: 'rich-text' });
+    const a = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'progress', title: 'A' });
+    const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, {
+      pageId: `page-${MINE}` as never, sourceSectionId: source.section.id,
+    });
+    const b = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'timeline', title: 'B' });
+    const c = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'C' });
+    const order = async () => (await listPlacements(harness, `page-${MINE}` as never)).map(({ value }) => value.id);
+    expect(await order()).toEqual([a.section.id, shortcut.id, b.section.id, c.section.id]);
+
+    const move = await harness.sectionWriteService.move(harness.actor, b.section.id, 3);
+    await harness.sectionShortcutService.move(harness.actor, shortcut.id, 0);
+    expect(await order()).toEqual([shortcut.id, a.section.id, c.section.id, b.section.id]);
+
+    const undone = await harness.undoServiceWithEdits.undo(harness.actor, move.undo!.undoId);
+
+    expect(undone).toMatchObject({ operation: 'section.move', placement: { strategy: 'previous', index: 1 } });
+    expect(await order()).toEqual([shortcut.id, b.section.id, a.section.id, c.section.id]);
+  });
+
+  it('each edit family accepts its system actor and hides foreign-workspace or other-actor receipts', async () => {
+    const harness = buildHarness();
+    const system: ActorContext = { actor: 'system', workspaceId: harness.actor.workspaceId };
+    const receipts = await oneOfEach(harness, MINE, system);
+    const before = writable(harness);
+
+    for (const receipt of [receipts.add, receipts.update, receipts.move]) {
+      for (const stranger of [harness.actor, actorFor(1), agentActorFor(0, ['projects.read', 'projects.write'])]) {
+        await expect(harness.undoServiceWithEdits.undo(stranger, receipt.undoId)).rejects.toBeInstanceOf(EntityNotFoundError);
+      }
+    }
+    expect(writable(harness)).toEqual(before);
+
+    for (const receipt of [receipts.add, receipts.update, receipts.move]) {
+      await expect(harness.undoServiceWithEdits.undo(system, receipt.undoId)).resolves.toMatchObject({ undoId: receipt.undoId });
+      expect((await harness.undoRecords.find(receipt.undoId))?.consumedAt).toBeDefined();
+    }
   });
 });
 

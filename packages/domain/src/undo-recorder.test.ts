@@ -1,7 +1,8 @@
-import { UndoRecordSchema, type SectionId, type UndoOperation, type UndoRecord } from '@cwm/contracts';
+import { UndoRecordSchema, type ProjectSection, type SectionId, type UndoOperation, type UndoRecord } from '@cwm/contracts';
 import { SEED_NOW } from '@cwm/prototype-data';
 import { describe, expect, it } from 'vitest';
 import { actorFor, agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
+import { captureSectionAdd, captureSectionMove, captureSectionUpdate } from './section-edit-undo';
 import { RepositoryUndoRecorder, UNDO_RECORD_LIFETIME_MS, UNDO_RECORD_LIMIT } from './undo-recorder';
 
 type Harness = ReturnType<typeof buildHarness>;
@@ -238,6 +239,81 @@ describe('RepositoryUndoRecorder', () => {
     await record(harness, 'section-new');
 
     expect(await harness.undoRecords.find('undo-theirs' as never)).not.toBeNull();
+  });
+
+  /** Slice 33 (Refactor §26.2, §26.12): pruning spans all four families that name one section. */
+  describe('mixed-family pruning never revives an older receipt', () => {
+    const SHARED = 'section-shared';
+    const editOf = (type: 'section.add' | 'section.move' | 'section.update', sectionId = SHARED): UndoOperation => {
+      const pageId = `page-${MINE}` as never;
+      switch (type) {
+        case 'section.add':
+          return captureSectionAdd({ ...(operation(sectionId) as { section: ProjectSection }).section });
+        case 'section.move':
+          return captureSectionMove({
+            sectionId: sectionId as SectionId, projectId: MINE, pageId,
+            placementBefore: { pageId, index: 1 }, placementAfter: { pageId, index: 0 },
+          });
+        case 'section.update':
+          return captureSectionUpdate({
+            sectionId: sectionId as SectionId, projectId: MINE, pageId,
+            changes: [{ field: 'collapsed', before: false, after: true }],
+          });
+      }
+    };
+    const families = ['section.add', 'section.move', 'section.update', 'section.remove'] as const;
+    const operationFor = (type: (typeof families)[number], sectionId = SHARED) =>
+      type === 'section.remove' ? operation(sectionId) : editOf(type, sectionId);
+
+    it.each(families)('expiry of a newer %s prunes every lower record for that section and nothing unrelated', async (newest) => {
+      const harness = buildHarness();
+      // #1 removal and #2, #3 edits of the shared section are live; #4 (the newest for it) is expired.
+      const shared = { 1: 'section.remove', 2: 'section.update', 3: 'section.move', 4: newest } as const;
+      await seedRecords(harness, 6, (index) => ({
+        operation: index <= 4 ? operationFor(shared[index as 1 | 2 | 3 | 4]) : operation(`section-unrelated-${index}`),
+        ...(index === 4 ? EXPIRED : {}),
+      }));
+      await harness.store.runUnitOfWork(() =>
+        harness.undoRecorder.record(actorFor(1), { projectId: THEIRS, label: 'Theirs', operation: operation(SHARED, THEIRS) }),
+      );
+      expect((await harness.undoRecords.list({ workspaceId: harness.actor.workspaceId })).map(({ sequence }) => sequence)).toEqual([1, 2, 3, 4, 5, 6]);
+
+      await record(harness, 'section-new');
+
+      expect((await harness.undoRecords.list({ workspaceId: harness.actor.workspaceId })).map(({ sequence }) => sequence)).toEqual([5, 6, 7]);
+      await expect(harness.undoRecorder.outstandingFor(harness.actor, SHARED as SectionId)).resolves.toBeNull();
+      expect(await harness.undoRecords.list({ workspaceId: actorFor(1).workspaceId })).toHaveLength(1);
+    });
+
+    it('cap pruning over independent subjects ends at the limit and leaves no older removal answering', async () => {
+      const harness = buildHarness();
+      // #1 removal and #2 move share a section; the other 49 are independent removals.
+      await seedRecords(harness, UNDO_RECORD_LIMIT + 1, (index) => ({
+        operation: index === 1 ? operation(SHARED) : index === 2 ? editOf('section.move') : operation(`section-independent-${index}`),
+      }));
+      expect(await harness.undoRecorder.outstandingFor(harness.actor, 'section-independent-3' as SectionId)).not.toBeNull();
+
+      await record(harness, 'section-new');
+
+      const sequences = (await harness.undoRecords.list({ workspaceId: harness.actor.workspaceId })).map(({ sequence }) => sequence);
+      expect(sequences).toHaveLength(UNDO_RECORD_LIMIT);
+      expect(sequences).not.toContain(1);
+      expect(sequences).not.toContain(2);
+      await expect(harness.undoRecorder.outstandingFor(harness.actor, SHARED as SectionId)).resolves.toBeNull();
+      await expect(harness.undoRecorder.outstandingFor(harness.actor, 'section-independent-3' as SectionId)).resolves.toMatchObject({ sequence: 3 });
+    });
+
+    it.each([
+      ['live', {}],
+      ['consumed', { consumedAt: SEED_NOW }],
+      ['expired', EXPIRED],
+    ] as const)('a newer %s edit hides an older live removal from outstandingFor', async (_, state) => {
+      for (const type of ['section.add', 'section.move', 'section.update'] as const) {
+        const harness = buildHarness();
+        await seedRecords(harness, 2, (index) => (index === 1 ? { operation: operation(SHARED) } : { operation: editOf(type), ...state }));
+        await expect(harness.undoRecorder.outstandingFor(harness.actor, SHARED as SectionId)).resolves.toBeNull();
+      }
+    });
   });
 
   it('opens no unit of its own: its writes roll back with the caller’s', async () => {
