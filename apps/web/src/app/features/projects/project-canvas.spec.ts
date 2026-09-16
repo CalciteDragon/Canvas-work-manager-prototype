@@ -631,7 +631,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
         .mockRejectedValueOnce(refusal({ reason: 'undo_blocked', blockingProjectId: 'project-a', blockingProjectTitle: 'Website launch' }))
         .mockRejectedValueOnce(refusal({
           reason: 'undo_conflict',
-          conflicts: [{ entityType: 'section', id: 'section-text', title: 'Rich Text', problem: 'superseded', nextStep: 'use-later-receipt' }],
+          conflicts: [{ entityType: 'section', id: 'section-text', title: 'Rich Text', problem: 'superseded', nextStep: 'use-later-receipt', supersededBy: 'self' }],
         }));
       gateway.undo.execute = execute;
 

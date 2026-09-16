@@ -86,13 +86,21 @@ no rows, so the count in "It still holds 3 tasks" travels from the domain in
 
 **Immediate Undo belongs to the page that committed the section operation.** `SectionUndoNotice`
 holds only the returned server receipt in memory, offers typed refusal guidance and an
-Archive path only for removals, and is cleared when the page or project changes. It floats at the
+Archive path only for a removal the server said it listed there, and is cleared when the page or
+project changes. It floats at the
 viewport's end corner instead of sitting above the canvas: once adds, moves, resizes and blur
 saves all offer a receipt, an in-flow notice pushed the canvas down under the pointer. The cost is
 that it can cover content near that corner until dismissed. An uncertain remove has a
 separate explicit retry using the original input; refresh retry only repeats the read.
 This keeps recovery in the current work context without claiming durable browser history
 ([decision](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+
+**A route is offered only when the person can take it.** The notice reads `archiveListed` off the
+removal result rather than inferring Archive from the operation's name, and words a `superseded`
+conflict from `supersededBy` — naming the agent or person who changed it when the later receipt is
+not this person's to use. `ArchivedRegion` says on the row that Archive Restore returns a section
+at the end of its page, because Undo, not Restore, is what returns it between its old neighbours
+([decision](../../../decisions/2026-09-recovery-routes-name-what-is-actually-there.md)).
 
 **Archive is a root-wide page, not a canvas footer.** The page-local Archived region
 became wrong when the canvas became page-scoped; `ArchivePage` owns the whole-tree

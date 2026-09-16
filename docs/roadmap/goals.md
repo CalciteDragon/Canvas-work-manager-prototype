@@ -105,10 +105,14 @@ size and copy remain recorded friction. **Slice 33 closed on 2026-09-15.**
 [Integrated acceptance](completed/33-recovery-undo-integrated-acceptance.md) records passing
 evidence for all twelve Refactor §26 criteria across the domain, host, browser and both MCP
 transports without a production change, which closes the Archive, removal and Undo direction.
-Redo and an `ArchiveItem` aggregate stay optional. Its real-use notes (`note-2026-09-15-005`…`-008`:
-person-facing conflict copy when an agent superseded the change, Open Archive offered with nothing to
-restore, Restore landing at the page end without warning, and the same-page-only reassign dialog)
-join Slice 32's notice friction as candidates for the next friction-chosen phase.
+Redo and an `ArchiveItem` aggregate stay optional. Three of its real-use notes are now answered in
+place: `note-2026-09-15-005`, `-006` and `-007` — person-facing conflict copy when an agent
+superseded the change, Open Archive offered with nothing to restore, and Restore landing at the
+page end without warning — are closed by
+[a recovery route is offered only when it leads somewhere](../decisions/2026-09-recovery-routes-name-what-is-actually-there.md).
+`note-2026-09-15-008` (the same-page-only reassign dialog, and failure-injection copy that does not
+say the change is still undoable) joins Slice 32's notice friction as a candidate for the next
+friction-chosen phase.
 The latest runtime change is [Slice 32 — Section edit Undo](completed/32-section-edit-undo.md),
 closed 2026-09-15; Slice 33 closed the direction on acceptance evidence alone and changed no
 production code. The canvas interaction model it builds on comes from

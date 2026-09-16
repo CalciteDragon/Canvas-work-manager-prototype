@@ -226,10 +226,18 @@ describe('UndoReceiptSchema', () => {
     expect(UndoReceiptSchema.safeParse({ ...receipt, rows: [] }).success).toBe(false);
   });
 
-  it('rides on a section removal result', () => {
-    expect(SectionRemovalResultSchema.parse({ section: section('progress', { archivedAt: AT }), undo: receipt }).undo).toEqual(
-      receipt,
-    );
+  it('rides on a section removal result beside the removal’s own Archive verdict', () => {
+    const listed = SectionRemovalResultSchema.parse({
+      section: section('progress', { archivedAt: AT }),
+      undo: receipt,
+      archiveListed: true,
+    });
+    expect(listed.undo).toEqual(receipt);
+    expect(listed.archiveListed).toBe(true);
+    // Retained is not the same question as listed, so the field is stated, never inferred.
+    expect(
+      SectionRemovalResultSchema.safeParse({ section: section('progress', { archivedAt: AT }), undo: receipt }).success,
+    ).toBe(false);
   });
 
   it.each(['section.add', 'section.move', 'section.update'] as const)('accepts a %s receipt', (operation) => {
@@ -287,6 +295,21 @@ describe('UndoRefusalDetailsSchema', () => {
           title: 'Backlog',
           problem: 'superseded',
           nextStep: 'use-later-receipt-or-archive',
+          supersededBy: 'self',
+        },
+      ],
+    },
+    {
+      reason: 'undo_conflict',
+      undoId: 'undo-1',
+      conflicts: [
+        {
+          entityType: 'section',
+          id: 'section-1',
+          title: 'Task List',
+          problem: 'superseded',
+          nextStep: 'redo-by-hand-or-archive',
+          supersededBy: 'agent',
         },
       ],
     },
@@ -310,6 +333,17 @@ describe('UndoRefusalDetailsSchema', () => {
       false,
     );
     expect(UndoRefusalDetailsSchema.safeParse({ reason: 'undo_maybe', undoId: 'undo-1' }).success).toBe(false);
+  });
+
+  it('names a superseding actor exactly for a superseded conflict', () => {
+    const conflicts = (conflict: Record<string, unknown>) =>
+      UndoRefusalDetailsSchema.safeParse({ reason: 'undo_conflict', undoId: 'undo-1', conflicts: [conflict] }).success;
+    const superseded = { entityType: 'section', id: 'section-1', problem: 'superseded', nextStep: 'redo-by-hand' };
+    // A receipt belongs to one actor, so a superseded conflict always says whose the later one is.
+    expect(conflicts({ ...superseded, supersededBy: 'user' })).toBe(true);
+    expect(conflicts(superseded)).toBe(false);
+    // And nothing else claims an actor it never looked up.
+    expect(conflicts({ entityType: 'section', id: 'section-1', problem: 'moved', nextStep: 'move-back-and-retry', supersededBy: 'agent' })).toBe(false);
   });
 
   it('requires a typed next step and omits titles for missing entities', () => {

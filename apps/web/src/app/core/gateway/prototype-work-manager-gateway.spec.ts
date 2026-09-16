@@ -65,6 +65,7 @@ const removalResult = SectionRemovalResultSchema.parse({
     undoId: 'undo-1', operation: 'section.remove', sequence: 1, label: 'Removed Kickoff', createdAt: at,
     expiresAt: '2026-08-02T16:00:00.000Z',
   },
+  archiveListed: true,
 });
 const undoResult = UndoResultSchema.parse({
   undoId: 'undo-1', operation: 'section.remove', outcome: 'restored', section: projectSection,

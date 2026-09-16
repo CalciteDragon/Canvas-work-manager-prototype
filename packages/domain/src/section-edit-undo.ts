@@ -29,7 +29,7 @@ import type { Clock } from './clock';
 import { EntityNotFoundError, undoRefusal } from './errors';
 import { findHighestWriteBlocker } from './project-visibility';
 import { listPlacements, renumberPlacements, resolveRestoreIndex, type RestoreStrategy } from './page-placements';
-import { subjectSectionOf } from './undo-recorder';
+import { sameUndoRecordActor, subjectSectionOf } from './undo-recorder';
 
 /** Repository-only dependencies shared by the three explicit section-edit inverses. */
 export interface SectionEditUndoRepositories {
@@ -85,12 +85,14 @@ export const sameValue = (left: unknown, right: unknown): boolean => {
   ));
 };
 
-const nextStepFor = (problem: UndoConflict['problem']): UndoConflictNextStep => {
+const nextStepFor = (problem: UndoConflict['problem'], supersededBy?: SupersedingActor): UndoConflictNextStep => {
   switch (problem) {
     case 'missing':
       return 'nothing-to-undo';
-    case 'field-changed':
     case 'superseded':
+      // The later receipt is a repair only for the actor that owns it.
+      return supersededBy === 'self' ? 'use-later-receipt' : 'redo-by-hand';
+    case 'field-changed':
     case 'archived-differently':
       return 'use-later-receipt';
     case 'archived-subject':
@@ -112,17 +114,26 @@ const nextStepFor = (problem: UndoConflict['problem']): UndoConflictNextStep => 
   }
 };
 
+/** Who the superseding record belongs to, relative to the actor holding the refused receipt. */
+type SupersedingActor = NonNullable<UndoConflict['supersededBy']>;
+
+/** `self` when the caller also holds the later receipt; otherwise the other party's actor kind. */
+const supersedingActorOf = (record: UndoRecord, newer: UndoRecord): SupersedingActor =>
+  sameUndoRecordActor(record, newer) ? 'self' : newer.actor;
+
 const makeConflict = (
   entityType: UndoConflict['entityType'],
   id: string,
   problem: UndoConflict['problem'],
   title?: string,
+  supersededBy?: SupersedingActor,
 ): UndoConflict => ({
   entityType,
   id,
   ...(problem === 'missing' || title === undefined ? {} : { title }),
   problem,
-  nextStep: nextStepFor(problem),
+  nextStep: nextStepFor(problem, supersededBy),
+  ...(problem === 'superseded' ? { supersededBy: supersededBy ?? 'self' } : {}),
 });
 
 /** The subject's current name, else the add snapshot's, else its id — a missing section has no name to show. */
@@ -143,6 +154,9 @@ const conflictMessage = (operation: SectionEditOperation, section: ProjectSectio
 
 const nextStepText = (nextStep: UndoConflictNextStep): string => {
   switch (nextStep) {
+    case 'redo-by-hand':
+    case 'redo-by-hand-or-archive':
+      return 'the later change belongs to another connection, so make the change again by hand';
     case 'move-back-and-retry':
       return 'move it back to the recorded page or section, then retry Undo';
     case 'restore-state-and-retry':
@@ -189,14 +203,14 @@ const projectAndPage = async (
   return { page, conflicts: [] };
 };
 
-const newerRecords = async (
+/** The superseding record, so the conflict can name whose it is — not merely that one exists. */
+const newerRecord = async (
   repositories: SectionEditUndoRepositories,
   record: UndoRecord,
   operation: SectionEditOperation,
   overlaps?: Set<SectionFieldChange['field']>,
-): Promise<boolean> => {
-  const records = await repositories.undoRecords.list({ workspaceId: record.workspaceId });
-  return records.some((other) => {
+): Promise<UndoRecord | null> => {
+  const supersedes = (other: UndoRecord): boolean => {
     if (other.sequence <= record.sequence || subjectSectionOf(other) !== (operation.type === 'section.add' ? operation.section.id : operation.sectionId)) return false;
     switch (operation.type) {
       case 'section.add':
@@ -207,7 +221,14 @@ const newerRecords = async (
         if (other.operation.type === 'section.add' || other.operation.type === 'section.remove') return true;
         return other.operation.type === 'section.update' && overlaps !== undefined && other.operation.changes.some((change) => overlaps.has(change.field));
     }
-  });
+  };
+  const records = await repositories.undoRecords.list({ workspaceId: record.workspaceId });
+  // The *latest* superseding record, not merely one: it is the change a person would see on the
+  // canvas, so it is the one whose actor the conflict should name.
+  return records.reduce<UndoRecord | null>(
+    (latest, other) => (!supersedes(other) ? latest : latest === null || other.sequence > latest.sequence ? other : latest),
+    null,
+  );
 };
 
 const addReferences = async (
@@ -237,8 +258,13 @@ const addReferences = async (
   return conflicts;
 };
 
-const sectionConflict = (current: ProjectSection | null, expected: ProjectSection, problem: UndoConflict['problem']): UndoConflict =>
-  makeConflict('section', expected.id, problem, current === null ? undefined : nameOf(current));
+const sectionConflict = (
+  current: ProjectSection | null,
+  expected: ProjectSection,
+  problem: UndoConflict['problem'],
+  supersededBy?: SupersedingActor,
+): UndoConflict =>
+  makeConflict('section', expected.id, problem, current === null ? undefined : nameOf(current), supersededBy);
 
 const collectAddConflicts = async (
   repositories: SectionEditUndoRepositories,
@@ -250,7 +276,10 @@ const collectAddConflicts = async (
   if (current === null) conflicts.push(sectionConflict(null, operation.section, 'missing'));
   else if (current.archivedAt !== undefined) conflicts.push(sectionConflict(current, operation.section, 'archived-subject'));
   else if (!sameValue(substantiveSection(current), substantiveSection(operation.section))) conflicts.push(sectionConflict(current, operation.section, 'field-changed'));
-  if (await newerRecords(repositories, record, operation)) conflicts.push(sectionConflict(current, operation.section, 'superseded'));
+  const newer = await newerRecord(repositories, record, operation);
+  if (newer !== null) {
+    conflicts.push(sectionConflict(current, operation.section, 'superseded', supersedingActorOf(record, newer)));
+  }
   if (current !== null) conflicts.push(...await addReferences(repositories, operation.section.projectId, operation.section.id));
   return conflicts;
 };
@@ -283,8 +312,15 @@ const collectSharedSectionConflicts = async (
   }
 
   const overlaps = operation.type === 'section.update' ? new Set(operation.changes.map((change) => change.field)) : undefined;
-  if (await newerRecords(repositories, record, operation, overlaps)) {
-    conflicts.push(makeConflict('section', operation.sectionId, 'superseded', current === null ? undefined : nameOf(current)));
+  const newer = await newerRecord(repositories, record, operation, overlaps);
+  if (newer !== null) {
+    conflicts.push(makeConflict(
+      'section',
+      operation.sectionId,
+      'superseded',
+      current === null ? undefined : nameOf(current),
+      supersedingActorOf(record, newer),
+    ));
   }
   return conflicts;
 };

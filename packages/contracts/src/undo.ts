@@ -295,10 +295,19 @@ export type SectionAlreadyRemovedDetails = z.infer<typeof SectionAlreadyRemovedD
  * `DELETE /api/sections/:id` and `remove_section`: the final archived-shaped removal result and
  * its receipt. A disposable deleted section appears here as a result snapshot, not as a claim
  * that the section is still stored.
+ *
+ * `archiveListed` is the removal's own answer to "will the person find this in Archive?" — the
+ * domain's `sectionRecoveryOf` verdict, not a re-derivation a caller could get wrong. It is
+ * **not** the same as being retained: a section kept only because a shortcut or an archived row
+ * still names it holds nothing recoverable, so it stays out of Archive while remaining stored.
+ * Surfaces offer an Archive route on this field rather than on the operation being a removal,
+ * which is what stopped the canvas sending someone to a page with no entry for their section
+ * (`note-2026-09-15-006`).
  */
 export const SectionRemovalResultSchema = z.object({
   section: ProjectSectionSchema,
   undo: UndoReceiptSchema,
+  archiveListed: z.boolean(),
 });
 export type SectionRemovalResult = z.infer<typeof SectionRemovalResultSchema>;
 
@@ -405,6 +414,14 @@ export const UndoConflictNextStepSchema = z.enum([
   'use-later-receipt-or-archive',
   /** Edit operations only: Archive holds nothing an add, move or settings Undo could recover. */
   'use-later-receipt',
+  /**
+   * The later change belongs to somebody else, so its receipt is not the caller's to use — Undo
+   * records are scoped to the exact actor that made them. Redoing the change by hand is the only
+   * repair left. The `-or-archive` twin adds the removal case, where Archive may still hold
+   * retained content (`note-2026-09-15-005`).
+   */
+  'redo-by-hand',
+  'redo-by-hand-or-archive',
   'remove-reference-and-retry',
   'nothing-to-undo',
   'nothing-to-restore',
@@ -420,10 +437,24 @@ export const UndoConflictSchema = z
   title: z.string().min(1).optional(),
   problem: UndoConflictProblemSchema,
   nextStep: UndoConflictNextStepSchema,
+  /**
+   * Who made the later change, for a `superseded` conflict only. `self` means the caller's own
+   * later receipt can repair this; every other value means the receipt belongs to another
+   * connection and the caller cannot reach it, which is what `redo-by-hand` says. Surfaces use
+   * it to name the other party rather than to decide the repair — `nextStep` already did that.
+   */
+  supersededBy: z.enum(['self', 'user', 'agent', 'system']).optional(),
 })
   .superRefine((conflict, ctx) => {
     if (conflict.problem === 'missing' && conflict.title !== undefined) {
       ctx.addIssue({ code: 'custom', path: ['title'], message: 'a missing entity has no current title' });
+    }
+    if ((conflict.supersededBy !== undefined) !== (conflict.problem === 'superseded')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['supersededBy'],
+        message: 'a superseding actor is named exactly for a superseded conflict',
+      });
     }
   });
 export type UndoConflict = z.infer<typeof UndoConflictSchema>;

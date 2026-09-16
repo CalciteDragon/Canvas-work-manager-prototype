@@ -374,7 +374,7 @@ describe('ReflectionsPageStore — container add Undo (Slice 32)', () => {
       throw new GatewayError('rule_violation', 409, 'undo_conflict: superseded', {
         reason: 'undo_conflict',
         undoId: addReceipt.undoId,
-        conflicts: [{ entityType: 'section', id: container.id, title: 'Reflections', problem: 'superseded', nextStep: 'use-later-receipt' }],
+        conflicts: [{ entityType: 'section', id: container.id, title: 'Reflections', problem: 'superseded', nextStep: 'use-later-receipt', supersededBy: 'self' }],
       });
     });
     addWithUndo(gateway, refuse);

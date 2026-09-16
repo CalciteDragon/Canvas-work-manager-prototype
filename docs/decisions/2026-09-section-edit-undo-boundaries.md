@@ -89,7 +89,10 @@ the domain, host/MCP, gateway, web and Playwright suites.
 - *Edit refusals never name Archive.* Archive holds nothing an add, move or settings write
   changed, so edit conflicts use a new `use-later-receipt` next step ("use the later receipt,
   or make the change again by hand"), and a missing subject is `nothing-to-undo`. Removal keeps
-  `use-later-receipt-or-archive`.
+  `use-later-receipt-or-archive`. **Narrowed, 2026-09-15:** a `superseded` conflict uses those
+  two steps only when the later change is the caller's own; otherwise the receipt is another
+  connection's and the step is `redo-by-hand` or `redo-by-hand-or-archive`
+  ([decision](2026-09-recovery-routes-name-what-is-actually-there.md)).
 - *The notice floats instead of sitting above the canvas.* With a receipt after every add, move,
   resize and blur save, the in-flow notice pushed the whole canvas down 96 px after an insert,
   which broke the existing geometry journeys and moved content under the pointer. It is now

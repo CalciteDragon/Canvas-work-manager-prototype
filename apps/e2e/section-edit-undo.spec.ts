@@ -349,6 +349,10 @@ test('agent overlap refuses Undo without losing newer content', async ({ page })
 
   await page.locator('[data-undo-action]').click();
   await expect(page.locator('[data-undo-conflict]')).toHaveCount(1);
+  // The later receipt is the agent connection's, so the notice names them and asks for a redo
+  // rather than pointing at a receipt this person cannot use (note-2026-09-15-005).
+  await expect(page.locator('[data-undo-superseded-by]')).toHaveText('An agent changed it after you.');
+  await expect(page.locator('[data-undo-next-step]')).toHaveText('Make the change again by hand.');
   await expect(page.locator('[data-undo-refused-for-good]')).toBeVisible();
   await expect(page.locator('[data-undo-action]')).toHaveAttribute('aria-disabled', 'true');
   await page.reload();

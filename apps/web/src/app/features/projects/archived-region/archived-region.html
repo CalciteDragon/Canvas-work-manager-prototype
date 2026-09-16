@@ -49,6 +49,9 @@
             @if (blockerLabel(item); as blocker) {
               <span data-archived-blocker class="archived-region__meta">{{ blocker }}</span>
             }
+            @if (placementHint(item); as placement) {
+              <span data-archived-placement class="archived-region__meta">{{ placement }}</span>
+            }
             @if (recoveryGuidance(item); as guidance) {
               <span data-archived-recovery-guidance class="archived-region__meta">{{ guidance }}</span>
             }

@@ -549,6 +549,10 @@ export class SectionService {
    * commits, which is when `unitOfWork.run` resolves **for a top-level call** — `unitOfWorkFor`
    * joins a nested call, so a composer that nests this inside its own unit must not hand the
    * receipt on before that unit commits (nothing nests it today).
+   *
+   * The result also carries `archiveListed`: whether this removal put something in Archive, so a
+   * surface can offer an Archive route on the answer rather than on the operation's name. See
+   * `removalOutcome` for why that is not the same as the section being retained.
    */
   async remove(actor: ActorContext, id: SectionId, input: RemoveSectionInput = {}): Promise<SectionRemovalResult> {
     assertValidActor(actor);
@@ -578,7 +582,7 @@ export class SectionService {
       const placement = snapshotPlacement(await this.placementsOnPage(current.pageId), { kind: 'section', id });
       // Recovery is judged after cascade/reassign has actually settled. It answers whether
       // meaningful or uncertain content remains; canonical references are checked separately.
-      const disposition = await this.removalDisposition(current);
+      const { disposition, archiveListed } = await this.removalOutcome(current);
 
       const archived = ProjectSectionSchema.parse({
         ...current,
@@ -611,7 +615,7 @@ export class SectionService {
           postSectionArchivedAt: archivedAt,
         }),
       });
-      return { section: archived, undo };
+      return { section: archived, undo, archiveListed };
     });
   }
 
@@ -681,7 +685,19 @@ export class SectionService {
   }
 
   /** Content policy decides retention for recovery; references independently protect integrity. */
-  private async removalDisposition(section: ProjectSection): Promise<SectionRemovalDisposition> {
+  /**
+   * The two verdicts one removal needs, from one read of the rows and shortcuts.
+   *
+   * They are **not** the same question. `archiveListed` is the Archive projection —
+   * `sectionRecoveryOf`, judged on what actually remains — and it is what a surface offers an
+   * Archive route on. `disposition` also keeps a section that only a canonical reference names:
+   * a shortcut pointing at it, or a row still assigned to it, needs the record to survive even
+   * though there is nothing in it for a person to recover. That gap is the real case behind
+   * `note-2026-09-15-006`: retained, correctly absent from Archive.
+   */
+  private async removalOutcome(
+    section: ProjectSection,
+  ): Promise<{ disposition: SectionRemovalDisposition; archiveListed: boolean }> {
     const [tasks, reflections, shortcuts] = await Promise.all([
       this.dependencies.tasks.list({ projectId: section.projectId, includeArchived: true }),
       this.dependencies.reflections.list({ projectId: section.projectId, includeArchived: true }),
@@ -691,8 +707,11 @@ export class SectionService {
       tasks.some((row) => row.sectionId === section.id || row.archivedWithSectionId === section.id) ||
       reflections.some((row) => row.sectionId === section.id || row.archivedWithSectionId === section.id);
     const hasShortcutReference = shortcuts.some((shortcut) => shortcut.sourceSectionId === section.id);
-    const recovery = sectionRecoveryOf(section, { tasks, reflections });
-    return recovery.include || hasRowReference || hasShortcutReference ? 'retained' : 'deleted';
+    const archiveListed = sectionRecoveryOf(section, { tasks, reflections }).include;
+    return {
+      disposition: archiveListed || hasRowReference || hasShortcutReference ? 'retained' : 'deleted',
+      archiveListed,
+    };
   }
 
   /**

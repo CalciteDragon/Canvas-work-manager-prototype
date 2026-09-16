@@ -281,6 +281,7 @@ const setup = (
             createdAt: AT,
             expiresAt: '2026-08-28T16:00:00.000Z',
           },
+          archiveListed: true,
         };
         return result;
       }),
@@ -1125,7 +1126,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     const next = section('section-tasks', 'task-list', 1);
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'remove response was lost'))
-      .mockResolvedValueOnce({ section: { ...next, archivedAt: AT }, undo: receipt('undo-next') });
+      .mockResolvedValueOnce({ section: { ...next, archivedAt: AT }, undo: receipt('undo-next'), archiveListed: true });
     const { store } = setup({ sectionOverrides: { remove } });
     await store.load(PROJECT, PAGE);
 
@@ -1149,9 +1150,9 @@ describe('ProjectPageStore (§19, §26)', () => {
     const first = section('section-text', 'rich-text', 0);
     const next = section('section-tasks', 'task-list', 1);
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
-      .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, undo: receipt('undo-first') })
+      .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, undo: receipt('undo-first'), archiveListed: true })
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'remove response was lost'))
-      .mockResolvedValueOnce({ section: { ...next, archivedAt: AT }, undo: receipt('undo-second') });
+      .mockResolvedValueOnce({ section: { ...next, archivedAt: AT }, undo: receipt('undo-second'), archiveListed: true });
     const { store } = setup({ sectionOverrides: { remove } });
     await store.load(PROJECT, PAGE);
 
@@ -1172,7 +1173,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     const first = section('section-text', 'rich-text', 0);
     const next = section('section-tasks', 'task-list', 1);
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
-      .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, undo: receipt('undo-first') })
+      .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, undo: receipt('undo-first'), archiveListed: true })
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'remove response was lost'));
     const undoExecute = vi.fn<WorkManagerGateway['undo']['execute']>().mockResolvedValue({
       undoId: 'undo-first' as UndoRecordId,
@@ -1204,7 +1205,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     const first = section('section-text', 'rich-text', 0);
     const next = section('section-tasks', 'task-list', 1);
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
-      .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, undo: receipt('undo-first') })
+      .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, undo: receipt('undo-first'), archiveListed: true })
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'remove response was lost'));
     const { store } = setup({ sectionOverrides: { remove } });
     await store.load(PROJECT, PAGE);
@@ -1229,7 +1230,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     });
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>(async () => {
       removalCommitted = true;
-      return { section: { ...first, archivedAt: AT }, undo: receipt('undo-committed') };
+      return { section: { ...first, archivedAt: AT }, undo: receipt('undo-committed'), archiveListed: true };
     });
     const undoExecute = vi.fn<WorkManagerGateway['undo']['execute']>()
       .mockImplementationOnce(async () => {
@@ -1340,7 +1341,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(await store.removeSection('section-tasks' as SectionId)).toBe(false);
     await store.load('project-b' as ProjectId, OTHER_PAGE);
-    pending.resolve({ section: { ...section('section-text', 'rich-text', 0), archivedAt: AT }, undo: receipt('undo-stale') });
+    pending.resolve({ section: { ...section('section-text', 'rich-text', 0), archivedAt: AT }, undo: receipt('undo-stale'), archiveListed: true });
     await first;
 
     expect(store.undoNotice()).toBeNull();
@@ -1355,7 +1356,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     const removal = store.removeSection('section-text' as SectionId);
 
     TestBed.resetTestingModule();
-    pending.resolve({ section: { ...section('section-text', 'rich-text', 0), archivedAt: AT }, undo: receipt('undo-destroyed') });
+    pending.resolve({ section: { ...section('section-text', 'rich-text', 0), archivedAt: AT }, undo: receipt('undo-destroyed'), archiveListed: true });
     await removal;
 
     expect(store.sections()).toEqual(before);
@@ -2214,9 +2215,9 @@ describe('ProjectPageStore — section edit Undo receipts (Slice 32)', () => {
   });
 
   it.each([
-    ['superseded', 'use-later-receipt'],
-    ['missing', 'nothing-to-undo'],
-  ] as const)('does not send a receipt again after a %s refusal', async (problem, nextStep) => {
+    ['superseded', 'use-later-receipt', { supersededBy: 'self' }],
+    ['missing', 'nothing-to-undo', {}],
+  ] as const)('does not send a receipt again after a %s refusal', async (problem, nextStep, extra) => {
     const text = section('section-text', 'rich-text', 0);
     const update = vi.fn<WorkManagerGateway['sections']['update']>()
       .mockResolvedValueOnce({ section: { ...text, title: 'Mine' }, undo: editReceipt('undo-mine', 'section.update', 7000) });
@@ -2224,7 +2225,7 @@ describe('ProjectPageStore — section edit Undo receipts (Slice 32)', () => {
       throw new GatewayError('rule_violation', 409, 'undo_conflict: refused', {
         reason: 'undo_conflict',
         undoId: 'undo-mine',
-        conflicts: [{ entityType: 'section', id: text.id, problem, nextStep }],
+        conflicts: [{ entityType: 'section', id: text.id, problem, nextStep, ...extra }],
       });
     });
     const { store } = setup({ sections: [text], sectionOverrides: { update }, undoExecute });

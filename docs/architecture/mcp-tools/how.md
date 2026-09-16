@@ -36,9 +36,11 @@ creation stays receipt-free. The receipt exposes no inverse data.
 
 ## Removal receipts and `undo_operation`
 
-`remove_section` returns `SectionRemovalResult`: a final archived-shaped section snapshot and a
-receipt whose `undoId` `undo_operation` accepts. Disposable views and empty sections may be
-deleted; the result snapshot does not claim that the section is still stored. If the response is
+`remove_section` returns `SectionRemovalResult`: a final archived-shaped section snapshot, a
+receipt whose `undoId` `undo_operation` accepts, and `archiveListed`. Disposable views and empty
+sections may be deleted; the result snapshot does not claim that the section is still stored.
+`archiveListed` is true only when `get_project_archive` will list the section, which is false for
+a deleted one and also for one kept solely because a shortcut or an archived row still names it. If the response is
 lost, repeating `remove_section` for that id on the same connection returns a refusal containing
 the exact actor's newest outstanding `undoId` and `expiresAt`, without another write. It does so
 for a hard-deleted section only after the write grant and workspace visibility checks. Other

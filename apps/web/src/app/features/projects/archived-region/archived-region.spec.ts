@@ -237,6 +237,17 @@ describe('ArchivedRegion', () => {
       ]);
     });
 
+    it('warns that an archived section returns at the end of its page, but not a live hidden one', async () => {
+      // note-2026-09-15-007: Archive Restore appends; Undo is the operation that returns a
+      // section between its old neighbours. The row says so before the click.
+      const archived = await render([sectionEntry({})]);
+      expect(text(archived, '[data-archived-placement]')).toBe('Returns at the end of its page, not its old position.');
+
+      // A live section hidden beneath an archived project is not moved by anything here.
+      const hidden = await render([sectionEntry({ restoration: { kind: 'not-archived', blocker: kitchenBlocker } })]);
+      expect(hidden.nativeElement.querySelector('[data-archived-placement]')).toBeNull();
+    });
+
     it('offers no row guidance when every archived row returns with the section', async () => {
       const fixture = await render([
         sectionEntry({ cascadeCount: 2, recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 3, separateRestoreCount: 0 } }),

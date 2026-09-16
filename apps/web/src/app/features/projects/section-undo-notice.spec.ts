@@ -45,6 +45,71 @@ describe('SectionUndoNotice', () => {
     expect(archive).toHaveBeenCalledOnce();
   });
 
+  it('withdraws Archive when the removal said it listed nothing there', () => {
+    // note-2026-09-15-006: a section kept only because a Home shortcut names it is stored but
+    // not listed, so the route would land on a page with no entry for it.
+    const unlisted = render({
+      kind: 'available',
+      receipt,
+      message: 'Section removed. Undo is available on this page.',
+      archiveListed: false,
+    });
+    expect(unlisted.nativeElement.querySelector('[data-open-archive]')).toBeNull();
+    expect(unlisted.nativeElement.querySelector('[data-undo-action]')).not.toBeNull();
+
+    // An unknown verdict is not a `false` one: a receipt recovered from a repeat removal has none.
+    const unknown = render({ kind: 'available', receipt, message: 'Already removed. Undo is available.' });
+    expect(unknown.nativeElement.querySelector('[data-open-archive]')).not.toBeNull();
+  });
+
+  it('names the agent behind a superseded refusal instead of offering its receipt', () => {
+    // note-2026-09-15-005: the later receipt belongs to the agent connection, so it is not a
+    // repair this person can reach.
+    const fixture = render({
+      kind: 'refusal',
+      receipt,
+      message: 'undo_conflict: server supplied this sentence',
+      refusal: {
+        reason: 'undo_conflict',
+        undoId: receipt.undoId,
+        conflicts: [{
+          entityType: 'section',
+          id: 'section-tasks' as SectionId,
+          title: 'Task List',
+          problem: 'superseded',
+          nextStep: 'redo-by-hand',
+          supersededBy: 'agent',
+        }],
+      },
+    });
+
+    expect(fixture.nativeElement.querySelector('[data-undo-superseded-by]')?.textContent).toContain('An agent changed it after you');
+    expect(fixture.nativeElement.querySelector('[data-undo-next-step]')?.textContent).toContain('Make the change again by hand');
+    expect(fixture.nativeElement.textContent).not.toContain('Use the later Undo receipt');
+  });
+
+  it('lets a foreign supersession replace the receipt advice for the same section', () => {
+    // One agent edit refuses as both `field-changed` and `superseded`. Two lines would tell the
+    // person to use a receipt they cannot reach and then to redo by hand.
+    const subject = { entityType: 'section' as const, id: 'section-tasks' as SectionId, title: 'Task List' };
+    const fixture = render({
+      kind: 'refusal',
+      receipt,
+      message: 'undo_conflict: server supplied this sentence',
+      refusal: {
+        reason: 'undo_conflict',
+        undoId: receipt.undoId,
+        conflicts: [
+          { ...subject, problem: 'field-changed', nextStep: 'use-later-receipt' },
+          { ...subject, problem: 'superseded', nextStep: 'redo-by-hand', supersededBy: 'agent' },
+        ],
+      },
+    });
+
+    expect(fixture.nativeElement.querySelectorAll('[data-undo-conflict]')).toHaveLength(1);
+    expect(fixture.nativeElement.querySelector('[data-undo-superseded-by]')?.textContent).toContain('An agent changed it after you');
+  });
+
   it('renders typed conflict steps and current titles without interpreting the message', () => {
     const state: SectionUndoNoticeState = {
       kind: 'refusal',
@@ -139,7 +204,7 @@ describe('SectionUndoNotice', () => {
       refusal: {
         reason: 'undo_conflict',
         undoId: 'undo-a',
-        conflicts: [{ ...conflict, problem: 'field-changed' }, { ...conflict, problem: 'superseded' }],
+        conflicts: [{ ...conflict, problem: 'field-changed' }, { ...conflict, problem: 'superseded', supersededBy: 'self' }],
       },
     });
     fixture.detectChanges();
@@ -177,7 +242,7 @@ describe('SectionUndoNotice', () => {
       refusal: {
         reason: 'undo_conflict',
         undoId: receipt.undoId,
-        conflicts: [{ entityType: 'section', id: 'section-a', title: 'Notes', problem: 'superseded', nextStep: 'use-later-receipt' }],
+        conflicts: [{ entityType: 'section', id: 'section-a', title: 'Notes', problem: 'superseded', nextStep: 'use-later-receipt', supersededBy: 'self' }],
       },
     });
     const undo = vi.fn();

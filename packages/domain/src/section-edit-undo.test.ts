@@ -328,6 +328,37 @@ describe('SectionService edit receipts and Undo', () => {
     const order = async (harness: Harness) =>
       (await harness.sectionWriteService.list(harness.actor, MINE)).map(({ title }) => title);
 
+    it('names the agent that superseded a person’s move, and stops offering its receipt', async () => {
+      // note-2026-09-15-005: a person moved a section, an MCP agent moved it again. The refusal
+      // is right; "use the later Undo receipt" was not, because that receipt is the agent's and
+      // receipts are scoped to one exact actor.
+      const harness = buildHarness();
+      const { b } = await three(harness);
+      const mine = await harness.sectionWriteService.move(harness.actor, b, 2);
+      await harness.sectionWriteService.move(agentActorFor(0, ['projects.write']), b, 0);
+
+      const refusal = await refusalOf(harness.undoServiceWithEdits.undo(harness.actor, mine.undo!.undoId));
+
+      expect((refusal.details as { conflicts: unknown[] }).conflicts).toContainEqual(
+        expect.objectContaining({ problem: 'superseded', nextStep: 'redo-by-hand', supersededBy: 'agent' }),
+      );
+      expect(refusal.message).toContain('make the change again by hand');
+      expect(refusal.message).not.toContain('use the later receipt');
+    });
+
+    it('still offers the later receipt when the same person made both moves', async () => {
+      const harness = buildHarness();
+      const { b } = await three(harness);
+      const mine = await harness.sectionWriteService.move(harness.actor, b, 2);
+      await harness.sectionWriteService.move(harness.actor, b, 0);
+
+      const refusal = await refusalOf(harness.undoServiceWithEdits.undo(harness.actor, mine.undo!.undoId));
+
+      expect((refusal.details as { conflicts: unknown[] }).conflicts).toContainEqual(
+        expect.objectContaining({ problem: 'superseded', nextStep: 'use-later-receipt', supersededBy: 'self' }),
+      );
+    });
+
     it('is not superseded by a later settings change and keeps that change', async () => {
       const harness = buildHarness();
       const { b } = await three(harness);

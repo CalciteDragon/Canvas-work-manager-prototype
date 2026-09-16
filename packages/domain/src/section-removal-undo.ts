@@ -38,7 +38,7 @@ import { EntityNotFoundError, undoRefusal } from './errors';
 import { writeRow, type OwnedRow } from './owned-rows';
 import { listPlacements, renumberPlacements, resolveRestoreIndex, type RestoreStrategy } from './page-placements';
 import { findHighestWriteBlocker } from './project-visibility';
-import { subjectSectionOf } from './undo-recorder';
+import { sameUndoRecordActor, subjectSectionOf } from './undo-recorder';
 
 /**
  * **The capture and the inverse for one operation type, `section.remove`.** Shared functions,
@@ -155,12 +155,19 @@ export interface SectionRemovalUndoRepositories {
 
 const sameValue = (left: string | undefined, right: string | undefined): boolean => left === right;
 
+/** Who the superseding record belongs to, relative to the actor holding the refused receipt. */
+type SupersedingActor = NonNullable<UndoConflict['supersededBy']>;
+
 const nextStepFor = (
   problem: UndoConflict['problem'],
   expectedLive: boolean,
+  supersededBy?: SupersedingActor,
 ): UndoConflictNextStep => {
   switch (problem) {
     case 'superseded':
+      // The later receipt is a repair only for the actor that owns it; Archive may still hold
+      // retained content either way.
+      return supersededBy === 'self' ? 'use-later-receipt-or-archive' : 'redo-by-hand-or-archive';
     case 'archived-differently':
       return 'use-later-receipt-or-archive';
     case 'not-archived':
@@ -187,13 +194,14 @@ const makeConflict = (
   entityType: UndoConflict['entityType'],
   id: string,
   problem: UndoConflict['problem'],
-  options: { title?: string; expectedLive?: boolean } = {},
+  options: { title?: string; expectedLive?: boolean; supersededBy?: SupersedingActor } = {},
 ): UndoConflict => ({
   entityType,
   id,
   ...(problem === 'missing' || options.title === undefined ? {} : { title: options.title }),
   problem,
-  nextStep: nextStepFor(problem, options.expectedLive ?? false),
+  nextStep: nextStepFor(problem, options.expectedLive ?? false, options.supersededBy),
+  ...(problem === 'superseded' ? { supersededBy: options.supersededBy ?? 'self' } : {}),
 });
 
 const conflictNextStepText = (nextStep: UndoConflictNextStep): string => {
@@ -210,6 +218,10 @@ const conflictNextStepText = (nextStep: UndoConflictNextStep): string => {
       return 'remove the reference or dependent item, then retry Undo';
     case 'use-later-receipt':
       return 'use the later receipt if available, or make the change again by hand';
+    case 'redo-by-hand':
+      return 'the later change belongs to another connection, so make the change again by hand';
+    case 'redo-by-hand-or-archive':
+      return 'the later change belongs to another connection, so make the change again by hand, or recover retained content from Archive';
     case 'nothing-to-undo':
       return 'there is nothing left to undo';
     case 'nothing-to-restore':
@@ -277,8 +289,11 @@ const collectConflicts = async (
 ): Promise<UndoConflict[]> => {
   const conflicts: UndoConflict[] = [];
   const sectionId = operation.section.id;
-  const sectionConflict = (problem: UndoConflict['problem']) =>
-    conflicts.push(makeConflict('section', sectionId, problem, { title: section === null ? undefined : nameOf(section) }));
+  const sectionConflict = (problem: UndoConflict['problem'], supersededBy?: SupersedingActor) =>
+    conflicts.push(makeConflict('section', sectionId, problem, {
+      title: section === null ? undefined : nameOf(section),
+      ...(supersededBy === undefined ? {} : { supersededBy }),
+    }));
 
   if (operation.disposition === 'deleted') {
     if (section !== null) sectionConflict(section.archivedAt === undefined ? 'not-archived' : 'archived-differently');
@@ -293,10 +308,18 @@ const collectConflicts = async (
   // Timestamps cannot tell two removals of the same section apart — an Archive Restore and a
   // re-removal can land in one clock instant, or under a clock set backwards — so a newer record
   // for this section, by sequence, decides.
-  const newer = (await repositories.undoRecords.list({ workspaceId: record.workspaceId })).some(
-    (other) => other.sequence > record.sequence && subjectSectionOf(other) === sectionId,
+  //
+  // The latest such record is kept rather than a bare boolean, so the conflict can say whose
+  // change it was: a receipt belongs to one exact actor, and telling a person to use an agent's
+  // receipt names a repair they cannot reach (`note-2026-09-15-005`).
+  const newer = (await repositories.undoRecords.list({ workspaceId: record.workspaceId })).reduce<UndoRecord | null>(
+    (latest, other) => {
+      if (other.sequence <= record.sequence || subjectSectionOf(other) !== sectionId) return latest;
+      return latest === null || other.sequence > latest.sequence ? other : latest;
+    },
+    null,
   );
-  if (newer) sectionConflict('superseded');
+  if (newer !== null) sectionConflict('superseded', sameUndoRecordActor(record, newer) ? 'self' : newer.actor);
 
   const tasks = await repositories.tasks.list({ projectId: record.projectId, includeArchived: true });
   const reflections = await repositories.reflections.list({ projectId: record.projectId, includeArchived: true });

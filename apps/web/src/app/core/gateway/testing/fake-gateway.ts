@@ -106,6 +106,13 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
   readonly calls: Array<{ method: string; argument: unknown }> = [];
 
   /**
+   * What the next removal answers for `archiveListed`. The domain decides this from content
+   * that actually remains; here it is a knob, so a spec can play the retained-but-unlisted
+   * removal a shortcut causes without modelling the recovery policy a second time.
+   */
+  archiveListedOnRemoval = true;
+
+  /**
    * A project's pages: the seeded ones, or the canonical page every project has from the
    * moment it exists (§26). Derived rather than required in every fixture, for the same
    * reason the domain creates it in the same unit of work as its owner — a project with no
@@ -464,6 +471,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
           createdAt: COMPLETED_AT,
           expiresAt: '2026-08-28T16:00:00.000Z',
         },
+        archiveListed: this.archiveListedOnRemoval,
       };
       return this.answer('sections.remove', { id, input }, result).then((removed) => {
         this.removedSections.set(undoId, original);

@@ -24,8 +24,9 @@
    explicit add, update, move or removal stores its server receipt in the current
    `ProjectPageStore` before refreshing, and the sequence high-water mark ignores stale
    responses. `SectionUndoNotice` offers the operation's receipt action, typed refusal guidance,
-   Archive access only for removal and a read-only refresh retry, including after a committed
-   add or move whose follow-up read failed. An Undo response that lands after a newer receipt
+   Archive access only for a removal whose result's `archiveListed` says Archive holds it, and a
+   read-only refresh retry, including after a committed add or move whose follow-up read failed.
+   An Undo response that lands after a newer receipt
    was captured reconciles without replacing that notice. `ReflectionsPageStore` captures the
    explicit container add's receipt by the same sequence rule; its Undo refreshes the container
    and returns the page to the empty-container prompt. Once the server refuses a receipt with a
@@ -71,7 +72,7 @@
 | `ProgressStore`, `ReflectionsStore`, `SubProjectsStore`, `TimelineStore` | injectables | Per-section stores | [API](../../../api/injectables/ProgressStore.html) |
 | `TodosPage`, `ArchivePage`, `ReflectionsPage` | components | Root pages | [API](../../../api/components/TodosPage.html) |
 | `TodosPageStore`, `ArchivePageStore`, `ReflectionsPageStore` | injectables | Their stores | [API](../../../api/injectables/TodosPageStore.html) |
-| `ArchivedRegion` | component | Presentational archive list; labels domain-supplied recovery metadata and two-step guidance | [API](../../../api/components/ArchivedRegion.html) |
+| `ArchivedRegion` | component | Presentational archive list; labels domain-supplied recovery metadata, two-step guidance and the placement Restore actually produces | [API](../../../api/components/ArchivedRegion.html) |
 | `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | components / injectable | Home shortcuts | [API](../../../api/components/ShortcutFrame.html) |
 
 ## Dependencies
@@ -105,7 +106,8 @@
   display-name cost without a `SECTION_DISPLAY_NAMES` entry, or when a registered type has no
   `SECTION_CAPABILITIES` declaration.
 - **Archive lists what the domain projected.** `ArchivePageStore.items` passes the projection
-  through unchanged; `ArchivedRegion` only words its `recovery` metadata.
+  through unchanged; `ArchivedRegion` only words its `recovery` metadata, plus the one fact about
+  the *operation* a row's button performs — that Restore appends to the end of the page.
 - **Callback inputs have stable identity** — class-property arrows, `computed()` records.
 - **Stores are guarded** on project, page and generation, and defer re-reads behind
   `pendingWrites`; a stale response after navigation is discarded.

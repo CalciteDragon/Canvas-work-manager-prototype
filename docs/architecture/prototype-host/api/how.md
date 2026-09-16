@@ -11,9 +11,9 @@
 4. The handler calls one service method and returns its result as JSON with the status
    the route declares (200, or 201 for creates). Section create answers `SectionAddResult`;
    update and move answer `SectionWriteResult` and use `undo: null` for no-ops. `DELETE
-   /api/sections/:id` answers `SectionRemovalResult` — the final archived-shaped result and its
-   Undo receipt. When the section was disposable, that result is a snapshot and the stored row is
-   absent. A repeat can answer 409 with the exact actor's outstanding receipt in typed details.
+   /api/sections/:id` answers `SectionRemovalResult` — the final archived-shaped result, its
+   Undo receipt, and `archiveListed`, which says whether Archive will actually list the section.
+   When the section was disposable, that result is a snapshot and the stored row is absent. A repeat can answer 409 with the exact actor's outstanding receipt in typed details.
    `POST /api/undo/:id` answers the discriminated `UndoResult`.
 5. A thrown error goes through `api/errors.ts`: the domain's three errors map to 404,
    409 and 403; a `DomainRuleError` with `details` forwards them; `AgentAuthenticationError`

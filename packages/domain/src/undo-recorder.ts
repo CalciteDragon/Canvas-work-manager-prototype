@@ -72,6 +72,18 @@ export const undoRecordBelongsToActor = (record: UndoRecord, actor: ActorContext
 };
 
 /**
+ * Whether two records were written by the same exact actor. Undo receipts are actor-scoped, so
+ * this is what decides whether the holder of an earlier receipt can also reach a later one — the
+ * question behind a `superseded` conflict's `supersededBy` (`note-2026-09-15-005`).
+ */
+export const sameUndoRecordActor = (left: UndoRecord, right: UndoRecord): boolean => {
+  if (left.workspaceId !== right.workspaceId || left.actor !== right.actor) return false;
+  if (left.actor === 'user') return left.actorUserId === right.actorUserId;
+  if (left.actor === 'agent') return left.actorAgentConnectionId === right.actorAgentConnectionId;
+  return true;
+};
+
+/**
  * Stores one record and prunes the acting workspace to the retention bounds in the same unit
  * (docs/decisions/2026-09-section-removal-undo-records.md, rule 3).
  */

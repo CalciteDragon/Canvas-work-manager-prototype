@@ -26,6 +26,9 @@
           @for (conflict of conflicts(); track $index) {
             <li data-undo-conflict>
               <span>{{ conflictSubject(conflict) }}:</span>
+              @if (supersededByCopy(conflict); as supersededBy) {
+                <span data-undo-superseded-by>{{ supersededBy }}</span>
+              }
               <span data-undo-next-step>{{ nextStepCopy(conflict.nextStep) }}</span>
             </li>
           }

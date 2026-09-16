@@ -93,6 +93,9 @@ test('disposable sections stay out of Archive and Undo restores config, layout, 
     await expect(page.locator('[data-undo-notice]')).toBeVisible();
     await expect(frame).toHaveCount(0);
     expect(await archiveHasSection(root.id, section.id)).toBe(false);
+    // The notice must not offer a route to a page with no entry for this section
+    // (note-2026-09-15-006): Archive is offered on the removal's own verdict, not on its name.
+    await expect(page.locator('[data-open-archive]')).toHaveCount(0);
     // Slice 33: unreferenced disposable removal is a deletion, not a hidden tombstone.
     expect((await api.get<ProjectSection[]>('/api/projects/' + root.id + '/sections?includeArchived=true&pageId=' + home.id)).some(({ id }) => id === section.id)).toBe(false);
 

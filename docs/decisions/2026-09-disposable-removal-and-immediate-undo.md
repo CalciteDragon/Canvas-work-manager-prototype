@@ -108,5 +108,12 @@ before closure.
 **Amended, 2026-09-14 — Slice 32 keeps Archive removal-specific.** The shared notice now hides
 Open Archive for add, move and settings receipts; edits are reversible in place but are not
 recoverable Archive content. The removal notice and its failed-removal retry remain unchanged.
+
+**Narrowed, 2026-09-15 — a removal offers Archive only when it put something there.** Being a
+removal is no longer enough: the notice follows the result's own `archiveListed` verdict and
+withdraws the button when the removal listed nothing, which is the case for a deleted disposable
+view and for a section kept only by a shortcut or an archived row. An absent verdict — a receipt
+recovered from a repeat removal — stays an offer
+([decision](2026-09-recovery-routes-name-what-is-actually-there.md)).
 The same page-local lifetime applies to all new explicit section receipts: navigation or reload
 clears the browser action, while the server record retains its existing 24-hour scope.

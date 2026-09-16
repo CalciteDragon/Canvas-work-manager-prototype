@@ -155,6 +155,21 @@ export class ArchivedRegion {
       : `Restore this section first, then restore ${which} separately.`;
   }
 
+  /**
+   * Where an archived section lands, said before the click. Archive Restore appends the section
+   * at the end of its page — its old index needs positions the canvas has since reused — so a
+   * section that sat first comes back last, which surprised a real use (`note-2026-09-15-007`).
+   * Undo is the operation that returns a section between its old neighbours; this one does not,
+   * and the row should not let a person assume otherwise.
+   *
+   * Only for a section that is actually archived: a live section hidden beneath an archived
+   * project is not moved by anything here, and its blocker line already says what to do.
+   */
+  placementHint(item: ProjectArchiveItem): string | null {
+    if (item.kind !== 'section' || item.restoration.kind === 'not-archived') return null;
+    return 'Returns at the end of its page, not its old position.';
+  }
+
   canRestore(item: ProjectArchiveItem): boolean {
     return !this.restoreBlocked() && this.restoring().size === 0 && item.restoration.kind === 'ready';
   }

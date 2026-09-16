@@ -112,3 +112,7 @@ on every section entry. Stored sections and `SCHEMA_VERSION` are untouched
 ([decision](../../decisions/2026-09-content-oriented-archive-policy.md)).
 
 **A removal result can describe a deleted section.** `SectionRemovalResult.section` is the final archived-shaped operation result, not a guarantee that the row remains stored. The version-1 inverse records the disposition so Undo recreates only a section that this operation deleted; legacy records default to retained.
+
+**A removal also states whether Archive will list it.** `SectionRemovalResult.archiveListed` is the domain's own `sectionRecoveryOf` verdict, required on every result. It is deliberately not `disposition`: a section kept only because a shortcut or an archived row still names it is retained *and* absent from Archive, so a surface offering an Archive route on the disposition sends someone to a page with no entry for their section ([decision](../../decisions/2026-09-recovery-routes-name-what-is-actually-there.md)).
+
+**A superseded conflict names the actor behind the later change.** `UndoConflict.supersededBy` (`self` | `user` | `agent` | `system`) is present exactly for a `superseded` problem. Undo receipts are scoped to one exact actor, so "use the later receipt" is a repair only its owner can perform; when the later change is someone else's, `nextStep` is `redo-by-hand` or `redo-by-hand-or-archive` instead. Neither field is stored.

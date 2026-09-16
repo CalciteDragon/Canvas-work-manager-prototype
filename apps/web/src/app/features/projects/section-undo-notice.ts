@@ -9,8 +9,21 @@ const NEXT_STEP_COPY: Record<UndoConflictNextStep, string> = {
   'remove-reference-and-retry': 'Remove the reference, then try Undo again.',
   'use-later-receipt-or-archive': 'Use the later Undo receipt, or check Archive for retained content.',
   'use-later-receipt': 'Use the later Undo receipt, or make the change again by hand.',
+  'redo-by-hand': 'Make the change again by hand.',
+  'redo-by-hand-or-archive': 'Make the change again by hand, or check Archive for retained content.',
   'nothing-to-undo': 'It is already live, so there is nothing to undo for this item.',
   'nothing-to-restore': 'It no longer exists. Use Archive if it still has a saved copy.',
+};
+
+/**
+ * Who made the later change, when it was not this person. The server already chose the repair;
+ * this only names the other party, so the sentence explains why the receipt for that change is
+ * out of reach rather than leaving the person hunting for it (`note-2026-09-15-005`).
+ */
+const SUPERSEDED_BY_COPY: Record<'user' | 'agent' | 'system', string> = {
+  user: 'Someone else changed it after you.',
+  agent: 'An agent changed it after you.',
+  system: 'The system changed it after you.',
 };
 
 /** The canvas-local, accessible status and action for one section-operation receipt. */
@@ -38,8 +51,16 @@ export class SectionUndoNotice {
   }
 
   readonly hasReceipt = computed(() => this.state()?.receipt != null);
+  /**
+   * Archive is offered for a removal unless the removal said it left nothing there. A section
+   * kept only because a shortcut or an archived row still names it is stored but not listed, and
+   * offering the route then lands the person on a page with no entry for their section
+   * (`note-2026-09-15-006`). An absent `archiveListed` is unknown, not false: a receipt recovered
+   * from a repeat removal carries no verdict, so the offer stands.
+   */
   readonly showArchive = computed(() => {
     const state = this.state();
+    if (state?.archiveListed === false) return false;
     return state?.receipt?.operation === 'section.remove' || state?.result?.operation === 'section.remove';
   });
   readonly canUndo = computed(() =>
@@ -51,10 +72,26 @@ export class SectionUndoNotice {
   readonly conflicts = computed(() => {
     const refusal = this.state()?.refusal;
     if (refusal?.reason !== 'undo_conflict') return [];
-    // One line per entity and repair: a section that both changed and was superseded needs one step.
+    // One line per entity and rendered repair: a section that both changed and was superseded
+    // needs one step. The key is what the line *says*, so a `self` supersession and a plain
+    // change still collapse while a foreign actor's line — which names them — stands on its own.
+    //
+    // A foreign supersession also *replaces* the receipt advice for its own entity rather than
+    // sitting beside it: one agent edit produces both `field-changed` and `superseded`, and
+    // telling the person to use a receipt they cannot reach contradicts the line below it
+    // (`note-2026-09-15-005`).
+    const redone = new Set(
+      refusal.conflicts
+        .filter(({ nextStep }) => nextStep === 'redo-by-hand' || nextStep === 'redo-by-hand-or-archive')
+        .map(({ entityType, id }) => `${entityType}:${id}`),
+    );
     const seen = new Set<string>();
-    return refusal.conflicts.filter(({ entityType, id, nextStep }) => {
-      const key = `${entityType}:${id}:${nextStep}`;
+    return refusal.conflicts.filter((conflict) => {
+      const { entityType, id, nextStep } = conflict;
+      const subject = `${entityType}:${id}`;
+      const offersReceipt = nextStep === 'use-later-receipt' || nextStep === 'use-later-receipt-or-archive';
+      if (offersReceipt && redone.has(subject)) return false;
+      const key = `${subject}:${nextStep}:${this.supersededByCopy(conflict) ?? ''}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -93,6 +130,12 @@ export class SectionUndoNotice {
 
   nextStepCopy(step: UndoConflictNextStep): string {
     return NEXT_STEP_COPY[step];
+  }
+
+  /** The prefix that names the other party, or `null` when the later change was this person's. */
+  supersededByCopy(conflict: { supersededBy?: 'self' | 'user' | 'agent' | 'system' }): string | null {
+    const by = conflict.supersededBy;
+    return by === undefined || by === 'self' ? null : SUPERSEDED_BY_COPY[by];
   }
 
   conflictSubject(conflict: { entityType: string; id: string; title?: string }): string {

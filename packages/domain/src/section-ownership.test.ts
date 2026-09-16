@@ -364,6 +364,38 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
   });
 
+  it('reports archiveListed: false for a section retained only by a shortcut, and Archive agrees', async () => {
+    // The real case behind note-2026-09-15-006: an empty Reflections container a Home shortcut
+    // still names. Retention keeps the shortcut's source resolvable; there is nothing in the
+    // section for a person to recover, so Archive must not list it and no surface should offer it.
+    const harness = buildHarness();
+    const sourceProject = await harness.projectService.create(harness.actor, {
+      workspaceId: harness.actor.workspaceId,
+      kind: 'subproject',
+      parentProjectId: MINE,
+      name: 'Kitchen',
+    });
+    const source = await harness.sectionService.add(harness.actor, sourceProject.id, { type: 'reflections' });
+    const home = (await harness.pages.list({ projectId: MINE, kind: 'home' }))[0]!;
+    await harness.sectionShortcutService.create(harness.actor, MINE, { pageId: home.id, sourceSectionId: source.id });
+
+    const result = await harness.sectionService.remove(harness.actor, source.id);
+
+    expect(result.archiveListed).toBe(false);
+    expect((await harness.sections.find(source.id))?.archivedAt).toBe(SEED_NOW);
+    expect(harness.store.snapshot().undoRecords.at(-1)?.operation).toMatchObject({ disposition: 'retained' });
+    // Archive is the root's, over the whole tree; the subproject has no page of its own.
+    const archive = await new ProjectArchiveService(harness).derive(harness.actor, MINE);
+    expect(archive.items.filter((item) => item.kind === 'section')).toEqual([]);
+  });
+
+  it('reports archiveListed: false for a deleted disposable view', async () => {
+    const harness = buildHarness();
+    const view = await harness.sectionService.add(harness.actor, MINE, { type: 'timeline' });
+
+    expect((await harness.sectionService.remove(harness.actor, view.id)).archiveListed).toBe(false);
+  });
+
   it('retains meaningful prose and cascaded rows for Archive recovery', async () => {
     const harness = buildHarness();
     const prose = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Keep this' } });
@@ -378,6 +410,15 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     ).toEqual(['retained', 'retained']);
     const archive = await new ProjectArchiveService(harness).derive(harness.actor, MINE);
     expect(archive.items.filter((item) => item.kind === 'section').map((item) => item.section.id)).toEqual([prose.id, task.sectionId]);
+  });
+
+  it('reports archiveListed: true for content Archive will actually list', async () => {
+    const harness = buildHarness();
+    const prose = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Keep this' } });
+    const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Recover me' });
+
+    expect((await harness.sectionService.remove(harness.actor, prose.id)).archiveListed).toBe(true);
+    expect((await harness.sectionService.remove(harness.actor, task.sectionId, { policy: 'cascade' })).archiveListed).toBe(true);
   });
 
   it('refuses a reassign target that is archived, naming it', async () => {

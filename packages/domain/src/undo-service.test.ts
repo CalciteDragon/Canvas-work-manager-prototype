@@ -381,8 +381,27 @@ describe('UndoService.undo — conflicts', () => {
     await expectConflict(harness, older.undoId, problems.map((problem) => ({
       entityType: 'section', id: notes.id, title: 'Notes', problem: problem as UndoConflict['problem'],
       nextStep: nextSteps[problem as keyof typeof nextSteps],
+      // One actor did both removals, so the later receipt really is a repair they can reach.
+      ...(problem === 'superseded' ? { supersededBy: 'self' as const } : {}),
     })));
     await expect(harness.undoService.undo(harness.actor, newer.undoId)).resolves.toMatchObject({ outcome: 'restored' });
+  });
+
+  it('tells a person to redo by hand when an agent’s removal superseded theirs, keeping the Archive route', async () => {
+    // A removal receipt refused because of a *foreign* later change: Archive may still hold the
+    // retained prose, but the agent's receipt is not this person's to use (note-2026-09-15-005).
+    const harness = buildHarness();
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', title: 'Notes', config: { text: 'Prose' } });
+    const { undo: mine } = await harness.sectionService.remove(harness.actor, notes.id);
+    await harness.sectionService.restoreSection(harness.actor, notes.id);
+    await harness.sectionService.remove(agentActorFor(0, ['projects.write']), notes.id);
+
+    const refusal = await refusalOf(harness.undoService.undo(harness.actor, mine.undoId));
+
+    expect((refusal.details as { conflicts: unknown[] }).conflicts).toContainEqual(
+      expect.objectContaining({ problem: 'superseded', nextStep: 'redo-by-hand-or-archive', supersededBy: 'agent' }),
+    );
+    expect(refusal.message).toContain('recover retained content from Archive');
   });
 
   /** A live row and an archived one reassigned from their list to another. */

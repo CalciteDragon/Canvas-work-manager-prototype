@@ -77,6 +77,13 @@ export interface SectionUndoNoticeState {
   result?: UndoResult;
   refusal?: UndoRefusalDetails;
   refreshFailed?: boolean;
+  /**
+   * The removal's own `archiveListed`, when this notice came from one this canvas performed.
+   * Absent means unknown — a receipt recovered from a repeat removal carries no verdict — and
+   * the notice keeps offering Archive then. Only an explicit `false` withdraws the offer, which
+   * is the case a shortcut keeps a section stored while Archive lists nothing (`note-2026-09-15-006`).
+   */
+  archiveListed?: boolean;
 }
 
 /**
@@ -818,6 +825,8 @@ export class ProjectPageStore {
       this.captureUndoReceipt(
         result.undo,
         'Section removed. Undo is available on this page. Leaving clears this notice; the receipt stays on the server.',
+        'available',
+        result.archiveListed,
       );
       // Paint the committed removal immediately. Neighbor positions still come from the
       // authoritative read, and the receipt above survives if that read fails.
@@ -946,10 +955,11 @@ export class ProjectPageStore {
     receipt: UndoReceipt | null | undefined,
     message: string,
     kind: 'available' | 'already-removed' = 'available',
+    archiveListed?: boolean,
   ): void {
     if (receipt === null || receipt === undefined || receipt.sequence <= this.undoReceiptHighWaterMark) return;
     this.undoReceiptHighWaterMark = receipt.sequence;
-    this.undoNoticeState.set({ kind, receipt, message });
+    this.undoNoticeState.set({ kind, receipt, message, ...(archiveListed === undefined ? {} : { archiveListed }) });
   }
 
   private undoResultMessage(result: UndoResult): string {

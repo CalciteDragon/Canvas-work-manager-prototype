@@ -306,7 +306,8 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     // even when removal deleted the section. Other callers still get the ordinary 404.
     //
     // A successful removal answers 200 with `SectionRemovalResult`: the final archived-shaped
-    // section and the Undo receipt for it. The section itself may have been deleted.
+    // section, the Undo receipt for it, and `archiveListed` — whether Archive will actually list
+    // it. The section itself may have been deleted.
     'DELETE /api/sections/:id': async (request) =>
       ok(
         await sections.remove(
