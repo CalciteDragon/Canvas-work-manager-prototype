@@ -26,6 +26,7 @@ _Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/
 | 22 | Slice 22 — Agent confirmations | Confirmation before an agent archives or bulk-edits, using MCP's input-required pattern, behind the agentConfirmations flag | [22-agent-confirmations.md](planned/22-agent-confirmations.md) |
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
+| 34 | Slice 34 — Project Undo/Redo and simpler Archive | Development plan for persistent project history, recoverable deletion and restorable-only archives | [34-undo-redo-and-archive.md](planned/34-undo-redo-and-archive.md) |
 
 ### Completed
 

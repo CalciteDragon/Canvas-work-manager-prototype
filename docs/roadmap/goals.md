@@ -53,6 +53,17 @@ would implement and the scope guards it inherits.
 
 ## Now
 
+**Next requested direction — Project Undo/Redo and simpler Archive (planning only).**
+The user requested [the detailed development plan in Slice 34](planned/34-undo-redo-and-archive.md)
+on 2026-09-16: always-present project Undo/Redo icons, history for committed content and layout
+changes, task delete icons, immediate container cascade removal, Settings access to archived
+projects, and Archive entries limited to structurally restorable content. The user confirmed
+that only removal-time reassignment goes away; independent task moves remain supported.
+The plan proposes five dependency-ordered implementation stages, architecture/contract changes,
+decision gates and acceptance evidence. It is not implemented. Redo is now requested scope for
+this next direction; the paragraphs below describe the earlier shipped system and its choices.
+Split the stages into bounded candidates before implementation and keep one active phase.
+
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported
 [proposed specification](../specifications/README.md), and a development plan on 2026-09-13.
 Slice 28 records that planning work; Slices 29–33 then implemented and closed the direction,
