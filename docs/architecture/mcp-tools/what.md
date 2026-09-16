@@ -14,6 +14,7 @@ flowchart LR
     tasks["tasks.ts — 7"]
     reflections["reflections.ts — 4"]
     sections["sections.ts — 6"]
+    undo["undo.ts — 1"]
     shortcuts["shortcuts.ts — 3"]
     workspace["workspace.ts — 3"]
     pages["project-pages.ts — 5"]

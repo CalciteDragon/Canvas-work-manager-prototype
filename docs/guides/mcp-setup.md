@@ -2,7 +2,8 @@
 
 Canvas Work Manager serves the same thirty-five tools over Streamable HTTP and stdio (§59) —
 §54's fourteen, the five section-edit/removal tools the canvas needs, §54's three page tools, Slice 25.4's
-three shortcut tools, Slice 25.6's eight archive/recovery tools, and Slice 25.7's journal tool.
+three shortcut tools, Slice 25.6's eight archive/recovery tools, Slice 25.7's journal tool, and
+Slice 30's `undo_operation`.
 Both use the fake local credentials from the `agent-heavy` seed; they have no security value
 and the HTTP host binds only to `127.0.0.1`.
 

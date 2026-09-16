@@ -25,8 +25,11 @@ export type SectionConfig = z.infer<typeof SectionConfigSchema>;
  * removing it archives them with it; a view renders data it does not own, so removing it
  * touches no rows.
  *
- * It says nothing about *surviving* removal: every section archives, container or view
- * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
+ * It says nothing about *surviving* removal: whether a removed section is archived or deleted
+ * outright is a `recovery` question, not a `kind` one — a container and a view are both archived
+ * when something worth recovering remains, and both are deleted when nothing does
+ * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md,
+ * docs/decisions/2026-09-disposable-removal-and-immediate-undo.md).
  */
 export const SectionKindSchema = z.enum(['container', 'view']);
 export type SectionKind = z.infer<typeof SectionKindSchema>;
@@ -66,8 +69,8 @@ export type SectionCapability = z.infer<typeof SectionCapabilitySchema>;
  *
  * `rich-text` owns its data through `config.text` rather than through rows: it has nothing
  * to cascade, and archiving the section keeps its text — `config` rides along on the record,
- * so restoring returns the prose intact. That survival is why removal archives *every*
- * section rather than only containers.
+ * so restoring returns the prose intact. That survival is why a view can be worth archiving
+ * too, and why removal asks this table rather than `kind` before it decides.
  */
 export const SECTION_CAPABILITIES: Readonly<Record<string, SectionCapability>> = {
   'task-list': { ownedData: 'tasks', recovery: 'owned-content' },
@@ -200,11 +203,16 @@ export const ProjectSectionSchema = z.object({
   config: SectionConfigSchema,
 
   /**
-   * Set when the section is removed from the canvas. Removing a section archives it rather
-   * than deleting it, so removal is undoable: `config` — a Notes section's prose, a
-   * Progress section's milestone selection — rides along on the record, and the rows a
-   * container took down name it through `archivedWithSectionId`. Optional, so a document
-   * written before this field parses unchanged.
+   * Set when the section is removed from the canvas **and the removal kept it**. A removal
+   * archives rather than deletes whenever something is left worth recovering or still
+   * pointing at the section: `config` — a Notes section's prose, a Progress section's
+   * milestone selection — rides along on the record, and the rows a container took down name
+   * it through `archivedWithSectionId`. A safe disposable section — nothing recoverable, no
+   * row and no shortcut naming it — is deleted outright instead, and the archived-shaped
+   * section a removal returns is then a result snapshot rather than a stored record
+   * (`SectionRemovalResultSchema`, docs/decisions/2026-09-disposable-removal-and-immediate-undo.md).
+   * Either way the removal is undoable through its receipt. Optional, so a document written
+   * before this field parses unchanged.
    */
   archivedAt: IsoDateTimeSchema.optional(),
 

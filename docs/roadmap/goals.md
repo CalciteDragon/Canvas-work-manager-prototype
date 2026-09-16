@@ -53,11 +53,12 @@ would implement and the scope guards it inherits.
 
 ## Now
 
-**Requested planning direction — Archive, removal and Undo.** The user requested a branch,
-an imported [proposed specification](../specifications/README.md), and a development plan
-on 2026-09-13. This authorizes planning; it does not mark the proposal implemented or settle
-its open product choices. Slice 28 records the planning work. The recommended dependency
-order is:
+**Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported
+[proposed specification](../specifications/README.md), and a development plan on 2026-09-13.
+Slice 28 records that planning work; Slices 29–33 then implemented and closed the direction,
+so the behavior below is current rather than proposed. The proposal's remaining open product
+choices — Redo, a standalone `ArchiveItem` aggregate — were deliberately not taken. The
+dependency order it ran in was:
 
 1. [29 — Recovery policy and Archive](completed/29-recovery-policy-and-archive.md) (done): one
    capability source and meaningful-content projection over retained state.
@@ -79,7 +80,7 @@ The order deliberately moves Refactor §23's Undo and placement work ahead of ha
 following Refactor §27.8. Redo and a standalone ArchiveItem aggregate remain optional future
 work (Refactor §23 phases 6–7), with no implementation commitment. Each slice makes its adopted
 behavior current through a §78 decision, dated amendments to conflicting decisions, and updates
-to the main spec and affected architecture folders. Slices 29–31 now record those shipped rules;
+to the main spec and affected architecture folders. Slices 29–33 now record those shipped rules;
 planned candidates remain proposals only. No production infrastructure, event sourcing or global
 store.
 
@@ -108,9 +109,12 @@ Redo and an `ArchiveItem` aggregate stay optional. Its real-use notes (`note-202
 person-facing conflict copy when an agent superseded the change, Open Archive offered with nothing to
 restore, Restore landing at the page end without warning, and the same-page-only reassign dialog)
 join Slice 32's notice friction as candidates for the next friction-chosen phase.
-The latest runtime change, [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md),
-closed 2026-09-13. Its implementation establishes direct canvas editing, contextual
-positioned creation, width resizing, and the navigation changes. The
+The latest runtime change is [Slice 32 — Section edit Undo](completed/32-section-edit-undo.md),
+closed 2026-09-15; Slice 33 closed the direction on acceptance evidence alone and changed no
+production code. The canvas interaction model it builds on comes from
+[Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md),
+closed 2026-09-13, which establishes direct canvas editing, contextual positioned creation,
+width resizing, and the navigation changes; its
 [direction decision](../decisions/2026-09-direct-canvas-editing-direction.md) records the
 adopted behavior and when to revisit it.
 
