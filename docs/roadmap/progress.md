@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 35 | Slice 35 — Operation history foundation (Slice 34 Stage A) | Bidirectional section Undo/Redo over a versioned per-actor operation history, with an explicit v3 to v4 document conversion | [35-operation-history-foundation.md](active/35-operation-history-foundation.md) |
 
 ### Planned
 
