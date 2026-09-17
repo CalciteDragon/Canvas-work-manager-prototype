@@ -117,3 +117,11 @@ recovered from a repeat removal — stays an offer
 ([decision](2026-09-recovery-routes-name-what-is-actually-there.md)).
 The same page-local lifetime applies to all new explicit section receipts: navigation or reload
 clears the browser action, while the server record retains its existing 24-hour scope.
+
+**Amended, 2026-09-16 — Slice 35 moves the notice onto history transitions.** The notice, its
+page-local lifetime, explicit retry and Archive offer are unchanged; it now holds an operation
+receipt (`historyId`, `actionId`, `revision`) and runs Undo through
+`POST /api/history/:historyId/transition`. A deleted disposable removal is redone by deleting the
+section again, and undone by recreating it at a generation no lower than any stored removal
+captured. The notice remains Undo-only in Stage A; persistent Undo/Redo controls are Stage C's
+([Slice 34](../roadmap/planned/34-undo-redo-and-archive.md)).

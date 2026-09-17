@@ -63,7 +63,7 @@ the fix would be the sync infrastructure §62 forbids
 
 ## Decisions that shape this system
 
-- [Where a live event is emitted, and when it is delivered](../../../decisions/2026-08-live-events-ride-the-activity-record.md)
+- [Where a live event is emitted, and when it is delivered](../../../decisions/2026-08-live-events-ride-the-activity-record.md) — amended in Slice 35 with Redo frames and frameless retirements
 - [Live updates reach the browser over HTTP, and not over stdio](../../../decisions/2026-08-live-updates-are-http-only.md)
 - [How live reconnects recover derived project views](../../../decisions/2026-08-live-recovery-invalidates-derived-views.md)
 - [The development panel is an overlay and a route, sharing one control set](../../../decisions/2026-08-development-panel-surface.md) — `prototype.reloaded`

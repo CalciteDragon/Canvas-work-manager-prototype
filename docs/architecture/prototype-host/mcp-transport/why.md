@@ -54,7 +54,8 @@ existing clients and a plural key carrying every grant a combined read needs
 - `pnpm --filter @cwm/prototype-host mcp-acceptance` lists tools, creates a task and
   finds it in the file over both transports with a real client — the slice's *done when*,
   runnable at any time. Later slices extended it; [testing / how](../../testing/how.md) lists
-  what it now covers, including Slice 30's remove-and-undo round trip.
+  what it now covers, including Slice 35's A → B → Undo → Undo → Redo → Redo chain over both
+  transports and a fresh connection seeing only its own history.
 - A stdio agent's write does not appear in the browser; the guide says so and says why.
 - The tool list is public and unfiltered by grant; the metadata tells a client what each
   tool needs before it calls.

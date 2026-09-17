@@ -58,16 +58,22 @@ independent audit proves no task, reflection or shortcut still references the se
 references retain an integrity tombstone; existing tombstones are never purged
 ([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
-**Undo is a scoped inverse record, not a replay and not the activity log.** Explicit section add,
-move and settings writes now join removal in the same caller-owned unit and return a receipt.
-Their versioned inverses contain only the created snapshot, combined neighbours or changed-field
-footprint that their executor may safely touch. `UndoService` executes each once, for the exact
-actor, within 24 hours, refusing with a typed reason rather than overwriting a later structural
-write; sequence, not timestamp, chooses the newest browser receipt. Archive Restore stays the
-durable, append-placed recovery. Rejected: inverse data on `ActivityEvent` (activity is audit),
-a generic command bus, and routing Undo through `SectionService` or the row services (a cycle) —
-the inverse lives in package-internal function modules both sides share
-([decisions](../../decisions/2026-09-section-removal-undo-records.md),
+**Undo and Redo walk a per-actor history of typed actions, not a replay and not the activity
+log.** Explicit section add, move and settings writes join removal in the same caller-owned unit,
+record one action into the exact actor's history for the subject's project, and return a receipt.
+Each versioned payload contains only the created snapshot and placement, combined neighbours,
+changed-field footprint or removal footprint that its executor may safely touch.
+`OperationHistoryService` runs only the next action in a direction, within 24 hours, checking the
+state the other direction left rather than which record is newer, and refusing with a typed reason
+rather than overwriting a later write; an action that can never succeed again retires instead of
+wedging the stack. The cursor and `revision` — not timestamps — order everything. Archive Restore
+stays the durable, append-placed recovery outside every history. Rejected: inverse data on
+`ActivityEvent` (activity is audit), a generic command bus or event sourcing, and routing history
+through `SectionService` or the row services (a cycle) — the payloads live in package-internal
+function modules both sides share ([scope](../../decisions/2026-09-operation-history-scope.md),
+[retention](../../decisions/2026-09-operation-history-retention.md),
+[retired actions](../../decisions/2026-09-operation-history-retired-actions.md),
+[removal footprint](../../decisions/2026-09-section-removal-undo-records.md),
 [section edit boundaries](../../decisions/2026-09-section-edit-undo-boundaries.md)).
 
 **Archiving a project reaches down without cascading.** A project with a live child
@@ -107,6 +113,11 @@ ISO string so ordering stays lossless without a clock or timezone
 
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
+- [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../decisions/2026-09-history-stage-a-deferrals.md)
+- [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md)
+- [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md)
+- [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md)
+- [Explicit section edits reverse only their operation's changes](../../decisions/2026-09-section-edit-undo-boundaries.md)
 - [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md)
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)
 - [Root Archive recovery guidance](../../decisions/2026-09-root-archive-recovery-guidance.md)

@@ -80,3 +80,8 @@ outlive whatever permanent deletion eventually does to one.
 
 Any entity gains a delete. The same trap applies to tasks, milestones and reflections, and
 the same answer will not always be available — a task's events legitimately name the task.
+
+**Amended, 2026-09-16 — Slice 35.** History transitions keep this rule: every Undo and Redo event
+names the project, never the section or the history action, so creation Undo in a later stage is
+what will first test it. Deferring the "absent activity target" relaxation to that stage is recorded
+in [the Stage A deferrals](2026-09-history-stage-a-deferrals.md).

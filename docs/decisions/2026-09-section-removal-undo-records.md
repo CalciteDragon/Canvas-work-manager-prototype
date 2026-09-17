@@ -168,3 +168,18 @@ executors refuse missing/archived subjects and overlapping newer edits rather th
 conservative removal fallback. `UndoService` dispatches the four families inside its existing
 unit of work; the raw edit helpers remain package-internal. Existing `section.remove` records,
 repeat-removal recovery and Archive Restore remain unchanged.
+
+**Amended, 2026-09-16 — Slice 35 replaces records with operation histories.** Undo records, their
+workspace `sequence`, consume-once and supersession are gone. The same removal footprint — full
+section, neighbour placement, applied policy, exact rows, disposition, `postSectionArchivedAt` —
+now lives in a `section.remove` action of the removing actor's per-project history, with one
+addition: the `archiveGeneration` the removal wrote, which replaces the supersession scan as the
+guard against reversing someone else's same-instant removal. Rules 3–6 carry over as the history's
+24-hour lifetime, a 50-action cap per history (not per workspace), exact-actor scope and the
+collect-before-write conflict pass; rule 1 (a defaulted collection inside version 3) is superseded
+by schema version 4. Undo can now be followed by Redo, which replays the recorded state verbatim.
+Repeat-removal recovery returns the actor's applied, unexpired removal action while the section
+still carries its generation. See [scope](2026-09-operation-history-scope.md),
+[retention](2026-09-operation-history-retention.md),
+[retired actions](2026-09-operation-history-retired-actions.md) and
+[the version-4 conversion](2026-09-schema-version-4-conversion.md).

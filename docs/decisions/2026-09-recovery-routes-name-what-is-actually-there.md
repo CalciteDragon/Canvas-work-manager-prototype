@@ -88,3 +88,13 @@ person's reading of three notes, not evidence from sustained use.
 Real use shows people wanting Archive from a notice that withdrew it, the `redo-by-hand` copy
 still leaving someone stuck, or the placement line proving too weak to prevent the surprise — at
 which point post-restore focus becomes the next thing to try.
+
+**Amended, 2026-09-16 — Slice 35 removes supersession, and with it `supersededBy`.** Under a
+per-actor history a caller's own later change is reached by undoing it first
+(`history_not_next`), so a conflict now only ever describes a change *outside* the caller's
+history. `UndoConflict.supersededBy`, the `superseded` problem and the `use-later-receipt*` and
+`redo-by-hand*` steps are gone; their replacements are `change-by-hand` and
+`change-by-hand-or-archive`, whose copy says "Someone else changed it since." The notice no longer
+names the other party — it cannot tell a person from an agent from a changed value alone — and the
+Archive-offer rule and placement line are unchanged
+([retired actions](2026-09-operation-history-retired-actions.md)).

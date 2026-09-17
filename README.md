@@ -48,18 +48,20 @@ pnpm prototype:upgrade .prototype/data.json
 ```
 
 It validates the result before writing anything, leaves the original beside it as a
-`.backup-*.json`, and does nothing to a file already at the current version — including a
-version-3 file written before Undo receipts existed, which loads as-is with an empty receipt
-history. Run it on an absolute path, or on one relative to where you typed the command. `pnpm
-prototype:reset` remains the other option — it discards the file and reseeds.
+`.backup-*.json`, and does nothing to a file already at the current version. It converts a
+version-2 or version-3 file to version 4; any version-3 Undo receipts are retired rather than
+translated, so Undo and Redo history starts empty, and it says how many. Run it on an absolute path,
+or on one relative to where you typed the command. `pnpm prototype:reset` remains the other option —
+it discards the file and reseeds. The e2e suite's own `.prototype/e2e-data.json` is disposable:
+delete a stale one and it reseeds itself.
 
 | Process | URL | What it is |
 |---|---|---|
 | `web` | http://localhost:4200 | The Angular application — shell, dashboard, project workspaces, tasks |
 | `host` | http://127.0.0.1:4310 | The prototype host — fake API (§61), Streamable HTTP MCP at `/mcp`, and §62's event stream at `/prototype/events`, over `.prototype/data.json` |
 
-The host serves thirty-five transport-free tool definitions — §54's fourteen plus the
-section, page, shortcut, archive/recovery, journal and Undo tools that later slices added —
+The host serves thirty-seven transport-free tool definitions — §54's fourteen plus the
+section, page, shortcut, archive/recovery, journal and Undo/Redo history tools that later slices added —
 through the official MCP SDK v2, targeting protocol `2026-07-28`. Streamable HTTP is
 mounted at `/mcp`; `pnpm mcp:stdio` serves the identical registry for local child-process
 clients. Both use the fake agent credentials and real domain services. See

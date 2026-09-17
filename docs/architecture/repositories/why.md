@@ -45,12 +45,21 @@ AND, an empty array matches nothing, `includeArchived` is opt-in, and archived r
 excluded by default ([decision](../../decisions/2026-08-repository-query-semantics.md)).
 The JSON implementation is the reference; a Postgres one would have to match.
 
-**Deletion exists only for safe disposable sections, safe explicit-add Undo, shortcut placements
-and pruned Undo records.** A section's `remove` seam is used only after `SectionService` settles
-owned rows, checks whether content needs recovery, and verifies no canonical task, reflection or
-shortcut still refers to the section — or, for add Undo, when the added section is unchanged and no
-row, cascade marker or shortcut references it. Integrity remains strict, and old tombstones are not purged
-([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+**Deletion exists only for safe disposable sections, safe add Undo, the Redo of a disposable
+removal, shortcut placements and history actions.** A section's `remove` seam is used only after
+`SectionService` settles owned rows, checks whether content needs recovery, and verifies no
+canonical task, reflection or shortcut still refers to the section — or, for add Undo, when the
+added section is unchanged and no row, cascade marker or shortcut references it; Redo of a deleted
+removal re-checks the same references. Actions are deleted by pruning and by a new write discarding
+a redo branch; nothing references an action, so nothing can dangle. Histories are never deleted.
+Integrity remains strict, and old tombstones are not purged
+([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md),
+[retention](../../decisions/2026-09-operation-history-retention.md)).
+
+**A history's integrity is checked across collections, not inside one schema.** "One history per
+actor and project" and "an action's order is within its history's high-water mark" need two
+collections, so they live in `validateDocumentIntegrity`; the contract keeps only what one object
+can assert ([decision](../../decisions/2026-09-operation-history-scope.md)).
 
 **An `InMemoryDataStore` beside the `JsonDataStore`.** Same base, no disk — what every
 domain, tool and host test runs on.
@@ -72,7 +81,10 @@ domain, tool and host test runs on.
 - [How repository queries combine and compare values](../../decisions/2026-08-repository-query-semantics.md)
 - [What undo means for an archived row](../../decisions/2026-09-what-undo-means-for-an-archived-row.md) — the integrity invariants
 - [Container sections own their rows; view sections own nothing](../../decisions/2026-09-sections-own-their-data.md) — `sectionId` references
-- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — the `undoRecords` collection and its owner-only integrity
+- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — the payload-not-resolved rule (records became history actions in Slice 35)
+- [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — one history per key, strict project reference
+- [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md) — why actions delete routinely and histories never
+- [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md) — the captured-generation integrity rule
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the canonical-reference gate before section deletion
 
 ## Spec sections

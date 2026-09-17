@@ -41,12 +41,16 @@ edits take effect on the next call. A token whose connection is absent from the 
 seed simply fails to authenticate
 ([decision](../../decisions/2026-08-agent-tokens-are-fixtures-not-records.md)).
 
-**A bounded converter, not a migration runner.** Version 1 → 2 reset; version 2 → 3
-shipped `upgradeProjectPages`: it reads the v2 shape as plain data (re-declaring it as
-a schema would put a second definition of every entity in the repository), validates
-only the output, backs the original up, writes through a temp file, and is a no-op on a
-file already at version 3. It is registered nowhere; the next cutover writes its own or
-resets (§14, §71).
+**Bounded converters, not a migration runner.** Version 1 → 2 reset; version 2 → 3
+shipped `upgradeProjectPages`; version 3 → 4 shipped `upgradeOperationHistory`. Each reads its
+input shape as plain data (re-declaring it as a schema would put a second definition of every
+entity in the repository). When version 4 arrived, the v2 step was **frozen** at a literal version
+3 and stopped validating — it had imported `SCHEMA_VERSION` and would otherwise have stamped a
+version-3 shape as version 4 and rejected every version-3 input — and the v3 step became the one
+that validates the final document before a byte is written. The CLI sniffs the version and runs the
+steps in order: two named functions, still registered nowhere (§14, §71). Version-3 Undo receipts
+are retired rather than translated, because they hold no cursor, placement or generation to
+translate ([decision](../../decisions/2026-09-schema-version-4-conversion.md)).
 
 **Paths resolve from where the command was run.** `pnpm --filter` runs a script with the
 package as its cwd, so the CLIs resolve a path argument against `INIT_CWD` — a trap
@@ -68,6 +72,7 @@ every path-taking passthrough shares.
 ## Decisions that shape this system
 
 - [Persona workspace topology in seeds](../../decisions/2026-08-persona-workspace-topology.md)
+- [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](../../decisions/2026-09-schema-version-4-conversion.md) — the frozen v2 step, the validating v3 step, the chained CLI
 - [Where §51's bearer tokens live](../../decisions/2026-08-agent-tokens-are-fixtures-not-records.md)
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — the v2 → v3 converter
 

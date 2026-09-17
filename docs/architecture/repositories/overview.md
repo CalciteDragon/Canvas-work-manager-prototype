@@ -14,13 +14,14 @@ boundaries. Storage "is JSON" only in this package.
 - Define `ProjectRepository`, `ProjectPageRepository`, `TaskRepository`,
   `SectionRepository`, `SectionShortcutRepository`, `MilestoneRepository`,
   `ReflectionRepository`, `ActivityRepository`, `AgentConnectionRepository`,
-  `UserRepository` and `UndoRecordRepository`, plus the query semantics they share.
+  `UserRepository`, `OperationHistoryRepository` and `OperationActionRepository`, plus the query
+  semantics they share.
 - Provide the unit of work: provisional state that is isolated until commit, rejected
   when stale or written from outside, and persisted once per operation.
 - Validate the document as a whole on load and on every commit
   (`validateDocumentIntegrity`): schema, duplicate ids, dangling references, workspace
-  scope, the ownership invariants the archive phase added, and Undo records' owner scope
-  (never their snapshots' references).
+  scope, the ownership invariants the archive phase added, and operation histories' scope and
+  ordering (never their payloads' references).
 - Persist with temp-file-and-rename so a crash cannot leave a truncated file.
 - Swap the whole document from inside a unit of work, which is how the development
   panel loads a seed without a restart.

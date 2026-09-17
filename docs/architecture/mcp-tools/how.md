@@ -25,34 +25,46 @@ omitting it appends. Both tools keep their declared `projects.write` permission 
 matching domain service, which commits the insert and renumbering together. The contract tests
 exercise each tool at a specified position under exactly that grant.
 
-## Section write receipts and `undo_operation`
+## Section write receipts and the history tools
 
-`create_section` returns `{ section, undo }`; `move_section` and `update_section` return the
-same envelope with `undo: null` for a normalized no-op. `move_section` targets the zero-based
+`create_section` returns `{ section, operation }`; `move_section` and `update_section` return the
+same envelope with `operation: null` for a normalized no-op. `move_section` targets the zero-based
 combined section/shortcut order and records one placement operation. `update_section` records
 only normalized title, config, collapse and span fields that changed. Every successful explicit
-write records one activity event and one sequence-ordered receipt; automatic row-container
-creation stays receipt-free. The receipt exposes no inverse data.
+write records one activity event and one action in the connection's own history for the section's
+project, and returns its receipt — `historyId`, `actionId`, `revision`, operation, label and
+lifetime; automatic row-container creation stays receipt-free. The receipt exposes no payload.
 
-## Removal receipts and `undo_operation`
+`get_operation_history` (`projects.read`) reads that connection's summary for a project: the next
+Undo and Redo actions, or `null`, the revision and any archived blocker. `undo_operation` and
+`redo_operation` (`projects.write`) take `{ historyId, actionId, expectedRevision }` — strict, so the
+retired `{ undoId }` form is rejected — and call `OperationHistoryService.transition` with their
+fixed direction. The result is `{ direction, actionId, result, summary }`. Grants are a static field
+per tool; nothing in Stage A needs the family-dependent grant Stage B introduces.
 
-`remove_section` returns `SectionRemovalResult`: a final archived-shaped section snapshot, a
-receipt whose `undoId` `undo_operation` accepts, and `archiveListed`. Disposable views and empty
+## Removal receipts
+
+`remove_section` returns `SectionRemovalResult`: a final archived-shaped section snapshot, an
+operation receipt `undo_operation` accepts, and `archiveListed`. Disposable views and empty
 sections may be deleted; the result snapshot does not claim that the section is still stored.
 `archiveListed` is true only when `get_project_archive` will list the section, which is false for
 a deleted one and also for one kept solely because a shortcut or an archived row still names it. If the response is
-lost, repeating `remove_section` for that id on the same connection returns a refusal containing
-the exact actor's newest outstanding `undoId` and `expiresAt`, without another write. It does so
-for a hard-deleted section only after the write grant and workspace visibility checks. Other
-actors see not-found, and consumed, expired, pruned or superseded receipts are not revived.
+lost, repeating `remove_section` for that id on the same connection returns a refusal naming the
+removal's `historyId`, `actionId`, current `expectedRevision` and `expiresAt`, without another
+write — while that removal is still the connection's applied, unexpired action and no later removal
+advanced the section's generation. It does so for a hard-deleted section only after the write grant
+and workspace visibility checks. Other actors see not-found.
 
-The MCP transport carries refusal text rather than typed `details`, so every Undo refusal message
-starts with its reason token — `section_already_removed:`, `undo_consumed:`, `undo_expired:`,
-`undo_conflict:`, `undo_blocked:`, `undo_unavailable:` — and tool descriptions explain the
-recovery path. Conflict text includes current names with ids and actionable next steps, capped at
-five conflicts; blocked text names the blocking project. A receipt issued to another connection,
-even of the same person, is not found. `contract.test.ts` pins the minimal grant, receipt recovery
-and scope; the host's `handler.test.ts` pins the message over the real transport.
+The MCP transport carries refusal text rather than typed `details`, so every refusal message starts
+with its reason token — `section_already_removed:`, `history_not_next:`,
+`history_revision_stale:`, `history_expired:`, `history_blocked:`, `history_conflict:`,
+`history_unavailable:`, `history_retired:` — and the tool descriptions list them with the recovery
+path. A replayed call whose first attempt landed refuses `history_revision_stale:`, and
+`get_operation_history` then shows the revision advanced. Conflict text includes current names with
+ids, capped at five; blocked text names the blocking project. A history belonging to another
+connection, even of the same person, is not found. `contract.test.ts` pins the minimal grants, the
+ordered chain, receipt recovery and scope; the host's `handler.test.ts` pins the messages, the
+chain and revocation over the real transport.
 
 ## Key symbols
 

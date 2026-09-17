@@ -40,14 +40,17 @@ flowchart LR
 ## Sub-interfaces of `WorkManagerGateway`
 
 `tasks`, `projects`, `dashboard`, `progress`, `timeline`, `todos`, `archive`, `journal`,
-`reflections`, `projectPages`, `sections`, `sectionShortcuts`, `agents`, `activity`, `undo` — each
+`reflections`, `projectPages`, `sections`, `sectionShortcuts`, `agents`, `activity`, `history` — each
 a small interface in `work-manager-gateway.ts`, each with a fake in `gateway/testing`.
 A member exists only when an implementation and a caller exist.
 
 The section gateway returns shared contracts rather than bare entities: create returns
-`SectionAddResult`, update and move return `SectionWriteResult`, and `undo.execute` returns the
-discriminated `UndoResult`. The adapter validates those envelopes at the HTTP boundary, so no
-component imports a transport type or reconstructs a receipt.
+`SectionAddResult`, update and move return `SectionWriteResult`, `history.summary` returns the
+caller's `OperationHistorySummary`, and `history.transition` returns
+`OperationHistoryTransitionResult`. The adapter validates those envelopes at the HTTP boundary, so
+no component imports a transport type or reconstructs a receipt. The fake gateway keeps a one-history
+stand-in that runs each write's Undo by action id; ordering and conflicts are the host's rules,
+proved there.
 
 ## A store's three connections
 

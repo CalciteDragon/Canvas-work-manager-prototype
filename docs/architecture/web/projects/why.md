@@ -67,10 +67,18 @@ an immediate canvas-local Undo action for its receipt
 
 **Edit receipts belong to the gesture that committed them.** Add, rename, Rich Text blur,
 collapse, snapped resize and completed move each capture one server receipt; previews, cancels,
-no-ops, shortcut-only actions and implicit row containers do not. The notice chooses by the
-server sequence high-water mark, blocks Undo while a section write is pending, and restores only
-the operation's field or placement footprint. Archive remains a removal-only repair path
+no-ops, shortcut-only actions and implicit row containers do not. The notice keeps the newest
+receipt by its history's `revision`, blocks Undo while a section write is pending, and runs the
+action through the history transition, which restores only the operation's field or placement
+footprint. Archive remains a removal-only repair path
 ([section edit boundaries](../../../decisions/2026-09-section-edit-undo-boundaries.md)).
+
+**A history refusal is mapped, not parsed.** Slice 32's terminal `undo_consumed` has no
+counterpart: its closest replacement, `history_not_next`, is repairable by undoing the newer change
+first, so the store keeps the receipt. A stale revision is reconciled from the summary it carries
+rather than retried blindly, which is what makes a lost response safe without a retry cache
+([deferrals](../../../decisions/2026-09-history-stage-a-deferrals.md),
+[retired actions](../../../decisions/2026-09-operation-history-retired-actions.md)).
 
 **Section stores follow ownership.** A Task List provides its own `TaskListStore`, a
 Reflections section its `ReflectionsStore`, Progress its `ProgressStore` — one per
@@ -96,9 +104,10 @@ This keeps recovery in the current work context without claiming durable browser
 ([decision](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
 **A route is offered only when the person can take it.** The notice reads `archiveListed` off the
-removal result rather than inferring Archive from the operation's name, and words a `superseded`
-conflict from `supersededBy` — naming the agent or person who changed it when the later receipt is
-not this person's to use. `ArchivedRegion` says on the row that Archive Restore returns a section
+removal result rather than inferring Archive from the operation's name, and a conflict's copy
+says "Someone else changed it since" — under a per-actor history a conflict is always someone
+else's change, and the person's own later change is a newer step to undo first. `ArchivedRegion`
+says on the row that Archive Restore returns a section
 at the end of its page, because Undo, not Restore, is what returns it between its old neighbours
 ([decision](../../../decisions/2026-09-recovery-routes-name-what-is-actually-there.md)).
 

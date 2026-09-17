@@ -7,16 +7,23 @@
    the named seed, and writes it atomically over `.prototype/data.json` — the running
    host does **not** see this; restart it or use the dev panel's Seed control.
 2. `pnpm prototype:reset` is the same command with `personal-workspace`.
-3. `pnpm prototype:upgrade <file>` runs `upgrade-cli.ts`: parse the file as plain data,
-   refuse anything but version 2 (a version-3 file is a no-op), convert with
-   `upgradeProjectPages`, validate the output with the document schema, write the original
-   beside it as `.backup-<timestamp>.json`, then write through a temp file.
+3. `pnpm prototype:upgrade <file>` runs `upgrade-cli.ts`: parse the file as plain data and
+   **sniff its version first** — the frozen v2 step refuses anything newer, so the "already
+   current" answer cannot be delegated to it. Version 2 runs `upgradeProjectPages` (frozen at a
+   literal version 3, unvalidated, opaque JSON) and then `upgradeOperationHistory`; version 3 runs
+   only the latter, which drops `undoRecords` (counting them), writes `archiveGeneration: 0` on every
+   section and empty history collections, and **validates the version-4 result**. Only then is the
+   original written beside the file as `.backup-<timestamp>.json` and the new document written
+   through a temp file. A version-4 file is validated and left alone. The message names the version
+   converted from and, when any were retired, how many version-3 Undo receipts were dropped.
 4. Tests: `seeds.test.ts` parses every builder's output with `PrototypeDocumentSchema`,
    and compares it byte-for-byte to `prototype/seeds/<name>.json` serialised with LF;
-   `upgrade-project-pages.test.ts` converts the committed v2 corpus;
-   `version-3-undo-compatibility.test.ts` loads, persists and reloads
-   `test/fixtures/nested-projects-v3.json` — the `nested-projects` snapshot as it was before Undo
-   records existed — and proves every collection survives with an empty `undoRecords`.
+   `upgrade-project-pages.test.ts` covers the frozen v2 step alone;
+   `version-3-undo-compatibility.test.ts` is the v3 → v4 suite over
+   `test/fixtures/nested-projects-v3.json` plus legacy receipts added as plain JSON (a pre-Slice-31
+   reassign, consumed and outstanding records); `upgrade-cli.test.ts` covers the chain, the version
+   sniff, repeat runs, backup-before-write and a failed conversion writing nothing. The host's
+   `recovery-undo-acceptance.test.ts` runs the real CLI as a subprocess.
 5. Other packages import the builders directly: the MCP harness and the host tests seed
    an `InMemoryDataStore` from `agent-heavy`; the acceptance scripts copy the committed
    JSON because they run under plain `node`.
@@ -27,7 +34,9 @@
 |---|---|---|---|
 | `PERSONAS` | const | The three personas | [API](../../api/miscellaneous/variables.html#PERSONAS) |
 | `writeSeedFile` | function | Write a named seed atomically | [API](../../api/miscellaneous/variables.html#writeSeedFile) |
-| `upgradeProjectPages` | function | v2 → v3 converter; pure over the parsed document | [API](../../api/miscellaneous/variables.html#upgradeProjectPages) |
+| `upgradeProjectPages` | function | Frozen v2 → v3 step; pure, unvalidated, opaque output | [API](../../api/miscellaneous/variables.html#upgradeProjectPages) |
+| `upgradeOperationHistory` | function | v3 → v4 step; retires receipts and validates the result | [API](../../api/miscellaneous/variables.html#upgradeOperationHistory) |
+| `upgradeDataFile` | function | The CLI's version sniff, chain, backup and atomic write | [API](../../api/miscellaneous/variables.html#upgradeDataFile) |
 | `WriteSeedOptions`, `UpgradeDataFileOptions` | interfaces | Injectable file operations for the two CLIs' tests | [API](../../api/interfaces/WriteSeedOptions.html) |
 
 ## Dependencies
@@ -55,11 +64,12 @@
   reference instant.
 - **Tokens are not in the contracts.** `AgentConnectionSchema` has no token field; the
   token table lives here and is asserted absent from `GET /api/agent-connections`.
-- **No migration chain.** One converter, called explicitly, registered nowhere. A defaulted
-  collection added inside version 3 (`undoRecords`) needs no converter; the v3 fixture test is
-  the evidence an older file still loads without loss.
-- **Seeds hold no Undo history.** Every snapshot carries `"undoRecords": []`, and loading a seed
-  replaces the document — so it discards every outstanding receipt.
+- **No migration runner.** Two named converters, called in a fixed order by the one CLI,
+  registered nowhere. The v2 step is frozen at its version-3 output so a later bump cannot change
+  what a v2 file becomes; the v3 step validates, so the chain never writes an unloadable file.
+- **Seeds hold no Undo history.** Every snapshot carries `"operationHistories": []` and
+  `"operationActions": []` and `archiveGeneration: 0` on every section; loading a seed replaces
+  the document — so it discards every history.
 
 ## Commands
 

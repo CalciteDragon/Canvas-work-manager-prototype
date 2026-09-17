@@ -22,17 +22,24 @@
    the gateway behind the store's in-flight guards. A refused removal with
    `section_not_empty` details opens the existing cascade/reassign dialog. A successful
    explicit add, update, move or removal stores its server receipt in the current
-   `ProjectPageStore` before refreshing, and the sequence high-water mark ignores stale
-   responses. `SectionUndoNotice` offers the operation's receipt action, typed refusal guidance,
+   `ProjectPageStore` before refreshing; `supersedesReceipt` ignores a stale response — within one
+   history by `revision`, across histories by arrival. `SectionUndoNotice` offers the operation's
+   receipt action, typed refusal guidance,
    Archive access only for a removal whose result's `archiveListed` says Archive holds it, and a
    read-only refresh retry, including after a committed add or move whose follow-up read failed.
    An Undo response that lands after a newer receipt
-   was captured reconciles without replacing that notice. `ReflectionsPageStore` captures the
-   explicit container add's receipt by the same sequence rule; its Undo refreshes the container
-   and returns the page to the empty-container prompt. Once the server refuses a receipt with a
-   `superseded` or `missing` conflict, `isUndoRefusedForGood` keeps the Undo button visible but
-   `aria-disabled` with a reason, and both stores stop sending it; every other refusal stays
-   retryable after a repair. The notice is fixed at the viewport's end
+   was captured reconciles without replacing that notice. Undo is a `history.transition` with the
+   receipt's `historyId`, `actionId` and `revision`; `undoFailureNotice` maps the seven history
+   reasons explicitly — `history_expired`, `history_retired` and not-found are terminal;
+   `history_revision_stale` keeps the receipt at the summary's revision when its action is still
+   the next Undo, and counts the Undo as landed (reconciling the canvas) when the summary names it
+   as the next Redo; `history_not_next`, `history_conflict`, `history_blocked` and
+   `history_unavailable` keep the receipt for a retry after a repair. `ReflectionsPageStore`
+   captures the explicit container add's receipt by the same rule; its Undo refreshes the container
+   and returns the page to the empty-container prompt, re-reading the container when a stale
+   refusal shows the Undo already landed. Every repairable refusal leaves Undo enabled — whether an
+   action can never succeed is the server's call, answered by retiring it. The notice stays Undo-only;
+   Redo has no browser control until Stage C. The notice is fixed at the viewport's end
    corner rather than placed in flow, because each blur save, resize or move can offer one. If a remove
    response is uncertain and a live frame has already removed the section, the store keeps
    the exact removal input and exposes an explicit Retry remove. Neither path guesses

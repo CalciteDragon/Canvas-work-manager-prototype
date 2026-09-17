@@ -39,18 +39,23 @@ body, so a UI can open the right dialog without parsing prose; the browser prese
 untrusted ([decision](../../../decisions/2026-09-a-section-has-a-name.md)).
 
 **A lost section-removal response can be recovered without turning a refusal into a
-write.** A repeat stays a 409 and returns only the highest-sequence, unconsumed, unexpired
-receipt belonging to that exact actor. The route forwards typed `section_already_removed`
-details; inverse snapshots never cross the boundary. The result of a successful disposable
-removal remains `{ section, undo }`, where `section` is an archived-shaped snapshot even
-though the stored section is absent
+write.** A repeat stays a 409 and returns only that exact actor's applied, unexpired removal
+receipt. The route forwards typed `section_already_removed` details; payloads never cross the
+boundary. The result of a successful disposable removal remains `{ section, operation,
+archiveListed }`, where `section` is an archived-shaped snapshot even though the stored section is
+absent
 ([decision](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
 **All explicit section edits keep the same receipt-only transport seam.** Add, update and move
 are pass-through domain results, so HTTP does not perform a second read that would require
-`projects.read`. Update and move expose `undo: null` for true no-ops; successful receipts carry
-only their public sequence and operation. The route does not know which fields an inverse may
-restore ([decision](../../../decisions/2026-09-section-edit-undo-boundaries.md)).
+`projects.read`. Update and move expose `operation: null` for true no-ops; successful receipts
+carry only ids, the history's revision and the operation. The route does not know which fields an
+inverse may restore ([decision](../../../decisions/2026-09-section-edit-undo-boundaries.md)).
+
+**One transition route, with the direction in a strict body.** A single route keeps the revision
+check in one place, and the stale-revision answer is the same 409 envelope as every other refusal,
+carrying the summary a client reconciles from — which is also why no retry cache exists
+([decision](../../../decisions/2026-09-history-stage-a-deferrals.md)).
 
 **`GET /api/me` and CORS came with the shell, not the spec.** §18 cannot be honoured
 without an identity read, and the non-simple `x-prototype-user` header makes the
@@ -78,6 +83,8 @@ returns: `/todos`, `/archive`, `/journal`, `/completed-work` under a project, an
 - [Workspace scoping, and why a foreign id is 404 rather than 409](../../../decisions/2026-08-workspace-scoping-and-not-found.md)
 - [A section has a name](../../../decisions/2026-09-a-section-has-a-name.md) — typed refusal details across the boundary
 - [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)
+- [Undo and Redo follow one history per exact actor, per owning project](../../../decisions/2026-09-operation-history-scope.md) — summary and transition scope, 403 versus 404
+- [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../../decisions/2026-09-history-stage-a-deferrals.md) — route shape, 409 for stale revisions
 
 ## Spec sections
 

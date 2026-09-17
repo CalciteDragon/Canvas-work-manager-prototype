@@ -49,11 +49,11 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Timeline derives ranges without inventing a project start date](2026-08-timeline-range-semantics.md) | How timeline ranges are derived | current |
 | [Reflections use reverse chronology and optional prompts](2026-08-reflection-chronology-and-prompts.md) | Body required; prompts are suggestions | current |
 | [What counts as AI in the prototype](2026-08-prototype-ai-scope-and-fun-fact.md) | Fun Fact is a fixture rotation, not `AIProvider` | current |
-| [A section's activity event names its project, not the section](2026-08-section-activity-targets-the-project.md) | Section removal targets the project; disposable deletion emits `project.section_removed` | amended |
-| [Where a live event is emitted, and when it is delivered](2026-08-live-events-ride-the-activity-record.md) | One post-commit frame per operation; removal action reflects retained or deleted disposition | amended (Slices 30–31) |
+| [A section's activity event names its project, not the section](2026-08-section-activity-targets-the-project.md) | Section removal targets the project; disposable deletion emits `project.section_removed` | amended (Slice 35 transitions keep it) |
+| [Where a live event is emitted, and when it is delivered](2026-08-live-events-ride-the-activity-record.md) | One post-commit frame per operation; removal action reflects retained or deleted disposition | amended (Slices 30–31, 35: Redo frames) |
 | [Container sections own their rows; view sections own nothing](2026-09-sections-own-their-data.md) | Every row keeps a live section reference; Slice 31 adds reference-checked deletion for disposable sections | amended |
 | [A section has a name, and the default is derived rather than stored](2026-09-a-section-has-a-name.md) | `nameOf` over `type`, optional `title` override | amended |
-| [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Archive Restore remains durable; safe disposable removal can delete after a reference audit | amended; content projection in Slice 29; operation Undo in Slices 30–31 |
+| [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Archive Restore remains durable; safe disposable removal can delete after a reference audit | amended; content projection in Slice 29; operation Undo in Slices 30–31; history retirement in Slice 35 |
 | [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | amended; projection in Slice 29, deletion boundary in Slice 31 |
 | [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | current |
 | [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | current |
@@ -66,9 +66,13 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [What the Todos page decides for itself](2026-09-todos-chronology-and-canonical-navigation.md) | Instants compared as text; no tab required; completion one-way | current |
 | [Reflection subjects and the root journal feed](2026-09-reflection-subjects-and-the-journal-feed.md) | Optional subject id; journal resolves current state | current |
 | [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | What the Archive projection says about each item's restore path | amended |
-| [A section removal commits one scoped, expiring Undo record](2026-09-section-removal-undo-records.md) | Defaulted v3 collection, 24 h / 50 bound, exact-actor scope, structural conflicts, neighbor placement | amended; Slice 31 adds deletion disposition and repeat-receipt recovery; Slice 32 extends the operation union |
-| [Disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md) | Reference-safe deletion, canvas-local action, own-receipt recovery and actionable refusals | amended (Slice 32: notice serves every explicit operation; Archive removal-only) |
-| [Explicit section edits reverse only their operation's changes](2026-09-section-edit-undo-boundaries.md) | Explicit action boundaries, safe add, changed-field inverses and sequence-selected notices | current (Slice 32) |
+| [A section removal commits one scoped, expiring Undo record](2026-09-section-removal-undo-records.md) | Removal footprint, exact-actor scope, structural conflicts, neighbor placement | amended; Slice 31 deletion disposition and repeat-receipt recovery; Slice 32 operation union; Slice 35 records become history actions |
+| [Disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md) | Reference-safe deletion, canvas-local action, own-receipt recovery and actionable refusals | amended (Slice 32: notice serves every explicit operation; Slice 35: history transitions) |
+| [Explicit section edits reverse only their operation's changes](2026-09-section-edit-undo-boundaries.md) | Explicit action boundaries, safe add, changed-field inverses | amended (Slice 35: cursor order and applied-state checks) |
+| [Undo and Redo follow one history per exact actor, per owning project](2026-09-operation-history-scope.md) | History key, caller-only summaries, read/write grants, acyclic service | current (Slice 35) |
+| [One explicit write is one history action, kept for 24 hours and at most 50 per history](2026-09-operation-history-retention.md) | Cursor movement, branch clearing, revision rule, contiguous lazy pruning | current (Slice 35) |
+| [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](2026-09-operation-history-retired-actions.md) | Per-family checks, `archiveGeneration`, verbatim reapply, the permanent-conflict list | current (Slice 35) |
+| [Stage A defers historical activity identity and the retry cache, and uses one transition route](2026-09-history-stage-a-deferrals.md) | Deferrals, route shape, 409 for stale revisions, static grants | current (Slice 35) |
 
 ## Repositories
 
@@ -89,6 +93,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [Persona workspace topology in seeds](2026-08-persona-workspace-topology.md) | Three personas with separately owned workspaces in every seed | current |
 | [Where §51's bearer tokens live](2026-08-agent-tokens-are-fixtures-not-records.md) | Tokens are fixtures beside the seeds, not a contract field | current |
+| [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](2026-09-schema-version-4-conversion.md) | Frozen v2 → v3 step, validated v3 → v4 step, version-sniffing CLI, receipt reset notice | current (Slice 35) |
 
 ## Prototype host
 
@@ -105,7 +110,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [Direct canvas editing is the next development direction](2026-09-direct-canvas-editing-direction.md) | Approved direction, implemented in Slice 27 | implemented in Slice 27 |
 | [Canvas chrome is revealed in place, not gated by an editing mode](2026-09-canvas-chrome-is-revealed-not-moded.md) | Contextual reveal, keyboard and touch behavior, optimistic resize; pending shortcut writes, complete-order movement guards and browser-review reveal and handle fixes, slider handle and script-fitted Rich Text amended | amended |
-| [A recovery route is offered only when it leads somewhere](2026-09-recovery-routes-name-what-is-actually-there.md) | Archive offered on the removal's own verdict, conflicts name the superseding actor, Archive rows state the append | current |
+| [A recovery route is offered only when it leads somewhere](2026-09-recovery-routes-name-what-is-actually-there.md) | Archive offered on the removal's own verdict, Archive rows state the append | amended (Slice 35 removes `supersededBy`) |
 | [The gateway interface grows with its implementations](2026-08-gateway-surface-grows-with-implementations.md) | No stubbed gateway members | current |
 | [A theme change lasts the session, not the persona](2026-08-theme-selection-is-session-only.md) | `ThemeService` owns `data-theme`; nothing persists it | current |
 | [How live reconnects recover derived project views](2026-08-live-recovery-invalidates-derived-views.md) | Reconnect invalidates derived reads quietly | current |

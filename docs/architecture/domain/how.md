@@ -13,14 +13,19 @@
 4. On commit the store validates the whole document and persists it; on any throw the
    provisional state is discarded and the caller sees one of the three errors.
 5. An explicit section add, update or move applies its normalized change, records one typed
-   inverse through `UndoRecorder.record`, and returns a receipt from the same unit; automatic
-   container resolution bypasses that public seam. Removal additionally settles rows and decides
-   whether recovery or an integrity reference requires retention. Receipts never carry snapshot
-   data. `UndoService.undo` later executes the selected record in one unit of its own: exact-actor
-   lookup, consumed/expired checks, the per-type executor (field/placement/reference conflicts
-   collected before any write), `consumedAt`, one activity event. A repeated removal can read back
-   only the exact actor's newest outstanding receipt through the recorder, without writing or
-   extending it.
+   action through `OperationRecorder.record`, and returns a receipt from the same unit; automatic
+   container resolution bypasses that public seam. The recorder finds or creates the actor's history
+   for the subject's project, appends the action (discarding the redo branch), prunes by expiry and
+   the 50-action cap, and returns the receipt at the new revision. Removal additionally settles rows,
+   bumps `archiveGeneration` and decides whether recovery or an integrity reference requires
+   retention. Receipts never carry payload data. `OperationHistoryService.transition` later runs one
+   step in one unit of its own: find the caller's history (not found otherwise), compare the
+   revision, select the next action in that direction, check expiry and archived ancestors, run the
+   family's revert or reapply function (conflicts collected before any write), flip the action's
+   state, move the cursor, record one `*_undone` or `*_redone` event. A permanent conflict instead
+   commits only a retirement and refuses after the unit resolves. A repeated removal can read back
+   only the exact actor's applied, unexpired removal through `outstandingRemovalFor`, without
+   writing.
 6. Derived read services skip step 3's writes: they read the repositories, scope by the
    actor's visible projects, drop everything under an archived ancestor, and compute.
 
@@ -40,9 +45,10 @@
 | `ProjectService` | class | Project rules | [API](../../api/classes/ProjectService.html) |
 | `ProjectPageService` | class | Page listing and optional-page toggles | [API](../../api/classes/ProjectPageService.html) |
 | `SectionService` | class | Section lifecycle and container resolution; explicit add/update/move and removal return typed Undo results | [API](../../api/classes/SectionService.html) |
-| `UndoRecorder` | interface | Records an inverse and reads the exact actor's newest outstanding receipt inside the caller's unit | [API](../../api/interfaces/UndoRecorder.html) |
-| `RepositoryUndoRecorder` | class | Stores a record, computes `sequence`, prunes expired and over-limit records | [API](../../api/classes/RepositoryUndoRecorder.html) |
-| `UndoService` | class | Executes one receipt for the exact actor under `projects.write` | [API](../../api/classes/UndoService.html) |
+| `OperationRecorder` | interface | Records one history action and recovers a still-outstanding removal receipt inside the caller's unit | [API](../../api/interfaces/OperationRecorder.html) |
+| `RepositoryOperationRecorder` | class | Finds or creates the actor's history, appends, discards the redo branch, prunes, returns the receipt | [API](../../api/classes/RepositoryOperationRecorder.html) |
+| `OperationHistoryService` | class | The caller's summary under `projects.read`; one transition under `projects.write` | [API](../../api/classes/OperationHistoryService.html) |
+| `nextOperationAction`, `recordOperationAction`, `transitionOperationHistory`, `retireOperationAction`, `pruneOperationHistory` | functions | The pure cursor state machine | [API](../../api/miscellaneous/variables.html#nextOperationAction) |
 | `SectionShortcutService` | class | Home shortcut placements | [API](../../api/classes/SectionShortcutService.html) |
 | `TaskService` | class | Task lifecycle | [API](../../api/classes/TaskService.html) |
 | `ReflectionService` | class | Reflection lifecycle | [API](../../api/classes/ReflectionService.html) |
@@ -87,30 +93,32 @@
   `additionalPermissions`, which is what proves a grant sufficient, not only necessary.
 - **The service graph is acyclic**: `TaskService` and `ReflectionService` compose
   `SectionService` for container resolution; writing services compose `ActivityService`
-  for event recording; `SectionService` records each explicit section operation's inverse through an `UndoRecorder`
-  (an interface over one repository that never opens a unit). `UndoService` composes only
-  `ActivityService` — no section, task or reflection service — and shares the inverse with
-  section writes through function modules (`owned-rows.ts`, `section-removal-undo.ts`, `section-edit-undo.ts`,
+  for event recording; `SectionService` records each explicit section operation through an
+  `OperationRecorder` (an interface over two repositories that never opens a unit).
+  `OperationHistoryService` composes only `ActivityService` — no section, task or reflection
+  service — and shares the payloads with section writes through function modules
+  (`operation-execution.ts`, `owned-rows.ts`, `section-removal-undo.ts`, `section-edit-undo.ts`,
   `page-placements.ts`, `project-visibility.ts`). A new edge is an AGENTS.md boundary change
   and needs saying so.
-- **Undo never overwrites a later write.** The executor compares only the structural fields it
-  would write (section archive state and page; each recorded row's section, parent and archive
-  markers), a newer record for the same section by `sequence`, and unrecorded dependents; any
-  difference refuses with `undo_conflict` before a write. Non-structural edits are preserved.
-  Add Undo also refuses any later substantive change to the section, and any task, reflection or
-  shortcut that references it. Update Undo compares only the fields it recorded; move Undo only
-  the subject's page and live state. A newer add or removal record for the subject supersedes
-  either, as does a newer overlapping update (for update) or move (for move); disjoint field
-  edits and moves survive. Edit refusals never point to Archive, which holds nothing they changed.
-  Every refusal message starts with its reason token (`undo_consumed: …`), because MCP carries
-  message text only.
+- **Neither direction overwrites a later write.** Each executor compares the state the *other*
+  direction left: a removal's section archive state, page and `archiveGeneration`, each recorded
+  row's section, parent and archive markers, and unrecorded dependents; an update's recorded fields
+  (`after` for Undo, `before` for Redo); a move's surviving recorded neighbours, never its index; an
+  add's substance and references. Any difference refuses with `history_conflict` before a write,
+  and untouched fields and disjoint edits survive. Only the next action is ever executable, so a
+  caller's own later change is `history_not_next`, not a conflict. Redo replays captured values
+  verbatim and stamps only `updatedAt`. The permanently unsatisfiable conflicts retire the action
+  ([decision](../../decisions/2026-09-operation-history-retired-actions.md)). Every refusal message
+  starts with its reason token (`history_conflict: …`), because MCP carries message text only.
 - **A removal refusal does not disclose a deleted id.** For a missing section, `SectionService`
-  consults the read-only recorder only after `projects.write` and workspace visibility checks; it
-  returns a receipt only when the newest record for that section is outstanding and belongs to
-  the exact actor. No older receipt is revived after a newer actor, consumed, expired or pruned
-  record.
-- **`sequence` is the only order between Undo records.** Timestamps can repeat or go backwards
-  under the settable clock, and ids are random.
+  consults `outstandingRemovalFor` only after `projects.write` and workspace visibility checks,
+  and only across the exact actor's own histories; it returns a receipt only when that actor's
+  newest action for the section is an applied, unexpired removal whose generation is still the
+  section's.
+- **A history's order is its cursor and orders, never a timestamp.** Timestamps can repeat or go
+  backwards under the settable clock, and ids are random; `revision` advances on every committed
+  history mutation and never on pruning
+  ([decision](../../decisions/2026-09-operation-history-retention.md)).
 - **Every state change records exactly one event** through `ActivityService.record`; a
   no-op write records nothing and therefore announces nothing.
 - **Archive and deletion share the content policy but use separate checks.** A removal policy

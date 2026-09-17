@@ -1,9 +1,9 @@
 # MCP setup
 
-Canvas Work Manager serves the same thirty-five tools over Streamable HTTP and stdio (§59) —
+Canvas Work Manager serves the same thirty-seven tools over Streamable HTTP and stdio (§59) —
 §54's fourteen, the five section-edit/removal tools the canvas needs, §54's three page tools, Slice 25.4's
 three shortcut tools, Slice 25.6's eight archive/recovery tools, Slice 25.7's journal tool, and
-Slice 30's `undo_operation`.
+Slice 35's history tools `get_operation_history`, `undo_operation` and `redo_operation`.
 Both use the fake local credentials from the `agent-heavy` seed; they have no security value
 and the HTTP host binds only to `127.0.0.1`.
 
@@ -141,15 +141,16 @@ section-bearing pages it includes the sections there. Omit `position` to append,
 beyond the current end to insert at the end. For example, `position: 0` inserts before the first
 placement. The insertion and renumbering happen as one `projects.write` operation.
 
-`move_section` uses the same combined order and returns `{ section, undo }`; `update_section`
+`move_section` uses the same combined order and returns `{ section, operation }`; `update_section`
 returns that envelope for title, config, collapse and span changes. An unchanged update, or a move
-clamped to the section's current position, returns the current section with `undo: null`. Hold the returned `undo.undoId` and pass it
-to `undo_operation` once; add Undo removes only the created section, move Undo restores its
-surviving neighbours, and update Undo restores only the fields recorded by that update. Receipts
-carry an opaque sequence for ordering, not inverse data. Automatic Reflections/Tasks container
-creation is intentionally receipt-free. Refusals use the reason tokens in the table under
-[Undoing a section removal](#undoing-a-section-removal); an edit conflict's repair is to use the
-later receipt or make the change again by hand, never Archive.
+clamped to the section's current position, returns the current section with `operation: null` and
+records nothing to undo. Every other section write records one action in **your connection's own
+history for that project** and returns its receipt `{ historyId, actionId, operation, revision,
+label, createdAt, expiresAt }`; see [Undo and Redo](#undo-and-redo). Add Undo removes only the
+created section, move Undo restores its surviving neighbours, and update Undo restores only the
+fields recorded by that update; Redo reapplies exactly what the write did. Receipts carry ids and a
+revision, not inverse data. Automatic Reflections/Tasks container creation is intentionally
+receipt-free.
 
 ### Say which kind of project, and which page
 
@@ -204,42 +205,64 @@ The matching canonical writes are `archive_project` / `restore_project`, `remove
 section or row restores exactly the members marked as taken down by that operation, leaving
 independently archived work archived.
 
-### Undoing a section removal
+### Undo and Redo
 
-`remove_section` (`projects.write`) returns `{ section, undo }`: an archived-shaped final
-section snapshot and a receipt `{ undoId, operation, sequence, label, createdAt, expiresAt }`. A
-disposable section may already be absent from storage; the response snapshot is not evidence it
-remains there. Pass `undoId` to `undo_operation` (`projects.write`) to reverse that removal —
-the section returns between the neighbours it left (Archive Restore appends instead), with
-exactly the rows the removal archived or moved, while later non-structural edits such as renamed
-tasks are kept.
+Every connection has its own Undo/Redo **history per project**: a stack of the section writes it
+made there, with a cursor. A person's history and every other connection's are separate — you can
+never undo someone else's change, and nobody can undo yours.
 
-A receipt is usable once, for 24 hours, by the same agent connection that made the removal; any
-other connection, including another of the same person, gets not-found. If the remove response
-was lost, repeating `remove_section` for the same id is still a refusal. `section_already_removed:`
-includes the exact connection's newest outstanding `undoId` and `expiresAt`, even after a
-disposable section was deleted. It performs no second write or activity event; consumed,
-expired, pruned or superseded receipts are not returned. Other actors receive no receipt.
+- `get_operation_history` (`projects.read`, input `{ projectId }`) returns
+  `{ projectId, historyId, revision, undo, redo, blockedBy }`. `undo` and `redo` name the next
+  action in each direction — `{ actionId, operation, label, expiresAt }` — or `null` at either end.
+  `historyId` is `null` until the connection's first undoable write in that project.
+- `undo_operation` and `redo_operation` (`projects.write`, input `{ historyId, actionId,
+  expectedRevision }`) run exactly that action, which must be the next one in that direction.
+  Pass the history's current `revision`: a receipt's, or `get_operation_history`'s if anything
+  happened since. The result is `{ direction, actionId, result, summary }`.
+
+Only the newest applied action can be undone and only the most recently undone one redone, so
+undo several changes in order. Any new undoable write in the project discards what was waiting to
+be redone. An action is available for 24 hours; each history keeps its newest 50.
+
+`remove_section` (`projects.write`) returns `{ section, operation, archiveListed }`: an
+archived-shaped final section snapshot and the receipt. A disposable section may already be absent
+from storage; the response snapshot is not evidence it remains there. Undo returns the section
+between the neighbours it left (Archive Restore appends instead), with exactly the rows the removal
+archived or moved, while later non-structural edits such as renamed tasks are kept; Redo re-removes
+exactly those rows again, and refuses rather than sweep in a task added since.
+
+If the remove response was lost, repeating `remove_section` for the same id is still a refusal.
+While that removal is still your connection's applied, unexpired action, `section_already_removed:`
+names its `historyId`, `actionId`, `expectedRevision` and `expiresAt`, even after a disposable
+section was deleted. It performs no second write or activity event. Other actors receive no receipt.
+If an `undo_operation` response itself was lost, simply call `get_operation_history`: if the action
+now appears under `redo`, the Undo landed. Retrying the same call refuses `history_revision_stale:`
+and executes nothing twice.
+
 Refusals are MCP errors whose text starts with a reason token:
 
 | Prefix | Meaning | What to do |
 |---|---|---|
-| `undo_consumed:` | Already undone | Nothing; the section is back |
-| `undo_expired:` | Older than 24 hours | `restore_section`, which appends |
-| `undo_conflict:` | Something the removal touched changed; text names available titles and ids with a next step | Follow the listed repair, retry Undo, or check Archive for retained content |
-| `undo_blocked:` | The project or an ancestor is archived | Reactivate the named project, then retry |
-| `undo_unavailable:` | No page can take the section back | Make a compatible page available and retry Undo; Archive may contain retained content |
+| `history_not_next:` | That action is not the next step in this direction | Read `get_operation_history`; undo the newer change first |
+| `history_revision_stale:` | The history moved since you read it (or your earlier identical call landed) | Read the summary again, then retry if still needed |
+| `history_expired:` | Older than 24 hours | For a removal, `restore_section`, which appends |
+| `history_conflict:` | Someone else changed what the action touched; text names titles and ids | Follow the listed repair and retry, or make the change by hand |
+| `history_blocked:` | The project or an ancestor is archived | Reactivate the named project, then retry |
+| `history_unavailable:` | No page can take the section back | Make a compatible page available and retry; Archive may contain retained content |
+| `history_retired:` | The action can never succeed again — say the section was restored from Archive or removed again since — so it was retired | Nothing to repair; the next call reaches the action below it |
 
 The `agent-heavy` fixture token's connection does not hold `projects.write`; grant it in
-**Settings → AI & Agents** before trying either tool.
+**Settings → AI & Agents** before trying the write tools.
 
-**Grants are checked when Undo runs, not when the receipt was issued.** Unchecking
-`projects.write` refuses `undo_operation` with text naming the missing permission and changes
-none of your work (only the connection's *Last used* time); checking it again makes the same receipt usable for the rest of its 24 hours. A revoked
-connection can no longer call any tool, so its receipts are simply unusable — the section,
-rows and other people's work are untouched. Receipts are stored in the same `data.json` as the
-work they reverse, so they survive a host restart, but a workspace keeps only its newest 50;
-Archive, not the receipt, is the durable route for retained notes and cascaded rows. A stdio
+**Grants are checked when a transition runs, not when the receipt was issued.** Unchecking
+`projects.write` refuses `undo_operation` and `redo_operation` with text naming the missing
+permission and changes none of your work (only the connection's *Last used* time), while
+`get_operation_history` keeps working under `projects.read`; checking it again makes the same
+action usable for the rest of its 24 hours. A revoked connection can no longer call any tool, so its
+history is simply unreachable — the section, rows and other people's work are untouched. Histories
+are stored in the same `data.json` as the work they change, so they survive a host restart and a
+fresh connection with the same token sees them; Archive, not history, is the durable route for
+retained notes and cascaded rows. A stdio
 child reloads that file on every call: point it at a separate file, or never let it and the HTTP
 host write the same file at the same time (Slice 33's `mcp-acceptance` runs them one after the
 other).

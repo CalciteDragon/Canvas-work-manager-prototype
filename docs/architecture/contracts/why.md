@@ -62,8 +62,15 @@ parses it ([decision](../../decisions/2026-08-section-config-ownership.md)).
 **Edit Undo records a field footprint, not a whole snapshot.** Title, config, collapse and span
 are the only explicit settings fields; config is still one structural replacement. A move stores
 combined neighbours, and an add stores only the created section needed for a safe non-cascading
-delete. The public receipt exposes only its operation and sequence, so transport clients cannot
-steer an inverse ([decision](../../decisions/2026-09-section-edit-undo-boundaries.md)).
+delete, plus the placement Redo returns it to. The public receipt exposes only ids, the operation
+and the history's revision, so transport clients cannot steer an inverse
+([decision](../../decisions/2026-09-section-edit-undo-boundaries.md)).
+
+**A history's cursor is an order value, and every shape a client sees is snapshot-free.** The cursor
+cannot dangle when an action is pruned, the summary is strict all the way down, and a refusal
+always carries the current summary so a stale caller reconciles without a second read
+([scope](../../decisions/2026-09-operation-history-scope.md),
+[retention](../../decisions/2026-09-operation-history-retention.md)).
 
 **`ActivityAction` is an open `entity.verb` string**, not an enum: §57 names no action
 list and every slice adds verbs. `LiveEvent.type` reuses it so a frame is the
@@ -96,7 +103,11 @@ for a chain of one (§14, §71).
 - [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md) — one combined index space for sections and shortcuts
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md) — accepted contextual insertion
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — `kind`, `ProjectPage`, schema v3
-- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `undo.ts`, defaulted `undoRecords` inside schema v3
+- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `undo.ts` removal payload (records became history actions in Slice 35)
+- [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — `operation-history.ts`
+- [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md) — cursor, revision and state shapes
+- [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md) — `ProjectSection.archiveGeneration`, `retired`, the conflict vocabulary
+- [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](../../decisions/2026-09-schema-version-4-conversion.md) — `SCHEMA_VERSION` 4, `PrototypeDocumentSchema` collections
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — compatible removal disposition, exact-owner repeat receipt, typed repair steps
 
 ## Spec sections
@@ -111,8 +122,8 @@ beside the unchanged exact `cascadeCount`. Optional so older fixtures parse; the
 on every section entry. Stored sections and `SCHEMA_VERSION` are untouched
 ([decision](../../decisions/2026-09-content-oriented-archive-policy.md)).
 
-**A removal result can describe a deleted section.** `SectionRemovalResult.section` is the final archived-shaped operation result, not a guarantee that the row remains stored. The version-1 inverse records the disposition so Undo recreates only a section that this operation deleted; legacy records default to retained.
+**A removal result can describe a deleted section.** `SectionRemovalResult.section` is the final archived-shaped operation result, not a guarantee that the row remains stored. The removal payload records the disposition so Undo recreates only a section that this operation deleted, and Redo deletes it again.
 
 **A removal also states whether Archive will list it.** `SectionRemovalResult.archiveListed` is the domain's own `sectionRecoveryOf` verdict, required on every result. It is deliberately not `disposition`: a section kept only because a shortcut or an archived row still names it is retained *and* absent from Archive, so a surface offering an Archive route on the disposition sends someone to a page with no entry for their section ([decision](../../decisions/2026-09-recovery-routes-name-what-is-actually-there.md)).
 
-**A superseded conflict names the actor behind the later change.** `UndoConflict.supersededBy` (`self` | `user` | `agent` | `system`) is present exactly for a `superseded` problem. Undo receipts are scoped to one exact actor, so "use the later receipt" is a repair only its owner can perform; when the later change is someone else's, `nextStep` is `redo-by-hand` or `redo-by-hand-or-archive` instead. Neither field is stored.
+**A conflict only ever describes a change outside the caller's history.** Under a cursor the caller's own later change is reached by undoing it first (`history_not_next`), so Slice 35 removed the `superseded` problem, `supersededBy` and the "use the later receipt" steps; a changed value someone else wrote gets `change-by-hand` or `change-by-hand-or-archive`, and a permanently unsatisfiable action retires ([decision](../../decisions/2026-09-operation-history-retired-actions.md)).

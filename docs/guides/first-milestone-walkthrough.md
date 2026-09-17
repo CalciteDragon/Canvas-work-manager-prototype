@@ -212,9 +212,11 @@ standalone connection matrix. Both processes still running. Full setup in
 39. **Cross-page writes.** Ask the agent to add and remove a Home shortcut, create a subject-linked
     reflection and toggle an optional page. Each write is visible through its canonical page/read;
     removing the shortcut leaves the source section and rows unchanged. Then ask it to remove a
-    Home section: `remove_section` returns an Undo receipt, and `undo_operation` with its `undoId`
-    puts the section back between the same neighbours; asking again is refused with a message
-    starting `undo_consumed:`.
+    Home section: `remove_section` returns an operation receipt, and `undo_operation` with its
+    `historyId`, `actionId` and `expectedRevision` puts the section back between the same
+    neighbours; `get_operation_history` now lists that action under `redo`, `redo_operation`
+    removes it again, and repeating a call with the old revision is refused with a message starting
+    `history_revision_stale:`.
 40. **Aggregate pages.** Call `get_project_todos`, `get_project_archive` and
     `get_project_journal`; the responses retain canonical project/page/container origins. Archive
     remains queryable even when its navigation page is disabled.

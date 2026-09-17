@@ -204,3 +204,10 @@ recoverable through Archive; shortcut-backed sources retain an unlisted integrit
 Existing tombstones are not purged. Archive Restore remains durable and append-placed, while
 receipt-based Undo can recreate a safely deleted section at its prior placement. A deletion
 result's archived-shaped `section` is an operation snapshot, not evidence that it remains stored.
+
+**Amended, 2026-09-16 — Slice 35.** Archive Restore is still durable, receipt-free, append-placed
+and outside every history, and it deliberately does not advance a section's `archiveGeneration`:
+restoring is not removing. What changed is the thing it is distinguished from — receipt-based Undo
+became per-actor history Undo and Redo — and one consequence is new: an Undo of a removal that
+Archive Restore already reversed can never succeed, so that action **retires** rather than blocking
+the actions beneath it ([retired actions](2026-09-operation-history-retired-actions.md)).

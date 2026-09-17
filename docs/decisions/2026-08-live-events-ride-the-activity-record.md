@@ -103,3 +103,11 @@ that passes recovery classification and the canonical reference audit publishes
 `project.section_removed`. Undo still publishes one `project.section_removal_undone` frame.
 `live-updates.test.ts` verifies the deleted-removal frame, Undo, and the absence of a frame on
 rollback; `section-service.test.ts` asserts that retained removals record `project.section_archived`.
+
+**Amended, 2026-09-16 — Slice 35 adds Redo frames.** Each committed history transition publishes
+exactly one frame, and its type says which direction ran: the four `project.section_*_undone`
+actions gained `project.section_*_redone` twins (`removal`, `addition`, `move`, `update`).
+`LiveEventSchema.type` reuses `ActivityActionSchema`, a pattern rather than an enum, so the contract
+needed no change. A retirement commits but executes nothing and records no activity, so it publishes
+no frame; a failed transition — at the action insert, the activity record or persistence — publishes
+nothing. `live-updates.test.ts` asserts all three per family against the bytes on disk.

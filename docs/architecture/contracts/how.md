@@ -5,7 +5,7 @@
 Contracts have no runtime of their own; they are parsed at boundaries.
 
 1. **Host load** — `loadPersistence` parses `.prototype/data.json` with
-   `PrototypeDocumentSchema`; the literal `schemaVersion: 3` is part of the schema, so a
+   `PrototypeDocumentSchema`; the literal `schemaVersion: 4` is part of the schema, so a
    stale file fails here with a message rather than mid-session.
 2. **Every unit of work** — the repositories validate the whole document again at commit
    (`validateDocumentIntegrity`, in [repositories](../repositories/how.md)), so a rule the
@@ -29,33 +29,43 @@ append behavior; a value past the end is clamped to the end. HTTP and MCP parse 
 schemas, so they enforce the same input shape. The shortcut input remains strict about undeclared
 fields.
 
-## Undo records
+## Operation payloads and history
 
-`undo.ts` holds every Undo shape. `UndoOperationSchema` is a discriminated union on `type` whose
+`undo.ts` holds the **payloads**. `UndoOperationSchema` is a discriminated union on `type` whose
 four strict members are pinned to `version: 1`: an unknown type, a later version or an extra key
-fails parsing, so a stored record can never smuggle arbitrary JSON into an executor. Removal keeps
-its optional `disposition` for the Slice 31 compatibility rule. Add captures the created section;
-move captures the subject page and before/after neighbours; update captures a unique set of title,
-config, collapsed and column-span changes. The refinements reject malformed self-neighbours,
-duplicate fields and invalid normalized titles. `UndoReceiptSchema` carries only the id,
-operation, workspace sequence, label and lifetime; no inverse data crosses HTTP, MCP or the
-gateway.
-`UndoRecordSchema` shares `assertActorIsAttributable` with activity. The receipt is strict and
-carries only `undoId`, `operation`, `sequence`, `label`, `createdAt` and `expiresAt`. `UndoRefusalDetailsSchema`
-is the typed half of a 409; conflicts carry an optional current title and a required typed
-`nextStep`, while missing entities omit their title. `SectionAlreadyRemovedDetailsSchema` carries
-only the section id and the exact actor's outstanding receipt. MCP carries only the message, which
-starts with the same `reason`.
+fails parsing, so a stored action can never smuggle arbitrary JSON into an executor. Add captures
+the created section and the placement Redo returns it to; move captures the subject page and
+before/after neighbours; update captures a unique set of title, config, collapsed and column-span
+changes; removal captures the section, placement, applied policy, exact rows, a required
+`disposition` and the `archiveGeneration` it wrote, which must be the snapshot's plus one. The
+refinements reject malformed self-neighbours, duplicate fields, invalid normalized titles and
+placements on another page. `undo.ts` also holds `OperationReceiptSchema` — strict, carrying only
+`historyId`, `actionId`, `operation`, `revision`, `label`, `createdAt` and `expiresAt` — the write
+results that embed it, `UndoResultSchema`/`RedoResultSchema`, and `UndoConflictSchema`, whose
+required typed `nextStep` now has no "use a later receipt" member.
 
-`PrototypeDocumentSchema.undoRecords` is defaulted to `[]`, which is why it arrived inside
-schema version 3 without a converter: an older file parses with every collection unchanged.
+`operation-history.ts` holds the **history**. `OperationHistorySchema` is attributable to one actor
+(`assertActorIsAttributable`, shared with activity) and refines `cursor ≤ orderHighWaterMark`;
+whether the cursor's orders exist is a cross-collection rule the store checks.
+`OperationActionSchema` has a positive `order`, a `state` of `applied`, `undone` or `retired`, and an
+expiry after its creation. `OperationHistorySummarySchema` is strict all the way down — ids, labels,
+revision, the archived-ancestor `blockedBy`, never a payload — and its `historyId` is `null` before
+the caller's first recorded write. `OperationHistoryTransitionInputSchema` and
+`OperationHistoryStepInputSchema` (MCP) are strict. `OperationHistoryRefusalDetailsSchema` is the
+typed half of a 409: seven reasons, each carrying the history, the named action and the current
+summary. `SectionAlreadyRemovedDetailsSchema` carries only the section id and the recovered receipt.
+MCP carries only the message, which starts with the same `reason`.
+
+`PrototypeDocumentSchema` has `operationHistories` and `operationActions`, defaulted to `[]`, and no
+`undoRecords` — a leftover key is stripped. `SCHEMA_VERSION` is 4; a version-3 file needs
+`pnpm prototype:upgrade` ([decision](../../decisions/2026-09-schema-version-4-conversion.md)).
 
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
 | `PrototypeDocumentSchema` | const | The whole `data.json` | [API](../../api/miscellaneous/variables.html#PrototypeDocumentSchema) |
-| `SCHEMA_VERSION` | const | `3`; bump when an existing file would be wrong | [API](../../api/miscellaneous/variables.html#SCHEMA_VERSION) |
+| `SCHEMA_VERSION` | const | `4`; bump when an existing file would be wrong | [API](../../api/miscellaneous/variables.html#SCHEMA_VERSION) |
 | `IsoDateTimeSchema` | const | `z.iso.datetime()`; seconds may be omitted, fractions any length — see `Instant` in domain | [API](../../api/miscellaneous/variables.html#IsoDateTimeSchema) |
 | `PositionSchema` | const | Non-negative zero-based position for list, canvas or dashboard order | [API](../../api/miscellaneous/variables.html#PositionSchema) |
 | `isRootProject` | function | Type guard on `Project.kind` | [API](../../api/miscellaneous/variables.html#isRootProject) |
@@ -67,16 +77,22 @@ schema version 3 without a converter: an older file parses with every collection
 | `nameOf` | function | A section's display name: `title` override, else derived from `type` | [API](../../api/miscellaneous/variables.html#nameOf) |
 | `ProjectArchiveSectionRecoverySchema` | const | Archive section entry's recovery metadata union | [API](../../api/miscellaneous/variables.html#ProjectArchiveSectionRecoverySchema) |
 | `UndoOperationSchema` | const | Typed, versioned union of `section.add`, `section.move`, `section.update` and `section.remove` | [API](../../api/miscellaneous/variables.html#UndoOperationSchema) |
-| `SectionRemovalDispositionSchema` | const | `retained` or `deleted`; optional on v1 for legacy compatibility | [API](../../api/miscellaneous/variables.html#SectionRemovalDispositionSchema) |
-| `UndoRecordSchema` | const | A stored inverse: owner, actor, `sequence`, expiry, `consumedAt`, operation | [API](../../api/miscellaneous/variables.html#UndoRecordSchema) |
-| `UndoReceiptSchema` | const | What a caller holds after a committed section write; sequence-ordered and inverse-free | [API](../../api/miscellaneous/variables.html#UndoReceiptSchema) |
+| `SectionRemovalDispositionSchema` | const | `retained` or `deleted`, required on every removal payload | [API](../../api/miscellaneous/variables.html#SectionRemovalDispositionSchema) |
+| `OperationHistorySchema` | const | One actor's cursor, order high-water mark and revision in one project | [API](../../api/miscellaneous/variables.html#OperationHistorySchema) |
+| `OperationActionSchema` | const | One ordered, stateful action holding a payload | [API](../../api/miscellaneous/variables.html#OperationActionSchema) |
+| `OperationReceiptSchema` | const | What a caller holds after a committed section write; revision-ordered and payload-free | [API](../../api/miscellaneous/variables.html#OperationReceiptSchema) |
+| `OperationHistorySummarySchema` | const | The caller's next Undo and Redo, revision and archived blocker | [API](../../api/miscellaneous/variables.html#OperationHistorySummarySchema) |
+| `OperationHistoryTransitionInputSchema` | const | `{ actionId, direction, expectedRevision }`, strict | [API](../../api/miscellaneous/variables.html#OperationHistoryTransitionInputSchema) |
+| `OperationHistoryTransitionResultSchema` | const | Direction, action, that direction's result and the refreshed summary | [API](../../api/miscellaneous/variables.html#OperationHistoryTransitionResultSchema) |
+| `OperationHistoryRefusalDetailsSchema` | const | 409 details discriminated on seven `history_*` reasons, each with the current summary | [API](../../api/miscellaneous/variables.html#OperationHistoryRefusalDetailsSchema) |
 | `SectionAlreadyRemovedDetailsSchema` | const | Exact-owner receipt carried by a repeated-removal 409 | [API](../../api/miscellaneous/variables.html#SectionAlreadyRemovedDetailsSchema) |
 | `UndoResultSchema` | const | Discriminated add removal, field restoration, move placement or removal result | [API](../../api/miscellaneous/variables.html#UndoResultSchema) |
+| `RedoResultSchema` | const | Discriminated add recreation, field reapplication, move placement or re-removal result | [API](../../api/miscellaneous/variables.html#RedoResultSchema) |
 | `SectionAddResultSchema` | const | `create_section` / `POST …/sections`: the created section and its required add receipt | [API](../../api/miscellaneous/variables.html#SectionAddResultSchema) |
-| `SectionWriteResultSchema` | const | Update and move: the section and a receipt, or `undo: null` for a true no-op | [API](../../api/miscellaneous/variables.html#SectionWriteResultSchema) |
+| `SectionWriteResultSchema` | const | Update and move: the section and a receipt, or `operation: null` for a true no-op | [API](../../api/miscellaneous/variables.html#SectionWriteResultSchema) |
 | `SectionFieldChangeSchema` | const | One recorded settings field (`title`, `config`, `collapsed`, `columnSpan`) with before and after values | [API](../../api/miscellaneous/variables.html#SectionFieldChangeSchema) |
-| `UndoRefusalDetailsSchema` | const | 409 details discriminated on `reason` | [API](../../api/miscellaneous/variables.html#UndoRefusalDetailsSchema) |
-| `assertActorIsAttributable` | function | The user/agent/system attribution rule, shared by events and Undo records | [API](../../api/miscellaneous/variables.html#assertActorIsAttributable) |
+| `UndoConflictSchema` | const | One entity a transition would overwrite, with its typed next step | [API](../../api/miscellaneous/variables.html#UndoConflictSchema) |
+| `assertActorIsAttributable` | function | The user/agent/system attribution rule, shared by events and operation histories | [API](../../api/miscellaneous/variables.html#assertActorIsAttributable) |
 
 ## Dependencies
 

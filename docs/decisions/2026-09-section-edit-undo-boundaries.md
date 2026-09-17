@@ -115,3 +115,20 @@ remove, an item to move back, an archived project, no compatible page) stays ret
 Rejected: hiding the button (focus would drop from the control just pressed) and predicting a
 refusal before the first attempt — live frames name only the project, so the browser cannot tell
 that an agent touched the same section, and expiry depends on the host's simulated clock.
+
+**Amended, 2026-09-16 — Slice 35: a cursor, not supersession, orders edits.** The explicit
+boundaries and field footprints are unchanged; what decides whether an inverse may run is not.
+A newer overlapping update by the *same* actor no longer supersedes an older one — it is simply
+above it on the actor's stack, so the older one is `history_not_next` until the newer is undone,
+and the pair then undoes and redoes in order. A newer change by *another* actor is caught by
+applied state: `field-changed` for an update, a neighbour comparison (`moved`) for a move — made
+against the one neighbour the last placement used, the surviving previous else the surviving next,
+so a Redo straight after the actor's own Undo is never refused by a section someone put beside the
+other neighbour — and
+`field-changed` or a new reference for an add. `section.add` now records the placement Redo returns
+it to. Receipts are ordered by the history's `revision`, not a workspace `sequence`. The "refused
+for good" rule is **withdrawn**: the server now retires the permanently unsatisfiable cases itself
+([retired actions](2026-09-operation-history-retired-actions.md)) and a retirement is terminal in
+the notice, while a conflict over something `missing` has become repairable — another actor's Undo
+can bring a deleted section back with the same id — so the browser keeps Undo sendable after every
+other refusal rather than second-guessing the server.

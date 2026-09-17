@@ -48,17 +48,15 @@
   drives a real service through a real store and asserts both.
 - **No workspace id on the wire**; scoping happens in the hub.
 - **A no-op announces nothing**, because it records nothing.
-- **Undo adds no frame of its own.** A retained section removal publishes `project.section_archived`,
-  a safely deleted disposable publishes `project.section_removed`, explicit add, move and settings
-  writes publish their usual one frame (a no-op publishes none), and Undo publishes one of
-  `project.section_removal_undone`, `project.section_addition_undone`,
-  `project.section_move_undone` or `project.section_update_undone`; each operation publishes only
-  its one activity frame. The Undo
-  record and its snapshot never reach a frame. `live-updates.test.ts` pins the deleted-removal
-  frame, Undo, and that a removal whose persistence fails delivers nothing and keeps no record;
-  since Slice 33 it also checks, for add, update, move and removal, that the forward and Undo frames
-  arrive only once the bytes on disk hold the change and the consumed receipt, and that recorder,
-  forward-persistence and Undo-persistence failures deliver nothing;
+- **A history transition adds no frame of its own.** A retained section removal publishes
+  `project.section_archived`, a safely deleted disposable publishes `project.section_removed`,
+  explicit add, move and settings writes publish their usual one frame (a no-op publishes none), and
+  each transition publishes one `project.section_{removal,addition,move,update}_{undone,redone}`
+  frame, so the direction is in the type. A retirement commits but records no activity, so it
+  publishes nothing. The history action and its payload never reach a frame. `live-updates.test.ts`
+  pins, for add, update, move and removal, that the forward, Undo and Redo frames arrive only once
+  the bytes on disk hold the change and the action's new state, and that an action-insert failure,
+  forward-persistence failure or transition-persistence failure delivers nothing;
   `section-service.test.ts` pins the retained-removal action at the domain.
 - **Frames carry ids, never entities.** The browser re-reads through the gateway; a
   frame is "go and look", not a state delta (§62).

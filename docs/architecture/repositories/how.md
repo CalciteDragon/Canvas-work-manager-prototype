@@ -29,8 +29,9 @@
 | `InMemoryDataStore` | class | The test store | [API](../../api/classes/InMemoryDataStore.html) |
 | `validateDocumentIntegrity` | function | The whole-document check at load and commit | [API](../../api/miscellaneous/variables.html#validateDocumentIntegrity) |
 | `TaskRepository`, `SectionRepository`, … | interfaces | One per collection | [API](../../api/interfaces/TaskRepository.html) |
-| `UndoRecordRepository` | interface | Undo records; the one collection that deletes routinely, because records are pruned | [API](../../api/interfaces/UndoRecordRepository.html) |
-| `JsonCollectionRepository` | class | Shared helpers the eleven implementations extend | [API](../../api/classes/JsonCollectionRepository.html) |
+| `OperationHistoryRepository` | interface | Per-actor, per-project Undo/Redo cursors; no `remove`, so a history's revision never restarts | [API](../../api/interfaces/OperationHistoryRepository.html) |
+| `OperationActionRepository` | interface | History actions; the one collection that deletes routinely, because actions are pruned and redo branches discarded | [API](../../api/interfaces/OperationActionRepository.html) |
+| `JsonCollectionRepository` | class | Shared helpers the twelve implementations extend | [API](../../api/classes/JsonCollectionRepository.html) |
 | `UnitOfWorkInProgressError` | class | A write outside or after its unit | [API](../../api/classes/UnitOfWorkInProgressError.html) |
 
 ## Dependencies
@@ -57,14 +58,19 @@
   load. The invariants it holds are listed in [why](why.md).
 - **Section deletion is limited to safe disposable removals and safe explicit-add Undo.**
   `SectionService` uses `SectionRepository.remove` only after recovery policy and
-  canonical-reference checks pass; `executeSectionAddUndo` uses it only when the added section
-  is live, unchanged, unsuperseded and still has no rows, cascade markers or shortcuts.
-  Shortcut placements and pruned Undo records are the other deletions. The integrity checks
-  still reject dangling row and shortcut references.
-- **Undo records are checked for owner scope only**: unique id, a workspace, a project in it,
-  an actor in it, and a `sequence` unique per workspace. Their snapshots' section, page,
-  shortcut and row ids are deliberately not resolved, so a retained inverse may outlive what it
-  names (hard deletion depends on that).
+  canonical-reference checks pass; `revertSectionAdd` uses it only when the added section is live,
+  unchanged and still has no rows, cascade markers or shortcuts; `reapplySectionRemoval` only when
+  Redo replays a removal that deleted the section. Shortcut placements, pruned or discarded
+  history actions are the other deletions. The integrity checks still reject dangling row and
+  shortcut references.
+- **Operation histories are checked for scope and ordering**: unique ids; a history names a
+  workspace, a stored project in it and an actor in it, and there is at most one per (workspace,
+  project, exact actor); an action names a stored history, its operation's project is that
+  history's, and its positive `order` is unique within the history and no higher than the
+  history's `orderHighWaterMark` (the cursor's own bound is the contract's). The payload's section,
+  page, shortcut and row ids are deliberately not resolved, so an action may outlive what it names —
+  add Undo and disposable removal depend on that. The one live comparison is the
+  `archiveGeneration` a retained removal captured, which may not exceed its section's.
 - **Seeds are committed byte-for-byte** as LF JSON and compared in
   `packages/prototype-data`'s tests, which is why `.gitattributes` normalises line
   endings.

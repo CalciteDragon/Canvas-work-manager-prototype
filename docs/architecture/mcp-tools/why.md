@@ -69,8 +69,8 @@ unknown-tool response.
 
 - Adding a tool is one file in `src/tools/`, one registry line, and one contract case —
   and the suite fails until the case exists.
-- The tool count grew from §54's fourteen to thirty-five as the section, page,
-  shortcut, archive, journal and Undo tools arrived; each arrived with its slice, and the list
+- The tool count grew from §54's fourteen to thirty-seven as the section, page,
+  shortcut, archive, journal and history tools arrived; each arrived with its slice, and the list
   in `SPEC_TOOL_NAMES` is what the host's `tools/list` test asserts against.
 - Tool experiments (§56 — `complete_task` versus `update_task(status)`, combined versus
   separate search) can be run by adding a variant here and comparing real clients, without
@@ -88,8 +88,10 @@ unknown-tool response.
 - [A section has a name](../../decisions/2026-09-a-section-has-a-name.md) — `list_sections` returns the stored `title`, deliberately not a resolved name
 - [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md) — one combined index space for sections and shortcuts
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md) — accepted contextual insertion
-- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `remove_section` receipts, `undo_operation`, reason-token refusal messages
-- [Explicit section edits reverse only their operation's changes](../../decisions/2026-09-section-edit-undo-boundaries.md) — `move_section`, add/update/move receipts, `undo: null` no-ops
+- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `remove_section` receipts, reason-token refusal messages
+- [Explicit section edits reverse only their operation's changes](../../decisions/2026-09-section-edit-undo-boundaries.md) — `move_section`, add/update/move receipts, `operation: null` no-ops
+- [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — `get_operation_history` reads, the transitions write, per connection
+- [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../decisions/2026-09-history-stage-a-deferrals.md) — `undo_operation`/`redo_operation` inputs, static grants
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — safe deletion and exact-actor recovery after a lost response
 
 ## Spec sections

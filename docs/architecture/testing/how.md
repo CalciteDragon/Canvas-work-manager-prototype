@@ -15,15 +15,19 @@
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
    starts a second host on a temp file and walks a slice's *done when*. Since Slice 30,
    `acceptance` removes `personal-workspace`'s first Home placement, undoes it through
-   `POST /api/undo/:id` and checks it returns first and a repeat is `undo_consumed`;
-   `mcp-acceptance` grants `projects.write` to the token's connection **in its copied temp
-   files** (the seed is unchanged), cascades the middle `agent-heavy` task list away with
-   `remove_section`, restores it with `undo_operation` over both transports, and checks the
-   persisted file shows the section live and the record consumed. Slice 31 extends both:
-    HTTP and MCP acceptance delete a disposable Progress section, repeat the removal to
-    recover the exact receipt, undo it, and inspect persisted recreation and consumption.
-    MCP acceptance also runs add, update (including an unchanged `undo: null`) and move →
-    `undo_operation` journeys over both transports. Connection revocation after a receipt is
+   `POST /api/history/:historyId/transition` and checks it returns first, that a replay refuses
+   `history_revision_stale` with a summary showing it landed, and that Redo and Undo repeat it;
+   since Slice 35 it also runs Stage A's A → B → Undo → Undo → Redo → Redo chain on one title with
+   `GET /api/projects/:id/history` as the observer, and branch invalidation (a no-op and a refusal
+   keep Redo; a new write discards it from the file). `mcp-acceptance` grants `projects.write` to
+   the token's connection **in its copied temp files** (the seed is unchanged), cascades the middle
+   `agent-heavy` task list away with `remove_section`, restores it with `undo_operation` over both
+   transports, and checks the file. Slice 31 extends both: HTTP and MCP acceptance delete a
+   disposable Progress section, repeat the removal to recover the exact receipt, undo it, and
+   inspect persisted recreation. MCP acceptance also runs add (with Redo), update (including an
+   unchanged `operation: null`), the same-field chain through `get_operation_history`,
+   `undo_operation` and `redo_operation` (refusing an out-of-order `history_not_next:`), and move
+   over both transports, and a fresh connection after restart sees its own persisted history. Connection revocation after a receipt is
     issued is pinned in `apps/prototype-host/mcp/handler.test.ts`. Slice 33 adds, per transport,
     reassign and cascade with exact row and section ids and the Archive projection, a second
     connection (`prototype-user-a-readonly`, granted `projects.write` in the temp file) refused
@@ -128,7 +132,7 @@ pnpm storybook                                        # :6006
   names each assertion. To rerun the failure and reopen evidence: `recovery-undo-acceptance.test.ts`
   copies the committed fixtures under `packages/prototype-data/test/fixtures/` to temp files, runs
   `upgrade-cli.ts` through `node --import tsx`, and reopens with `loadPersistence` each time;
-  `live-updates.test.ts` swaps `store.persist` or `undoRecords.insert` for a throwing function,
+  `live-updates.test.ts` swaps `store.persist` or `operationActions.insert` for a throwing function,
   checks the bytes on disk are unchanged and no frame was delivered, then restores the original
   and retries once. `section-edit-undo.spec.ts` sets the dev panel's failure rate to 100% only
   after reads settle and back to 0% before re-reading.

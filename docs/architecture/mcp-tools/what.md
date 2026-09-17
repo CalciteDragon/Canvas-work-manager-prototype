@@ -30,7 +30,7 @@ flowchart LR
 Each file in `src/tools/` exports the definitions for one entity group; the registry
 concatenates them in `SPEC_TOOL_NAMES` order and exposes `list`, `get` and `call`.
 
-## The thirty-five tools
+## The thirty-seven tools
 
 | Group | Tools | Grant(s) |
 |---|---|---|
@@ -38,7 +38,8 @@ concatenates them in `SPEC_TOOL_NAMES` order and exposes `list`, `get` and `call
 | Tasks | `list_tasks`, `get_task`, `create_task`, `update_task`, `complete_task`, `archive_task`, `restore_task` | `tasks.read` / `tasks.write` |
 | Reflections | `list_reflections`, `add_reflection`, `archive_reflection`, `restore_reflection` | `reflections.read` / `reflections.write` |
 | Sections | `list_sections`, `create_section`, `move_section`, `update_section`, `remove_section`, `restore_section` | `projects.read` / `projects.write` |
-| Undo | `undo_operation` — executes an add, move, update or removal receipt for the same connection | `projects.write` |
+| History | `get_operation_history` — the connection's own next Undo and Redo in a project | `projects.read` |
+| | `undo_operation`, `redo_operation` — run the next action of the connection's history in that direction | `projects.write` |
 | Shortcuts | `list_section_shortcuts`, `add_section_shortcut`, `remove_section_shortcut` | `projects.read` / `projects.write` |
 | Workspace | `search_workspace`, `get_upcoming_work`, `get_dashboard_context` | `workspace.read` |
 | Pages | `list_project_pages`, `set_project_page_enabled`, `get_project_todos`, `get_project_archive`, `get_project_journal` | `projects.*`; the three derived pages add `tasks.read` and, for Archive and journal, `reflections.read` |

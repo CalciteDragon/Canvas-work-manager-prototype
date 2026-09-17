@@ -25,7 +25,7 @@
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
 | `WorkManagerGateway` | interface | The composite gateway | [API](../../../api/interfaces/WorkManagerGateway.html) |
-| `TaskGateway`, `ProjectGateway`, `SectionGateway`, `UndoGateway`, `ProjectPageGateway`, `SectionShortcutGateway`, `ReflectionGateway`, `TodosGateway`, `ArchiveGateway`, `JournalGateway`, `DashboardGateway`, `ProgressGateway`, `TimelineGateway`, `AgentGateway`, `ActivityGateway` | interfaces | The fifteen members, including receipt-only Undo execution | [API](../../../api/interfaces/TaskGateway.html) |
+| `TaskGateway`, `ProjectGateway`, `SectionGateway`, `OperationHistoryGateway`, `ProjectPageGateway`, `SectionShortcutGateway`, `ReflectionGateway`, `TodosGateway`, `ArchiveGateway`, `JournalGateway`, `DashboardGateway`, `ProgressGateway`, `TimelineGateway`, `AgentGateway`, `ActivityGateway` | interfaces | The fifteen members, including the history summary and transition | [API](../../../api/interfaces/TaskGateway.html) |
 | `GatewayError` | class | The one failure type | [API](../../../api/classes/GatewayError.html) |
 | `PrototypeWorkManagerGateway` | injectable | The adapter | [API](../../../api/injectables/PrototypeWorkManagerGateway.html) |
 | `IdentityProvider` | interface | §18's contract | [API](../../../api/interfaces/IdentityProvider.html) |

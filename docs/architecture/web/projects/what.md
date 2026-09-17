@@ -81,9 +81,9 @@ sequenceDiagram
 | `PROJECT_PAGE_REGISTRY`, `ProjectPageDefinition` | `project-page-registry.ts` | Navigable kinds → renderer and label |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | `project-page-contract.ts` | What every renderer receives |
 | `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, explicit edit receipts, removal dialog and arrival at `#section-<id>` |
-| `ProjectPageStore`, `CanvasWriteResult`, `SectionRemovalPrompt`, `SectionUndoNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation, typed refusal and sequence-selected operation receipt state |
+| `ProjectPageStore`, `CanvasWriteResult`, `SectionRemovalPrompt`, `SectionUndoNoticeState`, `supersedesReceipt`, `undoFailureNotice` | `project-page-store.ts` | Sections and placements of one page; positioned creation, typed refusal, revision-selected operation receipt state and the history-refusal mapping |
 | `SectionRemovalDialog` | `section-removal-dialog.ts` | Cascade or reassign, containers by name |
-| `SectionUndoNotice` | `section-undo-notice.ts` | Accessible operation Undo (disabled once refused for good), Archive for a removal the server listed there, explicit retry after uncertain removal, refresh retry and typed refusal guidance that names a foreign superseding actor |
+| `SectionUndoNotice` | `section-undo-notice.ts` | Accessible operation Undo, Archive for a removal the server listed there, explicit retry after uncertain removal, refresh retry and typed history-refusal guidance |
 | `SectionCreateDialog` | `section-create-dialog.ts` | Section or Home shortcut creation at the selected canvas position |
 | `CanvasIcon`, `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor` | `canvas-chrome/` | Shared SVG canvas controls, insertion overlays, snapped resize, sparse-grid gap targets and grip move keys |
 | `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with inline completion and canonical links |

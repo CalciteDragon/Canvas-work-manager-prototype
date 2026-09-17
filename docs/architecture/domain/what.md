@@ -21,12 +21,13 @@ flowchart TB
     task[TaskService]
     reflection[ReflectionService]
     agent[AgentConnectionService]
-    undo[UndoService]
+    history[OperationHistoryService]
     activity[ActivityService]
   end
-  subgraph undoable["Undo seam"]
-    recorder["undo-recorder.ts<br/>UndoRecorder, RepositoryUndoRecorder"]
-    inverse["section-removal-undo.ts, section-edit-undo.ts, owned-rows.ts<br/>capture and inverse functions"]
+  subgraph undoable["History seam"]
+    recorder["operation-recorder.ts<br/>OperationRecorder, RepositoryOperationRecorder"]
+    machine["operation-history.ts<br/>pure cursor state machine"]
+    inverse["section-removal-undo.ts, section-edit-undo.ts, owned-rows.ts<br/>capture, revert and reapply functions"]
   end
   subgraph readers["Derived read services"]
     dashboard[DashboardService]
@@ -43,10 +44,12 @@ flowchart TB
   end
   task --> section
   reflection --> section
-  project & page & section & shortcut & task & reflection & agent & undo --> activity
+  project & page & section & shortcut & task & reflection & agent & history --> activity
   section --> recorder
+  recorder --> machine
+  history --> machine
   section -. captures through .-> inverse
-  undo -. executes through .-> inverse
+  history -. executes through .-> inverse
   activity --> live
   dashboard --> aiport
   mock -. implements .-> aiport
@@ -57,9 +60,10 @@ flowchart TB
 Writing services own one entity each and record activity; the two arrows into
 `SectionService` resolve which container a row lands in. Writing services also compose
 `ActivityService` to record events; these service edges are acyclic. `SectionService` records
-each explicit section operation's inverse through the `UndoRecorder` interface, and `UndoService`
-executes it through the same package-internal function modules — neither composes the other, and
-`UndoService` composes no section, task or reflection service. Derived read services
+each explicit section operation through the `OperationRecorder` interface, and
+`OperationHistoryService` reverts or reapplies it through the same package-internal function
+modules — neither composes the other, and `OperationHistoryService` composes no section, task or
+reflection service. Derived read services
 compose no other services: each reads
 repositories directly, asserts every grant its result needs, and computes from canonical
 records. `project-visibility.ts` is pure functions shared by both groups so that every
@@ -102,9 +106,11 @@ sequenceDiagram
 | `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard |
 | `ProjectPageService` | `src/project-page-service.ts` | A project's pages; enable/disable a root's optional three |
 | `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, settle and remove by content/reference policy, Archive Restore; container resolution |
-| `UndoRecorder`, `RepositoryUndoRecorder`, `UNDO_RECORD_LIFETIME_MS`, `UNDO_RECORD_LIMIT` | `src/undo-recorder.ts` | Records an inverse and reads the newest exact-actor receipt; 24-hour expiry, 50 per workspace, `sequence` order |
-| `UndoService` | `src/undo-service.ts` | Exact-actor, `projects.write`, consume-once execution with typed refusals |
-| Capture and inverse functions | `src/section-removal-undo.ts`, `src/section-edit-undo.ts`, `src/owned-rows.ts` | Package-internal removal/add/move/update capture, field-aware conflict collection and execution; row reads and schema-parsed writes shared with removal |
+| `OperationRecorder`, `RepositoryOperationRecorder`, `OPERATION_ACTION_LIFETIME_MS` | `src/operation-recorder.ts` | Records into the exact actor's per-project history; 24-hour lifetime; recovers an outstanding removal receipt |
+| Cursor state machine, `OPERATION_HISTORY_LIMIT` | `src/operation-history.ts` | Pure next-action selection, record, transition, retire and contiguous pruning; 50 actions per history |
+| `OperationHistoryService` | `src/operation-history-service.ts` | Caller-scoped summary and one transition per call, with typed refusals and retirement |
+| Execution seam | `src/operation-execution.ts` | `OperationExecutionRefused`, the permanent flag, `generationFloor` |
+| Capture, revert and reapply functions | `src/section-removal-undo.ts`, `src/section-edit-undo.ts`, `src/owned-rows.ts` | Package-internal removal/add/move/update capture, applied-state conflict collection and both directions; row reads and schema-parsed writes shared with removal |
 | `snapshotPlacement`, `resolveRestoreIndex`, `findHighestWriteBlocker` | `src/page-placements.ts`, `src/project-visibility.ts` | Neighbour snapshot and restore index; the highest archived project blocking a write |
 | `SectionShortcutService` | `src/section-shortcut-service.ts` | Home placements; identity and availability, never content |
 | `TaskService` | `src/task-service.ts` | Create, update, complete, archive (cascading to subtasks), restore, move within a project |

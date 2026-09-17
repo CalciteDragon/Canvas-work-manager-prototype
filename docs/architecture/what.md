@@ -29,7 +29,7 @@ C4Container
     Container(web, "web", "Angular 22, :4200", "Shell, dashboard, project workspaces, development tooling")
     Container(stdio, "mcp:stdio", "Node child process", "The same tool registry over stdio, with its own store")
     Container(host, "prototype-host", "Node, 127.0.0.1:4310", "Fake API, MCP endpoint, event stream, rig controls")
-    ContainerDb(data, ".prototype/data.json", "JSON document, schema version 3", "The whole workspace")
+    ContainerDb(data, ".prototype/data.json", "JSON document, schema version 4", "The whole workspace")
   }
   UpdateLayoutConfig($c4ShapeInRow="2")
   Rel(person, web, "Uses")
