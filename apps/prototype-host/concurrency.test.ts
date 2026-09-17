@@ -92,3 +92,62 @@ describe('concurrent writes', () => {
     expect(await response.json()).toMatchObject({ status: 'done' });
   });
 });
+
+/**
+ * Slice 35: history transitions against the same real file store. `expectedRevision` is what makes
+ * a race and a blind retry safe; the serializing unit of work is what makes them real races.
+ */
+describe('concurrent history transitions', () => {
+  const json = { 'content-type': 'application/json' };
+
+  /** A section update whose receipt the transitions below step. */
+  const updatedSection = async (base: string, projectId: string) => {
+    const created = (await (await fetch(`${base}/api/projects/${projectId}/sections`, {
+      method: 'POST', headers: json, body: JSON.stringify({ type: 'rich-text', title: 'Before' }),
+    })).json()) as { section: { id: string } };
+    const updated = (await (await fetch(`${base}/api/sections/${created.section.id}`, {
+      method: 'PATCH', headers: json, body: JSON.stringify({ title: 'After' }),
+    })).json()) as { operation: { historyId: string; actionId: string; revision: number } };
+    return { sectionId: created.section.id, receipt: updated.operation };
+  };
+
+  const undo = (base: string, receipt: { historyId: string; actionId: string }, expectedRevision: number) =>
+    fetch(`${base}/api/history/${receipt.historyId}/transition`, {
+      method: 'POST', headers: json, body: JSON.stringify({ actionId: receipt.actionId, direction: 'undo', expectedRevision }),
+    });
+
+  it('two transitions at one revision — exactly one advances, the other refuses stale with the current summary', async () => {
+    const { base, projectId } = await startApi();
+    const { sectionId, receipt } = await updatedSection(base, projectId);
+
+    const responses = await Promise.all([undo(base, receipt, receipt.revision), undo(base, receipt, receipt.revision)]);
+    const bodies = (await Promise.all(responses.map((response) => response.json()))) as Array<Record<string, unknown>>;
+
+    expect(responses.map(({ status }) => status).sort()).toEqual([200, 409]);
+    const refused = bodies[responses.findIndex(({ status }) => status === 409)] as { details: Record<string, unknown> };
+    expect(refused.details).toMatchObject({
+      reason: 'history_revision_stale',
+      summary: { revision: receipt.revision + 1, redo: { actionId: receipt.actionId } },
+    });
+    const sections = (await (await fetch(`${base}/api/projects/${projectId}/sections`)).json()) as Array<{ id: string; title?: string }>;
+    expect(sections.find(({ id }) => id === sectionId)?.title).toBe('Before');
+  });
+
+  it('a replayed transition refuses as stale and returns the current summary; nothing executes twice', async () => {
+    const { base, projectId } = await startApi();
+    const { receipt } = await updatedSection(base, projectId);
+    const activity = async () => ((await (await fetch(`${base}/api/activity?projectId=${projectId}`)).json()) as unknown[]).length;
+
+    // The first response is "lost": the caller never reads it, and sends the same request again.
+    expect((await undo(base, receipt, receipt.revision)).status).toBe(200);
+    const events = await activity();
+    const replay = await undo(base, receipt, receipt.revision);
+
+    expect(replay.status).toBe(409);
+    // From the summary alone the caller can tell its first call landed: the revision moved and its action waits as Redo.
+    expect(((await replay.json()) as { details: unknown }).details).toMatchObject({
+      reason: 'history_revision_stale', summary: { revision: receipt.revision + 1, undo: { operation: 'section.add' }, redo: { actionId: receipt.actionId } },
+    });
+    expect(await activity()).toBe(events);
+  });
+});

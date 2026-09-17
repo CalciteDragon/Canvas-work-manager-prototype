@@ -31,8 +31,9 @@ const modernClient = (name) =>
   );
 
 // Slice 15's two-transport acceptance check, extended by Slice 25.7 (§36) with a
-// subject-linked journal write and Slice 31 with disposable removal, receipt recovery
-// and persisted Undo through both transports.
+// subject-linked journal write, Slice 31 with disposable removal, receipt recovery and
+// persisted Undo, and Slice 35 with Redo, the history summary and the sequential chain through
+// both transports.
 const assertClient = async (client, title, dataFile, foreign, access) => {
   check(client.getProtocolEra() === 'modern', `${title} negotiated 2026-07-28`);
   const listed = await client.listTools();
@@ -83,9 +84,29 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
   return { task, reflectionId: reflection.structuredContent?.id, ...undo };
 };
 
+/** The operation receipt a section tool answered with. */
+const receiptOf = (result) => result.structuredContent?.operation;
+
+/** This connection's own history summary for the project. */
+const historyOf = async (client) => {
+  const read = await client.callTool({ name: 'get_operation_history', arguments: { projectId: PROJECT } });
+  check(read.isError !== true, 'get_operation_history answers');
+  return read.structuredContent;
+};
+
+/** Undo or Redo exactly `receipt`'s action at the history's current revision, the way an agent that re-reads would. */
+const stepReceipt = async (client, receipt, direction = 'undo') => {
+  const summary = await historyOf(client);
+  return client.callTool({
+    name: `${direction}_operation`,
+    arguments: { historyId: receipt.historyId, actionId: receipt.actionId, expectedRevision: summary.revision },
+  });
+};
+
 /**
- * Slice 32: section writes return typed receipts; undo_operation restores a move/update or
- * reverses a removal between the same neighbours with its cascaded tasks live again.
+ * Slices 32 and 35: section writes return operation receipts; undo_operation restores an add, a
+ * move, an update or a removal between the same neighbours with its cascaded tasks live again, and
+ * redo_operation reapplies — the A → B → Undo → Undo → Redo → Redo chain included.
  */
 const assertUndo = async (client, title, dataFile) => {
   const canvas = async () => {
@@ -104,11 +125,13 @@ const assertUndo = async (client, title, dataFile) => {
   check(tasksBefore.length > 0, `${title} sees live tasks in it`);
 
   const added = await client.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type: 'progress', title: `Added over ${title}` } });
-  check(added.isError !== true && added.structuredContent?.undo?.operation === 'section.add', `${title} create_section returns an add receipt`);
+  check(added.isError !== true && receiptOf(added)?.operation === 'section.add', `${title} create_section returns an add receipt`);
   const addedId = added.structuredContent.section.id;
-  const undoneAdd = await client.callTool({ name: 'undo_operation', arguments: { undoId: added.structuredContent.undo.undoId } });
-  check(undoneAdd.isError !== true && undoneAdd.structuredContent?.operation === 'section.add', `${title} Undo removes an added section`);
+  const undoneAdd = await stepReceipt(client, receiptOf(added));
+  check(undoneAdd.isError !== true && undoneAdd.structuredContent?.result?.operation === 'section.add', `${title} Undo removes an added section`);
   check(!(await canvas()).includes(addedId), `${title} the added section is gone after Undo`);
+  const redoneAdd = await stepReceipt(client, receiptOf(added), 'redo');
+  check(redoneAdd.isError !== true && (await canvas()).includes(addedId), `${title} Redo brings the added section back under the same id`);
 
   const editable = await client.callTool({
     name: 'create_section',
@@ -120,42 +143,66 @@ const assertUndo = async (client, title, dataFile) => {
     name: 'update_section',
     arguments: { sectionId: editableId, title: `Changed ${title}`, config: { text: 'After' }, collapsed: true },
   });
-  check(changed.isError !== true && changed.structuredContent?.undo?.operation === 'section.update', `${title} update_section returns one update receipt`);
+  check(changed.isError !== true && receiptOf(changed)?.operation === 'section.update', `${title} update_section returns one update receipt`);
   const noOp = await client.callTool({ name: 'update_section', arguments: { sectionId: editableId, title: `Changed ${title}` } });
-  check(noOp.isError !== true && noOp.structuredContent?.undo === null, `${title} an unchanged update returns undo: null`);
-  const undoneUpdate = await client.callTool({ name: 'undo_operation', arguments: { undoId: changed.structuredContent.undo.undoId } });
+  check(noOp.isError !== true && noOp.structuredContent?.operation === null, `${title} an unchanged update returns operation: null`);
+  const undoneUpdate = await stepReceipt(client, receiptOf(changed));
   check(
     undoneUpdate.isError !== true &&
-      undoneUpdate.structuredContent?.operation === 'section.update' &&
-      undoneUpdate.structuredContent?.section?.title === `Original ${title}`,
+      undoneUpdate.structuredContent?.result?.operation === 'section.update' &&
+      undoneUpdate.structuredContent?.result?.section?.title === `Original ${title}`,
     `${title} Undo restores only the edited fields`,
   );
+
+  // Slice 35's gate over this transport: two writes to the same field, then both undone and redone in order.
+  const titleOf = async () => {
+    const listed = await client.callTool({ name: 'list_sections', arguments: { projectId: PROJECT } });
+    return JSON.parse(listed.content[0].text).find(({ id }) => id === editableId)?.title;
+  };
+  const a = receiptOf(await client.callTool({ name: 'update_section', arguments: { sectionId: editableId, title: `A ${title}` } }));
+  const b = receiptOf(await client.callTool({ name: 'update_section', arguments: { sectionId: editableId, title: `B ${title}` } }));
+  const older = await client.callTool({ name: 'undo_operation', arguments: { historyId: a.historyId, actionId: a.actionId, expectedRevision: b.revision } });
+  check(older.isError === true && textOf(older).startsWith('history_not_next:'), `${title} undoing A before B is refused with history_not_next:`);
+  for (const [receipt, direction, expected] of [[b, 'undo', `A ${title}`], [a, 'undo', `Original ${title}`], [a, 'redo', `A ${title}`], [b, 'redo', `B ${title}`]]) {
+    const summary = await historyOf(client);
+    check(summary[direction]?.actionId === receipt.actionId, `${title} get_operation_history names the expected next ${direction}`);
+    const stepped = await client.callTool({
+      name: `${direction}_operation`,
+      arguments: { historyId: summary.historyId, actionId: summary[direction].actionId, expectedRevision: summary.revision },
+    });
+    check(stepped.isError !== true && stepped.structuredContent?.summary?.revision === summary.revision + 1, `${title} ${direction}_operation advances the revision`);
+    check((await titleOf()) === expected, `${title} the title is "${expected}" after ${direction}`);
+  }
+  check((await historyOf(client)).redo === null, `${title} nothing is left to redo at the top of the stack`);
 
   const moved = await client.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type: 'timeline', title: `Moved ${title}` } });
   check(moved.isError !== true && typeof moved.structuredContent?.section?.id === 'string', `${title} creates a move target`);
   const movedId = moved.structuredContent.section.id;
   const beforeMove = await canvas();
   const move = await client.callTool({ name: 'move_section', arguments: { sectionId: movedId, position: 0 } });
-  check(move.isError !== true && move.structuredContent?.undo?.operation === 'section.move', `${title} move_section returns a move receipt`);
-  const undoneMove = await client.callTool({ name: 'undo_operation', arguments: { undoId: move.structuredContent.undo.undoId } });
+  check(move.isError !== true && receiptOf(move)?.operation === 'section.move', `${title} move_section returns a move receipt`);
+  const undoneMove = await stepReceipt(client, receiptOf(move));
   check(undoneMove.isError !== true && JSON.stringify(await canvas()) === JSON.stringify(beforeMove), `${title} Undo restores combined section order`);
 
-  // The edit journeys above leave two sections behind, so compare removal against this order.
+  // The edit journeys above leave sections behind, so compare removal against this order.
   const beforeRemoval = await canvas();
   const removed = await client.callTool({ name: 'remove_section', arguments: { sectionId: UNDO_SECTION, policy: 'cascade' } });
-  check(removed.isError !== true && typeof removed.structuredContent?.undo?.undoId === 'string', `${title} remove_section returns a receipt`);
+  const removal = receiptOf(removed);
+  check(removed.isError !== true && typeof removal?.actionId === 'string', `${title} remove_section returns a receipt`);
   check((await liveTasks()).length === 0, `${title} cascade archived the tasks`);
-  const { undoId } = removed.structuredContent.undo;
 
-  const undone = await client.callTool({ name: 'undo_operation', arguments: { undoId } });
-  check(undone.isError !== true && undone.structuredContent?.outcome === 'restored', `${title} undo_operation restores`);
+  const removalArgs = { historyId: removal.historyId, actionId: removal.actionId, expectedRevision: removal.revision };
+  const undone = await client.callTool({ name: 'undo_operation', arguments: removalArgs });
+  check(undone.isError !== true && undone.structuredContent?.result?.outcome === 'restored', `${title} undo_operation restores`);
   check(JSON.stringify(await canvas()) === JSON.stringify(beforeRemoval), `${title} the list is back between the same neighbours`);
   check(JSON.stringify(await liveTasks()) === JSON.stringify(tasksBefore), `${title} its tasks are live again`);
 
-  const repeated = await client.callTool({ name: 'undo_operation', arguments: { undoId } });
+  const afterUndo = await readFile(dataFile, 'utf8');
+  const repeated = await client.callTool({ name: 'undo_operation', arguments: removalArgs });
+  check(repeated.isError === true && textOf(repeated).startsWith('history_revision_stale:'), `${title} a replayed Undo is refused with history_revision_stale:`);
   check(
-    repeated.isError === true && repeated.content?.some(({ text }) => typeof text === 'string' && text.startsWith('undo_consumed:')),
-    `${title} a repeat is refused with undo_consumed:`,
+    JSON.stringify(JSON.parse(await readFile(dataFile, 'utf8')).activityEvents) === JSON.stringify(JSON.parse(afterUndo).activityEvents),
+    `${title} the replay executed nothing a second time`,
   );
 
   const created = await client.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type: 'progress' } });
@@ -163,22 +210,25 @@ const assertUndo = async (client, title, dataFile) => {
   const disposableSectionId = created.structuredContent.section.id;
   const hardRemoved = await client.callTool({ name: 'remove_section', arguments: { sectionId: disposableSectionId } });
   check(hardRemoved.isError !== true, `${title} hard-removes the disposable view`);
-  const recoveredReceipt = hardRemoved.structuredContent.undo;
-  check(typeof recoveredReceipt?.undoId === 'string', `${title} removal returns an Undo receipt`);
+  const recoveredReceipt = receiptOf(hardRemoved);
+  check(typeof recoveredReceipt?.actionId === 'string', `${title} removal returns an operation receipt`);
   check(!(await canvas()).includes(disposableSectionId), `${title} the deleted view leaves list_sections`);
   const afterDelete = await readFile(dataFile, 'utf8');
   check(!JSON.parse(afterDelete).sections.some(({ id }) => id === disposableSectionId), `${title} hard deletion is persisted`);
 
   const lostReceipt = await client.callTool({ name: 'remove_section', arguments: { sectionId: disposableSectionId } });
-  const lostReceiptText = lostReceipt.content?.find(({ type }) => type === 'text')?.text ?? '';
+  const lostReceiptText = textOf(lostReceipt);
   check(lostReceipt.isError === true && lostReceiptText.startsWith('section_already_removed:'), `${title} repeat removal stays a refusal`);
-  check(lostReceiptText.includes(recoveredReceipt.undoId) && lostReceiptText.includes(recoveredReceipt.expiresAt), `${title} refusal recovers undoId and expiresAt`);
-  check((await readFile(dataFile, 'utf8')) === afterDelete, `${title} receipt recovery writes no second activity or inverse`);
+  check(
+    lostReceiptText.includes(recoveredReceipt.historyId) && lostReceiptText.includes(recoveredReceipt.actionId) && lostReceiptText.includes(recoveredReceipt.expiresAt),
+    `${title} refusal recovers historyId, actionId and expiresAt`,
+  );
+  check((await readFile(dataFile, 'utf8')) === afterDelete, `${title} receipt recovery writes no second activity or action`);
 
-  const restoredDeleted = await client.callTool({ name: 'undo_operation', arguments: { undoId: recoveredReceipt.undoId } });
-  check(restoredDeleted.isError !== true && restoredDeleted.structuredContent?.section?.id === disposableSectionId, `${title} recovered receipt recreates the deleted view`);
+  const restoredDeleted = await stepReceipt(client, recoveredReceipt);
+  check(restoredDeleted.isError !== true && restoredDeleted.structuredContent?.result?.section?.id === disposableSectionId, `${title} recovered receipt recreates the deleted view`);
   check((await canvas()).includes(disposableSectionId), `${title} the recreated view is listed again`);
-  return { undoId, disposableSectionId, recoveredUndoId: recoveredReceipt.undoId };
+  return { actionId: removal.actionId, disposableSectionId, recoveredActionId: recoveredReceipt.actionId, historyId: removal.historyId };
 };
 
 /**
@@ -189,10 +239,10 @@ const assertUndo = async (client, title, dataFile) => {
  */
 const textOf = (result) => result.content?.find(({ type }) => type === 'text')?.text ?? '';
 
-/** Every collection a refused Undo must leave alone; agent connections carry `lastUsedAt` and are excluded. */
+/** Every collection a refused transition must leave alone; agent connections carry `lastUsedAt` and are excluded. */
 const businessState = async (dataFile) => {
-  const { sections, sectionShortcuts, tasks, reflections, activityEvents, undoRecords } = JSON.parse(await readFile(dataFile, 'utf8'));
-  return JSON.stringify({ sections, sectionShortcuts, tasks, reflections, activityEvents, undoRecords });
+  const { sections, sectionShortcuts, tasks, reflections, activityEvents, operationHistories, operationActions } = JSON.parse(await readFile(dataFile, 'utf8'));
+  return JSON.stringify({ sections, sectionShortcuts, tasks, reflections, activityEvents, operationHistories, operationActions });
 };
 
 /** A refusal may arrive as an error result or, for a rejected credential, as a thrown transport error. */
@@ -214,7 +264,7 @@ const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access)
     const archive = await client.callTool({ name: 'get_project_archive', arguments: { projectId: PROJECT } });
     return archive.structuredContent.items.filter(({ kind }) => kind === 'section').map(({ section }) => section.id);
   };
-  const recordOf = async (undoId) => JSON.parse(await readFile(dataFile, 'utf8')).undoRecords.find(({ id }) => id === undoId);
+  const actionOf = async (actionId) => JSON.parse(await readFile(dataFile, 'utf8')).operationActions.find(({ id }) => id === actionId);
 
   // Refactor §26.1–2: each disposable view is deleted, never projected, and one Undo brings back the same id.
   for (const type of ['progress', 'timeline', 'recent-activity']) {
@@ -226,12 +276,14 @@ const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access)
       !(await archivedSectionIds()).includes(viewId) && !JSON.parse(await readFile(dataFile, 'utf8')).sections.some(({ id }) => id === viewId),
       `${title} the removed ${type} view is deleted and absent from get_project_archive`,
     );
-    const restoredView = await client.callTool({ name: 'undo_operation', arguments: { undoId: removedView.structuredContent.undo.undoId } });
-    check(restoredView.isError !== true && restoredView.structuredContent.section.id === viewId, `${title} Undo recreates the ${type} view under its id`);
+    const viewReceipt = receiptOf(removedView);
+    const viewArgs = { historyId: viewReceipt.historyId, actionId: viewReceipt.actionId, expectedRevision: viewReceipt.revision };
+    const restoredView = await client.callTool({ name: 'undo_operation', arguments: viewArgs });
+    check(restoredView.isError !== true && restoredView.structuredContent.result.section.id === viewId, `${title} Undo recreates the ${type} view under its id`);
     const afterUndo = await businessState(dataFile);
-    const repeat = await client.callTool({ name: 'undo_operation', arguments: { undoId: removedView.structuredContent.undo.undoId } });
-    check(repeat.isError === true && textOf(repeat).startsWith('undo_consumed:'), `${title} a repeated ${type} Undo is undo_consumed`);
-    check((await businessState(dataFile)) === afterUndo, `${title} the repeated ${type} Undo adds no event or record`);
+    const repeat = await client.callTool({ name: 'undo_operation', arguments: viewArgs });
+    check(repeat.isError === true && textOf(repeat).startsWith('history_revision_stale:'), `${title} a replayed ${type} Undo is history_revision_stale`);
+    check((await businessState(dataFile)) === afterUndo, `${title} the replayed ${type} Undo adds no event or action`);
   }
 
   // Reassign: every row id moves to the target and back; the emptied source never reaches Archive.
@@ -246,7 +298,7 @@ const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access)
   check(reassigned.isError !== true, `${title} reassign removal succeeds`);
   check(JSON.stringify(await tasksIn(targetId)) === JSON.stringify(original), `${title} reassign moves exactly the original row ids`);
   check(!(await archivedSectionIds()).includes(UNDO_SECTION), `${title} the emptied reassign source stays out of Archive`);
-  const undoneReassign = await client.callTool({ name: 'undo_operation', arguments: { undoId: reassigned.structuredContent.undo.undoId } });
+  const undoneReassign = await stepReceipt(client, receiptOf(reassigned));
   check(undoneReassign.isError !== true, `${title} reassign Undo succeeds`);
   check(
     JSON.stringify(await tasksIn(UNDO_SECTION)) === JSON.stringify(original) && (await tasksIn(targetId)).length === 0,
@@ -257,21 +309,26 @@ const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access)
   const cascade = await client.callTool({ name: 'remove_section', arguments: { sectionId: UNDO_SECTION, policy: 'cascade' } });
   check(cascade.isError !== true && cascade.structuredContent.section.id === UNDO_SECTION, `${title} cascade removal keeps the section id`);
   check((await archivedSectionIds()).includes(UNDO_SECTION), `${title} get_project_archive projects the cascaded list`);
-  const receipt = cascade.structuredContent.undo;
+  const receipt = receiptOf(cascade);
+  const receiptArgs = { historyId: receipt.historyId, actionId: receipt.actionId, expectedRevision: receipt.revision };
 
   const beforeForeign = await businessState(dataFile);
-  const foreignText = await refusedText(() => foreign.callTool({ name: 'undo_operation', arguments: { undoId: receipt.undoId } }));
-  check(foreignText !== null && foreignText.includes('was not found'), `${title} another connection gets not-found for the receipt`);
+  const foreignText = await refusedText(() => foreign.callTool({ name: 'undo_operation', arguments: receiptArgs }));
+  check(foreignText !== null && foreignText.includes('was not found'), `${title} another connection gets not-found for the history`);
   check((await businessState(dataFile)) === beforeForeign, `${title} the foreign refusal leaves the file's business collections unchanged`);
-  check((await recordOf(receipt.undoId))?.consumedAt === undefined, `${title} the foreign attempt leaves the receipt unconsumed`);
+  check((await actionOf(receipt.actionId))?.state === 'applied', `${title} the foreign attempt leaves the action applied`);
+  const foreignSummary = await foreign.callTool({ name: 'get_operation_history', arguments: { projectId: PROJECT } });
+  check(foreignSummary.isError !== true && foreignSummary.structuredContent.historyId !== receipt.historyId, `${title} a second connection sees its own history only`);
 
   await access.setPermissions('agent-claude', ['projects.read', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write', 'workspace.read']);
   const withoutGrant = await businessState(dataFile);
-  const grantText = await refusedText(() => client.callTool({ name: 'undo_operation', arguments: { undoId: receipt.undoId } }));
+  const readOnlySummary = await client.callTool({ name: 'get_operation_history', arguments: { projectId: PROJECT } });
+  check(readOnlySummary.isError !== true && readOnlySummary.structuredContent.undo?.actionId === receipt.actionId, `${title} projects.read alone still reads the history`);
+  const grantText = await refusedText(() => client.callTool({ name: 'undo_operation', arguments: receiptArgs }));
   check(grantText !== null && grantText.includes('projects.write'), `${title} Undo names the missing projects.write grant`);
   check((await businessState(dataFile)) === withoutGrant, `HTTP/stdio current grant removal refuses issued receipt (${title})`);
   await access.setPermissions('agent-claude', ['projects.read', 'projects.write', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write', 'workspace.read']);
-  const regranted = await client.callTool({ name: 'undo_operation', arguments: { undoId: receipt.undoId } });
+  const regranted = await client.callTool({ name: 'undo_operation', arguments: receiptArgs });
   check(
     regranted.isError !== true && JSON.stringify(await tasksIn(UNDO_SECTION)) === JSON.stringify(original),
     `${title} the same receipt works once the grant is back, with every row id live`,
@@ -279,10 +336,14 @@ const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access)
 
   // Revocation, on the second connection so the primary token still serves the restart checks.
   const foreignReceipt = await foreign.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type: 'progress', title: `Revoked ${title}` } });
-  check(foreignReceipt.isError !== true && foreignReceipt.structuredContent.undo.operation === 'section.add', `${title} the second connection holds its own add receipt`);
+  const foreignAdd = receiptOf(foreignReceipt);
+  check(foreignReceipt.isError !== true && foreignAdd.operation === 'section.add', `${title} the second connection holds its own add receipt`);
   await access.revoke('agent-cursor');
   const revokedState = await businessState(dataFile);
-  const revokedText = await refusedText(() => foreign.callTool({ name: 'undo_operation', arguments: { undoId: foreignReceipt.structuredContent.undo.undoId } }));
+  const revokedText = await refusedText(() => foreign.callTool({
+    name: 'undo_operation',
+    arguments: { historyId: foreignAdd.historyId, actionId: foreignAdd.actionId, expectedRevision: foreignAdd.revision },
+  }));
   // HTTP answers the revoked bearer token with 401 (the SDK's UnauthorizedError); stdio re-authenticates
   // on every call and refuses with AgentAuthenticationError's message. Any other failure is not revocation.
   check(
@@ -338,16 +399,17 @@ const assertPersisted = async (path, result, title) => {
     `${title} undone section is live in data.json`,
   );
   check(
-    document.undoRecords.some(({ id, consumedAt }) => id === result.undoId && typeof consumedAt === 'string'),
-    `${title} Undo record is consumed in data.json`,
+    document.operationHistories.some(({ id, actorAgentConnectionId }) => id === result.historyId && actorAgentConnectionId === 'agent-claude'),
+    `${title} the connection's operation history is persisted in data.json`,
   );
   check(
     document.sections.some(({ id, archivedAt }) => id === result.disposableSectionId && archivedAt === undefined),
     `${title} hard-deleted section is recreated in data.json`,
   );
+  // Both removals were undone and later writes followed, so each was discarded with its redo branch.
   check(
-    document.undoRecords.some(({ id, consumedAt }) => id === result.recoveredUndoId && typeof consumedAt === 'string'),
-    `${title} recovered hard-deletion receipt is consumed in data.json`,
+    !document.operationActions.some(({ id }) => id === result.actionId || id === result.recoveredActionId),
+    `${title} later writes discarded the undone removals from data.json`,
   );
 };
 
@@ -358,6 +420,9 @@ const assertJournalAfterRestart = async (client, result, title) => {
       journal.structuredContent?.items?.some(({ reflection }) => reflection.id === result.reflectionId),
     `${title} re-reads the linked reflection after restart`,
   );
+  // A fresh connection for the same token is the same agent connection, so its history survived the restart.
+  const summary = await historyOf(client);
+  check(summary.historyId === result.historyId && summary.revision > 0, `${title} a fresh connection sees its own persisted history after restart`);
 };
 
 const waitForExit = (child, timeoutMs) => {

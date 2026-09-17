@@ -1,12 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/angular-vite';
-import type { UndoReceipt, UndoRecordId } from '@cwm/contracts';
+import type { OperationActionId, OperationHistoryId, OperationReceipt, ProjectId } from '@cwm/contracts';
 import type { SectionUndoNoticeState } from './project-page-store';
 import { SectionUndoNotice } from './section-undo-notice';
 
-const receipt: UndoReceipt = {
-  undoId: 'undo-story' as UndoRecordId,
+const receipt: OperationReceipt = {
+  historyId: 'history-story' as OperationHistoryId,
+  actionId: 'operation-story' as OperationActionId,
   operation: 'section.remove',
-  sequence: 1,
+  revision: 1,
   label: 'Removed Notes',
   createdAt: '2026-09-14T09:00:00.000Z',
   expiresAt: '2026-09-15T09:00:00.000Z',
@@ -36,10 +37,19 @@ export const Conflict: Story = {
     state: {
       kind: 'refusal',
       receipt,
-      message: 'undo_conflict: Undo could not safely restore the removed section.',
+      message: 'history_conflict: Undo could not safely restore the removed section.',
       refusal: {
-        reason: 'undo_conflict',
-        undoId: receipt.undoId,
+        reason: 'history_conflict',
+        historyId: receipt.historyId,
+        actionId: receipt.actionId,
+        summary: {
+          projectId: 'project-story' as ProjectId,
+          historyId: receipt.historyId,
+          revision: 1,
+          undo: { actionId: receipt.actionId, operation: 'section.remove', label: receipt.label, expiresAt: receipt.expiresAt },
+          redo: null,
+          blockedBy: null,
+        },
         conflicts: [{
           entityType: 'task',
           id: 'task-story',

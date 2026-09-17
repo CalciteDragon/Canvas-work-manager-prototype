@@ -13,6 +13,7 @@ import {
 import {
   ActivityService,
   DashboardService,
+  OperationHistoryService,
   ProjectPageService,
   ProjectArchiveService,
   ProjectJournalService,
@@ -21,11 +22,10 @@ import {
   PrototypeAIProvider,
   PrototypeClock,
   ReflectionService,
-  RepositoryUndoRecorder,
+  RepositoryOperationRecorder,
   SectionService,
   SectionShortcutService,
   TaskService,
-  UndoService,
   WorkspaceService,
   type ActorContext,
   type IdGenerator,
@@ -36,13 +36,14 @@ import {
   JsonActivityRepository,
   JsonAgentConnectionRepository,
   JsonMilestoneRepository,
+  JsonOperationActionRepository,
+  JsonOperationHistoryRepository,
   JsonProjectPageRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
   JsonSectionShortcutRepository,
   JsonTaskRepository,
-  JsonUndoRecordRepository,
   JsonUserRepository,
   unitOfWorkFor,
 } from '@cwm/repositories';
@@ -184,7 +185,8 @@ export const buildHarness = () => {
   const agents = new JsonAgentConnectionRepository(store);
   const users = new JsonUserRepository(store);
   const milestones = new JsonMilestoneRepository(store);
-  const undoRecords = new JsonUndoRecordRepository(store);
+  const operationHistories = new JsonOperationHistoryRepository(store);
+  const operationActions = new JsonOperationActionRepository(store);
   const activity = new ActivityService({
     activities,
     projects,
@@ -197,8 +199,8 @@ export const buildHarness = () => {
     ids,
   });
 
-  const undo = new RepositoryUndoRecorder({ undoRecords, clock, ids });
-  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, undo, clock, ids, unitOfWork });
+  const history = new RepositoryOperationRecorder({ histories: operationHistories, actions: operationActions, clock, ids });
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, history, clock, ids, unitOfWork });
   const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
 
   const services = {
@@ -213,7 +215,7 @@ export const buildHarness = () => {
     reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     workspace: new WorkspaceService({ projects, tasks, reflections, clock }),
-    undo: new UndoService({ undoRecords, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
+    history: new OperationHistoryService({ histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
   };
 
   return { store, clock, activity, services, registry: createToolRegistry(services) };

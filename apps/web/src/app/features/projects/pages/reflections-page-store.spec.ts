@@ -9,8 +9,9 @@ import {
   type Reflection,
   type ProjectId,
   type ProjectPageId,
-  type UndoRecordId,
-  type UndoReceipt,
+  type OperationActionId,
+  type OperationHistoryId,
+  type OperationReceipt,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
@@ -86,10 +87,11 @@ const completedWork = ProjectCompletedWorkResultSchema.parse({
   projectId: PROJECT,
   candidates: [journal.items[0]!.subject!],
 });
-const addReceipt: UndoReceipt = {
-  undoId: 'undo-reflections-add' as UndoRecordId,
+const addReceipt: OperationReceipt = {
+  historyId: 'history-journal' as OperationHistoryId,
+  actionId: 'operation-reflections-add' as OperationActionId,
   operation: 'section.add',
-  sequence: 1,
+  revision: 1,
   label: 'Add reflections',
   createdAt: AT,
   expiresAt: '2026-09-06T10:00:00.000Z',
@@ -228,7 +230,7 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     gateway.sections.list = async () => [];
     gateway.sections.create = vi.fn(async (_projectId, input) => ({
       section: { ...container, ...input, projectId: PROJECT, pageId: PAGE },
-      undo: addReceipt,
+      operation: addReceipt,
     }));
     await store.load(PROJECT, PAGE);
 
@@ -311,16 +313,27 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
   });
 });
 
-describe('ReflectionsPageStore — container add Undo (Slice 32)', () => {
-  const addWithUndo = (gateway: FakeWorkManagerGateway, undoExecute: FakeWorkManagerGateway['undo']['execute']) => {
+/** Refusal details as the host sends them: the history, the named action and the current summary. */
+const refusalDetails = (details: Record<string, unknown>) => ({
+  historyId: addReceipt.historyId,
+  actionId: addReceipt.actionId,
+  summary: {
+    projectId: PROJECT, historyId: addReceipt.historyId, revision: 1, blockedBy: null, redo: null,
+    undo: { actionId: addReceipt.actionId, operation: 'section.add', label: addReceipt.label, expiresAt: addReceipt.expiresAt },
+  },
+  ...details,
+});
+
+describe('ReflectionsPageStore — container add Undo (Slices 32, 35)', () => {
+  const addWithUndo = (gateway: FakeWorkManagerGateway, transition: FakeWorkManagerGateway['history']['transition']) => {
     let listed: (typeof container)[] = [];
     gateway.sections.list = async () => [...listed];
     gateway.sections.create = vi.fn(async (_projectId, input) => {
       listed = [container];
-      return { section: { ...container, ...input, projectId: PROJECT, pageId: PAGE }, undo: addReceipt };
+      return { section: { ...container, ...input, projectId: PROJECT, pageId: PAGE }, operation: addReceipt };
     });
-    gateway.undo.execute = vi.fn(async (undoId) => {
-      const result = await undoExecute(undoId);
+    gateway.history.transition = vi.fn(async (historyId, input) => {
+      const result = await transition(historyId, input);
       listed = [];
       return result;
     });
@@ -328,11 +341,19 @@ describe('ReflectionsPageStore — container add Undo (Slice 32)', () => {
 
   it('holds the add receipt and Undo returns the page to its empty-container prompt', async () => {
     const { store, gateway } = setup();
-    addWithUndo(gateway, async () => ({ undoId: addReceipt.undoId, operation: 'section.add', outcome: 'removed', sectionId: container.id, projectId: PROJECT, pageId: PAGE }));
+    addWithUndo(gateway, async (historyId, input) => {
+      expect(historyId).toBe(addReceipt.historyId);
+      expect(input).toEqual({ actionId: addReceipt.actionId, direction: 'undo', expectedRevision: addReceipt.revision });
+      return {
+        direction: 'undo', actionId: addReceipt.actionId,
+        result: { operation: 'section.add', outcome: 'removed', sectionId: container.id, projectId: PROJECT, pageId: PAGE },
+        summary: { projectId: PROJECT, historyId: addReceipt.historyId, revision: 2, undo: null, redo: null, blockedBy: null },
+      };
+    });
     await store.load(PROJECT, PAGE);
 
     await store.ensureContainer();
-    expect(store.undoNotice()).toMatchObject({ kind: 'available', receipt: { undoId: addReceipt.undoId } });
+    expect(store.undoNotice()).toMatchObject({ kind: 'available', receipt: { actionId: addReceipt.actionId } });
 
     await expect(store.undoOperation()).resolves.toMatchObject({ operation: 'section.add' });
     expect(store.undoNotice()).toMatchObject({ kind: 'result', receipt: null });
@@ -343,19 +364,41 @@ describe('ReflectionsPageStore — container add Undo (Slice 32)', () => {
   it('keeps the container and the receipt when the server refuses because a reflection was authored', async () => {
     const { store, gateway } = setup();
     addWithUndo(gateway, async () => {
-      throw new GatewayError('rule_violation', 409, 'undo_conflict: a reflection now lives in it', {
-        reason: 'undo_conflict',
-        undoId: addReceipt.undoId,
+      throw new GatewayError('rule_violation', 409, 'history_conflict: a reflection now lives in it', refusalDetails({
+        reason: 'history_conflict',
         conflicts: [{ entityType: 'reflection', id: 'reflection-new', title: 'Kept', problem: 'new-dependent', nextStep: 'remove-reference-and-retry' }],
-      });
+      }));
     });
     await store.load(PROJECT, PAGE);
     await store.ensureContainer();
 
     expect(await store.undoOperation()).toBeNull();
 
-    expect(store.undoNotice()).toMatchObject({ kind: 'refusal', receipt: { undoId: addReceipt.undoId }, refusal: { reason: 'undo_conflict' } });
+    expect(store.undoNotice()).toMatchObject({ kind: 'refusal', receipt: { actionId: addReceipt.actionId }, refusal: { reason: 'history_conflict' } });
     expect(store.container()?.id).toBe(container.id);
+  });
+
+  it('re-reads the container when a stale refusal shows this Undo already landed', async () => {
+    const { store, gateway } = setup();
+    addWithUndo(gateway, async () => {
+      throw new GatewayError('rule_violation', 409, 'history_revision_stale: moved', refusalDetails({
+        reason: 'history_revision_stale',
+        summary: {
+          projectId: PROJECT, historyId: addReceipt.historyId, revision: 2, blockedBy: null, undo: null,
+          redo: { actionId: addReceipt.actionId, operation: 'section.add', label: addReceipt.label, expiresAt: addReceipt.expiresAt },
+        },
+      }));
+    });
+    await store.load(PROJECT, PAGE);
+    await store.ensureContainer();
+    expect(store.container()?.id).toBe(container.id);
+    // The Undo ran elsewhere (a lost response, or another tab): the container is gone on the host.
+    gateway.sections.list = async () => [];
+
+    expect(await store.undoOperation()).toBeNull();
+
+    expect(store.undoNotice()).toMatchObject({ kind: 'terminal', receipt: null });
+    expect(store.container()).toBeNull();
   });
 
   it('clears the notice on navigation', async () => {
@@ -368,14 +411,13 @@ describe('ReflectionsPageStore — container add Undo (Slice 32)', () => {
     expect(store.undoNotice()).toBeNull();
   });
 
-  it('does not send the add receipt again once a newer change superseded it', async () => {
+  it('does not send the add receipt again once the server retired it', async () => {
     const { store, gateway } = setup();
     const refuse = vi.fn(async () => {
-      throw new GatewayError('rule_violation', 409, 'undo_conflict: superseded', {
-        reason: 'undo_conflict',
-        undoId: addReceipt.undoId,
-        conflicts: [{ entityType: 'section', id: container.id, title: 'Reflections', problem: 'superseded', nextStep: 'use-later-receipt', supersededBy: 'self' }],
-      });
+      throw new GatewayError('rule_violation', 409, 'history_retired: retired', refusalDetails({
+        reason: 'history_retired',
+        conflicts: [{ entityType: 'section', id: container.id, title: 'Reflections', problem: 'already-exists', nextStep: 'nothing-to-restore' }],
+      }));
     });
     addWithUndo(gateway, refuse);
     await store.load(PROJECT, PAGE);

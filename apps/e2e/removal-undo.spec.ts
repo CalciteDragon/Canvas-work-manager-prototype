@@ -498,7 +498,7 @@ test('cross-page reassignment and Undo preserve every reflection id and archive 
     await expect(reflectionsPage.locator('[data-reflections-page]')).toBeVisible();
     await expect(owner).toHaveAttribute('href', ownerHref(homeContainer));
 
-    const removal = await api.delete<{ undo: { undoId: string } }>(`/api/sections/${homeContainer}?policy=reassign&reassignToSectionId=${pageContainer}`);
+    const removal = await api.delete<{ operation: { historyId: string; actionId: string } }>(`/api/sections/${homeContainer}?policy=reassign&reassignToSectionId=${pageContainer}`);
     expect(await reflectionsOf(pageContainer)).toEqual([
       ...untouched,
       { id: live.id, sectionId: pageContainer, archived: false },
@@ -509,7 +509,18 @@ test('cross-page reassignment and Undo preserve every reflection id and archive 
     await reflectionsPage.reload();
     await expect(owner).toHaveAttribute('href', ownerHref(pageContainer));
 
-    await api.post(`/api/undo/${removal.undo.undoId}`, undefined);
+    const transition = (direction: 'undo' | 'redo') => api.get<{ revision: number }>(`/api/projects/${root}/history`).then(({ revision }) =>
+      api.post(`/api/history/${removal.operation.historyId}/transition`, { actionId: removal.operation.actionId, direction, expectedRevision: revision }));
+    await transition('undo');
+    expect(await reflectionsOf(homeContainer)).toEqual(homeRows);
+    // The undo-then-redo round trip: Redo moves exactly the same rows across again, then Undo brings them home.
+    await transition('redo');
+    expect(await reflectionsOf(pageContainer)).toEqual([
+      ...untouched,
+      { id: live.id, sectionId: pageContainer, archived: false },
+      { id: filed.id, sectionId: pageContainer, archived: true },
+    ].sort((left, right) => left.id.localeCompare(right.id)));
+    await transition('undo');
     expect(await reflectionsOf(homeContainer)).toEqual(homeRows);
     expect(await reflectionsOf(pageContainer)).toEqual(untouched);
     expect((await api.get<ProjectSection[]>(`/api/projects/${root}/sections?pageId=page-project-renovation`)).map(({ id }) => id)).toEqual(homeOrder);

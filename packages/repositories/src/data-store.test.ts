@@ -1,7 +1,13 @@
 import { mkdtemp, readFile, rename as renameFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PrototypeDocumentSchema, type PrototypeDocument, SCHEMA_VERSION, UndoRecordSchema } from '@cwm/contracts';
+import {
+  OperationActionSchema,
+  OperationHistorySchema,
+  PrototypeDocumentSchema,
+  type PrototypeDocument,
+  SCHEMA_VERSION,
+} from '@cwm/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type DataStore, type FileOperations, InMemoryDataStore, JsonDataStore, unitOfWorkFor } from './data-store';
 import { DocumentIntegrityError, UnitOfWorkInProgressError } from './errors';
@@ -1419,21 +1425,32 @@ describe('reflection subject integrity (§36)', () => {
   });
 });
 
-describe('undo record integrity', () => {
-  const record = (overrides: Record<string, unknown> = {}) =>
-    UndoRecordSchema.parse({
-      id: 'undo-1',
+describe('operation history integrity', () => {
+  const history = (overrides: Record<string, unknown> = {}) =>
+    OperationHistorySchema.parse({
+      id: 'history-1',
       workspaceId: 'workspace-1',
       projectId: 'project-1',
       actor: 'user',
       actorUserId: 'user-1',
-      sequence: 1,
-      label: 'Remove the Backlog section',
+      cursor: 1,
+      orderHighWaterMark: 1,
+      revision: 1,
+      ...overrides,
+    });
+
+  const action = (overrides: Record<string, unknown> = {}) =>
+    OperationActionSchema.parse({
+      id: 'operation-1',
+      historyId: 'history-1',
+      order: 1,
+      state: 'applied',
+      label: 'Removed the Backlog section',
       createdAt: at,
       expiresAt: '2026-08-27T10:00:00.000Z',
       operation: {
         version: 1,
-        type: 'section.remove',
+        type: 'section.add',
         // Every id below names something the document does not hold.
         section: {
           id: 'section-gone',
@@ -1444,66 +1461,113 @@ describe('undo record integrity', () => {
           columnSpan: 12,
           collapsed: false,
           config: {},
+          archiveGeneration: 0,
           createdAt: at,
           updatedAt: at,
         },
         placement: { pageId: 'page-gone', previous: { kind: 'shortcut', id: 'shortcut-gone' }, index: 1 },
-        appliedPolicy: 'cascade',
-        rows: [
-          {
-            kind: 'task',
-            id: 'task-gone',
-            before: { sectionId: 'section-gone' },
-            after: { sectionId: 'section-gone', archivedAt: at, archivedWithSectionId: 'section-gone' },
-          },
-        ],
-        postSectionArchivedAt: at,
       },
       ...overrides,
     });
 
-  const withRecords = (...records: ReturnType<typeof record>[]) => {
+  const withHistory = (histories: ReturnType<typeof history>[], actions: ReturnType<typeof action>[] = []) => {
     const document = withSecondWorkspace();
-    document.undoRecords.push(...records);
+    document.operationHistories.push(...histories);
+    document.operationActions.push(...actions);
     return document;
   };
 
-  it('accepts a record whose snapshot names a missing section, page, shortcut and task', () => {
-    // Snapshot storage is separate from live-reference integrity: a retained inverse may outlive
-    // what it names, which hard deletion will depend on.
-    expect(() => new InMemoryDataStore(withRecords(record()))).not.toThrow();
+  it('accepts an action whose snapshot names a missing section, page and shortcut', () => {
+    // An add Undo deletes the section its action names, and the action must survive to be redone.
+    expect(() => new InMemoryDataStore(withHistory([history()], [action()]))).not.toThrow();
   });
 
-  it('accepts agent and system records whose actor belongs to the workspace', () => {
-    const agent = record({ id: 'undo-2', sequence: 2, actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-1' });
-    const system = record({ id: 'undo-3', sequence: 3, actor: 'system', actorUserId: undefined });
-    expect(() => new InMemoryDataStore(withRecords(record(), agent, system))).not.toThrow();
+  it('a cursor no higher than the order high-water mark, with 0 valid', () => {
+    expect(() => new InMemoryDataStore(withHistory([history({ cursor: 0, orderHighWaterMark: 0, revision: 0 })]))).not.toThrow();
+    // Pruning removed every action; the cursor and high-water mark stay.
+    expect(() => new InMemoryDataStore(withHistory([history({ cursor: 7, orderHighWaterMark: 9, revision: 12 })]))).not.toThrow();
+    const document = withHistory([]);
+    document.operationHistories.push({ ...history(), cursor: 2 });
+    expect(() => new InMemoryDataStore(document)).toThrow();
+  });
+
+  it('one history per actor, project and workspace', () => {
+    const agent = history({ id: 'history-2', actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-1' });
+    const system = history({ id: 'history-3', actor: 'system', actorUserId: undefined });
+    const otherWorkspace = history({ id: 'history-4', workspaceId: 'workspace-2', projectId: 'project-2', actorUserId: 'user-2' });
+    expect(() => new InMemoryDataStore(withHistory([history(), agent, system, otherWorkspace]))).not.toThrow();
+    expect(() => new InMemoryDataStore(withHistory([history(), history({ id: 'history-5' })]))).toThrow(/duplicate history for its actor and project/);
+    expect(() => new InMemoryDataStore(withHistory([system, history({ id: 'history-6', actor: 'system', actorUserId: undefined })]))).toThrow(/duplicate history/);
+  });
+
+  it('does not collide distinct scopes whose ids contain delimiters', () => {
+    const document = withHistory([]);
+    const project = document.projects[0]!;
+    const page = document.projectPages[0]!;
+    document.projects.push({ ...project, id: 'project 1' as never }, { ...project, id: 'project' as never });
+    document.projectPages.push({ ...page, id: 'page-a' as never, projectId: 'project 1' as never }, { ...page, id: 'page-b' as never, projectId: 'project' as never });
+    document.operationHistories.push(history({ id: 'history-a', projectId: 'project 1' }), history({ id: 'history-b', projectId: 'project' }));
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
+  });
+
+  it('a history must name a stored project', () => {
+    expect(() => new InMemoryDataStore(withHistory([history({ projectId: 'project-gone' })]))).toThrow(/missing project/);
   });
 
   it.each([
-    ['a duplicate id', [record(), record({ sequence: 2 })], /undoRecords contains duplicate id/],
-    ['a duplicate sequence within a workspace', [record(), record({ id: 'undo-2' })], /duplicate sequence 1/],
-    ['a missing workspace', [record({ workspaceId: 'workspace-gone' })], /missing workspace/],
-    ['a missing project', [record({ projectId: 'project-gone' })], /missing project/],
-    ['a project from another workspace', [record({ projectId: 'project-2' })], /project from another workspace/],
-    ['a missing user actor', [record({ actorUserId: 'user-gone' })], /missing user actor/],
-    ['a user actor from another workspace', [record({ actorUserId: 'user-2' })], /user actor from another workspace/],
-    [
-      'a missing agent actor',
-      [record({ actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-gone' })],
-      /missing agent actor/,
-    ],
-    [
-      'an agent actor from another workspace',
-      [record({ actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-2' })],
-      /agent actor from another workspace/,
-    ],
-  ])('rejects %s', (_, records, message) => {
-    expect(() => new InMemoryDataStore(withRecords(...records))).toThrow(message);
+    ['a duplicate id', [history(), history({ projectId: 'project-2', workspaceId: 'workspace-2', actorUserId: 'user-2' })], /operationHistories contains duplicate id/],
+    ['a missing workspace', [history({ workspaceId: 'workspace-gone' })], /missing workspace/],
+    ['a project from another workspace', [history({ projectId: 'project-2' })], /project from another workspace/],
+    ['a missing user actor', [history({ actorUserId: 'user-gone' })], /missing user actor/],
+    ['a user actor from another workspace', [history({ actorUserId: 'user-2' })], /user actor from another workspace/],
+    ['a missing agent actor', [history({ actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-gone' })], /missing agent actor/],
+    ['an agent actor from another workspace', [history({ actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-2' })], /agent actor from another workspace/],
+  ])('rejects a history with %s', (_, histories, message) => {
+    expect(() => new InMemoryDataStore(withHistory(histories))).toThrow(message);
   });
 
-  it('allows the same sequence in two workspaces', () => {
-    const theirs = record({ id: 'undo-2', workspaceId: 'workspace-2', projectId: 'project-2', actorUserId: 'user-2' });
-    expect(() => new InMemoryDataStore(withRecords(record(), theirs))).not.toThrow();
+  it('an action names a stored history and a unique order within its high-water mark', () => {
+    const twoDeep = history({ cursor: 2, orderHighWaterMark: 2 });
+    expect(() => new InMemoryDataStore(withHistory([twoDeep], [action(), action({ id: 'operation-2', order: 2 })]))).not.toThrow();
+    expect(() => new InMemoryDataStore(withHistory([history()], [action({ historyId: 'history-gone' })]))).toThrow(/missing history/);
+    expect(() => new InMemoryDataStore(withHistory([twoDeep], [action(), action({ id: 'operation-2' })]))).toThrow(/duplicate order 1/);
+    expect(() => new InMemoryDataStore(withHistory([history()], [action({ order: 2 })]))).toThrow(/above its history's high-water mark/);
+    expect(() => new InMemoryDataStore(withHistory([twoDeep], [action(), action()]))).toThrow(/operationActions contains duplicate id/);
+  });
+
+  it('an action’s operation belongs to its history’s project', () => {
+    const foreign = action({
+      operation: { ...action().operation, section: { ...(action().operation as { section: object }).section, projectId: 'project-2' } },
+    });
+    expect(() => new InMemoryDataStore(withHistory([history()], [foreign]))).toThrow(/names a project outside its history/);
+  });
+
+  it('rejects a retained removal action whose captured archive generation is ahead of its section', () => {
+    const document = withHistory([history()]);
+    const section = document.sections[0]!;
+    const removal = (archiveGeneration: number, disposition: 'retained' | 'deleted' = 'retained') =>
+      action({
+        operation: {
+          version: 1,
+          type: 'section.remove',
+          section: { ...section, archiveGeneration: archiveGeneration - 1 },
+          placement: { pageId: section.pageId, index: section.position },
+          appliedPolicy: 'none',
+          rows: [],
+          disposition,
+          postSectionArchivedAt: at,
+          archiveGeneration,
+        },
+      });
+    document.sections[0] = { ...section, archiveGeneration: 1 };
+    document.operationActions.push(removal(1));
+    expect(() => new InMemoryDataStore(structuredClone(document))).not.toThrow();
+
+    document.operationActions[0] = removal(2);
+    expect(() => new InMemoryDataStore(structuredClone(document))).toThrow(/captures archive generation 2, beyond section "section-1"/);
+
+    // A deleted section has no row to compare against; the existence checks guard it instead.
+    document.operationActions[0] = removal(2, 'deleted');
+    expect(() => new InMemoryDataStore(structuredClone(document))).not.toThrow();
   });
 });

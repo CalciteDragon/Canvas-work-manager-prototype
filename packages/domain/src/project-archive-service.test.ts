@@ -177,13 +177,14 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
   it('restores a deleted disposable view through its receipt, outside Archive', async () => {
     const { harness, archive } = buildArchive();
     const progress = 'section-project-renovation-progress' as never;
-    const { undo } = await harness.sectionService.remove(harness.actor, progress);
+    const { operation } = await harness.sectionService.remove(harness.actor, progress);
     expect(sectionItem((await archive.derive(harness.actor, ROOT)).items, progress)).toBeUndefined();
     expect(await harness.sections.find(progress)).toBeNull();
 
-    const restored = await harness.undoService.undo(harness.actor, undo.undoId);
+    const restored = await harness.undo(harness.actor, operation);
 
-    expect(restored.section.archivedAt).toBeUndefined();
+    expect(restored).toMatchObject({ operation: 'section.remove', outcome: 'restored' });
+    expect((await harness.sections.find(progress))?.archivedAt).toBeUndefined();
     expect((await harness.sectionService.list(harness.actor, ROOT)).map(({ id }) => id)).toContain(progress);
   });
 
@@ -278,7 +279,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     const target = await harness.sectionService.add(harness.actor, ROOT, { type: 'reflections' });
     const filed = await harness.reflectionService.create(harness.actor, { projectId: ROOT, sectionId: source.id, body: 'Filed' });
     await harness.reflectionService.archive(harness.actor, filed.id);
-    const { undo } = await harness.sectionService.remove(harness.actor, source.id, {
+    const { operation } = await harness.sectionService.remove(harness.actor, source.id, {
       policy: 'reassign',
       reassignToSectionId: target.id,
     });
@@ -295,7 +296,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
       restoration: { kind: 'blocked', blocker: { kind: 'section', sectionId: source.id } },
     });
 
-    await harness.undoService.undo(harness.actor, undo.undoId);
+    await harness.undo(harness.actor, operation);
     expect((await harness.reflections.find(filed.id))?.sectionId).toBe(source.id);
     expect((await harness.sections.find(source.id))?.archivedAt).toBeUndefined();
   });

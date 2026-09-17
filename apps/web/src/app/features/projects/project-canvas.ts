@@ -100,7 +100,7 @@ export class ProjectCanvas {
   private pendingUndoFocus: {
     projectId: ProjectId;
     pageId: ProjectPageId;
-    undoId: string;
+    receiptId: string;
     originalTarget: HTMLElement | null;
   } | null = null;
 
@@ -352,7 +352,7 @@ export class ProjectCanvas {
     this.pendingUndoFocus = null;
     const focusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusStartedInRemoval = this.focusIsInSectionOrDialog(id) || this.focusIsInUndoNotice();
-    const previousReceiptId = this.store.undoNotice()?.receipt?.undoId ?? null;
+    const previousReceiptId = receiptIdOf(this.store.undoNotice()?.receipt);
     const removed = await this.store.removeSection(id, input);
     if (this.projectId() !== projectId || this.pageId() !== pageId) return removed;
 
@@ -369,11 +369,13 @@ export class ProjectCanvas {
     const notice = this.store.undoNotice();
     if (notice?.receipt === null || notice?.receipt === undefined) return true;
     const recovered = notice.kind === 'already-removed';
-    if (!recovered && notice.receipt.undoId === previousReceiptId) return true;
+    if (!recovered && receiptIdOf(notice.receipt) === previousReceiptId) return true;
     const active = document.activeElement;
     const focusWasNotMovedElsewhere = active === document.body || active === focusedElement;
     if (focusStartedInRemoval && focusWasNotMovedElsewhere) {
-      this.pendingUndoFocus = { projectId, pageId, undoId: notice.receipt.undoId, originalTarget: focusedElement };
+      const receiptId = receiptIdOf(notice.receipt);
+      if (receiptId === null) return true;
+      this.pendingUndoFocus = { projectId, pageId, receiptId, originalTarget: focusedElement };
       afterNextRender(() => {
         this.focusPendingUndo();
       }, { injector: this.injector });
@@ -389,7 +391,7 @@ export class ProjectCanvas {
     if (
       this.projectId() !== pending.projectId ||
       this.pageId() !== pending.pageId ||
-      notice?.receipt?.undoId !== pending.undoId
+      receiptIdOf(notice?.receipt) !== pending.receiptId
     ) {
       this.pendingUndoFocus = null;
       return;
@@ -541,6 +543,9 @@ export class ProjectCanvas {
 
 const placementId = (placement: ProjectCanvasPlacement): string =>
   placement.kind === 'section' ? placement.section.id : placement.shortcut.id;
+
+/** The action a held receipt names — what Undo focus follows across notice changes. */
+const receiptIdOf = (receipt: { actionId: string } | null | undefined): string | null => receipt?.actionId ?? null;
 
 const placementSpan = (placement: ProjectCanvasPlacement): SectionColumnSpan =>
   placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan;

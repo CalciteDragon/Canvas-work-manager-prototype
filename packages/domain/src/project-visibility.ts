@@ -129,7 +129,7 @@ export const assertProjectWritable = async (projects: ProjectRepository, project
 /**
  * The same freeze as `assertProjectWritable`, answered rather than thrown: the **highest**
  * archived project on the chain from `projectId` up — itself included — or `undefined` when
- * nothing blocks a write. Undo reports it as `undo_blocked`, whose details need an id, not a
+ * nothing blocks a write. a history transition reports it as `history_blocked`, whose details need an id, not a
  * sentence. Highest, because reactivating anything below it still leaves the tree frozen.
  */
 export const findHighestWriteBlocker = async (

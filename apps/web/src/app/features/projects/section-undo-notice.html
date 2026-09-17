@@ -26,18 +26,10 @@
           @for (conflict of conflicts(); track $index) {
             <li data-undo-conflict>
               <span>{{ conflictSubject(conflict) }}:</span>
-              @if (supersededByCopy(conflict); as supersededBy) {
-                <span data-undo-superseded-by>{{ supersededBy }}</span>
-              }
               <span data-undo-next-step>{{ nextStepCopy(conflict.nextStep) }}</span>
             </li>
           }
         </ul>
-      }
-      @if (undoRefusedForGood()) {
-        <p id="section-undo-refused-for-good" data-undo-refused-for-good class="section-undo-notice__meta">
-          Undo can't be tried again: a later change replaced this one, or what it changed no longer exists.
-        </p>
       }
       @if (notice.refreshFailed) {
         <p data-undo-refresh-error class="section-undo-notice__meta">
@@ -51,9 +43,7 @@
         <button
           data-undo-action
           type="button"
-          [attr.aria-disabled]="busy() || undoRefusedForGood()"
-          [class.section-undo-notice__action--refused]="undoRefusedForGood()"
-          [attr.aria-describedby]="undoRefusedForGood() ? 'section-undo-refused-for-good' : null"
+          [attr.aria-disabled]="busy()"
           (click)="requestUndo()"
         >
           {{ busy() ? 'Undoing…' : 'Undo' }}

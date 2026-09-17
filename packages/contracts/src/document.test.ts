@@ -18,19 +18,22 @@ const document = {
 };
 
 describe('PrototypeDocumentSchema', () => {
-  it('is at version 3 — projects split into roots and sub-projects, and pages own sections', () => {
-    expect(SCHEMA_VERSION).toBe(3);
+  it('is at version 4 — per-actor operation histories replaced single-use Undo records', () => {
+    expect(SCHEMA_VERSION).toBe(4);
   });
 
-  it('accepts the §14 document', () => {
-    expect(PrototypeDocumentSchema.parse(document)).toEqual({ ...document, undoRecords: [] });
+  it('accepts the §14 document, with empty history collections when a hand-written file omits them', () => {
+    expect(PrototypeDocumentSchema.parse(document)).toEqual({ ...document, operationHistories: [], operationActions: [] });
   });
 
-  it('parses a version-3 document written before Undo records existed, with an empty collection', () => {
-    // No bump and no converter: the collection is defaulted, so every existing file still loads.
-    expect(SCHEMA_VERSION).toBe(3);
-    expect(document).not.toHaveProperty('undoRecords');
-    expect(PrototypeDocumentSchema.parse(document).undoRecords).toEqual([]);
+  it('strips a version-3 `undoRecords` collection rather than carrying it', () => {
+    // Only the explicit converter reads legacy receipts; a v4 document never holds one.
+    const parsed = PrototypeDocumentSchema.parse({ ...document, undoRecords: [{ id: 'undo-1' }] });
+    expect(parsed).not.toHaveProperty('undoRecords');
+  });
+
+  it('rejects a version-3 file, which needs `pnpm prototype:upgrade`', () => {
+    expect(PrototypeDocumentSchema.safeParse({ ...document, schemaVersion: 3 }).success).toBe(false);
   });
 
   it('rejects a file written by an older schema', () => {

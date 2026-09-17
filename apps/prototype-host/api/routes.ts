@@ -28,10 +28,11 @@ import {
   UpdateReflectionInputSchema,
   UpdateSectionInputSchema,
   UpdateSectionShortcutInputSchema,
-  UndoRecordIdSchema,
+  OperationHistoryIdSchema,
+  OperationHistoryTransitionInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService, UndoService } from '@cwm/domain';
+import type { ActivityService, AgentConnectionService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveIdentityUser } from './context.ts';
 import type { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
@@ -57,8 +58,8 @@ export interface ApiDependencies {
   reflections: ReflectionService;
   dashboard: DashboardService;
   agents: AgentConnectionService;
-  /** Receipt-based Undo; its refusals ride the 409 envelope with `UndoRefusalDetails`. */
-  undo: UndoService;
+  /** Per-actor Undo/Redo history; its refusals ride the 409 envelope with `OperationHistoryRefusalDetails`. */
+  history: OperationHistoryService;
   /**
    * §51's bearer tokens. Optional so `createApiRouteTable` and the concurrency tests keep
    * their one-argument form — without it every request is a persona request, which is
@@ -71,7 +72,7 @@ const ok = (body: unknown): RouteResult => ({ status: 200, contentType: 'applica
 const created = (body: unknown): RouteResult => ({ status: 201, contentType: 'application/json', body });
 /**
  * For the operations that answer nothing worth reading. Section removal is no longer one of them:
- * its DELETE answers 200 with the archived section and its Undo receipt.
+ * its DELETE answers 200 with the archived section and its operation receipt.
  */
 const noContent = (): RouteResult => ({ status: 204, contentType: 'application/json', body: undefined });
 
@@ -114,7 +115,7 @@ const shortcutPageQuery = (query: URLSearchParams): Record<string, unknown> => (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, archive, journal, reflections, dashboard, agents, undo, authenticator } =
+  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, archive, journal, reflections, dashboard, agents, history, authenticator } =
     dependencies;
   // Async now: an agent request has to resolve its token against the live connection
   // before the handler runs, because that read is what carries the permission set (§51).
@@ -126,6 +127,7 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
   const sectionProjectId = (request: RouteRequest) => ProjectIdSchema.parse(request.params['projectId']);
   const reflectionId = (request: RouteRequest) => ReflectionIdSchema.parse(request.params['id']);
   const connectionId = (request: RouteRequest) => AgentConnectionIdSchema.parse(request.params['id']);
+  const historyId = (request: RouteRequest) => OperationHistoryIdSchema.parse(request.params['historyId']);
 
   return {
     // §18's identity, composed rather than stored: there is no workspace repository, and
@@ -154,6 +156,12 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
       created(await projects.create(await actorFor(request), CreateProjectInputSchema.parse(request.body))),
 
     'GET /api/projects/:id': async (request) => ok(await projects.get(await actorFor(request), projectId(request))),
+
+    // The caller's own Undo/Redo cursor in one project, under `projects.read`. Before their first
+    // recorded write it is an empty summary with `historyId: null`; another actor's history is
+    // never visible, and an unknown or foreign project is a 404.
+    'GET /api/projects/:id/history': async (request) =>
+      ok(await history.summary(await actorFor(request), projectId(request))),
 
     'PATCH /api/projects/:id': async (request) =>
       ok(
@@ -292,8 +300,8 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'POST /api/sections/:id/duplicate': async (request) =>
       created(await sections.duplicate(await actorFor(request), sectionId(request))),
 
-    // Archive Restore for the DELETE below: durable, receipt-free and appended. Receipt-based Undo,
-    // which returns a section between its old neighbours, is `POST /api/undo/:id`. A row that
+    // Archive Restore for the DELETE below: durable, receipt-free and appended. History Undo,
+    // which returns a section between its old neighbours, is `POST /api/history/:historyId/transition`. A row that
     // came down with a section returns through either. Idempotent, so a retry cannot move the canvas.
     'POST /api/sections/:id/restore': async (request) =>
       ok(await sections.restoreSection(await actorFor(request), sectionId(request))),
@@ -306,7 +314,7 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     // even when removal deleted the section. Other callers still get the ordinary 404.
     //
     // A successful removal answers 200 with `SectionRemovalResult`: the final archived-shaped
-    // section, the Undo receipt for it, and `archiveListed` — whether Archive will actually list
+    // section, the operation receipt for it, and `archiveListed` — whether Archive will actually list
     // it. The section itself may have been deleted.
     'DELETE /api/sections/:id': async (request) =>
       ok(
@@ -317,11 +325,19 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
         ),
       ),
 
-    // Receipt-based Undo. Only the actor that made the operation finds its record (404
-    // otherwise); consumed, expired, conflicting, blocked and unavailable are 409s whose
-    // `details` parse as `UndoRefusalDetails`; a connection without `projects.write` is a 403.
-    'POST /api/undo/:id': async (request) =>
-      ok(await undo.undo(await actorFor(request), UndoRecordIdSchema.parse(request.params['id']))),
+    // One Undo or Redo step. The path names the history; the strict body names the action and the
+    // revision the caller read, so a stale caller is refused rather than running a different step.
+    // Only the owning actor finds the history (404 otherwise, unknown ids included); a connection
+    // without `projects.write` is a 403 naming it; every refusal — not next, stale revision,
+    // expired, blocked, conflict, unavailable, retired — is a 409 whose `details` parse as
+    // `OperationHistoryRefusalDetails` and carry the current summary. A stale revision stays a 409
+    // rather than a 412: it is the same "read, then try again" answer as every other refusal.
+    'POST /api/history/:historyId/transition': async (request) =>
+      ok(await history.transition(
+        await actorFor(request),
+        historyId(request),
+        OperationHistoryTransitionInputSchema.parse(request.body),
+      )),
 
     // §27's layout-only references. The domain resolves source identity and availability;
     // these routes never read or return the source's row collection.

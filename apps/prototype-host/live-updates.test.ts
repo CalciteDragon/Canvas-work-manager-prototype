@@ -153,7 +153,7 @@ describe('live updates through the host (§62)', () => {
       shortcuts: api.shortcuts,
       dashboard: api.dashboard,
       workspace: api.workspace,
-      undo: api.undo,
+      history: api.history,
     });
 
     await registry.call('complete_task', { taskId: OPEN_TASK }, AGENT);
@@ -164,43 +164,52 @@ describe('live updates through the host (§62)', () => {
     expect(frames[0]?.statusAtDelivery).toBe('done');
   });
 
-  /** Slice 30: removal and its Undo each publish only their one activity frame, after commit. */
-  describe('section removal and Undo', () => {
+  /** The receipt a section write answered with, and the transition route that steps it. */
+  const receiptOf = (body: unknown) => (body as { operation: { historyId: string; actionId: string; revision: number; operation: string } | null }).operation;
+  const step = (routes: RouteTable, receipt: { historyId: string; actionId: string }, direction: 'undo' | 'redo', expectedRevision: number) =>
+    persona(routes, 'POST', `/api/history/${receipt.historyId}/transition`, { actionId: receipt.actionId, direction, expectedRevision });
+
+  /** Slices 30 and 35: removal, its Undo and its Redo each publish only their one activity frame, after commit. */
+  describe('section removal, Undo and Redo', () => {
     const SECTION = 'section-project-work-manager-activity';
 
     const watchSection = (persistence: Awaited<ReturnType<typeof harness>>['persistence'], events: LiveEventHub) => {
-      const delivered: Array<{ event: LiveEvent; archivedAtDelivery: string | undefined; records: number }> = [];
+      const delivered: Array<{ event: LiveEvent; archivedAtDelivery: string | undefined; actions: number }> = [];
       events.subscribe((event) => {
         const document = persistence.store.snapshot();
         delivered.push({
           event,
           archivedAtDelivery: document.sections.find(({ id }) => id === SECTION)?.archivedAt,
-          records: document.undoRecords.length,
+          actions: document.operationActions.length,
         });
       });
       return delivered;
     };
 
-    it('delivers one committed frame for the removal and one for its Undo, with no inverse data', async () => {
+    it('delivers one committed frame per transition, per direction, with no inverse data', async () => {
       const { routes, persistence, events } = await harness();
       const delivered = watchSection(persistence, events);
 
       const removed = await persona(routes, 'DELETE', `/api/sections/${SECTION}`);
       expect(removed.status).toBe(200);
       expect(delivered).toHaveLength(1);
-      expect(delivered[0]).toMatchObject({ event: { type: 'project.section_removed' }, records: 1 });
+      expect(delivered[0]).toMatchObject({ event: { type: 'project.section_removed' }, actions: 1 });
       expect(delivered[0]?.archivedAtDelivery).toBeUndefined();
 
-      const { undo } = removed.body as { undo: { undoId: string } };
-      const undone = await persona(routes, 'POST', `/api/undo/${undo.undoId}`);
+      const receipt = receiptOf(removed.body)!;
+      const undone = await step(routes, receipt, 'undo', receipt.revision);
       expect(undone.status).toBe(200);
       expect(delivered).toHaveLength(2);
       expect(delivered[1]?.event.type).toBe('project.section_removal_undone');
-      expect(delivered[1]?.archivedAtDelivery).toBeUndefined();
-      expect(JSON.stringify(delivered.map(({ event }) => event))).not.toMatch(/undo-|placement|rows/);
+
+      const redone = await step(routes, receipt, 'redo', receipt.revision + 1);
+      expect(redone.status).toBe(200);
+      expect(delivered).toHaveLength(3);
+      expect(delivered[2]).toMatchObject({ event: { type: 'project.section_removal_redone' }, actions: 1 });
+      expect(JSON.stringify(delivered.map(({ event }) => event))).not.toMatch(/history-|operation-|placement|rows/);
     });
 
-    it('delivers nothing and keeps no record when persisting the removal fails', async () => {
+    it('delivers nothing and keeps no action when persisting the removal fails', async () => {
       const { routes, persistence, events } = await harness();
       const delivered = watchSection(persistence, events);
       persistence.store.persist = async () => {
@@ -211,17 +220,18 @@ describe('live updates through the host (§62)', () => {
 
       expect(removed.status).toBe(500);
       expect(delivered).toEqual([]);
-      expect(persistence.store.snapshot().undoRecords).toEqual([]);
+      expect(persistence.store.snapshot().operationActions).toEqual([]);
+      expect(persistence.store.snapshot().operationHistories).toEqual([]);
       expect(persistence.store.snapshot().sections.find(({ id }) => id === SECTION)?.archivedAt).toBeUndefined();
     });
   });
 
   /**
-   * Slice 33 (Refactor §26.7–8): for every receipt family, the mutation, its inverse metadata and
-   * the frame move together. "Committed" is checked against the bytes on disk at delivery, not
-   * only the in-memory snapshot.
+   * Slices 33 and 35 (Refactor §26.7–8): for every history family, the mutation, its history action
+   * and the frame move together, in both directions. "Committed" is checked against the bytes on
+   * disk at delivery, not only the in-memory snapshot.
    */
-  describe('section edit families: forward and inverse commit before publication', () => {
+  describe('section edit families: forward, Undo and Redo commit before publication', () => {
     const SECTION = 'section-project-work-manager-activity';
     const PROJECT = 'project-work-manager';
     type Harness = Awaited<ReturnType<typeof harness>>;
@@ -234,55 +244,60 @@ describe('live updates through the host (§62)', () => {
     } as const;
     const familyNames = Object.keys(families) as Array<keyof typeof families>;
 
-    /** Everything a section write or its Undo may change, in memory and on disk. */
+    /** Everything a section write or a transition may change, in memory and on disk. */
     const canonical = (document: ReturnType<Harness['persistence']['store']['snapshot']>) => ({
       sections: document.sections,
       sectionShortcuts: document.sectionShortcuts,
       tasks: document.tasks,
       reflections: document.reflections,
       activityEvents: document.activityEvents,
-      undoRecords: document.undoRecords,
+      operationHistories: document.operationHistories,
+      operationActions: document.operationActions,
     });
     const onDisk = (path: string) => canonical(JSON.parse(readFileSync(path, 'utf8')) as never);
 
     const watchCommits = ({ persistence, events }: Harness) => {
-      const delivered: Array<{ type: string; durableMatchesMemory: boolean; records: number; consumedOnDisk: boolean; events: number }> = [];
+      const delivered: Array<{ type: string; durableMatchesMemory: boolean; actions: number; stateOnDisk: string | undefined; events: number }> = [];
       events.subscribe((event) => {
         const memory = canonical(persistence.store.snapshot());
         delivered.push({
           type: event.type,
           durableMatchesMemory: JSON.stringify(onDisk(persistence.path)) === JSON.stringify(memory),
-          records: memory.undoRecords.length,
-          // An Undo adds no record, so only the consumed stamp tells a pre-commit Undo frame from a post-commit one.
-          consumedOnDisk: onDisk(persistence.path).undoRecords[0]?.consumedAt !== undefined,
+          actions: memory.operationActions.length,
+          // A transition adds no action, so only the state on disk tells a pre-commit frame from a post-commit one.
+          stateOnDisk: onDisk(persistence.path).operationActions[0]?.state,
           events: memory.activityEvents.length,
         });
       });
       return delivered;
     };
 
-    it.each(familyNames)('%s publishes only after forward and inverse commit', async (family) => {
+    it.each(familyNames)('%s publishes only after the forward write, its Undo and its Redo each commit', async (family) => {
       const host = await harness();
       const delivered = watchCommits(host);
       const eventsBefore = host.persistence.store.snapshot().activityEvents.length;
 
       const forward = await families[family](host.routes);
       expect([200, 201]).toContain(forward.status);
-      const { undo } = forward.body as { undo: { undoId: string; operation: string } | null };
-      expect(undo?.operation).toBe(`section.${family}`);
-      expect(delivered).toEqual([expect.objectContaining({ durableMatchesMemory: true, records: 1, consumedOnDisk: false, events: eventsBefore + 1 })]);
+      const receipt = receiptOf(forward.body)!;
+      expect(receipt.operation).toBe(`section.${family}`);
+      expect(delivered).toEqual([expect.objectContaining({ durableMatchesMemory: true, actions: 1, stateOnDisk: 'applied', events: eventsBefore + 1 })]);
 
-      const undone = await persona(host.routes, 'POST', `/api/undo/${undo!.undoId}`);
+      const undone = await step(host.routes, receipt, 'undo', receipt.revision);
       expect(undone.status).toBe(200);
       expect(delivered).toHaveLength(2);
-      expect(delivered[1]).toMatchObject({ type: expect.stringMatching(/_undone$/), durableMatchesMemory: true, records: 1, consumedOnDisk: true, events: eventsBefore + 2 });
-      expect(onDisk(host.persistence.path).undoRecords[0]?.consumedAt).toBeDefined();
+      expect(delivered[1]).toMatchObject({ type: expect.stringMatching(/_undone$/), durableMatchesMemory: true, actions: 1, stateOnDisk: 'undone', events: eventsBefore + 2 });
+
+      const redone = await step(host.routes, receipt, 'redo', receipt.revision + 1);
+      expect(redone.status).toBe(200);
+      expect(delivered).toHaveLength(3);
+      expect(delivered[2]).toMatchObject({ type: expect.stringMatching(/_redone$/), durableMatchesMemory: true, actions: 1, stateOnDisk: 'applied', events: eventsBefore + 3 });
     });
 
-    it.each(familyNames)('%s: failed inverse persistence preserves canonical state, unconsumed receipt and publishes nothing', async (family) => {
+    it.each(familyNames)('%s: failed transition persistence preserves canonical state and history, and publishes nothing', async (family) => {
       const host = await harness();
       const forward = await families[family](host.routes);
-      const { undo } = forward.body as { undo: { undoId: string } };
+      const receipt = receiptOf(forward.body)!;
       const delivered = watchCommits(host);
       const before = canonical(host.persistence.store.snapshot());
       const bytes = readFileSync(host.persistence.path, 'utf8');
@@ -291,7 +306,7 @@ describe('live updates through the host (§62)', () => {
         throw new Error('disk full');
       };
 
-      const failed = await persona(host.routes, 'POST', `/api/undo/${undo.undoId}`);
+      const failed = await step(host.routes, receipt, 'undo', receipt.revision);
 
       expect(failed.status).toBe(500);
       expect(delivered).toEqual([]);
@@ -299,23 +314,23 @@ describe('live updates through the host (§62)', () => {
       expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
 
       host.persistence.store.persist = persist;
-      const retried = await persona(host.routes, 'POST', `/api/undo/${undo.undoId}`);
+      const retried = await step(host.routes, receipt, 'undo', receipt.revision);
       expect(retried.status).toBe(200);
-      expect(delivered).toEqual([expect.objectContaining({ type: expect.stringMatching(/_undone$/), durableMatchesMemory: true, records: 1 })]);
+      expect(delivered).toEqual([expect.objectContaining({ type: expect.stringMatching(/_undone$/), durableMatchesMemory: true, actions: 1, stateOnDisk: 'undone' })]);
     });
 
-    it.each(familyNames.flatMap((family) => [[family, 'recorder'], [family, 'persistence']] as const))(
-      '%s: failed %s commits neither mutation nor receipt',
+    it.each(familyNames.flatMap((family) => [[family, 'action insert'], [family, 'persistence']] as const))(
+      '%s: a failed %s commits neither the mutation nor its action, and publishes no frame',
       async (family, fault) => {
         const host = await harness();
         const delivered = watchCommits(host);
         const before = canonical(host.persistence.store.snapshot());
         const bytes = readFileSync(host.persistence.path, 'utf8');
-        const { store, undoRecords } = host.persistence;
+        const { store, operationActions } = host.persistence;
         const persist = store.persist;
-        const insert = undoRecords.insert;
-        if (fault === 'recorder') {
-          undoRecords.insert = async () => {
+        const insert = operationActions.insert;
+        if (fault === 'action insert') {
+          operationActions.insert = async () => {
             throw new Error('recorder unavailable');
           };
         } else {
@@ -332,10 +347,10 @@ describe('live updates through the host (§62)', () => {
         expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
 
         store.persist = persist;
-        undoRecords.insert = insert;
+        operationActions.insert = insert;
         const retried = await families[family](host.routes);
         expect([200, 201]).toContain(retried.status);
-        expect(delivered).toEqual([expect.objectContaining({ durableMatchesMemory: true, records: 1 })]);
+        expect(delivered).toEqual([expect.objectContaining({ durableMatchesMemory: true, actions: 1 })]);
       },
     );
   });

@@ -3,7 +3,7 @@ import {
   SectionConfigSchema,
   SectionRemovalRefusalDetailsSchema,
   SectionAlreadyRemovedDetailsSchema,
-  UndoRefusalDetailsSchema,
+  OperationHistoryRefusalDetailsSchema,
   nameOf,
   ownedKindOf,
   type OwnedDataKind,
@@ -15,8 +15,8 @@ import {
   type CreateSectionShortcutInput,
   type UpdateSectionShortcutInput,
   type RemoveSectionInput,
-  type UndoReceipt,
-  type UndoRefusalDetails,
+  type OperationReceipt,
+  type OperationHistoryRefusalDetails,
   type UndoResult,
   type SectionColumnSpan,
   type SectionConfig,
@@ -72,10 +72,10 @@ export interface SectionRemovalPrompt {
 /** The receipt and current outcome shown by the canvas-local Undo notice. */
 export interface SectionUndoNoticeState {
   kind: 'available' | 'already-removed' | 'result' | 'refusal' | 'terminal' | 'error';
-  receipt: UndoReceipt | null;
+  receipt: OperationReceipt | null;
   message: string;
   result?: UndoResult;
-  refusal?: UndoRefusalDetails;
+  refusal?: OperationHistoryRefusalDetails;
   refreshFailed?: boolean;
   /**
    * The removal's own `archiveListed`, when this notice came from one this canvas performed.
@@ -87,40 +87,59 @@ export interface SectionUndoNoticeState {
 }
 
 /**
- * Whether the server has already refused this receipt for a reason no repair can clear, so
- * sending it again is known to fail. A `superseded` conflict rests on a newer record that never
- * goes away, and Undo never recreates something `missing`. Every other refusal (a reference to
- * remove, an item to move back, an archived project) can be fixed and retried.
+ * Whether a newly arrived receipt replaces the one a page holds. Receipts from one history are
+ * ordered by its `revision` — never by arrival time, which a slow response scrambles. A receipt
+ * from a different history (a write that recorded into another project's history) cannot be
+ * compared, so the newer arrival wins.
  */
-export const isUndoRefusedForGood = (state: SectionUndoNoticeState | null): boolean =>
-  state?.kind === 'refusal' &&
-  state.refusal?.reason === 'undo_conflict' &&
-  state.refusal.conflicts.some(({ problem }) => problem === 'superseded' || problem === 'missing');
+export const supersedesReceipt = (held: OperationReceipt | null, arrived: OperationReceipt): boolean =>
+  held === null || held.historyId !== arrived.historyId || arrived.revision > held.revision;
 
 /**
  * The notice a failed Undo leaves behind, shared by every page that holds a section receipt.
- * Consumed, expired and unknown receipts are terminal; a typed refusal or transport error keeps
- * the receipt so the caller can retry.
+ *
+ * The seven history reasons map onto the notice explicitly:
+ * - `history_expired`, `history_retired` and a not-found history are **terminal**: the receipt goes.
+ * - `history_revision_stale` is reconciled from the summary it carries. When this receipt's action
+ *   is now the next **Redo**, the Undo already landed (a lost response, or another tab), so it is
+ *   terminal with `landed`. When it is still the next **Undo**, the receipt is kept at the current
+ *   revision so the next click succeeds. Otherwise it is terminal.
+ * - `history_not_next`, `history_conflict`, `history_blocked` and `history_unavailable` are
+ *   repairable **refusals** that keep the receipt and stay sendable. `history_not_next` in
+ *   particular is not the old terminal `undo_consumed`: undoing the newer change first repairs it.
+ *   Even a conflict over something `missing` stays sendable — another actor's Undo can bring the
+ *   section back — because deciding what can never succeed is the server's call, answered by
+ *   retiring the action.
+ * A transport error keeps the receipt so the caller can retry.
  */
 export const undoFailureNotice = (
-  receipt: UndoReceipt,
+  receipt: OperationReceipt,
   error: unknown,
   currentNotice: SectionUndoNoticeState | null,
-  consumedFollowUp: string,
-): SectionUndoNoticeState => {
+  landedFollowUp: string,
+): SectionUndoNoticeState & { landed?: boolean } => {
   if (error instanceof GatewayError && error.code === 'not_found') {
-    return { kind: 'terminal', receipt: null, message: 'This Undo receipt is no longer available.' };
+    return { kind: 'terminal', receipt: null, message: 'This Undo is no longer available.' };
   }
-  const parsed = error instanceof GatewayError ? UndoRefusalDetailsSchema.safeParse(error.details) : null;
-  if (error instanceof GatewayError && parsed?.success && error.code === 'rule_violation') {
+  const parsed = error instanceof GatewayError ? OperationHistoryRefusalDetailsSchema.safeParse(error.details) : null;
+  if (error instanceof GatewayError && error.code === 'rule_violation' && parsed?.success) {
     const refusal = parsed.data;
-    if (refusal.reason === 'undo_consumed') {
-      return { kind: 'terminal', receipt: null, refusal, message: ['Undo was already completed.', consumedFollowUp].filter(Boolean).join(' ') };
+    switch (refusal.reason) {
+      case 'history_expired':
+        return { kind: 'terminal', receipt: null, refusal, message: `This Undo expired at ${refusal.expiresAt}.` };
+      case 'history_retired':
+        return { kind: 'terminal', receipt: null, refusal, message: 'This change can no longer be undone: what it changed has since been changed in a way Undo cannot reverse.' };
+      case 'history_revision_stale':
+        if (refusal.summary.redo?.actionId === receipt.actionId) {
+          return { kind: 'terminal', receipt: null, refusal, landed: true, message: ['Undo was already completed.', landedFollowUp].filter(Boolean).join(' ') };
+        }
+        if (refusal.summary.undo?.actionId === receipt.actionId) {
+          return { kind: 'available', receipt: { ...receipt, revision: refusal.summary.revision }, message: 'This page’s history changed elsewhere. Undo is still available.' };
+        }
+        return { kind: 'terminal', receipt: null, refusal, message: 'This Undo is no longer the next step in this project’s history.' };
+      default:
+        return { kind: 'refusal', receipt, refusal, message: error.message };
     }
-    if (refusal.reason === 'undo_expired') {
-      return { kind: 'terminal', receipt: null, refusal, message: `This Undo receipt expired at ${refusal.expiresAt}.` };
-    }
-    return { kind: 'refusal', receipt, refusal, message: error.message };
   }
   return {
     kind: 'error',
@@ -198,8 +217,11 @@ export class ProjectPageStore {
   private readonly failedRemovalState = signal<FailedSectionRemoval | null>(null);
   private readonly removalUndoPendingState = signal(false);
   private readonly pendingSectionWriteCountState = signal(0);
-  /** Receipts are ordered by the server's workspace sequence, never by arrival time. */
-  private undoReceiptHighWaterMark = 0;
+  /**
+   * The newest receipt this page has captured, notice dismissed or not: a slower response must not
+   * resurrect an older receipt after a newer one arrived (see `supersedesReceipt`).
+   */
+  private newestReceipt: OperationReceipt | null = null;
   private readonly canvasRevisionState = signal(0);
   private readonly projectDataRevisionState = signal(0);
   private readonly projectHierarchyRevisionState = signal(0);
@@ -450,7 +472,7 @@ export class ProjectPageStore {
     this.requestedPageId = pageId;
     this.requestedShortcutsAllowed = shortcutsAllowed;
     this.undoNoticeState.set(null);
-    this.undoReceiptHighWaterMark = 0;
+    this.newestReceipt = null;
     this.failedRemovalState.set(null);
     this.removalPromptState.set(null);
     this.orderCompleteState.set(false);
@@ -582,8 +604,8 @@ export class ProjectPageStore {
       });
       if (!current()) return;
       this.insertPlacement({ kind: 'section', section: result.section }, result.section.position);
-      this.captureUndoReceipt(result.undo, 'Section added. Undo is available on this page.');
-      if (!(await this.reconcileSections(projectId, pageId, generation))) this.markForwardRefreshFailed(result.undo, current);
+      this.captureUndoReceipt(result.operation, 'Section added. Undo is available on this page.');
+      if (!(await this.reconcileSections(projectId, pageId, generation))) this.markForwardRefreshFailed(result.operation, current);
     });
   }
 
@@ -645,11 +667,11 @@ export class ProjectPageStore {
       try {
         const result = await this.gateway.sections.move(id, { position });
         if (!current()) return true;
-        this.captureUndoReceipt(result.undo, 'Section moved. Undo is available on this page.');
+        this.captureUndoReceipt(result.operation, 'Section moved. Undo is available on this page.');
 
         // The preview remains visibly successful if the follow-up read fails. It is a
         // rendering order, not a second implementation of domain validation.
-        if (!(await this.reconcileSections(projectId, pageId, generation))) this.markForwardRefreshFailed(result.undo, current);
+        if (!(await this.reconcileSections(projectId, pageId, generation))) this.markForwardRefreshFailed(result.operation, current);
         return true;
       } catch (error) {
         if (current()) {
@@ -675,7 +697,7 @@ export class ProjectPageStore {
       async () => this.gateway.sections.update(id, { columnSpan }),
       (result) => result.section.columnSpan,
       (result) => this.replaceSection(result.section),
-      (result) => this.captureUndoReceipt(result.undo, 'Section updated. Undo is available on this page.'),
+      (result) => this.captureUndoReceipt(result.operation, 'Section updated. Undo is available on this page.'),
     );
   }
 
@@ -800,7 +822,7 @@ export class ProjectPageStore {
           if (available.success && available.data.sectionId === id) {
             this.removalPromptState.set(null);
             this.clearFailedRemovalFor(id);
-            this.captureUndoReceipt(available.data.undo, 'Already removed. Undo is available.', 'already-removed');
+            this.captureUndoReceipt(available.data.operation, 'Already removed. Undo is available.', 'already-removed');
             this.removePlacement(id);
             this.notifyProjectDataChanged();
             await this.waitForOtherSectionWrites();
@@ -823,7 +845,7 @@ export class ProjectPageStore {
       this.removalPromptState.set(null);
       this.clearFailedRemovalFor(id);
       this.captureUndoReceipt(
-        result.undo,
+        result.operation,
         'Section removed. Undo is available on this page. Leaving clears this notice; the receipt stays on the server.',
         'available',
         result.archiveListed,
@@ -847,7 +869,10 @@ export class ProjectPageStore {
     return failed === null ? Promise.resolve(false) : this.removeSection(failed.sectionId, failed.input);
   }
 
-  /** Executes only the held receipt id; all inverse data and actor checks stay on the server. */
+  /**
+   * Undoes exactly the held receipt's action through the history transition route, citing the
+   * revision the receipt carries; all inverse data, ordering and actor checks stay on the server.
+   */
   undoOperation(): Promise<UndoResult | null> {
     const notice = this.undoNoticeState();
     const receipt = notice?.receipt;
@@ -855,7 +880,7 @@ export class ProjectPageStore {
     const pageId = this.requestedPageId;
     if (
       receipt === undefined || receipt === null || projectId === undefined || pageId === undefined ||
-      this.removalUndoPendingState() || this.pendingSectionWrites > 0 || isUndoRefusedForGood(notice)
+      this.removalUndoPendingState() || this.pendingSectionWrites > 0
     ) {
       return Promise.resolve(null);
     }
@@ -864,10 +889,16 @@ export class ProjectPageStore {
     this.removalUndoPendingState.set(true);
     return this.track(() => this.whileWriting(async () => {
       try {
-        const result = await this.gateway.undo.execute(receipt.undoId);
-        if (!current()) return null;
+        const transition = await this.gateway.history.transition(receipt.historyId, {
+          actionId: receipt.actionId,
+          direction: 'undo',
+          expectedRevision: receipt.revision,
+        });
+        // The transition was `undo`, so its result is an Undo result; the union only says so.
+        const result = transition.direction === 'undo' ? transition.result : null;
+        if (result === null || !current()) return null;
         // A write that committed while Undo was in flight owns the notice now; still reconcile.
-        if (this.undoReceiptHighWaterMark !== receipt.sequence) {
+        if (this.newestReceipt?.actionId !== receipt.actionId) {
           this.notifyProjectDataChanged();
           await this.waitForOtherSectionWrites();
           await this.reconcileSections(projectId, pageId, generation);
@@ -885,10 +916,13 @@ export class ProjectPageStore {
         if (!refreshed) this.markUndoRefreshFailed(current);
         return result;
       } catch (error) {
-        if (!current() || this.undoReceiptHighWaterMark !== receipt.sequence) return null;
-        this.handleUndoFailure(receipt, error);
-        const state = this.undoNoticeState();
-        if (state?.kind === 'terminal' && state.refusal?.reason === 'undo_consumed') {
+        if (!current() || this.newestReceipt?.actionId !== receipt.actionId) return null;
+        const notice = undoFailureNotice(receipt, error, this.undoNoticeState(), 'The canvas has been refreshed.');
+        const { landed, ...state } = notice;
+        this.undoNoticeState.set(state);
+        // A stale refusal can carry the current revision forward for this same receipt.
+        if (state.receipt !== null) this.newestReceipt = state.receipt;
+        if (landed === true) {
           this.notifyProjectDataChanged();
           await this.waitForOtherSectionWrites();
           const refreshed = await this.reconcileSections(projectId, pageId, generation);
@@ -952,13 +986,13 @@ export class ProjectPageStore {
   }
 
   private captureUndoReceipt(
-    receipt: UndoReceipt | null | undefined,
+    receipt: OperationReceipt | null,
     message: string,
     kind: 'available' | 'already-removed' = 'available',
     archiveListed?: boolean,
   ): void {
-    if (receipt === null || receipt === undefined || receipt.sequence <= this.undoReceiptHighWaterMark) return;
-    this.undoReceiptHighWaterMark = receipt.sequence;
+    if (receipt === null || !supersedesReceipt(this.newestReceipt, receipt)) return;
+    this.newestReceipt = receipt;
     this.undoNoticeState.set({ kind, receipt, message, ...(archiveListed === undefined ? {} : { archiveListed }) });
   }
 
@@ -978,13 +1012,9 @@ export class ProjectPageStore {
     return `Undo restored ${name}.`;
   }
 
-  private handleUndoFailure(receipt: UndoReceipt, error: unknown): void {
-    this.undoNoticeState.set(undoFailureNotice(receipt, error, this.undoNoticeState(), 'The canvas has been refreshed.'));
-  }
-
   /** A committed write whose follow-up read failed keeps its receipt and offers read-only Retry refresh. */
-  private markForwardRefreshFailed(receipt: UndoReceipt | null, current: () => boolean): void {
-    if (receipt === null || this.undoNoticeState()?.receipt?.undoId !== receipt.undoId) return;
+  private markForwardRefreshFailed(receipt: OperationReceipt | null, current: () => boolean): void {
+    if (receipt === null || this.undoNoticeState()?.receipt?.actionId !== receipt.actionId) return;
     this.markUndoRefreshFailed(current);
   }
 
@@ -1037,7 +1067,7 @@ export class ProjectPageStore {
       const updated = await this.gateway.sections.update(id, input);
       if (!current()) return;
       this.replaceSection(updated.section);
-      this.captureUndoReceipt(updated.undo, 'Section updated. Undo is available on this page.');
+      this.captureUndoReceipt(updated.operation, 'Section updated. Undo is available on this page.');
     });
   }
 

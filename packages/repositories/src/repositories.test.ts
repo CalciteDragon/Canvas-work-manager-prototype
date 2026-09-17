@@ -1,5 +1,7 @@
 import {
   PrototypeDocumentSchema,
+  OperationActionSchema,
+  OperationHistorySchema,
   type ActivityEvent,
   type AgentConnection,
   type Milestone,
@@ -9,8 +11,6 @@ import {
   type Reflection,
   type SectionShortcut,
   type Task,
-  UndoRecordSchema,
-  type UndoRecord,
   type User, SCHEMA_VERSION, } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { InMemoryDataStore, unitOfWorkFor } from './data-store';
@@ -19,12 +19,13 @@ import {
   JsonActivityRepository,
   JsonAgentConnectionRepository,
   JsonMilestoneRepository,
+  JsonOperationActionRepository,
+  JsonOperationHistoryRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
   JsonSectionShortcutRepository,
   JsonTaskRepository,
-  JsonUndoRecordRepository,
   JsonUserRepository,
 } from './json-repositories';
 
@@ -580,69 +581,75 @@ describe('JsonSectionShortcutRepository', () => {
   });
 });
 
-const undoRecord = (id: string, workspaceId = 'workspace-1', sequence = 1): UndoRecord =>
-  UndoRecordSchema.parse({
+const operationHistory = (id = 'history-1', projectId = 'project-1') =>
+  OperationHistorySchema.parse({
     id,
-    workspaceId,
-    projectId: 'project-1',
+    workspaceId: 'workspace-1',
+    projectId,
     actor: 'user',
     actorUserId: 'user-1',
-    sequence,
-    label: 'Remove the Notes section',
+    cursor: 1,
+    orderHighWaterMark: 1,
+    revision: 1,
+  });
+
+const operationAction = (id = 'operation-1', historyId = 'history-1') =>
+  OperationActionSchema.parse({
+    id,
+    historyId,
+    order: 1,
+    state: 'applied',
+    label: 'Updated the Backlog section',
     createdAt: at,
     expiresAt: '2026-08-27T10:00:00.000Z',
     operation: {
       version: 1,
-      type: 'section.remove',
-      section: {
-        id: 'section-notes',
-        projectId: 'project-1',
-        pageId: 'page-1',
-        type: 'rich-text',
-        position: 0,
-        columnSpan: 12,
-        collapsed: false,
-        config: { text: 'Prose' },
-        createdAt: at,
-        updatedAt: at,
-      },
-      placement: { pageId: 'page-1', index: 0 },
-      appliedPolicy: 'none',
-      rows: [],
-      postSectionArchivedAt: at,
+      type: 'section.update',
+      sectionId: 'section-1',
+      projectId: 'project-1',
+      pageId: 'page-1',
+      changes: [{ field: 'collapsed', before: false, after: true }],
     },
   });
 
-describe('JsonUndoRecordRepository', () => {
-  it('inserts, finds, lists by workspace, updates and removes records', async () => {
-    const repository = new JsonUndoRecordRepository(new InMemoryDataStore(baseDocument()));
-    const mine = undoRecord('undo-1');
-    const foreign = undoRecord('undo-2', 'workspace-other', 1);
-    await repository.insert(mine);
-    await repository.insert(foreign);
+describe('operation history JSON repositories', () => {
+  it('lists histories by scope and actions by their owning history, and prunes actions only', async () => {
+    const store = new InMemoryDataStore(baseDocument());
+    const histories = new JsonOperationHistoryRepository(store);
+    const actions = new JsonOperationActionRepository(store);
+    const history = operationHistory();
+    const elsewhere = operationHistory('history-2', 'project-other');
+    await histories.insert(history);
+    await histories.insert(elsewhere);
+    await actions.insert(operationAction());
+    await actions.insert(operationAction('operation-2', 'history-2'));
 
-    expect(await repository.find(mine.id)).toEqual(mine);
-    expect(await repository.list({ workspaceId: 'workspace-1' as never })).toEqual([mine]);
-    expect(await repository.list()).toEqual([mine, foreign]);
+    expect(await histories.find(history.id)).toEqual(history);
+    expect(await histories.list({ projectId: 'project-1' as never })).toEqual([history]);
+    expect(await histories.list({ workspaceId: 'workspace-1' as never })).toEqual([history, elsewhere]);
+    expect((await actions.list({ historyId: history.id })).map(({ id }) => id)).toEqual(['operation-1']);
 
-    const consumed = { ...mine, consumedAt: at };
-    await repository.update(consumed);
-    expect(await repository.find(mine.id)).toEqual(consumed);
+    const advanced = { ...history, revision: 2, cursor: 0 };
+    await histories.update(advanced);
+    expect(await histories.find(history.id)).toEqual(advanced);
+    const undone = { ...operationAction(), state: 'undone' as const };
+    await actions.update(undone);
+    expect(await actions.find(undone.id)).toEqual(undone);
 
-    // Records are pruned, so this collection deletes; nothing references a record.
-    await repository.remove(mine.id);
-    expect(await repository.find(mine.id)).toBeNull();
-    await expect(repository.remove(mine.id)).rejects.toBeInstanceOf(RepositoryNotFoundError);
+    await actions.remove(undone.id);
+    expect(await actions.find(undone.id)).toBeNull();
+    await expect(actions.remove(undone.id)).rejects.toBeInstanceOf(RepositoryNotFoundError);
+    expect(histories).not.toHaveProperty('remove');
   });
 
   it('refuses a write from outside the unit of work that is open', async () => {
     const store = new InMemoryDataStore(baseDocument());
-    const repository = new JsonUndoRecordRepository(store);
+    const actions = new JsonOperationActionRepository(store);
     let release!: () => void;
     const held = new Promise<void>((resolve) => (release = resolve));
     const unit = store.runUnitOfWork(() => held);
 
-    await expect(repository.insert(undoRecord('undo-1'))).rejects.toBeInstanceOf(UnitOfWorkInProgressError);
+    await expect(actions.insert(operationAction())).rejects.toBeInstanceOf(UnitOfWorkInProgressError);
     release();
     await unit;
   });

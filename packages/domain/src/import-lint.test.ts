@@ -37,16 +37,16 @@ describe('domain import lint guard', () => {
     expect(result.status, result.stderr).toBe(0);
   });
 
-  it('allows the Undo record repository interface, and still rejects its JSON implementation', async () => {
+  it('allows the operation history repository interfaces, and still rejects their JSON implementations', async () => {
     const root = await makeRoot();
-    await write(root, 'recorder.ts', "import type { UndoRecordRepository } from '@cwm/repositories';\nexport type R = UndoRecordRepository;");
+    await write(root, 'recorder.ts', "import type { OperationActionRepository, OperationHistoryRepository } from '@cwm/repositories';\nexport type R = OperationActionRepository | OperationHistoryRepository;");
     expect(scan(root).status, scan(root).stderr).toBe(0);
 
-    await write(root, 'leak.ts', "import { JsonUndoRecordRepository } from '@cwm/repositories';\nexport const R = JsonUndoRecordRepository;");
+    await write(root, 'leak.ts', "import { JsonOperationActionRepository } from '@cwm/repositories';\nexport const R = JsonOperationActionRepository;");
     const result = scan(root);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain('JsonUndoRecordRepository');
+    expect(result.stderr).toContain('JsonOperationActionRepository');
   });
 
   it('rejects a store or a concrete repository imported from @cwm/repositories', async () => {

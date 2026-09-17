@@ -1,20 +1,19 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { SCHEMA_VERSION } from '@cwm/contracts';
-import { InMemoryDataStore } from '@cwm/repositories';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { buildSeed } from './seeds';
-import { upgradeProjectPages } from './upgrade-project-pages';
-import { type UpgradeFileOperations, upgradeDataFile } from './upgrade-cli';
+import { upgradeProjectPages, V3_SCHEMA_VERSION } from './upgrade-project-pages';
 
 /**
- * A real version-2 document, committed rather than reconstructed: this same slice regenerates
- * `prototype/seeds/*.json` to version 3, so the corpus the converter has to handle would
- * otherwise exist only in git history where no test can name it.
+ * A real version-2 document, committed rather than reconstructed, so the corpus the converter
+ * has to handle is something a test can name rather than something only git history holds.
  *
  * Read rather than imported — this package's tsconfig covers `src/**\/*.ts` only, and the base
  * config does not set `resolveJsonModule`, so an import assertion would fail `pnpm lint`.
  * `seeds.test.ts` reads its snapshots the same way.
+ *
+ * The chained path through version 4, its validation and the file writes are
+ * `upgrade-cli.test.ts`'s; this suite is the frozen version-2 → version-3 step on its own.
  */
 const v2FixturePath = fileURLToPath(new URL('../test/fixtures/nested-projects-v2.json', import.meta.url));
 const v2Document = async (): Promise<Record<string, unknown>> =>
@@ -24,11 +23,21 @@ type Row = Record<string, unknown>;
 const rows = (document: unknown, collection: string): Row[] =>
   (document as Record<string, Row[]>)[collection] ?? [];
 
-describe('upgradeProjectPages', () => {
-  it('gives every root a Home and every nested project a work canvas', async () => {
+describe('upgradeProjectPages — the frozen version-2 → version-3 step', () => {
+  it('the v3 intermediate is frozen at 3, whatever the current schema version is', async () => {
     const { document, changed } = upgradeProjectPages(await v2Document());
 
     expect(changed).toBe(true);
+    expect(V3_SCHEMA_VERSION).toBe(3);
+    expect(document.schemaVersion).toBe(3);
+    // Nothing version 4 added: that is the next step's to add.
+    expect(document).not.toHaveProperty('operationHistories');
+    expect(rows(document, 'sections').every((section) => !('archiveGeneration' in section))).toBe(true);
+  });
+
+  it('gives every root a Home and every nested project a work canvas', async () => {
+    const { document } = upgradeProjectPages(await v2Document());
+
     const projects = rows(document, 'projects');
     const pages = rows(document, 'projectPages');
     expect(projects.filter((project) => project['kind'] === 'root')).toHaveLength(1);
@@ -39,34 +48,14 @@ describe('upgradeProjectPages', () => {
     // property of the project, not something its content earns.
     expect(pages).toHaveLength(projects.length);
     expect(pages.every((page) => page['enabled'] === true)).toBe(true);
-  });
-
-  it('produces a document the store accepts', async () => {
-    const { document } = upgradeProjectPages(await v2Document());
-
-    expect(() => new InMemoryDataStore(document)).not.toThrow();
-    expect((document as { schemaVersion: number }).schemaVersion).toBe(SCHEMA_VERSION);
-    // Version 3 gained a defaulted Undo collection; a converted file starts with no history.
-    expect(rows(document, 'undoRecords')).toEqual([]);
-  });
-
-  it('leaves a version-3 file written before Undo records unchanged, apart from the defaulted collection', async () => {
-    const path = fileURLToPath(new URL('../test/fixtures/nested-projects-v3.json', import.meta.url));
-    const before = JSON.parse(await readFile(path, 'utf8')) as Record<string, unknown>;
-
-    const { document, changed } = upgradeProjectPages(before);
-
-    expect(changed).toBe(false);
-    expect(document).toEqual({ ...before, undoRecords: [] });
+    expect(rows(document, 'sectionShortcuts')).toEqual([]);
   });
 
   it('preserves ids, section order and every field it does not own', async () => {
     const before = await v2Document();
     const { document } = upgradeProjectPages(await v2Document());
 
-    expect(rows(document, 'projects').map((project) => project['id'])).toEqual(
-      rows(before, 'projects').map((project) => project['id']),
-    );
+    expect(rows(document, 'projects').map((project) => project['id'])).toEqual(rows(before, 'projects').map((project) => project['id']));
     expect(rows(document, 'sections').map((section) => [section['id'], section['position'], section['config']])).toEqual(
       rows(before, 'sections').map((section) => [section['id'], section['position'], section['config']]),
     );
@@ -104,13 +93,11 @@ describe('upgradeProjectPages', () => {
     }
   });
 
-  it('is a no-op on a document that is already converted', async () => {
-    const already = buildSeed('nested-projects');
+  it('is a no-op on a version-3 document, returning it untouched', async () => {
+    const path = fileURLToPath(new URL('../test/fixtures/nested-projects-v3.json', import.meta.url));
+    const before = JSON.parse(await readFile(path, 'utf8')) as Record<string, unknown>;
 
-    const { document, changed } = upgradeProjectPages(already);
-
-    expect(changed).toBe(false);
-    expect(document).toEqual(already);
+    expect(upgradeProjectPages(before)).toEqual({ document: before, changed: false });
   });
 
   it('converts twice to the same document', async () => {
@@ -119,94 +106,10 @@ describe('upgradeProjectPages', () => {
     expect(upgradeProjectPages(once)).toEqual({ document: once, changed: false });
   });
 
-  it('fails clearly on a version it does not know', async () => {
+  it('refuses a version it does not read — version 4 included, which the CLI sniffs before calling it', async () => {
     const older = { ...(await v2Document()), schemaVersion: 1 };
-
     expect(() => upgradeProjectPages(older)).toThrow(/version 1/);
+    expect(() => upgradeProjectPages(buildSeed('nested-projects'))).toThrow(RangeError);
     expect(() => upgradeProjectPages('not a document')).toThrow(/document/);
-  });
-
-  it('rejects a conversion whose result would not validate', async () => {
-    const broken = await v2Document();
-    // A section naming a project that does not exist: version 2 tolerated it no better, but
-    // this is the shape of every reason a conversion might produce an invalid document.
-    (broken['sections'] as Row[])[0]!['projectId'] = 'project-gone';
-
-    expect(() => upgradeProjectPages(broken)).toThrow();
-  });
-});
-
-describe('upgradeDataFile', () => {
-  const operations = (
-    source: string,
-  ): UpgradeFileOperations & { written: Map<string, string>; order: string[] } => {
-    const written = new Map<string, string>();
-    // Every write in the order it happened. A set of paths cannot tell "backed up first" from
-    // "backed up last", and the whole point of the backup is that it exists *before* the
-    // target is touched.
-    const order: string[] = [];
-    return {
-      written,
-      order,
-      readFile: vi.fn(async () => source),
-      writeFile: vi.fn(async (path: string, data: string) => {
-        order.push(`write ${path}`);
-        written.set(path, data);
-      }),
-      rename: vi.fn(async (from: string, to: string) => {
-        order.push(`rename ${from} -> ${to}`);
-        written.set(to, written.get(from) ?? '');
-        written.delete(from);
-      }),
-    };
-  };
-
-  it('backs the original up before writing the converted file', async () => {
-    const source = await readFile(v2FixturePath, 'utf8');
-    const fileOperations = operations(source);
-
-    await upgradeDataFile('data.json', { fileOperations, now: new Date('2026-09-04T12:00:00.000Z') });
-
-    expect(fileOperations.order).toEqual([
-      'write data.json.backup-2026-09-04T12-00-00-000Z.json',
-      'write data.json.tmp',
-      'rename data.json.tmp -> data.json',
-    ]);
-    expect(fileOperations.written.get('data.json.backup-2026-09-04T12-00-00-000Z.json')).toBe(source);
-    expect(JSON.parse(fileOperations.written.get('data.json')!)).toMatchObject({ schemaVersion: SCHEMA_VERSION });
-  });
-
-  /**
-   * Validate, then back up, then write. A converter that had already replaced the file when it
-   * discovered the result was invalid would be worse than one that refused.
-   */
-  it('writes nothing at all when the conversion fails', async () => {
-    const broken = JSON.parse(await readFile(v2FixturePath, 'utf8')) as Record<string, Row[]>;
-    broken['sections'][0]!['projectId'] = 'project-gone';
-    const fileOperations = operations(JSON.stringify(broken));
-
-    await expect(upgradeDataFile('data.json', { fileOperations })).rejects.toThrow();
-
-    expect(fileOperations.writeFile).not.toHaveBeenCalled();
-    expect(fileOperations.rename).not.toHaveBeenCalled();
-  });
-
-  it('leaves the target alone when the backup cannot be written', async () => {
-    const fileOperations = operations(await readFile(v2FixturePath, 'utf8'));
-    fileOperations.writeFile = vi.fn(async () => {
-      throw new Error('disk full');
-    });
-
-    await expect(upgradeDataFile('data.json', { fileOperations })).rejects.toThrow('disk full');
-
-    expect(fileOperations.rename).not.toHaveBeenCalled();
-  });
-
-  it('reports an already-converted file as unchanged and writes nothing', async () => {
-    const fileOperations = operations(`${JSON.stringify(buildSeed('nested-projects'), null, 2)}\n`);
-
-    await expect(upgradeDataFile('data.json', { fileOperations })).resolves.toEqual({ changed: false });
-
-    expect(fileOperations.writeFile).not.toHaveBeenCalled();
   });
 });

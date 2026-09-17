@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "users": [
     {
       "id": "user-demo",
@@ -343,6 +343,7 @@
       "config": {
         "text": "Whole-house plan. Kitchen first, garden in the spring."
       },
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -355,6 +356,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -367,6 +369,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -379,6 +382,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -391,6 +395,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -403,6 +408,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -415,6 +421,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -430,6 +437,7 @@
         "text": "Old attic notes"
       },
       "archivedAt": "2026-08-20T16:00:00.000Z",
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -444,6 +452,7 @@
       "config": {
         "text": "Appliances and finishes before cabinets are ordered."
       },
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -456,6 +465,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -468,6 +478,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -480,6 +491,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -492,6 +504,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -504,6 +517,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -516,6 +530,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -530,6 +545,7 @@
       "config": {
         "text": "Autumn planting only. Structural work waits for next year."
       },
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -542,6 +558,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -554,6 +571,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     }
@@ -802,5 +820,6 @@
       "createdAt": "2026-08-01T16:00:00.000Z"
     }
   ],
-  "undoRecords": []
+  "operationHistories": [],
+  "operationActions": []
 }

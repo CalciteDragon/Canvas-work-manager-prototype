@@ -1,29 +1,16 @@
 import { ChangeDetectionStrategy, Component, afterNextRender, computed, input, output } from '@angular/core';
-import type { UndoConflictNextStep, UndoRefusalDetails } from '@cwm/contracts';
-import { isUndoRefusedForGood, type FailedSectionRemoval, type SectionUndoNoticeState } from './project-page-store';
+import type { UndoConflictNextStep } from '@cwm/contracts';
+import type { FailedSectionRemoval, SectionUndoNoticeState } from './project-page-store';
 
 const NEXT_STEP_COPY: Record<UndoConflictNextStep, string> = {
   'move-back-and-retry': 'Move it back to its previous section, then try Undo again.',
   'restore-state-and-retry': 'Restore its previous state, then try Undo again.',
   'restore-or-move-dependent-and-retry': 'Restore or move the new dependent, then try Undo again.',
   'remove-reference-and-retry': 'Remove the reference, then try Undo again.',
-  'use-later-receipt-or-archive': 'Use the later Undo receipt, or check Archive for retained content.',
-  'use-later-receipt': 'Use the later Undo receipt, or make the change again by hand.',
-  'redo-by-hand': 'Make the change again by hand.',
-  'redo-by-hand-or-archive': 'Make the change again by hand, or check Archive for retained content.',
+  'change-by-hand': 'Someone else changed it since. Make the change again by hand.',
+  'change-by-hand-or-archive': 'Someone else changed it since. Make the change again by hand, or check Archive for retained content.',
   'nothing-to-undo': 'It is already live, so there is nothing to undo for this item.',
   'nothing-to-restore': 'It no longer exists. Use Archive if it still has a saved copy.',
-};
-
-/**
- * Who made the later change, when it was not this person. The server already chose the repair;
- * this only names the other party, so the sentence explains why the receipt for that change is
- * out of reach rather than leaving the person hunting for it (`note-2026-09-15-005`).
- */
-const SUPERSEDED_BY_COPY: Record<'user' | 'agent' | 'system', string> = {
-  user: 'Someone else changed it after you.',
-  agent: 'An agent changed it after you.',
-  system: 'The system changed it after you.',
 };
 
 /** The canvas-local, accessible status and action for one section-operation receipt. */
@@ -61,37 +48,20 @@ export class SectionUndoNotice {
   readonly showArchive = computed(() => {
     const state = this.state();
     if (state?.archiveListed === false) return false;
-    return state?.receipt?.operation === 'section.remove' || state?.result?.operation === 'section.remove';
+    return state?.receipt?.operation === 'section.remove' ||
+      state?.result?.operation === 'section.remove';
   });
   readonly canUndo = computed(() =>
     this.hasReceipt() && ['available', 'already-removed', 'refusal', 'error'].includes(this.state()?.kind ?? ''),
   );
-  /** The server already refused this receipt for good; the button stays visible but cannot send it. */
-  readonly undoRefusedForGood = computed(() => isUndoRefusedForGood(this.state()));
   readonly isAlert = computed(() => ['refusal', 'terminal', 'error'].includes(this.state()?.kind ?? ''));
   readonly conflicts = computed(() => {
     const refusal = this.state()?.refusal;
-    if (refusal?.reason !== 'undo_conflict') return [];
-    // One line per entity and rendered repair: a section that both changed and was superseded
-    // needs one step. The key is what the line *says*, so a `self` supersession and a plain
-    // change still collapse while a foreign actor's line — which names them — stands on its own.
-    //
-    // A foreign supersession also *replaces* the receipt advice for its own entity rather than
-    // sitting beside it: one agent edit produces both `field-changed` and `superseded`, and
-    // telling the person to use a receipt they cannot reach contradicts the line below it
-    // (`note-2026-09-15-005`).
-    const redone = new Set(
-      refusal.conflicts
-        .filter(({ nextStep }) => nextStep === 'redo-by-hand' || nextStep === 'redo-by-hand-or-archive')
-        .map(({ entityType, id }) => `${entityType}:${id}`),
-    );
+    if (refusal?.reason !== 'history_conflict') return [];
+    // One line per entity and rendered repair: a section can conflict twice on one repair.
     const seen = new Set<string>();
-    return refusal.conflicts.filter((conflict) => {
-      const { entityType, id, nextStep } = conflict;
-      const subject = `${entityType}:${id}`;
-      const offersReceipt = nextStep === 'use-later-receipt' || nextStep === 'use-later-receipt-or-archive';
-      if (offersReceipt && redone.has(subject)) return false;
-      const key = `${subject}:${nextStep}:${this.supersededByCopy(conflict) ?? ''}`;
+    return refusal.conflicts.filter(({ entityType, id, nextStep }) => {
+      const key = `${entityType}:${id}:${nextStep}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -104,7 +74,6 @@ export class SectionUndoNotice {
   }
 
   requestUndo(): void {
-    if (this.undoRefusedForGood()) return;
     this.activate(() => this.undo.emit());
   }
 
@@ -132,29 +101,26 @@ export class SectionUndoNotice {
     return NEXT_STEP_COPY[step];
   }
 
-  /** The prefix that names the other party, or `null` when the later change was this person's. */
-  supersededByCopy(conflict: { supersededBy?: 'self' | 'user' | 'agent' | 'system' }): string | null {
-    const by = conflict.supersededBy;
-    return by === undefined || by === 'self' ? null : SUPERSEDED_BY_COPY[by];
-  }
-
   conflictSubject(conflict: { entityType: string; id: string; title?: string }): string {
     const name = conflict.title ?? (conflict.entityType === 'reflection' ? 'Untitled reflection' : conflict.entityType);
     return `${name} [${conflict.id}]`;
   }
 
-  private guidanceFor(refusal: UndoRefusalDetails | undefined): string | null {
+  private guidanceFor(refusal: SectionUndoNoticeState['refusal']): string | null {
     if (refusal === undefined) return null;
     switch (refusal.reason) {
-      case 'undo_blocked':
-        return `Restore is blocked by ${refusal.blockingProjectTitle}.`;
-      case 'undo_unavailable':
+      case 'history_not_next':
+        return 'A newer change has to be undone first. Undo that one, then try again.';
+      case 'history_blocked':
+        return `Undo is blocked while ${refusal.blockingProjectTitle} is archived. Reactivate it, then try Undo again.`;
+      case 'history_unavailable':
         return refusal.problem === 'no-compatible-page'
           ? 'No page can currently receive this section. Make a compatible page available and try Undo again; check Archive for retained content.'
           : 'A shortcut on the fallback page prevents restoration there. Remove the shortcut and try Undo again; check Archive for retained content.';
-      case 'undo_conflict':
-      case 'undo_consumed':
-      case 'undo_expired':
+      case 'history_conflict':
+      case 'history_revision_stale':
+      case 'history_expired':
+      case 'history_retired':
         return null;
     }
   }

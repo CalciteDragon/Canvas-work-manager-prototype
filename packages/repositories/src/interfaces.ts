@@ -3,7 +3,8 @@ import type {
   MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageQuery, ProjectQuery, ProjectSection,
   Reflection, ReflectionId, ReflectionQuery, SectionShortcut, SectionShortcutId, SectionShortcutQuery,
   SectionId, SectionQuery,
-  Task, TaskId, TaskQuery, UndoRecord, UndoRecordId, UndoRecordQuery, User, UserId,
+  OperationAction, OperationActionId, OperationActionQuery, OperationHistory, OperationHistoryId, OperationHistoryQuery,
+  Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
 
 /**
@@ -100,17 +101,32 @@ export interface UserRepository {
 }
 
 /**
- * Scoped, expiring Undo records (docs/decisions/2026-09-section-removal-undo-records.md).
+ * One actor's operation history per project (docs/decisions/2026-09-operation-history-scope.md).
  *
- * `remove` exists because records are **pruned** — by expiry and by the per-workspace cap —
- * inside the unit that records a new one. That is safe where deleting other entities is not:
- * nothing references a record. Activity events name the project, never a record, and a receipt
- * holds only its id, which answers not-found once pruned.
+ * There is no `remove`: a history outlives every action it held, so its order high-water mark and
+ * revision never restart. Its project reference stays strict because no Stage A operation deletes
+ * a project; the stage that first does decides what happens to the history.
  */
-export interface UndoRecordRepository {
-  find(id: UndoRecordId): Promise<UndoRecord | null>;
-  list(query?: UndoRecordQuery): Promise<UndoRecord[]>;
-  insert(record: UndoRecord): Promise<void>;
-  update(record: UndoRecord): Promise<void>;
-  remove(id: UndoRecordId): Promise<void>;
+export interface OperationHistoryRepository {
+  find(id: OperationHistoryId): Promise<OperationHistory | null>;
+  list(query?: OperationHistoryQuery): Promise<OperationHistory[]>;
+  insert(history: OperationHistory): Promise<void>;
+  update(history: OperationHistory): Promise<void>;
+}
+
+/**
+ * The typed actions a history steps through.
+ *
+ * `remove` exists because actions are **pruned** — by expiry and by the per-history cap — and
+ * because recording a new action discards the redo branch, both inside the unit that records.
+ * That is safe where deleting other entities is not: nothing references an action. Activity
+ * events name the project, never an action, and a receipt holds only ids, which answer
+ * `history_not_next` or not-found once the action is gone.
+ */
+export interface OperationActionRepository {
+  find(id: OperationActionId): Promise<OperationAction | null>;
+  list(query?: OperationActionQuery): Promise<OperationAction[]>;
+  insert(action: OperationAction): Promise<void>;
+  update(action: OperationAction): Promise<void>;
+  remove(id: OperationActionId): Promise<void>;
 }

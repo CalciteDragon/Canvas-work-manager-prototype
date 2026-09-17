@@ -445,36 +445,69 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   }
 
   /**
-   * **Undo records: owner scope only.** A record must belong to a workspace, name a project in
-   * it, and be attributable to an actor in it — the scope Undo checks before it reveals
-   * anything. Its snapshot's section, page, shortcut, task and reflection ids are deliberately
-   * **not** resolved: a retained inverse can outlive what it names, and the hard delete Slice 31
-   * plans would otherwise fail every commit that deletes a section some record mentions.
+   * **Operation histories: owner scope and ordering** (docs/decisions/2026-09-operation-history-scope.md).
+   * A history belongs to a workspace, names a stored project in it — strictly, because no Stage A
+   * operation deletes a project — and is attributable to one actor in it. There is at most one
+   * history per (workspace, project, exact actor), because the cursor is the only order an actor's
+   * Undo and Redo follow.
    *
-   * `sequence` is the only order between records, so it must be unique per workspace.
+   * An action names a stored history and holds a positive `order` that is unique within it and no
+   * higher than the history's `orderHighWaterMark`, which is what makes an allocated order
+   * unreusable after pruning. Its captured snapshot's section, page, shortcut, task and reflection
+   * ids are deliberately **not** resolved: an add Undo or a disposable removal deletes the section
+   * an action names, and the action must survive that to be redone. The one live check is the
+   * archive generation: a retained removal cannot have captured a generation its section has not
+   * reached, because `archiveGeneration` never decreases.
    */
-  uniqueMap('undoRecords', document.undoRecords);
-  const sequences = new Set<string>();
-  for (const record of document.undoRecords) {
-    if (!workspaces.has(record.workspaceId)) fail(`undo record "${record.id}" has missing workspace "${record.workspaceId}"`);
-    const sequenceKey = `${record.workspaceId} ${record.sequence}`;
-    if (sequences.has(sequenceKey)) {
-      fail(`undo record "${record.id}" has duplicate sequence ${record.sequence} in workspace "${record.workspaceId}"`);
-    }
-    sequences.add(sequenceKey);
+  uniqueMap('operationActions', document.operationActions);
+  const histories = uniqueMap('operationHistories', document.operationHistories);
+  const historyScopes = new Set<string>();
+  for (const history of document.operationHistories) {
+    if (!workspaces.has(history.workspaceId)) fail(`operation history "${history.id}" has missing workspace "${history.workspaceId}"`);
+    const project = projects.get(history.projectId) ??
+      fail(`operation history "${history.id}" has missing project "${history.projectId}"`);
+    if (project.workspaceId !== history.workspaceId) fail(`operation history "${history.id}" names a project from another workspace`);
 
-    const project = projects.get(record.projectId) ??
-      fail(`undo record "${record.id}" has missing project "${record.projectId}"`);
-    if (project.workspaceId !== record.workspaceId) fail(`undo record "${record.id}" names a project from another workspace`);
-
-    if (record.actor === 'user') {
-      const actor = users.get(record.actorUserId ?? '') ?? fail(`undo record "${record.id}" has a missing user actor`);
-      if (actor.workspaceId !== record.workspaceId) fail(`undo record "${record.id}" has a user actor from another workspace`);
-    } else if (record.actor === 'agent') {
-      const connection = agents.get(record.actorAgentConnectionId ?? '') ??
-        fail(`undo record "${record.id}" has a missing agent actor`);
+    let actorKey = 'system';
+    if (history.actor === 'user') {
+      const actor = users.get(history.actorUserId ?? '') ?? fail(`operation history "${history.id}" has a missing user actor`);
+      if (actor.workspaceId !== history.workspaceId) fail(`operation history "${history.id}" has a user actor from another workspace`);
+      actorKey = `user:${actor.id}`;
+    } else if (history.actor === 'agent') {
+      const connection = agents.get(history.actorAgentConnectionId ?? '') ??
+        fail(`operation history "${history.id}" has a missing agent actor`);
       const actor = users.get(connection.userId) ?? fail(`agent connection "${connection.id}" has a missing user`);
-      if (actor.workspaceId !== record.workspaceId) fail(`undo record "${record.id}" has an agent actor from another workspace`);
+      if (actor.workspaceId !== history.workspaceId) fail(`operation history "${history.id}" has an agent actor from another workspace`);
+      actorKey = `agent:${connection.id}`;
+    }
+    // Ids accept any non-empty string, spaces included, so a delimiter-joined key could make two
+    // distinct scopes collide; a JSON array cannot.
+    const scope = JSON.stringify([history.workspaceId, history.projectId, actorKey]);
+    if (historyScopes.has(scope)) fail(`operation history "${history.id}" is a duplicate history for its actor and project`);
+    historyScopes.add(scope);
+  }
+
+  const orders = new Set<string>();
+  for (const action of document.operationActions) {
+    const history = histories.get(action.historyId) ??
+      fail(`operation action "${action.id}" has missing history "${action.historyId}"`);
+    if (action.order > history.orderHighWaterMark) {
+      fail(`operation action "${action.id}" has order ${action.order} above its history's high-water mark ${history.orderHighWaterMark}`);
+    }
+    const orderKey = JSON.stringify([action.historyId, action.order]);
+    if (orders.has(orderKey)) fail(`operation action "${action.id}" has duplicate order ${action.order} in its history`);
+    orders.add(orderKey);
+
+    const operationProjectId = action.operation.type === 'section.remove' || action.operation.type === 'section.add'
+      ? action.operation.section.projectId
+      : action.operation.projectId;
+    if (operationProjectId !== history.projectId) fail(`operation action "${action.id}" names a project outside its history`);
+
+    if (action.operation.type === 'section.remove' && action.operation.disposition === 'retained') {
+      const section = sections.get(action.operation.section.id);
+      if (section !== undefined && action.operation.archiveGeneration > section.archiveGeneration) {
+        fail(`operation action "${action.id}" captures archive generation ${action.operation.archiveGeneration}, beyond section "${section.id}"`);
+      }
     }
   }
 

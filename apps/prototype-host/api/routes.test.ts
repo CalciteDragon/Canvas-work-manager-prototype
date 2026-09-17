@@ -1,17 +1,18 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema, UndoRefusalDetailsSchema, UndoResultSchema } from '@cwm/contracts';
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryUndoRecorder, SectionService, SectionShortcutService, TaskService, TimelineService, UndoService } from '@cwm/domain';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
+import { ActivityService, AgentConnectionService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryOperationRecorder, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
   JsonAgentConnectionRepository,
   JsonMilestoneRepository,
+  JsonOperationActionRepository,
+  JsonOperationHistoryRepository,
   JsonProjectPageRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
   JsonSectionShortcutRepository,
   JsonTaskRepository,
-  JsonUndoRecordRepository,
   JsonUserRepository,
   unitOfWorkFor,
 } from '@cwm/repositories';
@@ -147,12 +148,13 @@ const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-0
   const reflections = new JsonReflectionRepository(store);
   const agents = new JsonAgentConnectionRepository(store);
   const users = new JsonUserRepository(store);
-  const undoRecords = new JsonUndoRecordRepository(store);
+  const operationHistories = new JsonOperationHistoryRepository(store);
+  const operationActions = new JsonOperationActionRepository(store);
   const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids });
   const unitOfWork = unitOfWorkFor(store);
   const connections = new AgentConnectionService({ agents, activity, clock, unitOfWork });
-  const undo = new RepositoryUndoRecorder({ undoRecords, clock, ids });
-  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, undo, clock, ids, unitOfWork });
+  const history = new RepositoryOperationRecorder({ histories: operationHistories, actions: operationActions, clock, ids });
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, history, clock, ids, unitOfWork });
   const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
 
   return createApiRoutes({
@@ -171,7 +173,7 @@ const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-0
     reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     agents: connections,
-    undo: new UndoService({ undoRecords, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
+    history: new OperationHistoryService({ histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
     authenticator: new PrototypeAgentAuthenticator({ agents, users, connections }),
   });
 };
@@ -574,7 +576,7 @@ describe('section routes', () => {
     expect(SectionAlreadyRemovedDetailsSchema.parse((again.body as { details: unknown }).details)).toEqual({
       reason: 'section_already_removed',
       sectionId: section.id,
-      undo: result.undo,
+      operation: result.operation,
     });
   });
 
@@ -1276,7 +1278,7 @@ describe('Journal projection routes (§36, §54)', () => {
   });
 });
 
-describe('section removal receipts and Undo (Slice 30)', () => {
+describe('section receipts and operation history routes (Slices 30, 35)', () => {
   const READWRITE = 'prototype-user-a-readwrite';
   const AGENT_PROJECT = 'project-work-manager';
 
@@ -1292,6 +1294,26 @@ describe('section removal receipts and Undo (Slice 30)', () => {
     return { section, removed, result: SectionRemovalResultSchema.parse(removed.body) };
   };
 
+  const summaryOf = async (routes: RouteTable, options: Parameters<typeof call>[3] = {}, projectId = MINE) => {
+    const response = await call(routes, 'GET', `/api/projects/${projectId}/history`, options);
+    expect(response.status).toBe(200);
+    return OperationHistorySummarySchema.parse(response.body);
+  };
+
+  const transition = (
+    routes: RouteTable,
+    receipt: { historyId: string; actionId: string },
+    direction: 'undo' | 'redo',
+    expectedRevision: number,
+    options: Parameters<typeof call>[3] = {},
+  ) =>
+    call(routes, 'POST', `/api/history/${receipt.historyId}/transition`, {
+      ...options,
+      body: { actionId: receipt.actionId, direction, expectedRevision },
+    });
+
+  const detailsOf = (response: { body: unknown }) => OperationHistoryRefusalDetailsSchema.parse((response.body as { details: unknown }).details);
+
   it('answers a removal with 200, the archived section and a receipt carrying no inverse data', async () => {
     const { routes } = withStore();
 
@@ -1299,18 +1321,18 @@ describe('section removal receipts and Undo (Slice 30)', () => {
 
     expect(removed.status).toBe(200);
     expect(result.section).toMatchObject({ id: section.id, archivedAt: '2026-08-24T16:00:00.000Z' });
-    expect(Object.keys(result.undo).sort()).toEqual(['createdAt', 'expiresAt', 'label', 'operation', 'sequence', 'undoId']);
+    expect(Object.keys(result.operation).sort()).toEqual(['actionId', 'createdAt', 'expiresAt', 'historyId', 'label', 'operation', 'revision']);
   });
 
-  it('issues no receipt for a refused removal', async () => {
+  it('issues no receipt and records no action for a refused removal', async () => {
     const { store, routes } = withStore();
     const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Live' } })).body);
 
     const refused = await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
 
     expect(refused.status).toBe(409);
-    expect(refused.body).not.toHaveProperty('undo');
-    expect(store.snapshot().undoRecords).toEqual([]);
+    expect(refused.body).not.toHaveProperty('operation');
+    expect(store.snapshot().operationActions).toEqual([]);
   });
 
   it('recovers a hard-deleted section receipt only for its exact actor, then executes it', async () => {
@@ -1328,66 +1350,131 @@ describe('section removal receipts and Undo (Slice 30)', () => {
     expect(SectionAlreadyRemovedDetailsSchema.parse((repeated.body as { details: unknown }).details)).toEqual({
       reason: 'section_already_removed',
       sectionId: section.id,
-      undo: result.undo,
+      operation: result.operation,
     });
     expect(store.snapshot()).toEqual(afterRemoval);
     expect((await call(routes, 'DELETE', `/api/sections/${section.id}`, { user: ALEX })).status).toBe(404);
 
-    const undone = await call(routes, 'POST', `/api/undo/${result.undo.undoId}`);
+    const undone = await transition(routes, result.operation, 'undo', result.operation.revision);
     expect(undone.status).toBe(200);
     const restored = store.snapshot().sections.find(({ id }) => id === section.id);
     expect(restored).toBeDefined();
     expect(restored).not.toHaveProperty('archivedAt');
   });
 
-  it('undoes with 200, then refuses the repeat with 409 undo_consumed details', async () => {
+  it('the sequential A → B → Undo → Undo → Redo → Redo chain, observed through the summary route', async () => {
+    const { routes } = withStore();
+    const created = SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', title: 'Start' } })).body);
+    const write = async (title: string) =>
+      SectionWriteResultSchema.parse((await call(routes, 'PATCH', `/api/sections/${created.section.id}`, { body: { title } })).body).operation!;
+    const a = await write('A');
+    const b = await write('B');
+    const title = async () =>
+      ProjectSectionSchema.array().parse((await call(routes, 'GET', `/api/projects/${MINE}/sections`)).body).find(({ id }) => id === created.section.id)?.title;
+
+    expect(await summaryOf(routes)).toMatchObject({ historyId: b.historyId, revision: b.revision, undo: { actionId: b.actionId }, redo: null });
+    const steps: Array<[typeof a, 'undo' | 'redo', string, string | null, string | null]> = [
+      [b, 'undo', 'A', a.actionId, b.actionId],
+      [a, 'undo', 'Start', created.operation.actionId, a.actionId],
+      [a, 'redo', 'A', a.actionId, b.actionId],
+      [b, 'redo', 'B', b.actionId, null],
+    ];
+    for (const [receipt, direction, expectedTitle, undo, redo] of steps) {
+      const before = await summaryOf(routes);
+      const response = await transition(routes, receipt, direction, before.revision);
+      expect(response.status).toBe(200);
+      expect(OperationHistoryTransitionResultSchema.parse(response.body)).toMatchObject({ direction, actionId: receipt.actionId, summary: { revision: before.revision + 1 } });
+      expect(await title()).toBe(expectedTitle);
+      const after = await summaryOf(routes);
+      expect(after.undo?.actionId ?? null).toBe(undo);
+      expect(after.redo?.actionId ?? null).toBe(redo);
+    }
+  });
+
+  it('branch invalidation over the wire: a new write discards redo; a no-op and a refusal leave it', async () => {
+    const { routes } = withStore();
+    const created = SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', title: 'Start' } })).body);
+    const patch = (body: object) => call(routes, 'PATCH', `/api/sections/${created.section.id}`, { body });
+    const a = SectionWriteResultSchema.parse((await patch({ title: 'A' })).body).operation!;
+    await transition(routes, a, 'undo', a.revision);
+
+    expect(SectionWriteResultSchema.parse((await patch({ title: 'Start' })).body).operation).toBeNull();
+    expect((await transition(routes, a, 'redo', 0)).status).toBe(409);
+    expect((await summaryOf(routes)).redo?.actionId).toBe(a.actionId);
+
+    const c = SectionWriteResultSchema.parse((await patch({ collapsed: true })).body).operation!;
+    const summary = await summaryOf(routes);
+    expect(summary).toMatchObject({ redo: null, undo: { actionId: c.actionId } });
+    expect((await transition(routes, c, 'undo', summary.revision)).status).toBe(200);
+    expect((await summaryOf(routes)).undo?.actionId).toBe(created.operation.actionId);
+  });
+
+  it('a replayed transition answers 409 history_revision_stale with the summary that shows it landed', async () => {
     const { routes } = withStore();
     const { section, result } = await removeNotes(routes);
 
-    const undone = await call(routes, 'POST', `/api/undo/${result.undo.undoId}`);
+    const undone = await transition(routes, result.operation, 'undo', result.operation.revision);
     expect(undone.status).toBe(200);
-    expect(UndoResultSchema.parse(undone.body)).toMatchObject({ outcome: 'restored', section: { id: section.id } });
+    expect(OperationHistoryTransitionResultSchema.parse(undone.body)).toMatchObject({ result: { outcome: 'restored', section: { id: section.id } } });
 
-    const again = await call(routes, 'POST', `/api/undo/${result.undo.undoId}`);
+    const again = await transition(routes, result.operation, 'undo', result.operation.revision);
     expect(again).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
-    const details = UndoRefusalDetailsSchema.parse((again.body as { details: unknown }).details);
-    expect(details).toMatchObject({ reason: 'undo_consumed', undoId: result.undo.undoId });
-    expect((again.body as { message: string }).message).toMatch(/^undo_consumed: /);
+    expect(detailsOf(again)).toMatchObject({
+      reason: 'history_revision_stale', historyId: result.operation.historyId,
+      summary: { revision: result.operation.revision + 1, redo: { actionId: result.operation.actionId } },
+    });
+    expect((again.body as { message: string }).message).toMatch(/^history_revision_stale: /);
   });
 
-  it('answers 409 undo_expired and undo_conflict with typed details', async () => {
+  it('answers 409 history_retired, history_expired and — once pruned — history_not_next, with typed details', async () => {
     const clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'));
     const { routes } = withStore(document(true), clock);
-    const expiring = (await removeNotes(routes)).result;
-    const conflicting = await removeNotes(routes);
-    await call(routes, 'POST', `/api/sections/${conflicting.section.id}/restore`);
+    const retiring = await removeNotes(routes);
+    await call(routes, 'POST', `/api/sections/${retiring.section.id}/restore`);
 
-    const conflict = await call(routes, 'POST', `/api/undo/${conflicting.result.undo.undoId}`);
-    expect(conflict.status).toBe(409);
-    expect(UndoRefusalDetailsSchema.parse((conflict.body as { details: unknown }).details)).toEqual({
-      reason: 'undo_conflict',
-      undoId: conflicting.result.undo.undoId,
-      conflicts: [{
-        entityType: 'section',
-        id: conflicting.section.id,
-        title: 'Rich Text',
-        problem: 'not-archived',
-        nextStep: 'nothing-to-undo',
-      }],
+    const retired = await transition(routes, retiring.result.operation, 'undo', retiring.result.operation.revision);
+    expect(retired.status).toBe(409);
+    expect(detailsOf(retired)).toMatchObject({
+      reason: 'history_retired',
+      conflicts: [{ entityType: 'section', id: retiring.section.id, title: 'Rich Text', problem: 'not-archived', nextStep: 'nothing-to-undo' }],
+      summary: { revision: retiring.result.operation.revision + 1 },
     });
 
-    clock.setNow(new Date(expiring.undo.expiresAt));
-    const expired = await call(routes, 'POST', `/api/undo/${expiring.undo.undoId}`);
+    const expiring = (await removeNotes(routes)).result;
+    clock.setNow(new Date(expiring.operation.expiresAt));
+    const summary = await summaryOf(routes);
+    // An expired action is not offered, and refuses while it is still stored.
+    expect(summary.undo).toBeNull();
+    const expired = await transition(routes, expiring.operation, 'undo', summary.revision);
     expect(expired.status).toBe(409);
-    expect(UndoRefusalDetailsSchema.parse((expired.body as { details: unknown }).details)).toMatchObject({ reason: 'undo_expired' });
+    expect(detailsOf(expired)).toMatchObject({ reason: 'history_expired', expiresAt: expiring.operation.expiresAt });
+
+    // A later write prunes it; naming it now answers that it is not the next step.
+    const fresh = SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'progress' } })).body);
+    const pruned = await transition(routes, expiring.operation, 'undo', fresh.operation.revision);
+    expect(pruned.status).toBe(409);
+    expect(detailsOf(pruned)).toMatchObject({ reason: 'history_not_next', summary: { undo: { actionId: fresh.operation.actionId } } });
   });
 
-  it('answers 404 to another persona and for an unknown receipt', async () => {
+  it('answers 404 for another persona’s history, an unknown history and a foreign project’s summary', async () => {
     const { routes } = withStore();
     const { result } = await removeNotes(routes);
 
-    expect((await call(routes, 'POST', `/api/undo/${result.undo.undoId}`, { user: ALEX })).status).toBe(404);
-    expect((await call(routes, 'POST', '/api/undo/undo-nope')).status).toBe(404);
+    expect((await transition(routes, result.operation, 'undo', result.operation.revision, { user: ALEX })).status).toBe(404);
+    expect((await transition(routes, { historyId: 'history-nope', actionId: result.operation.actionId }, 'undo', 1)).status).toBe(404);
+    expect((await call(routes, 'GET', `/api/projects/${MINE}/history`, { user: ALEX })).status).toBe(404);
+    expect((await call(routes, 'GET', '/api/projects/project-nope/history')).status).toBe(404);
+  });
+
+  it('transition rejects unknown fields and a missing revision with 400', async () => {
+    const { routes } = withStore();
+    const { result } = await removeNotes(routes);
+    const post = (body: unknown) => call(routes, 'POST', `/api/history/${result.operation.historyId}/transition`, { body });
+
+    expect((await post({ actionId: result.operation.actionId, direction: 'undo', expectedRevision: result.operation.revision, force: true })).status).toBe(400);
+    expect((await post({ actionId: result.operation.actionId, direction: 'undo' })).status).toBe(400);
+    expect((await post({ undoId: 'undo-1' })).status).toBe(400);
+    expect((await call(routes, 'POST', `/api/undo/${result.operation.actionId}`)).status).toBe(404);
   });
 
   describe('an agent whose access changes after the receipt was issued', () => {
@@ -1398,45 +1485,42 @@ describe('section removal receipts and Undo (Slice 30)', () => {
         user: 'user-demo',
         body: { permissions: ['projects.read', 'projects.write', 'tasks.read', 'tasks.write'] },
       });
-      const created = await call(routes, 'POST', `/api/projects/${AGENT_PROJECT}/sections`, {
-        token: READWRITE,
-        body: { type: 'progress' },
-      });
-      const removed = await call(routes, 'DELETE', `/api/sections/${SectionAddResultSchema.parse(created.body).section.id}`, {
-        token: READWRITE,
-      });
+      const created = await call(routes, 'POST', `/api/projects/${AGENT_PROJECT}/sections`, { token: READWRITE, body: { type: 'progress' } });
+      const removed = await call(routes, 'DELETE', `/api/sections/${SectionAddResultSchema.parse(created.body).section.id}`, { token: READWRITE });
       expect(removed.status).toBe(200);
-      const { undo } = SectionRemovalResultSchema.parse(removed.body);
-      const unconsumed = () => store.snapshot().undoRecords.find(({ id }) => id === undo.undoId)?.consumedAt === undefined;
-      return { routes, undo, unconsumed };
+      const { operation } = SectionRemovalResultSchema.parse(removed.body);
+      const applied = () => store.snapshot().operationActions.find(({ id }) => id === operation.actionId)?.state === 'applied';
+      return { routes, operation, applied };
     };
 
-    it('answers 401 once the connection is revoked, leaving the record unconsumed', async () => {
-      const { routes, undo, unconsumed } = await agentReceipt();
+    it('answers 401 once the connection is revoked, leaving the action applied', async () => {
+      const { routes, operation, applied } = await agentReceipt();
       await call(routes, 'POST', '/api/agent-connections/agent-claude/revoke', { user: 'user-demo' });
 
-      expect((await call(routes, 'POST', `/api/undo/${undo.undoId}`, { token: READWRITE })).status).toBe(401);
-      expect(unconsumed()).toBe(true);
+      expect((await transition(routes, operation, 'undo', operation.revision, { token: READWRITE })).status).toBe(401);
+      expect(applied()).toBe(true);
     });
 
-    it('answers 403 once projects.write is removed, leaving the record unconsumed', async () => {
-      const { routes, undo, unconsumed } = await agentReceipt();
+    it('a projects.read-only connection reads the summary and is refused a transition with 403 naming projects.write', async () => {
+      const { routes, operation, applied } = await agentReceipt();
       await call(routes, 'PATCH', '/api/agent-connections/agent-claude', {
         user: 'user-demo',
         body: { permissions: ['projects.read', 'tasks.read', 'tasks.write'] },
       });
 
-      const denied = await call(routes, 'POST', `/api/undo/${undo.undoId}`, { token: READWRITE });
+      expect(await summaryOf(routes, { token: READWRITE }, AGENT_PROJECT)).toMatchObject({ historyId: operation.historyId, undo: { actionId: operation.actionId } });
+      const denied = await transition(routes, operation, 'undo', operation.revision, { token: READWRITE });
       expect(denied).toMatchObject({ status: 403, body: { error: 'permission_denied' } });
-      expect(unconsumed()).toBe(true);
+      expect(JSON.stringify(denied.body)).toContain('projects.write');
+      expect(applied()).toBe(true);
     });
 
-    it('undoes for the same connection while it still holds projects.write', async () => {
-      const { routes, undo } = await agentReceipt();
+    it('undoes for the same connection while it still holds projects.write, and hides it from the person', async () => {
+      const { routes, operation } = await agentReceipt();
 
-      expect((await call(routes, 'POST', `/api/undo/${undo.undoId}`, { token: READWRITE })).status).toBe(200);
-      // The person does not own their agent's receipt (exact-actor scope).
-      expect((await call(routes, 'POST', `/api/undo/${undo.undoId}`, { user: 'user-demo' })).status).toBe(404);
+      expect((await transition(routes, operation, 'undo', operation.revision, { user: 'user-demo' })).status).toBe(404);
+      expect(await summaryOf(routes, { user: 'user-demo' }, AGENT_PROJECT)).toMatchObject({ historyId: null });
+      expect((await transition(routes, operation, 'undo', operation.revision, { token: READWRITE })).status).toBe(200);
     });
   });
 });

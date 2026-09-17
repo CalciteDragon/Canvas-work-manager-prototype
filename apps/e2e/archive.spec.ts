@@ -405,7 +405,7 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     // Undo: neighbour-aware, back between the shortcut and the view.
     const firstRemoval = page.waitForResponse((response) => response.request().method() === 'DELETE' && response.url().endsWith(`/api/sections/${middle.id}`));
     await middleFrame.locator('[data-section-remove]').click();
-    const firstReceipt = ((await (await firstRemoval).json()) as { undo: { undoId: string } }).undo;
+    const firstReceipt = ((await (await firstRemoval).json()) as { operation: { historyId: string; actionId: string } }).operation;
     await expect(middleFrame).toHaveCount(0);
     expect(await archiveKeys(root.id)).toContain(`section:${middle.id}`);
     await page.locator('[data-undo-action]').click();
@@ -418,7 +418,7 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     // Restore: durable and receipt-free, appended after everything on the page.
     const secondRemoval = page.waitForResponse((response) => response.request().method() === 'DELETE' && response.url().endsWith(`/api/sections/${middle.id}`));
     await middleFrame.locator('[data-section-remove]').click();
-    const secondReceipt = ((await (await secondRemoval).json()) as { undo: { undoId: string } }).undo;
+    const secondReceipt = ((await (await secondRemoval).json()) as { operation: { historyId: string; actionId: string } }).operation;
     await expect(middleFrame).toHaveCount(0);
     await page.locator('[data-open-archive]').click();
     await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
@@ -433,15 +433,26 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     expect((await api<{ config: { text: string } }[]>('GET', `/api/projects/${root.id}/sections?pageId=${home.id}`)).find((section) => (section as unknown as { id: string }).id === middle.id))
       .toMatchObject({ config: { text: 'Keep the middle prose' } });
 
-    // Neither receipt can move the restored section again.
-    // The first was used; the second is superseded by Restore, which already brought the section back.
-    for (const [receipt, reason] of [[firstReceipt, 'undo_consumed'], [secondReceipt, 'undo_conflict']] as const) {
-      const refused = await fetch(`${PROTOTYPE_HOST}/api/undo/${receipt.undoId}`, { method: 'POST', headers: PERSONA });
+    // Neither receipt can move the restored section again. The first was undone and then discarded
+    // by the second removal's write; the second retires, because Restore already brought the section
+    // back and no later change could make its Undo right again.
+    const eventsBeforeRefusals = await api<unknown[]>('GET', '/api/activity?limit=5');
+    for (const [receipt, reason] of [[firstReceipt, 'history_not_next'], [secondReceipt, 'history_retired']] as const) {
+      const { revision } = await api<{ revision: number }>('GET', `/api/projects/${root.id}/history`);
+      const refused = await fetch(`${PROTOTYPE_HOST}/api/history/${receipt.historyId}/transition`, {
+        method: 'POST', headers: PERSONA, body: JSON.stringify({ actionId: receipt.actionId, direction: 'undo', expectedRevision: revision }),
+      });
       expect(refused.status).toBe(409);
       expect(((await refused.json()) as { details: { reason: string } }).details.reason).toBe(reason);
     }
     const eventsAfterRefusals = await api<unknown[]>('GET', '/api/activity?limit=5');
-    const sdkRepeat = await client.callTool({ name: 'undo_operation', arguments: { undoId: secondReceipt.undoId } });
+    expect(eventsAfterRefusals).toEqual(eventsBeforeRefusals);
+    // The person's history is not the agent connection's to reach.
+    const { revision } = await api<{ revision: number }>('GET', `/api/projects/${root.id}/history`);
+    const sdkRepeat = await client.callTool({
+      name: 'undo_operation',
+      arguments: { historyId: secondReceipt.historyId, actionId: secondReceipt.actionId, expectedRevision: revision },
+    });
     expect(sdkRepeat.isError).toBe(true);
     expect(await combined()).toEqual(appended);
     // Refusals are not activity (Refactor §26.7).

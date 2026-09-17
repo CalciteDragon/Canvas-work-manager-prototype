@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "users": [
     {
       "id": "user-demo",
@@ -257,6 +257,7 @@
       "config": {
         "text": "Launch week. Copy is signed off; QA and analytics are the risk."
       },
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -269,6 +270,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -281,6 +283,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -293,6 +296,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -305,6 +309,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -317,6 +322,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -331,6 +337,7 @@
       "config": {
         "text": "Small household jobs. Nothing here is urgent."
       },
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -343,6 +350,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -357,6 +365,7 @@
       "config": {
         "text": "Two modules left before the end of the month."
       },
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     },
@@ -369,6 +378,7 @@
       "columnSpan": 12,
       "collapsed": false,
       "config": {},
+      "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
       "updatedAt": "2026-08-21T20:00:00.000Z"
     }
@@ -503,5 +513,6 @@
   ],
   "activityEvents": [],
   "agentConnections": [],
-  "undoRecords": []
+  "operationHistories": [],
+  "operationActions": []
 }

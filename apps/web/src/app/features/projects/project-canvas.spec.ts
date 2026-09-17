@@ -584,8 +584,14 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       return undo;
     };
 
+    /** The fake gateway's first receipt, refused with host-shaped details. */
     const refusal = (details: Record<string, unknown>) =>
-      new GatewayError('rule_violation', 409, 'Undo was refused', { undoId: 'undo-section-move-1', ...details });
+      new GatewayError('rule_violation', 409, 'Undo was refused', {
+        historyId: 'history-fake',
+        actionId: 'operation-fake-1',
+        summary: { projectId: 'project-a', historyId: 'history-fake', revision: 1, undo: null, redo: null, blockedBy: null },
+        ...details,
+      });
 
     it('add Undo focuses notice after removing subject', async () => {
       const { fixture } = await render({ sections: [] });
@@ -624,31 +630,27 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       expect(document.activeElement).toBe(query(fixture, '[data-section-id="section-tasks"] [data-section-title]'));
     });
 
-    it('refused Undo retains focus on the visible aria-disabled button for permanent refusal and remains retryable for reparable refusal', async () => {
+    it('refused Undo retains focus on the visible, still-enabled button for every repairable refusal', async () => {
       const { fixture, gateway } = await render();
       await keyboardMove(fixture);
       const execute = vi.fn()
-        .mockRejectedValueOnce(refusal({ reason: 'undo_blocked', blockingProjectId: 'project-a', blockingProjectTitle: 'Website launch' }))
+        .mockRejectedValueOnce(refusal({ reason: 'history_blocked', blockingProjectId: 'project-a', blockingProjectTitle: 'Website launch' }))
         .mockRejectedValueOnce(refusal({
-          reason: 'undo_conflict',
-          conflicts: [{ entityType: 'section', id: 'section-text', title: 'Rich Text', problem: 'superseded', nextStep: 'use-later-receipt', supersededBy: 'self' }],
+          reason: 'history_conflict',
+          conflicts: [{ entityType: 'section', id: 'section-text', problem: 'missing', nextStep: 'nothing-to-undo' }],
         }));
-      gateway.undo.execute = execute;
+      gateway.history.transition = execute;
 
       const reparable = await clickUndo(fixture);
       expect(query(fixture, '[data-undo-action]')).toBe(reparable);
       expect(reparable.getAttribute('aria-disabled')).toBe('false');
       expect(document.activeElement).toBe(reparable);
 
-      const permanent = await clickUndo(fixture);
+      const missing = await clickUndo(fixture);
       expect(execute).toHaveBeenCalledTimes(2);
-      expect(query(fixture, '[data-undo-action]')).toBe(permanent);
-      expect(permanent.getAttribute('aria-disabled')).toBe('true');
-      expect(document.activeElement).toBe(permanent);
-
-      permanent.click();
-      await settle(fixture);
-      expect(execute).toHaveBeenCalledTimes(2);
+      expect(query(fixture, '[data-undo-action]')).toBe(missing);
+      expect(missing.getAttribute('aria-disabled')).toBe('false');
+      expect(document.activeElement).toBe(missing);
     });
 
     it('late Undo cannot steal focus after navigation or newer receipt', async () => {
@@ -657,9 +659,9 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
         const { fixture, gateway } = await render();
         await keyboardMove(fixture);
         const gate = deferred<void>();
-        const execute = gateway.undo.execute.bind(gateway.undo);
+        const execute = gateway.history.transition.bind(gateway.history);
         let executed = 0;
-        gateway.undo.execute = (id) => gate.promise.then(() => execute(id)).then((result) => { executed += 1; return result; });
+        gateway.history.transition = (historyId, input) => gate.promise.then(() => execute(historyId, input)).then((result) => { executed += 1; return result; });
         const outside = document.createElement('button');
         document.body.appendChild(outside);
         try {

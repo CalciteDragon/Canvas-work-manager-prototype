@@ -8,6 +8,16 @@ export * from './clock';
 export * from './errors';
 export * from './ids';
 export * from './instants';
+export * from './operation-history';
+export * from './operation-history-service';
+// Named, not `*`: the recorder module's lookup helpers stay package-internal.
+export {
+  OPERATION_ACTION_LIFETIME_MS,
+  RepositoryOperationRecorder,
+  type OperationRecordEntry,
+  type OperationRecorder,
+  type RepositoryOperationRecorderDependencies,
+} from './operation-recorder';
 export * from './live-events';
 export * from './project-page-service';
 export * from './project-archive-service';
@@ -25,13 +35,3 @@ export * from './task-service';
 export * from './task-windows';
 export * from './timeline-service';
 export * from './workspace-service';
-// Named, not `*`: the recorder module's `subjectSectionOf` helper stays package-internal.
-export {
-  RepositoryUndoRecorder,
-  UNDO_RECORD_LIFETIME_MS,
-  UNDO_RECORD_LIMIT,
-  type RepositoryUndoRecorderDependencies,
-  type UndoRecordEntry,
-  type UndoRecorder,
-} from './undo-recorder';
-export * from './undo-service';

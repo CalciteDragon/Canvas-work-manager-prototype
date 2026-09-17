@@ -6,14 +6,16 @@ import {
   ResolvedSectionShortcutSchema,
   SectionRemovalResultSchema,
   ShortcutSourceSchema,
-  UndoResultSchema,
+  OperationHistorySummarySchema,
+  OperationHistoryTransitionResultSchema,
   type CreateTaskInput,
   type Identity,
   type ProjectId,
   type ReflectionId,
   type SectionId,
   type TaskId,
-  type UndoRecordId,
+  type OperationActionId,
+  type OperationHistoryId,
 } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
@@ -61,15 +63,28 @@ const projectSection = {
 
 const removalResult = SectionRemovalResultSchema.parse({
   section: { ...projectSection, archivedAt: at },
-  undo: {
-    undoId: 'undo-1', operation: 'section.remove', sequence: 1, label: 'Removed Kickoff', createdAt: at,
+  operation: {
+    historyId: 'history-1', actionId: 'operation-1', operation: 'section.remove', revision: 1, label: 'Removed Kickoff', createdAt: at,
     expiresAt: '2026-08-02T16:00:00.000Z',
   },
   archiveListed: true,
 });
-const undoResult = UndoResultSchema.parse({
-  undoId: 'undo-1', operation: 'section.remove', outcome: 'restored', section: projectSection,
-  placement: { pageId: 'page-project-1', index: 0, strategy: 'index', pageEnabled: true }, restoredRowCount: 0,
+const historySummary = OperationHistorySummarySchema.parse({
+  projectId: 'project-1', historyId: 'history-1', revision: 2, undo: null,
+  redo: { actionId: 'operation-1', operation: 'section.remove', label: 'Removed Kickoff', expiresAt: '2026-08-02T16:00:00.000Z' },
+  blockedBy: null,
+});
+const transitionResult = OperationHistoryTransitionResultSchema.parse({
+  direction: 'undo',
+  actionId: 'operation-1',
+  result: {
+    operation: 'section.remove', outcome: 'restored', section: projectSection,
+    placement: { pageId: 'page-project-1', index: 0, strategy: 'index', pageEnabled: true }, restoredRowCount: 0,
+  },
+  summary: historySummary,
+});
+const receiptOf = (operation: string, revision: number) => ({
+  historyId: 'history-1', actionId: `operation-${revision}`, operation, revision, label: operation, createdAt: at, expiresAt: '2026-08-02T16:00:00.000Z',
 });
 
 const task = {
@@ -404,7 +419,7 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
   it('creates with a JSON body and accepts 201', async () => {
     fetchMock.mockImplementation(jsonResponse({
       section: projectSection,
-      undo: { undoId: 'undo-add', operation: 'section.add', sequence: 2, label: 'Add rich-text', createdAt: at, expiresAt: '2026-08-02T16:00:00.000Z' },
+      operation: receiptOf('section.add', 2),
     }, 201));
 
     await gateway().sections.create('project-1' as ProjectId, { type: 'rich-text', config: { text: '' } });
@@ -417,7 +432,7 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
   it('updates through PATCH, addressing the section directly', async () => {
     fetchMock.mockImplementation(jsonResponse({
       section: { ...projectSection, collapsed: true },
-      undo: { undoId: 'undo-update', operation: 'section.update', sequence: 3, label: 'Update section-1', createdAt: at, expiresAt: '2026-08-02T16:00:00.000Z' },
+      operation: receiptOf('section.update', 3),
     }));
 
     const updated = await gateway().sections.update('section-1' as SectionId, { collapsed: true });
@@ -430,7 +445,7 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
   it('moves through the dedicated route and validates the authoritative section (§32)', async () => {
     fetchMock.mockImplementation(jsonResponse({
       section: { ...projectSection, position: 2 },
-      undo: { undoId: 'undo-move', operation: 'section.move', sequence: 4, label: 'Move section-1', createdAt: at, expiresAt: '2026-08-02T16:00:00.000Z' },
+      operation: receiptOf('section.move', 4),
     }));
 
     const moved = await gateway().sections.move('section-1' as SectionId, { position: 2 });
@@ -444,7 +459,7 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
   it('rejects a moved section body outside the shared contract', async () => {
     fetchMock.mockImplementation(jsonResponse({
       section: { ...projectSection, position: -1 },
-      undo: null,
+      operation: null,
     }));
 
     await expect(gateway().sections.move('section-1' as SectionId, { position: 1 })).rejects.toBeInstanceOf(
@@ -471,44 +486,50 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
     expect(lastCall().init.method).toBe('DELETE');
   });
 
-  it('executes Undo by receipt id and validates the committed result', async () => {
-    fetchMock.mockImplementation(jsonResponse(undoResult));
+  it('summary and transition hit their routes and validate the committed result', async () => {
+    const adapter = gateway();
+    fetchMock.mockImplementation(jsonResponse(historySummary));
+    await expect(adapter.history.summary('project-1' as ProjectId)).resolves.toEqual(historySummary);
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/history');
+    expect(lastCall().init.method).toBe('GET');
 
-    await expect(gateway().undo.execute('undo-1' as UndoRecordId)).resolves.toEqual(undoResult);
+    fetchMock.mockImplementation(jsonResponse(transitionResult));
+    const input = { actionId: 'operation-1' as OperationActionId, direction: 'undo' as const, expectedRevision: 1 };
+    await expect(adapter.history.transition('history-1' as OperationHistoryId, input)).resolves.toEqual(transitionResult);
 
-    expect(lastCall().url).toBe('http://host.test/api/undo/undo-1');
+    expect(lastCall().url).toBe('http://host.test/api/history/history-1/transition');
     expect(lastCall().init.method).toBe('POST');
-    expect(lastCall().init.body).toBeUndefined();
+    expect(JSON.parse(lastCall().init.body as string)).toEqual(input);
   });
 
   /** Slice 33 (Refactor §26.9): edit refusals cross the adapter whole, and never become recovery. */
-  it('preserves edit Undo refusal details and never invents Archive recovery', async () => {
+  it('preserves history refusal details and never invents Archive recovery', async () => {
+    const base = { historyId: 'history-1', actionId: 'operation-3', summary: historySummary };
     const refusals = [
       {
         status: 409,
-        message: 'Undo for the update operation on Notes was refused: field-changed: section "Notes" [section-1]',
+        message: 'history_conflict: Undo of the update on Notes was refused: field-changed: section "Notes" [section-1]',
         details: {
-          reason: 'undo_conflict',
-          undoId: 'undo-update',
-          conflicts: [{ entityType: 'section', id: 'section-1', title: 'Notes', problem: 'field-changed', nextStep: 'use-later-receipt' }],
+          reason: 'history_conflict', ...base,
+          conflicts: [{ entityType: 'section', id: 'section-1', title: 'Notes', problem: 'field-changed', nextStep: 'change-by-hand' }],
         },
       },
       {
         status: 409,
-        message: 'project "Kitchen" [project-kitchen] is archived; reactivate it before undoing this operation',
-        details: { reason: 'undo_blocked', undoId: 'undo-move', blockingProjectId: 'project-kitchen', blockingProjectTitle: 'Kitchen' },
+        message: 'history_blocked: project "Kitchen" [project-kitchen] is archived; reactivate it before undoing this operation',
+        details: { reason: 'history_blocked', ...base, blockingProjectId: 'project-kitchen', blockingProjectTitle: 'Kitchen' },
       },
       {
         status: 409,
-        message: 'this section addition Undo expired at 2026-08-02T16:00:00.000Z; make the change again by hand instead',
-        details: { reason: 'undo_expired', undoId: 'undo-add', expiresAt: '2026-08-02T16:00:00.000Z' },
+        message: 'history_expired: this action expired at 2026-08-02T16:00:00.000Z; make the change again by hand instead',
+        details: { reason: 'history_expired', ...base, expiresAt: '2026-08-02T16:00:00.000Z' },
       },
       {
         status: 409,
-        message: 'this section move was already undone at 2026-08-01T17:00:00.000Z',
-        details: { reason: 'undo_consumed', undoId: 'undo-move', consumedAt: '2026-08-01T17:00:00.000Z' },
+        message: 'history_revision_stale: this history is at revision 2, not 1; read the summary and try again',
+        details: { reason: 'history_revision_stale', ...base },
       },
-      { status: 404, message: 'undoRecord "undo-foreign" not found', details: undefined },
+      { status: 404, message: 'operationHistory "history-foreign" was not found', details: undefined },
     ] as const;
 
     const adapter = gateway();
@@ -521,7 +542,8 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
         section: projectSection,
       }, refusal.status));
 
-      const error = await adapter.undo.execute((refusal.details?.undoId ?? 'undo-foreign') as UndoRecordId)
+      const historyId = (refusal.details?.historyId ?? 'history-foreign') as OperationHistoryId;
+      const error = await adapter.history.transition(historyId, { actionId: 'operation-3' as OperationActionId, direction: 'undo', expectedRevision: 1 })
         .then(() => null, (thrown: unknown) => thrown);
 
       expect(error).toBeInstanceOf(GatewayError);
@@ -530,13 +552,14 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
       expect(JSON.stringify((error as GatewayError).details ?? {})).not.toMatch(/archive|restore_section/i);
     }
 
-    // A 200 whose body is not an Undo result is an adapter failure, never a silent success.
+    // A 200 whose body is not a transition result is an adapter failure, never a silent success.
     fetchMock.mockImplementation(jsonResponse({ undoId: 'undo-update', operation: 'section.update', outcome: 'restored' }));
-    await expect(adapter.undo.execute('undo-update' as UndoRecordId)).rejects.toMatchObject({ code: 'invalid_response' });
+    await expect(adapter.history.transition('history-1' as OperationHistoryId, { actionId: 'operation-3' as OperationActionId, direction: 'undo', expectedRevision: 1 }))
+      .rejects.toMatchObject({ code: 'invalid_response' });
   });
 
   it('rejects a removal receipt body outside the shared contract', async () => {
-    fetchMock.mockImplementation(jsonResponse({ section: projectSection, undo: { undoId: 'undo-1' } }));
+    fetchMock.mockImplementation(jsonResponse({ section: projectSection, undo: { undoId: 'undo-1' }, archiveListed: true }));
 
     await expect(gateway().sections.remove('section-1' as SectionId)).rejects.toMatchObject({
       code: 'invalid_response', status: 0,
@@ -546,7 +569,7 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
   it('rejects a section body that is not its contract (§11)', async () => {
     fetchMock.mockImplementation(jsonResponse({
       section: { ...projectSection, columnSpan: 7 },
-      undo: null,
+      operation: null,
     }));
 
     await expect(gateway().sections.update('section-1' as SectionId, { columnSpan: 6 })).rejects.toBeInstanceOf(

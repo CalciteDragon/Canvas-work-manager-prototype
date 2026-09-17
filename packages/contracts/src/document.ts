@@ -9,26 +9,23 @@ import { ProjectSectionSchema } from './section';
 import { SectionShortcutSchema } from './section-shortcut';
 import { TaskSchema } from './task';
 import { UserSchema, WorkspaceSchema } from './user';
-import { UndoRecordSchema } from './undo';
+import { OperationActionSchema, OperationHistorySchema } from './operation-history';
 
 /**
  * The version of the `.prototype/data.json` shape below. §14's example shows `4`; this
  * was the prototype's first schema. 2 makes tasks and reflections name the section that
  * owns them. 3 splits projects into roots and sub-projects and gives every project pages that
- * own its sections. Bump it whenever a change would make an existing file wrong — a mismatch
- * is fatal rather than silently coerced, so a stale file fails at load instead of halfway
- * through a session.
+ * own its sections. 4 replaces version 3's single-use Undo records with per-actor operation
+ * histories and gives every section an `archiveGeneration`. Bump it whenever a change would make
+ * an existing file wrong — a mismatch is fatal rather than silently coerced, so a stale file
+ * fails at load instead of halfway through a session.
  *
- * There is still no migration *runner*. Version 3 ships with one bounded converter,
- * `pnpm prototype:upgrade`, because by then a real file was worth keeping (§14). It is a
- * one-off, not a chain: the next cutover writes its own or resets.
- *
- * `undoRecords` arrived inside version 3 with no bump: it is a defaulted collection, so an
- * existing file loads with every other collection unchanged and nothing it held becomes wrong.
- * An older build (this schema is not strict) strips the collection on its next commit — undo
- * history is lost, user data is not. See docs/decisions/2026-09-section-removal-undo-records.md.
+ * There is still no migration *runner* or registry. `pnpm prototype:upgrade` runs two explicit
+ * converters in a fixed order — version 2 → 3 (`upgradeProjectPages`, frozen at its version-3
+ * output) and version 3 → 4 (`upgradeOperationHistory`) — and validates the version-4 result
+ * before writing a byte (docs/decisions/2026-09-schema-version-4-conversion.md).
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /**
  * §14's document. Not strict: an unknown top-level key in a hand-edited file is stripped
@@ -53,9 +50,11 @@ export const PrototypeDocumentSchema = z.object({
   activityEvents: z.array(ActivityEventSchema),
   agentConnections: z.array(AgentConnectionSchema),
   /**
-   * Scoped, expiring inverses of section removals — never inside `activityEvents`. Defaulted,
-   * so a version-3 file written before Undo existed parses to `[]`.
+   * Per-actor, per-project Undo/Redo cursors and the typed actions they step through — never
+   * inside `activityEvents`. Defaulted, so a hand-written document with no history parses to
+   * empty stacks; the version-4 converter and every seed write both collections explicitly.
    */
-  undoRecords: z.array(UndoRecordSchema).default(() => []),
+  operationHistories: z.array(OperationHistorySchema).default(() => []),
+  operationActions: z.array(OperationActionSchema).default(() => []),
 });
 export type PrototypeDocument = z.infer<typeof PrototypeDocumentSchema>;

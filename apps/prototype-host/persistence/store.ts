@@ -5,6 +5,8 @@ import {
   JsonActivityRepository,
   JsonAgentConnectionRepository,
   JsonMilestoneRepository,
+  JsonOperationActionRepository,
+  JsonOperationHistoryRepository,
   JsonDataStore,
   JsonProjectPageRepository,
   JsonProjectRepository,
@@ -12,7 +14,6 @@ import {
   JsonSectionRepository,
   JsonSectionShortcutRepository,
   JsonTaskRepository,
-  JsonUndoRecordRepository,
   JsonUserRepository,
   unitOfWorkFor,
   type DataStore,
@@ -56,8 +57,9 @@ export interface Persistence {
   /** §52's connections and the users that own them, for §51's authenticator and §53's UI. */
   agents: JsonAgentConnectionRepository;
   users: JsonUserRepository;
-  /** Scoped, expiring Undo records, kept beside the canonical collections they reverse. */
-  undoRecords: JsonUndoRecordRepository;
+  /** Per-actor, per-project Undo/Redo histories and their actions, beside the collections they change. */
+  operationHistories: JsonOperationHistoryRepository;
+  operationActions: JsonOperationActionRepository;
   unitOfWork: ReturnType<typeof unitOfWorkFor>;
 }
 
@@ -79,7 +81,8 @@ export const loadPersistence = async (path = dataFilePath()): Promise<Persistenc
     activities: new JsonActivityRepository(store),
     agents: new JsonAgentConnectionRepository(store),
     users: new JsonUserRepository(store),
-    undoRecords: new JsonUndoRecordRepository(store),
+    operationHistories: new JsonOperationHistoryRepository(store),
+    operationActions: new JsonOperationActionRepository(store),
     unitOfWork: unitOfWorkFor(store),
   };
 };

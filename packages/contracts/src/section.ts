@@ -216,6 +216,16 @@ export const ProjectSectionSchema = z.object({
    */
   archivedAt: IsoDateTimeSchema.optional(),
 
+  /**
+   * How many times this section has been removed. Bumped by every removal and by nothing else —
+   * Archive Restore and Undo leave it alone — so it never decreases. A removal action captures
+   * the value it wrote, and Undo/Redo refuse when the section has since moved past it: the one
+   * check that tells two removals in the same clock instant apart, across actors' histories
+   * (docs/decisions/2026-09-operation-history-retired-actions.md). Defaulted to `0`, the honest
+   * value for a section written before the field existed.
+   */
+  archiveGeneration: z.number().int().min(0).default(0),
+
   createdAt: IsoDateTimeSchema,
   updatedAt: IsoDateTimeSchema,
 });

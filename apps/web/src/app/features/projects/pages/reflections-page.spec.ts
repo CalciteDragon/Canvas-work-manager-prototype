@@ -8,8 +8,9 @@ import {
   ProjectCompletedWorkResultSchema,
   type ProjectId,
   type ProjectPageId,
-  type UndoRecordId,
-  type UndoReceipt,
+  type OperationActionId,
+  type OperationHistoryId,
+  type OperationReceipt,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
@@ -80,10 +81,11 @@ const journal = ProjectJournalResultSchema.parse({
   }],
 });
 const completedWork = ProjectCompletedWorkResultSchema.parse({ projectId: PROJECT, candidates: [subject] });
-const addReceipt: UndoReceipt = {
-  undoId: 'undo-reflections-page-add' as UndoRecordId,
+const addReceipt: OperationReceipt = {
+  historyId: 'history-journal-page' as OperationHistoryId,
+  actionId: 'operation-reflections-page-add' as OperationActionId,
   operation: 'section.add',
-  sequence: 1,
+  revision: 1,
   label: 'Add reflections',
   createdAt: AT,
   expiresAt: '2026-09-06T10:00:00.000Z',
@@ -166,7 +168,7 @@ describe('ReflectionsPage (§36)', () => {
     expect(query(fixture, '[data-reflections-no-container]')).not.toBeNull();
     expect(query(fixture, '[data-reflections-empty]')).toBeNull();
 
-    gateway.sections.create = vi.fn(async (_projectId, input) => ({ section: { ...section, ...input }, undo: addReceipt }));
+    gateway.sections.create = vi.fn(async (_projectId, input) => ({ section: { ...section, ...input }, operation: addReceipt }));
     (query(fixture, '[data-reflections-add-container]') as HTMLButtonElement).click();
     await fixture.whenStable();
 

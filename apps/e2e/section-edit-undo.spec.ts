@@ -1,9 +1,11 @@
 import type {
+  OperationHistorySummary,
+  OperationHistoryTransitionResult,
+  OperationReceipt,
   ProjectSection,
   ResolvedSectionShortcut,
   SectionAddResult,
   SectionWriteResult,
-  UndoResult,
 } from '@cwm/contracts';
 import { expect, test } from '@playwright/test';
 import { PROTOTYPE_HOST, addSection, api, connectMcp, createRoot, seed, setClock, setLayout } from './seed';
@@ -19,7 +21,16 @@ const orderOf = async (projectId: string, pageId: string): Promise<string[]> => 
   return [...sections, ...shortcuts].sort((left, right) => left.position - right.position).map(({ id }) => id);
 };
 
-const undo = (undoId: string): Promise<UndoResult> => api.post<UndoResult>(`/api/undo/${undoId}`, undefined);
+const summaryOf = (projectId: string): Promise<OperationHistorySummary> => api.get<OperationHistorySummary>(`/api/projects/${projectId}/history`);
+
+/** One step of `receipt`'s action through the transition route, at the history's current revision. */
+const step = async (projectId: string, receipt: OperationReceipt, direction: 'undo' | 'redo' = 'undo') => {
+  const { revision } = await summaryOf(projectId);
+  const transition = await api.post<OperationHistoryTransitionResult>(`/api/history/${receipt.historyId}/transition`, {
+    actionId: receipt.actionId, direction, expectedRevision: revision,
+  });
+  return transition.result;
+};
 
 test('HTTP and MCP section edits return typed receipts and restore only their own work', async ({ page }) => {
   await seed('nested-projects');
@@ -32,10 +43,14 @@ test('HTTP and MCP section edits return typed receipts and restore only their ow
     title: 'Added through HTTP',
     config: { text: 'Initial prose' },
   });
-  expect(added.undo.operation).toBe('section.add');
-  const addUndo = await undo(added.undo.undoId);
+  expect(added.operation.operation).toBe('section.add');
+  const addUndo = await step(projectId, added.operation);
   expect(addUndo).toMatchObject({ operation: 'section.add', outcome: 'removed', sectionId: added.section.id });
   expect((await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).some(({ id }) => id === added.section.id)).toBe(false);
+  // Redo brings the same section id back; Undo takes it away again.
+  expect(await step(projectId, added.operation, 'redo')).toMatchObject({ operation: 'section.add', section: { id: added.section.id } });
+  expect((await summaryOf(projectId)).undo?.actionId).toBe(added.operation.actionId);
+  await step(projectId, added.operation);
 
   const editable = await addSection(projectId, {
     type: 'rich-text',
@@ -49,8 +64,8 @@ test('HTTP and MCP section edits return typed receipts and restore only their ow
     collapsed: true,
     columnSpan: 8,
   });
-  expect(updated.undo?.operation).toBe('section.update');
-  const updateUndo = await undo(updated.undo!.undoId);
+  expect(updated.operation?.operation).toBe('section.update');
+  const updateUndo = await step(projectId, updated.operation!);
   expect(updateUndo).toMatchObject({ operation: 'section.update', outcome: 'restored', section: { id: editable.id } });
   const restored = (await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).find(({ id }) => id === editable.id);
   expect(restored).toMatchObject({
@@ -74,7 +89,7 @@ test('HTTP and MCP section edits return typed receipts and restore only their ow
       arguments: { sectionId: disjoint.id, config: { text: 'Agent prose' } },
     });
     expect(agentUpdate.isError).not.toBe(true);
-    const disjointUndo = await undo(userUpdate.undo!.undoId);
+    const disjointUndo = await step(projectId, userUpdate.operation!);
     expect(disjointUndo).toMatchObject({ operation: 'section.update', section: { id: disjoint.id, title: 'User title' } });
     const disjointAfter = (await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).find(({ id }) => id === disjoint.id);
     expect(disjointAfter).toMatchObject({ title: 'User title', config: { text: 'Agent prose' } });
@@ -85,12 +100,13 @@ test('HTTP and MCP section edits return typed receipts and restore only their ow
       arguments: { sectionId: editable.id, title: 'Agent change' },
     });
     expect(agentOverlap.isError).not.toBe(true);
-    const refusal = await fetch(`${PROTOTYPE_HOST}/api/undo/${overlapping.undo!.undoId}`, {
+    const refusal = await fetch(`${PROTOTYPE_HOST}/api/history/${overlapping.operation!.historyId}/transition`, {
       method: 'POST',
       headers: PERSONA,
+      body: JSON.stringify({ actionId: overlapping.operation!.actionId, direction: 'undo', expectedRevision: (await summaryOf(projectId)).revision }),
     });
     expect(refusal.status).toBe(409);
-    expect((await refusal.json()).details.reason).toBe('undo_conflict');
+    expect((await refusal.json()).details.reason).toBe('history_conflict');
   } finally {
     await client.close();
   }
@@ -98,10 +114,17 @@ test('HTTP and MCP section edits return typed receipts and restore only their ow
   const moved = await addSection(projectId, { type: 'progress', title: 'Move me' });
   const originalOrder = await orderOf(projectId, homePageId);
   const move = await api.post<SectionWriteResult>(`/api/sections/${moved.id}/move`, { position: 0 });
-  expect(move.undo?.operation).toBe('section.move');
-  expect(await orderOf(projectId, homePageId)).not.toEqual(originalOrder);
-  const moveUndo = await undo(move.undo!.undoId);
+  expect(move.operation?.operation).toBe('section.move');
+  const movedOrder = await orderOf(projectId, homePageId);
+  expect(movedOrder).not.toEqual(originalOrder);
+  const moveUndo = await step(projectId, move.operation!);
   expect(moveUndo).toMatchObject({ operation: 'section.move', outcome: 'restored', section: { id: moved.id } });
+  expect(await orderOf(projectId, homePageId)).toEqual(originalOrder);
+  // The undo-then-redo round trip over the transition route: Redo reapplies exactly the move.
+  expect((await summaryOf(projectId)).redo?.actionId).toBe(move.operation!.actionId);
+  expect(await step(projectId, move.operation!, 'redo')).toMatchObject({ operation: 'section.move', section: { id: moved.id } });
+  expect(await orderOf(projectId, homePageId)).toEqual(movedOrder);
+  await step(projectId, move.operation!);
   expect(await orderOf(projectId, homePageId)).toEqual(originalOrder);
 
   await page.goto(`/projects/${projectId}`);
@@ -305,7 +328,7 @@ test('nested injected failure keeps receipt and allows retry', async ({ page }) 
   const moved = await kitchenOrder();
   const undoRequests: string[] = [];
   page.on('request', (request) => {
-    if (request.method() === 'POST' && request.url().includes('/api/undo/')) undoRequests.push(request.url());
+    if (request.method() === 'POST' && request.url().includes('/api/history/')) undoRequests.push(request.url());
   });
 
   try {
@@ -349,12 +372,11 @@ test('agent overlap refuses Undo without losing newer content', async ({ page })
 
   await page.locator('[data-undo-action]').click();
   await expect(page.locator('[data-undo-conflict]')).toHaveCount(1);
-  // The later receipt is the agent connection's, so the notice names them and asks for a redo
-  // rather than pointing at a receipt this person cannot use (note-2026-09-15-005).
-  await expect(page.locator('[data-undo-superseded-by]')).toHaveText('An agent changed it after you.');
-  await expect(page.locator('[data-undo-next-step]')).toHaveText('Make the change again by hand.');
-  await expect(page.locator('[data-undo-refused-for-good]')).toBeVisible();
-  await expect(page.locator('[data-undo-action]')).toHaveAttribute('aria-disabled', 'true');
+  // The agent's edit is in the agent connection's own history, never this person's, so the repair
+  // is to make the change by hand — never a receipt this person cannot use (note-2026-09-15-005).
+  await expect(page.locator('[data-undo-next-step]')).toHaveText('Someone else changed it since. Make the change again by hand.');
+  // A changed field can be changed back, so the refusal is repairable and Undo stays enabled.
+  await expect(page.locator('[data-undo-action]')).toHaveAttribute('aria-disabled', 'false');
   await page.reload();
   await expect(frame.locator('[data-section-title-edit]')).toContainText('Agent heading');
   expect((await api.get<ProjectSection[]>(`/api/projects/${KITCHEN}/sections?pageId=${KITCHEN_PAGE}`)).find(({ id }) => id === brief)?.title).toBe('Agent heading');

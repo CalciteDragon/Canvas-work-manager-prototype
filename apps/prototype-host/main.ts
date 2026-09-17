@@ -133,7 +133,7 @@ if (isDirectRun) {
       shortcuts: api.shortcuts,
       dashboard: api.dashboard,
       workspace: api.workspace,
-      undo: api.undo,
+      history: api.history,
     });
     const mcp = createAuthenticatedMcpHandler({ registry, authenticator: api.authenticator! });
 

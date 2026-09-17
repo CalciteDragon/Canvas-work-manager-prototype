@@ -18,8 +18,10 @@ export const MilestoneIdSchema = brandedId('MilestoneId');
 export const ReflectionIdSchema = brandedId('ReflectionId');
 export const ActivityEventIdSchema = brandedId('ActivityEventId');
 export const AgentConnectionIdSchema = brandedId('AgentConnectionId');
-/** A stored Undo record; generated as `undo-xxxxxxxx`. */
-export const UndoRecordIdSchema = brandedId('UndoRecordId');
+/** One actor's operation history in one project; generated as `history-xxxxxxxx`. */
+export const OperationHistoryIdSchema = brandedId('OperationHistoryId');
+/** One typed action in an operation history; generated as `operation-xxxxxxxx`. */
+export const OperationActionIdSchema = brandedId('OperationActionId');
 
 export type UserId = z.infer<typeof UserIdSchema>;
 export type WorkspaceId = z.infer<typeof WorkspaceIdSchema>;
@@ -32,4 +34,5 @@ export type MilestoneId = z.infer<typeof MilestoneIdSchema>;
 export type ReflectionId = z.infer<typeof ReflectionIdSchema>;
 export type ActivityEventId = z.infer<typeof ActivityEventIdSchema>;
 export type AgentConnectionId = z.infer<typeof AgentConnectionIdSchema>;
-export type UndoRecordId = z.infer<typeof UndoRecordIdSchema>;
+export type OperationHistoryId = z.infer<typeof OperationHistoryIdSchema>;
+export type OperationActionId = z.infer<typeof OperationActionIdSchema>;

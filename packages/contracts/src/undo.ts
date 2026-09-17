@@ -1,23 +1,22 @@
 import { z } from 'zod';
-import { ActivityActorSchema, assertActorIsAttributable } from './activity';
 import { IsoDateTimeSchema, PositionSchema } from './common';
 import {
-  AgentConnectionIdSchema,
   ProjectIdSchema,
   ProjectPageIdSchema,
   ReflectionIdSchema,
+  OperationActionIdSchema,
+  OperationHistoryIdSchema,
   SectionIdSchema,
   TaskIdSchema,
-  UndoRecordIdSchema,
-  UserIdSchema,
-  WorkspaceIdSchema,
 } from './ids';
 import { ownedKindOf, ProjectSectionSchema, SectionColumnSpanSchema, SectionConfigSchema } from './section';
 
 /**
- * **Undo records** (Refactor §§10–13, main §31): one scoped, expiring inverse per successful
- * explicit section operation, stored beside the canonical records it reverses and never inside
- * `ActivityEvent` or a live frame. See docs/decisions/2026-09-section-edit-undo-boundaries.md.
+ * **Section operation payloads** (Refactor §§10–13, main §31): the captured footprint of one
+ * successful explicit section operation, held by an operation-history action
+ * (`operation-history.ts`) beside the canonical records it reverses and reapplies, and never
+ * inside `ActivityEvent` or a live frame. See docs/decisions/2026-09-section-edit-undo-boundaries.md
+ * and docs/decisions/2026-09-operation-history-scope.md.
  *
  * The operation union is typed and versioned: an unknown `type` or `version` fails parsing
  * rather than executing arbitrary JSON. Automatic row-container creation and shortcut-only
@@ -96,9 +95,13 @@ const ROW_KIND_FOR_OWNED = { tasks: 'task', reflections: 'reflection' } as const
  * `none`. `rows` holds exactly the rows the removal wrote — for cascade the live rows it archived,
  * for reassign every row it moved, pre-archived ones included.
  *
- * `disposition` is optional for compatibility with records written before Slice 31; an absent
- * value means the section was retained. New records state whether the section was retained or
- * deleted. Only a recorded deletion allows Undo to recreate a missing section.
+ * `disposition` says whether the section was retained or deleted. Only a recorded deletion allows
+ * Undo to recreate a missing section, and only a recorded deletion makes Redo delete it again.
+ *
+ * `archiveGeneration` is the section's generation *after* this removal. It replaces the
+ * workspace-wide supersession scan: two removals of one retained section can land in one clock
+ * instant, so `archivedAt` alone cannot tell them apart, but the generation — bumped by every
+ * removal and by nothing else — can (docs/decisions/2026-09-operation-history-retired-actions.md).
  */
 export const SectionRemovalDispositionSchema = z.enum(['retained', 'deleted']);
 export type SectionRemovalDisposition = z.infer<typeof SectionRemovalDispositionSchema>;
@@ -113,9 +116,11 @@ export const SectionRemoveUndoOperationSchema = z
     appliedPolicy: AppliedRemovalPolicySchema,
     reassignToSectionId: SectionIdSchema.optional(),
     rows: z.array(UndoRowChangeSchema),
-    disposition: SectionRemovalDispositionSchema.optional(),
+    disposition: SectionRemovalDispositionSchema,
     /** The `archivedAt` removal wrote, which Undo compares against to detect a later restore. */
     postSectionArchivedAt: IsoDateTimeSchema,
+    /** The section's `archiveGeneration` as this removal left it; Redo replays it verbatim. */
+    archiveGeneration: z.number().int().positive(),
   })
   .superRefine((operation, ctx) => {
     if (operation.section.archivedAt !== undefined) {
@@ -123,6 +128,9 @@ export const SectionRemoveUndoOperationSchema = z
     }
     if (operation.placement.pageId !== operation.section.pageId) {
       ctx.addIssue({ code: 'custom', path: ['placement', 'pageId'], message: 'the placement names the section’s own page' });
+    }
+    if (operation.archiveGeneration !== operation.section.archiveGeneration + 1) {
+      ctx.addIssue({ code: 'custom', path: ['archiveGeneration'], message: 'a removal advances the section generation by one' });
     }
     if ((operation.reassignToSectionId !== undefined) !== (operation.appliedPolicy === 'reassign')) {
       ctx.addIssue({
@@ -146,16 +154,23 @@ export const SectionRemoveUndoOperationSchema = z
   });
 export type SectionRemoveUndoOperation = z.infer<typeof SectionRemoveUndoOperationSchema>;
 
-/** The inverse of an explicit section add: delete only the created section. */
+/**
+ * An explicit section add: Undo deletes only the created section; Redo recreates it with the same
+ * id at `placement`, the live combined-order snapshot taken right after the add.
+ */
 export const SectionAddUndoOperationSchema = z
   .strictObject({
     version: z.literal(1),
     type: z.literal('section.add'),
     section: ProjectSectionSchema,
+    placement: PlacementSnapshotSchema,
   })
   .superRefine((operation, ctx) => {
     if (operation.section.archivedAt !== undefined) {
       ctx.addIssue({ code: 'custom', path: ['section', 'archivedAt'], message: 'an added section is live' });
+    }
+    if (operation.placement.pageId !== operation.section.pageId) {
+      ctx.addIssue({ code: 'custom', path: ['placement', 'pageId'], message: 'the placement names the section’s own page' });
     }
   });
 export type SectionAddUndoOperation = z.infer<typeof SectionAddUndoOperationSchema>;
@@ -226,7 +241,7 @@ export const SectionUpdateUndoOperationSchema = z
   });
 export type SectionUpdateUndoOperation = z.infer<typeof SectionUpdateUndoOperationSchema>;
 
-/** Every undoable operation, discriminated by `type`. */
+/** Every operation a history action can hold, discriminated by `type`. */
 export const UndoOperationSchema = z.discriminatedUnion('type', [
   SectionRemoveUndoOperationSchema,
   SectionAddUndoOperationSchema,
@@ -236,58 +251,38 @@ export const UndoOperationSchema = z.discriminatedUnion('type', [
 export type UndoOperation = z.infer<typeof UndoOperationSchema>;
 export type UndoOperationType = UndoOperation['type'];
 
-/**
- * One stored record. `sequence` is one more than the highest sequence among the workspace's
- * records and is the **only** order between records: `createdAt` can go backwards when the dev
- * panel sets the clock, ties within an instant, and ids are random.
- */
-export const UndoRecordSchema = z
-  .object({
-    id: UndoRecordIdSchema,
-    workspaceId: WorkspaceIdSchema,
-    projectId: ProjectIdSchema,
-    actor: ActivityActorSchema,
-    actorUserId: UserIdSchema.optional(),
-    actorAgentConnectionId: AgentConnectionIdSchema.optional(),
-    sequence: z.number().int().positive(),
-    label: z.string().min(1),
-    createdAt: IsoDateTimeSchema,
-    expiresAt: IsoDateTimeSchema,
-    consumedAt: IsoDateTimeSchema.optional(),
-    operation: UndoOperationSchema,
-  })
-  .superRefine((record, ctx) => {
-    assertActorIsAttributable(record, ctx);
-    if (Date.parse(record.expiresAt) <= Date.parse(record.createdAt)) {
-      ctx.addIssue({ code: 'custom', path: ['expiresAt'], message: 'a record expires after it is created' });
-    }
-  });
-export type UndoRecord = z.infer<typeof UndoRecordSchema>;
-
-/** The repository's query shape. */
-export const UndoRecordQuerySchema = z.object({ workspaceId: WorkspaceIdSchema.optional() });
-export type UndoRecordQuery = z.infer<typeof UndoRecordQuerySchema>;
+/** The four operation kinds a history action can hold, as receipts and summaries name them. */
+export const OperationKindSchema = z.enum(['section.remove', 'section.add', 'section.move', 'section.update']);
+export type OperationKind = z.infer<typeof OperationKindSchema>;
 
 /**
- * What a caller is handed after a committed explicit section operation: enough to offer and execute Undo, and
- * nothing of the inverse itself — no snapshot, actor or row ids.
+ * What a caller is handed after a committed explicit section operation: the history and action
+ * it recorded, and the history's `revision` after recording — the value a transition passes as
+ * `expectedRevision`. Nothing of the captured footprint: no snapshot, actor or row ids.
+ *
+ * It replaces the Slice 30 receipt's workspace `sequence`. A client orders receipts from one
+ * history by `revision`; receipts from different histories are not comparable, and never need to
+ * be, because one page's writes all record into its project's history.
  */
-export const UndoReceiptSchema = z.strictObject({
-  undoId: UndoRecordIdSchema,
-  operation: z.enum(['section.remove', 'section.add', 'section.move', 'section.update']),
-  /** Workspace-local high-water mark; timestamps are presentation data, not ordering. */
-  sequence: z.number().int().positive(),
+export const OperationReceiptSchema = z.strictObject({
+  historyId: OperationHistoryIdSchema,
+  actionId: OperationActionIdSchema,
+  operation: OperationKindSchema,
+  revision: z.number().int().positive(),
   label: z.string().min(1),
   createdAt: IsoDateTimeSchema,
   expiresAt: IsoDateTimeSchema,
 });
-export type UndoReceipt = z.infer<typeof UndoReceiptSchema>;
+export type OperationReceipt = z.infer<typeof OperationReceiptSchema>;
 
-/** A repeat remove can recover only the latest outstanding receipt owned by the exact actor. */
+/**
+ * A repeat remove can recover the removal receipt while it is still the exact actor's applied,
+ * unexpired action for this section and no later removal has advanced the section's generation.
+ */
 export const SectionAlreadyRemovedDetailsSchema = z.strictObject({
   reason: z.literal('section_already_removed'),
   sectionId: SectionIdSchema,
-  undo: UndoReceiptSchema,
+  operation: OperationReceiptSchema,
 });
 export type SectionAlreadyRemovedDetails = z.infer<typeof SectionAlreadyRemovedDetailsSchema>;
 
@@ -306,48 +301,45 @@ export type SectionAlreadyRemovedDetails = z.infer<typeof SectionAlreadyRemovedD
  */
 export const SectionRemovalResultSchema = z.object({
   section: ProjectSectionSchema,
-  undo: UndoReceiptSchema,
+  operation: OperationReceiptSchema,
   archiveListed: z.boolean(),
 });
 export type SectionRemovalResult = z.infer<typeof SectionRemovalResultSchema>;
 
-/** `POST /api/projects/:projectId/sections`: the created section and its add Undo receipt. */
+/** `POST /api/projects/:projectId/sections`: the created section and its add receipt. */
 export const SectionAddResultSchema = z.object({
   section: ProjectSectionSchema,
-  undo: UndoReceiptSchema,
+  operation: OperationReceiptSchema,
 });
 export type SectionAddResult = z.infer<typeof SectionAddResultSchema>;
 
 /** `PATCH` and section move: the updated section and a receipt, or `null` for a true no-op. */
 export const SectionWriteResultSchema = z.object({
   section: ProjectSectionSchema,
-  undo: UndoReceiptSchema.nullable(),
+  operation: OperationReceiptSchema.nullable(),
 });
 export type SectionWriteResult = z.infer<typeof SectionWriteResultSchema>;
 
-/** `POST /api/undo/:id` and `undo_operation`: the receipt id, and nothing a caller could steer. */
-export const UndoInputSchema = z.strictObject({ undoId: UndoRecordIdSchema });
-export type UndoInput = z.infer<typeof UndoInputSchema>;
+/** Where a transition put a section, and which placement rule decided it. */
+const TransitionPlacementSchema = z.object({
+  pageId: ProjectPageIdSchema,
+  index: PositionSchema,
+  strategy: z.enum(['previous', 'next', 'index']),
+  pageEnabled: z.boolean(),
+});
 
 /** A completed removal Undo. `partial` means it used the canonical fallback page. */
 export const SectionRemovalUndoResultSchema = z.object({
-  undoId: UndoRecordIdSchema,
   operation: z.enum(['section.remove']),
   outcome: z.enum(['restored', 'partial']),
   section: ProjectSectionSchema,
-  placement: z.object({
-    pageId: ProjectPageIdSchema,
-    index: PositionSchema,
-    strategy: z.enum(['previous', 'next', 'index', 'fallback-page']),
-    pageEnabled: z.boolean(),
-  }),
+  placement: TransitionPlacementSchema.extend({ strategy: z.enum(['previous', 'next', 'index', 'fallback-page']) }),
   restoredRowCount: z.number().int().min(0),
 });
 export type SectionRemovalUndoResult = z.infer<typeof SectionRemovalUndoResultSchema>;
 
 /** A completed add Undo removes the created section and has no live section to return. */
 export const SectionAddUndoResultSchema = z.object({
-  undoId: UndoRecordIdSchema,
   operation: z.literal('section.add'),
   outcome: z.literal('removed'),
   sectionId: SectionIdSchema,
@@ -356,31 +348,27 @@ export const SectionAddUndoResultSchema = z.object({
 });
 export type SectionAddUndoResult = z.infer<typeof SectionAddUndoResultSchema>;
 
-/** A completed move Undo returns the section and the placement strategy used. */
+/**
+ * A completed move Undo returns the section and the placement rule used. `partial` means neither
+ * recorded neighbour survived, so the recorded index decided — Slice 34's deterministic fallback.
+ */
 export const SectionMoveUndoResultSchema = z.object({
-  undoId: UndoRecordIdSchema,
   operation: z.literal('section.move'),
-  outcome: z.literal('restored'),
+  outcome: z.enum(['restored', 'partial']),
   section: ProjectSectionSchema,
-  placement: z.object({
-    pageId: ProjectPageIdSchema,
-    index: PositionSchema,
-    strategy: z.enum(['previous', 'next', 'index']),
-    pageEnabled: z.boolean(),
-  }),
+  placement: TransitionPlacementSchema,
 });
 export type SectionMoveUndoResult = z.infer<typeof SectionMoveUndoResultSchema>;
 
 /** A completed settings Undo returns the section with untouched fields preserved. */
 export const SectionUpdateUndoResultSchema = z.object({
-  undoId: UndoRecordIdSchema,
   operation: z.literal('section.update'),
   outcome: z.literal('restored'),
   section: ProjectSectionSchema,
 });
 export type SectionUpdateUndoResult = z.infer<typeof SectionUpdateUndoResultSchema>;
 
-/** A completed Undo, discriminated by the inverse operation. */
+/** A completed Undo, discriminated by the operation it reversed. */
 export const UndoResultSchema = z.discriminatedUnion('operation', [
   SectionRemovalUndoResultSchema,
   SectionAddUndoResultSchema,
@@ -389,12 +377,58 @@ export const UndoResultSchema = z.discriminatedUnion('operation', [
 ]);
 export type UndoResult = z.infer<typeof UndoResultSchema>;
 
-/** What changed since the removal, for one entity, that makes executing its inverse unsafe. */
+/** A completed removal Redo: the section as the removal left it, archived or deleted again. */
+export const SectionRemovalRedoResultSchema = z.object({
+  operation: z.literal('section.remove'),
+  outcome: z.literal('removed'),
+  section: ProjectSectionSchema,
+  disposition: SectionRemovalDispositionSchema,
+  settledRowCount: z.number().int().min(0),
+});
+export type SectionRemovalRedoResult = z.infer<typeof SectionRemovalRedoResultSchema>;
+
+/** A completed add Redo: the same section id, back at its recorded placement. */
+export const SectionAddRedoResultSchema = z.object({
+  operation: z.literal('section.add'),
+  outcome: z.enum(['reapplied', 'partial']),
+  section: ProjectSectionSchema,
+  placement: TransitionPlacementSchema,
+});
+export type SectionAddRedoResult = z.infer<typeof SectionAddRedoResultSchema>;
+
+/** A completed move Redo: the section at `placementAfter`, or its index when both neighbours went. */
+export const SectionMoveRedoResultSchema = z.object({
+  operation: z.literal('section.move'),
+  outcome: z.enum(['reapplied', 'partial']),
+  section: ProjectSectionSchema,
+  placement: TransitionPlacementSchema,
+});
+export type SectionMoveRedoResult = z.infer<typeof SectionMoveRedoResultSchema>;
+
+/** A completed settings Redo: the recorded `after` values written back, other fields untouched. */
+export const SectionUpdateRedoResultSchema = z.object({
+  operation: z.literal('section.update'),
+  outcome: z.literal('reapplied'),
+  section: ProjectSectionSchema,
+});
+export type SectionUpdateRedoResult = z.infer<typeof SectionUpdateRedoResultSchema>;
+
+/** A completed Redo, discriminated by the operation it reapplied. */
+export const RedoResultSchema = z.discriminatedUnion('operation', [
+  SectionRemovalRedoResultSchema,
+  SectionAddRedoResultSchema,
+  SectionMoveRedoResultSchema,
+  SectionUpdateRedoResultSchema,
+]);
+export type RedoResult = z.infer<typeof RedoResultSchema>;
+
+/** What changed since the operation, for one entity, that makes executing its transition unsafe. */
 export const UndoConflictProblemSchema = z.enum([
   'missing',
   'not-archived',
   'archived-differently',
-  'superseded',
+  /** Redo of an add only: a section already holds the recorded id. */
+  'already-exists',
   'moved',
   'page-changed',
   'field-changed',
@@ -406,77 +440,39 @@ export const UndoConflictProblemSchema = z.enum([
 ]);
 export type UndoConflictProblem = z.infer<typeof UndoConflictProblemSchema>;
 
-/** Server-selected repair guidance; the UI renders this field and never parses refusal text. */
+/**
+ * Server-selected repair guidance; the UI renders this field and never parses refusal text.
+ * There is no "use the later receipt" step any more: under a cursor, the caller's own later
+ * action is reached by undoing it first, which `history_not_next` already says, so a conflict
+ * only ever describes a change that is not in the caller's history.
+ */
 export const UndoConflictNextStepSchema = z.enum([
   'move-back-and-retry',
   'restore-state-and-retry',
   'restore-or-move-dependent-and-retry',
-  'use-later-receipt-or-archive',
-  /** Edit operations only: Archive holds nothing an add, move or settings Undo could recover. */
-  'use-later-receipt',
-  /**
-   * The later change belongs to somebody else, so its receipt is not the caller's to use — Undo
-   * records are scoped to the exact actor that made them. Redoing the change by hand is the only
-   * repair left. The `-or-archive` twin adds the removal case, where Archive may still hold
-   * retained content (`note-2026-09-15-005`).
-   */
-  'redo-by-hand',
-  'redo-by-hand-or-archive',
   'remove-reference-and-retry',
+  /** The later change is not in the caller's history, so making the change by hand is the repair. */
+  'change-by-hand',
+  /** As above, and Archive may still hold retained content. */
+  'change-by-hand-or-archive',
   'nothing-to-undo',
   'nothing-to-restore',
 ]);
 export type UndoConflictNextStep = z.infer<typeof UndoConflictNextStepSchema>;
 
-/** One entity Undo would have overwritten, and how it changed. */
+/** One entity a transition would have overwritten, and how it changed. */
 export const UndoConflictSchema = z
   .strictObject({
-  entityType: z.enum(['section', 'task', 'reflection', 'shortcut']),
-  id: z.string().min(1),
-  /** The current display name, omitted when the entity no longer exists. */
-  title: z.string().min(1).optional(),
-  problem: UndoConflictProblemSchema,
-  nextStep: UndoConflictNextStepSchema,
-  /**
-   * Who made the later change, for a `superseded` conflict only. `self` means the caller's own
-   * later receipt can repair this; every other value means the receipt belongs to another
-   * connection and the caller cannot reach it, which is what `redo-by-hand` says. Surfaces use
-   * it to name the other party rather than to decide the repair — `nextStep` already did that.
-   */
-  supersededBy: z.enum(['self', 'user', 'agent', 'system']).optional(),
-})
+    entityType: z.enum(['section', 'task', 'reflection', 'shortcut']),
+    id: z.string().min(1),
+    /** The current display name, omitted when the entity no longer exists. */
+    title: z.string().min(1).optional(),
+    problem: UndoConflictProblemSchema,
+    nextStep: UndoConflictNextStepSchema,
+  })
   .superRefine((conflict, ctx) => {
     if (conflict.problem === 'missing' && conflict.title !== undefined) {
       ctx.addIssue({ code: 'custom', path: ['title'], message: 'a missing entity has no current title' });
     }
-    if ((conflict.supersededBy !== undefined) !== (conflict.problem === 'superseded')) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['supersededBy'],
-        message: 'a superseding actor is named exactly for a superseded conflict',
-      });
-    }
   });
 export type UndoConflict = z.infer<typeof UndoConflictSchema>;
-
-/**
- * The typed half of an Undo refusal, carried by the 409 envelope's `details`. MCP clients get
- * the message text only, so every refusal message also starts with its `reason` token.
- */
-export const UndoRefusalDetailsSchema = z.discriminatedUnion('reason', [
-  z.object({ reason: z.literal('undo_consumed'), undoId: UndoRecordIdSchema, consumedAt: IsoDateTimeSchema }),
-  z.object({ reason: z.literal('undo_expired'), undoId: UndoRecordIdSchema, expiresAt: IsoDateTimeSchema }),
-  z.object({ reason: z.literal('undo_conflict'), undoId: UndoRecordIdSchema, conflicts: z.array(UndoConflictSchema).min(1) }),
-  z.object({
-    reason: z.literal('undo_blocked'),
-    undoId: UndoRecordIdSchema,
-    blockingProjectId: ProjectIdSchema,
-    blockingProjectTitle: z.string().min(1),
-  }),
-  z.object({
-    reason: z.literal('undo_unavailable'),
-    undoId: UndoRecordIdSchema,
-    problem: z.enum(['no-compatible-page', 'shortcut-on-fallback-page']),
-  }),
-]);
-export type UndoRefusalDetails = z.infer<typeof UndoRefusalDetailsSchema>;

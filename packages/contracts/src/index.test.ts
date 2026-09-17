@@ -7,8 +7,11 @@ import {
   SCHEMA_VERSION,
   TaskSchema,
   TaskStatusSchema,
-  UndoReceiptSchema,
-  UndoRefusalDetailsSchema,
+  OperationHistoryRefusalDetailsSchema,
+  OperationHistorySummarySchema,
+  OperationHistoryTransitionResultSchema,
+  OperationReceiptSchema,
+  RedoResultSchema,
   UndoResultSchema,
 } from '@cwm/contracts';
 import type { ProjectTodosResult, Task, TaskStatus } from '@cwm/contracts';
@@ -39,10 +42,18 @@ describe('@cwm/contracts entrypoint', () => {
     expect(empty.items).toEqual([]);
   });
 
-  // The host, the MCP tools and the domain all name Undo's shapes; none of them redeclares one.
-  it('exports the Undo receipt, result and refusal schemas', () => {
-    expect(UndoReceiptSchema.shape.undoId).toBeDefined();
+  // The host, the MCP tools, the domain and the web gateway all name history's shapes; none of
+  // them redeclares one.
+  it('exports the operation receipt, summary, transition and refusal schemas', () => {
+    expect(OperationReceiptSchema.shape.actionId).toBeDefined();
     expect(UndoResultSchema.options).toHaveLength(4);
-    expect(UndoRefusalDetailsSchema.safeParse({ reason: 'undo_expired', undoId: 'undo-1', expiresAt: '2026-09-14T10:00:00.000Z' }).success).toBe(true);
+    expect(RedoResultSchema.options).toHaveLength(4);
+    expect(OperationHistoryTransitionResultSchema.options).toHaveLength(2);
+    const summary = OperationHistorySummarySchema.parse({
+      projectId: 'project-a', historyId: 'history-1', revision: 2, undo: null, redo: null, blockedBy: null,
+    });
+    expect(OperationHistoryRefusalDetailsSchema.safeParse({
+      reason: 'history_expired', historyId: 'history-1', actionId: 'operation-1', summary, expiresAt: '2026-09-14T10:00:00.000Z',
+    }).success).toBe(true);
   });
 });

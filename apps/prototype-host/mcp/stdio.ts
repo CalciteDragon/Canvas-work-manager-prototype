@@ -18,7 +18,7 @@ const registryFor = (api: ReturnType<typeof createApi>): ToolRegistry =>
     shortcuts: api.shortcuts,
     dashboard: api.dashboard,
     workspace: api.workspace,
-    undo: api.undo,
+    history: api.history,
   });
 
 const token = process.env['CWM_MCP_TOKEN'];

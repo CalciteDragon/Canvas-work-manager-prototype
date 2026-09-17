@@ -24,15 +24,19 @@ import { ProjectSchema, type
   SectionRemovalResult,
   SectionAddResult,
   SectionWriteResult,
-  UndoReceipt,
+  OperationReceipt,
   SectionShortcutId,
   ShortcutSource,
   SetProjectPageEnabledInput,
   Task,
   TaskId,
   TimelineResult,
-  UndoRecordId,
   UndoResult,
+  OperationActionId,
+  OperationHistorySummary,
+  OperationHistoryTransitionResult,
+  OperationHistoryId,
+  OperationHistoryTransitionInput,
   UpdateProjectInput,
   UpdateSectionInput,
   CreateSectionShortcutInput,
@@ -50,7 +54,7 @@ import type {
   SectionGateway,
   SectionShortcutGateway,
   TaskGateway,
-  UndoGateway,
+  OperationHistoryGateway,
   WorkManagerGateway,
 } from '../work-manager-gateway';
 
@@ -98,9 +102,26 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   private createdSectionSequence = 0;
   private createdShortcutSequence = 0;
-  private readonly removedSections = new Map<UndoRecordId, ProjectSection>();
-  private createdUndoSequence = 0;
-  private readonly editUndos = new Map<UndoRecordId, () => UndoResult>();
+  /**
+   * A one-history stand-in for §31's operation history: every section write records an Undo that
+   * the matching transition runs. It checks the action id and nothing else — revision, ordering
+   * and conflicts are the host's rules, proved there — and it has no Redo, which no page offers.
+   */
+  private historyRevision = 0;
+  private readonly undoers = new Map<OperationActionId, () => UndoResult>();
+
+  private receipt(operation: OperationReceipt['operation'], label: string): OperationReceipt {
+    this.historyRevision += 1;
+    return {
+      historyId: 'history-fake' as OperationHistoryId,
+      actionId: `operation-fake-${this.historyRevision}` as OperationActionId,
+      operation,
+      revision: this.historyRevision,
+      label,
+      createdAt: COMPLETED_AT,
+      expiresAt: '2026-08-28T16:00:00.000Z',
+    };
+  }
 
   /** Every call the spec made, in order, so a test can assert the query that was sent. */
   readonly calls: Array<{ method: string; argument: unknown }> = [];
@@ -201,34 +222,33 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       ),
   };
 
-  readonly undo: UndoGateway = {
-    execute: (id) => {
-      const edit = this.editUndos.get(id);
-      if (edit !== undefined) {
-        const result = edit();
-        return this.answer('undo.execute', id, result).then((undone) => {
-          this.editUndos.delete(id);
-          return undone;
-        });
-      }
-      const saved = this.removedSections.get(id);
-      if (saved === undefined) throw new GatewayError('not_found', 404, `no such undo "${id}"`);
-      const current = this.sectionFor(saved.id);
-      const restored: ProjectSection = { ...saved };
-      delete restored.archivedAt;
-      const result: UndoResult = {
-        undoId: id,
-        operation: 'section.remove',
-        outcome: 'restored',
-        section: restored,
-        placement: { pageId: restored.pageId, index: restored.position, strategy: 'index', pageEnabled: true },
-        restoredRowCount: 0,
+  readonly history: OperationHistoryGateway = {
+    summary: (projectId) => {
+      const latest = [...this.undoers.keys()].at(-1);
+      const summary: OperationHistorySummary = {
+        projectId,
+        historyId: this.historyRevision === 0 ? null : ('history-fake' as OperationHistoryId),
+        revision: this.historyRevision,
+        undo: latest === undefined ? null : { actionId: latest, operation: 'section.update', label: 'Latest change', expiresAt: '2026-08-28T16:00:00.000Z' },
+        redo: null,
+        blockedBy: null,
       };
-      return this.answer('undo.execute', id, result).then((undone) => {
-        Object.assign(current, restored);
-        delete current.archivedAt;
-        this.removedSections.delete(id);
-        return undone;
+      return this.answer('history.summary', projectId, summary);
+    },
+    transition: (historyId: OperationHistoryId, input: OperationHistoryTransitionInput) => {
+      const undoer = input.direction === 'undo' ? this.undoers.get(input.actionId) : undefined;
+      if (undoer === undefined) throw new GatewayError('not_found', 404, `no such history action "${input.actionId}"`);
+      const result = undoer();
+      this.historyRevision += 1;
+      const transition: OperationHistoryTransitionResult = {
+        direction: 'undo',
+        actionId: input.actionId,
+        result,
+        summary: { projectId: 'project-fake' as ProjectId, historyId, revision: this.historyRevision, undo: null, redo: null, blockedBy: null },
+      };
+      return this.answer('history.transition', { historyId, input }, transition).then((answered) => {
+        this.undoers.delete(input.actionId);
+        return answered;
       });
     },
   };
@@ -387,47 +407,37 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         collapsed: false,
         config: input.config ?? {},
         title: input.title,
+        archiveGeneration: 0,
         createdAt: now,
         updatedAt: now,
       };
-      const undoSequence = ++this.createdUndoSequence;
-      const undoId = `undo-section-add-${undoSequence}` as UndoRecordId;
-      const undo: UndoReceipt = {
-        undoId,
-        operation: 'section.add',
-        sequence: undoSequence,
-        label: `Add ${created.type}`,
-        createdAt: COMPLETED_AT,
-        expiresAt: '2026-08-28T16:00:00.000Z',
-      };
-      const result: SectionAddResult = { section: created, undo };
+      const operation = this.receipt('section.add', `Add ${created.type}`);
+      const result: SectionAddResult = { section: created, operation };
       return this.answer('sections.create', { projectId, input }, result).then(({ section }) => {
         (this.options.sections ??= []).push(section);
         this.placeAt(projectId, pageId, position, { kind: 'section', value: section });
-        this.editUndos.set(undoId, () => {
+        this.undoers.set(operation.actionId, () => {
           this.options.sections = (this.options.sections ?? []).filter((candidate) => candidate.id !== section.id);
           this.renumberCombined(projectId, pageId);
-          return { undoId, operation: 'section.add', outcome: 'removed', sectionId: section.id, projectId, pageId };
+          return { operation: 'section.add', outcome: 'removed', sectionId: section.id, projectId, pageId };
         });
-        return { section, undo };
+        return { section, operation };
       });
     },
     update: (id, input): Promise<SectionWriteResult> => {
       const current = this.sectionFor(id);
       const before = { ...current, config: structuredClone(current.config) };
       const updated = applyUpdate(current, input);
-      if (sameValue(current, updated)) return this.answer('sections.update', { id, input }, { section: current, undo: null });
-      const undoSequence = ++this.createdUndoSequence;
-      const undoId = `undo-section-update-${undoSequence}` as UndoRecordId;
-      const undo: UndoReceipt = { undoId, operation: 'section.update', sequence: undoSequence, label: `Update ${id}`, createdAt: COMPLETED_AT, expiresAt: '2026-08-28T16:00:00.000Z' };
-      const result: SectionWriteResult = { section: updated, undo };
+      if (sameValue(current, updated)) return this.answer('sections.update', { id, input }, { section: current, operation: null });
+      const operation = this.receipt('section.update', `Update ${id}`);
+      const result: SectionWriteResult = { section: updated, operation };
       return this.answer('sections.update', { id, input }, result).then(({ section }) => {
         Object.assign(current, updated);
-        this.editUndos.set(undoId, () => {
+        this.undoers.set(operation.actionId, () => {
           Object.assign(current, before);
-          return { undoId, operation: 'section.update', outcome: 'restored', section: { ...before } };
+          return { operation: 'section.update', outcome: 'restored', section: { ...before } };
         });
-        return { section, undo };
+        return { section, operation };
       });
     },
     move: (id, input): Promise<SectionWriteResult> => {
@@ -435,20 +445,18 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       const before = current.position;
       const count = this.combinedEntries(current.projectId, current.pageId).length;
       const position = Math.max(0, Math.min(input.position, Math.max(0, count - 1)));
-      if (before === position) return this.answer('sections.move', { id, input }, { section: current, undo: null });
+      if (before === position) return this.answer('sections.move', { id, input }, { section: current, operation: null });
       const updated = { ...current, position };
-      const undoSequence = ++this.createdUndoSequence;
-      const undoId = `undo-section-move-${undoSequence}` as UndoRecordId;
-      const undo: UndoReceipt = { undoId, operation: 'section.move', sequence: undoSequence, label: `Move ${id}`, createdAt: COMPLETED_AT, expiresAt: '2026-08-28T16:00:00.000Z' };
-      const result: SectionWriteResult = { section: updated, undo };
+      const operation = this.receipt('section.move', `Move ${id}`);
+      const result: SectionWriteResult = { section: updated, operation };
       return this.answer('sections.move', { id, input }, result).then(({ section }) => {
         this.placeAt(current.projectId, current.pageId, position, { kind: 'section', value: current });
         Object.assign(current, section);
-        this.editUndos.set(undoId, () => {
+        this.undoers.set(operation.actionId, () => {
           this.placeAt(current.projectId, current.pageId, before, { kind: 'section', value: current });
-          return { undoId, operation: 'section.move', outcome: 'restored', section: { ...current }, placement: { pageId: current.pageId, index: before, strategy: 'index', pageEnabled: true } };
+          return { operation: 'section.move', outcome: 'restored', section: { ...current }, placement: { pageId: current.pageId, index: before, strategy: 'index', pageEnabled: true } };
         });
-        return { section, undo };
+        return { section, operation };
       });
     },
     duplicate: (id) =>
@@ -459,23 +467,28 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     // The policy and public receipt are recorded too; no inverse snapshot crosses the gateway.
     remove: (id, input = {}) => {
       const current = this.sectionFor(id);
-      const undoId = `undo-${id}` as UndoRecordId;
       const original = { ...current };
+      const operation = this.receipt('section.remove', `Remove ${id}`);
       const result: SectionRemovalResult = {
         section: { ...original, archivedAt: COMPLETED_AT },
-        undo: {
-          undoId,
-          operation: 'section.remove',
-          sequence: ++this.createdUndoSequence,
-          label: `Remove ${id}`,
-          createdAt: COMPLETED_AT,
-          expiresAt: '2026-08-28T16:00:00.000Z',
-        },
+        operation,
         archiveListed: this.archiveListedOnRemoval,
       };
       return this.answer('sections.remove', { id, input }, result).then((removed) => {
-        this.removedSections.set(undoId, original);
         current.archivedAt = COMPLETED_AT;
+        this.undoers.set(operation.actionId, () => {
+          const restored: ProjectSection = { ...original };
+          delete restored.archivedAt;
+          Object.assign(current, restored);
+          delete current.archivedAt;
+          return {
+            operation: 'section.remove',
+            outcome: 'restored',
+            section: restored,
+            placement: { pageId: restored.pageId, index: restored.position, strategy: 'index', pageEnabled: true },
+            restoredRowCount: 0,
+          };
+        });
         return removed;
       });
     },
@@ -668,6 +681,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         columnSpan: 12,
         collapsed: false,
         config: {},
+        archiveGeneration: 0,
         createdAt: now,
         updatedAt: now,
       },

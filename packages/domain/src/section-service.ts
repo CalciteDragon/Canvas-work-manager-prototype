@@ -22,7 +22,7 @@ import {
   type SectionAddResult,
   type SectionWriteResult,
   type SectionFieldChange,
-  type UndoReceipt,
+  type OperationReceipt,
   type ProjectPage,
   type ProjectPageId,
   type UpdateSectionInput,
@@ -47,7 +47,7 @@ import { listPlacements, renumberPlacements, snapshotPlacement, type PagePlaceme
 import { captureSectionRemoval, NOTHING_SETTLED, rowChangeOf, type SettledRows } from './section-removal-undo';
 import { captureSectionAdd, captureSectionMove, captureSectionUpdate, sameValue } from './section-edit-undo';
 import { sectionRecoveryOf } from './section-recovery-policy';
-import type { UndoRecorder } from './undo-recorder';
+import type { OperationRecorder } from './operation-recorder';
 
 export interface SectionServiceDependencies {
   sections: SectionRepository;
@@ -61,11 +61,12 @@ export interface SectionServiceDependencies {
   reflections: ReflectionRepository;
   activity: ActivityService;
   /**
-   * Makes a removal undoable. An interface over one repository that never opens a unit, used
-   * the way `activity.record` is — the one new kind of edge Undo adds, and acyclic: the recorder
-   * depends on nothing here, and `UndoService` composes no section service.
+   * Makes each explicit add, move, settings update and removal undoable. An interface over two
+   * repositories that never opens a unit, used the way `activity.record` is — the one kind of edge
+   * history adds, and acyclic: the recorder depends on nothing here, and `OperationHistoryService`
+   * composes no section service.
    */
-  undo: UndoRecorder;
+  history: OperationRecorder;
   clock: Clock;
   ids: IdGenerator;
   unitOfWork: UnitOfWork;
@@ -201,12 +202,13 @@ export class SectionService {
     return this.dependencies.unitOfWork.run(async () => {
       const created = await this.addWithin(actor, projectId, input);
       const section = await this.require(actor, created.id);
-      const undo = await this.dependencies.undo.record(actor, {
+      const placement = snapshotPlacement(await this.placementsOnPage(section.pageId), { kind: 'section', id: section.id });
+      const operation = await this.dependencies.history.record(actor, {
         projectId,
         label: `Added the ${nameOf(section)} section`,
-        operation: captureSectionAdd(section),
+        operation: captureSectionAdd(section, placement),
       });
-      return { section, undo };
+      return { section, operation };
     });
   }
 
@@ -457,13 +459,13 @@ export class SectionService {
       // Compare the combined order before writing. In particular, a sparse or hand-edited
       // page must not be silently normalized by a clamped no-op.
       const from = siblings.findIndex((placement) => placement.kind === 'section' && placement.value.id === id);
-      if (from === target) return { section: current, undo: null };
+      if (from === target) return { section: current, operation: null };
       const afterPlacement = snapshotPlacement(without, { kind: 'section', id });
 
       await renumberPlacements(this.dependencies, this.dependencies.clock, without, { kind: 'section', id });
       const moved = await this.require(actor, id);
       await this.record(actor, moved, 'project.section_moved', 'Moved');
-      const undo = await this.dependencies.undo.record(actor, {
+      const operation = await this.dependencies.history.record(actor, {
         projectId: current.projectId,
         label: `Moved the ${nameOf(current)} section`,
         operation: captureSectionMove({
@@ -474,7 +476,7 @@ export class SectionService {
           placementAfter: afterPlacement,
         }),
       });
-      return { section: moved, undo };
+      return { section: moved, operation };
     });
   }
 
@@ -536,14 +538,15 @@ export class SectionService {
    * and Home shortcuts from dangling. Old tombstones are never purged by this operation.
    *
    * Deliberately **not** idempotent: a repeated removal is still a refusal, but the exact actor
-   * may recover the newest outstanding receipt. A missing hard-deleted id remains not-found to
+   * may recover its removal receipt while that removal is still their applied, unexpired action and
+   * no later removal advanced the section's generation. A missing hard-deleted id remains not-found to
    * everyone else.
    *
    * Allowed inside an archived project, unlike every other section write: the freeze stops
    * work coming *back* into a project someone has put away, not someone tidying one. It still
-   * returns a receipt, which Undo answers `undo_blocked` until the project is reactivated.
+   * returns a receipt, which a transition answers `history_blocked` until the project is reactivated.
    *
-   * **Every successful removal returns one Undo receipt**, recorded in this unit beside the
+   * **Every successful removal returns one operation receipt**, recorded in this unit beside the
    * canonical writes: the pre-removal section, its placement between neighbours, and exactly the
    * rows `settleRows` wrote. A refusal records nothing. The receipt is real only once the unit
    * commits, which is when `unitOfWork.run` resolves **for a top-level call** — `unitOfWorkFor`
@@ -561,14 +564,14 @@ export class SectionService {
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.dependencies.sections.find(id);
       if (current === null) {
-        const receipt = await this.dependencies.undo.outstandingFor(actor, id);
+        const receipt = await this.dependencies.history.outstandingRemovalFor(actor, id, null);
         if (receipt !== null) throw this.repeatRemoval(id, receipt);
         throw new EntityNotFoundError('section', id);
       }
       // Do not use a receipt lookup to turn a foreign section into an existence oracle.
       if (!(await this.isProjectVisible(actor, current.projectId))) throw new EntityNotFoundError('section', id);
       if (current.archivedAt !== undefined) {
-        const receipt = await this.dependencies.undo.outstandingFor(actor, id);
+        const receipt = await this.dependencies.history.outstandingRemovalFor(actor, id, current);
         if (receipt !== null) throw this.repeatRemoval(id, receipt);
         throw new DomainRuleError(`section "${id}" is already archived; restore it from Archive before removing it again`);
       }
@@ -587,6 +590,7 @@ export class SectionService {
       const archived = ProjectSectionSchema.parse({
         ...current,
         archivedAt,
+        archiveGeneration: current.archiveGeneration + 1,
         updatedAt: this.dependencies.clock.now().toISOString(),
       });
       if (disposition === 'retained') await this.dependencies.sections.update(archived);
@@ -604,7 +608,7 @@ export class SectionService {
         disposition === 'deleted' ? 'project.section_removed' : 'project.section_archived',
         disposition === 'deleted' ? 'Removed' : 'Archived',
       );
-      const undo = await this.dependencies.undo.record(actor, {
+      const operation = await this.dependencies.history.record(actor, {
         projectId: current.projectId,
         label: `Removed the ${nameOf(current)} section`,
         operation: captureSectionRemoval({
@@ -613,17 +617,20 @@ export class SectionService {
           settled,
           disposition,
           postSectionArchivedAt: archivedAt,
+          archiveGeneration: archived.archiveGeneration,
         }),
       });
-      return { section: archived, undo, archiveListed };
+      return { section: archived, operation, archiveListed };
     });
   }
 
   /**
    * **Archive Restore** for `remove`, and the **only** way an archived section — or a row that
    * came down with one — comes back. Under `projects.write`, like every other section write.
-   * It is not receipt-based Undo (`UndoService`): it needs no receipt and never expires, but it
-   * reverses the archive rather than the removal's placement, and it consumes no Undo record.
+   * It is not history Undo (`OperationHistoryService`): it needs no receipt, never expires and
+   * records no history action; it reverses the archive rather than the removal's placement. It
+   * deliberately leaves `archiveGeneration` alone — restoring is not removing, so bumping it here
+   * would make an innocent removal Undo refuse.
    *
    * It restores exactly what the removal took: the section, and the rows whose
    * `archivedWithSectionId` names it. A row archived on its own beforehand carries no marker
@@ -676,10 +683,11 @@ export class SectionService {
     });
   }
 
-  private repeatRemoval(sectionId: SectionId, receipt: UndoReceipt): DomainRuleError {
-    const details = SectionAlreadyRemovedDetailsSchema.parse({ reason: 'section_already_removed', sectionId, undo: receipt });
+  private repeatRemoval(sectionId: SectionId, receipt: OperationReceipt): DomainRuleError {
+    const details = SectionAlreadyRemovedDetailsSchema.parse({ reason: 'section_already_removed', sectionId, operation: receipt });
     return new DomainRuleError(
-      `section_already_removed: this removal already committed; use undo_operation with undoId "${receipt.undoId}" before ${receipt.expiresAt}`,
+      `section_already_removed: this removal already committed; use undo_operation with historyId "${receipt.historyId}", ` +
+        `actionId "${receipt.actionId}" and expectedRevision ${receipt.revision} before ${receipt.expiresAt}`,
       details,
     );
   }
@@ -722,7 +730,7 @@ export class SectionService {
    * particular, an archived-only owner and its rows stay together for the existing Archive
    * recovery path.
    *
-   * Returns what it **applied**, for the Undo record.
+   * Returns what it **applied**, for the history action.
    */
   private async settleRows(
     actor: ActorContext,
@@ -799,12 +807,12 @@ export class SectionService {
   ): Promise<SectionWriteResult> {
     // A no-op write records nothing and returns no receipt, even when config object keys arrived
     // in a different order.
-    if (changes.length === 0) return { section: current, undo: null };
+    if (changes.length === 0) return { section: current, operation: null };
 
     const updated = ProjectSectionSchema.parse({ ...next, updatedAt: this.dependencies.clock.now().toISOString() });
     await this.dependencies.sections.update(updated);
     await this.record(actor, updated, 'project.section_updated', 'Updated');
-    const undo = await this.dependencies.undo.record(actor, {
+    const operation = await this.dependencies.history.record(actor, {
       projectId: current.projectId,
       label: `Updated the ${nameOf(current)} section`,
       operation: captureSectionUpdate({
@@ -814,7 +822,7 @@ export class SectionService {
         changes,
       }),
     });
-    return { section: updated, undo };
+    return { section: updated, operation };
   }
 
   /**

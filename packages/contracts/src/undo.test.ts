@@ -1,18 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
-  SectionRemovalResultSchema,
-  SectionAlreadyRemovedDetailsSchema,
+  OperationReceiptSchema,
+  RedoResultSchema,
   SectionAddResultSchema,
   SectionAddUndoOperationSchema,
+  SectionAlreadyRemovedDetailsSchema,
   SectionMoveUndoOperationSchema,
+  SectionRemovalResultSchema,
+  SectionRemoveUndoOperationSchema,
   SectionUpdateUndoOperationSchema,
   SectionWriteResultSchema,
-  SectionRemoveUndoOperationSchema,
-  UndoInputSchema,
+  UndoConflictSchema,
   UndoOperationSchema,
-  UndoReceiptSchema,
-  UndoRecordSchema,
-  UndoRefusalDetailsSchema,
   UndoResultSchema,
 } from './undo';
 
@@ -29,6 +28,7 @@ const section = (type: string, overrides: Record<string, unknown> = {}) => ({
   columnSpan: 6,
   collapsed: true,
   config: { milestoneIds: ['milestone-1'] },
+  archiveGeneration: 0,
   createdAt: AT,
   updatedAt: AT,
   ...overrides,
@@ -48,7 +48,9 @@ const viewOperation = {
   placement,
   appliedPolicy: 'none',
   rows: [],
+  disposition: 'retained',
   postSectionArchivedAt: AT,
+  archiveGeneration: 1,
 };
 
 const cascadeOperation = {
@@ -87,23 +89,11 @@ const reassignOperation = {
   ],
 };
 
-const record = {
-  id: 'undo-1',
-  workspaceId: 'workspace-a',
-  projectId: 'project-a',
-  actor: 'user',
-  actorUserId: 'user-a',
-  sequence: 1,
-  label: 'Remove the Backlog section',
-  createdAt: AT,
-  expiresAt: LATER,
-  operation: viewOperation,
-};
-
 const addOperation = {
   version: 1,
   type: 'section.add',
   section: section('rich-text', { title: undefined, config: { text: 'Draft' } }),
+  placement: { pageId: 'page-a', previous: { kind: 'section', id: 'section-0' }, index: 1 },
 };
 
 const moveOperation = {
@@ -130,6 +120,16 @@ const updateOperation = {
   ],
 };
 
+const receipt = {
+  historyId: 'history-1',
+  actionId: 'operation-1',
+  operation: 'section.remove',
+  revision: 1,
+  label: 'Removed the Backlog section',
+  createdAt: AT,
+  expiresAt: LATER,
+};
+
 describe('SectionRemoveUndoOperationSchema', () => {
   it.each([
     ['none', viewOperation],
@@ -147,6 +147,9 @@ describe('SectionRemoveUndoOperationSchema', () => {
     ['a later version', { ...viewOperation, version: 2 }],
     ['an extra key', { ...viewOperation, unexpected: true }],
     ['an invalid disposition', { ...viewOperation, disposition: 'purged' }],
+    ['no disposition', { ...viewOperation, disposition: undefined }],
+    ['no captured archive generation', { ...viewOperation, archiveGeneration: undefined }],
+    ['a generation that does not advance the section by one', { ...viewOperation, archiveGeneration: 2 }],
     ['reassign without a target', { ...reassignOperation, reassignToSectionId: undefined }],
     ['a target without reassign', { ...cascadeOperation, reassignToSectionId: 'section-2' }],
     ['rows with no applied policy', { ...viewOperation, section: section('task-list'), rows: cascadeOperation.rows }],
@@ -159,9 +162,8 @@ describe('SectionRemoveUndoOperationSchema', () => {
     expect(UndoOperationSchema.safeParse(operation).success).toBe(false);
   });
 
-  it('keeps old version-1 records retained while new records may record deletion', () => {
-    expect(UndoOperationSchema.parse(viewOperation)).not.toHaveProperty('disposition');
-    expect(UndoOperationSchema.parse({ ...viewOperation, disposition: 'retained' })).toMatchObject({ disposition: 'retained' });
+  it('records whether the section was retained or deleted', () => {
+    expect(UndoOperationSchema.parse(viewOperation)).toMatchObject({ disposition: 'retained' });
     expect(UndoOperationSchema.parse({ ...viewOperation, disposition: 'deleted' })).toMatchObject({ disposition: 'deleted' });
   });
 
@@ -182,6 +184,8 @@ describe('section add, move and update operation variants', () => {
 
   it.each([
     ['an add with an archived snapshot', { ...addOperation, section: section('progress', { archivedAt: AT }) }],
+    ['an add with no placement — Redo would have nowhere to put it', { ...addOperation, placement: undefined }],
+    ['an add placed on another page', { ...addOperation, placement: { ...addOperation.placement, pageId: 'page-b' } }],
     ['a move on another page', { ...moveOperation, placementAfter: { ...moveOperation.placementAfter, pageId: 'page-b' } }],
     ['an update with duplicate fields', { ...updateOperation, changes: [...updateOperation.changes, updateOperation.changes[0]] }],
     ['an update with no fields', { ...updateOperation, changes: [] }],
@@ -192,68 +196,50 @@ describe('section add, move and update operation variants', () => {
   });
 });
 
-describe('UndoRecordSchema', () => {
-  it('accepts user, agent and system records under the activity attribution rule', () => {
-    expect(UndoRecordSchema.parse(record).actor).toBe('user');
-    expect(
-      UndoRecordSchema.safeParse({ ...record, actor: 'agent', actorAgentConnectionId: 'agent-1' }).success,
-    ).toBe(true);
-    const { actorUserId, ...system } = record;
-    expect(UndoRecordSchema.safeParse({ ...system, actor: 'system' }).success).toBe(true);
-  });
-
-  it('rejects an unattributable record', () => {
-    const { actorUserId, ...unattributed } = record;
-    expect(UndoRecordSchema.safeParse(unattributed).success).toBe(false);
-    expect(UndoRecordSchema.safeParse({ ...unattributed, actor: 'agent' }).success).toBe(false);
-    expect(UndoRecordSchema.safeParse({ ...record, actor: 'system' }).success).toBe(false);
-  });
-
-  it('requires a positive sequence and an expiry after creation', () => {
-    expect(UndoRecordSchema.safeParse({ ...record, sequence: 0 }).success).toBe(false);
-    expect(UndoRecordSchema.safeParse({ ...record, sequence: 1.5 }).success).toBe(false);
-    expect(UndoRecordSchema.safeParse({ ...record, expiresAt: AT }).success).toBe(false);
-  });
-});
-
-describe('UndoReceiptSchema', () => {
-  const receipt = { undoId: 'undo-1', operation: 'section.remove', sequence: 1, label: 'Remove', createdAt: AT, expiresAt: LATER };
-
-  it('is strict and carries no operation, actor or row data', () => {
-    expect(UndoReceiptSchema.parse(receipt)).toEqual(receipt);
-    expect(Object.keys(UndoReceiptSchema.shape).sort()).toEqual(['createdAt', 'expiresAt', 'label', 'operation', 'sequence', 'undoId']);
-    expect(UndoReceiptSchema.safeParse({ ...receipt, actor: 'user' }).success).toBe(false);
-    expect(UndoReceiptSchema.safeParse({ ...receipt, rows: [] }).success).toBe(false);
+describe('OperationReceiptSchema', () => {
+  it('is strict and carries no operation payload, actor or row data', () => {
+    expect(OperationReceiptSchema.parse(receipt)).toEqual(receipt);
+    expect(Object.keys(OperationReceiptSchema.shape).sort()).toEqual([
+      'actionId', 'createdAt', 'expiresAt', 'historyId', 'label', 'operation', 'revision',
+    ]);
+    expect(OperationReceiptSchema.safeParse({ ...receipt, actor: 'user' }).success).toBe(false);
+    expect(OperationReceiptSchema.safeParse({ ...receipt, rows: [] }).success).toBe(false);
+    // The workspace sequence is gone: a receipt is ordered by its history's revision.
+    expect(OperationReceiptSchema.safeParse({ ...receipt, sequence: 1 }).success).toBe(false);
+    expect(OperationReceiptSchema.safeParse({ ...receipt, revision: 0 }).success).toBe(false);
   });
 
   it('rides on a section removal result beside the removal’s own Archive verdict', () => {
     const listed = SectionRemovalResultSchema.parse({
       section: section('progress', { archivedAt: AT }),
-      undo: receipt,
+      operation: receipt,
       archiveListed: true,
     });
-    expect(listed.undo).toEqual(receipt);
+    expect(listed.operation).toEqual(receipt);
     expect(listed.archiveListed).toBe(true);
     // Retained is not the same question as listed, so the field is stated, never inferred.
     expect(
-      SectionRemovalResultSchema.safeParse({ section: section('progress', { archivedAt: AT }), undo: receipt }).success,
+      SectionRemovalResultSchema.safeParse({ section: section('progress', { archivedAt: AT }), operation: receipt }).success,
     ).toBe(false);
   });
 
-  it.each(['section.add', 'section.move', 'section.update'] as const)('accepts a %s receipt', (operation) => {
-    expect(UndoReceiptSchema.parse({ ...receipt, operation }).operation).toBe(operation);
+  it('parses add and nullable no-op write results', () => {
+    const added = { ...receipt, operation: 'section.add' };
+    expect(SectionAddResultSchema.parse({ section: section('progress'), operation: added }).operation.operation).toBe('section.add');
+    expect(SectionWriteResultSchema.parse({ section: section('progress'), operation: null }).operation).toBeNull();
+    expect(SectionWriteResultSchema.parse({ section: section('progress'), operation: { ...receipt, operation: 'section.move' } }).operation?.operation).toBe('section.move');
+  });
+
+  it('carries the exact recovered removal receipt on a repeat-removal refusal', () => {
+    const details = { reason: 'section_already_removed', sectionId: 'section-a', operation: receipt };
+    expect(SectionAlreadyRemovedDetailsSchema.parse(details)).toEqual(details);
+    expect(SectionAlreadyRemovedDetailsSchema.safeParse({ ...details, operationData: {} }).success).toBe(false);
   });
 });
 
-describe('UndoInputSchema and UndoResultSchema', () => {
-  it('takes only an undo id', () => {
-    expect(UndoInputSchema.parse({ undoId: 'undo-1' })).toEqual({ undoId: 'undo-1' });
-    expect(UndoInputSchema.safeParse({ undoId: 'undo-1', force: true }).success).toBe(false);
-  });
-
-  it('reports the outcome and where the section landed', () => {
+describe('UndoResultSchema and RedoResultSchema', () => {
+  it('reports the outcome and where the section landed, with no receipt id', () => {
     const result = {
-      undoId: 'undo-1',
       operation: 'section.remove',
       outcome: 'partial',
       section: section('progress'),
@@ -264,120 +250,39 @@ describe('UndoInputSchema and UndoResultSchema', () => {
     expect(UndoResultSchema.safeParse({ ...result, outcome: 'redone' }).success).toBe(false);
   });
 
-  it('discriminates the add result without inventing a live section', () => {
-    const result = {
-      undoId: 'undo-1', operation: 'section.add', outcome: 'removed',
-      sectionId: 'section-1', projectId: 'project-a', pageId: 'page-a',
-    };
+  it('discriminates the add Undo result without inventing a live section', () => {
+    const result = { operation: 'section.add', outcome: 'removed', sectionId: 'section-1', projectId: 'project-a', pageId: 'page-a' };
     expect(UndoResultSchema.parse(result)).toEqual(result);
-    expect(SectionAddResultSchema.parse({ section: section('progress'), undo: { undoId: 'undo-1', operation: 'section.add', sequence: 1, label: 'Add', createdAt: AT, expiresAt: LATER } }).undo.operation).toBe('section.add');
   });
 
-  it('parses shared update and move forward results with a nullable no-op receipt', () => {
-    const undo = { undoId: 'undo-1', operation: 'section.update', sequence: 1, label: 'Update', createdAt: AT, expiresAt: LATER } as const;
-    expect(SectionWriteResultSchema.parse({ section: section('progress'), undo: null }).undo).toBeNull();
-    expect(SectionWriteResultSchema.parse({ section: section('progress'), undo }).undo?.operation).toBe('section.update');
-    expect(SectionWriteResultSchema.parse({ section: section('progress'), undo: { ...undo, operation: 'section.move' } }).undo?.operation).toBe('section.move');
+  it('parses each Redo result', () => {
+    const at = { pageId: 'page-a', index: 1, strategy: 'previous', pageEnabled: true };
+    for (const result of [
+      { operation: 'section.remove', outcome: 'removed', section: section('progress', { archivedAt: AT }), disposition: 'retained', settledRowCount: 0 },
+      { operation: 'section.add', outcome: 'reapplied', section: section('progress'), placement: at },
+      { operation: 'section.move', outcome: 'partial', section: section('progress'), placement: { ...at, strategy: 'index' } },
+      { operation: 'section.update', outcome: 'reapplied', section: section('progress') },
+    ]) {
+      expect(RedoResultSchema.parse(result)).toEqual(result);
+    }
+    // A redo never lands on a fallback page: it reapplies to the recorded page or refuses.
+    expect(RedoResultSchema.safeParse({ operation: 'section.add', outcome: 'reapplied', section: section('progress'), placement: { ...at, strategy: 'fallback-page' } }).success).toBe(false);
   });
 });
 
-describe('UndoRefusalDetailsSchema', () => {
-  it.each([
-    { reason: 'undo_consumed', undoId: 'undo-1', consumedAt: AT },
-    { reason: 'undo_expired', undoId: 'undo-1', expiresAt: AT },
-    {
-      reason: 'undo_conflict',
-      undoId: 'undo-1',
-      conflicts: [
-        {
-          entityType: 'section',
-          id: 'section-1',
-          title: 'Backlog',
-          problem: 'superseded',
-          nextStep: 'use-later-receipt-or-archive',
-          supersededBy: 'self',
-        },
-      ],
-    },
-    {
-      reason: 'undo_conflict',
-      undoId: 'undo-1',
-      conflicts: [
-        {
-          entityType: 'section',
-          id: 'section-1',
-          title: 'Task List',
-          problem: 'superseded',
-          nextStep: 'redo-by-hand-or-archive',
-          supersededBy: 'agent',
-        },
-      ],
-    },
-    {
-      reason: 'undo_conflict',
-      undoId: 'undo-1',
-      conflicts: [
-        { entityType: 'section', id: 'section-1', problem: 'field-changed', nextStep: 'use-later-receipt-or-archive' },
-        { entityType: 'shortcut', id: 'shortcut-1', problem: 'shortcut-reference', nextStep: 'remove-reference-and-retry' },
-        { entityType: 'section', id: 'section-1', problem: 'archived-subject', nextStep: 'restore-state-and-retry' },
-      ],
-    },
-    { reason: 'undo_blocked', undoId: 'undo-1', blockingProjectId: 'project-a', blockingProjectTitle: 'Kitchen' },
-    { reason: 'undo_unavailable', undoId: 'undo-1', problem: 'no-compatible-page' },
-  ])('parses $reason', (details) => {
-    expect(UndoRefusalDetailsSchema.parse(details)).toEqual(details);
-  });
-
-  it('rejects an empty conflict list and an unknown reason', () => {
-    expect(UndoRefusalDetailsSchema.safeParse({ reason: 'undo_conflict', undoId: 'undo-1', conflicts: [] }).success).toBe(
-      false,
-    );
-    expect(UndoRefusalDetailsSchema.safeParse({ reason: 'undo_maybe', undoId: 'undo-1' }).success).toBe(false);
-  });
-
-  it('names a superseding actor exactly for a superseded conflict', () => {
-    const conflicts = (conflict: Record<string, unknown>) =>
-      UndoRefusalDetailsSchema.safeParse({ reason: 'undo_conflict', undoId: 'undo-1', conflicts: [conflict] }).success;
-    const superseded = { entityType: 'section', id: 'section-1', problem: 'superseded', nextStep: 'redo-by-hand' };
-    // A receipt belongs to one actor, so a superseded conflict always says whose the later one is.
-    expect(conflicts({ ...superseded, supersededBy: 'user' })).toBe(true);
-    expect(conflicts(superseded)).toBe(false);
-    // And nothing else claims an actor it never looked up.
-    expect(conflicts({ entityType: 'section', id: 'section-1', problem: 'moved', nextStep: 'move-back-and-retry', supersededBy: 'agent' })).toBe(false);
-  });
+describe('UndoConflictSchema', () => {
+  const missing = { entityType: 'task', id: 'task-missing', problem: 'missing', nextStep: 'nothing-to-restore' };
 
   it('requires a typed next step and omits titles for missing entities', () => {
-    const missing = {
-      entityType: 'task',
-      id: 'task-missing',
-      problem: 'missing',
-      nextStep: 'nothing-to-restore',
-    };
-    expect(UndoRefusalDetailsSchema.safeParse({
-      reason: 'undo_conflict', undoId: 'undo-1', conflicts: [missing],
-    }).success).toBe(true);
-    expect(UndoRefusalDetailsSchema.safeParse({
-      reason: 'undo_conflict', undoId: 'undo-1', conflicts: [{ ...missing, nextStep: undefined }],
-    }).success).toBe(false);
-    expect(UndoRefusalDetailsSchema.safeParse({
-      reason: 'undo_conflict', undoId: 'undo-1', conflicts: [{ ...missing, title: 'Gone' }],
-    }).success).toBe(false);
-    expect(UndoRefusalDetailsSchema.safeParse({
-      reason: 'undo_conflict', undoId: 'undo-1', conflicts: [{ ...missing, nextStep: 'guess' }],
-    }).success).toBe(false);
+    expect(UndoConflictSchema.safeParse(missing).success).toBe(true);
+    expect(UndoConflictSchema.safeParse({ ...missing, nextStep: undefined }).success).toBe(false);
+    expect(UndoConflictSchema.safeParse({ ...missing, title: 'Gone' }).success).toBe(false);
+    expect(UndoConflictSchema.safeParse({ ...missing, nextStep: 'guess' }).success).toBe(false);
   });
 
-  it('carries the exact outstanding removal receipt on a repeat-removal refusal', () => {
-    const removalReceipt = {
-      undoId: 'undo-1',
-      operation: 'section.remove',
-      sequence: 1,
-      label: 'Removed the Backlog section',
-      createdAt: AT,
-      expiresAt: LATER,
-    };
-    const details = { reason: 'section_already_removed', sectionId: 'section-a', undo: removalReceipt };
-    expect(SectionAlreadyRemovedDetailsSchema.parse(details)).toEqual(details);
-    expect(SectionAlreadyRemovedDetailsSchema.safeParse({ ...details, operationData: {} }).success).toBe(false);
+  it('no longer describes a superseded receipt — a cursor replaced supersession', () => {
+    expect(UndoConflictSchema.safeParse({ entityType: 'section', id: 'section-1', problem: 'superseded', nextStep: 'change-by-hand' }).success).toBe(false);
+    expect(UndoConflictSchema.safeParse({ entityType: 'section', id: 'section-1', problem: 'field-changed', nextStep: 'use-later-receipt' }).success).toBe(false);
+    expect(UndoConflictSchema.safeParse({ entityType: 'section', id: 'section-1', title: 'Backlog', problem: 'field-changed', nextStep: 'change-by-hand', supersededBy: 'self' }).success).toBe(false);
   });
 });

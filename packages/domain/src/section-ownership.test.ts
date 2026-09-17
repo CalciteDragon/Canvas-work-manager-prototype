@@ -209,16 +209,16 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     const harness = buildHarness();
     const list = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
 
-    const { undo } = await harness.sectionService.remove(harness.actor, list.id);
+    const { operation } = await harness.sectionService.remove(harness.actor, list.id);
 
     // No policy is needed because there are no rows to settle. The empty section is
     // reconstructable from its receipt, so retaining a tombstone would only add Archive noise.
     expect(await harness.sectionService.list(harness.actor, MINE)).toEqual([]);
     expect(await harness.sections.find(list.id)).toBeNull();
-    expect(harness.store.snapshot().undoRecords.at(-1)?.operation).toMatchObject({ disposition: 'deleted' });
+    expect(harness.store.snapshot().operationActions.at(-1)?.operation).toMatchObject({ disposition: 'deleted' });
     const archive = new ProjectArchiveService(harness).derive(harness.actor, MINE);
     await expect(archive).resolves.toMatchObject({ items: expect.not.arrayContaining([expect.objectContaining({ kind: 'section', section: { id: list.id } })]) });
-    await expect(harness.undoService.undo(harness.actor, undo.undoId)).resolves.toMatchObject({ section: { id: list.id } });
+    await expect(harness.undo(harness.actor, operation)).resolves.toMatchObject({ section: { id: list.id } });
   });
 
   it('refuses a container that still holds rows, naming the count', async () => {
@@ -289,7 +289,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     await harness.taskService.archive(harness.actor, archived.id);
     const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
 
-    const { undo } = await harness.sectionService.remove(harness.actor, list.id, {
+    const { operation } = await harness.sectionService.remove(harness.actor, list.id, {
       policy: 'reassign',
       reassignToSectionId: target.id,
     });
@@ -299,11 +299,11 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     // Reassignment leaves no canonical row under the source. Undo's operation snapshot is
     // enough to recreate the section and return every moved row.
     expect(await harness.sections.find(list.id)).toBeNull();
-    expect(harness.store.snapshot().undoRecords.at(-1)?.operation).toMatchObject({ disposition: 'deleted' });
+    expect(harness.store.snapshot().operationActions.at(-1)?.operation).toMatchObject({ disposition: 'deleted' });
     expect((await harness.tasks.find(task.id))?.archivedWithSectionId).toBeUndefined();
     expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
 
-    await harness.undoService.undo(harness.actor, undo.undoId);
+    await harness.undo(harness.actor, operation);
     expect((await harness.taskService.get(harness.actor, task.id)).sectionId).toBe(list.id);
     expect((await harness.tasks.find(archived.id))?.sectionId).toBe(list.id);
   });
@@ -329,16 +329,16 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     await harness.taskService.archive(harness.actor, task.id);
     const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
 
-    const { undo } = await harness.sectionService.remove(harness.actor, list.id, { policy: 'reassign', reassignToSectionId: target.id });
+    const { operation } = await harness.sectionService.remove(harness.actor, list.id, { policy: 'reassign', reassignToSectionId: target.id });
 
     expect(await harness.tasks.find(task.id)).toMatchObject({ sectionId: list.id, archivedAt: SEED_NOW });
     expect(await harness.sections.find(list.id)).toMatchObject({ id: list.id, archivedAt: SEED_NOW });
-    expect(harness.store.snapshot().undoRecords.at(-1)?.operation).toMatchObject({
+    expect(harness.store.snapshot().operationActions.at(-1)?.operation).toMatchObject({
       appliedPolicy: 'none',
       disposition: 'retained',
       rows: [],
     });
-    await harness.undoService.undo(harness.actor, undo.undoId);
+    await harness.undo(harness.actor, operation);
     expect((await harness.sections.find(list.id))?.archivedAt).toBeUndefined();
     expect(await harness.tasks.find(task.id)).toMatchObject({ sectionId: list.id, archivedAt: SEED_NOW });
   });
@@ -358,7 +358,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
 
     expect(result.section).toMatchObject({ id: section.id, archivedAt: SEED_NOW });
     expect(await harness.sections.find(section.id)).toBeNull();
-    const operation = harness.store.snapshot().undoRecords.at(-1)?.operation;
+    const operation = harness.store.snapshot().operationActions.at(-1)?.operation;
     expect(operation).toMatchObject({ type: 'section.remove', section: prior, disposition: 'deleted' });
     if (operation?.type !== 'section.remove') throw new Error('expected a section removal record');
     expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
@@ -383,7 +383,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
 
     expect(result.archiveListed).toBe(false);
     expect((await harness.sections.find(source.id))?.archivedAt).toBe(SEED_NOW);
-    expect(harness.store.snapshot().undoRecords.at(-1)?.operation).toMatchObject({ disposition: 'retained' });
+    expect(harness.store.snapshot().operationActions.at(-1)?.operation).toMatchObject({ disposition: 'retained' });
     // Archive is the root's, over the whole tree; the subproject has no page of its own.
     const archive = await new ProjectArchiveService(harness).derive(harness.actor, MINE);
     expect(archive.items.filter((item) => item.kind === 'section')).toEqual([]);
@@ -406,7 +406,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     expect((await harness.sections.find(prose.id))?.archivedAt).toBe(SEED_NOW);
     expect((await harness.sections.find(task.sectionId))?.archivedAt).toBe(SEED_NOW);
     expect(
-      harness.store.snapshot().undoRecords.map(({ operation }) => operation).filter((operation) => operation.type === 'section.remove').map((operation) => operation.disposition),
+      harness.store.snapshot().operationActions.map(({ operation }) => operation).filter((operation) => operation.type === 'section.remove').map((operation) => operation.disposition),
     ).toEqual(['retained', 'retained']);
     const archive = await new ProjectArchiveService(harness).derive(harness.actor, MINE);
     expect(archive.items.filter((item) => item.kind === 'section').map((item) => item.section.id)).toEqual([prose.id, task.sectionId]);
@@ -485,12 +485,12 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
 });
 
 /**
- * Slice 30: the Undo record captures exactly the rows a removal changed —
+ * Slice 30: the history action captures exactly the rows a removal changed —
  * docs/decisions/2026-09-section-removal-undo-records.md, rule 6.
  */
-describe('SectionService.remove — what the Undo record captures', () => {
+describe('SectionService.remove — what the history action captures', () => {
 const recorded = (harness: ReturnType<typeof buildHarness>) => {
-  const operation = harness.store.snapshot().undoRecords.at(-1)!.operation;
+  const operation = harness.store.snapshot().operationActions.at(-1)!.operation;
   if (operation.type !== 'section.remove') throw new Error('expected a section removal record');
   return operation;
 };
@@ -519,6 +519,8 @@ const recorded = (harness: ReturnType<typeof buildHarness>) => {
       rows: [],
       disposition: 'deleted',
       postSectionArchivedAt: SEED_NOW,
+      // The generation this removal wrote, one past the section's.
+      archiveGeneration: 1,
     });
   });
 

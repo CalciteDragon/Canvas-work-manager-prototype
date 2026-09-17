@@ -11,6 +11,7 @@ import {
   type PlacementSnapshot,
   type ProjectPage,
   type ProjectSection,
+  type RedoResult,
   type Reflection,
   type ReflectionStructuralState,
   type SectionId,
@@ -20,30 +21,20 @@ import {
   type TaskStructuralState,
   type UndoConflict,
   type UndoConflictNextStep,
-  type UndoRecord,
   type UndoResult,
   type UndoRowChange,
 } from '@cwm/contracts';
-import type {
-  ProjectPageRepository,
-  ProjectRepository,
-  ReflectionRepository,
-  SectionRepository,
-  SectionShortcutRepository,
-  TaskRepository,
-  UndoRecordRepository,
-} from '@cwm/repositories';
 import type { Clock } from './clock';
-import { EntityNotFoundError, undoRefusal } from './errors';
+import { EntityNotFoundError } from './errors';
+import { OperationExecutionRefused, generationFloor, refuseOnConflicts, type SectionHistoryRepositories } from './operation-execution';
 import { writeRow, type OwnedRow } from './owned-rows';
 import { listPlacements, renumberPlacements, resolveRestoreIndex, type RestoreStrategy } from './page-placements';
-import { findHighestWriteBlocker } from './project-visibility';
-import { sameUndoRecordActor, subjectSectionOf } from './undo-recorder';
+import { sameValue } from './section-edit-undo';
 
 /**
- * **The capture and the inverse for one operation type, `section.remove`.** Shared functions,
- * not a service: `SectionService.remove` captures through them and `UndoService` executes
- * through them, and neither composes the other (docs/decisions/2026-09-section-removal-undo-records.md,
+ * **Capture, Undo and Redo for `section.remove`.** Shared functions, not a service:
+ * `SectionService.remove` captures through them and `OperationHistoryService` executes through
+ * them, and neither composes the other (docs/decisions/2026-09-section-removal-undo-records.md,
  * rule 8).
  */
 
@@ -95,6 +86,7 @@ export const captureSectionRemoval = (input: {
   settled: SettledRows;
   disposition: SectionRemovalDisposition;
   postSectionArchivedAt: string;
+  archiveGeneration: number;
 }): SectionRemoveUndoOperation =>
   SectionRemoveUndoOperationSchema.parse({
     version: 1,
@@ -107,6 +99,7 @@ export const captureSectionRemoval = (input: {
     rows: input.settled.rows,
     disposition: input.disposition,
     postSectionArchivedAt: input.postSectionArchivedAt,
+    archiveGeneration: input.archiveGeneration,
   });
 
 export type UndoDestination =
@@ -143,48 +136,25 @@ export const resolveUndoDestination = (input: {
   return { kind: 'fallback', page: canonical };
 };
 
-export interface SectionRemovalUndoRepositories {
-  undoRecords: UndoRecordRepository;
-  sections: SectionRepository;
-  shortcuts: SectionShortcutRepository;
-  pages: ProjectPageRepository;
-  projects: ProjectRepository;
-  tasks: TaskRepository;
-  reflections: ReflectionRepository;
-}
-
-const sameValue = (left: string | undefined, right: string | undefined): boolean => left === right;
-
-/** Who the superseding record belongs to, relative to the actor holding the refused receipt. */
-type SupersedingActor = NonNullable<UndoConflict['supersededBy']>;
-
-const nextStepFor = (
-  problem: UndoConflict['problem'],
-  expectedLive: boolean,
-  supersededBy?: SupersedingActor,
-): UndoConflictNextStep => {
+const nextStepFor = (problem: UndoConflict['problem'], expectedLive: boolean): UndoConflictNextStep => {
   switch (problem) {
-    case 'superseded':
-      // The later receipt is a repair only for the actor that owns it; Archive may still hold
-      // retained content either way.
-      return supersededBy === 'self' ? 'use-later-receipt-or-archive' : 'redo-by-hand-or-archive';
     case 'archived-differently':
-      return 'use-later-receipt-or-archive';
+    case 'field-changed':
+    case 'archived-subject':
+      return 'change-by-hand-or-archive';
     case 'not-archived':
       return 'nothing-to-undo';
     case 'missing':
+    case 'already-exists':
       return 'nothing-to-restore';
     case 'moved':
     case 'page-changed':
     case 'reparented':
       return 'move-back-and-retry';
-    // Edit-only problems: a removal inverse never produces them, but the union is shared.
-    case 'field-changed':
-    case 'archived-subject':
     case 'shortcut-reference':
-      return 'use-later-receipt-or-archive';
+      return 'remove-reference-and-retry';
     case 'archive-state-changed':
-      return expectedLive ? 'restore-state-and-retry' : 'use-later-receipt-or-archive';
+      return expectedLive ? 'restore-state-and-retry' : 'change-by-hand-or-archive';
     case 'new-dependent':
       return 'restore-or-move-dependent-and-retry';
   }
@@ -194,142 +164,119 @@ const makeConflict = (
   entityType: UndoConflict['entityType'],
   id: string,
   problem: UndoConflict['problem'],
-  options: { title?: string; expectedLive?: boolean; supersededBy?: SupersedingActor } = {},
+  options: { title?: string; expectedLive?: boolean } = {},
 ): UndoConflict => ({
   entityType,
   id,
   ...(problem === 'missing' || options.title === undefined ? {} : { title: options.title }),
   problem,
-  nextStep: nextStepFor(problem, options.expectedLive ?? false, options.supersededBy),
-  ...(problem === 'superseded' ? { supersededBy: options.supersededBy ?? 'self' } : {}),
+  nextStep: nextStepFor(problem, options.expectedLive ?? false),
 });
 
-const conflictNextStepText = (nextStep: UndoConflictNextStep): string => {
-  switch (nextStep) {
-    case 'move-back-and-retry':
-      return 'move it back to its recorded section or parent, then retry Undo';
-    case 'restore-state-and-retry':
-      return 'restore it from Archive to the live state removal left behind, then retry Undo';
-    case 'restore-or-move-dependent-and-retry':
-      return 'restore or move the dependent item to its recorded state, then retry Undo';
-    case 'use-later-receipt-or-archive':
-      return 'use the later receipt if available, or recover retained content from Archive';
-    case 'remove-reference-and-retry':
-      return 'remove the reference or dependent item, then retry Undo';
-    case 'use-later-receipt':
-      return 'use the later receipt if available, or make the change again by hand';
-    case 'redo-by-hand':
-      return 'the later change belongs to another connection, so make the change again by hand';
-    case 'redo-by-hand-or-archive':
-      return 'the later change belongs to another connection, so make the change again by hand, or recover retained content from Archive';
-    case 'nothing-to-undo':
-      return 'there is nothing left to undo';
-    case 'nothing-to-restore':
-      return 'Undo cannot recreate this state; use Archive to recover retained content if it remains there';
-  }
-};
+const rowTitle = (change: UndoRowChange, row: OwnedRow): string =>
+  change.kind === 'task' ? (row as Task).title.trim() || 'Untitled task' : (row as Reflection).title?.trim() || 'Untitled reflection';
 
-/** Bounded MCP-safe refusal text, grouped by problem and carrying names only for current entities. */
-const conflictMessage = (section: ProjectSection, conflicts: readonly UndoConflict[]): string => {
-  const shown = conflicts.slice(0, 5);
-  const groups = new Map<string, { problem: UndoConflict['problem']; nextStep: UndoConflictNextStep; entities: string[] }>();
-  for (const conflict of shown) {
-    const key = `${conflict.problem}:${conflict.nextStep}`;
-    let group = groups.get(key);
-    if (group === undefined) {
-      group = { problem: conflict.problem, nextStep: conflict.nextStep, entities: [] };
-      groups.set(key, group);
-    }
-    const title = conflict.title === undefined ? '' : ` "${conflict.title}"`;
-    group.entities.push(`${conflict.entityType}${title} [${conflict.id}]`);
-  }
-  const summary = [...groups.values()]
-    .map(({ problem, nextStep, entities }) => `${problem}: ${entities.join(', ')} — ${conflictNextStepText(nextStep)}`)
-    .join('; ');
-  const more = conflicts.length > shown.length ? `; and ${conflicts.length - shown.length} more` : '';
-  return `undo_conflict: Undo for section "${nameOf(section)}" [${section.id}] was refused: ${summary}${more}. Open Archive to restore saved content when available`;
-};
-
-/** The problems a snapshot row's current structure has against what removal left, in a fixed order. */
-const rowProblems = (change: UndoRowChange, current: OwnedRow): UndoConflict[] => {
+/** The problems one recorded row has against the structure the other direction left behind. */
+const rowProblems = (change: UndoRowChange, current: OwnedRow, expected: Partial<TaskStructuralState>): UndoConflict[] => {
   const problems: UndoConflict[] = [];
-  const title =
-    change.kind === 'task'
-      ? (current as Task).title.trim() || 'Untitled task'
-      : (current as Reflection).title?.trim() || 'Untitled reflection';
-  const expectedLive = change.after.archivedAt === undefined;
   const conflict = (problem: UndoConflict['problem']) =>
-    problems.push(makeConflict(change.kind, change.id, problem, { title, expectedLive }));
-  const now = change.kind === 'task' ? taskStructureOf(current as Task) : reflectionStructureOf(current as Reflection);
-  const after = change.after as Partial<TaskStructuralState>;
-  const present = now as Partial<TaskStructuralState>;
-
-  if (!sameValue(present.sectionId, after.sectionId)) conflict('moved');
+    problems.push(makeConflict(change.kind, change.id, problem, { title: rowTitle(change, current), expectedLive: expected.archivedAt === undefined }));
+  const present: Partial<TaskStructuralState> =
+    change.kind === 'task' ? taskStructureOf(current as Task) : reflectionStructureOf(current as Reflection);
+  if (present.sectionId !== expected.sectionId) conflict('moved');
   if (
-    !sameValue(present.archivedAt, after.archivedAt) ||
-    !sameValue(present.archivedWithSectionId, after.archivedWithSectionId) ||
-    !sameValue(present.archivedWithTaskId, after.archivedWithTaskId)
+    present.archivedAt !== expected.archivedAt ||
+    present.archivedWithSectionId !== expected.archivedWithSectionId ||
+    present.archivedWithTaskId !== expected.archivedWithTaskId
   ) {
     conflict('archive-state-changed');
   }
-  if (!sameValue(present.parentTaskId, after.parentTaskId)) conflict('reparented');
+  if (present.parentTaskId !== expected.parentTaskId) conflict('reparented');
   return problems;
 };
 
+/** The project's rows, archived included, and the recorded ones by id. */
+const projectRows = async (
+  repositories: SectionHistoryRepositories,
+  operation: SectionRemoveUndoOperation,
+): Promise<{ tasks: Task[]; reflections: Reflection[]; byId: Map<string, OwnedRow> }> => {
+  const projectId = operation.section.projectId;
+  const tasks = await repositories.tasks.list({ projectId, includeArchived: true });
+  const reflections = await repositories.reflections.list({ projectId, includeArchived: true });
+  const byId = new Map<string, OwnedRow>([
+    ...tasks.map((task) => [task.id as string, task] as const),
+    ...reflections.map((reflection) => [reflection.id as string, reflection] as const),
+  ]);
+  return { tasks, reflections, byId };
+};
+
+/**
+ * The conflicts that make a removal action unsatisfiable for good, so it retires rather than
+ * blocks (docs/decisions/2026-09-operation-history-retired-actions.md). Every one is about the
+ * section itself, and every one means its existence or generation moved somewhere no user action
+ * can bring back, because `archiveGeneration` never decreases:
+ *
+ * - `not-archived` — Undo found the section live: it was restored out of band, and removing it
+ *   again would advance the generation past the captured one.
+ * - `archived-differently` — the section's generation or `archivedAt` is not the one this action
+ *   left: another removal happened since.
+ * - `missing` — a *retained* section's row is gone, which only a later disposable removal does.
+ * - `already-exists` — Undo of a *deleted* removal found a section already holding the id.
+ */
+const isPermanent = (operation: SectionRemoveUndoOperation) => (conflict: UndoConflict): boolean =>
+  conflict.entityType === 'section' &&
+  conflict.id === operation.section.id &&
+  (conflict.problem === 'not-archived' ||
+    conflict.problem === 'archived-differently' ||
+    conflict.problem === 'already-exists' ||
+    (conflict.problem === 'missing' && operation.disposition === 'retained'));
+
+const refuse = (direction: 'undo' | 'redo', operation: SectionRemoveUndoOperation, conflicts: readonly UndoConflict[]): void =>
+  refuseOnConflicts(
+    conflicts,
+    (shown) =>
+      `${direction === 'undo' ? 'Undo' : 'Redo'} for section "${nameOf(operation.section)}" [${operation.section.id}] was refused: ${shown}. ` +
+      'Open Archive to restore saved content when available',
+    isPermanent(operation),
+  );
+
 /**
  * Every reason Undo would overwrite a later write or break integrity, collected before anything
- * is written (decision rule 6): the section first, then snapshot rows in snapshot order, then
+ * is written (decision rule 6): the section first, then recorded rows in record order, then
  * dependents in collection order.
  */
-const collectConflicts = async (
-  repositories: SectionRemovalUndoRepositories,
-  record: UndoRecord,
+const revertConflicts = async (
+  repositories: SectionHistoryRepositories,
   operation: SectionRemoveUndoOperation,
   section: ProjectSection | null,
 ): Promise<UndoConflict[]> => {
   const conflicts: UndoConflict[] = [];
   const sectionId = operation.section.id;
-  const sectionConflict = (problem: UndoConflict['problem'], supersededBy?: SupersedingActor) =>
-    conflicts.push(makeConflict('section', sectionId, problem, {
-      title: section === null ? undefined : nameOf(section),
-      ...(supersededBy === undefined ? {} : { supersededBy }),
-    }));
+  const sectionConflict = (problem: UndoConflict['problem']) =>
+    conflicts.push(makeConflict('section', sectionId, problem, { title: section === null ? undefined : nameOf(section) }));
 
   if (operation.disposition === 'deleted') {
-    if (section !== null) sectionConflict(section.archivedAt === undefined ? 'not-archived' : 'archived-differently');
+    if (section !== null) sectionConflict('already-exists');
   } else if (section === null) {
     sectionConflict('missing');
+  } else if (section.archivedAt === undefined) {
+    sectionConflict('not-archived');
   } else {
-    if (section.archivedAt === undefined) sectionConflict('not-archived');
-    else if (section.archivedAt !== operation.postSectionArchivedAt) sectionConflict('archived-differently');
+    // **The removal check that replaces supersession.** Two removals of one section can land in a
+    // single clock instant — an Archive Restore and a re-removal, or a clock set backwards — so
+    // `archivedAt` alone would let this actor's Undo reverse another actor's removal. The
+    // generation cannot collide: every removal advances it and nothing moves it back.
+    if (section.archivedAt !== operation.postSectionArchivedAt || section.archiveGeneration !== operation.archiveGeneration) {
+      sectionConflict('archived-differently');
+    }
     if (section.pageId !== operation.section.pageId) sectionConflict('moved');
   }
 
-  // Timestamps cannot tell two removals of the same section apart — an Archive Restore and a
-  // re-removal can land in one clock instant, or under a clock set backwards — so a newer record
-  // for this section, by sequence, decides.
-  //
-  // The latest such record is kept rather than a bare boolean, so the conflict can say whose
-  // change it was: a receipt belongs to one exact actor, and telling a person to use an agent's
-  // receipt names a repair they cannot reach (`note-2026-09-15-005`).
-  const newer = (await repositories.undoRecords.list({ workspaceId: record.workspaceId })).reduce<UndoRecord | null>(
-    (latest, other) => {
-      if (other.sequence <= record.sequence || subjectSectionOf(other) !== sectionId) return latest;
-      return latest === null || other.sequence > latest.sequence ? other : latest;
-    },
-    null,
-  );
-  if (newer !== null) sectionConflict('superseded', sameUndoRecordActor(record, newer) ? 'self' : newer.actor);
-
-  const tasks = await repositories.tasks.list({ projectId: record.projectId, includeArchived: true });
-  const reflections = await repositories.reflections.list({ projectId: record.projectId, includeArchived: true });
-  const tasksById = new Map(tasks.map((task) => [task.id as string, task]));
-  const reflectionsById = new Map(reflections.map((reflection) => [reflection.id as string, reflection]));
-
+  const { tasks, reflections, byId } = await projectRows(repositories, operation);
   for (const change of operation.rows) {
-    const current = change.kind === 'task' ? tasksById.get(change.id) : reflectionsById.get(change.id);
+    const current = byId.get(change.id);
     if (current === undefined) conflicts.push(makeConflict(change.kind, change.id, 'missing'));
-    else conflicts.push(...rowProblems(change, current));
+    else conflicts.push(...rowProblems(change, current, change.after));
   }
 
   const recorded = new Set<string>(operation.rows.map((change) => change.id));
@@ -347,50 +294,49 @@ const collectConflicts = async (
   }
   for (const reflection of reflections) {
     if (!recorded.has(reflection.id) && reflection.archivedWithSectionId === sectionId) {
-      conflicts.push(
-        makeConflict('reflection', reflection.id, 'new-dependent', {
-          title: reflection.title?.trim() || 'Untitled reflection',
-        }),
-      );
+      conflicts.push(makeConflict('reflection', reflection.id, 'new-dependent', { title: reflection.title?.trim() || 'Untitled reflection' }));
     }
   }
   return conflicts;
 };
 
-/**
- * Reverses one section removal **inside the caller's unit of work**. Refusals — blocked,
- * conflicting, unavailable — throw before any write, so the caller's unit rolls back nothing
- * because nothing was written. It opens no unit, asserts no grant and records no activity:
- * `UndoService` does all three.
- */
-export const executeSectionRemovalUndo = async (
-  repositories: SectionRemovalUndoRepositories,
+/** Writes each recorded row's `before` or `after` structure verbatim over its other fields. */
+const writeRecordedRows = async (
+  repositories: SectionHistoryRepositories,
   clock: Clock,
-  record: UndoRecord,
+  operation: SectionRemoveUndoOperation,
+  side: 'before' | 'after',
+): Promise<void> => {
+  const owned = ownedKindOf(operation.section.type);
+  if (owned === undefined) return;
+  for (const change of operation.rows) {
+    const row = change.kind === 'task' ? await repositories.tasks.find(change.id) : await repositories.reflections.find(change.id);
+    if (row === null) continue; // Unreachable: a missing row is a conflict before any write.
+    const next = { ...row } as Record<string, unknown>;
+    for (const key of ['sectionId', 'parentTaskId', 'archivedAt', 'archivedWithSectionId', 'archivedWithTaskId']) delete next[key];
+    await writeRow(repositories, clock, owned, { ...next, ...change[side] } as OwnedRow);
+  }
+};
+
+/**
+ * Undo of one section removal, **inside the caller's unit of work**. Refusals throw before any
+ * write. The section keeps the generation the removal captured — Undo never moves it back.
+ */
+export const revertSectionRemoval = async (
+  repositories: SectionHistoryRepositories,
+  clock: Clock,
   operation: SectionRemoveUndoOperation,
 ): Promise<UndoResult> => {
-  const project = await repositories.projects.find(record.projectId);
-  if (project === null) throw new EntityNotFoundError('project', record.projectId);
-  const blocker = await findHighestWriteBlocker(repositories.projects, project.id);
-  if (blocker !== undefined) {
-    const blockingProject = await repositories.projects.find(blocker);
-    const blockingProjectTitle = blockingProject?.name ?? blocker;
-    throw undoRefusal(
-      { reason: 'undo_blocked', undoId: record.id, blockingProjectId: blocker, blockingProjectTitle },
-      `project "${blockingProjectTitle}" [${blocker}] is archived; reactivate it before undoing this removal`,
-    );
-  }
+  const project = await repositories.projects.find(operation.section.projectId);
+  if (project === null) throw new EntityNotFoundError('project', operation.section.projectId);
 
   const section = await repositories.sections.find(operation.section.id);
-  const conflicts = await collectConflicts(repositories, record, operation, section);
-  if (conflicts.length > 0) {
-    throw undoRefusal(
-      { reason: 'undo_conflict', undoId: record.id, conflicts },
-      conflictMessage(operation.section, conflicts).replace(/^undo_conflict: /, ''),
-    );
-  }
+  refuse('undo', operation, await revertConflicts(repositories, operation, section));
 
-  const sectionToRestore = section ?? operation.section;
+  const sectionToRestore = section ?? {
+    ...operation.section,
+    archiveGeneration: await generationFloor(repositories, operation.section.id, operation.archiveGeneration),
+  };
   const canonicalPage = (await repositories.pages.list({ projectId: project.id, kind: canonicalPageKindFor(project.kind) }))[0];
   const destination = resolveUndoDestination({
     originalPage: await repositories.pages.find(sectionToRestore.pageId),
@@ -399,8 +345,8 @@ export const executeSectionRemovalUndo = async (
     shortcutsOnCanonicalPage: canonicalPage === undefined ? [] : await repositories.shortcuts.list({ pageId: canonicalPage.id }),
   });
   if (destination.kind === 'unavailable') {
-    throw undoRefusal(
-      { reason: 'undo_unavailable', undoId: record.id, problem: destination.problem },
+    throw new OperationExecutionRefused(
+      { kind: 'unavailable', problem: destination.problem },
       `the ${nameOf(sectionToRestore)} section has no page it can return to (${destination.problem})`,
     );
   }
@@ -427,23 +373,120 @@ export const executeSectionRemovalUndo = async (
   ordered.splice(index, 0, { kind: 'section', value: restored });
   await renumberPlacements(repositories, clock, ordered, { kind: 'section', id: restored.id });
 
-  const owned = ownedKindOf(sectionToRestore.type);
-  for (const change of operation.rows) {
-    if (owned === undefined) break;
-    const row =
-      change.kind === 'task' ? await repositories.tasks.find(change.id) : await repositories.reflections.find(change.id);
-    if (row === null) continue; // Unreachable: a missing row is a conflict above.
-    const next = { ...row } as Record<string, unknown>;
-    for (const key of ['sectionId', 'parentTaskId', 'archivedAt', 'archivedWithSectionId', 'archivedWithTaskId']) delete next[key];
-    await writeRow(repositories, clock, owned, { ...next, ...change.before } as OwnedRow);
-  }
+  await writeRecordedRows(repositories, clock, operation, 'before');
 
   return {
-    undoId: record.id,
     operation: 'section.remove',
     outcome: destination.kind === 'fallback' ? 'partial' : 'restored',
     section: (await repositories.sections.find(restored.id)) ?? restored,
     placement: { pageId: destination.page.id, index, strategy, pageEnabled: destination.page.enabled },
     restoredRowCount: operation.rows.length,
+  };
+};
+
+/** The editable content of a section, which a disposable removal destroys on Redo. */
+const substanceOf = (section: ProjectSection): unknown => ({
+  type: section.type,
+  title: section.title ?? null,
+  columnSpan: section.columnSpan,
+  collapsed: section.collapsed,
+  config: section.config,
+});
+
+/**
+ * Everything that stops Redo re-removing exactly what the removal removed. Redo never absorbs
+ * content created after the Undo: a row now in the section that was not recorded refuses, as does
+ * a disposable section whose content changed or that something now references.
+ */
+const reapplyConflicts = async (
+  repositories: SectionHistoryRepositories,
+  operation: SectionRemoveUndoOperation,
+  section: ProjectSection | null,
+): Promise<UndoConflict[]> => {
+  const sectionId = operation.section.id;
+  if (section === null) return [makeConflict('section', sectionId, 'missing')];
+
+  const conflicts: UndoConflict[] = [];
+  const title = nameOf(section);
+  // Undo left the section live at the generation this removal wrote; anything else is a later
+  // removal, whether or not it has been reversed since.
+  if (section.archivedAt !== undefined || section.archiveGeneration !== operation.archiveGeneration) {
+    conflicts.push(makeConflict('section', sectionId, 'archived-differently', { title }));
+  }
+  if (section.pageId !== operation.section.pageId) conflicts.push(makeConflict('section', sectionId, 'moved', { title }));
+  if (operation.disposition === 'deleted' && !sameValue(substanceOf(section), substanceOf(operation.section))) {
+    conflicts.push(makeConflict('section', sectionId, 'field-changed', { title }));
+  }
+
+  const { tasks, reflections, byId } = await projectRows(repositories, operation);
+  for (const change of operation.rows) {
+    const current = byId.get(change.id);
+    if (current === undefined) conflicts.push(makeConflict(change.kind, change.id, 'missing'));
+    else conflicts.push(...rowProblems(change, current, change.before));
+  }
+
+  // A row the removal would now settle without having recorded it. A cascade archives live rows
+  // and leaves independently archived ones alone, so only an unrecorded live row would be
+  // absorbed; a reassign moves every row and a deletion needs none left, so any unrecorded row is.
+  const recorded = new Set<string>(operation.rows.map((change) => change.id));
+  const everyRow = operation.disposition === 'deleted' || operation.appliedPolicy === 'reassign';
+  const absorbed = (row: { id: string; sectionId: string; archivedAt?: string; archivedWithSectionId?: string }) =>
+    !recorded.has(row.id) &&
+    ((row.sectionId === sectionId && (everyRow || row.archivedAt === undefined)) || (everyRow && row.archivedWithSectionId === sectionId));
+  for (const task of tasks) {
+    if (absorbed(task)) conflicts.push(makeConflict('task', task.id, 'new-dependent', { title: task.title.trim() || 'Untitled task' }));
+  }
+  for (const reflection of reflections) {
+    if (absorbed(reflection)) {
+      conflicts.push(makeConflict('reflection', reflection.id, 'new-dependent', { title: reflection.title?.trim() || 'Untitled reflection' }));
+    }
+  }
+
+  if (operation.reassignToSectionId !== undefined) {
+    const target = await repositories.sections.find(operation.reassignToSectionId);
+    if (target === null) conflicts.push(makeConflict('section', operation.reassignToSectionId, 'missing'));
+    else if (target.archivedAt !== undefined) conflicts.push(makeConflict('section', target.id, 'archived-subject', { title: nameOf(target) }));
+  }
+
+  if (operation.disposition === 'deleted') {
+    for (const shortcut of await repositories.shortcuts.list()) {
+      if (shortcut.sourceSectionId === sectionId) conflicts.push(makeConflict('shortcut', shortcut.id, 'shortcut-reference'));
+    }
+  }
+  return conflicts;
+};
+
+/**
+ * Redo of one section removal. It replays the recorded state **verbatim** — `archivedAt`, the
+ * captured `archiveGeneration`, each row's markers — and stamps only `updatedAt` from the clock.
+ * A fresh `archivedAt` or a bumped generation would make the next Undo of this same action refuse
+ * as `archived-differently`. A removal recorded as `deleted` deletes the section again.
+ */
+export const reapplySectionRemoval = async (
+  repositories: SectionHistoryRepositories,
+  clock: Clock,
+  operation: SectionRemoveUndoOperation,
+): Promise<RedoResult> => {
+  const section = await repositories.sections.find(operation.section.id);
+  refuse('redo', operation, await reapplyConflicts(repositories, operation, section));
+  if (section === null) throw new EntityNotFoundError('section', operation.section.id);
+
+  await writeRecordedRows(repositories, clock, operation, 'after');
+  const archived = ProjectSectionSchema.parse({
+    ...section,
+    archivedAt: operation.postSectionArchivedAt,
+    archiveGeneration: operation.archiveGeneration,
+    updatedAt: clock.now().toISOString(),
+  });
+  if (operation.disposition === 'retained') await repositories.sections.update(archived);
+  else await repositories.sections.remove(section.id);
+  await renumberPlacements(repositories, clock, await listPlacements(repositories, section.pageId));
+
+  return {
+    operation: 'section.remove',
+    outcome: 'removed',
+    section: archived,
+    disposition: operation.disposition,
+    settledRowCount: operation.rows.length,
   };
 };

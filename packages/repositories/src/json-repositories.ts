@@ -3,13 +3,15 @@ import type {
   MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageQuery, ProjectQuery, ProjectSection,
   PrototypeDocument, Reflection,
   ReflectionId, ReflectionQuery, SectionId, SectionQuery, SectionShortcut, SectionShortcutId,
-  SectionShortcutQuery, Task, TaskId, TaskQuery, UndoRecord, UndoRecordId, UndoRecordQuery, User, UserId,
+  OperationAction, OperationActionId, OperationActionQuery, OperationHistory, OperationHistoryId, OperationHistoryQuery,
+  SectionShortcutQuery, Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
 import { assertCanMutateDataStore, type DataStore, getActiveDocument } from './data-store';
 import { RepositoryConflictError, RepositoryNotFoundError } from './errors';
 import type {
   ActivityRepository, AgentConnectionRepository, MilestoneRepository, ProjectPageRepository, ProjectRepository,
-  ReflectionRepository, SectionRepository, SectionShortcutRepository, TaskRepository, UndoRecordRepository, UserRepository,
+  OperationActionRepository, OperationHistoryRepository, ReflectionRepository, SectionRepository, SectionShortcutRepository,
+  TaskRepository, UserRepository,
 } from './interfaces';
 
 type StoredCollection = Exclude<keyof PrototypeDocument, 'schemaVersion' | 'workspaces'>;
@@ -225,16 +227,37 @@ export class JsonUserRepository extends JsonCollectionRepository<User> implement
   override find(id: UserId): Promise<User | null> { return super.find(id); }
 }
 
-export class JsonUndoRecordRepository extends JsonCollectionRepository<UndoRecord> implements UndoRecordRepository {
-  constructor(store: DataStore) { super(store, 'undoRecords'); }
+export class JsonOperationHistoryRepository
+  extends JsonCollectionRepository<OperationHistory>
+  implements OperationHistoryRepository
+{
+  constructor(store: DataStore) { super(store, 'operationHistories'); }
 
-  override async list(query: UndoRecordQuery = {}): Promise<UndoRecord[]> {
-    const records = await super.list();
-    return records.filter((record) => query.workspaceId === undefined || record.workspaceId === query.workspaceId);
+  override async list(query: OperationHistoryQuery = {}): Promise<OperationHistory[]> {
+    const histories = await super.list();
+    return histories.filter(
+      (history) =>
+        (query.workspaceId === undefined || history.workspaceId === query.workspaceId) &&
+        (query.projectId === undefined || history.projectId === query.projectId),
+    );
   }
 
-  override find(id: UndoRecordId): Promise<UndoRecord | null> { return super.find(id); }
+  override find(id: OperationHistoryId): Promise<OperationHistory | null> { return super.find(id); }
+}
 
-  /** Pruning — see `UndoRecordRepository`. */
-  remove(id: UndoRecordId): Promise<void> { return this.delete(id); }
+export class JsonOperationActionRepository
+  extends JsonCollectionRepository<OperationAction>
+  implements OperationActionRepository
+{
+  constructor(store: DataStore) { super(store, 'operationActions'); }
+
+  override async list(query: OperationActionQuery = {}): Promise<OperationAction[]> {
+    const actions = await super.list();
+    return actions.filter((action) => query.historyId === undefined || action.historyId === query.historyId);
+  }
+
+  override find(id: OperationActionId): Promise<OperationAction | null> { return super.find(id); }
+
+  /** Retention pruning — see `OperationActionRepository`. */
+  remove(id: OperationActionId): Promise<void> { return this.delete(id); }
 }

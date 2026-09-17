@@ -48,8 +48,10 @@ import type {
   SectionRemovalResult,
   SectionAddResult,
   SectionWriteResult,
-  UndoRecordId,
-  UndoResult,
+  OperationHistoryId,
+  OperationHistorySummary,
+  OperationHistoryTransitionInput,
+  OperationHistoryTransitionResult,
 } from '@cwm/contracts';
 
 /**
@@ -174,14 +176,18 @@ export interface SectionGateway {
   update(id: SectionId, input: UpdateSectionInput): Promise<SectionWriteResult>;
   move(id: SectionId, input: MoveSectionInput): Promise<SectionWriteResult>;
   duplicate(id: SectionId): Promise<ProjectSection>;
-  /** Removes or retains the section according to content and references, and returns its Undo receipt. */
+  /** Removes or retains the section according to content and references, and returns its operation receipt. */
   remove(id: SectionId, input?: RemoveSectionInput): Promise<SectionRemovalResult>;
   restore(id: SectionId): Promise<ProjectSection>;
 }
 
-/** The receipt id is the only input to Undo; the server owns inverse data and actor checks. */
-export interface UndoGateway {
-  execute(id: UndoRecordId): Promise<UndoResult>;
+/**
+ * §31's per-actor operation history. The history id, the action id and the revision the caller
+ * read are the whole input to a transition; the server owns inverse data, ordering and actor checks.
+ */
+export interface OperationHistoryGateway {
+  summary(projectId: ProjectId): Promise<OperationHistorySummary>;
+  transition(historyId: OperationHistoryId, input: OperationHistoryTransitionInput): Promise<OperationHistoryTransitionResult>;
 }
 
 /** §27's layout-only reference gateway. Sources identify canonical sections; they never carry rows. */
@@ -243,7 +249,7 @@ export interface WorkManagerGateway {
   reflections: ReflectionGateway;
   agents: AgentGateway;
   activity: ActivityGateway;
-  undo: UndoGateway;
+  history: OperationHistoryGateway;
 }
 
 export const WORK_MANAGER_GATEWAY = new InjectionToken<WorkManagerGateway>('WORK_MANAGER_GATEWAY');

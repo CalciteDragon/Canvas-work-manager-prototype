@@ -18,7 +18,8 @@ import {
   SectionWriteResultSchema,
   TaskSchema,
   TimelineResultSchema,
-  UndoResultSchema,
+  OperationHistorySummarySchema,
+  OperationHistoryTransitionResultSchema,
   ShortcutSourceSchema,
   type ActivityQuery,
   type AgentConnectionId,
@@ -49,14 +50,15 @@ import {
   type TaskQuery,
   type UpdateSectionInput,
   type UpdateTaskInput,
-  type UndoRecordId,
+  type OperationHistoryId,
+  type OperationHistoryTransitionInput,
 } from '@cwm/contracts';
 import { z } from 'zod';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
-import type { ActivityGateway, AgentGateway, ArchiveGateway, DashboardGateway, JournalGateway, ProgressGateway, ProjectGateway, ProjectPageGateway, ReflectionGateway, SectionGateway, SectionShortcutGateway, TaskGateway, TimelineGateway, TodosGateway, UndoGateway, WorkManagerGateway } from './work-manager-gateway';
+import type { ActivityGateway, AgentGateway, ArchiveGateway, DashboardGateway, JournalGateway, OperationHistoryGateway, ProgressGateway, ProjectGateway, ProjectPageGateway, ReflectionGateway, SectionGateway, SectionShortcutGateway, TaskGateway, TimelineGateway, TodosGateway, WorkManagerGateway } from './work-manager-gateway';
 
 /**
  * The §10 adapter: Angular → `localhost:4310`. Everything transport-shaped lives here —
@@ -218,9 +220,11 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       this.send('GET', `/api/activity${queryString(activityQueryParams(query))}`, ActivityFeedEntrySchema.array()),
   };
 
-  readonly undo: UndoGateway = {
-    execute: (id: UndoRecordId) =>
-      this.send('POST', `/api/undo/${encodeURIComponent(id)}`, UndoResultSchema),
+  readonly history: OperationHistoryGateway = {
+    summary: (projectId) =>
+      this.send('GET', `/api/projects/${encodeURIComponent(projectId)}/history`, OperationHistorySummarySchema),
+    transition: (historyId: OperationHistoryId, input: OperationHistoryTransitionInput) =>
+      this.send('POST', `/api/history/${encodeURIComponent(historyId)}/transition`, OperationHistoryTransitionResultSchema, input),
   };
 
   private async send<T>(method: string, path: string, schema: z.ZodType<T>, body?: unknown): Promise<T> {

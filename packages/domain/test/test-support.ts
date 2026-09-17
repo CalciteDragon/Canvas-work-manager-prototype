@@ -1,6 +1,6 @@
-import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type PrototypeDocument, type SectionId, type SectionRemovalUndoResult, type UserId, type WorkspaceId } from '@cwm/contracts';
+import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type PrototypeDocument, type OperationReceipt, type RedoResult, type SectionId, type UndoResult, type UserId, type WorkspaceId } from '@cwm/contracts';
 import { PERSONAS, SEED_NOW } from '@cwm/prototype-data';
-import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonSectionShortcutRepository, JsonTaskRepository, JsonUndoRecordRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
+import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonOperationActionRepository, JsonOperationHistoryRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonSectionShortcutRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
 import type { ActorContext } from '../src/actor';
 import { PrototypeClock } from '../src/clock';
 import type { IdGenerator } from '../src/ids';
@@ -18,8 +18,8 @@ import { SectionService } from '../src/section-service';
 import { SectionShortcutService } from '../src/section-shortcut-service';
 import { TaskService } from '../src/task-service';
 import { TimelineService } from '../src/timeline-service';
-import { RepositoryUndoRecorder, type UndoRecorder } from '../src/undo-recorder';
-import { UndoService } from '../src/undo-service';
+import { RepositoryOperationRecorder, type OperationRecorder } from '../src/operation-recorder';
+import { OperationHistoryService } from '../src/operation-history-service';
 import { WorkspaceService } from '../src/workspace-service';
 
 /** `data-store.test.ts`'s tracking store is test-local; several tests here count persists. */
@@ -163,8 +163,8 @@ export const agentActorFor = (index: 0 | 1, permissions: AgentPermission[] = [])
 export interface HarnessOptions {
   /** §62's publisher, when a test wants to observe the live frames a mutation emits. */
   events?: LiveEventPublisher;
-  /** Replaces the Undo recorder `SectionService` records through — the recorder-failure seam. */
-  recorder?: (real: UndoRecorder) => UndoRecorder;
+  /** Replaces the history recorder `SectionService` records through — the recorder-failure seam. */
+  recorder?: (real: OperationRecorder) => OperationRecorder;
   /** Replaces the counting id generator, for tests where id order must not match insertion order. */
   ids?: IdGenerator;
 }
@@ -184,14 +184,15 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
   const activities = new JsonActivityRepository(store);
   const agents = new JsonAgentConnectionRepository(store);
   const users = new JsonUserRepository(store);
-  const undoRecords = new JsonUndoRecordRepository(store);
+  const operationHistories = new JsonOperationHistoryRepository(store);
+  const operationActions = new JsonOperationActionRepository(store);
   const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids, events: options.events });
 
   // Built ahead of the object literal: task and reflection writes resolve their container
   // through it, so it has to exist before they do.
-  const realRecorder = new RepositoryUndoRecorder({ undoRecords, clock, ids });
-  const undoRecorder = options.recorder?.(realRecorder) ?? realRecorder;
-  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, undo: undoRecorder, clock, ids, unitOfWork });
+  const realRecorder = new RepositoryOperationRecorder({ histories: operationHistories, actions: operationActions, clock, ids });
+  const historyRecorder = options.recorder?.(realRecorder) ?? realRecorder;
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, history: historyRecorder, clock, ids, unitOfWork });
   const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
   /**
    * The pre-Slice-32 domain tests use the section itself as the return value. Keep that small
@@ -208,12 +209,9 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
   legacySectionService.update = async (...args) => (await sectionService.update(...args)).section;
   legacySectionService.move = async (...args) => (await sectionService.move(...args)).section;
 
-  const undoService = new UndoService({ undoRecords, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork });
-  /** See `legacySectionService`: existing removal tests only exercise the removal result shape. */
-  const legacyUndoService = Object.create(undoService) as Omit<UndoService, 'undo'> & {
-    undo: (...args: Parameters<UndoService['undo']>) => Promise<SectionRemovalUndoResult>;
-  };
-  legacyUndoService.undo = async (...args) => (await undoService.undo(...args)) as SectionRemovalUndoResult;
+  const operationHistoryService = new OperationHistoryService({
+    histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork,
+  });
 
   return {
     store,
@@ -229,8 +227,9 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     activities,
     agents,
     users,
-    undoRecords,
-    undoRecorder,
+    operationHistories,
+    operationActions,
+    historyRecorder,
     activity,
     actor: actorFor(0),
     other: actorFor(1),
@@ -246,8 +245,34 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     sectionService: legacySectionService,
     sectionShortcutService,
     workspaceService: new WorkspaceService({ projects, tasks, reflections, clock }),
-    undoService: legacyUndoService,
     sectionWriteService: sectionService,
-    undoServiceWithEdits: undoService,
+    operationHistoryService,
+    /**
+     * Undoes or redoes the caller's **next** action in `projectId`, reading the summary first the
+     * way a client does. Throws when that direction is empty, so a test cannot silently no-op.
+     */
+    step: async (actor: ActorContext, projectId: ProjectId, direction: 'undo' | 'redo') => {
+      const summary = await operationHistoryService.summary(actor, projectId);
+      const next = summary[direction];
+      if (summary.historyId === null || next === null) throw new Error(`nothing to ${direction} in ${projectId}`);
+      return operationHistoryService.transition(actor, summary.historyId, { actionId: next.actionId, direction, expectedRevision: summary.revision });
+    },
+    /**
+     * Undoes the action a receipt names at its history's **current** revision — what a client that
+     * re-read the summary would send — and returns just the executor's result.
+     */
+    undo: async (actor: ActorContext, receipt: OperationReceipt): Promise<UndoResult> => {
+      const revision = (await operationHistories.find(receipt.historyId))?.revision ?? receipt.revision;
+      const transition = await operationHistoryService.transition(actor, receipt.historyId, { actionId: receipt.actionId, direction: 'undo', expectedRevision: revision });
+      if (transition.direction !== 'undo') throw new TypeError('an undo transition answered as a redo');
+      return transition.result;
+    },
+    /** `undo`'s Redo twin. */
+    redo: async (actor: ActorContext, receipt: OperationReceipt): Promise<RedoResult> => {
+      const revision = (await operationHistories.find(receipt.historyId))?.revision ?? receipt.revision;
+      const transition = await operationHistoryService.transition(actor, receipt.historyId, { actionId: receipt.actionId, direction: 'redo', expectedRevision: revision });
+      if (transition.direction !== 'redo') throw new TypeError('a redo transition answered as an undo');
+      return transition.result;
+    },
   };
 };

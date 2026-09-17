@@ -240,7 +240,7 @@ const CASES: Record<string, ToolCase> = {
     input: { projectId: PROJECT, type: 'progress', position: 1 },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toMatchObject({ section: { projectId: PROJECT, type: 'progress', position: 1 }, undo: { operation: 'section.add' } });
+      expect(result).toMatchObject({ section: { projectId: PROJECT, type: 'progress', position: 1 }, operation: { operation: 'section.add' } });
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
       expect(listed.find(({ id }) => id === result.section.id)?.position).toBe(1);
       expect(await harness.services.shortcuts.list(agent(['projects.read']), PROJECT, { pageId: SHORTCUT_DESTINATION_PAGE })).toMatchObject([
@@ -252,7 +252,7 @@ const CASES: Record<string, ToolCase> = {
     input: { sectionId: VIEW_SECTION, position: 0 },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toMatchObject({ section: { id: VIEW_SECTION, position: 0 }, undo: { operation: 'section.move' } });
+      expect(result).toMatchObject({ section: { id: VIEW_SECTION, position: 0 }, operation: { operation: 'section.move' } });
       expect((await harness.services.sections.get(agent(['projects.read']), VIEW_SECTION)).position).toBe(0);
     },
   },
@@ -275,8 +275,8 @@ const CASES: Record<string, ToolCase> = {
       // not acquired a hidden `projects.read` requirement by reading the record back.
       expect(result.section).toMatchObject({ id: VIEW_SECTION });
       expect(result.section.archivedAt).toBeDefined();
-      // And a receipt with no inverse data in it: the id, what it undoes, and its window.
-      expect(Object.keys(result.undo).sort()).toEqual(['createdAt', 'expiresAt', 'label', 'operation', 'sequence', 'undoId']);
+      // And a receipt with no inverse data in it: the history and action, its revision, what it undoes, and its window.
+      expect(Object.keys(result.operation).sort()).toEqual(['actionId', 'createdAt', 'expiresAt', 'historyId', 'label', 'operation', 'revision']);
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
       expect(listed.map(({ id }) => id)).not.toContain(VIEW_SECTION);
     },
@@ -292,17 +292,52 @@ const CASES: Record<string, ToolCase> = {
       expect((await harness.services.sections.get(agent(['projects.read']), CONTENT_SECTION as never)).archivedAt).toBeUndefined();
     },
   },
+  get_operation_history: {
+    // The harness's ids are deterministic, so the removal below creates `history-1` and
+    // `operation-1` — made by the same connection the success case reads with.
+    input: { projectId: PROJECT },
+    prepare: async (harness) => {
+      await harness.services.sections.remove(agent(['projects.write']), VIEW_SECTION);
+    },
+    verify: (result) => {
+      expect(result).toEqual({
+        projectId: PROJECT, historyId: 'history-1', revision: 1,
+        undo: { actionId: 'operation-1', operation: 'section.remove', label: expect.stringMatching(/^Removed the /), expiresAt: expect.any(String) },
+        redo: null, blockedBy: null,
+      });
+    },
+  },
   undo_operation: {
-    // The receipt ids are deterministic in the harness, so the removal below issues `undo-1` —
-    // made by the same connection the success case then undoes with.
-    input: { undoId: 'undo-1' },
+    input: { historyId: 'history-1', actionId: 'operation-1', expectedRevision: 1 },
     mutates: true,
     prepare: async (harness) => {
       await harness.services.sections.remove(agent(['projects.write']), VIEW_SECTION);
     },
     verify: async (result, harness) => {
-      expect(result).toMatchObject({ undoId: 'undo-1', outcome: 'restored', section: { id: VIEW_SECTION } });
+      expect(result).toMatchObject({
+        direction: 'undo', actionId: 'operation-1',
+        result: { operation: 'section.remove', outcome: 'restored', section: { id: VIEW_SECTION } },
+        summary: { revision: 2, undo: null, redo: { actionId: 'operation-1' } },
+      });
       expect((await harness.services.sections.get(agent(['projects.read']), VIEW_SECTION)).archivedAt).toBeUndefined();
+    },
+  },
+  redo_operation: {
+    input: { historyId: 'history-1', actionId: 'operation-1', expectedRevision: 2 },
+    mutates: true,
+    prepare: async (harness) => {
+      const writer = agent(['projects.write']);
+      await harness.services.sections.remove(writer, VIEW_SECTION);
+      await harness.services.history.transition(writer, 'history-1' as never, { actionId: 'operation-1' as never, direction: 'undo', expectedRevision: 1 });
+    },
+    verify: async (result, harness) => {
+      expect(result).toMatchObject({
+        direction: 'redo', actionId: 'operation-1',
+        result: { operation: 'section.remove', outcome: 'removed' },
+        summary: { revision: 3, undo: { actionId: 'operation-1' }, redo: null },
+      });
+      const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
+      expect(listed.map(({ id }) => id)).not.toContain(VIEW_SECTION);
     },
   },
   list_section_shortcuts: {
@@ -458,38 +493,78 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
 });
 
 /**
- * MCP carries a refusal's message and nothing else, so an agent tells Undo's refusals apart by
- * the reason token each message starts with (docs/decisions/2026-09-section-removal-undo-records.md).
+ * MCP carries a refusal's message and nothing else, so an agent tells history refusals apart by
+ * the reason token each message starts with (docs/decisions/2026-09-operation-history-scope.md).
  */
-describe('undo_operation refusals, as an agent sees them', () => {
-  const writer = () => agent(['projects.write']);
+describe('undo_operation and redo_operation refusals, as an agent sees them', () => {
+  const writer = () => agent(['projects.read', 'projects.write']);
+  const removed = async (harness: ReturnType<typeof buildHarness>) =>
+    ((await harness.registry.call('remove_section', { sectionId: VIEW_SECTION }, writer())) as {
+      operation: { historyId: string; actionId: string; revision: number };
+    }).operation;
 
-  it('refuses a repeat with a message starting undo_consumed:', async () => {
+  it('a replayed Undo refuses as history_revision_stale and executes nothing a second time', async () => {
     const harness = buildHarness();
-    const { undo } = (await harness.registry.call('remove_section', { sectionId: VIEW_SECTION }, writer())) as {
-      undo: { undoId: string };
-    };
-    await harness.registry.call('undo_operation', { undoId: undo.undoId }, writer());
+    const { historyId, actionId, revision } = await removed(harness);
+    await harness.registry.call('undo_operation', { historyId, actionId, expectedRevision: revision }, writer());
+    const before = harness.store.snapshot();
 
-    await expect(harness.registry.call('undo_operation', { undoId: undo.undoId }, writer())).rejects.toThrow(/^undo_consumed: /);
+    await expect(harness.registry.call('undo_operation', { historyId, actionId, expectedRevision: revision }, writer())).rejects.toThrow(
+      /^history_revision_stale: /,
+    );
+    expect(harness.store.snapshot()).toEqual(before);
   });
 
-  it('answers not-found for a receipt another connection of the same person was issued', async () => {
+  it('an older action refuses as history_not_next, and the chain undoes and redoes in order', async () => {
     const harness = buildHarness();
-    const { undo } = (await harness.registry.call('remove_section', { sectionId: VIEW_SECTION }, writer())) as {
-      undo: { undoId: string };
+    const added = (await harness.registry.call('create_section', { projectId: PROJECT, type: 'progress' }, writer())) as {
+      section: { id: string }; operation: { historyId: string; actionId: string };
     };
+    const updated = ((await harness.registry.call('update_section', { sectionId: added.section.id, title: 'Renamed' }, writer())) as {
+      operation: { actionId: string; revision: number };
+    }).operation;
+
+    await expect(harness.registry.call('undo_operation', {
+      historyId: added.operation.historyId, actionId: added.operation.actionId, expectedRevision: updated.revision,
+    }, writer())).rejects.toThrow(/^history_not_next: /);
+
+    const read = async () => (await harness.registry.call('get_operation_history', { projectId: PROJECT }, writer())) as {
+      historyId: string; revision: number; undo: { actionId: string } | null; redo: { actionId: string } | null;
+    };
+    for (const direction of ['undo', 'undo', 'redo', 'redo'] as const) {
+      const summary = await read();
+      await harness.registry.call(direction === 'undo' ? 'undo_operation' : 'redo_operation', {
+        historyId: summary.historyId, actionId: summary[direction]!.actionId, expectedRevision: summary.revision,
+      }, writer());
+    }
+    expect(await read()).toMatchObject({ undo: { actionId: updated.actionId }, redo: null });
+  });
+
+  it('answers not-found for a history another connection of the same person owns', async () => {
+    const harness = buildHarness();
+    const { historyId, actionId, revision } = await removed(harness);
     const otherConnection = { ...writer(), agentConnectionId: 'agent-other' } as ReturnType<typeof agent>;
 
-    await expect(harness.registry.call('undo_operation', { undoId: undo.undoId }, otherConnection)).rejects.toThrow(
+    await expect(harness.registry.call('undo_operation', { historyId, actionId, expectedRevision: revision }, otherConnection)).rejects.toThrow(
       expect.objectContaining({ name: 'EntityNotFoundError' }),
     );
+    expect(await harness.registry.call('get_operation_history', { projectId: PROJECT }, otherConnection)).toMatchObject({ historyId: null });
   });
 
-  it('rejects anything but an undoId', async () => {
+  it('rejects the retired undoId input and any unknown field', async () => {
     const harness = buildHarness();
+    const { historyId, actionId, revision } = await removed(harness);
 
-    await expect(harness.registry.call('undo_operation', { undoId: 'undo-1', force: true }, writer())).rejects.toThrow();
+    await expect(harness.registry.call('undo_operation', { undoId: 'undo-1' }, writer())).rejects.toThrow();
+    await expect(harness.registry.call('redo_operation', { historyId, actionId, expectedRevision: revision, direction: 'undo' }, writer())).rejects.toThrow();
+  });
+
+  it('undo/redo/summary tools declare their own grants', () => {
+    const tools = buildHarness().registry.list();
+    const grant = (name: string) => requiredPermissions(tools.find((tool) => tool.name === name)!);
+    expect(grant('get_operation_history')).toEqual(['projects.read']);
+    expect(grant('undo_operation')).toEqual(['projects.write']);
+    expect(grant('redo_operation')).toEqual(['projects.write']);
   });
 });
 
@@ -498,7 +573,7 @@ describe('remove_section lost-receipt recovery over the registry', () => {
     const harness = buildHarness();
     const actor = agent(['projects.write']);
     const removed = (await harness.registry.call('remove_section', { sectionId: VIEW_SECTION }, actor)) as {
-      undo: { undoId: string; expiresAt: string };
+      operation: { historyId: string; actionId: string; expiresAt: string };
     };
     const beforeRepeat = harness.store.snapshot();
     let refusal: unknown;
@@ -510,8 +585,9 @@ describe('remove_section lost-receipt recovery over the registry', () => {
 
     expect(refusal).toBeInstanceOf(Error);
     expect((refusal as Error).message).toMatch(/^section_already_removed:/);
-    expect((refusal as Error).message).toContain(removed.undo.undoId);
-    expect((refusal as Error).message).toContain(removed.undo.expiresAt);
+    expect((refusal as Error).message).toContain(removed.operation.historyId);
+    expect((refusal as Error).message).toContain(removed.operation.actionId);
+    expect((refusal as Error).message).toContain(removed.operation.expiresAt);
     expect(harness.store.snapshot()).toEqual(beforeRepeat);
 
     const otherConnection = { ...actor, agentConnectionId: 'agent-other' } as typeof actor;

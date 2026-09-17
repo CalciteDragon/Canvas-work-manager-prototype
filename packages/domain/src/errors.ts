@@ -1,4 +1,4 @@
-import type { UndoRefusalDetails } from '@cwm/contracts';
+import type { OperationHistoryRefusalDetails } from '@cwm/contracts';
 
 /**
  * Three failures a caller can cause, so a transport can answer them differently (§61).
@@ -59,10 +59,10 @@ export class PermissionDeniedError extends Error {
 }
 
 /**
- * An Undo refusal: a `DomainRuleError` whose details are an `UndoRefusalDetails` and whose
- * message **starts with the reason token** — `undo_consumed: …`. MCP clients receive the message
- * text only, so the token is how an agent tells the refusals apart; HTTP clients also get the
- * typed details in the 409 envelope.
+ * A history refusal: a `DomainRuleError` whose details are an `OperationHistoryRefusalDetails` and
+ * whose message **starts with the reason token** — `history_not_next: …`. MCP clients receive the
+ * message text only, so the token is how an agent tells the refusals apart; HTTP clients also get
+ * the typed details, current summary included, in the 409 envelope.
  */
-export const undoRefusal = (details: UndoRefusalDetails, sentence: string): DomainRuleError =>
+export const historyRefusal = (details: OperationHistoryRefusalDetails, sentence: string): DomainRuleError =>
   new DomainRuleError(`${details.reason}: ${sentence}`, details);

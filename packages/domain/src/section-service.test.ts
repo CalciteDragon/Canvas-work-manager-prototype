@@ -401,7 +401,7 @@ describe('SectionService.remove', () => {
   it('returns the exact outstanding receipt when the same actor repeats a retained removal', async () => {
     const harness = buildHarness();
     const section = await add(harness, 'rich-text', { config: { text: 'Keep me' } });
-    const { undo } = await harness.sectionService.remove(harness.actor, section.id);
+    const { operation } = await harness.sectionService.remove(harness.actor, section.id);
     const before = harness.store.snapshot();
 
     const refusal = await harness.sectionService
@@ -409,17 +409,18 @@ describe('SectionService.remove', () => {
       .then(() => null, (error: unknown) => error);
     expect(refusal).toBeInstanceOf(DomainRuleError);
     expect((refusal as DomainRuleError).message).toMatch(/^section_already_removed: /);
-    expect((refusal as DomainRuleError).message).toContain(undo.undoId);
-    expect((refusal as DomainRuleError).message).toContain(undo.expiresAt);
-    expect((refusal as DomainRuleError).details).toEqual({ reason: 'section_already_removed', sectionId: 'section-1', undo });
+    expect((refusal as DomainRuleError).message).toContain(operation.historyId);
+    expect((refusal as DomainRuleError).message).toContain(operation.actionId);
+    expect((refusal as DomainRuleError).message).toContain(operation.expiresAt);
+    expect((refusal as DomainRuleError).details).toEqual({ reason: 'section_already_removed', sectionId: 'section-1', operation });
     expect(harness.store.snapshot()).toEqual(before);
   });
 
   it('directs an archived section to Archive after its receipt expires', async () => {
     const harness = buildHarness();
     const section = await add(harness, 'rich-text', { config: { text: 'Keep me' } });
-    const { undo } = await harness.sectionService.remove(harness.actor, section.id);
-    harness.clock.setNow(new Date(undo.expiresAt));
+    const { operation } = await harness.sectionService.remove(harness.actor, section.id);
+    harness.clock.setNow(new Date(operation.expiresAt));
     const before = harness.store.snapshot();
 
     const refusal = await harness.sectionService
@@ -436,7 +437,7 @@ describe('SectionService.remove', () => {
   it('recovers an outstanding receipt after a hard-deleted section and writes nothing', async () => {
     const harness = buildHarness();
     const section = await add(harness, 'progress');
-    const { undo } = await harness.sectionService.remove(harness.actor, section.id);
+    const { operation } = await harness.sectionService.remove(harness.actor, section.id);
     expect(await harness.sections.find(section.id)).toBeNull();
     const before = harness.store.snapshot();
 
@@ -445,8 +446,35 @@ describe('SectionService.remove', () => {
       .then(() => null, (error: unknown) => error);
 
     expect(refusal).toBeInstanceOf(DomainRuleError);
-    expect((refusal as DomainRuleError).details).toEqual({ reason: 'section_already_removed', sectionId: 'section-1', undo });
+    expect((refusal as DomainRuleError).details).toEqual({ reason: 'section_already_removed', sectionId: 'section-1', operation });
     expect(harness.store.snapshot()).toEqual(before);
+  });
+
+  it('does not recover a removal receipt once the same actor has undone it', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'rich-text', { config: { text: 'Keep me' } });
+    const { operation } = await harness.sectionService.remove(harness.actor, section.id);
+    await harness.undo(harness.actor, operation);
+    await harness.sectionService.remove(agentActorFor(0, ['projects.write']), section.id);
+
+    // The section is archived again, by someone else: this actor's removal is not the one that committed.
+    const refusal = await harness.sectionService.remove(harness.actor, section.id).then(() => null, (error: unknown) => error);
+    expect((refusal as DomainRuleError).message).toMatch(/already archived; restore it from Archive/);
+  });
+
+  it('a later update does not make a repeated removal recover an update receipt', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'rich-text', { config: { text: 'Keep me' } });
+    const removed = await harness.sectionService.remove(harness.actor, section.id);
+    await harness.sectionService.restoreSection(harness.actor, section.id);
+    await harness.sectionWriteService.update(harness.actor, section.id, { title: 'Edited' });
+    await harness.sectionService.remove(agentActorFor(0, ['projects.write']), section.id);
+
+    // This actor's newest action for the section is an update, and the section's generation moved past
+    // their removal: neither is the removal that already committed.
+    const refusal = await harness.sectionService.remove(harness.actor, section.id).then(() => null, (error: unknown) => error);
+    expect((refusal as DomainRuleError).details).toBeUndefined();
+    expect(removed.operation.operation).toBe('section.remove');
   });
 
   it('does not reveal a hard-deleted section receipt to another workspace', async () => {
@@ -462,15 +490,15 @@ describe('SectionService.remove', () => {
     const source = (await harness.sections.find(shortcut.sourceSectionId))!;
     expect(source.type).toBe('rich-text');
 
-    const { undo } = await harness.sectionService.remove(harness.actor, source.id);
+    const { operation } = await harness.sectionService.remove(harness.actor, source.id);
 
     expect(await harness.sections.find(source.id)).toMatchObject({ id: source.id, archivedAt: SEED_NOW });
     expect(await harness.shortcuts.find(shortcut.id)).toMatchObject({ sourceSectionId: source.id });
-    expect(harness.store.snapshot().undoRecords.at(-1)?.operation).toMatchObject({ disposition: 'retained' });
+    expect(harness.store.snapshot().operationActions.at(-1)?.operation).toMatchObject({ disposition: 'retained' });
     const archive = await new ProjectArchiveService(harness).derive(harness.actor, MINE);
     expect(archive.items.some((item) => item.kind === 'section' && item.section.id === source.id)).toBe(false);
 
-    await harness.undoService.undo(harness.actor, undo.undoId);
+    await harness.undo(harness.actor, operation);
     expect(await harness.sectionShortcutService.list(harness.actor, MINE, { pageId: `page-${MINE}` as never })).toMatchObject([
       expect.objectContaining({ sourceSectionId: source.id, availability: 'available' }),
     ]);
@@ -963,14 +991,14 @@ describe('SectionService page ownership', () => {
 });
 
 /**
- * Slice 30: a removal returns one Undo receipt, recorded in the same unit of work as the
+ * Slice 30, reshaped by Slice 35: a removal returns one operation receipt, recorded in the same unit of work as the
  * canonical writes — docs/decisions/2026-09-section-removal-undo-records.md.
  */
-describe('SectionService.remove — Undo receipt', () => {
+describe('SectionService.remove — operation receipt', () => {
   /** Every collection a removal can write, for "nothing changed" assertions. */
   const writable = (harness: Harness) => {
-    const { sections, tasks, reflections, activityEvents, undoRecords, sectionShortcuts } = harness.store.snapshot();
-    return { sections, tasks, reflections, activityEvents, undoRecords, sectionShortcuts };
+    const { sections, tasks, reflections, activityEvents, operationHistories, operationActions, sectionShortcuts } = harness.store.snapshot();
+    return { sections, tasks, reflections, activityEvents, operationHistories, operationActions, sectionShortcuts };
   };
 
   /** A task list holding a parent with two subtasks and one row archived on its own beforehand. */
@@ -983,7 +1011,7 @@ describe('SectionService.remove — Undo receipt', () => {
     return { listId: parent.sectionId, parent, first, second, filed };
   };
 
-  it('returns one receipt, stores one record and records one activity event for a multirow cascade', async () => {
+  it('writes return an OperationReceipt: one receipt, one action and one activity event for a multirow cascade', async () => {
     const harness = buildHarness();
     const { listId, parent, first, second } = await listWithSubtree(harness);
     const eventsBefore = harness.store.snapshot().activityEvents.length;
@@ -991,19 +1019,21 @@ describe('SectionService.remove — Undo receipt', () => {
     const result = await harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' });
 
     expect(result.section).toMatchObject({ id: listId, archivedAt: SEED_NOW });
-    expect(result.undo).toEqual({
-      undoId: 'undo-1',
+    expect(result.operation).toEqual({
+      historyId: 'history-1',
+      actionId: 'operation-1',
       operation: 'section.remove',
-      sequence: 1,
+      revision: 1,
       label: 'Removed the Task List section',
       createdAt: SEED_NOW,
       expiresAt: '2026-08-25T16:00:00.000Z',
     });
-    expect(harness.store.snapshot().undoRecords).toHaveLength(1);
+    expect(result.operation).not.toHaveProperty('sequence');
+    expect(harness.store.snapshot().operationActions).toHaveLength(1);
     const events = harness.store.snapshot().activityEvents.slice(eventsBefore);
     expect(events.map(({ action }) => action)).toEqual(['project.section_archived']);
     // The three live rows, not the one filed away beforehand.
-    const operation = harness.store.snapshot().undoRecords[0]!.operation;
+    const operation = harness.store.snapshot().operationActions[0]!.operation;
     if (operation.type !== 'section.remove') throw new Error('expected a section removal record');
     expect(operation.rows.map(({ id }) => id)).toEqual([parent.id, first.id, second.id]);
   });
@@ -1017,7 +1047,7 @@ describe('SectionService.remove — Undo receipt', () => {
 
     await harness.sectionService.remove(harness.actor, section.id, { policy: 'reassign' });
 
-    const operation = harness.store.snapshot().undoRecords.at(-1)!.operation;
+    const operation = harness.store.snapshot().operationActions.at(-1)!.operation;
     if (operation.type !== 'section.remove') throw new Error('expected a section removal record');
     expect(operation).toMatchObject({ appliedPolicy: 'none', rows: [] });
     expect(operation).not.toHaveProperty('reassignToSectionId');
@@ -1028,16 +1058,17 @@ describe('SectionService.remove — Undo receipt', () => {
     const section = await add(harness, 'rich-text', { config: { text: 'Kept' } });
     await harness.projectService.update(harness.actor, MINE, { status: 'archived' });
 
-    const { undo } = await harness.sectionService.remove(harness.actor, section.id);
+    const { operation } = await harness.sectionService.remove(harness.actor, section.id);
 
-    const refusal = await harness.undoService.undo(harness.actor, undo.undoId).then(() => null, (error: unknown) => error);
-    expect((refusal as DomainRuleError).message).toMatch(/^undo_blocked: /);
-    expect((refusal as DomainRuleError).details).toEqual({
-      reason: 'undo_blocked', undoId: undo.undoId, blockingProjectId: MINE, blockingProjectTitle: 'Project project-mine',
+    const refusal = await harness.undo(harness.actor, operation).then(() => null, (error: unknown) => error);
+    expect((refusal as DomainRuleError).message).toMatch(/^history_blocked: /);
+    expect((refusal as DomainRuleError).details).toMatchObject({
+      reason: 'history_blocked', historyId: operation.historyId, actionId: operation.actionId,
+      blockingProjectId: MINE, blockingProjectTitle: 'Project project-mine',
     });
 
     await harness.projectService.update(harness.actor, MINE, { status: 'active' });
-    await expect(harness.undoService.undo(harness.actor, undo.undoId)).resolves.toMatchObject({ outcome: 'restored' });
+    await expect(harness.undo(harness.actor, operation)).resolves.toMatchObject({ outcome: 'restored' });
   });
 
   const refusals: Array<[string, (harness: Harness) => Promise<() => Promise<unknown>>]> = [
@@ -1103,7 +1134,7 @@ describe('SectionService.remove — Undo receipt', () => {
       const harness = buildHarness(undefined, {
         recorder: () => ({
           record: () => Promise.reject(new Error('recorder unavailable')),
-          outstandingFor: async () => null,
+          outstandingRemovalFor: async () => null,
         }),
       });
       const { listId, before, persistCalls } = await arrange(harness);
@@ -1119,21 +1150,21 @@ describe('SectionService.remove — Undo receipt', () => {
     it.each([
       ['names a project from another workspace', { projectId: THEIRS }],
       ['names a user actor that does not exist', { actorUserId: 'user-gone' }],
-    ])('when the recorder stores a schema-valid record that %s, failing commit-time integrity', async (_, corruption) => {
+    ])('when the recorder stores a schema-valid history that %s, failing commit-time integrity', async (_, corruption) => {
       const harness: Harness = buildHarness(undefined, {
         recorder: (real) => ({
-          outstandingFor: (actor, sectionId) => real.outstandingFor(actor, sectionId),
+          outstandingRemovalFor: (actor, sectionId, section) => real.outstandingRemovalFor(actor, sectionId, section),
           record: async (actor, entry) => {
             const receipt = await real.record(actor, entry);
-            const stored = (await harness.undoRecords.find(receipt.undoId))!;
-            await harness.undoRecords.update({ ...stored, ...corruption } as typeof stored);
+            const stored = (await harness.operationHistories.find(receipt.historyId))!;
+            await harness.operationHistories.update({ ...stored, ...corruption } as typeof stored);
             return receipt;
           },
         }),
       });
       const { listId, before, persistCalls } = await arrange(harness);
 
-      await expect(harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' })).rejects.toThrow(/undo record/);
+      await expect(harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' })).rejects.toThrow(/operation history/);
 
       expect(writable(harness)).toEqual(before);
       expect(harness.store.persistCalls).toBe(persistCalls);
@@ -1166,6 +1197,6 @@ describe('SectionService.remove — Undo receipt', () => {
     expect(Object.keys(frames[0]!.event).every((key) => Object.hasOwn(LiveEventSchema.shape, key))).toBe(true);
     const [event] = harness.store.snapshot().activityEvents.slice(eventsBefore);
     expect(Object.keys(event!).every((key) => Object.hasOwn(ActivityEventShape.shape, key))).toBe(true);
-    expect(JSON.stringify([frames, event])).not.toMatch(/undo|placement|rows|appliedPolicy/);
+    expect(JSON.stringify([frames, event])).not.toMatch(/undo|operation|history|placement|rows|appliedPolicy/);
   });
 });
