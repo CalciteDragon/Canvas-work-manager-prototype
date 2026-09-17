@@ -65,8 +65,10 @@ proposal had shipped.
 | Archive contains blocked rows and live content hidden by ancestors | Filter in domain; list the restorable ancestor first, recompute after restore. Preserve recovery of containers holding only previously archived rows. |
 | Settings links only to AI & Agents | Add a workspace-scoped archived-project page reachable without opening any project. |
 
-Sources: [domain Undo](../../../packages/domain/src/undo-service.ts),
-[recorder](../../../packages/domain/src/undo-recorder.ts),
+Sources (as of planning; Slice 35 replaced the first two with
+[`operation-history-service.ts`](../../../packages/domain/src/operation-history-service.ts) and
+[`operation-recorder.ts`](../../../packages/domain/src/operation-recorder.ts)): domain Undo
+(`undo-service.ts`), recorder (`undo-recorder.ts`),
 [section lifecycle](../../../packages/domain/src/section-service.ts),
 [task lifecycle](../../../packages/domain/src/task-service.ts),
 [project lifecycle](../../../packages/domain/src/project-service.ts),
@@ -285,6 +287,11 @@ ancestor archive can invalidate an entry after listing: the write fails safely, 
 reason and refreshes. Listing is eligibility at read time, not a promise that races cannot happen.
 
 ## Delivery stages
+
+**Stage A landed as [Slice 35](../completed/35-operation-history-foundation.md)** — with historical
+activity identity moved to Stage B and the persisted retry cache moved to Stage C
+([decision](../../decisions/2026-09-history-stage-a-deferrals.md)). Its coverage-matrix audit, the
+inventory Stages B and C are scoped from, is in that slice's Outcome.
 
 | Stage | Deliverable | Gate before proceeding |
 |---|---|---|

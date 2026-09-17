@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 35 | Slice 35 — Operation history foundation (Slice 34 Stage A) | Bidirectional section Undo/Redo over a versioned per-actor operation history, with an explicit v3 to v4 document conversion | [35-operation-history-foundation.md](active/35-operation-history-foundation.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -73,4 +71,5 @@ verification follow-ups rather than feature slices.
 | 31 | Slice 31 — Disposable removal and immediate Undo UI | 2026-09-14 | Safely remove disposable sections and restore them through a reviewed, tested canvas-local Undo flow | [31-disposable-removal-and-undo-ui.md](completed/31-disposable-removal-and-undo-ui.md) |
 | 32 | Slice 32 — Section creation, movement and settings Undo | 2026-09-15 | Explicit section add, move and settings writes return typed Undo receipts that reverse only their own changes across HTTP, MCP and the canvas | [32-section-edit-undo.md](completed/32-section-edit-undo.md) |
 | 33 | Slice 33 — Recovery and Undo integrated acceptance | 2026-09-15 | All twelve Refactor §26 criteria verified through domain, host, browser and both MCP transports; no production change | [33-recovery-undo-integrated-acceptance.md](completed/33-recovery-undo-integrated-acceptance.md) |
+| 35 | Slice 35 — Operation history foundation (Slice 34 Stage A) | 2026-09-16 | Section add, move, update and removal undo and redo through a per-actor, per-project operation history over domain, HTTP and both MCP transports; schema version 4 with an explicit v3 to v4 conversion | [35-operation-history-foundation.md](completed/35-operation-history-foundation.md) |
 <!-- roadmap:end -->

@@ -1,4 +1,4 @@
-<!-- plan id="35" status="active" summary="Bidirectional section Undo/Redo over a versioned per-actor operation history, with an explicit v3 to v4 document conversion" -->
+<!-- completed-record id="35" closed="2026-09-16" summary="Section add, move, update and removal undo and redo through a per-actor, per-project operation history over domain, HTTP and both MCP transports; schema version 4 with an explicit v3 to v4 conversion" -->
 # Slice 35 — Operation history foundation (Slice 34 Stage A)
 
 This is **Stage A** of the direction planned in
@@ -403,7 +403,7 @@ substantial; the rule is that no file in this list ships without its paired test
 |---|---|---|
 | `packages/repositories/src/interfaces.ts` | modify | `OperationHistoryRepository` and `OperationActionRepository` replace `UndoRecordRepository`; document why actions are pruned — nothing references one — and why the history's project reference stays strict in this stage. |
 | `packages/repositories/src/json-repositories.ts` | modify | Both collections over the same document. |
-| `packages/repositories/src/data-store.ts` | modify | Integrity: unique ids, one history per (workspace, actor, project), unique `order` per history, cursor no higher than the order high-water mark, action → history reference, actor/workspace attribution, and `archiveGeneration` being a non-negative integer that no stored action's captured value exceeds — a snapshot can assert that, where "never decreases" would need the previous document. Also the **version remedy message** — `describeVersion` lives here, already parameterised on `SCHEMA_VERSION`, so the bump carries it. |
+| `packages/repositories/src/data-store.ts` | modify | Integrity: unique ids, one history per (workspace, actor, project), unique positive `order` per history **within that history's `orderHighWaterMark`**, cursor no higher than that high-water mark, action → history reference, actor/workspace attribution, and `archiveGeneration` being a non-negative integer that no stored action's captured value exceeds — a snapshot can assert that, where "never decreases" would need the previous document. Also the **version remedy message** — `describeVersion` lives here, already parameterised on `SCHEMA_VERSION`, so the bump carries it. |
 | `packages/repositories/src/data-store.test.ts`, `repositories.test.ts` | modify | Each new integrity rule. |
 | `scripts/check-package-imports.mjs` | modify | The domain-import allowlist names `UndoRecordRepository` literally; the two new interfaces replace it or `pnpm lint` fails on the first domain import. |
 | `packages/domain/src/import-lint.test.ts` | modify | Its fixtures pin `UndoRecordRepository`/`JsonUndoRecordRepository` by name. |
@@ -540,7 +540,7 @@ substantial; the rule is that no file in this list ships without its paired test
 | `prototype-data/upgrade-cli.test.ts: a repeat run on a v4 file writes nothing` | Idempotence, at the layer that now owns the no-op branch. |
 | `prototype-data/upgrade-project-pages.test.ts: a failed conversion writes nothing` | **Extend the existing case** (it already covers this for v2 → v3) to the chained path, rather than adding a second one. |
 | `repositories/data-store.test.ts: one history per actor, project and workspace` | The uniqueness rule the cursor depends on. |
-| `repositories/data-store.test.ts: an action names a stored history and a unique order` | Ordering integrity at commit. |
+| `repositories/data-store.test.ts: an action names a stored history and a unique order within its high-water mark` | Ordering integrity at commit: every action order is positive and no greater than its history's order high-water mark. |
 | `repositories/data-store.test.ts: a history must name a stored project` | The reference stays strict until the stage that first deletes a project — see the departures section. |
 | `repositories/data-store.test.ts: a cursor no higher than the order high-water mark` | The cross-collection half of the cursor invariant, with `0` valid. |
 | `mcp-tools/contract.test.ts: undo/redo/summary tools declare their own grants` | `get_operation_history` reads, the transitions write. |
@@ -550,7 +550,7 @@ substantial; the rule is that no file in this list ships without its paired test
 | `web/section-undo-notice.spec.ts: the notice executes a history transition` | The one existing surface keeps working on the new API. |
 | `web/project-page-store.spec.ts: history_not_next leaves the recovery offer standing` | The store's terminal-refusal branch was written for `undo_consumed`, which was terminal; its replacement is repairable by undoing the newer action first. |
 | `prototype-host/mcp/handler.test.ts: a stale expectedRevision refuses through undo_operation` | An agent is the likeliest holder of a stale revision, so the race is proved through MCP too. |
-| `apps/e2e/section-edit-undo.spec.ts`, `removal-undo.spec.ts`: each gains an undo-then-redo journey | The browser reaches the new direction, not just the migrated route. |
+| `apps/e2e/section-edit-undo.spec.ts`, `removal-undo.spec.ts`: each migrates its direct transition-route assertions and verifies an undo-then-redo round trip | Browser-host evidence for the new route, not a new visible Redo control. The notice remains Undo-only in Stage A; Stage C owns the persistent controls. |
 | `apps/e2e/archive.spec.ts`: migrated to the transition route and the new reason tokens | The third spec that drives Undo directly keeps passing. |
 
 ## Boundaries touched
@@ -750,3 +750,118 @@ be answered before the first test is written; each becomes a §78 decision entry
   decision with a stated default or as non-behavioural. Two imprecisions were corrected in
   passing — a test row that omitted retirement from the revision rule, and the `archivedAt`
   precedent, which is `.optional()` rather than defaulted.
+- **Round 6 (2026-09-16):** a fresh source-grounded plan review found two P1 gaps. The
+  high-water mark was named as authoritative for allocation and cursor movement, but the
+  cross-collection integrity row did not require each stored action's positive order to be at
+  most that history's high-water mark; that rule and its test are now explicit. It also caught a
+  scope contradiction: a promised browser Undo/Redo journey implied a visible Redo affordance,
+  while this stage deliberately adds no UI and keeps `SectionUndoNotice` Undo-only. The e2e work
+  is now explicitly direct transition-route evidence from the browser harness, not a UI journey;
+  Stage C remains the owner of visible controls.
+
+## Coverage-matrix audit
+
+Every mutation reachable through the web gateway (`apps/web/src/app/core/gateway/work-manager-gateway.ts`),
+a domain service exported from `packages/domain/src/index.ts`, an MCP tool or a host write route,
+mapped to the stage that gives it history or the reason it stays outside project history. Checked on
+2026-09-16 against those four inventories; Stages B and C are scoped from this table.
+
+| Mutation | Gateway / HTTP / MCP | Domain | History |
+|---|---|---|---|
+| Section add | `sections.create` / `POST /api/projects/:projectId/sections` / `create_section` | `SectionService.add` | **Stage A** — `section.add`, with placement |
+| Section settings update (title, config, collapse, span) | `sections.update` / `PATCH /api/sections/:id` / `update_section` | `SectionService.update` | **Stage A** — `section.update`; a normalized no-op records nothing |
+| Section move | `sections.move` / `POST /api/sections/:id/move` / `move_section` | `SectionService.move` | **Stage A** — `section.move` |
+| Section remove | `sections.remove` / `DELETE /api/sections/:id` / `remove_section` | `SectionService.remove` | **Stage A** — `section.remove`; cascade-only input is Stage D |
+| Implicit Tasks/Reflections container creation | inside task/reflection writes | `SectionService.resolveContainer` | Stage B, as part of the task/reflection add that created it; receipt-free today |
+| Section duplicate | `sections.duplicate` / `POST /api/sections/:id/duplicate` | `SectionService.duplicate` | Stage C |
+| Section Archive Restore | `sections.restore` / `POST /api/sections/:id/restore` / `restore_section` | `SectionService.restoreSection` | Stage C (Undo Restore); the restore itself stays the durable, history-free recovery path and is what retires a removal action |
+| Task create / update / complete / archive / restore | `tasks.*` / `POST /api/tasks`, `PATCH /api/tasks/:id`, `…/complete`, `…/archive`, `…/restore` / `create_task`, `update_task`, `complete_task`, `archive_task`, `restore_task` | `TaskService.create`, `update`, `complete`, `archive`, `restore` | Stage B |
+| Reflection create / update / archive / restore | `reflections.*` / `POST /api/reflections`, `PATCH /api/reflections/:id`, `…/archive`, `…/restore` / `add_reflection`, `archive_reflection`, `restore_reflection` | `ReflectionService.create`, `update`, `archive`, `restore` | Stage B |
+| Project create / update (fields, status, parent) | `projects.create`, `projects.update` / `POST /api/projects`, `PATCH /api/projects/:id` / `create_project`, `update_project`, `restore_project` | `ProjectService.create`, `update` | Stage C |
+| Project archive | `projects.update` with an archived status / `PATCH /api/projects/:id` / `archive_project` | `ProjectService.archive` | Stage C |
+| Saved project layout mode | `projects.update` from the dev-panel layout control | `ProjectService.update` | Stage C — tooling UI, but it changes real project state |
+| Progress formula / manual settings | `projects.update` | `ProjectService.update` | Stage C; derived progress is not a second action |
+| Optional page enable/disable | `projectPages.setEnabled` / `PATCH /api/projects/:projectId/pages/:kind` / `set_project_page_enabled` | `ProjectPageService.setEnabled` | Stage C |
+| Shortcut add / update / move / remove | `sectionShortcuts.*` / `POST /api/projects/:projectId/shortcuts`, `PATCH`, `…/move`, `DELETE /api/shortcuts/:id` / `add_section_shortcut`, `remove_section_shortcut` | `SectionShortcutService.create`, `update`, `move`, `remove` | Stage C |
+| Undo / Redo transition, retirement | `history.transition` / `POST /api/history/:historyId/transition` / `undo_operation`, `redo_operation` | `OperationHistoryService.transition` | Outside — history's own state, never an action |
+| Agent permissions / revoke | `agents.setPermissions`, `agents.revoke` / `PATCH /api/agent-connections/:id`, `…/revoke` | `AgentConnectionService.updatePermissions`, `revoke` | Outside — workspace settings, not project content |
+| Agent last-used stamp | every authenticated MCP call | `AgentConnectionService.touch` | Outside — bookkeeping, not a user gesture |
+| Activity event | inside every write | `ActivityService.record` | Outside — the audit record of an action, never itself undone |
+| Seed load, reset, clock, AI provider, friction notes | `POST /prototype/seed`, `/reset`, `/clock`, `/ai-provider`, `/notes` | host tooling | Outside — prototype tooling; a seed load or reset replaces the document and its histories with it |
+| Theme, dashboard widget layout, persona, network simulation | browser-local state | none | Outside — client presentation, not in the document |
+
+No write in any of the four inventories is unlisted.
+
+## Outcome
+
+**Deliverables.** Section add, move, settings update and removal now record typed actions into a
+per-actor, per-workspace, per-owning-project operation history and undo *and redo* through
+`OperationHistoryService` — domain, `GET /api/projects/:id/history` and
+`POST /api/history/:historyId/transition`, and `get_operation_history`, `undo_operation` and
+`redo_operation` over both MCP transports (37 tools). The document is schema version 4:
+`undoRecords` is gone, `operationHistories` and `operationActions` joined it, and every section
+carries a removal-only `archiveGeneration`; `pnpm prototype:upgrade` sniffs the version and runs the
+frozen v2 → v3 step then the validating v3 → v4 step, retiring old receipts with a notice. The pure
+state machine (`operation-history.ts`), the recorder and the direction-aware executors replace
+`UndoService`, `RepositoryUndoRecorder` and section supersession with applied-state checks, the
+per-section generation guard and `retired` actions. Web gateway, adapter, fake, page stores and the
+Undo notice moved onto `OperationReceipt`; the notice stays Undo-only. Five decisions were recorded
+(scope, retention, v4 conversion, retired actions, Stage A deferrals) and seven earlier ones
+amended; the specification (§9, §14, §27, §31, §54, §57, §61–63), architecture sets, AGENTS.md,
+README and both guides were updated. The coverage-matrix audit is above. Evidence for all thirteen
+acceptance items: domain chain, branch, families, conflicts, retirement, expiry and pruning
+(`operation-history*.test.ts`, `operation-recorder.test.ts`, `section-edit-undo.test.ts`); HTTP
+chain and branch invalidation (`acceptance.mjs`); MCP chain on both transports with a fresh
+connection (`mcp-acceptance.mjs`, `handler.test.ts`); commit-before-publish and three failure seams
+(`live-updates.test.ts`); the race and safe replay on a real file store (`concurrency.test.ts`);
+reload and CLI conversion (`recovery-undo-acceptance.test.ts`, `upgrade-cli.test.ts`,
+`version-3-undo-compatibility.test.ts`); grants and 403/404 (`routes.test.ts`). Real use: the
+developer data file (version 3, eight receipts) was converted with `pnpm prototype:upgrade`, loaded
+by `dev:host`/`dev:web`, renamed twice through the canvas, undone from the notice, then
+Undo/Redo/Redo, a stale replay (409 `history_revision_stale`) and Undo/Undo through the routes,
+surviving a reload; two friction notes (`note-2026-09-16-001`, `-002`).
+
+Final runs, after the review fixes: `pnpm docs:api`, `pnpm test` (root 9, contracts 253,
+repositories 143, prototype-data 106, domain 611, mcp-tools 158, host 214, web 724), `pnpm e2e` 34
+passed, `acceptance` and `mcp-acceptance` (both transports) passed, then `pnpm lint`, `pnpm build`
+(998.18 kB initial; the 850 kB warning budget is exceeded as before, under the 1 MB error ceiling) and
+`pnpm --filter web storybook:build`. The domain suite was rerun after a type-only fix to one new test.
+
+**Diff review.** Three independent read-only reviewers (domain correctness; transport, web and
+conversion; documentation and spec conformance). Verified and fixed:
+- **P1 — move Redo straight after the actor's own Undo could refuse `moved`.** The check compared
+  both recorded neighbours while `resolveRestoreIndex` places by one. It now checks the neighbour
+  the placement used (surviving previous, else surviving next); two tests pin it.
+- **P2 — the browser refused to resend a receipt after a `missing` conflict** the server treats as
+  repairable (another actor's Undo can recreate the section). The "refused for good" rule and its
+  disabled state were withdrawn; permanence is the server's retirement.
+- **P2 — the Reflections page did not re-read its container** when a stale refusal showed the Undo
+  had already landed. It now reconciles, like the canvas.
+- **P2 — the v3 → v4 converter turned a non-array `sections` into `[]`.** It now throws.
+- **P2 — stale text:** `contracts/how.md` literal version, `project-visibility.ts` reason name, the
+  lazy-expiry comment in `operation-history.ts`, and the retired-actions decision's unqualified
+  `missing` for removal Redo. The audit the docs reviewer found missing was written during review.
+No finding was rejected.
+
+**Deviations from the plan.**
+- A transition naming a pruned action answers 409 `history_not_next`, not 404: the history is the
+  caller's own, so a 404 would hide nothing and a 409 carries the summary to reconcile from.
+  Acceptance item 9's expired-while-retained case refuses `history_expired` as planned.
+- The summary answers `historyId: null` rather than 404 before a first write, and includes
+  `blockedBy`.
+- The move neighbour check compares only the neighbour the last placement used, not both (above).
+- Transition results carry a direction-specific `result`; move and add outcomes may be `partial`;
+  `section.remove` payloads require `disposition`.
+- `operationHistories` and `operationActions` stay defaulted in version 4, as `undoRecords` was.
+- The browser notice no longer names another actor on a conflict: under a per-actor history a
+  conflict is always someone else's change.
+- The "refused for good" browser rule was withdrawn rather than narrowed.
+- Steps 3–9 of the implementation order landed as one change rather than nine commits.
+
+**Deferred.** Historical activity identity (Stage B) and the persisted retry cache (Stage C), as
+decided. Browser Redo and persistent header controls (Stage C). Task, reflection, project, page and
+shortcut history per the audit. Friction: action labels name the pre-change title, which reads
+ambiguously on a chain of renames; nothing in the browser shows Redo exists.
+
+**Open questions.** Whether Stage C's labels should describe the change or the current title, and
+whether editor commit boundaries need confirming before Stage B's autosaving text.
