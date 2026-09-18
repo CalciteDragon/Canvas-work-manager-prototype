@@ -9,6 +9,7 @@ import {
   nameOf,
   normaliseSectionTitle,
   ownedKindOf,
+  type CreatedContainer,
   type CreateSectionInput,
   type OwnedDataKind,
   type ProjectId,
@@ -48,6 +49,22 @@ import { captureSectionRemoval, NOTHING_SETTLED, rowChangeOf, type SettledRows }
 import { captureSectionAdd, captureSectionMove, captureSectionUpdate, sameValue } from './section-edit-undo';
 import { sectionRecoveryOf } from './section-recovery-policy';
 import type { OperationRecorder } from './operation-recorder';
+
+/**
+ * **What `resolveContainer` answers.** The container a row write lands in, and — only when this
+ * resolution had to create it — the snapshot and placement its owner's history needs to reverse and
+ * reapply the creation.
+ *
+ * It is returned rather than recorded here on purpose. The container is not an operation of its own:
+ * it is part of the row write that needed it, so the **row's** action carries it and one Undo
+ * removes both (docs/decisions/2026-09-row-operation-history.md). Making this an explicit result
+ * rather than a hidden side effect is also what lets `resolveContainer` stay a plain call with no
+ * transaction or event framework behind it.
+ */
+export interface ResolvedContainer {
+  section: ProjectSection;
+  created?: CreatedContainer;
+}
 
 export interface SectionServiceDependencies {
   sections: SectionRepository;
@@ -200,7 +217,7 @@ export class SectionService {
     assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
-      const created = await this.addWithin(actor, projectId, input);
+      const created = await this.addWithin(actor, projectId, input, { announce: true });
       const section = await this.require(actor, created.id);
       const placement = snapshotPlacement(await this.placementsOnPage(section.pageId), { kind: 'section', id: section.id });
       const operation = await this.dependencies.history.record(actor, {
@@ -228,6 +245,7 @@ export class SectionService {
     actor: ActorContext,
     projectId: ProjectId,
     input: CreateSectionInput,
+    options: { announce: boolean },
   ): Promise<ProjectSection> {
     await this.assertProjectVisible(actor, projectId);
     // Ordered before the page resolution below, so an archived project still refuses with
@@ -263,7 +281,11 @@ export class SectionService {
     const ordered = [...siblings];
     ordered.splice(position, 0, { kind: 'section', value: section });
     await renumberPlacements(this.dependencies, this.dependencies.clock, ordered);
-    await this.record(actor, section, 'project.section_added', 'Added');
+    // `announce: false` is the implicit-container path. A row create that had to make its own
+    // container commits **one** row event, one action and one frame; a second `project.section_added`
+    // beside it would make one write look like two, and would be a frame no reader asked for.
+    // The explicit Add Section button still announces, unchanged.
+    if (options.announce) await this.record(actor, section, 'project.section_added', 'Added');
     return section;
   }
 
@@ -353,8 +375,12 @@ export class SectionService {
   /**
    * The container a row goes to when the caller names none: the first container of the matching
    * type **on the resolved page**, and otherwise a new one added there through the same
-   * operation the Add Section button calls, at the end of that page with an ordinary activity
-   * event behind it.
+   * operation the Add Section button calls, at the end of that page.
+   *
+   * Since Slice 36 it answers a `ResolvedContainer` rather than a bare section, and the implicit
+   * add records **no** activity event of its own: the row write that needed the container owns the
+   * event, the action and the frame, and hands the snapshot back here so the row's own history
+   * entry can reverse both together.
    *
    * The page is resolved **once** and passed into `addWithin`. Searching one page and creating
    * on another would be two independent answers to the question this slice exists to make
@@ -372,14 +398,24 @@ export class SectionService {
     projectId: ProjectId,
     owned: OwnedDataKind,
     pageId?: ProjectPageId,
-  ): Promise<ProjectSection> {
+  ): Promise<ResolvedContainer> {
     const type = containerTypeFor(owned);
     const page = await this.resolvePage(projectId, pageId, type);
     // `orderedOnPage` is live-only, so an archived container is skipped and a new one is added
     // rather than revived: a removed section comes back through restore, never through a
     // row write that happened to need somewhere to go.
     const existing = (await this.orderedOnPage(page.id)).find((section) => ownedKindOf(section.type) === owned);
-    return existing ?? this.addWithin(actor, projectId, { type, pageId: page.id });
+    if (existing !== undefined) return { section: existing };
+    const section = await this.addWithin(actor, projectId, { type, pageId: page.id }, { announce: false });
+    // The placement is snapshotted **after** the insert, so it describes where the section actually
+    // landed in the page's combined order — which is what a Redo has to put it back between.
+    return {
+      section,
+      created: {
+        section,
+        placement: snapshotPlacement(await this.placementsOnPage(section.pageId), { kind: 'section', id: section.id }),
+      },
+    };
   }
 
   /**

@@ -423,6 +423,7 @@ describe('ProjectTodosService.derive — permission and addressing (§53, §54)'
         find: (id) => harness.tasks.find(id),
         insert: (task) => harness.tasks.insert(task),
         update: (task) => harness.tasks.update(task),
+        remove: (id) => harness.tasks.remove(id),
         list: (query) => {
           taskReads += 1;
           return harness.tasks.list(query);

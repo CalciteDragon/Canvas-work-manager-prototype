@@ -21,10 +21,12 @@ describe('SectionService.resolveContainer (the default a row falls to)', () => {
     const sections = await harness.sectionService.list(harness.actor, MINE);
     expect(sections.map(({ type, position }) => [type, position])).toEqual([['task-list', 0]]);
     expect(task.sectionId).toBe(sections[0]!.id);
-    // The same door the Add Section button uses, so the canvas gets a real activity event.
-    expect((await harness.activity.list(harness.actor)).map(({ action }) => action)).toContain(
-      'project.section_added',
-    );
+    // Still the same door the Add Section button uses — positioning, the empty config and the
+    // default layout are one code path. What it no longer does is announce itself: since Slice 36
+    // the row create owns the single event, action and frame, and the container travels inside the
+    // row's own action so one Undo removes both. A second `project.section_added` beside it would
+    // make one write read as two.
+    expect((await harness.activity.list(harness.actor)).map(({ action }) => action)).toEqual(['task.created']);
   });
 
   it('reuses that container the second time rather than adding another', async () => {

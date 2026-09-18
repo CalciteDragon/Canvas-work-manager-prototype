@@ -24,6 +24,8 @@ const LATER = '2026-08-24T17:00:00.000Z';
 
 /** Somebody else with write access in the same workspace: their writes never enter the person's history. */
 const someoneElse = agentActorFor(0, ['projects.read', 'projects.write']);
+/** The same workspace, a different actor, granted only what a row write needs. */
+const someoneElsesRows = agentActorFor(0, ['tasks.write', 'reflections.write']);
 
 /** Resolves to the refusal a promise rejects with, and fails the test if it resolves. */
 const refusalOf = (promise: Promise<unknown>): Promise<DomainRuleError> =>
@@ -228,7 +230,7 @@ describe('OperationHistoryService — every family in both directions', () => {
     const live = await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: list.section.id, title: 'Live' });
     const removed = await harness.sectionWriteService.remove(harness.actor, list.section.id, { policy: 'cascade' });
     await harness.undo(harness.actor, removed.operation);
-    const later = await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: list.section.id, title: 'Later' });
+    const later = await harness.taskService.create(someoneElsesRows, { projectId: MINE, sectionId: list.section.id, title: 'Later' });
     const before = state(harness);
 
     const refusal = await refusalOf(harness.redo(harness.actor, removed.operation));
@@ -420,7 +422,7 @@ describe('OperationHistoryService — removal Undo rows', () => {
     const own = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Own', sectionId: target.id });
     const source = live.sectionId;
     const { operation } = await harness.sectionService.remove(harness.actor, source, { policy: 'reassign', reassignToSectionId: target.id });
-    await harness.taskService.update(harness.actor, live.id, { title: 'Renamed', status: 'in_progress' });
+    await harness.taskService.update(someoneElsesRows, live.id, { title: 'Renamed', status: 'in_progress' });
 
     const result = await harness.undo(harness.actor, operation);
 
@@ -544,7 +546,7 @@ describe('OperationHistoryService — conflicts and retirement', () => {
     const harness = buildHarness();
     const { live, operation } = await reassigned(harness);
     const other = await harness.sectionService.add(someoneElse, MINE, { type: 'task-list' });
-    await harness.taskService.update(harness.actor, live.id, { sectionId: other.id });
+    await harness.taskService.update(someoneElsesRows, live.id, { sectionId: other.id });
 
     await expectConflict(harness, operation, [{ entityType: 'task', id: live.id, title: 'Live', problem: 'moved', nextStep: 'move-back-and-retry' }]);
   });
@@ -552,7 +554,7 @@ describe('OperationHistoryService — conflicts and retirement', () => {
   it('refuses when a reassigned row has since been archived', async () => {
     const harness = buildHarness();
     const { live, operation } = await reassigned(harness);
-    await harness.taskService.archive(harness.actor, live.id);
+    await harness.taskService.archive(someoneElsesRows, live.id);
 
     await expectConflict(harness, operation, [{
       entityType: 'task', id: live.id, title: 'Live', problem: 'archive-state-changed', nextStep: 'restore-state-and-retry',
@@ -562,7 +564,7 @@ describe('OperationHistoryService — conflicts and retirement', () => {
   it('refuses when a subtask was created under a moved parent', async () => {
     const harness = buildHarness();
     const { live, operation } = await reassigned(harness);
-    const subtask = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Sub', parentTaskId: live.id });
+    const subtask = await harness.taskService.create(someoneElsesRows, { projectId: MINE, title: 'Sub', parentTaskId: live.id });
 
     await expectConflict(harness, operation, [{
       entityType: 'task', id: subtask.id, title: 'Sub', problem: 'new-dependent', nextStep: 'restore-or-move-dependent-and-retry',
@@ -572,9 +574,9 @@ describe('OperationHistoryService — conflicts and retirement', () => {
   it('refuses when a reassigned row was reparented, listing every problem at once', async () => {
     const harness = buildHarness();
     const { live, filed, target, operation } = await reassigned(harness);
-    const sibling = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Sibling', sectionId: target.id });
-    await harness.taskService.update(harness.actor, live.id, { parentTaskId: sibling.id });
-    await harness.taskService.restore(harness.actor, filed.id);
+    const sibling = await harness.taskService.create(someoneElsesRows, { projectId: MINE, title: 'Sibling', sectionId: target.id });
+    await harness.taskService.update(someoneElsesRows, live.id, { parentTaskId: sibling.id });
+    await harness.taskService.restore(someoneElsesRows, filed.id);
 
     await expectConflict(harness, operation, [
       { entityType: 'task', id: live.id, title: 'Live', problem: 'reparented', nextStep: 'move-back-and-retry' },
@@ -688,7 +690,11 @@ describe('OperationHistoryService — scope and grants', () => {
     const denied = await refusalOf(transition(harness, { ...readOnly, agentConnectionId: agent.agentConnectionId } as ActorContext, operation, 'undo', operation.revision));
     expect(denied).toBeInstanceOf(PermissionDeniedError);
     expect((denied as unknown as PermissionDeniedError).permission).toBe('projects.write');
-    expect(find).not.toHaveBeenCalled();
+    // Since Slice 36 the grant comes from the **stored** action's family, so the stack is read to
+    // find out which grant to ask for. What the refusal must still not do is disclose any of it: a
+    // `PermissionDeniedError` carries no summary, revision, label or conflict.
+    expect(find).toHaveBeenCalled();
+    expect(denied).not.toHaveProperty('details');
     expect((await harness.operationActions.find(operation.actionId))?.state).toBe('applied');
   });
 
@@ -783,6 +789,9 @@ describe('OperationHistoryService — revision, order, expiry and atomicity', ()
     const base = {
       id: expect.any(String), workspaceId: harness.actor.workspaceId, actor: 'user', actorUserId: harness.actor.userId,
       entityType: 'project', entityId: MINE, projectId: MINE, createdAt: SEED_NOW,
+      // Version 5: every event carries the captured identity of its target, which for a transition
+      // is the project whose history ran it.
+      context: { targetKind: 'project', targetId: MINE, targetLabel: 'Project project-mine', projectId: MINE, rootProjectId: MINE },
     };
     expect(events).toEqual([
       { ...base, action: 'project.section_removal_undone', summary: 'Undid removing the Kickoff section' },

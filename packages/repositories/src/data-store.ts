@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   canonicalPageKindFor,
   isCanonicalPageKind,
+  operationProjectOf,
   ownedKindOf,
   pageAcceptsSectionType,
   pageAcceptsSections,
@@ -392,8 +393,44 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     if (!users.has(agent.userId)) fail(`agent connection "${agent.id}" has missing user "${agent.userId}"`);
   }
 
-  type TargetScope = { workspaceId: string; projectId?: string };
-  const targetScope = (entityType: (typeof document.activityEvents)[number]['entityType'], entityId: string): TargetScope => {
+  /**
+   * **Activity identity, canonical or captured** (§57; Slice 36;
+   * docs/decisions/2026-09-historical-activity-identity.md).
+   *
+   * Every event carries `context`: the target's kind, id, label and owning project as they were
+   * when the event was written. Ordinarily the canonical row is still there and the two agree —
+   * which is what this pass checks. The one exception this phase allows is a **missing task or
+   * reflection**, because Undo of a creation deletes exactly that row and the audit line has to
+   * outlive it. Projects, sections, milestones and connections must still exist: nothing removes
+   * them yet, so a missing one is a broken document rather than a reversed creation.
+   *
+   * A captured identity is not laundered. A missing target is accepted only when the context is
+   * complete: it names a stored project in this event's workspace, and a root that is also one.
+   * Anything else fails, so a hand edit cannot invent an audit line for work that never existed.
+   *
+   * What this deliberately does **not** check is that the captured root is still the captured
+   * project's root *today*. Historical context is not rewritten when an entity moves: move a
+   * sub-project under a different root and every event about it keeps saying where the change
+   * happened. Re-deriving the root here would turn an ordinary reparent into an unloadable file.
+   */
+  type TargetScope = { workspaceId: string; projectId?: string } | 'historical';
+
+  /** The captured owning context: both projects must exist, in this event's workspace. */
+  const assertCapturedContext = (activity: (typeof document.activityEvents)[number]): void => {
+    for (const [field, id] of [
+      ['projectId', activity.context.projectId],
+      ['rootProjectId', activity.context.rootProjectId],
+    ] as const) {
+      if (id === undefined) continue;
+      const project = projects.get(id) ?? fail(`activity "${activity.id}" captures missing ${field} "${id}"`);
+      if (project.workspaceId !== activity.workspaceId) {
+        fail(`activity "${activity.id}" captures a ${field} from another workspace`);
+      }
+    }
+  };
+
+  const targetScope = (activity: (typeof document.activityEvents)[number]): TargetScope => {
+    const { entityType, entityId } = activity;
     if (entityType === 'project') {
       const project = projects.get(entityId) ?? fail(`activity target project "${entityId}" does not exist`);
       return { workspaceId: project.workspaceId, projectId: project.id };
@@ -412,25 +449,38 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
           : entityType === 'milestone'
             ? milestones.get(entityId)?.projectId
             : reflections.get(entityId)?.projectId;
-    const targetProjectId = projectId ?? fail(`activity target ${entityType} "${entityId}" does not exist`);
-    const project = projects.get(targetProjectId) ??
+    if (projectId === undefined) {
+      // A safely removed row: allowed for the two kinds Undo of a creation deletes, and only
+      // with a complete captured identity that still resolves inside this workspace.
+      if (entityType !== 'task' && entityType !== 'reflection') {
+        fail(`activity target ${entityType} "${entityId}" does not exist`);
+      }
+      if (activity.context.projectId === undefined) {
+        fail(`activity "${activity.id}" describes a removed ${entityType} without a captured project`);
+      }
+      return 'historical';
+    }
+    const project = projects.get(projectId) ??
       fail(`activity target ${entityType} "${entityId}" has a missing project`);
-    return { workspaceId: project.workspaceId, projectId: targetProjectId };
+    return { workspaceId: project.workspaceId, projectId };
   };
 
   for (const activity of document.activityEvents) {
     if (!workspaces.has(activity.workspaceId)) fail(`activity "${activity.id}" has missing workspace "${activity.workspaceId}"`);
-    const target = targetScope(activity.entityType, activity.entityId);
-    if (target.workspaceId !== activity.workspaceId) fail(`activity "${activity.id}" targets another workspace`);
+    const target = targetScope(activity);
+    if (target !== 'historical' && target.workspaceId !== activity.workspaceId) {
+      fail(`activity "${activity.id}" targets another workspace`);
+    }
 
     if (activity.projectId !== undefined) {
       const project = projects.get(activity.projectId) ??
         fail(`activity "${activity.id}" has missing project "${activity.projectId}"`);
       if (project.workspaceId !== activity.workspaceId) fail(`activity "${activity.id}" names a project from another workspace`);
-      if (target.projectId !== undefined && target.projectId !== activity.projectId) {
+      if (target !== 'historical' && target.projectId !== undefined && target.projectId !== activity.projectId) {
         fail(`activity "${activity.id}" names a project different from its target`);
       }
     }
+    assertCapturedContext(activity);
 
     if (activity.actor === 'user') {
       const actorId = activity.actorUserId ?? fail(`activity "${activity.id}" has a missing user actor`);
@@ -498,10 +548,9 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     if (orders.has(orderKey)) fail(`operation action "${action.id}" has duplicate order ${action.order} in its history`);
     orders.add(orderKey);
 
-    const operationProjectId = action.operation.type === 'section.remove' || action.operation.type === 'section.add'
-      ? action.operation.section.projectId
-      : action.operation.projectId;
-    if (operationProjectId !== history.projectId) fail(`operation action "${action.id}" names a project outside its history`);
+    if (operationProjectOf(action.operation) !== history.projectId) {
+      fail(`operation action "${action.id}" names a project outside its history`);
+    }
 
     if (action.operation.type === 'section.remove' && action.operation.disposition === 'retained') {
       const section = sections.get(action.operation.section.id);

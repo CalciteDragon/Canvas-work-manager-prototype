@@ -1019,21 +1019,27 @@ describe('SectionService.remove — operation receipt', () => {
     const result = await harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' });
 
     expect(result.section).toMatchObject({ id: listId, archivedAt: SEED_NOW });
+    // The five task writes of the arrangement each record an action of their own since Slice 36, so
+    // this removal is the sixth in one mixed history rather than the first. What the receipt must
+    // still be is *this* action at the history's revision after recording it.
     expect(result.operation).toEqual({
       historyId: 'history-1',
-      actionId: 'operation-1',
+      actionId: 'operation-6',
       operation: 'section.remove',
-      revision: 1,
+      revision: 6,
       label: 'Removed the Task List section',
       createdAt: SEED_NOW,
       expiresAt: '2026-08-25T16:00:00.000Z',
     });
     expect(result.operation).not.toHaveProperty('sequence');
-    expect(harness.store.snapshot().operationActions).toHaveLength(1);
+    const sectionActions = harness.store
+      .snapshot()
+      .operationActions.filter((action) => action.operation.type.startsWith('section.'));
+    expect(sectionActions).toHaveLength(1);
     const events = harness.store.snapshot().activityEvents.slice(eventsBefore);
     expect(events.map(({ action }) => action)).toEqual(['project.section_archived']);
     // The three live rows, not the one filed away beforehand.
-    const operation = harness.store.snapshot().operationActions[0]!.operation;
+    const operation = sectionActions[0]!.operation;
     if (operation.type !== 'section.remove') throw new Error('expected a section removal record');
     expect(operation.rows.map(({ id }) => id)).toEqual([parent.id, first.id, second.id]);
   });
@@ -1130,11 +1136,19 @@ describe('SectionService.remove — operation receipt', () => {
       return { listId, before: writable(harness), persistCalls: harness.store.persistCalls };
     };
 
+    /**
+     * The stub misbehaves for **section** operations only. Since Slice 36 the arrangement's task
+     * writes record actions of their own, and a recorder that failed on those would fail the setup
+     * rather than the removal under test.
+     */
     it('when the recorder throws', async () => {
       const harness = buildHarness(undefined, {
-        recorder: () => ({
-          record: () => Promise.reject(new Error('recorder unavailable')),
-          outstandingRemovalFor: async () => null,
+        recorder: (real) => ({
+          record: (actor, entry) =>
+            entry.operation.type.startsWith('section.')
+              ? Promise.reject(new Error('recorder unavailable'))
+              : real.record(actor, entry),
+          outstandingRemovalFor: (actor, sectionId, section) => real.outstandingRemovalFor(actor, sectionId, section),
         }),
       });
       const { listId, before, persistCalls } = await arrange(harness);
@@ -1156,6 +1170,8 @@ describe('SectionService.remove — operation receipt', () => {
           outstandingRemovalFor: (actor, sectionId, section) => real.outstandingRemovalFor(actor, sectionId, section),
           record: async (actor, entry) => {
             const receipt = await real.record(actor, entry);
+            // Section operations only, for the reason the test above gives.
+            if (!entry.operation.type.startsWith('section.')) return receipt;
             const stored = (await harness.operationHistories.find(receipt.historyId))!;
             await harness.operationHistories.update({ ...stored, ...corruption } as typeof stored);
             return receipt;

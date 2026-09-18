@@ -9,8 +9,8 @@ import {
   UserIdSchema,
   WorkspaceIdSchema,
 } from './ids';
+import { OperationKindSchema } from './operation-receipt';
 import {
-  OperationKindSchema,
   RedoResultSchema,
   UndoConflictSchema,
   UndoOperationSchema,

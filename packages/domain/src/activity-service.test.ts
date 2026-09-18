@@ -62,10 +62,14 @@ describe('ActivityService.record', () => {
     };
     const system: ActorContext = { actor: 'system', workspaceId: harness.actor.workspaceId };
 
+    // A real row: since version 5 an event captures its target's identity, so `record` refuses an
+    // entry naming a target it cannot resolve rather than writing an audit line nothing backs.
+    const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Configure deployment' });
     const agentEvent = await harness.activity.record(agent, {
       action: 'task.completed',
       entityType: 'task',
-      entityId: 'task-1',
+      entityId: task.id,
+      projectId: MINE,
       summary: 'Completed "Configure deployment"',
     });
     const systemEvent = await harness.activity.record(system, {

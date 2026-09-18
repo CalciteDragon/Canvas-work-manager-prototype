@@ -36,11 +36,15 @@ const NOW = new Date('2026-09-16T12:00:00.000Z');
 const BACKUP = 'data.json.backup-2026-09-16T12-00-00-000Z.json';
 
 describe('upgradeDataFile — the chained conversion', () => {
-  it('the v2 fixture converts through the frozen v3 intermediate to v4, backing the original up first', async () => {
+  it('the v2 fixture converts through the two frozen intermediates to v5, backing the original up first', async () => {
     const source = await readFile(v2FixturePath, 'utf8');
     const fileOperations = operations(source);
 
-    await expect(upgradeDataFile('data.json', { fileOperations, now: NOW })).resolves.toEqual({ changed: true, fromVersion: 2, retiredReceipts: 0 });
+    const result = await upgradeDataFile('data.json', { fileOperations, now: NOW });
+    expect(result).toMatchObject({ changed: true, fromVersion: 2, retiredReceipts: 0 });
+    // The committed v2 corpus predates the activity feed, so there is nothing to backfill here;
+    // the v3 and v4 cases below are where the captured identity is proved.
+    expect(result.backfilledEvents).toBe(0);
 
     expect(fileOperations.order).toEqual([`write ${BACKUP}`, 'write data.json.tmp', 'rename data.json.tmp -> data.json']);
     // The backup is the original's exact bytes; the converted file is re-serialized.
@@ -50,26 +54,117 @@ describe('upgradeDataFile — the chained conversion', () => {
     expect(() => new InMemoryDataStore(converted)).not.toThrow();
     const input = JSON.parse(source) as Record<string, Row[]>;
     expect(converted['tasks']).toEqual(input['tasks']);
-    expect(converted['activityEvents']).toEqual(input['activityEvents']);
+    // Activity events keep everything they said and gain exactly `context`.
+    expect((converted['activityEvents'] as Row[]).map(({ context, ...rest }) => rest)).toEqual(
+      (input['activityEvents'] ?? []).map((event) => ({ ...event, projectId: event['projectId'] })),
+    );
   });
 
-  it('a direct v3 file converts once, retiring its receipts, and a second run is a no-op', async () => {
+  it('a direct v3 file converts once through the chain, retiring its receipts; a second run is a no-op', async () => {
     const input = JSON.parse(await readFile(v3FixturePath, 'utf8')) as Row;
     const source = `${JSON.stringify({ ...input, undoRecords: [{ id: 'undo-1' }, { id: 'undo-2', consumedAt: '2026-08-24T16:00:00.000Z' }] }, null, 2)}\n`;
     const first = operations(source);
 
-    await expect(upgradeDataFile('data.json', { fileOperations: first, now: NOW })).resolves.toEqual({ changed: true, fromVersion: 3, retiredReceipts: 2 });
+    await expect(upgradeDataFile('data.json', { fileOperations: first, now: NOW })).resolves.toMatchObject({
+      changed: true,
+      fromVersion: 3,
+      retiredReceipts: 2,
+    });
 
     const second = operations(first.written.get('data.json')!);
-    await expect(upgradeDataFile('data.json', { fileOperations: second })).resolves.toEqual({ changed: false, fromVersion: 4, retiredReceipts: 0 });
+    await expect(upgradeDataFile('data.json', { fileOperations: second })).resolves.toEqual({
+      changed: false,
+      fromVersion: SCHEMA_VERSION,
+      retiredReceipts: 0,
+      backfilledEvents: 0,
+    });
     expect(second.writeFile).not.toHaveBeenCalled();
     expect(second.rename).not.toHaveBeenCalled();
   });
 
-  it('a repeat run on a v4 file writes nothing', async () => {
+  /**
+   * Slice 36's own step, and the case Slice 35's in-place proposal could not serve: a version-4
+   * file is the one an operator actually holds, and it must keep every history it recorded.
+   */
+  it('a v4 file gains captured identities and keeps every operation history and action', async () => {
+    const v5 = buildSeed('nested-projects');
+    const section = v5.sections[0]!;
+    const history = {
+      id: 'history-v4',
+      workspaceId: v5.workspaces[0]!.id,
+      projectId: section.projectId,
+      actor: 'user',
+      actorUserId: v5.users[0]!.id,
+      cursor: 1,
+      orderHighWaterMark: 3,
+      revision: 7,
+    };
+    const actions = [
+      {
+        id: 'operation-applied',
+        historyId: history.id,
+        order: 1,
+        state: 'applied',
+        label: 'Updated a section',
+        createdAt: '2026-09-16T10:00:00.000Z',
+        expiresAt: '2026-09-17T10:00:00.000Z',
+        operation: {
+          version: 1,
+          type: 'section.update',
+          sectionId: section.id,
+          projectId: section.projectId,
+          pageId: section.pageId,
+          changes: [{ field: 'collapsed', before: false, after: true }],
+        },
+      },
+      {
+        id: 'operation-undone',
+        historyId: history.id,
+        order: 3,
+        state: 'undone',
+        label: 'Moved a section',
+        createdAt: '2026-09-16T10:05:00.000Z',
+        expiresAt: '2026-09-17T10:05:00.000Z',
+        operation: {
+          version: 1,
+          type: 'section.move',
+          sectionId: section.id,
+          projectId: section.projectId,
+          pageId: section.pageId,
+          placementBefore: { pageId: section.pageId, index: 0 },
+          placementAfter: { pageId: section.pageId, index: 1 },
+        },
+      },
+    ];
+    const v4 = {
+      ...v5,
+      schemaVersion: 4,
+      activityEvents: v5.activityEvents.map(({ context, ...event }) => event),
+      operationHistories: [history],
+      operationActions: actions,
+    };
+    const fileOperations = operations(`${JSON.stringify(v4, null, 2)}\n`);
+
+    const result = await upgradeDataFile('data.json', { fileOperations, now: NOW });
+
+    expect(result).toMatchObject({ changed: true, fromVersion: 4, retiredReceipts: 0 });
+    expect(result.backfilledEvents).toBe(v4.activityEvents.length);
+    const converted = JSON.parse(fileOperations.written.get('data.json')!) as Row;
+    expect(converted['schemaVersion']).toBe(SCHEMA_VERSION);
+    expect(converted['operationHistories']).toEqual(v4.operationHistories);
+    expect(converted['operationActions']).toEqual(v4.operationActions);
+    expect(() => new InMemoryDataStore(converted)).not.toThrow();
+  });
+
+  it('a repeat run on a v5 file writes nothing', async () => {
     const fileOperations = operations(`${JSON.stringify(buildSeed('nested-projects'), null, 2)}\n`);
 
-    await expect(upgradeDataFile('data.json', { fileOperations })).resolves.toEqual({ changed: false, fromVersion: SCHEMA_VERSION, retiredReceipts: 0 });
+    await expect(upgradeDataFile('data.json', { fileOperations })).resolves.toEqual({
+      changed: false,
+      fromVersion: SCHEMA_VERSION,
+      retiredReceipts: 0,
+      backfilledEvents: 0,
+    });
 
     expect(fileOperations.writeFile).not.toHaveBeenCalled();
   });
@@ -104,17 +199,26 @@ describe('upgradeDataFile — the chained conversion', () => {
   });
 
   it('sniffs the version before converting, refusing what it cannot read', async () => {
-    await expect(upgradeDataFile('data.json', { fileOperations: operations('{"schemaVersion": 1}') })).rejects.toThrow(/version 1/);
+    await expect(upgradeDataFile('data.json', { fileOperations: operations('{\"schemaVersion\": 1}') })).rejects.toThrow(/version 1/);
     await expect(upgradeDataFile('data.json', { fileOperations: operations('{"schemaVersion": 9}') })).rejects.toThrow(RangeError);
     await expect(upgradeDataFile('data.json', { fileOperations: operations('{}') })).rejects.toThrow(/schemaVersion/);
     await expect(upgradeDataFile('data.json', { fileOperations: operations('not json') })).rejects.toThrow(/not valid JSON/);
   });
 
-  it('says which version it converted from and that Undo history was reset', () => {
-    expect(upgradeMessage('data.json', { changed: true, fromVersion: 3, retiredReceipts: 2 })).toBe(
-      'Converted "data.json" from schema version 3 to 4. 2 Undo receipts from version 3 were retired: Undo and Redo history starts empty. The original is beside it as a .backup-*.json file.\n',
+  it('says which version it converted from, and no longer claims version-4 history starts empty', () => {
+    expect(upgradeMessage('data.json', { changed: true, fromVersion: 3, retiredReceipts: 2, backfilledEvents: 4 })).toBe(
+      'Converted "data.json" from schema version 3 to 5. 2 Undo receipts from version 3 were retired. 4 activity events gained the captured identity of their target. The original is beside it as a .backup-*.json file.\n',
     );
-    expect(upgradeMessage('data.json', { changed: true, fromVersion: 2, retiredReceipts: 0 })).toContain('Undo and Redo history starts empty.');
-    expect(upgradeMessage('data.json', { changed: false, fromVersion: 4, retiredReceipts: 0 })).toBe('"data.json" is already at schema version 4. Nothing was written.\n');
+    expect(
+      upgradeMessage('data.json', { changed: true, fromVersion: 2, retiredReceipts: 0, backfilledEvents: 0 }),
+    ).toContain('Undo and Redo history starts empty.');
+    // From version 4 the history is preserved, so the reset sentence would be a lie.
+    const fromFour = upgradeMessage('data.json', { changed: true, fromVersion: 4, retiredReceipts: 0, backfilledEvents: 1 });
+    expect(fromFour).toContain('Every Undo and Redo action was preserved.');
+    expect(fromFour).toContain('1 activity event gained the captured identity of its target.');
+    expect(fromFour).not.toContain('starts empty');
+    expect(
+      upgradeMessage('data.json', { changed: false, fromVersion: 5, retiredReceipts: 0, backfilledEvents: 0 }),
+    ).toBe('"data.json" is already at schema version 5. Nothing was written.\n');
   });
 });

@@ -1,14 +1,14 @@
 import { z } from 'zod';
-import { IsoDateTimeSchema, PositionSchema } from './common';
+import { IsoDateTimeSchema } from './common';
+import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema } from './ids';
 import {
-  ProjectIdSchema,
-  ProjectPageIdSchema,
-  ReflectionIdSchema,
-  OperationActionIdSchema,
-  OperationHistoryIdSchema,
-  SectionIdSchema,
-  TaskIdSchema,
-} from './ids';
+  assertRowsAreDistinct,
+  PlacementSnapshotSchema,
+  TransitionPlacementSchema,
+  UndoRowChangeSchema,
+} from './history-placement';
+import { OperationReceiptSchema } from './operation-receipt';
+import { ROW_REDO_RESULT_SCHEMAS, ROW_UNDO_RESULT_SCHEMAS, RowUndoOperationSchema } from './row-history';
 import { ownedKindOf, ProjectSectionSchema, SectionColumnSpanSchema, SectionConfigSchema } from './section';
 
 /**
@@ -19,67 +19,10 @@ import { ownedKindOf, ProjectSectionSchema, SectionColumnSpanSchema, SectionConf
  * and docs/decisions/2026-09-operation-history-scope.md.
  *
  * The operation union is typed and versioned: an unknown `type` or `version` fails parsing
- * rather than executing arbitrary JSON. Automatic row-container creation and shortcut-only
- * writes deliberately do not produce members here.
+ * rather than executing arbitrary JSON. Slice 36 adds the eight task and reflection members from
+ * `row-history.ts`; the placement and row-structure shapes both families share live in
+ * `history-placement.ts`.
  */
-
-/** One entry of a page's combined section/shortcut order (§27). */
-export const PlacementRefSchema = z.strictObject({
-  kind: z.enum(['section', 'shortcut']),
-  id: z.string().min(1),
-});
-export type PlacementRef = z.infer<typeof PlacementRefSchema>;
-
-/**
- * Where the subject sat in its page's **live** combined order before the removal: its
- * neighbours, when it had them, and its index. Undo prefers a surviving neighbour to the index,
- * because the index means nothing once the page has changed around it.
- */
-export const PlacementSnapshotSchema = z.strictObject({
-  pageId: ProjectPageIdSchema,
-  previous: PlacementRefSchema.optional(),
-  next: PlacementRefSchema.optional(),
-  index: PositionSchema,
-});
-export type PlacementSnapshot = z.infer<typeof PlacementSnapshotSchema>;
-
-/**
- * The fields of a task an inverse writes, and therefore the only ones a later edit can
- * conflict with. A title or status edit is not structural and is preserved by Undo.
- */
-export const TaskStructuralStateSchema = z.strictObject({
-  sectionId: SectionIdSchema,
-  parentTaskId: TaskIdSchema.optional(),
-  archivedAt: IsoDateTimeSchema.optional(),
-  archivedWithSectionId: SectionIdSchema.optional(),
-  archivedWithTaskId: TaskIdSchema.optional(),
-});
-export type TaskStructuralState = z.infer<typeof TaskStructuralStateSchema>;
-
-/** A reflection has no parent, so its structural state is its container and archive marker. */
-export const ReflectionStructuralStateSchema = z.strictObject({
-  sectionId: SectionIdSchema,
-  archivedAt: IsoDateTimeSchema.optional(),
-  archivedWithSectionId: SectionIdSchema.optional(),
-});
-export type ReflectionStructuralState = z.infer<typeof ReflectionStructuralStateSchema>;
-
-/** One row a removal changed, as it was before and as the removal left it. */
-export const UndoRowChangeSchema = z.discriminatedUnion('kind', [
-  z.strictObject({
-    kind: z.literal('task'),
-    id: TaskIdSchema,
-    before: TaskStructuralStateSchema,
-    after: TaskStructuralStateSchema,
-  }),
-  z.strictObject({
-    kind: z.literal('reflection'),
-    id: ReflectionIdSchema,
-    before: ReflectionStructuralStateSchema,
-    after: ReflectionStructuralStateSchema,
-  }),
-]);
-export type UndoRowChange = z.infer<typeof UndoRowChangeSchema>;
 
 /** The policy removal actually **applied** — not the one the caller sent. */
 export const AppliedRemovalPolicySchema = z.enum(['none', 'cascade', 'reassign']);
@@ -143,10 +86,8 @@ export const SectionRemoveUndoOperationSchema = z
       ctx.addIssue({ code: 'custom', path: ['rows'], message: 'rows are recorded exactly when a policy was applied' });
     }
     const owned = ownedKindOf(operation.section.type);
-    const seen = new Set<string>();
+    assertRowsAreDistinct(operation.rows, ctx);
     for (const [index, row] of operation.rows.entries()) {
-      if (seen.has(row.id)) ctx.addIssue({ code: 'custom', path: ['rows', index, 'id'], message: 'a row is recorded once' });
-      seen.add(row.id);
       if (owned === undefined || row.kind !== ROW_KIND_FOR_OWNED[owned]) {
         ctx.addIssue({ code: 'custom', path: ['rows', index, 'kind'], message: 'a row is of the kind its section owns' });
       }
@@ -247,33 +188,51 @@ export const UndoOperationSchema = z.discriminatedUnion('type', [
   SectionAddUndoOperationSchema,
   SectionMoveUndoOperationSchema,
   SectionUpdateUndoOperationSchema,
+  ...RowUndoOperationSchema.options,
 ]);
 export type UndoOperation = z.infer<typeof UndoOperationSchema>;
 export type UndoOperationType = UndoOperation['type'];
 
-/** The four operation kinds a history action can hold, as receipts and summaries name them. */
-export const OperationKindSchema = z.enum(['section.remove', 'section.add', 'section.move', 'section.update']);
-export type OperationKind = z.infer<typeof OperationKindSchema>;
-
 /**
- * What a caller is handed after a committed explicit section operation: the history and action
- * it recorded, and the history's `revision` after recording — the value a transition passes as
- * `expectedRevision`. Nothing of the captured footprint: no snapshot, actor or row ids.
- *
- * It replaces the Slice 30 receipt's workspace `sequence`. A client orders receipts from one
- * history by `revision`; receipts from different histories are not comparable, and never need to
- * be, because one page's writes all record into its project's history.
+ * **The project whose history owns an action.** One function rather than a conditional at each
+ * call site: document integrity, the recorder and every executor ask the same question, and a
+ * family added later must answer it here or fail to compile.
  */
-export const OperationReceiptSchema = z.strictObject({
-  historyId: OperationHistoryIdSchema,
-  actionId: OperationActionIdSchema,
-  operation: OperationKindSchema,
-  revision: z.number().int().positive(),
-  label: z.string().min(1),
-  createdAt: IsoDateTimeSchema,
-  expiresAt: IsoDateTimeSchema,
-});
-export type OperationReceipt = z.infer<typeof OperationReceiptSchema>;
+export const operationProjectOf = (operation: UndoOperation): string => {
+  switch (operation.type) {
+    case 'section.remove':
+    case 'section.add':
+      return operation.section.projectId;
+    case 'task.add':
+      return operation.task.projectId;
+    case 'reflection.add':
+      return operation.reflection.projectId;
+    default:
+      return operation.projectId;
+  }
+};
+
+/** The subject an action is about, for a receipt lookup or a refusal sentence. */
+export const operationSubjectOf = (operation: UndoOperation): string => {
+  switch (operation.type) {
+    case 'section.remove':
+    case 'section.add':
+      return operation.section.id;
+    case 'section.move':
+    case 'section.update':
+      return operation.sectionId;
+    case 'task.add':
+      return operation.task.id;
+    case 'task.update':
+    case 'task.archive':
+    case 'task.restore':
+      return operation.taskId;
+    case 'reflection.add':
+      return operation.reflection.id;
+    default:
+      return operation.reflectionId;
+  }
+};
 
 /**
  * A repeat remove can recover the removal receipt while it is still the exact actor's applied,
@@ -319,14 +278,6 @@ export const SectionWriteResultSchema = z.object({
   operation: OperationReceiptSchema.nullable(),
 });
 export type SectionWriteResult = z.infer<typeof SectionWriteResultSchema>;
-
-/** Where a transition put a section, and which placement rule decided it. */
-const TransitionPlacementSchema = z.object({
-  pageId: ProjectPageIdSchema,
-  index: PositionSchema,
-  strategy: z.enum(['previous', 'next', 'index']),
-  pageEnabled: z.boolean(),
-});
 
 /** A completed removal Undo. `partial` means it used the canonical fallback page. */
 export const SectionRemovalUndoResultSchema = z.object({
@@ -374,6 +325,7 @@ export const UndoResultSchema = z.discriminatedUnion('operation', [
   SectionAddUndoResultSchema,
   SectionMoveUndoResultSchema,
   SectionUpdateUndoResultSchema,
+  ...ROW_UNDO_RESULT_SCHEMAS,
 ]);
 export type UndoResult = z.infer<typeof UndoResultSchema>;
 
@@ -419,6 +371,7 @@ export const RedoResultSchema = z.discriminatedUnion('operation', [
   SectionAddRedoResultSchema,
   SectionMoveRedoResultSchema,
   SectionUpdateRedoResultSchema,
+  ...ROW_REDO_RESULT_SCHEMAS,
 ]);
 export type RedoResult = z.infer<typeof RedoResultSchema>;
 

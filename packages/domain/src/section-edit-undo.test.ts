@@ -65,13 +65,30 @@ describe('SectionService edit receipts, Undo and Redo', () => {
     expect(harness.store.snapshot().activityEvents.at(-1)?.action).toBe('project.section_addition_redone');
   });
 
-  it('does not record implicit row-container creation', async () => {
+  /**
+   * Since Slice 36 an implicit container is **part of the row's own action**, not a `section.add` of
+   * its own: one row event, one action, one frame, and one Undo that removes both. What must never
+   * appear is a second action, or a second activity event, for the container.
+   */
+  it('folds implicit row-container creation into the row action rather than recording its own', async () => {
     const harness = buildHarness();
+    const eventsBefore = harness.store.snapshot().activityEvents.length;
 
-    await harness.reflectionService.create(harness.actor, { projectId: MINE, title: 'First reflection', body: 'Body' });
+    const { operation } = await harness.reflectionWriteService.create(harness.actor, {
+      projectId: MINE,
+      title: 'First reflection',
+      body: 'Body',
+    });
 
-    expect(harness.store.snapshot().operationActions).toEqual([]);
-    expect(harness.store.snapshot().operationHistories).toEqual([]);
+    const actions = harness.store.snapshot().operationActions;
+    expect(actions).toHaveLength(1);
+    expect(actions[0]!.id).toBe(operation.actionId);
+    expect(actions[0]!.operation.type).toBe('reflection.add');
+    if (actions[0]!.operation.type !== 'reflection.add') throw new Error('expected a reflection add record');
+    expect(actions[0]!.operation.container?.section.type).toBe('reflections');
+    expect(harness.store.snapshot().activityEvents.slice(eventsBefore).map(({ action }) => action)).toEqual([
+      'reflection.added',
+    ]);
   });
 
   it('returns no receipt for a true update or move no-op, and a no-op leaves the redo branch standing', async () => {
@@ -135,7 +152,14 @@ describe('SectionService edit receipts, Undo and Redo', () => {
   it('refuses add Undo when a later row references the new container and keeps the action next', async () => {
     const harness = buildHarness();
     const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'task-list' });
-    await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: added.section.id, title: 'Keep me' });
+    // The row is created by an **agent**, whose writes record into its own history (Slice 36 gave
+    // row writes actions too). That keeps the section add the next undo step in the person's stack
+    // while still leaving a real later dependent on the container.
+    await harness.taskService.create(agentActorFor(0, ['tasks.write']), {
+      projectId: MINE,
+      sectionId: added.section.id,
+      title: 'Keep me',
+    });
     const before = writable(harness);
 
     const refusal = await refusalOf(harness.undo(harness.actor, added.operation));

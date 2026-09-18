@@ -1,5 +1,4 @@
 import {
-  ActivityEventSchema,
   AgentConnectionSchema,
   MilestoneSchema,
   ProjectPageSchema,
@@ -10,7 +9,6 @@ import {
   SCHEMA_VERSION,
   SectionShortcutSchema,
   TaskSchema,
-  type ActivityEvent,
   type AgentConnection,
   type Milestone,
   type Project,
@@ -21,6 +19,7 @@ import {
   type Task,
 } from '@cwm/contracts';
 import { PERSONAS } from './personas';
+import { captureActivityIdentities } from './upgrade-activity-identity';
 
 export const SEED_NAMES = [
   'empty',
@@ -182,6 +181,10 @@ const agentConnection = (
  * target must exist, `projectId` must match the target's project, and an agent event's
  * connection must be owned by someone in the event's workspace — so every id below names
  * something this seed actually creates.
+ *
+ * It returns the event **without** its version-5 `context`: `document` below derives every
+ * captured identity from the finished collections through the one function the converter uses,
+ * so a seed cannot disagree with a conversion about what an audit line captured.
  */
 const activityEvent = (
   id: string,
@@ -192,20 +195,19 @@ const activityEvent = (
   entityId: string,
   summary: string,
   options: { projectId?: string; agentConnectionId?: string } = {},
-): ActivityEvent =>
-  ActivityEventSchema.parse({
-    id,
-    workspaceId: DEMO_WORKSPACE_ID,
-    actor,
-    actorUserId: actor === 'user' ? PERSONAS[0]!.user.id : undefined,
-    actorAgentConnectionId: actor === 'agent' ? options.agentConnectionId : undefined,
-    action,
-    entityType,
-    entityId,
-    projectId: options.projectId,
-    summary,
-    createdAt,
-  });
+): Record<string, unknown> => ({
+  id,
+  workspaceId: DEMO_WORKSPACE_ID,
+  actor,
+  actorUserId: actor === 'user' ? PERSONAS[0]!.user.id : undefined,
+  actorAgentConnectionId: actor === 'agent' ? options.agentConnectionId : undefined,
+  action,
+  entityType,
+  entityId,
+  projectId: options.projectId,
+  summary,
+  createdAt,
+});
 
 /**
  * The canvas every seeded project gets: a Rich Text brief above its Task List (§30's first
@@ -281,8 +283,16 @@ const reflection = (
     updatedAt: options.updatedAt ?? options.createdAt ?? CREATED_AT,
   });
 
-const document = (collections: Partial<PrototypeDocument> = {}): PrototypeDocument =>
-  PrototypeDocumentSchema.parse({
+/**
+ * `activityEvents` is deliberately looser than the rest: a seed writes context-free events and the
+ * capture below completes them, so the builders' output is not yet an `ActivityEvent`.
+ */
+type SeedCollections = Omit<Partial<PrototypeDocument>, 'activityEvents'> & {
+  activityEvents?: readonly Record<string, unknown>[];
+};
+
+const document = (collections: SeedCollections = {}): PrototypeDocument => {
+  const assembled = {
     schemaVersion: SCHEMA_VERSION,
     users: PERSONAS.map(({ user }) => structuredClone(user)),
     workspaces: PERSONAS.map(({ workspace }) => structuredClone(workspace)),
@@ -298,7 +308,11 @@ const document = (collections: Partial<PrototypeDocument> = {}): PrototypeDocume
     // Derived from the projects rather than written per seed: every project has exactly one
     // canonical page (§26), so listing them by hand would be six chances to forget one.
     projectPages: collections.projectPages ?? (collections.projects ?? []).map(canonicalPage),
-  });
+  } as Record<string, unknown>;
+  // One derivation for every seed, shared with the version-5 converter: the captured identity of
+  // each event's target, read from the collections the seed just wrote.
+  return PrototypeDocumentSchema.parse({ ...assembled, ...captureActivityIdentities(assembled) });
+};
 
 const empty = (): PrototypeDocument => document();
 

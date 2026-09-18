@@ -1,7 +1,10 @@
 import {
   ReflectionIdSchema,
   ReflectionSchema,
+  type CreatedContainer,
+  type ReflectionAddResult,
   type ReflectionSubject,
+  type ReflectionWriteResult,
   type CreateReflectionInput,
   type ProjectId,
   type Project,
@@ -17,7 +20,16 @@ import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import { compareInstants, compareText, instantOf } from './instants';
 import type { IdGenerator } from './ids';
+import type { OperationRecorder } from './operation-recorder';
 import { assertProjectWritable } from './project-visibility';
+import {
+  captureReflectionAdd,
+  captureReflectionArchive,
+  captureReflectionRestore,
+  captureReflectionUpdate,
+  reflectionFieldChanges,
+  reflectionRowChange,
+} from './reflection-history';
 import type { SectionService } from './section-service';
 
 export interface ReflectionServiceDependencies {
@@ -27,10 +39,24 @@ export interface ReflectionServiceDependencies {
   /** A reflection belongs to a `reflections` section — see `TaskServiceDependencies`. */
   sections: SectionService;
   activity: ActivityService;
+  /** §31's per-actor history — the same interface edge `TaskService` takes, and acyclic for the same reason. */
+  history: OperationRecorder;
   clock: Clock;
   ids: IdGenerator;
   unitOfWork: UnitOfWork;
 }
+
+/** Where a create landed, and the container it had to make on the way. */
+interface ResolvedSection {
+  sectionId: Reflection['sectionId'];
+  container?: CreatedContainer;
+}
+
+/** How a receipt label names a reflection; §36 makes its title optional, so a fallback is needed. */
+const labelOf = (reflection: Reflection): string => {
+  const title = reflection.title?.trim();
+  return title === undefined || title.length === 0 ? 'a reflection' : `“${title}”`;
+};
 
 export class ReflectionService {
   constructor(private readonly dependencies: ReflectionServiceDependencies) {}
@@ -57,7 +83,11 @@ export class ReflectionService {
     });
   }
 
-  async create(actor: ActorContext, input: CreateReflectionInput): Promise<Reflection> {
+  /**
+   * Answers the created reflection **and its receipt**, and — when the create had to make its
+   * container — records both as one action, one event and one frame (§31, §36).
+   */
+  async create(actor: ActorContext, input: CreateReflectionInput): Promise<ReflectionAddResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'reflections.write');
     return this.dependencies.unitOfWork.run(async () => {
@@ -70,7 +100,7 @@ export class ReflectionService {
       // authoritative, and it has to agree with any page also supplied. Named page only:
       // resolved there, and refused if that page does not take reflections. Neither: the
       // project's canonical page.
-      const sectionId = await this.resolveSection(actor, input);
+      const { sectionId, container } = await this.resolveSection(actor, input);
 
       const now = this.dependencies.clock.now().toISOString();
       const reflection = ReflectionSchema.parse({
@@ -82,11 +112,23 @@ export class ReflectionService {
       });
       await this.dependencies.reflections.insert(reflection);
       await this.record(actor, reflection, 'reflection.added', 'Added');
-      return reflection;
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: reflection.projectId,
+        label: `Wrote ${labelOf(reflection)}`,
+        operation: captureReflectionAdd(reflection, container),
+      });
+      return { reflection, operation };
     });
   }
 
-  async update(actor: ActorContext, id: ReflectionId, input: UpdateReflectionInput): Promise<Reflection> {
+  /**
+   * Answers the updated reflection and a receipt, or a `null` receipt for a no-op.
+   *
+   * Subject eligibility is still checked here, on the current state, exactly as §36 requires. The
+   * inverse does **not** re-check it — see `reflection-history.ts` — because reopening the work a
+   * reflection is about must not quietly erase the link to it.
+   */
+  async update(actor: ActorContext, id: ReflectionId, input: UpdateReflectionInput): Promise<ReflectionWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'reflections.write');
     return this.dependencies.unitOfWork.run(async () => {
@@ -106,11 +148,20 @@ export class ReflectionService {
           next.subject = input.subject;
         }
       }
-      if (JSON.stringify(next) === JSON.stringify(current)) return current;
+      if (JSON.stringify(next) === JSON.stringify(current)) return { reflection: current, operation: null };
       const updated = ReflectionSchema.parse({ ...next, updatedAt: this.dependencies.clock.now().toISOString() });
       await this.dependencies.reflections.update(updated);
       await this.record(actor, updated, 'reflection.updated', 'Updated');
-      return updated;
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: updated.projectId,
+        label: `Edited ${labelOf(updated)}`,
+        operation: captureReflectionUpdate({
+          reflectionId: id,
+          projectId: updated.projectId,
+          changes: reflectionFieldChanges(current, updated),
+        }),
+      });
+      return { reflection: updated, operation };
     });
   }
 
@@ -120,12 +171,12 @@ export class ReflectionService {
    * cascaded, and nothing could ever clear it. Idempotent, like its task counterpart, and
    * allowed inside an archived project or section so hidden work can still be tidied.
    */
-  async archive(actor: ActorContext, id: ReflectionId): Promise<Reflection> {
+  async archive(actor: ActorContext, id: ReflectionId): Promise<ReflectionWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'reflections.write');
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.get(actor, id);
-      if (current.archivedAt !== undefined) return current;
+      if (current.archivedAt !== undefined) return { reflection: current, operation: null };
       const archivedAt = this.dependencies.clock.now().toISOString();
       const updated = ReflectionSchema.parse({
         ...current,
@@ -134,7 +185,16 @@ export class ReflectionService {
       });
       await this.dependencies.reflections.update(updated);
       await this.record(actor, updated, 'reflection.archived', 'Archived');
-      return updated;
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: updated.projectId,
+        label: `Archived ${labelOf(updated)}`,
+        operation: captureReflectionArchive({
+          reflectionId: id,
+          projectId: updated.projectId,
+          rows: [reflectionRowChange(current, updated)],
+        }),
+      });
+      return { reflection: updated, operation };
     });
   }
 
@@ -144,12 +204,12 @@ export class ReflectionService {
    * Reflections have no parents, so there is no second refusal. A live reflection returns
    * unchanged and records nothing.
    */
-  async restore(actor: ActorContext, id: ReflectionId): Promise<Reflection> {
+  async restore(actor: ActorContext, id: ReflectionId): Promise<ReflectionWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'reflections.write');
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.get(actor, id);
-      if (current.archivedAt === undefined) return current;
+      if (current.archivedAt === undefined) return { reflection: current, operation: null };
       await this.assertProjectActive(current.projectId);
       await this.assertSectionLive(actor, current);
 
@@ -162,15 +222,28 @@ export class ReflectionService {
       });
       await this.dependencies.reflections.update(updated);
       await this.record(actor, updated, 'reflection.restored', 'Restored');
-      return updated;
+      // A row Restore records an action of its own from Stage B, and stays durable while doing so:
+      // it needs no receipt to invoke and still works after the archive action expired. Recording
+      // it also clears its own Redo branch, like any other successful write
+      // (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: updated.projectId,
+        label: `Restored ${labelOf(updated)}`,
+        operation: captureReflectionRestore({
+          reflectionId: id,
+          projectId: updated.projectId,
+          rows: [reflectionRowChange(current, updated)],
+        }),
+      });
+      return { reflection: updated, operation };
     });
   }
 
   /** §27's write resolution for a reflection. See `TaskService.resolveSection` for the shape. */
-  private async resolveSection(actor: ActorContext, input: CreateReflectionInput) {
+  private async resolveSection(actor: ActorContext, input: CreateReflectionInput): Promise<ResolvedSection> {
     if (input.sectionId === undefined) {
-      return (await this.dependencies.sections.resolveContainer(actor, input.projectId, 'reflections', input.pageId))
-        .id;
+      const resolved = await this.dependencies.sections.resolveContainer(actor, input.projectId, 'reflections', input.pageId);
+      return { sectionId: resolved.section.id, ...(resolved.created === undefined ? {} : { container: resolved.created }) };
     }
     const section = await this.dependencies.sections.requireContainer(
       actor,
@@ -181,7 +254,7 @@ export class ReflectionService {
     if (input.pageId !== undefined && input.pageId !== section.pageId) {
       throw new DomainRuleError('the named section is not on the named page');
     }
-    return section.id;
+    return { sectionId: section.id };
   }
 
   /**

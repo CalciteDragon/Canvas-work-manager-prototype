@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 4,
   "users": [
     {
       "id": "user-demo",
@@ -379,13 +379,6 @@
       "entityId": "project-work-manager",
       "projectId": "project-work-manager",
       "summary": "Created \"Work Manager\"",
-      "context": {
-        "targetKind": "project",
-        "targetId": "project-work-manager",
-        "targetLabel": "Work Manager",
-        "projectId": "project-work-manager",
-        "rootProjectId": "project-work-manager"
-      },
       "createdAt": "2026-08-20T16:00:00.000Z"
     },
     {
@@ -398,13 +391,6 @@
       "entityId": "task-agent-schema",
       "projectId": "project-work-manager",
       "summary": "Created \"Document the tool input schemas\"",
-      "context": {
-        "targetKind": "task",
-        "targetId": "task-agent-schema",
-        "targetLabel": "Document the tool input schemas",
-        "projectId": "project-work-manager",
-        "rootProjectId": "project-work-manager"
-      },
       "createdAt": "2026-08-21T09:15:00.000Z"
     },
     {
@@ -417,13 +403,6 @@
       "entityId": "task-agent-retries",
       "projectId": "project-work-manager",
       "summary": "Updated \"Add retry budget to the sync job\"",
-      "context": {
-        "targetKind": "task",
-        "targetId": "task-agent-retries",
-        "targetLabel": "Add retry budget to the sync job",
-        "projectId": "project-work-manager",
-        "rootProjectId": "project-work-manager"
-      },
       "createdAt": "2026-08-22T11:40:00.000Z"
     },
     {
@@ -436,13 +415,6 @@
       "entityId": "task-agent-triage",
       "projectId": "project-work-manager",
       "summary": "Updated \"Triage the overnight agent errors\"",
-      "context": {
-        "targetKind": "task",
-        "targetId": "task-agent-triage",
-        "targetLabel": "Triage the overnight agent errors",
-        "projectId": "project-work-manager",
-        "rootProjectId": "project-work-manager"
-      },
       "createdAt": "2026-08-23T08:05:00.000Z"
     },
     {
@@ -455,13 +427,6 @@
       "entityId": "reflection-agent-scope",
       "projectId": "project-agent-ops",
       "summary": "Created \"Grants drift\"",
-      "context": {
-        "targetKind": "reflection",
-        "targetId": "reflection-agent-scope",
-        "targetLabel": "Grants drift",
-        "projectId": "project-agent-ops",
-        "rootProjectId": "project-agent-ops"
-      },
       "createdAt": "2026-08-23T18:00:00.000Z"
     },
     {
@@ -472,11 +437,6 @@
       "entityType": "agent_connection",
       "entityId": "agent-old",
       "summary": "Revoked \"Retired assistant\" after 30 days unused",
-      "context": {
-        "targetKind": "agent_connection",
-        "targetId": "agent-old",
-        "targetLabel": "Retired assistant"
-      },
       "createdAt": "2026-08-24T06:00:00.000Z"
     },
     {
@@ -489,13 +449,6 @@
       "entityId": "task-agent-deployment",
       "projectId": "project-work-manager",
       "summary": "Completed \"Configure deployment\"",
-      "context": {
-        "targetKind": "task",
-        "targetId": "task-agent-deployment",
-        "targetLabel": "Configure deployment",
-        "projectId": "project-work-manager",
-        "rootProjectId": "project-work-manager"
-      },
       "createdAt": "2026-08-24T15:32:00.000Z"
     },
     {
@@ -507,11 +460,6 @@
       "entityType": "agent_connection",
       "entityId": "agent-cursor",
       "summary": "Updated permissions for \"Cursor\"",
-      "context": {
-        "targetKind": "agent_connection",
-        "targetId": "agent-cursor",
-        "targetLabel": "Cursor"
-      },
       "createdAt": "2026-08-24T15:45:00.000Z"
     }
   ],
@@ -554,6 +502,65 @@
       "createdAt": "2026-08-01T16:00:00.000Z"
     }
   ],
-  "operationHistories": [],
-  "operationActions": []
+  "operationHistories": [
+    {
+      "id": "history-v4-demo",
+      "workspaceId": "workspace-demo",
+      "projectId": "project-work-manager",
+      "actor": "user",
+      "actorUserId": "user-demo",
+      "cursor": 1,
+      "orderHighWaterMark": 3,
+      "revision": 5
+    }
+  ],
+  "operationActions": [
+    {
+      "id": "operation-v4-applied",
+      "historyId": "history-v4-demo",
+      "order": 1,
+      "state": "applied",
+      "label": "Collapsed the task list",
+      "createdAt": "2026-09-16T10:00:00.000Z",
+      "expiresAt": "2026-09-17T10:00:00.000Z",
+      "operation": {
+        "version": 1,
+        "type": "section.update",
+        "sectionId": "section-project-work-manager-tasks",
+        "projectId": "project-work-manager",
+        "pageId": "page-project-work-manager",
+        "changes": [
+          {
+            "field": "collapsed",
+            "before": false,
+            "after": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "operation-v4-undone",
+      "historyId": "history-v4-demo",
+      "order": 3,
+      "state": "undone",
+      "label": "Moved the task list",
+      "createdAt": "2026-09-16T10:05:00.000Z",
+      "expiresAt": "2026-09-17T10:05:00.000Z",
+      "operation": {
+        "version": 1,
+        "type": "section.move",
+        "sectionId": "section-project-work-manager-tasks",
+        "projectId": "project-work-manager",
+        "pageId": "page-project-work-manager",
+        "placementBefore": {
+          "pageId": "page-project-work-manager",
+          "index": 0
+        },
+        "placementAfter": {
+          "pageId": "page-project-work-manager",
+          "index": 1
+        }
+      }
+    }
+  ]
 }

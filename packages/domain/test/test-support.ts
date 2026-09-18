@@ -1,4 +1,4 @@
-import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type PrototypeDocument, type OperationReceipt, type RedoResult, type SectionId, type UndoResult, type UserId, type WorkspaceId } from '@cwm/contracts';
+import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type Reflection, type Task, type PrototypeDocument, type OperationReceipt, type RedoResult, type SectionId, type UndoResult, type UserId, type WorkspaceId } from '@cwm/contracts';
 import { PERSONAS, SEED_NOW } from '@cwm/prototype-data';
 import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonOperationActionRepository, JsonOperationHistoryRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonSectionShortcutRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
 import type { ActorContext } from '../src/actor';
@@ -213,6 +213,44 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork,
   });
 
+  const taskWriteService = new TaskService({
+    tasks, projects, sections: sectionService, activity, history: historyRecorder, clock, ids, unitOfWork,
+  });
+  const reflectionWriteService = new ReflectionService({
+    reflections, projects, tasks, sections: sectionService, activity, history: historyRecorder, clock, ids, unitOfWork,
+  });
+
+  /**
+   * The same unwrapping facade `legacySectionService` is, for the same reason: Slice 36 turned five
+   * task and four reflection writes into `{ entity, operation }` results, and rewriting several
+   * hundred existing assertions about archive, ownership and cascade behaviour would have buried the
+   * new receipt tests in noise. The receipt-focused and history tests use `taskWriteService` and
+   * `reflectionWriteService`, which are the real services.
+   */
+  const legacyTaskService = Object.create(taskWriteService) as Omit<TaskService, 'create' | 'update' | 'complete' | 'archive' | 'restore'> & {
+    create: (...args: Parameters<TaskService['create']>) => Promise<Task>;
+    update: (...args: Parameters<TaskService['update']>) => Promise<Task>;
+    complete: (...args: Parameters<TaskService['complete']>) => Promise<Task>;
+    archive: (...args: Parameters<TaskService['archive']>) => Promise<Task>;
+    restore: (...args: Parameters<TaskService['restore']>) => Promise<Task>;
+  };
+  legacyTaskService.create = async (...args) => (await taskWriteService.create(...args)).task;
+  legacyTaskService.update = async (...args) => (await taskWriteService.update(...args)).task;
+  legacyTaskService.complete = async (...args) => (await taskWriteService.complete(...args)).task;
+  legacyTaskService.archive = async (...args) => (await taskWriteService.archive(...args)).task;
+  legacyTaskService.restore = async (...args) => (await taskWriteService.restore(...args)).task;
+
+  const legacyReflectionService = Object.create(reflectionWriteService) as Omit<ReflectionService, 'create' | 'update' | 'archive' | 'restore'> & {
+    create: (...args: Parameters<ReflectionService['create']>) => Promise<Reflection>;
+    update: (...args: Parameters<ReflectionService['update']>) => Promise<Reflection>;
+    archive: (...args: Parameters<ReflectionService['archive']>) => Promise<Reflection>;
+    restore: (...args: Parameters<ReflectionService['restore']>) => Promise<Reflection>;
+  };
+  legacyReflectionService.create = async (...args) => (await reflectionWriteService.create(...args)).reflection;
+  legacyReflectionService.update = async (...args) => (await reflectionWriteService.update(...args)).reflection;
+  legacyReflectionService.archive = async (...args) => (await reflectionWriteService.archive(...args)).reflection;
+  legacyReflectionService.restore = async (...args) => (await reflectionWriteService.restore(...args)).reflection;
+
   return {
     store,
     clock,
@@ -235,12 +273,14 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     other: actorFor(1),
     projectService: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
     projectPageService: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
-    taskService: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
+    taskService: legacyTaskService,
+    taskWriteService,
     progressService: new ProgressService({ projects, tasks }),
     dashboardService: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     agentService: new AgentConnectionService({ agents, activity, clock, unitOfWork }),
     timelineService: new TimelineService({ projects, tasks, milestones }),
-    reflectionService: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
+    reflectionService: legacyReflectionService,
+    reflectionWriteService,
     projectJournalService: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
     sectionService: legacySectionService,
     sectionShortcutService,

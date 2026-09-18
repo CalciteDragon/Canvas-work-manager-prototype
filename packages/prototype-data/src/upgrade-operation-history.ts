@@ -1,8 +1,5 @@
-import { SCHEMA_VERSION, type PrototypeDocument } from '@cwm/contracts';
-import { validateDocumentIntegrity } from '@cwm/repositories';
-
 /**
- * The version-3 → version-4 converter (§14, §31; Slice 35).
+ * The version-3 → version-4 converter (§14, §31; Slice 35), **frozen at its version-4 output**.
  *
  * Version 4 replaces version 3's single-use, workspace-sequenced `undoRecords` with per-actor
  * operation histories, and gives every section an `archiveGeneration`. Legacy receipts are
@@ -10,21 +7,26 @@ import { validateDocumentIntegrity } from '@cwm/repositories';
  * add, and translating it would invent Redo state nobody recorded. Every Undo history starts
  * empty after conversion, and the CLI says so.
  *
- * Like its version-2 sibling, it reads its input as plain data — a hand-written version-3 schema
- * would duplicate a contracts shape (§11) — and validates only the output, **before** anything is
- * written. That validation is the whole chain's guarantee: the frozen version-2 step returns
- * unvalidated JSON, so a v2 file that converts to something unloadable fails here, with its
- * original untouched.
+ * Like its version-2 sibling it reads its input as plain data — a hand-written version-3 schema
+ * would duplicate a contracts shape (§11) — and, **since Slice 36, it no longer validates its
+ * output**: `validateDocumentIntegrity` checks the *current* schema, which is now version 5, and a
+ * version-4 document no longer matches it. The literal `4` below is deliberate for the same
+ * reason: this step's contract is "read 3, write 4" forever, and reading `SCHEMA_VERSION` would
+ * silently retarget it at every future bump. `upgradeActivityIdentity` validates the final
+ * document before the CLI writes a byte, which is where this step's guarantee now lives.
  *
- * See docs/decisions/2026-09-schema-version-4-conversion.md.
+ * See docs/decisions/2026-09-schema-version-4-conversion.md and
+ * docs/decisions/2026-09-schema-version-5-conversion.md.
  */
 
-/** The version this converter reads. */
+/** The version this converter reads, and the one it writes. Both frozen literals. */
 const SOURCE_VERSION = 3;
+const TARGET_VERSION = 4;
 
 export interface UpgradeOperationHistoryResult {
-  document: PrototypeDocument;
-  /** False when the input was already at version 4 — the no-op case. */
+  /** Opaque version-4 JSON: the next step in the chain validates, this one does not. */
+  document: unknown;
+  /** False when the input was already at version 4 or later — the pass-through case. */
   changed: boolean;
   /** How many version-3 Undo receipts the conversion retired, consumed ones included. */
   retiredReceipts: number;
@@ -44,13 +46,12 @@ const asDocument = (input: unknown): Record<string, unknown> & { schemaVersion: 
 export const upgradeOperationHistory = (input: unknown): UpgradeOperationHistoryResult => {
   const source = asDocument(input);
 
-  // Already converted: validated rather than trusted, so a corrupt v4 file is still caught.
-  if (source.schemaVersion === SCHEMA_VERSION) {
-    return { document: validateDocumentIntegrity(source), changed: false, retiredReceipts: 0 };
-  }
+  // Already at version 4 or beyond: passed straight through for the next step to judge. This
+  // step cannot validate it, and refusing it would break the chain for a version-4 file.
+  if (source.schemaVersion >= TARGET_VERSION) return { document: source, changed: false, retiredReceipts: 0 };
   if (source.schemaVersion !== SOURCE_VERSION) {
     throw new RangeError(
-      `cannot convert schema version ${source.schemaVersion}: this converter reads version ${SOURCE_VERSION} and writes version ${SCHEMA_VERSION}`,
+      `cannot convert schema version ${source.schemaVersion}: this converter reads version ${SOURCE_VERSION} and writes version ${TARGET_VERSION}`,
     );
   }
 
@@ -67,7 +68,7 @@ export const upgradeOperationHistory = (input: unknown): UpgradeOperationHistory
 
   const converted = {
     ...rest,
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: TARGET_VERSION,
     // Written explicitly rather than left to the schema default, so the file on disk says what
     // the store will read. Zero is the honest value: no version-3 removal carried a generation.
     sections: sections.map((section) => ({ ...section, archiveGeneration: section['archiveGeneration'] ?? 0 })),
@@ -75,5 +76,5 @@ export const upgradeOperationHistory = (input: unknown): UpgradeOperationHistory
     operationActions: [],
   };
 
-  return { document: validateDocumentIntegrity(converted), changed: true, retiredReceipts };
+  return { document: converted, changed: true, retiredReceipts };
 };

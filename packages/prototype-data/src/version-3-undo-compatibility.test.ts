@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { SCHEMA_VERSION } from '@cwm/contracts';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it } from 'vitest';
+import { upgradeActivityIdentity } from './upgrade-activity-identity';
 import { upgradeOperationHistory } from './upgrade-operation-history';
 
 /**
@@ -68,58 +68,72 @@ const BUSINESS_COLLECTIONS = [
   'users', 'workspaces', 'projects', 'projectPages', 'sectionShortcuts', 'tasks', 'milestones', 'reflections', 'activityEvents', 'agentConnections',
 ] as const;
 
+/**
+ * Since Slice 36 this step is **frozen at version 4** and returns opaque JSON: the current schema
+ * is 5, so `validateDocumentIntegrity` no longer describes its output. The chain's guarantee moved
+ * to `upgradeActivityIdentity`, which validates before the CLI writes a byte, and these tests
+ * follow it — they assert the version-4 shape here, and load only after the v5 step has run.
+ */
+const asRow = (document: unknown): Row => document as Row;
+
 describe('version 3 → version 4', () => {
   it('converts a version-3 file written before Undo records, preserving every business collection', async () => {
     const input = await v3();
     expect(input['schemaVersion']).toBe(3);
     expect(input).not.toHaveProperty('undoRecords');
 
-    const { document, changed, retiredReceipts } = upgradeOperationHistory(structuredClone(input));
+    const { document: raw, changed, retiredReceipts } = upgradeOperationHistory(structuredClone(input));
+    const document = asRow(raw);
 
     expect(changed).toBe(true);
     expect(retiredReceipts).toBe(0);
-    expect(document.schemaVersion).toBe(SCHEMA_VERSION);
+    // A frozen literal, not `SCHEMA_VERSION`: this step's contract is "read 3, write 4" forever.
+    expect(document['schemaVersion']).toBe(4);
     for (const collection of BUSINESS_COLLECTIONS) {
       expect(document[collection], collection).toEqual(input[collection]);
     }
     // Sections gain exactly one field, explicitly written: no version-3 removal carried a generation.
-    expect(document.sections).toEqual((input['sections'] as Row[]).map((section) => ({ ...section, archiveGeneration: 0 })));
-    expect(document.operationHistories).toEqual([]);
-    expect(document.operationActions).toEqual([]);
-    expect(() => new InMemoryDataStore(document)).not.toThrow();
+    expect(document['sections']).toEqual((input['sections'] as Row[]).map((section) => ({ ...section, archiveGeneration: 0 })));
+    expect(document['operationHistories']).toEqual([]);
+    expect(document['operationActions']).toEqual([]);
+    // Loadable only once the version-5 step has run, which is the chain the CLI drives.
+    expect(() => new InMemoryDataStore(upgradeActivityIdentity(document).document)).not.toThrow();
   });
 
   it('retires legacy receipts — reassign records, consumed and outstanding ones — with the reset count', async () => {
     const input = await v3();
     const records = legacyRecords(input);
 
-    const { document, retiredReceipts } = upgradeOperationHistory({ ...input, undoRecords: records });
+    const { document: raw, retiredReceipts } = upgradeOperationHistory({ ...input, undoRecords: records });
+    const document = asRow(raw);
 
     expect(retiredReceipts).toBe(3);
     expect(document).not.toHaveProperty('undoRecords');
-    expect(document.operationActions).toEqual([]);
+    expect(document['operationActions']).toEqual([]);
     expect(JSON.stringify(document)).not.toContain('undo-legacy-reassign');
     for (const collection of BUSINESS_COLLECTIONS) expect(document[collection], collection).toEqual(input[collection]);
   });
 
-  it('a second run on the converted document is a no-op', async () => {
+  it('a second run on the converted document passes it straight through', async () => {
     const once = upgradeOperationHistory({ ...(await v3()), undoRecords: legacyRecords(await v3()) }).document;
 
     expect(upgradeOperationHistory(structuredClone(once))).toEqual({ document: once, changed: false, retiredReceipts: 0 });
   });
 
-  it('the v4 output is validated before anything is written, so a broken input throws instead of converting', async () => {
+  it('a broken input is caught by the version-5 step, before anything is written', async () => {
     const broken = await v3();
     (broken['sections'] as Row[])[0]!['projectId'] = 'project-gone';
 
-    expect(() => upgradeOperationHistory(broken)).toThrow();
+    expect(() => upgradeActivityIdentity(upgradeOperationHistory(broken).document)).toThrow();
   });
 
   it('refuses a version it does not read', async () => {
     const document = await v3();
     const older = { ...document, schemaVersion: 2 };
     expect(() => upgradeOperationHistory(older)).toThrow(/version 2/);
-    expect(() => upgradeOperationHistory({ schemaVersion: 5 })).toThrow(RangeError);
+    // Version 5 is newer than this frozen step's target, so it passes straight through rather
+    // than being refused: the chain's last step is what judges a version-5 document.
+    expect(upgradeOperationHistory({ schemaVersion: 5 }).changed).toBe(false);
     expect(() => upgradeOperationHistory([])).toThrow(TypeError);
     expect(() => upgradeOperationHistory({ ...document, sections: { broken: true } })).toThrow(/sections/);
   });

@@ -39,6 +39,18 @@ export interface TaskRepository {
   list(query?: TaskQuery): Promise<Task[]>;
   insert(task: Task): Promise<void>;
   update(task: Task): Promise<void>;
+  /**
+   * **Restricted removal, for one caller only** (Slice 36): Undo of `task.add` deletes exactly the
+   * row that create made, after the executor has proved nothing came to depend on it — no child,
+   * no reflection subject, no cascade marker. Ordinary archiving never reaches this, and no HTTP
+   * route or MCP tool exposes it: §31's rule that content is archived rather than deleted is
+   * unchanged, and reversing a creation is not deletion of content the person kept.
+   *
+   * The audit line survives it, because a version-5 activity event captures its target's identity
+   * (docs/decisions/2026-09-historical-activity-identity.md). Commit-time integrity continues to
+   * reject a dangling reference, so a removal that left one still rolls the whole unit back.
+   */
+  remove(id: TaskId): Promise<void>;
 }
 
 export interface SectionRepository {
@@ -77,6 +89,8 @@ export interface ReflectionRepository {
   list(query?: ReflectionQuery): Promise<Reflection[]>;
   insert(reflection: Reflection): Promise<void>;
   update(reflection: Reflection): Promise<void>;
+  /** Undo of `reflection.add`, under exactly the restrictions `TaskRepository.remove` describes. */
+  remove(id: ReflectionId): Promise<void>;
 }
 
 export interface ActivityRepository {

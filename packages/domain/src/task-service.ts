@@ -1,12 +1,17 @@
 import {
   TaskIdSchema,
   TaskSchema,
+  type CreatedContainer,
   type CreateTaskInput,
+  type OperationReceipt,
   type ProjectId,
-  type SectionId,
   type Task,
+  type TaskAddResult,
+  type TaskFieldChange,
   type TaskId,
   type TaskQuery,
+  type TaskWriteResult,
+  type UndoRowChange,
   type UpdateTaskInput,
 } from '@cwm/contracts';
 import type { ProjectRepository, TaskRepository, UnitOfWork } from '@cwm/repositories';
@@ -15,8 +20,18 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
+import type { OperationRecorder } from './operation-recorder';
 import { archivedAncestry, assertProjectWritable } from './project-visibility';
 import type { SectionService } from './section-service';
+import {
+  captureTaskAdd,
+  captureTaskArchive,
+  captureTaskRestore,
+  captureTaskUpdate,
+  isCompletion,
+  taskFieldChanges,
+  taskRowChange,
+} from './task-history';
 
 export interface TaskServiceDependencies {
   tasks: TaskRepository;
@@ -28,6 +43,13 @@ export interface TaskServiceDependencies {
    */
   sections: SectionService;
   activity: ActivityService;
+  /**
+   * §31's per-actor history. The same interface `SectionService` records through, and acyclic for
+   * the same reason: the recorder depends on two repositories, a clock and ids — never on this
+   * service — and `OperationHistoryService` executes a task inverse through the shared functions in
+   * `task-history.ts`, never through this service.
+   */
+  history: OperationRecorder;
   clock: Clock;
   ids: IdGenerator;
   unitOfWork: UnitOfWork;
@@ -60,6 +82,32 @@ const assertParentLive = (parent: Task): void => {
 };
 
 type TaskAction = 'task.updated' | 'task.completed' | 'task.archived' | 'task.restored';
+
+/** One row a cascade, a move or a normalization wrote, and its captured footprint. */
+interface WrittenRow {
+  id: TaskId;
+  row: UndoRowChange;
+}
+
+/** Where a create landed, and the container it had to make on the way. */
+interface ResolvedSection {
+  sectionId: Task['sectionId'];
+  container?: CreatedContainer;
+}
+
+/** Whether a write changed anything an inverse would have to put back structurally. */
+const sameStructure = (before: Task, after: Task): boolean =>
+  before.sectionId === after.sectionId &&
+  before.parentTaskId === after.parentTaskId &&
+  before.archivedAt === after.archivedAt &&
+  before.archivedWithSectionId === after.archivedWithSectionId &&
+  before.archivedWithTaskId === after.archivedWithTaskId;
+
+/** Unused in this module beyond the type it names; kept so the receipt type stays imported. */
+export type TaskOperationReceipt = OperationReceipt;
+
+/** Re-exported so a caller assembling a footprint by hand uses the same change shape. */
+export type TaskFieldFootprint = TaskFieldChange;
 
 export class TaskService {
   constructor(private readonly dependencies: TaskServiceDependencies) {}
@@ -117,7 +165,15 @@ export class TaskService {
     );
   }
 
-  async create(actor: ActorContext, input: CreateTaskInput): Promise<Task> {
+  /**
+   * Answers the created task **and its receipt** (§31). The receipt is not optional here: a create
+   * always changes something, so there is always an action to undo, and an agent holding only
+   * `tasks.write` needs the receipt to reach its own history without `projects.read`.
+   *
+   * When the create had to make its container, the container joins **this** action: one row event,
+   * one action, one frame, and one Undo that removes both.
+   */
+  async create(actor: ActorContext, input: CreateTaskInput): Promise<TaskAddResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'tasks.write');
 
@@ -126,7 +182,7 @@ export class TaskService {
       await this.assertProjectActive(input.projectId);
       // `resolveSection` refuses an archived container through `requireContainer`, and
       // skips one through `resolveContainer`; the parent check below is the level down.
-      const sectionId = await this.resolveSection(actor, input);
+      const { sectionId, container } = await this.resolveSection(actor, input);
 
       const now = this.dependencies.clock.now().toISOString();
       const status = input.status ?? 'todo';
@@ -149,11 +205,25 @@ export class TaskService {
 
       await this.dependencies.tasks.insert(task);
       await this.record(actor, task, 'task.created', 'Created');
-      return task;
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: task.projectId,
+        label: `Created "${task.title}"`,
+        operation: captureTaskAdd(task, container),
+      });
+      return { task, operation };
     });
   }
 
-  async update(actor: ActorContext, id: TaskId, input: UpdateTaskInput): Promise<Task> {
+  /**
+   * Answers the updated task and a receipt, or a `null` receipt for a normalized no-op — the shape
+   * `SectionWriteResult` already uses, so every caller has one rule for "did that record something?".
+   *
+   * The captured footprint is assembled **after** the two helpers below have run: `moveSubtree` and
+   * `normalizeArchiveGroup` change rows after `commit` returns, and an action that recorded the
+   * earlier state would leave those rows behind on Undo. The same is true of `committed` itself,
+   * which marker normalization can change, so the final root is re-read rather than reused.
+   */
+  async update(actor: ActorContext, id: TaskId, input: UpdateTaskInput): Promise<TaskWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'tasks.write');
 
@@ -233,19 +303,49 @@ export class TaskService {
       if (next.status !== 'done') delete next.completedAt;
 
       const committed = await this.commit(actor, current, next, completing ? 'task.completed' : 'task.updated');
+      if (committed === current) return { task: current, operation: null };
       // Dragging a task between lists is the operation two containers exist for, and a
       // parent left behind by its own subtasks would render as two half-tasks.
-      if (committed.sectionId !== current.sectionId) await this.moveSubtree(actor, committed);
+      const moved: WrittenRow[] = [];
+      if (committed.sectionId !== current.sectionId) moved.push(...(await this.moveSubtree(actor, committed)));
       // Re-parenting can split an archive group, and it can do so **without** changing
       // section — an `A → B → C` detach within one list — so this runs on any parent change
       // rather than being folded into the section-gated `moveSubtree` above.
-      if (committed.parentTaskId !== current.parentTaskId) await this.normalizeArchiveGroup(actor, committed);
-      return committed;
+      if (committed.parentTaskId !== current.parentTaskId) moved.push(...(await this.normalizeArchiveGroup(actor, committed)));
+
+      // The **final** root, after normalization may have rewritten its marker, and every descendant
+      // that actually changed. A row is recorded once, root first.
+      const final = (await this.dependencies.tasks.find(id)) ?? committed;
+      const rows: UndoRowChange[] = [];
+      if (!sameStructure(current, final)) rows.push(taskRowChange(current, final));
+      for (const change of moved) {
+        if (change.id === id) continue;
+        rows.push(change.row);
+      }
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: final.projectId,
+        label: completing ? `Completed "${final.title}"` : `Updated "${final.title}"`,
+        operation: captureTaskUpdate({
+          taskId: id,
+          projectId: final.projectId,
+          completion: completing,
+          changes: taskFieldChanges(current, final),
+          rows,
+        }),
+      });
+      return { task: final, operation };
     });
   }
 
-  /** Idempotent, per §34's inline completion: completing a done task records nothing. */
-  async complete(actor: ActorContext, id: TaskId): Promise<Task> {
+  /**
+   * Idempotent, per §34's inline completion: completing a done task records nothing and answers a
+   * `null` receipt.
+   *
+   * It shares capture with PATCH-to-done rather than having a kind of its own: §34 makes completion
+   * a status transition, so both entry points record one `task.update` whose label and verb say
+   * `Completed`, and one inverse reopens either.
+   */
+  async complete(actor: ActorContext, id: TaskId): Promise<TaskWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'tasks.write');
 
@@ -253,10 +353,23 @@ export class TaskService {
       const current = await this.require(actor, id);
       await this.assertProjectActive(current.projectId);
       if (current.archivedAt !== undefined) throw new DomainRuleError('an archived task cannot be completed');
-      if (current.status === 'done') return current;
+      if (current.status === 'done') return { task: current, operation: null };
 
       const completedAt = this.dependencies.clock.now().toISOString();
-      return this.commit(actor, current, { ...current, status: 'done', completedAt }, 'task.completed');
+      const completed = await this.commit(actor, current, { ...current, status: 'done', completedAt }, 'task.completed');
+      if (completed === current) return { task: current, operation: null };
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: completed.projectId,
+        label: `Completed "${completed.title}"`,
+        operation: captureTaskUpdate({
+          taskId: id,
+          projectId: completed.projectId,
+          completion: isCompletion(current, completed),
+          changes: taskFieldChanges(current, completed),
+          rows: [],
+        }),
+      });
+      return { task: completed, operation };
     });
   }
 
@@ -275,18 +388,30 @@ export class TaskService {
    * Allowed inside an archived project or section, so a caller can tidy hidden work without
    * bringing it back — the same exception `SectionService.remove` makes.
    */
-  async archive(actor: ActorContext, id: TaskId): Promise<Task> {
+  async archive(actor: ActorContext, id: TaskId): Promise<TaskWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'tasks.write');
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
-      if (current.archivedAt !== undefined) return current;
+      if (current.archivedAt !== undefined) return { task: current, operation: null };
 
       const archivedAt = this.dependencies.clock.now().toISOString();
       const archived = await this.commit(actor, current, { ...current, archivedAt }, 'task.archived');
-      await this.archiveDescendants(actor, archived.id, archived.id, archivedAt);
-      return archived;
+      if (archived === current) return { task: current, operation: null };
+      // Captured after the cascade, so the action holds exactly the rows archiving actually wrote:
+      // a descendant that was already archived is absent, because archiving left it alone.
+      const cascaded = await this.archiveDescendants(actor, archived.id, archived.id, archivedAt);
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: archived.projectId,
+        label: `Archived "${archived.title}"`,
+        operation: captureTaskArchive({
+          taskId: id,
+          projectId: archived.projectId,
+          rows: [taskRowChange(current, archived), ...cascaded.map((change) => change.row)],
+        }),
+      });
+      return { task: archived, operation };
     });
   }
 
@@ -310,7 +435,7 @@ export class TaskService {
    *
    * `status` and `completedAt` are untouched; archiving never changed them.
    */
-  async restore(actor: ActorContext, id: TaskId): Promise<Task> {
+  async restore(actor: ActorContext, id: TaskId): Promise<TaskWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'tasks.write');
 
@@ -318,7 +443,7 @@ export class TaskService {
       const current = await this.require(actor, id);
       // Idempotent, as `archive` is for an already-archived row. A live task returns
       // unchanged even if an ancestor was archived after the original restore.
-      if (current.archivedAt === undefined) return current;
+      if (current.archivedAt === undefined) return { task: current, operation: null };
       await this.assertProjectActive(current.projectId);
 
       // Rule 1, and the same refusal `update` makes — one sentence, in one place.
@@ -331,36 +456,51 @@ export class TaskService {
       }
 
       const restored = await this.commit(actor, current, cleared(current), 'task.restored');
+      if (restored === current) return { task: current, operation: null };
+      const rows: UndoRowChange[] = [taskRowChange(current, restored)];
       for (const row of await this.dependencies.tasks.list({ projectId: current.projectId, includeArchived: true })) {
         if (row.archivedWithTaskId !== id) continue;
-        await this.dependencies.tasks.update(
-          TaskSchema.parse({ ...cleared(row), updatedAt: this.dependencies.clock.now().toISOString() }),
-        );
+        const cleared_ = TaskSchema.parse({ ...cleared(row), updatedAt: this.dependencies.clock.now().toISOString() });
+        await this.dependencies.tasks.update(cleared_);
+        rows.push(taskRowChange(row, cleared_));
       }
-      return restored;
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: restored.projectId,
+        label: `Restored "${restored.title}"`,
+        operation: captureTaskRestore({ taskId: id, projectId: restored.projectId, rows }),
+      });
+      return { task: restored, operation };
     });
   }
 
-  /** Depth-first, so a descendant already archived keeps its own group intact. */
+  /**
+   * Depth-first, so a descendant already archived keeps its own group intact.
+   *
+   * It reports every row it wrote, because the action recorded for this archive has to hold the
+   * cascade's exact footprint: Undo re-livens precisely those rows, and Redo re-archives precisely
+   * those markers.
+   */
   private async archiveDescendants(
     actor: ActorContext,
     parentTaskId: TaskId,
     root: TaskId,
     archivedAt: string,
-  ): Promise<void> {
+  ): Promise<WrittenRow[]> {
+    const written: WrittenRow[] = [];
     const children = await this.dependencies.tasks.list({ parentTaskId, includeArchived: true });
     for (const child of children) {
       if (child.archivedAt !== undefined) continue;
-      await this.dependencies.tasks.update(
-        TaskSchema.parse({
-          ...child,
-          archivedAt,
-          archivedWithTaskId: root,
-          updatedAt: this.dependencies.clock.now().toISOString(),
-        }),
-      );
-      await this.archiveDescendants(actor, child.id, root, archivedAt);
+      const archived = TaskSchema.parse({
+        ...child,
+        archivedAt,
+        archivedWithTaskId: root,
+        updatedAt: this.dependencies.clock.now().toISOString(),
+      });
+      await this.dependencies.tasks.update(archived);
+      written.push({ id: child.id, row: taskRowChange(child, archived) });
+      written.push(...(await this.archiveDescendants(actor, child.id, root, archivedAt)));
     }
+    return written;
   }
 
   /**
@@ -372,33 +512,40 @@ export class TaskService {
    *
    * A move *within* the same group — the root is still an ancestor — preserves every marker.
    */
-  private async normalizeArchiveGroup(actor: ActorContext, moved: Task): Promise<void> {
+  private async normalizeArchiveGroup(actor: ActorContext, moved: Task): Promise<WrittenRow[]> {
     const oldRoot = moved.archivedWithTaskId;
-    if (moved.archivedAt === undefined || oldRoot === undefined) return;
-    if (await this.hasAncestor(actor, moved, oldRoot)) return;
+    if (moved.archivedAt === undefined || oldRoot === undefined) return [];
+    if (await this.hasAncestor(actor, moved, oldRoot)) return [];
 
     const next = { ...moved };
     delete next.archivedWithTaskId;
-    await this.dependencies.tasks.update(
-      TaskSchema.parse({ ...next, updatedAt: this.dependencies.clock.now().toISOString() }),
-    );
-    await this.rerootDescendants(actor, moved.id, oldRoot, moved.id);
+    const rerooted = TaskSchema.parse({ ...next, updatedAt: this.dependencies.clock.now().toISOString() });
+    await this.dependencies.tasks.update(rerooted);
+    // The root's own marker change is part of the footprint even when the section did not change:
+    // a reparent-only detach within one list still rewrites markers, and an Undo that ignored them
+    // would leave a detached subtree naming a root that is no longer its ancestor.
+    return [
+      { id: moved.id, row: taskRowChange(moved, rerooted) },
+      ...(await this.rerootDescendants(actor, moved.id, oldRoot, moved.id)),
+    ];
   }
 
-  private async rerootDescendants(actor: ActorContext, parentTaskId: TaskId, from: TaskId, to: TaskId): Promise<void> {
+  private async rerootDescendants(actor: ActorContext, parentTaskId: TaskId, from: TaskId, to: TaskId): Promise<WrittenRow[]> {
+    const written: WrittenRow[] = [];
     for (const child of await this.dependencies.tasks.list({ parentTaskId, includeArchived: true })) {
       // A descendant with a different valid root is somebody else's group; leave it alone.
       if (child.archivedWithTaskId === from) {
-        await this.dependencies.tasks.update(
-          TaskSchema.parse({
-            ...child,
-            archivedWithTaskId: to,
-            updatedAt: this.dependencies.clock.now().toISOString(),
-          }),
-        );
+        const rerooted = TaskSchema.parse({
+          ...child,
+          archivedWithTaskId: to,
+          updatedAt: this.dependencies.clock.now().toISOString(),
+        });
+        await this.dependencies.tasks.update(rerooted);
+        written.push({ id: child.id, row: taskRowChange(child, rerooted) });
       }
-      await this.rerootDescendants(actor, child.id, from, to);
+      written.push(...(await this.rerootDescendants(actor, child.id, from, to)));
     }
+    return written;
   }
 
   /**
@@ -461,7 +608,7 @@ export class TaskService {
    * resolved to the project's first task list, creating one when there is none — which is
    * what stops an agent producing a project whose work nothing renders.
    */
-  private async resolveSection(actor: ActorContext, input: CreateTaskInput): Promise<SectionId> {
+  private async resolveSection(actor: ActorContext, input: CreateTaskInput): Promise<ResolvedSection> {
     if (input.parentTaskId !== undefined) {
       const parent = await this.require(actor, input.parentTaskId);
       // The document requires a subtask to share its parent's project.
@@ -481,7 +628,7 @@ export class TaskService {
         throw new DomainRuleError('a subtask is rendered by its parent section and cannot be given another page');
       }
       await this.dependencies.sections.assertWritablePage(section);
-      return parent.sectionId;
+      return { sectionId: parent.sectionId };
     }
 
     if (input.sectionId !== undefined) {
@@ -496,14 +643,20 @@ export class TaskService {
       if (input.pageId !== undefined && input.pageId !== section.pageId) {
         throw new DomainRuleError('the named section is not on the named page');
       }
-      return input.sectionId;
+      return { sectionId: input.sectionId };
     }
 
-    return (await this.dependencies.sections.resolveContainer(actor, input.projectId, 'tasks', input.pageId)).id;
+    const resolved = await this.dependencies.sections.resolveContainer(actor, input.projectId, 'tasks', input.pageId);
+    return { sectionId: resolved.section.id, ...(resolved.created === undefined ? {} : { container: resolved.created }) };
   }
 
-  /** Repoints every descendant of a moved task, so a subtree stays in one list. */
-  private async moveSubtree(actor: ActorContext, root: Task): Promise<void> {
+  /**
+   * Repoints every descendant of a moved task, so a subtree stays in one list, and reports each row
+   * it wrote for the action's footprint. Archived descendants move too: an archive group belongs to
+   * the list its root is in, and leaving them behind would split it.
+   */
+  private async moveSubtree(actor: ActorContext, root: Task): Promise<WrittenRow[]> {
+    const written: WrittenRow[] = [];
     const children = await this.dependencies.tasks.list({ parentTaskId: root.id, includeArchived: true });
     for (const child of children) {
       if (child.sectionId !== root.sectionId) {
@@ -513,11 +666,13 @@ export class TaskService {
           updatedAt: this.dependencies.clock.now().toISOString(),
         });
         await this.dependencies.tasks.update(moved);
-        await this.moveSubtree(actor, moved);
+        written.push({ id: child.id, row: taskRowChange(child, moved) });
+        written.push(...(await this.moveSubtree(actor, moved)));
         continue;
       }
-      await this.moveSubtree(actor, child);
+      written.push(...(await this.moveSubtree(actor, child)));
     }
+    return written;
   }
 
   /**

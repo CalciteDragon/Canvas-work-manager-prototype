@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  OperationReceiptSchema,
   RedoResultSchema,
   SectionAddResultSchema,
   SectionAddUndoOperationSchema,
@@ -14,6 +13,7 @@ import {
   UndoOperationSchema,
   UndoResultSchema,
 } from './undo';
+import { OperationReceiptSchema } from './operation-receipt';
 
 const AT = '2026-09-14T10:00:00.000Z';
 const LATER = '2026-09-15T10:00:00.000Z';

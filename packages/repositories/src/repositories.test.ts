@@ -172,6 +172,13 @@ const activity: ActivityEvent = PrototypeDocumentSchema.shape.activityEvents.ele
   entityId: 'project-1',
   projectId: 'project-1',
   summary: 'Updated Alpha Launch',
+  context: {
+    targetKind: 'project',
+    targetId: 'project-1',
+    targetLabel: 'Alpha Launch',
+    projectId: 'project-1',
+    rootProjectId: 'project-1',
+  },
   createdAt: at,
 });
 
@@ -415,6 +422,7 @@ describe('JsonActivityRepository.list', () => {
       entityId: projectId,
       projectId,
       summary: `Created ${id}`,
+      context: { targetKind: 'project', targetId: projectId, targetLabel: projectId, projectId, rootProjectId: projectId },
       createdAt: at,
     });
 

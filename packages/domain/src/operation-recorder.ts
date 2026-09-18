@@ -34,6 +34,10 @@ export interface OperationRecordEntry {
  * of work, exactly as `ActivityService.record` is: it never opens a unit and asserts no grant — its
  * caller already did — so the action, the cursor move and the canonical writes commit or roll back
  * together, and the receipt is only real once the caller's unit resolves.
+ *
+ * Since Slice 36 three services record through it: `SectionService`, `TaskService` and
+ * `ReflectionService`. The interface is unchanged by that — the recorder knows nothing about which
+ * family an operation belongs to, which is why adding two of them cost it nothing.
  */
 export interface OperationRecorder {
   record(actor: ActorContext, entry: OperationRecordEntry): Promise<OperationReceipt>;
@@ -63,9 +67,26 @@ export const historyBelongsToActor = (history: OperationHistory, actor: ActorCon
   return true;
 };
 
-/** The section an action's operation is about. */
-export const subjectSectionOf = (operation: UndoOperation): string =>
-  operation.type === 'section.remove' || operation.type === 'section.add' ? operation.section.id : operation.sectionId;
+/**
+ * The section an action's operation is about, or `undefined` for an operation about a row.
+ *
+ * Slice 35 could assume every action was a section's; Slice 36 cannot. This is deliberately not
+ * `operationSubjectOf` — that answers "which entity", while this answers "is this action about *this
+ * section*", and `outstandingRemovalFor` needs a row's action to answer "no" rather than to compare
+ * a task id against a section id and happen to differ.
+ */
+export const subjectSectionOf = (operation: UndoOperation): string | undefined => {
+  switch (operation.type) {
+    case 'section.remove':
+    case 'section.add':
+      return operation.section.id;
+    case 'section.move':
+    case 'section.update':
+      return operation.sectionId;
+    default:
+      return undefined;
+  }
+};
 
 /** The receipt for one stored action, at the history's current revision. */
 export const receiptFor = (history: OperationHistory, action: OperationAction): OperationReceipt =>

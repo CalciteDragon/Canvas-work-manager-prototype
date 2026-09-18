@@ -113,6 +113,13 @@ const validDocument = () =>
         entityId: 'task-1',
         projectId: 'project-1',
         summary: 'Updated Task',
+        context: {
+          targetKind: 'task',
+          targetId: 'task-1',
+          targetLabel: 'Task',
+          projectId: 'project-1',
+          rootProjectId: 'project-1',
+        },
         createdAt: at,
       },
     ],
@@ -268,8 +275,17 @@ describe('document validation', () => {
     ['workspace owner', (document: ReturnType<typeof withSecondWorkspace>) => (document.workspaces[0]!.ownerUserId = secondWorkspace.user.id as never)],
     ['project parent', (document: ReturnType<typeof withSecondWorkspace>) => (document.projects[0]!.parentProjectId = secondWorkspace.project.id as never)],
     ['task parent', (document: ReturnType<typeof withSecondWorkspace>) => (document.tasks[0]!.parentTaskId = secondWorkspace.task.id as never)],
-    ['activity target', (document: ReturnType<typeof withSecondWorkspace>) => (document.activityEvents[0]!.entityId = secondWorkspace.task.id)],
-    ['activity project', (document: ReturnType<typeof withSecondWorkspace>) => (document.activityEvents[0]!.projectId = secondWorkspace.project.id as never)],
+    // A foreign target, named in the event **and** in its captured context: the captured half
+    // must not launder an id from another workspace.
+    ['activity target', (document: ReturnType<typeof withSecondWorkspace>) => {
+      document.activityEvents[0]!.entityId = secondWorkspace.task.id;
+      document.activityEvents[0]!.context.targetId = secondWorkspace.task.id;
+    }],
+    ['activity project', (document: ReturnType<typeof withSecondWorkspace>) => {
+      document.activityEvents[0]!.projectId = secondWorkspace.project.id as never;
+      document.activityEvents[0]!.context.projectId = secondWorkspace.project.id as never;
+      document.activityEvents[0]!.context.rootProjectId = secondWorkspace.project.id as never;
+    }],
     ['activity agent actor', (document: ReturnType<typeof withSecondWorkspace>) => (document.activityEvents[0]!.actorAgentConnectionId = secondWorkspace.agent.id as never)],
   ])('rejects a cross-scope %s reference', (_name, mutate) => {
     const document = withSecondWorkspace();
@@ -293,9 +309,133 @@ describe('document validation', () => {
       entityType,
       entityId,
       projectId: entityType === 'agent_connection' ? undefined : document.projects[0]!.id,
+      // Version 5: the captured identity travels with the event and must agree with it.
+      context: {
+        targetKind: entityType,
+        targetId: entityId,
+        targetLabel: entityId,
+        ...(entityType === 'agent_connection'
+          ? {}
+          : { projectId: document.projects[0]!.id, rootProjectId: document.projects[0]!.id }),
+      },
     }));
 
     expect(() => new InMemoryDataStore(document)).not.toThrow();
+  });
+
+  /**
+   * Slice 36: Undo of a creation deletes the row its activity line describes, so the line has to
+   * outlive the row — but only for the two kinds that can be removed, and only with an identity
+   * that still resolves (docs/decisions/2026-09-historical-activity-identity.md).
+   */
+  describe('historical activity identity', () => {
+    const withMissingTarget = (entityType: 'task' | 'reflection' | 'section' | 'milestone') => {
+      const document = validDocument();
+      const event = document.activityEvents[0]!;
+      document.activityEvents = [
+        {
+          ...event,
+          entityType,
+          entityId: `${entityType}-gone`,
+          action: `${entityType === 'section' ? 'project' : entityType}.added`,
+          context: {
+            targetKind: entityType,
+            targetId: `${entityType}-gone`,
+            targetLabel: 'What it was called',
+            projectId: 'project-1',
+            rootProjectId: 'project-1',
+          },
+        } as (typeof document.activityEvents)[number],
+      ];
+      return document;
+    };
+
+    it('allows a missing task or reflection whose captured identity is complete', () => {
+      expect(() => new InMemoryDataStore(withMissingTarget('task'))).not.toThrow();
+      expect(() => new InMemoryDataStore(withMissingTarget('reflection'))).not.toThrow();
+    });
+
+    it('still requires a section or milestone target to exist — nothing removes those yet', () => {
+      expect(() => new InMemoryDataStore(withMissingTarget('section'))).toThrow(DocumentIntegrityError);
+      expect(() => new InMemoryDataStore(withMissingTarget('milestone'))).toThrow(DocumentIntegrityError);
+    });
+
+    it('refuses a removed row whose captured project is missing, foreign or inconsistent', () => {
+      const withoutProject = withMissingTarget('task');
+      withoutProject.activityEvents[0]!.projectId = undefined;
+      withoutProject.activityEvents[0]!.context.projectId = undefined;
+      withoutProject.activityEvents[0]!.context.rootProjectId = undefined;
+      expect(() => new InMemoryDataStore(withoutProject)).toThrow(DocumentIntegrityError);
+
+      const unknownProject = withMissingTarget('task');
+      unknownProject.activityEvents[0]!.projectId = 'project-gone' as never;
+      unknownProject.activityEvents[0]!.context.projectId = 'project-gone' as never;
+      unknownProject.activityEvents[0]!.context.rootProjectId = 'project-gone' as never;
+      expect(() => new InMemoryDataStore(unknownProject)).toThrow(DocumentIntegrityError);
+
+      const foreign = withMissingTarget('task');
+      foreign.workspaces = [...foreign.workspaces, secondWorkspace.workspace as never];
+      foreign.users = [...foreign.users, secondWorkspace.user as never];
+      foreign.projects = [...foreign.projects, secondWorkspace.project as never];
+      foreign.activityEvents[0]!.projectId = secondWorkspace.project.id as never;
+      foreign.activityEvents[0]!.context.projectId = secondWorkspace.project.id as never;
+      foreign.activityEvents[0]!.context.rootProjectId = secondWorkspace.project.id as never;
+      expect(() => new InMemoryDataStore(foreign)).toThrow(DocumentIntegrityError);
+    });
+
+    it('refuses a captured root that is not a project in this workspace', () => {
+      const unknownRoot = validDocument();
+      unknownRoot.activityEvents[0]!.context.rootProjectId = 'project-nowhere' as never;
+      expect(() => new InMemoryDataStore(unknownRoot)).toThrow(DocumentIntegrityError);
+
+      const foreignRoot = withSecondWorkspace();
+      foreignRoot.activityEvents[0]!.context.rootProjectId = secondWorkspace.project.id as never;
+      expect(() => new InMemoryDataStore(foreignRoot)).toThrow(DocumentIntegrityError);
+    });
+
+    /**
+     * Historical context is **not** rewritten when an entity moves: it says where the change
+     * happened, not where the entity lives now. So a captured root the tree has since moved away
+     * from is ordinary, and re-deriving it here would turn a reparent into an unloadable file.
+     */
+    it('accepts a captured root the tree has since moved away from', () => {
+      const document = validDocument();
+      // A sub-project that used to be a root of its own, with an event that captured it as one.
+      document.projects = [
+        ...document.projects,
+        { ...document.projects[0]!, id: 'project-2' as never, kind: 'subproject', parentProjectId: 'project-1' as never },
+      ];
+      document.projectPages = [
+        ...document.projectPages,
+        { ...document.projectPages[0]!, id: 'page-2' as never, projectId: 'project-2' as never, kind: 'work' },
+      ];
+      document.sections = [
+        ...document.sections,
+        { ...document.sections[0]!, id: 'section-9' as never, projectId: 'project-2' as never, pageId: 'page-2' as never },
+      ];
+      document.tasks = [
+        ...document.tasks,
+        { ...document.tasks[0]!, id: 'task-9' as never, projectId: 'project-2' as never, sectionId: 'section-9' as never },
+      ];
+      document.activityEvents = [
+        {
+          ...document.activityEvents[0]!,
+          id: 'activity-2' as never,
+          entityId: 'task-9' as never,
+          projectId: 'project-2' as never,
+          context: {
+            targetKind: 'task',
+            targetId: 'task-9',
+            targetLabel: 'Task',
+            projectId: 'project-2' as never,
+            // Stale on purpose: back then this project was its own root.
+            rootProjectId: 'project-2' as never,
+          },
+        },
+      ];
+
+      expect(() => new InMemoryDataStore(document)).not.toThrow();
+    });
   });
 });
 

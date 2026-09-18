@@ -120,6 +120,10 @@ export class JsonTaskRepository extends JsonCollectionRepository<Task> implement
   override find(id: TaskId): Promise<Task | null> {
     return super.find(id);
   }
+
+  remove(id: TaskId): Promise<void> {
+    return this.delete(id);
+  }
 }
 
 export class JsonProjectPageRepository extends JsonCollectionRepository<ProjectPage> implements ProjectPageRepository {
@@ -199,6 +203,8 @@ export class JsonReflectionRepository extends JsonCollectionRepository<Reflectio
   }
 
   override find(id: ReflectionId): Promise<Reflection | null> { return super.find(id); }
+
+  remove(id: ReflectionId): Promise<void> { return this.delete(id); }
 }
 
 export class JsonActivityRepository extends JsonCollectionRepository<ActivityEvent> implements ActivityRepository {

@@ -1,9 +1,11 @@
 import {
   ActivityEventIdSchema,
+  ActivityEventSchema,
   type ActivityAction,
   type ActivityEntityType,
   type ActivityEvent,
   type ActivityFeedEntry,
+  type ActivityHistoricalContext,
   type ActivityQuery,
   type ProjectId,
 } from '@cwm/contracts';
@@ -66,6 +68,13 @@ export interface ActivityServiceDependencies {
 const SYSTEM_ACTOR_NAME = 'System';
 
 /**
+ * A titleless reflection still has to read as something (§36). Stable rather than generated, so two
+ * events about the same reflection say the same thing and a converted document matches a freshly
+ * recorded one.
+ */
+export const UNTITLED_REFLECTION_LABEL = 'Untitled reflection';
+
+/**
  * Every mutation produces one attributable event (§57). `record` never opens a unit of
  * work — it runs inside the one its caller opened, so a mutation and its event commit or
  * roll back together.
@@ -81,7 +90,12 @@ export class ActivityService {
    */
   async record(actor: ActorContext, entry: ActivityEntry): Promise<ActivityEvent> {
     const { activities, clock, ids } = this.dependencies;
-    const event = {
+    // **Captured before the write that may remove the target.** Slice 36 makes Undo of a creation
+    // delete the row its event describes, so the identity has to be read while the row is still
+    // there — which is here, inside the caller's own unit of work, rather than in the feed later
+    // (docs/decisions/2026-09-historical-activity-identity.md).
+    const context = await this.captureContext(entry);
+    const event = ActivityEventSchema.parse({
       id: ActivityEventIdSchema.parse(ids.next('activity')),
       workspaceId: actor.workspaceId,
       actor: actor.actor,
@@ -90,10 +104,13 @@ export class ActivityService {
       action: entry.action,
       entityType: entry.entityType,
       entityId: entry.entityId,
-      projectId: entry.projectId,
+      // The context is authoritative: `captureContext` fills a project-targeted event's own project
+      // when the caller left it out, and an event and its context must name the same one.
+      projectId: context.projectId,
       summary: entry.summary,
+      context,
       createdAt: clock.now().toISOString(),
-    } as ActivityEvent;
+    });
 
     await activities.insert(event);
 
@@ -109,14 +126,77 @@ export class ActivityService {
         type: entry.action,
         entityType: entry.entityType,
         entityId: entry.entityId,
-        projectId: entry.projectId,
+        projectId: context.projectId,
         // A root's aggregate pages project rows from anywhere beneath it (§31, §34), so a
         // change three sub-projects down changes what they render while `projectId` names a
-        // project those pages are not open on.
-        rootProjectId: entry.projectId === undefined ? undefined : await this.rootOf(entry.projectId),
+        // project those pages are not open on. It is the same root the context captured, so a
+        // frame and an audit line can never disagree about which tree changed.
+        rootProjectId: context.rootProjectId,
       },
     });
     return event;
+  }
+
+  /**
+   * The target's identity as it is right now: kind, id, readable label and owning project.
+   *
+   * It validates rather than trusts. A caller cannot supply a history — there is no parameter for
+   * one — and an entry naming a target this service cannot resolve is refused here, inside the
+   * caller's unit, so the mutation rolls back rather than writing an audit line that asserts
+   * something untrue. The project is checked the same way, against the entry rather than guessed.
+   *
+   * `rootProjectId` is the root of the owning project's tree; both it and `projectId` are absent
+   * for an `agent_connection`, which belongs to no project.
+   */
+  private async captureContext(entry: ActivityEntry): Promise<ActivityHistoricalContext> {
+    const label = await this.labelOf(entry);
+    if (entry.entityType === 'agent_connection') {
+      if (entry.projectId !== undefined) {
+        throw new TypeError(`activity about connection "${entry.entityId}" cannot name a project`);
+      }
+      return { targetKind: entry.entityType, targetId: entry.entityId, targetLabel: label };
+    }
+    // A project-targeted event's project **is** its target, so a caller may leave it out; anything
+    // else must say which project the change happened in, because nothing else can derive it.
+    const projectId = entry.projectId ?? (entry.entityType === 'project' ? (entry.entityId as ProjectId) : undefined);
+    if (projectId === undefined) {
+      throw new TypeError(`activity about ${entry.entityType} "${entry.entityId}" must name its project`);
+    }
+    const root = await this.rootOf(projectId);
+    if (root === undefined) throw new TypeError(`activity names missing project "${projectId}"`);
+    return { targetKind: entry.entityType, targetId: entry.entityId, targetLabel: label, projectId, rootProjectId: root };
+  }
+
+  /**
+   * The label captured for a target, and the name the feed falls back to once the row is gone.
+   *
+   * A target that cannot be resolved is a caller mistake rather than a blank label: the document's
+   * integrity pass would reject the event anyway, and failing here says which entry was wrong. The
+   * one exception is a `section`, which no product surface targets — section events target the
+   * project (docs/decisions/2026-08-section-activity-targets-the-project.md) — and which this
+   * service holds no repository for, so its id is the honest answer.
+   */
+  private async labelOf(entry: ActivityEntry): Promise<string> {
+    const { projects, tasks, milestones, reflections, agents } = this.dependencies;
+    const missing = (): never => {
+      throw new TypeError(`activity target ${entry.entityType} "${entry.entityId}" does not exist`);
+    };
+    switch (entry.entityType) {
+      case 'project':
+        return (await projects.find(entry.entityId as never))?.name ?? missing();
+      case 'task':
+        return (await tasks.find(entry.entityId as never))?.title ?? missing();
+      case 'milestone':
+        return (await milestones.find(entry.entityId as never))?.title ?? missing();
+      case 'reflection': {
+        const reflection = (await reflections.find(entry.entityId as never)) ?? missing();
+        return reflection.title?.trim() || UNTITLED_REFLECTION_LABEL;
+      }
+      case 'agent_connection':
+        return (await agents.find(entry.entityId as never))?.name ?? missing();
+      case 'section':
+        return entry.entityId;
+    }
   }
 
   /**
@@ -180,6 +260,15 @@ export class ActivityService {
     return Promise.all(limited.map((event) => this.resolve(event)));
   }
 
+  /**
+   * **Current name when the target is there, captured label when it is not.** The live read is what
+   * docs/decisions/2026-08-activity-feed-composes-from-parts.md settles: rename a task and the feed
+   * shows its new title. The fallback is Slice 36's addition — Undo of a creation removes the row,
+   * and the row it removed still has to read as something rather than as a blank line.
+   *
+   * `projectName` is read live too, but the captured context is never rewritten when an entity
+   * moves: it says where the change happened, not where the entity lives now.
+   */
   private async resolve(event: ActivityEvent): Promise<ActivityFeedEntry> {
     const [actorName, entityTitle, projectName] = await Promise.all([
       this.actorName(event),
@@ -190,7 +279,7 @@ export class ActivityService {
     return {
       ...event,
       actorName,
-      ...(entityTitle === undefined ? {} : { entityTitle }),
+      entityTitle: entityTitle ?? event.context.targetLabel,
       ...(projectName === undefined ? {} : { projectName }),
     };
   }
