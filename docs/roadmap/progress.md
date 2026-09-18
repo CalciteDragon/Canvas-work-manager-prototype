@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 36 | Slice 36 — Task and reflection operation history (Slice 34 Stage B) | Implementation plan for reversible task and reflection writes, compound creation and durable Activity identity | [36-task-and-reflection-history.md](active/36-task-and-reflection-history.md) |
 
 ### Planned
 
