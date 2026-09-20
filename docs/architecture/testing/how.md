@@ -11,7 +11,8 @@
 3. `pnpm build` builds the web app (with the bundle budgets) and type-checks the rest. Slice 31
    keeps project routes eager and uses conditional Angular `@defer` boundaries for the canvas
    dialogs, Undo notice and Archive list; the production initial bundle measured 994.27 kB at Slice 33
-   against the existing 1 MB error ceiling; the 850 kB warning budget is exceeded and reported.
+   against the original 1 MB error ceiling; Slice 36's contracts moved the measured initial bundle
+   to 1.01 MB, so the watched hard ceiling is 1050 kB while the 850 kB warning remains reported.
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
    starts a second host on a temp file and walks a slice's *done when*. Since Slice 30,
    `acceptance` removes `personal-workspace`'s first Home placement, undoes it through
@@ -37,9 +38,10 @@
     each refused with the file's business collections byte-identical. HTTP changes grants through
     `PATCH /api/agent-connections/:id` and `POST …/revoke`; stdio edits its own temp file between
     completed calls, which its per-call reload sees.
-5. `pnpm e2e` (dev servers stopped, Chromium installed once) starts both processes,
-    seeds before each spec, and runs the web, canvas editing and section edit/removal Undo, MCP, Todos,
-   Archive and Reflections specs, including keyboard/touch geometry and receipt recovery.
+5. `pnpm e2e` (dev servers stopped, Chromium installed once) first copies the current empty seed
+   to its disposable scratch file, then starts both processes,
+    seeds before each spec, and runs the web, canvas editing, section edit/removal Undo, row history,
+   MCP, Todos, Archive and Reflections specs, including keyboard/touch geometry and receipt recovery.
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`
    produces a static build the 25.x closeouts used as a check.
 7. After every slice, §77: seed, use, try it through MCP, write the friction down.

@@ -9,7 +9,10 @@ import {
   UserIdSchema,
   WorkspaceIdSchema,
 } from './ids';
-import { OperationKindSchema } from './operation-receipt';
+import {
+  OperationHistorySummarySchema,
+} from './operation-history-public';
+export * from './operation-history-public';
 import {
   RedoResultSchema,
   UndoConflictSchema,
@@ -34,10 +37,6 @@ import {
  */
 export const OperationActionStateSchema = z.enum(['applied', 'undone', 'retired']);
 export type OperationActionState = z.infer<typeof OperationActionStateSchema>;
-
-/** `undo` and `redo` share the same cursor and ordering rules. */
-export const OperationHistoryDirectionSchema = z.enum(['undo', 'redo']);
-export type OperationHistoryDirection = z.infer<typeof OperationHistoryDirectionSchema>;
 
 /**
  * One actor's cursor through the actions they made in one project.
@@ -100,59 +99,6 @@ export type OperationHistoryQuery = z.infer<typeof OperationHistoryQuerySchema>;
 /** Repository filter for one history's actions. */
 export const OperationActionQuerySchema = z.object({ historyId: OperationHistoryIdSchema.optional() });
 export type OperationActionQuery = z.infer<typeof OperationActionQuerySchema>;
-
-/** The next action in one direction: what a control would name, and what a transition must cite. */
-export const OperationHistoryEntrySchema = z.strictObject({
-  actionId: OperationActionIdSchema,
-  operation: OperationKindSchema,
-  label: z.string().min(1),
-  expiresAt: IsoDateTimeSchema,
-});
-export type OperationHistoryEntry = z.infer<typeof OperationHistoryEntrySchema>;
-
-/**
- * `GET /api/projects/:projectId/history` and `get_operation_history`: the caller's own cursor in
- * one project. Snapshot-free by construction (strict objects all the way down).
- *
- * `historyId` is `null` until the caller's first recorded write in the project creates the
- * history; `undo` and `redo` are `null` at either end of the stack and for an expired next
- * action. The summary does **not** pre-validate conflicts — a disabled reason comes from an
- * actual refusal — with one exception, `blockedBy`, the archived ancestor that blocks every
- * transition, because it is one visibility read.
- */
-export const OperationHistorySummarySchema = z.strictObject({
-  projectId: ProjectIdSchema,
-  historyId: OperationHistoryIdSchema.nullable(),
-  revision: z.number().int().min(0),
-  undo: OperationHistoryEntrySchema.nullable(),
-  redo: OperationHistoryEntrySchema.nullable(),
-  blockedBy: z.strictObject({ projectId: ProjectIdSchema, title: z.string().min(1) }).nullable(),
-});
-export type OperationHistorySummary = z.infer<typeof OperationHistorySummarySchema>;
-
-/** `get_operation_history`'s input. */
-export const OperationHistorySummaryInputSchema = z.strictObject({ projectId: ProjectIdSchema });
-export type OperationHistorySummaryInput = z.infer<typeof OperationHistorySummaryInputSchema>;
-
-/**
- * `POST /api/history/:historyId/transition`'s body. Strict: the action a caller names and the
- * revision it read are the whole request, so a stale caller is refused rather than silently
- * running a different stack step.
- */
-export const OperationHistoryTransitionInputSchema = z.strictObject({
-  actionId: OperationActionIdSchema,
-  direction: OperationHistoryDirectionSchema,
-  expectedRevision: z.number().int().min(0),
-});
-export type OperationHistoryTransitionInput = z.infer<typeof OperationHistoryTransitionInputSchema>;
-
-/** `undo_operation` and `redo_operation`'s input: the transition body plus the history it names. */
-export const OperationHistoryStepInputSchema = z.strictObject({
-  historyId: OperationHistoryIdSchema,
-  actionId: OperationActionIdSchema,
-  expectedRevision: z.number().int().min(0),
-});
-export type OperationHistoryStepInput = z.infer<typeof OperationHistoryStepInputSchema>;
 
 /** A completed transition: which action ran, what it did, and the refreshed summary. */
 export const OperationHistoryTransitionResultSchema = z.discriminatedUnion('direction', [

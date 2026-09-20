@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "pree2e": "node prepare-data.mjs",
     "e2e": "playwright test",
     "lint": "tsc --noEmit"
   },

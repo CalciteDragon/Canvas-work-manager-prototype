@@ -138,7 +138,7 @@ export class TodosPageStore {
         this.replace(id, { ...item, task: { ...item.task, status: 'done' } });
         const record = await this.track(() => this.gateway.tasks.complete(item.task.id));
         if (!current()) return false;
-        this.replace(id, { ...item, task: record });
+        this.replace(id, { ...item, task: record.task });
       } else {
         this.replace(id, { ...item, project: { ...item.project, status: 'completed' } });
         // §26's completion of a unit of work is an ordinary status update, so it goes through

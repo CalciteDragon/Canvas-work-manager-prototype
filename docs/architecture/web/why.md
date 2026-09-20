@@ -54,6 +54,11 @@ mutation and reconnect reads set no loading flag and clear no data; a host-state
 reloads the page because everything derived changed at once
 ([decision](../../decisions/2026-08-live-recovery-invalidates-derived-views.md)).
 
+**Receipts stop at the gateway/store seam until a surface owns them.** Task and reflection
+responses are validated as `{ task|reflection, operation }`, while current feature stores unwrap
+the entity and preserve their existing commit points. This keeps Stage B transport truth without
+inventing the Stage C global history controls or making presentational components know receipts.
+
 **Eager feature routes, lazy prototype routes.** Lazy boundaries are one more thing to
 move when a feature moves; the two `prototype/*` routes are lazy because most sessions
 never open them — and the honest limit is that the dev panel stays eager because `App`
@@ -69,8 +74,8 @@ themes; the token lint permits literals in exactly one file
 - A production adapter replaces `prototype-work-manager-gateway.ts` and nothing else.
 - Every component test runs with a fake gateway from `core/gateway/testing`; no test
   needs the host.
-- The initial bundle is over its 850 kB *warning* budget (969 kB after 25.8) and under
-  the 1 MB error budget; the budget is deliberate and the number is watched.
+- The initial bundle is over its 850 kB *warning* budget and under the 1050 kB error budget; the
+  warning remains visible and the hard ceiling is watched rather than hidden by raising both.
 - A store that forgets its in-flight guard will have a live frame overwrite its
   optimistic write — the defect class that closed Slice 16 and Slice 17.
 
@@ -81,6 +86,7 @@ themes; the token lint permits literals in exactly one file
 - [Latency and failure injection live in the client, not the host](../../decisions/2026-08-latency-and-failure-live-in-the-client.md)
 - [How live reconnects recover derived project views](../../decisions/2026-08-live-recovery-invalidates-derived-views.md)
 - [The activity feed composes its line](../../decisions/2026-08-activity-feed-composes-from-parts.md)
+- [Historical Activity identity survives a removed task or reflection](../../decisions/2026-09-historical-activity-identity.md)
 - [The initial bundle budget is set deliberately at 850 kB](../../decisions/2026-08-initial-bundle-budget.md)
 - [Storybook runs on the Vite framework, not the webpack one](../../decisions/2026-08-storybook-runs-on-the-vite-framework.md)
 - [The Design Lab is a route with live knobs, not a third theme](../../decisions/2026-08-design-lab-tokens-are-session-knobs.md)

@@ -664,18 +664,18 @@ test('inline rename, archive choices, shortcut removal and type settings remain 
   const firstList = await addSection(root.id, { type: 'task-list', title: 'Move from here', columnSpan: 12 });
   const secondList = await addSection(root.id, { type: 'task-list', title: 'Move to here', columnSpan: 12 });
   const progress = await addSection(root.id, { type: 'progress', title: 'Progress controls', columnSpan: 12 });
-  const firstTask = await api.post<{ id: string }>('/api/tasks', {
+  const firstTask = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: root.id,
     sectionId: firstList.id,
     title: 'Keep this task',
-  });
+  })).task;
   const [child] = await createSubprojects(root.id, 1);
   const source = await addSection(child!.id, { type: 'task-list', title: 'Canonical source', columnSpan: 12 });
-  const sourceTask = await api.post<{ id: string }>('/api/tasks', {
+  const sourceTask = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: child!.id,
     sectionId: source.id,
     title: 'Keep source work',
-  });
+  })).task;
   const home = await pageId(root.id);
   const shortcut = await api.post<SectionShortcut>(`/api/projects/${root.id}/shortcuts`, {
     pageId: home,

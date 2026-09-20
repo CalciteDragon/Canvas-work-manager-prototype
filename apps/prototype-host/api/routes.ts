@@ -328,7 +328,7 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     // One Undo or Redo step. The path names the history; the strict body names the action and the
     // revision the caller read, so a stale caller is refused rather than running a different step.
     // Only the owning actor finds the history (404 otherwise, unknown ids included); a connection
-    // without `projects.write` is a 403 naming it; every refusal — not next, stale revision,
+    // without the stored action family's write grant is a 403 naming it; every refusal — not next, stale revision,
     // expired, blocked, conflict, unavailable, retired — is a 409 whose `details` parse as
     // `OperationHistoryRefusalDetails` and carry the current summary. A stale revision stays a 409
     // rather than a 412: it is the same "read, then try again" answer as every other refusal.

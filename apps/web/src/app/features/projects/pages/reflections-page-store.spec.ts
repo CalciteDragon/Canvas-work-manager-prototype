@@ -302,7 +302,7 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     const { store, gateway, live } = setup();
     await store.load(PROJECT, PAGE);
     const write = deferred<Reflection>();
-    gateway.reflections.create = () => write.promise;
+    gateway.reflections.create = async () => ({ reflection: await write.promise, operation: { ...addReceipt, operation: 'reflection.add' } });
     const creation = store.create('A note');
 
     TestBed.resetTestingModule();

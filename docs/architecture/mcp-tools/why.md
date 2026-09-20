@@ -52,6 +52,13 @@ Sections and Home shortcuts still share one ordering rule
 `requiredPermissions` beside it, so a client can show what a tool needs before calling it
 ([decision](../../decisions/2026-08-mcp-tool-permission-metadata.md)).
 
+**History transitions advertise one grant per stored family.** `undo_operation` and
+`redo_operation` cannot truthfully publish one static grant: a section action needs
+`projects.write`, a task action `tasks.write`, and a reflection action `reflections.write`.
+They therefore publish the family map and omit the singular/conjunctive keys; the domain reads the
+stored action before enforcing the mapped grant
+([decision](../../decisions/2026-09-operation-family-permissions.md)).
+
 **`execute` receives domain services and nothing else.** No unit of work, no clock, no
 seed, no repository — a tool that could read storage directly would be a second place
 where scoping and grants have to be remembered. `check-package-imports.mjs` with
@@ -91,7 +98,9 @@ unknown-tool response.
 - [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `remove_section` receipts, reason-token refusal messages
 - [Explicit section edits reverse only their operation's changes](../../decisions/2026-09-section-edit-undo-boundaries.md) — `move_section`, add/update/move receipts, `operation: null` no-ops
 - [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — `get_operation_history` reads, the transitions write, per connection
-- [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../decisions/2026-09-history-stage-a-deferrals.md) — `undo_operation`/`redo_operation` inputs, static grants
+- [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../decisions/2026-09-history-stage-a-deferrals.md) — `undo_operation`/`redo_operation` inputs, one transition route; their grants became family-derived in Slice 36
+- [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md)
+- [Undo and Redo require their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md)
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — safe deletion and exact-actor recovery after a lost response
 
 ## Spec sections

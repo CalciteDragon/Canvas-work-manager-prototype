@@ -76,7 +76,7 @@ placements on a root's Home that reference a section elsewhere in the same tree.
 
 | Part | Path | Role |
 |---|---|---|
-| `SCHEMA_VERSION`, `PrototypeDocumentSchema` | `src/document.ts` | The `data.json` shape and its version (`3`) |
+| `SCHEMA_VERSION`, `PrototypeDocumentSchema` | `src/document.ts` | The `data.json` shape and its version (`5`) |
 | `ProjectSchema`, `isRootProject` | `src/project.ts` | Discriminated union on `kind`; status and `progressFormula` |
 | `ProjectPageSchema`, `NAVIGABLE_PAGE_KINDS` | `src/project-page.ts` | Four root kinds plus `work`; which are tabs |
 | `ProjectSectionSchema`, `SECTION_CAPABILITIES`, `SECTION_OWNERSHIP`, `ownedKindOf`, `nameOf` | `src/section.ts` | Sections, per-type capabilities, the container/view split, display names, grid presets |
@@ -89,6 +89,14 @@ placements on a root's Home that reference a section elsewhere in the same tree.
 | `LiveEventSchema` | `src/live.ts` | `type`, `entityId`, `entityType`, `projectId`, `rootProjectId` |
 | Dashboard, progress, timeline, todos, archive, journal schemas | `src/dashboard.ts` … `src/project-journal.ts` | Derived read models; Archive section entries add `recovery` metadata |
 | Prototype state and commands | `src/prototype.ts` | What the dev panel and `/prototype/*` agree on |
-| `UndoOperationSchema`, `SectionAddUndoOperationSchema`, `SectionMoveUndoOperationSchema`, `SectionUpdateUndoOperationSchema`, `SectionRemoveUndoOperationSchema`, `OperationReceiptSchema`, `SectionAddResultSchema`, `SectionWriteResultSchema`, `SectionRemovalResultSchema`, `UndoResultSchema`, `RedoResultSchema`, `UndoConflictSchema` | `src/undo.ts` | Versioned section add/move/update/removal payloads, field footprints, revision receipts, discriminated Undo and Redo results and typed conflicts |
-| `OperationHistorySchema`, `OperationActionSchema`, `OperationHistorySummarySchema`, `OperationHistoryTransitionInputSchema`, `OperationHistoryStepInputSchema`, `OperationHistoryTransitionResultSchema`, `OperationHistoryRefusalDetailsSchema` | `src/operation-history.ts` | The per-actor, per-project cursor, its actions, the snapshot-free summary, strict transition inputs, results and the seven refusal reasons |
+| `UndoOperationSchema`, section operation schemas, `UndoResultSchema`, `RedoResultSchema`, `UndoConflictSchema` | `src/undo.ts` | The twelve-operation union, section payloads, discriminated transition results and typed conflicts |
+| Task/reflection operation and transition schemas | `src/row-history.ts` | Strict row payloads: complete creation snapshots, changed fields, structural effects and optional implicit containers |
+| `TaskAddResultSchema`, `TaskWriteResultSchema`, `ReflectionAddResultSchema`, `ReflectionWriteResultSchema` | `src/row-write-result.ts` | Lightweight `{ task|reflection, operation }` transport envelopes without executable payload imports |
+| `OperationReceiptSchema`, `OperationKindSchema`, `OperationFamilySchema` | `src/operation-receipt.ts` | Payload-free receipts and the operation kind/family vocabulary |
+| Public history summary and input schemas | `src/operation-history-public.ts` | Snapshot-free cursor shapes imported by browser and transport consumers |
+| `OperationHistorySchema`, `OperationActionSchema`, `OperationHistoryTransitionResultSchema`, `OperationHistoryRefusalDetailsSchema` | `src/operation-history.ts` | Stored per-actor/project cursor and actions, transition results and the refusal union |
+| `ToolPermissionSchema`, `OPERATION_FAMILY_PERMISSION` | `src/tool-permissions.ts` | Static versus stored-family discovery declarations shared by registry and host |
 | Branded ids | `src/ids.ts` | `UserId`, `WorkspaceId`, `ProjectId`, `SectionId`, `TaskId`, `OperationHistoryId`, `OperationActionId`, … |
+
+Shared placement shapes live in `src/history-placement.ts`; `src/activity.ts` includes durable
+historical identity on events and feed entries.

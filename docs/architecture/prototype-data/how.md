@@ -11,10 +11,12 @@
    **sniff its version first** — the frozen v2 step refuses anything newer, so the "already
    current" answer cannot be delegated to it. Version 2 runs `upgradeProjectPages` (frozen at a
    literal version 3, unvalidated, opaque JSON) and then `upgradeOperationHistory`; version 3 runs
-   only the latter, which drops `undoRecords` (counting them), writes `archiveGeneration: 0` on every
-   section and empty history collections, and **validates the version-4 result**. Only then is the
+   the latter and then the v4 step. The v3 step drops `undoRecords` (counting them), writes `archiveGeneration: 0` on every
+   section and empty history collections, and returns opaque version-4 JSON. `upgradeActivityIdentity` then validates legacy Activity
+   references, backfills historical context and validates the version-5 result, preserving all
+   version-4 histories and actions. Only then is the
    original written beside the file as `.backup-<timestamp>.json` and the new document written
-   through a temp file. A version-4 file is validated and left alone. The message names the version
+   through a temp file. A version-4 file runs just the Activity step; a version-5 file is validated and left alone. The message names the version
    converted from and, when any were retired, how many version-3 Undo receipts were dropped.
 4. Tests: `seeds.test.ts` parses every builder's output with `PrototypeDocumentSchema`,
    and compares it byte-for-byte to `prototype/seeds/<name>.json` serialised with LF;
@@ -35,7 +37,8 @@
 | `PERSONAS` | const | The three personas | [API](../../api/miscellaneous/variables.html#PERSONAS) |
 | `writeSeedFile` | function | Write a named seed atomically | [API](../../api/miscellaneous/variables.html#writeSeedFile) |
 | `upgradeProjectPages` | function | Frozen v2 → v3 step; pure, unvalidated, opaque output | [API](../../api/miscellaneous/variables.html#upgradeProjectPages) |
-| `upgradeOperationHistory` | function | v3 → v4 step; retires receipts and validates the result | [API](../../api/miscellaneous/variables.html#upgradeOperationHistory) |
+| `upgradeOperationHistory` | function | Frozen v3 → v4 step; retires receipts and returns opaque JSON | [API](../../api/miscellaneous/variables.html#upgradeOperationHistory) |
+| `upgradeActivityIdentity` | function | v4 → v5 step; backfills validated Activity context, preserves histories and validates the final document | [API](../../api/miscellaneous/variables.html#upgradeActivityIdentity) |
 | `upgradeDataFile` | function | The CLI's version sniff, chain, backup and atomic write | [API](../../api/miscellaneous/variables.html#upgradeDataFile) |
 | `WriteSeedOptions`, `UpgradeDataFileOptions` | interfaces | Injectable file operations for the two CLIs' tests | [API](../../api/interfaces/WriteSeedOptions.html) |
 
@@ -64,9 +67,10 @@
   reference instant.
 - **Tokens are not in the contracts.** `AgentConnectionSchema` has no token field; the
   token table lives here and is asserted absent from `GET /api/agent-connections`.
-- **No migration runner.** Two named converters, called in a fixed order by the one CLI,
-  registered nowhere. The v2 step is frozen at its version-3 output so a later bump cannot change
-  what a v2 file becomes; the v3 step validates, so the chain never writes an unloadable file.
+- **No migration runner.** Three named converters, called in a fixed order by the one CLI,
+  registered nowhere. The v2 and v3 steps are frozen at their literal version-3 and version-4
+  outputs; only the v4 → v5 step validates the final document, so the chain never writes an
+  unloadable file.
 - **Seeds hold no Undo history.** Every snapshot carries `"operationHistories": []` and
   `"operationActions": []` and `archiveGeneration: 0` on every section; loading a seed replaces
   the document — so it discards every history.

@@ -280,7 +280,7 @@ describe('PrototypeWorkManagerGateway — Slice 10 reads and reflections', () =>
   });
 
   it('lists, creates, and updates reflections with encoded paths and bodies', async () => {
-    fetchMock.mockImplementationOnce(jsonResponse([reflection])).mockImplementationOnce(jsonResponse(reflection, 201)).mockImplementationOnce(jsonResponse({ ...reflection, title: 'Edited' }));
+    fetchMock.mockImplementationOnce(jsonResponse([reflection])).mockImplementationOnce(jsonResponse({ reflection, operation: receiptOf('reflection.add', 1) }, 201)).mockImplementationOnce(jsonResponse({ reflection: { ...reflection, title: 'Edited' }, operation: receiptOf('reflection.update', 2) }));
     const subject = gateway();
     await subject.reflections.list('project-1' as ProjectId);
     expect(lastCall().url).toBe('http://host.test/api/reflections?projectId=project-1');
@@ -310,22 +310,21 @@ describe('PrototypeWorkManagerGateway — Slice 10 reads and reflections', () =>
   });
 
   it('archives and restores a reflection through matching routes, parsing each answer', async () => {
-    // Unlike `tasks.archive`, both answers are the caller's: the list is repainted from the
-    // row that comes back rather than from a re-read.
+    // Both lifecycle writes preserve the entity and history receipt.
     fetchMock
-      .mockImplementationOnce(jsonResponse({ ...reflection, archivedAt: at }))
-      .mockImplementationOnce(jsonResponse(reflection));
+      .mockImplementationOnce(jsonResponse({ reflection: { ...reflection, archivedAt: at }, operation: receiptOf('reflection.archive', 3) }))
+      .mockImplementationOnce(jsonResponse({ reflection, operation: receiptOf('reflection.restore', 4) }));
     const subject = gateway();
 
     const archived = await subject.reflections.archive('reflection-1' as ReflectionId);
     expect(lastCall().url).toBe('http://host.test/api/reflections/reflection-1/archive');
     expect(lastCall().init.method).toBe('POST');
-    expect(archived.archivedAt).toBe(at);
+    expect(archived.reflection.archivedAt).toBe(at);
 
     const restored = await subject.reflections.restore('reflection-1' as ReflectionId);
     expect(lastCall().url).toBe('http://host.test/api/reflections/reflection-1/restore');
     expect(lastCall().init.method).toBe('POST');
-    expect(restored.archivedAt).toBeUndefined();
+    expect(restored.reflection.archivedAt).toBeUndefined();
   });
 
   it('reads §34’s chronology under its root, with the persona header', async () => {
@@ -641,7 +640,7 @@ describe('PrototypeWorkManagerGateway — tasks (§9, verbatim)', () => {
 
   // The host answers 201 here, not 200 — a `status !== 200` check would break on create.
   it('creates with a JSON body and accepts 201', async () => {
-    fetchMock.mockImplementation(jsonResponse(task, 201));
+    fetchMock.mockImplementation(jsonResponse({ task, operation: receiptOf('task.add', 1) }, 201));
     const input = { projectId: 'project-1', title: 'Water the plants' } as CreateTaskInput;
 
     const created = await gateway().tasks.create(input);
@@ -649,11 +648,11 @@ describe('PrototypeWorkManagerGateway — tasks (§9, verbatim)', () => {
     expect(lastCall().init.method).toBe('POST');
     expect(lastCall().init.body).toBe(JSON.stringify(input));
     expect((lastCall().init.headers as Record<string, string>)['content-type']).toBe('application/json');
-    expect(created.id).toBe('task-1');
+    expect(created.task.id).toBe('task-1');
   });
 
   it('updates through PATCH', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...task, title: 'Water the ferns' }));
+    fetchMock.mockImplementation(jsonResponse({ task: { ...task, title: 'Water the ferns' }, operation: receiptOf('task.update', 2) }));
 
     await gateway().tasks.update('task-1' as TaskId, { title: 'Water the ferns' });
 
@@ -662,35 +661,34 @@ describe('PrototypeWorkManagerGateway — tasks (§9, verbatim)', () => {
   });
 
   it('completes with no body — the host route carries none', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...task, status: 'done', completedAt: at }));
+    fetchMock.mockImplementation(jsonResponse({ task: { ...task, status: 'done', completedAt: at }, operation: receiptOf('task.update', 3) }));
 
     const completed = await gateway().tasks.complete('task-1' as TaskId);
 
     expect(lastCall().url).toBe('http://host.test/api/tasks/task-1/complete');
     expect(lastCall().init.method).toBe('POST');
     expect(lastCall().init.body).toBeUndefined();
-    expect(completed.status).toBe('done');
+    expect(completed.task.status).toBe('done');
   });
 
-  // §9 pins `Promise<void>`, but the host returns the task. Validate, then discard —
-  // the adapter never passes an unchecked body on, even one it throws away.
-  it('archives and resolves void', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...task, archivedAt: at }));
+  // Archive preserves the shared write envelope, including its operation receipt.
+  it('archives and preserves the row and operation receipt', async () => {
+    fetchMock.mockImplementation(jsonResponse({ task: { ...task, archivedAt: at }, operation: receiptOf('task.archive', 4) }));
 
-    await expect(gateway().tasks.archive('task-1' as TaskId)).resolves.toBeUndefined();
+    await expect(gateway().tasks.archive('task-1' as TaskId)).resolves.toEqual({ task: { ...task, archivedAt: at }, operation: receiptOf('task.archive', 4) });
   });
 
   // Restore is the undo archive lacks, and it does hand the row back: the caller that
   // reverses an archive needs the restored task, not a second read to find it.
   it('restores through the dedicated route and answers the task', async () => {
-    fetchMock.mockImplementation(jsonResponse(task));
+    fetchMock.mockImplementation(jsonResponse({ task, operation: receiptOf('task.restore', 5) }));
 
     const restored = await gateway().tasks.restore('task-1' as TaskId);
 
     expect(lastCall().url).toBe('http://host.test/api/tasks/task-1/restore');
     expect(lastCall().init.method).toBe('POST');
     expect(lastCall().init.body).toBeUndefined();
-    expect(restored.id).toBe('task-1');
+    expect(restored.task.id).toBe('task-1');
   });
 });
 

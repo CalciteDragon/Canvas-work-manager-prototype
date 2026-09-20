@@ -7,8 +7,9 @@
    through `tasks.list({ sectionId })`.
 2. Each row renders as `TaskRow` with the task and its flags; the section wires the row's
    callbacks to store methods and opens `TaskDetailDrawer` for a selected row.
-3. A quick create posts `{ projectId, sectionId, title }` and the host resolves the rest;
-   a completion paints first and posts second, guarded as drawn in [what](what.md).
+3. A quick create posts `{ projectId, sectionId, title }` and unwraps `result.task`; a completion
+   paints first, posts second and reconciles from the same strict envelope, guarded as drawn in
+   [what](what.md). Title Escape closes editing before the ensuing blur, so it records no write.
 4. Live frames naming a task the store holds trigger a quiet re-read unless a write is in
    flight, in which case the re-read waits; a read whose epoch is stale is discarded.
 5. Archive from the row calls `tasks.archive`; restore comes from the root Archive page

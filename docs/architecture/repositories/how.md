@@ -28,7 +28,7 @@
 | `JsonDataStore` | class | The file-backed store | [API](../../api/classes/JsonDataStore.html) |
 | `InMemoryDataStore` | class | The test store | [API](../../api/classes/InMemoryDataStore.html) |
 | `validateDocumentIntegrity` | function | The whole-document check at load and commit | [API](../../api/miscellaneous/variables.html#validateDocumentIntegrity) |
-| `TaskRepository`, `SectionRepository`, … | interfaces | One per collection | [API](../../api/interfaces/TaskRepository.html) |
+| `TaskRepository`, `ReflectionRepository`, `SectionRepository`, … | interfaces | One per collection; row/section removal is available only for domain-preflighted history execution | [API](../../api/interfaces/TaskRepository.html) |
 | `OperationHistoryRepository` | interface | Per-actor, per-project Undo/Redo cursors; no `remove`, so a history's revision never restarts | [API](../../api/interfaces/OperationHistoryRepository.html) |
 | `OperationActionRepository` | interface | History actions; the one collection that deletes routinely, because actions are pruned and redo branches discarded | [API](../../api/interfaces/OperationActionRepository.html) |
 | `JsonCollectionRepository` | class | Shared helpers the twelve implementations extend | [API](../../api/classes/JsonCollectionRepository.html) |
@@ -92,3 +92,11 @@ pnpm --filter @cwm/repositories lint   # tsc --noEmit
   the document rather than about one operation.
 - **The trap:** writing a query filter that treats `[]` as "everything". The semantics
   entry exists because a gateway once did exactly that.
+
+- **Row creation Undo and historical Activity:** safe row-add Undo uses task/reflection removal
+  after the domain checks the full canonical reference set, including archived dependents. An
+  implicit container is removed atomically with its row or the whole transition refuses. Activity
+  is historical evidence, not a canonical reference that blocks removal.
+- **The version-5 Activity exception is exact:** `validateDocumentIntegrity` permits an absent
+  task/reflection target only with complete matching captured identity and canonical,
+  workspace-scoped owning project/root. Other target kinds and history owners remain strict.

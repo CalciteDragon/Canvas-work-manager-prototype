@@ -39,7 +39,15 @@ does).
 a schema to migrate for no gain; the whole workspace fits in memory and a temp-and-rename
 write is atomic. The cost is that two processes cannot share the file safely, which is why
 [live updates are HTTP-only](../decisions/2026-08-live-updates-are-http-only.md) and
-stdio MCP owns a separate store.
+stdio MCP owns a separate store. Schema version 5 adds captured historical Activity identity;
+the bounded converter chain preserves version-4 operation histories while making audit rows
+readable after an Add is undone.
+
+**Operation history is product state, not transport state.** Supported section, task and
+reflection writes record typed server-side payloads in the exact actor's project history. Public
+receipts, summaries and transition results expose ordering and labels, never inverse snapshots.
+Undo/Redo therefore works the same through HTTP and both MCP transports, and family-dependent
+grants are enforced by the domain from the stored action rather than chosen by a caller.
 
 **Two terminals, not one command.** `pnpm dev` used to start both processes under
 `concurrently`; it hung the host silently. It now prints the two commands and exits
@@ -68,6 +76,9 @@ deliberately under-engineered. Adding abstraction to them is the wrong direction
 - [The initial bundle budget is set deliberately at 850 kB](../decisions/2026-08-initial-bundle-budget.md)
 - [A root project is a workspace with pages; a subproject is a unit of work](../decisions/2026-09-project-workspaces-and-subproject-work-units.md) —
   the one user-requested direction, and the model every layer now implements
+- [Task and reflection writes join operation history](../decisions/2026-09-row-operation-history.md)
+- [Activity captures identity that survives removed content](../decisions/2026-09-historical-activity-identity.md)
+- [Schema version 5 converts historical Activity identity](../decisions/2026-09-schema-version-5-conversion.md)
 
 Each subsystem's `why.md` lists the decisions that shape it; the
 [decision index](../decisions/README.md) lists them all.

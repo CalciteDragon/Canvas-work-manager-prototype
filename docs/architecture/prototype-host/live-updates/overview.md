@@ -17,6 +17,9 @@ resolution (§62).
 
 - Accept a `LivePublication` from `ActivityService.record`, hold it with its unit of
   work, and deliver it to subscribers after commit.
+- Deliver the same one-frame signal for a forward write and for its Undo or Redo. Row
+  transitions retain their `task.*` or `reflection.*` family; section transitions use
+  `project.*`, and a compound row Add still tells an open page to re-read section existence.
 - Filter by persona: `?user=<personaId>` scopes a subscription to one workspace; without
   it (`curl` debugging) the stream carries everything. The workspace id itself never
   travels to the browser.

@@ -211,3 +211,10 @@ restoring is not removing. What changed is the thing it is distinguished from �
 became per-actor history Undo and Redo — and one consequence is new: an Undo of a removal that
 Archive Restore already reversed can never succeed, so that action **retires** rather than blocking
 the actions beneath it ([retired actions](2026-09-operation-history-retired-actions.md)).
+
+**Amended, 2026-09-18 — Slice 36.** “Outside every history” is now split by kind. **Section**
+Archive Restore remains outside history until Stage C. A successful **task or reflection** Restore
+is still durable, receipt-free to invoke and available after the archive action expires, but it now
+records its own `task.restore` or `reflection.restore` action and therefore clears the caller's redo
+branch. Its response is `{ task|reflection, operation }`; an already-live row is a no-op with a null
+operation ([decision](2026-09-row-operation-history.md)).

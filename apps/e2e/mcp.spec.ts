@@ -96,7 +96,7 @@ test('MCP mutates the nested showcase and the open browser follows every aggrega
       arguments: { projectId: SHOWCASE_KITCHEN, title: 'MCP nested task', dueAt: '2026-09-19T12:00:00.000Z' },
     });
     expect(created.isError).not.toBe(true);
-    createdTaskId = (created.structuredContent as { id: string }).id;
+    createdTaskId = (created.structuredContent as { task: { id: string } }).task.id;
     expect((await requestApi.get<{ title: string }>(`/api/tasks/${createdTaskId}`)).title).toBe('MCP nested task');
 
     const nestedShortcut = page.locator('[data-shortcut-frame]', { hasText: 'MCP nested task' });
@@ -147,7 +147,7 @@ test('MCP mutates the nested showcase and the open browser follows every aggrega
       },
     });
     expect(reflection.isError).not.toBe(true);
-    const reflectionId = (reflection.structuredContent as { id: string }).id;
+    const reflectionId = (reflection.structuredContent as { reflection: { id: string } }).reflection.id;
     await expect(page.locator(`[data-reflections-entry][data-reflection-id="${reflectionId}"]`)).toContainText('MCP task checkpoint');
     expect((await requestApi.get<{ items: Array<{ reflection: { id: string } }> }>(`/api/projects/${SHOWCASE_ROOT}/journal`)).items.map(({ reflection: item }) => item.id)).toContain(reflectionId);
 

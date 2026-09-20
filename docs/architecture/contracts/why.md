@@ -72,14 +72,29 @@ always carries the current summary so a stale caller reconciles without a second
 ([scope](../../decisions/2026-09-operation-history-scope.md),
 [retention](../../decisions/2026-09-operation-history-retention.md)).
 
+**Task and reflection history uses typed footprints and transport-light result modules.** Row
+creates capture their complete entity and any implicit container; updates capture only changed
+fields and structural effects; archive and restore capture their exact affected rows. Public write
+envelopes and history cursor shapes are kept in `row-write-result.ts` and
+`operation-history-public.ts`, apart from executable payloads, so a browser type import does not
+drag the inverse graph into its bundle
+([decision](../../decisions/2026-09-row-operation-history.md)).
+
+**Activity owns historical display identity.** A task or reflection Add can be undone safely
+without keeping a canonical tombstone: its earlier events retain a validated target label and
+owning project/root context, but no executable inverse
+([decision](../../decisions/2026-09-historical-activity-identity.md)).
+
 **`ActivityAction` is an open `entity.verb` string**, not an enum: §57 names no action
 list and every slice adds verbs. `LiveEvent.type` reuses it so a frame is the
 announcement of the activity record that was just written, not a parallel type.
 
 **Versioning without a migration runner.** `SCHEMA_VERSION` went 1 → 2 (rows name their
 section) with a reset, and 2 → 3 (kinds and pages) with one bounded converter because a
-real file was by then worth keeping. A chain of converters was rejected as a framework
-for a chain of one (§14, §71).
+real file was by then worth keeping. Version 4 introduced operation histories; version 5 requires
+captured Activity identity. Three bounded, named steps are chained by the CLI without becoming a
+general migration framework
+([decision](../../decisions/2026-09-schema-version-5-conversion.md)).
 
 ## Consequences
 
@@ -107,7 +122,11 @@ for a chain of one (§14, §71).
 - [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — `operation-history.ts`
 - [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md) — cursor, revision and state shapes
 - [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md) — `ProjectSection.archiveGeneration`, `retired`, the conflict vocabulary
-- [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](../../decisions/2026-09-schema-version-4-conversion.md) — `SCHEMA_VERSION` 4, `PrototypeDocumentSchema` collections
+- [Schema version 4 converted explicitly and froze the v3 → v4 step](../../decisions/2026-09-schema-version-4-conversion.md) — retained as the intermediate step before v5
+- [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md) — typed row payloads and `{ task|reflection, operation }` results
+- [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — required captured context
+- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the frozen v4 intermediate and final validating step
+- [Undo and Redo advertise their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md) — the shared static/family declaration
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — compatible removal disposition, exact-owner repeat receipt, typed repair steps
 
 ## Spec sections

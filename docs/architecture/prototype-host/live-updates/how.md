@@ -48,13 +48,17 @@
   drives a real service through a real store and asserts both.
 - **No workspace id on the wire**; scoping happens in the hub.
 - **A no-op announces nothing**, because it records nothing.
-- **A history transition adds no frame of its own.** A retained section removal publishes
+- **A history transition adds no extra frame.** A retained section removal publishes
   `project.section_archived`, a safely deleted disposable publishes `project.section_removed`,
   explicit add, move and settings writes publish their usual one frame (a no-op publishes none), and
-  each transition publishes one `project.section_{removal,addition,move,update}_{undone,redone}`
-  frame, so the direction is in the type. A retirement commits but records no activity, so it
+  each section transition publishes one
+  `project.section_{removal,addition,move,update}_{undone,redone}` frame. Task and reflection
+  transitions publish the equivalent `task.*_{undone,redone}` and
+  `reflection.*_{undone,redone}` action. A compound Add still publishes only that one row frame;
+  its project context also invalidates section existence in the browser. The direction is in the
+  type. A retirement commits but records no activity, so it
   publishes nothing. The history action and its payload never reach a frame. `live-updates.test.ts`
-  pins, for add, update, move and removal, that the forward, Undo and Redo frames arrive only once
+  pins, for section, task and reflection families, that the forward, Undo and Redo frames arrive only once
   the bytes on disk hold the change and the action's new state, and that an action-insert failure,
   forward-persistence failure or transition-persistence failure delivers nothing;
   `section-service.test.ts` pins the retained-removal action at the domain.

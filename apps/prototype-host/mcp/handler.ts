@@ -10,9 +10,14 @@ import {
 import { createMcpHandler, type AuthInfo, type McpHttpHandler } from '@modelcontextprotocol/server';
 import { AgentAuthenticationError, type PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
 import type { RawRouteHandler } from '../router.ts';
-import { createWorkManagerMcpServer, REQUIRED_PERMISSION_META_KEY, REQUIRED_PERMISSIONS_META_KEY } from './server.ts';
+import {
+  createWorkManagerMcpServer,
+  REQUIRED_PERMISSION_META_KEY,
+  REQUIRED_PERMISSIONS_BY_FAMILY_META_KEY,
+  REQUIRED_PERMISSIONS_META_KEY,
+} from './server.ts';
 
-export { REQUIRED_PERMISSION_META_KEY, REQUIRED_PERMISSIONS_META_KEY };
+export { REQUIRED_PERMISSION_META_KEY, REQUIRED_PERMISSIONS_BY_FAMILY_META_KEY, REQUIRED_PERMISSIONS_META_KEY };
 
 export interface AuthenticatedMcpDependencies {
   registry: ToolRegistry;

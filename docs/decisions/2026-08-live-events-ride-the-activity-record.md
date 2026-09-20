@@ -111,3 +111,10 @@ actions gained `project.section_*_redone` twins (`removal`, `addition`, `move`, 
 needed no change. A retirement commits but executes nothing and records no activity, so it publishes
 no frame; a failed transition — at the action insert, the activity record or persistence — publishes
 nothing. `live-updates.test.ts` asserts all three per family against the bytes on disk.
+
+**Amended, 2026-09-18 — Slice 36 row transitions.** Task and reflection Undo/Redo use the same
+one-activity, one-post-commit-frame rule. Their actions identify both family and original operation,
+for example `task.task_addition_undone`, `task.task_update_redone` and
+`reflection.reflection_restore_undone`; the event targets the row rather than the project. Creation
+Undo captures the event context before deleting the target, so the feed remains readable after the
+frame causes a re-fetch. A refusal or rolled-back transition still publishes nothing.

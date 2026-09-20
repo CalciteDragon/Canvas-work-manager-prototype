@@ -67,3 +67,10 @@ rendering, so nothing about this entry's composition rule changed.
 Revisit if the feed ever needs to render an event the host cannot resolve on re-read, or if
 the re-fetch per frame becomes too chatty for a busy agent — at which point the answer is
 coalescing in the store, not a fatter frame.
+
+**Amended, 2026-09-18 — Slice 36.** The first revisit condition is now real: Undo of a task or
+reflection creation deletes the event's canonical target. `ActivityFeedEntry` therefore carries
+the event's required historical context. The domain still prefers current entity and project names
+when available, but falls back to the captured labels when they are gone; the UI composition rule
+and the live-frame re-fetch rule stay unchanged
+([decision](2026-09-historical-activity-identity.md)).

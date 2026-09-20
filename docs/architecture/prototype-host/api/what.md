@@ -27,8 +27,8 @@ Read-only unless marked. Every write parses its body with the matching contract 
 | Sections | `GET /api/projects/:projectId/sections`, `POST /api/projects/:projectId/sections` (add receipt), `PATCH /api/sections/:id` (field-aware update result), `DELETE /api/sections/:id` (removal receipt; exact-owner repeat can return 409 receipt details), `POST /api/sections/:id/move` (move result), `/duplicate`, `/restore` |
 | History | `GET /api/projects/:id/history` — the caller's summary; `POST /api/history/:historyId/transition` — one Undo or Redo step, strict `{ actionId, direction, expectedRevision }` |
 | Shortcuts | `GET /api/projects/:projectId/shortcuts`, `GET /api/projects/:projectId/shortcut-sources`, `POST /api/projects/:projectId/shortcuts`, `PATCH /api/shortcuts/:id`, `DELETE /api/shortcuts/:id`, `POST /api/shortcuts/:id/move` |
-| Tasks | `GET /api/tasks`, `POST /api/tasks`, `GET /api/tasks/:id`, `PATCH /api/tasks/:id`, `POST /api/tasks/:id/complete`, `/archive`, `/restore` |
-| Reflections | `GET /api/reflections`, `POST /api/reflections`, `PATCH /api/reflections/:id`, `POST /api/reflections/:id/archive`, `/restore` |
+| Tasks | `GET /api/tasks`, `POST /api/tasks` (`TaskAddResult`), `GET /api/tasks/:id`, `PATCH /api/tasks/:id`, `POST /api/tasks/:id/complete`, `/archive`, `/restore` (the latter four answer `TaskWriteResult`) |
+| Reflections | `GET /api/reflections`, `POST /api/reflections` (`ReflectionAddResult`), `PATCH /api/reflections/:id`, `POST /api/reflections/:id/archive`, `/restore` (the latter three answer `ReflectionWriteResult`) |
 | Dashboard and activity | `GET /api/dashboard`, `GET /api/activity` |
 | Agent connections | `GET /api/agent-connections`, `PATCH /api/agent-connections/:id`, `POST /api/agent-connections/:id/revoke` |
 

@@ -8,13 +8,12 @@ records with their receipts and refusals, and the `data.json` document itself. A
 schemas, the seeds and every test import from here; there is no second definition of any
 of these shapes anywhere in the repository.
 
-Slice 35 puts every section operation into a per-actor, per-project **operation history**
-(`operation-history.ts`): strict version-1 `section.add`, `section.move`, `section.update` and
-`section.remove` payloads held by `OperationAction`s under an `OperationHistory` cursor. Explicit
-section writes return `{ section, operation }` (or `operation: null` for a normalized no-op); the
-receipt names the history, the action and the history's `revision`, while the captured footprint
-stays server-side. A transition returns the discriminated `UndoResult` or `RedoResult` plus the
-refreshed, snapshot-free summary. `SCHEMA_VERSION` is 4.
+Operation history holds strict version-1 section, task and reflection payloads under one
+per-actor, per-project cursor. Section and row writes return `{ section|task|reflection,
+operation }` (with `operation: null` for a normalized update); the receipt names the history,
+action and revision while captured fields, structural effects and optional implicit containers
+stay server-side. Public history shapes live apart from stored actions so browser consumers do not
+pull in inverse payloads. Activity carries durable captured identity, and `SCHEMA_VERSION` is 5.
 
 **Code:** `packages/contracts/src` · **Tests:** `packages/contracts/src/*.test.ts`
 (vitest) · **Package:** `@cwm/contracts` · **Depends on:** `zod` only
@@ -26,7 +25,7 @@ refreshed, snapshot-free summary. `SCHEMA_VERSION` is 4.
 - Define the write inputs separately from the entities: inputs carry only what a caller
   may set; ids and timestamps come from the domain (§45). In updates `null` clears and
   `undefined` leaves alone.
-- Own `SCHEMA_VERSION` (currently `3`) and `PrototypeDocumentSchema`, so a stale
+- Own `SCHEMA_VERSION` (currently `5`) and `PrototypeDocumentSchema`, so a stale
   `.prototype/data.json` fails at load rather than mid-session.
 - Own the small pure functions that several layers need to agree on: `nameOf` for a
   section's display name, `SECTION_CAPABILITIES` (and the derived `SECTION_OWNERSHIP` /

@@ -57,3 +57,11 @@ Todos page should see a sub-project's actions is untested until Stage C puts con
 
 A root Todos or Home action's history "feels lost" because the change it made recorded into a
 sub-project's history, or Stage C's header controls need a tree-wide view.
+
+**Amended, 2026-09-18 — Slice 36.** The scope is unchanged, but task and reflection writes now join
+the same exact-actor, owning-project history as section writes. A transition asserts the stored
+action family's grant — `projects.write`, `tasks.write` or `reflections.write` — while the optional
+summary read remains `projects.read`. A write-only agent starts from its receipt and chains through
+the summary returned by every transition result or refusal; it does not gain a project read
+([row history](2026-09-row-operation-history.md),
+[family permissions](2026-09-operation-family-permissions.md)).

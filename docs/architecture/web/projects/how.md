@@ -47,9 +47,11 @@
    Angular `@defer` loads the create dialog, removal dialog and Undo notice when needed (on the
    canvas and the Reflections page); the
    Archive page loads `ArchivedRegion` after its read completes. These boundaries keep the
-   eager route graph under the 1 MB initial-bundle error ceiling.
+   eager route graph under the 1050 kB initial-bundle error ceiling.
 5. Live frames: progress re-reads on any frame naming the project; the record on
-   `project.*`; sections through `refreshSections()` unless a write is in flight; the
+   `project.*`; sections through `refreshSections()` unless a write is in flight. Task/reflection
+   Add and Add Undo/Redo frames also re-resolve section existence because the row operation may
+   own an implicit container; the
    tree on `rootProjectId`. Root pages re-read their projection on the same frames.
 6. Following a Todos or Archive link to `#section-<id>` scrolls to the loaded frame,
    focuses its heading, and transiently expands a collapsed container.

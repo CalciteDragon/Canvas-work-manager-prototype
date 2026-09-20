@@ -307,6 +307,10 @@ export class ProjectPageStore {
     const projectId = this.requestedProjectId;
     if (projectId === undefined) return;
 
+    const changesSectionExistence =
+      event.type === 'task.created' || event.type === 'reflection.added' ||
+      event.type === 'task.task_addition_undone' || event.type === 'task.task_addition_redone' ||
+      event.type === 'reflection.reflection_addition_undone' || event.type === 'reflection.reflection_addition_redone';
     const aboutThisProject =
       event.projectId === projectId || (event.type.startsWith('project.') && event.entityId === projectId);
     const hasShortcuts = this.shortcutsState().length > 0;
@@ -314,14 +318,14 @@ export class ProjectPageStore {
     if (event.type.startsWith('project.')) this.notifyProjectHierarchyChanged();
     if (!aboutThisProject && !(hasShortcuts && isInRootTree)) return;
 
-    // The containers re-read themselves off the revision; only a change to the canvas's own
-    // section list needs a `sections.list`, which is what `project.*` frames carry.
+    // The containers re-read themselves off the revision. Project frames change the canvas
+    // directly; reversing or replaying a row Add can also remove/restore its implicit container.
     this.notifyProjectDataChanged();
     if (this.activeLoad !== null) {
       this.fullRecoveryQueued = true;
       return;
     }
-    if (!event.type.startsWith('project.')) return;
+    if (!event.type.startsWith('project.') && !changesSectionExistence) return;
     if (this.pendingSectionWrites > 0) {
       this.sectionRefreshQueued = true;
       return;
@@ -997,8 +1001,15 @@ export class ProjectPageStore {
   }
 
   private undoResultMessage(result: UndoResult): string {
+    if (
+      result.operation === 'task.add' || result.operation === 'task.update' ||
+      result.operation === 'task.archive' || result.operation === 'task.restore' ||
+      result.operation === 'reflection.add' || result.operation === 'reflection.update' ||
+      result.operation === 'reflection.archive' || result.operation === 'reflection.restore'
+    ) return 'Undo completed.';
     if (result.operation === 'section.add') return 'Undo removed the added section.';
     if (result.operation === 'section.update') return `Undo restored ${nameOf(result.section)}.`;
+    // The two remaining section operations both restore a section to a placement.
     const name = nameOf(result.section);
     if (!result.placement.pageEnabled) {
       const destination = result.operation === 'section.remove' && result.outcome === 'partial'

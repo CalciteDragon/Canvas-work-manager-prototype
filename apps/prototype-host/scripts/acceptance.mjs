@@ -93,12 +93,12 @@ try {
     title: 'Configure deployment',
   });
   check(task.status === 201, 'POST /api/tasks answers 201');
-  check(task.body.status === 'todo', 'a new task starts as todo');
+  check(task.body.task.status === 'todo', 'a new task starts as todo');
 
-  const completed = await request('POST', `/api/tasks/${task.body.id}/complete`);
+  const completed = await request('POST', `/api/tasks/${task.body.task.id}/complete`);
   check(completed.status === 200, 'POST /api/tasks/:id/complete answers 200');
-  check(completed.body.status === 'done', 'the completed task is done');
-  check(typeof completed.body.completedAt === 'string', 'the completed task has a completedAt');
+  check(completed.body.task.status === 'done', 'the completed task is done');
+  check(typeof completed.body.task.completedAt === 'string', 'the completed task has a completedAt');
 
   const activity = await request('GET', '/api/activity');
   const actions = activity.body.map((event) => event.action);

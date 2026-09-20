@@ -1,6 +1,6 @@
 import { AgentPermissionSchema, type AgentPermission } from '@cwm/contracts';
 import { PermissionDeniedError } from '@cwm/domain';
-import { requiredPermissions } from './tool';
+import { requiredPermissions, toolPermission } from './tool';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   agent,
@@ -31,6 +31,16 @@ interface ToolCase {
   mutates?: boolean;
   prepare?: (harness: ReturnType<typeof buildHarness>) => Promise<void>;
   verify: (result: any, harness: ReturnType<typeof buildHarness>) => Promise<void> | void;
+  /**
+   * The grants **this case** needs, when that is narrower than everything the tool declares.
+   *
+   * Only `undo_operation` and `redo_operation` set it. Their grant comes from the stored action's
+   * family, so what they *declare* is all three family grants while what any one call needs is one
+   * of them — here, `projects.write`, because both cases prepare a section removal. Enumerating
+   * each family under its own minimal grant is a separate suite below, which is where the honest
+   * per-family necessity assertion lives.
+   */
+  grants?: readonly AgentPermission[];
 }
 
 const CASES: Record<string, ToolCase> = {
@@ -144,8 +154,8 @@ const CASES: Record<string, ToolCase> = {
     input: { projectId: PROJECT, title: 'Wire the MCP transport' },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result.title).toBe('Wire the MCP transport');
-      expect((await harness.services.tasks.get(agent(['tasks.read']), result.id)).status).toBe('todo');
+      expect(result.task.title).toBe('Wire the MCP transport');
+      expect((await harness.services.tasks.get(agent(['tasks.read']), result.task.id)).status).toBe('todo');
     },
   },
   update_task: {
@@ -153,7 +163,7 @@ const CASES: Record<string, ToolCase> = {
     input: { taskId: OPEN_TASK, priority: 'high' },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result.priority).toBe('high');
+      expect(result.task.priority).toBe('high');
       expect((await harness.services.tasks.get(agent(['tasks.read']), OPEN_TASK)).priority).toBe('high');
     },
   },
@@ -163,8 +173,8 @@ const CASES: Record<string, ToolCase> = {
     input: { taskId: OPEN_TASK },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result.status).toBe('done');
-      expect(result.completedAt).toBeDefined();
+      expect(result.task.status).toBe('done');
+      expect(result.task.completedAt).toBeDefined();
       expect((await harness.services.tasks.get(agent(['tasks.read']), OPEN_TASK)).status).toBe('done');
     },
   },
@@ -172,7 +182,7 @@ const CASES: Record<string, ToolCase> = {
     input: { taskId: OPEN_TASK },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result.archivedAt).toBeDefined();
+      expect(result.task.archivedAt).toBeDefined();
       expect((await harness.services.tasks.get(agent(['tasks.read']), OPEN_TASK)).archivedAt).toBeDefined();
     },
   },
@@ -183,7 +193,7 @@ const CASES: Record<string, ToolCase> = {
       await harness.services.tasks.archive(agent(['tasks.write']), OPEN_TASK);
     },
     verify: async (result, harness) => {
-      expect(result.archivedAt).toBeUndefined();
+      expect(result.task.archivedAt).toBeUndefined();
       expect((await harness.services.tasks.get(agent(['tasks.read']), OPEN_TASK)).archivedAt).toBeUndefined();
     },
   },
@@ -196,18 +206,18 @@ const CASES: Record<string, ToolCase> = {
     mutates: true,
     verify: async (result, harness) => {
       const listed = await harness.services.reflections.list(agent(['reflections.read']), PROJECT);
-      expect(listed.map(({ id }) => id)).toContain(result.id);
+      expect(listed.map(({ id }) => id)).toContain(result.reflection.id);
     },
   },
   archive_reflection: {
     input: { reflectionId: 'reflection-agent-scope' },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result.archivedAt).toBeDefined();
+      expect(result.reflection.archivedAt).toBeDefined();
       const reader = agent(['reflections.read']);
       const archived = await harness.services.reflections.list(reader, OPS_PROJECT, { includeArchived: true });
-      expect(archived.find(({ id }) => id === result.id)?.archivedAt).toBeDefined();
-      expect((await harness.services.reflections.list(reader, OPS_PROJECT)).map(({ id }) => id)).not.toContain(result.id);
+      expect(archived.find(({ id }) => id === result.reflection.id)?.archivedAt).toBeDefined();
+      expect((await harness.services.reflections.list(reader, OPS_PROJECT)).map(({ id }) => id)).not.toContain(result.reflection.id);
     },
   },
   restore_reflection: {
@@ -217,7 +227,7 @@ const CASES: Record<string, ToolCase> = {
       await harness.services.reflections.archive(agent(['reflections.write']), 'reflection-agent-scope' as never);
     },
     verify: async (result, harness) => {
-      expect(result.archivedAt).toBeUndefined();
+      expect(result.reflection.archivedAt).toBeUndefined();
       expect((await harness.services.reflections.list(agent(['reflections.read']), OPS_PROJECT))[0]?.archivedAt).toBeUndefined();
     },
   },
@@ -310,6 +320,7 @@ const CASES: Record<string, ToolCase> = {
   undo_operation: {
     input: { historyId: 'history-1', actionId: 'operation-1', expectedRevision: 1 },
     mutates: true,
+    grants: ['projects.write'],
     prepare: async (harness) => {
       await harness.services.sections.remove(agent(['projects.write']), VIEW_SECTION);
     },
@@ -325,6 +336,7 @@ const CASES: Record<string, ToolCase> = {
   redo_operation: {
     input: { historyId: 'history-1', actionId: 'operation-1', expectedRevision: 2 },
     mutates: true,
+    grants: ['projects.write'],
     prepare: async (harness) => {
       const writer = agent(['projects.write']);
       await harness.services.sections.remove(writer, VIEW_SECTION);
@@ -447,7 +459,7 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
        * whose service happened to assert a second permission would pass both halves. This
        * is the assertion that would have caught `search_workspace` needing three grants.
        */
-      const required = requiredPermissions(tool);
+      const required = testCase.grants ?? requiredPermissions(tool);
 
       it(`succeeds with ${required.join(' + ')} alone`, async () => {
         await testCase.prepare?.(harness);
@@ -470,7 +482,7 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
        * pages — has to be refused for either missing one, and refused *outright*: the store
        * assertion below is what says it did not answer with the half it was allowed to read.
        */
-      for (const permission of required) {
+      for (const permission of tool.permissionsByFamily === true ? [] : required) {
         it(`is denied without ${permission}, however much else the connection holds`, async () => {
           const grant = ALL_PERMISSIONS.filter((candidate) => candidate !== permission) as AgentPermission[];
 
@@ -561,11 +573,111 @@ describe('undo_operation and redo_operation refusals, as an agent sees them', ()
 
   it('undo/redo/summary tools declare their own grants', () => {
     const tools = buildHarness().registry.list();
-    const grant = (name: string) => requiredPermissions(tools.find((tool) => tool.name === name)!);
-    expect(grant('get_operation_history')).toEqual(['projects.read']);
-    expect(grant('undo_operation')).toEqual(['projects.write']);
-    expect(grant('redo_operation')).toEqual(['projects.write']);
+    const declared = (name: string) => toolPermission(tools.find((tool) => tool.name === name)!);
+
+    // The read is an ordinary static tool.
+    expect(declared('get_operation_history')).toEqual({ kind: 'static', permission: 'projects.read', permissions: ['projects.read'] });
+
+    // The two transitions publish the namespaced family map **instead of** the singular and
+    // conjunctive keys, because their grant comes from the stored action's family: a singular key
+    // would name one of three and a plural one would claim all three are needed.
+    for (const name of ['undo_operation', 'redo_operation']) {
+      const declaration = declared(name);
+      expect(declaration).toEqual({
+        kind: 'family',
+        families: { section: 'projects.write', task: 'tasks.write', reflection: 'reflections.write' },
+      });
+      expect(declaration).not.toHaveProperty('permission');
+      expect(declaration).not.toHaveProperty('permissions');
+    }
   });
+});
+
+/**
+ * **Each family, each direction, under its own minimal grant** (Slice 36;
+ * docs/decisions/2026-09-operation-family-permissions.md).
+ *
+ * The generic suite above cannot express this: it pairs one declared grant list with one denial, and
+ * these two tools have three. Here each family's action is recorded, then run in both directions
+ * with exactly that family's grant, and refused outright with each of the other two — which is the
+ * assertion that a caller's input cannot choose the grant, because the input is identical in both
+ * halves and only the connection differs.
+ */
+describe('undo_operation and redo_operation — one grant per operation family', () => {
+  const FAMILIES: readonly { family: string; grant: AgentPermission; record: (harness: ReturnType<typeof buildHarness>) => Promise<{ historyId: string; actionId: string; revision: number }> }[] = [
+    {
+      family: 'section',
+      grant: 'projects.write',
+      record: async (harness) => {
+        const { operation } = await harness.services.sections.remove(agent(['projects.write']), VIEW_SECTION);
+        return operation;
+      },
+    },
+    {
+      family: 'task',
+      grant: 'tasks.write',
+      record: async (harness) => {
+        const { operation } = await harness.services.tasks.create(agent(['tasks.write']), {
+          projectId: PROJECT as never,
+          title: 'A task with a receipt',
+        });
+        return operation;
+      },
+    },
+    {
+      family: 'reflection',
+      grant: 'reflections.write',
+      record: async (harness) => {
+        const { operation } = await harness.services.reflections.create(agent(['reflections.write']), {
+          projectId: PROJECT as never,
+          body: 'A reflection with a receipt',
+        });
+        return operation;
+      },
+    },
+  ];
+
+  const OTHER_GRANTS: readonly AgentPermission[] = ['projects.write', 'tasks.write', 'reflections.write'];
+
+  for (const { family, grant, record } of FAMILIES) {
+    it(`runs a ${family} action in both directions with ${grant} alone`, async () => {
+      const harness = buildHarness();
+      const { historyId, actionId, revision } = await record(harness);
+      const only = agent([grant]);
+
+      const undone = (await harness.registry.call('undo_operation', { historyId, actionId, expectedRevision: revision }, only)) as {
+        direction: string;
+        summary: { revision: number };
+      };
+      expect(undone.direction).toBe('undo');
+      // The summary every transition returns is what a write-only connection chains from: it never
+      // calls `get_operation_history`, which would need `projects.read` it does not hold.
+      const redone = (await harness.registry.call(
+        'redo_operation',
+        { historyId, actionId, expectedRevision: undone.summary.revision },
+        only,
+      )) as { direction: string };
+      expect(redone.direction).toBe('redo');
+    });
+
+    for (const wrong of OTHER_GRANTS.filter((candidate) => candidate !== grant)) {
+      it(`refuses a ${family} action for a connection holding only ${wrong}`, async () => {
+        const harness = buildHarness();
+        const { historyId, actionId, revision } = await record(harness);
+        const before = harness.store.snapshot();
+
+        const refusal = await harness.registry
+          .call('undo_operation', { historyId, actionId, expectedRevision: revision }, agent([wrong, 'projects.read']))
+          .then(() => null, (error: unknown) => error);
+
+        expect(refusal).toBeInstanceOf(PermissionDeniedError);
+        // Nothing read back to the caller, and nothing written: a forbidden transition discloses
+        // neither the revision nor the label of what it would have run.
+        expect(refusal).not.toHaveProperty('details');
+        expect(harness.store.snapshot()).toEqual(before);
+      });
+    }
+  }
 });
 
 describe('remove_section lost-receipt recovery over the registry', () => {

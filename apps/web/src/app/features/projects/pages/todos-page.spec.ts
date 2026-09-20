@@ -109,7 +109,10 @@ const render = async (options: RenderOptions = {}) => {
     if (options.gateComplete === true) await new Promise<void>((resolve) => (releaseCompletion = resolve));
     if (options.completeRejects !== undefined) throw options.completeRejects;
     const row = items.find((item) => item.kind === 'task' && item.task.id === id);
-    return { ...(row as Extract<ProjectTodoItem, { kind: 'task' }>).task, status: 'done', completedAt: AT };
+    return {
+      task: { ...(row as Extract<ProjectTodoItem, { kind: 'task' }>).task, status: 'done', completedAt: AT },
+      operation: null,
+    };
   });
   const update = vi.fn(async (id: ProjectId) => {
     if (options.completeRejects !== undefined) throw options.completeRejects;

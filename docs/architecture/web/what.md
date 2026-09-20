@@ -80,6 +80,11 @@ flowchart LR
   store -->|signals| page
 ```
 
+Writes cross the same seam as strict shared envelopes. For example,
+`tasks.complete(id)` returns `{ task, operation }`; the adapter validates both fields and the
+store paints `task`. The receipt stays available at the gateway boundary for the browser history
+surface planned after Stage B.
+
 ## Inventory
 
 | Part | Path | Role |
@@ -90,7 +95,7 @@ flowchart LR
 | Dashboard | `src/app/features/dashboard/` | [dashboard](dashboard/overview.md) |
 | Tasks | `src/app/features/tasks/` | [tasks](tasks/overview.md) |
 | Prototype tooling | `src/app/prototype/` | [prototype-tooling](prototype-tooling/overview.md) |
-| Activity | `src/app/features/activity/` | `ActivityFeed`, `ActivityStore` |
+| Activity | `src/app/features/activity/` | `ActivityFeed`, `ActivityStore`; current-name display with captured-label fallback supplied by the host |
 | Settings | `src/app/features/settings/` | `SettingsPage`; `agents/AgentConnectionsPage`, `AgentConnectionsStore` |
 | Placeholders | `src/app/features/calendar/`, `features/search/`, `shared/components/placeholder-page/` | `CalendarPage`, `SearchPage`, `PlaceholderPage`, `NotFoundPage` |
 | Tokens and base styles | `src/styles/_tokens.scss`, `_base.scss` | §21's custom properties, both themes, the knob layer |

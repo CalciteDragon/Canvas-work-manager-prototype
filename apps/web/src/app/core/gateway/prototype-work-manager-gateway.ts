@@ -20,6 +20,10 @@ import {
   TimelineResultSchema,
   OperationHistorySummarySchema,
   OperationHistoryTransitionResultSchema,
+  ReflectionAddResultSchema,
+  ReflectionWriteResultSchema,
+  TaskAddResultSchema,
+  TaskWriteResultSchema,
   ShortcutSourceSchema,
   type ActivityQuery,
   type AgentConnectionId,
@@ -117,12 +121,12 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         `/api/reflections${queryString(reflectionQueryParams({ ...query, projectId }))}`,
         ReflectionSchema.array(),
       ),
-    create: (input: CreateReflectionInput) => this.send('POST', '/api/reflections', ReflectionSchema, input),
-    update: (id: ReflectionId, input: UpdateReflectionInput) => this.send('PATCH', `/api/reflections/${encodeURIComponent(id)}`, ReflectionSchema, input),
+    create: (input: CreateReflectionInput) => this.send('POST', '/api/reflections', ReflectionAddResultSchema, input),
+    update: (id: ReflectionId, input: UpdateReflectionInput) => this.send('PATCH', `/api/reflections/${encodeURIComponent(id)}`, ReflectionWriteResultSchema, input),
     archive: (id: ReflectionId) =>
-      this.send('POST', `/api/reflections/${encodeURIComponent(id)}/archive`, ReflectionSchema),
+      this.send('POST', `/api/reflections/${encodeURIComponent(id)}/archive`, ReflectionWriteResultSchema),
     restore: (id: ReflectionId) =>
-      this.send('POST', `/api/reflections/${encodeURIComponent(id)}/restore`, ReflectionSchema),
+      this.send('POST', `/api/reflections/${encodeURIComponent(id)}/restore`, ReflectionWriteResultSchema),
   };
 
   readonly pages: ProjectPageGateway = {
@@ -195,16 +199,12 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         ? Promise.resolve([])
         : this.send('GET', `/api/tasks${queryString(taskQueryParams(query))}`, TaskSchema.array()),
     get: (id: TaskId) => this.send('GET', `/api/tasks/${encodeURIComponent(id)}`, TaskSchema),
-    create: (input: CreateTaskInput) => this.send('POST', '/api/tasks', TaskSchema, input),
+    create: (input: CreateTaskInput) => this.send('POST', '/api/tasks', TaskAddResultSchema, input),
     update: (id: TaskId, input: UpdateTaskInput) =>
-      this.send('PATCH', `/api/tasks/${encodeURIComponent(id)}`, TaskSchema, input),
-    complete: (id: TaskId) => this.send('POST', `/api/tasks/${encodeURIComponent(id)}/complete`, TaskSchema),
-    // §9 says `Promise<void>`; the host returns the archived task. Validate it anyway —
-    // an unchecked body is not something this adapter passes on, even to discard.
-    archive: async (id: TaskId) => {
-      await this.send('POST', `/api/tasks/${encodeURIComponent(id)}/archive`, TaskSchema);
-    },
-    restore: (id: TaskId) => this.send('POST', `/api/tasks/${encodeURIComponent(id)}/restore`, TaskSchema),
+      this.send('PATCH', `/api/tasks/${encodeURIComponent(id)}`, TaskWriteResultSchema, input),
+    complete: (id: TaskId) => this.send('POST', `/api/tasks/${encodeURIComponent(id)}/complete`, TaskWriteResultSchema),
+    archive: (id: TaskId) => this.send('POST', `/api/tasks/${encodeURIComponent(id)}/archive`, TaskWriteResultSchema),
+    restore: (id: TaskId) => this.send('POST', `/api/tasks/${encodeURIComponent(id)}/restore`, TaskWriteResultSchema),
   };
 
   readonly agents: AgentGateway = {

@@ -61,13 +61,14 @@ projects, and Archive entries limited to structurally restorable content. The us
 that only removal-time reassignment goes away; independent task moves remain supported.
 The plan proposes five dependency-ordered implementation stages, architecture/contract changes,
 decision gates and acceptance evidence. **Stage A shipped as
-[Slice 35](completed/35-operation-history-foundation.md)**: section add, move, settings update and
-removal now undo *and redo* through a per-actor, per-project operation history over HTTP and both
-MCP transports, and the document is schema version 4. The browser still offers only the transient
-Undo notice; header controls and the other families (Stages B–D) are not implemented. Stage A's
-coverage audit scopes the next stages. The paragraphs below describe the earlier shipped system and
-its choices. Split the remaining stages into bounded candidates before implementation and keep one
-active phase.
+[Slice 35](completed/35-operation-history-foundation.md)**, and **Stage B shipped as Slice 36**:
+section, task and reflection writes now undo *and redo* through a per-actor, per-project operation
+history over HTTP and both MCP transports. Task/reflection writes return their row plus a receipt;
+transitions require the stored action family's one write grant. Activity keeps captured row identity
+after Undo Add, and the document is schema version 5 with an explicit v4 conversion. The browser
+still offers only its transient section Undo notice; header controls and Stages C–E remain
+unimplemented. The paragraphs below describe the earlier shipped system and its choices. Split the
+remaining stages into bounded candidates before implementation and keep one active phase.
 
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported
 [proposed specification](../specifications/README.md), and a development plan on 2026-09-13.

@@ -59,3 +59,10 @@ registry used by both transports.
 
 Slice 24 measures how real clients use tool metadata, or MCP standardizes an application
 permission field.
+
+**Amended, 2026-09-18 — Slice 36.** The “every advertised tool” rule now has one deliberate
+exception. `undo_operation` and `redo_operation` require one grant selected from the stored action's
+family, so neither a singular key nor a conjunctive list is truthful. Those two omit both existing
+keys and publish `_meta["local.canvas-work-manager/requiredPermissionsByOperationFamily"]` with
+section → `projects.write`, task → `tasks.write`, reflection → `reflections.write`. All static tools
+keep the prior metadata unchanged ([decision](2026-09-operation-family-permissions.md)).

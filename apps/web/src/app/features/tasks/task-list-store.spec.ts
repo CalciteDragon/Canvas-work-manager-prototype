@@ -7,6 +7,8 @@ import {
   type ProjectSection,
   type Task,
   type TaskId,
+  type TaskWriteResult,
+  OperationReceiptSchema,
   type UpdateTaskInput,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
@@ -57,6 +59,19 @@ const task = (overrides: Record<string, unknown> = {}): Task =>
     updatedAt: AT,
     ...overrides,
   });
+
+const resultOf = (value: Task) => ({
+  task: value,
+  operation: OperationReceiptSchema.parse({
+    historyId: 'history-test',
+    actionId: 'action-test',
+    revision: 1,
+    operation: 'task.add',
+    label: 'Task write',
+    createdAt: AT,
+    expiresAt: '2026-08-28T16:00:00.000Z',
+  }),
+});
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -117,12 +132,12 @@ const setup = (options: {
     tasks: {
       list: vi.fn(async () => tasks),
       get: vi.fn(async () => tasks[0]!),
-      create: options.create ?? vi.fn(async (input) => task({ id: 'task-created', ...input })),
+      create: options.create ?? vi.fn(async (input) => resultOf(task({ id: 'task-created', ...input }))),
       update:
         options.update ??
-        vi.fn(async (id: TaskId, input: UpdateTaskInput) => ({ ...tasks[0]!, id, ...input, updatedAt: AT } as Task)),
-      complete: options.complete ?? vi.fn(async (id) => task({ id, status: 'done', completedAt: AT })),
-      archive: options.archive ?? vi.fn(async () => undefined),
+        vi.fn(async (id: TaskId, input: UpdateTaskInput) => resultOf({ ...tasks[0]!, id, ...input, updatedAt: AT } as Task)),
+      complete: options.complete ?? vi.fn(async (id) => resultOf(task({ id, status: 'done', completedAt: AT }))),
+      archive: options.archive ?? vi.fn(async () => resultOf(task({ archivedAt: AT }))),
       restore: vi.fn(),
     },
     progress: { get: vi.fn() },
@@ -194,12 +209,12 @@ describe('TaskListStore', () => {
 
   it('updates title, priority, and date-only dueAt from the gateway results', async () => {
     const update = vi.fn(async (id: TaskId, input: UpdateTaskInput) =>
-      task({
+      resultOf(task({
         id,
         ...input,
         dueAt: input.dueAt === null ? undefined : input.dueAt,
         updatedAt: '2026-08-27T17:00:00.000Z',
-      }),
+      })),
     );
     const { store } = setup({ update });
     await store.load(section());
@@ -225,7 +240,7 @@ describe('TaskListStore', () => {
   });
 
   it('marks completion immediately while the gateway is pending, then reconciles its status fields', async () => {
-    const result = deferred<Task>();
+    const result = deferred<TaskWriteResult>();
     const { store } = setup({ complete: vi.fn(() => result.promise) });
     await store.load(section());
 
@@ -234,7 +249,7 @@ describe('TaskListStore', () => {
     expect(store.tasks()[0]?.status).toBe('done');
     expect(store.completingIds().has(task().id)).toBe(true);
 
-    result.resolve(task({ status: 'done', completedAt: '2026-08-27T18:00:00.000Z' }));
+    result.resolve(resultOf(task({ status: 'done', completedAt: '2026-08-27T18:00:00.000Z' })));
     await completion;
 
     expect(store.tasks()[0]?.completedAt).toBe('2026-08-27T18:00:00.000Z');
@@ -243,7 +258,7 @@ describe('TaskListStore', () => {
 
   it('restores the exact previous task and exposes a message when completion fails', async () => {
     const before = task({ title: 'Keep every field', priority: 'high' });
-    const result = deferred<Task>();
+    const result = deferred<TaskWriteResult>();
     const { store } = setup({ tasks: [before], complete: vi.fn(() => result.promise) });
     await store.load(section());
 
@@ -256,7 +271,7 @@ describe('TaskListStore', () => {
   });
 
   it('does not let an older failed completion overwrite a newer title mutation', async () => {
-    const result = deferred<Task>();
+    const result = deferred<TaskWriteResult>();
     const { store } = setup({ complete: vi.fn(() => result.promise) });
     await store.load(section());
 
@@ -269,21 +284,21 @@ describe('TaskListStore', () => {
   });
 
   it('does not let an older successful completion response overwrite a newer title mutation', async () => {
-    const result = deferred<Task>();
+    const result = deferred<TaskWriteResult>();
     const { store } = setup({ complete: vi.fn(() => result.promise) });
     await store.load(section());
 
     const completion = store.complete(task().id);
     await store.updateTitle(task().id, 'Newer title');
-    result.resolve(task({ title: 'Stale title', status: 'done', completedAt: AT }));
+    result.resolve(resultOf(task({ title: 'Stale title', status: 'done', completedAt: AT })));
     await completion;
 
     expect(store.tasks()[0]).toMatchObject({ title: 'Newer title', status: 'done' });
   });
 
   it('keeps an older successful same-field edit when the queued newer edit fails', async () => {
-    const first = deferred<Task>();
-    const second = deferred<Task>();
+    const first = deferred<TaskWriteResult>();
+    const second = deferred<TaskWriteResult>();
     const update = vi
       .fn<WorkManagerGateway['tasks']['update']>()
       .mockImplementationOnce(() => first.promise)
@@ -296,7 +311,7 @@ describe('TaskListStore', () => {
     await Promise.resolve();
     const callsWhileOlderPending = update.mock.calls.length;
 
-    first.resolve(task({ title: 'Persisted title' }));
+    first.resolve(resultOf(task({ title: 'Persisted title' })));
     await older;
     await Promise.resolve();
     const callsAfterOlderSettled = update.mock.calls.length;
@@ -318,7 +333,7 @@ describe('TaskListStore', () => {
  */
 describe('TaskListStore under the panel’s failure injection (§63)', () => {
   it('paints the completion, then reverts it and reports the failure', async () => {
-    const gate = deferred<Task>();
+    const gate = deferred<TaskWriteResult>();
     const { store } = setup({ complete: vi.fn(() => gate.promise) });
     await store.load(section());
 
@@ -367,7 +382,7 @@ describe('TaskListStore.refresh (§62)', () => {
   });
 
   it('defers while an optimistic completion is in flight, and lands once it settles', async () => {
-    const pending = deferred<Task>();
+    const pending = deferred<TaskWriteResult>();
     const { store, gateway } = setup({ complete: vi.fn(async () => pending.promise) });
     await store.load(section());
     const listCalls = (gateway.tasks.list as ReturnType<typeof vi.fn>).mock.calls.length;
@@ -381,7 +396,7 @@ describe('TaskListStore.refresh (§62)', () => {
     expect(store.tasks()[0]?.status).toBe('done');
     expect((gateway.tasks.list as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(listCalls);
 
-    pending.resolve(task({ id: 'task-a', status: 'done', completedAt: AT }));
+    pending.resolve(resultOf(task({ id: 'task-a', status: 'done', completedAt: AT })));
     await completing;
     await Promise.resolve();
     await Promise.resolve();
@@ -390,7 +405,7 @@ describe('TaskListStore.refresh (§62)', () => {
   });
 
   it('coalesces a burst of frames into one re-read', async () => {
-    const pending = deferred<Task>();
+    const pending = deferred<TaskWriteResult>();
     const { store, gateway } = setup({ complete: vi.fn(async () => pending.promise) });
     await store.load(section());
     const listCalls = (gateway.tasks.list as ReturnType<typeof vi.fn>).mock.calls.length;
@@ -399,7 +414,7 @@ describe('TaskListStore.refresh (§62)', () => {
     await store.refresh();
     await store.refresh();
     await store.refresh();
-    pending.resolve(task({ id: 'task-a', status: 'done', completedAt: AT }));
+    pending.resolve(resultOf(task({ id: 'task-a', status: 'done', completedAt: AT })));
     await completing;
     await Promise.resolve();
     await Promise.resolve();
@@ -418,7 +433,7 @@ describe('TaskListStore.refresh (§62)', () => {
 });
 
 describe('TaskListStore.archive (§34)', () => {
-  it('re-reads the list, because the void response carries no row to paint', async () => {
+  it('re-reads the list, to reconcile the archived subtree', async () => {
     const { store, gateway } = setup({ tasks: [task(), task({ id: 'task-b', title: 'Stays behind' })] });
     await store.load(section());
     (gateway.tasks.list as ReturnType<typeof vi.fn>).mockResolvedValue([task({ id: 'task-b', title: 'Stays behind' })]);
@@ -431,7 +446,7 @@ describe('TaskListStore.archive (§34)', () => {
   });
 
   it('marks the row as archiving until the write settles', async () => {
-    const result = deferred<void>();
+    const result = deferred<TaskWriteResult>();
     const { store } = setup({ archive: vi.fn(() => result.promise) });
     await store.load(section());
 
@@ -439,14 +454,14 @@ describe('TaskListStore.archive (§34)', () => {
 
     expect(store.archivingIds().has(task().id)).toBe(true);
 
-    result.resolve(undefined);
+    result.resolve(resultOf(task({ archivedAt: AT })));
     await archiving;
 
     expect(store.archivingIds().has(task().id)).toBe(false);
   });
 
   it('stops marking the row as archiving when the write fails', async () => {
-    const result = deferred<void>();
+    const result = deferred<TaskWriteResult>();
     const { store } = setup({ archive: vi.fn(() => result.promise) });
     await store.load(section());
 
@@ -477,9 +492,8 @@ describe('TaskListStore.archive (§34)', () => {
 });
 
 describe('TaskListStore.archive', () => {
-  it('re-reads the list, because the void response carries nothing to paint', async () => {
-    // §9 pins `TaskGateway.archive` to `Promise<void>`, so unlike `complete` there is no
-    // updated row to patch in — the row leaves this list only because the re-read says so.
+  it('re-reads the list, to reconcile all affected rows', async () => {
+    // Archive returns the root row; re-read to reconcile every affected descendant.
     const remaining = [task({ id: 'task-kept', title: 'Still here' })];
     const list = vi
       .fn<() => Promise<Task[]>>()
@@ -497,14 +511,14 @@ describe('TaskListStore.archive', () => {
   });
 
   it('marks the row as archiving while the write is out, and clears it either way', async () => {
-    const gate = deferred<void>();
+    const gate = deferred<TaskWriteResult>();
     const { store } = setup({ archive: vi.fn(async () => gate.promise) });
     await store.load(section());
 
     const write = store.archive(task().id);
     expect(store.archivingIds().has(task().id)).toBe(true);
 
-    gate.resolve();
+    gate.resolve(resultOf(task({ archivedAt: AT })));
     await write;
     expect(store.archivingIds().has(task().id)).toBe(false);
   });

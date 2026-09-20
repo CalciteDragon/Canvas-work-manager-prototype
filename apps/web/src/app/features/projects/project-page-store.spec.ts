@@ -341,7 +341,7 @@ const setup = (
       get: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
-      complete: vi.fn(async (id: string) => task(id, 'done')),
+      complete: vi.fn(async (id: string) => ({ task: task(id, 'done'), operation: null })),
       archive: vi.fn(),
       restore: vi.fn(),
     } as unknown as WorkManagerGateway['tasks'],
@@ -1982,6 +1982,24 @@ describe('ProjectPageStore and live updates (§62)', () => {
     for (const call of (gateway.sections.list as ReturnType<typeof vi.fn>).mock.calls) {
       expect(call[1]).toEqual({ pageId: PAGE });
     }
+  });
+
+  it.each([
+    'task.created',
+    'reflection.added',
+    'task.task_addition_undone',
+    'task.task_addition_redone',
+    'reflection.reflection_addition_undone',
+    'reflection.reflection_addition_redone',
+  ])('re-resolves implicit container existence after %s', async (type) => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT, PAGE);
+    const sectionReads = calls(gateway.sections.list);
+
+    live.emit({ type, entityType: type.startsWith('task.') ? 'task' : 'reflection', entityId: 'row-1', projectId: PROJECT });
+    await settleLive();
+
+    expect(calls(gateway.sections.list)).toBe(sectionReads + 1);
   });
 
   it('does not clobber an optimistic section reorder that is still in flight', async () => {

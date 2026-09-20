@@ -151,18 +151,18 @@ const legacyReceipts = (document: Record<string, unknown[]>) => {
 };
 
 describe('recovery, conversion and history over persisted files (Slices 33, 35)', () => {
-  it('v2 and v3 files convert through the real CLI to version 4 and reopen with content and references intact', async () => {
+  it('v2 and v3 files convert through the real CLI to version 5 and reopen with content and references intact', async () => {
     // ---- version 2, through the real CLI and the frozen version-3 intermediate.
     const v2 = await tempCopy('nested-projects-v2.json', (document) => document['sections']!.push(legacyTombstone(false)));
     const { stdout } = await upgrade(v2.path);
-    expect(stdout).toMatch(/Converted .* from schema version 2 to 4\. Undo and Redo history starts empty\./);
+    expect(stdout).toMatch(/Converted .* from schema version 2 to 5\. Undo and Redo history starts empty\./);
     const backups = (await readdir(v2.directory)).filter((name) => name.startsWith('data.json.backup-'));
     expect(backups).toHaveLength(1);
     expect(await readFile(join(v2.directory, backups[0]!), 'utf8')).toBe(v2.source);
 
     const original = JSON.parse(v2.source) as PrototypeDocument;
     const converted = await reopen(v2.path);
-    expect(converted.document().schemaVersion).toBe(4);
+    expect(converted.document().schemaVersion).toBe(5);
     expectReferentialIntegrity(converted.document());
     expect(converted.document().users).toEqual(original.users);
     expect(converted.document().milestones).toEqual(original.milestones);
@@ -191,9 +191,9 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
       document['sections']!.push(legacyTombstone(true));
       legacyReceipts(document);
     });
-    expect((await upgrade(v3.path)).stdout).toMatch(/from schema version 3 to 4\. 2 Undo receipts from version 3 were retired: Undo and Redo history starts empty\./);
+    expect((await upgrade(v3.path)).stdout).toMatch(/from schema version 3 to 5\. 2 Undo receipts from version 3 were retired\./);
     expect((await readdir(v3.directory)).filter((name) => name.includes('backup'))).toHaveLength(1);
-    expect((await upgrade(v3.path)).stdout).toMatch(/already at schema version 4\. Nothing was written/);
+    expect((await upgrade(v3.path)).stdout).toMatch(/already at schema version 5\. Nothing was written/);
     expect((await readdir(v3.directory)).filter((name) => name.includes('backup'))).toHaveLength(1);
 
     const loaded = await reopen(v3.path);

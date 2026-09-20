@@ -38,6 +38,13 @@ const entry = (overrides: Record<string, unknown> = {}): ActivityFeedEntry =>
     entityType: 'task',
     entityId: 'task-1',
     projectId: 'project-a',
+    context: {
+      targetKind: 'task',
+      targetId: 'task-1',
+      targetLabel: 'Configure deployment',
+      projectId: 'project-a',
+      rootProjectId: 'project-a',
+    },
     summary: 'Completed "Configure deployment"',
     createdAt: '2026-08-24T15:32:00.000Z',
     actorName: 'Claude',

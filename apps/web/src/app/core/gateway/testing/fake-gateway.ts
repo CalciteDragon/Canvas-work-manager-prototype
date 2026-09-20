@@ -325,7 +325,8 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     create: (input: Parameters<WorkManagerGateway['reflections']['create']>[0]) => this.answer('reflections.create', input, {
       // The real service resolves a container when the caller names none; the fake stands
       // in for that rather than leaving the row unowned.
-      id: 'reflection-created' as ReflectionId, sectionId: 'section-resolved' as SectionId, ...input, createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT,
+      reflection: { id: 'reflection-created' as ReflectionId, sectionId: 'section-resolved' as SectionId, ...input, createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT },
+      operation: this.receipt('reflection.add', 'Add reflection'),
     }),
     update: (id: ReflectionId, input: Parameters<WorkManagerGateway['reflections']['update']>[1]) => {
       const current = this.find(this.options.reflections, id, 'reflection');
@@ -335,14 +336,11 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       if (input.body !== undefined) updated.body = input.body;
       if (input.subject === null) delete updated.subject;
       else if (input.subject !== undefined) updated.subject = input.subject;
-      return this.answer('reflections.update', { id, input }, updated);
+      return this.answer('reflections.update', { id, input }, { reflection: updated, operation: this.receipt('reflection.update', `Update ${id}`) });
     },
     archive: (id: ReflectionId) =>
-      this.answer('reflections.archive', id, {
-        ...this.find(this.options.reflections, id, 'reflection'),
-        archivedAt: COMPLETED_AT,
-      }),
-    restore: (id: ReflectionId) => this.answer('reflections.restore', id, restored(this.find(this.options.reflections, id, 'reflection'))),
+      this.answer('reflections.archive', id, { reflection: { ...this.find(this.options.reflections, id, 'reflection'), archivedAt: COMPLETED_AT }, operation: this.receipt('reflection.archive', `Archive ${id}`) }),
+    restore: (id: ReflectionId) => this.answer('reflections.restore', id, { reflection: restored(this.find(this.options.reflections, id, 'reflection')), operation: this.receipt('reflection.restore', `Restore ${id}`) }),
   };
 
   readonly pages: ProjectPageGateway = {
@@ -576,8 +574,8 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         ),
       ),
     get: (id: TaskId) => this.answer('tasks.get', id, this.find(this.options.tasks, id, 'task')),
-    create: (input) => this.answer('tasks.create', input, this.firstTask()),
-    update: (id, input) => this.answer('tasks.update', { id, input }, this.firstTask()),
+    create: (input) => this.answer('tasks.create', input, { task: this.firstTask(), operation: this.receipt('task.add', 'Create task') }),
+    update: (id, input) => this.answer('tasks.update', { id, input }, { task: this.firstTask(), operation: this.receipt('task.update', `Update ${id}`) }),
     // Answers the task as completed, the way the host does. Echoing it back unchanged would
     // make every optimistic completion appear to revert, which is a different test.
     complete: (id) => {
@@ -586,14 +584,10 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         const completed = this.options.progress.completed + 1;
         this.options.progress = { ...this.options.progress, completed, percentage: Math.round(completed / this.options.progress.total * 100), explanation: `${completed} of ${this.options.progress.total} tasks complete` };
       }
-      return this.answer('tasks.complete', id, {
-        ...this.find(this.options.tasks, id, 'task'),
-        status: 'done',
-        completedAt: COMPLETED_AT,
-      });
+      return this.answer('tasks.complete', id, { task: { ...this.find(this.options.tasks, id, 'task'), status: 'done', completedAt: COMPLETED_AT }, operation: this.receipt('task.update', `Complete ${id}`) });
     },
-    archive: (id) => this.answer('tasks.archive', id, undefined),
-    restore: (id) => this.answer('tasks.restore', id, restored(this.find(this.options.tasks, id, 'task'))),
+    archive: (id) => this.answer('tasks.archive', id, { task: { ...this.find(this.options.tasks, id, 'task'), archivedAt: COMPLETED_AT }, operation: this.receipt('task.archive', `Archive ${id}`) }),
+    restore: (id) => this.answer('tasks.restore', id, { task: restored(this.find(this.options.tasks, id, 'task')), operation: this.receipt('task.restore', `Restore ${id}`) }),
   };
 
   private answer<T>(method: string, argument: unknown, value: T): Promise<T> {

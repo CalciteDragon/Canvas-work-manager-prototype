@@ -15,6 +15,12 @@ describe('§57 activity from a tool call', () => {
 
   /** Read back as the *person*: `ActivityService.list` asserts `workspace.read`. */
   const newest = async () => (await harness.activity.list(user(), { limit: 1 }))[0]!;
+  // Slice 36 gives row writes their history receipt. Project writes keep their historical bare
+  // result, so the feed assertion deliberately accepts both wire shapes.
+  const entityIdOf = (result: unknown): string => {
+    const value = result as { id?: string; task?: { id: string }; reflection?: { id: string } };
+    return value.task?.id ?? value.reflection?.id ?? value.id!;
+  };
 
   type ActivityCase = {
     name: string;
@@ -49,12 +55,12 @@ describe('§57 activity from a tool call', () => {
   for (const { name, permission, input, action, prepare } of cases) {
     it(`${name} records ${action}, attributed to the connection that made it`, async () => {
       await prepare?.();
-      const result = (await harness.registry.call(name, input, agent([permission]))) as { id: string };
+      const result = await harness.registry.call(name, input, agent([permission]));
 
       const event = await newest();
 
       expect(event.action).toBe(action);
-      expect(event.entityId).toBe(result.id);
+      expect(event.entityId).toBe(entityIdOf(result));
       expect(event.actor).toBe('agent');
       // Resolved from the connection record, not from anything this test asserted into it.
       expect(event.actorName).toBe('Claude');
@@ -80,11 +86,11 @@ describe('§57 activity from a tool call', () => {
       'create_task',
       { projectId: PROJECT, title: 'Configure the second deployment' },
       agent(['tasks.write']),
-    )) as { id: string };
+    ));
 
     const event = await newest();
 
-    expect(event.entityId).toBe(created.id);
+    expect(event.entityId).toBe(entityIdOf(created));
     expect(event.entityTitle).toBe('Configure the second deployment');
     expect(event.projectName).toBe('Work Manager');
   });

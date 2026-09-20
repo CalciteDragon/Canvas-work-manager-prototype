@@ -59,15 +59,15 @@ references retain an integrity tombstone; existing tombstones are never purged
 ([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
 **Undo and Redo walk a per-actor history of typed actions, not a replay and not the activity
-log.** Explicit section add, move and settings writes join removal in the same caller-owned unit,
-record one action into the exact actor's history for the subject's project, and return a receipt.
+log.** Supported section, task and reflection writes record in the same caller-owned unit, put one
+action into the exact actor's history for the subject's project, and return a receipt.
 Each versioned payload contains only the created snapshot and placement, combined neighbours,
 changed-field footprint or removal footprint that its executor may safely touch.
 `OperationHistoryService` runs only the next action in a direction, within 24 hours, checking the
 state the other direction left rather than which record is newer, and refusing with a typed reason
 rather than overwriting a later write; an action that can never succeed again retires instead of
 wedging the stack. The cursor and `revision` — not timestamps — order everything. Archive Restore
-stays the durable, append-placed recovery outside every history. Rejected: inverse data on
+stays durable and receipt-free. Row Restore records a new action; section Restore remains outside history. Rejected: inverse data on
 `ActivityEvent` (activity is audit), a generic command bus or event sourcing, and routing history
 through `SectionService` or the row services (a cycle) — the payloads live in package-internal
 function modules both sides share ([scope](../../decisions/2026-09-operation-history-scope.md),
@@ -75,6 +75,24 @@ function modules both sides share ([scope](../../decisions/2026-09-operation-his
 [retired actions](../../decisions/2026-09-operation-history-retired-actions.md),
 [removal footprint](../../decisions/2026-09-section-removal-undo-records.md),
 [section edit boundaries](../../decisions/2026-09-section-edit-undo-boundaries.md)).
+
+Task and reflection executors preflight the entire captured footprint before writing. Field Undo
+compares only fields the action changed; structural Undo checks exact rows, ancestry, dependents
+and archive markers; an implicit container is removed/restored with its created row as one action.
+Historical reflection subjects may be restored when the subject still exists in the workspace,
+without reapplying the stricter eligibility rule for a new assignment
+([decision](../../decisions/2026-09-row-operation-history.md)).
+
+**Activity audit outlives safely removed rows.** `ActivityService` captures trusted target label
+and owning project/root while the entity is readable in the caller's unit. Feeds prefer current
+names while a target exists and fall back to captured identity afterward; no inverse data lives in
+Activity ([decision](../../decisions/2026-09-historical-activity-identity.md)).
+
+**A history transition's grant comes from its stored action.** Section actions need
+`projects.write`, task actions `tasks.write`, and reflection actions `reflections.write`.
+`OperationHistoryService` looks up the exact-owned action, asserts that family grant before
+revision/conflict detail, and only then executes it; caller input never chooses the grant
+([decision](../../decisions/2026-09-operation-family-permissions.md)).
 
 **Archiving a project reaches down without cascading.** A project with a live child
 refuses to archive; live work beneath an archived ancestor is hidden from ordinary reads
@@ -113,6 +131,9 @@ ISO string so ordering stays lossless without a clock or timezone
 
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
+- [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md)
+- [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md)
+- [Undo and Redo require their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md)
 - [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../decisions/2026-09-history-stage-a-deferrals.md)
 - [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md)
 - [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md)

@@ -24,6 +24,7 @@ export * from './prototype';
 export * from './progress';
 export * from './reflection';
 export * from './row-history';
+export * from './row-write-result';
 export * from './section';
 export * from './section-shortcut';
 export * from './task';

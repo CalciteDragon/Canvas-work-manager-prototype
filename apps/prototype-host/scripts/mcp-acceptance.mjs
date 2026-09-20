@@ -46,7 +46,7 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
     arguments: { projectId: PROJECT, title: `Created over ${title}` },
   });
   check(result.isError !== true, `${title} creates a task`);
-  const task = result.structuredContent;
+  const task = result.structuredContent.task;
   const archive = await client.callTool({
     name: 'get_project_archive',
     arguments: { projectId: PROJECT },
@@ -66,8 +66,8 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
   });
   check(reflection.isError !== true, `${title} adds a subject-linked reflection`);
   check(
-    reflection.structuredContent?.subject?.id === 'task-agent-deployment' &&
-      reflection.structuredContent?.subject?.name === undefined,
+    reflection.structuredContent?.reflection?.subject?.id === 'task-agent-deployment' &&
+      reflection.structuredContent?.reflection?.subject?.name === undefined,
     `${title} returns the stored subject as ids only`,
   );
   const journal = await client.callTool({
@@ -76,12 +76,12 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
   });
   check(
     journal.isError !== true &&
-      journal.structuredContent?.items?.some(({ reflection: item }) => item.id === reflection.structuredContent?.id),
+      journal.structuredContent?.items?.some(({ reflection: item }) => item.id === reflection.structuredContent?.reflection?.id),
     `${title} reads the linked reflection from the journal`,
   );
   const undo = await assertUndo(client, title, dataFile);
   await assertRecoveryAndGrants(client, foreign, title, dataFile, access);
-  return { task, reflectionId: reflection.structuredContent?.id, ...undo };
+  return { task, reflectionId: reflection.structuredContent?.reflection?.id, ...undo };
 };
 
 /** The operation receipt a section tool answered with. */

@@ -46,7 +46,7 @@ decisions and the roadmap — as a browsable site with search and rendered Merma
   CSS custom properties — [web](docs/architecture/web/overview.md)
 - **Host:** `apps/prototype-host` — Node/TypeScript on `127.0.0.1:4310`. Fake API + MCP
   server + fake auth + mock AI — [prototype-host](docs/architecture/prototype-host/overview.md)
-- **Persistence:** one file, `.prototype/data.json`, schema version 4. No SQLite, no
+- **Persistence:** one file, `.prototype/data.json`, schema version 5. No SQLite, no
   Postgres (§14, §80) — [repositories](docs/architecture/repositories/overview.md)
 - **Contracts:** Zod schemas in `packages/contracts`, shared by UI, API, MCP tools, tests
   and seeds (§11) — [contracts](docs/architecture/contracts/overview.md)
@@ -76,7 +76,7 @@ of them is wrong even if it works.
 - Domain services depend on **domain and repository abstractions only** — repository
   interfaces, `Clock`, and where an invariant needs it, another domain service through an
   **acyclic** edge (`TaskService` and `ReflectionService` compose `SectionService` to
-  resolve a container; `SectionService` records each explicit add, move, settings update and removal
+  resolve a container; section, task and reflection services record their supported writes
   into the actor's operation history through the `OperationRecorder` interface;
   `OperationHistoryService` composes only `ActivityService`, never a section, task or reflection
   service). They must never know about HTTP, MCP, JSON adapters, or any other

@@ -425,12 +425,23 @@ export class ProjectCanvas {
     if (notice?.kind !== 'result' || notice.result !== result) return;
     afterNextRender(() => {
       if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.undoNotice() !== notice) return;
+      if (
+        result.operation !== 'section.add' && result.operation !== 'section.update' &&
+        result.operation !== 'section.move' && result.operation !== 'section.remove'
+      ) {
+        this.focusUndoNotice();
+        return;
+      }
+      if (result.operation === 'section.add') {
+        this.focusUndoNotice();
+        return;
+      }
       const restoredPageId = result.operation === 'section.remove' || result.operation === 'section.move'
         ? result.placement.pageId
         : result.operation === 'section.update'
           ? result.section.pageId
           : null;
-      const restoredTitle = restoredPageId === pageId && result.operation !== 'section.add'
+      const restoredTitle = restoredPageId === pageId
         ? this.findSectionElement(result.section.id)?.querySelector<HTMLElement>('[data-section-title]')
         : null;
       if (restoredTitle !== null && restoredTitle !== undefined) restoredTitle.focus();

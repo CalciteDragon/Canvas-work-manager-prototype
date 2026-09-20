@@ -74,3 +74,9 @@ The next multiweek use pass. Slice 25.4's shortcut case is now confirmed in 25.8
 Home can point at a source on a disabled page, and the source remains available by identity. Keep
 watching whether the destination/source distinction is understandable in practice and whether
 people expect disabled-page editing to be discoverable elsewhere.
+
+**Amended, 2026-09-18 — Slice 36.** History follows the same “editing, not new placement” side of
+the boundary. Undo and Redo may return a captured task, reflection or compound implicit container
+to the disabled page where it previously lived. They do not resolve a new destination there, and
+ordinary create, move and reparent operations remain refused. This keeps history available when a
+page toggle changes after the original write ([decision](2026-09-row-operation-history.md)).

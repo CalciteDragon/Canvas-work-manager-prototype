@@ -121,7 +121,7 @@ describe('POST /prototype/clock', () => {
       title: 'Written on the simulated day',
     });
 
-    expect((created.body as { createdAt: string }).createdAt.slice(0, 10)).toBe('2026-12-25');
+    expect((created.body as { task: { createdAt: string } }).task.createdAt.slice(0, 10)).toBe('2026-12-25');
 
     await persona(routes, 'POST', '/prototype/clock', { now: null });
     expect(clock.offset).toBe(0);

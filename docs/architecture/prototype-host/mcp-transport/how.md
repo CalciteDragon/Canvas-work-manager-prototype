@@ -20,6 +20,12 @@ table to a connection id, reads the live `AgentConnection`, refuses a missing or
 one, stamps `lastUsedAt` when it has moved far enough to matter, and returns an agent
 `ActorContext` carrying the connection's current permissions.
 
+**Discovery.** `toolPermission` returns one discriminated declaration per registry tool.
+`mcp/server.ts` publishes the singular/plural `_meta` pair for a static declaration, or the
+operation-family map for Undo and Redo. Those history tools deliberately omit the static keys:
+section actions require `projects.write`, task actions `tasks.write`, and reflection actions
+`reflections.write`, with the family read from the stored action only when the call runs.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
@@ -28,6 +34,7 @@ one, stamps `lastUsedAt` when it has moved far enough to matter, and returns an 
 | `createMcpNodeHandler` | function | SDK fetch handler → `node:http` | [API](../../../api/miscellaneous/variables.html#createMcpNodeHandler) |
 | `AuthenticatedMcpDependencies` | interface | Registry plus authenticator | [API](../../../api/interfaces/AuthenticatedMcpDependencies.html) |
 | `McpInvocation` | interface | What the server hands a tool call | [API](../../../api/interfaces/McpInvocation.html) |
+| `REQUIRED_PERMISSION_META_KEY`, `REQUIRED_PERMISSIONS_META_KEY`, `REQUIRED_PERMISSIONS_BY_FAMILY_META_KEY` | consts | The mutually exclusive static and operation-family discovery keys | [API](../../../api/miscellaneous/variables.html#REQUIRED_PERMISSIONS_BY_FAMILY_META_KEY) |
 | `PrototypeAgentAuthenticator` | class | Token → live connection → actor | [API](../../../api/classes/PrototypeAgentAuthenticator.html) |
 | `AgentAuthenticationError` | class | The one 401 | [API](../../../api/classes/AgentAuthenticationError.html) |
 | `AgentAuthenticatorDependencies` | interface | Connections repository, clock, token table | [API](../../../api/interfaces/AgentAuthenticatorDependencies.html) |
@@ -53,6 +60,9 @@ one, stamps `lastUsedAt` when it has moved far enough to matter, and returns an 
   and `stdio.test.ts` drive a real client against the handler in-process (§60).
 - **`tools/list` equals `SPEC_TOOL_NAMES`** — asserted by the host's test, so the
   registry and the wire agree.
+- **Discovery is truthful for history transitions.** `handler.test.ts` and `stdio.test.ts` assert
+  the full family map and the absence of the singular/plural keys on Undo and Redo; static tools
+  keep both old keys.
 - **Revocation is tested end to end** with a token and a handler in the same test,
   because it is an authenticate-time refusal with nothing for a registry test to observe.
 - **Localhost only, both ways**: the listener binds `127.0.0.1` and the handler refuses

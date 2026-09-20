@@ -1,7 +1,7 @@
-<!-- plan id="36" status="active" summary="Implementation plan for reversible task and reflection writes, compound creation and durable Activity identity" -->
+<!-- completed-record id="36" closed="2026-09-20" summary="Task and reflection writes undo and redo through per-actor operation histories, with compound implicit containers, family-derived grants and durable Activity identity at schema version 5" -->
 # Slice 36 — Task and reflection operation history (Slice 34 Stage B)
 
-**Planning only, 2026-09-17. Implementation has not started.** This is the next phase of
+**Implemented 2026-09-18; final verification and closure recorded below.** This is the next phase of
 [Slice 34](../planned/34-undo-redo-and-archive.md), following
 [Slice 35's Stage A and coverage audit](../completed/35-operation-history-foundation.md#coverage-matrix-audit).
 The active location follows AGENTS.md steps 1–2; this request stops after reviewed planning.
@@ -470,7 +470,140 @@ implementation; do not silently expand into Stage C.
   and one nit, applied: Todos also completes *subproject* rows through `projects.update`, a Stage C
   write that records nothing, so acceptance 7 now names a task completion specifically. The plan
   carries no open review findings.
+- **Implementation review round 1 (2026-09-18) — correctness, boundaries and living docs.** The
+  boundary reviewer found no substantive violation. Correctness review found three real gaps: task
+  Add Undo searched only same-project reflection subjects, Redo Add accepted an occupied captured
+  implicit-container id, and row-family failure injection stopped short of Activity/action/persist
+  seams. The implementation now searches the whole root tree, refuses the occupied id, and covers
+  task/reflection forward/Undo/Redo rollback and post-commit frames. Documentation review found
+  remaining Stage A spec prose and an unrecorded bundle-ceiling decision; §§9, 14, 27, 31, 36,
+  54–55, 57 and 61–63, the budget decision/index and affected architecture pages were corrected.
+- **Implementation review round 2 (2026-09-18) — edge cases.** Re-review found same-section
+  reparenting incorrectly treated unchanged descendants as later dependents, archived moves could
+  target a removed container and reach integrity failure, and transition rollback had not injected
+  `operationActions.update`. Each was reproduced in a focused regression and fixed: descendant
+  checks now run only for a real subtree/archive footprint, archived targets always require their
+  container/parent to exist, and both row families cover action-state failure in both directions.
+  The documentation re-review corrected the last gateway, compound-container and historical-subject
+  wording.
+- **Closing confirming passes (2026-09-20) — correctness and living documentation.** Both confirming
+  reviewers ran against the full slice diff with the nine then-untracked files staged, so the new
+  contracts modules, the domain row-history suite and the four new decision entries were in scope.
+  Correctness found two real defects, each reproduced as a failing regression before being fixed:
+  `TaskService.update` recorded a descendant twice when a reparent both moved the subtree and
+  rerooted its archive group, so `assertRowsAreDistinct` refused a write that had previously
+  succeeded; and the update family's dependent check applied a same-section predicate to a
+  marker-only reroot, permanently refusing both directions whenever the subtree held an
+  independently archived group the cascade had stepped past. It also found `undo_operation`'s
+  description naming a non-existent `create_reflection` tool. One finding did **not** hold: a
+  missing project reported as a missing section is truthful, because integrity already refuses a
+  section whose project is gone, so the code gained that rationale as a comment rather than the
+  contract change a project conflict kind would have required. Documentation found the testing
+  pages claiming a host acceptance file that was never written, two stale Stage A claims in the MCP
+  tools pages, an unamended spec §55 and an Outcome that undercounted the amendments and omitted
+  five file-level deviations; all are corrected below.
 
 ## Outcome
 
-<Written only after implementation and acceptance. This session delivers a reviewed plan.>
+### Deliverables
+
+Task and reflection create/update/lifecycle writes now return strict `{ task|reflection,
+operation }` envelopes and record one action in the exact actor's project history. Typed capture
+and executors preserve disjoint edits, task subtree/archive markers, reflection subjects and
+stable ids; a row Add that creates its container owns that container as one compound action.
+Undo/Redo publish one row-targeted Activity/live frame only after the canonical state, Activity and
+action state commit. Historical Activity context survives a removed row, and schema version 5's
+explicit v4 converter backfills it without changing existing action histories.
+
+The existing transition route and 37-tool registry now derive authorization from the stored
+operation family (`projects.write`, `tasks.write` or `reflections.write`) and publish that family
+map honestly. A write-only agent can chain from receipts and transition summaries. Browser gateway
+doubles and every UI consumer unwrap the strict result; task Escape cannot fall through into blur
+commit, and project/reflection pages re-resolve implicit containers on row Add/Undo/Redo frames.
+The E2E pre-step refreshes its disposable data from the current version-5 seed.
+
+### Deliberate choices
+
+Receipts stop at the browser gateway/store seam because persistent header controls are Stage C;
+current row UI keeps its existing optimistic and explicit-save behavior. Historical reflection
+subject restoration bypasses current completion/root eligibility only for a captured inverse, while
+still refusing missing or foreign-workspace identity. Transition grants come from the stored action,
+never caller input. The production initial bundle warning stays 850 kB; the hard ceiling moves from
+1 MB to 1050 kB after the measured Stage B bundle reached 1.01 MB, recorded as an amendment to the
+governing budget decision rather than hidden by moving both thresholds.
+
+### Deviations from the plan
+
+The conditional TaskRow editing guard was required: the browser proved Escape could remove the
+editor and then let blur commit the discarded draft. The planned row failure matrix was expanded
+after diff review to inject Activity insert and action-state update failures in both transition
+directions. Review also expanded task-Add dependent discovery from its project to the whole root
+tree and added explicit occupied-container, same-section reparent and archived-target regressions.
+No placement helper extraction was needed.
+
+Five file-level deviations from the change list, none of which changed the delivered behavior:
+
+- The planned `apps/prototype-host/row-history-acceptance.test.ts` was **not** written. Its
+  coverage landed where it composes more cheaply: the compound-row atomicity and fault matrix in
+  [`live-updates.test.ts`](../../../apps/prototype-host/live-updates.test.ts), the JSON reopen and
+  conversion-preservation chains in
+  [`recovery-undo-acceptance.test.ts`](../../../apps/prototype-host/recovery-undo-acceptance.test.ts),
+  and the row chains themselves in the domain suite below. A host file that re-drove the same
+  chains through a third harness would have duplicated them, not proved anything more.
+- The planned `task-history.test.ts` and `reflection-history.test.ts` shipped as one
+  [`packages/domain/src/row-history.test.ts`](../../../packages/domain/src/row-history.test.ts):
+  most cases are cross-family by nature — ordering, grants, compound containers — and splitting
+  them would have meant two files sharing one harness and one set of fixtures.
+- Three contracts modules outside the plan's list were created —
+  `operation-receipt.ts`, `operation-history-public.ts` and `row-write-result.ts` — to keep the
+  browser's response validation off the executable inverse-operation graph. They are what
+  `contracts/what.md` and `contracts/how.md` now document.
+- `scripts/acceptance.mjs` and `scripts/mcp-acceptance.mjs` received only the mechanical envelope
+  decode the new write results force, not the additional row-chain evidence the change list
+  promised; `mcp-acceptance.mjs` already drives row Undo/Redo over both transports.
+- Two defects found in the closing correctness review were fixed with regressions in
+  `row-history.test.ts`: a reparent that both moved a subtree and rerooted its archive group
+  recorded the same descendant twice and was refused by `assertRowsAreDistinct`, and a
+  reparent-only marker reroot treated every same-section descendant as a later dependent, which
+  permanently refused both directions when the subtree held an independently archived group. The
+  capture now folds the two writes into one row, and the dependent predicate names only the rows a
+  transition would actually strand.
+
+### Deferred and open questions
+
+Stages C–E remain deferred exactly as scoped: no persistent browser Undo/Redo controls, delete
+icons, simplified Archive, project history or bulk history. Real use confirmed current-name-first
+Activity display can make an older event read as though it originally used a later renamed title;
+the Slice 36 friction note leaves that presentation question for Stage C. No blocker remains for
+this slice.
+
+### Verification and actual use
+
+The final offline suite passed (contracts 287, repositories 148, web 731, prototype-data 120,
+domain 623 and host 234 tests), as did `pnpm lint`, `pnpm build` (1.01 MB initial bundle with the
+intentional 850 kB warning), all four host acceptance scripts, both MCP transports, the 36-test
+Playwright suite, `pnpm docs:check` and `git diff --check`.
+
+One verification lesson is worth keeping. A closing run reported `pnpm lint` green while it was
+actually failing: the command had been piped into `tail`, so the exit code observed belonged to
+`tail`, not to `pnpm`. The hidden failure was real — `row-history.test.ts` narrowed a
+`{ task } | { reflection }` union on the `it.each` parameter rather than on the value, which
+`tsc --noEmit` rejects and `vitest`, which does not typecheck, happily ran green. Every command in
+the matrix is therefore run without a masking pipe, with its own exit code captured and asserted;
+a suite that passes is not evidence that the package typechecks. In the real app against an isolated
+agent-heavy document, Escape discarded a task-title draft, Enter committed one replacement, and
+the dashboard's Activity projection updated live. `.prototype/notes.json` records the observed
+historical-label ambiguity. Correctness, boundary and documentation reviewers completed iterative
+diff passes; their substantive findings and dispositions are recorded above.
+
+### Documentation updated
+
+The specification, README, MCP setup and milestone guides, AGENTS entry point, roadmap goals,
+architecture tree for contracts/repositories/prototype-data/domain/MCP/host/web/testing, four new
+Slice 36 decisions, thirteen dated amendments and the decision index now describe schema version 5,
+row history, family grants, historical Activity identity and the browser envelope boundary. The
+closing documentation review corrected four surviving claims: the testing pages named a host
+acceptance file that was never written, `mcp-tools/how.md` still called implicit row-container
+creation receipt-free, `mcp-tools/why.md` still annotated the transition tools as static-grant, and
+spec §55 still declared `permission` a single field — it now records the discriminated
+static-versus-family declaration as its third Slice-14-style correction.

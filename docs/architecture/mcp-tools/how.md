@@ -25,7 +25,7 @@ omitting it appends. Both tools keep their declared `projects.write` permission 
 matching domain service, which commits the insert and renumbering together. The contract tests
 exercise each tool at a specified position under exactly that grant.
 
-## Section write receipts and the history tools
+## Write receipts and the history tools
 
 `create_section` returns `{ section, operation }`; `move_section` and `update_section` return the
 same envelope with `operation: null` for a normalized no-op. `move_section` targets the zero-based
@@ -33,14 +33,20 @@ combined section/shortcut order and records one placement operation. `update_sec
 only normalized title, config, collapse and span fields that changed. Every successful explicit
 write records one activity event and one action in the connection's own history for the section's
 project, and returns its receipt — `historyId`, `actionId`, `revision`, operation, label and
-lifetime; automatic row-container creation stays receipt-free. The receipt exposes no payload.
+lifetime; a container created automatically for a row gets no receipt of its own, because it joins
+that row's one action and receipt. The receipt exposes no payload.
+
+Task tools return `{ task, operation }` and reflection tools return `{ reflection, operation }`;
+their receipts enter the same history as section writes. Compound row Add owns an implicitly
+created container so Undo/Redo removes and restores both under the row family's one write grant.
 
 `get_operation_history` (`projects.read`) reads that connection's summary for a project: the next
 Undo and Redo actions, or `null`, the revision and any archived blocker. `undo_operation` and
-`redo_operation` (`projects.write`) take `{ historyId, actionId, expectedRevision }` — strict, so the
+`redo_operation` take `{ historyId, actionId, expectedRevision }` — strict, so the
 retired `{ undoId }` form is rejected — and call `OperationHistoryService.transition` with their
-fixed direction. The result is `{ direction, actionId, result, summary }`. Grants are a static field
-per tool; nothing in Stage A needs the family-dependent grant Stage B introduces.
+fixed direction. The result is `{ direction, actionId, result, summary }`. Their permission
+declaration maps the stored action family to `projects.write`, `tasks.write` or
+`reflections.write`; a write-only caller can chain from receipts and returned summaries.
 
 ## Removal receipts
 

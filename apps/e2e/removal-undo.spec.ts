@@ -254,7 +254,7 @@ test('a shortcut on another browser page follows source removal and same-page Un
   }
 });
 
-test('retained content survives reload and Archive restore, while reassign Undo reverses every move', async ({ page }) => {
+test('retained content survives reload and Archive restore, while the next reassign action reverses every move', async ({ page }) => {
   await seed('empty');
   await setClock(PINNED_NOW);
   const root = await createRoot('Content and Undo journey');
@@ -265,16 +265,16 @@ test('retained content survives reload and Archive restore, while reassign Undo 
     config: { text: 'Keep the design notes.' },
   });
   const cascade = await addSection(root.id, { type: 'task-list', title: 'Saved tasks', position: 1, config: {} });
-  const cascadeTask = await api.post<{ id: string }>('/api/tasks', {
+  const cascadeTask = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: root.id,
     sectionId: cascade.id,
     title: 'Keep this task',
-  });
+  })).task;
   // Slice 33: an independently archived parent subtree inside the cascaded list needs its own restore.
-  const filedParentInCascade = await api.post<{ id: string }>('/api/tasks', { projectId: root.id, sectionId: cascade.id, title: 'Filed parent' });
-  const filedChildInCascade = await api.post<{ id: string }>('/api/tasks', {
+  const filedParentInCascade = (await api.post<{ task: { id: string } }>('/api/tasks', { projectId: root.id, sectionId: cascade.id, title: 'Filed parent' })).task;
+  const filedChildInCascade = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: root.id, sectionId: cascade.id, parentTaskId: filedParentInCascade.id, title: 'Filed child',
-  });
+  })).task;
   await api.post('/api/tasks/' + filedParentInCascade.id + '/archive', {});
   const reflectionSection = await addSection(root.id, {
     type: 'reflections',
@@ -282,11 +282,11 @@ test('retained content survives reload and Archive restore, while reassign Undo 
     position: 2,
     config: {},
   });
-  const reflectionEntry = await api.post<{ id: string }>('/api/reflections', {
+  const reflectionEntry = (await api.post<{ reflection: { id: string } }>('/api/reflections', {
     projectId: root.id,
     sectionId: reflectionSection.id,
     body: 'Keep this reflection body.',
-  });
+  })).reflection;
 
   await page.goto(`/projects/${root.id}`);
   await page.locator(`[data-section-item][data-section-id="${notes.id}"] [data-section-remove]`).click();
@@ -363,28 +363,28 @@ test('retained content survives reload and Archive restore, while reassign Undo 
 
   const source = await addSection(root.id, { type: 'task-list', title: 'Reassignment source', position: 2, config: {} });
   const target = await addSection(root.id, { type: 'task-list', title: 'Reassignment target', position: 3, config: {} });
-  const parent = await api.post<{ id: string }>('/api/tasks', {
+  const parent = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: root.id,
     sectionId: source.id,
     title: 'Move with the source',
-  });
-  const child = await api.post<{ id: string }>('/api/tasks', {
+  })).task;
+  const child = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: root.id,
     sectionId: source.id,
     parentTaskId: parent.id,
     title: 'Keep the child relationship',
-  });
-  const filedParent = await api.post<{ id: string }>('/api/tasks', {
+  })).task;
+  const filedParent = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: root.id,
     sectionId: source.id,
     title: 'Archived subtree root',
-  });
-  const filedChild = await api.post<{ id: string }>('/api/tasks', {
+  })).task;
+  const filedChild = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: root.id,
     sectionId: source.id,
     parentTaskId: filedParent.id,
     title: 'Archived subtree child',
-  });
+  })).task;
   await api.post('/api/tasks/' + filedParent.id + '/archive', {});
 
   await page.goto(`/projects/${root.id}`);
@@ -413,12 +413,6 @@ test('retained content survives reload and Archive restore, while reassign Undo 
     archivedAt: expect.any(String),
     archivedWithTaskId: filedParent.id,
   });
-  await api.patch('/api/tasks/' + parent.id, {
-    title: 'Edited after reassignment',
-    status: 'in_progress',
-    description: 'Later task body survives Undo.',
-  });
-
   await page.locator('[data-undo-action]').click();
   await expect(page.locator(`[data-section-item][data-section-id="${source.id}"]`)).toBeVisible();
   await expect.poll(async () => (await api.get<{ sectionId: string }>(`/api/tasks/${parent.id}`)).sectionId).toBe(source.id);
@@ -437,9 +431,8 @@ test('retained content survives reload and Archive restore, while reassign Undo 
     description?: string;
   }>('/api/tasks/' + parent.id)).toMatchObject({
     sectionId: source.id,
-    title: 'Edited after reassignment',
-    status: 'in_progress',
-    description: 'Later task body survives Undo.',
+    title: 'Move with the source',
+    status: 'todo',
   });
   expect(await api.get<{ sectionId: string; archivedAt?: string }>('/api/tasks/' + filedParent.id)).toMatchObject({
     sectionId: source.id,
@@ -476,8 +469,8 @@ test('cross-page reassignment and Undo preserve every reflection id and archive 
       .sort((left, right) => left.id.localeCompare(right.id));
   const untouched = await reflectionsOf(pageContainer);
   expect(untouched.length).toBeGreaterThan(0);
-  const live = await api.post<{ id: string }>('/api/reflections', { projectId: root, sectionId: homeContainer, body: 'Moves across pages and back.' });
-  const filed = await api.post<{ id: string }>('/api/reflections', { projectId: root, sectionId: homeContainer, body: 'Archived on its own before the move.' });
+  const live = (await api.post<{ reflection: { id: string } }>('/api/reflections', { projectId: root, sectionId: homeContainer, body: 'Moves across pages and back.' })).reflection;
+  const filed = (await api.post<{ reflection: { id: string } }>('/api/reflections', { projectId: root, sectionId: homeContainer, body: 'Archived on its own before the move.' })).reflection;
   await api.post(`/api/reflections/${filed.id}/archive`, {});
   const homeRows = await reflectionsOf(homeContainer);
   expect(homeRows).toEqual([

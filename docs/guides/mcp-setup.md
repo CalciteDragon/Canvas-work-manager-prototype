@@ -3,7 +3,7 @@
 Canvas Work Manager serves the same thirty-seven tools over Streamable HTTP and stdio (§59) —
 §54's fourteen, the five section-edit/removal tools the canvas needs, §54's three page tools, Slice 25.4's
 three shortcut tools, Slice 25.6's eight archive/recovery tools, Slice 25.7's journal tool, and
-Slice 35's history tools `get_operation_history`, `undo_operation` and `redo_operation`.
+Slices 35–36's history tools `get_operation_history`, `undo_operation` and `redo_operation`.
 Both use the fake local credentials from the `agent-heavy` seed; they have no security value
 and the HTTP host binds only to `127.0.0.1`.
 
@@ -207,16 +207,18 @@ independently archived work archived.
 
 ### Undo and Redo
 
-Every connection has its own Undo/Redo **history per project**: a stack of the section writes it
-made there, with a cursor. A person's history and every other connection's are separate — you can
+Every connection has its own Undo/Redo **history per project**: a stack of its section, task and
+reflection writes there, with a cursor. A person's history and every other connection's are separate — you can
 never undo someone else's change, and nobody can undo yours.
 
 - `get_operation_history` (`projects.read`, input `{ projectId }`) returns
   `{ projectId, historyId, revision, undo, redo, blockedBy }`. `undo` and `redo` name the next
   action in each direction — `{ actionId, operation, label, expiresAt }` — or `null` at either end.
   `historyId` is `null` until the connection's first undoable write in that project.
-- `undo_operation` and `redo_operation` (`projects.write`, input `{ historyId, actionId,
-  expectedRevision }`) run exactly that action, which must be the next one in that direction.
+- `undo_operation` and `redo_operation` (input `{ historyId, actionId, expectedRevision }`) run
+  exactly that action, which must be the next one in that direction. They require only the stored
+  action family's grant: `projects.write`, `tasks.write` or `reflections.write`. Discovery publishes
+  that mapping under `_meta["local.canvas-work-manager/requiredPermissionsByOperationFamily"]`.
   Pass the history's current `revision`: a receipt's, or `get_operation_history`'s if anything
   happened since. The result is `{ direction, actionId, result, summary }`.
 
@@ -255,8 +257,8 @@ The `agent-heavy` fixture token's connection does not hold `projects.write`; gra
 **Settings → AI & Agents** before trying the write tools.
 
 **Grants are checked when a transition runs, not when the receipt was issued.** Unchecking
-`projects.write` refuses `undo_operation` and `redo_operation` with text naming the missing
-permission and changes none of your work (only the connection's *Last used* time), while
+The stored action family's missing write grant refuses `undo_operation` and `redo_operation` with
+text naming that grant and changes none of your work (only the connection's *Last used* time), while
 `get_operation_history` keeps working under `projects.read`; checking it again makes the same
 action usable for the rest of its 24 hours. A revoked connection can no longer call any tool, so its
 history is simply unreachable — the section, rows and other people's work are untouched. Histories
@@ -266,6 +268,11 @@ retained notes and cascaded rows. A stdio
 child reloads that file on every call: point it at a separate file, or never let it and the HTTP
 host write the same file at the same time (Slice 33's `mcp-acceptance` runs them one after the
 other).
+
+Task create/update/complete/archive/restore results are `{ task, operation }`; reflection
+add/archive/restore results are `{ reflection, operation }`. A normalized no-op carries
+`operation: null`. A write-only connection can chain transitions from the create receipt and each
+transition's returned `summary` without calling `get_operation_history`.
 
 ### Reflections
 

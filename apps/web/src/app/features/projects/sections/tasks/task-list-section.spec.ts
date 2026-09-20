@@ -162,7 +162,7 @@ describe('TaskListSection (§30, §66)', () => {
   it('disables the row’s archive control while the store reports the write in flight', async () => {
     const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
     let settle = (): void => undefined;
-    gateway.tasks.archive = () => new Promise<void>((resolve) => (settle = () => resolve()));
+    gateway.tasks.archive = () => new Promise((resolve) => (settle = () => resolve({ task: task('task-1'), operation: null })));
     const { fixture, store } = await render(gateway);
 
     query(fixture, '[data-task-archive]')!.click();
@@ -235,7 +235,7 @@ describe('TaskListSection — the per-row Archive control (§34)', () => {
     const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1'), task('task-2')] });
     const archive = vi
       .spyOn(gateway.tasks, 'archive')
-      .mockReturnValue(new Promise<void>((resolve) => (release = resolve)));
+      .mockReturnValue(new Promise((resolve) => (release = () => resolve({ task: task('task-1'), operation: null }))));
     const { fixture } = await render(gateway);
 
     query(fixture, '[data-task-archive]')!.click();

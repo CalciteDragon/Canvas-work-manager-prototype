@@ -1,6 +1,6 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { ProjectArchiveResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, PrototypeDocumentSchema } from '@cwm/contracts';
-import { createToolRegistry, requiredPermissions, SPEC_TOOL_NAMES } from '@cwm/mcp-tools';
+import { ProjectArchiveResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, PrototypeDocumentSchema, TaskWriteResultSchema } from '@cwm/contracts';
+import { createToolRegistry, toolPermission, SPEC_TOOL_NAMES } from '@cwm/mcp-tools';
 import { buildSeed } from '@cwm/prototype-data';
 import {
   InMemoryDataStore,
@@ -20,7 +20,12 @@ import {
 } from '@cwm/repositories';
 import { describe, expect, it, vi } from 'vitest';
 import { createApi } from '../api/services.ts';
-import { createAuthenticatedMcpHandler, REQUIRED_PERMISSION_META_KEY, REQUIRED_PERMISSIONS_META_KEY } from './handler.ts';
+import {
+  createAuthenticatedMcpHandler,
+  REQUIRED_PERMISSION_META_KEY,
+  REQUIRED_PERMISSIONS_BY_FAMILY_META_KEY,
+  REQUIRED_PERMISSIONS_META_KEY,
+} from './handler.ts';
 
 const inMemoryPersistence = () => {
   const store = new InMemoryDataStore(PrototypeDocumentSchema.parse(buildSeed('agent-heavy')));
@@ -90,14 +95,19 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
       expect(listed.tools.map(({ name }) => name)).toEqual(SPEC_TOOL_NAMES);
       expect(listed.tools).toHaveLength(registry.list().length);
       for (const [index, tool] of registry.list().entries()) {
-        expect(listed.tools[index]).toMatchObject({
-          name: tool.name,
-          description: tool.description,
-          _meta: {
-            [REQUIRED_PERMISSION_META_KEY]: tool.permission,
-            [REQUIRED_PERMISSIONS_META_KEY]: requiredPermissions(tool),
-          },
-        });
+        const listedTool = listed.tools[index]!;
+        expect(listedTool).toMatchObject({ name: tool.name, description: tool.description });
+        const declaration = toolPermission(tool);
+        if (declaration.kind === 'static') {
+          expect(listedTool._meta).toMatchObject({
+            [REQUIRED_PERMISSION_META_KEY]: declaration.permission,
+            [REQUIRED_PERMISSIONS_META_KEY]: declaration.permissions,
+          });
+        } else {
+          expect(listedTool._meta).toMatchObject({ [REQUIRED_PERMISSIONS_BY_FAMILY_META_KEY]: declaration.families });
+          expect(listedTool._meta).not.toHaveProperty(REQUIRED_PERMISSION_META_KEY);
+          expect(listedTool._meta).not.toHaveProperty(REQUIRED_PERMISSIONS_META_KEY);
+        }
         expect(listed.tools[index]?.inputSchema).toMatchObject({ type: 'object' });
       }
     } finally {
@@ -194,8 +204,9 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
       });
 
       expect(result.isError).not.toBe(true);
-      const task = result.structuredContent as { id: string; title: string };
+      const { task, operation } = TaskWriteResultSchema.parse(result.structuredContent);
       expect(task.title).toBe('Created over modern MCP');
+      expect(operation).toMatchObject({ historyId: expect.any(String), actionId: expect.any(String), operation: 'task.add' });
       expect(persistence.store.snapshot().tasks).toContainEqual(expect.objectContaining({ id: task.id }));
       expect(persistence.store.snapshot().activityEvents).toContainEqual(
         expect.objectContaining({ actor: 'agent', actorAgentConnectionId: 'agent-claude', entityId: task.id }),

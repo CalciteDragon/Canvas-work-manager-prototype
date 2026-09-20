@@ -197,13 +197,13 @@ test('nested-projects is a coherent multi-page showcase across chronology, short
   await page.goto(`/projects/${SHOWCASE_ROOT}/pages/reflections`);
   await expect(page.locator('[data-reflections-entry]')).toHaveCount(3);
   await requestApi.post(`/api/tasks/task-renovation-budget/complete`, undefined);
-  const newReflection = await requestApi.post<{ id: string }>(`/api/reflections`, {
+  const newReflection = (await requestApi.post<{ reflection: { id: string } }>(`/api/reflections`, {
     projectId: SHOWCASE_ROOT,
     sectionId: 'section-project-renovation-reflections-page',
     subject: { kind: 'task', id: 'task-renovation-budget' },
     title: 'Budget checkpoint',
     body: 'The budget is ready for review.',
-  });
+  })).reflection;
   await expect(page.locator(`[data-reflections-entry][data-reflection-id="${newReflection.id}"]`)).toContainText('Budget checkpoint');
   await requestApi.patch(`/api/tasks/task-renovation-budget`, { status: 'todo' });
   await expect(page.locator(`[data-reflections-entry][data-reflection-id="${newReflection.id}"] [data-reflections-subject]`)).toContainText('Todo');

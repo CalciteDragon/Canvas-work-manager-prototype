@@ -80,3 +80,11 @@ rather than a product one.
   [2026-08-status-and-priority-value-sets](2026-08-status-and-priority-value-sets.md) —
   whether `blocked` and `cancelled` are ever chosen, which is §83's question.
 - The move refusal: Slice 20, which owns the real semantics.
+
+**Amended, 2026-09-18 — Slice 36.** The transition rules above are unchanged, but every committed
+task update, completion, archive and restore now returns `{ task, operation }` and records one
+`task.update`, `task.archive` or `task.restore` action in the exact actor's owning-project history.
+`status` and `completedAt` are captured together, and archive/restore capture the exact descendants
+and markers they changed. Idempotent completion, archive, restore and normalized update return
+`operation: null`, preserving the no-write/no-event rule
+([decision](2026-09-row-operation-history.md)).

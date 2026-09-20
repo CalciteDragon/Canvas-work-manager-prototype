@@ -12,7 +12,6 @@ import {
   TransitionPlacementSchema,
   UndoRowChangeSchema,
 } from './history-placement';
-import { OperationReceiptSchema } from './operation-receipt';
 import { ReflectionSchema, ReflectionSubjectSchema } from './reflection';
 import { ProjectSectionSchema } from './section';
 import { TaskPrioritySchema, TaskSchema, TaskStatusSchema } from './task';
@@ -288,27 +287,6 @@ export const RowUndoOperationSchema = z.discriminatedUnion('type', [
 ]);
 export type RowUndoOperation = z.infer<typeof RowUndoOperationSchema>;
 export type RowUndoOperationType = RowUndoOperation['type'];
-
-/**
- * The write contracts. Every committed row write answers `{ entity, operation }`: a create
- * always carries its receipt, and an update, completion, archive or restore carries `null`
- * when normalization made it a no-op — the same shape `SectionWriteResult` already uses, so
- * callers have one rule for "did that record something?".
- */
-export const TaskAddResultSchema = z.object({ task: TaskSchema, operation: OperationReceiptSchema });
-export type TaskAddResult = z.infer<typeof TaskAddResultSchema>;
-
-export const TaskWriteResultSchema = z.object({ task: TaskSchema, operation: OperationReceiptSchema.nullable() });
-export type TaskWriteResult = z.infer<typeof TaskWriteResultSchema>;
-
-export const ReflectionAddResultSchema = z.object({ reflection: ReflectionSchema, operation: OperationReceiptSchema });
-export type ReflectionAddResult = z.infer<typeof ReflectionAddResultSchema>;
-
-export const ReflectionWriteResultSchema = z.object({
-  reflection: ReflectionSchema,
-  operation: OperationReceiptSchema.nullable(),
-});
-export type ReflectionWriteResult = z.infer<typeof ReflectionWriteResultSchema>;
 
 /** The container an add Undo removed or an add Redo restored, when the add created one. */
 const RestoredContainerResultSchema = z.object({

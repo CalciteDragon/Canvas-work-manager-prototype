@@ -1,4 +1,9 @@
-import type { AgentPermission } from '@cwm/contracts';
+import {
+  historyToolPermission,
+  OPERATION_FAMILY_PERMISSION,
+  type AgentPermission,
+  type ToolPermission,
+} from '@cwm/contracts';
 import type {
   ActorContext,
   DashboardService,
@@ -42,7 +47,7 @@ export interface WorkManagerServices {
   shortcuts: SectionShortcutService;
   dashboard: DashboardService;
   workspace: WorkspaceService;
-  /** Per-actor, per-project Undo and Redo over the section operations that record history. */
+  /** Per-actor, per-project Undo and Redo over the section, task and reflection operations that record history. */
   history: OperationHistoryService;
 }
 
@@ -69,30 +74,67 @@ export interface WorkManagerTool<TSchema extends ZodType = ZodType> {
   name: string;
   /** Written for an agent choosing between tools, not for a changelog. */
   description: string;
-  /** The grant this tool needs. Declared here for `tools/list`; **enforced in the domain**. */
-  permission: AgentPermission;
+  /**
+   * The grant this tool needs, when that does not depend on its input. Declared here for
+   * `tools/list`; **enforced in the domain**. Exactly one of `permission` and `permissionsByFamily`
+   * is set — `toolPermission` below is what reads them, and it fails on a tool that sets both or
+   * neither.
+   */
+  permission?: AgentPermission;
   /**
    * The **other** grants this tool needs, for the derived pages §54 describes: *"a derived page
    * that combines categories requires the grant for each category it returns, and denies rather
    * than returning a partial answer."*
    *
    * Optional and additive rather than a replacement for `permission`, so every existing tool,
-   * its metadata and its transport payload are unchanged. `requiredPermissions` below is what
+   * its metadata and its transport payload are unchanged. `toolPermission` below is what
    * discovery and the contract suite read — nothing should assemble the list a second time.
    */
   additionalPermissions?: readonly AgentPermission[];
+  /**
+   * **The grant depends on the stored operation's family, not on the input** — `undo_operation` and
+   * `redo_operation`, and nothing else (docs/decisions/2026-09-operation-family-permissions.md).
+   *
+   * Set it to `true` to publish the namespaced family map. A singular grant would have to name one
+   * of three, and a conjunctive list would claim all three are needed; both would be false, so
+   * these two tools publish neither. The domain reads the family from the action it is about to
+   * run, so a tool never inspects a repository to find out which grant applies.
+   */
+  permissionsByFamily?: true;
   inputSchema: TSchema;
   execute(input: z.output<TSchema>, context: ToolContext): Promise<unknown>;
 }
 
 /**
- * Every grant a tool needs, declared first and in a stable order. Still only a *declaration*:
- * `assertPermitted` inside the domain service remains the one enforcement (§53).
+ * What a tool declares about its grants, as one discriminated value — the shape
+ * `packages/contracts/src/tool-permissions.ts` defines and both this package's contract suite and
+ * the host's discovery tests assert. Still only a *declaration*: `assertPermitted` inside the domain
+ * service remains the one enforcement (§53).
  */
-export const requiredPermissions = (tool: WorkManagerTool): readonly AgentPermission[] => [
-  tool.permission,
-  ...(tool.additionalPermissions ?? []),
-];
+export const toolPermission = (tool: WorkManagerTool): ToolPermission => {
+  if (tool.permissionsByFamily === true) {
+    if (tool.permission !== undefined || tool.additionalPermissions !== undefined) {
+      throw new TypeError(`tool "${tool.name}" declares both a static grant and a family map`);
+    }
+    return historyToolPermission();
+  }
+  if (tool.permission === undefined) throw new TypeError(`tool "${tool.name}" declares no grant`);
+  return {
+    kind: 'static',
+    permission: tool.permission,
+    permissions: [tool.permission, ...(tool.additionalPermissions ?? [])],
+  };
+};
+
+/**
+ * Every grant a tool needs, in a stable order. For a family tool that is all three family grants,
+ * which is what a *coverage* check wants — "is every grant this tool can require declared?" — and
+ * never what a caller must hold, which is one of them.
+ */
+export const requiredPermissions = (tool: WorkManagerTool): readonly AgentPermission[] => {
+  const declaration = toolPermission(tool);
+  return declaration.kind === 'static' ? declaration.permissions : Object.values(OPERATION_FAMILY_PERMISSION);
+};
 
 /** Keeps each tool's `execute` typed against its own schema while the registry holds a flat list. */
 export const defineTool = <TSchema extends ZodType>(tool: WorkManagerTool<TSchema>): WorkManagerTool =>

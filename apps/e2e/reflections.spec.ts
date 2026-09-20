@@ -25,6 +25,12 @@ const apiAs = async <T>(user: string, method: string, path: string, body?: unkno
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 };
 
+const addTask = async (body: Record<string, unknown>): Promise<{ id: string }> =>
+  (await api<{ task: { id: string } }>('POST', '/api/tasks', body)).task;
+
+const addTaskAs = async (user: string, body: Record<string, unknown>): Promise<{ id: string }> =>
+  (await apiAs<{ task: { id: string } }>(user, 'POST', '/api/tasks', body)).task;
+
 const expectStatus = async (user: string, method: string, path: string, status: number, body: unknown) => {
   const response = await rawApi(user, method, path, body);
   expect(response.status).toBe(status);
@@ -80,12 +86,12 @@ test('completed work can receive retained reflections across the root journal, H
     title: 'Page journal',
   });
   const pageContainer = pageContainerResult.section;
-  const firstTask = await api<{ id: string }>('POST', '/api/tasks', {
+  const firstTask = await addTask({
     projectId: child.id,
     sectionId: childTasks.id,
     title: 'Ship the release',
   });
-  const secondTask = await api<{ id: string }>('POST', '/api/tasks', {
+  const secondTask = await addTask({
     projectId: child.id,
     sectionId: childTasks.id,
     title: 'Write the handoff',
@@ -111,7 +117,7 @@ test('completed work can receive retained reflections across the root journal, H
     kind: 'root',
     name: 'Other root',
   });
-  const otherTask = await api<{ id: string }>('POST', '/api/tasks', {
+  const otherTask = await addTask({
     projectId: otherRoot.id,
     title: 'Other root task',
     status: 'done',
@@ -121,7 +127,7 @@ test('completed work can receive retained reflections across the root journal, H
     kind: 'root',
     name: 'Foreign root',
   });
-  const foreignTask = await apiAs<{ id: string }>('user-alex', 'POST', '/api/tasks', {
+  const foreignTask = await addTaskAs('user-alex', {
     projectId: foreignRoot.id,
     title: 'Foreign completed task',
     status: 'done',
@@ -240,7 +246,7 @@ test('completed work can receive retained reflections across the root journal, H
     name: 'Page-only MCP root',
   });
   const pageOnlyReflections = await api<{ id: string }>('PATCH', `/api/projects/${pageOnlyRoot.id}/pages/reflections`, { enabled: true });
-  const pageOnlyTask = await api<{ id: string }>('POST', '/api/tasks', {
+  const pageOnlyTask = await addTask({
     projectId: pageOnlyRoot.id,
     title: 'Page-only completed work',
     status: 'done',
@@ -261,7 +267,7 @@ test('completed work can receive retained reflections across the root journal, H
       },
     });
     expect(created.isError).not.toBe(true);
-    const stored = created.structuredContent as { id: string; subject?: { id: string; name?: string } };
+    const stored = (created.structuredContent as { reflection: { id: string; subject?: { id: string; name?: string } } }).reflection;
     expect(stored.subject).toEqual({ kind: 'task', id: secondTask.id });
     expect(stored.subject?.name).toBeUndefined();
 

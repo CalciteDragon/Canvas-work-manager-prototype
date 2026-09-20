@@ -214,7 +214,7 @@ test('canvas gestures and the Reflections page offer operation-neutral Undo afte
   await page.locator('[data-reflections-composer-region] [data-reflection-create] button[type="submit"]').click();
   await expect(page.locator('[data-reflections-entry]')).toHaveCount(1);
   await page.locator('[data-undo-action]').click();
-  await expect(page.locator('[data-undo-conflict]')).toHaveCount(1);
+  await expect(page.locator('[data-undo-message]')).toContainText('no longer the next step');
   await expect(page.locator('[data-reflections-entry]')).toHaveCount(1);
   await page.reload();
   await expect(page.locator('[data-reflections-entry]')).toContainText('Written after the add.');

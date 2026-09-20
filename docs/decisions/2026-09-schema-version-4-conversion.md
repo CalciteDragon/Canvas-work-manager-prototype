@@ -61,3 +61,10 @@ upgrade, but that is an assumption.
 
 A third cutover arrives — at which point writing a third named step versus resetting is the
 question again — or someone reports losing an Undo they needed across an upgrade.
+
+**Amended, 2026-09-18 — Slice 36.** The third cutover arrived. The 3 → 4 converter remains frozen at
+literal version 4 and its history output is preserved unchanged. A new named 4 → 5 step backfills
+required historical Activity context from canonical targets, refuses rather than inventing a
+missing or cross-workspace identity, and validates the final version-5 document. The CLI chains
+2 → 3 → 4 → 5 as needed; only version-3 receipts are retired
+([decision](2026-09-schema-version-5-conversion.md)).

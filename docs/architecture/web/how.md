@@ -13,9 +13,12 @@
    scoped to the persona.
 4. A route activates a page component, which provides its store; the store reads through
    `WORK_MANAGER_GATEWAY` and subscribes to `LIVE_UPDATES`. Writes paint optimistically
-   where §63 asks, guarded by an in-flight counter so a live frame cannot overwrite them.
+   where §63 asks, guarded by an in-flight counter so a live frame cannot overwrite them. Task
+   and reflection stores receive strict `{ task|reflection, operation }` write envelopes and
+   unwrap the row they render.
 5. A frame arrives; each store routes on `type`, `projectId` and `rootProjectId` and
-   re-reads quietly; a `prototype.reloaded` frame reloads the tab.
+   re-reads quietly. Compound task/reflection Add transitions also refresh section existence on
+   open project surfaces. A `prototype.reloaded` frame reloads the tab.
 
 ## Key symbols
 
@@ -70,7 +73,7 @@ Each subsystem's `how.md` lists its own.
 pnpm dev:web                      # ng serve on :4200
 pnpm --filter web test            # ng test --no-watch (vitest under @angular/build)
 pnpm --filter web lint            # tsc on app, spec and storybook configs; the token lint and its self-test
-pnpm build                        # ng build with the 850 kB warning / 1 MB error budgets
+pnpm build                        # ng build with the 850 kB warning / 1050 kB error budgets
 pnpm storybook                    # :6006
 pnpm storybook:build              # apps/web/storybook-static (git-ignored)
 ```

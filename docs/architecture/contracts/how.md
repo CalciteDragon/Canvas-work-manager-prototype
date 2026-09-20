@@ -5,7 +5,7 @@
 Contracts have no runtime of their own; they are parsed at boundaries.
 
 1. **Host load** — `loadPersistence` parses `.prototype/data.json` with
-   `PrototypeDocumentSchema`; the literal `schemaVersion: 4` is part of the schema, so a
+   `PrototypeDocumentSchema`; the literal `schemaVersion: 5` is part of the schema, so a
    stale file fails here with a message rather than mid-session.
 2. **Every unit of work** — the repositories validate the whole document again at commit
    (`validateDocumentIntegrity`, in [repositories](../repositories/how.md)), so a rule the
@@ -31,20 +31,22 @@ fields.
 
 ## Operation payloads and history
 
-`undo.ts` holds the **payloads**. `UndoOperationSchema` is a discriminated union on `type` whose
-four strict members are pinned to `version: 1`: an unknown type, a later version or an extra key
+`undo.ts` assembles the **payloads**, importing the eight row members from `row-history.ts`. `UndoOperationSchema` is a discriminated union on `type` whose
+twelve strict members are pinned to `version: 1`: an unknown type, a later version or an extra key
 fails parsing, so a stored action can never smuggle arbitrary JSON into an executor. Add captures
 the created section and the placement Redo returns it to; move captures the subject page and
 before/after neighbours; update captures a unique set of title, config, collapsed and column-span
 changes; removal captures the section, placement, applied policy, exact rows, a required
 `disposition` and the `archiveGeneration` it wrote, which must be the snapshot's plus one. The
 refinements reject malformed self-neighbours, duplicate fields, invalid normalized titles and
-placements on another page. `undo.ts` also holds `OperationReceiptSchema` — strict, carrying only
+placements on another page. `operation-receipt.ts` defines `OperationReceiptSchema`, re-exported by `undo.ts` — strict, carrying only
 `historyId`, `actionId`, `operation`, `revision`, `label`, `createdAt` and `expiresAt` — the write
 results that embed it, `UndoResultSchema`/`RedoResultSchema`, and `UndoConflictSchema`, whose
 required typed `nextStep` now has no "use a later receipt" member.
 
-`operation-history.ts` holds the **history**. `OperationHistorySchema` is attributable to one actor
+`operation-history.ts` holds the **stored history**; `operation-history-public.ts` holds the
+snapshot-free summary and strict transition inputs shared with browser/transport consumers.
+`OperationHistorySchema` is attributable to one actor
 (`assertActorIsAttributable`, shared with activity) and refines `cursor ≤ orderHighWaterMark`;
 whether the cursor's orders exist is a cross-collection rule the store checks.
 `OperationActionSchema` has a positive `order`, a `state` of `applied`, `undone` or `retired`, and an
@@ -57,15 +59,15 @@ summary. `SectionAlreadyRemovedDetailsSchema` carries only the section id and th
 MCP carries only the message, which starts with the same `reason`.
 
 `PrototypeDocumentSchema` has `operationHistories` and `operationActions`, defaulted to `[]`, and no
-`undoRecords` — a leftover key is stripped. `SCHEMA_VERSION` is 4; a version-3 file needs
-`pnpm prototype:upgrade` ([decision](../../decisions/2026-09-schema-version-4-conversion.md)).
+`undoRecords` — a leftover key is stripped. `SCHEMA_VERSION` is 5; an older file needs
+`pnpm prototype:upgrade` ([decision](../../decisions/2026-09-schema-version-5-conversion.md)).
 
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
 | `PrototypeDocumentSchema` | const | The whole `data.json` | [API](../../api/miscellaneous/variables.html#PrototypeDocumentSchema) |
-| `SCHEMA_VERSION` | const | `4`; bump when an existing file would be wrong | [API](../../api/miscellaneous/variables.html#SCHEMA_VERSION) |
+| `SCHEMA_VERSION` | const | `5`; bump when an existing file would be wrong | [API](../../api/miscellaneous/variables.html#SCHEMA_VERSION) |
 | `IsoDateTimeSchema` | const | `z.iso.datetime()`; seconds may be omitted, fractions any length — see `Instant` in domain | [API](../../api/miscellaneous/variables.html#IsoDateTimeSchema) |
 | `PositionSchema` | const | Non-negative zero-based position for list, canvas or dashboard order | [API](../../api/miscellaneous/variables.html#PositionSchema) |
 | `isRootProject` | function | Type guard on `Project.kind` | [API](../../api/miscellaneous/variables.html#isRootProject) |
@@ -76,11 +78,13 @@ MCP carries only the message, which starts with the same `reason`.
 | `ownedKindOf` | function | Lookup over that map | [API](../../api/miscellaneous/variables.html#ownedKindOf) |
 | `nameOf` | function | A section's display name: `title` override, else derived from `type` | [API](../../api/miscellaneous/variables.html#nameOf) |
 | `ProjectArchiveSectionRecoverySchema` | const | Archive section entry's recovery metadata union | [API](../../api/miscellaneous/variables.html#ProjectArchiveSectionRecoverySchema) |
-| `UndoOperationSchema` | const | Typed, versioned union of `section.add`, `section.move`, `section.update` and `section.remove` | [API](../../api/miscellaneous/variables.html#UndoOperationSchema) |
+| `UndoOperationSchema` | const | Typed, versioned union of section operations and task/reflection add, update, archive and restore | [API](../../api/miscellaneous/variables.html#UndoOperationSchema) |
 | `SectionRemovalDispositionSchema` | const | `retained` or `deleted`, required on every removal payload | [API](../../api/miscellaneous/variables.html#SectionRemovalDispositionSchema) |
 | `OperationHistorySchema` | const | One actor's cursor, order high-water mark and revision in one project | [API](../../api/miscellaneous/variables.html#OperationHistorySchema) |
 | `OperationActionSchema` | const | One ordered, stateful action holding a payload | [API](../../api/miscellaneous/variables.html#OperationActionSchema) |
-| `OperationReceiptSchema` | const | What a caller holds after a committed section write; revision-ordered and payload-free | [API](../../api/miscellaneous/variables.html#OperationReceiptSchema) |
+| `OperationReceiptSchema` | const | What a caller holds after a committed section or row write; revision-ordered and payload-free | [API](../../api/miscellaneous/variables.html#OperationReceiptSchema) |
+| `TaskAddResultSchema`, `TaskWriteResultSchema` | consts | Lightweight task create/write envelopes; non-create no-ops carry `operation: null` | [API](../../api/miscellaneous/variables.html#TaskWriteResultSchema) |
+| `ReflectionAddResultSchema`, `ReflectionWriteResultSchema` | consts | Lightweight reflection create/write envelopes | [API](../../api/miscellaneous/variables.html#ReflectionWriteResultSchema) |
 | `OperationHistorySummarySchema` | const | The caller's next Undo and Redo, revision and archived blocker | [API](../../api/miscellaneous/variables.html#OperationHistorySummarySchema) |
 | `OperationHistoryTransitionInputSchema` | const | `{ actionId, direction, expectedRevision }`, strict | [API](../../api/miscellaneous/variables.html#OperationHistoryTransitionInputSchema) |
 | `OperationHistoryTransitionResultSchema` | const | Direction, action, that direction's result and the refreshed summary | [API](../../api/miscellaneous/variables.html#OperationHistoryTransitionResultSchema) |
@@ -93,6 +97,9 @@ MCP carries only the message, which starts with the same `reason`.
 | `SectionFieldChangeSchema` | const | One recorded settings field (`title`, `config`, `collapsed`, `columnSpan`) with before and after values | [API](../../api/miscellaneous/variables.html#SectionFieldChangeSchema) |
 | `UndoConflictSchema` | const | One entity a transition would overwrite, with its typed next step | [API](../../api/miscellaneous/variables.html#UndoConflictSchema) |
 | `assertActorIsAttributable` | function | The user/agent/system attribution rule, shared by events and operation histories | [API](../../api/miscellaneous/variables.html#assertActorIsAttributable) |
+| `ActivityHistoricalContextSchema` | const | Validated target label and owning project/root captured for durable audit | [API](../../api/miscellaneous/variables.html#ActivityHistoricalContextSchema) |
+| `ToolPermissionSchema` | const | Static grant or stored-operation-family discovery declaration | [API](../../api/miscellaneous/variables.html#ToolPermissionSchema) |
+| `OPERATION_FAMILY_PERMISSION` | const | Section/task/reflection family → write grant | [API](../../api/miscellaneous/variables.html#OPERATION_FAMILY_PERMISSION) |
 
 ## Dependencies
 
@@ -143,3 +150,15 @@ pnpm --filter @cwm/contracts lint   # tsc --noEmit
 - **The trap:** `z.object` strips unknown keys. A branch that merely omits a field accepts
   it silently and drops it; use `z.strictObject` when absence is the rule (25.1 found this
   with `parentProjectId`).
+
+## Row and Activity contracts
+
+`row-history.ts` defines strict task/reflection payloads and transition results.
+`row-write-result.ts` owns the lightweight write envelopes: creation requires a receipt;
+normalized no-ops answer `operation: null`. Transition results identify the subject and affected
+rows, report absence on Undo Add, and include implicit-container placement when needed.
+`history-placement.ts` owns shared placement shapes without an import cycle. `tool-permissions.ts`
+defines the static/family declaration and `OPERATION_FAMILY_PERMISSION`.
+
+`ActivityHistoricalContextSchema` captures target kind, id and label plus owning project/root.
+Event identity must agree with that context. Activity contains no executable inverse payload.

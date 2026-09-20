@@ -9,6 +9,7 @@ import {
   type SectionId,
   type Task,
   type TaskId,
+  type TaskWriteResult,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
@@ -43,6 +44,8 @@ const task = (id: string, overrides: Record<string, unknown> = {}): Task =>
     updatedAt: AT,
     ...overrides,
   });
+
+const taskWrite = (value: Task): TaskWriteResult => ({ task: value, operation: null });
 
 const taskItem = (id: string, overrides: Record<string, unknown> = {}): ProjectTodoItem => ({
   kind: 'task',
@@ -85,7 +88,7 @@ const subprojectItem = (id: string, overrides: Record<string, unknown> = {}): Pr
 interface SetupOptions {
   items?: ProjectTodoItem[];
   todosGet?: (projectId: ProjectId) => Promise<{ projectId: ProjectId; items: ProjectTodoItem[] }>;
-  completeTask?: (id: TaskId) => Promise<Task>;
+  completeTask?: (id: TaskId) => Promise<TaskWriteResult>;
   updateProject?: (id: ProjectId, input: Record<string, unknown>) => Promise<unknown>;
 }
 
@@ -94,7 +97,7 @@ const setup = (options: SetupOptions = {}) => {
   const todosGet = vi.fn(options.todosGet ?? (async (projectId: ProjectId) => ({ projectId, items })));
   const completeTask = vi.fn(
     options.completeTask ??
-      (async (id: TaskId) => task(id, { status: 'done', completedAt: '2026-08-28T09:00:00.000Z' })),
+      (async (id: TaskId) => taskWrite(task(id, { status: 'done', completedAt: '2026-08-28T09:00:00.000Z' }))),
   );
   const updateProject = vi.fn(
     options.updateProject ??
@@ -199,7 +202,7 @@ describe('TodosPageStore — completing (§34, §63)', () => {
   });
 
   it('paints the pending status immediately and rolls back exactly on rejection', async () => {
-    const gate = deferred<Task>();
+    const gate = deferred<TaskWriteResult>();
     const { store } = setup({ items: [taskItem('task-1', { status: 'in_progress' })], completeTask: () => gate.promise });
     await store.load(ROOT);
 
@@ -217,7 +220,7 @@ describe('TodosPageStore — completing (§34, §63)', () => {
   });
 
   it('gates a second click on the same row and a click on another while one is in flight', async () => {
-    const gate = deferred<Task>();
+    const gate = deferred<TaskWriteResult>();
     const { store, completeTask } = setup({ completeTask: () => gate.promise });
     await store.load(ROOT);
 
@@ -227,7 +230,7 @@ describe('TodosPageStore — completing (§34, §63)', () => {
 
     expect(await again).toBe(false);
     expect(await other).toBe(false);
-    gate.resolve(task('task-1', { status: 'done' }));
+    gate.resolve(taskWrite(task('task-1', { status: 'done' })));
     expect(await first).toBe(true);
     expect(completeTask).toHaveBeenCalledTimes(1);
   });
@@ -243,7 +246,7 @@ describe('TodosPageStore — completing (§34, §63)', () => {
 
 describe('TodosPageStore — races and lifetime (§62, §63)', () => {
   it('lets a pending write finish before applying a queued read, so nothing clobbers optimism', async () => {
-    const write = deferred<Task>();
+    const write = deferred<TaskWriteResult>();
     let reads = 0;
     const { store, live } = setup({
       completeTask: () => write.promise,
@@ -262,7 +265,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     await settleLive();
     expect(statusOf(store, 'task-1')).toBe('done');
 
-    write.resolve(task('task-1', { status: 'done', completedAt: AT }));
+    write.resolve(taskWrite(task('task-1', { status: 'done', completedAt: AT })));
     await completion;
     await settleLive();
 
@@ -276,7 +279,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
    */
   it('discards a read that started before the completion and re-reads instead', async () => {
     const inFlight = deferred<{ projectId: ProjectId; items: ProjectTodoItem[] }>();
-    const write = deferred<Task>();
+    const write = deferred<TaskWriteResult>();
     let reads = 0;
     const { store, live, todosGet } = setup({
       completeTask: () => write.promise,
@@ -293,7 +296,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     live.emit({ type: 'task.updated', entityId: 'task-1', projectId: ROOT, rootProjectId: ROOT });
     await settleLive();
     const completion = store.complete(store.items()[0]!);
-    write.resolve(task('task-1', { status: 'done', completedAt: AT }));
+    write.resolve(taskWrite(task('task-1', { status: 'done', completedAt: AT })));
     await completion;
     inFlight.resolve({ projectId: ROOT, items: [taskItem('task-1')] });
     await settleLive();
@@ -369,7 +372,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
 
   it('clears and reloads on prototype.reloaded, and rejects the continuations it interrupted', async () => {
     const stale = deferred<{ projectId: ProjectId; items: ProjectTodoItem[] }>();
-    const staleWrite = deferred<Task>();
+    const staleWrite = deferred<TaskWriteResult>();
     let reads = 0;
     const { store, live } = setup({
       completeTask: () => staleWrite.promise,
@@ -391,7 +394,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     // Content is gone at once: the document behind it may have been replaced entirely.
     expect(store.items()).toEqual([]);
     stale.resolve({ projectId: ROOT, items: [taskItem('task-1')] });
-    staleWrite.resolve(task('task-1', { status: 'done' }));
+    staleWrite.resolve(taskWrite(task('task-1', { status: 'done' })));
     // Neither continuation may write to the view, or the reseeded page shows the old document.
     expect(await staleCompletion).toBe(false);
     await settleLive();
@@ -417,14 +420,14 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
   });
 
   it('makes a write started on one root inert once another is showing', async () => {
-    const gate = deferred<Task>();
+    const gate = deferred<TaskWriteResult>();
     const { store } = setup({ completeTask: () => gate.promise });
     await store.load(ROOT);
     const row = store.items()[0]!;
 
     const write = store.complete(row);
     await store.load(OTHER_ROOT);
-    gate.resolve(task('task-1', { status: 'done' }));
+    gate.resolve(taskWrite(task('task-1', { status: 'done' })));
 
     // The canonical mutation still finished; this view simply no longer owns the answer.
     expect(await write).toBe(false);
@@ -433,7 +436,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
   });
 
   it('unsubscribes on destroy and suppresses the continuations still in flight', async () => {
-    const write = deferred<Task>();
+    const write = deferred<TaskWriteResult>();
     const { store, live, todosGet } = setup({ completeTask: () => write.promise });
     await store.load(ROOT);
     expect(live.listenerCount).toBe(1);
@@ -442,7 +445,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     TestBed.resetTestingModule();
 
     expect(live.listenerCount).toBe(0);
-    write.resolve(task('task-1', { status: 'done' }));
+    write.resolve(taskWrite(task('task-1', { status: 'done' })));
     // `false`, so the destroyed page cannot tell the shell that project data moved.
     expect(await completion).toBe(false);
     live.emit({ type: 'task.updated', entityId: 'task-1', projectId: ROOT, rootProjectId: ROOT } as LiveEvent);

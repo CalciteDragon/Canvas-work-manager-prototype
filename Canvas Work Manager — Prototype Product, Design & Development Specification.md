@@ -380,18 +380,22 @@ Individual contracts:
 interface TaskGateway {
   list(query: TaskQuery): Promise<Task[]>;
   get(id: TaskId): Promise<Task>;
-  create(input: CreateTaskInput): Promise<Task>;
-  update(id: TaskId, input: UpdateTaskInput): Promise<Task>;
-  complete(id: TaskId): Promise<Task>;
-  archive(id: TaskId): Promise<void>;
-  restore(id: TaskId): Promise<Task>;
+  create(input: CreateTaskInput): Promise<TaskAddResult>;
+  update(id: TaskId, input: UpdateTaskInput): Promise<TaskWriteResult>;
+  complete(id: TaskId): Promise<TaskWriteResult>;
+  archive(id: TaskId): Promise<TaskWriteResult>;
+  restore(id: TaskId): Promise<TaskWriteResult>;
 }
 ```
 
 `restore` was added once the prototype showed that an archive nothing can reverse is a row a
 person has lost (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md). It restores
-the task and every descendant that came down with it. `archive` keeps its `Promise<void>`, so
-a caller that needs the updated row re-reads.
+the task and every descendant that came down with it.
+
+*Amended in Slice 36.* Task and reflection writes return `{ task|reflection, operation }` so the
+entity and the receipt describe the same committed state. A normalized no-op carries
+`operation: null`; browser stores unwrap the entity and still re-read where their projection
+requires it ([decision](docs/decisions/2026-09-row-operation-history.md)).
 
 *Landed in Slice 31, amended in Slice 35.* `sections.remove` returns `{ section, operation,
 archiveListed }`; `section` is an archived-shaped result snapshot even when the domain deleted the
@@ -562,7 +566,7 @@ Example:
 
 ```json
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "users": [],
   "workspaces": [],
   "projects": [],
@@ -618,6 +622,12 @@ notice rather than translating them, and validates the version-4 result before w
 Integrity checks a history's scope and ordering and never resolves the ids an action's payload names
 ([conversion](docs/decisions/2026-09-schema-version-4-conversion.md),
 [retention](docs/decisions/2026-09-operation-history-retention.md)).
+
+*Amended in Slice 36: `SCHEMA_VERSION` is 5.* A third explicit converter, version 4 → 5,
+preserves histories/actions and backfills Activity with captured project/root scope plus the task
+title or reflection label needed if Undo Add later removes its target. The earlier converters stay
+frozen at their literal output versions
+([decision](docs/decisions/2026-09-schema-version-5-conversion.md)).
 
 ---
 
@@ -1340,6 +1350,11 @@ Undo/Redo header controls are planned for a later stage of
 placement-aware for moves, and refuses when the recorded footprint is no longer safe to restore
 ([decision](docs/decisions/2026-09-section-edit-undo-boundaries.md)).
 
+*Amended in Slice 36.* Implicit row-container creation still records no separate `section.add`.
+Instead the created container is captured inside the single `task.add` or `reflection.add` action,
+so Undo/Redo removes and restores the row and container together with stable ids
+([decision](docs/decisions/2026-09-row-operation-history.md)).
+
 ## Shortcuts on Home
 
 A root's Home may show a section that canonically lives somewhere else in the same root tree —
@@ -1604,21 +1619,23 @@ archived project needs only that project's reactivation. Restore itself is uncha
 to the page's current combined order, revives exactly its cascade, and a retry changes nothing
 ([why](docs/decisions/2026-09-content-oriented-archive-policy.md)).
 
-*Landed in Slice 30, extended in Slice 31 and amended in Slice 35: **Undo and Redo** are distinct
-from Archive Restore.* Every successful removal — like every explicit section add, move and settings
-update — records one typed action into the removing actor's **operation history** for the owning
-project, in the same unit of work, and returns a receipt. Undo puts the section back on its page
+*Landed in Slice 30, extended in Slice 31 and amended in Slices 35–36: **Undo and Redo** are distinct
+from Archive Restore.* Every supported section, task and reflection write records one typed action
+into the actor's **operation history** for the owning project, in the same unit of work, and returns
+a receipt with its final entity. Undo puts a removed section back on its page
 **between the neighbours it left** — after the surviving previous section or shortcut, else before
 the next, else at its old index — with exactly the rows the removal archived or moved, keeping later
 edits such as a renamed task. Redo re-removes exactly what the removal removed, replaying its
 recorded state. The history is **bidirectional and per exact actor**: a person or agent connection
 steps only its own stack, only the next action in either direction, for 24 hours per action and 50
-actions per history, under `projects.write`; a new write discards what was waiting to be redone. A
+actions per history. A transition requires the stored action family's one write grant —
+`projects.write`, `tasks.write` or `reflections.write`; a new write discards what was waiting to be redone. A
 transition refuses rather than overwrite a later change (a moved row, a new subtask under a moved
 task, a new row in a section being re-removed), while the project or an ancestor is archived, or
 after the action expired. An action that can never succeed again — the section restored from Archive
 or removed again since — is **retired** so the actions beneath it stay reachable. Archive Restore
-remains the durable path: no receipt, no expiry, appended, outside every history
+remains the durable path for sections: no receipt, no expiry and appended. Task and reflection
+Restore are ordinary row writes and therefore record new history actions
 ([scope](docs/decisions/2026-09-operation-history-scope.md),
 [retention](docs/decisions/2026-09-operation-history-retention.md),
 [retired actions](docs/decisions/2026-09-operation-history-retired-actions.md),
@@ -1950,6 +1967,12 @@ MCP.*
 subject. The root feed retained the entry and displayed the subject's current state, while the
 page composer continued writing to its one canonical container. A real HTTP MCP write appeared in
 the open browser surface, confirming the aggregate is a projection rather than a second owner.*
+
+*Amended in Slice 36:* reflection history captures the subject before and after an edit. Undo/Redo
+may restore a historical task or subproject subject that is now reopened or archived, but it still
+refuses a missing or foreign-workspace subject. This preserves history without weakening eligibility
+for a fresh assignment
+([decision](docs/decisions/2026-09-reflection-subjects-and-the-journal-feed.md)).
 
 ---
 
@@ -2533,7 +2556,7 @@ get_project_journal
 
 Shortcuts (§27) are created and removed through their own tools, and archive/restore are
 canonical tools on projects, sections, tasks and reflections. An agent undoes and redoes its own
-section operations through its own history with `get_operation_history`, `undo_operation` and
+section, task and reflection operations through its own history with `get_operation_history`, `undo_operation` and
 `redo_operation`; it can never reach a person's history, or another connection's.
 
 **A page is never a permission bypass.** Resolving a shortcut's source content requires the
@@ -2591,6 +2614,15 @@ thirty-seven tools
 [Slice 35 scope](docs/decisions/2026-09-operation-history-scope.md),
 [Slice 35 route and tool shapes](docs/decisions/2026-09-history-stage-a-deferrals.md)).*
 
+*Amended in Slice 36:* task writes return `{ task, operation }` and reflection writes return
+`{ reflection, operation }`; normalized no-ops carry `operation: null`. Add may own an implicitly
+created container and reverse/replay it with the row and stable ids. `undo_operation` and
+`redo_operation` publish `requiredPermissionsByOperationFamily` and require only the stored
+action family's `projects.write`, `tasks.write` or `reflections.write`. A write-only agent can
+chain from receipts and returned summaries without reading history
+([row history](docs/decisions/2026-09-row-operation-history.md),
+[permission map](docs/decisions/2026-09-operation-family-permissions.md)).*
+
 *The 25.8 HTTP acceptance exercised the combined Todos, Archive and Journal reads with the declared
 grant matrix, including no-partial-result denials and a read-only connection's write refusal. The
 Settings path was also used to remove `tasks.read` from Claude; the denied call named the exact
@@ -2637,6 +2669,16 @@ Two corrections the Slice 14 build made to this section:
   parse its input a second time.
 
 See docs/decisions/2026-08-tool-registry-is-transport-free.md.
+
+*Amended in Slice 36:* a third correction. `permission: AgentPermission` is no longer a single
+field. A tool declares **either** a static `permission` **or** `permissionsByFamily: true`, and
+the two are mutually exclusive. `undo_operation` and `redo_operation` take the second shape,
+because the grant a transition needs depends on the family of the action stored in the history —
+`projects.write` for a section, `tasks.write` for a task, `reflections.write` for a reflection —
+and a state-dependent grant cannot be written as a static field without stating something false.
+The one mapping is shared by discovery, the coverage tests and domain enforcement; enforcement
+stays in `OperationHistoryService`, never in the transport
+([decision](docs/decisions/2026-09-operation-family-permissions.md)).
 
 ---
 
@@ -2712,15 +2754,17 @@ agent action
 system action
 ```
 
-*Landed in Slices 30–32, extended in Slice 35: a history transition records one
+*Landed in Slices 30–32, extended in Slices 35–36: a history transition records one
 operation-specific event against the project — `project.section_removal_undone`,
 `project.section_addition_undone`, `project.section_move_undone` or
 `project.section_update_undone` for Undo, and the matching `project.section_removal_redone`,
 `project.section_addition_redone`, `project.section_move_redone` or
-`project.section_update_redone` for Redo — attributed like any other write. A retirement executes
-nothing and records no event. The action it ran is stored in its history, never on the event.
-Durable historical target identity for events is deferred to a later stage
-([decision](docs/decisions/2026-09-history-stage-a-deferrals.md)).*
+`project.section_update_redone` for Redo, with equivalent `task.*` and `reflection.*` transition
+events targeted at the row — attributed like any other write. A retirement executes nothing and
+records no event. The action it ran is stored in its history, never on the event. Activity captures
+the project/root scope and task title or reflection label it displayed, so Undo of a row Add may
+remove the row without erasing the audit entry's identity
+([decision](docs/decisions/2026-09-historical-activity-identity.md)).*
 
 ---
 
@@ -2847,9 +2891,11 @@ creation receipt; `PATCH /api/sections/:id` answers with a field-aware update re
 `POST /api/sections/:id/move` answers with a placement-aware move result; and
 `DELETE /api/sections/:id` answers 200 with the final
 archived-shaped section snapshot and its operation receipt; a disposable section may already be
-absent from storage. *Amended in Slice 35:* `GET /api/projects/:id/history` answers the caller's
+absent from storage. *Amended in Slices 35–36:* `GET /api/projects/:id/history` answers the caller's
 own history summary under `projects.read`, and `POST /api/history/:historyId/transition` runs one
-step from a strict `{ actionId, direction, expectedRevision }` body under `projects.write`.
+step from a strict `{ actionId, direction, expectedRevision }` body under the stored action family's
+write grant. Task and reflection mutation routes answer strict `{ task|reflection, operation }`
+envelopes rather than bare rows.
 History refusals are 409s whose `details` carry a typed reason — `history_not_next`,
 `history_revision_stale`, `history_expired`, `history_blocked`, `history_conflict`,
 `history_unavailable` or `history_retired` — and the current summary; a stale revision stays a 409,
@@ -2899,10 +2945,12 @@ The frontend then refreshes relevant state.
 
 Do not build full real-time synchronization infrastructure.
 
-*Slices 30–32 and 35: each successful section write, Undo and Redo publishes only its one activity
-frame after commit, and nothing on rollback or retirement. A deleted disposable removal emits `project.section_removed`;
+*Slices 30–32 and 35–36: each successful section, task or reflection write, Undo and Redo publishes
+only its one activity frame after commit, and nothing on rollback or retirement. A deleted disposable removal emits `project.section_removed`;
 a retained removal emits `project.section_archived`; add, move and update use the corresponding
-section-added, section-moved and section-updated actions. No frame carries history payload data,
+section-added, section-moved and section-updated actions. Row transitions publish `task.*` or
+`reflection.*` frames targeted at the row; compound Add frames also cause open browser surfaces to
+re-resolve implicit container existence. No frame carries history payload data,
 and any normalized no-op or repeated-removal refusal emits no frame.*
 
 ---

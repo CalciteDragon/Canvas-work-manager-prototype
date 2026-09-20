@@ -152,6 +152,7 @@ opens a collapsed target through a transient input that leaves the record alone
 - [Content-oriented Archive policy](../../../decisions/2026-09-content-oriented-archive-policy.md)
 - [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)
 - [Reflection subjects and the root journal feed](../../../decisions/2026-09-reflection-subjects-and-the-journal-feed.md)
+- [Task and reflection writes join operation history](../../../decisions/2026-09-row-operation-history.md) — row envelopes and compound-container live refresh
 
 ## Spec sections
 

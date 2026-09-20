@@ -1,4 +1,4 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ReflectionWriteResultSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TaskWriteResultSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
 import { ActivityService, AgentConnectionService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryOperationRecorder, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
@@ -162,7 +162,7 @@ const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-0
     activity,
     projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
     pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
-    tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
+    tasks: new TaskService({ tasks, projects, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     sections: sectionService,
     shortcuts: sectionShortcutService,
     progress: new ProgressService({ projects, tasks }),
@@ -170,7 +170,7 @@ const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-0
     todos: new ProjectTodosService({ projects, tasks, sections, pages }),
     archive: new ProjectArchiveService({ projects, pages, sections, tasks, reflections }),
     journal: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
-    reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
+    reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     agents: connections,
     history: new OperationHistoryService({ histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
@@ -198,12 +198,14 @@ const call = (
 const MINE = 'project-mine';
 const THEIRS = 'project-theirs';
 const ALEX = PERSONAS[1]!.user.id as unknown as string;
+const taskFrom = (body: unknown) => TaskWriteResultSchema.parse(body).task;
+const reflectionFrom = (body: unknown) => ReflectionWriteResultSchema.parse(body).reflection;
 
 const newTask = async (routes: RouteTable, overrides = {}) => {
   const result = await call(routes, 'POST', '/api/tasks', {
     body: { projectId: MINE, title: 'Configure deployment', ...overrides },
   });
-  return TaskSchema.parse(result.body);
+  return taskFrom(result.body);
 };
 
 describe('project routes', () => {
@@ -274,9 +276,9 @@ describe('Slice 10 derived and reflection routes', () => {
     const routes = buildRoutes();
     const created = await call(routes, 'POST', '/api/reflections', { body: { projectId: MINE, body: 'First', prompt: 'What changed?' } });
     expect(created.status).toBe(201);
-    const reflection = ReflectionSchema.parse(created.body);
+    const reflection = reflectionFrom(created.body);
     expect(ReflectionSchema.array().parse((await call(routes, 'GET', `/api/reflections?projectId=${MINE}`)).body)).toHaveLength(1);
-    expect(ReflectionSchema.parse((await call(routes, 'PATCH', `/api/reflections/${reflection.id}`, { body: { title: 'Checkpoint' } })).body).title).toBe('Checkpoint');
+    expect(reflectionFrom((await call(routes, 'PATCH', `/api/reflections/${reflection.id}`, { body: { title: 'Checkpoint' } })).body).title).toBe('Checkpoint');
     expect((await call(routes, 'POST', '/api/reflections', { body: { projectId: MINE, body: '' } })).status).toBe(400);
     expect((await call(routes, 'GET', `/api/reflections?projectId=${THEIRS}`)).status).toBe(404);
   });
@@ -290,15 +292,15 @@ describe('task routes', () => {
     expect((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).toMatchObject({ id: task.id });
 
     const patched = await call(routes, 'PATCH', `/api/tasks/${task.id}`, { body: { priority: 'high' } });
-    expect(patched.body).toMatchObject({ priority: 'high' });
+    expect(taskFrom(patched.body)).toMatchObject({ priority: 'high' });
 
     const completed = await call(routes, 'POST', `/api/tasks/${task.id}/complete`);
     expect(completed.status).toBe(200);
-    expect(completed.body).toMatchObject({ status: 'done' });
-    expect((completed.body as { completedAt?: string }).completedAt).toBeDefined();
+    expect(taskFrom(completed.body)).toMatchObject({ status: 'done' });
+    expect(taskFrom(completed.body).completedAt).toBeDefined();
 
     const archived = await call(routes, 'POST', `/api/tasks/${task.id}/archive`);
-    expect((archived.body as { archivedAt?: string }).archivedAt).toBeDefined();
+    expect(taskFrom(archived.body).archivedAt).toBeDefined();
   });
 
   it('returns 404 on every :id route for an unknown id', async () => {
@@ -354,7 +356,7 @@ describe('task routes', () => {
 
   it('creates a task into a named container, moves it with PATCH, and lists by section', async () => {
     const routes = buildRoutes();
-    const first = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'One' } })).body);
+    const first = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'One' } })).body);
     const second = SectionAddResultSchema.parse(
       (await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'task-list' } })).body,
     ).section;
@@ -362,10 +364,10 @@ describe('task routes', () => {
     const named = await call(routes, 'POST', '/api/tasks', {
       body: { projectId: MINE, title: 'Two', sectionId: second.id },
     });
-    expect(TaskSchema.parse(named.body).sectionId).toBe(second.id);
+    expect(taskFrom(named.body).sectionId).toBe(second.id);
 
     const moved = await call(routes, 'PATCH', `/api/tasks/${first.id}`, { body: { sectionId: second.id } });
-    expect(TaskSchema.parse(moved.body).sectionId).toBe(second.id);
+    expect(taskFrom(moved.body).sectionId).toBe(second.id);
 
     const scoped = await call(routes, 'GET', `/api/tasks?sectionId=${second.id}`);
     expect(TaskSchema.array().parse(scoped.body).map(({ title }) => title).sort()).toEqual(['One', 'Two']);
@@ -508,7 +510,7 @@ describe('section routes', () => {
 
   it('refuses a container that still holds rows, and takes a policy on the query string', async () => {
     const routes = buildRoutes();
-    const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
+    const task = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
 
     // No policy: 409 naming the count, which is what lets the canvas offer a choice.
     const refused = await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
@@ -528,7 +530,7 @@ describe('section routes', () => {
 
   it('reassigns rows to another container named on the query string', async () => {
     const routes = buildRoutes();
-    const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
+    const task = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
     const target = await newSection(routes, { type: 'task-list' });
 
     const removed = await call(
@@ -582,7 +584,7 @@ describe('section routes', () => {
 
   it('restores an archived section and the rows it took down, and retries idempotently', async () => {
     const routes = buildRoutes();
-    const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
+    const task = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
     await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
 
     const restored = await call(routes, 'POST', `/api/sections/${task.sectionId}/restore`);
@@ -913,13 +915,13 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
     const reflectionsPage = enabled.body as { id: string; kind: string; enabled: boolean };
 
     // No page named, so the canonical canvas takes it: the root's Home.
-    const task = TaskSchema.parse(
+    const task = taskFrom(
       (await call(routes, 'POST', '/api/tasks', { body: { projectId: root.id, title: 'Choose the tiles' } })).body,
     );
-    const unitTask = TaskSchema.parse(
+    const unitTask = taskFrom(
       (await call(routes, 'POST', '/api/tasks', { body: { projectId: unit.id, title: 'Measure the wall' } })).body,
     );
-    const reflection = ReflectionSchema.parse(
+    const reflection = reflectionFrom(
       (
         await call(routes, 'POST', '/api/reflections', {
           body: { projectId: root.id, pageId: reflectionsPage.id, body: 'The first week went well.' },
@@ -1203,7 +1205,7 @@ describe('Journal projection routes (§36, §54)', () => {
     const journal = await call(routes, 'GET', `/api/projects/${MINE}/journal`);
     expect(journal.status).toBe(200);
     expect(ProjectJournalResultSchema.parse(journal.body).items).toContainEqual(
-      expect.objectContaining({ reflection: expect.objectContaining({ id: (created.body as { id: string }).id }) }),
+      expect.objectContaining({ reflection: expect.objectContaining({ id: reflectionFrom(created.body).id }) }),
     );
 
     const picker = await call(routes, 'GET', `/api/projects/${MINE}/completed-work`);
@@ -1230,8 +1232,8 @@ describe('Journal projection routes (§36, §54)', () => {
       },
     });
     expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ subject: { kind: 'task', id: 'task-agent-deployment' } });
-    expect(created.body).not.toHaveProperty('subject.name');
+    expect(reflectionFrom(created.body)).toMatchObject({ subject: { kind: 'task', id: 'task-agent-deployment' } });
+    expect(reflectionFrom(created.body)).not.toHaveProperty('subject.name');
 
     const missing = await call(routes, 'POST', '/api/reflections', {
       token,
@@ -1326,13 +1328,14 @@ describe('section receipts and operation history routes (Slices 30, 35)', () => 
 
   it('issues no receipt and records no action for a refused removal', async () => {
     const { store, routes } = withStore();
-    const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Live' } })).body);
+    const task = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Live' } })).body);
+    const before = store.snapshot().operationActions;
 
     const refused = await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
 
     expect(refused.status).toBe(409);
     expect(refused.body).not.toHaveProperty('operation');
-    expect(store.snapshot().operationActions).toEqual([]);
+    expect(store.snapshot().operationActions).toEqual(before);
   });
 
   it('recovers a hard-deleted section receipt only for its exact actor, then executes it', async () => {

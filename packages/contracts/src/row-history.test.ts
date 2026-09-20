@@ -10,10 +10,8 @@ import {
   TaskArchiveOperationSchema,
   TaskRestoreOperationSchema,
   TaskUpdateOperationSchema,
-  TaskWriteResultSchema,
-  TaskAddResultSchema,
-  ReflectionWriteResultSchema,
 } from './row-history';
+import { ReflectionWriteResultSchema, TaskAddResultSchema, TaskWriteResultSchema } from './row-write-result';
 
 const task = {
   id: 'task-1',
@@ -341,10 +339,14 @@ describe('the row operation union', () => {
   });
 
   it('gives every row operation both directions in the transition unions', () => {
-    const undo = UndoResultSchema.options.map((option) => option.shape.operation.value ?? option.shape.operation);
     expect(UndoResultSchema.options).toHaveLength(12);
     expect(RedoResultSchema.options).toHaveLength(12);
-    expect(undo).toContain('task.add');
+    expect(UndoResultSchema.safeParse({
+      operation: 'task.add',
+      outcome: 'removed',
+      taskId: task.id,
+      projectId: task.projectId,
+    }).success).toBe(true);
   });
 });
 

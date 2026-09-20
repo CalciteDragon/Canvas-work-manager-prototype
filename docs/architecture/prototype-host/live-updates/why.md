@@ -32,6 +32,12 @@ write, so the announced value is already on disk. `live-acceptance.mjs` insists 
 exactly this: the frame arrives within a second *and* the write is readable when it
 does. A hub that broadcast from inside the unit would pass the first and fail the second.
 
+**A compound operation still emits one frame.** Creating a row can also create its missing
+container, and Undo or Redo can remove or restore both. That remains one activity, one operation
+and one frame. The row-family frame carries enough project context for the browser's canvas and
+Reflections page to re-resolve container existence; a second section frame would misrepresent the
+compound action and create a second refresh race.
+
 **Server-Sent Events over the existing HTTP server.** Rejected: WebSockets — bidirectional
 for a channel that only announces, and a second protocol to secure on localhost. The
 browser's `EventSource` reconnects on its own; the host sends a `retry` hint once.
@@ -56,6 +62,9 @@ the fix would be the sync infrastructure §62 forbids
 - An agent's `complete_task` over HTTP reaches an open page in tens of milliseconds
   with the write readable; Progress, Timeline, Reflections, Sub-projects and the sidebar
   all follow because the browser re-reads derived views on a frame.
+- Undo and Redo of task and reflection writes follow the same projection route as the forward
+  write. A compound Add also refreshes the open canvas or Reflections page, so removing or
+  restoring its implicit container needs no page reload.
 - Reads triggered by frames must be *quiet* on the browser side (no skeletons, no error
   flash), which shaped the [web / core](../../web/core/why.md) design.
 - The stream is only as scoped as the persona query; a `curl` without `?user=` sees
@@ -64,6 +73,7 @@ the fix would be the sync infrastructure §62 forbids
 ## Decisions that shape this system
 
 - [Where a live event is emitted, and when it is delivered](../../../decisions/2026-08-live-events-ride-the-activity-record.md) — amended in Slice 35 with Redo frames and frameless retirements
+- [Row writes record one operation, including an implicit container](../../../decisions/2026-09-row-operation-history.md)
 - [Live updates reach the browser over HTTP, and not over stdio](../../../decisions/2026-08-live-updates-are-http-only.md)
 - [How live reconnects recover derived project views](../../../decisions/2026-08-live-recovery-invalidates-derived-views.md)
 - [The development panel is an overlay and a route, sharing one control set](../../../decisions/2026-08-development-panel-surface.md) — `prototype.reloaded`

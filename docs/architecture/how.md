@@ -67,7 +67,7 @@ pnpm dev:web                 # Angular on http://localhost:4200
 pnpm dev:host                # host on http://127.0.0.1:4310
 pnpm prototype:seed <name>   # rewrite .prototype/data.json from a seed (empty, personal-workspace, busy-week, nested-projects, overdue-chaos, agent-heavy)
 pnpm prototype:reset         # personal-workspace
-pnpm prototype:upgrade <f>   # v2 → v3 converter for an old data file
+pnpm prototype:upgrade <f>   # bounded v2 → v3 → v4 → v5 conversion (or start at v3/v4)
 pnpm mcp:stdio               # the same registry over stdio (CWM_MCP_TOKEN)
 pnpm test                    # every workspace's vitest suites — offline, no browser
 pnpm lint                    # type-checks, the boundary lints, the token lint, and docs:check

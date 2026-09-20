@@ -15,8 +15,9 @@ every call. The protocol is never hand-implemented (§50).
 
 ## Responsibilities
 
-- Build the SDK server over the registry: `tools/list` from `registry.list()` with the
-  namespaced permission metadata, `tools/call` through `registry.call`.
+- Build the SDK server over the registry: `tools/list` from `registry.list()` with namespaced
+  permission metadata, including the operation-family map used by Undo and Redo;
+  `tools/call` through `registry.call`.
 - Authenticate every HTTP request and every stdio call: unknown, deleted and revoked
   tokens all fail with the same 401, deliberately without saying which.
 - Refuse non-localhost `Host` and `Origin` headers with 403 before protocol negotiation.
@@ -27,6 +28,8 @@ every call. The protocol is never hand-implemented (§50).
 
 - Tool semantics and input schemas — [mcp-tools](../../mcp-tools/overview.md).
 - Permission enforcement — the domain asserts; the token only carries the grants.
+- Choosing a transition grant from caller input — the domain derives it from the stored action,
+  and discovery only describes that rule.
 - Reaching the browser: a stdio process owns a separate store and cannot publish to the
   running host's hub ([live-updates](../live-updates/overview.md)).
 

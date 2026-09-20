@@ -186,9 +186,9 @@ export class TaskListStore {
       try {
         // Named, not resolved: this list owns the row, and the domain would otherwise send
         // it to the project's *first* task list, which may well be a different one.
-        const created = await this.gateway.tasks.create({ projectId, title, sectionId });
-        this.tasksState.update((tasks) => [...tasks, created]);
-        this.selectedTaskIdState.set(created.id);
+        const { task } = await this.gateway.tasks.create({ projectId, title, sectionId });
+        this.tasksState.update((tasks) => [...tasks, task]);
+        this.selectedTaskIdState.set(task.id);
         return true;
       } catch (error) {
         this.errorState.set(messageOf(error));
@@ -231,8 +231,8 @@ export class TaskListStore {
       this.completingIdsState.update((ids) => new Set([...ids, id]));
 
       try {
-        const completed = await this.gateway.tasks.complete(id);
-        this.patchCurrent(id, completed, fields, operationRevision);
+        const { task } = await this.gateway.tasks.complete(id);
+        this.patchCurrent(id, task, fields, operationRevision);
         return true;
       } catch (error) {
         this.patchCurrent(id, previous, fields, operationRevision);
@@ -263,8 +263,8 @@ export class TaskListStore {
 
       this.errorState.set(null);
       try {
-        const moved = await this.gateway.tasks.update(id, { sectionId });
-        this.tasksState.update((tasks) => [...tasks, moved]);
+        const { task } = await this.gateway.tasks.update(id, { sectionId });
+        this.tasksState.update((tasks) => [...tasks, task]);
         return true;
       } catch (error) {
         this.errorState.set(messageOf(error));
@@ -277,9 +277,9 @@ export class TaskListStore {
    * §34's per-row archive, which the domain has had since the ownership phase and no UI
    * called. It takes the row's live subtasks with it, and the root Archive page is the undo.
    *
-   * Not optimistic, unlike `complete`: `TaskGateway.archive` answers `Promise<void>` (§9),
-   * so there is no updated row to paint. The list re-reads instead, and a failure leaves the
-   * row exactly where it was with the reason on `error`.
+   * Not optimistic, unlike `complete`. Although `TaskGateway.archive` returns the archived
+   * root row and operation receipt, the list re-reads to reconcile every affected descendant;
+   * a failure leaves the row exactly where it was with the reason on `error`.
    */
   archive(id: TaskId): Promise<boolean> {
     return this.track(() => this.mutating(async () => {
@@ -323,8 +323,8 @@ export class TaskListStore {
         this.errorState.set(null);
         const operationRevision = this.claim(id, fields);
         try {
-          const updated = await this.gateway.tasks.update(id, input);
-          this.patchCurrent(id, updated, fields, operationRevision);
+          const { task } = await this.gateway.tasks.update(id, input);
+          this.patchCurrent(id, task, fields, operationRevision);
           return true;
         } catch (error) {
           this.errorState.set(messageOf(error));

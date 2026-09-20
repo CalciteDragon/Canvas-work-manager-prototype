@@ -18,8 +18,8 @@ get wrong.
   half-applied operation must never persist.
 - **A crash mid-write must not corrupt the file.** Temp-and-rename is atomic on the
   platforms this runs on.
-- **Nothing may be deleted casually.** The activity feed resolves every event's target
-  at commit, so a hard delete would fail the next integrity check.
+- **Nothing may be deleted casually.** Canonical references remain strict. Missing task or
+  reflection Activity targets require complete matching captured historical identity.
 
 ## The shape, and the alternatives rejected
 
@@ -46,7 +46,7 @@ excluded by default ([decision](../../decisions/2026-08-repository-query-semanti
 The JSON implementation is the reference; a Postgres one would have to match.
 
 **Deletion exists only for safe disposable sections, safe add Undo, the Redo of a disposable
-removal, shortcut placements and history actions.** A section's `remove` seam is used only after
+removal, safe task/reflection Add Undo, shortcut placements and history actions.** A section's `remove` seam is used only after
 `SectionService` settles owned rows, checks whether content needs recovery, and verifies no
 canonical task, reflection or shortcut still refers to the section — or, for add Undo, when the
 added section is unchanged and no row, cascade marker or shortcut references it; Redo of a deleted
@@ -55,6 +55,12 @@ a redo branch; nothing references an action, so nothing can dangle. Histories ar
 Integrity remains strict, and old tombstones are not purged
 ([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md),
 [retention](../../decisions/2026-09-operation-history-retention.md)).
+
+**Activity identity is historical, not a canonical reference.** Undo Add may remove its task or
+reflection only after the domain checks all real dependents. Earlier events remain valid because
+they carry matching captured target and project/root identity; other missing targets and missing
+history owners still fail whole-document validation
+([decision](../../decisions/2026-09-historical-activity-identity.md)).
 
 **A history's integrity is checked across collections, not inside one schema.** "One history per
 actor and project" and "an action's order is within its history's high-water mark" need two
@@ -86,6 +92,9 @@ domain, tool and host test runs on.
 - [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md) — why actions delete routinely and histories never
 - [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md) — the captured-generation integrity rule
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the canonical-reference gate before section deletion
+- [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md) — task/reflection removal seams used only after Add-Undo preflight
+- [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — the bounded missing-target integrity exception
+- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — why older files are rejected until converted
 
 ## Spec sections
 

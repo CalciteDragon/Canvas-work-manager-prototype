@@ -1,5 +1,5 @@
 import type { ActorContext } from '@cwm/domain';
-import { requiredPermissions, type ToolRegistry } from '@cwm/mcp-tools';
+import { toolPermission, type ToolRegistry } from '@cwm/mcp-tools';
 import { McpServer } from '@modelcontextprotocol/server';
 
 /** Reverse-DNS-style local vendor metadata, per the 2026-07-28 MetaObject guidance. */
@@ -14,6 +14,32 @@ export const REQUIRED_PERMISSION_META_KEY = 'local.canvas-work-manager/requiredP
  * against the old key keeps working and a client that understands this one is never surprised.
  */
 export const REQUIRED_PERMISSIONS_META_KEY = 'local.canvas-work-manager/requiredPermissions';
+
+/**
+ * **The grant a transition needs, per operation family.** Published by `undo_operation` and
+ * `redo_operation` **instead of** the two keys above, not beside them: their grant comes from the
+ * stored action's family, so a singular key would have to name one of three and a conjunctive
+ * plural key would claim all three are needed. Both would be false, and honest discovery metadata
+ * is the whole point of publishing any of this
+ * (docs/decisions/2026-08-mcp-tool-permission-metadata.md, amended by
+ * docs/decisions/2026-09-operation-family-permissions.md).
+ *
+ * The value is `{ section, task, reflection }`, each naming one `AgentPermission`. The shape is
+ * defined in contracts, beside the permission it is built from, because this host and
+ * `@cwm/mcp-tools` both assert it; only the key is this file's.
+ */
+export const REQUIRED_PERMISSIONS_BY_FAMILY_META_KEY = 'local.canvas-work-manager/requiredPermissionsByOperationFamily';
+
+/** A tool's `_meta` grant keys: the static pair, or the family map — never a mixture. */
+const permissionMeta = (tool: ToolRegistry extends { list(): readonly (infer T)[] } ? T : never): Record<string, unknown> => {
+  const declaration = toolPermission(tool);
+  return declaration.kind === 'static'
+    ? {
+        [REQUIRED_PERMISSION_META_KEY]: declaration.permission,
+        [REQUIRED_PERMISSIONS_META_KEY]: declaration.permissions,
+      }
+    : { [REQUIRED_PERMISSIONS_BY_FAMILY_META_KEY]: declaration.families };
+};
 
 export interface McpInvocation {
   actor: ActorContext;
@@ -41,10 +67,7 @@ export const createWorkManagerMcpServer = (
       {
         description: tool.description,
         inputSchema: tool.inputSchema,
-        _meta: {
-          [REQUIRED_PERMISSION_META_KEY]: tool.permission,
-          [REQUIRED_PERMISSIONS_META_KEY]: requiredPermissions(tool),
-        },
+        _meta: permissionMeta(tool),
       },
       async (input) => {
         const { registry, actor } = await resolveInvocation();

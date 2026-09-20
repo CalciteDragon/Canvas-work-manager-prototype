@@ -240,8 +240,13 @@ export const reapplyReflectionAdd = async (
   if ((await repositories.projects.find(created.projectId)) === null) {
     conflicts.push(rowConflict('section', created.sectionId, 'missing'));
   }
-  const containerMissing = container !== undefined && (await repositories.sections.find(container.section.id)) === null;
-  if (!containerMissing) conflicts.push(...(await liveContainerConflicts(repositories, created.sectionId)));
+  const capturedContainerNow = container === undefined ? null : await repositories.sections.find(container.section.id);
+  const containerMissing = container !== undefined && capturedContainerNow === null;
+  if (container !== undefined && capturedContainerNow !== null) {
+    conflicts.push(rowConflict('section', capturedContainerNow.id, 'already-exists', nameOf(capturedContainerNow)));
+  } else if (container === undefined) {
+    conflicts.push(...(await liveContainerConflicts(repositories, created.sectionId)));
+  }
   conflicts.push(...(await historicalSubjectConflicts(repositories, created, scalar(created.subject))));
 
   refuseRow('redo', 'creation', reflectionLabel(created, created.id), conflicts);

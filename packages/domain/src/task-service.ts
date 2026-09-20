@@ -315,13 +315,21 @@ export class TaskService {
 
       // The **final** root, after normalization may have rewritten its marker, and every descendant
       // that actually changed. A row is recorded once, root first.
+      //
+      // Both helpers can write the *same* descendant — a reparent that also changes section moves
+      // the subtree and then reroots its archive group — so the two writes are folded into the one
+      // row they describe: the `before` of the first and the `after` of the last. Recording them
+      // separately would both break `assertRowsAreDistinct` and split one row's footprint in two.
       const final = (await this.dependencies.tasks.find(id)) ?? committed;
       const rows: UndoRowChange[] = [];
       if (!sameStructure(current, final)) rows.push(taskRowChange(current, final));
+      const descendants = new Map<string, UndoRowChange>();
       for (const change of moved) {
         if (change.id === id) continue;
-        rows.push(change.row);
+        const first = descendants.get(change.id);
+        descendants.set(change.id, first === undefined ? change.row : { ...first, after: change.row.after });
       }
+      rows.push(...descendants.values());
       const operation = await this.dependencies.history.record(actor, {
         projectId: final.projectId,
         label: completing ? `Completed "${final.title}"` : `Updated "${final.title}"`,

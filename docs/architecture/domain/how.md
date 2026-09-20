@@ -12,15 +12,15 @@
    `LivePublication` to the `LiveEventPublisher` — held by the store until commit.
 4. On commit the store validates the whole document and persists it; on any throw the
    provisional state is discarded and the caller sees one of the three errors.
-5. An explicit section add, update or move applies its normalized change, records one typed
+5. A supported section, task or reflection write applies its normalized change, records one typed
    action through `OperationRecorder.record`, and returns a receipt from the same unit; automatic
-   container resolution bypasses that public seam. The recorder finds or creates the actor's history
+   container resolution joins the row action instead of recording a separate section action. The recorder finds or creates the actor's history
    for the subject's project, appends the action (discarding the redo branch), prunes by expiry and
    the 50-action cap, and returns the receipt at the new revision. Removal additionally settles rows,
    bumps `archiveGeneration` and decides whether recovery or an integrity reference requires
    retention. Receipts never carry payload data. `OperationHistoryService.transition` later runs one
    step in one unit of its own: find the caller's history (not found otherwise), compare the
-   revision, select the next action in that direction, check expiry and archived ancestors, run the
+   stored action family grant before disclosing revision or conflicts, select the next action in that direction, check expiry and archived ancestors, run the
    family's revert or reapply function (conflicts collected before any write), flip the action's
    state, move the cursor, record one `*_undone` or `*_redone` event. A permanent conflict instead
    commits only a retirement and refuses after the unit resolves. A repeated removal can read back
@@ -47,7 +47,9 @@
 | `SectionService` | class | Section lifecycle and container resolution; explicit add/update/move and removal return typed Undo results | [API](../../api/classes/SectionService.html) |
 | `OperationRecorder` | interface | Records one history action and recovers a still-outstanding removal receipt inside the caller's unit | [API](../../api/interfaces/OperationRecorder.html) |
 | `RepositoryOperationRecorder` | class | Finds or creates the actor's history, appends, discards the redo branch, prunes, returns the receipt | [API](../../api/classes/RepositoryOperationRecorder.html) |
-| `OperationHistoryService` | class | The caller's summary under `projects.read`; one transition under `projects.write` | [API](../../api/classes/OperationHistoryService.html) |
+| `OperationHistoryService` | class | The caller's summary under `projects.read`; one transition under its stored family’s write grant | [API](../../api/classes/OperationHistoryService.html) |
+| `captureTaskAdd`, `revertTaskAdd`, `reapplyTaskAdd` | functions | Representative task capture and both-direction row executors; update/archive/restore follow the same seam | [API](../../api/miscellaneous/variables.html#captureTaskAdd) |
+| `captureReflectionAdd`, `revertReflectionAdd`, `reapplyReflectionAdd` | functions | Representative reflection capture and both-direction row executors | [API](../../api/miscellaneous/variables.html#captureReflectionAdd) |
 | `nextOperationAction`, `recordOperationAction`, `transitionOperationHistory`, `retireOperationAction`, `pruneOperationHistory` | functions | The pure cursor state machine | [API](../../api/miscellaneous/variables.html#nextOperationAction) |
 | `SectionShortcutService` | class | Home shortcut placements | [API](../../api/classes/SectionShortcutService.html) |
 | `TaskService` | class | Task lifecycle | [API](../../api/classes/TaskService.html) |
@@ -93,12 +95,12 @@
   `additionalPermissions`, which is what proves a grant sufficient, not only necessary.
 - **The service graph is acyclic**: `TaskService` and `ReflectionService` compose
   `SectionService` for container resolution; writing services compose `ActivityService`
-  for event recording; `SectionService` records each explicit section operation through an
+  for event recording; section, task and reflection services record supported writes through an
   `OperationRecorder` (an interface over two repositories that never opens a unit).
   `OperationHistoryService` composes only `ActivityService` — no section, task or reflection
   service — and shares the payloads with section writes through function modules
   (`operation-execution.ts`, `owned-rows.ts`, `section-removal-undo.ts`, `section-edit-undo.ts`,
-  `page-placements.ts`, `project-visibility.ts`). A new edge is an AGENTS.md boundary change
+  `task-history.ts`, `reflection-history.ts`, `page-placements.ts`, `project-visibility.ts`). A new edge is an AGENTS.md boundary change
   and needs saying so.
 - **Neither direction overwrites a later write.** Each executor compares the state the *other*
   direction left: a removal's section archive state, page and `archiveGeneration`, each recorded
@@ -120,7 +122,9 @@
   history mutation and never on pruning
   ([decision](../../decisions/2026-09-operation-history-retention.md)).
 - **Every state change records exactly one event** through `ActivityService.record`; a
-  no-op write records nothing and therefore announces nothing.
+  no-op write records nothing and therefore announces nothing. The service captures and validates
+  target label and owning project/root before a row can be removed, then resolves current names
+  when the target remains and captured names when it does not.
 - **Archive and deletion share the content policy but use separate checks.** A removal policy
   settles a container only when live rows remain: cascade archives those live rows, while
   reassign moves every assigned row, including independently archived subtrees. If only

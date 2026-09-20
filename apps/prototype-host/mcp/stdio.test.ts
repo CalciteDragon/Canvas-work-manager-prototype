@@ -62,6 +62,16 @@ describe('MCP stdio entry (§59)', () => {
         'local.canvas-work-manager/requiredPermission': 'projects.read',
         'local.canvas-work-manager/requiredPermissions': ['projects.read', 'tasks.read', 'reflections.read'],
       });
+      for (const name of ['undo_operation', 'redo_operation']) {
+        const metadata = listed.tools.find((tool) => tool.name === name)?._meta;
+        expect(metadata).toMatchObject({
+          'local.canvas-work-manager/requiredPermissionsByOperationFamily': {
+            section: 'projects.write', task: 'tasks.write', reflection: 'reflections.write',
+          },
+        });
+        expect(metadata).not.toHaveProperty('local.canvas-work-manager/requiredPermission');
+        expect(metadata).not.toHaveProperty('local.canvas-work-manager/requiredPermissions');
+      }
       const todos = await client.callTool({
         name: 'get_project_todos',
         arguments: { projectId: 'project-work-manager' },

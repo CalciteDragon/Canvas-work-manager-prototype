@@ -825,6 +825,14 @@
       "projectId": "project-3b422709",
       "slice": 35,
       "note": "Slice 35 real use: after clicking Undo in the canvas notice ('Undo restored tasks A.'), nothing in the browser says the change can be redone, and the older rename's Undo is not offered either — both exist on the server (seen through GET /api/projects/:id/history) and only an API or MCP client can reach them. Expected for Stage A, but it is the first thing a person would look for; Stage C's header controls close it. The converted v3 data file (8 receipts retired) loaded and the chain Undo/Undo/Redo/Redo plus a stale replay behaved as specified, and survived a reload."
+    },
+    {
+      "id": "note-2026-09-18-001",
+      "createdAt": "2026-09-19T03:21:00.000Z",
+      "route": "/projects/project-85496b6d",
+      "projectId": "project-85496b6d",
+      "slice": 36,
+      "note": "Slice 36 real use on the isolated agent-heavy history fixture: Escape discarded an inline title draft, Enter committed exactly the visible replacement, and the dashboard stayed live. The historical agent lines then resolved the task's current title ('Manual Slice 36 check') for its earlier Created / addition-undone / addition-redone events. That is the intended current-name-first policy with captured identity as fallback, but a rename makes old event copy read as though the agent originally created the new title; Stage C's history UI may need to distinguish the action-time label from the current row label. HTTP and both MCP transports had already completed the row Undo/Redo chains in acceptance."
     }
   ]
 }

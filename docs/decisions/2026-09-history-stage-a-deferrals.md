@@ -51,3 +51,11 @@ Medium. Both deferrals are cheap to revisit; the route shape is behaviour-neutra
 
 Stage B's creation Undo needs a captured or tombstoned activity target, or Stage C's header control
 cannot tell a landed transition from a lost one from the summary alone.
+
+**Amended, 2026-09-18 — Slice 36.** Stage B reached both deferred questions. Activity now captures
+the target identity on every event, rather than weakening missing-target integrity or keeping row
+tombstones ([decision](2026-09-historical-activity-identity.md)). The retry cache remains deferred:
+receipts and every transition result or refusal still carry the summary needed to chain or diagnose
+a lost response. The one transition route and 409 stale-revision answer are unchanged. The static
+grant statement no longer holds for the two transition tools: their required grant now follows the
+stored operation family ([decision](2026-09-operation-family-permissions.md)).

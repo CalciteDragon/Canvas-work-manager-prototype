@@ -52,10 +52,10 @@ describe('concurrent writes', () => {
         }),
       ),
     );
-    const created = (await Promise.all(responses.map((response) => response.json()))) as Array<{ id: string }>;
+    const created = (await Promise.all(responses.map((response) => response.json()))) as Array<{ task: { id: string } }>;
 
     expect(responses.map((response) => response.status)).toEqual([201, 201, 201, 201, 201]);
-    expect(new Set(created.map((task) => task.id)).size).toBe(5);
+    expect(new Set(created.map(({ task }) => task.id)).size).toBe(5);
 
     const listed = (await (
       await fetch(`${base}/api/tasks?projectId=${projectId}&search=Concurrent`)
@@ -84,12 +84,12 @@ describe('concurrent writes', () => {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ projectId, title: 'Configure deployment' }),
       })
-    ).json()) as { id: string };
+    ).json()) as { task: { id: string } };
 
-    const response = await fetch(`${base}/api/tasks/${created.id}/complete`, { method: 'POST' });
+    const response = await fetch(`${base}/api/tasks/${created.task.id}/complete`, { method: 'POST' });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ status: 'done' });
+    expect(await response.json()).toMatchObject({ task: { status: 'done' } });
   });
 });
 

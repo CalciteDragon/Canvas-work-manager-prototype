@@ -206,6 +206,17 @@ export class OperationHistoryService {
       }
 
       let result: UndoResult | RedoResult;
+      const recordsBeforeRemoval = input.direction === 'undo' &&
+        (action.operation.type === 'task.add' || action.operation.type === 'reflection.add');
+      // Undo Add removes the canonical row, so Activity must capture its durable identity while
+      // the target still exists. The surrounding unit rolls this event/frame back if execution or
+      // either history write fails; successful publication still happens only after commit.
+      if (recordsBeforeRemoval) {
+        await this.dependencies.activity.record(
+          actor,
+          activityEntryFor(action.operation, input.direction, undefined),
+        );
+      }
       try {
         result = await this.execute(action.operation, input.direction);
       } catch (error) {
@@ -236,13 +247,12 @@ export class OperationHistoryService {
       if (moved.action === null) throw new TypeError('the selected action vanished inside its own transition');
       await this.dependencies.actions.update(moved.action);
       await this.dependencies.histories.update(moved.state.history);
-      await this.dependencies.activity.record(actor, {
-        action: activityActionFor(action.operation.type, input.direction),
-        entityType: 'project',
-        entityId: history.projectId,
-        projectId: history.projectId,
-        summary: activitySummary(action.operation, result, input.direction),
-      });
+      if (!recordsBeforeRemoval) {
+        await this.dependencies.activity.record(
+          actor,
+          activityEntryFor(action.operation, input.direction, result),
+        );
+      }
       return {
         kind: 'executed',
         result: OperationHistoryTransitionResultSchema.parse({
@@ -319,11 +329,11 @@ export class OperationHistoryService {
 /**
  * The activity verb for one operation in one direction, so a feed row and a live frame say which ran.
  *
- * The prefix stays `project.` for every family, because the event targets the **project** whose
- * history ran the transition — the same choice section events made
- * (docs/decisions/2026-08-section-activity-targets-the-project.md) — and because the web app routes
- * projections off the `task.*` and `reflection.*` verbs its own writes produce. A transition verb
- * that borrowed those prefixes would be routed as an ordinary row write.
+ * Section transitions keep the project target chosen for section events
+ * (docs/decisions/2026-08-section-activity-targets-the-project.md). Row transitions target their
+ * task or reflection and retain that family's prefix, so the same projections refresh for an
+ * ordinary write and its reversal/replay. Compound Add frames also cause the project canvas to
+ * re-read section existence.
  */
 export const activityActionFor = (operation: UndoOperation['type'], direction: OperationHistoryDirection): string => {
   const noun = {
@@ -340,7 +350,60 @@ export const activityActionFor = (operation: UndoOperation['type'], direction: O
     'reflection.archive': 'reflection_archive',
     'reflection.restore': 'reflection_restore',
   }[operation];
-  return `project.${noun}_${direction === 'undo' ? 'undone' : 'redone'}`;
+  const family = familyOfOperationKind(operation);
+  const prefix = family === 'section' ? 'project' : family;
+  return `${prefix}.${noun}_${direction === 'undo' ? 'undone' : 'redone'}`;
+};
+
+/** The canonical target an Activity row and its live frame describe. */
+const activityTargetFor = (operation: UndoOperation): {
+  entityType: 'project' | 'task' | 'reflection';
+  entityId: string;
+  projectId: ProjectId;
+} => {
+  switch (operation.type) {
+    case 'section.remove':
+    case 'section.add':
+      return { entityType: 'project', entityId: operation.section.projectId, projectId: operation.section.projectId };
+    case 'section.move':
+    case 'section.update':
+      return { entityType: 'project', entityId: operation.projectId, projectId: operation.projectId };
+    case 'task.add':
+      return { entityType: 'task', entityId: operation.task.id, projectId: operation.task.projectId };
+    case 'task.update':
+    case 'task.archive':
+    case 'task.restore':
+      return { entityType: 'task', entityId: operation.taskId, projectId: operation.projectId };
+    case 'reflection.add':
+      return { entityType: 'reflection', entityId: operation.reflection.id, projectId: operation.reflection.projectId };
+    case 'reflection.update':
+    case 'reflection.archive':
+    case 'reflection.restore':
+      return { entityType: 'reflection', entityId: operation.reflectionId, projectId: operation.projectId };
+  }
+};
+
+/** Build the event after execution, except for Undo Add where `result` is deliberately absent. */
+const activityEntryFor = (
+  operation: UndoOperation,
+  direction: OperationHistoryDirection,
+  result: UndoResult | RedoResult | undefined,
+) => ({
+  action: activityActionFor(operation.type, direction),
+  ...activityTargetFor(operation),
+  summary: result === undefined
+    ? activitySummaryForRemovedAdd(operation)
+    : activitySummary(operation, result, direction),
+});
+
+/** Undo Add is the only transition that must compose its line before execution deletes the row. */
+const activitySummaryForRemovedAdd = (operation: UndoOperation): string => {
+  if (operation.type === 'task.add') return `Undid creating "${operation.task.title}"`;
+  if (operation.type === 'reflection.add') {
+    const title = operation.reflection.title?.trim();
+    return `Undid writing ${title === undefined || title.length === 0 ? 'a reflection' : `"${title}"`}`;
+  }
+  throw new TypeError(`cannot record ${operation.type} before removing its target`);
 };
 
 /** What the operation did, in the gerund a feed line reads with. */

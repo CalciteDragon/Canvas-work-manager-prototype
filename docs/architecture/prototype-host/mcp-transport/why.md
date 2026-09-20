@@ -45,8 +45,11 @@ therefore sees host-side revocations, while the host does not see its writes
 safe workflow is to stop the host for a stdio mutation session, or point each transport
 at its own `CWM_DATA_FILE`.
 
-**Permission metadata is namespaced under `_meta`**, with the singular key kept for
-existing clients and a plural key carrying every grant a combined read needs
+**Permission metadata is namespaced under `_meta`.** Static tools keep the singular key for
+existing clients and a plural key carrying every grant a combined read needs. `undo_operation`
+and `redo_operation` publish neither: the one grant a call needs comes from the stored operation's
+family, so they publish a namespaced `{ section, task, reflection }` grant map instead. The domain,
+not this transport, enforces the selected grant
 ([decision](../../../decisions/2026-08-mcp-tool-permission-metadata.md)).
 
 ## Consequences
@@ -69,6 +72,7 @@ existing clients and a plural key carrying every grant a combined read needs
 - [Where §51's bearer tokens live](../../../decisions/2026-08-agent-tokens-are-fixtures-not-records.md)
 - [How §53's "Last used" is recorded](../../../decisions/2026-08-last-used-is-a-throttled-write.md)
 - [MCP tools advertise their required permission in namespaced metadata](../../../decisions/2026-08-mcp-tool-permission-metadata.md)
+- [Undo and Redo advertise and enforce one grant per stored operation family](../../../decisions/2026-09-operation-family-permissions.md)
 - [What the tool registry knows about MCP](../../../decisions/2026-08-tool-registry-is-transport-free.md) — the three obligations this transport inherited
 
 ## Spec sections

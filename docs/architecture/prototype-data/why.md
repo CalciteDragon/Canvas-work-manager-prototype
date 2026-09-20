@@ -46,11 +46,14 @@ shipped `upgradeProjectPages`; version 3 → 4 shipped `upgradeOperationHistory`
 input shape as plain data (re-declaring it as a schema would put a second definition of every
 entity in the repository). When version 4 arrived, the v2 step was **frozen** at a literal version
 3 and stopped validating — it had imported `SCHEMA_VERSION` and would otherwise have stamped a
-version-3 shape as version 4 and rejected every version-3 input — and the v3 step became the one
-that validates the final document before a byte is written. The CLI sniffs the version and runs the
-steps in order: two named functions, still registered nowhere (§14, §71). Version-3 Undo receipts
+version-3 shape as version 4 and rejected every version-3 input — and the v3 step subsequently froze at literal 4. The v4 → v5 Activity step now
+validates the final document before a byte is written. The CLI sniffs the version and runs the
+steps in order: three named functions, still registered nowhere (§14, §71). Version-3 Undo receipts
 are retired rather than translated, because they hold no cursor, placement or generation to
-translate ([decision](../../decisions/2026-09-schema-version-4-conversion.md)).
+translate. The version-5 step preserves every version-4 history/action field and backfills only
+validated Activity identity
+([version 4](../../decisions/2026-09-schema-version-4-conversion.md),
+[version 5](../../decisions/2026-09-schema-version-5-conversion.md)).
 
 **Paths resolve from where the command was run.** `pnpm --filter` runs a script with the
 package as its cwd, so the CLIs resolve a path argument against `INIT_CWD` — a trap
@@ -73,6 +76,8 @@ every path-taking passthrough shares.
 
 - [Persona workspace topology in seeds](../../decisions/2026-08-persona-workspace-topology.md)
 - [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](../../decisions/2026-09-schema-version-4-conversion.md) — the frozen v2 step, the validating v3 step, the chained CLI
+- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the frozen v4 intermediate, preserved histories and final validation
+- [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — what the final converter captures and validates
 - [Where §51's bearer tokens live](../../decisions/2026-08-agent-tokens-are-fixtures-not-records.md)
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — the v2 → v3 converter
 

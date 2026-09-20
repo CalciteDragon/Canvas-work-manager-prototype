@@ -36,10 +36,14 @@ import type {
   ShortcutSourceQuery,
   SetProjectPageEnabledInput,
   Task,
+  TaskAddResult,
+  TaskWriteResult,
   TaskId,
   TaskQuery,
   TimelineResult,
   UpdateReflectionInput,
+  ReflectionAddResult,
+  ReflectionWriteResult,
   UpdateSectionInput,
   UpdateSectionShortcutInput,
   UpdateProjectInput,
@@ -62,16 +66,17 @@ import type {
  * has lost. §9 and §34 are updated in the same change
  * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
  *
- * `archive` still answers `Promise<void>`, so a caller that needs the updated row re-reads.
+ * Every committed row write carries its history receipt so a caller can keep the exact action it
+ * created; a normalized no-op carries `operation: null`.
  */
 export interface TaskGateway {
   list(query: TaskQuery): Promise<Task[]>;
   get(id: TaskId): Promise<Task>;
-  create(input: CreateTaskInput): Promise<Task>;
-  update(id: TaskId, input: UpdateTaskInput): Promise<Task>;
-  complete(id: TaskId): Promise<Task>;
-  archive(id: TaskId): Promise<void>;
-  restore(id: TaskId): Promise<Task>;
+  create(input: CreateTaskInput): Promise<TaskAddResult>;
+  update(id: TaskId, input: UpdateTaskInput): Promise<TaskWriteResult>;
+  complete(id: TaskId): Promise<TaskWriteResult>;
+  archive(id: TaskId): Promise<TaskWriteResult>;
+  restore(id: TaskId): Promise<TaskWriteResult>;
 }
 
 /**
@@ -141,10 +146,10 @@ export interface ReflectionGateway {
    * and the root Archive projection can ask for `{ includeArchived: true }` without a placeholder.
    */
   list(projectId: ProjectId, query?: Omit<ReflectionQuery, 'projectId'>): Promise<Reflection[]>;
-  create(input: CreateReflectionInput): Promise<Reflection>;
-  update(id: ReflectionId, input: UpdateReflectionInput): Promise<Reflection>;
-  archive(id: ReflectionId): Promise<Reflection>;
-  restore(id: ReflectionId): Promise<Reflection>;
+  create(input: CreateReflectionInput): Promise<ReflectionAddResult>;
+  update(id: ReflectionId, input: UpdateReflectionInput): Promise<ReflectionWriteResult>;
+  archive(id: ReflectionId): Promise<ReflectionWriteResult>;
+  restore(id: ReflectionId): Promise<ReflectionWriteResult>;
 }
 
 /**

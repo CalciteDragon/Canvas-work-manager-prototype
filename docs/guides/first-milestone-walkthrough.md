@@ -217,6 +217,9 @@ standalone connection matrix. Both processes still running. Full setup in
     neighbours; `get_operation_history` now lists that action under `redo`, `redo_operation`
     removes it again, and repeating a call with the old revision is refused with a message starting
     `history_revision_stale:`.
+    Repeat the chain with a task or reflection receipt. `undo_operation` then needs that stored
+    action family's `tasks.write` or `reflections.write` grant, and reuses the original row id on
+    Redo; an implicitly created container disappears and returns with the row.
 40. **Aggregate pages.** Call `get_project_todos`, `get_project_archive` and
     `get_project_journal`; the responses retain canonical project/page/container origins. Archive
     remains queryable even when its navigation page is disabled.

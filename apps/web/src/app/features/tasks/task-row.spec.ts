@@ -114,6 +114,24 @@ describe('TaskRow', () => {
     expect(element.querySelector('[data-title-error]')?.textContent).toContain('required');
   });
 
+  it('discards an Escape draft even when removing the editor dispatches blur', async () => {
+    const { fixture, component, element } = await render();
+    const emitted = vi.fn();
+    component.titleEdited.subscribe(emitted);
+
+    element.querySelector<HTMLButtonElement>('[data-task-title]')?.click();
+    await fixture.whenStable();
+    const editor = element.querySelector<HTMLInputElement>('[data-task-title-editor]')!;
+    editor.value = 'Discarded draft';
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    editor.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+    await fixture.whenStable();
+
+    expect(emitted).not.toHaveBeenCalled();
+    expect(element.querySelector('[data-task-title]')?.textContent).toContain('Write the first draft');
+  });
+
   it('exposes the normal state only for an unmodified row', async () => {
     const { element } = await render();
     expect(element.querySelector('[data-task-row]')?.classList.contains('task-row--normal')).toBe(true);

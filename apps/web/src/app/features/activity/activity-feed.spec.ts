@@ -13,6 +13,13 @@ const entry = (overrides: Record<string, unknown> = {}): ActivityFeedEntry =>
     entityType: 'task',
     entityId: 'task-1',
     projectId: 'project-work-manager',
+    context: {
+      targetKind: 'task',
+      targetId: 'task-1',
+      targetLabel: 'Configure deployment',
+      projectId: 'project-work-manager',
+      rootProjectId: 'project-work-manager',
+    },
     summary: 'Completed "Configure deployment"',
     createdAt: '2026-08-24T15:32:00.000Z',
     actorName: 'Demo User',
@@ -72,6 +79,11 @@ describe('ActivityFeed (§57)', () => {
         entityType: 'agent_connection',
         entityId: 'agent-old',
         projectId: undefined,
+        context: {
+          targetKind: 'agent_connection',
+          targetId: 'agent-old',
+          targetLabel: 'Retired assistant',
+        },
         projectName: undefined,
         entityTitle: 'Retired assistant',
       }),
@@ -83,7 +95,19 @@ describe('ActivityFeed (§57)', () => {
 
   it('falls back to the entity kind when there is no title, rather than rendering a gap', async () => {
     const fixture = await render([
-      entry({ action: 'section.added', entityType: 'section', entityId: 'section-1', entityTitle: undefined }),
+      entry({
+        action: 'section.added',
+        entityType: 'section',
+        entityId: 'section-1',
+        entityTitle: undefined,
+        context: {
+          targetKind: 'section',
+          targetId: 'section-1',
+          targetLabel: 'section',
+          projectId: 'project-work-manager',
+          rootProjectId: 'project-work-manager',
+        },
+      }),
     ]);
 
     expect(texts(fixture, '[data-activity-line]')).toEqual(['Added “section”']);

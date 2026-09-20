@@ -16,6 +16,15 @@ const api = async <T>(method: string, path: string, body?: unknown): Promise<T> 
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 };
 
+type TaskAddResult = { task: { id: string } };
+type ReflectionAddResult = { reflection: { id: string } };
+
+const addTask = async (body: Record<string, unknown>): Promise<{ id: string }> =>
+  (await api<TaskAddResult>('POST', '/api/tasks', body)).task;
+
+const addReflection = async (body: Record<string, unknown>): Promise<{ id: string }> =>
+  (await api<ReflectionAddResult>('POST', '/api/reflections', body)).reflection;
+
 type ArchiveItem = {
   kind: 'subproject' | 'section' | 'task' | 'reflection';
   project?: { id: string };
@@ -54,18 +63,18 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
   });
   const section = sectionResult.section;
   const taskSection = taskSectionResult.section;
-  const parent = await api<{ id: string }>('POST', '/api/tasks', {
+  const parent = await addTask({
     projectId: root.id,
     sectionId: taskSection.id,
     title: 'Parent task',
   });
-  const child = await api<{ id: string }>('POST', '/api/tasks', {
+  const child = await addTask({
     projectId: root.id,
     sectionId: taskSection.id,
     parentTaskId: parent.id,
     title: 'Child task',
   });
-  await api('POST', '/api/tasks', { projectId: root.id, sectionId: section.id, title: 'Section task' });
+  await addTask({ projectId: root.id, sectionId: section.id, title: 'Section task' });
   const leaf = await api<{ id: string }>('POST', '/api/projects', {
     workspaceId: workspace.workspace.id,
     kind: 'subproject',
@@ -134,7 +143,7 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
     }),
   );
 
-  const mcpTask = await api<{ id: string }>('POST', '/api/tasks', {
+  const mcpTask = await addTask({
     projectId: root.id,
     sectionId: taskSection.id,
     title: 'MCP archive task',
@@ -189,8 +198,8 @@ test('Archive lists recoverable content only, and independently archived rows ke
 
   const addSection = async (body: Record<string, unknown>) =>
     (await api<{ section: { id: string } }>('POST', `/api/projects/${ROOT}/sections`, body)).section;
-  const addTask = (sectionId: string, title: string) =>
-    api<{ id: string }>('POST', '/api/tasks', { projectId: ROOT, sectionId, title });
+  const addTaskToSection = (sectionId: string, title: string) =>
+    addTask({ projectId: ROOT, sectionId, title });
 
   const views = ['sub-projects', 'progress', 'timeline', 'recent-activity'].map((type) => `section-${ROOT}-${type}`);
   for (const id of views) await api('DELETE', `/api/sections/${id}`);
@@ -201,18 +210,18 @@ test('Archive lists recoverable content only, and independently archived rows ke
   await api('DELETE', `/api/sections/${blank.id}`);
 
   const cascaded = await addSection({ type: 'task-list', title: 'Cascaded list' });
-  const cascadedTask = await addTask(cascaded.id, 'Comes back with its list');
-  const filedEarly = await addTask(cascaded.id, 'Filed before removal');
+  const cascadedTask = await addTaskToSection(cascaded.id, 'Comes back with its list');
+  const filedEarly = await addTaskToSection(cascaded.id, 'Filed before removal');
   await api('POST', `/api/tasks/${filedEarly.id}/archive`);
   await api('DELETE', `/api/sections/${cascaded.id}?policy=cascade`);
 
   const reassigned = await addSection({ type: 'task-list', title: 'Reassigned source' });
-  const moved = await addTask(reassigned.id, 'Moves to the main list');
+  const moved = await addTaskToSection(reassigned.id, 'Moves to the main list');
   await api('DELETE', `/api/sections/${reassigned.id}?policy=reassign&reassignToSectionId=section-${ROOT}-tasks`);
 
   const oldTasks = await addSection({ type: 'task-list', title: 'Old tasks' });
-  const oldTask = await addTask(oldTasks.id, 'Archived on its own');
-  const oldSubtask = await api<{ id: string }>('POST', '/api/tasks', {
+  const oldTask = await addTaskToSection(oldTasks.id, 'Archived on its own');
+  const oldSubtask = await addTask({
     projectId: ROOT,
     sectionId: oldTasks.id,
     parentTaskId: oldTask.id,
@@ -222,7 +231,7 @@ test('Archive lists recoverable content only, and independently archived rows ke
   await api('DELETE', `/api/sections/${oldTasks.id}`);
 
   const oldReflections = await addSection({ type: 'reflections', title: 'Old reflections' });
-  const oldReflection = await api<{ id: string }>('POST', '/api/reflections', {
+  const oldReflection = await addReflection({
     projectId: ROOT,
     sectionId: oldReflections.id,
     body: 'A reflection filed away',

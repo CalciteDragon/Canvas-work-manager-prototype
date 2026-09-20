@@ -8,7 +8,9 @@
    `queryFrom(config)` into one query (for example `upcomingDays`).
 3. One call to `dashboard.load(query)` returns §24's content; each widget renders its
    slice of it inside `DashboardWidgetFrame` at the size the layout names.
-4. On a live frame the store re-reads quietly; on `prototype.reloaded` the tab reloads.
+4. On a live frame the store re-reads quietly; on `prototype.reloaded` the tab reloads. The Recent
+   Agent Activity widget reuses `ActivityFeed`, so a removed row displays its captured historical
+   label supplied by the host rather than disappearing.
 5. Switching persona reloads the page; the new persona's list and query produce a
    different dashboard with nothing in this feature knowing why.
 

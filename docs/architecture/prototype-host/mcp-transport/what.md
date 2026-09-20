@@ -14,7 +14,7 @@ flowchart LR
     reload["reload data file + authenticate per call"]
     sdkstdio["SDK stdio transport<br/>stdout protocol, stderr diagnostics"]
   end
-  server["mcp/server.ts<br/>SDK McpServer over the registry<br/>_meta local.canvas-work-manager/*"]
+  server["mcp/server.ts<br/>SDK McpServer over the registry<br/>static or operation-family _meta"]
   registry["@cwm/mcp-tools ToolRegistry"]
   guard --> auth --> node --> server
   env --> reload --> sdkstdio --> server
@@ -23,6 +23,12 @@ flowchart LR
 
 Both transports build the same server from the same registry; they differ only in how a
 request arrives and how the actor is resolved.
+
+For static tools, discovery publishes
+`local.canvas-work-manager/requiredPermission` and `requiredPermissions`. For
+`undo_operation` and `redo_operation`, it publishes only
+`requiredPermissionsByOperationFamily`, mapping section, task and reflection to the one grant each
+family needs. The two shapes are mutually exclusive.
 
 ## A tool call over HTTP
 
@@ -50,7 +56,7 @@ sequenceDiagram
 |---|---|---|
 | `createAuthenticatedMcpHandler`, `AuthenticatedMcpDependencies` | `mcp/handler.ts` | Guards + authenticator + SDK handler as one raw route |
 | `createMcpNodeHandler` | `mcp/handler.ts` | The SDK's fetch-shaped handler adapted to `node:http` |
-| SDK server factory | `mcp/server.ts` | Builds the `McpServer` over the registry; vendor `_meta` keys |
+| SDK server factory and permission metadata keys | `mcp/server.ts` | Builds the `McpServer` over the registry; publishes either the static keys or the operation-family key |
 | Stdio entry | `mcp/stdio.ts` | `pnpm mcp:stdio`; reload-and-authenticate per call |
 | `PrototypeAgentAuthenticator`, `AgentAuthenticationError`, `AgentAuthenticatorDependencies` | `auth/prototype-agent-authenticator.ts` | Token → live connection → actor; one 401 |
 | Fixture tokens | `packages/prototype-data/src/agent-tokens.ts` | The table the authenticator reads |

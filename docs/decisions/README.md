@@ -21,7 +21,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [The web app and the host start separately](2026-08-web-and-host-start-separately.md) | `pnpm dev` prints two commands and exits; `concurrently` hung `tsx watch` | current |
 | [The host's port variable is `CWM_HOST_PORT`, not `PORT`](2026-08-host-port-is-not-the-generic-port.md) | The host ignores the generic `PORT` entirely | current |
-| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning and error ceilings, with measured lazy boundaries | amended; Slice 31 kept the 1 MB error ceiling |
+| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning and error ceilings, with measured lazy boundaries | amended; Slice 36 set a 1050 kB hard ceiling |
 
 ## Contracts
 
@@ -32,14 +32,15 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [A date-only task due date is stored at UTC end-of-day](2026-08-task-date-only-due-time.md) | How a date-only due date becomes an instant | current |
 | [A section config is an object at rest, replaced whole on write](2026-08-section-config-ownership.md) | Config keys belong to the section definition; no partial writes | amended; recovery inspection landed in Slice 29 |
 | [What an `Identity` is, and where it comes from](2026-08-identity-contract-and-me-route.md) | The `Identity` contract and `GET /api/me` | current |
-| [What `ActivityEvent.summary` is for, and what it is not](2026-08-activity-summary-ownership.md) | `summary` is a log line the domain writes; the UI composes its own | current |
+| [What `ActivityEvent.summary` is for, and what it is not](2026-08-activity-summary-ownership.md) | `summary` is a log line the domain writes; the UI composes its own | amended; Slice 36 adds captured historical context |
+| [Activity captures target identity so an audit line outlives its row](2026-09-historical-activity-identity.md) | Required event context survives creation Undo without row tombstones | current (Slice 36) |
 
 ## Domain
 
 | Entry | Settled | Status |
 |---|---|---|
 | [Project nesting rules and what archiving a parent does](2026-08-project-nesting-and-archive-rules.md) | Same workspace, no cycles, no depth limit; children archived first | extended |
-| [Task status transitions, `completedAt`, and how a task is archived](2026-08-task-status-transitions-and-archive.md) | Archive is `archivedAt`, not a status; `done` stamps `completedAt` | amended |
+| [Task status transitions, `completedAt`, and how a task is archived](2026-08-task-status-transitions-and-archive.md) | Archive is `archivedAt`, not a status; `done` stamps `completedAt` | amended; Slice 36 records task transitions |
 | [Workspace scoping, and why a foreign id is 404 rather than 409](2026-08-workspace-scoping-and-not-found.md) | Every read and write is scoped by the actor's workspace | current |
 | [Where the agent permission model is enforced](2026-08-permissions-live-on-the-actor.md) | The domain asserts capability on the actor; no `agents.*` permission | current |
 | [How §53's "Last used" is recorded](2026-08-last-used-is-a-throttled-write.md) | A throttled write on distance, not elapsed time | current |
@@ -50,29 +51,30 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Reflections use reverse chronology and optional prompts](2026-08-reflection-chronology-and-prompts.md) | Body required; prompts are suggestions | current |
 | [What counts as AI in the prototype](2026-08-prototype-ai-scope-and-fun-fact.md) | Fun Fact is a fixture rotation, not `AIProvider` | current |
 | [A section's activity event names its project, not the section](2026-08-section-activity-targets-the-project.md) | Section removal targets the project; disposable deletion emits `project.section_removed` | amended (Slice 35 transitions keep it) |
-| [Where a live event is emitted, and when it is delivered](2026-08-live-events-ride-the-activity-record.md) | One post-commit frame per operation; removal action reflects retained or deleted disposition | amended (Slices 30–31, 35: Redo frames) |
+| [Where a live event is emitted, and when it is delivered](2026-08-live-events-ride-the-activity-record.md) | One post-commit frame per operation; removal action reflects retained or deleted disposition | amended (Slices 30–31, 35–36) |
 | [Container sections own their rows; view sections own nothing](2026-09-sections-own-their-data.md) | Every row keeps a live section reference; Slice 31 adds reference-checked deletion for disposable sections | amended |
 | [A section has a name, and the default is derived rather than stored](2026-09-a-section-has-a-name.md) | `nameOf` over `type`, optional `title` override | amended |
 | [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Archive Restore remains durable; safe disposable removal can delete after a reference audit | amended; content projection in Slice 29; operation Undo in Slices 30–31; history retirement in Slice 35 |
 | [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | amended; projection in Slice 29, deletion boundary in Slice 31 |
 | [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | current |
 | [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | current |
-| [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | current |
+| [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | amended; Slice 36 history may restore captured content |
 | [Reassigning a container's rows may cross pages within a project](2026-09-reassign-may-cross-pages.md) | §31 constrains the type, not the page | amended; exercised with Undo in Slice 33 |
 | [Live work under an archived ancestor is hidden, and cannot be newly created](2026-09-reactivating-under-an-archived-ancestor.md) | The archived-ancestor rule and its transition check | current |
 | [A shortcut resolves source identity, not source content](2026-09-a-shortcut-resolves-identity-not-content.md) | `SectionShortcutService` never reads rows | current |
 | [Home orders sections and shortcuts together](2026-09-home-orders-sections-and-shortcuts-together.md) | One combined placement sequence per page | amended (Undo restores by neighbours, Slice 30) |
 | [Contextual insertion remembers its target and creates in one positioned write](2026-09-contextual-insertion-names-its-position.md) | Optional domain `position`; UI resolves stable anchors; Grid gaps are transient targets; renumbering leaves shifted siblings' `updatedAt` amended | amended |
 | [What the Todos page decides for itself](2026-09-todos-chronology-and-canonical-navigation.md) | Instants compared as text; no tab required; completion one-way | current |
-| [Reflection subjects and the root journal feed](2026-09-reflection-subjects-and-the-journal-feed.md) | Optional subject id; journal resolves current state | current |
+| [Reflection subjects and the root journal feed](2026-09-reflection-subjects-and-the-journal-feed.md) | Optional subject id; journal resolves current state | amended; Slice 36 restores historical links by identity |
 | [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | What the Archive projection says about each item's restore path | amended |
 | [A section removal commits one scoped, expiring Undo record](2026-09-section-removal-undo-records.md) | Removal footprint, exact-actor scope, structural conflicts, neighbor placement | amended; Slice 31 deletion disposition and repeat-receipt recovery; Slice 32 operation union; Slice 35 records become history actions |
 | [Disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md) | Reference-safe deletion, canvas-local action, own-receipt recovery and actionable refusals | amended (Slice 32: notice serves every explicit operation; Slice 35: history transitions) |
 | [Explicit section edits reverse only their operation's changes](2026-09-section-edit-undo-boundaries.md) | Explicit action boundaries, safe add, changed-field inverses | amended (Slice 35: cursor order and applied-state checks) |
-| [Undo and Redo follow one history per exact actor, per owning project](2026-09-operation-history-scope.md) | History key, caller-only summaries, read/write grants, acyclic service | current (Slice 35) |
-| [One explicit write is one history action, kept for 24 hours and at most 50 per history](2026-09-operation-history-retention.md) | Cursor movement, branch clearing, revision rule, contiguous lazy pruning | current (Slice 35) |
+| [Undo and Redo follow one history per exact actor, per owning project](2026-09-operation-history-scope.md) | History key, caller-only summaries, family-dependent write grants, acyclic service | amended; Slice 36 adds row families |
+| [One explicit write is one history action, kept for 24 hours and at most 50 per history](2026-09-operation-history-retention.md) | Cursor movement, branch clearing, revision rule, contiguous lazy pruning | amended; Slice 36 adds row actions |
 | [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](2026-09-operation-history-retired-actions.md) | Per-family checks, `archiveGeneration`, verbatim reapply, the permanent-conflict list | current (Slice 35) |
-| [Stage A defers historical activity identity and the retry cache, and uses one transition route](2026-09-history-stage-a-deferrals.md) | Deferrals, route shape, 409 for stale revisions, static grants | current (Slice 35) |
+| [Stage A defers historical activity identity and the retry cache, and uses one transition route](2026-09-history-stage-a-deferrals.md) | Route shape and retry-cache deferral remain; Activity and grants advanced in Stage B | amended (Slice 36) |
+| [Task and reflection writes record one reversible row action](2026-09-row-operation-history.md) | Row footprints, compound containers, envelopes and durable row Restore history | current (Slice 36) |
 
 ## Repositories
 
@@ -85,7 +87,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | Entry | Settled | Status |
 |---|---|---|
 | [What the tool registry knows about MCP](2026-08-tool-registry-is-transport-free.md) | Nothing: the registry is transport-free; the host mounts it | current |
-| [MCP tools advertise their required permission in namespaced metadata](2026-08-mcp-tool-permission-metadata.md) | `_meta["local.canvas-work-manager/requiredPermission(s)"]` | current |
+| [MCP tools advertise their required permission in namespaced metadata](2026-08-mcp-tool-permission-metadata.md) | Static tools use singular/plural metadata; history transitions use a family map | amended; Slice 36 adds conditional grants |
+| [A history transition requires the stored operation family's write grant](2026-09-operation-family-permissions.md) | One family grant per action, declared as a family metadata map | current (Slice 36) |
 
 ## Prototype data
 
@@ -93,7 +96,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [Persona workspace topology in seeds](2026-08-persona-workspace-topology.md) | Three personas with separately owned workspaces in every seed | current |
 | [Where §51's bearer tokens live](2026-08-agent-tokens-are-fixtures-not-records.md) | Tokens are fixtures beside the seeds, not a contract field | current |
-| [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](2026-09-schema-version-4-conversion.md) | Frozen v2 → v3 step, validated v3 → v4 step, version-sniffing CLI, receipt reset notice | current (Slice 35) |
+| [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](2026-09-schema-version-4-conversion.md) | Frozen v2 → v3 and v3 → v4 steps; only v3 receipts retire | amended; Slice 36 chains version 5 |
+| [Schema version 5 backfills durable Activity identity without changing history](2026-09-schema-version-5-conversion.md) | Validated v4 → v5 Activity-context backfill preserves operation history | current (Slice 36) |
 
 ## Prototype host
 
@@ -114,7 +118,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [The gateway interface grows with its implementations](2026-08-gateway-surface-grows-with-implementations.md) | No stubbed gateway members | current |
 | [A theme change lasts the session, not the persona](2026-08-theme-selection-is-session-only.md) | `ThemeService` owns `data-theme`; nothing persists it | current |
 | [How live reconnects recover derived project views](2026-08-live-recovery-invalidates-derived-views.md) | Reconnect invalidates derived reads quietly | current |
-| [The activity feed composes its line; `summary` stays a log line](2026-08-activity-feed-composes-from-parts.md) | The feed renders from structured parts with a live title | current |
+| [The activity feed composes its line; `summary` stays a log line](2026-08-activity-feed-composes-from-parts.md) | The feed renders live names or captured historical fallback labels | amended; Slice 36 handles removed targets |
 | [The dashboard splits layout from content](2026-08-dashboard-layout-and-content-split.md) | Widgets from `IdentityProvider`, content from one read | current |
 | [Where dashboard widgets live](2026-08-dashboard-widget-ownership.md) | One folder per widget, one registry line | current |
 | [Flow and grid both remain prototype layout candidates](2026-08-flow-vs-grid-layout-experiment.md) | Both modes persist per project; no freeform canvas | open experiment |

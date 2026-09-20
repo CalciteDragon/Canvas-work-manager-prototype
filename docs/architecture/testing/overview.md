@@ -19,15 +19,15 @@ unit-test builder, `@playwright/test`, `@modelcontextprotocol/client`, `storyboo
 - **Contract tests** for schemas (accept/reject) and for every MCP tool (success under
   minimal grants, denial per grant, store assertion) with no socket.
 - **Host tests**: routes, errors, auth, hub, SSE, MCP handler and stdio, all in-process; plus
-  the integrated recovery acceptance that composes the converter, services and JSON store over
-  temp files.
+  integrated recovery acceptance that composes the converter, services and JSON
+  store over temp files, and the compound row Add fault matrix.
 - **Component tests** for stores and components with fake gateways; **Storybook** for
   the variant sets §4 names, with a theme toolbar.
 - **Acceptance scripts** for four slices' *done when*, against a second host on a temp
   file.
-- **End-to-end**: the web path, direct canvas editing, section add/move/settings Undo,
-  removal Undo, MCP, and the todos, archive and reflections journeys, each seeding the host
-  itself.
+- **End-to-end**: the web path, direct canvas editing, section and row Undo/Redo, MCP, and the
+  todos, archive and reflections journeys, each seeding the host itself from a freshly prepared
+  version-5 scratch document.
 - **Root tooling tests**: roadmap Outcome and built Compodoc anchor guards, using Node's built-in test runner.
 - **Lints**: package imports, no direct `Date`, design tokens, and the documentation
   structure.

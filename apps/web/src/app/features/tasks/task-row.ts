@@ -96,6 +96,7 @@ export class TaskRow {
   }
 
   commitTitle(): void {
+    if (!this.editing()) return;
     const title = this.draftTitle().trim();
     if (title === '') {
       this.titleError.set('A task title is required.');

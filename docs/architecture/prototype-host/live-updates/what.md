@@ -37,6 +37,12 @@ sequenceDiagram
   B->>B: route on type + projectId, stores re-read quietly
 ```
 
+Undo and Redo use the same route with operation-specific action names. A task transition emits
+`task.task_*_{undone,redone}`, a reflection transition emits
+`reflection.reflection_*_{undone,redone}`, and a section transition emits
+`project.section_*_{undone,redone}`. When an Add owns an implicit container, that single row frame
+also invalidates section existence in the open project surface.
+
 ## Inventory
 
 | Part | Path | Role |

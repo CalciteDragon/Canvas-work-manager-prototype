@@ -525,9 +525,26 @@ export const revertTaskAdd = async (
   }
 
   if (current !== null) {
-    const [tasks, reflections] = await Promise.all([
+    const rootOf = async (projectId: Task['projectId']): Promise<Task['projectId'] | null> => {
+      const seen = new Set<Task['projectId']>();
+      let project = await repositories.projects.find(projectId);
+      while (project !== null && !seen.has(project.id)) {
+        seen.add(project.id);
+        if (project.kind === 'root') return project.id;
+        project = await repositories.projects.find(project.parentProjectId);
+      }
+      return null;
+    };
+    const rootId = await rootOf(created.projectId);
+    const projects = rootId === null ? [] : await repositories.projects.list();
+    const projectIds = rootId === null
+      ? [created.projectId]
+      : (await Promise.all(projects.map(async (project) => ({ id: project.id, rootId: await rootOf(project.id) }))))
+          .filter((project) => project.rootId === rootId)
+          .map((project) => project.id);
+    const [tasks, reflectionGroups] = await Promise.all([
       repositories.tasks.list({ projectId: created.projectId, includeArchived: true }),
-      repositories.reflections.list({ projectId: created.projectId, includeArchived: true }),
+      Promise.all(projectIds.map((projectId) => repositories.reflections.list({ projectId, includeArchived: true }))),
     ]);
     for (const task of tasks) {
       // A child, or a row that came down with this one's archive: either way it would be orphaned.
@@ -535,7 +552,7 @@ export const revertTaskAdd = async (
         conflicts.push(rowConflict('task', task.id, 'new-dependent', taskLabel(task, task.id)));
       }
     }
-    for (const reflection of reflections) {
+    for (const reflection of reflectionGroups.flat()) {
       if (reflection.subject?.kind === 'task' && reflection.subject.id === created.id) {
         conflicts.push(rowConflict('reflection', reflection.id, 'new-dependent', reflection.title?.trim() || 'Untitled reflection'));
       }
@@ -574,10 +591,18 @@ export const reapplyTaskAdd = async (
   // Another actor's Redo may already have recreated it. Repairable: they can undo theirs again.
   if (existing !== null) conflicts.push(rowConflict('task', created.id, 'already-exists', taskLabel(existing, created.id)));
   const project = await repositories.projects.find(created.projectId);
+  // Named as the section rather than the project: `UndoConflict` has no project kind, and
+  // integrity already refuses a section whose project is gone, so a missing project means this
+  // row's container is missing too — which is the entity the caller would have to restore.
   if (project === null) conflicts.push(rowConflict('section', created.sectionId, 'missing'));
 
-  const containerMissing = container !== undefined && (await repositories.sections.find(container.section.id)) === null;
-  if (!containerMissing) conflicts.push(...(await liveContainerConflicts(repositories, created.sectionId, created.id)));
+  const capturedContainerNow = container === undefined ? null : await repositories.sections.find(container.section.id);
+  const containerMissing = container !== undefined && capturedContainerNow === null;
+  if (container !== undefined && capturedContainerNow !== null) {
+    conflicts.push(rowConflict('section', capturedContainerNow.id, 'already-exists', nameOf(capturedContainerNow)));
+  } else if (container === undefined) {
+    conflicts.push(...(await liveContainerConflicts(repositories, created.sectionId, created.id)));
+  }
   const tasks = await projectTasks(repositories, created.projectId);
   conflicts.push(...liveParentConflicts(tasks, created.parentTaskId));
 
@@ -645,14 +670,41 @@ const writeTaskUpdate = async (
     const subject = operation.rows.find((row) => row.id === operation.taskId);
     const target = subject === undefined ? undefined : (subject[direction === 'undo' ? 'before' : 'after'] as TaskStructuralState);
     if (target !== undefined) {
-      // A descendant that arrived after the move would be repointed by the subtree walk this
-      // transition reproduces, so it blocks rather than being dragged along.
-      conflicts.push(
-        ...unrecordedDependents(tasks, operation.taskId, operation.rows, (task) => task.sectionId === current.sectionId),
-      );
+      const source = subject![expected] as TaskStructuralState;
+      const movesSection = source.sectionId !== target.sectionId;
+      const rewritesGroup =
+        source.archivedAt !== target.archivedAt ||
+        source.archivedWithTaskId !== target.archivedWithTaskId ||
+        source.archivedWithSectionId !== target.archivedWithSectionId;
+      // Same-section reparenting leaves descendants exactly where they are. Only transitions that
+      // reproduce a subtree move/archive footprint must reject descendants absent from that footprint,
+      // and only the descendants that footprint would actually strand: the ones this subject drags
+      // between lists, and the members of the archive group whose root marker it rewrites. A
+      // descendant that roots its own group — archived before this subject was, so the cascade
+      // stepped past it — predates the action and is nobody's later dependent.
+      const groupRoot = source.archivedWithTaskId ?? operation.taskId;
+      if (movesSection || rewritesGroup) {
+        conflicts.push(
+          ...unrecordedDependents(
+            tasks,
+            operation.taskId,
+            operation.rows,
+            (task) =>
+              (movesSection && task.sectionId === source.sectionId) ||
+              (rewritesGroup && task.archivedWithTaskId === groupRoot),
+          ),
+        );
+      }
       if (target.archivedAt === undefined) {
         conflicts.push(...(await liveContainerConflicts(repositories, target.sectionId, operation.taskId)));
         conflicts.push(...liveParentConflicts(tasks, target.parentTaskId));
+      } else {
+        if ((await repositories.sections.find(target.sectionId)) === null) {
+          conflicts.push(rowConflict('section', target.sectionId, 'missing'));
+        }
+        if (target.parentTaskId !== undefined && !tasks.has(target.parentTaskId)) {
+          conflicts.push(rowConflict('task', target.parentTaskId, 'missing'));
+        }
       }
     }
   }

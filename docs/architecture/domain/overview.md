@@ -23,13 +23,13 @@ service through an acyclic edge. They never know about HTTP, MCP, JSON or seeds.
   archived-ancestor rule; reflection subjects.
 - **Activity.** One `ActivityEvent` per state-changing operation, with the actor, through
   `ActivityService.record` — which is also where a live frame is published, after commit.
-- **Undo and Redo.** Explicit section add, move and settings writes, as well as removal, record
+- **Undo and Redo.** Section add, move, settings and removal, plus task and reflection create, update, archive and restore, record
   one action into the acting actor's per-project operation history through `OperationRecorder`, in
   their caller-owned unit, and return an operation receipt. `OperationHistoryService` reads the
   caller's summary and runs the next action in either direction — applied-state conflict checks,
   combined-neighbour placement, verbatim reapply, typed refusals and retirement of permanently
   unsatisfiable actions — never overwriting later writes. `operation-history.ts` is the pure
-  cursor state machine. Automatic row-container creation remains unrecorded.
+  cursor state machine. An implicit container joins its row creation in the same action and event; completion is a task update.
 - **Time.** All timestamps come from the injected `Clock`. `new Date()` is banned here by
   lint.
 - **Derived reads.** The dashboard, progress, timeline, workspace search, upcoming work,

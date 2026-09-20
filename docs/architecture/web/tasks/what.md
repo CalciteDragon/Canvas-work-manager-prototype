@@ -37,7 +37,7 @@ sequenceDiagram
   S->>G: tasks.complete(id)
   L-->>S: task.completed frame (host flushed at commit)
   S->>S: deferred — a write is in flight
-  G-->>S: Task (or GatewayError)
+  G-->>S: { task, operation } (or GatewayError)
   alt success
     S->>S: settle, pendingWrites--, re-read
   else failure

@@ -65,6 +65,7 @@ the date, not the time — a defect only the browser showed.
 - [Task status transitions, `completedAt`, and how a task is archived](../../../decisions/2026-08-task-status-transitions-and-archive.md)
 - [Container sections own their rows](../../../decisions/2026-09-sections-own-their-data.md)
 - [What undo means for an archived row](../../../decisions/2026-09-what-undo-means-for-an-archived-row.md) — the row's Archive control and restore
+- [Task and reflection writes join operation history](../../../decisions/2026-09-row-operation-history.md) — strict task envelopes and commit boundaries
 
 ## Spec sections
 

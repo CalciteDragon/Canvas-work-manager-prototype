@@ -15,8 +15,8 @@ with no socket open (§60).
 
 - Define each tool once, with the input schema the host publishes in `tools/list` and
   validates on `tools/call`.
-- Declare each tool's permission (and, for the combined reads, the additional grants it
-  needs) as metadata — while the domain, not the registry, enforces it.
+- Declare each tool's static permission, combined-read grants, or history-family grant map as
+  metadata — while the domain, not the registry, enforces it.
 - Call domain services and nothing else: no repository, no unit of work, no clock.
 - Map domain errors to tool-level failures a client can read, including the exact
   missing-grant message.

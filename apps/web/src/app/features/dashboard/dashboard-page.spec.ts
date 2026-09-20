@@ -188,6 +188,13 @@ describe('DashboardPage — Recent Agent Activity (§24, §57)', () => {
     entityType: 'task',
     entityId: 'task-1',
     projectId: 'project-1',
+    context: {
+      targetKind: 'task',
+      targetId: 'task-1',
+      targetLabel: 'Configure deployment',
+      projectId: 'project-1',
+      rootProjectId: 'project-1',
+    },
     summary: 'Completed "Configure deployment"',
     createdAt: '2026-08-24T15:32:00.000Z',
     actorName: 'Claude',

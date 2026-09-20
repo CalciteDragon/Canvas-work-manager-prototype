@@ -30,6 +30,9 @@ const api = async <T>(method: string, path: string, body?: unknown): Promise<T> 
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 };
 
+const addTask = async (body: Record<string, unknown>): Promise<{ id: string }> =>
+  (await api<{ task: { id: string } }>('POST', '/api/tasks', body)).task;
+
 interface Row {
   kind: 'task' | 'subproject';
   task?: { id: string; title: string; status: string; dueAt?: string };
@@ -82,11 +85,11 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
     targetDate: '2026-09-25',
   });
 
-  await api('POST', '/api/tasks', { projectId: root.id, sectionId: containerA.id, title: 'Later', dueAt: '2026-09-20T09:00:00.000Z' });
-  const undated = await api<{ id: string }>('POST', '/api/tasks', { projectId: root.id, sectionId: containerB.id, title: 'Undated' });
-  await api('POST', '/api/tasks', { projectId: root.id, sectionId: containerA.id, title: 'Earliest', dueAt: '2026-09-16T09:00:00.000Z' });
+  await addTask({ projectId: root.id, sectionId: containerA.id, title: 'Later', dueAt: '2026-09-20T09:00:00.000Z' });
+  const undated = await addTask({ projectId: root.id, sectionId: containerB.id, title: 'Undated' });
+  await addTask({ projectId: root.id, sectionId: containerA.id, title: 'Earliest', dueAt: '2026-09-16T09:00:00.000Z' });
   // The same instant as Kitchen's date-only due date, so the kind tie-break is exercised.
-  await api('POST', '/api/tasks', { projectId: kitchen.id, title: 'Nested at end of day', dueAt: '2026-09-18T23:59:59.999Z' });
+  await addTask({ projectId: kitchen.id, title: 'Nested at end of day', dueAt: '2026-09-18T23:59:59.999Z' });
   const kitchenSection = (await api<{ id: string }[]>('GET', `/api/projects/${kitchen.id}/sections`))[0]!;
 
   // Collapsed on purpose: a link has to be able to open the container it points at.

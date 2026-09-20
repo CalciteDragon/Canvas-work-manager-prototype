@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { TaskSchema, type LiveEvent, type TaskId } from '@cwm/contracts';
+import { TaskWriteResultSchema, type LiveEvent, type TaskId } from '@cwm/contracts';
 import type { ActorContext } from '@cwm/domain';
 import { createToolRegistry } from '@cwm/mcp-tools';
 import { buildSeed } from '@cwm/prototype-data';
@@ -71,7 +71,7 @@ describe('live updates through the host (§62)', () => {
     const result = await persona(routes, 'POST', `/api/tasks/${OPEN_TASK}/complete`);
 
     expect(result.status).toBe(200);
-    expect(TaskSchema.parse(result.body).status).toBe('done');
+    expect(TaskWriteResultSchema.parse(result.body).task.status).toBe('done');
     expect(frames).toHaveLength(1);
     expect(frames[0]?.event).toEqual({
       type: 'task.completed',
@@ -353,5 +353,106 @@ describe('live updates through the host (§62)', () => {
         expect(delivered).toEqual([expect.objectContaining({ durableMatchesMemory: true, actions: 1 })]);
       },
     );
+  });
+
+  /** Slice 36: compound row writes have the same unit-of-work and post-commit frame guarantees. */
+  describe('compound row Add: forward, Undo and Redo are atomic', () => {
+    type RowFamily = 'task' | 'reflection';
+    type Harness = Awaited<ReturnType<typeof harness>>;
+    const rowFamilies: readonly RowFamily[] = ['task', 'reflection'];
+    const canonical = (document: ReturnType<Harness['persistence']['store']['snapshot']>) => ({
+      sections: document.sections,
+      tasks: document.tasks,
+      reflections: document.reflections,
+      activityEvents: document.activityEvents,
+      operationHistories: document.operationHistories,
+      operationActions: document.operationActions,
+    });
+    const prepare = async (family: RowFamily) => {
+      const host = await harness();
+      const projectResponse = await persona(host.routes, 'POST', '/api/projects', {
+        workspaceId: 'workspace-demo', kind: 'root', name: `Atomic ${family}`,
+      });
+      expect(projectResponse.status).toBe(201);
+      const projectId = (projectResponse.body as { id: string }).id;
+      const delivered: string[] = [];
+      host.events.subscribe((event) => delivered.push(event.type));
+      const forward = () => family === 'task'
+        ? persona(host.routes, 'POST', '/api/tasks', { projectId, title: 'Atomic task' })
+        : persona(host.routes, 'POST', '/api/reflections', { projectId, body: 'Atomic reflection' });
+      return { host, delivered, forward };
+    };
+
+    it.each(rowFamilies)('%s Add publishes only after forward, Undo and Redo commit', async (family) => {
+      const { host, delivered, forward } = await prepare(family);
+      const result = await forward();
+      expect(result.status).toBe(201);
+      const receipt = receiptOf(result.body)!;
+      expect(delivered).toHaveLength(1);
+      expect(readFileSync(host.persistence.path, 'utf8')).toContain(receipt.actionId);
+
+      expect((await step(host.routes, receipt, 'undo', receipt.revision)).status).toBe(200);
+      expect(delivered).toHaveLength(2);
+      expect(host.persistence.store.snapshot().operationActions.at(-1)?.state).toBe('undone');
+
+      expect((await step(host.routes, receipt, 'redo', receipt.revision + 1)).status).toBe(200);
+      expect(delivered).toHaveLength(3);
+      expect(host.persistence.store.snapshot().operationActions.at(-1)?.state).toBe('applied');
+    });
+
+    it.each(rowFamilies.flatMap((family) => [
+      [family, 'action insert'], [family, 'activity insert'], [family, 'persistence'],
+    ] as const))('%s Add rolls back a failed %s with no frame', async (family, fault) => {
+      const { host, delivered, forward } = await prepare(family);
+      const before = canonical(host.persistence.store.snapshot());
+      const bytes = readFileSync(host.persistence.path, 'utf8');
+      const insertAction = host.persistence.operationActions.insert;
+      const insertActivity = host.persistence.activities.insert;
+      const persist = host.persistence.store.persist;
+      if (fault === 'action insert') host.persistence.operationActions.insert = async () => { throw new Error('action insert failed'); };
+      if (fault === 'activity insert') host.persistence.activities.insert = async () => { throw new Error('activity insert failed'); };
+      if (fault === 'persistence') host.persistence.store.persist = async () => { throw new Error('disk full'); };
+
+      expect((await forward()).status).toBe(500);
+      expect(delivered).toEqual([]);
+      expect(canonical(host.persistence.store.snapshot())).toEqual(before);
+      expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
+
+      host.persistence.operationActions.insert = insertAction;
+      host.persistence.activities.insert = insertActivity;
+      host.persistence.store.persist = persist;
+    });
+
+    it.each(rowFamilies.flatMap((family) => [
+      [family, 'undo', 'activity insert'], [family, 'undo', 'action update'], [family, 'undo', 'persistence'],
+      [family, 'redo', 'activity insert'], [family, 'redo', 'action update'], [family, 'redo', 'persistence'],
+    ] as const))('%s %s rolls back a failed %s with no frame', async (family, direction, fault) => {
+      const { host, delivered, forward } = await prepare(family);
+      const result = await forward();
+      const receipt = receiptOf(result.body)!;
+      let revision = receipt.revision;
+      if (direction === 'redo') {
+        expect((await step(host.routes, receipt, 'undo', revision)).status).toBe(200);
+        revision += 1;
+      }
+      delivered.length = 0;
+      const before = canonical(host.persistence.store.snapshot());
+      const bytes = readFileSync(host.persistence.path, 'utf8');
+      const insertActivity = host.persistence.activities.insert;
+      const updateAction = host.persistence.operationActions.update;
+      const persist = host.persistence.store.persist;
+      if (fault === 'activity insert') host.persistence.activities.insert = async () => { throw new Error('activity insert failed'); };
+      else if (fault === 'action update') host.persistence.operationActions.update = async () => { throw new Error('action update failed'); };
+      else host.persistence.store.persist = async () => { throw new Error('disk full'); };
+
+      expect((await step(host.routes, receipt, direction, revision)).status).toBe(500);
+      expect(delivered).toEqual([]);
+      expect(canonical(host.persistence.store.snapshot())).toEqual(before);
+      expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
+
+      host.persistence.activities.insert = insertActivity;
+      host.persistence.operationActions.update = updateAction;
+      host.persistence.store.persist = persist;
+    });
   });
 });

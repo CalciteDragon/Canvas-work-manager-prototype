@@ -90,3 +90,11 @@ brought it to 1.003 MB. The rest came from `@cwm/contracts` having no `sideEffec
 so the bundler kept every schema module the web app never uses (the stored inverse schemas among
 them). The package only declares Zod schemas and pure helpers, so it now declares
 `"sideEffects": false`; the final Slice 32 build measured 994.14 kB, with no budget changed.
+
+**Amended, 2026-09-18 — Slice 36 raised only the hard ceiling.** Stage B's row-history contracts
+and browser consumers measured 1.01 MB after the existing route and conditional-component splits.
+The warning remains 850 kB and therefore stays visible; `maximumError` moves from 1 MB to 1050 kB,
+about 43 kB above the measured bundle. This is a deliberate exception to the earlier “dev-panel
+lever first” direction: lazy-loading the global panel changes §46's every-route chord and is outside
+this history slice, while moving both thresholds would hide the growth. The next increase still
+requires structural work and a new decision rather than another number bump.

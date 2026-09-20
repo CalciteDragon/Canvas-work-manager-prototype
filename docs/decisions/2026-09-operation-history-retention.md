@@ -58,3 +58,10 @@ a long working session.
 
 A person hits the 50-action cap in one session, or Stage B's text edits make "one write" too fine a
 step (the editor-commit question the Slice 35 plan leaves for Stage B).
+
+**Amended, 2026-09-18 — Slice 36.** The cursor, branch, revision, 24-hour and 50-action rules now
+apply to task and reflection families too. One committed row create, update, completion, archive or
+restore is one action; a compound create includes its implicit container rather than recording a
+second action. A no-op still records nothing. A successful row Archive Restore is itself a new
+action, so it clears any redo branch even though invoking Restore remains receipt-free and durable
+([decision](2026-09-row-operation-history.md)).

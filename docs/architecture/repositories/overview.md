@@ -21,7 +21,11 @@ boundaries. Storage "is JSON" only in this package.
 - Validate the document as a whole on load and on every commit
   (`validateDocumentIntegrity`): schema, duplicate ids, dangling references, workspace
   scope, the ownership invariants the archive phase added, and operation histories' scope and
-  ordering (never their payloads' references).
+  ordering (never their payloads' references). Activity identity is also checked: a removed
+  task/reflection target is valid only with complete matching captured context and canonical
+  owning project/root records.
+- Provide the narrow task/reflection removal seams used after row-add Undo has preflighted every
+  canonical dependent; Activity is historical evidence and does not block that removal.
 - Persist with temp-file-and-rename so a crash cannot leave a truncated file.
 - Swap the whole document from inside a unit of work, which is how the development
   panel loads a seed without a restart.
