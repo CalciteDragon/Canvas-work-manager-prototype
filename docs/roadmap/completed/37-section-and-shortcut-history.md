@@ -1,11 +1,12 @@
-<!-- plan id="37" status="active" summary="Plan for reversible section duplication, durable section Restore and Home shortcut placement writes" -->
+<!-- completed-record id="37" closed="2026-09-21" summary="Section duplication, durable section Restore and the four Home shortcut placement writes reverse and replay in the exact actor's owning-project history" -->
 # Slice 37 — Section and shortcut operation history (Slice 34 Stage C1)
 
-**Planning only — 2026-09-20.** Implementation has not started. This active file follows
-AGENTS.md steps 1–2; the requested deliverable is a reviewed implementation plan.
+**Implemented and closed — 2026-09-21.** Planned on 2026-09-20 and built against that plan;
+the **Outcome** at the end of this file is the record of what shipped.
 [Slice 34](../planned/34-undo-redo-and-archive.md) is the parent direction, not a phase to
 implement wholesale. [Stage A](../completed/35-operation-history-foundation.md) and
-[Stage B](../completed/36-task-and-reflection-history.md) have shipped.
+[Stage B](../completed/36-task-and-reflection-history.md) shipped before it; Stage C's remaining
+obligations are named under **Phase boundary** below and are *not* closed by this slice.
 
 ## Goal
 
@@ -395,5 +396,101 @@ Three review passes completed, with no substantive findings outstanding. `node
 scripts/roadmap.mjs check`, `pnpm docs:check` (18 system folders, 211 documents) and
 `git diff --check` passed. Only this plan, the direction link in goals.md and the generated
 progress.md board changed. No application code, runtime tests or actual-use acceptance ran;
-those belong to implementation. Leave this plan active and do not mark Slice 37 or Stage C
-complete until its implementation and acceptance are finished.
+those belong to implementation.
+
+## Outcome
+
+**Deliverables.** The three canvas operations that were still irreversible now reverse and
+replay through the existing per-actor history, with no new transition route, no new tool and no
+schema version change.
+
+- **Duplication** records the `section.add` its copy actually is
+  ([`section-service.ts`](../../../packages/domain/src/section-service.ts)). Redo replays the
+  captured copy, so a source that has since changed or gone cannot affect it, and duplication
+  still copies configuration and layout and no rows.
+- **Archive Restore** records a new `section.restore` family — its own payload
+  ([contracts](../../../packages/contracts/src/section-restore-history.ts)) and its own inverse
+  ([domain](../../../packages/domain/src/section-restore-history.ts)) — while staying durable:
+  no receipt is needed to invoke it, it survives every expiry, and a repeat on a live section
+  writes nothing and answers `operation: null`. Undo re-archives at the captured marker,
+  generation and stored position and takes back down exactly the rows the Restore revived.
+- **The four Home shortcut placement writes** record `shortcut.add/update/move/remove`
+  ([contracts](../../../packages/contracts/src/shortcut-history.ts),
+  [domain](../../../packages/domain/src/shortcut-history.ts)) in the **destination** root
+  project's history. `shortcut` is a fourth operation family sharing `projects.write`, published
+  by both history tools' family map.
+
+Public surfaces moved with them: duplicate answers `SectionAddResult`, Restore
+`SectionWriteResult`, shortcut create/update/move `{ shortcut, operation }`, and
+`DELETE /api/shortcuts/:id` answers **200** with `{ shortcutId, projectId, pageId, operation }`
+instead of 204 — a body-less status cannot carry a receipt, and no API route answers 204 any more.
+
+**Deliberate choices**, all recorded in
+[the decision entry](../../decisions/2026-09-section-restore-and-shortcut-history.md). Duplication
+is not its own operation kind: a `section.duplicate` inverse would do what the add inverse already
+does, and its Redo would be tempted to re-run duplication rather than replay the copy. Recording
+Restore costs it none of its durability, which is what made the Stage A deferral safe to close. A
+placement action belongs to the canvas it sits on, so the payload names the destination project and
+nothing of the source — which is also why a source **content** edit is not a placement conflict,
+while a source that has gone, left the root tree or moved onto the destination page is. Recovering
+a reference onto an archived or hidden source is allowed and produces the existing unavailable
+placeholder rather than unarchiving anything.
+
+**Deviations from the plan.** Three, all found by reading the code rather than reasoning about it.
+Two were caught in planning review and are implemented as the plan required: `generationFloor` now
+counts retained `section.restore` generations, and ordinary Restore renumbers the combined order
+before capturing its placement. The third was not in the plan at all —
+`SectionShortcutService.move` renumbered the page *before* discovering nothing had moved, which
+normalized a hand-edited sparse page on a clamped no-op and stamped the subject; it now compares
+the combined index first, as `SectionService.move` already did.
+
+One rule genuinely narrowed. An Archive Restore used to **retire** the removal beneath it. A
+Restore the same actor made now sits above that removal in their own stack, so the removal is
+`history_not_next` and undoing the Restore reaches it; a Restore by someone else still retires it.
+Two existing tests asserted the old behaviour and were changed, not worked around
+([amendment](../../decisions/2026-09-operation-history-retired-actions.md)).
+
+The closing review found two real defects in the Restore executor, each fixed with a regression in
+`section-restore-history.test.ts`: a recorded row somebody had **moved** was reported as `missing`
+with `nothing-to-restore` rather than `moved` with `move-back-and-retry`, because recorded rows were
+looked up in the section's own contents instead of project-wide; and a Restore whose section a later
+disposable removal **deleted** refused `history_conflict` forever, wedging every action beneath it
+for 24 hours, where it should retire. It also found nine stale documentation statements the feature
+commits left behind, and one spec sentence that overclaimed — recreating a placement does *read* its
+source, because §27's same-tree rules must hold before a reference may exist again.
+
+**Deferred.** Everything the plan's *Do not* list named, unchanged: project and page lifecycle
+history, project creation recovery, saved project layout/progress history, persistent Undo/Redo
+header controls, receipt-reporting infrastructure, the persisted transition retry cache,
+cascade-only removal, Delete styling, Settings and restorable-only Archive projection. No MCP tool
+was added, so the registry still holds thirty-seven: duplication and shortcut resize, collapse and
+move remain HTTP-and-domain operations. The browser's Undo notice deliberately does **not** offer
+shortcut or Restore receipts — that waits for the header controls.
+
+**Open questions.** Actual use raised two, recorded under slice 37 in `.prototype/notes.json`.
+Placement labels are generic ('Updated a shortcut') where section labels name their subject
+('Restored the Rich Text section'); on a Home page with four placements a header control could not
+say which one it meant, so the label should name the source. And removing a section shows the canvas
+Undo notice while removing the shortcut directly beneath it shows nothing — the deliberate Stage C
+boundary, but visible in the product now, and an argument for the header controls landing before any
+further families are recorded. The broader Stage C obligations named under **Phase boundary** remain
+open work, not gates this slice failed.
+
+**Documentation updated.** Spec §§27, 31, 32, 54, 57 and 61–63; `AGENTS.md`'s boundary list; the new
+decision entry plus dated amendments to
+[retired actions](../../decisions/2026-09-operation-history-retired-actions.md),
+[section edit boundaries](../../decisions/2026-09-section-edit-undo-boundaries.md),
+[what undo means for an archived row](../../decisions/2026-09-what-undo-means-for-an-archived-row.md),
+[operation family permissions](../../decisions/2026-09-operation-family-permissions.md) and
+[a shortcut resolves identity](../../decisions/2026-09-a-shortcut-resolves-identity-not-content.md);
+the architecture tree's `overview.md` plus the contracts, domain, repositories, mcp-tools,
+prototype-host api / mcp-transport / live-updates, web core, web projects and testing folders; and
+both guides.
+
+**Verified**, each command by its own exit code: `pnpm test` (2356 unit tests plus 9 doc-script
+tests), `pnpm lint`, `pnpm build`, `pnpm docs:check` (18 system folders, 212 documents),
+`git diff --check`, all four host acceptance scripts — `acceptance`, `mcp-acceptance` over both
+transports, `agent-acceptance`, `live-acceptance` — and `pnpm e2e` (39). The feature was also used
+by hand against an isolated copy of `nested-projects`; the developer's own `.prototype/data.json`
+was deliberately not touched, since it is still at schema version 4 and starting the host against
+it would have required a reset or conversion.

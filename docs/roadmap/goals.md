@@ -65,14 +65,18 @@ decision gates and acceptance evidence. **Stage A shipped as
 section, task and reflection writes now undo *and redo* through a per-actor, per-project operation
 history over HTTP and both MCP transports. Task/reflection writes return their row plus a receipt;
 transitions require the stored action family's one write grant. Activity keeps captured row identity
-after Undo Add, and the document is schema version 5 with an explicit v4 conversion. The browser
-still offers only its transient section Undo notice; header controls and Stages C–E remain
-unimplemented. **The next bounded phase is
-[Slice 37 — Stage C1](active/37-section-and-shortcut-history.md)**: a planning-only active slice
-for section duplication, section Restore and Home shortcut operation history. Project/page
-lifecycle, saved project layout/progress, persistent header controls and the retry cache remain
-later Stage C work; the active plan preserves those obligations. The paragraphs below describe
-the earlier shipped system and its choices. Keep one active phase.
+after Undo Add, and the document is schema version 5 with an explicit v4 conversion. **Stage C's first
+bounded phase shipped as [Slice 37](completed/37-section-and-shortcut-history.md)**: section
+duplication records the add its copy is, Archive Restore records a `section.restore` of its own
+while staying durable — no receipt to invoke, no expiry — and the four Home shortcut placement
+writes record a fourth `shortcut` family in the **destination** root's history. The browser
+still offers only its transient section Undo notice, which deliberately does not carry shortcut
+or Restore receipts. **Stage C is not finished.** Project and page lifecycle, project creation
+recovery, saved project layout/progress, persistent Undo/Redo header controls, receipt reporting
+and the deferred transition retry cache are still open, and Stages D–E follow usable broad
+Undo/Redo; creation Undo must ship with its authorized recovery route rather than an unreachable
+Redo. Split those into bounded candidates before implementing and keep one active phase. The
+paragraphs below describe the earlier shipped system and its choices.
 
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported
 [proposed specification](../specifications/README.md), and a development plan on 2026-09-13.
