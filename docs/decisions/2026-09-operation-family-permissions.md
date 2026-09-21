@@ -43,3 +43,12 @@ write-only connection and with the required grant removed.
 **Revisit when**
 
 A fourth operation family enters history, or MCP standardizes conditional permission metadata.
+
+
+**Amended, 2026-09-20 — Slice 37.** A fourth family, `shortcut`, joins the map and needs
+`projects.write` — the same grant `section` needs. It is named separately rather than folded into
+`section` because the families are the vocabulary discovery publishes and the stored stack is
+asserted against; sharing a value today should not make a later split a breaking change. Because two
+families can now name one grant, the coverage helper that answers "every grant this tool can
+require" de-duplicates, so `tools/list` never says a caller needs one grant twice
+([decision](2026-09-section-restore-and-shortcut-history.md)).

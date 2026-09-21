@@ -23,9 +23,11 @@ service through an acyclic edge. They never know about HTTP, MCP, JSON or seeds.
   archived-ancestor rule; reflection subjects.
 - **Activity.** One `ActivityEvent` per state-changing operation, with the actor, through
   `ActivityService.record` — which is also where a live frame is published, after commit.
-- **Undo and Redo.** Section add, move, settings and removal, plus task and reflection create, update, archive and restore, record
-  one action into the acting actor's per-project operation history through `OperationRecorder`, in
-  their caller-owned unit, and return an operation receipt. `OperationHistoryService` reads the
+- **Undo and Redo.** Section add (duplication included), move, settings, removal and Archive
+  Restore; task and reflection create, update, archive and restore; and the four Home shortcut
+  placement writes each record one action into the acting actor's per-project operation history
+  through `OperationRecorder`, in their caller-owned unit, and return an operation receipt. A
+  placement's action belongs to the **destination** root project, never the source sub-project. `OperationHistoryService` reads the
   caller's summary and runs the next action in either direction — applied-state conflict checks,
   combined-neighbour placement, verbatim reapply, typed refusals and retirement of permanently
   unsatisfiable actions — never overwriting later writes. `operation-history.ts` is the pure

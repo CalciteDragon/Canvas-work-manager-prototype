@@ -101,6 +101,7 @@ unknown-tool response.
 - [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../decisions/2026-09-history-stage-a-deferrals.md) — `undo_operation`/`redo_operation` inputs, one transition route; their grants became family-derived in Slice 36
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md)
 - [Undo and Redo require their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md)
+- [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `restore_section` and the shortcut tools' envelopes, and the fourth family in both history tools' map
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — safe deletion and exact-actor recovery after a lost response
 
 ## Spec sections

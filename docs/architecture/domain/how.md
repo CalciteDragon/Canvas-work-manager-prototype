@@ -12,13 +12,16 @@
    `LivePublication` to the `LiveEventPublisher` — held by the store until commit.
 4. On commit the store validates the whole document and persists it; on any throw the
    provisional state is discarded and the caller sees one of the three errors.
-5. A supported section, task or reflection write applies its normalized change, records one typed
+5. A supported section, task, reflection or Home shortcut write applies its normalized change, records one typed
    action through `OperationRecorder.record`, and returns a receipt from the same unit; automatic
    container resolution joins the row action instead of recording a separate section action. The recorder finds or creates the actor's history
    for the subject's project, appends the action (discarding the redo branch), prunes by expiry and
    the 50-action cap, and returns the receipt at the new revision. Removal additionally settles rows,
    bumps `archiveGeneration` and decides whether recovery or an integrity reference requires
-   retention. Receipts never carry payload data. `OperationHistoryService.transition` later runs one
+   retention; Archive Restore renumbers the combined order before capturing its appended placement,
+   so a hand-edited sparse page still appends, and leaves `archiveGeneration` alone. A move — of a
+   section or of a placement — compares the combined index before writing, so a clamped no-op
+   normalizes nothing and records nothing. Receipts never carry payload data. `OperationHistoryService.transition` later runs one
    step in one unit of its own: find the caller's history (not found otherwise), compare the
    stored action family grant before disclosing revision or conflicts, select the next action in that direction, check expiry and archived ancestors, run the
    family's revert or reapply function (conflicts collected before any write), flip the action's
@@ -100,13 +103,20 @@
   `OperationHistoryService` composes only `ActivityService` — no section, task or reflection
   service — and shares the payloads with section writes through function modules
   (`operation-execution.ts`, `owned-rows.ts`, `section-removal-undo.ts`, `section-edit-undo.ts`,
-  `task-history.ts`, `reflection-history.ts`, `page-placements.ts`, `project-visibility.ts`). A new edge is an AGENTS.md boundary change
-  and needs saying so.
+  `section-restore-history.ts`, `shortcut-history.ts`, `task-history.ts`, `reflection-history.ts`,
+  `page-placements.ts`, `project-visibility.ts`). `SectionShortcutService` holds an
+  `OperationRecorder` for the same reason `SectionService` does, and `shortcut-history.ts` declares
+  its own narrower repository type — no task or reflection repository — so a reviewer can see from
+  the signature that a placement inverse cannot reach a row. A new edge is an AGENTS.md boundary
+  change and needs saying so.
 - **Neither direction overwrites a later write.** Each executor compares the state the *other*
   direction left: a removal's section archive state, page and `archiveGeneration`, each recorded
   row's section, parent and archive markers, and unrecorded dependents; an update's recorded fields
   (`after` for Undo, `before` for Redo); a move's surviving recorded neighbours, never its index; an
-  add's substance and references. Any difference refuses with `history_conflict` before a write,
+  add's substance and references; a Restore's archived marker, generation and recorded rows, plus
+  any live row Undo would hide or newly marked row Redo would absorb; a placement's page, source and
+  substantive fields, with a source **content** edit deliberately not a conflict. Any difference
+  refuses with `history_conflict` before a write,
   and untouched fields and disjoint edits survive. Only the next action is ever executable, so a
   caller's own later change is `history_not_next`, not a conflict. Redo replays captured values
   verbatim and stamps only `updatedAt`. The permanently unsatisfiable conflicts retire the action

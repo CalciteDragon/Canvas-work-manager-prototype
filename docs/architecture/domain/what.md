@@ -27,7 +27,7 @@ flowchart TB
   subgraph undoable["History seam"]
     recorder["operation-recorder.ts<br/>OperationRecorder, RepositoryOperationRecorder"]
     machine["operation-history.ts<br/>pure cursor state machine"]
-    inverse["section-removal-undo.ts, section-edit-undo.ts, task-history.ts, reflection-history.ts, owned-rows.ts<br/>capture, revert and reapply functions"]
+    inverse["section-removal-undo.ts, section-edit-undo.ts, section-restore-history.ts, shortcut-history.ts, task-history.ts, reflection-history.ts, owned-rows.ts<br/>capture, revert and reapply functions"]
   end
   subgraph readers["Derived read services"]
     dashboard[DashboardService]
@@ -112,11 +112,12 @@ sequenceDiagram
 | Cursor state machine, `OPERATION_HISTORY_LIMIT` | `src/operation-history.ts` | Pure next-action selection, record, transition, retire and contiguous pruning; 50 actions per history |
 | `OperationHistoryService` | `src/operation-history-service.ts` | Caller-scoped summary and one transition per call, with typed refusals and retirement |
 | Execution seam | `src/operation-execution.ts` | `OperationExecutionRefused`, the permanent flag, `generationFloor` |
-| Section capture, revert and reapply | `src/section-removal-undo.ts`, `src/section-edit-undo.ts`, `src/owned-rows.ts` | Package-internal section footprints, applied-state conflict collection and both directions |
+| Section capture, revert and reapply | `src/section-removal-undo.ts`, `src/section-edit-undo.ts`, `src/section-restore-history.ts`, `src/owned-rows.ts` | Package-internal section footprints, applied-state conflict collection and both directions |
+| Placement capture, revert and reapply | `src/shortcut-history.ts` | The four Home shortcut inverses, over a repository type with no row access in it |
 | Task capture, revert and reapply | `src/task-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including subtree and implicit-container effects |
 | Reflection capture, revert and reapply | `src/reflection-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including historical subjects and implicit containers |
 | `snapshotPlacement`, `resolveRestoreIndex`, `findHighestWriteBlocker` | `src/page-placements.ts`, `src/project-visibility.ts` | Neighbour snapshot and restore index; the highest archived project blocking a write |
-| `SectionShortcutService` | `src/section-shortcut-service.ts` | Home placements; identity and availability, never content |
+| `SectionShortcutService` | `src/section-shortcut-service.ts` | Home placements; identity and availability, never content; records each placement write in the destination project |
 | `TaskService` | `src/task-service.ts` | Create, update, complete, archive (cascading to subtasks), restore, move within a project |
 | `ReflectionService` | `src/reflection-service.ts` | Write, edit, archive, restore; optional subject |
 | `AgentConnectionService` | `src/agent-connection-service.ts` | Permissions and revocation — user actors only; throttled `lastUsedAt` |

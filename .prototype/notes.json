@@ -833,6 +833,14 @@
       "projectId": "project-85496b6d",
       "slice": 36,
       "note": "Slice 36 real use on the isolated agent-heavy history fixture: Escape discarded an inline title draft, Enter committed exactly the visible replacement, and the dashboard stayed live. The historical agent lines then resolved the task's current title ('Manual Slice 36 check') for its earlier Created / addition-undone / addition-redone events. That is the intended current-name-first policy with captured identity as fallback, but a rename makes old event copy read as though the agent originally created the new title; Stage C's history UI may need to distinguish the action-time label from the current row label. HTTP and both MCP transports had already completed the row Undo/Redo chains in acceptance."
+    },
+    {
+      "id": "note-2026-09-20-001",
+      "createdAt": "2026-09-21T06:29:00.000Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 37,
+      "note": "Slice 37 real use on an isolated nested-projects copy: collapsing a Home shortcut, removing it, removing a Rich Text section and restoring it from Archive each recorded exactly one action, and both open surfaces reconciled without a reload when the transitions ran through the history route. Two pieces of friction, both about naming and affordance rather than behaviour. (1) Placement labels are generic — 'Updated a shortcut', 'Moved a shortcut', 'Removed a shortcut' — while section labels name their subject ('Restored the Rich Text section'). On a Home page holding four placements a header control would say 'Updated a shortcut' and leave the person to guess which; the label should name the source, e.g. 'Collapsed the shortcut to Task List'. (2) Removing a section shows the canvas Undo notice and removing the shortcut directly beneath it shows nothing, so two adjacent frames offer different recovery in the same gesture. That is the deliberate Stage C boundary — the notice is section-only until the header controls exist — but it is visible in the product now, and it is an argument for the header controls landing before any more families are recorded."
     }
   ]
 }

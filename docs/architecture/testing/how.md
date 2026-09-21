@@ -20,7 +20,10 @@
    `history_revision_stale` with a summary showing it landed, and that Redo and Undo repeat it;
    since Slice 35 it also runs Stage A's A → B → Undo → Undo → Redo → Redo chain on one title with
    `GET /api/projects/:id/history` as the observer, and branch invalidation (a no-op and a refusal
-   keep Redo; a new write discards it from the file). `mcp-acceptance` grants `projects.write` to
+   keep Redo; a new write discards it from the file). Slice 37 adds a duplicate/Restore/placement
+   chain: the copy's identity through Undo and Redo, a Restore receipt and its null-receipt retry,
+   and a shortcut added, collapsed, moved and removed then stepped back and forward — with the
+   no-op update and no-op move proving they record nothing. `mcp-acceptance` grants `projects.write` to
    the token's connection **in its copied temp files** (the seed is unchanged), cascades the middle
    `agent-heavy` task list away with `remove_section`, restores it with `undo_operation` over both
    transports, and checks the file. Slice 31 extends both: HTTP and MCP acceptance delete a
@@ -129,6 +132,11 @@ pnpm storybook                                        # :6006
   add/update/move Undo, disjoint and overlapping agent edits over MCP, canvas contextual add,
   rename, Rich Text blur save, collapse, keyboard resize and keyboard move Undo with reload, and
   the Reflections-page container add, Undo and refusal once a reflection is authored.
+- **Duplication, Restore and placement history** live in `canvas-history.spec.ts`: a shortcut
+  added, collapsed and removed through the real canvas controls, reversed and replayed through the
+  same user's history endpoint with a second tab watching; an Archive Restore that records its own
+  action, is undone back into Archive and redone, with the removal beneath it still its own step;
+  and duplication, which stays an HTTP action because the frame has no Duplicate control yet.
 - **Integrated recovery acceptance (Slice 33)** is a matrix, not one journey. The Refactor §26
   ledger in [the Slice 33 record](../../roadmap/completed/33-recovery-undo-integrated-acceptance.md)
   names each assertion. To rerun the failure and reopen evidence: `recovery-undo-acceptance.test.ts`

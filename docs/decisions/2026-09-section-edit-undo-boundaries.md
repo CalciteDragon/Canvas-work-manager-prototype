@@ -132,3 +132,10 @@ for good" rule is **withdrawn**: the server now retires the permanently unsatisf
 the notice, while a conflict over something `missing` has become repairable — another actor's Undo
 can bring a deleted section back with the same id — so the browser keeps Undo sendable after every
 other refusal rather than second-guessing the server.
+
+
+**Amended, 2026-09-20 — Slice 37.** Duplication joins the explicit edits, recorded as the
+`section.add` it is: the payload captures the stored copy after renumbering, so Redo replays that
+copy rather than duplicating a source that may have changed or gone since. No `section.duplicate`
+kind exists, and duplication still copies no rows
+([decision](2026-09-section-restore-and-shortcut-history.md)).

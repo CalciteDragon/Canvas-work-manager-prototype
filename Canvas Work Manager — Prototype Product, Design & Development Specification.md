@@ -1342,7 +1342,10 @@ same page-local receipt surface. A completed contextual add records `section.add
 move records `section.move` against the page's combined section/shortcut order; and title,
 config, collapse and column-span changes record `section.update` with only the changed fields.
 Normalized no-ops, cancelled edits, a move clamped to its current position and implicit
-row-container creation record nothing. Since Slice 35 the receipt names its history and carries
+row-container creation record nothing. *Since Slice 37* duplication records the `section.add` it
+is, capturing the copy that was actually made: Redo replays that copy rather than duplicating a
+source that may have changed or gone since. Duplication still copies configuration and layout and
+**no rows**. Since Slice 35 the receipt names its history and carries
 that history's `revision`, so a page keeps the newest committed operation when concurrent responses
 arrive; the notice's Archive action remains removal-only, and it stays Undo-only — persistent
 Undo/Redo header controls are planned for a later stage of
@@ -1382,6 +1385,17 @@ editing is worth the ambiguity of two live views of one section is a question fo
 not an assumption to build in now.
 
 The control that creates one is labelled **Add shortcut**.
+
+*Landed in Slice 37.* Every placement write is undoable. Adding, resizing, collapsing, moving and
+removing a shortcut each return an operation receipt and record one action in the **destination**
+root project's history, never the source sub-project's — a placement belongs to the canvas it sits
+on. A same-value resize or collapse, and a move to the position the placement already holds, write
+nothing and carry no receipt. Undo and Redo of any of them touch the placement only: the source
+section, its configuration and its rows are never read or written, so an edit to the source is
+never a conflict for a placement action. Recreating a placement returns the same id pointing at the
+same source, including when that source has since been archived or hidden — it comes back as the
+existing unavailable placeholder, which is recovery of the reference rather than a second Add
+([why](docs/decisions/2026-09-section-restore-and-shortcut-history.md)).*
 
 *Landed in Slice 25.4. Home stores sections and shortcut placements in one combined order;
 the resolver returns the source section and project/page identity without rows, and the source
@@ -1633,13 +1647,26 @@ actions per history. A transition requires the stored action family's one write 
 transition refuses rather than overwrite a later change (a moved row, a new subtask under a moved
 task, a new row in a section being re-removed), while the project or an ancestor is archived, or
 after the action expired. An action that can never succeed again — the section restored from Archive
-or removed again since — is **retired** so the actions beneath it stay reachable. Archive Restore
-remains the durable path for sections: no receipt, no expiry and appended. Task and reflection
-Restore are ordinary row writes and therefore record new history actions
+by **someone else**, or removed again since — is **retired** so the actions beneath it stay
+reachable. Archive Restore remains the durable path for sections: no receipt is needed to invoke
+it, it never expires, and it appends. *Since Slice 37* a Restore that changes something also
+records an action of its own, so the same actor can take the Restore back before undoing the
+removal beneath it; a repeat on a live section still writes nothing and carries no receipt. Task
+and reflection Restore are ordinary row writes and therefore record new history actions
 ([scope](docs/decisions/2026-09-operation-history-scope.md),
 [retention](docs/decisions/2026-09-operation-history-retention.md),
 [retired actions](docs/decisions/2026-09-operation-history-retired-actions.md),
 [removal footprint](docs/decisions/2026-09-section-removal-undo-records.md)).
+
+*Landed in Slice 37.* Undoing a recorded Restore is **not** the removal: it re-archives the section
+at the marker, generation and stored position the Restore found, and takes back down exactly the
+rows that Restore revived. It never runs removal policy, never deletes the section, never advances
+`archiveGeneration`, and never touches a row that was archived independently beforehand. It refuses
+rather than hide a live row added since, and Redo refuses rather than absorb a row now marked as
+having come down with the section. The first ordinary Restore appends; a Redo returns the section to
+the placement that Restore committed. An action whose section has moved on to a later generation is
+retired, because nothing can bring that generation back
+([why](docs/decisions/2026-09-section-restore-and-shortcut-history.md)).
 
 The browser holds the receipt in the current canvas session and offers **Undo** there; dismissal
 removes the notice, successful Undo replaces it with a result, and the newest successful explicit
@@ -1727,7 +1754,9 @@ visible control can preserve input and report an error rather than losing a fail
 
 The **Archive** page is *not* canvas chrome and stays reachable: it is content. Archive Restore
 remains the durable recovery path for retained content; a receipt-based Undo action is also
-available in the canvas that made the removal. The canvas's **Open Archive** action lets a
+available in the canvas that made the removal. *Since Slice 37* a section Restore is itself one of
+the actor's actions, reversible from the same history — durability and reversibility are not in
+tension, because Restore still needs no receipt to invoke and still survives every expiry. The canvas's **Open Archive** action lets a
 person check saved content without promising that a deleted disposable view will appear there.
 Gating recovery behind Edit Layout Mode would hide it exactly when someone needs it — right
 after a removal they did not mean. The per-row archive control in §34 is likewise a row
@@ -2623,6 +2652,15 @@ chain from receipts and returned summaries without reading history
 ([row history](docs/decisions/2026-09-row-operation-history.md),
 [permission map](docs/decisions/2026-09-operation-family-permissions.md)).*
 
+*Amended in Slice 37:* `restore_section` returns `{ section, operation }`, with `operation: null`
+for a repeat on a live section, and `add_section_shortcut` returns `{ shortcut, operation }` while
+`remove_section_shortcut` returns `{ shortcutId, projectId, pageId, operation }` in place of the
+bare placement and `undefined` it answered before. A fourth operation family, `shortcut`, joins the
+family map both history tools publish; it needs `projects.write`, the same grant `section` does,
+and is named separately so a later split is a value change rather than a breaking one. The registry
+still holds thirty-seven tools: duplication and shortcut resize, collapse and move remain
+HTTP-and-domain operations with no tool of their own ([why](docs/decisions/2026-09-section-restore-and-shortcut-history.md)).*
+
 *The 25.8 HTTP acceptance exercised the combined Todos, Archive and Journal reads with the declared
 grant matrix, including no-partial-result denials and a read-only connection's write refusal. The
 Settings path was also used to remove `tasks.read` from Claude; the denied call named the exact
@@ -2766,6 +2804,12 @@ the project/root scope and task title or reflection label it displayed, so Undo 
 remove the row without erasing the audit entry's identity
 ([decision](docs/decisions/2026-09-historical-activity-identity.md)).*
 
+*Extended in Slice 37:* `project.section_restoration_undone` / `_redone` and
+`project.shortcut_addition_undone` / `_redone`, `project.shortcut_update_undone` / `_redone`,
+`project.shortcut_move_undone` / `_redone` and `project.shortcut_removal_undone` / `_redone`. Each
+targets the **destination project**, exactly as the ordinary `project.shortcut_*` events do, so no
+new missing-target case arises and the same projections refresh for a write and for its reversal.*
+
 ---
 
 # 58. Agent Confirmation Experiments
@@ -2904,6 +2948,14 @@ strict inputs and semantics apply over HTTP and MCP. Repeating a removal remains
 `section_already_removed` details with the exact actor's applied, unexpired removal receipt and no
 new write or event. The API still forwards only contracts, never inverse payloads.*
 
+*Amended in Slice 37:* `POST /api/sections/:id/duplicate` answers the same `{ section, operation }`
+envelope a create does; `POST /api/sections/:id/restore` answers `{ section, operation }`, with
+`operation: null` for a retry on a live section; `POST /api/projects/:projectId/shortcuts`,
+`PATCH /api/shortcuts/:id` and `POST /api/shortcuts/:id/move` answer `{ shortcut, operation }`,
+the last two with `operation: null` for a no-op; and `DELETE /api/shortcuts/:id` answers **200**
+with `{ shortcutId, projectId, pageId, operation }` rather than 204, because a body-less status
+cannot carry a receipt. Route names and inputs are unchanged, and no route answers 204 any more.*
+
 ---
 
 # 62. Live Updates
@@ -2953,6 +3005,11 @@ section-added, section-moved and section-updated actions. Row transitions publis
 re-resolve implicit container existence. No frame carries history payload data,
 and any normalized no-op or repeated-removal refusal emits no frame.*
 
+*Extended in Slice 37:* a duplication, an Archive Restore and each shortcut placement write publish
+one frame apiece, and so does each of their transitions. Placement frames target the **destination
+project**, which is what makes an open Home canvas — in this tab and in another — re-read both its
+combined order and its shortcuts' source identity after a transition it did not make itself.*
+
 ---
 
 # 63. Optimistic UI
@@ -2996,6 +3053,15 @@ the newest committed receipt by its history's revision, blocks Undo while anothe
 in flight, and refreshes authoritative state after Undo. Update Undo restores only its recorded
 fields, move Undo resolves its recorded anchors against the current combined order, and neither
 offers Archive. A reload clears all local operation notices.
+
+*Landed in Slice 37.* Placement writes carry receipts through the gateway, and the canvas unwraps
+them where it already inserted, replaced or optimistically resized a placement: generation guards,
+pending-write counting, the complete-combined-order guard, resize rollback and the read-only refresh
+retry are all unchanged. Archive Restore still reports success when the write committed and only the
+follow-up projection read failed. The Undo notice deliberately does **not** offer shortcut or
+Restore receipts in this phase — persistent Undo/Redo header controls are later Stage C work — and
+the notice's typed stale/not-next handling continues to refuse rather than undo a different action
+when a newer placement write has made an older notice stale.
 
 ---
 

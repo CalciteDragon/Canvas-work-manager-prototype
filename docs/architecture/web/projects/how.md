@@ -28,7 +28,11 @@
    Archive access only for a removal whose result's `archiveListed` says Archive holds it, and a
    read-only refresh retry, including after a committed add or move whose follow-up read failed.
    An Undo response that lands after a newer receipt
-   was captured reconciles without replacing that notice. Undo is a `history.transition` with the
+   was captured reconciles without replacing that notice. Shortcut and Archive Restore receipts are
+   deliberately **not** offered through the notice in this phase — persistent Undo/Redo header
+   controls are later Stage C work — but the store unwraps their envelopes where it inserts,
+   replaces or optimistically resizes a placement, and `undoResultMessage` names every new result
+   kind explicitly so a new union member can never be read as a section with a placement. Undo is a `history.transition` with the
    receipt's `historyId`, `actionId` and `revision`; `undoFailureNotice` maps the seven history
    reasons explicitly — `history_expired`, `history_retired` and not-found are terminal;
    `history_revision_stale` keeps the receipt at the summary's revision when its action is still

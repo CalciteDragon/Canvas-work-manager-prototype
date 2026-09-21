@@ -18,6 +18,12 @@
    `TaskWriteResult`. Reflection create answers `ReflectionAddResult`; update, archive and restore
    answer `ReflectionWriteResult`. Each shape is `{ task|reflection, operation }`: create requires
    the receipt and a normalized no-op carries `operation: null`.
+   `POST /api/sections/:id/duplicate` answers `SectionAddResult`, because duplication records the
+   add it is; `POST /api/sections/:id/restore` answers `SectionWriteResult`, with `operation: null`
+   for a retry on a live section. The three shortcut writes answer
+   `SectionShortcutAddResult` / `SectionShortcutWriteResult`, and `DELETE /api/shortcuts/:id` answers
+   **200** with `SectionShortcutRemovalResult` rather than 204 — a body-less status cannot carry a
+   receipt, and no route answers 204 any more.
    `GET /api/projects/:id/history` answers the caller's `OperationHistorySummary`;
    `POST /api/history/:historyId/transition` parses the strict transition body and answers
    `OperationHistoryTransitionResult`.
@@ -30,7 +36,7 @@
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
-| `createApi` | function | Wire the services, including the `RepositoryOperationRecorder` that section, task and reflection writes record through, and `OperationHistoryService`; returns `HostServices` | [API](../../../api/miscellaneous/variables.html#createApi) |
+| `createApi` | function | Wire the services, including the `RepositoryOperationRecorder` that section, shortcut, task and reflection writes record through, and `OperationHistoryService`; returns `HostServices` | [API](../../../api/miscellaneous/variables.html#createApi) |
 | `HostServices` | interface | Every service plus `authenticator`; what routes and the registry receive | [API](../../../api/interfaces/HostServices.html) |
 | `CreateApiOptions` | interface | `clock` and `ai` overrides — the runtime's instances | [API](../../../api/interfaces/CreateApiOptions.html) |
 | `aiProviderFor` | function | `real` → `RealAIProvider`, anything else → `PrototypeAIProvider` | [API](../../../api/miscellaneous/variables.html#aiProviderFor) |

@@ -83,6 +83,16 @@ Historical reflection subjects may be restored when the subject still exists in 
 without reapplying the stricter eligibility rule for a new assignment
 ([decision](../../decisions/2026-09-row-operation-history.md)).
 
+**A recorded Restore stays durable, and a placement inverse stays out of its source.** Archive
+Restore still needs no receipt and never expires; recording it only means the same actor can take it
+back before undoing the removal beneath it, and a Restore by *someone else* still retires that
+removal. Its inverse writes the captured markers and nothing else, so an independently archived row
+is untouched and `archiveGeneration` never moves. Because retention prunes per history, a surviving
+`section.restore` can be the only record that a section reached a generation, so `generationFloor`
+counts it. A shortcut executor takes a repository type with no rows in it and records into the
+**destination** project, which is where the write happened
+([decision](../../decisions/2026-09-section-restore-and-shortcut-history.md)).
+
 **Activity audit outlives safely removed rows.** `ActivityService` captures trusted target label
 and owning project/root while the entity is readable in the caller's unit. Feeds prefer current
 names while a target exists and fall back to captured identity afterward; no inverse data lives in
@@ -131,6 +141,7 @@ ISO string so ordering stays lossless without a clock or timezone
 
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
+- [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md)
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md)
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md)
 - [Undo and Redo require their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md)

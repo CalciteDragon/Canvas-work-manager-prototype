@@ -89,9 +89,12 @@ placements on a root's Home that reference a section elsewhere in the same tree.
 | `LiveEventSchema` | `src/live.ts` | `type`, `entityId`, `entityType`, `projectId`, `rootProjectId` |
 | Dashboard, progress, timeline, todos, archive, journal schemas | `src/dashboard.ts` … `src/project-journal.ts` | Derived read models; Archive section entries add `recovery` metadata |
 | Prototype state and commands | `src/prototype.ts` | What the dev panel and `/prototype/*` agree on |
-| `UndoOperationSchema`, section operation schemas, `UndoResultSchema`, `RedoResultSchema`, `UndoConflictSchema` | `src/undo.ts` | The twelve-operation union, section payloads, discriminated transition results and typed conflicts |
+| `UndoOperationSchema`, section operation schemas, `UndoResultSchema`, `RedoResultSchema`, `UndoConflictSchema` | `src/undo.ts` | The seventeen-operation union, section payloads, discriminated transition results and typed conflicts |
+| `SectionRestoreOperationSchema` and its directional results | `src/section-restore-history.ts` | The exact footprint of one Archive Restore: markers, generation, old position, committed placement and the rows it revived |
+| Shortcut operation and transition schemas | `src/shortcut-history.ts` | Four strict placement payloads that capture the destination project and never the source's content |
 | Task/reflection operation and transition schemas | `src/row-history.ts` | Strict row payloads: complete creation snapshots, changed fields, structural effects and optional implicit containers |
 | `TaskAddResultSchema`, `TaskWriteResultSchema`, `ReflectionAddResultSchema`, `ReflectionWriteResultSchema` | `src/row-write-result.ts` | Lightweight `{ task|reflection, operation }` transport envelopes without executable payload imports |
+| `SectionShortcutAddResultSchema`, `SectionShortcutWriteResultSchema`, `SectionShortcutRemovalResultSchema` | `src/shortcut-write-result.ts` | The placement write envelopes, with the removal naming ids and a required receipt |
 | `OperationReceiptSchema`, `OperationKindSchema`, `OperationFamilySchema` | `src/operation-receipt.ts` | Payload-free receipts and the operation kind/family vocabulary |
 | Public history summary and input schemas | `src/operation-history-public.ts` | Snapshot-free cursor shapes imported by browser and transport consumers |
 | `OperationHistorySchema`, `OperationActionSchema`, `OperationHistoryTransitionResultSchema`, `OperationHistoryRefusalDetailsSchema` | `src/operation-history.ts` | Stored per-actor/project cursor and actions, transition results and the refusal union |

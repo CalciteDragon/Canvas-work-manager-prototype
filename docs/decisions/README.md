@@ -54,14 +54,14 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Where a live event is emitted, and when it is delivered](2026-08-live-events-ride-the-activity-record.md) | One post-commit frame per operation; removal action reflects retained or deleted disposition | amended (Slices 30–31, 35–36) |
 | [Container sections own their rows; view sections own nothing](2026-09-sections-own-their-data.md) | Every row keeps a live section reference; Slice 31 adds reference-checked deletion for disposable sections | amended |
 | [A section has a name, and the default is derived rather than stored](2026-09-a-section-has-a-name.md) | `nameOf` over `type`, optional `title` override | amended |
-| [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Archive Restore remains durable; safe disposable removal can delete after a reference audit | amended; content projection in Slice 29; operation Undo in Slices 30–31; history retirement in Slice 35 |
+| [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Archive Restore remains durable; safe disposable removal can delete after a reference audit | amended; content projection in Slice 29; operation Undo in Slices 30–31; history retirement in Slice 35; section Restore records in Slice 37 |
 | [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | amended; projection in Slice 29, deletion boundary in Slice 31 |
 | [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | current |
 | [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | current |
 | [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | amended; Slice 36 history may restore captured content |
 | [Reassigning a container's rows may cross pages within a project](2026-09-reassign-may-cross-pages.md) | §31 constrains the type, not the page | amended; exercised with Undo in Slice 33 |
 | [Live work under an archived ancestor is hidden, and cannot be newly created](2026-09-reactivating-under-an-archived-ancestor.md) | The archived-ancestor rule and its transition check | current |
-| [A shortcut resolves source identity, not source content](2026-09-a-shortcut-resolves-identity-not-content.md) | `SectionShortcutService` never reads rows | current |
+| [A shortcut resolves source identity, not source content](2026-09-a-shortcut-resolves-identity-not-content.md) | `SectionShortcutService` never reads rows | amended; Slice 37 extends the rule to placement inverses |
 | [Home orders sections and shortcuts together](2026-09-home-orders-sections-and-shortcuts-together.md) | One combined placement sequence per page | amended (Undo restores by neighbours, Slice 30) |
 | [Contextual insertion remembers its target and creates in one positioned write](2026-09-contextual-insertion-names-its-position.md) | Optional domain `position`; UI resolves stable anchors; Grid gaps are transient targets; renumbering leaves shifted siblings' `updatedAt` amended | amended |
 | [What the Todos page decides for itself](2026-09-todos-chronology-and-canonical-navigation.md) | Instants compared as text; no tab required; completion one-way | current |
@@ -69,12 +69,13 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | What the Archive projection says about each item's restore path | amended |
 | [A section removal commits one scoped, expiring Undo record](2026-09-section-removal-undo-records.md) | Removal footprint, exact-actor scope, structural conflicts, neighbor placement | amended; Slice 31 deletion disposition and repeat-receipt recovery; Slice 32 operation union; Slice 35 records become history actions |
 | [Disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md) | Reference-safe deletion, canvas-local action, own-receipt recovery and actionable refusals | amended (Slice 32: notice serves every explicit operation; Slice 35: history transitions) |
-| [Explicit section edits reverse only their operation's changes](2026-09-section-edit-undo-boundaries.md) | Explicit action boundaries, safe add, changed-field inverses | amended (Slice 35: cursor order and applied-state checks) |
+| [Explicit section edits reverse only their operation's changes](2026-09-section-edit-undo-boundaries.md) | Explicit action boundaries, safe add, changed-field inverses | amended (Slice 35: cursor order and applied-state checks; Slice 37: duplication is an add) |
 | [Undo and Redo follow one history per exact actor, per owning project](2026-09-operation-history-scope.md) | History key, caller-only summaries, family-dependent write grants, acyclic service | amended; Slice 36 adds row families |
 | [One explicit write is one history action, kept for 24 hours and at most 50 per history](2026-09-operation-history-retention.md) | Cursor movement, branch clearing, revision rule, contiguous lazy pruning | amended; Slice 36 adds row actions |
-| [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](2026-09-operation-history-retired-actions.md) | Per-family checks, `archiveGeneration`, verbatim reapply, the permanent-conflict list | current (Slice 35) |
+| [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](2026-09-operation-history-retired-actions.md) | Per-family checks, `archiveGeneration`, verbatim reapply, the permanent-conflict list | amended; Slice 37 narrows the Restore retirement and widens the generation floor |
 | [Stage A defers historical activity identity and the retry cache, and uses one transition route](2026-09-history-stage-a-deferrals.md) | Route shape and retry-cache deferral remain; Activity and grants advanced in Stage B | amended (Slice 36) |
 | [Task and reflection writes record one reversible row action](2026-09-row-operation-history.md) | Row footprints, compound containers, envelopes and durable row Restore history | current (Slice 36) |
+| [A recorded Restore is a new action, and a shortcut action owns only its placement](2026-09-section-restore-and-shortcut-history.md) | Duplication as an add, exact Restore footprints, destination-owned placement history | current (Slice 37) |
 
 ## Repositories
 
@@ -88,7 +89,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [What the tool registry knows about MCP](2026-08-tool-registry-is-transport-free.md) | Nothing: the registry is transport-free; the host mounts it | current |
 | [MCP tools advertise their required permission in namespaced metadata](2026-08-mcp-tool-permission-metadata.md) | Static tools use singular/plural metadata; history transitions use a family map | amended; Slice 36 adds conditional grants |
-| [A history transition requires the stored operation family's write grant](2026-09-operation-family-permissions.md) | One family grant per action, declared as a family metadata map | current (Slice 36) |
+| [A history transition requires the stored operation family's write grant](2026-09-operation-family-permissions.md) | One family grant per action, declared as a family metadata map | amended; Slice 37 adds the `shortcut` family |
 
 ## Prototype data
 

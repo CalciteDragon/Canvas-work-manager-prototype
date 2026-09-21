@@ -218,3 +218,12 @@ is still durable, receipt-free to invoke and available after the archive action 
 records its own `task.restore` or `reflection.restore` action and therefore clears the caller's redo
 branch. Its response is `{ task|reflection, operation }`; an already-live row is a no-op with a null
 operation ([decision](2026-09-row-operation-history.md)).
+
+
+**Amended, 2026-09-20 — Slice 37.** The split above closes: **section** Archive Restore now records
+a `section.restore` action too, on the same terms the row families got — durable, receipt-free to
+invoke, available long after every action has expired, and clearing the caller's redo branch when it
+changes something. Its response is `{ section, operation }`, and a repeat on a live section is a
+no-op with a null operation. Undoing a recorded Restore re-archives exactly what that Restore
+revived; it is not the removal beneath it, which remains its own step
+([decision](2026-09-section-restore-and-shortcut-history.md)).

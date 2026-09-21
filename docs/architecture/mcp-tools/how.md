@@ -36,6 +36,15 @@ project, and returns its receipt — `historyId`, `actionId`, `revision`, operat
 lifetime; a container created automatically for a row gets no receipt of its own, because it joins
 that row's one action and receipt. The receipt exposes no payload.
 
+`restore_section` returns `{ section, operation }` too, with `operation: null` for a repeat on a
+live section: Archive Restore still needs no receipt to invoke and still never expires, and
+recording it only means the same connection can take it back. `add_section_shortcut` returns
+`{ shortcut, operation }` and `remove_section_shortcut` returns
+`{ shortcutId, projectId, pageId, operation }` — there is no placement left to return — and both
+record into the **destination** root project's history, never the source's. Section duplication and
+shortcut resize, collapse and move have no tool of their own; they stay HTTP-and-domain operations,
+so the registry still holds thirty-seven tools.
+
 Task tools return `{ task, operation }` and reflection tools return `{ reflection, operation }`;
 their receipts enter the same history as section writes. Compound row Add owns an implicitly
 created container so Undo/Redo removes and restores both under the row family's one write grant.
@@ -46,7 +55,10 @@ Undo and Redo actions, or `null`, the revision and any archived blocker. `undo_o
 retired `{ undoId }` form is rejected — and call `OperationHistoryService.transition` with their
 fixed direction. The result is `{ direction, actionId, result, summary }`. Their permission
 declaration maps the stored action family to `projects.write`, `tasks.write` or
-`reflections.write`; a write-only caller can chain from receipts and returned summaries.
+`reflections.write` — and, for the fourth family, a shortcut placement to `projects.write`; a
+write-only caller can chain from receipts and returned summaries. Two families naming one grant is
+why the coverage helper behind that declaration de-duplicates: `tools/list` must not say a caller
+needs one grant twice.
 
 ## Removal receipts
 

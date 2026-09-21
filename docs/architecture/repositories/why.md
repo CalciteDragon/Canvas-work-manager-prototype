@@ -91,6 +91,7 @@ domain, tool and host test runs on.
 - [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — one history per key, strict project reference
 - [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md) — why actions delete routinely and histories never
 - [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md) — the captured-generation integrity rule
+- [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — the same generation rule now covers `section.restore`
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the canonical-reference gate before section deletion
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md) — task/reflection removal seams used only after Add-Undo preflight
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — the bounded missing-target integrity exception

@@ -101,7 +101,9 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
     immediate Undo notice is local to this canvas and clears when you leave or reload.
     To see the two recoveries disagree on purpose, remove a nonempty notes section that sits
     between two placements and choose **Undo**: it returns between them. Remove it again, choose
-    **Open Archive** and **Restore saved content**: it returns at the **end** of the page.
+    **Open Archive** and **Restore saved content**: it returns at the **end** of the page. That
+    Restore is itself one of your actions now — undoing it puts the section back in Archive rather
+    than re-running the removal, and the removal is still there underneath it.
 12. **Collapse and rename.** Click the collapse control to hide a section's body while leaving
     its heading visible. Click the title to rename it; Enter or blur saves, and Escape restores
     the previous name. Following a Todos owner link can open a collapsed target for that visit,
@@ -115,7 +117,9 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 15. **Shortcuts are placements.** On Home, choose an insertion plus, then **Add shortcut** in
     the creation popup to choose an eligible nested Task List or a section on another root page.
     The frame identifies its source and has **Open source**; its embedded content is read-only.
-    Remove the placement and confirm the source section and its rows remain unchanged.
+    Remove the placement and confirm the source section and its rows remain unchanged. Every
+    placement write — add, resize, collapse, move, remove — is undoable, and each one belongs to
+    this root project's history rather than the sub-project the source lives in.
 
 ---
 
@@ -220,6 +224,9 @@ standalone connection matrix. Both processes still running. Full setup in
     Repeat the chain with a task or reflection receipt. `undo_operation` then needs that stored
     action family's `tasks.write` or `reflections.write` grant, and reuses the original row id on
     Redo; an implicitly created container disappears and returns with the row.
+    `add_section_shortcut` and `remove_section_shortcut` now answer receipts too, under
+    `projects.write`, and so does `restore_section` — a repeat of which on a live section answers
+    `operation: null` and writes nothing.
 40. **Aggregate pages.** Call `get_project_todos`, `get_project_archive` and
     `get_project_journal`; the responses retain canonical project/page/container origins. Archive
     remains queryable even when its navigation page is disabled.

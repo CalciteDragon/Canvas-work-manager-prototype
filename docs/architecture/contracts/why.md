@@ -80,6 +80,15 @@ envelopes and history cursor shapes are kept in `row-write-result.ts` and
 drag the inverse graph into its bundle
 ([decision](../../decisions/2026-09-row-operation-history.md)).
 
+**A Restore payload is an exact footprint, and a shortcut payload holds no source.** `section.restore`
+captures the markers, generation, old position and committed placement of one Restore plus only the
+rows it revived, so an inverse can never recompute a cascade and absorb someone else's work. The four
+shortcut payloads capture the placement record and the **destination** project, which is both where
+the action belongs and what `operationProjectOf` has to answer without a repository read; nothing of
+the source appears, so a source edit is not a placement conflict. `shortcut-write-result.ts` keeps the
+transport envelopes out of that module for the same reason `row-write-result.ts` does
+([decision](../../decisions/2026-09-section-restore-and-shortcut-history.md)).
+
 **Activity owns historical display identity.** A task or reflection Add can be undone safely
 without keeping a canonical tombstone: its earlier events retain a validated target label and
 owning project/root context, but no executable inverse
@@ -128,6 +137,7 @@ general migration framework
 - [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the frozen v4 intermediate and final validating step
 - [Undo and Redo advertise their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md) — the shared static/family declaration
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — compatible removal disposition, exact-owner repeat receipt, typed repair steps
+- [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `section-restore-history.ts`, `shortcut-history.ts`, `shortcut-write-result.ts` and the fourth operation family
 
 ## Spec sections
 

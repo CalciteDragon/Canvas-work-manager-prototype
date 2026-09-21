@@ -68,3 +68,15 @@ person could repair.
 
 Stage B adds task, reflection or project families — each brings its own permanent-conflict list — or
 someone finds a retirement they could in fact have repaired.
+
+
+**Amended, 2026-09-20 — Slice 37.** "The section was restored from Archive" is no longer by itself a
+reason for a removal action to retire. A Restore the **same** actor made now sits above their
+removal in the same stack, so the removal is simply not the next step, and undoing the Restore is
+the ordinary way to reach it. A Restore by **someone else** never enters that stack, so the removal
+Undo still faces a live section it can never re-remove at the captured generation, and still
+retires. The permanent-conflict list gains one member of its own: a `section.restore` action whose
+subject's `archiveGeneration` has advanced. `generationFloor` and document integrity now read
+retained `section.restore` generations as well as `section.remove` ones, because retention prunes
+per history and a surviving Restore can be the only record that a section reached a generation
+([decision](2026-09-section-restore-and-shortcut-history.md)).

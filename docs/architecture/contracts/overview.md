@@ -8,9 +8,10 @@ records with their receipts and refusals, and the `data.json` document itself. A
 schemas, the seeds and every test import from here; there is no second definition of any
 of these shapes anywhere in the repository.
 
-Operation history holds strict version-1 section, task and reflection payloads under one
-per-actor, per-project cursor. Section and row writes return `{ section|task|reflection,
-operation }` (with `operation: null` for a normalized update); the receipt names the history,
+Operation history holds strict version-1 section, task, reflection and Home shortcut payloads under one
+per-actor, per-project cursor. Section, row and placement writes return
+`{ section|task|reflection|shortcut, operation }` (with `operation: null` for a normalized no-op),
+and a shortcut removal names ids instead; the receipt names the history,
 action and revision while captured fields, structural effects and optional implicit containers
 stay server-side. Public history shapes live apart from stored actions so browser consumers do not
 pull in inverse payloads. Activity carries durable captured identity, and `SCHEMA_VERSION` is 5.

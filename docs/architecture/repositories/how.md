@@ -70,7 +70,9 @@
   history's `orderHighWaterMark` (the cursor's own bound is the contract's). The payload's section,
   page, shortcut and row ids are deliberately not resolved, so an action may outlive what it names —
   add Undo and disposable removal depend on that. The one live comparison is the
-  `archiveGeneration` a retained removal captured, which may not exceed its section's.
+  `archiveGeneration` an action captured — a retained removal's, or a Restore's — which may not
+  exceed its section's, because `archiveGeneration` never decreases. A **missing** subject is still
+  not an integrity failure at any generation: an action has to outlive what it names to be redone.
 - **Seeds are committed byte-for-byte** as LF JSON and compared in
   `packages/prototype-data`'s tests, which is why `.gitattributes` normalises line
   endings.

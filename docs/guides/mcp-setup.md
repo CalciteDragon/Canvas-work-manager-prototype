@@ -205,6 +205,11 @@ The matching canonical writes are `archive_project` / `restore_project`, `remove
 section or row restores exactly the members marked as taken down by that operation, leaving
 independently archived work archived.
 
+`restore_section` answers `{ section, operation }`. It still needs no receipt to invoke and never
+expires — it remains the way back once Undo no longer is — but a restore that changed something now
+carries a receipt of its own, so you can take the restore back before undoing the removal beneath
+it. A repeat on a live section answers `operation: null` and writes nothing.
+
 ### Undo and Redo
 
 Every connection has its own Undo/Redo **history per project**: a stack of its section, task and
@@ -217,7 +222,8 @@ never undo someone else's change, and nobody can undo yours.
   `historyId` is `null` until the connection's first undoable write in that project.
 - `undo_operation` and `redo_operation` (input `{ historyId, actionId, expectedRevision }`) run
   exactly that action, which must be the next one in that direction. They require only the stored
-  action family's grant: `projects.write`, `tasks.write` or `reflections.write`. Discovery publishes
+  action family's grant: `projects.write` for a section or a Home shortcut placement, `tasks.write`
+  for a task, `reflections.write` for a reflection. Discovery publishes
   that mapping under `_meta["local.canvas-work-manager/requiredPermissionsByOperationFamily"]`.
   Pass the history's current `revision`: a receipt's, or `get_operation_history`'s if anything
   happened since. The result is `{ direction, actionId, result, summary }`.
@@ -251,7 +257,7 @@ Refusals are MCP errors whose text starts with a reason token:
 | `history_conflict:` | Someone else changed what the action touched; text names titles and ids | Follow the listed repair and retry, or make the change by hand |
 | `history_blocked:` | The project or an ancestor is archived | Reactivate the named project, then retry |
 | `history_unavailable:` | No page can take the section back | Make a compatible page available and retry; Archive may contain retained content |
-| `history_retired:` | The action can never succeed again — say the section was restored from Archive or removed again since — so it was retired | Nothing to repair; the next call reaches the action below it |
+| `history_retired:` | The action can never succeed again — say **another** connection restored the section from Archive, or it was removed again since — so it was retired | Nothing to repair; the next call reaches the action below it |
 
 The `agent-heavy` fixture token's connection does not hold `projects.write`; grant it in
 **Settings → AI & Agents** before trying the write tools.
@@ -292,9 +298,16 @@ Slice 25.4 adds three placement tools:
   section and breadcrumb identity, plus availability; it returns no task or reflection rows.
 - `add_section_shortcut` (`projects.write`) places a read-only reference to a source section in
   the same root tree. It accepts the same optional zero-based `position` in Home's combined
-  section/shortcut order; omission appends.
+  section/shortcut order; omission appends. It answers `{ shortcut, operation }`.
 - `remove_section_shortcut` (`projects.write`) deletes only the placement; the source section and
-  its rows remain.
+  its rows remain. It answers `{ shortcutId, projectId, pageId, operation }` — there is no
+  placement left to return.
+
+Both record in the **destination** root project's history, never the source's, and their Undo and
+Redo touch the placement only: the source section, its configuration and its rows are never
+written, so an edit to the source is not a conflict for a placement action. Undoing a removal puts
+the same placement id back between the same neighbours, including when the source has since been
+archived or hidden — it returns as the unavailable placeholder rather than unarchiving anything.
 
 The source content still uses its own grant. For example, discovering a Task List shortcut does
 not grant `tasks.read`; call `list_tasks` with that permission to read the source rows.
