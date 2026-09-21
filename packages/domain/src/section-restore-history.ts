@@ -104,13 +104,23 @@ const makeConflict = (
 });
 
 /**
- * The one conflict a Restore action can never recover from, so it retires rather than blocks
- * (docs/decisions/2026-09-operation-history-retired-actions.md): the section's `archiveGeneration`
- * has moved on, which only a later removal does and nothing moves back. Every other conflict —
- * a hand-edited marker, a move, a new row, a missing row — describes a state someone can restore.
+ * The two conflicts a Restore action can never recover from, so it retires rather than blocks the
+ * actions beneath it (docs/decisions/2026-09-operation-history-retired-actions.md). Both are about
+ * the section itself:
+ *
+ * - `archived-differently` — its `archiveGeneration` has moved on, which only a later removal does
+ *   and nothing moves back.
+ * - `missing` — the stored row is gone, which only a later *disposable* removal does. This Restore
+ *   was of a retained section, so the row it needs cannot be brought back by an Archive Restore or
+ *   by hand. `section-removal-undo.ts` retires a retained removal for exactly this reason.
+ *
+ * Every other conflict — a hand-edited marker, a moved or missing **row**, a new dependent —
+ * describes a state someone can repair.
  */
 const isPermanent = (operation: SectionRestoreOperation) => (conflict: UndoConflict): boolean =>
-  conflict.entityType === 'section' && conflict.id === operation.sectionId && conflict.problem === 'archived-differently';
+  conflict.entityType === 'section' &&
+  conflict.id === operation.sectionId &&
+  (conflict.problem === 'archived-differently' || conflict.problem === 'missing');
 
 const refuse = (
   direction: OperationHistoryDirection,
@@ -151,14 +161,30 @@ const rowProblems = (change: UndoRowChange, current: OwnedRow, expected: Record<
   return conflicts;
 };
 
-/** Every row the section owns now, archived ones included, indexed by id. */
-const ownedRows = async (
+/**
+ * The two row reads this executor needs, which are deliberately different scopes.
+ *
+ * `container` is what the section holds **now**, and is the only sound basis for "would this
+ * transition absorb or hide a row it never recorded". `project` is every row in the project,
+ * archived ones included, and is what the recorded rows are looked up in: a recorded row that
+ * someone moved to another container has not gone *missing*, and saying so would send the caller
+ * looking for something to restore instead of somewhere to move the row back from.
+ * `section-removal-undo.ts` reads project-wide for the same reason.
+ */
+const rowScopes = async (
   repositories: SectionHistoryRepositories,
   operation: SectionRestoreOperation,
   section: ProjectSection,
-): Promise<OwnedRow[]> => {
+): Promise<{ container: OwnedRow[]; project: OwnedRow[] }> => {
   const owned = ownedKindOf(section.type);
-  return owned === undefined ? [] : rowsOf(repositories, operation.sectionId, owned);
+  if (owned === undefined) return { container: [], project: [] };
+  const [container, project] = await Promise.all([
+    rowsOf(repositories, operation.sectionId, owned),
+    owned === 'tasks'
+      ? repositories.tasks.list({ projectId: operation.projectId, includeArchived: true })
+      : repositories.reflections.list({ projectId: operation.projectId, includeArchived: true }),
+  ]);
+  return { container, project: project as OwnedRow[] };
 };
 
 /** The conflicts every direction shares: the recorded rows must still be where the other side left them. */
@@ -279,8 +305,11 @@ export const revertSectionRestore = async (
     if (!stillAt(await listPlacements(repositories, page.id), operation.sectionId, operation.placement)) {
       conflicts.push(makeConflict('section', operation.sectionId, 'moved', nameOf(section)));
     }
-    const rows = await ownedRows(repositories, operation, section);
-    conflicts.push(...recordedRowConflicts(operation, rows, 'after'), ...absorbedRowConflicts(operation, rows, 'undo'));
+    const rows = await rowScopes(repositories, operation, section);
+    conflicts.push(
+      ...recordedRowConflicts(operation, rows.project, 'after'),
+      ...absorbedRowConflicts(operation, rows.container, 'undo'),
+    );
   }
   refuse('undo', operation, section, conflicts);
   if (section === null) throw new EntityNotFoundError('section', operation.sectionId);
@@ -332,8 +361,11 @@ export const reapplySectionRestore = async (
   }
 
   if (section !== null && conflicts.length === 0) {
-    const rows = await ownedRows(repositories, operation, section);
-    conflicts.push(...recordedRowConflicts(operation, rows, 'before'), ...absorbedRowConflicts(operation, rows, 'redo'));
+    const rows = await rowScopes(repositories, operation, section);
+    conflicts.push(
+      ...recordedRowConflicts(operation, rows.project, 'before'),
+      ...absorbedRowConflicts(operation, rows.container, 'redo'),
+    );
   }
   refuse('redo', operation, section, conflicts);
   if (section === null) throw new EntityNotFoundError('section', operation.sectionId);

@@ -67,7 +67,9 @@ an immediate canvas-local Undo action for its receipt
 
 **Edit receipts belong to the gesture that committed them.** Add, rename, Rich Text blur,
 collapse, snapped resize and completed move each capture one server receipt; previews, cancels,
-no-ops, shortcut-only actions and implicit row containers do not. The notice keeps the newest
+no-ops and implicit row containers do not. A placement write **does** return a receipt since
+Slice 37, but the canvas deliberately does not put it in the notice: the notice is section-only
+until the persistent header controls exist. The notice keeps the newest
 receipt by its history's `revision`, blocks Undo while a section write is pending, and runs the
 action through the history transition, which restores only the operation's field or placement
 footprint. Archive remains a removal-only repair path

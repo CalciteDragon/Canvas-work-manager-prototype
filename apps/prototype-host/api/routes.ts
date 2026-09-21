@@ -70,8 +70,9 @@ export interface ApiDependencies {
 
 const ok = (body: unknown): RouteResult => ({ status: 200, contentType: 'application/json', body });
 const created = (body: unknown): RouteResult => ({ status: 201, contentType: 'application/json', body });
-// No route answers 204 any more: every delete now returns what it deleted and the receipt that
-// puts it back, and a body-less status cannot carry one.
+// No route in this table answers 204 any more: every delete now returns what it deleted and the
+// receipt that puts it back, and a body-less status cannot carry one. (The router's CORS preflight
+// still does; that is not an API result.)
 
 /**
  * Query strings are all strings, so the contract schemas need the shapes they expect:
@@ -297,7 +298,9 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'POST /api/sections/:id/duplicate': async (request) =>
       created(await sections.duplicate(await actorFor(request), sectionId(request))),
 
-    // Archive Restore for the DELETE below: durable, receipt-free and appended. History Undo,
+    // Archive Restore for the DELETE below: durable, needing no receipt to invoke, and appended.
+    // Since Slice 37 it answers `SectionWriteResult` and records an action of its own, so a caller
+    // can take the Restore back; a retry on a live section answers `operation: null`. History Undo,
     // which returns a section between its old neighbours, is `POST /api/history/:historyId/transition`. A row that
     // came down with a section returns through either. Idempotent, so a retry cannot move the canvas.
     'POST /api/sections/:id/restore': async (request) =>

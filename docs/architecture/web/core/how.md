@@ -18,8 +18,8 @@
    Section responses and strict task/reflection/shortcut `{ entity, operation }` envelopes are
    parsed at this boundary; normalized no-ops preserve `operation: null`, a shortcut delete parses
    its 200 `{ shortcutId, projectId, pageId, operation }` body, and transition results remain
-   discriminated by direction and operation. No route answers 204, so the adapter has no
-   body-less send path.
+   discriminated by direction and operation. No API route answers 204 any more, so the adapter has
+   no body-less send path.
 5. `AppShell` provides `ShellStore`, which loads projects, derives the tree
    (`ProjectTreeNode`), and re-reads on `project.*` frames.
 

@@ -304,8 +304,10 @@ Slice 25.4 adds three placement tools:
   placement left to return.
 
 Both record in the **destination** root project's history, never the source's, and their Undo and
-Redo touch the placement only: the source section, its configuration and its rows are never
-written, so an edit to the source is not a conflict for a placement action. Undoing a removal puts
+Redo write the placement only: the source section, its configuration and its rows are never
+written, so an edit to the source is not a conflict for a placement action. Putting a placement back
+does check the source against §27's rules — same root tree, not the destination page itself — so a
+source that has gone or moved out of the tree refuses. Undoing a removal puts
 the same placement id back between the same neighbours, including when the source has since been
 archived or hidden — it returns as the unavailable placeholder rather than unarchiving anything.
 

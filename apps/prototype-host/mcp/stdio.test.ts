@@ -64,10 +64,13 @@ describe('MCP stdio entry (§59)', () => {
       });
       for (const name of ['undo_operation', 'redo_operation']) {
         const metadata = listed.tools.find((tool) => tool.name === name)?._meta;
-        expect(metadata).toMatchObject({
-          'local.canvas-work-manager/requiredPermissionsByOperationFamily': {
-            section: 'projects.write', task: 'tasks.write', reflection: 'reflections.write',
-          },
+        // `toEqual` on the map itself, not `toMatchObject`: a new family that discovery forgot to
+        // publish — or published wrongly — has to fail here rather than pass by omission.
+        expect(metadata?.['local.canvas-work-manager/requiredPermissionsByOperationFamily']).toEqual({
+          section: 'projects.write',
+          task: 'tasks.write',
+          reflection: 'reflections.write',
+          shortcut: 'projects.write',
         });
         expect(metadata).not.toHaveProperty('local.canvas-work-manager/requiredPermission');
         expect(metadata).not.toHaveProperty('local.canvas-work-manager/requiredPermissions');

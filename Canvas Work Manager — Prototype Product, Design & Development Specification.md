@@ -1390,9 +1390,11 @@ The control that creates one is labelled **Add shortcut**.
 removing a shortcut each return an operation receipt and record one action in the **destination**
 root project's history, never the source sub-project's — a placement belongs to the canvas it sits
 on. A same-value resize or collapse, and a move to the position the placement already holds, write
-nothing and carry no receipt. Undo and Redo of any of them touch the placement only: the source
-section, its configuration and its rows are never read or written, so an edit to the source is
-never a conflict for a placement action. Recreating a placement returns the same id pointing at the
+nothing and carry no receipt. Undo and Redo of any of them **write** the placement only: the source
+section, its configuration and its rows are never written and never returned as content, so an edit
+to the source is never a conflict for a placement action. Recreating a placement does *read* the
+source, because §27's own rules — same root tree, same workspace, not the destination page itself —
+have to hold before a reference may exist again. Recreating a placement returns the same id pointing at the
 same source, including when that source has since been archived or hidden — it comes back as the
 existing unavailable placeholder, which is recovery of the reference rather than a second Add
 ([why](docs/decisions/2026-09-section-restore-and-shortcut-history.md)).*
@@ -2954,7 +2956,8 @@ envelope a create does; `POST /api/sections/:id/restore` answers `{ section, ope
 `PATCH /api/shortcuts/:id` and `POST /api/shortcuts/:id/move` answer `{ shortcut, operation }`,
 the last two with `operation: null` for a no-op; and `DELETE /api/shortcuts/:id` answers **200**
 with `{ shortcutId, projectId, pageId, operation }` rather than 204, because a body-less status
-cannot carry a receipt. Route names and inputs are unchanged, and no route answers 204 any more.*
+cannot carry a receipt. Route names and inputs are unchanged, and no route in the API table answers
+204 any more; the router's CORS preflight still does.*
 
 ---
 

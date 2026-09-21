@@ -98,9 +98,9 @@
   `additionalPermissions`, which is what proves a grant sufficient, not only necessary.
 - **The service graph is acyclic**: `TaskService` and `ReflectionService` compose
   `SectionService` for container resolution; writing services compose `ActivityService`
-  for event recording; section, task and reflection services record supported writes through an
-  `OperationRecorder` (an interface over two repositories that never opens a unit).
-  `OperationHistoryService` composes only `ActivityService` — no section, task or reflection
+  for event recording; the section, shortcut, task and reflection services record supported writes
+  through an `OperationRecorder` (an interface over two repositories that never opens a unit).
+  `OperationHistoryService` composes only `ActivityService` — no section, shortcut, task or reflection
   service — and shares the payloads with section writes through function modules
   (`operation-execution.ts`, `owned-rows.ts`, `section-removal-undo.ts`, `section-edit-undo.ts`,
   `section-restore-history.ts`, `shortcut-history.ts`, `task-history.ts`, `reflection-history.ts`,

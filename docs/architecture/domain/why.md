@@ -67,7 +67,8 @@ changed-field footprint or removal footprint that its executor may safely touch.
 state the other direction left rather than which record is newer, and refusing with a typed reason
 rather than overwriting a later write; an action that can never succeed again retires instead of
 wedging the stack. The cursor and `revision` — not timestamps — order everything. Archive Restore
-stays durable and receipt-free. Row Restore records a new action; section Restore remains outside history. Rejected: inverse data on
+stays durable — no receipt is needed to invoke it and it never expires — and since Slice 37 every
+Restore, row **and** section, also records an action of its own. Rejected: inverse data on
 `ActivityEvent` (activity is audit), a generic command bus or event sourcing, and routing history
 through `SectionService` or the row services (a cycle) — the payloads live in package-internal
 function modules both sides share ([scope](../../decisions/2026-09-operation-history-scope.md),

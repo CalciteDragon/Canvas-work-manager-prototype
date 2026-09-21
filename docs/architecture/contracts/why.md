@@ -82,10 +82,11 @@ drag the inverse graph into its bundle
 
 **A Restore payload is an exact footprint, and a shortcut payload holds no source.** `section.restore`
 captures the markers, generation, old position and committed placement of one Restore plus only the
-rows it revived, so an inverse can never recompute a cascade and absorb someone else's work. The four
-shortcut payloads capture the placement record and the **destination** project, which is both where
-the action belongs and what `operationProjectOf` has to answer without a repository read; nothing of
-the source appears, so a source edit is not a placement conflict. `shortcut-write-result.ts` keeps the
+rows it revived, so an inverse can never recompute a cascade and absorb someone else's work. Each of the four
+shortcut payloads names the **destination** project, which is both where the action belongs and what
+`operationProjectOf` has to answer without a repository read; add and remove also capture the whole
+placement record their inverses must recreate, while update and move name it by id. Nothing of the
+source appears in any of them, so a source edit is not a placement conflict. `shortcut-write-result.ts` keeps the
 transport envelopes out of that module for the same reason `row-write-result.ts` does
 ([decision](../../decisions/2026-09-section-restore-and-shortcut-history.md)).
 

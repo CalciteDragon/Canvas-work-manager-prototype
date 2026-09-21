@@ -23,7 +23,7 @@
    for a retry on a live section. The three shortcut writes answer
    `SectionShortcutAddResult` / `SectionShortcutWriteResult`, and `DELETE /api/shortcuts/:id` answers
    **200** with `SectionShortcutRemovalResult` rather than 204 — a body-less status cannot carry a
-   receipt, and no route answers 204 any more.
+   receipt, and no route in the API table answers 204 any more (the router's CORS preflight still does).
    `GET /api/projects/:id/history` answers the caller's `OperationHistorySummary`;
    `POST /api/history/:historyId/transition` parses the strict transition body and answers
    `OperationHistoryTransitionResult`.

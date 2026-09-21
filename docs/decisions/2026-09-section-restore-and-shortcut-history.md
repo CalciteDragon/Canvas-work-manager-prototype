@@ -69,8 +69,9 @@ which never enters this stack — still retires the removal beneath it, exactly 
 document integrity applies the same "a present section is never below a generation an action saw"
 rule to both kinds.
 
-The four shortcut payloads capture the canonical placement and the **destination** project id, and
-nothing of the source. A source content edit is therefore never a conflict for a placement action;
+Each of the four shortcut payloads names the **destination** project and nothing of the source. Add
+and remove capture the whole canonical placement record, because their inverses recreate it; update
+and move name the placement by id and carry only the fields or the neighbours that changed. A source content edit is therefore never a conflict for a placement action;
 a source that has gone, left the root tree or moved onto the destination page itself is, because
 integrity would no longer allow the placement. Only an occupied placement id on a recreation is
 permanent. `shortcut` is a fourth operation family sharing `projects.write` with `section`: the

@@ -41,8 +41,10 @@ before/after neighbours; update captures a unique set of title, config, collapse
 changes; removal captures the section, placement, applied policy, exact rows, a required
 `disposition` and the `archiveGeneration` it wrote, which must be the snapshot's plus one. Restore captures the archived marker and generation it found, the tombstone's
 old position, the placement it actually landed on, and only the rows it revived — each of which must
-say it came down with that section and is live in it afterwards. The four shortcut payloads capture
-the canonical placement record and the **destination** project id, and nothing of the source. The
+say it came down with that section and is live in it afterwards. Each of the four shortcut payloads names
+the **destination** project and nothing of the source; add and remove additionally capture the whole
+canonical placement record, because their inverses have to recreate it, while update and move name
+the placement by id and carry only what they changed. The
 refinements reject malformed self-neighbours, duplicate fields, unchanged "changes", invalid
 normalized titles and placements on another page. `operation-receipt.ts` defines `OperationReceiptSchema`, re-exported by `undo.ts` — strict, carrying only
 `historyId`, `actionId`, `operation`, `revision`, `label`, `createdAt` and `expiresAt` — the write

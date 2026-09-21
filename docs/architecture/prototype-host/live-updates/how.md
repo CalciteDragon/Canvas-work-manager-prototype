@@ -52,7 +52,10 @@
   `project.section_archived`, a safely deleted disposable publishes `project.section_removed`,
   explicit add, move and settings writes publish their usual one frame (a no-op publishes none), and
   each section transition publishes one
-  `project.section_{removal,addition,move,update}_{undone,redone}` frame. Task and reflection
+  `project.section_{removal,addition,move,update,restoration}_{undone,redone}` frame, and each Home
+  shortcut transition one `project.shortcut_{addition,update,move,removal}_{undone,redone}` frame
+  targeted at the **destination** project — the same target the ordinary `project.shortcut_*` events
+  use, so no new missing-target case arises. Task and reflection
   transitions publish the equivalent `task.*_{undone,redone}` and
   `reflection.*_{undone,redone}` action. A compound Add still publishes only that one row frame;
   its project context also invalidates section existence in the browser. The direction is in the

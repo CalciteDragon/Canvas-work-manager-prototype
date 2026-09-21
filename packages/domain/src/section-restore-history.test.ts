@@ -147,6 +147,43 @@ describe('section restore history (§§27, 31–32)', () => {
     expect(summary.redo).toBeNull();
   });
 
+  it('names a captured row that moved away as moved, not missing', async () => {
+    const h = buildHarness();
+    const add = await h.sectionWriteService.add(h.actor, MINE, { type: 'task-list', title: 'Backlog' });
+    const elsewhere = await h.sectionWriteService.add(h.actor, MINE, { type: 'task-list', title: 'Elsewhere' });
+    const task = await h.taskWriteService.create(h.actor, { projectId: MINE, sectionId: add.section.id, title: 'Ship it' });
+    await h.sectionWriteService.remove(h.actor, add.section.id, { policy: 'cascade' });
+    const restore = await h.sectionWriteService.restoreSection(h.actor, add.section.id);
+
+    // The row did not vanish — somebody moved it. Saying "missing" would send the caller looking
+    // for something to restore instead of somewhere to move the row back from.
+    await h.taskWriteService.update(agentActorFor(0, ['tasks.write']), task.task.id, { sectionId: elsewhere.section.id });
+    await expect(step(h, restore.operation!)).rejects.toThrow('history_conflict');
+    try {
+      await step(h, restore.operation!);
+    } catch (error) {
+      const { details } = error as { details: { conflicts: { problem: string; nextStep: string; title?: string }[] } };
+      expect(details.conflicts).toEqual([
+        { entityType: 'task', id: task.task.id, title: 'Ship it', problem: 'moved', nextStep: 'move-back-and-retry' },
+      ]);
+    }
+  });
+
+  it('retires rather than wedges the stack when the section itself was deleted', async () => {
+    const h = buildHarness();
+    const add = await h.sectionWriteService.add(h.actor, MINE, { type: 'rich-text', title: 'Notes' });
+    await h.sectionWriteService.update(h.actor, add.section.id, { config: { text: 'Worth keeping' } });
+    const removed = await h.sectionWriteService.remove(h.actor, add.section.id);
+    const restore = await h.sectionWriteService.restoreSection(h.actor, add.section.id);
+
+    // A later disposable removal deletes the row outright. Nothing can put that row back by hand,
+    // so the Restore action must stop holding the actions beneath it hostage for 24 hours.
+    await h.sections.remove(add.section.id);
+    await expect(step(h, restore.operation!)).rejects.toThrow('history_retired');
+    const summary = await h.operationHistoryService.summary(h.actor, MINE);
+    expect(summary.undo?.actionId).toBe(removed.operation.actionId);
+  });
+
   it('survives expiry as an ordinary write while its own transitions expire', async () => {
     const h = buildHarness();
     const add = await h.sectionWriteService.add(h.actor, MINE, { type: 'rich-text', title: 'Notes' });

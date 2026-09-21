@@ -47,7 +47,7 @@ export interface WorkManagerServices {
   shortcuts: SectionShortcutService;
   dashboard: DashboardService;
   workspace: WorkspaceService;
-  /** Per-actor, per-project Undo and Redo over the section, task and reflection operations that record history. */
+  /** Per-actor, per-project Undo and Redo over the section, Home shortcut, task and reflection operations that record history. */
   history: OperationHistoryService;
 }
 
