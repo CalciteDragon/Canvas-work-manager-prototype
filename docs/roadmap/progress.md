@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 37 | Slice 37 — Section and shortcut operation history (Slice 34 Stage C1) | Plan for reversible section duplication, durable section Restore and Home shortcut placement writes | [37-section-and-shortcut-history.md](active/37-section-and-shortcut-history.md) |
 
 ### Planned
 

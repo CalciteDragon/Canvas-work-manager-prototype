@@ -67,8 +67,12 @@ history over HTTP and both MCP transports. Task/reflection writes return their r
 transitions require the stored action family's one write grant. Activity keeps captured row identity
 after Undo Add, and the document is schema version 5 with an explicit v4 conversion. The browser
 still offers only its transient section Undo notice; header controls and Stages C–E remain
-unimplemented. The paragraphs below describe the earlier shipped system and its choices. Split the
-remaining stages into bounded candidates before implementation and keep one active phase.
+unimplemented. **The next bounded phase is
+[Slice 37 — Stage C1](active/37-section-and-shortcut-history.md)**: a planning-only active slice
+for section duplication, section Restore and Home shortcut operation history. Project/page
+lifecycle, saved project layout/progress, persistent header controls and the retry cache remain
+later Stage C work; the active plan preserves those obligations. The paragraphs below describe
+the earlier shipped system and its choices. Keep one active phase.
 
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported
 [proposed specification](../specifications/README.md), and a development plan on 2026-09-13.
