@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { ProjectPage, ProjectSection, SectionShortcut } from '@cwm/contracts';
-import { addSection, api, createRoot, createSubprojects, seed, setClock, setLayout } from './seed';
+import { addSection, addShortcut, api, createRoot, createSubprojects, seed, setClock, setLayout } from './seed';
 
 const PINNED_NOW = '2026-09-15T12:00:00.000Z';
 const HOME_RENOVATION = 'project-renovation';
@@ -241,7 +241,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   const [child] = await createSubprojects(root.id, 1);
   const source = await addSection(child!.id, { type: 'rich-text', title: 'Shortcut source', columnSpan: 8 });
   await addSection(child!.id, { type: 'task-list', title: 'Shortcut candidate', columnSpan: 6 });
-  const shortcut = await api.post<SectionShortcut>(`/api/projects/${root.id}/shortcuts`, {
+  const shortcut = await addShortcut(root.id, {
     pageId: home,
     sourceSectionId: source.id,
     position: 1,
@@ -535,7 +535,7 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   const [child] = await createSubprojects(root.id, 1);
   const source = await addSection(child!.id, { type: 'rich-text', title: 'Shortcut source', columnSpan: 12 });
   const home = await pageId(root.id);
-  const shortcut = await api.post<SectionShortcut>(`/api/projects/${root.id}/shortcuts`, {
+  const shortcut = await addShortcut(root.id, {
     pageId: home,
     sourceSectionId: source.id,
     position: 2,
@@ -677,7 +677,7 @@ test('inline rename, archive choices, shortcut removal and type settings remain 
     title: 'Keep source work',
   })).task;
   const home = await pageId(root.id);
-  const shortcut = await api.post<SectionShortcut>(`/api/projects/${root.id}/shortcuts`, {
+  const shortcut = await addShortcut(root.id, {
     pageId: home,
     sourceSectionId: source.id,
     position: 4,
@@ -786,7 +786,7 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   const [child] = await createSubprojects(root.id, 1);
   const source = await addSection(child!.id, { type: 'rich-text', title: 'Keyboard shortcut source', columnSpan: 6 });
   const home = await pageId(root.id);
-  const shortcut = await api.post<SectionShortcut>(`/api/projects/${root.id}/shortcuts`, {
+  const shortcut = await addShortcut(root.id, {
     pageId: home,
     sourceSectionId: source.id,
     position: 2,
@@ -881,7 +881,7 @@ test.describe('coarse pointer', () => {
     if (inserted === undefined) throw new Error('Touch insertion did not create a section');
     const [child] = await createSubprojects(root.id, 1);
     const source = await addSection(child!.id, { type: 'rich-text', title: 'Touch shortcut source' });
-    const shortcut = await api.post<SectionShortcut>(`/api/projects/${root.id}/shortcuts`, {
+    const shortcut = await addShortcut(root.id, {
       pageId: home,
       sourceSectionId: source.id,
       position: 2,

@@ -68,7 +68,8 @@ export const historyBelongsToActor = (history: OperationHistory, actor: ActorCon
 };
 
 /**
- * The section an action's operation is about, or `undefined` for an operation about a row.
+ * The section an action's operation is about, or `undefined` for an operation about a row or a
+ * shortcut placement.
  *
  * Slice 35 could assume every action was a section's; Slice 36 cannot. This is deliberately not
  * `operationSubjectOf` — that answers "which entity", while this answers "is this action about *this
@@ -82,7 +83,11 @@ export const subjectSectionOf = (operation: UndoOperation): string | undefined =
       return operation.section.id;
     case 'section.move':
     case 'section.update':
+    case 'section.restore':
       return operation.sectionId;
+    // A shortcut's subject is a placement, not the section it references, so a shortcut action is
+    // never the newest action "about" that section — which is what keeps a shortcut write from
+    // hiding an outstanding removal receipt the actor could still use.
     default:
       return undefined;
   }

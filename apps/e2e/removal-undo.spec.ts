@@ -1,6 +1,6 @@
-import type { ProjectPage, ProjectSection, ResolvedSectionShortcut, SectionShortcut } from '@cwm/contracts';
+import type { ProjectPage, ProjectSection, ResolvedSectionShortcut } from '@cwm/contracts';
 import { expect, test } from '@playwright/test';
-import { addSection, api, createRoot, createSubprojects, seed, setClock } from './seed';
+import { addSection, addShortcut, api, createRoot, createSubprojects, seed, setClock } from './seed';
 
 const PINNED_NOW = '2026-09-15T12:00:00.000Z';
 
@@ -56,7 +56,7 @@ test('disposable sections stay out of Archive and Undo restores config, layout, 
   });
   await api.patch('/api/sections/' + sections[1]!.id, { collapsed: true });
   await api.patch('/api/sections/' + sections[3]!.id, { collapsed: true });
-  const shortcut = await api.post<SectionShortcut>('/api/projects/' + root.id + '/shortcuts', {
+  const shortcut = await addShortcut(root.id, {
     pageId: home.id,
     sourceSectionId: source.id,
     position: 2,
@@ -183,7 +183,7 @@ test('a shortcut on another browser page follows source removal and same-page Un
     position: Math.floor(sourceBefore.length / 2),
     config: {},
   });
-  const shortcut = await api.post<SectionShortcut>(`/api/projects/${homeProjectId}/shortcuts`, {
+  const shortcut = await addShortcut(homeProjectId, {
     pageId: homePage.id,
     sourceSectionId: sourceSection.id,
   });

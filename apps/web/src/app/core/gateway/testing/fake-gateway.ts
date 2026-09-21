@@ -22,6 +22,9 @@ import { ProjectSchema, type
   ReflectionId,
   SectionId,
   SectionRemovalResult,
+  SectionShortcutAddResult,
+  SectionShortcutRemovalResult,
+  SectionShortcutWriteResult,
   SectionAddResult,
   SectionWriteResult,
   OperationReceipt,
@@ -457,11 +460,15 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         return { section, operation };
       });
     },
-    duplicate: (id) =>
-      this.answer('sections.duplicate', id, {
-        ...this.sectionFor(id),
-        id: `${id}-copy` as SectionId,
-      }),
+    // Duplication is an add, so the fake answers the add envelope with an add receipt — the
+    // copy carries no rows and a detached config, exactly as the domain's does.
+    duplicate: (id) => {
+      const copy = { ...this.sectionFor(id), id: `${id}-copy` as SectionId };
+      return this.answer('sections.duplicate', id, {
+        section: copy,
+        operation: this.receipt('section.add', `Duplicate ${id}`),
+      });
+    },
     // The policy and public receipt are recorded too; no inverse snapshot crosses the gateway.
     remove: (id, input = {}) => {
       const current = this.sectionFor(id);
@@ -490,11 +497,18 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         return removed;
       });
     },
+    // A repeat on a live section is the `null`-receipt no-op the domain answers.
     restore: (id) => {
       const current = this.sectionFor(id);
-      return this.answer('sections.restore', id, restored(current)).then((updated) => {
-        Object.assign(current, updated);
-        return updated;
+      const wasArchived = current.archivedAt !== undefined;
+      const result: SectionWriteResult = {
+        section: restored(current),
+        operation: wasArchived ? this.receipt('section.restore', `Restore ${id}`) : null,
+      };
+      return this.answer('sections.restore', id, result).then((answered) => {
+        Object.assign(current, answered.section);
+        delete current.archivedAt;
+        return answered;
       });
     },
   };
@@ -525,35 +539,55 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         position,
         columnSpan: input.columnSpan ?? this.shortcutForCreate(projectId, input).columnSpan,
       };
-      return this.answer('shortcuts.create', { projectId, input }, created).then((shortcut) => {
-        (this.options.shortcuts ??= []).push(shortcut);
-        this.placeAt(projectId, input.pageId, position, { kind: 'shortcut', value: shortcut });
-        return shortcut;
+      const result: SectionShortcutAddResult = { shortcut: created, operation: this.receipt('shortcut.add', `Add shortcut to ${input.sourceSectionId}`) };
+      return this.answer('shortcuts.create', { projectId, input }, result).then((answered) => {
+        (this.options.shortcuts ??= []).push(answered.shortcut);
+        this.placeAt(projectId, input.pageId, position, { kind: 'shortcut', value: answered.shortcut });
+        return answered;
       });
     },
     update: (id: SectionShortcutId, input: UpdateSectionShortcutInput) => {
       const current = this.shortcutFor(id);
-      return this.answer('shortcuts.update', { id, input }, { ...current, ...input }).then((updated) => {
-        Object.assign(current, updated);
-        return updated;
+      const next = { ...current, ...input };
+      const changed = next.columnSpan !== current.columnSpan || next.collapsed !== current.collapsed;
+      const result: SectionShortcutWriteResult = {
+        shortcut: next,
+        operation: changed ? this.receipt('shortcut.update', `Update shortcut ${id}`) : null,
+      };
+      return this.answer('shortcuts.update', { id, input }, result).then((answered) => {
+        Object.assign(current, answered.shortcut);
+        return answered;
       });
     },
     move: (id: SectionShortcutId, input: MoveSectionShortcutInput) => {
       const current = this.shortcutFor(id);
-      return this.answer('shortcuts.move', { id, input }, { ...current, position: input.position }).then((updated) => {
+      const result: SectionShortcutWriteResult = {
+        shortcut: { ...current, position: input.position },
+        operation: current.position === input.position ? null : this.receipt('shortcut.move', `Move shortcut ${id}`),
+      };
+      return this.answer('shortcuts.move', { id, input }, result).then((answered) => {
         this.placeAt(
           this.projectForPage(current.pageId, current.sourceProjectId as ProjectId),
           current.pageId,
           input.position,
           { kind: 'shortcut', value: current },
         );
-        return updated;
+        return answered;
       });
     },
-    remove: (id: SectionShortcutId) =>
-      this.answer('shortcuts.remove', id, undefined).then(() => {
+    remove: (id: SectionShortcutId) => {
+      const current = this.shortcutFor(id);
+      const result: SectionShortcutRemovalResult = {
+        shortcutId: id,
+        projectId: this.projectForPage(current.pageId, current.sourceProjectId as ProjectId),
+        pageId: current.pageId,
+        operation: this.receipt('shortcut.remove', `Remove shortcut ${id}`),
+      };
+      return this.answer('shortcuts.remove', id, result).then((answered) => {
         this.options.shortcuts = (this.options.shortcuts ?? []).filter((shortcut) => shortcut.id !== id);
-      }),
+        return answered;
+      });
+    },
   };
 
   readonly tasks: TaskGateway = {

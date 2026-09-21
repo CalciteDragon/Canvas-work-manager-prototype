@@ -617,9 +617,9 @@ export class ProjectPageStore {
   addShortcut(input: CreateSectionShortcutInput): Promise<CanvasWriteResult> {
     return this.mutateWithResult(async ({ current, projectId, pageId, generation }) => {
       if (input.pageId !== pageId) throw new Error('The shortcut destination does not match this canvas');
-      const created = await this.gateway.shortcuts.create(projectId, input);
+      const { shortcut } = await this.gateway.shortcuts.create(projectId, input);
       if (!current()) return;
-      this.insertPlacement({ kind: 'shortcut', shortcut: created }, created.position);
+      this.insertPlacement({ kind: 'shortcut', shortcut }, shortcut.position);
       await this.reconcileSections(projectId, pageId, generation);
     });
   }
@@ -717,16 +717,16 @@ export class ProjectPageStore {
       () => this.shortcutsState().find((shortcut) => shortcut.id === id)?.columnSpan,
       (span) => this.patchShortcutColumnSpan(id, span),
       async () => this.gateway.shortcuts.update(id, { columnSpan }),
-      (shortcut) => shortcut.columnSpan,
-      (shortcut) => this.replaceShortcut(shortcut),
+      (result) => result.shortcut.columnSpan,
+      (result) => this.replaceShortcut(result.shortcut),
     );
   }
 
   updateShortcut(id: SectionShortcutId, input: UpdateSectionShortcutInput): Promise<boolean> {
     return this.mutate(async ({ current }) => {
-      const updated = await this.gateway.shortcuts.update(id, input);
+      const { shortcut } = await this.gateway.shortcuts.update(id, input);
       if (!current()) return;
-      this.replaceShortcut(updated);
+      this.replaceShortcut(shortcut);
     });
   }
 
@@ -1009,6 +1009,15 @@ export class ProjectPageStore {
     ) return 'Undo completed.';
     if (result.operation === 'section.add') return 'Undo removed the added section.';
     if (result.operation === 'section.update') return `Undo restored ${nameOf(result.section)}.`;
+    // Undoing an Archive Restore puts the section back in Archive rather than on this canvas, so
+    // it has no placement to describe — and saying "restored" would be exactly backwards.
+    if (result.operation === 'section.restore') return `Undo returned ${nameOf(result.section)} to Archive.`;
+    // A shortcut result names a placement, never the section behind it, so there is no title here
+    // and nothing about the source to report.
+    if (result.operation === 'shortcut.add') return 'Undo removed the added shortcut.';
+    if (result.operation === 'shortcut.update') return 'Undo restored the shortcut.';
+    if (result.operation === 'shortcut.move') return 'Undo moved the shortcut back.';
+    if (result.operation === 'shortcut.remove') return 'Undo restored the removed shortcut.';
     // The two remaining section operations both restore a section to a placement.
     const name = nameOf(result.section);
     if (!result.placement.pageEnabled) {

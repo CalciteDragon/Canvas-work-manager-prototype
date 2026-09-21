@@ -324,8 +324,13 @@ test('Archive lists recoverable content only, and independently archived rows ke
   );
   const restored = homeSections.find(({ id }) => id === cascaded.id)!;
   const events = await api<unknown[]>('GET', '/api/activity?limit=5');
-  const retried = await api<{ position: number; updatedAt: string }>('POST', `/api/sections/${cascaded.id}/restore`);
-  expect(retried).toMatchObject({ position: restored.position, updatedAt: restored.updatedAt });
+  const retried = await api<{ section: { position: number; updatedAt: string }; operation: unknown }>(
+    'POST',
+    `/api/sections/${cascaded.id}/restore`,
+  );
+  expect(retried.section).toMatchObject({ position: restored.position, updatedAt: restored.updatedAt });
+  // A retry on a live section writes nothing at all, so it has no receipt and no event either.
+  expect(retried.operation).toBeNull();
   expect(await api<unknown[]>('GET', '/api/activity?limit=5')).toEqual(events);
 
   const client = new Client(
@@ -387,7 +392,7 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     (await api<{ section: { id: string } }>('POST', `/api/projects/${projectId}/sections`, body)).section;
   const source = await add(child.id, { type: 'rich-text', title: 'Shortcut source', config: { text: 'Source prose' } });
   const first = await add(root.id, { type: 'rich-text', title: 'First notes', config: { text: 'First' } });
-  const shortcut = await api<{ id: string }>('POST', `/api/projects/${root.id}/shortcuts`, { pageId: home.id, sourceSectionId: source.id });
+  const shortcut = (await api<{ shortcut: { id: string } }>('POST', `/api/projects/${root.id}/shortcuts`, { pageId: home.id, sourceSectionId: source.id })).shortcut;
   const middle = await add(root.id, { type: 'rich-text', title: 'Middle notes', config: { text: 'Keep the middle prose' } });
   const last = await add(root.id, { type: 'progress', title: 'Last view' });
   const combined = async () => {
@@ -424,7 +429,8 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     await expect.poll(rendered).toEqual(initial);
     expect(await sdkSectionOrder()).toEqual([first.id, middle.id, last.id]);
 
-    // Restore: durable and receipt-free, appended after everything on the page.
+    // Restore: durable, needing no receipt to invoke, and appended after everything on the page.
+    // Since Slice 37 it also records an action of its own, which the refusals below depend on.
     const secondRemoval = page.waitForResponse((response) => response.request().method() === 'DELETE' && response.url().endsWith(`/api/sections/${middle.id}`));
     await middleFrame.locator('[data-section-remove]').click();
     const secondReceipt = ((await (await secondRemoval).json()) as { operation: { historyId: string; actionId: string } }).operation;
@@ -442,21 +448,45 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     expect((await api<{ config: { text: string } }[]>('GET', `/api/projects/${root.id}/sections?pageId=${home.id}`)).find((section) => (section as unknown as { id: string }).id === middle.id))
       .toMatchObject({ config: { text: 'Keep the middle prose' } });
 
-    // Neither receipt can move the restored section again. The first was undone and then discarded
-    // by the second removal's write; the second retires, because Restore already brought the section
-    // back and no later change could make its Undo right again.
+    // Neither removal receipt can move the section right now, and for the same reason in both
+    // cases: the Restore this person just made is the next step in their stack. The first receipt
+    // was undone and then discarded by the second removal's write; the second is one step below the
+    // Restore. Recording Restore turned what used to be a retirement into an ordinary "not next",
+    // which is the point — the way back is to undo the Restore, not to lose the removal.
     const eventsBeforeRefusals = await api<unknown[]>('GET', '/api/activity?limit=5');
-    for (const [receipt, reason] of [[firstReceipt, 'history_not_next'], [secondReceipt, 'history_retired']] as const) {
+    for (const receipt of [firstReceipt, secondReceipt]) {
       const { revision } = await api<{ revision: number }>('GET', `/api/projects/${root.id}/history`);
       const refused = await fetch(`${PROTOTYPE_HOST}/api/history/${receipt.historyId}/transition`, {
         method: 'POST', headers: PERSONA, body: JSON.stringify({ actionId: receipt.actionId, direction: 'undo', expectedRevision: revision }),
       });
       expect(refused.status).toBe(409);
-      expect(((await refused.json()) as { details: { reason: string } }).details.reason).toBe(reason);
+      expect(((await refused.json()) as { details: { reason: string } }).details.reason).toBe('history_not_next');
     }
     const eventsAfterRefusals = await api<unknown[]>('GET', '/api/activity?limit=5');
     expect(eventsAfterRefusals).toEqual(eventsBeforeRefusals);
-    // The person's history is not the agent connection's to reach.
+
+    // Undoing the Restore puts the section back in Archive and makes the second removal reachable,
+    // which is exactly the sequence Slice 37 exists to allow.
+    const summary = await api<{ historyId: string; revision: number; undo: { actionId: string; operation: string } }>(
+      'GET', `/api/projects/${root.id}/history`,
+    );
+    expect(summary.undo.operation).toBe('section.restore');
+    await api('POST', `/api/history/${summary.historyId}/transition`, {
+      actionId: summary.undo.actionId, direction: 'undo', expectedRevision: summary.revision,
+    });
+    await expect.poll(combined).toEqual([first.id, shortcut.id, last.id]);
+    const afterRestoreUndo = await api<{ revision: number; undo: { actionId: string; operation: string } }>(
+      'GET', `/api/projects/${root.id}/history`,
+    );
+    expect(afterRestoreUndo.undo).toMatchObject({ actionId: secondReceipt.actionId, operation: 'section.remove' });
+    // Put it back the way the page showed it, so the checks below read the restored canvas.
+    await api('POST', `/api/history/${summary.historyId}/transition`, {
+      actionId: summary.undo.actionId, direction: 'redo', expectedRevision: afterRestoreUndo.revision,
+    });
+    await expect.poll(combined).toEqual(appended);
+    // The person's history is not the agent connection's to reach. The baseline is re-read here:
+    // the Restore Undo/Redo above are real transitions and each recorded its own event.
+    const eventsBeforeSdk = await api<unknown[]>('GET', '/api/activity?limit=5');
     const { revision } = await api<{ revision: number }>('GET', `/api/projects/${root.id}/history`);
     const sdkRepeat = await client.callTool({
       name: 'undo_operation',
@@ -465,7 +495,7 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     expect(sdkRepeat.isError).toBe(true);
     expect(await combined()).toEqual(appended);
     // Refusals are not activity (Refactor §26.7).
-    expect(await api<unknown[]>('GET', '/api/activity?limit=5')).toEqual(eventsAfterRefusals);
+    expect(await api<unknown[]>('GET', '/api/activity?limit=5')).toEqual(eventsBeforeSdk);
   } finally {
     await client.close();
   }

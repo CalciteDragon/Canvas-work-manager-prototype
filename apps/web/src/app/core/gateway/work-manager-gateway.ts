@@ -51,6 +51,9 @@ import type {
   RemoveSectionInput,
   SectionRemovalResult,
   SectionAddResult,
+  SectionShortcutAddResult,
+  SectionShortcutRemovalResult,
+  SectionShortcutWriteResult,
   SectionWriteResult,
   OperationHistoryId,
   OperationHistorySummary,
@@ -180,10 +183,12 @@ export interface SectionGateway {
   create(projectId: ProjectId, input: CreateSectionInput): Promise<SectionAddResult>;
   update(id: SectionId, input: UpdateSectionInput): Promise<SectionWriteResult>;
   move(id: SectionId, input: MoveSectionInput): Promise<SectionWriteResult>;
-  duplicate(id: SectionId): Promise<ProjectSection>;
+  /** §31's duplicate. Recorded as the add it is, so it answers the add envelope. */
+  duplicate(id: SectionId): Promise<SectionAddResult>;
   /** Removes or retains the section according to content and references, and returns its operation receipt. */
   remove(id: SectionId, input?: RemoveSectionInput): Promise<SectionRemovalResult>;
-  restore(id: SectionId): Promise<ProjectSection>;
+  /** Archive Restore. A repeat on a live section answers the section and a `null` receipt. */
+  restore(id: SectionId): Promise<SectionWriteResult>;
 }
 
 /**
@@ -199,10 +204,13 @@ export interface OperationHistoryGateway {
 export interface SectionShortcutGateway {
   list(projectId: ProjectId, query?: SectionShortcutQuery): Promise<ResolvedSectionShortcut[]>;
   sources(projectId: ProjectId, query: ShortcutSourceQuery): Promise<ShortcutSource[]>;
-  create(projectId: ProjectId, input: CreateSectionShortcutInput): Promise<ResolvedSectionShortcut>;
-  update(id: SectionShortcutId, input: UpdateSectionShortcutInput): Promise<ResolvedSectionShortcut>;
-  move(id: SectionShortcutId, input: MoveSectionShortcutInput): Promise<ResolvedSectionShortcut>;
-  remove(id: SectionShortcutId): Promise<void>;
+  create(projectId: ProjectId, input: CreateSectionShortcutInput): Promise<SectionShortcutAddResult>;
+  /** A same-value resize or collapse answers the placement and a `null` receipt. */
+  update(id: SectionShortcutId, input: UpdateSectionShortcutInput): Promise<SectionShortcutWriteResult>;
+  /** A move to the position it already holds answers the placement and a `null` receipt. */
+  move(id: SectionShortcutId, input: MoveSectionShortcutInput): Promise<SectionShortcutWriteResult>;
+  /** No placement is left to return, so the removal names what it deleted and its receipt. */
+  remove(id: SectionShortcutId): Promise<SectionShortcutRemovalResult>;
 }
 
 /**

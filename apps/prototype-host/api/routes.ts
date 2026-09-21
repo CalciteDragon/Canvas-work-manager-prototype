@@ -70,11 +70,8 @@ export interface ApiDependencies {
 
 const ok = (body: unknown): RouteResult => ({ status: 200, contentType: 'application/json', body });
 const created = (body: unknown): RouteResult => ({ status: 201, contentType: 'application/json', body });
-/**
- * For the operations that answer nothing worth reading. Section removal is no longer one of them:
- * its DELETE answers 200 with the archived section and its operation receipt.
- */
-const noContent = (): RouteResult => ({ status: 204, contentType: 'application/json', body: undefined });
+// No route answers 204 any more: every delete now returns what it deleted and the receipt that
+// puts it back, and a body-less status cannot carry one.
 
 /**
  * Query strings are all strings, so the contract schemas need the shapes they expect:
@@ -386,10 +383,10 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
         ),
       ),
 
-    'DELETE /api/shortcuts/:id': async (request) => {
-      await shortcuts.remove(await actorFor(request), shortcutId(request));
-      return noContent();
-    },
+    // 200 with `SectionShortcutRemovalResult`, not 204: the delete now answers a receipt, and a
+    // body-less status could not carry one. The route name and input are unchanged.
+    'DELETE /api/shortcuts/:id': async (request) =>
+      ok(await shortcuts.remove(await actorFor(request), shortcutId(request))),
 
     'GET /api/tasks': async (request) =>
       ok(

@@ -84,23 +84,32 @@ export const refuseOnConflicts = (
 
 /**
  * The `archiveGeneration` a **recreated** section must carry: the higher of its snapshot's and
- * the highest any stored removal action captured for it. Undoing an add, or redoing a disposable
+ * the highest generation any stored action captured for it. Undoing an add, or redoing a disposable
  * removal, deletes the row that held the generation; recreating it from an older snapshot would
- * move the generation backwards past a removal some history still holds, and that removal's Undo
+ * move the generation backwards past an action some history still holds, and that action's Undo
  * or Redo would then misjudge which removal it is looking at.
+ *
+ * Two kinds of action carry that evidence, and both count. A `section.remove` records the
+ * generation it *wrote*; a `section.restore` records the generation the section *had*, which
+ * Restore leaves alone. They matter separately because retention prunes per history: another
+ * actor's removal can be pruned while their later Restore survives, and the Restore is then the
+ * only record that the section ever reached that generation.
  */
 export const generationFloor = async (
   repositories: SectionHistoryRepositories,
   sectionId: string,
   snapshotGeneration: number,
 ): Promise<number> =>
-  (await repositories.actions.list()).reduce(
-    (highest, action) =>
-      action.operation.type === 'section.remove' && action.operation.section.id === sectionId
-        ? Math.max(highest, action.operation.archiveGeneration)
-        : highest,
-    snapshotGeneration,
-  );
+  (await repositories.actions.list()).reduce((highest, action) => {
+    const { operation } = action;
+    if (operation.type === 'section.remove' && operation.section.id === sectionId) {
+      return Math.max(highest, operation.archiveGeneration);
+    }
+    if (operation.type === 'section.restore' && operation.sectionId === sectionId) {
+      return Math.max(highest, operation.archiveGeneration);
+    }
+    return highest;
+  }, snapshotGeneration);
 
 /** One placement reference compared with a live neighbour. */
 export const isPlacementOf = (

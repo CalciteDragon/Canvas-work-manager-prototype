@@ -13,15 +13,18 @@ import { OperationActionIdSchema, OperationHistoryIdSchema } from './ids';
 /**
  * The operation kinds a history action can hold, as receipts and summaries name them.
  *
- * Four section kinds from Slice 35 and eight row kinds from Slice 36. Completion is not a kind
- * of its own: §34 makes it a `task.update` whose label and verb say `Completed`, so PATCH-to-done
- * and `complete` record one shape and one inverse.
+ * Four section kinds from Slice 35, eight row kinds from Slice 36, and from Slice 37 the durable
+ * `section.restore` plus the four Home shortcut placement kinds. Completion is not a kind of its
+ * own: §34 makes it a `task.update` whose label and verb say `Completed`, so PATCH-to-done and
+ * `complete` record one shape and one inverse. Duplication is not one either: §31's duplicate
+ * creates a section, so it records the `section.add` its copy actually is.
  */
 export const OperationKindSchema = z.enum([
   'section.remove',
   'section.add',
   'section.move',
   'section.update',
+  'section.restore',
   'task.add',
   'task.update',
   'task.archive',
@@ -30,15 +33,24 @@ export const OperationKindSchema = z.enum([
   'reflection.update',
   'reflection.archive',
   'reflection.restore',
+  'shortcut.add',
+  'shortcut.update',
+  'shortcut.move',
+  'shortcut.remove',
 ]);
 export type OperationKind = z.infer<typeof OperationKindSchema>;
 
 /**
- * The three families an operation kind belongs to, and the grant each one's transitions need
+ * The four families an operation kind belongs to, and the grant each one's transitions need
  * (docs/decisions/2026-09-operation-family-permissions.md). A caller never chooses the family:
  * it is read from the **stored** action, so an input cannot buy a grant it does not hold.
+ *
+ * `shortcut` is its own family although it shares `projects.write` with `section`: the families
+ * are the vocabulary discovery publishes and the stack is asserted against, and collapsing two
+ * kinds of subject into one name because their grants happen to match today would make the next
+ * grant split a breaking change rather than a value edit.
  */
-export const OperationFamilySchema = z.enum(['section', 'task', 'reflection']);
+export const OperationFamilySchema = z.enum(['section', 'task', 'reflection', 'shortcut']);
 export type OperationFamily = z.infer<typeof OperationFamilySchema>;
 
 /** The family of one operation kind — the prefix, named rather than parsed at each call site. */

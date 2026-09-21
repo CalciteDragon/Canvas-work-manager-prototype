@@ -9,7 +9,16 @@
  * `PROTOTYPE_API_BASE_URL` string.
  */
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import type { CreateSectionInput, Project, ProjectLayoutMode, ProjectSection, SectionAddResult } from '@cwm/contracts';
+import type {
+  CreateSectionInput,
+  CreateSectionShortcutInput,
+  Project,
+  ProjectLayoutMode,
+  ProjectSection,
+  ResolvedSectionShortcut,
+  SectionAddResult,
+  SectionShortcutAddResult,
+} from '@cwm/contracts';
 
 const HOST = 'http://127.0.0.1:4310';
 
@@ -96,6 +105,16 @@ export const createSubprojects = async (rootId: string, count: number): Promise<
 /** Create a section on the project's canonical canvas, optionally at a combined-order index. */
 export const addSection = async (projectId: string, input: CreateSectionInput): Promise<ProjectSection> =>
   (await api.post<SectionAddResult>(`/api/projects/${projectId}/sections`, input)).section;
+
+/**
+ * Place a shortcut on a root's Home page, unwrapping the `{ shortcut, operation }` envelope the
+ * write has answered since Slice 37. Journeys about placement care about the placement.
+ */
+export const addShortcut = async (
+  projectId: string,
+  input: Omit<CreateSectionShortcutInput, 'pageId' | 'sourceSectionId'> & { pageId: string; sourceSectionId: string },
+): Promise<ResolvedSectionShortcut> =>
+  (await api.post<SectionShortcutAddResult>(`/api/projects/${projectId}/shortcuts`, input)).shortcut;
 
 /** Persist the project layout flag through the same host API used by the development panel. */
 export const setLayout = (projectId: string, projectLayoutMode: ProjectLayoutMode): Promise<Project> =>

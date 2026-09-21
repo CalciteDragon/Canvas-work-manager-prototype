@@ -1710,4 +1710,72 @@ describe('operation history integrity', () => {
     document.operationActions[0] = removal(2, 'deleted');
     expect(() => new InMemoryDataStore(structuredClone(document))).not.toThrow();
   });
+
+  it('rejects a restore action whose captured archive generation is ahead of its section', () => {
+    const document = withHistory([history()]);
+    const section = document.sections[0]!;
+    const restore = (archiveGeneration: number) =>
+      action({
+        operation: {
+          version: 1,
+          type: 'section.restore',
+          sectionId: section.id,
+          projectId: section.projectId,
+          pageId: section.pageId,
+          archivedAt: at,
+          archiveGeneration,
+          oldPosition: section.position,
+          placement: { pageId: section.pageId, index: section.position },
+          rows: [],
+        },
+      });
+    document.sections[0] = { ...section, archiveGeneration: 1 };
+    document.operationActions.push(restore(1));
+    expect(() => new InMemoryDataStore(structuredClone(document))).not.toThrow();
+
+    document.operationActions[0] = restore(2);
+    expect(() => new InMemoryDataStore(structuredClone(document))).toThrow(/captures archive generation 2, beyond section "section-1"/);
+
+    // A section a later removal deleted stays deliberately unresolved: the action has to survive
+    // that to be redone, so an absent subject is not an integrity failure at any generation.
+    document.operationActions[0] = action({
+      operation: { ...restore(9).operation, sectionId: 'section-deleted' },
+    });
+    expect(() => new InMemoryDataStore(structuredClone(document))).not.toThrow();
+  });
+
+  it('opens a pre-Slice-37 document unchanged and round-trips each new operation kind', () => {
+    const shortcut = {
+      id: 'shortcut-history-1',
+      pageId: 'page-1',
+      sourceSectionId: 'section-1',
+      position: 0,
+      columnSpan: 12,
+      collapsed: false,
+      createdAt: at,
+      updatedAt: at,
+    };
+    const placement = { pageId: 'page-1', index: 0 };
+    const kinds = [
+      { version: 1, type: 'section.restore', sectionId: 'section-1', projectId: 'project-1', pageId: 'page-1', archivedAt: at, archiveGeneration: 0, oldPosition: 0, placement, rows: [] },
+      { version: 1, type: 'shortcut.add', projectId: 'project-1', shortcut, placement },
+      { version: 1, type: 'shortcut.update', shortcutId: shortcut.id, projectId: 'project-1', pageId: 'page-1', changes: [{ field: 'collapsed', before: false, after: true }] },
+      { version: 1, type: 'shortcut.move', shortcutId: shortcut.id, projectId: 'project-1', pageId: 'page-1', placementBefore: placement, placementAfter: { pageId: 'page-1', index: 1 } },
+      { version: 1, type: 'shortcut.remove', projectId: 'project-1', shortcut, placement },
+    ];
+
+    // Every Slice 35/36 kind still parses from a document written before these members existed.
+    const before = withHistory([history()]);
+    expect(() => new InMemoryDataStore(structuredClone(before))).not.toThrow();
+    expect(new InMemoryDataStore(structuredClone(before)).snapshot().schemaVersion).toBe(SCHEMA_VERSION);
+
+    for (const [index, operation] of kinds.entries()) {
+      const document = withHistory([history()]);
+      document.operationActions = [action({ id: `operation-${index + 1}`, order: 1, operation })];
+      const store = new InMemoryDataStore(structuredClone(document));
+      // Through JSON and back, which is the only persistence §14 has.
+      const reopened = new InMemoryDataStore(JSON.parse(JSON.stringify(store.snapshot())));
+      expect(reopened.snapshot().operationActions[0]?.operation).toEqual(operation);
+    }
+  });
 });

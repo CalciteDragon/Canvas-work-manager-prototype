@@ -80,6 +80,7 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
     `${title} reads the linked reflection from the journal`,
   );
   const undo = await assertUndo(client, title, dataFile);
+  await assertRestoreAndShortcuts(client, title);
   await assertRecoveryAndGrants(client, foreign, title, dataFile, access);
   return { task, reflectionId: reflection.structuredContent?.reflection?.id, ...undo };
 };
@@ -253,6 +254,109 @@ const refusedText = async (call) => {
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
+};
+
+/**
+ * Slice 37 over the real transports: `restore_section` now answers a receipt of its own, and the
+ * two shortcut tools answer envelopes rather than a bare placement and `undefined`. Both families
+ * step through `undo_operation` and `redo_operation` with only `projects.write` behind them.
+ */
+const assertRestoreAndShortcuts = async (client, title) => {
+  const sectionIds = async () => {
+    const listed = await client.callTool({ name: 'list_sections', arguments: { projectId: PROJECT } });
+    return JSON.parse(listed.content[0].text).map(({ id }) => id);
+  };
+
+  // Prose with content is retained by removal, so there is a tombstone to restore.
+  const prose = await client.callTool({
+    name: 'create_section',
+    arguments: { projectId: PROJECT, type: 'rich-text', title: `Restorable ${title}`, config: { text: 'Worth keeping' } },
+  });
+  const proseId = prose.structuredContent.section.id;
+  const removedProse = await client.callTool({ name: 'remove_section', arguments: { sectionId: proseId } });
+  check(removedProse.isError !== true && removedProse.structuredContent.archiveListed === true, `${title} the prose section is removed into Archive`);
+
+  const restored = await client.callTool({ name: 'restore_section', arguments: { sectionId: proseId } });
+  check(
+    restored.isError !== true && receiptOf(restored)?.operation === 'section.restore' && restored.structuredContent.section.id === proseId,
+    `${title} restore_section answers the section and a receipt of its own`,
+  );
+  const retried = await client.callTool({ name: 'restore_section', arguments: { sectionId: proseId } });
+  check(retried.isError !== true && receiptOf(retried) === null, `${title} a repeat on a live section records nothing`);
+  const undoneRestore = await stepReceipt(client, receiptOf(restored));
+  check(undoneRestore.isError !== true && !(await sectionIds()).includes(proseId), `${title} Undo Restore returns it to Archive`);
+  const redoneRestore = await stepReceipt(client, receiptOf(restored), 'redo');
+  check(redoneRestore.isError !== true && (await sectionIds()).includes(proseId), `${title} Redo Restore brings it back`);
+
+  // A placement needs a source elsewhere in the same root tree, so the chain makes one.
+  const child = await client.callTool({
+    name: 'create_project',
+    arguments: { kind: 'subproject', parentProjectId: PROJECT, name: `Kitchen ${title}` },
+  });
+  check(child.isError !== true, `${title} creates a sub-project to reference`);
+  const childId = child.structuredContent.id ?? JSON.parse(child.content[0].text).id;
+  const source = await client.callTool({ name: 'create_section', arguments: { projectId: childId, type: 'task-list', title: 'Prep' } });
+  const sourceId = source.structuredContent.section.id;
+
+  const placements = async () => {
+    const listed = await client.callTool({ name: 'list_section_shortcuts', arguments: { projectId: PROJECT } });
+    return JSON.parse(listed.content[0].text);
+  };
+  const placed = await client.callTool({
+    name: 'add_section_shortcut',
+    arguments: { projectId: PROJECT, pageId: `page-${PROJECT}`, sourceSectionId: sourceId },
+  });
+  if (placed.isError === true) throw new Error(`add_section_shortcut failed: ${JSON.stringify(placed.content)}`);
+  check(
+    receiptOf(placed)?.operation === 'shortcut.add' && placed.structuredContent.shortcut.sourceSectionId === sourceId,
+    `${title} add_section_shortcut answers the resolved placement and its receipt`,
+  );
+  const shortcutId = placed.structuredContent.shortcut.id;
+  check((await placements()).some(({ id }) => id === shortcutId), `${title} the placement is on Home`);
+
+  const removedShortcut = await client.callTool({ name: 'remove_section_shortcut', arguments: { shortcutId } });
+  check(
+    removedShortcut.isError !== true && removedShortcut.structuredContent.shortcutId === shortcutId &&
+      receiptOf(removedShortcut)?.operation === 'shortcut.remove',
+    `${title} remove_section_shortcut names what it deleted and the receipt that restores it`,
+  );
+  check((await placements()).length === 0, `${title} the placement is gone`);
+
+  const undoneRemoval = await stepReceipt(client, receiptOf(removedShortcut));
+  const back = await placements();
+  check(
+    undoneRemoval.isError !== true && back.length === 1 && back[0].id === shortcutId && back[0].sourceSectionId === sourceId,
+    `${title} Undo restores the same placement id pointing at the same source`,
+  );
+  const sourceSections = JSON.parse(
+    (await client.callTool({ name: 'list_sections', arguments: { projectId: childId } })).content[0].text,
+  );
+  check(
+    sourceSections.some(({ id, archivedAt }) => id === sourceId && archivedAt === undefined),
+    `${title} and the source section was never written`,
+  );
+  const redoneRemoval = await stepReceipt(client, receiptOf(removedShortcut), 'redo');
+  check(redoneRemoval.isError !== true && (await placements()).length === 0, `${title} Redo removes it again`);
+
+  // The cursor allows one order and only one: the removal first, then the add underneath it.
+  const outOfOrder = await client.callTool({
+    name: 'undo_operation',
+    arguments: {
+      historyId: receiptOf(placed).historyId,
+      actionId: receiptOf(placed).actionId,
+      expectedRevision: (await historyOf(client)).revision,
+    },
+  });
+  check(
+    outOfOrder.isError === true && textOf(outOfOrder).startsWith('history_not_next:'),
+    `${title} the add cannot be undone while the removal sits above it`,
+  );
+  await stepReceipt(client, receiptOf(removedShortcut));
+  const undoneAdd = await stepReceipt(client, receiptOf(placed));
+  check(
+    undoneAdd.isError !== true && (await placements()).length === 0,
+    `${title} Undo steps back through the removal and then the add`,
+  );
 };
 
 const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access) => {

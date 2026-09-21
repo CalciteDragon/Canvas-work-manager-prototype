@@ -13,7 +13,11 @@ import {
   type ResolvedSectionShortcut,
   type SectionId,
   type SectionShortcut,
+  type SectionShortcutAddResult,
   type SectionShortcutQuery,
+  type SectionShortcutRemovalResult,
+  type SectionShortcutWriteResult,
+  type ShortcutFieldChange,
   type ShortcutSource,
   type ShortcutSourceQuery,
   type UpdateSectionShortcutInput,
@@ -30,8 +34,15 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
-import { listPlacements, renumberPlacements } from './page-placements';
+import type { OperationRecorder } from './operation-recorder';
+import { listPlacements, renumberPlacements, snapshotPlacement } from './page-placements';
 import { archivedAncestry, assertProjectWritable } from './project-visibility';
+import {
+  captureShortcutAdd,
+  captureShortcutMove,
+  captureShortcutRemove,
+  captureShortcutUpdate,
+} from './shortcut-history';
 
 export interface SectionShortcutServiceDependencies {
   shortcuts: SectionShortcutRepository;
@@ -39,6 +50,13 @@ export interface SectionShortcutServiceDependencies {
   pages: ProjectPageRepository;
   projects: ProjectRepository;
   activity: ActivityService;
+  /**
+   * Makes each committed placement write undoable, in the **destination** project's history.
+   * The same interface `SectionService` holds and used the same way — inside the caller's unit,
+   * asserting no grant of its own — so the service graph gains no new edge: a shortcut inverse
+   * writes placements through repositories and never calls back into a service.
+   */
+  history: OperationRecorder;
   clock: Clock;
   ids: IdGenerator;
   unitOfWork: UnitOfWork;
@@ -128,7 +146,7 @@ export class SectionShortcutService {
     actor: ActorContext,
     projectId: ProjectId,
     input: CreateSectionShortcutInput,
-  ): Promise<ResolvedSectionShortcut> {
+  ): Promise<SectionShortcutAddResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
     return this.dependencies.unitOfWork.run(async () => {
@@ -156,7 +174,22 @@ export class SectionShortcutService {
       ordered.splice(position, 0, { kind: 'shortcut', value: shortcut });
       await renumberPlacements(this.dependencies, this.dependencies.clock, ordered);
       await this.record(actor, destination.project, 'project.shortcut_added', `Added a shortcut to ${nameOf(source)}`);
-      return this.resolve(actor, shortcut, destination, projects);
+      const stored = await this.requireShortcut(actor, shortcut.id);
+      const operation = await this.dependencies.history.record(actor, {
+        // The **destination** root, always: the action belongs to the canvas the placement is on,
+        // never to the sub-project the source happens to live in.
+        projectId: destination.project.id,
+        label: `Added a shortcut to ${nameOf(source)}`,
+        operation: captureShortcutAdd(
+          destination.project.id,
+          stored,
+          snapshotPlacement(await listPlacements(this.dependencies, destination.page.id), {
+            kind: 'shortcut',
+            id: stored.id,
+          }),
+        ),
+      });
+      return { shortcut: await this.resolve(actor, stored, destination, projects), operation };
     });
   }
 
@@ -164,7 +197,7 @@ export class SectionShortcutService {
     actor: ActorContext,
     id: SectionShortcut['id'],
     input: UpdateSectionShortcutInput,
-  ): Promise<ResolvedSectionShortcut> {
+  ): Promise<SectionShortcutWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
     return this.dependencies.unitOfWork.run(async () => {
@@ -172,8 +205,17 @@ export class SectionShortcutService {
       const destination = await this.destinationForShortcut(actor, current.pageId);
       await assertProjectWritable(this.dependencies.projects, destination.project.id);
       const next = { ...current, ...input };
-      if (next.columnSpan === current.columnSpan && next.collapsed === current.collapsed) {
-        return this.resolveCurrent(actor, current, destination);
+      // A same-value gesture — Escape out of a resize, re-picking the current width — stays a true
+      // no-op: no write, no event and no action, so it cannot bury the caller's Redo branch.
+      const changes: ShortcutFieldChange[] = [];
+      if (next.columnSpan !== current.columnSpan) {
+        changes.push({ field: 'columnSpan', before: current.columnSpan, after: next.columnSpan });
+      }
+      if (next.collapsed !== current.collapsed) {
+        changes.push({ field: 'collapsed', before: current.collapsed, after: next.collapsed });
+      }
+      if (changes.length === 0) {
+        return { shortcut: await this.resolveCurrent(actor, current, destination), operation: null };
       }
       const updated = SectionShortcutSchema.parse({
         ...next,
@@ -181,7 +223,17 @@ export class SectionShortcutService {
       });
       await this.dependencies.shortcuts.update(updated);
       await this.record(actor, destination.project, 'project.shortcut_updated', 'Updated a shortcut');
-      return this.resolveCurrent(actor, updated, destination);
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: destination.project.id,
+        label: 'Updated a shortcut',
+        operation: captureShortcutUpdate({
+          shortcutId: updated.id,
+          projectId: destination.project.id,
+          pageId: updated.pageId,
+          changes,
+        }),
+      });
+      return { shortcut: await this.resolveCurrent(actor, updated, destination), operation };
     });
   }
 
@@ -189,7 +241,7 @@ export class SectionShortcutService {
     actor: ActorContext,
     id: SectionShortcut['id'],
     input: MoveSectionShortcutInput | number,
-  ): Promise<ResolvedSectionShortcut> {
+  ): Promise<SectionShortcutWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
     const requestedPosition = typeof input === 'number' ? input : input.position;
@@ -199,22 +251,52 @@ export class SectionShortcutService {
       await assertProjectWritable(this.dependencies.projects, destination.project.id);
       const placements = await listPlacements(this.dependencies, current.pageId);
       const index = placements.findIndex((placement) => placement.kind === 'shortcut' && placement.value.id === id);
-      if (index === -1) throw new EntityNotFoundError('sectionShortcut', id);
+      const moved = placements[index];
+      if (index === -1 || moved === undefined) throw new EntityNotFoundError('sectionShortcut', id);
+      const placementBefore = snapshotPlacement(placements, { kind: 'shortcut', id });
       const without = placements.filter((_, placementIndex) => placementIndex !== index);
+      // Clamped, not rejected: a caller that asks for "last" by overshooting means last.
       const target = Math.min(Math.max(requestedPosition, 0), without.length);
-      const [moved] = placements.splice(index, 1);
-      if (moved === undefined) throw new EntityNotFoundError('sectionShortcut', id);
+
+      // **Compared before writing**, exactly as `SectionService.move` does. Renumbering first and
+      // then noticing that `position` had not changed was wrong twice over: on a hand-edited sparse
+      // page (§14) a clamped no-op silently normalized every sibling and stamped the subject, and a
+      // dense page could not tell "did not move" from "moved and landed on the same number".
+      if (index === target) {
+        return { shortcut: await this.resolveCurrent(actor, current, destination), operation: null };
+      }
       without.splice(target, 0, moved);
+      const placementAfter = snapshotPlacement(without, { kind: 'shortcut', id });
+
       await renumberPlacements(this.dependencies, this.dependencies.clock, without, { kind: 'shortcut', id });
       const updated = await this.dependencies.shortcuts.find(id);
       if (updated === null) throw new EntityNotFoundError('sectionShortcut', id);
-      if (updated.position === current.position) return this.resolveCurrent(actor, updated, destination);
       await this.record(actor, destination.project, 'project.shortcut_moved', 'Moved a shortcut');
-      return this.resolveCurrent(actor, updated, destination);
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: destination.project.id,
+        label: 'Moved a shortcut',
+        operation: captureShortcutMove({
+          shortcutId: id,
+          projectId: destination.project.id,
+          pageId: updated.pageId,
+          placementBefore,
+          placementAfter,
+        }),
+      });
+      return { shortcut: await this.resolveCurrent(actor, updated, destination), operation };
     });
   }
 
-  async remove(actor: ActorContext, id: SectionShortcut['id']): Promise<void> {
+  /**
+   * Deletes one placement and answers what it deleted plus the receipt that puts it back. There is
+   * no live placement left to return, so the result names ids rather than a record that would read
+   * as current, and the receipt is never `null` — removing a stored placement always writes.
+   *
+   * Permitted while the destination project is archived, like section removal: the freeze stops
+   * work coming back into a project someone has put away, not someone tidying one. A transition on
+   * the receipt still answers `history_blocked` until that ancestry is reactivated.
+   */
+  async remove(actor: ActorContext, id: SectionShortcut['id']): Promise<SectionShortcutRemovalResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
     return this.dependencies.unitOfWork.run(async () => {
@@ -223,9 +305,18 @@ export class SectionShortcutService {
       const placements = await listPlacements(this.dependencies, current.pageId);
       const remaining = placements.filter((placement) => !(placement.kind === 'shortcut' && placement.value.id === id));
       if (remaining.length === placements.length) throw new EntityNotFoundError('sectionShortcut', id);
+      // Captured while the placement is still in the order, so Undo returns it between the same
+      // neighbours rather than at an index the page has since reused.
+      const placement = snapshotPlacement(placements, { kind: 'shortcut', id });
       await this.dependencies.shortcuts.remove(id);
       await renumberPlacements(this.dependencies, this.dependencies.clock, remaining);
       await this.record(actor, destination.project, 'project.shortcut_removed', 'Removed a shortcut');
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: destination.project.id,
+        label: 'Removed a shortcut',
+        operation: captureShortcutRemove(destination.project.id, current, placement),
+      });
+      return { shortcutId: id, projectId: destination.project.id, pageId: current.pageId, operation };
     });
   }
 

@@ -404,15 +404,16 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
     );
   });
 
-  it('restores through the dedicated route and parses the section it answers', async () => {
-    fetchMock.mockImplementation(jsonResponse(projectSection));
+  it('restores through the dedicated route and parses the section and receipt it answers', async () => {
+    fetchMock.mockImplementation(jsonResponse({ section: projectSection, operation: receiptOf('section.restore', 1) }));
 
     const restored = await gateway().sections.restore('section-1' as SectionId);
 
     expect(lastCall().url).toBe('http://host.test/api/sections/section-1/restore');
     expect(lastCall().init.method).toBe('POST');
     expect(lastCall().init.body).toBeUndefined();
-    expect(restored.id).toBe('section-1');
+    expect(restored.section.id).toBe('section-1');
+    expect(restored.operation?.operation).toBe('section.restore');
   });
 
   it('creates with a JSON body and accepts 201', async () => {
@@ -467,13 +468,17 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
   });
 
   it('duplicates with no body and accepts 201', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...projectSection, id: 'section-2', position: 1 }, 201));
+    fetchMock.mockImplementation(jsonResponse({
+      section: { ...projectSection, id: 'section-2', position: 1 },
+      operation: receiptOf('section.add', 1),
+    }, 201));
 
     const copy = await gateway().sections.duplicate('section-1' as SectionId);
 
     expect(lastCall().url).toBe('http://host.test/api/sections/section-1/duplicate');
     expect(lastCall().init.body).toBeUndefined();
-    expect(copy.id).toBe('section-2');
+    expect(copy.section.id).toBe('section-2');
+    expect(copy.operation.operation).toBe('section.add');
   });
 
   it('removes through DELETE and validates the returned receipt contract', async () => {
@@ -582,10 +587,15 @@ describe('PrototypeWorkManagerGateway — shortcuts (§27)', () => {
     fetchMock
       .mockImplementationOnce(jsonResponse([shortcut]))
       .mockImplementationOnce(jsonResponse([shortcutSource]))
-      .mockImplementationOnce(jsonResponse(shortcut, 201))
-      .mockImplementationOnce(jsonResponse({ ...shortcut, collapsed: true }))
-      .mockImplementationOnce(jsonResponse({ ...shortcut, position: 2 }))
-      .mockImplementationOnce(() => new Response(null, { status: 204 }));
+      .mockImplementationOnce(jsonResponse({ shortcut, operation: receiptOf('shortcut.add', 1) }, 201))
+      .mockImplementationOnce(jsonResponse({ shortcut: { ...shortcut, collapsed: true }, operation: receiptOf('shortcut.update', 2) }))
+      .mockImplementationOnce(jsonResponse({ shortcut: { ...shortcut, position: 2 }, operation: null }))
+      .mockImplementationOnce(jsonResponse({
+        shortcutId: shortcut.id,
+        projectId: 'project-1',
+        pageId: shortcut.pageId,
+        operation: receiptOf('shortcut.remove', 3),
+      }));
     const subject = gateway();
 
     expect(await subject.shortcuts.list('project-1' as ProjectId, { pageId: 'page-project-1' as never })).toEqual([
@@ -613,9 +623,11 @@ describe('PrototypeWorkManagerGateway — shortcuts (§27)', () => {
     expect(lastCall().url).toBe('http://host.test/api/shortcuts/shortcut-1/move');
     expect(JSON.parse(lastCall().init.body as string)).toEqual({ position: 2 });
 
-    await subject.shortcuts.remove('shortcut-1' as never);
+    // A move that changed nothing answers the placement and a null receipt rather than a 204.
+    const removed = await subject.shortcuts.remove('shortcut-1' as never);
     expect(lastCall().url).toBe('http://host.test/api/shortcuts/shortcut-1');
     expect(lastCall().init.method).toBe('DELETE');
+    expect(removed).toMatchObject({ shortcutId: shortcut.id, operation: { operation: 'shortcut.remove' } });
   });
 });
 

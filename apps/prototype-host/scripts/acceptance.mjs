@@ -6,7 +6,9 @@
  * writes went through a unit of work to `.prototype/data.json` (§15). Slices 30–31 add
  * section Undo, safe disposable deletion, and exact-actor recovery after a repeated removal of an
  * already deleted section; Slice 35 moves Undo onto the operation-history routes and adds Redo,
- * the sequential A → B chain and branch invalidation over the wire.
+ * the sequential A → B chain and branch invalidation over the wire. Slice 37 adds the three
+ * operations that had no history until then: section duplication, Archive Restore, and the four
+ * Home shortcut placement writes — each reversed and replayed over HTTP.
  *
  * Runs against a temporary data file via CWM_DATA_FILE, never the developer's own
  * workspace: an acceptance check that mutates the file you were about to demo is worse
@@ -220,6 +222,98 @@ try {
   check(restoredDisposable.status === 200 && restoredDisposable.body.result.section.id === disposable.id, 'the recovered receipt recreates the original section');
   const persistedAction = JSON.parse(await readFile(dataFile, 'utf8')).operationActions.find(({ id }) => id === hard.actionId);
   check(persistedAction?.state === 'undone', 'the hard-deletion action persisted and is undone');
+
+  // Slice 37: the operations that had no history before it.
+  console.log('\nduplication, Archive Restore and shortcut placements...\n');
+  const sectionIds = async (query = '') =>
+    (await request('GET', `/api/projects/project-personal/sections${query}`)).body.map(({ id }) => id);
+
+  const duplicated = await request('POST', `/api/sections/${HOME}/duplicate`);
+  const copy = duplicated.body.section;
+  check(
+    duplicated.status === 201 && duplicated.body.operation.operation === 'section.add' && copy.id !== HOME,
+    'duplicate answers a new section and the add receipt it records',
+  );
+  check((await request('GET', `/api/tasks?sectionId=${copy.id}`)).body.length === 0, 'the copy holds no rows');
+  const duplicateReceipt = duplicated.body.operation;
+  check((await step(duplicateReceipt, 'undo', (await summary()).revision)).status === 200, 'Undo removes the copy');
+  check(!(await sectionIds()).includes(copy.id), 'the copy is off the canvas');
+  check((await step(duplicateReceipt, 'redo', (await summary()).revision)).status === 200, 'Redo recreates it');
+  check((await sectionIds()).includes(copy.id), 'with the same id it was created under');
+
+  const removedCopy = await request('DELETE', `/api/sections/${copy.id}`);
+  check(removedCopy.status === 200 && removedCopy.body.archiveListed === true, 'the copy is removed into Archive');
+  const restored = await request('POST', `/api/sections/${copy.id}/restore`);
+  check(
+    restored.status === 200 && restored.body.operation?.operation === 'section.restore',
+    'Archive Restore answers the section and a receipt of its own',
+  );
+  const retriedRestore = await request('POST', `/api/sections/${copy.id}/restore`);
+  check(retriedRestore.status === 200 && retriedRestore.body.operation === null, 'a retry on a live section records nothing');
+  const restoreReceipt = restored.body.operation;
+  check((await step(restoreReceipt, 'undo', (await summary()).revision)).status === 200, 'Undo Restore returns it to Archive');
+  const archivedAgain = (await request('GET', '/api/projects/project-personal/sections?includeArchived=true')).body
+    .find(({ id }) => id === copy.id);
+  check(archivedAgain?.archivedAt !== undefined, 'the section is archived again, not deleted');
+  check((await step(restoreReceipt, 'redo', (await summary()).revision)).status === 200, 'Redo Restore brings it back');
+  check((await sectionIds()).includes(copy.id), 'and it is on the canvas once more');
+
+  // A shortcut needs a source elsewhere in the same root tree, so the chain makes one.
+  const workspaceId = (await request('GET', '/api/projects')).body.find(({ id }) => id === 'project-personal').workspaceId;
+  const child = (await request('POST', '/api/projects', {
+    workspaceId, kind: 'subproject', parentProjectId: 'project-personal', name: 'Kitchen',
+  })).body;
+  const source = (await request('POST', `/api/projects/${child.id}/sections`, { type: 'task-list', title: 'Prep' })).body.section;
+
+  const placed = await request('POST', '/api/projects/project-personal/shortcuts', {
+    pageId: 'page-project-personal', sourceSectionId: source.id, position: 0,
+  });
+  check(
+    placed.status === 201 && placed.body.operation.operation === 'shortcut.add' && placed.body.shortcut.sourceSectionId === source.id,
+    'a placement answers the resolved shortcut and its receipt',
+  );
+  const shortcutId = placed.body.shortcut.id;
+  const collapsed = await request('PATCH', `/api/shortcuts/${shortcutId}`, { collapsed: true });
+  check(collapsed.status === 200 && collapsed.body.operation.operation === 'shortcut.update', 'collapsing records an update');
+  check(
+    (await request('PATCH', `/api/shortcuts/${shortcutId}`, { collapsed: true })).body.operation === null,
+    'the same value again records nothing',
+  );
+  const movedShortcut = await request('POST', `/api/shortcuts/${shortcutId}/move`, { position: 1 });
+  check(movedShortcut.status === 200 && movedShortcut.body.operation.operation === 'shortcut.move', 'moving records a move');
+  check(
+    (await request('POST', `/api/shortcuts/${shortcutId}/move`, { position: 1 })).body.operation === null,
+    'moving to the position it already holds records nothing',
+  );
+  const removedShortcut = await request('DELETE', `/api/shortcuts/${shortcutId}`);
+  check(
+    removedShortcut.status === 200 && removedShortcut.body.shortcutId === shortcutId &&
+      removedShortcut.body.projectId === 'project-personal' && removedShortcut.body.operation.operation === 'shortcut.remove',
+    'the delete answers 200 naming what it removed and the receipt that puts it back',
+  );
+
+  const placements = async () =>
+    (await request('GET', '/api/projects/project-personal/shortcuts?pageId=page-project-personal')).body;
+  const shortcutChain = [removedShortcut, movedShortcut, collapsed, placed].map(({ body }) => body.operation);
+  for (const receipt of shortcutChain) {
+    check((await step(receipt, 'undo', (await summary()).revision)).status === 200, `Undo ${receipt.operation}`);
+  }
+  check((await placements()).length === 0, 'undoing back through the add leaves no placement');
+  check(
+    (await request('GET', `/api/tasks?sectionId=${source.id}`)).status === 200 &&
+      (await request('GET', `/api/projects/${child.id}/sections`)).body.some(({ id }) => id === source.id),
+    'and the source section it referenced was never touched',
+  );
+  for (const receipt of [...shortcutChain].reverse()) {
+    check((await step(receipt, 'redo', (await summary()).revision)).status === 200, `Redo ${receipt.operation}`);
+  }
+  check((await placements()).length === 0, 'replaying through the removal leaves the canvas as the person left it');
+  check((await step(shortcutChain[0], 'undo', (await summary()).revision)).status === 200, 'one more Undo brings the placement back');
+  const back = await placements();
+  check(
+    back.length === 1 && back[0].id === shortcutId && back[0].collapsed === true,
+    'with the same id and the presentation the last committed update left',
+  );
 
   console.log('\nacceptance: all checks passed');
 } catch (error) {

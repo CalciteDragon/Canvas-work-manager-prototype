@@ -53,6 +53,17 @@ import {
 } from './reflection-history';
 import { reapplySectionAdd, reapplySectionMove, reapplySectionUpdate, revertSectionAdd, revertSectionMove, revertSectionUpdate } from './section-edit-undo';
 import { reapplySectionRemoval, revertSectionRemoval } from './section-removal-undo';
+import { reapplySectionRestore, revertSectionRestore } from './section-restore-history';
+import {
+  reapplyShortcutAdd,
+  reapplyShortcutMove,
+  reapplyShortcutRemove,
+  reapplyShortcutUpdate,
+  revertShortcutAdd,
+  revertShortcutMove,
+  revertShortcutRemove,
+  revertShortcutUpdate,
+} from './shortcut-history';
 import {
   reapplyTaskAdd,
   reapplyTaskArchive,
@@ -99,11 +110,13 @@ type TransitionOutcome =
  * a unit: executors live in shared function modules, so the service graph stays acyclic and a
  * transition can never record the inverse of its own inverse.
  *
- * **Section Restore from Archive** stays durable, receipt-free and outside every history until
- * Stage C. A **row** Restore is different from Stage B: it records an action of its own, while
- * remaining durable — available after expiry, needing no receipt to invoke — and a successful one
- * clears its own Redo branch like any other write
- * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
+ * **Archive Restore** — of a section since Slice 37, of a row since Slice 36 — records an action
+ * of its own while staying durable: available after every action has expired, needing no receipt to
+ * invoke, and clearing its own Redo branch like any other write
+ * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md,
+ * docs/decisions/2026-09-section-restore-and-shortcut-history.md). Undoing a recorded Restore
+ * re-archives exactly what it revived; it is not the removal beneath it, which stays a separate
+ * step in the same stack.
  */
 export class OperationHistoryService {
   constructor(private readonly dependencies: OperationHistoryServiceDependencies) {}
@@ -294,6 +307,16 @@ export class OperationHistoryService {
         return direction === 'undo' ? revertReflectionArchive(repositories, clock, operation) : reapplyReflectionArchive(repositories, clock, operation);
       case 'reflection.restore':
         return direction === 'undo' ? revertReflectionRestore(repositories, clock, operation) : reapplyReflectionRestore(repositories, clock, operation);
+      case 'section.restore':
+        return direction === 'undo' ? revertSectionRestore(repositories, clock, operation) : reapplySectionRestore(repositories, clock, operation);
+      case 'shortcut.add':
+        return direction === 'undo' ? revertShortcutAdd(repositories, clock, operation) : reapplyShortcutAdd(repositories, clock, operation);
+      case 'shortcut.update':
+        return direction === 'undo' ? revertShortcutUpdate(repositories, clock, operation) : reapplyShortcutUpdate(repositories, clock, operation);
+      case 'shortcut.move':
+        return direction === 'undo' ? revertShortcutMove(repositories, clock, operation) : reapplyShortcutMove(repositories, clock, operation);
+      case 'shortcut.remove':
+        return direction === 'undo' ? revertShortcutRemove(repositories, clock, operation) : reapplyShortcutRemove(repositories, clock, operation);
       default: {
         const unknown: never = operation;
         throw new TypeError(`no history executor for "${String(unknown)}"`);
@@ -349,9 +372,16 @@ export const activityActionFor = (operation: UndoOperation['type'], direction: O
     'reflection.update': 'reflection_update',
     'reflection.archive': 'reflection_archive',
     'reflection.restore': 'reflection_restore',
+    'section.restore': 'section_restoration',
+    'shortcut.add': 'shortcut_addition',
+    'shortcut.update': 'shortcut_update',
+    'shortcut.move': 'shortcut_move',
+    'shortcut.remove': 'shortcut_removal',
   }[operation];
   const family = familyOfOperationKind(operation);
-  const prefix = family === 'section' ? 'project' : family;
+  // A shortcut event targets the destination **project**, exactly as the ordinary
+  // `project.shortcut_added` does, so no Activity target exception is needed for the new verbs.
+  const prefix = family === 'section' || family === 'shortcut' ? 'project' : family;
   return `${prefix}.${noun}_${direction === 'undo' ? 'undone' : 'redone'}`;
 };
 
@@ -367,6 +397,13 @@ const activityTargetFor = (operation: UndoOperation): {
       return { entityType: 'project', entityId: operation.section.projectId, projectId: operation.section.projectId };
     case 'section.move':
     case 'section.update':
+    case 'section.restore':
+    // A placement's event names the destination project, never the source sub-project: the
+    // change is to that root's Home canvas, and the source was not written at all.
+    case 'shortcut.add':
+    case 'shortcut.update':
+    case 'shortcut.move':
+    case 'shortcut.remove':
       return { entityType: 'project', entityId: operation.projectId, projectId: operation.projectId };
     case 'task.add':
       return { entityType: 'task', entityId: operation.task.id, projectId: operation.task.projectId };
@@ -420,6 +457,11 @@ const OPERATION_GERUND: Record<UndoOperation['type'], string> = {
   'reflection.update': 'editing',
   'reflection.archive': 'archiving',
   'reflection.restore': 'restoring',
+  'section.restore': 'restoring the',
+  'shortcut.add': 'adding a shortcut to',
+  'shortcut.update': 'updating a shortcut on',
+  'shortcut.move': 'moving a shortcut on',
+  'shortcut.remove': 'removing a shortcut from',
 };
 
 /**
@@ -429,6 +471,9 @@ const OPERATION_GERUND: Record<UndoOperation['type'], string> = {
 const activitySummary = (operation: UndoOperation, result: UndoResult | RedoResult, direction: OperationHistoryDirection): string => {
   const did = direction === 'undo' ? 'Undid' : 'Redid';
   const gerund = OPERATION_GERUND[operation.type];
+  // A shortcut is named by the canvas it sits on: the placement has no title of its own, and the
+  // source section's title is content this result deliberately does not carry.
+  if (operation.type.startsWith('shortcut.')) return `${did} ${gerund} this canvas`;
   if (operation.type.startsWith('section.')) {
     const section = 'section' in result ? result.section : operation.type === 'section.add' ? operation.section : undefined;
     return `${did} ${gerund} ${section === undefined ? 'section' : nameOf(section)} section`;

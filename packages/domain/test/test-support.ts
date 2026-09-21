@@ -1,4 +1,4 @@
-import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type Reflection, type Task, type PrototypeDocument, type OperationReceipt, type RedoResult, type SectionId, type UndoResult, type UserId, type WorkspaceId } from '@cwm/contracts';
+import { PrototypeDocumentSchema, SCHEMA_VERSION, type AgentConnection, type AgentConnectionId, type AgentPermission, type Project, type ProjectId, type ProjectSection, type Reflection, type Task, type PrototypeDocument, type OperationReceipt, type RedoResult, type ResolvedSectionShortcut, type SectionId, type UndoResult, type UserId, type WorkspaceId } from '@cwm/contracts';
 import { PERSONAS, SEED_NOW } from '@cwm/prototype-data';
 import { InMemoryDataStore, JsonActivityRepository, JsonAgentConnectionRepository, JsonMilestoneRepository, JsonOperationActionRepository, JsonOperationHistoryRepository, JsonProjectPageRepository, JsonProjectRepository, JsonReflectionRepository, JsonSectionRepository, JsonSectionShortcutRepository, JsonTaskRepository, JsonUserRepository, unitOfWorkFor } from '@cwm/repositories';
 import type { ActorContext } from '../src/actor';
@@ -193,21 +193,25 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
   const realRecorder = new RepositoryOperationRecorder({ histories: operationHistories, actions: operationActions, clock, ids });
   const historyRecorder = options.recorder?.(realRecorder) ?? realRecorder;
   const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, history: historyRecorder, clock, ids, unitOfWork });
-  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
+  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, history: historyRecorder, clock, ids, unitOfWork });
   /**
    * The pre-Slice-32 domain tests use the section itself as the return value. Keep that small
    * fixture convention isolated while production callers exercise the typed write envelopes
    * through `sectionWriteService`; this prevents hundreds of archive/ownership assertions from
    * obscuring the new receipt-focused tests.
    */
-  const legacySectionService = Object.create(sectionService) as Omit<SectionService, 'add' | 'update' | 'move'> & {
+  const legacySectionService = Object.create(sectionService) as Omit<SectionService, 'add' | 'update' | 'move' | 'duplicate' | 'restoreSection'> & {
     add: (...args: Parameters<SectionService['add']>) => Promise<ProjectSection>;
     update: (...args: Parameters<SectionService['update']>) => Promise<ProjectSection>;
     move: (...args: Parameters<SectionService['move']>) => Promise<ProjectSection>;
+    duplicate: (...args: Parameters<SectionService['duplicate']>) => Promise<ProjectSection>;
+    restoreSection: (...args: Parameters<SectionService['restoreSection']>) => Promise<ProjectSection>;
   };
   legacySectionService.add = async (...args) => (await sectionService.add(...args)).section;
   legacySectionService.update = async (...args) => (await sectionService.update(...args)).section;
   legacySectionService.move = async (...args) => (await sectionService.move(...args)).section;
+  legacySectionService.duplicate = async (...args) => (await sectionService.duplicate(...args)).section;
+  legacySectionService.restoreSection = async (...args) => (await sectionService.restoreSection(...args)).section;
 
   const operationHistoryService = new OperationHistoryService({
     histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork,
@@ -251,6 +255,28 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
   legacyReflectionService.archive = async (...args) => (await reflectionWriteService.archive(...args)).reflection;
   legacyReflectionService.restore = async (...args) => (await reflectionWriteService.restore(...args)).reflection;
 
+  /**
+   * The same unwrapping facade the section and row services have, for the same reason: Slice 37
+   * turned four placement writes into receipt-carrying results, and the existing scope, ordering
+   * and resolution tests are about the placement, not the receipt. `sectionShortcutWriteService`
+   * is the real service, and the history tests use it.
+   */
+  const legacyShortcutService = Object.create(sectionShortcutService) as Omit<
+    SectionShortcutService,
+    'create' | 'update' | 'move' | 'remove'
+  > & {
+    create: (...args: Parameters<SectionShortcutService['create']>) => Promise<ResolvedSectionShortcut>;
+    update: (...args: Parameters<SectionShortcutService['update']>) => Promise<ResolvedSectionShortcut>;
+    move: (...args: Parameters<SectionShortcutService['move']>) => Promise<ResolvedSectionShortcut>;
+    remove: (...args: Parameters<SectionShortcutService['remove']>) => Promise<void>;
+  };
+  legacyShortcutService.create = async (...args) => (await sectionShortcutService.create(...args)).shortcut;
+  legacyShortcutService.update = async (...args) => (await sectionShortcutService.update(...args)).shortcut;
+  legacyShortcutService.move = async (...args) => (await sectionShortcutService.move(...args)).shortcut;
+  legacyShortcutService.remove = async (...args) => {
+    await sectionShortcutService.remove(...args);
+  };
+
   return {
     store,
     clock,
@@ -283,7 +309,8 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     reflectionWriteService,
     projectJournalService: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
     sectionService: legacySectionService,
-    sectionShortcutService,
+    sectionShortcutService: legacyShortcutService,
+    sectionShortcutWriteService: sectionShortcutService,
     workspaceService: new WorkspaceService({ projects, tasks, reflections, clock }),
     sectionWriteService: sectionService,
     operationHistoryService,

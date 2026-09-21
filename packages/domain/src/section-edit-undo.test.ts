@@ -670,7 +670,9 @@ describe('section edit history acceptance', () => {
     expect(await order()).toEqual([a.section.id, shortcut.id, b.section.id, c.section.id]);
 
     const move = await harness.sectionWriteService.move(harness.actor, b.section.id, 3);
-    await harness.sectionShortcutService.move(harness.actor, shortcut.id, 0);
+    // Moved by **someone else**, so it lands in their history rather than on top of this actor's
+    // move: a placement change by another actor must not wedge a section Undo that still fits.
+    await harness.sectionShortcutService.move(someoneElse, shortcut.id, 0);
     expect(await order()).toEqual([shortcut.id, a.section.id, c.section.id, b.section.id]);
 
     const undone = await harness.undo(harness.actor, move.operation!);

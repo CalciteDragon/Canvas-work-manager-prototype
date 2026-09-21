@@ -889,4 +889,79 @@ describe('OperationHistoryService — revision, order, expiry and atomicity', ()
     await second.redo(second.actor, removed);
     expect((await second.sections.find(notes.id as SectionId))?.archivedAt).toBe(SEED_NOW);
   });
+
+  /**
+   * §31's two recoveries in one stack. Removal Undo and Restore reverse the same removal by
+   * different routes — one returns the section between its old neighbours and expires, the other
+   * appends and never does — so the interesting question is what happens when both are recorded
+   * and the actor steps back through them.
+   */
+  it('steps Remove, Restore, Undo Restore, Undo Remove, Redo Remove and Redo Restore in order', async () => {
+    const harness = buildHarness();
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'task-list', title: 'Backlog' });
+    const task = await harness.taskWriteService.create(harness.actor, {
+      projectId: MINE, sectionId: added.section.id, title: 'Ship it',
+    });
+    const markers = async () => [
+      (await harness.sections.find(added.section.id))?.archivedAt ?? null,
+      (await harness.tasks.find(task.task.id))?.archivedWithSectionId ?? null,
+    ];
+
+    const removed = (await harness.sectionWriteService.remove(harness.actor, added.section.id, { policy: 'cascade' })).operation;
+    const archived = await markers();
+    expect(archived[0]).not.toBeNull();
+
+    const restored = (await harness.sectionWriteService.restoreSection(harness.actor, added.section.id)).operation!;
+    expect(await markers()).toEqual([null, null]);
+
+    // Undo Restore is not the removal: it puts back exactly what Restore revived.
+    await harness.undo(harness.actor, restored);
+    expect(await markers()).toEqual(archived);
+    // Undo Remove is the step below it, and now reachable.
+    await harness.undo(harness.actor, removed);
+    expect(await markers()).toEqual([null, null]);
+
+    await harness.redo(harness.actor, removed);
+    expect(await markers()).toEqual(archived);
+    await harness.redo(harness.actor, restored);
+    expect(await markers()).toEqual([null, null]);
+
+    // The generation moved exactly once — the one removal — through all six steps.
+    expect((await harness.sections.find(added.section.id))?.archiveGeneration).toBe(1);
+  });
+
+  /**
+   * The pruning case the plan's first review found. Retention is per history, so another actor's
+   * removal can drop out of their stack while the Restore they made afterwards survives — and the
+   * Restore is then the only stored evidence that the section ever reached that generation.
+   */
+  it('keeps the generation floor when a pruned removal leaves only its later Restore behind', async () => {
+    const harness = buildHarness();
+    const theirs = agentActorFor(0, ['projects.write']);
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'Notes' });
+    const configured = await harness.sectionWriteService.update(harness.actor, added.section.id, { config: { text: 'Worth keeping' } });
+
+    await harness.sectionWriteService.remove(theirs, added.section.id);
+    await harness.sectionWriteService.restoreSection(theirs, added.section.id);
+    expect((await harness.sections.find(added.section.id))?.archiveGeneration).toBe(1);
+
+    // Forty-eight alternating resizes leave the width exactly as it started, and a forty-ninth
+    // write of another kind takes the agent's own history one past its fifty-action cap — which
+    // drops exactly the oldest action, their removal. Their Restore survives it.
+    for (let index = 0; index < 48; index += 1) {
+      await harness.sectionWriteService.update(theirs, added.section.id, { columnSpan: index % 2 === 0 ? 6 : 12 });
+    }
+    await harness.sectionWriteService.add(theirs, MINE, { type: 'progress', title: 'Theirs' });
+    const kinds = (await harness.operationActions.list()).map((action) => action.operation.type);
+    expect(kinds).not.toContain('section.remove');
+    expect(kinds).toContain('section.restore');
+
+    // The person's own Add Undo deletes the row that held the generation; Redo must not bring it
+    // back below the generation the surviving Restore still refers to.
+    await harness.undo(harness.actor, configured.operation!);
+    await harness.undo(harness.actor, added.operation);
+    expect(await harness.sections.find(added.section.id)).toBeNull();
+    await harness.redo(harness.actor, added.operation);
+    expect((await harness.sections.find(added.section.id))?.archiveGeneration).toBe(1);
+  });
 });

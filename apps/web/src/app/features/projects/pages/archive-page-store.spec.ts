@@ -7,7 +7,7 @@ import {
   TaskSchema,
   type ProjectArchiveResult,
   type ProjectId,
-  type ProjectSection,
+  type SectionWriteResult,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
@@ -171,14 +171,14 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
   it('serializes restore writes and disables the second stale request', async () => {
     const { store, gateway } = setup();
     await store.load(PROJECT);
-    let release!: (value: ProjectSection) => void;
-    gateway.sections.restore = vi.fn(() => new Promise<ProjectSection>((resolve) => { release = resolve; }));
+    let release!: (value: SectionWriteResult) => void;
+    gateway.sections.restore = vi.fn(() => new Promise<SectionWriteResult>((resolve) => { release = resolve; }));
 
     const first = store.restore(archived.items[0]!);
     expect(await store.restore(archived.items[0]!)).toBe(false);
     expect(gateway.sections.restore).toHaveBeenCalledExactlyOnceWith(section.id);
 
-    release(section);
+    release({ section, operation: null });
     expect(await first).toBe(true);
   });
 
@@ -198,7 +198,7 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
     const { store, gateway } = setup();
     await store.load(PROJECT);
     let rejectWrite!: (reason: unknown) => void;
-    const write = new Promise<ProjectSection>((_resolve, reject) => { rejectWrite = reject; });
+    const write = new Promise<SectionWriteResult>((_resolve, reject) => { rejectWrite = reject; });
     gateway.sections.restore = vi.fn(() => write);
     const restoring = store.restore(archived.items[0]!);
 

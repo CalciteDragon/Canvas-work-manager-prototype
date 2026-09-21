@@ -15,6 +15,9 @@ import {
   ReflectionSchema,
   SectionRemovalResultSchema,
   SectionAddResultSchema,
+  SectionShortcutAddResultSchema,
+  SectionShortcutRemovalResultSchema,
+  SectionShortcutWriteResultSchema,
   SectionWriteResultSchema,
   TaskSchema,
   TimelineResultSchema,
@@ -157,7 +160,7 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
     move: (id: SectionId, input: MoveSectionInput) =>
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/move`, SectionWriteResultSchema, input),
     duplicate: (id: SectionId) =>
-      this.send('POST', `/api/sections/${encodeURIComponent(id)}/duplicate`, ProjectSectionSchema),
+      this.send('POST', `/api/sections/${encodeURIComponent(id)}/duplicate`, SectionAddResultSchema),
     // The policy rides on the query string, matching the host route. The result carries only
     // the public receipt; the inverse remains on the server.
     remove: (id: SectionId, input: RemoveSectionInput = {}) =>
@@ -167,7 +170,7 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         SectionRemovalResultSchema,
       ),
     restore: (id: SectionId) =>
-      this.send('POST', `/api/sections/${encodeURIComponent(id)}/restore`, ProjectSectionSchema),
+      this.send('POST', `/api/sections/${encodeURIComponent(id)}/restore`, SectionWriteResultSchema),
   };
 
   readonly shortcuts: SectionShortcutGateway = {
@@ -184,13 +187,14 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         ShortcutSourceSchema.array(),
       ),
     create: (projectId: ProjectId, input: CreateSectionShortcutInput) =>
-      this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/shortcuts`, ResolvedSectionShortcutSchema, input),
+      this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/shortcuts`, SectionShortcutAddResultSchema, input),
     update: (id: SectionShortcutId, input: UpdateSectionShortcutInput) =>
-      this.send('PATCH', `/api/shortcuts/${encodeURIComponent(id)}`, ResolvedSectionShortcutSchema, input),
+      this.send('PATCH', `/api/shortcuts/${encodeURIComponent(id)}`, SectionShortcutWriteResultSchema, input),
     move: (id: SectionShortcutId, input: MoveSectionShortcutInput) =>
-      this.send('POST', `/api/shortcuts/${encodeURIComponent(id)}/move`, ResolvedSectionShortcutSchema, input),
+      this.send('POST', `/api/shortcuts/${encodeURIComponent(id)}/move`, SectionShortcutWriteResultSchema, input),
+    // 200 with a body since Slice 37: the delete carries the receipt that puts the placement back.
     remove: (id: SectionShortcutId) =>
-      this.sendWithoutBody('DELETE', `/api/shortcuts/${encodeURIComponent(id)}`),
+      this.send('DELETE', `/api/shortcuts/${encodeURIComponent(id)}`, SectionShortcutRemovalResultSchema),
   };
 
   readonly tasks: TaskGateway = {
@@ -241,14 +245,6 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       throw new GatewayError('invalid_response', 0, `${method} ${path} answered a body that is not its contract`);
     }
     return parsed.data;
-  }
-
-  /**
-   * For routes whose body the caller does not use: a 204 (reading `.json()` off an empty body
-   * would throw) or, for section removal, a 200 body this adapter deliberately ignores.
-   */
-  private async sendWithoutBody(method: string, path: string): Promise<void> {
-    await this.request(method, path);
   }
 
   private async request(method: string, path: string, body?: unknown): Promise<Response> {

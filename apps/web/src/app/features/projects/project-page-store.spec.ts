@@ -10,6 +10,7 @@ import {
   type ProjectPageId,
   type ProjectSection,
   type ResolvedSectionShortcut,
+  type SectionShortcutAddResult,
   type SectionAddResult,
   type SectionId,
   type SectionWriteResult,
@@ -285,7 +286,8 @@ const setup = (
           ),
           copy,
         ];
-        return copy;
+        // Duplication records the add it is, so it answers the add envelope.
+        return { section: copy, operation: { ...addReceipt(`undo-${copy.id}`), operation: 'section.add' as const } };
       }),
       remove: vi.fn(async (id) => {
         const original = sections.find((item) => item.id === id)!;
@@ -301,7 +303,10 @@ const setup = (
         };
         return result;
       }),
-      restore: vi.fn(async (id) => sections.find((item) => item.id === id)!),
+      restore: vi.fn(async (id) => ({
+        section: sections.find((item) => item.id === id)!,
+        operation: { ...addReceipt(`undo-restore-${id}`), operation: 'section.restore' as const },
+      })),
       ...otherSectionOverrides,
     },
     shortcuts: {
@@ -858,7 +863,7 @@ describe('ProjectPageStore (§19, §26)', () => {
         .mockResolvedValue([shortcut('shortcut-a', 2)]),
       shortcutOverrides: {
         create: vi.fn()
-          .mockResolvedValueOnce(inserted)
+          .mockResolvedValueOnce({ shortcut: inserted, operation: { ...addReceipt('undo-shortcut-new'), operation: 'shortcut.add' as const } })
           .mockRejectedValueOnce(new GatewayError('rule_violation', 409, 'shortcut refused')),
       },
     });
@@ -1745,7 +1750,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
   });
 
   it('defers a placement refresh that arrives while a shortcut write is in flight', async () => {
-    const create = deferred<ResolvedSectionShortcut>();
+    const create = deferred<SectionShortcutAddResult>();
     const { store, gateway, live } = setup({
       shortcutOverrides: { create: vi.fn(() => create.promise) },
     });
@@ -1757,7 +1762,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
     await settleLive();
     expect(calls(gateway.sections.list)).toBe(sectionReads);
 
-    create.resolve(shortcut('shortcut-created', 2));
+    create.resolve({ shortcut: shortcut('shortcut-created', 2), operation: { ...addReceipt('undo-shortcut-created'), operation: 'shortcut.add' as const } });
     await add;
     await settleLive();
     expect(calls(gateway.sections.list)).toBeGreaterThan(sectionReads);

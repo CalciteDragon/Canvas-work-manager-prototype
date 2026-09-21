@@ -127,13 +127,19 @@ export const toolPermission = (tool: WorkManagerTool): ToolPermission => {
 };
 
 /**
- * Every grant a tool needs, in a stable order. For a family tool that is all three family grants,
- * which is what a *coverage* check wants — "is every grant this tool can require declared?" — and
- * never what a caller must hold, which is one of them.
+ * Every **distinct** grant a tool needs, in a stable order. For a family tool that is the set of
+ * the family grants, which is what a *coverage* check wants — "is every grant this tool can require
+ * declared?" — and never what a caller must hold, which is exactly one of them.
+ *
+ * Deduplicated because two families may share a grant: Slice 37's `shortcut` needs the same
+ * `projects.write` a `section` does, and listing it twice would make `tools/list` say a caller
+ * needs one grant two ways.
  */
 export const requiredPermissions = (tool: WorkManagerTool): readonly AgentPermission[] => {
   const declaration = toolPermission(tool);
-  return declaration.kind === 'static' ? declaration.permissions : Object.values(OPERATION_FAMILY_PERMISSION);
+  return declaration.kind === 'static'
+    ? declaration.permissions
+    : [...new Set(Object.values(OPERATION_FAMILY_PERMISSION))];
 };
 
 /** Keeps each tool's `execute` typed against its own schema while the registry holds a flat list. */

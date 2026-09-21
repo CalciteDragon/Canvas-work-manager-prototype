@@ -46,9 +46,10 @@ describe('@cwm/contracts entrypoint', () => {
   // them redeclares one.
   it('exports the operation receipt, summary, transition and refusal schemas', () => {
     expect(OperationReceiptSchema.shape.actionId).toBeDefined();
-    // Four section families from Slice 35 plus eight task and reflection families from Slice 36.
-    expect(UndoResultSchema.options).toHaveLength(12);
-    expect(RedoResultSchema.options).toHaveLength(12);
+    // Four section kinds from Slice 35, eight task and reflection kinds from Slice 36, and from
+    // Slice 37 `section.restore` plus the four shortcut placement kinds.
+    expect(UndoResultSchema.options).toHaveLength(17);
+    expect(RedoResultSchema.options).toHaveLength(17);
     expect(OperationHistoryTransitionResultSchema.options).toHaveLength(2);
     const summary = OperationHistorySummarySchema.parse({
       projectId: 'project-a', historyId: 'history-1', revision: 2, undo: null, redo: null, blockedBy: null,

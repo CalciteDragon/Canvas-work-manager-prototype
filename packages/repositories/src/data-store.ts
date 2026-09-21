@@ -506,8 +506,8 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
    * unreusable after pruning. Its captured snapshot's section, page, shortcut, task and reflection
    * ids are deliberately **not** resolved: an add Undo or a disposable removal deletes the section
    * an action names, and the action must survive that to be redone. The one live check is the
-   * archive generation: a retained removal cannot have captured a generation its section has not
-   * reached, because `archiveGeneration` never decreases.
+   * archive generation: neither a retained removal nor a Restore can have captured a generation
+   * its section has not reached, because `archiveGeneration` never decreases.
    */
   uniqueMap('operationActions', document.operationActions);
   const histories = uniqueMap('operationHistories', document.operationHistories);
@@ -537,6 +537,14 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     historyScopes.add(scope);
   }
 
+  /** `archiveGeneration` never decreases, so a stored section cannot be below what an action saw. */
+  const assertGenerationIsReachable = (actionId: string, sectionId: string, generation: number): void => {
+    const section = sections.get(sectionId);
+    if (section !== undefined && generation > section.archiveGeneration) {
+      fail(`operation action "${actionId}" captures archive generation ${generation}, beyond section "${section.id}"`);
+    }
+  };
+
   const orders = new Set<string>();
   for (const action of document.operationActions) {
     const history = histories.get(action.historyId) ??
@@ -553,10 +561,14 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     }
 
     if (action.operation.type === 'section.remove' && action.operation.disposition === 'retained') {
-      const section = sections.get(action.operation.section.id);
-      if (section !== undefined && action.operation.archiveGeneration > section.archiveGeneration) {
-        fail(`operation action "${action.id}" captures archive generation ${action.operation.archiveGeneration}, beyond section "${section.id}"`);
-      }
+      assertGenerationIsReachable(action.id, action.operation.section.id, action.operation.archiveGeneration);
+    }
+    // A Restore captures the generation the section **had**, which Restore leaves alone, so the
+    // same invariant holds for it: a present section cannot be below a generation some action
+    // says it reached. It is the same rule, not a new requirement that payload ids resolve —
+    // a section a later removal deleted is still deliberately unresolved.
+    if (action.operation.type === 'section.restore') {
+      assertGenerationIsReachable(action.id, action.operation.sectionId, action.operation.archiveGeneration);
     }
   }
 

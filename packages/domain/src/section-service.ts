@@ -26,6 +26,7 @@ import {
   type OperationReceipt,
   type ProjectPage,
   type ProjectPageId,
+  type UndoRowChange,
   type UpdateSectionInput,
 } from '@cwm/contracts';
 import type {
@@ -47,6 +48,7 @@ import { rowsOf, writeRow, type OwnedRow } from './owned-rows';
 import { listPlacements, renumberPlacements, snapshotPlacement, type PagePlacement } from './page-placements';
 import { captureSectionRemoval, NOTHING_SETTLED, rowChangeOf, type SettledRows } from './section-removal-undo';
 import { captureSectionAdd, captureSectionMove, captureSectionUpdate, sameValue } from './section-edit-undo';
+import { captureSectionRestore } from './section-restore-history';
 import { sectionRecoveryOf } from './section-recovery-policy';
 import type { OperationRecorder } from './operation-recorder';
 
@@ -516,8 +518,19 @@ export class SectionService {
     });
   }
 
-  /** §31's duplicate: the same type and a copy of the config, directly below the original. */
-  async duplicate(actor: ActorContext, id: SectionId): Promise<ProjectSection> {
+  /**
+   * §31's duplicate: the same type and a copy of the config, directly below the original.
+   *
+   * It copies **no rows**. A duplicated Task List is an empty Task List configured the same way,
+   * which is what the operation is for; copying a container's work would create a second owner of
+   * the same items. That is deliberate behaviour, not an omission to fill in later.
+   *
+   * Recorded as a `section.add`, because that is what it is: a section that did not exist now does.
+   * A `section.duplicate` kind would need its own inverse to do exactly what the add inverse
+   * already does, and Redo would then be tempted to re-run duplication against a source that may
+   * since have changed or gone — whereas an add Redo replays the **copy** that was actually made.
+   */
+  async duplicate(actor: ActorContext, id: SectionId): Promise<SectionAddResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
@@ -554,7 +567,16 @@ export class SectionService {
       await renumberPlacements(this.dependencies, this.dependencies.clock, reordered);
 
       await this.record(actor, copy, 'project.section_added', 'Duplicated');
-      return this.require(actor, copy.id);
+      // Captured after the renumber, so the placement is the one the canvas actually shows —
+      // directly below the original — rather than the `current.position + 1` guessed above.
+      const created = await this.require(actor, copy.id);
+      const placement = snapshotPlacement(await this.placementsOnPage(created.pageId), { kind: 'section', id: created.id });
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: created.projectId,
+        label: `Duplicated the ${nameOf(current)} section`,
+        operation: captureSectionAdd(created, placement),
+      });
+      return { section: created, operation };
     });
   }
 
@@ -663,8 +685,12 @@ export class SectionService {
   /**
    * **Archive Restore** for `remove`, and the **only** way an archived section — or a row that
    * came down with one — comes back. Under `projects.write`, like every other section write.
-   * It is not history Undo (`OperationHistoryService`): it needs no receipt, never expires and
-   * records no history action; it reverses the archive rather than the removal's placement. It
+   *
+   * It is not history Undo (`OperationHistoryService`): it needs no receipt and never expires, and
+   * it reverses the archive rather than the removal's placement — the section returns at the end of
+   * its page, not between its old neighbours. Since Slice 37 a Restore that actually changes
+   * something **also records its own action**, so the same actor can take the Restore back before
+   * undoing the removal beneath it; a retry on a live section still records nothing. It
    * deliberately leaves `archiveGeneration` alone — restoring is not removing, so bumping it here
    * would make an innocent removal Undo refuse.
    *
@@ -680,16 +706,19 @@ export class SectionService {
    * HTTP, MCP and stale clients. It is escapable rather than a trap: `ProjectService.update`
    * still accepts a status change away from `archived`.
    */
-  async restoreSection(actor: ActorContext, id: SectionId): Promise<ProjectSection> {
+  async restoreSection(actor: ActorContext, id: SectionId): Promise<SectionWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
       // Idempotent, so the public restore route cannot turn a retry into a canvas move: no
-      // reposition, no timestamps, no row writes, no activity.
-      if (current.archivedAt === undefined) return current;
+      // reposition, no timestamps, no row writes, no activity — and no history action, so a
+      // retried request cannot bury the caller's real Redo branch under a step that did nothing.
+      if (current.archivedAt === undefined) return { section: current, operation: null };
       await this.assertProjectWritable(current.projectId);
+      const archivedAt = current.archivedAt;
+      const oldPosition = current.position;
 
       // Back onto its own page, at that page's end. Recovery, so no disabled-page refusal: the
       // section is returning to where it already lived (§31 — recovery is never behind a toggle).
@@ -702,20 +731,47 @@ export class SectionService {
       });
       delete (restored as { archivedAt?: string }).archivedAt;
       await this.dependencies.sections.update(restored);
+      // `live.length` is the right **order** — last — but not necessarily the right position on a
+      // hand-edited sparse page (§14), where siblings numbered 0, 5, 7 would sort the returning
+      // section second. Renumbering the combined list makes "appended" true of the order as well
+      // as of the intent, and it is what the captured placement then describes.
+      await renumberPlacements(
+        this.dependencies,
+        this.dependencies.clock,
+        [...live, { kind: 'section', value: restored }],
+        { kind: 'section', id },
+      );
 
       const owned = ownedKindOf(current.type);
+      const rows: UndoRowChange[] = [];
       if (owned !== undefined) {
         for (const row of await rowsOf(this.dependencies, current.id, owned)) {
+          // Exactly the rows this section took down with it. A row archived on its own carries no
+          // marker and stays archived, which is what makes this an exact restore — and what makes
+          // the captured footprint the exact set Undo puts back.
           if (row.archivedWithSectionId !== current.id) continue;
           const next = { ...row };
           delete next.archivedAt;
           delete next.archivedWithSectionId;
+          rows.push(rowChangeOf(owned, row, next));
           await this.writeRow(owned, next);
         }
       }
 
-      await this.record(actor, restored, 'project.section_restored', 'Restored');
-      return restored;
+      const final = await this.require(actor, id);
+      await this.record(actor, final, 'project.section_restored', 'Restored');
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: final.projectId,
+        label: `Restored the ${nameOf(final)} section`,
+        operation: captureSectionRestore({
+          section: final,
+          archivedAt,
+          oldPosition,
+          placement: snapshotPlacement(await this.placementsOnPage(final.pageId), { kind: 'section', id }),
+          rows,
+        }),
+      });
+      return { section: final, operation };
     });
   }
 

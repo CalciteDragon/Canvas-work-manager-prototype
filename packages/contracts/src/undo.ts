@@ -9,6 +9,16 @@ import {
 } from './history-placement';
 import { OperationReceiptSchema } from './operation-receipt';
 import { ROW_REDO_RESULT_SCHEMAS, ROW_UNDO_RESULT_SCHEMAS, RowUndoOperationSchema } from './row-history';
+import {
+  SectionRestoreOperationSchema,
+  SectionRestoreRedoResultSchema,
+  SectionRestoreUndoResultSchema,
+} from './section-restore-history';
+import {
+  SHORTCUT_REDO_RESULT_SCHEMAS,
+  SHORTCUT_UNDO_RESULT_SCHEMAS,
+  ShortcutUndoOperationSchema,
+} from './shortcut-history';
 import { ownedKindOf, ProjectSectionSchema, SectionColumnSpanSchema, SectionConfigSchema } from './section';
 
 /**
@@ -20,8 +30,9 @@ import { ownedKindOf, ProjectSectionSchema, SectionColumnSpanSchema, SectionConf
  *
  * The operation union is typed and versioned: an unknown `type` or `version` fails parsing
  * rather than executing arbitrary JSON. Slice 36 adds the eight task and reflection members from
- * `row-history.ts`; the placement and row-structure shapes both families share live in
- * `history-placement.ts`.
+ * `row-history.ts`; Slice 37 adds `section.restore` from `section-restore-history.ts` and the four
+ * placement members from `shortcut-history.ts`. The placement and row-structure shapes every family
+ * shares live in `history-placement.ts`.
  */
 
 /** The policy removal actually **applied** — not the one the caller sent. */
@@ -188,7 +199,9 @@ export const UndoOperationSchema = z.discriminatedUnion('type', [
   SectionAddUndoOperationSchema,
   SectionMoveUndoOperationSchema,
   SectionUpdateUndoOperationSchema,
+  SectionRestoreOperationSchema,
   ...RowUndoOperationSchema.options,
+  ...ShortcutUndoOperationSchema.options,
 ]);
 export type UndoOperation = z.infer<typeof UndoOperationSchema>;
 export type UndoOperationType = UndoOperation['type'];
@@ -207,6 +220,8 @@ export const operationProjectOf = (operation: UndoOperation): string => {
       return operation.task.projectId;
     case 'reflection.add':
       return operation.reflection.projectId;
+    // Every remaining member names its own project, including a shortcut, whose `projectId` is
+    // the **destination** Home project rather than the source sub-project the placement points at.
     default:
       return operation.projectId;
   }
@@ -229,8 +244,17 @@ export const operationSubjectOf = (operation: UndoOperation): string => {
       return operation.taskId;
     case 'reflection.add':
       return operation.reflection.id;
-    default:
+    case 'reflection.update':
+    case 'reflection.archive':
+    case 'reflection.restore':
       return operation.reflectionId;
+    case 'section.restore':
+      return operation.sectionId;
+    case 'shortcut.add':
+    case 'shortcut.remove':
+      return operation.shortcut.id;
+    default:
+      return operation.shortcutId;
   }
 };
 
@@ -325,7 +349,9 @@ export const UndoResultSchema = z.discriminatedUnion('operation', [
   SectionAddUndoResultSchema,
   SectionMoveUndoResultSchema,
   SectionUpdateUndoResultSchema,
+  SectionRestoreUndoResultSchema,
   ...ROW_UNDO_RESULT_SCHEMAS,
+  ...SHORTCUT_UNDO_RESULT_SCHEMAS,
 ]);
 export type UndoResult = z.infer<typeof UndoResultSchema>;
 
@@ -371,7 +397,9 @@ export const RedoResultSchema = z.discriminatedUnion('operation', [
   SectionAddRedoResultSchema,
   SectionMoveRedoResultSchema,
   SectionUpdateRedoResultSchema,
+  SectionRestoreRedoResultSchema,
   ...ROW_REDO_RESULT_SCHEMAS,
+  ...SHORTCUT_REDO_RESULT_SCHEMAS,
 ]);
 export type RedoResult = z.infer<typeof RedoResultSchema>;
 

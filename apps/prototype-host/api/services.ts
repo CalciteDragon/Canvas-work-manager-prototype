@@ -58,7 +58,7 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
   // each Undo/Redo transition, so both publish only their one activity frame, after commit.
   const history = new RepositoryOperationRecorder({ histories: operationHistories, actions: operationActions, clock, ids });
   const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, history, clock, ids, unitOfWork });
-  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
+  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, history, clock, ids, unitOfWork });
 
   return {
     store,

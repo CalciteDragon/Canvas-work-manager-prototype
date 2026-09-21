@@ -370,14 +370,15 @@ const CASES: Record<string, ToolCase> = {
     },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toMatchObject({ sourceSectionId: SHORTCUT_SOURCE_SECTION, sourcePageKind: 'work', position: 1 });
+      expect(result.shortcut).toMatchObject({ sourceSectionId: SHORTCUT_SOURCE_SECTION, sourcePageKind: 'work', position: 1 });
+      expect(result.operation).toMatchObject({ operation: 'shortcut.add' });
       const shortcuts = await harness.services.shortcuts.list(agent(['projects.read']), PROJECT, {
         pageId: SHORTCUT_DESTINATION_PAGE,
       });
       expect(
         [...shortcuts].sort((a, b) => a.position - b.position).map(({ id, position }) => [id, position]),
       ).toEqual([
-        [result.id, 1],
+        [result.shortcut.id, 1],
         [SEEDED_SHORTCUT, 4],
       ]);
     },
@@ -386,7 +387,9 @@ const CASES: Record<string, ToolCase> = {
     input: { shortcutId: SEEDED_SHORTCUT },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toBeUndefined();
+      // No placement to return, so the result names what it deleted and the receipt that undoes it.
+      expect(result).toMatchObject({ shortcutId: SEEDED_SHORTCUT, projectId: PROJECT });
+      expect(result.operation).toMatchObject({ operation: 'shortcut.remove' });
       expect(await harness.services.shortcuts.list(agent(['projects.read']), PROJECT)).toEqual([]);
       expect(await harness.services.sections.get(agent(['projects.read']), SHORTCUT_SOURCE_SECTION)).toBeDefined();
     },
@@ -585,7 +588,14 @@ describe('undo_operation and redo_operation refusals, as an agent sees them', ()
       const declaration = declared(name);
       expect(declaration).toEqual({
         kind: 'family',
-        families: { section: 'projects.write', task: 'tasks.write', reflection: 'reflections.write' },
+        families: {
+          section: 'projects.write',
+          task: 'tasks.write',
+          reflection: 'reflections.write',
+          // A placement is part of the destination canvas, so it shares the canvas grant while
+          // staying its own family name.
+          shortcut: 'projects.write',
+        },
       });
       expect(declaration).not.toHaveProperty('permission');
       expect(declaration).not.toHaveProperty('permissions');

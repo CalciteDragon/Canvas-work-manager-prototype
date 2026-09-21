@@ -71,7 +71,7 @@ export const sectionTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'restore_section',
     description:
-      'Restore an archived section with the tasks or reflections that were archived with it. The operation is refused when the owning project is archived, and it never revives rows archived independently.',
+      'Restore an archived section with the tasks or reflections that were archived with it. The operation is refused when the owning project is archived, and it never revives rows archived independently. It needs no receipt and never expires, and the section returns at the end of its page rather than between its old neighbours. A restore that changed something returns { section, operation }, where operation is the receipt undo_operation accepts to re-archive exactly what this restore revived; a repeat on a live section returns operation: null and writes nothing.',
     permission: 'projects.write',
     inputSchema: z.object({ sectionId: SectionIdSchema }),
     execute: ({ sectionId }, { actor, services }) => services.sections.restoreSection(actor, sectionId),

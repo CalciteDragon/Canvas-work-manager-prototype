@@ -118,7 +118,7 @@ test('MCP mutates the nested showcase and the open browser follows every aggrega
       },
     });
     expect(addedShortcut.isError).not.toBe(true);
-    const shortcutId = (addedShortcut.structuredContent as { id: string }).id;
+    const shortcutId = (addedShortcut.structuredContent as { shortcut: { id: string } }).shortcut.id;
     await expect(page.locator('[data-shortcut-frame]')).toHaveCount(5, { timeout: 15_000 });
     expect((await requestApi.get<unknown[]>(`/api/projects/${SHOWCASE_ROOT}/shortcuts?pageId=${SHOWCASE_HOME}`)).length).toBe(5);
 
@@ -231,7 +231,7 @@ test('MCP inserts a section and shortcut at their combined canvas positions and 
       },
     });
     expect(shortcut.isError).not.toBe(true);
-    createdShortcutId = (shortcut.structuredContent as { id: string }).id;
+    createdShortcutId = (shortcut.structuredContent as { shortcut: { id: string } }).shortcut.id;
     await expect(page.locator(`[data-shortcut-id="${createdShortcutId}"]`)).toBeVisible({ timeout: 15_000 });
 
     const readCombinedOrder = async (): Promise<string[]> => {

@@ -1,4 +1,4 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ReflectionWriteResultSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TaskWriteResultSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ReflectionWriteResultSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionShortcutAddResultSchema, SectionShortcutRemovalResultSchema, SectionShortcutWriteResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TaskWriteResultSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
 import { ActivityService, AgentConnectionService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryOperationRecorder, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
@@ -155,7 +155,7 @@ const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-0
   const connections = new AgentConnectionService({ agents, activity, clock, unitOfWork });
   const history = new RepositoryOperationRecorder({ histories: operationHistories, actions: operationActions, clock, ids });
   const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, history, clock, ids, unitOfWork });
-  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
+  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, history, clock, ids, unitOfWork });
 
   return createApiRoutes({
     store,
@@ -486,7 +486,12 @@ describe('section routes', () => {
 
     const duplicated = await call(routes, 'POST', `/api/sections/${section.id}/duplicate`, {});
     expect(duplicated.status).toBe(201);
-    expect(ProjectSectionSchema.parse(duplicated.body)).toMatchObject({ type: 'rich-text', position: 2 });
+    const copy = SectionAddResultSchema.parse(duplicated.body);
+    // Duplication is an add, so it answers the same envelope with the same kind of receipt, and
+    // the copy sits directly below its original with a detached config and no rows.
+    expect(copy.section).toMatchObject({ type: 'rich-text', position: 2, config: { text: 'Kickoff' } });
+    expect(copy.section.id).not.toBe(section.id);
+    expect(copy.operation.operation).toBe('section.add');
 
     const removed = await call(routes, 'DELETE', `/api/sections/${sibling.id}`);
     expect(removed.status).toBe(200);
@@ -590,10 +595,14 @@ describe('section routes', () => {
     const restored = await call(routes, 'POST', `/api/sections/${task.sectionId}/restore`);
 
     expect(restored.status).toBe(200);
-    expect(ProjectSectionSchema.parse(restored.body).archivedAt).toBeUndefined();
+    const result = SectionWriteResultSchema.parse(restored.body);
+    expect(result.section.archivedAt).toBeUndefined();
+    expect(result.operation?.operation).toBe('section.restore');
     expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).archivedAt).toBeUndefined();
-    // A retry must not reorder the canvas or invent history.
-    expect((await call(routes, 'POST', `/api/sections/${task.sectionId}/restore`)).status).toBe(200);
+    // A retry must not reorder the canvas or invent history, so it answers a null receipt.
+    const retry = await call(routes, 'POST', `/api/sections/${task.sectionId}/restore`);
+    expect(retry.status).toBe(200);
+    expect(SectionWriteResultSchema.parse(retry.body).operation).toBeNull();
     expect((await call(routes, 'POST', '/api/sections/section-nope/restore')).status).toBe(404);
   });
 
@@ -676,23 +685,42 @@ describe('shortcut routes (§27, §68)', () => {
       body: { pageId: home, sourceSectionId: source },
     });
     expect(created.status).toBe(201);
-    const shortcut = ResolvedSectionShortcutSchema.parse(created.body);
+    const addResult = SectionShortcutAddResultSchema.parse(created.body);
+    const shortcut = addResult.shortcut;
     expect(shortcut).toMatchObject({ sourceSectionId: source, sourceProjectId: 'project-kitchen' });
+    expect(addResult.operation.operation).toBe('shortcut.add');
 
     const patched = await call(routes, 'PATCH', `/api/shortcuts/${shortcut.id}`, {
       body: { collapsed: true },
     });
     expect(patched.status).toBe(200);
-    expect(ResolvedSectionShortcutSchema.parse(patched.body).collapsed).toBe(true);
+    const patchResult = SectionShortcutWriteResultSchema.parse(patched.body);
+    expect(patchResult.shortcut.collapsed).toBe(true);
+    expect(patchResult.operation?.operation).toBe('shortcut.update');
+    // The same value again is a no-op: it answers the placement and a null receipt.
+    const unchanged = await call(routes, 'PATCH', `/api/shortcuts/${shortcut.id}`, { body: { collapsed: true } });
+    expect(SectionShortcutWriteResultSchema.parse(unchanged.body).operation).toBeNull();
 
     const moved = await call(routes, 'POST', `/api/shortcuts/${shortcut.id}/move`, {
       body: { position: 0 },
     });
     expect(moved.status).toBe(200);
-    expect(ResolvedSectionShortcutSchema.parse(moved.body).position).toBe(0);
+    const moveResult = SectionShortcutWriteResultSchema.parse(moved.body);
+    expect(moveResult.shortcut.position).toBe(0);
+    expect(moveResult.operation?.operation).toBe('shortcut.move');
+    // Asking for the position it already holds writes nothing.
+    const stayed = await call(routes, 'POST', `/api/shortcuts/${shortcut.id}/move`, { body: { position: 0 } });
+    expect(SectionShortcutWriteResultSchema.parse(stayed.body).operation).toBeNull();
 
+    // 200 rather than 204: the delete now carries the receipt that puts the placement back.
     const removed = await call(routes, 'DELETE', `/api/shortcuts/${shortcut.id}`);
-    expect(removed.status).toBe(204);
+    expect(removed.status).toBe(200);
+    expect(SectionShortcutRemovalResultSchema.parse(removed.body)).toMatchObject({
+      shortcutId: shortcut.id,
+      projectId: root,
+      pageId: home,
+      operation: { operation: 'shortcut.remove' },
+    });
     const shortcutsAfter = ResolvedSectionShortcutSchema.array().parse(
       (await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).body,
     );
@@ -1429,20 +1457,9 @@ describe('section receipts and operation history routes (Slices 30, 35)', () => 
     expect((again.body as { message: string }).message).toMatch(/^history_revision_stale: /);
   });
 
-  it('answers 409 history_retired, history_expired and — once pruned — history_not_next, with typed details', async () => {
+  it('answers 409 history_expired and — once pruned — history_not_next, with typed details', async () => {
     const clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'));
     const { routes } = withStore(document(true), clock);
-    const retiring = await removeNotes(routes);
-    await call(routes, 'POST', `/api/sections/${retiring.section.id}/restore`);
-
-    const retired = await transition(routes, retiring.result.operation, 'undo', retiring.result.operation.revision);
-    expect(retired.status).toBe(409);
-    expect(detailsOf(retired)).toMatchObject({
-      reason: 'history_retired',
-      conflicts: [{ entityType: 'section', id: retiring.section.id, title: 'Rich Text', problem: 'not-archived', nextStep: 'nothing-to-undo' }],
-      summary: { revision: retiring.result.operation.revision + 1 },
-    });
-
     const expiring = (await removeNotes(routes)).result;
     clock.setNow(new Date(expiring.operation.expiresAt));
     const summary = await summaryOf(routes);
@@ -1524,6 +1541,41 @@ describe('section receipts and operation history routes (Slices 30, 35)', () => 
       expect((await transition(routes, operation, 'undo', operation.revision, { user: 'user-demo' })).status).toBe(404);
       expect(await summaryOf(routes, { user: 'user-demo' }, AGENT_PROJECT)).toMatchObject({ historyId: null });
       expect((await transition(routes, operation, 'undo', operation.revision, { token: READWRITE })).status).toBe(200);
+    });
+
+    /**
+     * Recording Restore did not switch off the retirement rule: it only moved the case. A Restore
+     * the *same* actor made sits above their removal, so undoing it first is the ordinary route.
+     * A Restore by **someone else** never enters that stack, so the removal Undo is still next and
+     * still faces a live section — which it can never re-remove at the captured generation.
+     */
+    it('retires a removal Undo once another actor restored the section out of band', async () => {
+      const { store, routes } = withStore(PrototypeDocumentSchema.parse(buildSeed('agent-heavy')));
+      await call(routes, 'PATCH', '/api/agent-connections/agent-claude', {
+        user: 'user-demo',
+        body: { permissions: ['projects.read', 'projects.write', 'tasks.read', 'tasks.write'] },
+      });
+      // Prose with content, so the removal retains a tombstone there is something to restore.
+      const created = await call(routes, 'POST', `/api/projects/${AGENT_PROJECT}/sections`, {
+        token: READWRITE,
+        body: { type: 'rich-text', config: { text: 'Kept' } },
+      });
+      const section = SectionAddResultSchema.parse(created.body).section;
+      const { operation } = SectionRemovalResultSchema.parse(
+        (await call(routes, 'DELETE', `/api/sections/${section.id}`, { token: READWRITE })).body,
+      );
+
+      const restored = await call(routes, 'POST', `/api/sections/${section.id}/restore`, { user: 'user-demo' });
+      expect(SectionWriteResultSchema.parse(restored.body).operation?.operation).toBe('section.restore');
+
+      const retired = await transition(routes, operation, 'undo', operation.revision, { token: READWRITE });
+      expect(retired.status).toBe(409);
+      expect(detailsOf(retired)).toMatchObject({
+        reason: 'history_retired',
+        conflicts: [{ entityType: 'section', id: section.id, problem: 'not-archived', nextStep: 'nothing-to-undo' }],
+        summary: { revision: operation.revision + 1 },
+      });
+      expect(store.snapshot().operationActions.find(({ id }) => id === operation.actionId)?.state).toBe('retired');
     });
   });
 });

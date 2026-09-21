@@ -17,9 +17,9 @@ import { OperationFamilySchema } from './operation-receipt';
  * - **static** — every tool whose grant does not depend on its input. It keeps the singular key
  *   and the plural one, so an existing client reading either is unchanged.
  * - **family** — `undo_operation` and `redo_operation`, whose grant comes from the **stored**
- *   action's family, not from the caller's input. A singular key would have to name one of three
- *   grants and a conjunctive plural key would claim all three are needed, and both would be
- *   false, so these two tools publish the namespaced map instead and omit the other keys.
+ *   action's family, not from the caller's input. A singular key would have to name one of the
+ *   families' grants and a conjunctive plural key would claim all of them are needed, and both
+ *   would be false, so these two tools publish the namespaced map instead and omit the other keys.
  */
 
 /** A tool whose grant is fixed: the primary grant, then every grant it needs, in a stable order. */
@@ -37,6 +37,7 @@ export const FamilyToolPermissionSchema = z.strictObject({
     section: AgentPermissionSchema,
     task: AgentPermissionSchema,
     reflection: AgentPermissionSchema,
+    shortcut: AgentPermissionSchema,
   }),
 });
 export type FamilyToolPermission = z.infer<typeof FamilyToolPermissionSchema>;
@@ -56,6 +57,9 @@ export const OPERATION_FAMILY_PERMISSION = {
   section: 'projects.write',
   task: 'tasks.write',
   reflection: 'reflections.write',
+  // A placement is part of the destination project's canvas, so it needs the canvas grant and no
+  // grant on the source: reversing a shortcut write never reads or writes the source's rows.
+  shortcut: 'projects.write',
 } as const satisfies Record<z.infer<typeof OperationFamilySchema>, z.infer<typeof AgentPermissionSchema>>;
 
 /** The family declaration both history tools publish, validated once here. */
