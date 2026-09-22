@@ -95,7 +95,7 @@ export class ProjectLayoutControl {
     this.saving.set(true);
     this.error.set(null);
     try {
-      this.current.set((await this.gateway.projects.update(id, { projectLayoutMode: mode })).projectLayoutMode);
+      this.current.set((await this.gateway.projects.update(id, { projectLayoutMode: mode })).project.projectLayoutMode);
       // No reload since Slice 16. The write records a `project.updated` activity event, so
       // §62's stream reaches `ProjectWorkspaceStore`, which re-reads the project record the
       // canvas takes its layout mode from, and `ProjectPageStore`, which re-reads the canvas —

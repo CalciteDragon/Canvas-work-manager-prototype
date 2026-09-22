@@ -291,6 +291,11 @@ describe('UndoConflictSchema', () => {
     expect(UndoConflictSchema.safeParse({ ...conflict, problem: 'missing', nextStep: 'nothing-to-undo' }).success).toBe(true);
   });
 
+  it('names a project as an entity a transition can conflict on', () => {
+    const conflict = { entityType: 'project', id: 'project-kitchen', title: 'Kitchen', problem: 'new-dependent', nextStep: 'restore-or-move-dependent-and-retry' };
+    expect(UndoConflictSchema.parse(conflict)).toEqual(conflict);
+  });
+
   it('no longer describes a superseded receipt — a cursor replaced supersession', () => {
     expect(UndoConflictSchema.safeParse({ entityType: 'section', id: 'section-1', problem: 'superseded', nextStep: 'change-by-hand' }).success).toBe(false);
     expect(UndoConflictSchema.safeParse({ entityType: 'section', id: 'section-1', problem: 'field-changed', nextStep: 'use-later-receipt' }).success).toBe(false);

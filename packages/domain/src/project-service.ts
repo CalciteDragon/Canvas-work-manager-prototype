@@ -4,10 +4,12 @@ import {
   ProjectPageIdSchema,
   ProjectPageSchema,
   ProjectSchema,
+  ProjectWriteResultSchema,
   type CreateProjectInput,
   type Project,
   type ProjectId,
   type ProjectQuery,
+  type ProjectWriteResult,
   type UpdateProjectInput,
 } from '@cwm/contracts';
 import type { ProjectPageRepository, ProjectRepository, UnitOfWork } from '@cwm/repositories';
@@ -16,6 +18,8 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
+import type { OperationRecorder } from './operation-recorder';
+import { captureProjectWrite, projectWriteLabel } from './project-history';
 import { archivedAncestry } from './project-visibility';
 
 /**
@@ -31,6 +35,12 @@ export interface ProjectServiceDependencies {
    */
   pages: ProjectPageRepository;
   activity: ActivityService;
+  /**
+   * Makes each changed update or archive of an existing project undoable, in the **subject's own**
+   * history (Slice 39, §31) — never its root's, so a reparent that changes the root moves nothing
+   * between histories. `create` does not record yet.
+   */
+  history: OperationRecorder;
   clock: Clock;
   ids: IdGenerator;
   unitOfWork: UnitOfWork;
@@ -156,7 +166,13 @@ export class ProjectService {
     });
   }
 
-  async update(actor: ActorContext, id: ProjectId, input: UpdateProjectInput): Promise<Project> {
+  /**
+   * Every change §26 allows an existing project, as one write: one Activity event, and one history
+   * action whose kind follows the status — `project.archive` into `archived`, `project.reactivate`
+   * out of it, `project.update` otherwise. A normalized no-op answers `operation: null` and records
+   * nothing, so it leaves timestamps, Activity and the actor's Redo branch alone.
+   */
+  async update(actor: ActorContext, id: ProjectId, input: UpdateProjectInput): Promise<ProjectWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
@@ -221,21 +237,26 @@ export class ProjectService {
   }
 
   /** Sets `status: 'archived'`. Idempotent: archiving an archived project records nothing. */
-  async archive(actor: ActorContext, id: ProjectId): Promise<Project> {
+  async archive(actor: ActorContext, id: ProjectId): Promise<ProjectWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
-      if (current.status === 'archived') return current;
+      if (current.status === 'archived') return ProjectWriteResultSchema.parse({ project: current, operation: null });
       await this.assertNoActiveChildren(actor, id);
       return this.commit(actor, current, { ...current, status: 'archived' }, true);
     });
   }
 
-  private async commit(actor: ActorContext, current: Project, next: Project, archiving: boolean): Promise<Project> {
+  /**
+   * The one write both entry points share, and so the one place history is captured: from the
+   * normalized change this method is about to apply, not from the caller's input, so an omitted
+   * field, a `null` on an absent one and a status that did not move all record nothing.
+   */
+  private async commit(actor: ActorContext, current: Project, next: Project, archiving: boolean): Promise<ProjectWriteResult> {
     const changed = { ...next, updatedAt: current.updatedAt };
-    if (JSON.stringify(changed) === JSON.stringify(current)) return current;
+    if (JSON.stringify(changed) === JSON.stringify(current)) return ProjectWriteResultSchema.parse({ project: current, operation: null });
 
     const updated = ProjectSchema.parse({ ...next, updatedAt: this.dependencies.clock.now().toISOString() });
     await this.dependencies.projects.update(updated);
@@ -246,7 +267,15 @@ export class ProjectService {
       projectId: updated.id,
       summary: `${archiving ? 'Archived' : 'Updated'} "${updated.name}"`,
     });
-    return updated;
+    // Recorded inside this same unit, after the write and its activity, so the project, the event
+    // and the action commit or roll back together.
+    const operation = captureProjectWrite(current, updated);
+    const receipt = await this.dependencies.history.record(actor, {
+      projectId: updated.id,
+      label: projectWriteLabel(operation, updated),
+      operation,
+    });
+    return ProjectWriteResultSchema.parse({ project: updated, operation: receipt });
   }
 
   /** An implicit cascade would archive work the caller never named (§58 flags archive). */

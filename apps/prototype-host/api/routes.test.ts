@@ -1,4 +1,4 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectPageWriteResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ReflectionWriteResultSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionShortcutAddResultSchema, SectionShortcutRemovalResultSchema, SectionShortcutWriteResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TaskWriteResultSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectPageWriteResultSchema, ProjectWriteResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ReflectionWriteResultSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionShortcutAddResultSchema, SectionShortcutRemovalResultSchema, SectionShortcutWriteResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TaskWriteResultSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
 import { ActivityService, AgentConnectionService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryOperationRecorder, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
@@ -160,7 +160,7 @@ const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-0
   return createApiRoutes({
     store,
     activity,
-    projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
+    projects: new ProjectService({ projects, pages, activity, history, clock, ids, unitOfWork }),
     pages: new ProjectPageService({ pages, projects, activity, history, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     sections: sectionService,
@@ -257,7 +257,41 @@ describe('project routes', () => {
     const result = await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { name: 'Renamed' } });
 
     expect(result.status).toBe(200);
-    expect(result.body).toMatchObject({ name: 'Renamed' });
+    const body = ProjectWriteResultSchema.parse(result.body);
+    expect(body.project).toMatchObject({ id: MINE, name: 'Renamed' });
+    expect(body.operation).toMatchObject({ operation: 'project.update', label: 'Updated "Renamed"' });
+
+    // A PATCH that sets what is already there changes nothing and answers a null receipt.
+    const again = await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { name: 'Renamed' } });
+    expect(ProjectWriteResultSchema.parse(again.body).operation).toBeNull();
+
+    // The receipt reverses through the ordinary history route, and create still answers a bare project.
+    const undone = await call(routes, 'POST', `/api/history/${body.operation!.historyId}/transition`, {
+      body: { actionId: body.operation!.actionId, direction: 'undo', expectedRevision: body.operation!.revision },
+    });
+    expect(undone.status).toBe(200);
+    expect(undone.body).toMatchObject({ result: { operation: 'project.update', outcome: 'restored', project: { id: MINE } } });
+    const workspaceId = ProjectSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}`)).body).workspaceId;
+    const created = await call(routes, 'POST', '/api/projects', { body: { workspaceId, kind: 'root', name: 'Fresh' } });
+    expect(created.status).toBe(201);
+    expect(created.body).not.toHaveProperty('operation');
+  });
+
+  it('archives and reactivates through PATCH with typed receipts, and refuses a live-child archive without writing', async () => {
+    const routes = buildRoutes();
+    const workspaceId = ProjectSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}`)).body).workspaceId;
+    const child = ProjectSchema.parse((await call(routes, 'POST', '/api/projects', {
+      body: { workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Child' },
+    })).body);
+
+    const refused = await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { status: 'archived' } });
+    expect(refused.status).toBe(409);
+    expect((await call(routes, 'GET', `/api/projects/${MINE}/history`)).body).toMatchObject({ historyId: null });
+
+    const archived = ProjectWriteResultSchema.parse((await call(routes, 'PATCH', `/api/projects/${child.id}`, { body: { status: 'archived' } })).body);
+    expect(archived.operation).toMatchObject({ operation: 'project.archive' });
+    const reactivated = ProjectWriteResultSchema.parse((await call(routes, 'PATCH', `/api/projects/${child.id}`, { body: { status: 'active' } })).body);
+    expect(reactivated.operation).toMatchObject({ operation: 'project.reactivate', historyId: archived.operation!.historyId });
   });
 });
 

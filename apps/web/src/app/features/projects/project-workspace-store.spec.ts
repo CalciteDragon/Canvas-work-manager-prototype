@@ -7,6 +7,7 @@ import {
   type OperationHistoryId,
   type OperationKind,
   type Project,
+  type ProjectWriteResult,
   type ProjectId,
   type ProjectPage,
   type ProjectPageWriteResult,
@@ -279,6 +280,46 @@ describe('ProjectWorkspaceStore and live updates (§62)', () => {
     await Promise.resolve();
 
     expect(gateway.calls.filter(({ method }) => method === 'projects.get').length).toBe(before);
+  });
+
+  /**
+   * Slice 39: a cross-root reparent — forward, Undo or Redo — publishes one frame naming the
+   * sub-project's **current** root. The root it left still has to drop it from its tree, so the
+   * work hierarchy re-reads on a project-record frame from anywhere in the workspace.
+   */
+  it('re-reads the work hierarchy when a sub-project moves to or from another root', async () => {
+    const live = new FakeLiveUpdates();
+    const { store, gateway } = storeWith({ projects: renovation() }, live);
+    await store.load('project-renovation' as ProjectId);
+    const lists = () => gateway.calls.filter(({ method }) => method === 'projects.list').length;
+
+    for (const type of ['project.updated', 'project.update_undone', 'project.update_redone']) {
+      const before = lists();
+      live.emit({
+        type,
+        entityType: 'project',
+        entityId: 'project-kitchen',
+        projectId: 'project-kitchen',
+        rootProjectId: 'project-elsewhere',
+        actor: { kind: 'user', id: 'user-1', name: 'Sam' },
+        at: AT,
+      } as never);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(lists(), type).toBeGreaterThan(before);
+    }
+
+    const before = lists();
+    live.emit({
+      type: 'project.section_added',
+      entityType: 'project',
+      entityId: 'project-elsewhere',
+      projectId: 'project-elsewhere',
+      rootProjectId: 'project-elsewhere',
+      actor: { kind: 'user', id: 'user-1', name: 'Sam' },
+      at: AT,
+    } as never);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(lists()).toBe(before);
   });
 
   it('re-reads the work hierarchy when a project is created anywhere in this root', async () => {
@@ -651,7 +692,7 @@ describe('ProjectWorkspaceStore — the project’s own writes (§26, §63, §81
   // in which the page says `active` while the domain would still refuse a restore.
   it('holds the write guard from before the optimistic paint until the response lands', async () => {
     const gateway = new FakeWorkManagerGateway({ projects: renovation() });
-    const slow = deferred<Project>();
+    const slow = deferred<ProjectWriteResult>();
     gateway.projects.update = () => slow.promise;
     TestBed.configureTestingModule({
       providers: [
@@ -666,7 +707,7 @@ describe('ProjectWorkspaceStore — the project’s own writes (§26, §63, §81
     const writing = store.setStatus('active');
     expect(store.projectWritePending()).toBe(true);
 
-    slow.resolve({ ...renovation()[0]!, status: 'active' });
+    slow.resolve({ project: { ...renovation()[0]!, status: 'active' }, operation: null });
     await writing;
 
     expect(store.projectWritePending()).toBe(false);

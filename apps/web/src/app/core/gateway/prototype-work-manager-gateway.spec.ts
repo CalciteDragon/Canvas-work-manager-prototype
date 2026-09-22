@@ -249,22 +249,40 @@ describe('PrototypeWorkManagerGateway — projects', () => {
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1');
   });
 
-  it('updates a project layout through PATCH and validates the answer (§28)', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...project, projectLayoutMode: 'grid' }));
+  it('updates a project layout through PATCH and validates the { project, operation } answer (§28, Slice 39)', async () => {
+    const receipt = {
+      historyId: 'history-1', actionId: 'operation-1', operation: 'project.update', revision: 1,
+      label: 'Updated "Project"', createdAt: '2026-08-28T09:00:00.000Z', expiresAt: '2026-08-29T09:00:00.000Z',
+    };
+    fetchMock.mockImplementation(jsonResponse({ project: { ...project, projectLayoutMode: 'grid' }, operation: receipt }));
 
     const updated = await gateway().projects.update('project-1' as ProjectId, { projectLayoutMode: 'grid' });
 
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1');
     expect(lastCall().init.method).toBe('PATCH');
     expect(JSON.parse(lastCall().init.body as string)).toEqual({ projectLayoutMode: 'grid' });
-    expect(updated.projectLayoutMode).toBe('grid');
+    expect(updated.project.projectLayoutMode).toBe('grid');
+    expect(updated.operation).toEqual(receipt);
+    // Exactly one request: a committed response is never re-sent.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects an updated project body outside the shared contract', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...project, projectLayoutMode: 'canvas' }));
+  it('accepts a null receipt for a no-op PATCH', async () => {
+    fetchMock.mockImplementation(jsonResponse({ project, operation: null }));
 
+    expect((await gateway().projects.update('project-1' as ProjectId, { name: project.name })).operation).toBeNull();
+  });
+
+  it('rejects an updated project body outside the shared contract, including the old bare project', async () => {
+    const subject = gateway();
+    fetchMock.mockImplementation(jsonResponse({ project: { ...project, projectLayoutMode: 'canvas' }, operation: null }));
     await expect(
-      gateway().projects.update('project-1' as ProjectId, { projectLayoutMode: 'grid' }),
+      subject.projects.update('project-1' as ProjectId, { projectLayoutMode: 'grid' }),
+    ).rejects.toBeInstanceOf(GatewayError);
+
+    fetchMock.mockImplementation(jsonResponse({ ...project, projectLayoutMode: 'grid' }));
+    await expect(
+      subject.projects.update('project-1' as ProjectId, { projectLayoutMode: 'grid' }),
     ).rejects.toBeInstanceOf(GatewayError);
   });
 });

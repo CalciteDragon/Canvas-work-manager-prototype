@@ -381,7 +381,7 @@ describe('page transitions and the ordinary archive exemption (§§26, 31)', () 
     // Undone first, so the stack has an action in **each** direction once the root is archived:
     // `page.add` below the cursor to undo, `page.update` above it to redo.
     await step(h, off.operation!);
-    await h.projectService.archive(h.actor, MINE);
+    await h.projectService.archive(someoneElse, MINE);
 
     for (const [direction, receipt] of [['undo', created.operation!], ['redo', off.operation!]] as const) {
       const refusal = await refusalOf(step(h, receipt, direction));

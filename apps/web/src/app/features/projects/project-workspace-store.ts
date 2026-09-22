@@ -13,6 +13,7 @@ import {
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
+import { isProjectRecordEvent } from './project-record-event';
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -120,7 +121,9 @@ export class ProjectWorkspaceStore {
    * **record** re-reads only when a `project.*` frame names this project, so a sibling
    * sub-project's writes do not put a request behind every frame they produce. The **tree**
    * follows `rootProjectId`, because a unit of work created three levels down belongs in this
-   * column and its `projectId` is not this project.
+   * column and its `projectId` is not this project — and also any project-record frame in the
+   * workspace, because a sub-project reparented out of this root (or its Undo/Redo) is announced
+   * under its new root only (Slice 39, `isProjectRecordEvent`).
    */
   private onLiveEvent(event: LiveEvent): void {
     const projectId = this.requestedProjectId;
@@ -136,7 +139,7 @@ export class ProjectWorkspaceStore {
     if (aboutThisProject) void this.refreshProgress();
 
     if (!event.type.startsWith('project.')) return;
-    if (aboutThisProject || event.rootProjectId === this.root()?.id) this.refreshContext();
+    if (aboutThisProject || event.rootProjectId === this.root()?.id || isProjectRecordEvent(event)) this.refreshContext();
   }
 
   private onLiveConnected(): void {
@@ -544,7 +547,8 @@ export class ProjectWorkspaceStore {
     return this.track(() =>
       this.whileWriting(async () => {
         try {
-          const updated = await this.gateway.projects.update(projectId, input);
+          // The receipt is the server's history record; nothing here offers Undo yet (Slice 39).
+          const { project: updated } = await this.gateway.projects.update(projectId, input);
           // The server's record, not the paint: the host may have normalised something.
           if (current() && paint !== null) this.projectState.set(updated);
           return true;

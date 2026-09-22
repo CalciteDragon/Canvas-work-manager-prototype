@@ -41,6 +41,7 @@ import {
 } from './operation-history';
 import { RepositoryOperationRecorder, historyBelongsToActor } from './operation-recorder';
 import { reapplyPageAdd, reapplyPageUpdate, revertPageAdd, revertPageUpdate } from './page-history';
+import { mayRunWhileSubjectArchived, reapplyProjectWrite, revertProjectWrite } from './project-history';
 import { findHighestWriteBlocker } from './project-visibility';
 import {
   reapplyReflectionAdd,
@@ -210,7 +211,7 @@ export class OperationHistoryService {
             : `this action expired at ${action.expiresAt}; make the change again by hand instead`,
         );
       }
-      const blocker = await findHighestWriteBlocker(this.dependencies.projects, history.projectId);
+      const blocker = await this.transitionBlocker(history.projectId, action.operation, input.direction);
       if (blocker !== undefined) {
         const title = (await this.dependencies.projects.find(blocker))?.name ?? blocker;
         throw historyRefusal(
@@ -322,6 +323,10 @@ export class OperationHistoryService {
         return direction === 'undo' ? revertPageAdd(repositories, clock, operation) : reapplyPageAdd(repositories, clock, operation);
       case 'page.update':
         return direction === 'undo' ? revertPageUpdate(repositories, clock, operation) : reapplyPageUpdate(repositories, clock, operation);
+      case 'project.update':
+      case 'project.archive':
+      case 'project.reactivate':
+        return direction === 'undo' ? revertProjectWrite(repositories, clock, operation) : reapplyProjectWrite(repositories, clock, operation);
       default: {
         const unknown: never = operation;
         throw new TypeError(`no history executor for "${String(unknown)}"`);
@@ -344,6 +349,33 @@ export class OperationHistoryService {
       redo: entry(nextOperationAction(state, 'redo')),
       blockedBy: await this.blockedBy(state.history.projectId),
     });
+  }
+
+  /**
+   * The archived project that refuses this one step, or `undefined`.
+   *
+   * Ordinarily the highest archived project on the chain from the history's project up, itself
+   * included. **One narrow exception** (docs/decisions/2026-09-project-update-operation-history.md):
+   * a project-family step that `mayRunWhileSubjectArchived` names — an archive's Undo, a
+   * reactivation's Redo, or an edit made while the project was archived — ignores its **own
+   * subject's** archived status, because the service allowed the write it reverses and refusing
+   * would wedge the cursor on that very project. An archived ancestor still blocks it, and no other
+   * family ever gets the exception. The summary's `blockedBy` deliberately keeps reporting the
+   * observed archived project, since it describes the project, not one step.
+   */
+  private async transitionBlocker(
+    projectId: ProjectId,
+    operation: UndoOperation,
+    direction: OperationHistoryDirection,
+  ): Promise<ProjectId | undefined> {
+    const { projects } = this.dependencies;
+    const selfExempt =
+      (operation.type === 'project.update' || operation.type === 'project.archive' || operation.type === 'project.reactivate') &&
+      operation.projectId === projectId &&
+      mayRunWhileSubjectArchived(operation, direction);
+    if (!selfExempt) return findHighestWriteBlocker(projects, projectId);
+    const parentId = (await projects.find(projectId))?.parentProjectId;
+    return parentId === undefined ? undefined : findHighestWriteBlocker(projects, parentId);
   }
 
   /** The one pre-validation the summary does: the archived ancestor that blocks every transition. */
@@ -384,11 +416,15 @@ export const activityActionFor = (operation: UndoOperation['type'], direction: O
     'shortcut.remove': 'shortcut_removal',
     'page.add': 'page_addition',
     'page.update': 'page_update',
+    'project.update': 'update',
+    'project.archive': 'archive',
+    'project.reactivate': 'reactivation',
   }[operation];
   const family = familyOfOperationKind(operation);
   // A shortcut or page event targets the owning **project**, exactly as the ordinary
   // `project.shortcut_added` and `project.page_enabled` do, so no Activity target exception and no
   // `page` entity kind are needed for the new verbs.
+  // A project write's own family is `project`, so its verbs read `project.archive_undone` and the like.
   const prefix = family === 'section' || family === 'shortcut' || family === 'page' ? 'project' : family;
   return `${prefix}.${noun}_${direction === 'undo' ? 'undone' : 'redone'}`;
 };
@@ -415,6 +451,11 @@ const activityTargetFor = (operation: UndoOperation): {
     // A page's event names its owning root, never the page: `ActivityEntityType` has no `page`
     // member, and adding one would pin every page record alive forever.
     case 'page.update':
+    // A project write names its subject, exactly as the ordinary `project.updated` does, so a
+    // cross-root reparent's one frame is the project's and every open root aggregate can re-read.
+    case 'project.update':
+    case 'project.archive':
+    case 'project.reactivate':
       return { entityType: 'project', entityId: operation.projectId, projectId: operation.projectId };
     case 'page.add':
       return { entityType: 'project', entityId: operation.page.projectId, projectId: operation.page.projectId };
@@ -477,6 +518,9 @@ const OPERATION_GERUND: Record<UndoOperation['type'], string> = {
   'shortcut.remove': 'removing a shortcut from',
   'page.add': 'enabling the',
   'page.update': 'changing the',
+  'project.update': 'updating',
+  'project.archive': 'archiving',
+  'project.reactivate': 'reactivating',
 };
 
 /**
@@ -496,6 +540,7 @@ const activitySummary = (operation: UndoOperation, result: UndoResult | RedoResu
     const kind = operation.kind ?? ('page' in result ? result.page.kind : 'optional');
     return `${did} ${gerund} ${kind} page`;
   }
+  if ('project' in result) return `${did} ${gerund} "${result.project.name}"`;
   if (operation.type.startsWith('section.')) {
     const section = 'section' in result ? result.section : operation.type === 'section.add' ? operation.section : undefined;
     return `${did} ${gerund} ${section === undefined ? 'section' : nameOf(section)} section`;

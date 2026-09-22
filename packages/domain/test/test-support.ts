@@ -165,8 +165,8 @@ export interface HarnessOptions {
   events?: LiveEventPublisher;
   /**
    * Replaces the history recorder every undoable writer records through — `SectionService`,
-   * `TaskService`, `ReflectionService`, `SectionShortcutService` and, since Slice 38,
-   * `ProjectPageService`. The recorder-failure seam.
+   * `TaskService`, `ReflectionService`, `SectionShortcutService`, since Slice 38
+   * `ProjectPageService` and since Slice 39 `ProjectService`. The recorder-failure seam.
    */
   recorder?: (real: OperationRecorder) => OperationRecorder;
   /** Replaces the counting id generator, for tests where id order must not match insertion order. */
@@ -281,6 +281,20 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     await sectionShortcutService.remove(...args);
   };
 
+  /**
+   * The same unwrapping facade again: Slice 39 turned `update` and `archive` into
+   * `{ project, operation }` results, and the existing hierarchy, visibility and archive tests are
+   * about the project, not the receipt. `projectWriteService` is the real service, and the
+   * project-history tests use it.
+   */
+  const projectWriteService = new ProjectService({ projects, pages, activity, history: historyRecorder, clock, ids, unitOfWork });
+  const legacyProjectService = Object.create(projectWriteService) as Omit<ProjectService, 'update' | 'archive'> & {
+    update: (...args: Parameters<ProjectService['update']>) => Promise<Project>;
+    archive: (...args: Parameters<ProjectService['archive']>) => Promise<Project>;
+  };
+  legacyProjectService.update = async (...args) => (await projectWriteService.update(...args)).project;
+  legacyProjectService.archive = async (...args) => (await projectWriteService.archive(...args)).project;
+
   return {
     store,
     clock,
@@ -301,7 +315,8 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     activity,
     actor: actorFor(0),
     other: actorFor(1),
-    projectService: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
+    projectService: legacyProjectService,
+    projectWriteService,
     projectPageService: new ProjectPageService({ pages, projects, activity, history: historyRecorder, clock, ids, unitOfWork }),
     taskService: legacyTaskService,
     taskWriteService,

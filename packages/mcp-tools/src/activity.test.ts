@@ -18,8 +18,8 @@ describe('§57 activity from a tool call', () => {
   // Slice 36 gives row writes their history receipt. Project writes keep their historical bare
   // result, so the feed assertion deliberately accepts both wire shapes.
   const entityIdOf = (result: unknown): string => {
-    const value = result as { id?: string; task?: { id: string }; reflection?: { id: string } };
-    return value.task?.id ?? value.reflection?.id ?? value.id!;
+    const value = result as { id?: string; task?: { id: string }; reflection?: { id: string }; project?: { id: string } };
+    return value.task?.id ?? value.reflection?.id ?? value.project?.id ?? value.id!;
   };
 
   type ActivityCase = {

@@ -45,7 +45,7 @@ export class StateInspectorStore {
     this.errorState.set(null);
     this.savingState.update((saving) => new Set(saving).add(id));
     try {
-      const updated = await this.gateway.projects.update(id, { projectLayoutMode });
+      const { project: updated } = await this.gateway.projects.update(id, { projectLayoutMode });
       this.projectsState.update((projects) =>
         projects.map((project) => (project.id === id ? updated : project)),
       );

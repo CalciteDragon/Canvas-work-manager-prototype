@@ -50,7 +50,8 @@ export const projectTools: readonly WorkManagerTool[] = [
   }),
   defineTool({
     name: 'update_project',
-    description: 'Change a project’s name, description, icon, status, target date, layout or progress settings. Omitted fields are left alone; null clears one.',
+    description:
+      'Change a project’s name, description, icon, status, target date, parent (a sub-project only), layout or progress settings. Omitted fields are left alone; null clears one. Answers { project, operation }: operation is a receipt for one undoable action in this project’s own history — project.archive when the status entered archived, project.reactivate when it left it, project.update otherwise — or null when nothing changed. Reverse it through undo_operation with projects.write.',
     permission: 'projects.write',
     inputSchema: UpdateProjectInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.projects.update(actor, projectId, input),
@@ -58,7 +59,7 @@ export const projectTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'archive_project',
     description:
-      'Archive a project. This is reversible, hides the project and its descendants from ordinary live reads, and refuses when a live child project would make the operation ambiguous.',
+      'Archive a project. This is reversible, hides the project and its descendants from ordinary live reads, and refuses when a live child project would make the operation ambiguous. Answers { project, operation }: a project.archive receipt, or null when the project was already archived. undo_operation can reverse it while the project is still archived.',
     permission: 'projects.write',
     inputSchema: z.object({ projectId: ProjectIdSchema }),
     execute: ({ projectId }, { actor, services }) => services.projects.archive(actor, projectId),
@@ -66,7 +67,7 @@ export const projectTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'restore_project',
     description:
-      'Restore an archived project with the explicit non-archived status supplied by the caller. Restoration never guesses the project’s prior status and does not cascade into archived descendants.',
+      'Restore an archived project with the explicit non-archived status supplied by the caller. Restoration never guesses the project’s prior status and does not cascade into archived descendants. Answers { project, operation } with a project.reactivate receipt; it stays available with no receipt at all, however long ago the project was archived.',
     permission: 'projects.write',
     inputSchema: RestoreProjectInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, status }, { actor, services }) => services.projects.update(actor, projectId, { status }),

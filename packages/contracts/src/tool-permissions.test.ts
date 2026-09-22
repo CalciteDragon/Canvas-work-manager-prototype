@@ -27,6 +27,7 @@ describe('tool permission metadata', () => {
         reflection: 'reflections.write',
         shortcut: 'projects.write',
         page: 'projects.write',
+        project: 'projects.write',
       },
     });
   });
@@ -60,14 +61,15 @@ describe('operation families', () => {
     }
   });
 
-  it('places the nineteen kinds in the five families', () => {
+  it('places the twenty-two kinds in the six families', () => {
     const families = OperationKindSchema.options.map(familyOfOperationKind);
-    expect(families).toHaveLength(19);
+    expect(families).toHaveLength(22);
     expect(families.filter((family) => family === 'section')).toHaveLength(5);
     expect(families.filter((family) => family === 'task')).toHaveLength(4);
     expect(families.filter((family) => family === 'reflection')).toHaveLength(4);
     expect(families.filter((family) => family === 'shortcut')).toHaveLength(4);
     expect(families.filter((family) => family === 'page')).toHaveLength(2);
+    expect(families.filter((family) => family === 'project')).toHaveLength(3);
   });
 
   it('gives a shortcut and a page their own family names even though both share the canvas grant', () => {
@@ -76,5 +78,12 @@ describe('operation families', () => {
     expect(familyOfOperationKind('page.add')).toBe('page');
     expect(familyOfOperationKind('page.update')).toBe('page');
     expect(OPERATION_FAMILY_PERMISSION.page).toBe('projects.write');
+  });
+
+  it('puts an existing project’s update, archive and reactivation in the project family on projects.write', () => {
+    for (const kind of ['project.update', 'project.archive', 'project.reactivate'] as const) {
+      expect(familyOfOperationKind(kind)).toBe('project');
+    }
+    expect(OPERATION_FAMILY_PERMISSION.project).toBe('projects.write');
   });
 });

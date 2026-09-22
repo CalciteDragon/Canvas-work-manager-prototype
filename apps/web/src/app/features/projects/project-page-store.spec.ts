@@ -262,7 +262,7 @@ const setup = (
             if (value === null) delete next[key];
             else next[key] = value;
           }
-          return next as Project;
+          return { project: next as Project, operation: null };
         }),
     },
     sections: {

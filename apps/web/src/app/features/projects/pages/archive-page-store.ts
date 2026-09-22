@@ -7,6 +7,7 @@ import type {
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
+import { isProjectRecordEvent } from '../project-record-event';
 import type { LiveEvent } from '@cwm/contracts';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -134,7 +135,9 @@ export class ArchivePageStore {
       void this.load(projectId);
       return;
     }
-    if (event.rootProjectId !== projectId && event.projectId !== projectId) return;
+    // A project-record frame from another root still re-reads: a cross-root move names only the
+    // sub-project's new root (Slice 39).
+    if (event.rootProjectId !== projectId && event.projectId !== projectId && !isProjectRecordEvent(event)) return;
     void this.load(projectId);
   }
 

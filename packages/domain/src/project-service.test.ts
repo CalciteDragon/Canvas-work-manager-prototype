@@ -375,3 +375,62 @@ describe('ProjectService owner kinds and pages', () => {
     expect(await harness.pages.list({ projectId: project.id })).toHaveLength(1);
   });
 });
+
+describe('ProjectService write results and history (Slice 39, §31)', () => {
+  it('answers one receipt per changed update and archive, and a null receipt for a no-op', async () => {
+    const harness = buildHarness();
+    const child = await create(harness, { name: 'Child', parentProjectId: MINE });
+
+    const renamed = await harness.projectWriteService.update(harness.actor, child.id, { name: 'Renamed', targetDate: '2026-10-01' });
+    expect(renamed.project).toMatchObject({ id: child.id, name: 'Renamed', targetDate: '2026-10-01' });
+    expect(renamed.operation).toMatchObject({ operation: 'project.update', label: 'Updated "Renamed"', revision: 1 });
+
+    const archived = await harness.projectWriteService.archive(harness.actor, child.id);
+    expect(archived.operation).toMatchObject({ operation: 'project.archive', historyId: renamed.operation!.historyId, revision: 2 });
+
+    expect((await harness.projectWriteService.archive(harness.actor, child.id)).operation).toBeNull();
+    expect((await harness.projectWriteService.update(harness.actor, child.id, { name: 'Renamed' })).operation).toBeNull();
+    expect(await harness.operationActions.list({ historyId: renamed.operation!.historyId })).toHaveLength(2);
+  });
+
+  it('records a PATCH that changes status and other fields as one action and one activity event', async () => {
+    const harness = buildHarness();
+    const before = (await harness.activity.list(harness.actor)).length;
+
+    const result = await harness.projectWriteService.update(harness.actor, MINE, { status: 'completed', name: 'Done' });
+
+    expect(result.operation).toMatchObject({ operation: 'project.update', label: 'Completed "Done"' });
+    expect(await harness.operationActions.list({ historyId: result.operation!.historyId })).toHaveLength(1);
+    expect(await harness.activity.list(harness.actor)).toHaveLength(before + 1);
+  });
+
+  it('records an agent’s write in its own history, never the person’s', async () => {
+    const harness = buildHarness();
+    const agent = agentActorFor(0, ['projects.write']);
+
+    const { operation } = await harness.projectWriteService.update(agent, MINE, { icon: '🤖' });
+
+    expect((await harness.operationHistories.find(operation!.historyId))).toMatchObject({ actor: 'agent', projectId: MINE });
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).historyId).toBeNull();
+  });
+
+  it('leaves no project change, action or activity behind when persistence fails', async () => {
+    const harness = buildHarness();
+    const before = JSON.stringify(harness.store.snapshot());
+    harness.store.persistFailure = new Error('disk full');
+
+    await expect(harness.projectWriteService.update(harness.actor, MINE, { name: 'Lost' })).rejects.toThrow('disk full');
+    harness.store.persistFailure = undefined;
+
+    expect(JSON.stringify(harness.store.snapshot())).toEqual(before);
+  });
+
+  it('keeps create answering the bare project, with nothing recorded', async () => {
+    const harness = buildHarness();
+
+    const project = await create(harness);
+
+    expect(project).not.toHaveProperty('operation');
+    expect(harness.store.snapshot().operationActions).toEqual([]);
+  });
+});

@@ -719,7 +719,7 @@ describe('OperationHistoryService — archived projects', () => {
     const harness = buildHarness();
     const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text' });
     const { operation } = await harness.sectionService.remove(harness.actor, notes.id);
-    await harness.projectService.update(harness.actor, MINE, { status: 'archived' });
+    await harness.projectService.update(someoneElse, MINE, { status: 'archived' });
     const before = state(harness);
 
     const refusal = await refusalOf(harness.undo(harness.actor, operation));
@@ -731,7 +731,7 @@ describe('OperationHistoryService — archived projects', () => {
       summary: { blockedBy: { projectId: MINE, title: 'Project project-mine' } },
     });
     expect(state(harness)).toEqual(before);
-    await harness.projectService.update(harness.actor, MINE, { status: 'active' });
+    await harness.projectService.update(someoneElse, MINE, { status: 'active' });
     await expect(harness.undo(harness.actor, operation)).resolves.toMatchObject({ outcome: 'restored' });
   });
 
@@ -742,17 +742,17 @@ describe('OperationHistoryService — archived projects', () => {
     });
     const notes = await harness.sectionService.add(harness.actor, kitchen.id, { type: 'rich-text' });
     const { operation } = await harness.sectionService.remove(harness.actor, notes.id);
-    await harness.projectService.archive(harness.actor, kitchen.id);
-    await harness.projectService.archive(harness.actor, MINE);
+    await harness.projectService.archive(someoneElse, kitchen.id);
+    await harness.projectService.archive(someoneElse, MINE);
 
     const refusal = await refusalOf(harness.undo(harness.actor, operation));
     expect(refusal.details).toMatchObject({ reason: 'history_blocked', blockingProjectId: MINE });
 
-    await harness.projectService.update(harness.actor, MINE, { status: 'active' });
-    await harness.projectService.update(harness.actor, kitchen.id, { status: 'active' });
+    await harness.projectService.update(someoneElse, MINE, { status: 'active' });
+    await harness.projectService.update(someoneElse, kitchen.id, { status: 'active' });
     await harness.undo(harness.actor, operation);
-    await harness.projectService.archive(harness.actor, kitchen.id);
-    await harness.projectService.archive(harness.actor, MINE);
+    await harness.projectService.archive(someoneElse, kitchen.id);
+    await harness.projectService.archive(someoneElse, MINE);
     expect((await refusalOf(harness.redo(harness.actor, operation))).details).toMatchObject({ reason: 'history_blocked', blockingProjectId: MINE });
   });
 });
@@ -1092,5 +1092,64 @@ describe('OperationHistoryService — revision, order, expiry and atomicity', ()
     expect(await harness.sections.find(added.section.id)).toBeNull();
     await harness.redo(harness.actor, added.operation);
     expect((await harness.sections.find(added.section.id))?.archiveGeneration).toBe(1);
+  });
+});
+
+describe('OperationHistoryService — existing-project actions (Slice 39)', () => {
+  const projectState = (harness: Harness) => {
+    const { projects, activityEvents, operationHistories, operationActions } = harness.store.snapshot();
+    return JSON.stringify({ projects, activityEvents, operationHistories, operationActions });
+  };
+
+  it('needs projects.write from the stored project family, before disclosing anything', async () => {
+    const harness = buildHarness();
+    const writer = agentActorFor(0, ['projects.write']);
+    const { operation } = await harness.projectWriteService.update(writer, MINE, { name: 'Agent named' });
+    const readOnly = agentActorFor(0, ['projects.read', 'tasks.write']);
+    const before = projectState(harness);
+
+    await expect(transition(harness, readOnly, operation!, 'undo', 0)).rejects.toBeInstanceOf(PermissionDeniedError);
+    expect(projectState(harness)).toEqual(before);
+    await expect(transition(harness, writer, operation!, 'undo', operation!.revision)).resolves.toMatchObject({
+      result: { operation: 'project.update', outcome: 'restored' },
+    });
+  });
+
+  it('another actor’s history is not found, and a stale revision refuses without writing', async () => {
+    const harness = buildHarness();
+    const { operation } = await harness.projectWriteService.update(harness.actor, MINE, { name: 'Mine' });
+    const before = projectState(harness);
+
+    await expect(transition(harness, someoneElse, operation!, 'undo', operation!.revision)).rejects.toBeInstanceOf(EntityNotFoundError);
+    const stale = await refusalOf(transition(harness, harness.actor, operation!, 'undo', operation!.revision - 1));
+    expect(stale.message).toMatch(/^history_revision_stale: /);
+    expect(projectState(harness)).toEqual(before);
+  });
+
+  it('rolls a project transition back whole when persistence fails, and succeeds on retry', async () => {
+    const harness = buildHarness();
+    const { operation } = await harness.projectWriteService.archive(harness.actor, MINE);
+    const before = projectState(harness);
+
+    harness.store.persistFailure = new Error('disk full');
+    await expect(transition(harness, harness.actor, operation!, 'undo', operation!.revision)).rejects.toThrow('disk full');
+    harness.store.persistFailure = undefined;
+    expect(projectState(harness)).toEqual(before);
+
+    await transition(harness, harness.actor, operation!, 'undo', operation!.revision);
+    expect((await harness.projects.find(MINE))!.status).toBe('active');
+  });
+
+  it('records one project-targeted activity event per transition, with a direction verb', async () => {
+    const harness = buildHarness();
+    const { operation } = await harness.projectWriteService.archive(harness.actor, MINE);
+    await transition(harness, harness.actor, operation!, 'undo', operation!.revision);
+    await transition(harness, harness.actor, operation!, 'redo', operation!.revision + 1);
+
+    const events = (await harness.activity.list(harness.actor)).filter((event) => event.entityId === MINE);
+    expect(events.slice(0, 2).map(({ action, entityType, summary }) => ({ action, entityType, summary }))).toEqual([
+      { action: 'project.archive_redone', entityType: 'project', summary: 'Redid archiving "Project project-mine"' },
+      { action: 'project.archive_undone', entityType: 'project', summary: 'Undid archiving "Project project-mine"' },
+    ]);
   });
 });

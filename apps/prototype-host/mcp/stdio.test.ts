@@ -72,6 +72,7 @@ describe('MCP stdio entry (§59)', () => {
           reflection: 'reflections.write',
           shortcut: 'projects.write',
           page: 'projects.write',
+          project: 'projects.write',
         });
         expect(metadata).not.toHaveProperty('local.canvas-work-manager/requiredPermission');
         expect(metadata).not.toHaveProperty('local.canvas-work-manager/requiredPermissions');

@@ -227,6 +227,73 @@ describe('live updates through the host (§62)', () => {
   });
 
   /**
+   * Slice 39: an existing project's write, its Undo and its Redo each publish one project-targeted
+   * frame, after commit. A cross-root reparent still publishes exactly one — naming the root the
+   * subject is under **now** — which is why browser root aggregates re-read on any project-targeted
+   * `project.*` frame in the workspace rather than only on their own root's.
+   */
+  describe('existing-project writes: forward, Undo and Redo', () => {
+    const actor = { actor: 'user' as const, workspaceId: 'workspace-demo' as never, userId: 'user-demo' as never };
+
+    const tree = async (api: Awaited<ReturnType<typeof harness>>['api']) => {
+      const other = await api.projects.create(actor, { kind: 'root', workspaceId: 'workspace-demo' as never, name: 'Other root' });
+      const child = await api.projects.create(actor, {
+        kind: 'subproject', parentProjectId: 'project-work-manager' as never, workspaceId: 'workspace-demo' as never, name: 'Mover',
+      });
+      return { other, child };
+    };
+
+    it('delivers one committed frame per direction for a cross-root reparent, naming the current root', async () => {
+      const { api, routes, persistence, events } = await harness();
+      const { other, child } = await tree(api);
+      const delivered: Array<{ event: LiveEvent; parentAtDelivery: string | undefined }> = [];
+      events.subscribe((event) =>
+        delivered.push({ event, parentAtDelivery: persistence.store.snapshot().projects.find(({ id }) => id === child.id)?.parentProjectId }),
+      );
+
+      const moved = await persona(routes, 'PATCH', `/api/projects/${child.id}`, { parentProjectId: other.id });
+      expect(moved.status).toBe(200);
+      const receipt = receiptOf(moved.body)!;
+      expect(receipt.operation).toBe('project.update');
+      expect(delivered).toHaveLength(1);
+      expect(delivered[0]).toMatchObject({
+        event: { type: 'project.updated', entityType: 'project', entityId: child.id, projectId: child.id, rootProjectId: other.id },
+        parentAtDelivery: other.id,
+      });
+
+      expect((await step(routes, receipt, 'undo', receipt.revision)).status).toBe(200);
+      expect(delivered).toHaveLength(2);
+      expect(delivered[1]).toMatchObject({
+        event: { type: 'project.update_undone', entityId: child.id, rootProjectId: 'project-work-manager' },
+        parentAtDelivery: 'project-work-manager',
+      });
+
+      expect((await step(routes, receipt, 'redo', receipt.revision + 1)).status).toBe(200);
+      expect(delivered).toHaveLength(3);
+      expect(delivered[2]).toMatchObject({ event: { type: 'project.update_redone', rootProjectId: other.id }, parentAtDelivery: other.id });
+      expect(JSON.stringify(delivered.map(({ event }) => event))).not.toMatch(/history-|operation-|changes|before/);
+    });
+
+    it('delivers nothing, writes nothing to disk and keeps no action when persisting fails', async () => {
+      const { api, routes, persistence, frames } = await harness();
+      const { other, child } = await tree(api);
+      frames.length = 0;
+      const disk = readFileSync(persistence.path, 'utf8');
+      persistence.store.persist = async () => {
+        throw new Error('disk full');
+      };
+
+      const moved = await persona(routes, 'PATCH', `/api/projects/${child.id}`, { parentProjectId: other.id });
+
+      expect(moved.status).toBe(500);
+      expect(frames).toEqual([]);
+      expect(readFileSync(persistence.path, 'utf8')).toBe(disk);
+      expect(persistence.store.snapshot().operationActions).toEqual([]);
+      expect(persistence.store.snapshot().projects.find(({ id }) => id === child.id)?.parentProjectId).toBe('project-work-manager');
+    });
+  });
+
+  /**
    * Slices 33 and 35 (Refactor §26.7–8): for every history family, the mutation, its history action
    * and the frame move together, in both directions. "Committed" is checked against the bytes on
    * disk at delivery, not only the in-memory snapshot.

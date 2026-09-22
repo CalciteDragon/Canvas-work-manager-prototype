@@ -2,6 +2,7 @@ import { DestroyRef, Injectable, PendingTasks, inject, signal } from '@angular/c
 import type { LiveEvent, ProjectId, ProjectTodoItem } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
+import { isProjectRecordEvent } from '../project-record-event';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -143,7 +144,7 @@ export class TodosPageStore {
         this.replace(id, { ...item, project: { ...item.project, status: 'completed' } });
         // §26's completion of a unit of work is an ordinary status update, so it goes through
         // the same call the header uses — and it does **not** complete anything beneath it.
-        const record = await this.track(() => this.gateway.projects.update(item.project.id, { status: 'completed' }));
+        const { project: record } = await this.track(() => this.gateway.projects.update(item.project.id, { status: 'completed' }));
         if (!current()) return false;
         // A root coming back here would mean the id named something else entirely; keep the
         // optimistic row rather than putting a shape this page cannot render into the list.
@@ -180,7 +181,8 @@ export class TodosPageStore {
    * a project it is not open on. `prototype.reloaded` is the loud exception: the document behind
    * every row may have been replaced, so the content goes immediately even though the root id
    * has not changed. (Choosing a persona reloads the browser through the prototype panel, so it
-   * needs nothing here.)
+   * needs nothing here.) A project-record frame from **any** root also re-reads: a sub-project moved
+   * out of this root is announced under its new one only (`isProjectRecordEvent`).
    */
   private onLiveEvent(event: LiveEvent): void {
     const projectId = this.requestedProjectId;
@@ -189,7 +191,7 @@ export class TodosPageStore {
       void this.load(projectId);
       return;
     }
-    if (event.rootProjectId !== projectId && event.projectId !== projectId) return;
+    if (event.rootProjectId !== projectId && event.projectId !== projectId && !isProjectRecordEvent(event)) return;
     this.invalidate();
   }
 

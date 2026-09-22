@@ -17,6 +17,7 @@ import type {
   ProjectId,
   ProjectPage,
   ProjectPageWriteResult,
+  ProjectWriteResult,
   ProjectQuery,
   ProjectSection,
   ProjectArchiveResult,
@@ -92,12 +93,17 @@ export interface TaskGateway {
  * `status: 'archived'` already runs the domain's whole archive path — the active-children
  * guard and the `project.archived` activity row included — so a second method would be a
  * second way to say the same thing.
+ *
+ * `update` answers `{ project, operation }` (Slice 39): the confirmed project and a receipt for the
+ * one history action the write recorded, or `null` when it changed nothing. Callers reconcile from
+ * `project`; no browser surface offers the receipt yet. `create` still answers the bare project,
+ * because creation is not recorded.
  */
 export interface ProjectGateway {
   list(query: ProjectQuery): Promise<Project[]>;
   get(id: ProjectId): Promise<Project>;
   create(input: CreateProjectInput): Promise<Project>;
-  update(id: ProjectId, input: UpdateProjectInput): Promise<Project>;
+  update(id: ProjectId, input: UpdateProjectInput): Promise<ProjectWriteResult>;
 }
 
 /**

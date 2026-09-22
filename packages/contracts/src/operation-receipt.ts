@@ -16,7 +16,9 @@ import { OperationActionIdSchema, OperationHistoryIdSchema } from './ids';
  * Four section kinds from Slice 35, eight row kinds from Slice 36, from Slice 37 the durable
  * `section.restore` plus the four Home shortcut placement kinds, and from Slice 38 the two
  * optional-page toggles — `page.add` for the enable that creates the record, `page.update` for
- * every later change of its boolean. Completion is not a kind of its
+ * every later change of its boolean — and from Slice 39 the three existing-project writes:
+ * `project.archive` and `project.reactivate` when the status crosses the archive boundary, and
+ * `project.update` for every other change, a project's completion included. Completion is not a kind of its
  * own: §34 makes it a `task.update` whose label and verb say `Completed`, so PATCH-to-done and
  * `complete` record one shape and one inverse. Duplication is not one either: §31's duplicate
  * creates a section, so it records the `section.add` its copy actually is.
@@ -41,11 +43,14 @@ export const OperationKindSchema = z.enum([
   'shortcut.remove',
   'page.add',
   'page.update',
+  'project.update',
+  'project.archive',
+  'project.reactivate',
 ]);
 export type OperationKind = z.infer<typeof OperationKindSchema>;
 
 /**
- * The five families an operation kind belongs to, and the grant each one's transitions need
+ * The six families an operation kind belongs to, and the grant each one's transitions need
  * (docs/decisions/2026-09-operation-family-permissions.md). A caller never chooses the family:
  * it is read from the **stored** action, so an input cannot buy a grant it does not hold.
  *
@@ -54,7 +59,7 @@ export type OperationKind = z.infer<typeof OperationKindSchema>;
  * against, and collapsing two kinds of subject into one name because their grants happen to match
  * today would make the next grant split a breaking change rather than a value edit.
  */
-export const OperationFamilySchema = z.enum(['section', 'task', 'reflection', 'shortcut', 'page']);
+export const OperationFamilySchema = z.enum(['section', 'task', 'reflection', 'shortcut', 'page', 'project']);
 export type OperationFamily = z.infer<typeof OperationFamilySchema>;
 
 /** The family of one operation kind — the prefix, named rather than parsed at each call site. */

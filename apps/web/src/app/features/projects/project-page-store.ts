@@ -1025,6 +1025,11 @@ export class ProjectPageStore {
     if (result.operation === 'page.update') {
       return result.page.enabled ? 'Undo enabled the page again.' : 'Undo disabled the page again.';
     }
+    // The same compile-time boundary for a project write (Slice 39): nothing on the canvas routes
+    // a project receipt into this notice.
+    if (result.operation === 'project.update' || result.operation === 'project.archive' || result.operation === 'project.reactivate') {
+      return `Undo restored ${result.project.name}.`;
+    }
     // The two remaining section operations both restore a section to a placement.
     const name = nameOf(result.section);
     if (!result.placement.pageEnabled) {

@@ -113,6 +113,7 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
             reflection: 'reflections.write',
             shortcut: 'projects.write',
             page: 'projects.write',
+            project: 'projects.write',
           });
           expect(listedTool._meta).not.toHaveProperty(REQUIRED_PERMISSION_META_KEY);
           expect(listedTool._meta).not.toHaveProperty(REQUIRED_PERMISSIONS_META_KEY);

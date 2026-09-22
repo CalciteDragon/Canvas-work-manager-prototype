@@ -182,13 +182,16 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       const answer = this.answer(
         'projects.update',
         { id, input },
-        applyProjectUpdate(this.find(this.options.projects, id, 'project'), input),
+        {
+          project: applyProjectUpdate(this.find(this.options.projects, id, 'project'), input),
+          operation: this.receipt(input.status === 'archived' ? 'project.archive' : 'project.update', `Update ${id}`),
+        },
       );
-      return answer.then((updated) => {
+      return answer.then((result) => {
         if (input.progressFormula !== undefined && this.options.progress !== undefined) {
-          this.options.progress = fakeProgress(updated.id, input.progressFormula, input.manualProgress ?? undefined, this.options.tasks ?? []);
+          this.options.progress = fakeProgress(result.project.id, input.progressFormula, input.manualProgress ?? undefined, this.options.tasks ?? []);
         }
-        return updated;
+        return result;
       });
     },
   };

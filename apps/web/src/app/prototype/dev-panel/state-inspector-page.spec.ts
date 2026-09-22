@@ -97,7 +97,7 @@ describe('StateInspectorPage (§28)', () => {
     const update = vi.fn(
       async (id: ProjectId, input: { projectLayoutMode?: ProjectLayoutMode }) => {
         if (id === 'project-b') throw new GatewayError('unreachable', 0, 'layout save failed');
-        return project(id, input.projectLayoutMode);
+        return { project: project(id, input.projectLayoutMode), operation: null };
       },
     );
     const fixture = await render({
@@ -130,7 +130,7 @@ describe('StateInspectorPage (§28)', () => {
     const update = vi.fn(
       async (id: ProjectId, input: { projectLayoutMode?: ProjectLayoutMode }) => {
         await new Promise<void>((resolve) => (release = resolve));
-        return project(id, input.projectLayoutMode);
+        return { project: project(id, input.projectLayoutMode), operation: null };
       },
     );
     const fixture = await render({

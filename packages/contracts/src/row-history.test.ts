@@ -339,8 +339,8 @@ describe('the row operation union', () => {
   });
 
   it('gives every row operation both directions in the transition unions', () => {
-    expect(UndoResultSchema.options).toHaveLength(19);
-    expect(RedoResultSchema.options).toHaveLength(19);
+    expect(UndoResultSchema.options).toHaveLength(22);
+    expect(RedoResultSchema.options).toHaveLength(22);
     expect(UndoResultSchema.safeParse({
       operation: 'task.add',
       outcome: 'removed',

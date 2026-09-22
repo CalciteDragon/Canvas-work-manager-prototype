@@ -221,4 +221,23 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
 
     expect(gateway.calls.filter(({ method }) => method === 'archive.get').length).toBe(reads + 1);
   });
+
+  // Slice 39: a sub-project moved out of this root is announced under its new root only.
+  it('re-reads on a project-record frame from another root but not on another root’s content', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT);
+    const reads = () => gateway.calls.filter(({ method }) => method === 'archive.get').length;
+    const settle = async () => {
+      for (let index = 0; index < 8; index += 1) await Promise.resolve();
+    };
+
+    const before = reads();
+    live.emit({ type: 'project.update_undone', entityType: 'project', entityId: 'project-moved', projectId: 'project-moved', rootProjectId: 'project-elsewhere' } as never);
+    await settle();
+    expect(reads()).toBe(before + 1);
+
+    live.emit({ type: 'task.updated', entityType: 'task', entityId: 'task-9', projectId: 'project-elsewhere', rootProjectId: 'project-elsewhere' } as never);
+    await settle();
+    expect(reads()).toBe(before + 1);
+  });
 });

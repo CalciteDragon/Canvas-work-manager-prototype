@@ -14,7 +14,7 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
  * `addNote` precisely because a forgotten literal would silently file Slice 13's notes
  * under Slice 12 — corrupting the one field the contract goes out of its way to preserve.
  */
-export const CURRENT_SLICE = 38;
+export const CURRENT_SLICE = 39;
 
 /** The route shape §68 defines for a project page, and the only one carrying a project. */
 const PROJECT_ROUTE = /^\/projects\/([^/?#]+)/;

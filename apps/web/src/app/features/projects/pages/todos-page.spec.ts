@@ -117,7 +117,7 @@ const render = async (options: RenderOptions = {}) => {
   const update = vi.fn(async (id: ProjectId) => {
     if (options.completeRejects !== undefined) throw options.completeRejects;
     const row = items.find((item) => item.kind === 'subproject' && item.project.id === id);
-    return { ...(row as Extract<ProjectTodoItem, { kind: 'subproject' }>).project, status: 'completed', completedAt: AT };
+    return { project: { ...(row as Extract<ProjectTodoItem, { kind: 'subproject' }>).project, status: 'completed' as const, completedAt: AT }, operation: null };
   });
   const gateway = {
     todos: { get: todosGet },

@@ -9,6 +9,7 @@ import {
   ProjectCompletedWorkResultSchema,
   ProjectJournalResultSchema,
   ProjectSchema,
+  ProjectWriteResultSchema,
   ProjectSectionSchema,
   ResolvedSectionShortcutSchema,
   ProgressResultSchema,
@@ -88,7 +89,7 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
     get: (id: ProjectId) => this.send('GET', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema),
     create: (input: CreateProjectInput) => this.send('POST', '/api/projects', ProjectSchema, input),
     update: (id: ProjectId, input: UpdateProjectInput) =>
-      this.send('PATCH', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema, input),
+      this.send('PATCH', `/api/projects/${encodeURIComponent(id)}`, ProjectWriteResultSchema, input),
   };
 
   readonly dashboard: DashboardGateway = {

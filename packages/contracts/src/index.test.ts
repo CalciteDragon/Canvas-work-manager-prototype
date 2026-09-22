@@ -48,9 +48,9 @@ describe('@cwm/contracts entrypoint', () => {
     expect(OperationReceiptSchema.shape.actionId).toBeDefined();
     // Four section kinds from Slice 35, eight task and reflection kinds from Slice 36, from
     // Slice 37 `section.restore` plus the four shortcut placement kinds, and from Slice 38 the
-    // two optional-page toggles.
-    expect(UndoResultSchema.options).toHaveLength(19);
-    expect(RedoResultSchema.options).toHaveLength(19);
+    // two optional-page toggles, and from Slice 39 the three existing-project writes.
+    expect(UndoResultSchema.options).toHaveLength(22);
+    expect(RedoResultSchema.options).toHaveLength(22);
     expect(OperationHistoryTransitionResultSchema.options).toHaveLength(2);
     const summary = OperationHistorySummarySchema.parse({
       projectId: 'project-a', historyId: 'history-1', revision: 2, undo: null, redo: null, blockedBy: null,

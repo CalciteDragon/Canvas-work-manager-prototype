@@ -302,7 +302,7 @@ describe('SectionService edit receipts, Undo and Redo', () => {
     it('is blocked while the owning project is archived', async () => {
       const harness = buildHarness();
       const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text' });
-      await harness.projectService.update(harness.actor, MINE, { status: 'archived' });
+      await harness.projectService.update(someoneElse, MINE, { status: 'archived' });
 
       const refusal = await refusalOf(harness.undo(harness.actor, added.operation));
 
@@ -635,21 +635,21 @@ describe('section edit history acceptance', () => {
     await harness.sectionWriteService.add(someoneElse, child.id, { type: 'progress' });
     const move = await harness.sectionWriteService.move(harness.actor, add.section.id, 1);
     // A root cannot be archived over an active child; the refusal must name the highest blocker.
-    await harness.projectService.archive(harness.actor, child.id);
-    await harness.projectService.archive(harness.actor, MINE);
+    await harness.projectService.archive(someoneElse, child.id);
+    await harness.projectService.archive(someoneElse, MINE);
     const before = writable(harness);
 
     const refusal = await refusalOf(harness.undo(harness.actor, move.operation!));
     expect(refusal.details).toMatchObject({ reason: 'history_blocked', blockingProjectId: MINE, summary: { blockedBy: { projectId: MINE } } });
     expect(writable(harness)).toEqual(before);
 
-    await harness.projectService.update(harness.actor, MINE, { status: 'active' });
-    await harness.projectService.update(harness.actor, child.id, { status: 'active' });
+    await harness.projectService.update(someoneElse, MINE, { status: 'active' });
+    await harness.projectService.update(someoneElse, child.id, { status: 'active' });
     for (const receipt of [move.operation!, update.operation!, add.operation]) await harness.undo(harness.actor, receipt);
-    await harness.projectService.archive(harness.actor, child.id);
+    await harness.projectService.archive(someoneElse, child.id);
     const redo = await refusalOf(harness.redo(harness.actor, add.operation));
     expect(redo.details).toMatchObject({ reason: 'history_blocked', blockingProjectId: child.id });
-    await harness.projectService.update(harness.actor, child.id, { status: 'active' });
+    await harness.projectService.update(someoneElse, child.id, { status: 'active' });
     for (const receipt of [add.operation, update.operation!, move.operation!]) await harness.redo(harness.actor, receipt);
     expect(await harness.sections.find(add.section.id)).toMatchObject({ collapsed: true, position: 1 });
   });

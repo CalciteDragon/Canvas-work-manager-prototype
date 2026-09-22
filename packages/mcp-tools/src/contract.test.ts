@@ -68,17 +68,23 @@ const CASES: Record<string, ToolCase> = {
     input: { projectId: PROJECT, description: 'Rewritten by an agent.' },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result.description).toBe('Rewritten by an agent.');
+      expect(result.project.description).toBe('Rewritten by an agent.');
       expect((await harness.services.projects.get(agent(['projects.read']), PROJECT)).description).toBe(
         'Rewritten by an agent.',
       );
+      // One project.update receipt, and nothing of the captured footprint rides along with it.
+      expect(result.operation).toMatchObject({ operation: 'project.update', label: 'Updated "Work Manager"' });
+      expect(Object.keys(result.operation).sort()).toEqual(['actionId', 'createdAt', 'expiresAt', 'historyId', 'label', 'operation', 'revision']);
     },
   },
   archive_project: {
     input: { projectId: SHORTCUT_SOURCE_PROJECT },
     mutates: true,
-    verify: async (_result, harness) => {
+    verify: async (result, harness) => {
       expect((await harness.services.projects.get(agent(['projects.read']), SHORTCUT_SOURCE_PROJECT)).status).toBe('archived');
+      expect(result.project).toMatchObject({ id: SHORTCUT_SOURCE_PROJECT, status: 'archived' });
+      expect(result.operation).toMatchObject({ operation: 'project.archive' });
+      expect(Object.keys(result.operation).sort()).toEqual(['actionId', 'createdAt', 'expiresAt', 'historyId', 'label', 'operation', 'revision']);
     },
   },
   restore_project: {
@@ -88,8 +94,9 @@ const CASES: Record<string, ToolCase> = {
       await harness.services.projects.archive(agent(['projects.write']), SHORTCUT_SOURCE_PROJECT);
     },
     verify: async (result, harness) => {
-      expect(result.status).toBe('active');
+      expect(result.project.status).toBe('active');
       expect((await harness.services.projects.get(agent(['projects.read']), SHORTCUT_SOURCE_PROJECT)).status).toBe('active');
+      expect(result.operation).toMatchObject({ operation: 'project.reactivate' });
     },
   },
   list_project_pages: {
@@ -609,6 +616,8 @@ describe('undo_operation and redo_operation refusals, as an agent sees them', ()
           // too — reversing a toggle, or the enable that created the tab, needs no row grant.
           shortcut: 'projects.write',
           page: 'projects.write',
+          // An existing project's update, archive and reactivation reverse on the grant that wrote them.
+          project: 'projects.write',
         },
       });
       expect(declaration).not.toHaveProperty('permission');

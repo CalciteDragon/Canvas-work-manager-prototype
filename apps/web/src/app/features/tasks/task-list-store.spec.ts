@@ -110,7 +110,7 @@ const setup = (options: {
       list: vi.fn(async () => projects),
       get: vi.fn(async () => projects[0]!),
       create: vi.fn(),
-      update: vi.fn(async (_id, input) => ({ ...projects[0]!, ...input }) as Project),
+      update: vi.fn(async (_id, input) => ({ project: { ...projects[0]!, ...input } as Project, operation: null })),
     },
     sections: {
       list: vi.fn(async () => []),

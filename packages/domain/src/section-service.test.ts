@@ -1062,7 +1062,7 @@ describe('SectionService.remove — operation receipt', () => {
   it('returns a receipt for a removal inside an archived project, which Undo blocks until reactivation', async () => {
     const harness = buildHarness();
     const section = await add(harness, 'rich-text', { config: { text: 'Kept' } });
-    await harness.projectService.update(harness.actor, MINE, { status: 'archived' });
+    await harness.projectService.update(agentActorFor(0, ['projects.write']), MINE, { status: 'archived' });
 
     const { operation } = await harness.sectionService.remove(harness.actor, section.id);
 
@@ -1073,7 +1073,7 @@ describe('SectionService.remove — operation receipt', () => {
       blockingProjectId: MINE, blockingProjectTitle: 'Project project-mine',
     });
 
-    await harness.projectService.update(harness.actor, MINE, { status: 'active' });
+    await harness.projectService.update(agentActorFor(0, ['projects.write']), MINE, { status: 'active' });
     await expect(harness.undo(harness.actor, operation)).resolves.toMatchObject({ outcome: 'restored' });
   });
 

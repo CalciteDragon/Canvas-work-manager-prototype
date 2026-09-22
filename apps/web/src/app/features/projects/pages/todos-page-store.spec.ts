@@ -101,10 +101,14 @@ const setup = (options: SetupOptions = {}) => {
   );
   const updateProject = vi.fn(
     options.updateProject ??
+      // The Slice 39 write envelope: the store reconciles from `project` and ignores the receipt.
       (async (id: ProjectId, input: Record<string, unknown>) => ({
-        ...(subprojectItem(id) as Extract<ProjectTodoItem, { kind: 'subproject' }>).project,
-        ...input,
-        completedAt: '2026-08-28T09:00:00.000Z',
+        project: {
+          ...(subprojectItem(id) as Extract<ProjectTodoItem, { kind: 'subproject' }>).project,
+          ...input,
+          completedAt: '2026-08-28T09:00:00.000Z',
+        },
+        operation: null,
       })),
   );
   const gateway = {
@@ -338,6 +342,28 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     live.emit({ type: 'task.updated', entityId: 'task-9', projectId: OTHER_ROOT, rootProjectId: OTHER_ROOT });
     await settleLive();
     expect(todosGet).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * Slice 39: a cross-root reparent publishes one frame naming the **new** root, yet it removes a
+   * sub-project from the old one. A project-record frame anywhere in the workspace therefore
+   * re-reads an open root projection; a content frame from another root still does not.
+   */
+  it('re-reads on a project-record frame from another root, for a cross-root reparent and its reversal', async () => {
+    const { store, live, todosGet } = setup();
+    await store.load(ROOT);
+
+    for (const type of ['project.updated', 'project.update_undone', 'project.update_redone', 'project.archive_undone', 'project.reactivation_redone']) {
+      const before = todosGet.mock.calls.length;
+      live.emit({ type, entityType: 'project', entityId: 'project-moved', projectId: 'project-moved', rootProjectId: OTHER_ROOT } as LiveEvent);
+      await settleLive();
+      expect(todosGet.mock.calls.length, type).toBe(before + 1);
+    }
+
+    const before = todosGet.mock.calls.length;
+    live.emit({ type: 'project.section_added', entityType: 'project', entityId: OTHER_ROOT, projectId: OTHER_ROOT, rootProjectId: OTHER_ROOT } as LiveEvent);
+    await settleLive();
+    expect(todosGet.mock.calls.length).toBe(before);
   });
 
   it('replays an invalidation that arrived while a read was running', async () => {
