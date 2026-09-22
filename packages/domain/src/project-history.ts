@@ -13,7 +13,7 @@ import {
   type UndoConflictNextStep,
   type UndoResult,
 } from '@cwm/contracts';
-import type { ProjectRepository } from '@cwm/repositories';
+import type { ProjectPageRepository, ProjectRepository, SectionRepository, SectionShortcutRepository } from '@cwm/repositories';
 import type { Clock } from './clock';
 import { EntityNotFoundError } from './errors';
 import { directionWord, refuseOnConflicts } from './operation-execution';
@@ -35,13 +35,18 @@ import { directionWord, refuseOnConflicts } from './operation-execution';
  * cascades and a history step must not acquire one. `completedAt` is restored verbatim — it is
  * captured business state, not something to regenerate from the transition's clock.
  *
- * Only the project repository appears in the dependency type, so a reviewer can see from the
- * signature that a project transition cannot reach a section, page or row.
+ * The dependency type holds the project repository — the only one written — plus pages, sections
+ * and placements, read to refuse a move that would carry a Home shortcut's source out of its root.
+ * No task or reflection repository appears, so a reviewer can see from the signature that a
+ * project transition cannot reach a row.
  */
 
-/** The one repository a project inverse reads and writes. */
+/** The project repository a project inverse writes, and the three it reads for a cross-root move. */
 export interface ProjectHistoryRepositories {
   projects: ProjectRepository;
+  pages: ProjectPageRepository;
+  sections: SectionRepository;
+  shortcuts: SectionShortcutRepository;
 }
 
 type Field = ProjectFieldChange['field'];
@@ -189,6 +194,53 @@ const parentConflicts = async (
   return [];
 };
 
+/** The root at the top of `projectId`'s chain, or `undefined` for a broken or cyclic one. */
+const rootOf = async (repositories: ProjectHistoryRepositories, projectId: ProjectId): Promise<ProjectId | undefined> => {
+  const seen = new Set<ProjectId>();
+  let current = await repositories.projects.find(projectId);
+  while (current !== null && !seen.has(current.id)) {
+    if (current.parentProjectId === undefined) return current.id;
+    seen.add(current.id);
+    current = await repositories.projects.find(current.parentProjectId);
+  }
+  return undefined;
+};
+
+/**
+ * A move to another root carries every section in the subject's subtree with it, so a Home
+ * shortcut on the **old** root that places one of them would cross root trees — a state commit-time
+ * integrity rejects. Refused here instead, typed, before any write: the placement has to go first.
+ */
+const crossRootShortcutConflicts = async (
+  repositories: ProjectHistoryRepositories,
+  subject: Project,
+  destinationParentId: ProjectId,
+): Promise<UndoConflict[]> => {
+  const [from, to] = await Promise.all([rootOf(repositories, subject.id), rootOf(repositories, destinationParentId)]);
+  if (from === undefined || to === undefined || from === to) return [];
+  const projects = await repositories.projects.list({ workspaceId: subject.workspaceId });
+  const subtree = new Set<ProjectId>([subject.id]);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const candidate of projects) {
+      if (candidate.parentProjectId !== undefined && subtree.has(candidate.parentProjectId) && !subtree.has(candidate.id)) {
+        subtree.add(candidate.id);
+        grew = true;
+      }
+    }
+  }
+  const conflicts: UndoConflict[] = [];
+  for (const shortcut of await repositories.shortcuts.list()) {
+    // A placement's destination is its Home page's root; one already on the new root stays legal.
+    if ((await repositories.pages.find(shortcut.pageId))?.projectId === to) continue;
+    const source = await repositories.sections.find(shortcut.sourceSectionId);
+    if (source !== null && subtree.has(source.projectId)) {
+      conflicts.push({ entityType: 'shortcut', id: shortcut.id, problem: 'shortcut-reference', nextStep: 'remove-reference-and-retry' });
+    }
+  }
+  return conflicts;
+};
+
 /** Runs one direction: preflight every recorded field and the hierarchy rules, then one write. */
 const writeProject = async (
   repositories: ProjectHistoryRepositories,
@@ -228,6 +280,9 @@ const writeProject = async (
     const reactivating = current.status === 'archived' && next.status !== 'archived';
     if ((reparenting || reactivating) && next.parentProjectId !== undefined) {
       conflicts.push(...(await parentConflicts(repositories, current, next.parentProjectId, true)));
+    }
+    if (reparenting && conflicts.length === 0) {
+      conflicts.push(...(await crossRootShortcutConflicts(repositories, current, next.parentProjectId!)));
     }
     if (next.status === 'archived' && current.status !== 'archived') {
       const children = await repositories.projects.list({ workspaceId: current.workspaceId, parentProjectId: current.id });

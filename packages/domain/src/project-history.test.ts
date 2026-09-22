@@ -469,3 +469,45 @@ describe('project history review regressions (Slice 39)', () => {
     expect(state(h)).toEqual(before);
   });
 });
+
+describe('a reparent reversal refuses a Home shortcut it would carry across roots', () => {
+  it('names the shortcut and writes nothing, then succeeds once it is removed', async () => {
+    const h = buildHarness();
+    const other = await createRoot(h, 'Other root');
+    const child = await createChild(h, MINE, 'Kitchen');
+    const source = await h.sectionWriteService.add(someoneElse, child.id, { type: 'rich-text', title: 'Kitchen notes' });
+    const moved = await h.projectWriteService.update(h.actor, child.id, { parentProjectId: other.id });
+    // Once the kitchen is under the other root, its Home may place a shortcut to the kitchen's section.
+    const home = (await h.pages.list({ projectId: other.id })).find(({ kind }) => kind === 'home')!;
+    const shortcut = await h.sectionShortcutWriteService.create(someoneElse, other.id, { pageId: home.id, sourceSectionId: source.section.id });
+    const before = state(h);
+
+    const refusal = await refusalOf(step(h, moved.operation!));
+    expect(refusal.details).toMatchObject({
+      reason: 'history_conflict',
+      conflicts: [{ entityType: 'shortcut', id: shortcut.shortcut.id, problem: 'shortcut-reference', nextStep: 'remove-reference-and-retry' }],
+    });
+    expect(state(h)).toEqual(before);
+
+    await h.sectionShortcutWriteService.remove(someoneElse, shortcut.shortcut.id);
+    await step(h, moved.operation!);
+    expect((await project(h, child.id)).parentProjectId).toBe(MINE);
+  });
+});
+
+describe('a reparent is not refused for a shortcut it does not carry', () => {
+  it('ignores an old-root placement whose source stays behind', async () => {
+    const h = buildHarness();
+    const other = await createRoot(h, 'Other root');
+    const staying = await createChild(h, MINE, 'Staying');
+    const mover = await createChild(h, MINE, 'Mover');
+    const source = await h.sectionWriteService.add(someoneElse, staying.id, { type: 'rich-text', title: 'Stays here' });
+    const home = (await h.pages.list({ projectId: MINE })).find(({ kind }) => kind === 'home')!;
+    await h.sectionShortcutWriteService.create(someoneElse, MINE, { pageId: home.id, sourceSectionId: source.section.id });
+
+    const moved = await h.projectWriteService.update(h.actor, mover.id, { parentProjectId: other.id });
+    await step(h, moved.operation!);
+    await step(h, moved.operation!, 'redo');
+    expect((await project(h, mover.id)).parentProjectId).toBe(other.id);
+  });
+});
