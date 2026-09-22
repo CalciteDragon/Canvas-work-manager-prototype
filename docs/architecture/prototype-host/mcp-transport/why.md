@@ -48,9 +48,11 @@ at its own `CWM_DATA_FILE`.
 **Permission metadata is namespaced under `_meta`.** Static tools keep the singular key for
 existing clients and a plural key carrying every grant a combined read needs. `undo_operation`
 and `redo_operation` publish neither: the one grant a call needs comes from the stored operation's
-family, so they publish a namespaced `{ section, task, reflection }` grant map instead. The domain,
-not this transport, enforces the selected grant
-([decision](../../../decisions/2026-08-mcp-tool-permission-metadata.md)).
+family, so they publish a namespaced `{ section, task, reflection, shortcut, page }` grant map
+instead. The domain, not this transport, enforces the selected grant
+([decision](../../../decisions/2026-08-mcp-tool-permission-metadata.md),
+[amended](../../../decisions/2026-09-operation-family-permissions.md),
+[the page family](../../../decisions/2026-09-optional-page-operation-history.md)).
 
 ## Consequences
 

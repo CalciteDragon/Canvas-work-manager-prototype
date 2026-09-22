@@ -165,6 +165,30 @@ page keeps its sections and everything referring to them and is simply not navig
 `set_project_page_enabled` turns one of a root's optional three on or off, and the first enable
 is what creates it. Home cannot be disabled.
 
+It answers `{ page, operation }`. Which receipt you get says which write happened:
+
+```jsonc
+// First enable — the call that created the record.
+{ "page": { "id": "projectPage-4f1c9a2e", "kind": "reflections", "enabled": true, "…": "…" },
+  "operation": { "historyId": "history-b7d30e51", "actionId": "operation-9a6e2c14", "operation": "page.add",
+                 "revision": 1, "label": "Enabled the reflections page", "…": "…" } }
+
+// A later toggle — the record already existed, so only the switch moved.
+{ "page": { "id": "projectPage-4f1c9a2e", "enabled": false, "…": "…" },
+  "operation": { "operation": "page.update", "label": "Disabled the reflections page", "…": "…" } }
+
+// Already where you asked: nothing was written, so there is nothing to undo.
+{ "page": { "id": "projectPage-4f1c9a2e", "enabled": false, "…": "…" }, "operation": null }
+```
+
+Undoing a `page.add` **removes** the page it created — the same id, and only while the record is
+unchanged and nothing on it refers to it; a section on the page, live or archived, or a shortcut
+placement, refuses the whole call and tells you to remove that reference first. Redo brings the same
+page id back. Undoing a `page.update` writes the switch back and touches nothing else, so sections,
+rows and layout survive both directions. A toggle still works while the project is archived, because
+§31 keeps Open archive reachable; undoing one does not — the transition answers
+`history_blocked:` until the project is reactivated.
+
 ### Todos
 
 Slice 25.5 adds `get_project_todos` (`projects.read` **and** `tasks.read`): the whole chronology
@@ -212,7 +236,7 @@ it. A repeat on a live section answers `operation: null` and writes nothing.
 
 ### Undo and Redo
 
-Every connection has its own Undo/Redo **history per project**: a stack of its section, task and
+Every connection has its own Undo/Redo **history per project**: a stack of its section, shortcut, page, task and
 reflection writes there, with a cursor. A person's history and every other connection's are separate — you can
 never undo someone else's change, and nobody can undo yours.
 
@@ -222,8 +246,8 @@ never undo someone else's change, and nobody can undo yours.
   `historyId` is `null` until the connection's first undoable write in that project.
 - `undo_operation` and `redo_operation` (input `{ historyId, actionId, expectedRevision }`) run
   exactly that action, which must be the next one in that direction. They require only the stored
-  action family's grant: `projects.write` for a section or a Home shortcut placement, `tasks.write`
-  for a task, `reflections.write` for a reflection. Discovery publishes
+  action family's grant: `projects.write` for a section, a Home shortcut placement or an optional
+  page, `tasks.write` for a task, `reflections.write` for a reflection. Discovery publishes
   that mapping under `_meta["local.canvas-work-manager/requiredPermissionsByOperationFamily"]`.
   Pass the history's current `revision`: a receipt's, or `get_operation_history`'s if anything
   happened since. The result is `{ direction, actionId, result, summary }`.

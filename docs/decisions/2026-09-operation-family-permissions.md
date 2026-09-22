@@ -52,3 +52,12 @@ asserted against; sharing a value today should not make a later split a breaking
 families can now name one grant, the coverage helper that answers "every grant this tool can
 require" de-duplicates, so `tools/list` never says a caller needs one grant twice
 ([decision](2026-09-section-restore-and-shortcut-history.md)).
+
+
+**Amended, 2026-09-22 — Slice 38.** A fifth family, `page`, joins the map and also needs
+`projects.write`: a page is a property of its root, `set_project_page_enabled` is already that
+grant, and reversing a toggle — or the enable that created the tab — writes no row, so no row grant
+appears. It is named separately for the same reason `shortcut` is. Discovery's family map is now
+five entries in both transports, pinned explicitly rather than derived, so a family the domain gains
+and discovery forgets fails a test rather than agreeing with itself
+([decision](2026-09-optional-page-operation-history.md)).

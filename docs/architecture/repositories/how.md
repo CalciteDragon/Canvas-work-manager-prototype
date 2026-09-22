@@ -63,6 +63,13 @@
   Redo replays a removal that deleted the section. Shortcut placements, pruned or discarded
   history actions are the other deletions. The integrity checks still reject dangling row and
   shortcut references.
+- **Optional-page deletion is limited to the inverse of a first enable.** `ProjectPageRepository`
+  gained a `remove` in Slice 38 for exactly one caller: `revertPageAdd`, which uses it only when the
+  record is still the one that enable created and no canonical section — archived ones included — and
+  no shortcut placement names the page. Ordinary disabling writes one boolean through `update` and
+  never reaches it, and no route or tool exposes it. The integrity checks are unchanged: a canonical
+  `home` or `work` page is still required, and a section or placement whose page has gone still fails
+  the commit, so a removal that left one rolls its whole unit back.
 - **Operation histories are checked for scope and ordering**: unique ids; a history names a
   workspace, a stored project in it and an actor in it, and there is at most one per (workspace,
   project, exact actor); an action names a stored history, its operation's project is that

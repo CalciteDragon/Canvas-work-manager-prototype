@@ -90,6 +90,15 @@ source appears in any of them, so a source edit is not a placement conflict. `sh
 transport envelopes out of that module for the same reason `row-write-result.ts` does
 ([decision](../../decisions/2026-09-section-restore-and-shortcut-history.md)).
 
+**An optional-page payload is confined to the three kinds a toggle can name.** `page.add` captures
+the created record whole because its Redo recreates the same id and `createdAt`; `page.update` carries
+two distinct booleans, so a payload cannot describe a toggle that changed nothing. Home and a work
+canvas are refused by both, because `validateDocumentIntegrity` requires them and no service can
+create or disable one — a payload that could name one would describe an inverse that leaves the
+document invalid. `page-write-result.ts` keeps the transport envelope out of that module for the same
+reason `shortcut-write-result.ts` does
+([decision](../../decisions/2026-09-optional-page-operation-history.md)).
+
 **Activity owns historical display identity.** A task or reflection Add can be undone safely
 without keeping a canonical tombstone: its earlier events retain a validated target label and
 owning project/root context, but no executable inverse
@@ -139,6 +148,7 @@ general migration framework
 - [Undo and Redo advertise their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md) — the shared static/family declaration
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — compatible removal disposition, exact-owner repeat receipt, typed repair steps
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `section-restore-history.ts`, `shortcut-history.ts`, `shortcut-write-result.ts` and the fourth operation family
+- [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `page-history.ts`, `page-write-result.ts`, the `page` conflict entity kind and the fifth operation family
 
 ## Spec sections
 

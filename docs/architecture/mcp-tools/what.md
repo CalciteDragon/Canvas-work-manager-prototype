@@ -42,7 +42,7 @@ concatenates them in `SPEC_TOOL_NAMES` order and exposes `list`, `get` and `call
 | | `undo_operation`, `redo_operation` — run the next action of the connection's history in that direction | stored family: `projects.write`, `tasks.write` or `reflections.write` |
 | Shortcuts | `list_section_shortcuts`, `add_section_shortcut`, `remove_section_shortcut` | `projects.read` / `projects.write` |
 | Workspace | `search_workspace`, `get_upcoming_work`, `get_dashboard_context` | `workspace.read` |
-| Pages | `list_project_pages`, `set_project_page_enabled`, `get_project_todos`, `get_project_archive`, `get_project_journal` | `projects.*`; the three derived pages add `tasks.read` and, for Archive and journal, `reflections.read` |
+| Pages | `list_project_pages`, `set_project_page_enabled`, `get_project_todos`, `get_project_archive`, `get_project_journal` | `projects.*`; the toggle answers `{ page, operation }` with a `null` receipt for a no-op; the three derived pages add `tasks.read` and, for Archive and journal, `reflections.read` |
 
 The registry's order is the order `tools/list` returns; §54 names the shortcut tools
 without ordering them, so their position is the slice's choice.

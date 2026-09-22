@@ -76,11 +76,11 @@ of them is wrong even if it works.
 - Domain services depend on **domain and repository abstractions only** — repository
   interfaces, `Clock`, and where an invariant needs it, another domain service through an
   **acyclic** edge (`TaskService` and `ReflectionService` compose `SectionService` to
-  resolve a container; the section, shortcut, task and reflection services record their supported
-  writes into the actor's operation history through the `OperationRecorder` interface —
-  `SectionShortcutService` holds it on the same terms as the others and gains no other edge;
-  `OperationHistoryService` composes only `ActivityService`, never a section, shortcut, task or
-  reflection service). They must never know about HTTP, MCP, JSON adapters, or any other
+  resolve a container; the section, shortcut, page, task and reflection services record their
+  supported writes into the actor's operation history through the `OperationRecorder` interface —
+  `SectionShortcutService` and `ProjectPageService` hold it on the same terms as the others and gain
+  no other edge; `OperationHistoryService` composes only `ActivityService`, never a section,
+  shortcut, page, task or reflection service). They must never know about HTTP, MCP, JSON adapters, or any other
   infrastructure. This describes the architecture the code already enforces; it does not
   authorize a new edge.
 - MCP tools call **domain services**, never repositories directly.

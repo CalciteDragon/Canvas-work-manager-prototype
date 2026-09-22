@@ -57,7 +57,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Archive Restore remains durable; safe disposable removal can delete after a reference audit | amended; content projection in Slice 29; operation Undo in Slices 30–31; history retirement in Slice 35; section Restore records in Slice 37 |
 | [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | amended; projection in Slice 29, deletion boundary in Slice 31 |
 | [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | current |
-| [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | current |
+| [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | amended; Slice 38 gives the creation a restricted inverse |
 | [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | amended; Slice 36 history may restore captured content |
 | [Reassigning a container's rows may cross pages within a project](2026-09-reassign-may-cross-pages.md) | §31 constrains the type, not the page | amended; exercised with Undo in Slice 33 |
 | [Live work under an archived ancestor is hidden, and cannot be newly created](2026-09-reactivating-under-an-archived-ancestor.md) | The archived-ancestor rule and its transition check | current |
@@ -76,6 +76,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Stage A defers historical activity identity and the retry cache, and uses one transition route](2026-09-history-stage-a-deferrals.md) | Route shape and retry-cache deferral remain; Activity and grants advanced in Stage B | amended (Slice 36) |
 | [Task and reflection writes record one reversible row action](2026-09-row-operation-history.md) | Row footprints, compound containers, envelopes and durable row Restore history | current (Slice 36) |
 | [A recorded Restore is a new action, and a shortcut action owns only its placement](2026-09-section-restore-and-shortcut-history.md) | Duplication as an add, exact Restore footprints, destination-owned placement history | current (Slice 37) |
+| [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](2026-09-optional-page-operation-history.md) | Exact creation inverse after a dependency preflight, nondestructive toggle history, and the freeze distinction | current (Slice 38) |
 
 ## Repositories
 
@@ -89,7 +90,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [What the tool registry knows about MCP](2026-08-tool-registry-is-transport-free.md) | Nothing: the registry is transport-free; the host mounts it | current |
 | [MCP tools advertise their required permission in namespaced metadata](2026-08-mcp-tool-permission-metadata.md) | Static tools use singular/plural metadata; history transitions use a family map | amended; Slice 36 adds conditional grants |
-| [A history transition requires the stored operation family's write grant](2026-09-operation-family-permissions.md) | One family grant per action, declared as a family metadata map | amended; Slice 37 adds the `shortcut` family |
+| [A history transition requires the stored operation family's write grant](2026-09-operation-family-permissions.md) | One family grant per action, declared as a family metadata map | amended; Slices 37–38 add the `shortcut` and `page` families |
 
 ## Prototype data
 

@@ -23,7 +23,11 @@
    keep Redo; a new write discards it from the file). Slice 37 adds a duplicate/Restore/placement
    chain: the copy's identity through Undo and Redo, a Restore receipt and its null-receipt retry,
    and a shortcut added, collapsed, moved and removed then stepped back and forward — with the
-   no-op update and no-op move proving they record nothing. `mcp-acceptance` grants `projects.write` to
+   no-op update and no-op move proving they record nothing. Slice 38 adds an optional-page journey
+   on a root it creates so the enable is genuinely a **first** enable: `page.add` undone to an absent
+   record and redone to the same id and `createdAt`, a `null`-receipt no-op, the boolean reversed and
+   replayed, and a host restart that reads the exact page and the three persisted actions back off
+   the file. `mcp-acceptance` grants `projects.write` to
    the token's connection **in its copied temp files** (the seed is unchanged), cascades the middle
    `agent-heavy` task list away with `remove_section`, restores it with `undo_operation` over both
    transports, and checks the file. Slice 31 extends both: HTTP and MCP acceptance delete a
@@ -132,6 +136,14 @@ pnpm storybook                                        # :6006
   add/update/move Undo, disjoint and overlapping agent edits over MCP, canvas contextual add,
   rename, Rich Text blur save, collapse, keyboard resize and keyboard move Undo with reload, and
   the Reflections-page container add, Undo and refusal once a reflection is authored.
+- **Optional-page history** lives in `page-history.spec.ts`: a first enable through the page
+  manager, undone to an absent record and redone to the same page id with a second tab watching the
+  live frames and a reload proving persistence; Open archive from More recording one action while
+  re-opening an already-enabled page records none, a toggle from a nested work route still belonging
+  to the root's history, and a viewer of the displayed Archive page returning to Home — without the
+  re-enable offer — when the enable that created it is undone; and an agent's Reflections container
+  and row blocking the first-enable Undo, with the root's whole business and history state read back
+  unchanged after the refusal.
 - **Duplication, Restore and placement history** live in `canvas-history.spec.ts`: a shortcut
   added, collapsed and removed through the real canvas controls, reversed and replayed through the
   same user's history endpoint with a second tab watching; an Archive Restore that records its own

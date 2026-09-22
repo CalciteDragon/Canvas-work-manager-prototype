@@ -23,8 +23,10 @@ one, stamps `lastUsedAt` when it has moved far enough to matter, and returns an 
 **Discovery.** `toolPermission` returns one discriminated declaration per registry tool.
 `mcp/server.ts` publishes the singular/plural `_meta` pair for a static declaration, or the
 operation-family map for Undo and Redo. Those history tools deliberately omit the static keys:
-section actions require `projects.write`, task actions `tasks.write`, and reflection actions
-`reflections.write`, with the family read from the stored action only when the call runs.
+section actions require `projects.write`, task actions `tasks.write`, reflection actions
+`reflections.write`, and both shortcut placements and optional pages `projects.write`, with the
+family read from the stored action only when the call runs. The published map is five entries —
+`section`, `task`, `reflection`, `shortcut`, `page` — and both transports assert it exactly.
 
 ## Key symbols
 
@@ -61,8 +63,9 @@ section actions require `projects.write`, task actions `tasks.write`, and reflec
 - **`tools/list` equals `SPEC_TOOL_NAMES`** — asserted by the host's test, so the
   registry and the wire agree.
 - **Discovery is truthful for history transitions.** `handler.test.ts` and `stdio.test.ts` assert
-  the full family map and the absence of the singular/plural keys on Undo and Redo; static tools
-  keep both old keys.
+  the full five-family map — written out rather than derived from the declaration, so a family the
+  domain gains and discovery forgets fails a test instead of agreeing with itself — and the absence
+  of the singular/plural keys on Undo and Redo; static tools keep both old keys.
 - **Revocation is tested end to end** with a token and a handler in the same test,
   because it is an authenticate-time refusal with nothing for a registry test to observe.
 - **Localhost only, both ways**: the listener binds `127.0.0.1` and the handler refuses

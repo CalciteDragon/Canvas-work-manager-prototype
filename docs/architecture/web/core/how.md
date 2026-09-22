@@ -15,10 +15,14 @@
 4. A gateway call builds the URL from `PROTOTYPE_API_BASE_URL`, adds the persona header,
    waits the configured delay, fails with the configured probability, then `fetch`es;
    a non-2xx envelope becomes a `GatewayError` with the host's code, message and details.
-   Section responses and strict task/reflection/shortcut `{ entity, operation }` envelopes are
-   parsed at this boundary; normalized no-ops preserve `operation: null`, a shortcut delete parses
+   Section responses and strict task/reflection/shortcut/page `{ entity, operation }` envelopes are
+   parsed at this boundary; normalized no-ops preserve `operation: null` — which for a page toggle
+   means the tab was already where the call asked it to go — a shortcut delete parses
    its 200 `{ shortcutId, projectId, pageId, operation }` body, and transition results remain
-   discriminated by direction and operation. No API route answers 204 any more, so the adapter has
+   discriminated by direction and operation. `ProjectPageGateway.setEnabled` answers
+   `{ page, operation }`; the page manager reads the page and ignores the receipt, because
+   persistent Undo/Redo controls are a later phase, but the envelope is still validated so a host
+   that stopped sending it fails here rather than silently. No API route answers 204 any more, so the adapter has
    no body-less send path.
 5. `AppShell` provides `ShellStore`, which loads projects, derives the tree
    (`ProjectTreeNode`), and re-reads on `project.*` frames.

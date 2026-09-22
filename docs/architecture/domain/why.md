@@ -94,6 +94,17 @@ counts it. A shortcut executor takes a repository type with no rows in it and re
 **destination** project, which is where the write happened
 ([decision](../../decisions/2026-09-section-restore-and-shortcut-history.md)).
 
+**A page toggle's inverse deletes only what the toggle created.** The enable that created an optional
+page records `page.add`, whose Undo removes that record — the exact id, only while it is still
+unchanged, and only after checking every canonical section (archived ones included) and every
+placement that names the page. Any dependency refuses the whole transition; nothing is cascaded or
+cleaned up, because a page toggle must never delete content. `updatedAt` is deliberately left out of
+that identity check: the actor's own later toggles move it, and comparing it would make a correct Undo
+chain refuse its own last step. Every later toggle records `page.update` and writes one boolean, so
+content on the page survives both directions. The ordinary toggle keeps §26's archive exemption; the
+transitions do not, so history is not a way around §31's freeze
+([decision](../../decisions/2026-09-optional-page-operation-history.md)).
+
 **Activity audit outlives safely removed rows.** `ActivityService` captures trusted target label
 and owning project/root while the entity is readable in the caller's unit. Feeds prefer current
 names while a target exists and fall back to captured identity afterward; no inverse data lives in
@@ -142,6 +153,7 @@ ISO string so ordering stays lossless without a clock or timezone
 
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
+- [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md)
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md)
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md)
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md)

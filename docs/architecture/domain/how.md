@@ -46,7 +46,7 @@
 | `PermissionDeniedError` | class | A missing grant | [API](../../api/classes/PermissionDeniedError.html) |
 | `ActivityService` | class | Records events and publishes live frames | [API](../../api/classes/ActivityService.html) |
 | `ProjectService` | class | Project rules | [API](../../api/classes/ProjectService.html) |
-| `ProjectPageService` | class | Page listing and optional-page toggles | [API](../../api/classes/ProjectPageService.html) |
+| `ProjectPageService` | class | Page listing and optional-page toggles, each changed toggle recorded in the owning root's history | [API](../../api/classes/ProjectPageService.html) |
 | `SectionService` | class | Section lifecycle and container resolution; explicit add/update/move and removal return typed Undo results | [API](../../api/classes/SectionService.html) |
 | `OperationRecorder` | interface | Records one history action and recovers a still-outstanding removal receipt inside the caller's unit | [API](../../api/interfaces/OperationRecorder.html) |
 | `RepositoryOperationRecorder` | class | Finds or creates the actor's history, appends, discards the redo branch, prunes, returns the receipt | [API](../../api/classes/RepositoryOperationRecorder.html) |
@@ -98,16 +98,19 @@
   `additionalPermissions`, which is what proves a grant sufficient, not only necessary.
 - **The service graph is acyclic**: `TaskService` and `ReflectionService` compose
   `SectionService` for container resolution; writing services compose `ActivityService`
-  for event recording; the section, shortcut, task and reflection services record supported writes
-  through an `OperationRecorder` (an interface over two repositories that never opens a unit).
-  `OperationHistoryService` composes only `ActivityService` — no section, shortcut, task or reflection
-  service — and shares the payloads with section writes through function modules
+  for event recording; the section, shortcut, task, reflection and page services record supported
+  writes through an `OperationRecorder` (an interface over two repositories that never opens a unit).
+  `OperationHistoryService` composes only `ActivityService` — no section, shortcut, task, reflection
+  or page service — and shares the payloads with those writes through function modules
   (`operation-execution.ts`, `owned-rows.ts`, `section-removal-undo.ts`, `section-edit-undo.ts`,
-  `section-restore-history.ts`, `shortcut-history.ts`, `task-history.ts`, `reflection-history.ts`,
-  `page-placements.ts`, `project-visibility.ts`). `SectionShortcutService` holds an
-  `OperationRecorder` for the same reason `SectionService` does, and `shortcut-history.ts` declares
-  its own narrower repository type — no task or reflection repository — so a reviewer can see from
-  the signature that a placement inverse cannot reach a row. A new edge is an AGENTS.md boundary
+  `section-restore-history.ts`, `shortcut-history.ts`, `page-history.ts`, `task-history.ts`,
+  `reflection-history.ts`, `page-placements.ts`, `project-visibility.ts`).
+  `SectionShortcutService` and `ProjectPageService` hold an
+  `OperationRecorder` for the same reason `SectionService` does, and `shortcut-history.ts` and
+  `page-history.ts` each declare their own narrower repository type — no task or reflection
+  repository — so a reviewer can see from the signature that a placement or page inverse cannot reach
+  a row. A page's dependency preflight stops at the **section** level for that reason: §27's
+  ownership chain runs `project → page → section → row`, so a page with no section has no row. A new edge is an AGENTS.md boundary
   change and needs saying so.
 - **Neither direction overwrites a later write.** Each executor compares the state the *other*
   direction left: a removal's section archive state, page and `archiveGeneration`, each recorded

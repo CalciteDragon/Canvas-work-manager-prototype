@@ -27,7 +27,7 @@ flowchart TB
   subgraph undoable["History seam"]
     recorder["operation-recorder.ts<br/>OperationRecorder, RepositoryOperationRecorder"]
     machine["operation-history.ts<br/>pure cursor state machine"]
-    inverse["section-removal-undo.ts, section-edit-undo.ts, section-restore-history.ts, shortcut-history.ts, task-history.ts, reflection-history.ts, owned-rows.ts<br/>capture, revert and reapply functions"]
+    inverse["section-removal-undo.ts, section-edit-undo.ts, section-restore-history.ts, shortcut-history.ts, page-history.ts, task-history.ts, reflection-history.ts, owned-rows.ts<br/>capture, revert and reapply functions"]
   end
   subgraph readers["Derived read services"]
     dashboard[DashboardService]
@@ -45,7 +45,7 @@ flowchart TB
   task --> section
   reflection --> section
   project & page & section & shortcut & task & reflection & agent & history --> activity
-  section & task & reflection --> recorder
+  section & shortcut & page & task & reflection --> recorder
   recorder --> machine
   history --> machine
   section -. captures through .-> inverse
@@ -106,7 +106,7 @@ sequenceDiagram
 | `Instant` | `src/instants.ts` | Lossless ordering of ISO instants as text |
 | `calendar.ts`, `task-windows.ts`, `page-placements.ts` | `src/` | UTC date arithmetic; the open/overdue/upcoming questions; the combined section+shortcut order |
 | `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard |
-| `ProjectPageService` | `src/project-page-service.ts` | A project's pages; enable/disable a root's optional three |
+| `ProjectPageService` | `src/project-page-service.ts` | A project's pages; enable/disable a root's optional three, recording one action per changed toggle |
 | `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, settle and remove by content/reference policy, Archive Restore; container resolution |
 | `OperationRecorder`, `RepositoryOperationRecorder`, `OPERATION_ACTION_LIFETIME_MS` | `src/operation-recorder.ts` | Records into the exact actor's per-project history; 24-hour lifetime; recovers an outstanding removal receipt |
 | Cursor state machine, `OPERATION_HISTORY_LIMIT` | `src/operation-history.ts` | Pure next-action selection, record, transition, retire and contiguous pruning; 50 actions per history |
@@ -114,6 +114,7 @@ sequenceDiagram
 | Execution seam | `src/operation-execution.ts` | `OperationExecutionRefused`, the permanent flag, `generationFloor` |
 | Section capture, revert and reapply | `src/section-removal-undo.ts`, `src/section-edit-undo.ts`, `src/section-restore-history.ts`, `src/owned-rows.ts` | Package-internal section footprints, applied-state conflict collection and both directions |
 | Placement capture, revert and reapply | `src/shortcut-history.ts` | The four Home shortcut inverses, over a repository type with no row access in it |
+| Page capture, revert and reapply | `src/page-history.ts` | The two optional-page inverses: exact removal of a created page after a section/placement preflight, and the boolean written back |
 | Task capture, revert and reapply | `src/task-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including subtree and implicit-container effects |
 | Reflection capture, revert and reapply | `src/reflection-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including historical subjects and implicit containers |
 | `snapshotPlacement`, `resolveRestoreIndex`, `findHighestWriteBlocker` | `src/page-placements.ts`, `src/project-visibility.ts` | Neighbour snapshot and restore index; the highest archived project blocking a write |

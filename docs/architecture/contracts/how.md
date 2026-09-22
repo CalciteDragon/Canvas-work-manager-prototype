@@ -32,9 +32,10 @@ fields.
 ## Operation payloads and history
 
 `undo.ts` assembles the **payloads**, importing the eight row members from `row-history.ts`, the
-`section.restore` member from `section-restore-history.ts` and the four placement members from
-`shortcut-history.ts`. `UndoOperationSchema` is a discriminated union on `type` whose
-seventeen strict members are pinned to `version: 1`: an unknown type, a later version or an extra key
+`section.restore` member from `section-restore-history.ts`, the four placement members from
+`shortcut-history.ts` and the two optional-page members from `page-history.ts`.
+`UndoOperationSchema` is a discriminated union on `type` whose
+nineteen strict members are pinned to `version: 1`: an unknown type, a later version or an extra key
 fails parsing, so a stored action can never smuggle arbitrary JSON into an executor. Add captures
 the created section and the placement Redo returns it to; move captures the subject page and
 before/after neighbours; update captures a unique set of title, config, collapsed and column-span
@@ -165,7 +166,14 @@ pnpm --filter @cwm/contracts lint   # tsc --noEmit
 creation requires a receipt; normalized no-ops answer `operation: null`; a shortcut removal names
 ids and a required receipt rather than a placement that no longer exists.
 `section-restore-history.ts` and `shortcut-history.ts` hold the Slice 37 payloads and their
-directional results, kept out of those envelope modules for the same reason `row-history.ts` is. Transition results identify the subject and affected
+directional results, kept out of those envelope modules for the same reason `row-history.ts` is.
+`page-history.ts` holds the two optional-page payloads and their directional results, and
+`page-write-result.ts` the one `{ page, operation }` envelope both toggle writes answer — nullable,
+because a caller addressing a page by kind cannot know whether it is creating the record or moving a
+boolean. `page.add` captures the created page whole, so Redo recreates the same id and `createdAt`;
+`page.update` captures the root, the page id, an optional kind and two **distinct** booleans. Neither
+accepts Home or a work canvas: `OPTIONAL_PAGE_KINDS` is the narrow vocabulary both use, and the
+directional results report an absent page on Undo Add and a present one everywhere else. Transition results identify the subject and affected
 rows, report absence on Undo Add, and include implicit-container placement when needed.
 `history-placement.ts` owns shared placement shapes without an import cycle. `tool-permissions.ts`
 defines the static/family declaration and `OPERATION_FAMILY_PERMISSION`.

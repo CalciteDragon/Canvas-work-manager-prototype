@@ -75,10 +75,12 @@ or Restore receipts. **Stage C is not finished.** Project and page lifecycle, pr
 recovery, saved project layout/progress, persistent Undo/Redo header controls, receipt reporting
 and the deferred transition retry cache are still open, and Stages D–E follow usable broad
 Undo/Redo; creation Undo must ship with its authorized recovery route rather than an unreachable
-Redo. **The next bounded phase is [Slice 38 — optional-page history](active/38-optional-page-history.md)**:
-first enable and subsequent enable/disable actions, with safe creation reversal and existing
-navigation/recovery behavior. Its implementation plan is active; no Slice 38 runtime changes
-have shipped. Project lifecycle, saved layout/progress and controls remain later Stage C work.
+Redo. **[Slice 38 — optional-page history](completed/38-optional-page-history.md) shipped
+Stage C2**: a first enable records `page.add`, whose Undo removes the created page only when
+nothing refers to it and whose Redo recreates the same id; later toggles record `page.update`,
+which moves one boolean and never touches content. `page` is a fifth family on `projects.write`.
+No Stage C phase is active. Project edits/archive/reactivation, saved layout/progress, project
+creation Undo with its recovery route, and persistent controls/receipt reporting remain.
 Split those into bounded candidates before implementing and keep one active phase. The
 paragraphs below describe the earlier shipped system and its choices.
 

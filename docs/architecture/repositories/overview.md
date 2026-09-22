@@ -18,6 +18,8 @@ boundaries. Storage "is JSON" only in this package.
   semantics they share.
 - Provide the unit of work: provisional state that is isolated until commit, rejected
   when stale or written from outside, and persisted once per operation.
+- Expose only bounded removal seams — the row, section, placement, action and, since Slice 38,
+  optional-page ones — each documented for the single preflighted caller it exists for.
 - Validate the document as a whole on load and on every commit
   (`validateDocumentIntegrity`): schema, duplicate ids, dangling references, workspace
   scope, the ownership invariants the archive phase added, and operation histories' scope and

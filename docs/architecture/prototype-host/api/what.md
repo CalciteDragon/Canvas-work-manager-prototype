@@ -23,7 +23,7 @@ Read-only unless marked. Every write parses its body with the matching contract 
 | Identity | `GET /api/me` |
 | Projects | `GET /api/projects`, `POST /api/projects`, `GET /api/projects/:id`, `PATCH /api/projects/:id` |
 | Derived per project | `GET /api/projects/:id/progress`, `/timeline`, `/todos`, `/archive`, `/journal`, `/completed-work` |
-| Pages | `GET /api/projects/:projectId/pages`, `PATCH /api/projects/:projectId/pages/:kind` |
+| Pages | `GET /api/projects/:projectId/pages`, `PATCH /api/projects/:projectId/pages/:kind` — the PATCH answers `{ page, operation }`, the receipt being `page.add` for a first enable, `page.update` for a later boolean and `null` for a no-op |
 | Sections | `GET /api/projects/:projectId/sections`, `POST /api/projects/:projectId/sections` (add receipt), `PATCH /api/sections/:id` (field-aware update result), `DELETE /api/sections/:id` (removal receipt; exact-owner repeat can return 409 receipt details), `POST /api/sections/:id/move` (move result), `/duplicate`, `/restore` |
 | History | `GET /api/projects/:id/history` — the caller's summary; `POST /api/history/:historyId/transition` — one Undo or Redo step, strict `{ actionId, direction, expectedRevision }` |
 | Shortcuts | `GET /api/projects/:projectId/shortcuts`, `GET /api/projects/:projectId/shortcut-sources`, `POST /api/projects/:projectId/shortcuts`, `PATCH /api/shortcuts/:id`, `DELETE /api/shortcuts/:id`, `POST /api/shortcuts/:id/move` |

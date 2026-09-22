@@ -36,6 +36,14 @@ project, and returns its receipt — `historyId`, `actionId`, `revision`, operat
 lifetime; a container created automatically for a row gets no receipt of its own, because it joins
 that row's one action and receipt. The receipt exposes no payload.
 
+`set_project_page_enabled` returns `{ page, operation }`: a `page.add` receipt when the call created
+the record — §26's first enable — a `page.update` receipt when it moved an existing boolean, and
+`operation: null` when the page was already where the call asked it to go. Undoing a `page.add`
+removes that page again, while it is unchanged and nothing on it references it; undoing a
+`page.update` writes the boolean back and touches nothing else. The action belongs to the owning
+root's history whatever route the toggle came from. A toggle still succeeds while the project is
+archived, so Open archive stays reachable; a page **transition** does not.
+
 `restore_section` returns `{ section, operation }` too, with `operation: null` for a repeat on a
 live section: Archive Restore still needs no receipt to invoke and still never expires, and
 recording it only means the same connection can take it back. `add_section_shortcut` returns
@@ -55,10 +63,10 @@ Undo and Redo actions, or `null`, the revision and any archived blocker. `undo_o
 retired `{ undoId }` form is rejected — and call `OperationHistoryService.transition` with their
 fixed direction. The result is `{ direction, actionId, result, summary }`. Their permission
 declaration maps the stored action family to `projects.write`, `tasks.write` or
-`reflections.write` — and, for the fourth family, a shortcut placement to `projects.write`; a
-write-only caller can chain from receipts and returned summaries. Two families naming one grant is
-why the coverage helper behind that declaration de-duplicates: `tools/list` must not say a caller
-needs one grant twice.
+`reflections.write` — with the fourth and fifth families, a shortcut placement and an optional page,
+both naming `projects.write`; a write-only caller can chain from receipts and returned summaries.
+Three families naming one grant is why the coverage helper behind that declaration de-duplicates:
+`tools/list` must not say a caller needs one grant twice.
 
 ## Removal receipts
 

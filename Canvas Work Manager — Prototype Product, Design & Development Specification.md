@@ -1201,6 +1201,26 @@ settle, and preserves the confirmed state on refusal. A URL for a disabled optio
 to Home with an exact re-enable action for that kind; unknown, unbuilt, Home, work and subproject
 page requests do not acquire an enable action.*
 
+*Landed in Slice 38: a page toggle is an **undoable operation**.* Every toggle that changes the
+stored state records exactly one action in the owning **root's** history — whatever route the
+control was on — and answers `{ page, operation }`. The two writes §26 gives a page are two
+operations, not one: the first enable creates the record and records `page.add`, while every later
+change of the switch records `page.update`. A toggle already where it was asked to go is still not a
+write: it answers a `null` receipt and changes no timestamp, event, history revision or Redo branch.
+
+Because the first enable is what *creates* the page, undoing it **removes** that page — the same
+record, and only while it is still the one that enable created and nothing on it refers to it. Any
+canonical section on the page, archived ones included, and any shortcut placement on it refuses the
+whole reversal and asks for that reference to be removed first; nothing is cascaded, emptied or
+cleaned up on its behalf, because a page toggle must never destroy content. Redo brings the same page
+id and `createdAt` back. Undoing a later toggle writes the switch back and nothing else, so sections,
+their layout, their rows and every reference survive both directions.
+
+Enabling a page is still allowed while the project is archived, so §31's Open archive stays
+reachable. Reversing one through history is **not**: a page transition is blocked on an archived
+root in either direction, like every other family, so history is not a way around the freeze
+([why](docs/decisions/2026-09-optional-page-operation-history.md)).
+
 ---
 
 # 27. Section Canvas
@@ -1645,7 +1665,8 @@ edits such as a renamed task. Redo re-removes exactly what the removal removed, 
 recorded state. The history is **bidirectional and per exact actor**: a person or agent connection
 steps only its own stack, only the next action in either direction, for 24 hours per action and 50
 actions per history. A transition requires the stored action family's one write grant —
-`projects.write`, `tasks.write` or `reflections.write`; a new write discards what was waiting to be redone. A
+`projects.write` for a section, a Home shortcut placement or an optional page, `tasks.write` for a
+task, `reflections.write` for a reflection; a new write discards what was waiting to be redone. A
 transition refuses rather than overwrite a later change (a moved row, a new subtask under a moved
 task, a new row in a section being re-removed), while the project or an ancestor is archived, or
 after the action expired. An action that can never succeed again — the section restored from Archive
@@ -1669,6 +1690,17 @@ having come down with the section. The first ordinary Restore appends; a Redo re
 the placement that Restore committed. An action whose section has moved on to a later generation is
 retired, because nothing can bring that generation back
 ([why](docs/decisions/2026-09-section-restore-and-shortcut-history.md)).
+
+*Landed in Slice 38.* §26's optional-page toggle joins the same history as a fifth operation family.
+The enable that created a page is a creation, so its inverse removes that page after proving the
+record is unchanged and that no canonical section — archived ones included — and no shortcut
+placement names it; a dependency refuses the whole transition and asks for the reference to be
+removed, never for it to be archived, because an archived section still names its page. Every later
+toggle reverses one boolean and touches nothing else, so a disabled page's content is as safe under
+Undo as it is under the ordinary disable. No page conflict is permanent: an occupied id, a changed
+record or a live dependency all stay repairable. The ordinary toggle keeps this section's archive
+exemption; the transition does not
+([why](docs/decisions/2026-09-optional-page-operation-history.md)).
 
 The browser holds the receipt in the current canvas session and offers **Undo** there; dismissal
 removes the notice, successful Undo replaces it with a result, and the newest successful explicit
@@ -2654,6 +2686,12 @@ chain from receipts and returned summaries without reading history
 ([row history](docs/decisions/2026-09-row-operation-history.md),
 [permission map](docs/decisions/2026-09-operation-family-permissions.md)).*
 
+*Amended in Slice 38:* `set_project_page_enabled` returns `{ page, operation }` — a `page.add`
+receipt when the call created the record, `page.update` when it moved an existing switch, and
+`operation: null` when the page was already where the call asked it to go. Both are reversed through
+`undo_operation` under `projects.write` alone, and the grant map discovery publishes gains a fifth
+family, `page`, for them. The tool's name, input and permission are unchanged.*
+
 *Amended in Slice 37:* `restore_section` returns `{ section, operation }`, with `operation: null`
 for a repeat on a live section, and `add_section_shortcut` returns `{ shortcut, operation }` while
 `remove_section_shortcut` returns `{ shortcutId, projectId, pageId, operation }` in place of the
@@ -2812,6 +2850,12 @@ remove the row without erasing the audit entry's identity
 targets the **destination project**, exactly as the ordinary `project.shortcut_*` events do, so no
 new missing-target case arises and the same projections refresh for a write and for its reversal.*
 
+*Extended in Slice 38:* `project.page_addition_undone` / `_redone` and
+`project.page_update_undone` / `_redone`. Each targets the owning **project**, exactly as the
+ordinary `project.page_enabled` and `project.page_disabled` events do — `ActivityEntityType` gains no
+`page` member, so a removed page does not take its audit history with it — and each successful step
+publishes one event and one root-scoped live frame after commit.*
+
 ---
 
 # 58. Agent Confirmation Experiments
@@ -2959,6 +3003,11 @@ with `{ shortcutId, projectId, pageId, operation }` rather than 204, because a b
 cannot carry a receipt. Route names and inputs are unchanged, and no route in the API table answers
 204 any more; the router's CORS preflight still does.*
 
+*Amended in Slice 38:* `PATCH /api/projects/:projectId/pages/:kind` answers
+`{ page, operation }` rather than the bare page, with `operation: null` for a toggle that changed
+nothing. The route, its path-wins kind resolution and its statuses are unchanged, and the API still
+forwards only contracts — never a captured page snapshot.*
+
 ---
 
 # 62. Live Updates
@@ -3013,6 +3062,12 @@ one frame apiece, and so does each of their transitions. Placement frames target
 project**, which is what makes an open Home canvas — in this tab and in another — re-read both its
 combined order and its shortcuts' source identity after a transition it did not make itself.*
 
+*Extended in Slice 38:* each optional-page toggle that changes something, and each of its Undo
+and Redo steps, publishes one frame targeted at the page's **root project**; a no-op toggle
+publishes none. An open project context re-reads its pages, so a tab removed or disabled by a
+transition leaves the navigation and a viewer of it falls back to Home, while a recreated or
+re-enabled tab reappears without forcing navigation.*
+
 ---
 
 # 63. Optimistic UI
@@ -3065,6 +3120,16 @@ follow-up projection read failed. The Undo notice deliberately does **not** offe
 Restore receipts in this phase — persistent Undo/Redo header controls are later Stage C work — and
 the notice's typed stale/not-next handling continues to refuse rather than undo a different action
 when a newer placement write has made an older notice stale.
+
+*Landed in Slice 38.* The optional-page toggle answers a receipt, and the page manager deliberately
+ignores it: §26's confirmed page is still painted only after the write and a fresh context read both
+settle, and the write/read separation, the project and generation guards and the read-only retry are
+unchanged. A page action or transition frame is an ordinary project frame, so it reaches project
+context and page resolution with no new case — undoing the enable that created the displayed page, or
+disabling it, returns to Home with the existing explanation and, because there is no record left to
+switch on, without the re-enable offer, while enabling or recreating one restores its tab and forces
+no navigation. Page receipts are not offered through the canvas Undo notice, for the same reason
+placement and Restore receipts are not.
 
 ---
 

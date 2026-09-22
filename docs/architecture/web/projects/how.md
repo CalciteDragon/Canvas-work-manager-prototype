@@ -32,7 +32,10 @@
    deliberately **not** offered through the notice in this phase — persistent Undo/Redo header
    controls are later Stage C work — but the store unwraps their envelopes where it inserts,
    replaces or optimistically resizes a placement, and `undoResultMessage` names every new result
-   kind explicitly so a new union member can never be read as a section with a placement. Undo is a `history.transition` with the
+   kind explicitly — the two page kinds included — so a new union member can never be read as a
+   section with a placement. A page receipt is never routed into this notice at all: §26's toggles
+   live on `ProjectWorkspaceStore`, whose `writePage` awaits the write, then `readContext`, and
+   handles a committed write and a failed read separately. Undo is a `history.transition` with the
    receipt's `historyId`, `actionId` and `revision`; `undoFailureNotice` maps the seven history
    reasons explicitly — `history_expired`, `history_retired` and not-found are terminal;
    `history_revision_stale` keeps the receipt at the summary's revision when its action is still
@@ -53,7 +56,12 @@
    Archive page loads `ArchivedRegion` after its read completes. These boundaries keep the
    eager route graph under the 1050 kB initial-bundle error ceiling.
 5. Live frames: progress re-reads on any frame naming the project; the record on
-   `project.*`; sections through `refreshSections()` unless a write is in flight. Task/reflection
+   `project.*`; sections through `refreshSections()` unless a write is in flight. A page action or
+   transition frame is a `project.*` frame, so it reaches project-context refresh and page
+   resolution with no new case: undoing the enable that created the displayed page, or disabling it,
+   returns to Home with the existing explanation — without the re-enable offer, because there is no
+   record left to switch on — while enabling or recreating one restores its tab and forces no
+   navigation. Task/reflection
    Add and Add Undo/Redo frames also re-resolve section existence because the row operation may
    own an implicit container; the
    tree on `rootProjectId`. Root pages re-read their projection on the same frames.

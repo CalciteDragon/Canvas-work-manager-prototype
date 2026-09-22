@@ -19,7 +19,7 @@ cited as §N · **Entry point for agents:** [`AGENTS.md`](../../AGENTS.md)
   domain services; contracts are defined once.
 - Let a real MCP client and a person work on the same workspace and see each other's
   changes without a refresh (§48, §62).
-- Keep each actor's reversible section, shortcut, task and reflection writes in a scoped
+- Keep each actor's reversible section, shortcut, optional-page, task and reflection writes in a scoped
   project history while Activity remains durable audit evidence even after an Add is undone.
 
 ## Not responsible for

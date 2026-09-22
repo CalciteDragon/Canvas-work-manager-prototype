@@ -1,12 +1,12 @@
-<!-- plan id="38" status="active" summary="Optional-page Undo/Redo with safe first-enable reversal; implementation not started" -->
+<!-- completed-record id="38" closed="2026-09-22" summary="Optional-page enable/disable, including first-enable page creation, reverses and replays in the owning root's exact-actor history without deleting content" -->
 # Slice 38 — Optional-page operation history (Slice 34 Stage C2)
 
-**Implementation plan — 2026-09-21. No runtime implementation in this planning change.**
+**Implemented and closed — 2026-09-22.** Planned on 2026-09-21 and built against that plan;
+the **Outcome** at the end of this file is the record of what shipped.
 
 [Slice 34](../planned/34-undo-redo-and-archive.md) is the parent direction.
 [Slice 37](../completed/37-section-and-shortcut-history.md) completed Stage C1.
 This phase implements only the optional-page row of that direction's coverage matrix.
-The active state identifies the reviewed next implementation phase, not a claim that it shipped.
 
 ## Goal
 
@@ -293,6 +293,26 @@ this planning commit does not present them as current runtime decisions.
   reversal, archived-owner blocking, exact actor/grant isolation, stable-ID replay and
   project-targeted Activity; all round-1 implementation/test/documentation gaps are resolved.
 
+- **Implementation (2026-09-22):** Built test-first against the plan. The plan's file list held;
+  consumers that type-checking surfaced were added — `project-page-registry.ts` (re-exports the
+  contract's optional kind), `apps/e2e/seed.ts` (the page-write helper unwraps the envelope) and the
+  pinned-count tests in `contracts/src/index.test.ts`, `contracts/src/row-history.test.ts` and
+  `mcp-tools/src/registry.test.ts`. `project-workspace-store.ts` needed no change: its generic
+  `project.*` handler already refreshes the context for the four new verbs.
+- **Closing review (2026-09-22):** Two independent reviewers read the diff — one for
+  correctness/spec, one for boundaries/living docs. No boundary violation, no blocking defect.
+  Findings acted on: the `undo_operation` and `get_operation_history` **tool descriptions** agents
+  read still omitted pages; the domain dependency diagram lacked the page (and Slice 37's shortcut)
+  recorder edge; `setEnabled`'s doc comment and `section-removal-undo.ts` still said pages have no
+  `remove`; live-updates `how.md`, the system overview, three code comments, the guide and §62 did
+  not name page transitions; three `why.md` files did not link the decision; the web registry and
+  e2e seed restated the optional-kind rule. Test gaps closed: the shell's absent-page fallback, a
+  per-verb store refresh (the old assertion passed on one frame), a read-only summary in MCP
+  acceptance, an over-claiming test name and a fixture label. One remark led to a real cross-actor
+  journey, pinned in the Outcome. Not acted on: a missing-owner case (no valid document can lose a
+  project) and the blocked-Undo e2e using `agent-heavy` (it needs that seed's agent connection as
+  the second actor; the file-level whole-document proof is in `page-history-acceptance.test.ts`).
+
 ## Planning handoff
 
 The planning-only change passed `pnpm docs:check`, `pnpm lint`, `node scripts/roadmap.mjs check`
@@ -300,3 +320,72 @@ and `git diff --check`. Runtime tests and browser/MCP acceptance were not run fo
 change; they remain required implementation evidence above. No application code or product-state
 files were changed. Keep this plan active for implementation; there is no implementation Outcome
 and the phase must not be marked complete at this handoff.
+
+## Outcome
+
+**Deliverables.** Every optional-page toggle that changes something is now one action in the owning
+root's exact-actor history, and both directions of both kinds reverse and replay through the
+existing transition route — no new endpoint, tool, schema version or seed change.
+
+- **Recording.** `ProjectPageService.setEnabled` answers `ProjectPageWriteResult`
+  (`{ page, operation }`, [contracts](../../../packages/contracts/src/page-write-result.ts)) and
+  records inside its existing unit through `OperationRecorder`
+  ([service](../../../packages/domain/src/project-page-service.ts)): `page.add` for the first enable
+  that created the record, `page.update` for a later boolean change, `operation: null` and nothing
+  written for a no-op. The payloads are strict version-1 contracts
+  ([page-history](../../../packages/contracts/src/page-history.ts)).
+- **Executors** ([domain](../../../packages/domain/src/page-history.ts)). Undo Add removes exactly
+  the created record after an identity check that deliberately ignores `updatedAt` and a dependency
+  preflight over live and archived sections and shortcut placements; any dependent refuses the whole
+  step with `remove-reference-and-retry`. Redo Add recreates the same id and `createdAt` and refuses
+  a same-kind replacement. Update moves `enabled` and `updatedAt` only, so content — archived
+  included — survives both directions. `ProjectPageRepository.remove`
+  ([interfaces](../../../packages/repositories/src/interfaces.ts)) has exactly that one caller.
+- **Permissions, Activity, live.** `page` is a fifth family on `projects.write`, published by both
+  MCP transports' discovery. Transitions emit `project.page_{addition,update}_{undone,redone}`
+  against the root project with one post-commit frame each; an archived root blocks both directions
+  while the ordinary toggle stays allowed, so Open archive remains reachable.
+- **Surfaces.** The HTTP PATCH, `set_project_page_enabled`, the gateway and the fake carry the
+  envelope; the workspace store ignores the receipt and keeps its write-then-read ordering, and a
+  frame for a removed or disabled tab sends its viewer back to Home.
+
+**Evidence.** `pnpm test`, `pnpm lint` (including `docs:check`) and `pnpm build` green;
+`pnpm --filter @cwm/prototype-host acceptance` and `mcp-acceptance` (Streamable HTTP and stdio)
+pass; `pnpm --filter @cwm/e2e e2e page-history.spec.ts reflections.spec.ts row-history.spec.ts`
+passes 6/6. The host's `page-history-acceptance.test.ts` injects recorder, action-update,
+cursor-update and persist faults in every direction and asserts unchanged bytes, history, events
+and zero frames. Manual use on a Home-only root inside `nested-projects` is recorded in
+`.prototype/notes.json` (slice 38). The web build's initial-bundle budget warning predates this
+slice.
+
+**Deliberate choices**, all recorded in
+[the decision entry](../../decisions/2026-09-optional-page-operation-history.md): Undo of a creation
+is a real removal refused by any dependent, never a silent disable; `updatedAt` is outside the
+identity check because the actor's own undone toggles bump it; page actions target the project in
+Activity, so a removed page takes no audit history with it; and `page` is its own family, so a later
+grant split is a value change.
+
+**Deviations from the plan.** The existing disabled-page section-removal regression was split as
+review round 1 foresaw. The closing review found that, because history snapshots do not pin a page,
+`resolveUndoDestination`'s missing-page fallback is now reachable for the first time: another
+actor's deleted section, undone after this actor's first-enable Undo removed its page, comes back on
+Home as `partial` / `fallback-page`, and the page is not recreated. That is the existing recovery
+rule working; it is pinned in `page-history.test.ts` and recorded in the decision. The
+closing-review documentation and test corrections are listed under Revisions.
+
+**Deferred.** Persistent Undo/Redo header controls and receipt reporting, the transition retry
+cache, project edits/archive/reactivation, saved layout/progress, and project-creation Undo with
+authorized recovery routing — each a separate Stage C candidate; Stage D still waits on them.
+
+**Open questions.** A route to a page whose record an Undo removed says the page is "switched off",
+while correctly offering no Enable button (friction note `note-2026-09-22-001`); a removed page
+wants its own sentence, which is project-navigation copy for a later phase. And the cross-actor
+fallback above is correct but surprising — a Reflections container reappearing on Home — so the
+history UI may want to say where a `partial` restore landed.
+
+**Documentation updated.** Architecture folders for contracts, domain, repositories, mcp-tools,
+prototype-host/api, prototype-host/mcp-transport, prototype-host/live-updates, web/core,
+web/projects, testing and the system overview; the new decision, and amendments to
+[optional pages are created on first enable](../../decisions/2026-09-optional-pages-are-created-on-first-enable.md)
+and [operation family permissions](../../decisions/2026-09-operation-family-permissions.md); spec
+§§26, 31, 54, 57, 61–63; `AGENTS.md`'s recorder edge; and the MCP setup guide.

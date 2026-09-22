@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 38 | Slice 38 — Optional-page operation history (Slice 34 Stage C2) | Optional-page Undo/Redo with safe first-enable reversal; implementation not started | [38-optional-page-history.md](active/38-optional-page-history.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -76,4 +74,5 @@ verification follow-ups rather than feature slices.
 | 35 | Slice 35 — Operation history foundation (Slice 34 Stage A) | 2026-09-16 | Section add, move, update and removal undo and redo through a per-actor, per-project operation history over domain, HTTP and both MCP transports; schema version 4 with an explicit v3 to v4 conversion | [35-operation-history-foundation.md](completed/35-operation-history-foundation.md) |
 | 36 | Slice 36 — Task and reflection operation history (Slice 34 Stage B) | 2026-09-20 | Task and reflection writes undo and redo through per-actor operation histories, with compound implicit containers, family-derived grants and durable Activity identity at schema version 5 | [36-task-and-reflection-history.md](completed/36-task-and-reflection-history.md) |
 | 37 | Slice 37 — Section and shortcut operation history (Slice 34 Stage C1) | 2026-09-21 | Section duplication, durable section Restore and the four Home shortcut placement writes reverse and replay in the exact actor's owning-project history | [37-section-and-shortcut-history.md](completed/37-section-and-shortcut-history.md) |
+| 38 | Slice 38 — Optional-page operation history (Slice 34 Stage C2) | 2026-09-22 | Optional-page enable/disable, including first-enable page creation, reverses and replays in the owning root's exact-actor history without deleting content | [38-optional-page-history.md](completed/38-optional-page-history.md) |
 <!-- roadmap:end -->

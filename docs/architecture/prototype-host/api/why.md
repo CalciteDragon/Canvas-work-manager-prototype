@@ -94,6 +94,7 @@ returns: `/todos`, `/archive`, `/journal`, `/completed-work` under a project, an
 - [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../../decisions/2026-09-history-stage-a-deferrals.md) — route shape, 409 for stale revisions
 - [Row writes record one operation, including an implicit container](../../../decisions/2026-09-row-operation-history.md)
 - [Undo and Redo require the stored operation family's grant](../../../decisions/2026-09-operation-family-permissions.md)
+- [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../../decisions/2026-09-optional-page-operation-history.md) — the page PATCH answers `{ page, operation }`
 
 ## Spec sections
 

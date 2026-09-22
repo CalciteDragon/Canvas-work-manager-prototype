@@ -46,11 +46,16 @@ excluded by default ([decision](../../decisions/2026-08-repository-query-semanti
 The JSON implementation is the reference; a Postgres one would have to match.
 
 **Deletion exists only for safe disposable sections, safe add Undo, the Redo of a disposable
-removal, safe task/reflection Add Undo, shortcut placements and history actions.** A section's `remove` seam is used only after
+removal, safe task/reflection Add Undo, the inverse of a first page enable, shortcut placements and
+history actions.** A section's `remove` seam is used only after
 `SectionService` settles owned rows, checks whether content needs recovery, and verifies no
 canonical task, reflection or shortcut still refers to the section — or, for add Undo, when the
 added section is unchanged and no row, cascade marker or shortcut references it; Redo of a deleted
-removal re-checks the same references. Actions are deleted by pruning and by a new write discarding
+removal re-checks the same references. An optional page is deleted only by `revertPageAdd`, and only once the record is
+still the one its enable created and no section or placement names it — the integrity boundary is
+unchanged, so a removal that left a reference rolls back
+([decision](../../decisions/2026-09-optional-page-operation-history.md)).
+Actions are deleted by pruning and by a new write discarding
 a redo branch; nothing references an action, so nothing can dangle. Histories are never deleted.
 Integrity remains strict, and old tombstones are not purged
 ([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md),
@@ -96,6 +101,8 @@ domain, tool and host test runs on.
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md) — task/reflection removal seams used only after Add-Undo preflight
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — the bounded missing-target integrity exception
 - [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — why older files are rejected until converted
+- [Optional pages are created on first enable](../../decisions/2026-09-optional-pages-are-created-on-first-enable.md) (amended in Slice 38) — the one page removal seam
+- [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `ProjectPageRepository.remove`, used only after first-enable Undo's preflight
 
 ## Spec sections
 

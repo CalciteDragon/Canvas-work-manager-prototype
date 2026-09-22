@@ -57,7 +57,8 @@
   targeted at the **destination** project — the same target the ordinary `project.shortcut_*` events
   use, so no new missing-target case arises. Task and reflection
   transitions publish the equivalent `task.*_{undone,redone}` and
-  `reflection.*_{undone,redone}` action. A compound Add still publishes only that one row frame;
+  `reflection.*_{undone,redone}` action, and each optional-page transition one
+  `project.page_{addition,update}_{undone,redone}` frame targeted at the page's root project. A compound Add still publishes only that one row frame;
   its project context also invalidates section existence in the browser. The direction is in the
   type. A retirement commits but records no activity, so it
   publishes nothing. The history action and its payload never reach a frame. `live-updates.test.ts`
