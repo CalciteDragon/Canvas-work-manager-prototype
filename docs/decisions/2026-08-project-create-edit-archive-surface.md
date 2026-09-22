@@ -98,3 +98,11 @@ inline-editing the name would leave More holding only target date and archive, w
 to what a "More" menu should be. Also revisit when project delete, move-to-project or a
 description editor is actually wanted; none of them is on §81, and all three were left out
 deliberately.
+
+
+**Amended, 2026-09-22 — Slice 39.** Rename, status, target date and archive from this menu now each
+record one action in the person's history for that project (`project.update`, or `project.archive`
+for the archive), and PATCH answers `{ project, operation }`. The menu itself is unchanged: it reads
+`project` from the answer and offers no Undo of its own — the receipt is reachable through the history
+route and the MCP tools until persistent header controls exist. Create is still unrecorded
+([decision](2026-09-project-update-operation-history.md)).

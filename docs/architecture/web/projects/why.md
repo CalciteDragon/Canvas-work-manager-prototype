@@ -156,6 +156,7 @@ opens a collapsed target through a transient input that leaves the record alone
 - [Reflection subjects and the root journal feed](../../../decisions/2026-09-reflection-subjects-and-the-journal-feed.md)
 - [Task and reflection writes join operation history](../../../decisions/2026-09-row-operation-history.md) — row envelopes and compound-container live refresh
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../../decisions/2026-09-optional-page-operation-history.md) — the page envelope the store ignores, and a removed page's Home fallback
+- [An existing project's writes are one action family](../../../decisions/2026-09-project-update-operation-history.md) — the project envelope every caller unwraps, and root projections re-reading on project-record frames from any root
 
 ## Spec sections
 

@@ -64,7 +64,14 @@
    navigation. Task/reflection
    Add and Add Undo/Redo frames also re-resolve section existence because the row operation may
    own an implicit container; the
-   tree on `rootProjectId`. Root pages re-read their projection on the same frames.
+   tree on `rootProjectId`. Root pages re-read their projection on the same frames. Since Slice 39
+   the tree, Todos, Archive and Reflections **also** re-read on a project-record frame
+   (`isProjectRecordEvent` from contracts) from any root: a cross-root reparent, or its Undo or Redo,
+   publishes one frame naming the sub-project's new root, and the root it left would otherwise keep
+   showing it. Archive's live re-read keeps its list on screen rather than flashing "Loading archive…".
+   Every `projects.update` caller — the header's rename, status, date and archive, Todos completion,
+   the progress setting — reads `project` from the `{ project, operation }` answer and ignores the
+   receipt; the page offers no Undo of a project edit yet.
 6. Following a Todos or Archive link to `#section-<id>` scrolls to the loaded frame,
    focuses its heading, and transiently expands a collapsed container.
 

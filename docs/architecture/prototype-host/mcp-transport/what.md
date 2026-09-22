@@ -27,10 +27,10 @@ request arrives and how the actor is resolved.
 For static tools, discovery publishes
 `local.canvas-work-manager/requiredPermission` and `requiredPermissions`. For
 `undo_operation` and `redo_operation`, it publishes only
-`requiredPermissionsByOperationFamily`, mapping section, task, reflection, Home shortcut and
-optional page to the one grant each of the five families needs — three of which are
-`projects.write`, because a placement is part of the destination canvas and a page is a property of
-its root. The two shapes are mutually exclusive.
+`requiredPermissionsByOperationFamily`, mapping section, task, reflection, Home shortcut,
+optional page and existing project to the one grant each of the six families needs — four of which
+are `projects.write`, because a placement is part of the destination canvas, a page is a property of
+its root and a project write reverses only that project's own fields. The two shapes are mutually exclusive.
 
 ## A tool call over HTTP
 

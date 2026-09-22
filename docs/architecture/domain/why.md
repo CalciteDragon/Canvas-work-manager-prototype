@@ -105,6 +105,17 @@ content on the page survives both directions. The ordinary toggle keeps §26's a
 transitions do not, so history is not a way around §31's freeze
 ([decision](../../decisions/2026-09-optional-page-operation-history.md)).
 
+**An existing project's write is reversible without becoming a way around its rules.** One commit
+writes every project field, so one action per changed call covers edits, completion, reparenting,
+layout and progress settings, and the status crossing decides whether it is an archive, a
+reactivation or an update. The subject's own history owns it, so a reparent that changes its root
+never moves an action between histories. Reversal re-runs the forward hierarchy and archive rules
+against the tree as it is now — archiving never cascades, and a history step does not acquire a
+cascade. The history blocker gets one narrow exception, for the subject's **own** archived status and
+only for an archive's Undo, a reactivation's Redo and an edit made while archived, because the service
+allowed those writes and refusing would wedge the cursor on the project they are about; an archived
+ancestor still blocks ([decision](../../decisions/2026-09-project-update-operation-history.md)).
+
 **Activity audit outlives safely removed rows.** `ActivityService` captures trusted target label
 and owning project/root while the entity is readable in the caller's unit. Feeds prefer current
 names while a target exists and fall back to captured identity afterward; no inverse data lives in
@@ -192,6 +203,7 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [Workspace scoping, and why a foreign id is 404 rather than 409](../../decisions/2026-08-workspace-scoping-and-not-found.md)
 - [Task status transitions, `completedAt`, and how a task is archived](../../decisions/2026-08-task-status-transitions-and-archive.md)
 - [Project nesting rules and what archiving a parent does](../../decisions/2026-08-project-nesting-and-archive-rules.md)
+- [An existing project's writes are one action family, and its own archive can be undone while archived](../../decisions/2026-09-project-update-operation-history.md)
 
 ## Spec sections
 

@@ -173,10 +173,24 @@ because a caller addressing a page by kind cannot know whether it is creating th
 boolean. `page.add` captures the created page whole, so Redo recreates the same id and `createdAt`;
 `page.update` captures the root, the page id, an optional kind and two **distinct** booleans. Neither
 accepts Home or a work canvas: `OPTIONAL_PAGE_KINDS` is the narrow vocabulary both use, and the
-directional results report an absent page on Undo Add and a present one everywhere else. Transition results identify the subject and affected
+directional results report an absent page on Undo Add and a present one everywhere else.
+`project-history.ts` holds the three existing-project payloads — `project.update`,
+`project.archive`, `project.reactivate` — as one shape: the subject `projectId` (never its root) and
+the **changed** fields with exact before/after values, `null` standing for absence. `status` and
+`completedAt` are recorded independently, exactly as the commit moved them, because the service's own
+normalization does not always move them together; `parentProjectId` never clears; the kind follows the status crossing
+the archive boundary; and only an update carries `archivedThroughout`, the flag the history
+executor's narrow archived-subject exception reads. Every project result returns the current
+project, which always still exists. `project-write-result.ts` holds the strict `{ project, operation }`
+envelope, apart from the payloads for the same bundling reason. Transition results identify the subject and affected
 rows, report absence on Undo Add, and include implicit-container placement when needed.
 `history-placement.ts` owns shared placement shapes without an import cycle. `tool-permissions.ts`
 defines the static/family declaration and `OPERATION_FAMILY_PERMISSION`.
+
+`live.ts` also names `PROJECT_RECORD_EVENT_TYPES` and `isProjectRecordEvent`: the frames that say
+a project record changed, which open browser root aggregates re-read on from any root because a
+cross-root reparent's one frame names only the root it moved to. The domain suite proves project
+writes and transitions emit exactly this list.
 
 `ActivityHistoricalContextSchema` captures target kind, id and label plus owning project/root.
 Event identity must agree with that context. Activity contains no executable inverse payload.

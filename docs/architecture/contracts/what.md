@@ -86,10 +86,10 @@ placements on a root's Home that reference a section elsewhere in the same tree.
 | `ActivityEventSchema`, `ActivityActionSchema` | `src/activity.ts` | Actor-attributed events; open `entity.verb` action |
 | `AgentConnectionSchema`, `AgentPermissionSchema` | `src/agent.ts` | Connections and the seven grants |
 | `Create*Input`, `Update*Input`, `*Query` | `src/inputs.ts` | Write inputs and query shapes |
-| `LiveEventSchema` | `src/live.ts` | `type`, `entityId`, `entityType`, `projectId`, `rootProjectId` |
+| `LiveEventSchema`, `PROJECT_RECORD_EVENT_TYPES`, `isProjectRecordEvent` | `src/live.ts` | `type`, `entityId`, `entityType`, `projectId`, `rootProjectId`; which frames announce a project record change |
 | Dashboard, progress, timeline, todos, archive, journal schemas | `src/dashboard.ts` … `src/project-journal.ts` | Derived read models; Archive section entries add `recovery` metadata |
 | Prototype state and commands | `src/prototype.ts` | What the dev panel and `/prototype/*` agree on |
-| `UndoOperationSchema`, section operation schemas, `UndoResultSchema`, `RedoResultSchema`, `UndoConflictSchema` | `src/undo.ts` | The nineteen-operation union, section payloads, discriminated transition results and typed conflicts including the `page` entity kind |
+| `UndoOperationSchema`, section operation schemas, `UndoResultSchema`, `RedoResultSchema`, `UndoConflictSchema` | `src/undo.ts` | The twenty-two-operation union, section payloads, discriminated transition results and typed conflicts including the `page` and `project` entity kinds |
 | `SectionRestoreOperationSchema` and its directional results | `src/section-restore-history.ts` | The exact footprint of one Archive Restore: markers, generation, old position, committed placement and the rows it revived |
 | Shortcut operation and transition schemas | `src/shortcut-history.ts` | Four strict placement payloads that capture the destination project and never the source's content |
 | Task/reflection operation and transition schemas | `src/row-history.ts` | Strict row payloads: complete creation snapshots, changed fields, structural effects and optional implicit containers |
@@ -97,6 +97,8 @@ placements on a root's Home that reference a section elsewhere in the same tree.
 | `SectionShortcutAddResultSchema`, `SectionShortcutWriteResultSchema`, `SectionShortcutRemovalResultSchema` | `src/shortcut-write-result.ts` | The placement write envelopes, with the removal naming ids and a required receipt |
 | `PageAddOperationSchema`, `PageUpdateOperationSchema`, `OPTIONAL_PAGE_KINDS` and their directional results | `src/page-history.ts` | Two strict optional-page payloads confined to todos/archive/reflections, with an absent-page Undo Add result |
 | `ProjectPageWriteResultSchema` | `src/page-write-result.ts` | The one `{ page, operation }` toggle envelope, with a `null` receipt for a no-op |
+| `ProjectUpdateOperationSchema`, `ProjectArchiveOperationSchema`, `ProjectReactivateOperationSchema`, `ProjectFieldChangeSchema` and their directional results | `src/project-history.ts` | Strict changed-field footprints of one existing-project write, typed by how the status crossed the archive boundary |
+| `ProjectWriteResultSchema` | `src/project-write-result.ts` | The strict `{ project, operation }` envelope PATCH and the three project-update tools answer, `null` for a no-op |
 | `OperationReceiptSchema`, `OperationKindSchema`, `OperationFamilySchema` | `src/operation-receipt.ts` | Payload-free receipts and the operation kind/family vocabulary |
 | Public history summary and input schemas | `src/operation-history-public.ts` | Snapshot-free cursor shapes imported by browser and transport consumers |
 | `OperationHistorySchema`, `OperationActionSchema`, `OperationHistoryTransitionResultSchema`, `OperationHistoryRefusalDetailsSchema` | `src/operation-history.ts` | Stored per-actor/project cursor and actions, transition results and the refusal union |

@@ -849,6 +849,14 @@
       "projectId": "project-69aaa75f",
       "slice": 38,
       "note": "Slice 38 real use on a Home-only root created inside the nested-projects seed: enabling Reflections from the page manager recorded one page.add; Undo through the history route removed the record and both the tab and its toggle went away live, without a reload; Redo brought the same page id and createdAt back and did not force navigation; Open archive from a nested work route recorded a page.add in the root's history while the child's history stayed null; and an MCP connection ran its own page.add Undo in its own history, with discovery publishing all five families. One piece of friction, about wording rather than behaviour. A URL for a page whose record an Undo removed falls back to Home saying \"The Reflections page is switched off for this project. Showing Home instead.\", and correctly offers no Enable button, because there is nothing left to switch on. The sentence and the missing affordance disagree: \"switched off\" describes a toggle the person could flip, while what happened is that the page was un-created. A removed page wants its own sentence -- something like \"This project has no Reflections page. Showing Home instead.\" -- which is project-navigation copy rather than history work, and it is the first thing a person undoing their own first enable reads."
+    },
+    {
+      "id": "note-2026-09-22-002",
+      "createdAt": "2026-09-22T20:27:00.000Z",
+      "route": "/projects/project-renovation/pages/todos",
+      "projectId": "project-renovation",
+      "slice": 39,
+      "note": "Slice 39 real use on an isolated nested-projects copy. Renaming Garden from the header's More menu and then reopening it (completed -> active) each recorded one project.update in Garden's own history; Undo through the history route put the status back to Completed with the seed's original completion time, and the open header followed without a reload. Moving Cabinets to a new root dropped its row from Home renovation's open Todos page live, from the one frame that names only the new root, and Undo brought the row back. Two pieces of friction. (1) Labels do not say what happened: the rename and the reopening are both 'Updated \"Garden beds\"', so the summary showed identical Undo and Redo labels for two different steps — a header control would need 'Renamed to…' / 'Reopened…' / 'Moved to <root>' to be usable. (2) Moving Kitchen to another root answered 500 internal_error: a Home shortcut on the old root places a Kitchen section, and commit-time integrity rejects a cross-root placement. That is the ordinary reparent, not history (a history Undo/Redo into the same state now refuses with a typed shortcut-reference conflict), and it is spun out as its own task."
     }
   ]
 }

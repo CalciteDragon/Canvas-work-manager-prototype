@@ -77,6 +77,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Task and reflection writes record one reversible row action](2026-09-row-operation-history.md) | Row footprints, compound containers, envelopes and durable row Restore history | current (Slice 36) |
 | [A recorded Restore is a new action, and a shortcut action owns only its placement](2026-09-section-restore-and-shortcut-history.md) | Duplication as an add, exact Restore footprints, destination-owned placement history | current (Slice 37) |
 | [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](2026-09-optional-page-operation-history.md) | Exact creation inverse after a dependency preflight, nondestructive toggle history, and the freeze distinction | current (Slice 38) |
+| [An existing project's writes are one action family, and its own archive can be undone while archived](2026-09-project-update-operation-history.md) | Subject-owned project history, changed-field footprints, hierarchy rechecks and the narrow archived-subject exception | current (Slice 39) |
 
 ## Repositories
 
@@ -90,7 +91,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [What the tool registry knows about MCP](2026-08-tool-registry-is-transport-free.md) | Nothing: the registry is transport-free; the host mounts it | current |
 | [MCP tools advertise their required permission in namespaced metadata](2026-08-mcp-tool-permission-metadata.md) | Static tools use singular/plural metadata; history transitions use a family map | amended; Slice 36 adds conditional grants |
-| [A history transition requires the stored operation family's write grant](2026-09-operation-family-permissions.md) | One family grant per action, declared as a family metadata map | amended; Slices 37–38 add the `shortcut` and `page` families |
+| [A history transition requires the stored operation family's write grant](2026-09-operation-family-permissions.md) | One family grant per action, declared as a family metadata map | amended; Slices 37–39 add the `shortcut`, `page` and `project` families |
 
 ## Prototype data
 
@@ -126,7 +127,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Flow and grid both remain prototype layout candidates](2026-08-flow-vs-grid-layout-experiment.md) | Both modes persist per project; no freeform canvas | open experiment |
 | [View Mode shows work; Edit Layout Mode shows canvas chrome](2026-08-view-mode-section-chrome.md) | Earlier mode-based visibility rules | superseded |
 | [The project header's Quick Add adds a section](2026-08-project-header-quick-add.md) | Quick Add's former meaning and placement | amended |
-| [The smallest surface that makes §81's project verbs demonstrable](2026-08-project-create-edit-archive-surface.md) | Sidebar create; More menu for rename, status, date, archive | current |
+| [The smallest surface that makes §81's project verbs demonstrable](2026-08-project-create-edit-archive-surface.md) | Sidebar create; More menu for rename, status, date, archive | amended; Slice 39 records each edit in history |
 | [§4's *Agent Modified* task row has no data behind it](2026-08-agent-modified-has-no-data-behind-it.md) | Six of seven `TaskRow` variants; the seventh is a §58 question | current |
 | [Where the project navigation column lives, and what moved with it](2026-09-where-the-project-navigation-column-lives.md) | In the projects feature; height and recovery entry amended in Slice 27 | amended |
 | [Optional page management lives in project navigation](2026-09-optional-page-management-lives-in-project-navigation.md) | The page toggles sit in the navigation column | current |

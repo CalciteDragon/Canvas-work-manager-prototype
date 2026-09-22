@@ -61,3 +61,10 @@ appears. It is named separately for the same reason `shortcut` is. Discovery's f
 five entries in both transports, pinned explicitly rather than derived, so a family the domain gains
 and discovery forgets fails a test rather than agreeing with itself
 ([decision](2026-09-optional-page-operation-history.md)).
+
+
+**Amended, 2026-09-22 — Slice 39.** A sixth family, `project`, joins the map and needs
+`projects.write`: `update_project`, `archive_project` and `restore_project` already need it, and
+reversing one of them writes only that project's own fields, never a row. Discovery's family map is
+six entries in both transports, again pinned explicitly
+([decision](2026-09-project-update-operation-history.md)).

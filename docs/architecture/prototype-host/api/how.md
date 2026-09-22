@@ -36,7 +36,7 @@
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
-| `createApi` | function | Wire the services, including the `RepositoryOperationRecorder` that section, shortcut, page, task and reflection writes record through, and `OperationHistoryService`; returns `HostServices` | [API](../../../api/miscellaneous/variables.html#createApi) |
+| `createApi` | function | Wire the services, including the `RepositoryOperationRecorder` that section, shortcut, page, project, task and reflection writes record through, and `OperationHistoryService`; returns `HostServices` | [API](../../../api/miscellaneous/variables.html#createApi) |
 | `HostServices` | interface | Every service plus `authenticator`; what routes and the registry receive | [API](../../../api/interfaces/HostServices.html) |
 | `CreateApiOptions` | interface | `clock` and `ai` overrides — the runtime's instances | [API](../../../api/interfaces/CreateApiOptions.html) |
 | `aiProviderFor` | function | `real` → `RealAIProvider`, anything else → `PrototypeAIProvider` | [API](../../../api/miscellaneous/variables.html#aiProviderFor) |

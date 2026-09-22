@@ -1140,6 +1140,20 @@ A subproject carries the work metadata the canvas vocabulary needs: a descriptio
 timestamp. Empty descriptions and undated work stay valid — most work units will have both.
 Completion is explicit and does **not** complete descendants; reopening clears `completedAt`.
 
+*Landed in Slice 39: every change to an existing project is an **undoable operation**.* Rename,
+description, icon, due or target date, status, parent, layout mode and progress settings all run
+through one write, and each call that changes something records exactly one action in the acting
+person's or agent's history **for that project** — a sub-project's own history, not its root's, even
+when the write moves it to another root. The status names the step: entering `archived` is an
+**archive**, leaving it a **reactivation**, and everything else — completion and reopening included —
+an **update**. One call that changes a status and a name is one step. A call that changes nothing
+records nothing. Undo writes back exactly the fields that call changed and Redo writes them again, so
+an unrelated edit someone made since survives both, while a later change to the same field refuses.
+A completion time comes back exactly as it was recorded, never re-stamped. Reversing a move re-checks
+the destination as if it were a new move: it must still exist, must not sit beneath the project, and
+must not be under anything archived. Creating a project is not recorded yet
+([why](docs/decisions/2026-09-project-update-operation-history.md)).
+
 ## Pages
 
 Pages are persisted records — stable ID, owner project, kind, enabled state, and the canvas
@@ -1665,7 +1679,8 @@ edits such as a renamed task. Redo re-removes exactly what the removal removed, 
 recorded state. The history is **bidirectional and per exact actor**: a person or agent connection
 steps only its own stack, only the next action in either direction, for 24 hours per action and 50
 actions per history. A transition requires the stored action family's one write grant —
-`projects.write` for a section, a Home shortcut placement or an optional page, `tasks.write` for a
+`projects.write` for a section, a Home shortcut placement, an optional page or an existing
+project's own write, `tasks.write` for a
 task, `reflections.write` for a reflection; a new write discards what was waiting to be redone. A
 transition refuses rather than overwrite a later change (a moved row, a new subtask under a moved
 task, a new row in a section being re-removed), while the project or an ancestor is archived, or
@@ -1701,6 +1716,18 @@ Undo as it is under the ordinary disable. No page conflict is permanent: an occu
 record or a live dependency all stay repairable. The ordinary toggle keeps this section's archive
 exemption; the transition does not
 ([why](docs/decisions/2026-09-optional-page-operation-history.md)).
+
+*Landed in Slice 39.* An existing project's update, archive and reactivation join the same history as
+a sixth operation family. Archiving still never cascades, and a history step may not acquire a
+cascade: redoing an archive, or undoing a reactivation, refuses while any child is live. The freeze
+keeps one narrow exception, for the project's **own** status only: an archive's Undo, a
+reactivation's Redo and an edit made while the project was already archived may run while that same
+project is archived, because the ordinary write allowed them and refusing would wedge the stack on
+the very project it is about. An archived **ancestor** still blocks every step, and no other family
+gets the exception. The history summary keeps naming the archived project as the blocker, so a later
+control must know which single step is still eligible. Durable restoration is unchanged: it takes an
+explicit status and needs no receipt
+([why](docs/decisions/2026-09-project-update-operation-history.md)).
 
 The browser holds the receipt in the current canvas session and offers **Undo** there; dismissal
 removes the notice, successful Undo replaces it with a result, and the newest successful explicit
@@ -2112,6 +2139,11 @@ Task estimates influence progress.
 User enters progress.
 
 This is exactly the kind of decision the prototype should test rather than resolve in the initial specification.
+
+*Amended in Slice 39:* the chosen formula and a manual value are an ordinary project write, so
+changing them records one project action that Undo and Redo reverse exactly. A reversal that would
+leave the manual formula without a value refuses rather than invent one
+([why](docs/decisions/2026-09-project-update-operation-history.md)).
 
 ---
 
@@ -2692,6 +2724,14 @@ receipt when the call created the record, `page.update` when it moved an existin
 `undo_operation` under `projects.write` alone, and the grant map discovery publishes gains a fifth
 family, `page`, for them. The tool's name, input and permission are unchanged.*
 
+*Amended in Slice 39:* `update_project`, `archive_project` and `restore_project` return
+`{ project, operation }` — a `project.archive` receipt when the status entered `archived`,
+`project.reactivate` when it left it, `project.update` otherwise, and `operation: null` when nothing
+changed (archiving an archived project included). All three are reversed through `undo_operation`
+under `projects.write` alone, and the grant map discovery publishes gains a sixth family, `project`.
+`create_project` still returns the bare project. Names, inputs and permissions are unchanged
+([why](docs/decisions/2026-09-project-update-operation-history.md)).*
+
 *Amended in Slice 37:* `restore_section` returns `{ section, operation }`, with `operation: null`
 for a repeat on a live section, and `add_section_shortcut` returns `{ shortcut, operation }` while
 `remove_section_shortcut` returns `{ shortcutId, projectId, pageId, operation }` in place of the
@@ -2856,6 +2896,12 @@ ordinary `project.page_enabled` and `project.page_disabled` events do — `Activ
 `page` member, so a removed page does not take its audit history with it — and each successful step
 publishes one event and one root-scoped live frame after commit.*
 
+*Extended in Slice 39:* `project.update_undone` / `_redone`, `project.archive_undone` / `_redone`
+and `project.reactivation_undone` / `_redone`. Each targets the **subject project**, exactly as the
+ordinary `project.updated` and `project.archived` do, and each successful step publishes one event
+and one live frame after commit. A write and its transition both record one event; a refusal records
+none.*
+
 ---
 
 # 58. Agent Confirmation Experiments
@@ -3008,6 +3054,11 @@ cannot carry a receipt. Route names and inputs are unchanged, and no route in th
 nothing. The route, its path-wins kind resolution and its statuses are unchanged, and the API still
 forwards only contracts — never a captured page snapshot.*
 
+*Amended in Slice 39:* `PATCH /api/projects/:id` answers `{ project, operation }` rather than the
+bare project, with `operation: null` for a write that changed nothing. `POST /api/projects` still
+answers the bare project. Statuses and inputs are unchanged, and no captured field footprint is ever
+returned.*
+
 ---
 
 # 62. Live Updates
@@ -3067,6 +3118,14 @@ and Redo steps, publishes one frame targeted at the page's **root project**; a n
 publishes none. An open project context re-reads its pages, so a tab removed or disabled by a
 transition leaves the navigation and a viewer of it falls back to Home, while a recreated or
 re-enabled tab reappears without forcing navigation.*
+
+*Extended in Slice 39:* an existing-project write and each of its Undo and Redo steps publish one
+frame targeted at the subject project, whose `rootProjectId` is the root it is under **after** the
+step. A cross-root move therefore names only one of the two roots it touched, so an open root's
+Todos, Archive, Reflections and work tree re-read on any project-record frame in the workspace — a
+project's update or archive, or the Undo or Redo of one — while content frames from other roots still
+leave them alone, and the Archive list stays on screen while it re-reads. No second frame is
+published.*
 
 ---
 
@@ -3130,6 +3189,12 @@ disabling it, returns to Home with the existing explanation and, because there i
 switch on, without the re-enable offer, while enabling or recreating one restores its tab and forces
 no navigation. Page receipts are not offered through the canvas Undo notice, for the same reason
 placement and Restore receipts are not.
+
+*Landed in Slice 39.* Project writes answer a receipt, and every browser caller — the header's
+rename, status, date and archive, Todos completion, the progress setting and the layout controls —
+reads the confirmed `project` from it and ignores the receipt. Their optimistic paint, rollback,
+write guards and error messages are unchanged, and a committed response is never re-sent. Project
+receipts are not offered through the canvas Undo notice; persistent Undo/Redo controls are later work.
 
 ---
 

@@ -1,4 +1,4 @@
-<!-- plan id="39" status="active" summary="Project edits, status/archive/reactivation, reparenting, saved layout and progress settings reverse and replay in the owning actor's project history" -->
+<!-- completed-record id="39" closed="2026-09-22" summary="Existing-project edits, completion, reparenting, layout/progress settings, archive and reactivation each record one subject-owned project action; Undo/Redo rerun the hierarchy rules, with a narrow archived-subject exception, over HTTP, both MCP transports and the browser" -->
 # Slice 39 — Project update and lifecycle history (Slice 34 Stage C3)
 
 <!-- The first line is the state marker; scripts/roadmap.mjs owns it. While the plan is in
@@ -138,6 +138,11 @@ available to HTTP/MCP callers and in the server history.
 | `docs/architecture/web/core/how.md`, `docs/architecture/web/projects/how.md`, `docs/architecture/web/projects/why.md`, `docs/architecture/web/prototype-tooling/how.md`, `docs/architecture/testing/how.md` | modify with implementation | Update gateway, consumers, cross-root refresh, layout control and verification paths. |
 | `docs/guides/mcp-setup.md` | modify with implementation | Show the project update/archive/restore `{ project, operation }` receipt, project-family grant and narrow archived-subject transition rule. |
 | `docs/roadmap/active/39-project-update-history.md`, `docs/roadmap/progress.md`, `docs/roadmap/goals.md`, `apps/web/src/app/prototype/dev-panel/dev-panel-store.ts`, `.prototype/notes.json` | modify | Plan/revisions/outcome, generated board, direction, `CURRENT_SLICE` at implementation start and real-use friction. |
+| *Added during implementation:* `packages/contracts/src/project-write-result.ts`, `packages/contracts/src/live.ts`, `packages/contracts/src/live.test.ts`, `packages/contracts/src/index.test.ts`, `packages/contracts/src/row-history.test.ts` | create/modify | The envelope kept apart from the payloads (as `page-write-result.ts` is); `PROJECT_RECORD_EVENT_TYPES`/`isProjectRecordEvent`; union counts. |
+| *Added:* `packages/domain/src/page-history.test.ts`, `section-edit-undo.test.ts`, `section-service.test.ts` | modify | Regressions that archived as the same actor now archive as someone else, since an archive is now the top of the actor's stack. |
+| *Added:* `apps/prototype-host/mcp/server.ts`, `mcp/handler.test.ts`, `mcp/stdio.test.ts`, `packages/mcp-tools/src/tool.ts`, `packages/mcp-tools/src/tools/undo.ts` | modify | The sixth family in the published map and the history tools' descriptions. |
+| *Added:* `apps/web/src/app/features/projects/project-page-store.ts` (+ spec), `pages/reflections-page-store.ts` (+ spec), `pages/todos-page.spec.ts`, `pages/todos-page.stories.ts`, `features/tasks/task-list-store.spec.ts`, `prototype/dev-panel/state-inspector-page.spec.ts`, `apps/e2e/seed.ts` | modify | Type narrowing of the new result members, the Reflections project-record refresh, and every remaining mock/story/helper on the new envelope. |
+| *Added:* `AGENTS.md`, `docs/architecture/overview.md`, `docs/architecture/prototype-host/api/what.md`, `docs/architecture/prototype-host/mcp-transport/what.md`, `docs/architecture/testing/what.md`, `docs/decisions/2026-09-operation-family-permissions.md` | modify | `ProjectService` holding the recorder in the boundary text; the sixth family; route/testing tables. |
 
 ## Test plan — tests first
 
@@ -209,18 +214,76 @@ Broaden to integration evidence once the relevant targeted suites are green.
   no project-result example to change. Named the exact Playwright command and specs in the
   acceptance check so the gate is executable.
 
+- **Round 4 (2026-09-22) — implementation diff review.** Two reviewers read the diff. The
+  domain reviewer found that a payload rule — "a completion time moves only with its status" — was
+  broken by the service's *own* normalization (`archive()` keeps a completed project's time, a later
+  edit clears it; a frozen clock re-stamps a stored time), throwing inside an ordinary write; the
+  rule was removed and both fields are recorded exactly as they moved. It also asked for a drifted
+  status to read `archive-state-changed` rather than `field-changed`, and for a broken destination
+  chain to be `missing`. The transport/browser reviewer found a Storybook mock still returning a bare
+  project behind an `as unknown as` cast, the Reflections store missing the cross-root refresh, the
+  Archive page flashing "Loading archive…" on every widened frame, an overstated `restore_project`
+  description, two e2e titles claiming a second open page, a weakened Archive-journey assertion, and
+  nothing tying the browser's refresh pattern to the verbs the domain emits — which moved the
+  vocabulary into contracts, proven against the domain by a test. All were verified against the code
+  and fixed; none was rejected.
+- **Round 5 (2026-09-22) — real use.** Moving Kitchen to another root answered **500**: an old-root
+  Home shortcut placing a Kitchen section crosses root trees at commit. The ordinary reparent's gap is
+  pre-existing and spun out as its own task; the history executor now refuses the same state with a
+  typed `shortcut-reference` conflict (`crossRootShortcutConflicts`), with tests for the refusal and
+  for an unrelated old-root placement that must not block.
+
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
 ## Outcome
 
-**Deliverables** — <what now exists and works, with file links>.
+**Deliverables** — Every changed update, archive or reactivation of an existing project records one
+action in the acting actor's history for **that project**:
+[`ProjectService`](../../../packages/domain/src/project-service.ts) captures the normalized change in
+its one `commit` and answers `{ project, operation }`;
+[`project-history.ts`](../../../packages/domain/src/project-history.ts) holds capture, both
+directions and `mayRunWhileSubjectArchived`; the payloads and envelope are
+[`project-history.ts`](../../../packages/contracts/src/project-history.ts) and
+[`project-write-result.ts`](../../../packages/contracts/src/project-write-result.ts). `project` is a
+sixth operation family on `projects.write`. PATCH, `update_project`, `archive_project` and
+`restore_project` carry the envelope over HTTP and both MCP transports; the gateway and every browser
+caller unwrap `project`. Open root projections (tree, Todos, Archive, Reflections) re-read on
+[`isProjectRecordEvent`](../../../packages/contracts/src/live.ts) frames from any root. Evidence:
+`pnpm test` (contracts 352, domain 705, web 742, host 256, MCP tools 165, repositories 156, data 120),
+`pnpm lint` with `docs:check`, `mcp-acceptance` on both transports, and the Playwright web, Todos and
+Archive specs, including four new journeys.
 
-**Deliberate choices** — <decisions made and why; options rejected; links to decision entries>.
+**Deliberate choices** — One family, three kinds keyed on the status crossing the archive boundary;
+the subject's own history, never its root's; changed fields only, with `completedAt` restored
+verbatim and recorded independently of status; reversal re-running the forward hierarchy rules
+(parent, cycle, archived ancestry, live child, manual value) plus a cross-root shortcut check; and one
+narrow archived-subject exception for an archive's Undo, a reactivation's Redo and an
+archived-throughout edit, with ancestors still blocking and `blockedBy` unchanged. One frame per
+step; browsers widen what they re-read on instead. Rejected: separate lifecycle/options families,
+root-owned history, a general archive bypass and a second frame
+([decision](../../decisions/2026-09-project-update-operation-history.md)).
 
-**Deviations from the plan** — <what changed mid-implementation and what caused it>.
+**Deviations from the plan** — The write envelope went in its own `project-write-result.ts`, as the
+page one did, rather than beside the payloads. The project-record predicate moved from a web helper
+into contracts so the domain can prove it matches emitted verbs, and it excludes `project.created`.
+Reflections joined the refreshing stores; Archive's live re-read became quiet. The `completedAt`
+payload invariants were dropped after review. The executor gained read-only pages/sections/shortcuts
+for the cross-root shortcut refusal found in real use. Four existing regressions now archive as
+another actor, and the Archive Restore journey now expects the Slice 38 `page.add` its Open archive
+click records — a pre-existing failure this phase's e2e run surfaced.
 
-**Deferred** — <what was left out and which slice owns it>.
+**Deferred** — Project creation Undo and the missing-project recovery route; persistent header
+Undo/Redo controls and receipt reporting; the transition retry cache; Stage D removal/Archive
+redesign — all later Slice 34 phases. The ordinary reparent's 500 on a stranded Home shortcut is a
+separate spun-out task.
 
-**Open questions** — <what the next phase or the user must answer>.
+**Open questions** — Labels do not yet say *what* changed ("Updated" covers a rename, a reopening and
+a layout change), which a header control will need. `archive()` keeps a completed project's
+`completedAt` while `update` to `archived` and any later edit clear it — should they agree? How should
+a header control present a step that is eligible while `blockedBy` names its own project?
 
-**Documentation updated** — <the architecture folders, decisions and guides touched>.
+**Documentation updated** — Spec §§26, 31, 39, 54, 57, 61–63; the new decision and amendments to the
+family-permission and create/edit/archive-surface decisions; `AGENTS.md`'s boundary text; the
+architecture tree's overview and the contracts, domain, mcp-tools, prototype-host/api,
+prototype-host/mcp-transport, web/core, web/projects, web/prototype-tooling and testing folders; the
+MCP setup guide; `goals.md`; `.prototype/notes.json`.

@@ -44,6 +44,16 @@ removes that page again, while it is unchanged and nothing on it references it; 
 root's history whatever route the toggle came from. A toggle still succeeds while the project is
 archived, so Open archive stays reachable; a page **transition** does not.
 
+`update_project`, `archive_project` and `restore_project` return `{ project, operation }`: a
+`project.archive` receipt when the status entered `archived`, `project.reactivate` when it left it,
+`project.update` for every other change — completion, reparenting, layout and progress settings
+included — and `operation: null` when nothing changed, archiving an archived project included. The
+action belongs to the **subject** project's own history, even when a reparent moves it to another
+root. Its Undo writes back exactly the recorded fields after re-running the parent, cycle,
+archived-ancestry and live-child rules; an archive's Undo, a reactivation's Redo and an edit made
+while archived may run while that project is archived, but an archived ancestor still blocks.
+`create_project` still returns the bare project and records nothing.
+
 `restore_section` returns `{ section, operation }` too, with `operation: null` for a repeat on a
 live section: Archive Restore still needs no receipt to invoke and still never expires, and
 recording it only means the same connection can take it back. `add_section_shortcut` returns
@@ -63,9 +73,9 @@ Undo and Redo actions, or `null`, the revision and any archived blocker. `undo_o
 retired `{ undoId }` form is rejected — and call `OperationHistoryService.transition` with their
 fixed direction. The result is `{ direction, actionId, result, summary }`. Their permission
 declaration maps the stored action family to `projects.write`, `tasks.write` or
-`reflections.write` — with the fourth and fifth families, a shortcut placement and an optional page,
-both naming `projects.write`; a write-only caller can chain from receipts and returned summaries.
-Three families naming one grant is why the coverage helper behind that declaration de-duplicates:
+`reflections.write` — with the fourth, fifth and sixth families, a shortcut placement, an optional
+page and an existing project's own write, all naming `projects.write`; a write-only caller can chain
+from receipts and returned summaries. Four families naming one grant is why the coverage helper behind that declaration de-duplicates:
 `tools/list` must not say a caller needs one grant twice.
 
 ## Removal receipts

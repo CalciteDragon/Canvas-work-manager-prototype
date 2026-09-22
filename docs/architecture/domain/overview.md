@@ -25,12 +25,16 @@ service through an acyclic edge. They never know about HTTP, MCP, JSON or seeds.
   `ActivityService.record` — which is also where a live frame is published, after commit.
 - **Undo and Redo.** Section add (duplication included), move, settings, removal and Archive
   Restore; task and reflection create, update, archive and restore; the four Home shortcut
-  placement writes; and the optional-page toggle each record one action into the acting actor's
+  placement writes; the optional-page toggle; and every changed update, archive or reactivation of
+  an existing project each record one action into the acting actor's
   per-project operation history through `OperationRecorder`, in their caller-owned unit, and return
   an operation receipt. A placement's action belongs to the **destination** root project, never the
   source sub-project; a page's belongs to its owning root, whatever route the toggle came from.
   Undoing the enable that created an optional page removes that page, after proving nothing on it
-  references it; every later toggle reverses one boolean and touches nothing else. `OperationHistoryService` reads the
+  references it; every later toggle reverses one boolean and touches nothing else. A project's
+  action belongs to that project's **own** history, even when a reparent changes its root; its
+  inverse writes back exactly the recorded fields after re-running the parent, cycle,
+  archived-ancestry and live-child rules. `OperationHistoryService` reads the
   caller's summary and runs the next action in either direction — applied-state conflict checks,
   combined-neighbour placement, verbatim reapply, typed refusals and retirement of permanently
   unsatisfiable actions — never overwriting later writes. `operation-history.ts` is the pure

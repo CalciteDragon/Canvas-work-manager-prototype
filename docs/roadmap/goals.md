@@ -79,11 +79,16 @@ Redo. **[Slice 38 — optional-page history](completed/38-optional-page-history.
 Stage C2**: a first enable records `page.add`, whose Undo removes the created page only when
 nothing refers to it and whose Redo recreates the same id; later toggles record `page.update`,
 which moves one boolean and never touches content. `page` is a fifth family on `projects.write`.
-**[Slice 39 — project update and lifecycle history](active/39-project-update-history.md) is the
-active Stage C3 plan.** It covers edits, archive/reactivation, reparenting and saved
-layout/progress settings through the existing `ProjectService.update` path. Project creation
-Undo with its recovery route, persistent controls/receipt reporting and the deferred retry
-cache remain for later bounded phases. The
+**[Slice 39 — project update and lifecycle history](completed/39-project-update-history.md) shipped
+Stage C3**: every changed update, archive or reactivation of an existing project — edits,
+completion, reparenting, layout and progress settings — records one action in that project's **own**
+history, and PATCH plus the three project-update tools answer `{ project, operation }`. `project` is
+a sixth family on `projects.write`. An archive's Undo, a reactivation's Redo and an edit made while
+archived may run while their own subject is archived; an archived ancestor still blocks. Open root
+projections re-read on project-record frames from any root, so a cross-root move refreshes the root it
+left. Project creation Undo with its recovery route, persistent controls with **subject-naming
+labels** (the Slice 39 real-use note), receipt reporting and the deferred retry cache remain for later
+bounded phases. The
 paragraphs below describe the earlier shipped system and its choices.
 
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported

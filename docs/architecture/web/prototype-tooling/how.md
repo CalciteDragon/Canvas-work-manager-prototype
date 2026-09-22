@@ -10,7 +10,9 @@
 3. A host-side control posts to the host and, on success, reloads the tab; a client-side
    control writes `PrototypeSettings` (persisted to `sessionStorage`) or the
    `ThemeService` signal; Layout Mode writes `projectLayoutMode` through the ordinary
-   gateway.
+   gateway, and both the panel control and the inspector's layout list read the confirmed project
+   from its `{ project, operation }` answer (Slice 39); the write lands in the person's history like
+   any other project edit.
 4. **Add Prototype Note** posts the text with the current route, project and
    `CURRENT_SLICE`; the host stamps real time.
 5. `/prototype/design` lazily loads `DesignLabPage`. Its rail binds each of the seven

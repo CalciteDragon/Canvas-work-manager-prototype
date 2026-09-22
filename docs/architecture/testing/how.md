@@ -44,11 +44,21 @@
     absent from `get_project_archive` and a repeated Undo that adds nothing,
     each refused with the file's business collections byte-identical. HTTP changes grants through
     `PATCH /api/agent-connections/:id` and `POST …/revoke`; stdio edits its own temp file between
-    completed calls, which its per-call reload sees.
+    completed calls, which its per-call reload sees. Slice 39 adds, per transport, an existing-project
+    block on two roots it creates: `update_project`, `archive_project` and `restore_project` receipts
+    and `null` no-ops, the action persisted in the sub-project's own history, a cross-root reparent
+    undone and redone, the sub-project's own archive undone while archived, another connection's
+    not-found, and each unrelated grant refused before `projects.write` alone reverses the
+    reactivation and redoes it while archived.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) first copies the current empty seed
    to its disposable scratch file, then starts both processes,
     seeds before each spec, and runs the web, canvas editing, section edit/removal Undo, row history,
    MCP, Todos, Archive and Reflections specs, including keyboard/touch geometry and receipt recovery.
+   Slice 39's project history is exercised by `web.spec.ts` (header rename and archive each record a
+   project action the history route reverses, with the header following the frame), `todos.spec.ts`
+   (a cross-root reparent and its Undo/Redo leaving and re-entering the open chronology it left) and
+   `archive.spec.ts` (an archived sub-project's move and its own archive reversed while archived,
+   against the open Archive it moved from).
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`
    produces a static build the 25.x closeouts used as a check.
 7. After every slice, §77: seed, use, try it through MCP, write the friction down.

@@ -12,7 +12,7 @@
    `LivePublication` to the `LiveEventPublisher` — held by the store until commit.
 4. On commit the store validates the whole document and persists it; on any throw the
    provisional state is discarded and the caller sees one of the three errors.
-5. A supported section, task, reflection or Home shortcut write applies its normalized change, records one typed
+5. A supported section, task, reflection, Home shortcut, optional-page or existing-project write applies its normalized change, records one typed
    action through `OperationRecorder.record`, and returns a receipt from the same unit; automatic
    container resolution joins the row action instead of recording a separate section action. The recorder finds or creates the actor's history
    for the subject's project, appends the action (discarding the redo branch), prunes by expiry and
@@ -23,7 +23,7 @@
    section or of a placement — compares the combined index before writing, so a clamped no-op
    normalizes nothing and records nothing. Receipts never carry payload data. `OperationHistoryService.transition` later runs one
    step in one unit of its own: find the caller's history (not found otherwise), compare the
-   stored action family grant before disclosing revision or conflicts, select the next action in that direction, check expiry and archived ancestors, run the
+   stored action family grant before disclosing revision or conflicts, select the next action in that direction, check expiry and archived ancestors (for a project archive's Undo, a reactivation's Redo or an archived-throughout edit, ancestors only — the subject's own status is exempt), run the
    family's revert or reapply function (conflicts collected before any write), flip the action's
    state, move the cursor, record one `*_undone` or `*_redone` event. A permanent conflict instead
    commits only a retirement and refuses after the unit resolves. A repeated removal can read back
@@ -98,18 +98,18 @@
   `additionalPermissions`, which is what proves a grant sufficient, not only necessary.
 - **The service graph is acyclic**: `TaskService` and `ReflectionService` compose
   `SectionService` for container resolution; writing services compose `ActivityService`
-  for event recording; the section, shortcut, task, reflection and page services record supported
+  for event recording; the section, shortcut, task, reflection, page and project services record supported
   writes through an `OperationRecorder` (an interface over two repositories that never opens a unit).
   `OperationHistoryService` composes only `ActivityService` — no section, shortcut, task, reflection
   or page service — and shares the payloads with those writes through function modules
   (`operation-execution.ts`, `owned-rows.ts`, `section-removal-undo.ts`, `section-edit-undo.ts`,
-  `section-restore-history.ts`, `shortcut-history.ts`, `page-history.ts`, `task-history.ts`,
+  `section-restore-history.ts`, `shortcut-history.ts`, `page-history.ts`, `project-history.ts`, `task-history.ts`,
   `reflection-history.ts`, `page-placements.ts`, `project-visibility.ts`).
-  `SectionShortcutService` and `ProjectPageService` hold an
-  `OperationRecorder` for the same reason `SectionService` does, and `shortcut-history.ts` and
-  `page-history.ts` each declare their own narrower repository type — no task or reflection
-  repository — so a reviewer can see from the signature that a placement or page inverse cannot reach
-  a row. A page's dependency preflight stops at the **section** level for that reason: §27's
+  `SectionShortcutService`, `ProjectPageService` and `ProjectService` hold an
+  `OperationRecorder` for the same reason `SectionService` does, and `shortcut-history.ts`,
+  `page-history.ts` and `project-history.ts` each declare their own narrower repository type — no task
+  or reflection repository, and for a project only the project repository — so a reviewer can see from
+  the signature that a placement, page or project inverse cannot reach a row. A page's dependency preflight stops at the **section** level for that reason: §27's
   ownership chain runs `project → page → section → row`, so a page with no section has no row. A new edge is an AGENTS.md boundary
   change and needs saying so.
 - **Neither direction overwrites a later write.** Each executor compares the state the *other*
@@ -125,6 +125,18 @@
   verbatim and stamps only `updatedAt`. The permanently unsatisfiable conflicts retire the action
   ([decision](../../decisions/2026-09-operation-history-retired-actions.md)). Every refusal message
   starts with its reason token (`history_conflict: …`), because MCP carries message text only.
+- **A project step is reversed under today's tree.** `project-history.ts` compares every recorded
+  field against the value the other direction left (a parent mismatch reads `reparented`), then
+  re-runs `ProjectService.update`'s rules for the resulting change: a destination parent in the
+  workspace, not beneath the subject and with no archived ancestry (`archive-state-changed` names the
+  archived one); no live child when the direction archives (`new-dependent`); no manual formula
+  without its value; and, for a move to another root, no old-root Home shortcut placing a section in
+  the subject's subtree (`shortcut-reference`) — commit-time integrity would reject it otherwise.
+  `ProjectHistoryRepositories` therefore also reads pages, sections and placements, and writes only
+  projects. `completedAt` is written back verbatim. The archived-subject exception lives
+  only in `OperationHistoryService.transitionBlocker` and only for the three steps
+  `mayRunWhileSubjectArchived` names, and only for the project the history belongs to
+  ([decision](../../decisions/2026-09-project-update-operation-history.md)).
 - **A removal refusal does not disclose a deleted id.** For a missing section, `SectionService`
   consults `outstandingRemovalFor` only after `projects.write` and workspace visibility checks,
   and only across the exact actor's own histories; it returns a receipt only when that actor's

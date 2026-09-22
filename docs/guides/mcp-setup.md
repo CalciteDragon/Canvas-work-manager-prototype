@@ -189,6 +189,38 @@ rows and layout survive both directions. A toggle still works while the project 
 §31 keeps Open archive reachable; undoing one does not — the transition answers
 `history_blocked:` until the project is reactivated.
 
+`update_project`, `archive_project` and `restore_project` answer `{ project, operation }` too. The
+receipt says how the status moved, and it belongs to **that project's** own history — a
+sub-project's, not its root's, even when the call moved it to another root:
+
+```jsonc
+// A rename, a completion, a move or a layout/progress change.
+{ "project": { "id": "project-kitchen", "name": "Kitchen remodel", "…": "…" },
+  "operation": { "historyId": "history-5d0c2a91", "actionId": "operation-31e8b7f0", "operation": "project.update",
+                 "revision": 1, "label": "Updated \"Kitchen remodel\"", "…": "…" } }
+
+// archive_project, or a status that entered archived.
+{ "project": { "status": "archived", "…": "…" }, "operation": { "operation": "project.archive", "…": "…" } }
+
+// restore_project, or any status that left archived.
+{ "project": { "status": "active", "…": "…" }, "operation": { "operation": "project.reactivate", "…": "…" } }
+
+// Nothing changed — archiving an archived project, or setting what is already there.
+{ "project": { "…": "…" }, "operation": null }
+```
+
+Undo writes back exactly the fields that call changed, completion time included, and leaves any other
+field someone changed since alone; a later change to one of the same fields refuses. Reversing a move
+re-checks the destination the way a new move would: it must still exist, must not sit beneath the
+project, and must not be under anything archived. Redoing an archive — or undoing a reactivation —
+refuses while the project has a live sub-project, because archiving never cascades. One narrow
+exception to the archive freeze applies here and nowhere else: a project's **own** archive can be
+undone, its reactivation redone, and an edit made while it was archived undone or redone, while that
+same project is archived — but an archived **ancestor** still answers `history_blocked:`, and
+`get_operation_history`'s `blockedBy` still names the archived project. `restore_project` itself needs
+no receipt, however long ago the project was archived. `create_project` still answers the bare project
+and records nothing.
+
 ### Todos
 
 Slice 25.5 adds `get_project_todos` (`projects.read` **and** `tasks.read`): the whole chronology
@@ -246,8 +278,9 @@ never undo someone else's change, and nobody can undo yours.
   `historyId` is `null` until the connection's first undoable write in that project.
 - `undo_operation` and `redo_operation` (input `{ historyId, actionId, expectedRevision }`) run
   exactly that action, which must be the next one in that direction. They require only the stored
-  action family's grant: `projects.write` for a section, a Home shortcut placement or an optional
-  page, `tasks.write` for a task, `reflections.write` for a reflection. Discovery publishes
+  action family's grant: `projects.write` for a section, a Home shortcut placement, an optional
+  page or a project's own update, archive or reactivation, `tasks.write` for a task,
+  `reflections.write` for a reflection. Discovery publishes
   that mapping under `_meta["local.canvas-work-manager/requiredPermissionsByOperationFamily"]`.
   Pass the history's current `revision`: a receipt's, or `get_operation_history`'s if anything
   happened since. The result is `{ direction, actionId, result, summary }`.

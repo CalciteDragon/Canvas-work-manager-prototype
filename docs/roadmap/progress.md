@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 39 | Slice 39 — Project update and lifecycle history (Slice 34 Stage C3) | Project edits, status/archive/reactivation, reparenting, saved layout and progress settings reverse and replay in the owning actor's project history | [39-project-update-history.md](active/39-project-update-history.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -77,4 +75,5 @@ verification follow-ups rather than feature slices.
 | 36 | Slice 36 — Task and reflection operation history (Slice 34 Stage B) | 2026-09-20 | Task and reflection writes undo and redo through per-actor operation histories, with compound implicit containers, family-derived grants and durable Activity identity at schema version 5 | [36-task-and-reflection-history.md](completed/36-task-and-reflection-history.md) |
 | 37 | Slice 37 — Section and shortcut operation history (Slice 34 Stage C1) | 2026-09-21 | Section duplication, durable section Restore and the four Home shortcut placement writes reverse and replay in the exact actor's owning-project history | [37-section-and-shortcut-history.md](completed/37-section-and-shortcut-history.md) |
 | 38 | Slice 38 — Optional-page operation history (Slice 34 Stage C2) | 2026-09-22 | Optional-page enable/disable, including first-enable page creation, reverses and replays in the owning root's exact-actor history without deleting content | [38-optional-page-history.md](completed/38-optional-page-history.md) |
+| 39 | Slice 39 — Project update and lifecycle history (Slice 34 Stage C3) | 2026-09-22 | Existing-project edits, completion, reparenting, layout/progress settings, archive and reactivation each record one subject-owned project action; Undo/Redo rerun the hierarchy rules, with a narrow archived-subject exception, over HTTP, both MCP transports and the browser | [39-project-update-history.md](completed/39-project-update-history.md) |
 <!-- roadmap:end -->

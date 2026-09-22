@@ -25,7 +25,9 @@ contract inputs and answer contract shapes; they hold no rules.
   500 `internal_error` with the explanation on the console.
 - Forward write results without reshaping them. Section writes carry `{ section, operation }`;
   task writes carry `{ task, operation }`; reflection writes carry
-  `{ reflection, operation }`. Creates always carry a receipt and normalized no-op updates carry
+  `{ reflection, operation }`; the page toggle carries `{ page, operation }`; and since Slice 39 a
+  project PATCH carries `{ project, operation }` while project create still answers the bare
+  project. Creates always carry a receipt and normalized no-op updates carry
   `operation: null`. A deleted disposable section's `section` is a response snapshot. A repeated
   section removal remains a 409 and may carry only the exact actor's newest outstanding receipt
   in typed `details`.

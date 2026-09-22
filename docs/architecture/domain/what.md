@@ -27,7 +27,7 @@ flowchart TB
   subgraph undoable["History seam"]
     recorder["operation-recorder.ts<br/>OperationRecorder, RepositoryOperationRecorder"]
     machine["operation-history.ts<br/>pure cursor state machine"]
-    inverse["section-removal-undo.ts, section-edit-undo.ts, section-restore-history.ts, shortcut-history.ts, page-history.ts, task-history.ts, reflection-history.ts, owned-rows.ts<br/>capture, revert and reapply functions"]
+    inverse["section-removal-undo.ts, section-edit-undo.ts, section-restore-history.ts, shortcut-history.ts, page-history.ts, project-history.ts, task-history.ts, reflection-history.ts, owned-rows.ts<br/>capture, revert and reapply functions"]
   end
   subgraph readers["Derived read services"]
     dashboard[DashboardService]
@@ -59,7 +59,7 @@ flowchart TB
 
 Writing services own one entity each and record activity; the two arrows into
 `SectionService` resolve which container a row lands in. Writing services also compose
-`ActivityService` to record events; these service edges are acyclic. Section, task and reflection services record
+`ActivityService` to record events; these service edges are acyclic. Section, shortcut, page, project, task and reflection services record
 each supported operation through the `OperationRecorder` interface, and
 `OperationHistoryService` reverts or reapplies it through the same package-internal function
 modules — neither composes the other, and `OperationHistoryService` composes no section, task or
@@ -105,7 +105,7 @@ sequenceDiagram
 | `archivedAncestry` | `src/project-visibility.ts` | Archiving reaches down without cascading |
 | `Instant` | `src/instants.ts` | Lossless ordering of ISO instants as text |
 | `calendar.ts`, `task-windows.ts`, `page-placements.ts` | `src/` | UTC date arithmetic; the open/overdue/upcoming questions; the combined section+shortcut order |
-| `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard |
+| `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard; `update` and `archive` answer `{ project, operation }` and record one action per changed write in the subject's own history |
 | `ProjectPageService` | `src/project-page-service.ts` | A project's pages; enable/disable a root's optional three, recording one action per changed toggle |
 | `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, settle and remove by content/reference policy, Archive Restore; container resolution |
 | `OperationRecorder`, `RepositoryOperationRecorder`, `OPERATION_ACTION_LIFETIME_MS` | `src/operation-recorder.ts` | Records into the exact actor's per-project history; 24-hour lifetime; recovers an outstanding removal receipt |
@@ -115,6 +115,7 @@ sequenceDiagram
 | Section capture, revert and reapply | `src/section-removal-undo.ts`, `src/section-edit-undo.ts`, `src/section-restore-history.ts`, `src/owned-rows.ts` | Package-internal section footprints, applied-state conflict collection and both directions |
 | Placement capture, revert and reapply | `src/shortcut-history.ts` | The four Home shortcut inverses, over a repository type with no row access in it |
 | Page capture, revert and reapply | `src/page-history.ts` | The two optional-page inverses: exact removal of a created page after a section/placement preflight, and the boolean written back |
+| Project capture, revert and reapply | `src/project-history.ts` | The changed-field footprint of one project write, both directions under the forward hierarchy and archive rules, and `mayRunWhileSubjectArchived` |
 | Task capture, revert and reapply | `src/task-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including subtree and implicit-container effects |
 | Reflection capture, revert and reapply | `src/reflection-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including historical subjects and implicit containers |
 | `snapshotPlacement`, `resolveRestoreIndex`, `findHighestWriteBlocker` | `src/page-placements.ts`, `src/project-visibility.ts` | Neighbour snapshot and restore index; the highest archived project blocking a write |

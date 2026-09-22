@@ -99,6 +99,18 @@ document invalid. `page-write-result.ts` keeps the transport envelope out of tha
 reason `shortcut-write-result.ts` does
 ([decision](../../decisions/2026-09-optional-page-operation-history.md)).
 
+**An existing project's payload is its changed fields, owned by the subject.** One service commit
+writes every project field, so one shape covers update, archive and reactivation; the `type` only
+records which way the status crossed the archive boundary, because the label and the history
+executor's archived-subject exception depend on it. `projectId` is the subject and never its root, so
+a reparent that changes the root never moves the action between histories. A payload records only
+what moved — a no-op records nothing — and records `status` and `completedAt` independently:
+the service derives the time from the status but its own normalization does not always move them
+together, and a payload rule that assumed it did threw inside ordinary writes.
+`archivedThroughout` is the single fact the footprint cannot otherwise carry: the status did not
+change, so it is not recorded, yet it decides whether the step may run while the project is archived
+([decision](../../decisions/2026-09-project-update-operation-history.md)).
+
 **Activity owns historical display identity.** A task or reflection Add can be undone safely
 without keeping a canonical tombstone: its earlier events retain a validated target label and
 owning project/root context, but no executable inverse
@@ -149,6 +161,7 @@ general migration framework
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — compatible removal disposition, exact-owner repeat receipt, typed repair steps
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `section-restore-history.ts`, `shortcut-history.ts`, `shortcut-write-result.ts` and the fourth operation family
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `page-history.ts`, `page-write-result.ts`, the `page` conflict entity kind and the fifth operation family
+- [An existing project's writes are one action family](../../decisions/2026-09-project-update-operation-history.md) — `project-history.ts`, `project-write-result.ts`, the `project` conflict entity kind and the sixth operation family
 
 ## Spec sections
 
