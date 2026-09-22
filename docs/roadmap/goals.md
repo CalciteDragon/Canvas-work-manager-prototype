@@ -71,7 +71,7 @@ duplication records the add its copy is, Archive Restore records a `section.rest
 while staying durable — no receipt to invoke, no expiry — and the four Home shortcut placement
 writes record a fourth `shortcut` family in the **destination** root's history. The browser
 still offers only its transient section Undo notice, which deliberately does not carry shortcut
-or Restore receipts. **Stage C is not finished.** Project and page lifecycle, project creation
+or Restore receipts. **Stage C is not finished.** Project lifecycle, project creation
 recovery, saved project layout/progress, persistent Undo/Redo header controls, receipt reporting
 and the deferred transition retry cache are still open, and Stages D–E follow usable broad
 Undo/Redo; creation Undo must ship with its authorized recovery route rather than an unreachable
@@ -79,9 +79,11 @@ Redo. **[Slice 38 — optional-page history](completed/38-optional-page-history.
 Stage C2**: a first enable records `page.add`, whose Undo removes the created page only when
 nothing refers to it and whose Redo recreates the same id; later toggles record `page.update`,
 which moves one boolean and never touches content. `page` is a fifth family on `projects.write`.
-No Stage C phase is active. Project edits/archive/reactivation, saved layout/progress, project
-creation Undo with its recovery route, and persistent controls/receipt reporting remain.
-Split those into bounded candidates before implementing and keep one active phase. The
+**[Slice 39 — project update and lifecycle history](active/39-project-update-history.md) is the
+active Stage C3 plan.** It covers edits, archive/reactivation, reparenting and saved
+layout/progress settings through the existing `ProjectService.update` path. Project creation
+Undo with its recovery route, persistent controls/receipt reporting and the deferred retry
+cache remain for later bounded phases. The
 paragraphs below describe the earlier shipped system and its choices.
 
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported

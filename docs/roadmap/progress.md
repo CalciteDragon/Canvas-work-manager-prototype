@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 39 | Slice 39 — Project update and lifecycle history (Slice 34 Stage C3) | Project edits, status/archive/reactivation, reparenting, saved layout and progress settings reverse and replay in the owning actor's project history | [39-project-update-history.md](active/39-project-update-history.md) |
 
 ### Planned
 
