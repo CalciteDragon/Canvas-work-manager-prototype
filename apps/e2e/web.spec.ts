@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { PROTOTYPE_HOST, api as requestApi, seed, setClock } from './seed';
+import { PROTOTYPE_HOST, api as requestApi, createRoot, seed, setClock } from './seed';
 
 /**
  * §69's web path: load a seed, create a project, create a task, see it on the dashboard —
@@ -359,4 +359,44 @@ test('injected gateway failures roll back a task but preserve confirmed optional
   await page.locator('[data-panel-persona][data-persona-id="user-demo"]').click();
   await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');
   await expect(page.locator('[data-project-name]')).toHaveText('Home renovation');
+});
+
+/**
+ * Slice 39: the header's existing writes keep working on the `{ project, operation }` envelope, and
+ * each one lands in the person's own history for that project. The page offers no Undo of its own
+ * yet; the receipt reverses through the history route, and the page follows the frame.
+ */
+test('header rename and archive still write, and each records one project action the history can reverse', async ({ page }) => {
+  await seed('personal-workspace');
+  const root = await createRoot('Header history');
+  const history = () => requestApi.get<{ historyId: string | null; revision: number; undo: { actionId: string; operation: string; label: string } | null }>(
+    `/api/projects/${root.id}/history`,
+  );
+
+  await page.goto(`/projects/${root.id}`);
+  await expect(page.locator('[data-project-name]')).toHaveText('Header history');
+  await page.locator('[data-project-more]').click();
+  const patched = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().endsWith(`/api/projects/${root.id}`));
+  await page.locator('[data-project-rename-input]').fill('Renamed in the header');
+  await page.locator('[data-project-rename-submit]').click();
+  const body = (await (await patched).json()) as { project: { name: string }; operation: { operation: string } | null };
+  expect(body).toMatchObject({ project: { name: 'Renamed in the header' }, operation: { operation: 'project.update' } });
+  await expect(page.locator('[data-project-name]')).toHaveText('Renamed in the header');
+  expect((await history()).undo).toMatchObject({ operation: 'project.update', label: 'Updated "Renamed in the header"' });
+
+  // Undo through the route; the open header re-reads from the one committed frame.
+  const summary = await history();
+  await requestApi.post(`/api/history/${summary.historyId}/transition`, { actionId: summary.undo!.actionId, direction: 'undo', expectedRevision: summary.revision });
+  await expect(page.locator('[data-project-name]')).toHaveText('Header history', { timeout: 15_000 });
+  const redo = await requestApi.get<{ historyId: string; revision: number; redo: { actionId: string } }>(`/api/projects/${root.id}/history`);
+  await requestApi.post(`/api/history/${redo.historyId}/transition`, { actionId: redo.redo.actionId, direction: 'redo', expectedRevision: redo.revision });
+  await expect(page.locator('[data-project-name]')).toHaveText('Renamed in the header', { timeout: 15_000 });
+
+  // Archive through the header's confirmation: one project.archive step on top.
+  if (!(await page.locator('[data-project-more-menu]').isVisible())) await page.locator('[data-project-more]').click();
+  await page.locator('[data-project-archive]').click();
+  const archived = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().endsWith(`/api/projects/${root.id}`));
+  await page.locator('[data-project-archive-confirm-yes]').click();
+  expect(((await (await archived).json()) as { operation: { operation: string } }).operation.operation).toBe('project.archive');
+  await expect.poll(async () => (await history()).undo?.operation).toBe('project.archive');
 });

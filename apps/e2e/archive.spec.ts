@@ -478,7 +478,9 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     const afterRestoreUndo = await api<{ revision: number; undo: { actionId: string; operation: string } }>(
       'GET', `/api/projects/${root.id}/history`,
     );
-    expect(afterRestoreUndo.undo).toMatchObject({ actionId: secondReceipt.actionId, operation: 'section.remove' });
+    // Open archive first-enabled the Archive tab, and since Slice 38 that enable is its own
+    // `page.add` step, between the Restore and the removal below it.
+    expect(afterRestoreUndo.undo).toMatchObject({ operation: 'page.add' });
     // Put it back the way the page showed it, so the checks below read the restored canvas.
     await api('POST', `/api/history/${summary.historyId}/transition`, {
       actionId: summary.undo.actionId, direction: 'redo', expectedRevision: afterRestoreUndo.revision,
@@ -499,4 +501,58 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
   } finally {
     await client.close();
   }
+});
+
+/**
+ * Slice 39: an archived sub-project stays archived while it moves between roots, so its own
+ * history must still reverse the move — the narrow archived-subject exception — and each root's
+ * open Archive follows from the one committed frame. Its archive is then undone while archived.
+ */
+test('an archived sub-project moves between two open Archives, and its own archive undoes while archived', async ({ page }) => {
+  await seed('agent-heavy');
+  await setClock(PINNED_NOW);
+  const { workspace } = await api<{ workspace: { id: string } }>('GET', '/api/me');
+  const left = await api<{ id: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'root', name: 'Left shelf' });
+  const right = await api<{ id: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'root', name: 'Right shelf' });
+  for (const root of [left, right]) await api('PATCH', `/api/projects/${root.id}/pages/archive`, { enabled: true });
+  const shelved = await api<{ id: string }>('POST', '/api/projects', {
+    workspaceId: workspace.id, kind: 'subproject', parentProjectId: left.id, name: 'Shelved unit',
+  });
+  type Receipt = { historyId: string; actionId: string; revision: number; operation: string };
+  const archived = await api<{ operation: Receipt }>('PATCH', `/api/projects/${shelved.id}`, { status: 'archived' });
+  expect(archived.operation.operation).toBe('project.archive');
+  const row = page.locator(`[data-archived-item][data-archived-id="${shelved.id}"]`);
+
+  await page.goto(`/projects/${left.id}/pages/archive`);
+  await expect(row).toHaveCount(1);
+
+  const moved = await api<{ operation: Receipt }>('PATCH', `/api/projects/${shelved.id}`, { parentProjectId: right.id });
+  expect(moved.operation).toMatchObject({ operation: 'project.update', historyId: archived.operation.historyId });
+  await expect(row).toHaveCount(0, { timeout: 15_000 });
+  expect(await archiveKeys(right.id)).toContain(`subproject:${shelved.id}`);
+
+  const step = async (direction: 'undo' | 'redo') => {
+    const summary = await api<{ historyId: string; revision: number; undo: { actionId: string } | null; redo: { actionId: string } | null }>(
+      'GET', `/api/projects/${shelved.id}/history`,
+    );
+    return api<{ result: { operation: string; project: { status: string; parentProjectId?: string } } }>(
+      'POST', `/api/history/${summary.historyId}/transition`,
+      { actionId: summary[direction]!.actionId, direction, expectedRevision: summary.revision },
+    );
+  };
+  // The subject is archived throughout, and still its own move reverses.
+  expect((await step('undo')).result.project).toMatchObject({ status: 'archived', parentProjectId: left.id });
+  await expect(row).toHaveCount(1, { timeout: 15_000 });
+  expect(await archiveKeys(right.id)).not.toContain(`subproject:${shelved.id}`);
+
+  // Next in the stack is the archive itself: its Undo runs while the sub-project is archived.
+  expect((await step('undo')).result).toMatchObject({ operation: 'project.archive', project: { status: 'planning' } });
+  await expect(row).toHaveCount(0, { timeout: 15_000 });
+  expect((await step('redo')).result.project.status).toBe('archived');
+  await expect(row).toHaveCount(1, { timeout: 15_000 });
+
+  // Durable restoration still takes an explicit status, with or without the history.
+  const restored = await api<{ project: { status: string }; operation: Receipt }>('PATCH', `/api/projects/${shelved.id}`, { status: 'active' });
+  expect(restored).toMatchObject({ project: { status: 'active' }, operation: { operation: 'project.reactivate' } });
+  await expect(row).toHaveCount(0, { timeout: 15_000 });
 });

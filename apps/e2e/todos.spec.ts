@@ -226,3 +226,47 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
   expect(finalRows.items.filter(({ kind }) => kind === 'task').every(({ origin }) => origin.sectionId !== undefined)).toBe(true);
   expect(new Set(namesOf(finalRows.items)).size).toBe(finalRows.items.length);
 });
+
+/**
+ * Slice 39: a cross-root reparent publishes **one** frame, naming the sub-project's new root. The
+ * Todos page open on the root it left must still drop the row — and bring it back on Undo — which
+ * is what the project-record refresh rule is for. The history action lives in the sub-project's
+ * own history, and the page never offers Undo itself; the receipt comes back from PATCH.
+ */
+test('a cross-root reparent, its Undo and its Redo move a unit of work between two open chronologies', async ({ page }) => {
+  await seed('agent-heavy');
+  await setClock(PINNED_NOW);
+  const { workspace } = await api<{ workspace: { id: string } }>('GET', '/api/me');
+  const left = await api<{ id: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'root', name: 'Left root' });
+  const right = await api<{ id: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'root', name: 'Right root' });
+  for (const root of [left, right]) await api('PATCH', `/api/projects/${root.id}/pages/todos`, { enabled: true });
+  const traveller = await api<{ id: string }>('POST', '/api/projects', {
+    workspaceId: workspace.id, kind: 'subproject', parentProjectId: left.id, name: 'Traveller',
+  });
+  const todoNames = async (rootId: string) => namesOf((await api<{ items: Row[] }>('GET', `/api/projects/${rootId}/todos`)).items);
+  const row = page.locator('[data-todo-row]', { has: page.locator('[data-todo-link]', { hasText: 'Traveller' }) });
+
+  await page.goto(`/projects/${left.id}/pages/todos`);
+  await expect(row).toHaveCount(1);
+
+  const moved = await api<{ project: { parentProjectId: string }; operation: { historyId: string; actionId: string; revision: number; operation: string } }>(
+    'PATCH', `/api/projects/${traveller.id}`, { parentProjectId: right.id },
+  );
+  expect(moved.project.parentProjectId).toBe(right.id);
+  expect(moved.operation.operation).toBe('project.update');
+  // No reload: the one committed frame names the right root, and the left page still re-reads.
+  await expect(row).toHaveCount(0, { timeout: 15_000 });
+  expect(await todoNames(right.id)).toContain('subproject:Traveller');
+
+  const step = (direction: 'undo' | 'redo', expectedRevision: number) =>
+    api('POST', `/api/history/${moved.operation.historyId}/transition`, { actionId: moved.operation.actionId, direction, expectedRevision });
+  await step('undo', moved.operation.revision);
+  await expect(row).toHaveCount(1, { timeout: 15_000 });
+  expect(await todoNames(right.id)).not.toContain('subproject:Traveller');
+
+  await step('redo', moved.operation.revision + 1);
+  await expect(row).toHaveCount(0, { timeout: 15_000 });
+  await page.reload();
+  await expect(row).toHaveCount(0);
+  expect(await todoNames(right.id)).toContain('subproject:Traveller');
+});

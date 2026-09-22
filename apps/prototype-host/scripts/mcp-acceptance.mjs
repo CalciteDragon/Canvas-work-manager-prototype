@@ -33,8 +33,10 @@ const modernClient = (name) =>
 // Slice 15's two-transport acceptance check, extended by Slice 25.7 (§36) with a
 // subject-linked journal write, Slice 31 with disposable removal, receipt recovery and
 // persisted Undo, Slice 35 with Redo, the history summary and the sequential chain through
-// both transports, and Slice 38 with the optional-page toggle: a first enable undone to an
-// absent record, redone under the same id, and the boolean reversed both ways.
+// both transports, Slice 38 with the optional-page toggle: a first enable undone to an
+// absent record, redone under the same id, and the boolean reversed both ways, and Slice 39 with
+// existing-project writes: a rename, a cross-root reparent, an archive undone while archived and a
+// reactivation, each through its own project's history.
 const assertClient = async (client, title, dataFile, foreign, access) => {
   check(client.getProtocolEra() === 'modern', `${title} negotiated 2026-07-28`);
   const listed = await client.listTools();
@@ -83,6 +85,7 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
   const undo = await assertUndo(client, title, dataFile);
   await assertRestoreAndShortcuts(client, title);
   const foreignPageReceipt = await assertPageHistory(client, foreign, title, dataFile, access);
+  await assertProjectHistory(client, foreign, title, dataFile, access);
   await assertRecoveryAndGrants(client, foreign, title, dataFile, access);
   // After the block above revoked the second connection, which is what makes this a revocation.
   await assertRevokedPageReceipt(foreign, foreignPageReceipt, title, dataFile);
@@ -478,6 +481,94 @@ const assertPageHistory = async (client, foreign, title, dataFile, access) => {
   });
   check(receiptOf(foreignEnabled)?.operation === 'page.add', `${title} the second connection holds its own page receipt`);
   return receiptOf(foreignEnabled);
+};
+
+/**
+ * Slice 39: existing-project writes through a real transport. Each changed update_project,
+ * archive_project and restore_project answers { project, operation } with a receipt in the
+ * **subject's** own history; a no-op answers null. A sub-project moves across roots and back, a
+ * sub-project's own archive is undone while it is archived, and restore_project's reactivation
+ * reverses — all under projects.write alone, and none of it reachable by another connection.
+ */
+const assertProjectHistory = async (client, foreign, title, dataFile, access) => {
+  const idOf = (result) => result.structuredContent?.id ?? JSON.parse(result.content[0].text).id;
+  const first = idOf(await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Project history A ${title}` } }));
+  const second = idOf(await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Project history B ${title}` } }));
+  const child = idOf(await client.callTool({ name: 'create_project', arguments: { kind: 'subproject', parentProjectId: first, name: `Mover ${title}` } }));
+  const projectOf = async (id) => JSON.parse((await client.callTool({ name: 'get_project', arguments: { projectId: id } })).content[0].text);
+  const step = async (receipt, direction = 'undo') => {
+    const history = JSON.parse(await readFile(dataFile, 'utf8')).operationHistories.find(({ id }) => id === receipt.historyId);
+    return client.callTool({
+      name: `${direction}_operation`,
+      arguments: { historyId: receipt.historyId, actionId: receipt.actionId, expectedRevision: history.revision },
+    });
+  };
+
+  const renamed = await client.callTool({ name: 'update_project', arguments: { projectId: child, name: `Renamed ${title}`, targetDate: '2026-12-01' } });
+  const renameReceipt = receiptOf(renamed);
+  check(
+    renamed.isError !== true && renamed.structuredContent.project.name === `Renamed ${title}` && renameReceipt?.operation === 'project.update',
+    `${title} update_project answers the project and a project.update receipt`,
+  );
+  check(
+    JSON.stringify(Object.keys(renameReceipt).sort()) ===
+      JSON.stringify(['actionId', 'createdAt', 'expiresAt', 'historyId', 'label', 'operation', 'revision']),
+    `${title} the project receipt carries no payload`,
+  );
+  const stored = JSON.parse(await readFile(dataFile, 'utf8'));
+  check(
+    stored.operationHistories.find(({ id }) => id === renameReceipt.historyId)?.projectId === child,
+    `${title} the action is persisted in the sub-project's own history`,
+  );
+  const noop = await client.callTool({ name: 'update_project', arguments: { projectId: child, name: `Renamed ${title}` } });
+  check(noop.isError !== true && receiptOf(noop) === null, `${title} an update_project that changes nothing answers a null receipt`);
+
+  const beforeForeign = await businessState(dataFile);
+  const foreignText = await refusedText(() => foreign.callTool({
+    name: 'undo_operation',
+    arguments: { historyId: renameReceipt.historyId, actionId: renameReceipt.actionId, expectedRevision: renameReceipt.revision },
+  }));
+  check(foreignText !== null && foreignText.includes('was not found'), `${title} another connection gets not-found for the project history`);
+  check((await businessState(dataFile)) === beforeForeign, `${title} the foreign project refusal changes nothing on disk`);
+
+  const moved = await client.callTool({ name: 'update_project', arguments: { projectId: child, parentProjectId: second } });
+  const moveReceipt = receiptOf(moved);
+  check(moveReceipt?.historyId === renameReceipt.historyId, `${title} a cross-root reparent stays in the sub-project's history`);
+  check((await step(moveReceipt)).isError !== true && (await projectOf(child)).parentProjectId === first, `${title} Undo moves the sub-project back to its old root`);
+  check((await step(moveReceipt, 'redo')).isError !== true && (await projectOf(child)).parentProjectId === second, `${title} Redo moves it across again`);
+
+  const archived = await client.callTool({ name: 'archive_project', arguments: { projectId: child } });
+  const archiveReceipt = receiptOf(archived);
+  check(archived.structuredContent.project.status === 'archived' && archiveReceipt?.operation === 'project.archive', `${title} archive_project answers a project.archive receipt`);
+  const again = await client.callTool({ name: 'archive_project', arguments: { projectId: child } });
+  check(receiptOf(again) === null, `${title} archiving an archived project answers a null receipt`);
+  const undoneArchive = await step(archiveReceipt);
+  check(
+    undoneArchive.isError !== true && undoneArchive.structuredContent.result.project.status === 'planning',
+    `${title} Undo of the sub-project's own archive runs while it is archived`,
+  );
+  check((await step(archiveReceipt, 'redo')).isError !== true && (await projectOf(child)).status === 'archived', `${title} Redo archives it again`);
+
+  // **The minimal grant.** A project transition needs projects.write and nothing else.
+  const restored = await client.callTool({ name: 'restore_project', arguments: { projectId: child, status: 'on_hold' } });
+  const restoreReceipt = receiptOf(restored);
+  check(restoreReceipt?.operation === 'project.reactivate' && restored.structuredContent.project.status === 'on_hold', `${title} restore_project answers a project.reactivate receipt`);
+  for (const grant of ['tasks.write', 'reflections.write', 'projects.read']) {
+    await access.setPermissions('agent-claude', [grant]);
+    const beforeGrant = await businessState(dataFile);
+    const text = await refusedText(() => client.callTool({
+      name: 'undo_operation',
+      arguments: { historyId: restoreReceipt.historyId, actionId: restoreReceipt.actionId, expectedRevision: 99 },
+    }));
+    check(text !== null && text.includes('projects.write'), `${title} a project transition under ${grant} alone names the missing projects.write`);
+    check((await businessState(dataFile)) === beforeGrant, `${title} the project ${grant} refusal changes nothing`);
+  }
+  await access.setPermissions('agent-claude', ['projects.write']);
+  const minimal = await step(restoreReceipt);
+  check(minimal.isError !== true && minimal.structuredContent.result.project.status === 'archived', `${title} projects.write alone reverses the reactivation`);
+  check((await step(restoreReceipt, 'redo')).isError !== true, `${title} and redoes it while the sub-project is archived`);
+  await access.setPermissions('agent-claude', ['projects.read', 'projects.write', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write', 'workspace.read']);
+  check((await projectOf(child)).status === 'on_hold', `${title} the sub-project ends reactivated`);
 };
 
 /** A revoked connection cannot run a page transition either, and its page stays put. */

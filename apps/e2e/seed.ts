@@ -17,6 +17,7 @@ import type {
   OptionalProjectPageKind,
   ProjectPage,
   ProjectPageWriteResult,
+  ProjectWriteResult,
   ProjectSection,
   ResolvedSectionShortcut,
   SectionAddResult,
@@ -132,9 +133,12 @@ export const setPageEnabled = async (
 ): Promise<ProjectPage> =>
   (await api.patch<ProjectPageWriteResult>(`/api/projects/${projectId}/pages/${kind}`, { enabled }, persona)).page;
 
-/** Persist the project layout flag through the same host API used by the development panel. */
-export const setLayout = (projectId: string, projectLayoutMode: ProjectLayoutMode): Promise<Project> =>
-  api.patch<Project>(`/api/projects/${projectId}`, { projectLayoutMode });
+/**
+ * Persist the project layout flag through the same host API used by the development panel,
+ * unwrapping the `{ project, operation }` envelope the write has answered since Slice 39.
+ */
+export const setLayout = async (projectId: string, projectLayoutMode: ProjectLayoutMode): Promise<Project> =>
+  (await api.patch<ProjectWriteResult>(`/api/projects/${projectId}`, { projectLayoutMode })).project;
 
 /** A real MCP client for the live HTTP journey, not a fetch-shaped protocol imitation. */
 export const connectMcp = async (token: string, name = 'cwm-e2e'): Promise<Client> => {
