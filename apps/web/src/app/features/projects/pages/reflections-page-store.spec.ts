@@ -280,6 +280,26 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     expect(gateway.calls.length).toBeGreaterThan(before);
   });
 
+  // Slice 39: a completed sub-project moved to another root leaves this root's Completed Work, and
+  // the one frame announcing it names only the root it moved to.
+  it('refreshes on a project-record frame from another root, but not on another root’s content', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT, PAGE);
+    const settle = async () => {
+      for (let index = 0; index < 8; index += 1) await Promise.resolve();
+    };
+
+    const before = gateway.calls.length;
+    live.emit({ type: 'project.update_undone', entityType: 'project', entityId: 'project-moved', projectId: 'project-moved', rootProjectId: 'project-elsewhere' } as never);
+    await settle();
+    const afterRecord = gateway.calls.length;
+    expect(afterRecord).toBeGreaterThan(before);
+
+    live.emit({ type: 'reflection.added', entityType: 'reflection', entityId: 'reflection-far', projectId: 'project-elsewhere', rootProjectId: 'project-elsewhere' } as never);
+    await settle();
+    expect(gateway.calls.length).toBe(afterRecord);
+  });
+
   it('discards a late journal answer after the page changes projects', async () => {
     const { store, gateway } = setup();
     const stale = deferred<ProjectJournalResult>();

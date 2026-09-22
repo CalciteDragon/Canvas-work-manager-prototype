@@ -67,7 +67,7 @@ export const projectTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'restore_project',
     description:
-      'Restore an archived project with the explicit non-archived status supplied by the caller. Restoration never guesses the project’s prior status and does not cascade into archived descendants. Answers { project, operation } with a project.reactivate receipt; it stays available with no receipt at all, however long ago the project was archived.',
+      'Restore an archived project with the explicit non-archived status supplied by the caller. Restoration never guesses the project’s prior status and does not cascade into archived descendants. Answers { project, operation }: a project.reactivate receipt when the project left archived, a project.update receipt if it was not archived and only its status changed, or null when it already had that status. It needs no receipt to call, however long ago the project was archived.',
     permission: 'projects.write',
     inputSchema: RestoreProjectInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, status }, { actor, services }) => services.projects.update(actor, projectId, { status }),

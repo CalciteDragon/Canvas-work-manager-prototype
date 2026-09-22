@@ -10,6 +10,7 @@ import type {
   OperationReceipt,
   UndoResult,
 } from '@cwm/contracts';
+import { isProjectRecordEvent } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import { supersedesReceipt, undoFailureNotice, type SectionUndoNoticeState } from '../project-page-store';
@@ -465,7 +466,9 @@ export class ReflectionsPageStore {
       void this.load(projectId, pageId);
       return;
     }
-    if (event.rootProjectId !== projectId && event.projectId !== projectId) return;
+    // A completed sub-project moved out of this root is announced under its new root only
+    // (Slice 39), so a project-record frame from anywhere refreshes Completed Work too.
+    if (event.rootProjectId !== projectId && event.projectId !== projectId && !isProjectRecordEvent(event)) return;
     void this.refresh(projectId, pageId);
   }
 

@@ -89,11 +89,14 @@ describe('project.update payloads (§§26, 31, 39)', () => {
     expect(ProjectUpdateOperationSchema.safeParse(update({ changes: [{ field: 'name', before: 'A', after: 'A' }] })).success).toBe(false);
   });
 
-  it('reject a completion time that moved without its status, or a completion without its time', () => {
-    expect(ProjectUpdateOperationSchema.safeParse(update({ changes: [{ field: 'completedAt', before: AT, after: LATER }] })).success).toBe(false);
+  // The service's own normalization moves them independently — `archive()` keeps a completion time
+  // that a later edit clears, and a frozen clock can re-stamp the stored one — so each is recorded
+  // exactly as it moved rather than refused inside the person's write.
+  it('accept a completion time that moved alone, and a completion whose time was already stored', () => {
+    expect(ProjectUpdateOperationSchema.safeParse(update({ changes: [{ field: 'completedAt', before: AT, after: null }] })).success).toBe(true);
     expect(
       ProjectUpdateOperationSchema.safeParse(update({ changes: [{ field: 'status', before: 'active', after: 'completed' }] })).success,
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('reject an archive or reactivation disguised as an update, and an archived-throughout status change', () => {

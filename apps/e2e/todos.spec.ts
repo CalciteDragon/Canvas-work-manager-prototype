@@ -233,7 +233,7 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
  * is what the project-record refresh rule is for. The history action lives in the sub-project's
  * own history, and the page never offers Undo itself; the receipt comes back from PATCH.
  */
-test('a cross-root reparent, its Undo and its Redo move a unit of work between two open chronologies', async ({ page }) => {
+test('a cross-root reparent, its Undo and its Redo move a unit of work out of and back into the open chronology it left', async ({ page }) => {
   await seed('agent-heavy');
   await setClock(PINNED_NOW);
   const { workspace } = await api<{ workspace: { id: string } }>('GET', '/api/me');

@@ -449,10 +449,10 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
       .toMatchObject({ config: { text: 'Keep the middle prose' } });
 
     // Neither removal receipt can move the section right now, and for the same reason in both
-    // cases: the Restore this person just made is the next step in their stack. The first receipt
-    // was undone and then discarded by the second removal's write; the second is one step below the
-    // Restore. Recording Restore turned what used to be a retirement into an ordinary "not next",
-    // which is the point — the way back is to undo the Restore, not to lose the removal.
+    // cases: a newer step of this person's is next in their stack. The first receipt was undone and
+    // then discarded by the second removal's write; the second sits below the Restore and the page
+    // enable Open archive made. Recording Restore turned what used to be a retirement into an
+    // ordinary "not next", which is the point — the way back is to undo the Restore, not to lose the removal.
     const eventsBeforeRefusals = await api<unknown[]>('GET', '/api/activity?limit=5');
     for (const receipt of [firstReceipt, secondReceipt]) {
       const { revision } = await api<{ revision: number }>('GET', `/api/projects/${root.id}/history`);
@@ -479,11 +479,21 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
       'GET', `/api/projects/${root.id}/history`,
     );
     // Open archive first-enabled the Archive tab, and since Slice 38 that enable is its own
-    // `page.add` step, between the Restore and the removal below it.
+    // `page.add` step, between the Restore and the removal. Undo it too, and the removal is next.
     expect(afterRestoreUndo.undo).toMatchObject({ operation: 'page.add' });
+    await api('POST', `/api/history/${summary.historyId}/transition`, {
+      actionId: afterRestoreUndo.undo.actionId, direction: 'undo', expectedRevision: afterRestoreUndo.revision,
+    });
+    const belowPage = await api<{ revision: number; undo: { actionId: string; operation: string }; redo: { actionId: string } }>(
+      'GET', `/api/projects/${root.id}/history`,
+    );
+    expect(belowPage.undo).toMatchObject({ actionId: secondReceipt.actionId, operation: 'section.remove' });
+    await api('POST', `/api/history/${summary.historyId}/transition`, {
+      actionId: belowPage.redo.actionId, direction: 'redo', expectedRevision: belowPage.revision,
+    });
     // Put it back the way the page showed it, so the checks below read the restored canvas.
     await api('POST', `/api/history/${summary.historyId}/transition`, {
-      actionId: summary.undo.actionId, direction: 'redo', expectedRevision: afterRestoreUndo.revision,
+      actionId: summary.undo.actionId, direction: 'redo', expectedRevision: belowPage.revision + 1,
     });
     await expect.poll(combined).toEqual(appended);
     // The person's history is not the agent connection's to reach. The baseline is re-read here:
@@ -508,7 +518,7 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
  * history must still reverse the move — the narrow archived-subject exception — and each root's
  * open Archive follows from the one committed frame. Its archive is then undone while archived.
  */
-test('an archived sub-project moves between two open Archives, and its own archive undoes while archived', async ({ page }) => {
+test('an archived sub-project leaves and returns to the open Archive it moved from, and its own archive undoes while archived', async ({ page }) => {
   await seed('agent-heavy');
   await setClock(PINNED_NOW);
   const { workspace } = await api<{ workspace: { id: string } }>('GET', '/api/me');

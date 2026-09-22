@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { OperationHistoryDirection, OperationReceipt, Project, ProjectId } from '@cwm/contracts';
+import { PROJECT_RECORD_EVENT_TYPES, type OperationHistoryDirection, type OperationReceipt, type Project, type ProjectId } from '@cwm/contracts';
 import { agentActorFor, buildHarness, MINE } from '../test/test-support';
 import type { ActorContext } from './actor';
 import { DomainRuleError } from './errors';
@@ -185,7 +185,7 @@ describe('project.update: reparenting rechecks the hierarchy (§26)', () => {
     expect((await project(h, child.id)).parentProjectId).toBe(other.id);
   });
 
-  it('refuses a missing or newly cyclic destination without a partial move', async () => {
+  it('refuses a newly cyclic destination without a partial move', async () => {
     const h = buildHarness();
     const { other, child } = await twoRoots(h);
     const grandchild = await createChild(h, child.id, 'Cabinets');
@@ -366,5 +366,106 @@ describe('project.archive and project.reactivate (§31)', () => {
     await h.projectWriteService.update(h.actor, child.id, { icon: '🔪' });
     expect((await h.operationHistoryService.summary(h.actor, child.id)).redo).toBeNull();
     expect((await h.operationHistoryService.summary(h.actor, MINE)).redo).toMatchObject({ actionId: rootRename.operation!.actionId });
+  });
+});
+
+describe('project-record live vocabulary (§62)', () => {
+  it('every event a project write or its transition records is a project-record frame', async () => {
+    const h = buildHarness();
+    const child = await createChild(h, MINE, 'Kitchen');
+    const writes = [
+      await h.projectWriteService.update(h.actor, child.id, { name: 'Renamed' }),
+      await h.projectWriteService.archive(h.actor, child.id),
+    ];
+    const reactivated = await h.projectWriteService.update(h.actor, child.id, { status: 'active' });
+    for (const receipt of [reactivated, ...writes.reverse()].map(({ operation }) => operation!)) {
+      await step(h, receipt);
+    }
+    for (const receipt of [...writes.reverse(), reactivated].map(({ operation }) => operation!)) {
+      await step(h, receipt, 'redo');
+    }
+
+    const actions = (await h.activity.list(h.actor)).filter((event) => event.entityId === child.id && event.action !== 'project.created').map(({ action }) => action);
+    expect(new Set(actions)).toEqual(new Set(PROJECT_RECORD_EVENT_TYPES));
+  });
+});
+
+describe('project history review regressions (Slice 39)', () => {
+  it('records an edit that clears a completion time left behind by archive(), and Undo brings it back', async () => {
+    const h = buildHarness();
+    const completedAt = h.clock.now().toISOString();
+    await h.projectService.update(someoneElse, MINE, { status: 'completed' });
+    // `archive()` keeps the completion time; an ordinary edit afterwards clears it.
+    await h.projectService.archive(someoneElse, MINE);
+    expect((await project(h, MINE)).completedAt).toBe(completedAt);
+
+    const renamed = await h.projectWriteService.update(h.actor, MINE, { name: 'Shelved' });
+    expect(renamed.operation).toMatchObject({ operation: 'project.update' });
+    expect(renamed.project.completedAt).toBeUndefined();
+
+    await step(h, renamed.operation!);
+    expect(await project(h, MINE)).toMatchObject({ name: 'Project project-mine', status: 'archived', completedAt });
+  });
+
+  it('records a completion whose time was already stored, at a frozen clock', async () => {
+    const h = buildHarness();
+    await h.projectService.update(someoneElse, MINE, { status: 'completed' });
+    await h.projectService.archive(someoneElse, MINE);
+
+    const reopened = await h.projectWriteService.update(h.actor, MINE, { status: 'completed' });
+    expect(reopened.operation).toMatchObject({ operation: 'project.reactivate' });
+    await step(h, reopened.operation!);
+    expect((await project(h, MINE)).status).toBe('archived');
+  });
+
+  it('names a status someone else moved as a state to restore, not a field to retype', async () => {
+    const h = buildHarness();
+    const archived = await h.projectWriteService.archive(h.actor, MINE);
+    await h.projectService.update(someoneElse, MINE, { status: 'active' });
+
+    const refusal = await refusalOf(step(h, archived.operation!));
+    expect(refusal.details).toMatchObject({
+      reason: 'history_conflict',
+      conflicts: [{ entityType: 'project', id: MINE, problem: 'archive-state-changed', nextStep: 'restore-state-and-retry' }],
+    });
+  });
+
+  it('refuses Undo of a reactivation once a live child appeared', async () => {
+    const h = buildHarness();
+    await h.projectService.archive(someoneElse, MINE);
+    const reactivated = await h.projectWriteService.update(h.actor, MINE, { status: 'active' });
+    const child = await createChild(h, MINE, 'New work');
+    const before = state(h);
+
+    const refusal = await refusalOf(step(h, reactivated.operation!));
+    expect(refusal.details).toMatchObject({
+      reason: 'history_conflict',
+      conflicts: [{ entityType: 'project', id: child.id, problem: 'new-dependent' }],
+    });
+    expect(state(h)).toEqual(before);
+  });
+
+  it('keeps the exception narrow: a live-made edit and a section step still block on an archived subject', async () => {
+    const h = buildHarness();
+    const rename = await h.projectWriteService.update(h.actor, MINE, { name: 'Live rename' });
+    await h.projectService.archive(someoneElse, MINE);
+    expect((await refusalOf(step(h, rename.operation!))).details).toMatchObject({ reason: 'history_blocked', blockingProjectId: MINE });
+
+    const h2 = buildHarness();
+    const notes = await h2.sectionWriteService.add(h2.actor, MINE, { type: 'rich-text' });
+    await h2.projectService.archive(someoneElse, MINE);
+    expect((await refusalOf(step(h2, notes.operation))).details).toMatchObject({ reason: 'history_blocked', blockingProjectId: MINE });
+  });
+
+  it('records nothing for a refused write', async () => {
+    const h = buildHarness();
+    await createChild(h, MINE, 'Live child');
+    const before = state(h);
+
+    await expect(h.projectWriteService.update(h.actor, MINE, { progressFormula: 'manual' })).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(h.projectWriteService.update(h.actor, MINE, { parentProjectId: MINE })).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(h.projectWriteService.archive(h.actor, MINE)).rejects.toBeInstanceOf(DomainRuleError);
+
+    expect(state(h)).toEqual(before);
   });
 });

@@ -232,7 +232,11 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
     };
 
     const before = reads();
+    const shown = store.items();
     live.emit({ type: 'project.update_undone', entityType: 'project', entityId: 'project-moved', projectId: 'project-moved', rootProjectId: 'project-elsewhere' } as never);
+    // A live re-read is quiet: the list stays on screen instead of flashing "Loading archive…".
+    expect(store.loading()).toBe(false);
+    expect(store.items()).toEqual(shown);
     await settle();
     expect(reads()).toBe(before + 1);
 

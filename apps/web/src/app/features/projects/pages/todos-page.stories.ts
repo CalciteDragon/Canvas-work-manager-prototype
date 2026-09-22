@@ -107,7 +107,8 @@ const gatewayFor = (
             ? Promise.reject(new GatewayError('unreachable', 0, 'Completion was refused.'))
             : Promise.resolve(TaskSchema.parse({ ...taskRowTask(id), status: 'done', completedAt: AT })),
     },
-    projects: { update: () => Promise.resolve(unit('completed')) },
+    // The Slice 39 write envelope; the store reads `project` and ignores the receipt.
+    projects: { update: () => Promise.resolve({ project: unit('completed'), operation: null }) },
   }) as unknown as WorkManagerGateway;
 
 const result = (items: ProjectTodoItem[]): ProjectTodosResult => ({ projectId: ROOT, items });

@@ -122,6 +122,14 @@ const nextStepFor = (problem: UndoConflict['problem']): UndoConflictNextStep => 
   }
 };
 
+/**
+ * What a recorded field someone else moved means. A parent is a move to put back and a status is a
+ * state to restore — both repairable by making the project match again — while any other field is a
+ * later edit only a person can reconcile.
+ */
+const driftProblem = (field: Field): UndoConflict['problem'] =>
+  field === 'parentProjectId' ? 'reparented' : field === 'status' ? 'archive-state-changed' : 'field-changed';
+
 const conflict = (id: string, problem: UndoConflict['problem'], title?: string): UndoConflict => ({
   entityType: 'project',
   id,
@@ -159,7 +167,14 @@ const parentConflicts = async (
   while (current !== null && !seen.has(current.id)) {
     if (current.parentProjectId === subject.id) return [conflict(parent.id, 'reparented', parent.name)];
     seen.add(current.id);
-    current = current.parentProjectId === undefined ? null : await repositories.projects.find(current.parentProjectId);
+    if (current.parentProjectId === undefined) {
+      current = null;
+      break;
+    }
+    const next: Project | null = await repositories.projects.find(current.parentProjectId);
+    // A broken chain is what the forward service refuses as not found; so does its reversal.
+    if (next === null) return [conflict(current.parentProjectId, 'missing')];
+    current = next;
   }
   if (current !== null) return [conflict(parent.id, 'reparented', parent.name)];
   if (!checkAncestry) return [];
@@ -189,7 +204,7 @@ const writeProject = async (
   else {
     for (const change of operation.changes) {
       if (JSON.stringify(valueOf(current, change.field)) !== JSON.stringify(change[expected])) {
-        conflicts.push(conflict(current.id, change.field === 'parentProjectId' ? 'reparented' : 'field-changed', current.name));
+        conflicts.push(conflict(current.id, driftProblem(change.field), current.name));
         break;
       }
     }

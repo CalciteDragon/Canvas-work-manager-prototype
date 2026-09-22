@@ -7,8 +7,7 @@ import type {
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
-import { isProjectRecordEvent } from '../project-record-event';
-import type { LiveEvent } from '@cwm/contracts';
+import { isProjectRecordEvent, type LiveEvent } from '@cwm/contracts';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -45,14 +44,20 @@ export class ArchivePageStore {
     });
   }
 
-  load(projectId: ProjectId): Promise<boolean> {
+  /**
+   * Reads the root's projection. `quiet` is the live path: when this root's list is already on
+   * screen it stays there during the re-read instead of flashing "Loading archive…", which matters
+   * since Slice 39 widened the frames that re-read it to project records from any root.
+   */
+  load(projectId: ProjectId, options: { quiet?: boolean } = {}): Promise<boolean> {
     if (this.destroyed) return Promise.resolve(false);
     const generation = ++this.generation;
     const previousProjectId = this.projectIdState();
     this.projectIdState.set(projectId);
     if (previousProjectId !== projectId) this.resultState.set(null);
+    const quiet = options.quiet === true && this.resultState() !== null;
     return this.track(async () => {
-      this.loadingState.set(true);
+      if (!quiet) this.loadingState.set(true);
       this.errorState.set(null);
       try {
         const result = await this.gateway.archive.get(projectId);
@@ -138,7 +143,7 @@ export class ArchivePageStore {
     // A project-record frame from another root still re-reads: a cross-root move names only the
     // sub-project's new root (Slice 39).
     if (event.rootProjectId !== projectId && event.projectId !== projectId && !isProjectRecordEvent(event)) return;
-    void this.load(projectId);
+    void this.load(projectId, { quiet: true });
   }
 
   private onLiveConnected(): void {

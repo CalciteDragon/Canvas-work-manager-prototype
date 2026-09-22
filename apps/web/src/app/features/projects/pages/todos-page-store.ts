@@ -1,8 +1,7 @@
 import { DestroyRef, Injectable, PendingTasks, inject, signal } from '@angular/core';
-import type { LiveEvent, ProjectId, ProjectTodoItem } from '@cwm/contracts';
+import { isProjectRecordEvent, type LiveEvent, type ProjectId, type ProjectTodoItem } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
-import { isProjectRecordEvent } from '../project-record-event';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 

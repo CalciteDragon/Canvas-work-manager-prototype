@@ -24,9 +24,11 @@ import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectSchema, ProjectS
 const optionalText = z.string().nullable();
 
 /**
- * One typed field footprint. `status` and `completedAt` travel **together** whenever the timestamp
- * moves, because the service derives it from the status: reversing one without the other would
- * leave a completed project with no completion time, or a reopened one still claiming a finish.
+ * One typed field footprint. `status` and `completedAt` are separate fields recorded exactly as the
+ * commit moved them. The service derives the timestamp from the status, but not always in step:
+ * `archive()` keeps a completed project's time while a later ordinary edit clears it, and a
+ * completion at a frozen clock can re-stamp the time already stored. So either may appear without
+ * the other, and Undo writes each back exactly — never a regenerated time.
  *
  * `parentProjectId` never clears. Only a sub-project records a reparent, and a sub-project always
  * has a parent (§26); a `null` here would describe a conversion to a root no service can perform.
@@ -55,7 +57,7 @@ type Changes = readonly ProjectFieldChange[];
 const statusChangeOf = (changes: Changes) =>
   changes.find((change): change is Extract<ProjectFieldChange, { field: 'status' }> => change.field === 'status');
 
-/** The footprint rules every project payload shares: distinct, real, and a coherent completion pair. */
+/** The footprint rules every project payload shares: each field once, and each one really moved. */
 const assertFootprint = (changes: Changes, ctx: z.RefinementCtx): void => {
   const seen = new Set<string>();
   for (const [index, change] of changes.entries()) {
@@ -64,13 +66,6 @@ const assertFootprint = (changes: Changes, ctx: z.RefinementCtx): void => {
     if (JSON.stringify(change.before) === JSON.stringify(change.after)) {
       ctx.addIssue({ code: 'custom', path: ['changes', index], message: 'a recorded field actually changed' });
     }
-  }
-  const status = statusChangeOf(changes);
-  if (seen.has('completedAt') && status === undefined) {
-    ctx.addIssue({ code: 'custom', path: ['changes'], message: 'a completion time moves only with its status' });
-  }
-  if (status !== undefined && status.after === 'completed' && !seen.has('completedAt')) {
-    ctx.addIssue({ code: 'custom', path: ['changes'], message: 'a completion records its completion time' });
   }
 };
 
