@@ -287,7 +287,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
    * about the project, not the receipt. `projectWriteService` is the real service, and the
    * project-history tests use it.
    */
-  const projectWriteService = new ProjectService({ projects, pages, activity, history: historyRecorder, clock, ids, unitOfWork });
+  const projectWriteService = new ProjectService({ projects, pages, sections, shortcuts, activity, history: historyRecorder, clock, ids, unitOfWork });
   const legacyProjectService = Object.create(projectWriteService) as Omit<ProjectService, 'update' | 'archive'> & {
     update: (...args: Parameters<ProjectService['update']>) => Promise<Project>;
     archive: (...args: Parameters<ProjectService['archive']>) => Promise<Project>;

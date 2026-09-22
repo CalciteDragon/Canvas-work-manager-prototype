@@ -64,7 +64,7 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
     store,
     events,
     activity,
-    projects: new ProjectService({ projects, pages, activity, history, clock, ids, unitOfWork }),
+    projects: new ProjectService({ projects, pages, sections, shortcuts, activity, history, clock, ids, unitOfWork }),
     pages: new ProjectPageService({ pages, projects, activity, history, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     sections: sectionService,

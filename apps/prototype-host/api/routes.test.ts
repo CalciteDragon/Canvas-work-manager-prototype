@@ -160,7 +160,7 @@ const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-0
   return createApiRoutes({
     store,
     activity,
-    projects: new ProjectService({ projects, pages, activity, history, clock, ids, unitOfWork }),
+    projects: new ProjectService({ projects, pages, sections, shortcuts, activity, history, clock, ids, unitOfWork }),
     pages: new ProjectPageService({ pages, projects, activity, history, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     sections: sectionService,
@@ -774,6 +774,26 @@ describe('shortcut routes (§27, §68)', () => {
 
     expect(refused).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
     expect(await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).toEqual(before);
+  });
+
+  // Once answered 500: the move reached commit-time integrity as a crossed placement (§§26, 27, 61).
+  it('answers 409 and changes nothing when a reparent would carry a Home shortcut across roots', async () => {
+    const routes = nestedRoutes();
+    const renovation = ProjectSchema.parse((await call(routes, 'GET', `/api/projects/${root}`)).body);
+    const other = ProjectSchema.parse(
+      (await call(routes, 'POST', '/api/projects', { body: { workspaceId: renovation.workspaceId, kind: 'root', name: 'Other root' } })).body,
+    );
+    const kitchenBefore = await call(routes, 'GET', '/api/projects/project-kitchen');
+    const placementsBefore = await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`);
+
+    const refused = await call(routes, 'PATCH', '/api/projects/project-kitchen', { body: { parentProjectId: other.id } });
+
+    expect(refused).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
+    // Both seeded Kitchen placements: its task list and its reflections.
+    expect(JSON.stringify(refused.body)).toContain('shortcut-renovation-kitchen-tasks');
+    expect(JSON.stringify(refused.body)).toContain('shortcut-renovation-kitchen-reflections');
+    expect(await call(routes, 'GET', '/api/projects/project-kitchen')).toEqual(kitchenBefore);
+    expect(await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).toEqual(placementsBefore);
   });
 });
 

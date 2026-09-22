@@ -9,6 +9,7 @@ import {
   type ProjectId,
   type ProjectUndoOperation,
   type RedoResult,
+  type SectionShortcut,
   type UndoConflict,
   type UndoConflictNextStep,
   type UndoResult,
@@ -207,15 +208,20 @@ const rootOf = async (repositories: ProjectHistoryRepositories, projectId: Proje
 };
 
 /**
+ * The Home shortcuts moving `subject` under `destinationParentId` would carry across root trees.
+ *
  * A move to another root carries every section in the subject's subtree with it, so a Home
- * shortcut on the **old** root that places one of them would cross root trees — a state commit-time
- * integrity rejects. Refused here instead, typed, before any write: the placement has to go first.
+ * shortcut on the **old** root that places one of them would cross root trees — a state
+ * commit-time integrity rejects. Both the forward write (`ProjectService.update`) and a reparent's
+ * Undo or Redo refuse on a non-empty answer, typed, before any write: the placement has to go
+ * first. A move within one root, a placement already on the destination root and a broken or
+ * cyclic chain (refused elsewhere as not found) all answer empty.
  */
-const crossRootShortcutConflicts = async (
+export const shortcutsCarriedAcrossRoots = async (
   repositories: ProjectHistoryRepositories,
   subject: Project,
   destinationParentId: ProjectId,
-): Promise<UndoConflict[]> => {
+): Promise<SectionShortcut[]> => {
   const [from, to] = await Promise.all([rootOf(repositories, subject.id), rootOf(repositories, destinationParentId)]);
   if (from === undefined || to === undefined || from === to) return [];
   const projects = await repositories.projects.list({ workspaceId: subject.workspaceId });
@@ -229,17 +235,28 @@ const crossRootShortcutConflicts = async (
       }
     }
   }
-  const conflicts: UndoConflict[] = [];
+  const carried: SectionShortcut[] = [];
   for (const shortcut of await repositories.shortcuts.list()) {
     // A placement's destination is its Home page's root; one already on the new root stays legal.
     if ((await repositories.pages.find(shortcut.pageId))?.projectId === to) continue;
     const source = await repositories.sections.find(shortcut.sourceSectionId);
-    if (source !== null && subtree.has(source.projectId)) {
-      conflicts.push({ entityType: 'shortcut', id: shortcut.id, problem: 'shortcut-reference', nextStep: 'remove-reference-and-retry' });
-    }
+    if (source !== null && subtree.has(source.projectId)) carried.push(shortcut);
   }
-  return conflicts;
+  return carried;
 };
+
+/** The history executor's reading of the same check: one `shortcut-reference` conflict per placement. */
+const crossRootShortcutConflicts = async (
+  repositories: ProjectHistoryRepositories,
+  subject: Project,
+  destinationParentId: ProjectId,
+): Promise<UndoConflict[]> =>
+  (await shortcutsCarriedAcrossRoots(repositories, subject, destinationParentId)).map(({ id }) => ({
+    entityType: 'shortcut',
+    id,
+    problem: 'shortcut-reference',
+    nextStep: 'remove-reference-and-retry',
+  }));
 
 /** Runs one direction: preflight every recorded field and the hierarchy rules, then one write. */
 const writeProject = async (

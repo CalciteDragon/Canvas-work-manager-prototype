@@ -12,14 +12,14 @@ import {
   type ProjectWriteResult,
   type UpdateProjectInput,
 } from '@cwm/contracts';
-import type { ProjectPageRepository, ProjectRepository, UnitOfWork } from '@cwm/repositories';
+import type { ProjectPageRepository, ProjectRepository, SectionRepository, SectionShortcutRepository, UnitOfWork } from '@cwm/repositories';
 import { assertPermitted, assertValidActor, type ActorContext } from './actor';
 import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
 import type { OperationRecorder } from './operation-recorder';
-import { captureProjectWrite, projectWriteLabel } from './project-history';
+import { captureProjectWrite, projectWriteLabel, shortcutsCarriedAcrossRoots } from './project-history';
 import { archivedAncestry } from './project-visibility';
 
 /**
@@ -34,6 +34,13 @@ export interface ProjectServiceDependencies {
    * graph for no invariant that needs one.
    */
   pages: ProjectPageRepository;
+  /**
+   * Read, never written, to refuse a reparent that would carry a Home shortcut's source out of its
+   * root (§27) — the check `project-history.ts` shares with a reparent's Undo and Redo. Repositories
+   * for the same reason `pages` is one: a placement service here would be a new edge for a read.
+   */
+  sections: SectionRepository;
+  shortcuts: SectionShortcutRepository;
   activity: ActivityService;
   /**
    * Makes each changed update or archive of an existing project undoable, in the **subject's own**
@@ -218,6 +225,9 @@ export class ProjectService {
       if ((reparenting || reactivating) && next.parentProjectId !== undefined) {
         await this.assertAncestryActive(actor, await this.require(actor, next.parentProjectId));
       }
+      // After the parent is known to be usable, so a missing or cyclic destination is refused as
+      // that, not misread as a move to another root.
+      if (reparenting) await this.assertNoShortcutCarriedAcrossRoots(current, next.parentProjectId!);
 
       // §26: completion is explicit and recorded. Derived from the status rather than
       // accepted as an input, so the two cannot disagree, and cleared on reopening so a
@@ -276,6 +286,20 @@ export class ProjectService {
       operation,
     });
     return ProjectWriteResultSchema.parse({ project: updated, operation: receipt });
+  }
+
+  /**
+   * A move to another root must not take a section an old-root Home shortcut places: that
+   * placement would cross root trees, which commit-time integrity rejects as a defect rather than
+   * a refusal. Naming each placement lets the caller remove it and retry (§§26, 27, 61).
+   */
+  private async assertNoShortcutCarriedAcrossRoots(subject: Project, parentId: ProjectId): Promise<void> {
+    const carried = await shortcutsCarriedAcrossRoots(this.dependencies, subject, parentId);
+    if (carried.length === 0) return;
+    const named = carried.map(({ id }) => `"${id}"`).join(', ');
+    throw new DomainRuleError(
+      `project "${subject.id}" cannot move to another root while Home shortcut ${named} on its current root places a section from it; remove that placement first`,
+    );
   }
 
   /** An implicit cascade would archive work the caller never named (§58 flags archive). */

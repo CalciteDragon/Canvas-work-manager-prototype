@@ -1,4 +1,4 @@
-import { ProjectSchema, isSubproject, type CreateProjectInput, type CreateSubprojectInput, type ProjectId } from '@cwm/contracts';
+import { ProjectSchema, isSubproject, type CreateProjectInput, type CreateSubprojectInput, type ProjectId, type ProjectPageId } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
@@ -432,5 +432,74 @@ describe('ProjectService write results and history (Slice 39, §31)', () => {
 
     expect(project).not.toHaveProperty('operation');
     expect(harness.store.snapshot().operationActions).toEqual([]);
+  });
+});
+
+/**
+ * A move to another root carries every section in the subtree with it, so an old-root Home shortcut
+ * placing one of them would cross root trees — which commit-time integrity rejects as a defect, not a
+ * refusal. The forward write refuses first, the same rule a reparent reversal applies (§§26, 27, 61).
+ */
+describe('ProjectService.update refuses a reparent that would carry a Home shortcut across roots', () => {
+  const setUp = async () => {
+    const harness = buildHarness();
+    const other = await create(harness, { name: 'Other root' });
+    const child = await create(harness, { name: 'Kitchen', parentProjectId: MINE });
+    const grandchild = await create(harness, { name: 'Cabinets', parentProjectId: child.id });
+    const staying = await create(harness, { name: 'Staying', parentProjectId: MINE });
+    const home = (await harness.pages.list({ projectId: MINE })).find(({ kind }) => kind === 'home')!;
+    return { harness, other, child, grandchild, staying, home };
+  };
+  const place = async (harness: ReturnType<typeof buildHarness>, projectId: ProjectId, pageId: ProjectPageId) => {
+    const { section } = await harness.sectionWriteService.add(harness.actor, projectId, { type: 'rich-text', title: 'Notes' });
+    return (await harness.sectionShortcutWriteService.create(harness.actor, MINE, { pageId, sourceSectionId: section.id })).shortcut;
+  };
+  const written = (harness: ReturnType<typeof buildHarness>) => {
+    const document = harness.store.snapshot();
+    return JSON.stringify([document.projects, document.sectionShortcuts, document.operationActions, document.activityEvents]);
+  };
+
+  it('names the placement of a descendant’s section, writes nothing, then moves once it is removed', async () => {
+    const { harness, other, child, grandchild, home } = await setUp();
+    const shortcut = await place(harness, grandchild.id, home.id);
+    const before = written(harness);
+
+    const refusal = harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: other.id });
+    await expect(refusal).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(refusal).rejects.toThrow(shortcut.id);
+    await expect(refusal).rejects.toThrow(/remove/);
+    expect(written(harness)).toEqual(before);
+
+    await harness.sectionShortcutWriteService.remove(harness.actor, shortcut.id);
+    const moved = await harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: other.id });
+    expect(moved.project.parentProjectId).toBe(other.id);
+  });
+
+  it('names every carried placement, refuses a combined edit whole, and leaves the cycle refusal first', async () => {
+    const { harness, other, child, grandchild, home } = await setUp();
+    const first = await place(harness, child.id, home.id);
+    const second = await place(harness, grandchild.id, home.id);
+    const before = written(harness);
+
+    const refusal = harness.projectWriteService.update(harness.actor, child.id, { name: 'Renamed', parentProjectId: other.id });
+    await expect(refusal).rejects.toThrow(first.id);
+    await expect(refusal).rejects.toThrow(second.id);
+    expect(written(harness)).toEqual(before);
+
+    // A destination inside the subject is a cycle before it is a move to anywhere.
+    await expect(harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: grandchild.id })).rejects.toThrow(/nested inside itself/);
+  });
+
+  it('allows a move within the root, and a cross-root move whose placements source work that stays', async () => {
+    const { harness, other, child, staying, home } = await setUp();
+    await place(harness, child.id, home.id);
+    await place(harness, staying.id, home.id);
+
+    // Same root: the placement stays inside one tree, so nothing crosses.
+    expect((await harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: staying.id })).project.parentProjectId).toBe(staying.id);
+    await harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: MINE });
+
+    const mover = await create(harness, { name: 'Mover', parentProjectId: MINE });
+    expect((await harness.projectWriteService.update(harness.actor, mover.id, { parentProjectId: other.id })).project.parentProjectId).toBe(other.id);
   });
 });
