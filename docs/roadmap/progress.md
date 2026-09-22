@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 38 | Slice 38 — Optional-page operation history (Slice 34 Stage C2) | Optional-page Undo/Redo with safe first-enable reversal; implementation not started | [38-optional-page-history.md](active/38-optional-page-history.md) |
 
 ### Planned
 
