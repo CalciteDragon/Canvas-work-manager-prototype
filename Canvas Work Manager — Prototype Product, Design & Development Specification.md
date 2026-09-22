@@ -1405,7 +1405,10 @@ sits in the canvas like anything else.
 
 Rules the model enforces rather than the UI suggesting:
 
-- source and destination are in the same root tree, and the same workspace
+- source and destination are in the same root tree, and the same workspace — and they stay so:
+  moving a sub-project to another root is refused while a Home shortcut on its current root places a
+  section from anywhere in its subtree, naming each placement to remove first (*Slice 40*,
+  [why](docs/decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md))
 - no shortcut to a shortcut, and no shortcut to itself
 - removing a placement never archives the source
 - an archived source shows an unavailable placeholder — not its content — and restoring the

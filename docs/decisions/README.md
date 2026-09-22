@@ -78,6 +78,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [A recorded Restore is a new action, and a shortcut action owns only its placement](2026-09-section-restore-and-shortcut-history.md) | Duplication as an add, exact Restore footprints, destination-owned placement history | current (Slice 37) |
 | [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](2026-09-optional-page-operation-history.md) | Exact creation inverse after a dependency preflight, nondestructive toggle history, and the freeze distinction | current (Slice 38) |
 | [An existing project's writes are one action family, and its own archive can be undone while archived](2026-09-project-update-operation-history.md) | Subject-owned project history, changed-field footprints, hierarchy rechecks and the narrow archived-subject exception | current (Slice 39) |
+| [A forward reparent refuses a Home shortcut it would carry across roots](2026-09-forward-reparent-refuses-cross-root-shortcut.md) | `ProjectService.update` shares the history executor's cross-root placement check; 409 naming each placement | current (Slice 40) |
 
 ## Repositories
 

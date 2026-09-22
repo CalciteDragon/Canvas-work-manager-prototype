@@ -108,7 +108,7 @@
   `SectionShortcutService`, `ProjectPageService` and `ProjectService` hold an
   `OperationRecorder` for the same reason `SectionService` does, and `shortcut-history.ts`,
   `page-history.ts` and `project-history.ts` each declare their own narrower repository type — no task
-  or reflection repository, and for a project only the project repository — so a reviewer can see from
+  or reflection repository, and for a project only the project repository written — so a reviewer can see from
   the signature that a placement, page or project inverse cannot reach a row. A page's dependency preflight stops at the **section** level for that reason: §27's
   ownership chain runs `project → page → section → row`, so a page with no section has no row. A new edge is an AGENTS.md boundary
   change and needs saying so.
@@ -133,7 +133,12 @@
   without its value; and, for a move to another root, no old-root Home shortcut placing a section in
   the subject's subtree (`shortcut-reference`) — commit-time integrity would reject it otherwise.
   `ProjectHistoryRepositories` therefore also reads pages, sections and placements, and writes only
-  projects. `completedAt` is written back verbatim. The archived-subject exception lives
+  projects. That last check is one exported function, `shortcutsCarriedAcrossRoots`, which
+  `ProjectService.update` runs too: after the parent is known usable and before `commit` (afterwards
+  both roots read the same and it would pass), a forward move refuses with a `DomainRuleError` naming
+  each placement to remove, so the host answers 409 rather than a 500 from integrity. `ProjectService`
+  reads `SectionRepository` and `SectionShortcutRepository` for it — repositories, not a new service
+  edge ([decision](../../decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md)). `completedAt` is written back verbatim. The archived-subject exception lives
   only in `OperationHistoryService.transitionBlocker` and only for the three steps
   `mayRunWhileSubjectArchived` names, and only for the project the history belongs to
   ([decision](../../decisions/2026-09-project-update-operation-history.md)).

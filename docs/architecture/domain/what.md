@@ -45,7 +45,7 @@ flowchart TB
   task --> section
   reflection --> section
   project & page & section & shortcut & task & reflection & agent & history --> activity
-  section & shortcut & page & task & reflection --> recorder
+  section & shortcut & page & project & task & reflection --> recorder
   recorder --> machine
   history --> machine
   section -. captures through .-> inverse
@@ -105,7 +105,7 @@ sequenceDiagram
 | `archivedAncestry` | `src/project-visibility.ts` | Archiving reaches down without cascading |
 | `Instant` | `src/instants.ts` | Lossless ordering of ISO instants as text |
 | `calendar.ts`, `task-windows.ts`, `page-placements.ts` | `src/` | UTC date arithmetic; the open/overdue/upcoming questions; the combined section+shortcut order |
-| `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard; `update` and `archive` answer `{ project, operation }` and record one action per changed write in the subject's own history |
+| `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard, no reparent that carries an old-root Home shortcut's source to another root; `update` and `archive` answer `{ project, operation }` and record one action per changed write in the subject's own history |
 | `ProjectPageService` | `src/project-page-service.ts` | A project's pages; enable/disable a root's optional three, recording one action per changed toggle |
 | `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, settle and remove by content/reference policy, Archive Restore; container resolution |
 | `OperationRecorder`, `RepositoryOperationRecorder`, `OPERATION_ACTION_LIFETIME_MS` | `src/operation-recorder.ts` | Records into the exact actor's per-project history; 24-hour lifetime; recovers an outstanding removal receipt |
