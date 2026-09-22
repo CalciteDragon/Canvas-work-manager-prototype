@@ -1,4 +1,4 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ReflectionWriteResultSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionShortcutAddResultSchema, SectionShortcutRemovalResultSchema, SectionShortcutWriteResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TaskWriteResultSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
+import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectPageWriteResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ReflectionWriteResultSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionShortcutAddResultSchema, SectionShortcutRemovalResultSchema, SectionShortcutWriteResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TaskWriteResultSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
 import { ActivityService, AgentConnectionService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryOperationRecorder, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
@@ -161,7 +161,7 @@ const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-0
     store,
     activity,
     projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
-    pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
+    pages: new ProjectPageService({ pages, projects, activity, history, clock, ids, unitOfWork }),
     tasks: new TaskService({ tasks, projects, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     sections: sectionService,
     shortcuts: sectionShortcutService,
@@ -940,7 +940,10 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
     const enabled = await call(routes, 'PATCH', `/api/projects/${root.id}/pages/reflections`, {
       body: { enabled: true },
     });
-    const reflectionsPage = enabled.body as { id: string; kind: string; enabled: boolean };
+    // Since Slice 38 the PATCH answers the write envelope, so the page is unwrapped here and the
+    // receipt is asserted where the journey's claims are made.
+    const enabledResult = ProjectPageWriteResultSchema.parse(enabled.body);
+    const reflectionsPage = enabledResult.page;
 
     // No page named, so the canonical canvas takes it: the root's Home.
     const task = taskFrom(
@@ -957,7 +960,7 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
       ).body,
     );
 
-    return { root, unit, pagesBefore, reflectionsPage, task, unitTask, reflection };
+    return { root, unit, pagesBefore, enabledResult, reflectionsPage, task, unitTask, reflection };
   };
 
   /**
@@ -979,10 +982,12 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
   it('creates a root, a nested unit of work and page-owned rows, and lists the same ownership', async () => {
     const routes = buildRoutes(false);
 
-    const { root, unit, pagesBefore, reflectionsPage, task, unitTask, reflection } = await journey(routes);
+    const { root, unit, pagesBefore, enabledResult, reflectionsPage, task, unitTask, reflection } = await journey(routes);
 
     expect((pagesBefore.body as Array<{ kind: string }>).map(({ kind }) => kind)).toEqual(['home']);
     expect(reflectionsPage).toMatchObject({ kind: 'reflections', enabled: true });
+    // The first enable is the write that created the record, so it carries a `page.add` receipt.
+    expect(enabledResult.operation).toMatchObject({ operation: 'page.add', label: 'Enabled the reflections page' });
 
     const homeId = (await pagesOf(routes, root.id)).find(({ kind }) => kind === 'home')!.id;
     expect(await pageOfSection(routes, root.id, task.sectionId)).toBe(homeId);

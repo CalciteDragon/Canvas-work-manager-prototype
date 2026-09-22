@@ -32,8 +32,9 @@ const modernClient = (name) =>
 
 // Slice 15's two-transport acceptance check, extended by Slice 25.7 (§36) with a
 // subject-linked journal write, Slice 31 with disposable removal, receipt recovery and
-// persisted Undo, and Slice 35 with Redo, the history summary and the sequential chain through
-// both transports.
+// persisted Undo, Slice 35 with Redo, the history summary and the sequential chain through
+// both transports, and Slice 38 with the optional-page toggle: a first enable undone to an
+// absent record, redone under the same id, and the boolean reversed both ways.
 const assertClient = async (client, title, dataFile, foreign, access) => {
   check(client.getProtocolEra() === 'modern', `${title} negotiated 2026-07-28`);
   const listed = await client.listTools();
@@ -81,7 +82,10 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
   );
   const undo = await assertUndo(client, title, dataFile);
   await assertRestoreAndShortcuts(client, title);
+  const foreignPageReceipt = await assertPageHistory(client, foreign, title, dataFile, access);
   await assertRecoveryAndGrants(client, foreign, title, dataFile, access);
+  // After the block above revoked the second connection, which is what makes this a revocation.
+  await assertRevokedPageReceipt(foreign, foreignPageReceipt, title, dataFile);
   return { task, reflectionId: reflection.structuredContent?.reflection?.id, ...undo };
 };
 
@@ -357,6 +361,137 @@ const assertRestoreAndShortcuts = async (client, title) => {
     undoneAdd.isError !== true && (await placements()).length === 0,
     `${title} Undo steps back through the removal and then the add`,
   );
+};
+
+/**
+ * Slice 38: the optional-page toggle through a real transport. A root created here is Home-only,
+ * so its next enable is genuinely a **first** enable — the one write whose inverse deletes a
+ * record. Undo takes the page away entirely, Redo brings the same id back, and the boolean steps
+ * above it reverse without touching anything on the page.
+ *
+ * Returns the foreign connection's own page receipt, so the revocation block below can prove a
+ * revoked connection cannot use it either.
+ */
+const assertPageHistory = async (client, foreign, title, dataFile, access) => {
+  const created = await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Page history ${title}` } });
+  const rootId = created.structuredContent.id ?? JSON.parse(created.content[0].text).id;
+  const pagesOf = async (as = client) => {
+    const listed = await as.callTool({ name: 'list_project_pages', arguments: { projectId: rootId } });
+    return JSON.parse(listed.content[0].text);
+  };
+  check((await pagesOf()).map(({ kind }) => kind).join(',') === 'home', `${title} a new root is Home-only`);
+
+  // `stepReceipt` reads the seed project's history; these actions belong to the root made here.
+  const step = async (receipt, direction = 'undo') => {
+    const read = await client.callTool({ name: 'get_operation_history', arguments: { projectId: rootId } });
+    check(read.isError !== true, `${title} get_operation_history answers for the new root`);
+    return client.callTool({
+      name: `${direction}_operation`,
+      arguments: { historyId: receipt.historyId, actionId: receipt.actionId, expectedRevision: read.structuredContent.revision },
+    });
+  };
+
+  const enabled = await client.callTool({
+    name: 'set_project_page_enabled',
+    arguments: { projectId: rootId, kind: 'reflections', enabled: true },
+  });
+  const page = enabled.structuredContent.page;
+  const addReceipt = receiptOf(enabled);
+  check(
+    enabled.isError !== true && page.kind === 'reflections' && page.enabled === true && addReceipt.operation === 'page.add',
+    `${title} the first enable answers the created page and a page.add receipt`,
+  );
+  check(
+    JSON.stringify(Object.keys(addReceipt).sort()) ===
+      JSON.stringify(['actionId', 'createdAt', 'expiresAt', 'historyId', 'label', 'operation', 'revision']),
+    `${title} the page receipt carries no payload`,
+  );
+  const repeated = await client.callTool({
+    name: 'set_project_page_enabled',
+    arguments: { projectId: rootId, kind: 'reflections', enabled: true },
+  });
+  check(repeated.isError !== true && receiptOf(repeated) === null, `${title} a toggle already where it was asked answers a null receipt`);
+
+  // Another connection cannot reach this history at all: a foreign id and an absent one are one answer.
+  const beforeForeign = await businessState(dataFile);
+  const foreignText = await refusedText(() => foreign.callTool({
+    name: 'undo_operation',
+    arguments: { historyId: addReceipt.historyId, actionId: addReceipt.actionId, expectedRevision: addReceipt.revision },
+  }));
+  check(foreignText !== null && foreignText.includes('was not found'), `${title} another connection gets not-found for the page history`);
+  check((await businessState(dataFile)) === beforeForeign, `${title} the foreign page refusal changes nothing on disk`);
+
+  const undoneAdd = await step(addReceipt);
+  check(
+    undoneAdd.isError !== true && undoneAdd.structuredContent.result.outcome === 'removed' &&
+      !(await pagesOf()).some(({ id }) => id === page.id),
+    `${title} Undo of the first enable leaves no page record`,
+  );
+  const redoneAdd = await step(addReceipt, 'redo');
+  check(
+    redoneAdd.isError !== true && redoneAdd.structuredContent.result.page.id === page.id &&
+      redoneAdd.structuredContent.result.page.createdAt === page.createdAt,
+    `${title} Redo recreates the page under the same id and createdAt`,
+  );
+
+  const off = await client.callTool({
+    name: 'set_project_page_enabled',
+    arguments: { projectId: rootId, kind: 'reflections', enabled: false },
+  });
+  const toggleReceipt = receiptOf(off);
+  check(toggleReceipt.operation === 'page.update', `${title} a later toggle records page.update`);
+  const enabledOf = async () => (await pagesOf()).find(({ id }) => id === page.id)?.enabled;
+  check((await enabledOf()) === false, `${title} the page is disabled, and still stored`);
+  check((await step(toggleReceipt)).isError !== true && (await enabledOf()) === true, `${title} Undo restores the boolean`);
+  check((await step(toggleReceipt, 'redo')).isError !== true && (await enabledOf()) === false, `${title} Redo reapplies it`);
+
+  // **The minimal grant.** projects.write alone runs a page transition from its receipt; each
+  // unrelated grant alone is refused, and projects.read alone reads the summary and nothing more.
+  const toggleArgs = { historyId: toggleReceipt.historyId, actionId: toggleReceipt.actionId };
+  const revisionOf = async () => JSON.parse(await readFile(dataFile, 'utf8'))
+    .operationHistories.find(({ id }) => id === toggleReceipt.historyId).revision;
+  for (const grant of ['tasks.write', 'reflections.write', 'projects.read']) {
+    await access.setPermissions('agent-claude', [grant]);
+    const beforeGrant = await businessState(dataFile);
+    const text = await refusedText(() => client.callTool({
+      name: 'undo_operation',
+      arguments: { ...toggleArgs, expectedRevision: 99 },
+    }));
+    check(text !== null && text.includes('projects.write'), `${title} a page transition under ${grant} alone names the missing projects.write`);
+    check((await businessState(dataFile)) === beforeGrant, `${title} the ${grant} refusal changes nothing, and discloses no revision`);
+    if (grant === 'projects.read') {
+      const readOnly = await client.callTool({ name: 'get_operation_history', arguments: { projectId: rootId } });
+      check(readOnly.isError !== true && readOnly.structuredContent.undo?.operation === 'page.update', `${title} projects.read alone reads the page history summary`);
+    }
+  }
+  await access.setPermissions('agent-claude', ['projects.write']);
+  const minimal = await client.callTool({ name: 'undo_operation', arguments: { ...toggleArgs, expectedRevision: await revisionOf() } });
+  check(minimal.isError !== true, `${title} projects.write alone runs the page transition from its receipt`);
+  const summaryDenied = await refusedText(() => client.callTool({ name: 'get_operation_history', arguments: { projectId: rootId } }));
+  check(summaryDenied !== null && summaryDenied.includes('projects.read'), `${title} the summary still needs projects.read`);
+  await access.setPermissions('agent-claude', ['projects.read', 'projects.write', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write', 'workspace.read']);
+
+  // The foreign connection's own page receipt, for the revocation check after the grants block.
+  const foreignEnabled = await foreign.callTool({
+    name: 'set_project_page_enabled',
+    arguments: { projectId: rootId, kind: 'todos', enabled: true },
+  });
+  check(receiptOf(foreignEnabled)?.operation === 'page.add', `${title} the second connection holds its own page receipt`);
+  return receiptOf(foreignEnabled);
+};
+
+/** A revoked connection cannot run a page transition either, and its page stays put. */
+const assertRevokedPageReceipt = async (foreign, receipt, title, dataFile) => {
+  const before = await businessState(dataFile);
+  const text = await refusedText(() => foreign.callTool({
+    name: 'undo_operation',
+    arguments: { historyId: receipt.historyId, actionId: receipt.actionId, expectedRevision: receipt.revision },
+  }));
+  check(
+    text !== null && /unauthori[sz]ed|401|not a usable agent connection/i.test(text),
+    `${title} a revoked connection cannot use its page receipt (${text?.slice(0, 60)})`,
+  );
+  check((await businessState(dataFile)) === before, `${title} the revoked page refusal changes nothing on disk`);
 };
 
 const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access) => {

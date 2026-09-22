@@ -40,6 +40,7 @@ import {
   type OperationHistoryState,
 } from './operation-history';
 import { RepositoryOperationRecorder, historyBelongsToActor } from './operation-recorder';
+import { reapplyPageAdd, reapplyPageUpdate, revertPageAdd, revertPageUpdate } from './page-history';
 import { findHighestWriteBlocker } from './project-visibility';
 import {
   reapplyReflectionAdd,
@@ -317,6 +318,10 @@ export class OperationHistoryService {
         return direction === 'undo' ? revertShortcutMove(repositories, clock, operation) : reapplyShortcutMove(repositories, clock, operation);
       case 'shortcut.remove':
         return direction === 'undo' ? revertShortcutRemove(repositories, clock, operation) : reapplyShortcutRemove(repositories, clock, operation);
+      case 'page.add':
+        return direction === 'undo' ? revertPageAdd(repositories, clock, operation) : reapplyPageAdd(repositories, clock, operation);
+      case 'page.update':
+        return direction === 'undo' ? revertPageUpdate(repositories, clock, operation) : reapplyPageUpdate(repositories, clock, operation);
       default: {
         const unknown: never = operation;
         throw new TypeError(`no history executor for "${String(unknown)}"`);
@@ -377,11 +382,14 @@ export const activityActionFor = (operation: UndoOperation['type'], direction: O
     'shortcut.update': 'shortcut_update',
     'shortcut.move': 'shortcut_move',
     'shortcut.remove': 'shortcut_removal',
+    'page.add': 'page_addition',
+    'page.update': 'page_update',
   }[operation];
   const family = familyOfOperationKind(operation);
-  // A shortcut event targets the destination **project**, exactly as the ordinary
-  // `project.shortcut_added` does, so no Activity target exception is needed for the new verbs.
-  const prefix = family === 'section' || family === 'shortcut' ? 'project' : family;
+  // A shortcut or page event targets the owning **project**, exactly as the ordinary
+  // `project.shortcut_added` and `project.page_enabled` do, so no Activity target exception and no
+  // `page` entity kind are needed for the new verbs.
+  const prefix = family === 'section' || family === 'shortcut' || family === 'page' ? 'project' : family;
   return `${prefix}.${noun}_${direction === 'undo' ? 'undone' : 'redone'}`;
 };
 
@@ -404,7 +412,12 @@ const activityTargetFor = (operation: UndoOperation): {
     case 'shortcut.update':
     case 'shortcut.move':
     case 'shortcut.remove':
+    // A page's event names its owning root, never the page: `ActivityEntityType` has no `page`
+    // member, and adding one would pin every page record alive forever.
+    case 'page.update':
       return { entityType: 'project', entityId: operation.projectId, projectId: operation.projectId };
+    case 'page.add':
+      return { entityType: 'project', entityId: operation.page.projectId, projectId: operation.page.projectId };
     case 'task.add':
       return { entityType: 'task', entityId: operation.task.id, projectId: operation.task.projectId };
     case 'task.update':
@@ -462,6 +475,8 @@ const OPERATION_GERUND: Record<UndoOperation['type'], string> = {
   'shortcut.update': 'updating a shortcut on',
   'shortcut.move': 'moving a shortcut on',
   'shortcut.remove': 'removing a shortcut from',
+  'page.add': 'enabling the',
+  'page.update': 'changing the',
 };
 
 /**
@@ -474,6 +489,13 @@ const activitySummary = (operation: UndoOperation, result: UndoResult | RedoResu
   // A shortcut is named by the canvas it sits on: the placement has no title of its own, and the
   // source section's title is content this result deliberately does not carry.
   if (operation.type.startsWith('shortcut.')) return `${did} ${gerund} this canvas`;
+  // A page is named by its kind. `page.add`'s Undo deletes the record, so the captured payload is
+  // the only place left that knows which tab it was — and both directions read the same way.
+  if (operation.type === 'page.add') return `${did} ${gerund} ${operation.page.kind} page`;
+  if (operation.type === 'page.update') {
+    const kind = operation.kind ?? ('page' in result ? result.page.kind : 'optional');
+    return `${did} ${gerund} ${kind} page`;
+  }
   if (operation.type.startsWith('section.')) {
     const section = 'section' in result ? result.section : operation.type === 'section.add' ? operation.section : undefined;
     return `${did} ${gerund} ${section === undefined ? 'section' : nameOf(section)} section`;

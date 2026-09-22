@@ -23,15 +23,29 @@ export interface ProjectRepository {
 }
 
 /**
- * §26's pages. No `remove`: a page is never deleted — an optional one is disabled, which keeps
- * its sections and their layout, and a canonical one cannot go away while its project exists.
- * The seam permanent deletion would need is `SectionRepository.remove`, not this.
+ * §26's pages. Ordinary use has no deletion: an optional page is **disabled**, which keeps its
+ * sections, their layout and every reference to it, and a canonical one cannot go away while its
+ * project exists.
  */
 export interface ProjectPageRepository {
   find(id: ProjectPageId): Promise<ProjectPage | null>;
   list(query?: ProjectPageQuery): Promise<ProjectPage[]>;
   insert(page: ProjectPage): Promise<void>;
   update(page: ProjectPage): Promise<void>;
+  /**
+   * **Restricted removal, for one caller only** (Slice 38): Undo of `page.add` deletes exactly the
+   * record a first enable created, after the executor has proved the page is unchanged and that no
+   * canonical section — live or archived — and no shortcut placement still names it. Ordinary
+   * disabling never reaches this, and no HTTP route or MCP tool exposes it: §26's nondestructive
+   * disable is unchanged, and reversing the creation of an empty tab is not deletion of content
+   * anyone kept.
+   *
+   * The project-targeted audit line survives it, because a page event names its **project**, never
+   * the page (docs/decisions/2026-09-historical-activity-identity.md). Commit-time integrity
+   * continues to reject a deleted canonical page and a dangling section or shortcut reference, so
+   * a removal that left one still rolls the whole unit back.
+   */
+  remove(id: ProjectPageId): Promise<void>;
 }
 
 export interface TaskRepository {

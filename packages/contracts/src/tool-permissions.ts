@@ -38,6 +38,7 @@ export const FamilyToolPermissionSchema = z.strictObject({
     task: AgentPermissionSchema,
     reflection: AgentPermissionSchema,
     shortcut: AgentPermissionSchema,
+    page: AgentPermissionSchema,
   }),
 });
 export type FamilyToolPermission = z.infer<typeof FamilyToolPermissionSchema>;
@@ -60,6 +61,11 @@ export const OPERATION_FAMILY_PERMISSION = {
   // A placement is part of the destination project's canvas, so it needs the canvas grant and no
   // grant on the source: reversing a shortcut write never reads or writes the source's rows.
   shortcut: 'projects.write',
+  // A page is a property of its root, and `set_project_page_enabled` is already `projects.write`,
+  // so reversing that toggle needs the same grant and nothing more. Reversing a first enable
+  // deletes only the empty record the enable created, never a row, which is why no row grant
+  // appears here.
+  page: 'projects.write',
 } as const satisfies Record<z.infer<typeof OperationFamilySchema>, z.infer<typeof AgentPermissionSchema>>;
 
 /** The family declaration both history tools publish, validated once here. */

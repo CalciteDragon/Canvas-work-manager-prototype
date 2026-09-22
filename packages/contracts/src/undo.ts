@@ -8,6 +8,11 @@ import {
   UndoRowChangeSchema,
 } from './history-placement';
 import { OperationReceiptSchema } from './operation-receipt';
+import {
+  PAGE_REDO_RESULT_SCHEMAS,
+  PAGE_UNDO_RESULT_SCHEMAS,
+  PageUndoOperationSchema,
+} from './page-history';
 import { ROW_REDO_RESULT_SCHEMAS, ROW_UNDO_RESULT_SCHEMAS, RowUndoOperationSchema } from './row-history';
 import {
   SectionRestoreOperationSchema,
@@ -31,8 +36,9 @@ import { ownedKindOf, ProjectSectionSchema, SectionColumnSpanSchema, SectionConf
  * The operation union is typed and versioned: an unknown `type` or `version` fails parsing
  * rather than executing arbitrary JSON. Slice 36 adds the eight task and reflection members from
  * `row-history.ts`; Slice 37 adds `section.restore` from `section-restore-history.ts` and the four
- * placement members from `shortcut-history.ts`. The placement and row-structure shapes every family
- * shares live in `history-placement.ts`.
+ * placement members from `shortcut-history.ts`; Slice 38 adds the two optional-page toggles from
+ * `page-history.ts`. The placement and row-structure shapes every family shares live in
+ * `history-placement.ts`.
  */
 
 /** The policy removal actually **applied** — not the one the caller sent. */
@@ -202,6 +208,7 @@ export const UndoOperationSchema = z.discriminatedUnion('type', [
   SectionRestoreOperationSchema,
   ...RowUndoOperationSchema.options,
   ...ShortcutUndoOperationSchema.options,
+  ...PageUndoOperationSchema.options,
 ]);
 export type UndoOperation = z.infer<typeof UndoOperationSchema>;
 export type UndoOperationType = UndoOperation['type'];
@@ -220,6 +227,10 @@ export const operationProjectOf = (operation: UndoOperation): string => {
       return operation.task.projectId;
     case 'reflection.add':
       return operation.reflection.projectId;
+    // A created page carries its owner in the record Redo recreates, exactly as a created
+    // section does.
+    case 'page.add':
+      return operation.page.projectId;
     // Every remaining member names its own project, including a shortcut, whose `projectId` is
     // the **destination** Home project rather than the source sub-project the placement points at.
     default:
@@ -253,8 +264,13 @@ export const operationSubjectOf = (operation: UndoOperation): string => {
     case 'shortcut.add':
     case 'shortcut.remove':
       return operation.shortcut.id;
-    default:
+    case 'shortcut.update':
+    case 'shortcut.move':
       return operation.shortcutId;
+    case 'page.add':
+      return operation.page.id;
+    default:
+      return operation.pageId;
   }
 };
 
@@ -352,6 +368,7 @@ export const UndoResultSchema = z.discriminatedUnion('operation', [
   SectionRestoreUndoResultSchema,
   ...ROW_UNDO_RESULT_SCHEMAS,
   ...SHORTCUT_UNDO_RESULT_SCHEMAS,
+  ...PAGE_UNDO_RESULT_SCHEMAS,
 ]);
 export type UndoResult = z.infer<typeof UndoResultSchema>;
 
@@ -400,6 +417,7 @@ export const RedoResultSchema = z.discriminatedUnion('operation', [
   SectionRestoreRedoResultSchema,
   ...ROW_REDO_RESULT_SCHEMAS,
   ...SHORTCUT_REDO_RESULT_SCHEMAS,
+  ...PAGE_REDO_RESULT_SCHEMAS,
 ]);
 export type RedoResult = z.infer<typeof RedoResultSchema>;
 
@@ -444,7 +462,7 @@ export type UndoConflictNextStep = z.infer<typeof UndoConflictNextStepSchema>;
 /** One entity a transition would have overwritten, and how it changed. */
 export const UndoConflictSchema = z
   .strictObject({
-    entityType: z.enum(['section', 'task', 'reflection', 'shortcut']),
+    entityType: z.enum(['section', 'task', 'reflection', 'shortcut', 'page']),
     id: z.string().min(1),
     /** The current display name, omitted when the entity no longer exists. */
     title: z.string().min(1).optional(),

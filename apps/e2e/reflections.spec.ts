@@ -1,6 +1,6 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { expect, test } from '@playwright/test';
-import { PROTOTYPE_HOST, seed, setClock } from './seed';
+import { PROTOTYPE_HOST, seed, setClock, setPageEnabled } from './seed';
 
 const READWRITE = 'prototype-user-a-readwrite';
 const READONLY = 'prototype-user-a-readonly';
@@ -54,8 +54,8 @@ test('completed work can receive retained reflections across the root journal, H
     kind: 'root',
     name: 'Reflection journey',
   });
-  const reflectionsPage = await api<{ id: string }>('PATCH', `/api/projects/${root.id}/pages/reflections`, { enabled: true });
-  await api('PATCH', `/api/projects/${root.id}/pages/todos`, { enabled: true });
+  const reflectionsPage = await setPageEnabled(root.id, 'reflections', true);
+  await setPageEnabled(root.id, 'todos', true);
   const homeContainerResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, {
     type: 'reflections',
     title: 'Home journal',
@@ -222,11 +222,11 @@ test('completed work can receive retained reflections across the root journal, H
   });
   expect((await api<{ items: unknown[] }>('GET', `/api/projects/${root.id}/journal`)).items).toHaveLength(journalCountBeforeRefusals);
 
-  await api('PATCH', `/api/projects/${root.id}/pages/reflections`, { enabled: false });
+  await setPageEnabled(root.id, 'reflections', false);
   await page.goto(`/projects/${root.id}/pages/reflections`);
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/home$`));
   await expect(page.locator('[data-page-notice]')).toContainText('switched off');
-  await api('PATCH', `/api/projects/${root.id}/pages/reflections`, { enabled: true });
+  await setPageEnabled(root.id, 'reflections', true);
   await page.goto(`/projects/${root.id}/pages/reflections`);
   await expect(page.locator('[data-reflections-entry]')).toHaveCount(4);
 
@@ -245,7 +245,7 @@ test('completed work can receive retained reflections across the root journal, H
     kind: 'root',
     name: 'Page-only MCP root',
   });
-  const pageOnlyReflections = await api<{ id: string }>('PATCH', `/api/projects/${pageOnlyRoot.id}/pages/reflections`, { enabled: true });
+  const pageOnlyReflections = await setPageEnabled(pageOnlyRoot.id, 'reflections', true);
   const pageOnlyTask = await addTask({
     projectId: pageOnlyRoot.id,
     title: 'Page-only completed work',

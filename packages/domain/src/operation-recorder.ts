@@ -35,9 +35,10 @@ export interface OperationRecordEntry {
  * caller already did — so the action, the cursor move and the canonical writes commit or roll back
  * together, and the receipt is only real once the caller's unit resolves.
  *
- * Since Slice 36 three services record through it: `SectionService`, `TaskService` and
- * `ReflectionService`. The interface is unchanged by that — the recorder knows nothing about which
- * family an operation belongs to, which is why adding two of them cost it nothing.
+ * Five services record through it: `SectionService`, `TaskService` and `ReflectionService` since
+ * Slice 36, `SectionShortcutService` since Slice 37 and `ProjectPageService` since Slice 38. The
+ * interface is unchanged by all of that — the recorder knows nothing about which family an
+ * operation belongs to, which is why adding four of them cost it nothing.
  */
 export interface OperationRecorder {
   record(actor: ActorContext, entry: OperationRecordEntry): Promise<OperationReceipt>;

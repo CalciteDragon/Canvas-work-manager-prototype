@@ -3,9 +3,13 @@ import {
   ProjectPageSchema,
   ProjectSchema,
   ProjectStatusSchema,
+  type OperationActionId,
+  type OperationHistoryId,
+  type OperationKind,
   type Project,
   type ProjectId,
   type ProjectPage,
+  type ProjectPageWriteResult,
   type ProjectQuery,
 } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
@@ -221,6 +225,39 @@ describe('ProjectWorkspaceStore and live updates (§62)', () => {
     expect(gateway.calls.filter(({ method }) => method === 'projects.get').length).toBe(1);
   });
 
+  /**
+   * A page Undo or Redo publishes a project-scoped frame (Slice 38), so the context — and with it
+   * the page list the router resolves a tab against — is re-read without the store knowing
+   * anything about the new verbs.
+   */
+  it('re-reads the page context when someone reverses a page toggle', async () => {
+    const live = new FakeLiveUpdates();
+    const { store, gateway } = storeWith(
+      { projects: renovation(), pages: [page('page-project-renovation-home', 'project-renovation', 'home')] },
+      live,
+    );
+    await store.load('project-renovation' as ProjectId);
+    const reads = () => gateway.calls.filter(({ method }) => method === 'pages.list').length;
+
+    for (const type of ['project.page_addition_undone', 'project.page_addition_redone', 'project.page_update_undone', 'project.page_update_redone']) {
+      const before = reads();
+      live.emit({
+        type,
+        entityType: 'project',
+        entityId: 'project-renovation',
+        projectId: 'project-renovation',
+        rootProjectId: 'project-renovation',
+        actor: { kind: 'user', id: 'user-1', name: 'Sam' },
+        at: AT,
+      } as never);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // A macrotask, so this frame's whole context read finishes before the next frame arrives —
+      // otherwise the refresh coalescing would fold them together. Each verb is then proved on
+      // its own, so one refreshing frame cannot cover for another that does not.
+      expect(reads(), type).toBeGreaterThan(before);
+    }
+  });
+
   // `rootProjectId` is right for the tree and wrong for the record: a sibling three levels
   // away must not put a `projects.get` behind every frame it produces.
   it('leaves this project’s record alone when a sibling sub-project is written', async () => {
@@ -393,11 +430,31 @@ describe('ProjectWorkspaceStore and live updates (§62)', () => {
   });
 });
 
+/**
+ * The write envelope §31 gives a committed toggle. The store deliberately ignores the receipt —
+ * persistent Undo controls are a later phase — so these specs assert the page reconciliation and
+ * carry the receipt only because parsing it is part of the contract.
+ */
+const pageWrite = (record: ProjectPage, operation: OperationKind | null = 'page.add'): ProjectPageWriteResult => ({
+  page: record,
+  operation: operation === null
+    ? null
+    : {
+        historyId: 'history-1' as OperationHistoryId,
+        actionId: 'operation-1' as OperationActionId,
+        operation,
+        revision: 1,
+        label: `${record.enabled ? 'Enabled' : 'Disabled'} the ${record.kind} page`,
+        createdAt: '2026-09-21T10:00:00.000Z',
+        expiresAt: '2026-09-22T10:00:00.000Z',
+      },
+});
+
 describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)', () => {
   it('keeps the confirmed page state until the write and fresh context both finish', async () => {
     const pages = [page('page-project-renovation-home', 'project-renovation', 'home')];
     const gateway = new FakeWorkManagerGateway({ projects: renovation(), pages });
-    const write = deferred<ProjectPage>();
+    const write = deferred<ProjectPageWriteResult>();
     const read = deferred<ProjectPage[]>();
     gateway.pages.setEnabled = () => write.promise;
     gateway.pages.list = () => read.promise;
@@ -418,7 +475,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
     expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
     expect(store.pageWritePending()).toBe(true);
 
-    write.resolve(page('page-project-renovation-todos', 'project-renovation', 'todos'));
+    write.resolve(pageWrite(page('page-project-renovation-todos', 'project-renovation', 'todos')));
     await Promise.resolve();
     expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
 
@@ -479,7 +536,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
     const projects = renovation();
     const pages = [page('page-project-renovation-home', 'project-renovation', 'home')];
     const gateway = new FakeWorkManagerGateway({ projects, pages });
-    const write = deferred<ProjectPage>();
+    const write = deferred<ProjectPageWriteResult>();
     gateway.pages.setEnabled = () => write.promise;
     TestBed.configureTestingModule({
       providers: [
@@ -493,7 +550,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
 
     const toggling = store.setPageEnabled('todos', true);
     await store.load('project-garden' as ProjectId);
-    write.resolve(page('page-project-renovation-todos', 'project-renovation', 'todos'));
+    write.resolve(pageWrite(page('page-project-renovation-todos', 'project-renovation', 'todos')));
 
     expect(await toggling).toBe(false);
     expect(store.project()?.id).toBe('project-garden');
@@ -503,7 +560,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
   it('does not apply a late toggle after the store is destroyed', async () => {
     const pages = [page('page-project-renovation-home', 'project-renovation', 'home')];
     const gateway = new FakeWorkManagerGateway({ projects: renovation(), pages });
-    const write = deferred<ProjectPage>();
+    const write = deferred<ProjectPageWriteResult>();
     gateway.pages.setEnabled = () => write.promise;
     TestBed.configureTestingModule({
       providers: [
@@ -517,7 +574,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
     const toggling = store.setPageEnabled('todos', true);
 
     TestBed.resetTestingModule();
-    write.resolve(page('page-project-renovation-todos', 'project-renovation', 'todos'));
+    write.resolve(pageWrite(page('page-project-renovation-todos', 'project-renovation', 'todos')));
 
     await expect(toggling).resolves.toBe(false);
   });

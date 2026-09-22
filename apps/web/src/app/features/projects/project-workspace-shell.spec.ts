@@ -351,6 +351,20 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
     expect(query(harness, '[data-page-notice]')).toBeNull();
   });
 
+  /**
+   * Undo of a first enable removes the record (Slice 38), which is not the same as switching it
+   * off: there is nothing to re-enable, so the fallback shows Home and offers no Enable button.
+   */
+  it('falls back to Home without a re-enable offer when the page record is absent', async () => {
+    const { harness } = await open('/projects/project-renovation/pages/todos', {
+      pages: [page('page-renovation-home', 'project-renovation', 'home')],
+    });
+
+    expect(query(harness, '[data-page-notice]')).not.toBeNull();
+    expect(query(harness, '[data-page-notice-enable]')).toBeNull();
+    expect(query(harness, '[data-section-canvas]')).not.toBeNull();
+  });
+
   it('keeps the root-scoped page manager on a subproject without offering a work toggle', async () => {
     const { harness } = await open('/projects/project-kitchen');
 

@@ -52,10 +52,11 @@ abstract class JsonCollectionRepository<T extends StoredEntity> {
   }
 
   /**
-   * Sections and shortcut placements expose this. Section removal is no longer used by the
-   * domain because §31 archives; deleting a shortcut is safe because it owns no content or
-   * activity target. Deleting anything else would fail the next integrity check when the feed
-   * resolves its target.
+   * Sections, shortcut placements, rows and optional pages expose this. Section removal is no
+   * longer used by the domain because §31 archives; deleting a shortcut is safe because it owns
+   * no content or activity target, and deleting an optional page is safe only after its executor
+   * has proved nothing references it — its activity events name the project, not the page.
+   * Deleting anything else would fail the next integrity check when the feed resolves its target.
    */
   protected async delete(id: T['id']): Promise<void> {
     assertCanMutateDataStore(this.store);
@@ -142,6 +143,9 @@ export class JsonProjectPageRepository extends JsonCollectionRepository<ProjectP
   }
 
   override find(id: ProjectPageId): Promise<ProjectPage | null> { return super.find(id); }
+
+  /** The restricted first-enable inverse only; see `ProjectPageRepository.remove`. */
+  remove(id: ProjectPageId): Promise<void> { return this.delete(id); }
 }
 
 export class JsonSectionRepository extends JsonCollectionRepository<ProjectSection> implements SectionRepository {

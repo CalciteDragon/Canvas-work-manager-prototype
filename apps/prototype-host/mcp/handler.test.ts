@@ -105,6 +105,15 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
           });
         } else {
           expect(listedTool._meta).toMatchObject({ [REQUIRED_PERMISSIONS_BY_FAMILY_META_KEY]: declaration.families });
+          // The exact map, written out rather than derived, so a family the domain gained and
+          // discovery forgot to publish fails here instead of passing by agreeing with itself.
+          expect(listedTool._meta?.[REQUIRED_PERMISSIONS_BY_FAMILY_META_KEY]).toEqual({
+            section: 'projects.write',
+            task: 'tasks.write',
+            reflection: 'reflections.write',
+            shortcut: 'projects.write',
+            page: 'projects.write',
+          });
           expect(listedTool._meta).not.toHaveProperty(REQUIRED_PERMISSION_META_KEY);
           expect(listedTool._meta).not.toHaveProperty(REQUIRED_PERMISSIONS_META_KEY);
         }

@@ -21,6 +21,7 @@ import {
   JsonMilestoneRepository,
   JsonOperationActionRepository,
   JsonOperationHistoryRepository,
+  JsonProjectPageRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
@@ -619,6 +620,65 @@ const operationAction = (id = 'operation-1', historyId = 'history-1') =>
       changes: [{ field: 'collapsed', before: false, after: true }],
     },
   });
+
+describe('JsonProjectPageRepository', () => {
+  const optional = PrototypeDocumentSchema.shape.projectPages.element.parse({
+    id: 'page-reflections',
+    projectId: 'project-1',
+    kind: 'reflections',
+    enabled: true,
+    createdAt: at,
+    updatedAt: at,
+  });
+
+  const populated = async (store = new InMemoryDataStore(baseDocument())) => {
+    const repository = new JsonProjectPageRepository(store);
+    await repository.insert(optional);
+    return repository;
+  };
+
+  /**
+   * The restricted first-enable inverse (Slice 38). Ordinary disabling never reaches it: a page
+   * that is off still holds its sections, and `update` is what writes that boolean.
+   */
+  it('deletes exactly the optional page the creation inverse names', async () => {
+    const repository = await populated();
+
+    await repository.remove(optional.id);
+
+    expect(await repository.find(optional.id)).toBeNull();
+    // Home is untouched, which is what keeps the project a place a section can go.
+    expect((await repository.list({ projectId: optional.projectId })).map(({ kind }) => kind)).toEqual(['home']);
+  });
+
+  it('raises not-found removing the same page twice', async () => {
+    const repository = await populated();
+    await repository.remove(optional.id);
+
+    await expect(repository.remove(optional.id)).rejects.toBeInstanceOf(RepositoryNotFoundError);
+  });
+
+  it('refuses to remove from outside the unit of work that is open', async () => {
+    const store = new InMemoryDataStore(baseDocument());
+    const repository = await populated(store);
+
+    let entered!: () => void;
+    let release!: () => void;
+    const hasEntered = new Promise<void>((resolve) => (entered = resolve));
+    const blocker = new Promise<void>((resolve) => (release = resolve));
+    const operation = unitOfWorkFor(store).run(async () => {
+      entered();
+      await blocker;
+    });
+    await hasEntered;
+
+    await expect(repository.remove(optional.id)).rejects.toBeInstanceOf(UnitOfWorkInProgressError);
+
+    release();
+    await operation;
+    expect(await repository.find(optional.id)).not.toBeNull();
+  });
+});
 
 describe('operation history JSON repositories', () => {
   it('lists histories by scope and actions by their owning history, and prunes actions only', async () => {

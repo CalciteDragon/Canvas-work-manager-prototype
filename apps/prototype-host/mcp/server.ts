@@ -24,7 +24,7 @@ export const REQUIRED_PERMISSIONS_META_KEY = 'local.canvas-work-manager/required
  * (docs/decisions/2026-08-mcp-tool-permission-metadata.md, amended by
  * docs/decisions/2026-09-operation-family-permissions.md).
  *
- * The value is `{ section, task, reflection }`, each naming one `AgentPermission`. The shape is
+ * The value is `{ section, shortcut, page, task, reflection }`, each naming one `AgentPermission`. The shape is
  * defined in contracts, beside the permission it is built from, because this host and
  * `@cwm/mcp-tools` both assert it; only the key is this file's.
  */

@@ -58,6 +58,37 @@ describe('operation history contracts', () => {
     expect(OperationActionSchema.safeParse({ ...action, state: 'consumed' }).success).toBe(false);
   });
 
+  it('stores an optional-page action and its summary entry additively (Slice 38)', () => {
+    const page = {
+      id: 'page-reflections',
+      projectId: 'project-1',
+      kind: 'reflections',
+      enabled: true,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    const added = {
+      ...action,
+      label: 'Enabled the reflections page',
+      operation: { version: 1, type: 'page.add', page },
+    };
+    const toggled = {
+      ...action,
+      label: 'Disabled the reflections page',
+      operation: { version: 1, type: 'page.update', projectId: 'project-1', pageId: 'page-reflections', kind: 'reflections', before: true, after: false },
+    };
+    expect(OperationActionSchema.parse(added).operation.type).toBe('page.add');
+    expect(OperationActionSchema.parse(toggled).operation.type).toBe('page.update');
+    // Schema version 5 is unchanged, so a payload the old union never held must still fail.
+    expect(OperationActionSchema.safeParse({ ...added, operation: { version: 1, type: 'page.remove', pageId: 'page-reflections' } }).success).toBe(false);
+    expect(
+      OperationHistorySummarySchema.parse({
+        ...summary,
+        undo: { actionId: 'operation-1', operation: 'page.add', label: 'Enabled the reflections page', expiresAt },
+      }).undo?.operation,
+    ).toBe('page.add');
+  });
+
   it('a cursor is a non-negative integer no higher than the order high-water mark', () => {
     expect(OperationHistorySchema.safeParse({ ...history, cursor: 0 }).success).toBe(true);
     expect(OperationHistorySchema.safeParse(history).success).toBe(true);

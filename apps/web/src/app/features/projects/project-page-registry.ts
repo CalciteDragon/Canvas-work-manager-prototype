@@ -7,6 +7,8 @@ import {
   type ProjectPage,
   type ProjectPageId,
   type ProjectPageKind,
+  isOptionalPageKind,
+  type OptionalProjectPageKind as ContractOptionalProjectPageKind,
 } from '@cwm/contracts';
 import { ProjectCanvas } from './project-canvas';
 import { ArchivePage } from './pages/archive-page';
@@ -30,7 +32,12 @@ export interface ProjectPageDefinition {
 }
 
 /** Root page kinds the navigation manager may toggle. Canonical pages are intentionally absent. */
-export type OptionalProjectPageKind = Exclude<ProjectPageKind, 'home' | 'work'>;
+/**
+ * Re-exported from contracts rather than redeclared: Slice 38 needed the same three kinds in
+ * `page-history.ts`, and two structurally identical definitions of "an optional page" would be
+ * two places to change when §26 gains a fourth.
+ */
+export type OptionalProjectPageKind = ContractOptionalProjectPageKind;
 export type OptionalProjectPageDefinition = Omit<ProjectPageDefinition, 'kind'> & {
   kind: OptionalProjectPageKind;
 };
@@ -138,8 +145,8 @@ export const resolveProjectPage = (input: {
 const isPageKind = (kind: string): kind is ProjectPageKind =>
   (ProjectPageKindSchema.options as readonly string[]).includes(kind);
 
-export const isOptionalProjectPageKind = (kind: ProjectPageKind): kind is OptionalProjectPageKind =>
-  kind !== 'home' && kind !== 'work';
+/** The contract's predicate, under the name the shell already imports. */
+export const isOptionalProjectPageKind: (kind: ProjectPageKind) => kind is OptionalProjectPageKind = isOptionalPageKind;
 
 /** A kind's name in a sentence, whether or not this build can draw it. */
 const labelFor = (kind: ProjectPageKind): string =>

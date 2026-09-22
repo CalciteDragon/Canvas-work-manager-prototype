@@ -263,6 +263,107 @@ const homeWithShortcut = async (harness: Harness) => {
   return { kitchen, notes, progress: (await harness.sections.find(progress.id))!, shortcut };
 };
 
+describe('OperationHistoryService — optional pages in a mixed stack (Slice 38)', () => {
+  it('unwinds and replays section, row and page actions in one cursor, in order', async () => {
+    const harness = buildHarness();
+    const enabled = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'reflections', enabled: true });
+    const container = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'reflections', pageId: enabled.page.id });
+    const reflection = await harness.reflectionWriteService.create(harness.actor, { projectId: MINE, sectionId: container.section.id, body: 'A note' });
+    const disabled = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'reflections', enabled: false });
+
+    const summary = await harness.operationHistoryService.summary(harness.actor, MINE);
+    expect(summary.undo).toMatchObject({ operation: 'page.update' });
+
+    // Down the stack: the toggle, the row, the container, then the page that held them all.
+    for (const receipt of [disabled.operation!, reflection.operation, container.operation, enabled.operation!]) {
+      await harness.undo(harness.actor, receipt);
+    }
+    expect(await harness.pages.list({ projectId: MINE })).toHaveLength(1);
+    expect(await harness.reflections.list({ projectId: MINE, includeArchived: true })).toEqual([]);
+
+    // And back up, to exactly the state the four writes left.
+    for (const receipt of [enabled.operation!, container.operation, reflection.operation, disabled.operation!]) {
+      await harness.redo(harness.actor, receipt);
+    }
+    expect(await harness.pages.find(enabled.page.id)).toMatchObject({ id: enabled.page.id, enabled: false });
+    expect(await harness.sections.find(container.section.id)).toMatchObject({ pageId: enabled.page.id });
+    expect(await harness.reflections.find(reflection.reflection.id)).toMatchObject({ sectionId: container.section.id });
+  });
+
+  it('a new changed toggle discards the Redo branch, while a no-op leaves it alone', async () => {
+    const harness = buildHarness();
+    const enabled = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'todos', enabled: true });
+    const disabled = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'todos', enabled: false });
+    await harness.undo(harness.actor, disabled.operation!);
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).redo).toMatchObject({ operation: 'page.update' });
+
+    // Asking for the state it is already in records nothing and keeps the branch.
+    await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'todos', enabled: true });
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).redo).toMatchObject({ operation: 'page.update' });
+
+    // A real change discards it, and the discarded action can no longer be redone.
+    const reflections = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'reflections', enabled: true });
+    const summary = await harness.operationHistoryService.summary(harness.actor, MINE);
+    expect(summary.redo).toBeNull();
+    expect(summary.undo).toMatchObject({ actionId: reflections.operation?.actionId, operation: 'page.add' });
+    expect((await harness.operationActions.list({ historyId: enabled.operation!.historyId })).map(({ operation }) => operation.type)).toEqual([
+      'page.add',
+      'page.add',
+    ]);
+  });
+
+  it('refuses a stale revision, an expired action and another actor, writing nothing', async () => {
+    const harness = buildHarness();
+    const enabled = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'reflections', enabled: true });
+    const receipt = enabled.operation!;
+    const before = state(harness);
+
+    const stale = await refusalOf(transition(harness, harness.actor, receipt, 'undo', receipt.revision + 5));
+    expect(stale.details).toMatchObject({ reason: 'history_revision_stale' });
+
+    // Another actor cannot even see the history: a foreign id and an absent one are one answer,
+    // which is why the missing-grant case lives in `page-history.test.ts`, where the agent is the
+    // actor whose history it is.
+    await expect(transition(harness, someoneElse, receipt, 'undo', receipt.revision)).rejects.toBeInstanceOf(EntityNotFoundError);
+
+    harness.clock.setNow(new Date(Date.parse(receipt.expiresAt) + 1000));
+    const expired = await refusalOf(transition(harness, harness.actor, receipt, 'undo', receipt.revision));
+    expect(expired.details).toMatchObject({ reason: 'history_expired', expiresAt: receipt.expiresAt });
+    expect(expired.message).toMatch(/make the change again by hand/);
+
+    expect(state(harness)).toEqual(before);
+  });
+
+  it('records one project-targeted event and one live frame per successful page transition', async () => {
+    const frames: LivePublication[] = [];
+    const harness = buildHarness(undefined, { events: { publish: (frame) => { frames.push(frame); } } });
+    const enabled = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'archive', enabled: true });
+    const disabled = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'archive', enabled: false });
+    frames.length = 0;
+
+    await harness.undo(harness.actor, disabled.operation!);
+    await harness.undo(harness.actor, enabled.operation!);
+    await harness.redo(harness.actor, enabled.operation!);
+
+    const events = (await harness.activities.list({ projectId: MINE })).slice(-3);
+    expect(events.map(({ action }) => action)).toEqual([
+      'project.page_update_undone',
+      'project.page_addition_undone',
+      'project.page_addition_redone',
+    ]);
+    // Targeted at the owning project: `ActivityEntityType` has no `page` member, and a removed
+    // page must not take its audit history with it.
+    expect(events.every(({ entityType, entityId }) => entityType === 'project' && entityId === MINE)).toBe(true);
+    expect(events.map(({ summary }) => summary)).toEqual([
+      'Undid changing the archive page',
+      'Undid enabling the archive page',
+      'Redid enabling the archive page',
+    ]);
+    expect(frames).toHaveLength(3);
+    expect(frames.every((frame) => frame.event.projectId === MINE)).toBe(true);
+  });
+});
+
 describe('OperationHistoryService — removal Undo placement', () => {
   it('recreates a deleted disposable view from its snapshot in its old placement', async () => {
     const harness = buildHarness();
@@ -355,17 +456,45 @@ describe('OperationHistoryService — removal Undo placement', () => {
     expect(result).toMatchObject({ placement: { index: 1, strategy: 'index' } });
   });
 
+  /**
+   * The disabling toggle is **somebody else's** since Slice 38: a page toggle is now a recorded
+   * action, so the person's own disable would sit above this removal in their own stack and the
+   * next Undo would be that toggle rather than the restoration. Keeping the toggle out of their
+   * history preserves what this case is about — a section coming back onto a page that is now off.
+   */
   it('restores onto a page that was disabled after the removal, and says so', async () => {
     const harness = buildHarness();
-    const page = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'reflections', enabled: true });
+    const { page } = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'reflections', enabled: true });
     const journal = await harness.sectionService.add(harness.actor, MINE, { type: 'reflections', pageId: page.id });
     const { operation } = await harness.sectionService.remove(harness.actor, journal.id);
-    await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'reflections', enabled: false });
+    await harness.projectPageService.setEnabled(someoneElse, MINE, { kind: 'reflections', enabled: false });
 
     const result = await harness.undo(harness.actor, operation);
 
     expect(result).toMatchObject({ outcome: 'restored', placement: { pageId: page.id, index: 0, pageEnabled: false } });
     expect((await harness.sections.find(journal.id))?.archivedAt).toBeUndefined();
+  });
+
+  /**
+   * The same sequence by one actor, which is the ordering half of the rule above: their own
+   * disable is the next Undo, and the removal beneath it cannot be reached by naming it.
+   */
+  it('makes the actor’s own disabling toggle the next Undo, and refuses to skip it', async () => {
+    const harness = buildHarness();
+    const { page } = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'reflections', enabled: true });
+    const journal = await harness.sectionService.add(harness.actor, MINE, { type: 'reflections', pageId: page.id });
+    const { operation } = await harness.sectionService.remove(harness.actor, journal.id);
+    const disabled = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'reflections', enabled: false });
+
+    const summary = await harness.operationHistoryService.summary(harness.actor, MINE);
+    expect(summary.undo).toMatchObject({ actionId: disabled.operation?.actionId, operation: 'page.update' });
+    const refusal = await refusalOf(harness.undo(harness.actor, operation));
+    expect(refusal.details).toMatchObject({ reason: 'history_not_next' });
+
+    // Undone in order, the toggle comes off first and the removal Undo then lands as before.
+    await harness.undo(harness.actor, disabled.operation!);
+    expect((await harness.pages.find(page.id))?.enabled).toBe(true);
+    await expect(harness.undo(harness.actor, operation)).resolves.toMatchObject({ outcome: 'restored' });
   });
 });
 

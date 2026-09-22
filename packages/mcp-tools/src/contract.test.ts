@@ -104,9 +104,21 @@ const CASES: Record<string, ToolCase> = {
     input: { projectId: PROJECT, kind: 'reflections', enabled: true },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toMatchObject({ projectId: PROJECT, kind: 'reflections', enabled: true });
+      expect(result.page).toMatchObject({ projectId: PROJECT, kind: 'reflections', enabled: true });
       const listed = await harness.services.pages.list(agent(['projects.read']), PROJECT);
-      expect(listed.map(({ id }) => id)).toContain(result.id);
+      expect(listed.map(({ id }) => id)).toContain(result.page.id);
+      // The first enable created the record, so it answers a `page.add` receipt — and the receipt
+      // carries no payload: no page snapshot, no actor, nothing of the captured footprint.
+      expect(result.operation).toMatchObject({ operation: 'page.add', label: 'Enabled the reflections page' });
+      expect(Object.keys(result.operation).sort()).toEqual([
+        'actionId',
+        'createdAt',
+        'expiresAt',
+        'historyId',
+        'label',
+        'operation',
+        'revision',
+      ]);
     },
   },
   get_project_archive: {
@@ -583,7 +595,7 @@ describe('undo_operation and redo_operation refusals, as an agent sees them', ()
 
     // The two transitions publish the namespaced family map **instead of** the singular and
     // conjunctive keys, because their grant comes from the stored action's family: a singular key
-    // would name one of three and a plural one would claim all three are needed.
+    // would name one of five and a plural one would claim all of them are needed.
     for (const name of ['undo_operation', 'redo_operation']) {
       const declaration = declared(name);
       expect(declaration).toEqual({
@@ -593,8 +605,10 @@ describe('undo_operation and redo_operation refusals, as an agent sees them', ()
           task: 'tasks.write',
           reflection: 'reflections.write',
           // A placement is part of the destination canvas, so it shares the canvas grant while
-          // staying its own family name.
+          // staying its own family name. A page is a property of that canvas's root, so it does
+          // too — reversing a toggle, or the enable that created the tab, needs no row grant.
           shortcut: 'projects.write',
+          page: 'projects.write',
         },
       });
       expect(declaration).not.toHaveProperty('permission');

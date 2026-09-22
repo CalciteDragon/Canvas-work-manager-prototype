@@ -2205,6 +2205,41 @@ describe('ProjectPageStore — section edit Undo receipts (Slice 32)', () => {
     expect(store.sections().map(({ id }) => id)).toEqual([text.id]);
   });
 
+  /**
+   * Page results are narrowed so the section notice's placement branch stays type-safe. Nothing
+   * routes a page receipt into this notice — §26's toggles live on the workspace store, whose
+   * write ignores its receipt — so this proves the boundary holds rather than offering a surface.
+   */
+  it.each([
+    [
+      'a first enable, whose record is gone',
+      { operation: 'page.add', outcome: 'removed', projectId: PROJECT, pageId: PAGE, kind: 'reflections' } as UndoResult,
+      'Undo removed the page that was enabled.',
+    ],
+    [
+      'a toggle, whose page came back on',
+      {
+        operation: 'page.update',
+        outcome: 'restored',
+        projectId: PROJECT,
+        pageId: PAGE,
+        kind: 'reflections',
+        page: { id: PAGE, projectId: PROJECT, kind: 'reflections', enabled: true, createdAt: AT, updatedAt: AT },
+      } as UndoResult,
+      'Undo enabled the page again.',
+    ],
+  ])('describes %s without treating it as a section placement', async (_name, result, message) => {
+    const text = section('section-text', 'rich-text', 0);
+    const undoExecute = vi.fn<UndoExecute>(async () => result);
+    const { store } = setup({ sections: [text], undoExecute });
+    await store.load(PROJECT, PAGE);
+    await store.removeSection(text.id);
+
+    await expect(store.undoOperation()).resolves.toMatchObject({ operation: result.operation });
+
+    expect(store.undoNotice()).toMatchObject({ kind: 'result', message });
+  });
+
   it('keeps a newer receipt when a slow Undo response lands after it', async () => {
     const text = section('section-text', 'rich-text', 0);
     const tasks = section('section-tasks', 'task-list', 1);

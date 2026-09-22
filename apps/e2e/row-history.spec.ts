@@ -1,6 +1,6 @@
-import type { OperationHistorySummary, OperationHistoryTransitionResult, ProjectPage, ReflectionAddResult, TaskAddResult } from '@cwm/contracts';
+import type { OperationHistorySummary, OperationHistoryTransitionResult, ReflectionAddResult, TaskAddResult } from '@cwm/contracts';
 import { expect, test } from '@playwright/test';
-import { addSection, api, connectMcp, createRoot, seed, setClock } from './seed';
+import { addSection, api, connectMcp, createRoot, seed, setClock, setPageEnabled } from './seed';
 
 const history = (projectId: string) => api.get<OperationHistorySummary>(`/api/projects/${projectId}/history`);
 const step = async (projectId: string, direction: 'undo' | 'redo') => {
@@ -16,9 +16,9 @@ test('browser row commits record once and HTTP history updates Home, Todos, Arch
   const root = await createRoot('Row history');
   await addSection(root.id, { type: 'task-list' });
   await addSection(root.id, { type: 'reflections' });
-  await api.patch(`/api/projects/${root.id}/pages/todos`, { enabled: true });
-  await api.patch(`/api/projects/${root.id}/pages/reflections`, { enabled: true });
-  await api.patch(`/api/projects/${root.id}/pages/archive`, { enabled: true });
+  await setPageEnabled(root.id, 'todos', true);
+  await setPageEnabled(root.id, 'reflections', true);
+  await setPageEnabled(root.id, 'archive', true);
   const baseline = (await history(root.id)).revision;
   await page.goto(`/projects/${root.id}`);
   await page.locator('[data-quick-task-title]').fill('First title');
@@ -102,7 +102,7 @@ test('agent compound history removes and restores containers in open Home and Re
   await seed('agent-heavy');
   await setClock('2026-09-15T12:00:00.000Z');
   const root = await createRoot('Compound history');
-  const reflectionsPage = await api.patch<ProjectPage>(`/api/projects/${root.id}/pages/reflections`, { enabled: true });
+  const reflectionsPage = await setPageEnabled(root.id, 'reflections', true);
   await page.goto(`/projects/${root.id}`);
   await expect(page.locator('[data-empty-canvas-add]')).toBeVisible();
   const journal = await context.newPage();

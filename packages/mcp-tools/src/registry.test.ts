@@ -64,11 +64,11 @@ describe('the tool registry', () => {
    */
   it('refuses a task container on a Reflections page, through the tools an agent has', async () => {
     const harness = buildHarness();
-    const page = (await harness.registry.call(
+    const { page } = (await harness.registry.call(
       'set_project_page_enabled',
       { projectId: PROJECT, kind: 'reflections', enabled: true },
       agent(['projects.write']),
-    )) as { id: string };
+    )) as { page: { id: string } };
 
     await expect(
       harness.registry.call(

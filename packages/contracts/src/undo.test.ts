@@ -280,6 +280,17 @@ describe('UndoConflictSchema', () => {
     expect(UndoConflictSchema.safeParse({ ...missing, nextStep: 'guess' }).success).toBe(false);
   });
 
+  it('names a page as an entity a transition can conflict on', () => {
+    const conflict = {
+      entityType: 'page',
+      id: 'page-reflections',
+      problem: 'new-dependent',
+      nextStep: 'remove-reference-and-retry',
+    };
+    expect(UndoConflictSchema.parse(conflict)).toEqual(conflict);
+    expect(UndoConflictSchema.safeParse({ ...conflict, problem: 'missing', nextStep: 'nothing-to-undo' }).success).toBe(true);
+  });
+
   it('no longer describes a superseded receipt — a cursor replaced supersession', () => {
     expect(UndoConflictSchema.safeParse({ entityType: 'section', id: 'section-1', problem: 'superseded', nextStep: 'change-by-hand' }).success).toBe(false);
     expect(UndoConflictSchema.safeParse({ entityType: 'section', id: 'section-1', problem: 'field-changed', nextStep: 'use-later-receipt' }).success).toBe(false);

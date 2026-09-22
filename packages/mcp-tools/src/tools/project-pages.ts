@@ -34,7 +34,7 @@ export const projectPageTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'set_project_page_enabled',
     description:
-      'Turn one of a root project’s optional pages — todos, archive or reflections — on or off. Enabling a page for the first time creates it; disabling one is nondestructive, keeping its sections, their layout and every reference to it, and changes only whether it is navigation. Home cannot be disabled, and a sub-project has no pages to configure.',
+      'Turn one of a root project’s optional pages — todos, archive or reflections — on or off. Enabling a page for the first time creates it; disabling one is nondestructive, keeping its sections, their layout and every reference to it, and changes only whether it is navigation. Home cannot be disabled, and a sub-project has no pages to configure. Answers the confirmed page and an operation receipt: the first enable records page.add, whose Undo removes that page again — only while it is unchanged and nothing on it references it — and whose Redo brings the same page id back; a later change of the switch records page.update, which reverses the switch alone. A call that asks for the state the page is already in changes nothing and answers a null receipt. Reverse either through undo_operation with projects.write; a toggle still works while the project is archived, but reversing one through history does not.',
     permission: 'projects.write',
     inputSchema: SetProjectPageEnabledInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.pages.setEnabled(actor, projectId, input),

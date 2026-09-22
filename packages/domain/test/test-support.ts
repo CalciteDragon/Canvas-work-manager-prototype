@@ -163,7 +163,11 @@ export const agentActorFor = (index: 0 | 1, permissions: AgentPermission[] = [])
 export interface HarnessOptions {
   /** §62's publisher, when a test wants to observe the live frames a mutation emits. */
   events?: LiveEventPublisher;
-  /** Replaces the history recorder `SectionService` records through — the recorder-failure seam. */
+  /**
+   * Replaces the history recorder every undoable writer records through — `SectionService`,
+   * `TaskService`, `ReflectionService`, `SectionShortcutService` and, since Slice 38,
+   * `ProjectPageService`. The recorder-failure seam.
+   */
   recorder?: (real: OperationRecorder) => OperationRecorder;
   /** Replaces the counting id generator, for tests where id order must not match insertion order. */
   ids?: IdGenerator;
@@ -298,7 +302,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
     actor: actorFor(0),
     other: actorFor(1),
     projectService: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
-    projectPageService: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
+    projectPageService: new ProjectPageService({ pages, projects, activity, history: historyRecorder, clock, ids, unitOfWork }),
     taskService: legacyTaskService,
     taskWriteService,
     progressService: new ProgressService({ projects, tasks }),

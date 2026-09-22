@@ -8,7 +8,9 @@
  * already deleted section; Slice 35 moves Undo onto the operation-history routes and adds Redo,
  * the sequential A → B chain and branch invalidation over the wire. Slice 37 adds the three
  * operations that had no history until then: section duplication, Archive Restore, and the four
- * Home shortcut placement writes — each reversed and replayed over HTTP.
+ * Home shortcut placement writes — each reversed and replayed over HTTP. Slice 38 adds the
+ * optional-page toggle: a first enable undone to an absent record and redone to the same page id,
+ * the boolean reversed both ways, and the exact state read back from the file after a restart.
  *
  * Runs against a temporary data file via CWM_DATA_FILE, never the developer's own
  * workspace: an acceptance check that mutates the file you were about to demo is worse
@@ -313,6 +315,74 @@ try {
   check(
     back.length === 1 && back[0].id === shortcutId && back[0].collapsed === true,
     'with the same id and the presentation the last committed update left',
+  );
+
+  // Slice 38: the optional-page toggle, on a root created here so its first enable is a first
+  // enable — every seeded root already has the pages its seed gave it.
+  console.log('\noptional-page first enable, toggle, Undo and Redo...\n');
+  const pageRoot = (await request('POST', '/api/projects', {
+    workspaceId, kind: 'root', name: 'Page history acceptance',
+  })).body;
+  const pagesOf = async () => (await request('GET', `/api/projects/${pageRoot.id}/pages`)).body;
+  const pageSummary = async () => (await request('GET', `/api/projects/${pageRoot.id}/history`)).body;
+  check(
+    (await pagesOf()).map(({ kind }) => kind).join(',') === 'home',
+    'a new root has Home only, so the next enable is the one that creates the record',
+  );
+
+  const enabled = await request('PATCH', `/api/projects/${pageRoot.id}/pages/reflections`, { enabled: true });
+  check(enabled.status === 200, 'PATCH /api/projects/:id/pages/:kind answers 200');
+  check(
+    enabled.body.page.kind === 'reflections' && enabled.body.page.enabled === true &&
+      enabled.body.operation.operation === 'page.add',
+    'the first enable answers the created page and a page.add receipt',
+  );
+  const pageId = enabled.body.page.id;
+  const pageCreatedAt = enabled.body.page.createdAt;
+  const addReceipt = enabled.body.operation;
+
+  const noop = await request('PATCH', `/api/projects/${pageRoot.id}/pages/reflections`, { enabled: true });
+  check(noop.status === 200 && noop.body.operation === null, 'asking for the state it already holds records nothing');
+
+  check((await step(addReceipt, 'undo', (await pageSummary()).revision)).status === 200, 'Undo the first enable');
+  check(!(await pagesOf()).some(({ id }) => id === pageId), 'the created page is absent, not merely disabled');
+  const redoneAdd = await step(addReceipt, 'redo', (await pageSummary()).revision);
+  check(redoneAdd.status === 200 && redoneAdd.body.result.page.id === pageId, 'Redo brings back the same page id');
+  check(redoneAdd.body.result.page.createdAt === pageCreatedAt, 'with the createdAt it was created under');
+
+  const off = await request('PATCH', `/api/projects/${pageRoot.id}/pages/reflections`, { enabled: false });
+  check(off.body.operation.operation === 'page.update', 'a later toggle records page.update rather than a second add');
+  const on = await request('PATCH', `/api/projects/${pageRoot.id}/pages/reflections`, { enabled: true });
+  const enabledOf = async () => (await pagesOf()).find(({ id }) => id === pageId)?.enabled;
+  for (const [receipt, expected] of [[on.body.operation, false], [off.body.operation, true]]) {
+    check((await step(receipt, 'undo', (await pageSummary()).revision)).status === 200, 'Undo a boolean step');
+    check((await enabledOf()) === expected, `the page is ${expected ? 'enabled' : 'disabled'} again`);
+  }
+  for (const [receipt, expected] of [[off.body.operation, false], [on.body.operation, true]]) {
+    check((await step(receipt, 'redo', (await pageSummary()).revision)).status === 200, 'Redo a boolean step');
+    check((await enabledOf()) === expected, `the page is ${expected ? 'enabled' : 'disabled'} once more`);
+  }
+
+  console.log('\nreopening the file to inspect the exact page state...\n');
+  await stopHost(host);
+  host = await startHost(dataFile);
+  const reopened = JSON.parse(await readFile(dataFile, 'utf8'));
+  const storedPage = reopened.projectPages.find(({ id }) => id === pageId);
+  check(
+    storedPage !== undefined && storedPage.kind === 'reflections' && storedPage.enabled === true &&
+      storedPage.createdAt === pageCreatedAt,
+    'the page on disk is the one the first enable created, enabled, with its original createdAt',
+  );
+  const storedPageActions = reopened.operationActions
+    .filter(({ operation }) => operation.type.startsWith('page.'))
+    .map(({ operation, state }) => `${operation.type}:${state}`);
+  check(
+    storedPageActions.join(',') === 'page.add:applied,page.update:applied,page.update:applied',
+    'the three page actions persisted, all applied, in the order they were written',
+  );
+  check(
+    (await request('GET', `/api/projects/${pageRoot.id}/history`)).body.undo?.operation === 'page.update',
+    'and the reopened summary still offers the newest toggle as the next Undo',
   );
 
   console.log('\nacceptance: all checks passed');

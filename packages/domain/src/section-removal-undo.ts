@@ -115,9 +115,9 @@ export type UndoDestination =
  * holds this type and holds no shortcut to the section, which integrity forbids on a section's
  * own page. Otherwise nothing, and Undo refuses before writing.
  *
- * In a valid document a retained section's page always exists (pages have no `remove`), so the
- * fallback branches are reachable only once a later slice recreates deleted sections; until then
- * the executor's missing-section conflict fires first.
+ * The fallback is reachable since Slice 38: another actor's deleted section does not pin the page
+ * it sat on, so Undo of that page's first enable can remove it, and a later Undo of the section's
+ * removal then finds its original page gone (pinned in `page-history.test.ts`).
  */
 export const resolveUndoDestination = (input: {
   originalPage: ProjectPage | null;

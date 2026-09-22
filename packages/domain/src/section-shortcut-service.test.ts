@@ -133,7 +133,7 @@ describe('SectionShortcutService', () => {
 
   it('does not renumber placements when a positioned create is refused outside Home', async () => {
     const { harness, home, source } = await setupPlacedHome();
-    const reflections = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+    const { page: reflections } = await harness.projectPageService.setEnabled(harness.actor, MINE, {
       kind: 'reflections',
       enabled: true,
     });
@@ -230,7 +230,7 @@ describe('SectionShortcutService', () => {
 
   it('allows a disabled source page to remain a valid source', async () => {
     const harness = buildHarness();
-    const page = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+    const { page } = await harness.projectPageService.setEnabled(harness.actor, MINE, {
       kind: 'reflections',
       enabled: true,
     });

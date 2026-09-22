@@ -191,7 +191,7 @@ describe('SectionService and Home shortcut ordering (§27)', () => {
 
   it('does not renumber sections when a positioned add is refused for a disabled page', async () => {
     const harness = buildHarness();
-    const page = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+    const { page } = await harness.projectPageService.setEnabled(harness.actor, MINE, {
       kind: 'reflections',
       enabled: true,
     });

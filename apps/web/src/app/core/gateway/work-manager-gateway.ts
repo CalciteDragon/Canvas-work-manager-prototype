@@ -16,6 +16,7 @@ import type {
   Project,
   ProjectId,
   ProjectPage,
+  ProjectPageWriteResult,
   ProjectQuery,
   ProjectSection,
   ProjectArchiveResult,
@@ -167,7 +168,14 @@ export interface ReflectionGateway {
 export interface ProjectPageGateway {
   /** Every page the project owns, disabled ones included — this is the toggle list. */
   list(projectId: ProjectId): Promise<ProjectPage[]>;
-  setEnabled(projectId: ProjectId, input: SetProjectPageEnabledInput): Promise<ProjectPage>;
+  /**
+   * The toggle, answering the confirmed page and the receipt it recorded (§31): `page.add` for the
+   * enable that created the record, `page.update` for a later change of the switch, and `null`
+   * when the page was already where the call asked it to go. The page manager reads the page and
+   * ignores the receipt — persistent Undo controls are a later phase — but the envelope is parsed,
+   * so a host that stopped sending it would fail here rather than silently.
+   */
+  setEnabled(projectId: ProjectId, input: SetProjectPageEnabledInput): Promise<ProjectPageWriteResult>;
 }
 
 /** §27 and §31's canvas section reads and writes, including the typed removal receipt. */

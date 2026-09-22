@@ -1356,6 +1356,45 @@ describe('page ownership integrity', () => {
     expect(() => new InMemoryDataStore(document)).toThrow(/missing project "project-gone"/);
   });
 
+  /**
+   * The integrity boundary the restricted page removal runs inside (Slice 38): a page may be
+   * deleted only once nothing names it, so a document missing one its sections still point at is
+   * rejected at load and a removal that left such a reference rolls its whole unit back.
+   */
+  it('rejects a section whose optional page has been deleted', () => {
+    const document = validDocument();
+    document.projectPages.push(page({ id: 'page-reflections', kind: 'reflections' }));
+    document.sections.push(
+      PrototypeDocumentSchema.shape.sections.element.parse({
+        id: 'section-on-reflections',
+        projectId: 'project-1',
+        pageId: 'page-reflections',
+        type: 'reflections',
+        position: 0,
+        columnSpan: 12,
+        collapsed: false,
+        config: {},
+        archiveGeneration: 0,
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
+
+    document.projectPages = document.projectPages.filter(({ id }) => id !== 'page-reflections');
+    expect(() => new InMemoryDataStore(document)).toThrow(/page/);
+  });
+
+  it('rejects deleting a canonical page, which no operation may ever do', () => {
+    const document = validDocument();
+    document.projectPages = document.projectPages.filter(({ kind }) => kind !== 'home');
+    document.sections = [];
+    document.tasks = [];
+    document.reflections = [];
+    document.activityEvents = [];
+    expect(() => new InMemoryDataStore(document)).toThrow(/has no home page/);
+  });
+
   it('rejects a root with two Home pages', () => {
     const document = validDocument();
     document.projectPages.push(page({ id: 'page-1b', kind: 'home' }));
@@ -1679,6 +1718,35 @@ describe('operation history integrity', () => {
     const foreign = action({
       operation: { ...action().operation, section: { ...(action().operation as { section: object }).section, projectId: 'project-2' } },
     });
+    expect(() => new InMemoryDataStore(withHistory([history()], [foreign]))).toThrow(/names a project outside its history/);
+  });
+
+  /**
+   * Schema version 5 is unchanged by Slice 38: the operation union expanded additively, so an
+   * existing document needs no backfill and a stored page action loads like any other — including
+   * one whose `page.add` snapshot names a page its Undo has already deleted.
+   */
+  it('accepts stored optional-page actions, applied and undone, and scopes them to their project', () => {
+    const storedPage = (projectId: string) => ({
+      id: 'page-reflections',
+      projectId,
+      kind: 'reflections',
+      enabled: true,
+      createdAt: at,
+      updatedAt: at,
+    });
+    const added = action({ id: 'operation-page-add', operation: { version: 1, type: 'page.add', page: storedPage('project-1') } });
+    const toggled = action({
+      id: 'operation-page-update',
+      order: 2,
+      state: 'undone',
+      operation: { version: 1, type: 'page.update', projectId: 'project-1', pageId: 'page-reflections', kind: 'reflections', before: true, after: false },
+    });
+    const twoDeep = history({ cursor: 1, orderHighWaterMark: 2 });
+    expect(() => new InMemoryDataStore(withHistory([twoDeep], [added, toggled]))).not.toThrow();
+
+    // The owning root decides which history may hold it, exactly as for a section action.
+    const foreign = action({ id: 'operation-page-foreign', operation: { version: 1, type: 'page.add', page: storedPage('project-2') } });
     expect(() => new InMemoryDataStore(withHistory([history()], [foreign]))).toThrow(/names a project outside its history/);
   });
 

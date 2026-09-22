@@ -1,11 +1,15 @@
 import {
   isCanonicalPageKind,
   isNavigablePageKind,
+  isOptionalPageKind,
   NAVIGABLE_PAGE_KINDS,
   ProjectPageIdSchema,
   ProjectPageSchema,
+  ProjectPageWriteResultSchema,
+  type OperationReceipt,
   type ProjectId,
   type ProjectPage,
+  type ProjectPageWriteResult,
   type SetProjectPageEnabledInput,
 } from '@cwm/contracts';
 import type { ProjectPageRepository, ProjectRepository, UnitOfWork } from '@cwm/repositories';
@@ -14,6 +18,8 @@ import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
+import type { OperationRecorder } from './operation-recorder';
+import { capturePageAdd, capturePageUpdate } from './page-history';
 
 /**
  * §26's pages as a surface: which a root has, and which of the optional three are on.
@@ -23,12 +29,15 @@ import type { IdGenerator } from './ids';
  * state any operation should reach — that pairing belongs to the create. Everything after it is
  * an operation on a page, and routing it back through `ProjectService` would be a service edge
  * with no invariant behind it (§12). This service reads the project repository for scoping and
- * eligibility, and never calls another service except `ActivityService`, as every writer does.
+ * eligibility, and never calls another service except `ActivityService` and, since Slice 38, the
+ * `OperationRecorder` every undoable writer holds.
  */
 export interface ProjectPageServiceDependencies {
   pages: ProjectPageRepository;
   projects: ProjectRepository;
   activity: ActivityService;
+  /** Makes each committed toggle undoable, in the owning **root's** history (Slice 38, §31). */
+  history: OperationRecorder;
   clock: Clock;
   ids: IdGenerator;
   unitOfWork: UnitOfWork;
@@ -72,19 +81,28 @@ export class ProjectPageService {
    * made every one of those documents wrong; upserting means nothing has to be converted.
    *
    * **Disabling is nondestructive, structurally.** It writes `enabled: false` and nothing else,
-   * so the page keeps its sections, their positions and every reference to it. There is no
-   * remove: a page is never deleted (see `ProjectPageRepository`).
+   * so the page keeps its sections, their positions and every reference to it. Disabling never
+   * removes the record; only Undo of the first enable does, after its dependency preflight
+   * (see `ProjectPageRepository.remove`).
    *
    * **Allowed while the project is archived**, unlike every other write in the domain. §31 is
    * explicit that undo must not sit behind a toggle — disabling the Archive page has to leave a
    * way back to it — and a toggle moves no work, which is what the freeze is about. It is the
-   * same exemption `SectionService.remove` carries.
+   * same exemption `SectionService.remove` carries. That exemption belongs to the **ordinary**
+   * toggle and does not extend to history: `OperationHistoryService` still answers
+   * `history_blocked` for a page action on an archived root, in both directions, so Open archive
+   * stays reachable without history becoming a way around §31's freeze.
+   *
+   * **Every changed toggle records exactly one action** (Slice 38, §31), in the owning root's
+   * history: `page.add` for the enable that created the record, `page.update` for a later change
+   * of the boolean. An identical existing state is not a write — it returns a `null` receipt and
+   * changes no timestamp, event, history revision or Redo branch.
    */
   async setEnabled(
     actor: ActorContext,
     projectId: ProjectId,
     input: SetProjectPageEnabledInput,
-  ): Promise<ProjectPage> {
+  ): Promise<ProjectPageWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
@@ -107,7 +125,7 @@ export class ProjectPageService {
       const existing = (await this.dependencies.pages.list({ projectId, kind: input.kind }))[0];
       if (existing !== undefined) {
         // Idempotent, and records nothing: a toggle set to where it already is did not happen.
-        if (existing.enabled === input.enabled) return existing;
+        if (existing.enabled === input.enabled) return this.result(existing, null);
         const updated = ProjectPageSchema.parse({
           ...existing,
           enabled: input.enabled,
@@ -115,7 +133,22 @@ export class ProjectPageService {
         });
         await this.dependencies.pages.update(updated);
         await this.record(actor, updated);
-        return updated;
+        // Recorded after the normalized mutation and before returning, inside this same unit, so
+        // the action, the activity event and the page write commit or roll back together.
+        return this.result(
+          updated,
+          await this.dependencies.history.record(actor, {
+            projectId,
+            label: this.labelFor(updated),
+            operation: capturePageUpdate({
+              projectId,
+              pageId: updated.id,
+              ...(isOptionalPageKind(updated.kind) ? { kind: updated.kind } : {}),
+              before: existing.enabled,
+              after: updated.enabled,
+            }),
+          }),
+        );
       }
 
       // Nothing to disable. Refused rather than silently succeeding, because "off" and "never
@@ -133,8 +166,29 @@ export class ProjectPageService {
       });
       await this.dependencies.pages.insert(created);
       await this.record(actor, created);
-      return created;
+      return this.result(
+        created,
+        await this.dependencies.history.record(actor, {
+          projectId,
+          label: this.labelFor(created),
+          operation: capturePageAdd(created),
+        }),
+      );
     });
+  }
+
+  /**
+   * The one envelope both writes answer, validated here rather than at each return: a caller
+   * addresses a toggle by *kind* and cannot know whether it created the record or changed a
+   * boolean, so one shape covers both and the receipt is what tells them apart.
+   */
+  private result(page: ProjectPage, operation: OperationReceipt | null): ProjectPageWriteResult {
+    return ProjectPageWriteResultSchema.parse({ page, operation });
+  }
+
+  /** What the receipt and the summary call this toggle — the kind, and which way it went. */
+  private labelFor(page: ProjectPage): string {
+    return `${page.enabled ? 'Enabled' : 'Disabled'} the ${page.kind} page`;
   }
 
   /**

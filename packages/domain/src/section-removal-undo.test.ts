@@ -20,9 +20,9 @@ const shortcutTo = (sourceSectionId: string) =>
   });
 
 /**
- * Hand-built inputs, because a valid version-3 document cannot lose a retained section's page:
- * pages have no `remove`, and integrity rejects a section on a missing one. The fallback becomes
- * reachable end to end only once a later slice recreates deleted sections.
+ * Hand-built inputs, so every branch is reached directly. End to end, the missing-page fallback
+ * arises when Undo of a first enable removed the page a deleted section sat on; that journey is
+ * pinned in `page-history.test.ts`.
  */
 describe('resolveUndoDestination', () => {
   const section = { id: 'section-1', type: 'task-list' } as never;

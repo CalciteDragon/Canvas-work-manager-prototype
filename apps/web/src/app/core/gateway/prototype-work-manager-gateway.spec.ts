@@ -902,14 +902,36 @@ describe('PrototypeWorkManagerGateway — project pages (§26)', () => {
    * the record, so there is no id to name yet. Only `enabled` travels in the body.
    */
   it('toggles an optional page by kind, sending only the new state', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...homePage, id: 'page-todos', kind: 'todos', enabled: true }));
+    const todos = { ...homePage, id: 'page-todos', kind: 'todos', enabled: true };
+    fetchMock.mockImplementation(jsonResponse({ page: todos, operation: receiptOf('page.add', 1) }));
 
-    const page = await gateway().pages.setEnabled('project-1' as ProjectId, { kind: 'todos', enabled: true });
+    const result = await gateway().pages.setEnabled('project-1' as ProjectId, { kind: 'todos', enabled: true });
 
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1/pages/todos');
     expect(lastCall().init.method).toBe('PATCH');
     expect(JSON.parse(lastCall().init.body as string)).toEqual({ enabled: true });
-    expect(page).toMatchObject({ kind: 'todos', enabled: true });
+    expect(result.page).toMatchObject({ kind: 'todos', enabled: true });
+    expect(result.operation).toMatchObject({ operation: 'page.add', revision: 1 });
+  });
+
+  /** A toggle already where it was asked to go answers the page and no receipt (§31). */
+  it('parses the null receipt a no-op toggle answers', async () => {
+    fetchMock.mockImplementation(jsonResponse({ page: { ...homePage, id: 'page-todos', kind: 'todos' }, operation: null }));
+
+    const result = await gateway().pages.setEnabled('project-1' as ProjectId, { kind: 'todos', enabled: true });
+
+    expect(result.operation).toBeNull();
+    expect(result.page.kind).toBe('todos');
+  });
+
+  /**
+   * The envelope is validated, not trusted: a host answering the bare page it used to send is a
+   * contract break the browser has to notice rather than paint.
+   */
+  it('rejects a malformed toggle response', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...homePage, id: 'page-todos', kind: 'todos' }));
+
+    await expect(gateway().pages.setEnabled('project-1' as ProjectId, { kind: 'todos', enabled: true })).rejects.toBeTruthy();
   });
 
   it('surfaces a refused toggle as a GatewayError the UI can show', async () => {

@@ -62,13 +62,15 @@ describe('ProjectPageService.setEnabled (§26, §31)', () => {
   it('creates the record on the first enable', async () => {
     const harness = buildHarness();
 
-    const page = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+    const { page, operation } = await harness.projectPageService.setEnabled(harness.actor, MINE, {
       kind: 'todos',
       enabled: true,
     });
 
     expect(page).toMatchObject({ projectId: MINE, kind: 'todos', enabled: true });
     expect(await harness.pages.list({ projectId: MINE })).toHaveLength(2);
+    // The write that created the record is a `page.add`, in the owning root's own history.
+    expect(operation).toMatchObject({ operation: 'page.add', label: 'Enabled the todos page', revision: 1 });
   });
 
   /**
@@ -78,7 +80,7 @@ describe('ProjectPageService.setEnabled (§26, §31)', () => {
    */
   it('is nondestructive: disable then re-enable keeps the page, its sections and their order', async () => {
     const harness = buildHarness();
-    const page = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+    const { page } = await harness.projectPageService.setEnabled(harness.actor, MINE, {
       kind: 'reflections',
       enabled: true,
     });
@@ -86,7 +88,7 @@ describe('ProjectPageService.setEnabled (§26, §31)', () => {
     const before = await harness.sections.list({ pageId: page.id });
 
     await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'reflections', enabled: false });
-    const restored = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+    const { page: restored } = await harness.projectPageService.setEnabled(harness.actor, MINE, {
       kind: 'reflections',
       enabled: true,
     });
@@ -106,6 +108,77 @@ describe('ProjectPageService.setEnabled (§26, §31)', () => {
     const events = await harness.activities.list({ projectId: MINE });
     expect(events.map(({ action }) => action)).toEqual(['project.page_enabled', 'project.page_disabled']);
     expect(events.every(({ entityType, entityId }) => entityType === 'project' && entityId === MINE)).toBe(true);
+  });
+
+  /**
+   * §31, Slice 38: one owning-root action per **changed** state, and none at all for a no-op —
+   * which is what keeps "off" and "never existed" from both looking like an operation.
+   */
+  it('records one action per changed toggle: an add first, an update after', async () => {
+    const harness = buildHarness();
+
+    const created = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'todos', enabled: true });
+    const off = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'todos', enabled: false });
+    const on = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'todos', enabled: true });
+
+    expect([created.operation?.operation, off.operation?.operation, on.operation?.operation]).toEqual([
+      'page.add',
+      'page.update',
+      'page.update',
+    ]);
+    expect([created.operation?.label, off.operation?.label]).toEqual(['Enabled the todos page', 'Disabled the todos page']);
+    // One history, the owning root's, and three actions in the order they were written.
+    const histories = await harness.operationHistories.list({ projectId: MINE });
+    expect(histories).toHaveLength(1);
+    const actions = await harness.operationActions.list({ historyId: histories[0]!.id });
+    expect(actions.map(({ operation }) => operation.type)).toEqual(['page.add', 'page.update', 'page.update']);
+    expect(actions.every(({ state }) => state === 'applied')).toBe(true);
+  });
+
+  /** The root owns the history even for a toggle a nested route asked for. */
+  it('records against the root, never against a descendant project', async () => {
+    const harness = buildHarness();
+    const subproject = await subprojectOf(harness);
+    await harness.sectionWriteService.add(harness.actor, subproject.id, { type: 'rich-text' });
+
+    const created = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'archive', enabled: true });
+
+    const owner = (await harness.operationHistories.find(created.operation!.historyId))!;
+    expect(owner.projectId).toBe(MINE);
+    const nested = await harness.operationHistories.list({ projectId: subproject.id });
+    const nestedActions = (
+      await Promise.all(nested.map((history) => harness.operationActions.list({ historyId: history.id })))
+    ).flat();
+    expect(nestedActions.map(({ operation }) => operation.type)).toEqual(['section.add']);
+  });
+
+  /**
+   * A toggle already where it was asked to go is not a write: no receipt, no timestamp, no event,
+   * no history revision — and, crucially, no cleared Redo branch.
+   */
+  it('changes nothing at all for a no-op, including the Redo branch', async () => {
+    const harness = buildHarness();
+    const created = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'todos', enabled: true });
+    const off = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'todos', enabled: false });
+    await harness.undo(harness.actor, off.operation!);
+    const before = {
+      page: await harness.pages.find(created.page.id),
+      history: await harness.operationHistories.find(off.operation!.historyId),
+      actions: await harness.operationActions.list({ historyId: off.operation!.historyId }),
+      events: await harness.activities.list({ projectId: MINE }),
+    };
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).redo).not.toBeNull();
+
+    // The page is enabled again after that Undo, so asking for `true` is the no-op.
+    const repeated = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'todos', enabled: true });
+
+    expect(repeated.operation).toBeNull();
+    expect(repeated.page).toEqual(before.page);
+    expect(await harness.operationHistories.find(off.operation!.historyId)).toEqual(before.history);
+    expect(await harness.operationActions.list({ historyId: off.operation!.historyId })).toEqual(before.actions);
+    expect(await harness.activities.list({ projectId: MINE })).toEqual(before.events);
+    // The Redo the Undo left available is still there, which a recorded write would have discarded.
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).redo).toMatchObject({ operation: 'page.update' });
   });
 
   it('refuses to disable the required Home page', async () => {
@@ -148,12 +221,14 @@ describe('ProjectPageService.setEnabled (§26, §31)', () => {
     const harness = buildHarness();
     await harness.projectService.archive(harness.actor, MINE);
 
-    const page = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+    const { page, operation } = await harness.projectPageService.setEnabled(harness.actor, MINE, {
       kind: 'archive',
       enabled: true,
     });
 
     expect(page).toMatchObject({ kind: 'archive', enabled: true });
+    // The toggle commits and records; §31's freeze applies to the *transition*, not to this write.
+    expect(operation?.operation).toBe('page.add');
   });
 
   it('needs projects.write', async () => {
@@ -185,12 +260,14 @@ describe('ProjectPageService.setEnabled (§26, §31)', () => {
       find: (id: Parameters<typeof harness.pages.find>[0]) => harness.pages.find(id),
       list: (query?: Parameters<typeof harness.pages.list>[0]) => harness.pages.list(query),
       update: (page: Parameters<typeof harness.pages.update>[0]) => harness.pages.update(page),
+      remove: (id: Parameters<typeof harness.pages.remove>[0]) => harness.pages.remove(id),
       insert: async () => { throw new Error('disk gave up'); },
     };
     const service = new (await import('./project-page-service')).ProjectPageService({
       pages: failing,
       projects: harness.projects,
       activity: harness.activity,
+      history: harness.historyRecorder,
       clock: harness.clock,
       ids: harness.ids,
       unitOfWork: (await import('@cwm/repositories')).unitOfWorkFor(harness.store),

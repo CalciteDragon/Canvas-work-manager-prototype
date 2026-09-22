@@ -207,7 +207,7 @@ export const buildHarness = () => {
     sections: sectionService,
     shortcuts: sectionShortcutService,
     projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
-    pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
+    pages: new ProjectPageService({ pages, projects, activity, history, clock, ids, unitOfWork }),
     todos: new ProjectTodosService({ projects, tasks, sections, pages }),
     archive: new ProjectArchiveService({ projects, pages, sections, tasks, reflections }),
     journal: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),

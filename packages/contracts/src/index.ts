@@ -15,6 +15,8 @@ export * from './live';
 export * from './milestone';
 export * from './operation-history';
 export * from './operation-receipt';
+export * from './page-history';
+export * from './page-write-result';
 export * from './project';
 export * from './project-page';
 export * from './project-archive';

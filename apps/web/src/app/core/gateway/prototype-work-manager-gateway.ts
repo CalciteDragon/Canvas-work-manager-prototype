@@ -4,6 +4,7 @@ import {
   AgentConnectionSchema,
   DashboardResultSchema,
   ProjectPageSchema,
+  ProjectPageWriteResultSchema,
   ProjectArchiveResultSchema,
   ProjectCompletedWorkResultSchema,
   ProjectJournalResultSchema,
@@ -141,7 +142,7 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       this.send(
         'PATCH',
         `/api/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(input.kind)}`,
-        ProjectPageSchema,
+        ProjectPageWriteResultSchema,
         { enabled: input.enabled },
       ),
   };

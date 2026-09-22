@@ -14,6 +14,9 @@ import type {
   CreateSectionShortcutInput,
   Project,
   ProjectLayoutMode,
+  OptionalProjectPageKind,
+  ProjectPage,
+  ProjectPageWriteResult,
   ProjectSection,
   ResolvedSectionShortcut,
   SectionAddResult,
@@ -115,6 +118,19 @@ export const addShortcut = async (
   input: Omit<CreateSectionShortcutInput, 'pageId' | 'sourceSectionId'> & { pageId: string; sourceSectionId: string },
 ): Promise<ResolvedSectionShortcut> =>
   (await api.post<SectionShortcutAddResult>(`/api/projects/${projectId}/shortcuts`, input)).shortcut;
+
+/**
+ * Toggle one of a root's optional pages, unwrapping the `{ page, operation }` envelope the write
+ * has answered since Slice 38. Journeys that only need the tab on care about the page; the ones
+ * about history read the receipt from the response themselves.
+ */
+export const setPageEnabled = async (
+  projectId: string,
+  kind: OptionalProjectPageKind,
+  enabled: boolean,
+  persona: Persona = 'user-demo',
+): Promise<ProjectPage> =>
+  (await api.patch<ProjectPageWriteResult>(`/api/projects/${projectId}/pages/${kind}`, { enabled }, persona)).page;
 
 /** Persist the project layout flag through the same host API used by the development panel. */
 export const setLayout = (projectId: string, projectLayoutMode: ProjectLayoutMode): Promise<Project> =>

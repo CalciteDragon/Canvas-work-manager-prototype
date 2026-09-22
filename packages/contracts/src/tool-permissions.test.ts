@@ -26,6 +26,7 @@ describe('tool permission metadata', () => {
         task: 'tasks.write',
         reflection: 'reflections.write',
         shortcut: 'projects.write',
+        page: 'projects.write',
       },
     });
   });
@@ -59,16 +60,21 @@ describe('operation families', () => {
     }
   });
 
-  it('places the seventeen kinds in the four families', () => {
+  it('places the nineteen kinds in the five families', () => {
     const families = OperationKindSchema.options.map(familyOfOperationKind);
+    expect(families).toHaveLength(19);
     expect(families.filter((family) => family === 'section')).toHaveLength(5);
     expect(families.filter((family) => family === 'task')).toHaveLength(4);
     expect(families.filter((family) => family === 'reflection')).toHaveLength(4);
     expect(families.filter((family) => family === 'shortcut')).toHaveLength(4);
+    expect(families.filter((family) => family === 'page')).toHaveLength(2);
   });
 
-  it('gives a shortcut its own family name even though it shares the canvas grant', () => {
+  it('gives a shortcut and a page their own family names even though both share the canvas grant', () => {
     expect(familyOfOperationKind('shortcut.move')).toBe('shortcut');
     expect(OPERATION_FAMILY_PERMISSION.shortcut).toBe('projects.write');
+    expect(familyOfOperationKind('page.add')).toBe('page');
+    expect(familyOfOperationKind('page.update')).toBe('page');
+    expect(OPERATION_FAMILY_PERMISSION.page).toBe('projects.write');
   });
 });

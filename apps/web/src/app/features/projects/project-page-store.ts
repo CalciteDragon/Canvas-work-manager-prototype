@@ -1018,6 +1018,13 @@ export class ProjectPageStore {
     if (result.operation === 'shortcut.update') return 'Undo restored the shortcut.';
     if (result.operation === 'shortcut.move') return 'Undo moved the shortcut back.';
     if (result.operation === 'shortcut.remove') return 'Undo restored the removed shortcut.';
+    // A page result is about navigation rather than this canvas. It is narrowed here so the
+    // section notice's placement branch below stays type-safe; nothing routes a page receipt
+    // into that notice, so these lines are a compile-time boundary rather than a surface.
+    if (result.operation === 'page.add') return 'Undo removed the page that was enabled.';
+    if (result.operation === 'page.update') {
+      return result.page.enabled ? 'Undo enabled the page again.' : 'Undo disabled the page again.';
+    }
     // The two remaining section operations both restore a section to a placement.
     const name = nameOf(result.section);
     if (!result.placement.pageEnabled) {

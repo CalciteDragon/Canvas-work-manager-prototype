@@ -7,7 +7,7 @@ type Harness = ReturnType<typeof buildHarness>;
 
 /** A root with its Home and an enabled Reflections page — the first shape with two canvases. */
 const rootWithReflections = async (harness: Harness): Promise<{ home: ProjectPage; reflections: ProjectPage }> => {
-  const reflections = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+  const { page: reflections } = await harness.projectPageService.setEnabled(harness.actor, MINE, {
     kind: 'reflections',
     enabled: true,
   });

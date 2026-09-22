@@ -351,10 +351,13 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       this.answer('pages.list', projectId, this.pagesOf(projectId)),
     // The toggle, echoed: enabling a kind the project does not have yet answers with a new
     // record, matching the service's upsert, so a store spec sees the same two shapes it
-    // would over HTTP.
+    // would over HTTP. The envelope mirrors the service too — `page.add` when the record is new,
+    // `page.update` when the switch moved, and a `null` receipt when nothing changed, because a
+    // no-op that looked like a write would let a spec pass on behaviour the host does not have.
     setEnabled: async (projectId: ProjectId, input: SetProjectPageEnabledInput) => {
+      const existing = this.pagesOf(projectId).find(({ kind }) => kind === input.kind);
       const updated = {
-        ...(this.pagesOf(projectId).find(({ kind }) => kind === input.kind) ?? {
+        ...(existing ?? {
           id: `page-${projectId}-${input.kind}` as ProjectPageId,
           projectId,
           kind: input.kind,
@@ -363,7 +366,12 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         }),
         enabled: input.enabled,
       };
-      const answer = await this.answer('pages.setEnabled', { projectId, input }, updated);
+      const operation = existing === undefined
+        ? this.receipt('page.add', `Enabled the ${input.kind} page`)
+        : existing.enabled === input.enabled
+          ? null
+          : this.receipt('page.update', `${input.enabled ? 'Enabled' : 'Disabled'} the ${input.kind} page`);
+      const answer = await this.answer('pages.setEnabled', { projectId, input }, { page: updated, operation });
       // Model persistence only after the gateway answers. A rejected write must not silently
       // change the next read, which is the failure boundary the non-optimistic page manager
       // needs to exercise.
