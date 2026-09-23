@@ -96,7 +96,11 @@ and project labels name the edit, and a header archive stays on its project with
 canvas keeps only recovery (Open Archive, Retry remove, Retry refresh). Stage C still owes project
 creation Undo with its recovery route — now smaller, since Redo is reachable from the header — and the
 transition retry cache. Real use leaves two questions: whether section labels should name the edit
-too, and whether root pages need a way to reach a descendant's steps. The
+too, and whether root pages need a way to reach a descendant's steps. **[Slice 42 — project creation
+history and recovery state](active/42-project-creation-history.md) is active as Stage C5**: creation
+records a `project.add` whose Undo removes an untouched project and whose Redo is reachable from a
+recovery state at the project's URL; its plan proposes closing the retry cache by amendment rather
+than building it. The
 paragraphs below describe the earlier shipped system and its choices.
 
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported

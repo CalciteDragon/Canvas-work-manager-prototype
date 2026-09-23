@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 42 | Slice 42 — Project creation history and recovery state (Slice 34 Stage C5) | Project creation records one project.add action whose Undo removes the untouched project and its canonical page and whose Redo recreates the same ids, reachable from a recovery state at the project's own URL | [42-project-creation-history.md](active/42-project-creation-history.md) |
 
 ### Planned
 
