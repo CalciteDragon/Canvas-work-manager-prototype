@@ -16,6 +16,7 @@ import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gatew
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
+import type { OperationWriteReport } from '../../../core/history/operation-history-reporter';
 import { ProjectHistoryStore } from './project-history-store';
 
 const ROOT = 'project-renovation' as ProjectId;
@@ -77,6 +78,13 @@ const setup = () => {
   };
   const pending = () => reads.filter((read) => !(read as { done?: boolean }).done).length;
   return { gateway, store, live, summary, transition, transitions, answer, pending, reads };
+};
+
+/** One whole write that committed `report`: begin, commit, end. */
+const commit = (store: ProjectHistoryStore, report: OperationWriteReport) => {
+  const write = store.begin();
+  write.committed(report);
+  write.end();
 };
 
 const refusal = (details: OperationHistoryRefusalDetails) => new GatewayError('rule_violation', 409, `${details.reason}: refused`, details);
@@ -147,10 +155,10 @@ describe('ProjectHistoryStore — reports and pending', () => {
     const { store, answer, summary } = setup();
     store.load(ROOT);
     await answer(summaryOf());
-    const end = store.begin();
+    const write = store.begin();
     expect(store.undoControl().name).toBe('Saving a change…');
-    store.committed({ projectId: ROOT, receipt: receipt(HISTORY, 4) });
-    end();
+    write.committed({ projectId: ROOT, receipt: receipt(HISTORY, 4) });
+    write.end();
     expect(store.undoControl().name).toBe('Saving a change…');
     expect(summary).toHaveBeenCalledTimes(2);
     // A read at the old revision does not satisfy the receipt; the store asks again.
@@ -166,9 +174,7 @@ describe('ProjectHistoryStore — reports and pending', () => {
     store.load(ROOT);
     await answer(empty());
     live.emit({ type: 'task.task_updated', entityId: 'task-1', projectId: ROOT });
-    const end = store.begin();
-    store.committed({ projectId: ROOT, receipt: receipt(HISTORY, 1) });
-    end();
+    commit(store, { projectId: ROOT, receipt: receipt(HISTORY, 1) });
     // The frame's read started before the commit, and answers the pre-write, empty history.
     await answer(empty());
     expect(store.writePending()).toBe(true);
@@ -184,7 +190,7 @@ describe('ProjectHistoryStore — reports and pending', () => {
     const { store, answer } = setup();
     store.load(ROOT);
     // Still loading: the report is treated like a null held history.
-    store.committed({ projectId: KITCHEN, receipt: receipt(KITCHEN_HISTORY, 1) });
+    commit(store, { projectId: KITCHEN, receipt: receipt(KITCHEN_HISTORY, 1) });
     await answer(empty());
     await answer(empty());
     await Promise.resolve();
@@ -201,7 +207,7 @@ describe('ProjectHistoryStore — reports and pending', () => {
     const { store, answer, summary } = setup();
     store.load(ROOT);
     await answer(summaryOf());
-    store.committed({ projectId: KITCHEN, projectName: 'Kitchen', receipt: receipt(KITCHEN_HISTORY, 7) });
+    commit(store, { projectId: KITCHEN, projectName: 'Kitchen', receipt: receipt(KITCHEN_HISTORY, 7) });
     expect(summary).toHaveBeenCalledTimes(1);
     expect(store.feedback()?.link).toEqual({ projectId: KITCHEN, label: 'Open Kitchen' });
     expect(store.undoControl().name).toBe('Undo: Resized the Notes section');
@@ -211,14 +217,11 @@ describe('ProjectHistoryStore — reports and pending', () => {
     const { store, answer, summary } = setup();
     store.load(ROOT);
     await answer(summaryOf());
-    const noop = store.begin();
-    store.committed({ projectId: ROOT, receipt: null });
-    noop();
+    commit(store, { projectId: ROOT, receipt: null });
     expect(summary).toHaveBeenCalledTimes(1);
     expect(store.writePending()).toBe(false);
 
-    const failed = store.begin();
-    failed();
+    store.begin().end();
     expect(summary).toHaveBeenCalledTimes(2);
     expect(store.writePending()).toBe(true);
     await answer(summaryOf());
@@ -233,12 +236,56 @@ describe('ProjectHistoryStore — reports and pending', () => {
     store.load(KITCHEN);
     await answer(summaryOf({ projectId: KITCHEN, historyId: KITCHEN_HISTORY }));
     const current = store.begin();
-    old();
-    old();
+    old.end();
+    old.end();
     expect(store.undoControl().name).toBe('Saving a change…');
-    store.committed({ projectId: KITCHEN, receipt: null });
-    current();
-    current();
+    current.committed({ projectId: KITCHEN, receipt: null });
+    current.end();
+    current.end();
+    expect(store.undoControl().enabled).toBe(true);
+  });
+
+  it('a commit that lands after navigation reports nothing into the new project', async () => {
+    const { store, answer, summary } = setup();
+    store.load(ROOT);
+    await answer(summaryOf());
+    const old = store.begin();
+    store.load(KITCHEN);
+    await answer(summaryOf({ projectId: KITCHEN, historyId: KITCHEN_HISTORY }));
+    old.committed({ projectId: ROOT, receipt: receipt(HISTORY, 4) });
+    old.end();
+    expect(summary).toHaveBeenCalledTimes(2);
+    expect(store.writePending()).toBe(false);
+    expect(store.feedback()).toBeNull();
+  });
+
+  it('a failed write owes a read even when another write committed while it ran', async () => {
+    const { store, answer, summary } = setup();
+    store.load(ROOT);
+    await answer(summaryOf());
+    const failing = store.begin();
+    commit(store, { projectId: ROOT, receipt: null });
+    failing.end();
+    expect(summary).toHaveBeenCalledTimes(2);
+    expect(store.writePending()).toBe(true);
+    await answer(summaryOf());
+    expect(store.writePending()).toBe(false);
+  });
+
+  it('stops holding the controls for a revision that never arrives, and a reload drops what was owed', async () => {
+    const { store, answer, summary, live } = setup();
+    store.load(ROOT);
+    await answer(summaryOf());
+    commit(store, { projectId: ROOT, receipt: receipt(HISTORY, 9) });
+    for (let read = 0; read < 4; read += 1) await answer(summaryOf());
+    expect(summary).toHaveBeenCalledTimes(5);
+    expect(store.writePending()).toBe(false);
+
+    commit(store, { projectId: ROOT, receipt: receipt(HISTORY, 9) });
+    live.emit({ type: 'prototype.reloaded', entityId: 'workspace' });
+    await answer(summaryOf()); // the read the commit asked for, from the generation the reload ended
+    await answer(summaryOf({ revision: 1 }));
+    expect(store.writePending()).toBe(false);
     expect(store.undoControl().enabled).toBe(true);
   });
 
@@ -246,13 +293,13 @@ describe('ProjectHistoryStore — reports and pending', () => {
     const { store, answer } = setup();
     store.load(ROOT);
     await answer(summaryOf());
-    store.committed({ projectId: ROOT, receipt: receipt(HISTORY, 4) });
+    commit(store, { projectId: ROOT, receipt: receipt(HISTORY, 4) });
     store.load(KITCHEN);
     await answer(summaryOf({ revision: 4 })); // the dropped read from ROOT
     await answer(summaryOf({ projectId: KITCHEN, historyId: KITCHEN_HISTORY, revision: 1 }));
     expect(store.writePending()).toBe(false);
 
-    store.committed({ projectId: KITCHEN, receipt: receipt(KITCHEN_HISTORY, 2) });
+    commit(store, { projectId: KITCHEN, receipt: receipt(KITCHEN_HISTORY, 2) });
     await answer(new GatewayError('unreachable', 0, 'down'));
     expect(store.writePending()).toBe(false);
     expect(store.undoControl().name).toBe('History unavailable');
@@ -330,9 +377,9 @@ describe('ProjectHistoryStore — transitions', () => {
 
   it('sends nothing for a control that is unavailable', async () => {
     const { store, transition } = await ready();
-    const end = store.begin();
+    const write = store.begin();
     await store.undo();
-    end();
+    write.end();
     expect(transition).not.toHaveBeenCalled();
     TestBed.resetTestingModule();
     const blocked = setup();

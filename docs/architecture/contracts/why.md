@@ -162,6 +162,7 @@ general migration framework
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `section-restore-history.ts`, `shortcut-history.ts`, `shortcut-write-result.ts` and the fourth operation family
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `page-history.ts`, `page-write-result.ts`, the `page` conflict entity kind and the fifth operation family
 - [An existing project's writes are one action family](../../decisions/2026-09-project-update-operation-history.md) — `project-history.ts`, `project-write-result.ts`, the `project` conflict entity kind and the sixth operation family
+- [The project header offers Undo and Redo of the displayed project's history](../../decisions/2026-09-project-header-history-controls.md) — each summary entry carries its own `blockedBy`
 
 ## Spec sections
 

@@ -54,10 +54,11 @@ mutation and reconnect reads set no loading flag and clear no data; a host-state
 reloads the page because everything derived changed at once
 ([decision](../../decisions/2026-08-live-recovery-invalidates-derived-views.md)).
 
-**Receipts stop at the gateway/store seam until a surface owns them.** Task and reflection
-responses are validated as `{ task|reflection, operation }`, while current feature stores unwrap
-the entity and preserve their existing commit points. This keeps Stage B transport truth without
-inventing the Stage C global history controls or making presentational components know receipts.
+**Receipts go from the store to the header's history, never into a component.** Write responses
+are validated as `{ entity, operation }`; the feature store unwraps the entity at its existing commit
+point and reports the receipt through core's `OPERATION_HISTORY_REPORTER`, which the project
+workspace binds to its `ProjectHistoryStore`. The header's Undo and Redo read the server summary,
+so no presentational component knows a receipt (Slice 41, [decision](../../decisions/2026-09-project-header-history-controls.md)).
 
 **Eager feature routes, lazy prototype routes.** Lazy boundaries are one more thing to
 move when a feature moves; the two `prototype/*` routes are lazy because most sessions

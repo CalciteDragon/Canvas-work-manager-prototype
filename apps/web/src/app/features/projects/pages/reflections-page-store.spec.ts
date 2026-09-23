@@ -17,7 +17,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
-import { OPERATION_HISTORY_REPORTER, type OperationWriteReport } from '../../../core/history/operation-history-reporter';
+import type { OperationWriteReport } from '../../../core/history/operation-history-reporter';
+import { provideRecordingReporter } from '../../../core/history/testing/recording-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
 import { ReflectionsPageStore } from './reflections-page-store';
@@ -335,20 +336,8 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
 });
 
 describe('ReflectionsPageStore — writes report to the header’s history (Slice 41)', () => {
-  const recording = () => {
-    const events: Array<'begin' | 'end' | OperationWriteReport> = [];
-    return {
-      events,
-      begin: () => {
-        events.push('begin');
-        return () => void events.push('end');
-      },
-      committed: (report: OperationWriteReport) => void events.push(report),
-    };
-  };
   const setupReported = () => {
-    const reporter = recording();
-    TestBed.configureTestingModule({ providers: [{ provide: OPERATION_HISTORY_REPORTER, useValue: reporter }] });
+    const reporter = provideRecordingReporter();
     return { ...setup(), reporter };
   };
 

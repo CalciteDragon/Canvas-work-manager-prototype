@@ -857,6 +857,38 @@
       "projectId": "project-renovation",
       "slice": 39,
       "note": "Slice 39 real use on an isolated nested-projects copy. Renaming Garden from the header's More menu and then reopening it (completed -> active) each recorded one project.update in Garden's own history; Undo through the history route put the status back to Completed with the seed's original completion time, and the open header followed without a reload. Moving Cabinets to a new root dropped its row from Home renovation's open Todos page live, from the one frame that names only the new root, and Undo brought the row back. Two pieces of friction. (1) Labels do not say what happened: the rename and the reopening are both 'Updated \"Garden beds\"', so the summary showed identical Undo and Redo labels for two different steps — a header control would need 'Renamed to…' / 'Reopened…' / 'Moved to <root>' to be usable. (2) Moving Kitchen to another root answered 500 internal_error: a Home shortcut on the old root places a Kitchen section, and commit-time integrity rejects a cross-root placement. That is the ordinary reparent, not history (a history Undo/Redo into the same state now refuses with a typed shortcut-reference conflict), and it is spun out as its own task."
+    },
+    {
+      "id": "note-2026-09-23-001",
+      "createdAt": "2026-09-23T04:58:14.889Z",
+      "route": "C:/Program Files/Git/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 41,
+      "note": "Slice 41 real use (fixed in-slice): after the header undid a section removal, the canvas recovery notice still read 'Removed the Rich Text section. Undo is in the header.' with Open Archive over the restored section. The notice now withdraws itself once the removed section is back on the canvas, whoever put it back."
+    },
+    {
+      "id": "note-2026-09-23-002",
+      "createdAt": "2026-09-23T04:58:15.038Z",
+      "route": "C:/Program Files/Git/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 41,
+      "note": "Slice 41 real use: collapsing, resizing or retitling a section all read 'Undo: Updated the Progress section' in the header. Shortcut and project labels now name the edit (Collapsed/Resized/Renamed); section labels were left generic by the plan's non-goals and are the next obvious gap — the same Updated label twice in a row gives no way to tell which step Undo will take."
+    },
+    {
+      "id": "note-2026-09-23-003",
+      "createdAt": "2026-09-23T04:58:15.174Z",
+      "route": "C:/Program Files/Git/projects/project-renovation/pages/todos",
+      "projectId": "project-renovation",
+      "slice": 41,
+      "note": "Slice 41 real use: completing a Kitchen task from root Todos says it 'was recorded in Kitchen's history' with an Open Kitchen link, which works, but the root header gives no hint of it once the feedback line is dismissed or replaced. If this is common, a root page may want a way to reach descendant steps without leaving (the decision's revisit trigger)."
+    },
+    {
+      "id": "note-2026-09-23-004",
+      "createdAt": "2026-09-23T04:58:15.340Z",
+      "route": "C:/Program Files/Git/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 41,
+      "note": "Slice 41 real use: at 375 px the global sidebar still does not collapse (note-2026-09-06-007), leaving the project workspace ~135 px wide; the header's actions now wrap onto their own row under 40rem, but the page is not usable at phone width until the app shell collapses."
     }
   ]
 }

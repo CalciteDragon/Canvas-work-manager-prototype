@@ -1,5 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { OPERATION_HISTORY_REPORTER, type OperationHistoryReporter, type OperationWriteReport } from '../operation-history-reporter';
+import {
+  OPERATION_HISTORY_REPORTER,
+  type OperationHistoryReporter,
+  type OperationWriteHandle,
+  type OperationWriteReport,
+} from '../operation-history-reporter';
 
 /** One thing a writer told the header's history, in order. */
 export type ReporterEvent = 'begin' | 'end' | OperationWriteReport;
@@ -12,18 +17,17 @@ export type ReporterEvent = 'begin' | 'end' | OperationWriteReport;
 export class RecordingReporter implements OperationHistoryReporter {
   readonly events: ReporterEvent[] = [];
 
-  begin(): () => void {
+  begin(): OperationWriteHandle {
     this.events.push('begin');
     let ended = false;
-    return () => {
-      if (ended) return;
-      ended = true;
-      this.events.push('end');
+    return {
+      committed: (report: OperationWriteReport) => void this.events.push(report),
+      end: () => {
+        if (ended) return;
+        ended = true;
+        this.events.push('end');
+      },
     };
-  }
-
-  committed(report: OperationWriteReport): void {
-    this.events.push(report);
   }
 
   /** The committed reports so far, in order. */

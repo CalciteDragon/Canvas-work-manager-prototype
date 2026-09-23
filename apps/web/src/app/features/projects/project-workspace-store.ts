@@ -13,7 +13,7 @@ import {
   type UpdateProjectInput,
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
-import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
+import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 
 const messageOf = (error: unknown): string =>
@@ -335,18 +335,15 @@ export class ProjectWorkspaceStore {
       this.pageWritePendingState.set(true);
       this.clearPageFeedback(surface);
       try {
-        const end = this.reporter.begin();
         try {
-          const written = await this.gateway.pages.setEnabled(root.id, { kind, enabled });
           // The page's own project — the root — names the history, never the routed sub-project.
-          this.reporter.committed({ projectId: written.page.projectId, projectName: root.name, receipt: written.operation });
+          await reportedWrite(this.reporter, () => this.gateway.pages.setEnabled(root.id, { kind, enabled }),
+            (written) => ({ projectId: written.page.projectId, projectName: root.name, receipt: written.operation }));
         } catch (error) {
           if (this.pageOperationCurrent(generation, epoch, routedProjectId)) {
             this.setPageOperationError(surface, messageOf(error));
           }
           return false;
-        } finally {
-          end();
         }
 
         if (!this.pageOperationCurrent(generation, epoch, routedProjectId)) return false;
@@ -557,10 +554,9 @@ export class ProjectWorkspaceStore {
 
     return this.track(() =>
       this.whileWriting(async () => {
-        const end = this.reporter.begin();
         try {
-          const { project: updated, operation } = await this.gateway.projects.update(projectId, input);
-          this.reporter.committed({ projectId: updated.id, projectName: updated.name, receipt: operation });
+          const { project: updated } = await reportedWrite(this.reporter, () => this.gateway.projects.update(projectId, input),
+            ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }));
           // The server's record, not the paint: the host may have normalised something.
           if (current()) this.projectState.set(updated);
           return true;
@@ -571,7 +567,6 @@ export class ProjectWorkspaceStore {
           }
           return false;
         } finally {
-          end();
           this.projectWritesState.update((count) => count - 1);
         }
       }),

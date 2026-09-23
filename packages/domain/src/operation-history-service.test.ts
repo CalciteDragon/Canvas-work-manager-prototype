@@ -762,7 +762,7 @@ describe('OperationHistoryService — per-step blockers in the summary (Slice 41
   const createKitchen = (harness: Harness) => harness.projectService.create(harness.actor, {
     workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: KITCHEN_NAME,
   });
-  /** What `transition` decides for the summary's entry: blocked (with the blocker) or not. */
+  /** What `transition` decides for the summary's entry: blocked (with the blocker), or it ran (`null`). */
   const decided = async (harness: Harness, projectId: typeof MINE, direction: 'undo' | 'redo') => {
     const summary = await harness.operationHistoryService.summary(harness.actor, projectId);
     const entry = summary[direction]!;
@@ -772,8 +772,11 @@ describe('OperationHistoryService — per-step blockers in the summary (Slice 41
       });
       return { entry, blocker: null };
     } catch (error) {
-      const details = (error as DomainRuleError).details as { reason: string; blockingProjectId?: string };
-      return { entry, blocker: details.reason === 'history_blocked' ? details.blockingProjectId! : null };
+      // Only a blocked refusal counts; any other refusal is a failure of the test's premise, not a
+      // step that "may run".
+      const details = (error as DomainRuleError).details as { reason: string; blockingProjectId?: string } | undefined;
+      if (details?.reason !== 'history_blocked') throw error;
+      return { entry, blocker: details.blockingProjectId! };
     }
   };
 

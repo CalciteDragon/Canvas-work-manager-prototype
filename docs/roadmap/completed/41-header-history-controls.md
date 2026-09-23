@@ -1,4 +1,4 @@
-<!-- plan id="41" status="active" summary="Always-present Undo/Redo icons in the project header, driven by the server history summary, with per-step availability, subject-naming labels and write reporting from every browser surface" -->
+<!-- completed-record id="41" closed="2026-09-23" summary="Always-present header Undo/Redo over the displayed project's history, per-step blockedBy, edit-naming labels, every browser write reporting through a core token, the canvas notice reduced to recovery, and archive staying on the project" -->
 # Slice 41 — Project header Undo/Redo controls (Slice 34 Stage C4)
 
 <!-- The first line is the state marker; scripts/roadmap.mjs owns it. While the plan is in
@@ -458,6 +458,15 @@ Resolved by default for this plan; each is recorded in the new decision entry:
 
 - **Draft (2026-09-22):** Written from the Slice 34 direction, Slices 35–40 outcomes, the three
   real-use notes, and the code named above.
+- **Implementation review (2026-09-23):** Three diff reviewers covered correctness and spec, boundaries
+  and tests, and living documentation.
+  - No blocking defects were found, and every AGENTS.md boundary holds.
+  - Fixed after review: the per-write reporter handle, the capped owed-read retries, the archive
+    feedback guard, and a stronger per-step domain helper.
+  - The e2e spec was tightened: real Tab order, hit targets at 375 px, page-rendered (not API) state
+    checks, a held summary read after the write's response, and the page toggle's revision.
+  - Docs fixed: unexpanded spec links, stale §§27 and 32 text, the top-level web docs, the decision's
+    links from `why.md` files, the bundle measurement, and a stray committed guide file.
 - **Round 3 (2026-09-22):** Reviewer confirmed the Round 2 fixes against the code (the legacy-child
   rename records and is blocked by its ancestor; the gated tab B refuses `history_revision_stale`
   because the revision check precedes next-ness; the owed-read rule cannot deadlock) and returned
@@ -498,14 +507,75 @@ Resolved by default for this plan; each is recorded in the new decision entry:
 
 ## Outcome
 
-**Deliverables** — <what now exists and works, with file links>.
+**Deliverables** — Every project page's header now has always-present **Undo** and **Redo** icons
+over the displayed project's history, and they are the only browser surface that offers Undo.
+[`ProjectHistoryStore`](../../../apps/web/src/app/features/projects/history/project-history-store.ts),
+provided by the shell and bound to core's
+[`OPERATION_HISTORY_REPORTER`](../../../apps/web/src/app/core/history/operation-history-reporter.ts),
+holds the server summary with generation and revision guards, coalesced re-reads, pending state
+that covers each write's owed re-read, one transition at a time, and one feedback line worded by
+[`history-feedback.ts`](../../../apps/web/src/app/features/projects/history/history-feedback.ts);
+[`ProjectHistoryControls`](../../../apps/web/src/app/features/projects/history/project-history-controls.ts)
+renders the `aria-disabled` icons. Every browser write site in the inventory reports through
+`reportedWrite`. Summary entries carry their own `blockedBy`
+([`operation-history-service.ts`](../../../packages/domain/src/operation-history-service.ts)), and
+shortcut and project labels name the edit (`shortcutWriteLabel`, `projectWriteLabel`). The canvas
+notice became [`SectionRecoveryNotice`](../../../apps/web/src/app/features/projects/section-recovery-notice.ts)
+(Open Archive, Retry remove, Retry refresh — no Undo); the Reflections page has no notice. A header
+archive stays on the archived project with its Undo enabled. Verified: `pnpm test` (all workspaces),
+`pnpm lint` (docs check included), `pnpm build` (initial bundle 1024.97 kB, under the 1050 kB
+ceiling), host `acceptance` and `mcp-acceptance` (both transports), and the twelve planned e2e specs —
+52 journeys, including [`project-history.spec.ts`](../../../apps/e2e/project-history.spec.ts) for
+acceptance steps 1–8.
 
-**Deliberate choices** — <decisions made and why; options rejected; links to decision entries>.
+**Deliberate choices** — Ownership is decided from `receipt.historyId`; a writer only supplies the
+response's project to word the cross-owner sentence, and the store fetches the name when the writer
+cannot. Pending lasts until a read requested **after** the commit reaches the receipt's revision.
+Content after a transition is reconciled by live frames, not by the header. All in
+[the header-controls decision](../../decisions/2026-09-project-header-history-controls.md), with
+dated amendments to the nine decisions the plan named.
 
-**Deviations from the plan** — <what changed mid-implementation and what caused it>.
+**Deviations from the plan** —
+- *The reporter interface.* The plan's `begin(): () => void` plus a separate `committed(report)`
+  could not tie a commit to its own write. The diff review found two consequences: a response landing
+  after navigation reported into the next project, and a failed write that overlapped a committed
+  one was taken as committed and owed no re-read. `begin()` now returns an `OperationWriteHandle`
+  with `committed` and `end`. The review also found that an owed re-read could spin on a restored
+  document, so it is now capped at three retries.
+- *A removal notice now withdraws itself.* In real use, after the header undid a removal, the notice
+  still said "Removed the Rich Text section… Open Archive" over the restored section.
+- *The shared feedback line is its own component.* `ProjectHistoryFeedback` is projected into a
+  full-width row of the header. Placing it inside the controls' cell would have squeezed it into the
+  actions column. Below 40rem the header's actions now move to their own row.
+- *Archive feedback checks the page.* It is announced only if the person is still on the archived
+  project.
+- *Shortcut label fallback.* When the source can't be read, the noun falls back to "a shortcut" but
+  the verb is kept, e.g. "Collapsed a shortcut".
+- *The Reflections page has no notice at all.* Once Undo was gone it had no recovery left to offer.
+- *Acceptance data.*
+  - Step 2's page toggle runs on `personal-workspace`'s `project-personal`: that seed has no
+    `project-course`.
+  - Step 7's second actor is the person's agent connection. Every seed gives each persona its own
+    workspace, so a second persona cannot see Home renovation.
+  - Step 1's dark theme is covered by the token lint, not by a screenshot.
 
-**Deferred** — <what was left out and which slice owns it>.
+**Deferred** —
+- Section labels still say "Updated the X section" for collapse, resize and retitle (the plan's
+  non-goals; `note-2026-09-23-002`). This is a candidate for the next label pass.
+- Project creation Undo and its recovery route, and the transition retry cache, remain Stage C work.
+- Focus after a removal with no notice goes to the first section title, not the removed section's
+  neighbour (a minor finding from the review).
+- The app shell's missing collapse at 375 px is still open (`note-2026-09-06-007`,
+  `note-2026-09-23-004`).
 
-**Open questions** — <what the next phase or the user must answer>.
+**Open questions** — Whether root pages need a way to reach a descendant's steps without leaving
+the root (`note-2026-09-23-003`; the decision's revisit trigger). Whether section labels should name
+the kind of edit the way shortcut and project labels now do.
 
-**Documentation updated** — <the architecture folders, decisions and guides touched>.
+**Documentation updated** —
+- Spec §§26, 27, 31, 32, 54 and 61–63.
+- The new decision `2026-09-project-header-history-controls.md` and nine amendments, all indexed.
+- Architecture: `web` (top level, `projects`, `core`, `tasks`, `prototype-tooling`), `domain`,
+  `contracts`, `mcp-tools`, `prototype-host/api` and `testing`.
+- Guides: `mcp-setup.md` and `first-milestone-walkthrough.md`.
+- `goals.md`; dev-panel `CURRENT_SLICE = 41`; four real-use notes in `.prototype/notes.json`.

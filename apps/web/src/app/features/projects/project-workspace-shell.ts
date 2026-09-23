@@ -332,7 +332,10 @@ export class ProjectWorkspaceShell {
     const project = this.store.project();
     if (project === null) return;
     if (!await this.store.archive()) return;
-    this.history.announce(archivedHereFeedback(this.store.project()?.name ?? project.name));
+    // Only if the person is still on it: after a sidebar move during the awaited PATCH, this header
+    // belongs to another project, whose history holds no such step.
+    if (this.projectId() !== project.id) return;
+    this.history.announce(archivedHereFeedback(project.name));
   }
 
   readonly undo = (): void => void this.history.undo();

@@ -215,6 +215,7 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [Project nesting rules and what archiving a parent does](../../decisions/2026-08-project-nesting-and-archive-rules.md)
 - [An existing project's writes are one action family, and its own archive can be undone while archived](../../decisions/2026-09-project-update-operation-history.md)
 - [A forward reparent refuses a Home shortcut it would carry across roots](../../decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md)
+- [The project header offers Undo and Redo of the displayed project's history](../../decisions/2026-09-project-header-history-controls.md) — each summary entry carries its own `blockedBy`
 
 ## Spec sections
 

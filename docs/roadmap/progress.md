@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 41 | Slice 41 — Project header Undo/Redo controls (Slice 34 Stage C4) | Always-present Undo/Redo icons in the project header, driven by the server history summary, with per-step availability, subject-naming labels and write reporting from every browser surface | [41-header-history-controls.md](active/41-header-history-controls.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -79,4 +77,5 @@ verification follow-ups rather than feature slices.
 | 38 | Slice 38 — Optional-page operation history (Slice 34 Stage C2) | 2026-09-22 | Optional-page enable/disable, including first-enable page creation, reverses and replays in the owning root's exact-actor history without deleting content | [38-optional-page-history.md](completed/38-optional-page-history.md) |
 | 39 | Slice 39 — Project update and lifecycle history (Slice 34 Stage C3) | 2026-09-22 | Existing-project edits, completion, reparenting, layout/progress settings, archive and reactivation each record one subject-owned project action; Undo/Redo rerun the hierarchy rules, with a narrow archived-subject exception, over HTTP, both MCP transports and the browser | [39-project-update-history.md](completed/39-project-update-history.md) |
 | 40 | Slice 40 — Forward reparent refuses a cross-root Home shortcut | 2026-09-22 | ProjectService.update refuses, 409, a reparent that would carry an old-root Home shortcut's source across roots, sharing the check with the history executor. | [40-forward-reparent-shortcut-refusal.md](completed/40-forward-reparent-shortcut-refusal.md) |
+| 41 | Slice 41 — Project header Undo/Redo controls (Slice 34 Stage C4) | 2026-09-23 | Always-present header Undo/Redo over the displayed project's history, per-step blockedBy, edit-naming labels, every browser write reporting through a core token, the canvas notice reduced to recovery, and archive staying on the project | [41-header-history-controls.md](completed/41-header-history-controls.md) |
 <!-- roadmap:end -->

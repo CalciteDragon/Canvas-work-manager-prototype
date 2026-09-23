@@ -2,7 +2,7 @@
  * Slice 41's acceptance: the project header's Undo and Redo, driven by the server summary, on every
  * project page (docs/decisions/2026-09-project-header-history-controls.md).
  */
-import type { OperationHistorySummary, ProjectPage, ProjectSection, ResolvedSectionShortcut, Task } from '@cwm/contracts';
+import type { OperationHistorySummary, ProjectPage, ProjectSection, Task } from '@cwm/contracts';
 import { expect, test, type Page } from '@playwright/test';
 import { historyControl, historyFeedback, redoFromHeader, stepFromHeader, undoFromHeader } from './history-controls';
 import { api, connectMcp, seed, setClock } from './seed';
@@ -13,9 +13,6 @@ const HOME = 'page-project-renovation';
 
 const summaryOf = (projectId: string) => api.get<OperationHistorySummary>(`/api/projects/${projectId}/history`);
 const sectionsOf = (projectId: string, pageId: string) => api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${pageId}`);
-const shortcutsOf = () => api.get<ResolvedSectionShortcut[]>(`/api/projects/${ROOT}/shortcuts?pageId=${HOME}`);
-const taskTitled = async (title: string): Promise<Task | undefined> =>
-  (await api.get<Task[]>(`/api/tasks?projectId=${ROOT}&includeArchived=true`)).find((task) => task.title === title);
 
 /** Both controls exist, name the empty history, and are unavailable without leaving the tab order. */
 const expectEmptyControls = async (page: Page, where: string) => {
@@ -46,6 +43,8 @@ test('1. both controls render on every project page, are reachable, and fit a ph
   ]) {
     await page.goto(url);
     await expectEmptyControls(page, url);
+    // 8. No surface but the header offers Undo.
+    await expect(page.locator('[data-undo-action]'), url).toHaveCount(0);
   }
 
   // A root made through the sidebar: creation is not recorded, so its history is empty.
@@ -57,19 +56,25 @@ test('1. both controls render on every project page, are reachable, and fit a ph
   await expect(page.locator('[data-project-name]')).toHaveText('Fresh root');
   await expectEmptyControls(page, 'sidebar-created root');
 
-  // Keyboard: both are in the tab order, and each box meets the hit target (--size-hit-target, 2.75rem).
-  for (const direction of ['undo', 'redo'] as const) {
-    const control = historyControl(page, direction);
-    await control.focus();
-    await expect(control).toBeFocused();
-    const box = await control.boundingBox();
-    expect(box!.width).toBeGreaterThanOrEqual(44);
-    expect(box!.height).toBeGreaterThanOrEqual(44);
-  }
+  // Keyboard: Tab moves Undo → Redo → More, so both unavailable controls stay in the tab order.
+  await historyControl(page, 'undo').focus();
+  expect(await historyControl(page, 'undo').evaluate((element) => (element as HTMLElement).tabIndex)).toBe(0);
+  await page.keyboard.press('Tab');
+  await expect(historyControl(page, 'redo')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('[data-project-more]')).toBeFocused();
 
-  await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto(`/projects/${ROOT}`);
-  await expectEmptyControls(page, '375 px');
+  // Each box meets the hit target (--size-hit-target, 2.75rem), at a desktop and a phone width.
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 812 });
+    await page.goto(`/projects/${ROOT}`);
+    await expectEmptyControls(page, `${width} px`);
+    for (const direction of ['undo', 'redo'] as const) {
+      const box = await historyControl(page, direction).boundingBox();
+      expect(box!.width, `${direction} at ${width} px`).toBeGreaterThanOrEqual(44);
+      expect(box!.height, `${direction} at ${width} px`).toBeGreaterThanOrEqual(44);
+    }
+  }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
@@ -142,6 +147,9 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   const progressSpan = async () => (await sectionsOf(ROOT, HOME)).find(({ id }) => id === 'section-project-renovation-progress')?.columnSpan;
   const progressIndex = async () => (await sectionsOf(ROOT, HOME)).sort((a, b) => a.position - b.position).findIndex(({ id }) => id === 'section-project-renovation-progress');
   const originalIndex = 3;
+  /** Where the page itself draws Progress among the canvas's sections. */
+  const renderedProgressIndex = () => page.locator('[data-section-canvas] > [data-section-item]')
+    .evaluateAll((items) => items.map((item) => item.getAttribute('data-section-id')).indexOf('section-project-renovation-progress'));
   const steps: Array<{ label: string; undone: () => Promise<void>; redone: () => Promise<void> }> = [
     { label: 'Renamed "Home renovation" to "House renovation"',
       undone: () => expect(page.locator('[data-project-name]')).toHaveText('Home renovation'),
@@ -150,8 +158,8 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
       undone: () => expect(shortcut).toBeVisible(),
       redone: () => expect(shortcut).toHaveCount(0) },
     { label: 'Collapsed the Progress shortcut',
-      undone: () => expect.poll(async () => (await shortcutsOf()).find(({ id }) => id === shortcutId)?.collapsed).toBe(false),
-      redone: () => expect.poll(async () => (await shortcutsOf()).find(({ id }) => id === shortcutId)?.collapsed).toBe(true) },
+      undone: () => expect(shortcut.locator('[data-shortcut-collapse]')).toHaveAttribute('aria-expanded', 'true'),
+      redone: () => expect(shortcut.locator('[data-shortcut-collapse]')).toHaveAttribute('aria-expanded', 'false') },
     { label: 'Added the Progress shortcut',
       undone: () => expect(shortcut).toHaveCount(0),
       redone: () => expect(shortcut).toBeVisible() },
@@ -159,17 +167,29 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
       undone: () => expect(brief).toBeVisible(),
       redone: () => expect(brief).toHaveCount(0) },
     { label: 'Moved the Progress section',
-      undone: () => expect.poll(progressIndex).toBe(originalIndex),
-      redone: () => expect.poll(progressIndex).toBe(originalIndex - 1) },
+      undone: async () => {
+        await expect.poll(renderedProgressIndex).toBe(originalIndex);
+        expect(await progressIndex()).toBe(originalIndex);
+      },
+      redone: async () => {
+        await expect.poll(renderedProgressIndex).toBe(originalIndex - 1);
+        expect(await progressIndex()).toBe(originalIndex - 1);
+      } },
     { label: 'Updated the Progress section',
-      undone: () => expect.poll(progressSpan).toBe(12),
-      redone: () => expect.poll(progressSpan).toBe(8) },
+      undone: async () => {
+        await expect(progress).toHaveClass(/section-canvas__item--span-12/);
+        expect(await progressSpan()).toBe(12);
+      },
+      redone: async () => {
+        await expect(progress).toHaveClass(/section-canvas__item--span-8/);
+        expect(await progressSpan()).toBe(8);
+      } },
     { label: 'Archived "Order tile grout"',
       undone: () => expect(list.locator('[data-task-row]', { hasText: 'Order tile grout' })).toBeVisible(),
       redone: () => expect(list.locator('[data-task-row]', { hasText: 'Order tile grout' })).toHaveCount(0) },
     { label: 'Completed "Order tile grout"',
-      undone: () => expect.poll(async () => (await taskTitled('Order tile grout'))?.status).toBe('todo'),
-      redone: () => expect.poll(async () => (await taskTitled('Order tile grout'))?.status).toBe('done') },
+      undone: () => expect(list.locator('[data-task-row]', { hasText: 'Order tile grout' }).locator('[data-task-complete]')).not.toBeChecked(),
+      redone: () => expect(list.locator('[data-task-row]', { hasText: 'Order tile grout' }).locator('[data-task-complete]')).toBeChecked() },
     { label: 'Updated "Order tile grout"',
       undone: () => expect(list.locator('[data-task-row]', { hasText: 'Order grout' })).toBeVisible(),
       redone: () => expect(list.locator('[data-task-row]', { hasText: 'Order tile grout' })).toBeVisible() },
@@ -227,9 +247,12 @@ test('2. an optional page toggle is undone and redone from the header', async ({
   await page.locator('[data-page-toggle-kind="reflections"] input').click();
   const tab = page.locator('[data-project-page-tab][data-page-kind="reflections"]');
   await expect(tab).toBeVisible();
-  await undoFromHeader(page, 'Enabled the reflections page');
+  const before = (await summaryOf('project-personal')).revision;
+  const undone = await undoFromHeader(page, 'Enabled the reflections page');
+  expect(undone.body.summary.revision).toBe(before + 1);
   await expect(tab).toHaveCount(0);
-  await redoFromHeader(page, 'Enabled the reflections page');
+  const redone = await redoFromHeader(page, 'Enabled the reflections page');
+  expect(redone.body.summary.revision).toBe(before + 2);
   await expect(tab).toBeVisible();
 });
 
@@ -286,15 +309,28 @@ test('6. controls are pending through a write and its re-read, and a stale tab i
     if (route.request().method() === 'PATCH') await held;
     await route.continue();
   });
-  const summaryAfterWrite = page.waitForResponse((response) => response.url().endsWith(`/api/projects/${ROOT}/history`));
+  // …and hold the summary read that follows, so the window after the write's response is visible.
+  let releaseRead!: () => void;
+  const readHeld = new Promise<void>((resolve) => { releaseRead = resolve; });
+  await page.route(`**/api/projects/${ROOT}/history`, async (route) => {
+    await readHeld;
+    await route.continue().catch(() => undefined);
+  });
+  const writeAnswered = page.waitForResponse((response) =>
+    response.request().method() === 'PATCH' && response.url().endsWith('/api/sections/section-project-renovation-progress'));
   await progress.locator('[data-section-collapse]').click();
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-disabled', 'true');
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Saving a change…');
   await expect(historyControl(page, 'redo')).toHaveAttribute('aria-disabled', 'true');
   release();
-  await summaryAfterWrite;
+  await writeAnswered;
+  // The write has answered; its re-read has not. The controls must not offer the pre-write state.
+  await expect(progress.locator('[data-section-collapse]')).toHaveAttribute('aria-expanded', 'false');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Saving a change…');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-disabled', 'true');
+  releaseRead();
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Updated the Progress section');
-  await page.unroute('**/api/sections/section-project-renovation-progress');
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
 
   // Two tabs on one history.
   const tabB = await page.context().newPage();
@@ -347,7 +383,8 @@ test('7. a conflicting later edit refuses with its subject and next step, and ex
   const label = 'Updated "Call the reclamation yard"';
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', `Undo: ${label}`);
 
-  // Another actor — the person's agent connection — renames the same task after them.
+  // Another actor renames the same task after them. The plan named a second persona, but every seed
+  // gives each persona its own workspace, so the person's agent connection is the other actor here.
   const client = await connectMcp('prototype-user-a-readwrite', 'cwm-slice-41-conflict');
   try {
     const renamed = await client.callTool({ name: 'update_task', arguments: { taskId: 'task-renovation-undated', title: 'Call the yard (agent)' } });

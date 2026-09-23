@@ -20,8 +20,9 @@ properties, and it depends on the host **only** through gateway interfaces and o
 - Hold feature state in feature-scoped signal stores (§19, §20): `Page → Store →
   Gateway`, never a global store.
 - Paint optimistic writes and revert them visibly on failure (§63).
-- Validate task and reflection write envelopes at the gateway boundary; feature stores unwrap the
-  returned row while the operation receipt remains available for later browser history controls.
+- Validate write envelopes at the gateway boundary; feature stores unwrap the returned entity and
+  report the operation receipt to the project header's history, whose Undo and Redo are the one
+  browser surface for history (Slice 41).
 - Re-read the affected stores when the host announces a change (§62), quietly.
 - Use design tokens for every colour, spacing and radius (§21); switch themes by one
   attribute (§22).

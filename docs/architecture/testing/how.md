@@ -13,6 +13,7 @@
    dialogs, recovery notice (the Undo notice until Slice 41) and Archive list; the production initial bundle measured 994.27 kB at Slice 33
    against the original 1 MB error ceiling; Slice 36's contracts moved the measured initial bundle
    to 1.01 MB, so the watched hard ceiling is 1050 kB while the 850 kB warning remains reported.
+   Slice 41's eager header controls measured 1024.97 kB.
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
    starts a second host on a temp file and walks a slice's *done when*. Since Slice 30,
    `acceptance` removes `personal-workspace`'s first Home placement, undoes it through

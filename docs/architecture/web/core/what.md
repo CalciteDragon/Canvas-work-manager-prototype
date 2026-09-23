@@ -81,7 +81,7 @@ sequenceDiagram
 | Fakes | `core/gateway/testing/`, `core/live/testing/` | What every component and store spec injects |
 | `IdentityProvider`, `IDENTITY_PROVIDER`, `PrototypeIdentityProvider` | `core/identity/` | §18 |
 | `LiveUpdates`, `LIVE_UPDATES`, `PrototypeLiveUpdates` | `core/live/` | §62 client side |
-| `OperationHistoryReporter`, `OperationWriteReport`, `OPERATION_HISTORY_REPORTER`, `reportedWrite` | `core/history/operation-history-reporter.ts` | The write-reporting port; `RecordingReporter` in `core/history/testing/` for writer specs |
+| `OperationHistoryReporter`, `OperationWriteHandle`, `OperationWriteReport`, `OPERATION_HISTORY_REPORTER`, `reportedWrite` | `core/history/operation-history-reporter.ts` | The write-reporting port; `RecordingReporter` in `core/history/testing/` for writer specs |
 | `PROTOTYPE_API_BASE_URL` | `core/config/prototype-config.ts` | Where the host is |
 | `PrototypeSettings`, `PrototypeFlags`, `StoredSettings` | `core/config/prototype-settings.ts` | §47 flags; delay; failure rate |
 | `ThemeService` | `core/theme/theme-service.ts` | §22 |

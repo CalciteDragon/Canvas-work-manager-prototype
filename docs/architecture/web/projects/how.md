@@ -46,12 +46,15 @@
      history, and moves to `unavailable` with a read-only Retry when a read fails;
    - re-reads on a frame naming the displayed project, any `isProjectRecordEvent` frame,
      `prototype.reloaded` (a new generation) and reconnect;
-   - counts `begin()`s per generation; `committed(report)` with a receipt from the held history, or
-     while nothing is held, **owes a read requested after it** that reaches the receipt's revision;
+   - hands each write a handle bound to the generation it began in (a commit or end from before a
+     navigation is ignored); a handle's `committed(report)` with a receipt from the held history, or
+     while nothing is held, **owes a read requested after it** that reaches the receipt's revision
+     (re-reading at most three times for it);
      a receipt naming another, known history — or a fresh read that still names another — sets
      "… was recorded in Kitchen's history." with an Open link (the name comes from the report or a
-     `projects.get`); an end with no commit since its begin owes a read too, because a transport
-     error or 5xx may have committed. Both controls are unavailable while any write or owed read is
+     `projects.get`); a handle that ends without its own commit owes a read too, because a transport
+     error or 5xx may have committed. A removal notice withdraws itself once its section is back on
+     the canvas. Both controls are unavailable while any write or owed read is
      pending;
    - runs one transition at a time with the held entry's `actionId` and the held `revision`,
      adopts the result's or a refusal's summary, words it through `history-feedback.ts`, and
@@ -59,7 +62,8 @@
      transition's live frame; a late result after destruction (undoing the displayed page's enable
      sends the shell to Home) is dropped.
    `ProjectHistoryControls` renders two icon buttons with `aria-disabled` and a guarded click (never
-   `disabled`), named by `historyControl`; `ProjectHistoryFeedback` is the always-present polite
+   `disabled`), named by `historyControl`, projected into the header's actions cell — which moves to
+   its own row below 40rem so the project name keeps its width; `ProjectHistoryFeedback` is the always-present polite
    region under the header's facts. `confirmArchive` stays on the project and `announce`s "X is
    archived. Undo is available here."; the More menu does not offer Archive on an archived project.
 6. Live frames: progress re-reads on any frame naming the project; the record on

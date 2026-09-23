@@ -17,22 +17,32 @@ export interface OperationWriteReport {
 }
 
 /**
+ * One write in flight, handed out by `begin()`. Tying the commit to the write that began it is what
+ * lets the history ignore a write from before a navigation, and tell a write that failed without a
+ * commit from one that committed while another write was also in flight.
+ */
+export interface OperationWriteHandle {
+  /** This write committed, with the receipt its response carried (or `null` for a no-op). */
+  committed(report: OperationWriteReport): void;
+  /**
+   * This write is over. Idempotent. A write that ends without having committed — a transport error
+   * or a 5xx may still have committed on the host — makes the history read afresh rather than
+   * assume either outcome.
+   */
+  end(): void;
+}
+
+/**
  * How a browser writer tells the displayed project's history that it is writing and what it wrote.
  *
  * Declared in `core/` so every feature — `features/tasks` included — reports through one token
  * without importing the projects feature, and implemented by the project workspace's
- * `ProjectHistoryStore`. Writers call `begin()` before the request, the returned function in
- * `finally`, and `committed(...)` once the envelope arrives, before any follow-up read.
+ * `ProjectHistoryStore`. Writers call `begin()` before the request, `committed(...)` on the handle
+ * once the envelope arrives (before any follow-up read), and `end()` in `finally` —
+ * `reportedWrite` does all three.
  */
 export interface OperationHistoryReporter {
-  /**
-   * Marks one write in flight; the returned function ends it and is idempotent. Ending a write
-   * whose `committed(...)` never ran (a transport error or a 5xx may still have committed) asks for
-   * a fresh summary rather than assuming either outcome.
-   */
-  begin(): () => void;
-  /** A committed write's receipt (or `null` for a no-op), with the project whose history it names. */
-  committed(report: OperationWriteReport): void;
+  begin(): OperationWriteHandle;
 }
 
 /**
@@ -42,8 +52,7 @@ export interface OperationHistoryReporter {
  * otherwise hide a wiring mistake.
  */
 export const inertOperationHistoryReporter = (): OperationHistoryReporter => ({
-  begin: () => () => undefined,
-  committed: () => undefined,
+  begin: () => ({ committed: () => undefined, end: () => undefined }),
 });
 
 export const OPERATION_HISTORY_REPORTER = new InjectionToken<OperationHistoryReporter>('OPERATION_HISTORY_REPORTER', {
@@ -53,20 +62,20 @@ export const OPERATION_HISTORY_REPORTER = new InjectionToken<OperationHistoryRep
 
 /**
  * Runs one browser write under `reporter`: `begin()` before the request, `committed(...)` with the
- * report built from the **response** once it arrives, and the end function in `finally`. Anything
- * the write throws is rethrown untouched, so the caller's own failure handling is unchanged.
+ * report built from the **response** once it arrives, and `end()` in `finally`. Anything the write
+ * throws is rethrown untouched, so the caller's own failure handling is unchanged.
  */
 export const reportedWrite = async <T>(
   reporter: OperationHistoryReporter,
   write: () => Promise<T>,
   report: (result: T) => OperationWriteReport,
 ): Promise<T> => {
-  const end = reporter.begin();
+  const handle = reporter.begin();
   try {
     const result = await write();
-    reporter.committed(report(result));
+    handle.committed(report(result));
     return result;
   } finally {
-    end();
+    handle.end();
   }
 };

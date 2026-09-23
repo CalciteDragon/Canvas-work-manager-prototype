@@ -58,12 +58,15 @@ who reconciles content after a transition, and where a header archive leaves the
   is `null`. Its accessible name and `title` are one string: `Undo: <label>`, `Nothing to undo`,
   `Undoing…`, `Saving a change…`, `Loading history…`, `History unavailable`, or
   `Undo unavailable while <title> is archived`.
-- Browser writers report through the core `OPERATION_HISTORY_REPORTER` token (`begin` / `committed` /
-  end); a write recorded in another history shows "… was recorded in Kitchen's history." with an Open
+- Browser writers report through the core `OPERATION_HISTORY_REPORTER` token: `begin()` hands out a
+  handle for that one write, with `committed` and `end`, so a response from before a navigation is
+  ignored and a write that ends uncommitted is known to be that write; a write recorded in another history shows "… was recorded in Kitchen's history." with an Open
   link. The dev panel's writers are outside the shell and reach the header by frame.
 - Summary entries carry `blockedBy`; the top-level `blockedBy` stays project-level.
 - The canvas notice becomes `SectionRecoveryNotice`: Open Archive after a removal Archive lists,
-  Retry remove, Retry refresh. It offers no Undo. The Reflections page has no notice.
+  Retry remove, Retry refresh. It offers no Undo, and a removal notice withdraws itself once its
+  section is back on the canvas (real use found it still saying "Removed …" over a section the
+  header had just restored). The Reflections page has no notice.
 - A header archive stays on the archived project with "X is archived. Undo is available here.",
   and the More menu does not offer Archive on an archived project.
 - Transition results, refusals and content are reconciled by the server's summary and live frames;

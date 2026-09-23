@@ -82,8 +82,8 @@ flowchart LR
 
 Writes cross the same seam as strict shared envelopes. For example,
 `tasks.complete(id)` returns `{ task, operation }`; the adapter validates both fields and the
-store paints `task`. The receipt stays available at the gateway boundary for the browser history
-surface planned after Stage B.
+store paints `task` and reports the receipt through `OPERATION_HISTORY_REPORTER` to the project
+header's history (Slice 41).
 
 ## Inventory
 

@@ -1127,7 +1127,8 @@ stays focusable and says why — "Nothing to undo", "Saving a change…", "Undo 
 Legacy attic is archived". One polite feedback line under the facts says what a transition did or
 why it was refused, and a write recorded in another project's history names that project with an
 Open link. Archiving from More no longer leaves the page: the archived project stays on screen with
-its Undo enabled ([why]({D})).
+its Undo enabled. Below 40rem the header's actions move to their own row under the identity, so the
+name keeps its width ([why](docs/decisions/2026-09-project-header-history-controls.md)).
 
 ## Two kinds of project
 
@@ -1381,7 +1382,9 @@ server operation receipt to an accessible, page-local Undo action. The notice ke
 on leaving the canvas or reloading, and does not depend on Archive being enabled. When the
 remove response is uncertain, the canvas exposes an explicit retry with the original action
 after the section has disappeared from a live refresh. A live refresh never repeats a write
-([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)). *Amended in
+Slice 41:* the removal's receipt goes to the project header's history instead, and its Undo is the
+header's; the canvas keeps only Open Archive and the explicit retries ([why](docs/decisions/2026-09-project-header-history-controls.md)).
 
 *Landed in Slice 32.* Explicit section creation, movement and editable settings writes use the
 same page-local receipt surface. A completed contextual add records `section.add`; a completed
@@ -1393,9 +1396,8 @@ is, capturing the copy that was actually made: Redo replays that copy rather tha
 source that may have changed or gone since. Duplication still copies configuration and layout and
 **no rows**. Since Slice 35 the receipt names its history and carries
 that history's `revision`, so a page keeps the newest committed operation when concurrent responses
-arrive; the notice's Archive action remains removal-only, and it stays Undo-only — persistent
-Undo/Redo header controls are planned for a later stage of
-[Slice 34](docs/roadmap/planned/34-undo-redo-and-archive.md). Undo is field-aware for settings,
+arrive. *Since Slice 41* none of these writes shows a notice: each reports its receipt to the
+project header, whose Undo and Redo replaced the page-local action (§26). Undo is field-aware for settings,
 placement-aware for moves, and refuses when the recorded footprint is no longer safe to restore
 ([decision](docs/decisions/2026-09-section-edit-undo-boundaries.md)).
 
@@ -1627,7 +1629,7 @@ title, inspector configuration, collapse and supported width writes return a `se
 receipt containing only the normalized fields that changed. *Amended in Slice 41:* every one of
 these is undone and redone from the project header (§26), not from the canvas; the canvas-local
 notice offers only recovery the header cannot — Archive after a removal Archive will list, Retry
-remove and Retry refresh ([why]({D})).
+remove and Retry refresh ([why](docs/decisions/2026-09-project-header-history-controls.md)).
 
 ## Where archived work is found
 
@@ -1752,7 +1754,7 @@ its receipt to the header's history store; a write the store cannot place in the
 project's history is named with an Open link to the project that owns it. After a removal that
 Archive will list, the canvas shows "Removed the Notes section. Undo is in the header." with **Open
 Archive**; a removal Archive will not list, and every forward write, shows no notice unless its
-follow-up read failed ([why]({D})).
+follow-up read failed ([why](docs/decisions/2026-09-project-header-history-controls.md)).
 The server action remains independently scoped to the exact actor for 24 hours. If a removal
 response is lost, repeating it remains a refusal; while that removal is still the actor's applied,
 unexpired action, the exact actor receives its receipt in HTTP `details` or MCP error text, without a
@@ -1835,8 +1837,8 @@ visible control can preserve input and report an error rather than losing a fail
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
 The **Archive** page is *not* canvas chrome and stays reachable: it is content. Archive Restore
-remains the durable recovery path for retained content; a receipt-based Undo action is also
-available in the canvas that made the removal. *Since Slice 37* a section Restore is itself one of
+remains the durable recovery path for retained content; the removal's Undo is also available,
+from the project header (§26, *since Slice 41*). *Since Slice 37* a section Restore is itself one of
 the actor's actions, reversible from the same history — durability and reversibility are not in
 tension, because Restore still needs no receipt to invoke and still survives every expiry. The canvas's **Open Archive** action lets a
 person check saved content without promising that a deleted disposable view will appear there.
@@ -3064,7 +3066,7 @@ strict inputs and semantics apply over HTTP and MCP. Repeating a removal remains
 `section_already_removed` details with the exact actor's applied, unexpired removal receipt and no
 new write or event. The API still forwards only contracts, never inverse payloads.*
 *Extended in Slice 41:* each summary entry carries its own nullable `blockedBy`
-([why]({D})).
+([why](docs/decisions/2026-09-project-header-history-controls.md)).
 
 *Amended in Slice 37:* `POST /api/sections/:id/duplicate` answers the same `{ section, operation }`
 envelope a create does; `POST /api/sections/:id/restore` answers `{ section, operation }`, with
@@ -3206,7 +3208,7 @@ would offer the pre-write step. A write that fails at the transport level or wit
 have committed, so it also owes a read. A transition sends the held entry's action and the held
 revision, one at a time; its result's summary, or a refusal's, replaces the held one, and a transport
 failure re-reads rather than guessing. A slow read of an older revision never rolls the controls back
-([why]({D})).
+([why](docs/decisions/2026-09-project-header-history-controls.md)).
 
 *Landed in Slice 37.* Placement writes carry receipts through the gateway, and the canvas unwraps
 them where it already inserted, replaced or optimistically resized a placement: generation guards,

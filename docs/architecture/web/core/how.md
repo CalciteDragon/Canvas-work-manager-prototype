@@ -27,8 +27,10 @@
    no body-less send path.
 5. `AppShell` provides `ShellStore`, which loads projects, derives the tree
    (`ProjectTreeNode`), and re-reads on `project.*` frames.
-6. A writer calls `reportedWrite(reporter, write, report)`: `begin()` before the request,
-   `committed(...)` with the report built from the response, the end function in `finally`. Outside a
+6. A writer calls `reportedWrite(reporter, write, report)`: `begin()` before the request returns an
+   `OperationWriteHandle` for that one write; `committed(...)` on it with the report built from the
+   response, `end()` in `finally`. Tying the commit to its own write is what lets the history ignore
+   a write from before a navigation and know that this write — not another — ended uncommitted. Outside a
    project workspace the inert default swallows all three; inside one the shell's binding makes
    them reach `ProjectHistoryStore` ([why](../../../decisions/2026-09-project-header-history-controls.md)).
 
@@ -43,7 +45,7 @@
 | `IdentityProvider` | interface | §18's contract | [API](../../../api/interfaces/IdentityProvider.html) |
 | `PrototypeIdentityProvider` | injectable | `GET /api/me` | [API](../../../api/injectables/PrototypeIdentityProvider.html) |
 | `LiveUpdates` | interface | Subscribe to "go and look" | [API](../../../api/interfaces/LiveUpdates.html) |
-| `OperationHistoryReporter`, `OperationWriteReport` | interfaces | Begin / committed / end for one browser write | [API](../../../api/interfaces/OperationHistoryReporter.html) |
+| `OperationHistoryReporter`, `OperationWriteHandle`, `OperationWriteReport` | interfaces | `begin()` hands out a per-write handle with `committed` and `end` | [API](../../../api/interfaces/OperationHistoryReporter.html) |
 | `reportedWrite` | function | Runs one write under a reporter | [API](../../../api/miscellaneous/variables.html#reportedWrite) |
 | `PrototypeLiveUpdates` | injectable | `EventSource` client with reconnect | [API](../../../api/injectables/PrototypeLiveUpdates.html) |
 | `PrototypeSettings`, `PrototypeFlags` | injectable / interface | §47 flags, delay, failure | [API](../../../api/injectables/PrototypeSettings.html) |

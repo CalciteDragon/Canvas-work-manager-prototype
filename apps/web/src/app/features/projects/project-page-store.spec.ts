@@ -22,6 +22,7 @@ import {
   type UndoResult,
 } from '@cwm/contracts';
 import { OPERATION_HISTORY_REPORTER, type OperationWriteReport } from '../../core/history/operation-history-reporter';
+import { RecordingReporter } from '../../core/history/testing/recording-reporter';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { emptyDashboard } from '../../core/gateway/testing/fake-gateway';
@@ -145,27 +146,10 @@ type LegacySectionOverrides = Omit<Partial<WorkManagerGateway['sections']>, 'cre
   move?: (...args: Parameters<WorkManagerGateway['sections']['move']>) => Promise<ProjectSection | SectionWriteResult>;
 };
 
-/**
- * The header's history as this store sees it: a reporter that records every begin, end and
- * committed report in order (Slice 41).
- */
+/** The header's history as this store sees it, plus the receipts it was told about, in order. */
 const recordingReporter = () => {
-  const events: Array<'begin' | 'end' | OperationWriteReport> = [];
-  return {
-    events,
-    committed: (report: OperationWriteReport) => void events.push(report),
-    begin: () => {
-      events.push('begin');
-      let ended = false;
-      return () => {
-        if (ended) return;
-        ended = true;
-        events.push('end');
-      };
-    },
-    /** The receipts committed so far, in order. */
-    receipts: () => events.filter((event): event is OperationWriteReport => typeof event === 'object').map(({ receipt }) => receipt),
-  };
+  const reporter = new RecordingReporter();
+  return Object.assign(reporter, { receipts: () => reporter.reports().map(({ receipt }) => receipt) });
 };
 
 const deferred = <T>() => {
@@ -1093,8 +1077,22 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(reporter.events).toEqual(['begin', expect.objectContaining({ projectId: PROJECT, receipt: expect.objectContaining({ actionId: 'undo-section-text' }) }), 'end']);
     expect(store.recoveryNotice()).toEqual({
       message: 'Removed the Rich Text section. Undo is in the header.',
-      removal: { archiveListed: true },
+      removal: { sectionId: 'section-text', archiveListed: true },
     });
+  });
+
+  it('withdraws the removal notice once the removed section is back on the canvas (a header Undo)', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT, PAGE);
+    await store.removeSection('section-text' as SectionId);
+    expect(store.recoveryNotice()).toMatchObject({ removal: { sectionId: 'section-text' } });
+
+    // The header's Undo runs elsewhere; its live frame brings the section back.
+    await gateway.history.transition(HISTORY, { actionId: 'undo-section-text' as OperationActionId, direction: 'undo', expectedRevision: 0 });
+    live.emit({ type: 'project.section_removal_undone', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await vi.waitFor(() => expect(store.sections().map(({ id }) => id)).toContain('section-text'));
+
+    expect(store.recoveryNotice()).toBeNull();
   });
 
   it('shows no notice for a removal Archive will not list: the header label confirms it', async () => {
@@ -1127,7 +1125,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(await store.removeSection('section-text' as SectionId)).toBe(true);
 
     expect(reporter.receipts()).toEqual([undo]);
-    expect(store.recoveryNotice()).toEqual({ message: 'This section was already removed. Undo is in the header.', removal: {} });
+    expect(store.recoveryNotice()).toEqual({ message: 'This section was already removed. Undo is in the header.', removal: { sectionId: 'section-text' } });
     expect(store.sections()).toEqual([]);
     expect(remove).toHaveBeenCalledTimes(1);
   });
@@ -1188,13 +1186,17 @@ describe('ProjectPageStore (§19, §26)', () => {
   it('keeps the prior notice after a failed remove and retries the exact policy explicitly', async () => {
     const first = section('section-text', 'rich-text', 0);
     const next = section('section-tasks', 'task-list', 1);
+    let listed = [first, next];
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
       .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, operation: receipt('undo-first'), archiveListed: true })
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'remove response was lost'))
       .mockResolvedValueOnce({ section: { ...next, archivedAt: AT }, operation: receipt('undo-second'), archiveListed: true });
-    const { store, reporter } = setup({ sectionOverrides: { remove } });
+    remove.mockImplementation(async () => { throw new Error('unexpected fourth removal'); });
+    const list = vi.fn(async () => [...listed]);
+    const { store, reporter } = setup({ sectionOverrides: { remove, list } });
     await store.load(PROJECT, PAGE);
 
+    listed = [next];
     expect(await store.removeSection(first.id)).toBe(true);
     const previous = store.recoveryNotice();
     const input = { policy: 'reassign' as const, reassignToSectionId: 'section-destination' as SectionId };
@@ -1202,6 +1204,7 @@ describe('ProjectPageStore (§19, §26)', () => {
 
     expect(store.recoveryNotice()).toEqual(previous);
     expect(store.failedRemoval()).toEqual({ sectionId: next.id, input, message: 'remove response was lost' });
+    listed = [];
     expect(await store.retryFailedRemoval()).toBe(true);
     expect(remove).toHaveBeenLastCalledWith(next.id, input);
     expect(store.recoveryNotice()?.message).toBe('Removed the Task List section. Undo is in the header.');
@@ -1237,7 +1240,10 @@ describe('ProjectPageStore (§19, §26)', () => {
     const list = vi.fn(async () => {
       listCallCount += 1;
       if (listCallCount === 2) throw new GatewayError('unreachable', 0, 'read after remove failed');
-      return [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)];
+      // After the removal the host no longer lists it; a read that did would withdraw the notice.
+      return listCallCount === 1
+        ? [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)]
+        : [section('section-tasks', 'task-list', 0)];
     });
     const { store, gateway } = setup({ sectionOverrides: { list } });
     await store.load(PROJECT, PAGE);

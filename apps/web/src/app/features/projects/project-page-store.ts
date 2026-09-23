@@ -81,8 +81,11 @@ export interface SectionRemovalPrompt {
  */
 export interface SectionRecoveryNoticeState {
   message: string;
-  /** Set for a removal this canvas made or recovered; Archive is offered unless it is `false`. */
-  removal?: { archiveListed?: boolean };
+  /**
+   * Set for a removal this canvas made or recovered; Archive is offered unless `archiveListed` is
+   * `false`. The notice withdraws itself once `sectionId` is back on the canvas — a header Undo.
+   */
+  removal?: { sectionId?: SectionId; archiveListed?: boolean };
   refreshFailed?: boolean;
 }
 
@@ -489,6 +492,12 @@ export class ProjectPageStore {
   private setCanvas(placements: readonly ProjectCanvasPlacement[]): void {
     const next = [...placements];
     this.placementsState.set(next);
+    // A removal notice that says "Removed … Open Archive" is wrong once the section is back (the
+    // header's Undo, or anyone's): withdraw it rather than leave a stale route on screen.
+    const removed = this.recoveryNoticeState()?.removal?.sectionId;
+    if (removed !== undefined && next.some((placement) => placement.kind === 'section' && placement.section.id === removed)) {
+      this.recoveryNoticeState.set(null);
+    }
     this.sectionsState.set(
       next.filter((placement): placement is Extract<ProjectCanvasPlacement, { kind: 'section' }> => placement.kind === 'section')
         .map((placement) => placement.section),
@@ -763,10 +772,12 @@ export class ProjectPageStore {
           const available = SectionAlreadyRemovedDetailsSchema.safeParse(error.details);
           if (available.success && available.data.sectionId === id) {
             // The exact actor's earlier removal: its receipt goes to the header, not to a button here.
-            this.reporter.committed({ projectId, receipt: available.data.operation });
+            const recovered = this.reporter.begin();
+            recovered.committed({ projectId, receipt: available.data.operation });
+            recovered.end();
             this.removalPromptState.set(null);
             this.clearFailedRemovalFor(id);
-            this.recoveryNoticeState.set({ message: 'This section was already removed. Undo is in the header.', removal: {} });
+            this.recoveryNoticeState.set({ message: 'This section was already removed. Undo is in the header.', removal: { sectionId: id } });
             this.removePlacement(id);
             this.notifyProjectDataChanged();
             await this.waitForOtherSectionWrites();
@@ -791,7 +802,7 @@ export class ProjectPageStore {
       // Archive is offered only when the removal says Archive will list the section
       // (`note-2026-09-15-006`); otherwise the header's changed label is the confirmation.
       this.recoveryNoticeState.set(result.archiveListed
-        ? { message: `Removed ${removedName}. Undo is in the header.`, removal: { archiveListed: true } }
+        ? { message: `Removed ${removedName}. Undo is in the header.`, removal: { sectionId: id, archiveListed: true } }
         : null);
       // Paint the committed removal immediately. Neighbor positions still come from the
       // authoritative read.

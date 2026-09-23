@@ -9,7 +9,11 @@ import {
 } from '@cwm/contracts';
 import { GatewayError } from '../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
-import type { OperationHistoryReporter, OperationWriteReport } from '../../../core/history/operation-history-reporter';
+import type {
+  OperationHistoryReporter,
+  OperationWriteHandle,
+  OperationWriteReport,
+} from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import {
   crossOwnerFeedback,
@@ -28,7 +32,12 @@ interface OwedRead {
   after: number;
   /** `null` for a write whose outcome is unknown (it ended without a commit); any fresh read settles it. */
   report: OperationWriteReport | null;
+  /** Reads that answered below the receipt's revision; bounded so a restored document cannot spin. */
+  retries: number;
 }
+
+/** How many times a same-history report re-reads for its revision before it stops holding the controls. */
+const MAX_OWED_RETRIES = 3;
 
 /**
  * **The displayed project's Undo/Redo history, for the header** (Slice 41, §§31, 61–63;
@@ -70,8 +79,6 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
   private readInFlight = false;
   private readQueued = false;
   private owed: OwedRead[] = [];
-  /** Reports this generation; a write that ends having seen none since it began owes a read. */
-  private commits = 0;
 
   private readonly readStateSignal = signal<HistoryReadState>('loading');
   private readonly summaryState = signal<OperationHistorySummary | null>(null);
@@ -135,26 +142,33 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
     return this.step('redo');
   }
 
-  begin(): () => void {
+  begin(): OperationWriteHandle {
+    // Everything below is for this one write, in the generation it began in: a response that lands
+    // after navigation neither unblocks nor reports into the next project's controls.
     const generation = this.generation;
-    const commitsAtBegin = this.commits;
+    let committed = false;
     let ended = false;
     this.writesState.update((count) => count + 1);
-    return () => {
-      if (ended) return;
-      ended = true;
-      // An old generation's end must not unblock a new project's controls.
-      if (!this.alive || generation !== this.generation) return;
-      this.writesState.update((count) => count - 1);
-      // No commit was reported while this write ran: it failed, and a transport error or a 5xx
-      // may still have committed. Read rather than sit on the pre-write entry.
-      if (this.commits === commitsAtBegin) this.owe(null);
+    return {
+      committed: (report) => {
+        if (ended || committed || !this.current(generation)) return;
+        committed = true;
+        this.report(report);
+      },
+      end: () => {
+        if (ended) return;
+        ended = true;
+        if (!this.current(generation)) return;
+        this.writesState.update((count) => count - 1);
+        // This write never reported a commit: it failed, and a transport error or a 5xx may still
+        // have committed. Read rather than sit on the pre-write entry.
+        if (!committed) this.owe(null);
+      },
     };
   }
 
-  committed(report: OperationWriteReport): void {
-    if (!this.alive) return;
-    this.commits += 1;
+  /** A committed write: re-read its own history, or say where it was recorded instead. */
+  private report(report: OperationWriteReport): void {
     const { receipt } = report;
     if (receipt === null) return;
     const held = this.readStateSignal() === 'ready' ? this.summaryState()?.historyId ?? null : null;
@@ -180,7 +194,6 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
     this.owed = [];
     this.owedState.set(0);
     this.writesState.set(0);
-    this.commits = 0;
     this.readInFlight = false;
     this.readQueued = false;
     this.summaryState.set(null);
@@ -202,7 +215,7 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
   }
 
   private owe(report: OperationWriteReport | null): void {
-    this.owed = [...this.owed, { after: this.readSequence, report }];
+    this.owed = [...this.owed, { after: this.readSequence, report, retries: 0 }];
     this.owedState.set(this.owed.length);
     this.refresh();
   }
@@ -269,8 +282,8 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
       const receipt = owed.report?.receipt ?? null;
       if (!succeeded || receipt === null || held === null) continue;
       if (held.historyId === receipt.historyId) {
-        if (held.revision < receipt.revision) {
-          remaining.push({ ...owed, after: sequence });
+        if (held.revision < receipt.revision && owed.retries < MAX_OWED_RETRIES) {
+          remaining.push({ ...owed, after: sequence, retries: owed.retries + 1 });
           readAgain = true;
         }
         continue;
