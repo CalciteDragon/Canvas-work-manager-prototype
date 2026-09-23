@@ -67,9 +67,9 @@ export const OPERATION_FAMILY_PERMISSION = {
   // deletes only the empty record the enable created, never a row, which is why no row grant
   // appears here.
   page: 'projects.write',
-  // An existing project's update, archive and reactivation are exactly what `update_project`,
-  // `archive_project` and `restore_project` already need, and reversing one writes only that
-  // project's own fields — never a row — so no other grant appears.
+  // Project creation, update, archive and reactivation all belong to the project itself. Creation
+  // removes only the untouched project and canonical page; the other writes touch only its own
+  // fields, so every project operation needs the existing `projects.write` grant.
   project: 'projects.write',
 } as const satisfies Record<z.infer<typeof OperationFamilySchema>, z.infer<typeof AgentPermissionSchema>>;
 

@@ -1693,6 +1693,82 @@ describe('operation history integrity', () => {
     expect(() => new InMemoryDataStore(withHistory([history({ projectId: 'project-gone' })]))).toThrow(/missing project/);
   });
 
+  const withUndoneProjectCreation = () => {
+    const document = validDocument();
+    const project = document.projects[0]!;
+    const page = document.projectPages[0]!;
+    const event = document.activityEvents[0]!;
+    const lifecycle = (id: string, action: string) => ({
+      ...event,
+      id: id as typeof event.id,
+      actor: 'user' as const,
+      actorUserId: 'user-1' as never,
+      actorAgentConnectionId: undefined,
+      action,
+      entityType: 'project' as const,
+      entityId: project.id,
+      projectId: project.id,
+      summary: action === 'project.created' ? `Created "${project.name}"` : `Undid creating "${project.name}"`,
+      context: {
+        targetKind: 'project' as const,
+        targetId: project.id,
+        targetLabel: project.name,
+        projectId: project.id,
+        rootProjectId: project.id,
+      },
+      createdAt: at,
+    });
+    document.projects = [];
+    document.projectPages = [];
+    document.sections = [];
+    document.tasks = [];
+    document.milestones = [];
+    document.reflections = [];
+    document.activityEvents = [
+      lifecycle('activity-created', 'project.created') as (typeof document.activityEvents)[number],
+      lifecycle('activity-creation-undone', 'project.creation_undone') as (typeof document.activityEvents)[number],
+    ];
+    document.operationHistories.push(history({ cursor: 0, revision: 2 }));
+    document.operationActions.push(action({
+      state: 'undone',
+      label: `Created "${project.name}"`,
+      operation: { version: 1, type: 'project.add', project, page },
+    }));
+    return document;
+  };
+
+  it('accepts an absent project only with its creation activity anchor and retained undone project.add', () => {
+    expect(() => new InMemoryDataStore(withUndoneProjectCreation())).not.toThrow();
+  });
+
+  it('requires both anchors and the undone state to agree with project presence', () => {
+    const withoutHistory = withUndoneProjectCreation();
+    withoutHistory.operationActions = [];
+    withoutHistory.operationHistories = [];
+    expect(() => new InMemoryDataStore(withoutHistory)).toThrow(/missing project|project.add history anchor/);
+
+    const applied = withUndoneProjectCreation();
+    applied.operationActions[0]!.state = 'applied';
+    expect(() => new InMemoryDataStore(applied)).toThrow(/undone project.add/);
+
+    const staleLifecycle = withUndoneProjectCreation();
+    staleLifecycle.activityEvents[1]!.action = 'project.creation_redone';
+    expect(() => new InMemoryDataStore(staleLifecycle)).toThrow(/creation_undone/);
+
+    const present = validDocument();
+    present.operationHistories.push(history({ cursor: 0, revision: 2 }));
+    present.operationActions.push(action({
+      state: 'undone',
+      operation: {
+        version: 1,
+        type: 'project.add',
+        project: present.projects[0],
+        page: present.projectPages[0],
+      },
+    }));
+    expect(() => new InMemoryDataStore(present)).toThrow(/undone project.add.*present|project.add.*absent/);
+  });
+
   it.each([
     ['a duplicate id', [history(), history({ projectId: 'project-2', workspaceId: 'workspace-2', actorUserId: 'user-2' })], /operationHistories contains duplicate id/],
     ['a missing workspace', [history({ workspaceId: 'workspace-gone' })], /missing workspace/],

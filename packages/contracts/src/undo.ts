@@ -42,7 +42,8 @@ import { ownedKindOf, ProjectSectionSchema, SectionColumnSpanSchema, SectionConf
  * rather than executing arbitrary JSON. Slice 36 adds the eight task and reflection members from
  * `row-history.ts`; Slice 37 adds `section.restore` from `section-restore-history.ts` and the four
  * placement members from `shortcut-history.ts`; Slice 38 adds the two optional-page toggles from
- * `page-history.ts`; Slice 39 adds the three existing-project writes from `project-history.ts`. The placement and row-structure shapes every family shares live in
+ * `page-history.ts`; Slice 39 adds the existing-project writes and Slice 42 adds project creation
+ * from `project-history.ts`. The placement and row-structure shapes every family shares live in
  * `history-placement.ts`.
  */
 

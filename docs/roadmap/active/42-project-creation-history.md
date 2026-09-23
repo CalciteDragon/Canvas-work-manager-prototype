@@ -322,6 +322,7 @@ hit in the commit that changes the result.
 |---|---|---|
 | `packages/contracts/src/project-history.ts`, `project-history.test.ts` | modify | `ProjectAddOperationSchema` (`type: 'project.add'`, `version: 1`, `project: ProjectSchema`, `page: ProjectPageSchema`; refine: the page's `projectId` is the project's and its kind is `canonicalPageKindFor(project.kind)`); undo result `{ operation, outcome: 'removed', projectId }`, redo result `{ operation, outcome: 'reapplied', project, page }`; add to the unions and result arrays; module comment no longer says creation is absent. |
 | `packages/contracts/src/operation-receipt.ts`, `packages/contracts/src/undo.ts`, `packages/contracts/src/undo.test.ts`, `packages/contracts/src/index.ts` | modify | `project.add` kind; `operationProjectOf`/`operationSubjectOf` answer `operation.project.id`; exports. |
+| `packages/contracts/src/tool-permissions.ts`, `packages/contracts/src/tool-permissions.test.ts`, `packages/contracts/src/row-history.test.ts`, `packages/contracts/src/index.test.ts` | modify | Document the creation action in the existing project family; update the exhaustive operation-kind family and result-union counts for the twenty-third kind; assert `project.add` uses the project family. |
 | `packages/contracts/src/project-write-result.ts` | modify | Doc comment: `create` answers it too, always with a receipt. |
 | `packages/contracts/src/live.ts`, `packages/contracts/src/live.test.ts` | modify | Document the two new event types as root-routed (not record events); test `isProjectRecordEvent` excludes them. |
 | `packages/repositories/src/interfaces.ts`, `packages/repositories/src/json-repositories.ts`, `packages/repositories/src/repositories.test.ts` | modify | Restricted `ProjectRepository.remove(id)` with the single-caller doc comment (mirrors `ProjectPageRepository.remove`). |
@@ -357,11 +358,13 @@ hit in the commit that changes the result.
 | `docs/architecture/mcp-tools/overview.md`, `docs/architecture/mcp-tools/why.md`, `docs/architecture/mcp-tools/what.md`, `docs/architecture/mcp-tools/how.md` | modify | Update `create_project`'s receipt result and the operation-history tool descriptions without changing the 37-tool registry. |
 | `docs/architecture/prototype-host/api/overview.md`, `docs/architecture/prototype-host/api/why.md`, `docs/architecture/prototype-host/api/what.md`, `docs/architecture/prototype-host/api/how.md` | modify | Document the project creation envelope and absent-project history route behavior. |
 | `docs/architecture/prototype-host/live-updates/overview.md`, `docs/architecture/prototype-host/live-updates/why.md`, `docs/architecture/prototype-host/live-updates/what.md`, `docs/architecture/prototype-host/live-updates/how.md` | modify | Document creation Undo/Redo frames routed by the former root and excluded from project-record events. |
+| `docs/architecture/prototype-host/mcp-transport/what.md` | modify | Include `project.add` in the existing project permission family description; the published family map and transport remain unchanged. |
 | `docs/architecture/web/core/overview.md`, `docs/architecture/web/core/why.md`, `docs/architecture/web/core/what.md`, `docs/architecture/web/core/how.md` | modify | Document the shared create result contract and shell caller's receipt handling through the gateway. |
 | `docs/architecture/web/projects/overview.md`, `docs/architecture/web/projects/why.md`, `docs/architecture/web/projects/what.md`, `docs/architecture/web/projects/how.md` | modify | Document create receipts, missing-project state, recovery rendering and once-per-revision route reconciliation. |
 | `docs/architecture/testing/overview.md`, `docs/architecture/testing/why.md`, `docs/architecture/testing/what.md`, `docs/architecture/testing/how.md` | modify | Add the project-creation E2E journey and the changed acceptance coverage to the test inventory. |
 | `docs/guides/mcp-setup.md` | modify | Correct the live `create_project` example/result description to `{ project, operation }`. |
 | `.prototype/notes.json` | modify | Record friction observed in the seeded browser and MCP real-use pass for Slice 42. |
+| `docs/architecture/overview.md` | modify | Include reversible project creation in the root architecture summary of scoped history. |
 | `docs/roadmap/planned/34-undo-redo-and-archive.md` | modify during close, after `roadmap.mjs complete` moves Slice 42 out of `active/` | Add the dated Stage C closure note, the `project.created` Activity anchor choice, and the retry-cache amendment. This is deliberately not edited while Slice 42 is the active plan, per the roadmap's single-planning-document rule. |
 | `AGENTS.md` | modify only if a sentence becomes false | No new tool (count stays thirty-seven) and `ProjectService`'s recorder edge is already named. |
 | `docs/roadmap/goals.md`, this plan | modify | Stage C complete at close; Outcome. |
@@ -372,6 +375,7 @@ hit in the commit that changes the result.
 |---|---|
 | `contracts/project-history.test.ts`: `project.add` parses a root with Home and a sub-project with Work; rejects a page of another project, a wrong page kind, extra keys | Payload is strict and self-consistent. |
 | `contracts/undo.test.ts`: `operationProjectOf`/`operationSubjectOf` for `project.add`; result unions accept both outcomes | One owner rule. |
+| `contracts/tool-permissions.test.ts`, `row-history.test.ts`, `index.test.ts`: `project.add` is a project-family kind with `projects.write` and the full result unions contain twenty-three operations | Every exhaustive count and grant remains true. |
 | `contracts/live.test.ts`: the two new types are not record events | Routing stays by root. |
 | `repositories/data-store.test.ts`: the anchored document loads; each negative case in acceptance step 4 fails with its message | The anchors are the only exemptions. |
 | `repositories/repositories.test.ts`: `ProjectRepository.remove` deletes inside a unit and rolls back with it | Restricted removal is transactional. |
@@ -493,6 +497,14 @@ Resolved by default; each goes into the new decision entry:
 - **Round 7 (2026-09-23):** Re-review traced the new required milestone dependency to every
   constructor caller. Added the shared domain harness, the direct section-edit test, and the MCP
   test harness to the file list; the two host construction sites were already listed.
+- **Round 8 (2026-09-23):** The first full contracts run found three exhaustive counts outside the
+  project-specific tests and the operation-family comment still described only existing-project
+  writes. Added `tool-permissions.ts`, the permission-family test, row-history union and
+  package-entrypoint tests to the checklist, with the new total and `project.add` grant assertion.
+- **Round 9 (2026-09-23):** The follow-up review found two stale architecture summaries: the root
+  system map limited project history to existing-project writes, and MCP transport's family map
+  description omitted creation. Added both exact documentation paths; the transport metadata shape
+  itself remains unchanged.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 

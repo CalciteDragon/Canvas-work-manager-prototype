@@ -311,6 +311,22 @@ describe('JsonProjectRepository.list', () => {
   });
 });
 
+describe('JsonProjectRepository.remove', () => {
+  it('deletes inside a unit of work and rolls back with it', async () => {
+    const store = new InMemoryDataStore(baseDocument());
+    const repository = new JsonProjectRepository(store);
+    const projectId = project('project-1').id;
+
+    await expect(unitOfWorkFor(store).run(async () => {
+      await repository.remove(projectId);
+      expect(await repository.find(projectId)).toBeNull();
+      throw new Error('roll back the project removal');
+    })).rejects.toThrow('roll back the project removal');
+
+    expect(await repository.find(projectId)).not.toBeNull();
+  });
+});
+
 describe('JsonTaskRepository.list', () => {
   it('applies every query field, exclusive due bounds, missing-date exclusion, and AND composition', async () => {
     const repository = new JsonTaskRepository(new InMemoryDataStore(baseDocument()));

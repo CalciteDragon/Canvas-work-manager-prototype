@@ -61,15 +61,15 @@ describe('operation families', () => {
     }
   });
 
-  it('places the twenty-two kinds in the six families', () => {
+  it('places the twenty-three kinds in the six families', () => {
     const families = OperationKindSchema.options.map(familyOfOperationKind);
-    expect(families).toHaveLength(22);
+    expect(families).toHaveLength(23);
     expect(families.filter((family) => family === 'section')).toHaveLength(5);
     expect(families.filter((family) => family === 'task')).toHaveLength(4);
     expect(families.filter((family) => family === 'reflection')).toHaveLength(4);
     expect(families.filter((family) => family === 'shortcut')).toHaveLength(4);
     expect(families.filter((family) => family === 'page')).toHaveLength(2);
-    expect(families.filter((family) => family === 'project')).toHaveLength(3);
+    expect(families.filter((family) => family === 'project')).toHaveLength(4);
   });
 
   it('gives a shortcut and a page their own family names even though both share the canvas grant', () => {
@@ -80,8 +80,8 @@ describe('operation families', () => {
     expect(OPERATION_FAMILY_PERMISSION.page).toBe('projects.write');
   });
 
-  it('puts an existing project’s update, archive and reactivation in the project family on projects.write', () => {
-    for (const kind of ['project.update', 'project.archive', 'project.reactivate'] as const) {
+  it('puts project creation, update, archive and reactivation in the project family on projects.write', () => {
+    for (const kind of ['project.add', 'project.update', 'project.archive', 'project.reactivate'] as const) {
       expect(familyOfOperationKind(kind)).toBe('project');
     }
     expect(OPERATION_FAMILY_PERMISSION.project).toBe('projects.write');

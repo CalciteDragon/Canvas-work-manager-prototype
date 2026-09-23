@@ -129,6 +129,15 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   const reflections = uniqueMap('reflections', document.reflections);
   uniqueMap('activityEvents', document.activityEvents);
   const agents = uniqueMap('agentConnections', document.agentConnections);
+  const absentProjectActivityReferences = new Set<string>();
+
+  /** A missing project is historical only after its own creation was undone, in document order. */
+  const hasCreationUndoActivityAnchor = (projectId: string, workspaceId: string): boolean => {
+    const events = document.activityEvents.filter((event) => event.entityType === 'project' && event.entityId === projectId);
+    const createdHere = events.some((event) => event.action === 'project.created' && event.workspaceId === workspaceId);
+    const latest = events[events.length - 1];
+    return createdHere && latest?.action === 'project.creation_undone' && latest.workspaceId === workspaceId;
+  };
 
   for (const workspace of document.workspaces) {
     const owner = users.get(workspace.ownerUserId) ??
@@ -422,7 +431,14 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
       ['rootProjectId', activity.context.rootProjectId],
     ] as const) {
       if (id === undefined) continue;
-      const project = projects.get(id) ?? fail(`activity "${activity.id}" captures missing ${field} "${id}"`);
+      const project = projects.get(id);
+      if (project === undefined) {
+        if (hasCreationUndoActivityAnchor(id, activity.workspaceId)) {
+          absentProjectActivityReferences.add(id);
+          continue;
+        }
+        return fail(`activity "${activity.id}" captures missing ${field} "${id}"`);
+      }
       if (project.workspaceId !== activity.workspaceId) {
         fail(`activity "${activity.id}" captures a ${field} from another workspace`);
       }
@@ -432,7 +448,14 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   const targetScope = (activity: (typeof document.activityEvents)[number]): TargetScope => {
     const { entityType, entityId } = activity;
     if (entityType === 'project') {
-      const project = projects.get(entityId) ?? fail(`activity target project "${entityId}" does not exist`);
+      const project = projects.get(entityId);
+      if (project === undefined) {
+        if (hasCreationUndoActivityAnchor(entityId, activity.workspaceId)) {
+          absentProjectActivityReferences.add(entityId);
+          return { workspaceId: activity.workspaceId, projectId: entityId };
+        }
+        return fail(`activity target project "${entityId}" does not exist without a latest project.creation_undone event`);
+      }
       return { workspaceId: project.workspaceId, projectId: project.id };
     }
     if (entityType === 'agent_connection') {
@@ -473,9 +496,16 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     }
 
     if (activity.projectId !== undefined) {
-      const project = projects.get(activity.projectId) ??
-        fail(`activity "${activity.id}" has missing project "${activity.projectId}"`);
-      if (project.workspaceId !== activity.workspaceId) fail(`activity "${activity.id}" names a project from another workspace`);
+      const project = projects.get(activity.projectId);
+      if (project === undefined) {
+        if (hasCreationUndoActivityAnchor(activity.projectId, activity.workspaceId)) {
+          absentProjectActivityReferences.add(activity.projectId);
+        } else {
+          fail(`activity "${activity.id}" has missing project "${activity.projectId}"`);
+        }
+      } else if (project.workspaceId !== activity.workspaceId) {
+        fail(`activity "${activity.id}" names a project from another workspace`);
+      }
       if (target !== 'historical' && target.projectId !== undefined && target.projectId !== activity.projectId) {
         fail(`activity "${activity.id}" names a project different from its target`);
       }
@@ -496,10 +526,11 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
 
   /**
    * **Operation histories: owner scope and ordering** (docs/decisions/2026-09-operation-history-scope.md).
-   * A history belongs to a workspace, names a stored project in it — strictly, because no Stage A
-   * operation deletes a project — and is attributable to one actor in it. There is at most one
-   * history per (workspace, project, exact actor), because the cursor is the only order an actor's
-   * Undo and Redo follow.
+   * A history belongs to a workspace, names a stored project in it unless its retained undone
+   * `project.add` action and the project's creation-Undo Activity anchor prove the project is absent,
+   * and is attributable to one actor in that workspace. There is at most one history per
+   * (workspace, project, exact actor), because the cursor is the only order an actor's Undo and Redo
+   * follow.
    *
    * An action names a stored history and holds a positive `order` that is unique within it and no
    * higher than the history's `orderHighWaterMark`, which is what makes an allocated order
@@ -512,11 +543,18 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   uniqueMap('operationActions', document.operationActions);
   const histories = uniqueMap('operationHistories', document.operationHistories);
   const historyScopes = new Set<string>();
+  const historiesForAbsentProjects = new Set<string>();
   for (const history of document.operationHistories) {
     if (!workspaces.has(history.workspaceId)) fail(`operation history "${history.id}" has missing workspace "${history.workspaceId}"`);
-    const project = projects.get(history.projectId) ??
-      fail(`operation history "${history.id}" has missing project "${history.projectId}"`);
-    if (project.workspaceId !== history.workspaceId) fail(`operation history "${history.id}" names a project from another workspace`);
+    const project = projects.get(history.projectId);
+    if (project === undefined) {
+      if (!hasCreationUndoActivityAnchor(history.projectId, history.workspaceId)) {
+        fail(`operation history "${history.id}" has missing project "${history.projectId}"`);
+      }
+      historiesForAbsentProjects.add(history.projectId);
+    } else if (project.workspaceId !== history.workspaceId) {
+      fail(`operation history "${history.id}" names a project from another workspace`);
+    }
 
     let actorKey = 'system';
     if (history.actor === 'user') {
@@ -546,6 +584,7 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   };
 
   const orders = new Set<string>();
+  const retainedUndoneProjectAdds = new Set<string>();
   for (const action of document.operationActions) {
     const history = histories.get(action.historyId) ??
       fail(`operation action "${action.id}" has missing history "${action.historyId}"`);
@@ -560,6 +599,22 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
       fail(`operation action "${action.id}" names a project outside its history`);
     }
 
+    if (action.operation.type === 'project.add') {
+      const projectId = action.operation.project.id;
+      if (action.operation.project.workspaceId !== history.workspaceId) {
+        fail(`operation action "${action.id}" captures a project from another workspace`);
+      }
+      if (projects.has(projectId)) {
+        if (action.state === 'undone') {
+          fail(`operation action "${action.id}" has an undone project.add while project "${projectId}" is present`);
+        }
+      } else if (action.state === 'undone') {
+        retainedUndoneProjectAdds.add(projectId);
+      } else {
+        fail(`absent project "${projectId}" requires a retained undone project.add action`);
+      }
+    }
+
     if (action.operation.type === 'section.remove' && action.operation.disposition === 'retained') {
       assertGenerationIsReachable(action.id, action.operation.section.id, action.operation.archiveGeneration);
     }
@@ -569,6 +624,22 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     // a section a later removal deleted is still deliberately unresolved.
     if (action.operation.type === 'section.restore') {
       assertGenerationIsReachable(action.id, action.operation.sectionId, action.operation.archiveGeneration);
+    }
+  }
+
+  for (const projectId of historiesForAbsentProjects) {
+    if (!retainedUndoneProjectAdds.has(projectId)) {
+      fail(`absent project "${projectId}" has no retained undone project.add history anchor`);
+    }
+  }
+  for (const projectId of absentProjectActivityReferences) {
+    if (!retainedUndoneProjectAdds.has(projectId)) {
+      fail(`absent project "${projectId}" has no retained undone project.add history anchor`);
+    }
+  }
+  for (const projectId of retainedUndoneProjectAdds) {
+    if (!absentProjectActivityReferences.has(projectId)) {
+      fail(`absent project "${projectId}" has no creation_undone Activity anchor`);
     }
   }
 

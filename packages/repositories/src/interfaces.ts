@@ -20,6 +20,14 @@ export interface ProjectRepository {
   list(query?: ProjectQuery): Promise<Project[]>;
   insert(project: Project): Promise<void>;
   update(project: Project): Promise<void>;
+  /**
+   * **Restricted removal, for one caller only** (Slice 42): Undo of `project.add` removes exactly
+   * the untouched project after its executor has removed the canonical page and proved there are
+   * no children, rows, optional pages or shortcuts that still depend on it. There is no cascade,
+   * HTTP route or MCP tool for this method. The retained project history and lifecycle Activity
+   * anchor explain the absence; commit-time integrity rejects a removal without both anchors.
+   */
+  remove(id: ProjectId): Promise<void>;
 }
 
 /**

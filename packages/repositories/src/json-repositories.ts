@@ -91,6 +91,10 @@ export class JsonProjectRepository extends JsonCollectionRepository<Project> imp
   override find(id: ProjectId): Promise<Project | null> {
     return super.find(id);
   }
+
+  remove(id: ProjectId): Promise<void> {
+    return this.delete(id);
+  }
 }
 
 export class JsonTaskRepository extends JsonCollectionRepository<Task> implements TaskRepository {
