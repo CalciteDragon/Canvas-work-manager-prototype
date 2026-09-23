@@ -95,12 +95,14 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 11. **Add, reorder, resize and remove.** Choose an insertion plus between sections, select a
     type and optionally name it, then create. Drag from the grip or use its arrow keys to move
     a placement. Drag a side handle to resize it, or use its keyboard controls. Add a disposable
-    view between two known neighbors, remove it, then choose **Undo** in the canvas and confirm
-    that it returns with its width and placement. Disposable views are absent from Archive;
-    retained content such as nonempty notes or cascaded rows can be restored from Archive. The
-    immediate Undo notice is local to this canvas and clears when you leave or reload.
-    To see the two recoveries disagree on purpose, remove a nonempty notes section that sits
-    between two placements and choose **Undo**: it returns between them. Remove it again, choose
+    view between two known neighbors, remove it, then choose the **Undo** icon in the project header
+    — its name reads "Undo: Removed the Progress section" — and confirm that it returns with its width
+    and placement; **Redo** beside it takes it away again. Every change you make on a project page is
+    undone the same way, from the header, and the history survives a reload. Disposable views are
+    absent from Archive; retained content such as nonempty notes or cascaded rows can be restored
+    from Archive. To see the two recoveries disagree on purpose, remove a nonempty notes section that
+    sits between two placements — the canvas says "Undo is in the header" and offers **Open
+    Archive** — and choose the header's **Undo**: it returns between them. Remove it again, choose
     **Open Archive** and **Restore saved content**: it returns at the **end** of the page. That
     Restore is itself one of your actions now — undoing it puts the section back in Archive rather
     than re-running the removal, and the removal is still there underneath it.

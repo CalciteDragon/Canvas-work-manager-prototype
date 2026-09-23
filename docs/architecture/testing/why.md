@@ -51,8 +51,9 @@ deletion, recreation, Archive projection and reload.
 
 The same evidence covers typed add, move and update receipts: MCP acceptance runs each family
 and an unchanged `undo: null` over both transports, the handler suite pins connection revocation
-after a receipt is issued, and the browser journey checks interleaved MCP edits, that a reload
-clears local notices, and that the Reflections-page container uses the same Undo surface.
+after a receipt is issued, and the browser journey checks interleaved MCP edits and — since
+Slice 41 — that every one of them, the Reflections-page container included, is undone from the
+header and survives reload.
 
 **Integrated acceptance puts each guarantee at the lowest layer that can observe it.** Slice 33
 closed the Archive/removal/Undo refactor by tracing every Refactor §26 criterion to one named

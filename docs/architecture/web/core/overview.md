@@ -3,16 +3,17 @@
 `apps/web/src/app/core` is the boundary and the shell: the gateway interfaces every
 store depends on and the one adapter that implements them over HTTP (§8–§10); the
 identity provider (§18); the live-updates port and its `EventSource` adapter (§62); the
+operation-history reporter port every browser writer reports through (§31, Slice 41); the
 prototype settings and flags (§47); the theme service (§22); and `AppShell` with its
 sidebar and top bar (§23). Nothing in `core/` depends on `prototype/` or on any feature.
 
-**Code:** `apps/web/src/app/core/{config,gateway,identity,live,shell,theme}` ·
+**Code:** `apps/web/src/app/core/{config,gateway,history,identity,live,shell,theme}` ·
 **Tests:** `*.spec.ts` beside each file; fakes in `gateway/testing`, `live/testing` ·
 **Parent:** [web](../overview.md)
 
-Section edit Undo stays inside this boundary: the gateway owns the typed add/update/move
-write envelopes and operation-discriminated Undo result, while feature stores own receipt lifetime
-and never see HTTP or inverse snapshots.
+Undo stays inside this boundary: the gateway owns the typed write envelopes, the history summary and
+the operation-discriminated transition result; feature stores report receipts through
+`OPERATION_HISTORY_REPORTER` and never see HTTP or inverse snapshots.
 
 ## Responsibilities
 
@@ -24,6 +25,11 @@ and never see HTTP or inverse snapshots.
 - `IdentityProvider` / `PrototypeIdentityProvider`: who the persona is, from `GET /api/me`.
 - `LiveUpdates` / `PrototypeLiveUpdates`: "something changed, go and look", with
   exponential reconnect; the token's default is inert and asserted absent.
+- `OperationHistoryReporter` / `OPERATION_HISTORY_REPORTER` / `reportedWrite`: how a writer tells
+  the displayed project's history it began a write, what it committed and that it ended. The root
+  default is inert, so every store works outside a project workspace; the projects feature's
+  `ProjectHistoryStore` implements it inside one. Declared here so `features/tasks` reports without
+  importing the projects feature.
 - `PrototypeSettings`: §47's six flags, network delay and failure rate, kept in
   `sessionStorage` so the panel's own reload does not wipe them.
 - `ThemeService`: one signal, one `data-theme` attribute, session-only.

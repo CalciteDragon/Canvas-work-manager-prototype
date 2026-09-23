@@ -102,4 +102,5 @@ requires structural work and a new decision rather than another number bump.
 **Amended, 2026-09-22 — Slice 41.** The header's history controls, their store and the feedback
 wording load eagerly with the project header, because they are on every project page. The canvas
 notice stays behind `@defer` under its new name, `SectionRecoveryNotice`, and the Reflections page no
-longer loads a notice at all. The initial bundle stays under the 1050 kB error ceiling ([decision](2026-09-project-header-history-controls.md)).
+longer loads a notice at all. The production initial bundle measured 1024.97 kB at Slice 41 — under
+the 1050 kB error ceiling, with the 850 kB warning still reported ([decision](2026-09-project-header-history-controls.md)).

@@ -10,7 +10,7 @@
    token lints where they apply — and then `node scripts/check-docs.mjs`.
 3. `pnpm build` builds the web app (with the bundle budgets) and type-checks the rest. Slice 31
    keeps project routes eager and uses conditional Angular `@defer` boundaries for the canvas
-   dialogs, Undo notice and Archive list; the production initial bundle measured 994.27 kB at Slice 33
+   dialogs, recovery notice (the Undo notice until Slice 41) and Archive list; the production initial bundle measured 994.27 kB at Slice 33
    against the original 1 MB error ceiling; Slice 36's contracts moved the measured initial bundle
    to 1.01 MB, so the watched hard ceiling is 1050 kB while the 850 kB warning remains reported.
 4. `pnpm --filter @cwm/prototype-host <acceptance|agent-acceptance|mcp-acceptance|live-acceptance>`
@@ -58,7 +58,12 @@
    project action the history route reverses, with the header following the frame), `todos.spec.ts`
    (a cross-root reparent and its Undo/Redo leaving and re-entering the open chronology it left) and
    `archive.spec.ts` (an archived sub-project's move and its own archive reversed while archived,
-   against the open Archive it moved from).
+   against the open Archive it moved from). Slice 41's `project-history.spec.ts` walks the header's
+   Undo and Redo: controls on every page, every family undone and redone with each transition's
+   revision checked, reload and navigation under a delayed summary read, cross-owner guidance, an
+   archive that stays on its project, pending state through a held write, a gated second tab refused
+   `history_revision_stale`, an agent's conflicting edit, and expiry after a clock move. The older
+   journeys that clicked the notice's Undo now go through `history-controls.ts`.
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`
    produces a static build the 25.x closeouts used as a check.
 7. After every slice, §77: seed, use, try it through MCP, write the friction down.

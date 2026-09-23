@@ -12,7 +12,9 @@
    `ThemeService` signal; Layout Mode writes `projectLayoutMode` through the ordinary
    gateway, and both the panel control and the inspector's layout list read the confirmed project
    from its `{ project, operation }` answer (Slice 39); the write lands in the person's history like
-   any other project edit.
+   any other project edit. The panel and the inspector are outside `ProjectWorkspaceShell`, so they
+   get core's inert history reporter: an open project header catches up from the write's live
+   frame rather than from a report (Slice 41) — acceptable for prototype tooling.
 4. **Add Prototype Note** posts the text with the current route, project and
    `CURRENT_SLICE`; the host stamps real time.
 5. `/prototype/design` lazily loads `DesignLabPage`. Its rail binds each of the seven

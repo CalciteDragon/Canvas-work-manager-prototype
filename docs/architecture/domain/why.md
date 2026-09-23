@@ -116,6 +116,16 @@ only for an archive's Undo, a reactivation's Redo and an edit made while archive
 allowed those writes and refusing would wedge the cursor on the project they are about; an archived
 ancestor still blocks ([decision](../../decisions/2026-09-project-update-operation-history.md)).
 
+**A summary entry says whether that one step may run.** The summary's top-level `blockedBy`
+describes the project, but an archive's own Undo, a reactivation's Redo and an archived-throughout
+edit may run while their subject is archived; a header reading only the project-level blocker could
+never undo an archive. `summaryOf` therefore computes each entry's `blockedBy` with the very
+`transitionBlocker` a transition of that step runs, so availability and execution cannot drift.
+Labels are captured at record time and name the change: shortcut labels read the source section's
+name with a plain `find` (never the scope checks, so a label adds no refusal), and project labels
+name the one edit and its result, or say `Edited` for several
+([decision](../../decisions/2026-09-project-header-history-controls.md)).
+
 **Activity audit outlives safely removed rows.** `ActivityService` captures trusted target label
 and owning project/root while the entity is readable in the caller's unit. Feeds prefer current
 names while a target exists and fall back to captured identity afterward; no inverse data lives in

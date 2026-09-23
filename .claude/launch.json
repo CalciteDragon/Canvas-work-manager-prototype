@@ -44,19 +44,6 @@
         "docs:site"
       ],
       "port": 5173
-    },
-    {
-      "name": "host-isolated",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--filter",
-        "@cwm/prototype-host",
-        "start"
-      ],
-      "port": 4310,
-      "env": {
-        "CWM_DATA_FILE": "C:\\Users\\calci\\Documents\\VSCode\\Canvas work manager prototype\\.prototype\\data.json.backup-slice41-real-use.json"
-      }
     }
   ]
 }

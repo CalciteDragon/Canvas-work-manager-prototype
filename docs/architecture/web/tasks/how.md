@@ -28,7 +28,9 @@
 
 **Depends on**
 
-- [core](../core/overview.md) — `WORK_MANAGER_GATEWAY.tasks`, `LIVE_UPDATES`.
+- [core](../core/overview.md) — `WORK_MANAGER_GATEWAY.tasks`, `LIVE_UPDATES`,
+  `OPERATION_HISTORY_REPORTER` and `reportedWrite` (never the projects feature, which implements
+  the reporter).
 - [contracts](../../contracts/overview.md) — `Task`, `CreateTaskInput`, `UpdateTaskInput`,
   `TaskStatus`, `TaskPriority`.
 

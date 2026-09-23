@@ -194,10 +194,12 @@ receipt says how the status moved, and it belongs to **that project's** own hist
 sub-project's, not its root's, even when the call moved it to another root:
 
 ```jsonc
-// A rename, a completion, a move or a layout/progress change.
+// A rename, a completion, a move or a layout/progress change. The label names the edit:
+// Renamed "Kitchen" to "Kitchen remodel", Completed "Kitchen", Moved "Kitchen" under Garden, or
+// Edited "Kitchen" when one call changed several things.
 { "project": { "id": "project-kitchen", "name": "Kitchen remodel", "…": "…" },
   "operation": { "historyId": "history-5d0c2a91", "actionId": "operation-31e8b7f0", "operation": "project.update",
-                 "revision": 1, "label": "Updated \"Kitchen remodel\"", "…": "…" } }
+                 "revision": 1, "label": "Renamed \"Kitchen\" to \"Kitchen remodel\"", "…": "…" } }
 
 // archive_project, or a status that entered archived.
 { "project": { "status": "archived", "…": "…" }, "operation": { "operation": "project.archive", "…": "…" } }
@@ -216,8 +218,9 @@ project, and must not be under anything archived. Redoing an archive — or undo
 refuses while the project has a live sub-project, because archiving never cascades. One narrow
 exception to the archive freeze applies here and nowhere else: a project's **own** archive can be
 undone, its reactivation redone, and an edit made while it was archived undone or redone, while that
-same project is archived — but an archived **ancestor** still answers `history_blocked:`, and
-`get_operation_history`'s `blockedBy` still names the archived project. `restore_project` itself needs
+same project is archived — but an archived **ancestor** still answers `history_blocked:`.
+`get_operation_history`'s top-level `blockedBy` still names the archived project; the entry's own
+`blockedBy` is what says whether that one step may run (`null` for the archive's own Undo). `restore_project` itself needs
 no receipt, however long ago the project was archived. `create_project` still answers the bare project
 and records nothing.
 
@@ -274,7 +277,9 @@ never undo someone else's change, and nobody can undo yours.
 
 - `get_operation_history` (`projects.read`, input `{ projectId }`) returns
   `{ projectId, historyId, revision, undo, redo, blockedBy }`. `undo` and `redo` name the next
-  action in each direction — `{ actionId, operation, label, expiresAt }` — or `null` at either end.
+  action in each direction — `{ actionId, operation, label, expiresAt, blockedBy }` — or `null` at
+  either end. An entry's `blockedBy` is that step's own blocker (`{ projectId, title }` of the archived
+  project a transition would refuse for, or `null`); the top-level `blockedBy` describes the project.
   `historyId` is `null` until the connection's first undoable write in that project.
 - `undo_operation` and `redo_operation` (input `{ historyId, actionId, expectedRevision }`) run
   exactly that action, which must be the next one in that direction. They require only the stored

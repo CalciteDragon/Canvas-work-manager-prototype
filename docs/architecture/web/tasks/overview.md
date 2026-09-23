@@ -20,7 +20,9 @@ here knows which page it is on.
   edit without a modal.
 - `TaskListStore`: quick create, complete, update, archive and restore for the rows one
   container owns; optimistic completion with revert on failure; quiet re-reads on live
-  frames deferred behind a write in flight.
+  frames deferred behind a write in flight. Every write reports to the header's history through
+  core's `OPERATION_HISTORY_REPORTER` with the **task's** own project — a list inside a Home shortcut
+  writes rows its source sub-project owns (Slice 41).
 
 ## Not responsible for
 

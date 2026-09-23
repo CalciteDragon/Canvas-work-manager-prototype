@@ -24,7 +24,8 @@
    `SectionShortcutAddResult` / `SectionShortcutWriteResult`, and `DELETE /api/shortcuts/:id` answers
    **200** with `SectionShortcutRemovalResult` rather than 204 — a body-less status cannot carry a
    receipt, and no route in the API table answers 204 any more (the router's CORS preflight still does).
-   `GET /api/projects/:id/history` answers the caller's `OperationHistorySummary`;
+   `GET /api/projects/:id/history` answers the caller's `OperationHistorySummary`, each entry with
+   its own `blockedBy` since Slice 41;
    `POST /api/history/:historyId/transition` parses the strict transition body and answers
    `OperationHistoryTransitionResult`.
 5. A thrown error goes through `api/errors.ts`: the domain's three errors map to 404,

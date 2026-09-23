@@ -32,7 +32,8 @@ layout mode, AI provider, delay, failure rate, flags, notes — never the worksp
 - Network delay, failure rate and flags *taking effect*: `PrototypeSettings` and the
   gateway in [core](../core/overview.md) do that; the panel only writes the settings.
 - Layout mode: `ProjectLayoutControl` writes a real project field through the ordinary
-  gateway, and the panel says so.
+  gateway, and the panel says so. It does not report to the project header's history; the header
+  re-reads on the write's frame.
 - The theme itself — `ThemeService` in core; the panel's control drives that signal.
 
 ## Read next

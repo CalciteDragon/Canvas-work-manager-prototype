@@ -7,6 +7,7 @@ flowchart LR
   subgraph ports["Interfaces (what the app depends on)"]
     id["IdentityProvider<br/>IDENTITY_PROVIDER"]
     lu["LiveUpdates<br/>LIVE_UPDATES (inert default)"]
+    rep["OperationHistoryReporter<br/>OPERATION_HISTORY_REPORTER (inert default), reportedWrite"]
     gw["WorkManagerGateway + 15 sub-interfaces<br/>WORK_MANAGER_GATEWAY"]
     err["GatewayError"]
   end
@@ -49,8 +50,9 @@ The section gateway returns shared contracts rather than bare entities: create r
 caller's `OperationHistorySummary`, and `history.transition` returns
 `OperationHistoryTransitionResult`. The adapter validates those envelopes at the HTTP boundary, so
 no component imports a transport type or reconstructs a receipt. The fake gateway keeps a one-history
-stand-in that runs each write's Undo by action id; ordering and conflicts are the host's rules,
-proved there.
+stand-in that runs each write's Undo by action id, plus scripted per-project summaries
+(`historySummaries`) and queued transition answers (`transitionAnswers`) for the header's specs;
+ordering and conflicts are the host's rules, proved there.
 
 ## A store's three connections
 
@@ -79,6 +81,7 @@ sequenceDiagram
 | Fakes | `core/gateway/testing/`, `core/live/testing/` | What every component and store spec injects |
 | `IdentityProvider`, `IDENTITY_PROVIDER`, `PrototypeIdentityProvider` | `core/identity/` | §18 |
 | `LiveUpdates`, `LIVE_UPDATES`, `PrototypeLiveUpdates` | `core/live/` | §62 client side |
+| `OperationHistoryReporter`, `OperationWriteReport`, `OPERATION_HISTORY_REPORTER`, `reportedWrite` | `core/history/operation-history-reporter.ts` | The write-reporting port; `RecordingReporter` in `core/history/testing/` for writer specs |
 | `PROTOTYPE_API_BASE_URL` | `core/config/prototype-config.ts` | Where the host is |
 | `PrototypeSettings`, `PrototypeFlags`, `StoredSettings` | `core/config/prototype-settings.ts` | §47 flags; delay; failure rate |
 | `ThemeService` | `core/theme/theme-service.ts` | §22 |

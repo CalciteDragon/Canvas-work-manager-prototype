@@ -59,8 +59,10 @@ snapshot-free summary and strict transition inputs shared with browser/transport
 whether the cursor's orders exist is a cross-collection rule the store checks.
 `OperationActionSchema` has a positive `order`, a `state` of `applied`, `undone` or `retired`, and an
 expiry after its creation. `OperationHistorySummarySchema` is strict all the way down — ids, labels,
-revision, the archived-ancestor `blockedBy`, never a payload — and its `historyId` is `null` before
-the caller's first recorded write. `OperationHistoryTransitionInputSchema` and
+revision, the project-level archived-ancestor `blockedBy`, never a payload — and its `historyId` is
+`null` before the caller's first recorded write. Each `OperationHistoryEntrySchema` also carries its
+own required, nullable `blockedBy` (`OperationHistoryBlockerSchema`): the archived project a
+transition of **that step** would refuse for (Slice 41). `OperationHistoryTransitionInputSchema` and
 `OperationHistoryStepInputSchema` (MCP) are strict. `OperationHistoryRefusalDetailsSchema` is the
 typed half of a 409: seven reasons, each carrying the history, the named action and the current
 summary. `SectionAlreadyRemovedDetailsSchema` carries only the section id and the recovered receipt.
@@ -93,7 +95,7 @@ MCP carries only the message, which starts with the same `reason`.
 | `OperationReceiptSchema` | const | What a caller holds after a committed section or row write; revision-ordered and payload-free | [API](../../api/miscellaneous/variables.html#OperationReceiptSchema) |
 | `TaskAddResultSchema`, `TaskWriteResultSchema` | consts | Lightweight task create/write envelopes; non-create no-ops carry `operation: null` | [API](../../api/miscellaneous/variables.html#TaskWriteResultSchema) |
 | `ReflectionAddResultSchema`, `ReflectionWriteResultSchema` | consts | Lightweight reflection create/write envelopes | [API](../../api/miscellaneous/variables.html#ReflectionWriteResultSchema) |
-| `OperationHistorySummarySchema` | const | The caller's next Undo and Redo, revision and archived blocker | [API](../../api/miscellaneous/variables.html#OperationHistorySummarySchema) |
+| `OperationHistorySummarySchema`, `OperationHistoryEntrySchema`, `OperationHistoryBlockerSchema` | const | The caller's next Undo and Redo — each with its own step blocker — revision and project-level archived blocker | [API](../../api/miscellaneous/variables.html#OperationHistorySummarySchema) |
 | `OperationHistoryTransitionInputSchema` | const | `{ actionId, direction, expectedRevision }`, strict | [API](../../api/miscellaneous/variables.html#OperationHistoryTransitionInputSchema) |
 | `OperationHistoryTransitionResultSchema` | const | Direction, action, that direction's result and the refreshed summary | [API](../../api/miscellaneous/variables.html#OperationHistoryTransitionResultSchema) |
 | `OperationHistoryRefusalDetailsSchema` | const | 409 details discriminated on seven `history_*` reasons, each with the current summary | [API](../../api/miscellaneous/variables.html#OperationHistoryRefusalDetailsSchema) |

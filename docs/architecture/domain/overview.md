@@ -35,7 +35,8 @@ service through an acyclic edge. They never know about HTTP, MCP, JSON or seeds.
   action belongs to that project's **own** history, even when a reparent changes its root; its
   inverse writes back exactly the recorded fields after re-running the parent, cycle,
   archived-ancestry and live-child rules. `OperationHistoryService` reads the
-  caller's summary and runs the next action in either direction — applied-state conflict checks,
+  caller's summary — each entry carrying its own `blockedBy` from the same `transitionBlocker` a
+  transition runs (Slice 41) — and runs the next action in either direction — applied-state conflict checks,
   combined-neighbour placement, verbatim reapply, typed refusals and retirement of permanently
   unsatisfiable actions — never overwriting later writes. `operation-history.ts` is the pure
   cursor state machine. An implicit container joins its row creation in the same action and event; completion is a task update.

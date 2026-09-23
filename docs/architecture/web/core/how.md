@@ -20,14 +20,17 @@
    means the tab was already where the call asked it to go — a shortcut delete parses
    its 200 `{ shortcutId, projectId, pageId, operation }` body, and transition results remain
    discriminated by direction and operation. `ProjectPageGateway.setEnabled` answers
-   `{ page, operation }`; the page manager reads the page and ignores the receipt, because
-   persistent Undo/Redo controls are a later phase, but the envelope is still validated so a host
-   that stopped sending it fails here rather than silently. `ProjectGateway.update` answers
-   `{ project, operation }` the same way since Slice 39 — every caller reads `project` — while
+   `{ page, operation }`, validated so a host that stopped sending it fails here rather than
+   silently; `ProjectGateway.update` answers `{ project, operation }` the same way since Slice 39.
+   Every browser caller reports the receipt through `OPERATION_HISTORY_REPORTER` (Slice 41) —
    `ProjectGateway.create` still answers the bare project. No API route answers 204 any more, so the adapter has
    no body-less send path.
 5. `AppShell` provides `ShellStore`, which loads projects, derives the tree
    (`ProjectTreeNode`), and re-reads on `project.*` frames.
+6. A writer calls `reportedWrite(reporter, write, report)`: `begin()` before the request,
+   `committed(...)` with the report built from the response, the end function in `finally`. Outside a
+   project workspace the inert default swallows all three; inside one the shell's binding makes
+   them reach `ProjectHistoryStore` ([why](../../../decisions/2026-09-project-header-history-controls.md)).
 
 ## Key symbols
 
@@ -40,6 +43,8 @@
 | `IdentityProvider` | interface | §18's contract | [API](../../../api/interfaces/IdentityProvider.html) |
 | `PrototypeIdentityProvider` | injectable | `GET /api/me` | [API](../../../api/injectables/PrototypeIdentityProvider.html) |
 | `LiveUpdates` | interface | Subscribe to "go and look" | [API](../../../api/interfaces/LiveUpdates.html) |
+| `OperationHistoryReporter`, `OperationWriteReport` | interfaces | Begin / committed / end for one browser write | [API](../../../api/interfaces/OperationHistoryReporter.html) |
+| `reportedWrite` | function | Runs one write under a reporter | [API](../../../api/miscellaneous/variables.html#reportedWrite) |
 | `PrototypeLiveUpdates` | injectable | `EventSource` client with reconnect | [API](../../../api/injectables/PrototypeLiveUpdates.html) |
 | `PrototypeSettings`, `PrototypeFlags` | injectable / interface | §47 flags, delay, failure | [API](../../../api/injectables/PrototypeSettings.html) |
 | `ThemeService` | injectable | `data-theme` | [API](../../../api/injectables/ThemeService.html) |
@@ -73,6 +78,8 @@
 - **`status: []` matches nothing**, not everything — the query-semantics rule holds on
   this side too.
 - **Theme is not in `sessionStorage`**; flags, delay and failure rate are.
+- **The reporter token names no feature.** `core/history` imports only contracts; the projects
+  feature implements it, and a shell spec asserts the binding reaches every writer.
 
 ## Commands
 

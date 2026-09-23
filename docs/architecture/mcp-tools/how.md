@@ -68,7 +68,8 @@ their receipts enter the same history as section writes. Compound row Add owns a
 created container so Undo/Redo removes and restores both under the row family's one write grant.
 
 `get_operation_history` (`projects.read`) reads that connection's summary for a project: the next
-Undo and Redo actions, or `null`, the revision and any archived blocker. `undo_operation` and
+Undo and Redo actions, or `null`, each with its own step `blockedBy`, the revision and the
+project-level archived blocker; its description tells an agent which one decides a step (Slice 41). `undo_operation` and
 `redo_operation` take `{ historyId, actionId, expectedRevision }` — strict, so the
 retired `{ undoId }` form is rejected — and call `OperationHistoryService.transition` with their
 fixed direction. The result is `{ direction, actionId, result, summary }`. Their permission
