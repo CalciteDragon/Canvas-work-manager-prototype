@@ -15,6 +15,7 @@ import {
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
+import { GatewayError } from '../../core/gateway/gateway-error';
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -70,6 +71,7 @@ export class ProjectWorkspaceStore {
   private readonly descendantsState = signal<Project[]>([]);
   private readonly progressState = signal<ProgressResult | null>(null);
   private readonly loadingState = signal(true);
+  private readonly missingState = signal(false);
   private readonly errorState = signal<string | null>(null);
   private readonly writeErrorState = signal<string | null>(null);
   private readonly pageWritePendingState = signal(false);
@@ -86,6 +88,7 @@ export class ProjectWorkspaceStore {
   /** The routed project's own pages, which on a sub-project is its sole `work` canvas. */
   readonly ownPages = this.ownPagesState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
+  readonly missing = this.missingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly writeError = this.writeErrorState.asReadonly();
   readonly pageWritePending = this.pageWritePendingState.asReadonly();
@@ -188,8 +191,18 @@ export class ProjectWorkspaceStore {
             this.applyContext(context);
             this.errorState.set(null);
           }
-        } catch {
-          // Quiet — see above.
+        } catch (error) {
+          // Other failures are quiet, but not-found is an authoritative change: after creation
+          // Undo, keeping the old project mounted would expose a canvas whose owner is gone.
+          if (
+            error instanceof GatewayError && error.code === 'not_found' &&
+            !this.destroyed &&
+            epoch === this.contextWriteEpoch &&
+            generation === this.loadGeneration &&
+            this.requestedProjectId === projectId
+          ) {
+            this.markMissing(error);
+          }
         }
       } while (
         this.projectRefreshQueued &&
@@ -228,6 +241,7 @@ export class ProjectWorkspaceStore {
 
     return this.track(async () => {
       this.loadingState.set(true);
+      this.missingState.set(false);
       this.errorState.set(null);
       // A failed write belongs to the project it was made on; one component instance serves
       // every project, so without this a failed rename follows the user to the next one.
@@ -242,12 +256,12 @@ export class ProjectWorkspaceStore {
         this.applyContext(context);
       } catch (error) {
         if (!current()) return;
-        this.projectState.set(null);
-        this.ancestorsState.set([]);
-        this.pagesState.set([]);
-        this.ownPagesState.set([]);
-        this.descendantsState.set([]);
-        this.errorState.set(messageOf(error));
+        if (error instanceof GatewayError && error.code === 'not_found') this.markMissing(error);
+        else {
+          this.clearContext();
+          this.missingState.set(false);
+          this.errorState.set(messageOf(error));
+        }
       } finally {
         if (current()) {
           // Only when there is a project to measure: a second guaranteed-failing request adds
@@ -274,11 +288,27 @@ export class ProjectWorkspaceStore {
   }
 
   private applyContext(context: LoadedContext): void {
+    this.missingState.set(false);
     this.projectState.set(context.project);
     this.ancestorsState.set(context.ancestors);
     this.pagesState.set(context.pages);
     this.ownPagesState.set(context.ownPages);
     this.descendantsState.set(context.projects);
+  }
+
+  private markMissing(error: unknown): void {
+    this.clearContext();
+    this.missingState.set(true);
+    this.errorState.set(messageOf(error));
+  }
+
+  private clearContext(): void {
+    this.projectState.set(null);
+    this.ancestorsState.set([]);
+    this.pagesState.set([]);
+    this.ownPagesState.set([]);
+    this.descendantsState.set([]);
+    this.progressState.set(null);
   }
 
   /**

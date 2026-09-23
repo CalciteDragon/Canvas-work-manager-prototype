@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 42 | Slice 42 — Project creation history and recovery state (Slice 34 Stage C5) | Project creation records one project.add action whose Undo removes the untouched project and its canonical page and whose Redo recreates the same ids, reachable from a recovery state at the project's own URL | [42-project-creation-history.md](active/42-project-creation-history.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -80,4 +78,5 @@ verification follow-ups rather than feature slices.
 | 39 | Slice 39 — Project update and lifecycle history (Slice 34 Stage C3) | 2026-09-22 | Existing-project edits, completion, reparenting, layout/progress settings, archive and reactivation each record one subject-owned project action; Undo/Redo rerun the hierarchy rules, with a narrow archived-subject exception, over HTTP, both MCP transports and the browser | [39-project-update-history.md](completed/39-project-update-history.md) |
 | 40 | Slice 40 — Forward reparent refuses a cross-root Home shortcut | 2026-09-22 | ProjectService.update refuses, 409, a reparent that would carry an old-root Home shortcut's source across roots, sharing the check with the history executor. | [40-forward-reparent-shortcut-refusal.md](completed/40-forward-reparent-shortcut-refusal.md) |
 | 41 | Slice 41 — Project header Undo/Redo controls (Slice 34 Stage C4) | 2026-09-23 | Always-present header Undo/Redo over the displayed project's history, per-step blockedBy, edit-naming labels, every browser write reporting through a core token, the canvas notice reduced to recovery, and archive staying on the project | [41-header-history-controls.md](completed/41-header-history-controls.md) |
+| 42 | Slice 42 — Project creation history and recovery state (Slice 34 Stage C5) | 2026-09-23 | Project creation is recorded and recoverable through creator-bound history, same-file persistence, browser and MCP checks. | [42-project-creation-history.md](completed/42-project-creation-history.md) |
 <!-- roadmap:end -->

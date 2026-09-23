@@ -82,6 +82,15 @@ describe('history feedback (Slice 41)', () => {
     expect(transitionResultFeedback('redo', 'Renamed "A" to "B"', { operation: 'project.update' } as never).message).toBe('Redid: Renamed "A" to "B".');
   });
 
+  it('names project creation in both transition directions', () => {
+    const removed = { operation: 'project.add', outcome: 'removed', projectId: 'project-1' } as unknown as UndoResult;
+    const restored = { operation: 'project.add', outcome: 'reapplied' } as unknown as UndoResult;
+    expect(transitionResultFeedback('undo', 'Created "Recoverable project"', removed).message)
+      .toBe('Undid creation of "Recoverable project".');
+    expect(transitionResultFeedback('redo', 'Created "Recoverable project"', restored).message)
+      .toBe('Redid creation of "Recoverable project".');
+  });
+
   it('words cross-owner guidance with its link, and the archive that stays', () => {
     expect(crossOwnerFeedback('Completed "Tile"', 'project-kitchen' as ProjectId, 'Kitchen')).toEqual({
       tone: 'status',

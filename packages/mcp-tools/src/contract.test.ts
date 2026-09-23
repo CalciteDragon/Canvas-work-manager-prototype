@@ -58,10 +58,11 @@ const CASES: Record<string, ToolCase> = {
     input: { kind: 'root', name: 'Agent-made project' },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result.name).toBe('Agent-made project');
+      expect(result.project.name).toBe('Agent-made project');
+      expect(result.operation).toMatchObject({ operation: 'project.add', label: 'Created "Agent-made project"', revision: 1 });
       // The workspace is injected from the actor, never accepted from the caller.
-      expect(result.workspaceId).toBe(agent().workspaceId);
-      expect((await harness.services.projects.get(agent(['projects.read']), result.id)).name).toBe('Agent-made project');
+      expect(result.project.workspaceId).toBe(agent().workspaceId);
+      expect((await harness.services.projects.get(agent(['projects.read']), result.project.id)).name).toBe('Agent-made project');
     },
   },
   update_project: {
@@ -623,6 +624,52 @@ describe('undo_operation and redo_operation refusals, as an agent sees them', ()
       expect(declaration).not.toHaveProperty('permission');
       expect(declaration).not.toHaveProperty('permissions');
     }
+  });
+});
+
+describe('project creation history over MCP', () => {
+  it('answers a creation receipt, supports the absent-project Redo summary, and checks the stored family grant first', async () => {
+    const harness = buildHarness();
+    const creator = agent(['projects.read', 'projects.write']);
+    const created = (await harness.registry.call(
+      'create_project',
+      { kind: 'root', name: 'Undoable root' },
+      creator,
+    )) as { project: { id: string; name: string }; operation: { operation: string; historyId: string; actionId: string; revision: number } };
+
+    expect(created.project).toMatchObject({ name: 'Undoable root' });
+    expect(created.operation).toMatchObject({ operation: 'project.add', revision: 1 });
+    const undone = (await harness.registry.call('undo_operation', {
+      historyId: created.operation.historyId,
+      actionId: created.operation.actionId,
+      expectedRevision: created.operation.revision,
+    }, creator)) as { summary: { historyId: string; revision: number; redo: { actionId: string; operation: string } | null } };
+    expect(undone.summary.redo).toMatchObject({ actionId: created.operation.actionId, operation: 'project.add' });
+    await expect(harness.registry.call('get_project', { projectId: created.project.id }, creator)).rejects.toMatchObject({ name: 'EntityNotFoundError' });
+
+    const otherConnection = { ...creator, agentConnectionId: 'agent-other' } as ReturnType<typeof agent>;
+    await expect(harness.registry.call('get_operation_history', { projectId: created.project.id }, otherConnection)).rejects.toMatchObject({ name: 'EntityNotFoundError' });
+
+    const redone = (await harness.registry.call('redo_operation', {
+      historyId: undone.summary.historyId,
+      actionId: undone.summary.redo!.actionId,
+      expectedRevision: undone.summary.revision,
+    }, creator)) as { result: { operation: string; outcome: string; project: { id: string } } };
+    expect(redone.result).toMatchObject({
+      operation: 'project.add',
+      outcome: 'reapplied',
+      project: { id: created.project.id },
+    });
+    expect(await harness.services.projects.get(creator, created.project.id as never)).toMatchObject({ id: created.project.id });
+
+    const readOnly = agent(['projects.read']);
+    const refusal = await harness.registry.call('undo_operation', {
+      historyId: created.operation.historyId,
+      actionId: created.operation.actionId,
+      expectedRevision: undone.summary.revision + 1,
+    }, readOnly).then(() => null, (error: unknown) => error);
+    expect(refusal).toMatchObject({ name: 'PermissionDeniedError', permission: 'projects.write' });
+    expect(refusal).not.toHaveProperty('details');
   });
 });
 

@@ -200,6 +200,7 @@ const THEIRS = 'project-theirs';
 const ALEX = PERSONAS[1]!.user.id as unknown as string;
 const taskFrom = (body: unknown) => TaskWriteResultSchema.parse(body).task;
 const reflectionFrom = (body: unknown) => ReflectionWriteResultSchema.parse(body).reflection;
+const projectFromCreate = (body: unknown) => ProjectWriteResultSchema.parse(body).project;
 
 const newTask = async (routes: RouteTable, overrides = {}) => {
   const result = await call(routes, 'POST', '/api/tasks', {
@@ -217,7 +218,28 @@ describe('project routes', () => {
     });
 
     expect(result.status).toBe(201);
-    expect(() => ProjectSchema.parse(result.body)).not.toThrow();
+    const created = ProjectWriteResultSchema.parse(result.body);
+    expect(created.project).toMatchObject({ kind: 'root', name: 'Work Manager' });
+    expect(created.operation).toMatchObject({ operation: 'project.add', revision: 1, label: 'Created "Work Manager"' });
+  });
+
+  it('keeps the creator’s history readable at the project id after creation Undo', async () => {
+    const routes = buildRoutes();
+    const created = ProjectWriteResultSchema.parse((await call(routes, 'POST', '/api/projects', {
+      body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'root', name: 'Recover me' },
+    })).body);
+    const receipt = created.operation!;
+    const undone = await call(routes, 'POST', `/api/history/${receipt.historyId}/transition`, {
+      body: { actionId: receipt.actionId, direction: 'undo', expectedRevision: receipt.revision },
+    });
+
+    expect(undone.status).toBe(200);
+    expect((await call(routes, 'GET', `/api/projects/${created.project.id}`)).status).toBe(404);
+    expect((await call(routes, 'GET', `/api/projects/${created.project.id}/history`)).body).toMatchObject({
+      projectId: created.project.id,
+      redo: { operation: 'project.add', actionId: receipt.actionId },
+    });
+    expect((await call(routes, 'GET', `/api/projects/${created.project.id}/history`, { user: ALEX })).status).toBe(404);
   });
 
   it('rejects a schema-invalid body with 400 and issues', async () => {
@@ -265,7 +287,7 @@ describe('project routes', () => {
     const again = await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { name: 'Renamed' } });
     expect(ProjectWriteResultSchema.parse(again.body).operation).toBeNull();
 
-    // The receipt reverses through the ordinary history route, and create still answers a bare project.
+    // The receipt reverses through the ordinary history route, and create returns the same write envelope.
     const undone = await call(routes, 'POST', `/api/history/${body.operation!.historyId}/transition`, {
       body: { actionId: body.operation!.actionId, direction: 'undo', expectedRevision: body.operation!.revision },
     });
@@ -274,13 +296,13 @@ describe('project routes', () => {
     const workspaceId = ProjectSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}`)).body).workspaceId;
     const created = await call(routes, 'POST', '/api/projects', { body: { workspaceId, kind: 'root', name: 'Fresh' } });
     expect(created.status).toBe(201);
-    expect(created.body).not.toHaveProperty('operation');
+    expect(ProjectWriteResultSchema.parse(created.body).operation).toMatchObject({ operation: 'project.add' });
   });
 
   it('archives and reactivates through PATCH with typed receipts, and refuses a live-child archive without writing', async () => {
     const routes = buildRoutes();
     const workspaceId = ProjectSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}`)).body).workspaceId;
-    const child = ProjectSchema.parse((await call(routes, 'POST', '/api/projects', {
+    const child = projectFromCreate((await call(routes, 'POST', '/api/projects', {
       body: { workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Child' },
     })).body);
 
@@ -416,7 +438,7 @@ describe('task routes', () => {
     const task = await newTask(routes);
 
     const result = await call(routes, 'PATCH', `/api/tasks/${task.id}`, {
-      body: { projectId: (destination.body as { id: string }).id },
+      body: { projectId: projectFromCreate(destination.body).id },
     });
 
     expect(result.status).toBe(409);
@@ -780,7 +802,7 @@ describe('shortcut routes (§27, §68)', () => {
   it('answers 409 and changes nothing when a reparent would carry a Home shortcut across roots', async () => {
     const routes = nestedRoutes();
     const renovation = ProjectSchema.parse((await call(routes, 'GET', `/api/projects/${root}`)).body);
-    const other = ProjectSchema.parse(
+    const other = projectFromCreate(
       (await call(routes, 'POST', '/api/projects', { body: { workspaceId: renovation.workspaceId, kind: 'root', name: 'Other root' } })).body,
     );
     const kitchenBefore = await call(routes, 'GET', '/api/projects/project-kitchen');
@@ -979,10 +1001,10 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
   const workspaceId = PERSONAS[0]!.workspace.id;
 
   const journey = async (routes: RouteTable) => {
-    const root = ProjectSchema.parse(
+    const root = projectFromCreate(
       (await call(routes, 'POST', '/api/projects', { body: { workspaceId, kind: 'root', name: 'Renovation' } })).body,
     );
-    const unit = ProjectSchema.parse(
+    const unit = projectFromCreate(
       (
         await call(routes, 'POST', '/api/projects', {
           body: { workspaceId, kind: 'subproject', parentProjectId: root.id, name: 'Kitchen' },
@@ -1131,7 +1153,7 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
  */
 describe('Todos projection route (§34, §54)', () => {
   const scenario = async (routes: RouteTable) => {
-    const unit = ProjectSchema.parse(
+    const unit = projectFromCreate(
       (await call(routes, 'POST', '/api/projects', { body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'subproject', parentProjectId: MINE, name: 'Kitchen', targetDate: '2026-09-01' } })).body,
     );
     // Deliberately out of chronological order, so the answer cannot be insertion order.
@@ -1269,7 +1291,7 @@ describe('Archive projection route (§31, §32, §54)', () => {
   it('requires all three read grants and refuses a unit of work', async () => {
     const routes = buildRoutes();
     expect((await call(routes, 'GET', `/api/projects/${THEIRS}/archive`)).status).toBe(404);
-    const unit = ProjectSchema.parse(
+    const unit = projectFromCreate(
       (await call(routes, 'POST', '/api/projects', { body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'subproject', parentProjectId: MINE, name: 'Unit' } })).body,
     );
     expect((await call(routes, 'GET', `/api/projects/${unit.id}/archive`)).status).toBe(409);

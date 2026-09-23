@@ -131,8 +131,19 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   const agents = uniqueMap('agentConnections', document.agentConnections);
   const absentProjectActivityReferences = new Set<string>();
 
-  /** A missing project is historical only after its own creation was undone, in document order. */
-  const hasCreationUndoActivityAnchor = (projectId: string, workspaceId: string): boolean => {
+  /** The exact actor identity shared by lifecycle Activity and operation-history records. */
+  const exactActorKey = (actor: {
+    actor: string;
+    actorUserId?: string;
+    actorAgentConnectionId?: string;
+  }): string => JSON.stringify([
+    actor.actor,
+    actor.actor === 'user' ? actor.actorUserId ?? null : null,
+    actor.actor === 'agent' ? actor.actorAgentConnectionId ?? null : null,
+  ]);
+
+  /** A missing project is historical only after its own creation was undone, by its creator. */
+  const creationUndoActivityActor = (projectId: string, workspaceId: string): string | undefined => {
     const lifecycle = document.activityEvents.filter((event) =>
       event.entityType === 'project' &&
       event.entityId === projectId &&
@@ -143,8 +154,16 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     );
     const createdIndex = lifecycle.findIndex((event) => event.action === 'project.created');
     const latest = lifecycle.at(-1);
-    return createdIndex >= 0 && latest?.action === 'project.creation_undone' && createdIndex < lifecycle.length - 1;
+    if (createdIndex < 0 || latest?.action !== 'project.creation_undone' || createdIndex >= lifecycle.length - 1) return undefined;
+
+    const creatorKey = exactActorKey(lifecycle[createdIndex]!);
+    // Every transition uses the exact creation history, so a lifecycle sequence attributed to
+    // another user or connection is not a valid absence anchor.
+    return lifecycle.every((event) => exactActorKey(event) === creatorKey) ? creatorKey : undefined;
   };
+
+  const hasCreationUndoActivityAnchor = (projectId: string, workspaceId: string): boolean =>
+    creationUndoActivityActor(projectId, workspaceId) !== undefined;
 
   for (const workspace of document.workspaces) {
     const owner = users.get(workspace.ownerUserId) ??
@@ -553,27 +572,33 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   const historiesForAbsentProjects = new Set<string>();
   for (const history of document.operationHistories) {
     if (!workspaces.has(history.workspaceId)) fail(`operation history "${history.id}" has missing workspace "${history.workspaceId}"`);
-    const project = projects.get(history.projectId);
-    if (project === undefined) {
-      if (!hasCreationUndoActivityAnchor(history.projectId, history.workspaceId)) {
-        fail(`operation history "${history.id}" has missing project "${history.projectId}"`);
-      }
-      historiesForAbsentProjects.add(history.projectId);
-    } else if (project.workspaceId !== history.workspaceId) {
-      fail(`operation history "${history.id}" names a project from another workspace`);
-    }
-
-    let actorKey = 'system';
+    let actorKey: string;
     if (history.actor === 'user') {
       const actor = users.get(history.actorUserId ?? '') ?? fail(`operation history "${history.id}" has a missing user actor`);
       if (actor.workspaceId !== history.workspaceId) fail(`operation history "${history.id}" has a user actor from another workspace`);
-      actorKey = `user:${actor.id}`;
+      actorKey = exactActorKey(history);
     } else if (history.actor === 'agent') {
       const connection = agents.get(history.actorAgentConnectionId ?? '') ??
         fail(`operation history "${history.id}" has a missing agent actor`);
       const actor = users.get(connection.userId) ?? fail(`agent connection "${connection.id}" has a missing user`);
       if (actor.workspaceId !== history.workspaceId) fail(`operation history "${history.id}" has an agent actor from another workspace`);
-      actorKey = `agent:${connection.id}`;
+      actorKey = exactActorKey(history);
+    } else {
+      actorKey = exactActorKey(history);
+    }
+
+    const project = projects.get(history.projectId);
+    if (project === undefined) {
+      const creatorActorKey = creationUndoActivityActor(history.projectId, history.workspaceId);
+      if (creatorActorKey === undefined) {
+        fail(`operation history "${history.id}" has missing project "${history.projectId}" without its creation-Undo Activity anchor`);
+      }
+      if (creatorActorKey !== actorKey) {
+        fail(`operation history "${history.id}" does not belong to the creator of absent project "${history.projectId}"`);
+      }
+      historiesForAbsentProjects.add(history.projectId);
+    } else if (project.workspaceId !== history.workspaceId) {
+      fail(`operation history "${history.id}" names a project from another workspace`);
     }
     // Ids accept any non-empty string, spaces included, so a delimiter-joined key could make two
     // distinct scopes collide; a JSON array cannot.

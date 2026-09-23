@@ -87,7 +87,7 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         ? Promise.resolve([])
         : this.send('GET', `/api/projects${queryString(projectQueryParams(query))}`, ProjectSchema.array()),
     get: (id: ProjectId) => this.send('GET', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema),
-    create: (input: CreateProjectInput) => this.send('POST', '/api/projects', ProjectSchema, input),
+    create: (input: CreateProjectInput) => this.send('POST', '/api/projects', ProjectWriteResultSchema, input),
     update: (id: ProjectId, input: UpdateProjectInput) =>
       this.send('PATCH', `/api/projects/${encodeURIComponent(id)}`, ProjectWriteResultSchema, input),
   };

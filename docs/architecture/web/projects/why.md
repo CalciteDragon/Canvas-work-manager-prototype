@@ -86,6 +86,11 @@ assuming either outcome, which is what makes a lost response safe without a retr
 ([deferrals](../../../decisions/2026-09-history-stage-a-deferrals.md),
 [retired actions](../../../decisions/2026-09-operation-history-retired-actions.md)).
 
+**A missing project keeps a generic Retry when its history read is unavailable.** The route cannot
+claim creation was undone until the creator's summary confirms it, and an unavailable summary must
+not strand a person who could restore the project as soon as the host responds again. The button
+does not identify the history or reveal whether the project ever existed.
+
 **Section stores follow ownership.** A Task List provides its own `TaskListStore`, a
 Reflections section its `ReflectionsStore`, Progress its `ProgressStore` — one per
 section, synced against the page's data revision — because under
@@ -160,6 +165,7 @@ opens a collapsed target through a transient input that leaves the record alone
 - [Task and reflection writes join operation history](../../../decisions/2026-09-row-operation-history.md) — row envelopes and compound-container live refresh
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../../decisions/2026-09-optional-page-operation-history.md) — the page envelope the store ignores, and a removed page's Home fallback
 - [An existing project's writes are one action family](../../../decisions/2026-09-project-update-operation-history.md) — the project envelope every caller unwraps, and root projections re-reading on project-record frames from any root
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the same-URL recovery state and creator-only summary after Undo
 - [The project header offers Undo and Redo of the displayed project's history, and nothing else does](../../../decisions/2026-09-project-header-history-controls.md) — header-only action surface, per-step blockers, write reporting, archive stays on the project
 
 ## Spec sections

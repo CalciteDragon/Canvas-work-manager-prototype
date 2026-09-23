@@ -6,6 +6,8 @@ import { GatewayError } from '../gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../gateway/testing/fake-gateway';
 import { shellTestProviders, testIdentity } from '../gateway/testing/shell-test-providers';
 import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER } from '../history/operation-history-reporter';
+import { RecordingReporter } from '../history/testing/recording-reporter';
 import { IDENTITY_PROVIDER, type IdentityProvider } from '../identity/identity-provider';
 import { LIVE_UPDATES } from '../live/live-updates';
 import { FakeLiveUpdates } from '../live/testing/fake-live-updates';
@@ -26,12 +28,16 @@ const project = (id: string, name: string, parentProjectId?: string): Project =>
     updatedAt: AT,
   }) as unknown as Project;
 
-const storeWith = (options: Parameters<typeof shellTestProviders>[0] = {}) => {
+const storeWith = (
+  options: Parameters<typeof shellTestProviders>[0] = {},
+  reporter = new RecordingReporter(),
+) => {
   const live = options.live ?? new FakeLiveUpdates();
-  TestBed.configureTestingModule({ providers: [ShellStore, ...shellTestProviders({ ...options, live })] });
+  TestBed.configureTestingModule({ providers: [ShellStore, ...shellTestProviders({ ...options, live }), { provide: OPERATION_HISTORY_REPORTER, useValue: reporter }] });
   return {
     store: TestBed.inject(ShellStore),
     gateway: TestBed.inject(WORK_MANAGER_GATEWAY) as FakeWorkManagerGateway,
+    reporter,
     live,
   };
 };
@@ -301,7 +307,7 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
   // sub-projects section, which hard-codes `parentProjectId` — so the assertion that matters
   // is the *absence* of one.
   it('creates a top-level project in the persona’s own workspace', async () => {
-    const { store, gateway } = storeWith({ projects: [] });
+    const { store, gateway, reporter } = storeWith({ projects: [] });
     await store.load();
 
     const created = await store.createProject('Prototype review');
@@ -314,6 +320,11 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
       name: 'Prototype review',
     });
     expect(store.createError()).toBeNull();
+    expect(reporter.reports()).toMatchObject([{
+      projectId: 'project-created',
+      projectName: 'Prototype review',
+      receipt: { operation: 'project.add' },
+    }]);
   });
 
   it('reports a failed creation on its own signal, leaving the tree loaded', async () => {

@@ -176,15 +176,19 @@ boolean. `page.add` captures the created page whole, so Redo recreates the same 
 `page.update` captures the root, the page id, an optional kind and two **distinct** booleans. Neither
 accepts Home or a work canvas: `OPTIONAL_PAGE_KINDS` is the narrow vocabulary both use, and the
 directional results report an absent page on Undo Add and a present one everywhere else.
-`project-history.ts` holds the three existing-project payloads — `project.update`,
+`project-history.ts` holds `project.add` plus the three existing-project payloads — `project.update`,
 `project.archive`, `project.reactivate` — as one shape: the subject `projectId` (never its root) and
 the **changed** fields with exact before/after values, `null` standing for absence. `status` and
 `completedAt` are recorded independently, exactly as the commit moved them, because the service's own
 normalization does not always move them together; `parentProjectId` never clears; the kind follows the status crossing
 the archive boundary; and only an update carries `archivedThroughout`, the flag the history
-executor's narrow archived-subject exception reads. Every project result returns the current
-project, which always still exists. `project-write-result.ts` holds the strict `{ project, operation }`
-envelope, apart from the payloads for the same bundling reason. Transition results identify the subject and affected
+executor's narrow archived-subject exception reads. `project.add` captures the project and canonical
+page together; Undo reports the removed id and Redo returns both records with their original ids.
+Creation Undo is permitted only for an unchanged project with no canonical dependents, and an
+absent project is valid only with its Activity lifecycle anchor and the creator's undone history
+action ([decision](../../decisions/2026-09-project-creation-history.md)). `project-write-result.ts`
+holds the strict `{ project, operation }` envelope, apart from the payloads for the same bundling
+reason. Creation always carries a receipt; existing-project no-ops may return `null`. Transition results identify the subject and affected
 rows, report absence on Undo Add, and include implicit-container placement when needed.
 `history-placement.ts` owns shared placement shapes without an import cycle. `tool-permissions.ts`
 defines the static/family declaration and `OPERATION_FAMILY_PERMISSION`.

@@ -89,6 +89,16 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
 
   readonly readState = this.readStateSignal.asReadonly();
   readonly summary = this.summaryState.asReadonly();
+  /** Project creation's Redo is the recovery offer on an absent-project route. */
+  readonly creationRedo = computed(() => {
+    const entry = this.summaryState()?.redo ?? null;
+    return entry?.operation === 'project.add' ? entry : null;
+  });
+  /** A held creation Undo lets the shell recover a missing project after a dropped Redo frame. */
+  readonly creationUndo = computed(() => {
+    const entry = this.summaryState()?.undo ?? null;
+    return entry?.operation === 'project.add' ? entry : null;
+  });
   readonly feedback = this.feedbackState.asReadonly();
   readonly transitionPending = this.transitionState.asReadonly();
   /** A write, or a re-read it owes, has not settled. */

@@ -44,3 +44,12 @@ tests, including titleless reflections and invalid legacy targets.
 
 A future operation deletes a project or user/connection identity, or the product needs a richer
 historical breadcrumb than target, owning project and root.
+
+**Amended, 2026-09-23 — Slice 42.** Project creation Undo now removes the project row, so an
+Activity event may name that absent project only while the same workspace has its `project.created`
+event and the last lifecycle event in document order is `project.creation_undone`. The History
+record has a separate anchor: an absent project is valid there only while the creator's history
+retains its undone `project.add`. These anchors do not depend on one another or on a tombstone
+([project creation history](2026-09-project-creation-history.md)). `projectName` also falls back to
+the captured label only for a project-targeted event whose `projectId` is that same absent project;
+a task event inside it does not inherit a guessed project label.

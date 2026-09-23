@@ -6,6 +6,11 @@ implementation the prototype has — a `DataStore` holding the whole `data.json`
 memory, validating it as a whole at every commit, and persisting it atomically at operation
 boundaries. Storage "is JSON" only in this package.
 
+Integrity allows a project to be absent after creation Undo only while the workspace Activity
+lifecycle anchor and the creator's exact-actor undone `project.add` history anchor both remain
+valid; the lifecycle events and history must share the actor who created the project. Project and
+canonical-page removal is available only to that preflighted domain inverse.
+
 **Code:** `packages/repositories/src` · **Tests:** `packages/repositories/src/*.test.ts`
 (vitest) · **Package:** `@cwm/repositories` · **Depends on:** `@cwm/contracts`
 

@@ -71,11 +71,7 @@ duplication records the add its copy is, Archive Restore records a `section.rest
 while staying durable — no receipt to invoke, no expiry — and the four Home shortcut placement
 writes record a fourth `shortcut` family in the **destination** root's history. The browser
 still offers only its transient section Undo notice, which deliberately does not carry shortcut
-or Restore receipts. **Stage C is not finished.** Project lifecycle, project creation
-recovery, saved project layout/progress, persistent Undo/Redo header controls, receipt reporting
-and the deferred transition retry cache are still open, and Stages D–E follow usable broad
-Undo/Redo; creation Undo must ship with its authorized recovery route rather than an unreachable
-Redo. **[Slice 38 — optional-page history](completed/38-optional-page-history.md) shipped
+or Restore receipts. **[Slice 38 — optional-page history](completed/38-optional-page-history.md) shipped
 Stage C2**: a first enable records `page.add`, whose Undo removes the created page only when
 nothing refers to it and whose Redo recreates the same id; later toggles record `page.update`,
 which moves one boolean and never touches content. `page` is a fifth family on `projects.write`.
@@ -86,22 +82,20 @@ history, and PATCH plus the three project-update tools answer `{ project, operat
 a sixth family on `projects.write`. An archive's Undo, a reactivation's Redo and an edit made while
 archived may run while their own subject is archived; an archived ancestor still blocks. Open root
 projections re-read on project-record frames from any root, so a cross-root move refreshes the root it
-left. Project creation Undo with its recovery route, persistent controls with **subject-naming
-labels** (the Slice 39 real-use note), receipt reporting and the deferred retry cache remain for later
-bounded phases. **[Slice 41 — project header Undo/Redo controls](completed/41-header-history-controls.md)
+left. **[Slice 41 — project header Undo/Redo controls](completed/41-header-history-controls.md)
 shipped Stage C4**: every project page's header offers always-present Undo and Redo of the displayed
 project's history, driven by the server summary with per-step `blockedBy`, and they are the only
 browser Undo surface. Every browser writer reports its receipt through a core reporter token. Shortcut
 and project labels name the edit, and a header archive stays on its project with Undo enabled. The
-canvas keeps only recovery (Open Archive, Retry remove, Retry refresh). Stage C still owes project
-creation Undo with its recovery route — now smaller, since Redo is reachable from the header — and the
-transition retry cache. Real use leaves two questions: whether section labels should name the edit
-too, and whether root pages need a way to reach a descendant's steps. **[Slice 42 — project creation
-history and recovery state](active/42-project-creation-history.md) is active as Stage C5**: creation
-records a `project.add` whose Undo removes an untouched project and whose Redo is reachable from a
-recovery state at the project's URL; its plan proposes closing the retry cache by amendment rather
-than building it. The
-paragraphs below describe the earlier shipped system and its choices.
+canvas keeps only recovery (Open Archive, Retry remove, Retry refresh). **[Slice 42 — project creation
+history and recovery state](completed/42-project-creation-history.md) closed Stage C on 2026-09-23**:
+creation records a `project.add` in the created project's history, and Undo removes an untouched
+project while the same URL offers creator-only recovery and same-id Redo. Its durable absence anchor
+is Activity, bound to the exact actor that created the project; no tombstone or schema bump is needed.
+The transition retry cache was retired by dated amendment instead of being built. Real use leaves two
+follow-up questions: whether section labels should name the edit too, and whether root pages need a way
+to reach a descendant's steps. Stages D–E follow usable broad Undo/Redo. The paragraphs below describe
+the earlier shipped system and its choices.
 
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported
 [proposed specification](../specifications/README.md), and a development plan on 2026-09-13.

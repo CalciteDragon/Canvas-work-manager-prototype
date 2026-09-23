@@ -11,8 +11,9 @@ sidebar and top bar (§23). Nothing in `core/` depends on `prototype/` or on any
 **Tests:** `*.spec.ts` beside each file; fakes in `gateway/testing`, `live/testing` ·
 **Parent:** [web](../overview.md)
 
-Undo stays inside this boundary: the gateway owns the typed write envelopes, the history summary and
-the operation-discriminated transition result; feature stores report receipts through
+Undo stays inside this boundary: the gateway owns the typed write envelopes (including the
+`ProjectWriteResult` returned by project creation), the history summary and the
+operation-discriminated transition result; feature stores report receipts through
 `OPERATION_HISTORY_REPORTER` and never see HTTP or inverse snapshots.
 
 ## Responsibilities

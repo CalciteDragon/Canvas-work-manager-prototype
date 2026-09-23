@@ -1,8 +1,10 @@
 # Testing
 
 How the prototype is verified (§69): fast offline unit and contract suites in every
-package, component specs and Storybook in the web app, four acceptance scripts that run a
-real host, a Playwright suite that starts both processes on its own data file, and the
+package, component specs and Storybook in the web app (including the missing-history-summary
+Retry), four acceptance scripts that run a real host (including project-creation same-file restart
+and expiry), a Playwright suite that starts both processes on its own data file (including project
+creation Undo/Redo, same-URL recovery, expiry fallback and ancestor projection refresh), and the
 lints that hold the architectural boundaries mechanically. `pnpm test` is offline and
 browser-free by design; the browser-driven checks are separate commands, run
 deliberately.

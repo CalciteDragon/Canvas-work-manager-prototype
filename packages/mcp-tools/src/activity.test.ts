@@ -15,8 +15,7 @@ describe('§57 activity from a tool call', () => {
 
   /** Read back as the *person*: `ActivityService.list` asserts `workspace.read`. */
   const newest = async () => (await harness.activity.list(user(), { limit: 1 }))[0]!;
-  // Slice 36 gives row writes their history receipt. Project writes keep their historical bare
-  // result, so the feed assertion deliberately accepts both wire shapes.
+  // Project and row writes both return envelopes, with the entity id at their respective keys.
   const entityIdOf = (result: unknown): string => {
     const value = result as { id?: string; task?: { id: string }; reflection?: { id: string }; project?: { id: string } };
     return value.task?.id ?? value.reflection?.id ?? value.project?.id ?? value.id!;

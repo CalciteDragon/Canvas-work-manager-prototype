@@ -141,3 +141,9 @@ project-level `blockedBy` still names the project. Labels now name the edit and 
 `Edited "X"` for more than one field (`status`+`completedAt` and formula+manual progress each count
 once) — for actions recorded from now on; retained actions keep their older text until they expire.
 Archive and reactivation labels are unchanged. The browser now offers these steps in the header.
+
+**Amended, 2026-09-23 — Slice 42.** `ProjectService.create` now records `project.add` as the
+first action in the created project's own history and returns `{ project, operation }` with a
+non-null receipt. Undo removes the unchanged project and canonical page after dependency preflight;
+Redo recreates them with the same ids. The distinct capture/revert/reapply payload is documented
+in [project creation history](2026-09-project-creation-history.md).

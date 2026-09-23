@@ -63,6 +63,10 @@
   Redo replays a removal that deleted the section. Shortcut placements, pruned or discarded
   history actions are the other deletions. The integrity checks still reject dangling row and
   shortcut references.
+- **Project deletion is limited to creation Undo.** `ProjectRepository.remove` is used only by
+  `revertProjectAdd`, after preflight proves the captured project and canonical page are unchanged
+  and no page, section, row, child, reflection subject, shortcut or other actor's history refers to
+  the project. It removes the page and project in one unit of work; no API exposes repository removal.
 - **Optional-page deletion is limited to the inverse of a first enable.** `ProjectPageRepository`
   gained a `remove` in Slice 38 for exactly one caller: `revertPageAdd`, which uses it only when the
   record is still the one that enable created and no canonical section — archived ones included — and
@@ -71,15 +75,16 @@
   `home` or `work` page is still required, and a section or placement whose page has gone still fails
   the commit, so a removal that left one rolls its whole unit back.
 - **Operation histories are checked for scope and ordering**: unique ids; a history names a
-  workspace, a stored project in it and an actor in it, and there is at most one per (workspace,
+  workspace, a stored project in it — or, after creation Undo, retains the matching undone
+  `project.add` and the exact creator actor named by `project.created` — and an actor in it, and there is at most one per (workspace,
   project, exact actor); an action names a stored history, its operation's project is that
   history's, and its positive `order` is unique within the history and no higher than the
   history's `orderHighWaterMark` (the cursor's own bound is the contract's). The payload's section,
   page, shortcut and row ids are deliberately not resolved, so an action may outlive what it names —
   add Undo and disposable removal depend on that. The one live comparison is the
   `archiveGeneration` an action captured — a retained removal's, or a Restore's — which may not
-  exceed its section's, because `archiveGeneration` never decreases. A **missing** subject is still
-  not an integrity failure at any generation: an action has to outlive what it names to be redone.
+  exceed its section's, because `archiveGeneration` never decreases. A missing section, row or page
+  subject is still permitted for redo; a missing project history has the stricter creation anchor.
 - **Seeds are committed byte-for-byte** as LF JSON and compared in
   `packages/prototype-data`'s tests, which is why `.gitattributes` normalises line
   endings.
@@ -106,6 +111,9 @@ pnpm --filter @cwm/repositories lint   # tsc --noEmit
   after the domain checks the full canonical reference set, including archived dependents. An
   implicit container is removed atomically with its row or the whole transition refuses. Activity
   is historical evidence, not a canonical reference that blocks removal.
-- **The version-5 Activity exception is exact:** `validateDocumentIntegrity` permits an absent
-  task/reflection target only with complete matching captured identity and canonical,
-  workspace-scoped owning project/root. Other target kinds and history owners remain strict.
+- **The Activity exceptions are exact:** removed task/reflection targets require complete matching
+  captured identity and canonical, workspace-scoped owning project/root. An absent project may be
+  named by Activity only when its workspace contains `project.created` and the last creation
+  lifecycle event in document order is `project.creation_undone`; every lifecycle event has the
+  same exact actor as `project.created`. This anchor is separate from the matching undone
+  `project.add` required for an absent project's history, whose history must belong to that actor.

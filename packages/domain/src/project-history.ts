@@ -200,7 +200,7 @@ export const revertProjectAdd = async (
   return { operation: 'project.add', outcome: 'removed', projectId: operation.project.id };
 };
 
-/** Redo: recreate both captured records with stable ids and creation times. */
+/** Redo: preserve ids and createdAt; stamp both updatedAt values at the new write time. */
 export const reapplyProjectAdd = async (
   repositories: ProjectAddHistoryRepositories,
   clock: Clock,

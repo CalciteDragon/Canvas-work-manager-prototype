@@ -1,6 +1,7 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { expect, test } from '@playwright/test';
-import { PROTOTYPE_HOST, seed, setClock, setPageEnabled } from './seed';
+import type { WorkspaceId } from '@cwm/contracts';
+import { PROTOTYPE_HOST, createProject, seed, setClock, setPageEnabled } from './seed';
 
 const READWRITE = 'prototype-user-a-readwrite';
 const READONLY = 'prototype-user-a-readonly';
@@ -48,8 +49,8 @@ test('completed work can receive retained reflections across the root journal, H
   await seed('agent-heavy');
   await setClock('2026-09-15T12:00:00.000Z');
 
-  const workspace = await api<{ workspace: { id: string } }>('GET', '/api/me');
-  const root = await api<{ id: string }>('POST', '/api/projects', {
+  const workspace = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+  const root = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'root',
     name: 'Reflection journey',
@@ -61,13 +62,13 @@ test('completed work can receive retained reflections across the root journal, H
     title: 'Home journal',
   });
   const homeContainer = homeContainerResult.section;
-  const child = await api<{ id: string }>('POST', '/api/projects', {
+  const child = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'subproject',
     parentProjectId: root.id,
     name: 'Launch',
   });
-  const grandchild = await api<{ id: string }>('POST', '/api/projects', {
+  const grandchild = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'subproject',
     parentProjectId: child.id,
@@ -112,7 +113,7 @@ test('completed work can receive retained reflections across the root journal, H
 
   // A foreign completed task and a completed task under a different root are controls for the
   // picker and subject boundary. They never become candidates for this root.
-  const otherRoot = await api<{ id: string }>('POST', '/api/projects', {
+  const otherRoot = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'root',
     name: 'Other root',
@@ -122,11 +123,11 @@ test('completed work can receive retained reflections across the root journal, H
     title: 'Other root task',
     status: 'done',
   });
-  const foreignRoot = await apiAs<{ id: string }>('user-alex', 'POST', '/api/projects', {
-    workspaceId: 'workspace-alex',
+  const foreignRoot = await createProject({
+    workspaceId: 'workspace-alex' as WorkspaceId,
     kind: 'root',
     name: 'Foreign root',
-  });
+  }, 'user-alex');
   const foreignTask = await addTaskAs('user-alex', {
     projectId: foreignRoot.id,
     title: 'Foreign completed task',
@@ -240,7 +241,7 @@ test('completed work can receive retained reflections across the root journal, H
   await page.reload();
   await streamOpen;
 
-  const pageOnlyRoot = await api<{ id: string }>('POST', '/api/projects', {
+  const pageOnlyRoot = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'root',
     name: 'Page-only MCP root',

@@ -52,7 +52,12 @@ action belongs to the **subject** project's own history, even when a reparent mo
 root. Its Undo writes back exactly the recorded fields after re-running the parent, cycle,
 archived-ancestry and live-child rules; an archive's Undo, a reactivation's Redo and an edit made
 while archived may run while that project is archived, but an archived ancestor still blocks.
-`create_project` still returns the bare project and records nothing.
+`create_project` returns `{ project, operation }` and records `project.add` in the created project's
+own history. Undo removes the untouched project and canonical page only after its dependency
+preflight; Redo restores the same ids. While Undo has left the project absent, only the creating
+actor can read the history summary at that id. A permanent other-actor history conflict retires the
+action before Activity is recorded; retirement emits no event or frame
+([decision](../../decisions/2026-09-project-creation-history.md)).
 
 `restore_section` returns `{ section, operation }` too, with `operation: null` for a repeat on a
 live section: Archive Restore still needs no receipt to invoke and still never expires, and

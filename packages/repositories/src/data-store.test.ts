@@ -1741,10 +1741,56 @@ describe('operation history integrity', () => {
     expect(() => new InMemoryDataStore(withUndoneProjectCreation())).not.toThrow();
   });
 
+  it('binds an absent project history to the actor who created it', () => {
+    const document = withUndoneProjectCreation();
+    document.users.push({ ...document.users[0]!, id: 'user-2' as never, name: 'Another user' });
+    const foreignHistory = history({ id: 'history-2', actorUserId: 'user-2', cursor: 0, revision: 2 });
+    document.operationHistories.push(foreignHistory);
+    const creatorAction = document.operationActions[0]!;
+    document.operationActions.push({
+      ...creatorAction,
+      id: 'operation-2' as never,
+      historyId: foreignHistory.id,
+    });
+
+    expect(() => new InMemoryDataStore(document)).toThrow(/does not belong to the creator/);
+  });
+
+  it('rejects an absent-project history in another workspace', () => {
+    const document = withUndoneProjectCreation();
+    document.users.push({
+      ...document.users[0]!,
+      id: 'user-2' as never,
+      name: 'Other workspace owner',
+      workspaceId: 'workspace-2' as never,
+    });
+    document.workspaces.push({
+      ...document.workspaces[0]!,
+      id: 'workspace-2' as never,
+      name: 'Other workspace',
+      ownerUserId: 'user-2' as never,
+    });
+    document.operationHistories.push(history({
+      id: 'history-2',
+      workspaceId: 'workspace-2',
+      actorUserId: 'user-2',
+      cursor: 0,
+      orderHighWaterMark: 0,
+      revision: 0,
+    }));
+
+    expect(() => new InMemoryDataStore(document)).toThrow(/missing project|creation.*anchor/i);
+  });
+
   it('uses only the project creation lifecycle sequence as the durable Activity anchor', () => {
     const missingCreation = withUndoneProjectCreation();
     missingCreation.activityEvents = missingCreation.activityEvents.filter(({ action }) => action !== 'project.created');
     expect(() => new InMemoryDataStore(missingCreation)).toThrow(/latest project\.creation_undone event/);
+
+    const foreignLifecycleActor = withUndoneProjectCreation();
+    foreignLifecycleActor.users.push({ ...foreignLifecycleActor.users[0]!, id: 'user-2' as never, name: 'Another user' });
+    foreignLifecycleActor.activityEvents[1]!.actorUserId = 'user-2' as never;
+    expect(() => new InMemoryDataStore(foreignLifecycleActor)).toThrow(/latest project\.creation_undone event/);
 
     const unrelatedTargetEvent = withUndoneProjectCreation();
     const undone = unrelatedTargetEvent.activityEvents[1]!;

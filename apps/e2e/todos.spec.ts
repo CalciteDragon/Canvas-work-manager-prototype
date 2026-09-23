@@ -1,6 +1,7 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { expect, test } from '@playwright/test';
-import { PROTOTYPE_HOST, seed, setClock } from './seed';
+import type { WorkspaceId } from '@cwm/contracts';
+import { PROTOTYPE_HOST, createProject, seed, setClock } from './seed';
 
 /**
  * Slice 25.5's acceptance, as one real journey: *a deliberately scrambled seed produces the
@@ -60,8 +61,8 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
   await setClock(PINNED_NOW);
 
   // ─── the scenario, deliberately out of chronological order ───────────────────────────────
-  const workspaceId = (await api<{ workspace: { id: string } }>('GET', '/api/me')).workspace.id;
-  const root = await api<{ id: string }>('POST', '/api/projects', {
+  const workspaceId = (await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me')).workspace.id;
+  const root = await createProject({
     workspaceId,
     kind: 'root',
     name: 'Todos journey',
@@ -70,14 +71,14 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
   const containerA = containerAResult.section;
   const containerBResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' });
   const containerB = containerBResult.section;
-  const kitchen = await api<{ id: string }>('POST', '/api/projects', {
+  const kitchen = await createProject({
     workspaceId,
     kind: 'subproject',
     parentProjectId: root.id,
     name: 'Kitchen',
     targetDate: '2026-09-18',
   });
-  const cabinets = await api<{ id: string }>('POST', '/api/projects', {
+  const cabinets = await createProject({
     workspaceId,
     kind: 'subproject',
     parentProjectId: kitchen.id,
@@ -236,11 +237,11 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
 test('a cross-root reparent, its Undo and its Redo move a unit of work out of and back into the open chronology it left', async ({ page }) => {
   await seed('agent-heavy');
   await setClock(PINNED_NOW);
-  const { workspace } = await api<{ workspace: { id: string } }>('GET', '/api/me');
-  const left = await api<{ id: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'root', name: 'Left root' });
-  const right = await api<{ id: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'root', name: 'Right root' });
+  const { workspace } = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+  const left = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Left root' });
+  const right = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Right root' });
   for (const root of [left, right]) await api('PATCH', `/api/projects/${root.id}/pages/todos`, { enabled: true });
-  const traveller = await api<{ id: string }>('POST', '/api/projects', {
+  const traveller = await createProject({
     workspaceId: workspace.id, kind: 'subproject', parentProjectId: left.id, name: 'Traveller',
   });
   const todoNames = async (rootId: string) => namesOf((await api<{ items: Row[] }>('GET', `/api/projects/${rootId}/todos`)).items);

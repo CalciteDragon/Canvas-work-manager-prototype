@@ -54,6 +54,10 @@ stand-in that runs each write's Undo by action id, plus scripted per-project sum
 (`historySummaries`) and queued transition answers (`transitionAnswers`) for the header's specs;
 ordering and conflicts are the host's rules, proved there.
 
+`ProjectGateway.create` and `ProjectGateway.update` both return the shared `ProjectWriteResult`;
+create always carries the `project.add` receipt, while an existing-project no-op may carry
+`operation: null`. Callers unwrap `project` only after the adapter validates the envelope.
+
 ## A store's three connections
 
 ```mermaid

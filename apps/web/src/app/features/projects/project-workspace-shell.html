@@ -1,9 +1,31 @@
 @if (store.loading()) {
   <p data-project-loading class="project-workspace__muted">Loading project…</p>
+} @else if (creationRecovery(); as creation) {
+  <section data-project-creation-recovery class="project-workspace__recovery" aria-labelledby="project-creation-recovery-heading">
+    <h1 id="project-creation-recovery-heading">Creation undone</h1>
+    <p>The action “{{ creation.label }}” removed this project. Redo it to restore the project and its canonical page.</p>
+    <app-project-history-controls
+      [undo]="history.undoControl()"
+      [redo]="history.redoControl()"
+      [retryAvailable]="history.retryAvailable()"
+      (undoRequested)="undo()"
+      (redoRequested)="redo()"
+      (retryRequested)="history.retry()"
+    />
+    <app-project-history-feedback
+      [feedback]="history.feedback()"
+      (dismissed)="history.dismissFeedback()"
+    />
+  </section>
 } @else if (store.error(); as error) {
   <section class="project-workspace__notice" aria-labelledby="project-error-heading">
     <h1 id="project-error-heading">Project unavailable</h1>
     <p data-project-error role="alert">{{ error }}</p>
+    @if (store.missing() && history.retryAvailable()) {
+      <button type="button" data-project-history-retry class="project-workspace__retry" (click)="history.retry()">
+        Retry
+      </button>
+    }
   </section>
 } @else if (store.project(); as project) {
   <div class="project-workspace">

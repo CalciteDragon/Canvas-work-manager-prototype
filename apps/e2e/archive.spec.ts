@@ -1,6 +1,7 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { expect, test } from '@playwright/test';
-import { PROTOTYPE_HOST, seed, setClock } from './seed';
+import type { WorkspaceId } from '@cwm/contracts';
+import { PROTOTYPE_HOST, createProject, seed, setClock } from './seed';
 import { undoFromHeader } from './history-controls';
 
 const TOKEN = 'prototype-user-a-readwrite';
@@ -48,8 +49,8 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
   await seed('agent-heavy');
   await setClock(PINNED_NOW);
 
-  const workspace = await api<{ workspace: { id: string } }>('GET', '/api/me');
-  const root = await api<{ id: string }>('POST', '/api/projects', {
+  const workspace = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+  const root = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'root',
     name: 'Archive journey',
@@ -76,7 +77,7 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
     title: 'Child task',
   });
   await addTask({ projectId: root.id, sectionId: section.id, title: 'Section task' });
-  const leaf = await api<{ id: string }>('POST', '/api/projects', {
+  const leaf = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'subproject',
     parentProjectId: root.id,
@@ -385,9 +386,9 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
   // nested-projects for its agent connection; the journey builds its own root beside the seeded one.
   await seed('nested-projects');
   await setClock(PINNED_NOW);
-  const { workspace } = await api<{ workspace: { id: string } }>('GET', '/api/me');
-  const root = await api<{ id: string; name: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'root', name: 'Placement contrast' });
-  const child = await api<{ id: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'subproject', parentProjectId: root.id, name: 'Source unit' });
+  const { workspace } = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+  const root = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Placement contrast' });
+  const child = await createProject({ workspaceId: workspace.id, kind: 'subproject', parentProjectId: root.id, name: 'Source unit' });
   const home = (await api<{ id: string; kind: string }[]>('GET', `/api/projects/${root.id}/pages`)).find(({ kind }) => kind === 'home')!;
   const add = async (projectId: string, body: Record<string, unknown>) =>
     (await api<{ section: { id: string } }>('POST', `/api/projects/${projectId}/sections`, body)).section;
@@ -522,11 +523,11 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
 test('an archived sub-project leaves and returns to the open Archive it moved from, and its own archive undoes while archived', async ({ page }) => {
   await seed('agent-heavy');
   await setClock(PINNED_NOW);
-  const { workspace } = await api<{ workspace: { id: string } }>('GET', '/api/me');
-  const left = await api<{ id: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'root', name: 'Left shelf' });
-  const right = await api<{ id: string }>('POST', '/api/projects', { workspaceId: workspace.id, kind: 'root', name: 'Right shelf' });
+  const { workspace } = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+  const left = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Left shelf' });
+  const right = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Right shelf' });
   for (const root of [left, right]) await api('PATCH', `/api/projects/${root.id}/pages/archive`, { enabled: true });
-  const shelved = await api<{ id: string }>('POST', '/api/projects', {
+  const shelved = await createProject({
     workspaceId: workspace.id, kind: 'subproject', parentProjectId: left.id, name: 'Shelved unit',
   });
   type Receipt = { historyId: string; actionId: string; revision: number; operation: string };

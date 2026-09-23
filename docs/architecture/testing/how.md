@@ -6,6 +6,8 @@
    then `pnpm -r --if-present test`: `vitest run` in each package and the
    host, `ng test --no-watch` in the web app. No browser or external network is needed;
    transport and persistence tests use isolated localhost servers and temporary files.
+   Slice 42's unavailable-route retry after a failed history-summary read is covered by
+   `apps/web/src/app/features/projects/project-workspace-shell.spec.ts`.
 2. `pnpm lint` runs each workspace's `lint` — `tsc --noEmit` plus the import, date and
    token lints where they apply — and then `node scripts/check-docs.mjs`.
 3. `pnpm build` builds the web app (with the bundle budgets) and type-checks the rest. Slice 31
@@ -50,7 +52,10 @@
     and `null` no-ops, the action persisted in the sub-project's own history, a cross-root reparent
     undone and redone, the sub-project's own archive undone while archived, another connection's
     not-found, and each unrelated grant refused before `projects.write` alone reverses the
-    reactivation and redoes it while archived.
+    reactivation and redoes it while archived. Slice 42 creates a root, undoes its `project.add`,
+    verifies the absent project and canonical page, restarts from the same JSON document, and redoes
+    the same ids. It also advances a second creation past the 24-hour receipt window, restarts again,
+    and confirms the lifecycle Activity remains while Redo stays unavailable.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) first copies the current empty seed
    to its disposable scratch file, then starts both processes,
     seeds before each spec, and runs the web, canvas editing, section edit/removal Undo, row history,
@@ -65,6 +70,11 @@
    archive that stays on its project, pending state through a held write, a gated second tab refused
    `history_revision_stale`, an agent's conflicting edit, and expiry after a clock move. The older
    journeys that clicked the notice's Undo now go through `history-controls.ts`.
+   Slice 42's `project-creation-history.spec.ts` creates from the sidebar and a Sub-Projects section,
+   Undoes and Redoes the same ids, reloads the creator's recovery route, and confirms another actor
+   sees *Project unavailable*. A nested-project journey checks the root Work tree, Todos, Archive
+   and the parent's Sub-Projects section after create, Undo and Redo, then verifies the expired
+   creation route has no stale recovery offer.
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`
    produces a static build the 25.x closeouts used as a check.
 7. After every slice, §77: seed, use, try it through MCP, write the friction down.

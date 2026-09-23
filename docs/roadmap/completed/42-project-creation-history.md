@@ -1,4 +1,4 @@
-<!-- plan id="42" status="active" summary="Project creation records one project.add action whose Undo removes the untouched project and its canonical page and whose Redo recreates the same ids, reachable from a recovery state at the project's own URL" -->
+<!-- completed-record id="42" closed="2026-09-23" summary="Project creation is recorded and recoverable through creator-bound history, same-file persistence, browser and MCP checks." -->
 # Slice 42 — Project creation history and recovery state (Slice 34 Stage C5)
 
 <!-- The first line is the state marker; scripts/roadmap.mjs owns it. While the plan is in
@@ -296,7 +296,10 @@ domain fixtures (test plan) and by the person's own agent connection below.
    error appears; reload keeps the recovery state; Redo returns to the project's Home at the same
    URL. Create a sub-project from a parent's Sub-Projects section: the parent's header announces
    the cross-owner step with Open; Open, Undo, recovery state, Redo. A second persona opening the
-   URL sees *Project unavailable*.
+   URL sees *Project unavailable*. A second seeded journey creates under a live sub-project and
+   checks the ancestor Work tree, Todos, Archive and the parent's Sub-Projects section after
+   creation, Undo and Redo; undoing the child then advancing the clock 25 hours leaves *Project
+   unavailable* with no stale Redo offer.
 7. **Commands.** Named failing tests first, then `pnpm test`, `pnpm lint` (includes
    `docs:check`), `pnpm build` (initial bundle under the 1050 kB ceiling), host `acceptance` and
    `mcp-acceptance`, and `pnpm --filter @cwm/e2e e2e -- project-creation-history project-history
@@ -392,7 +395,7 @@ changes the result.
 | `prototype-host/live-updates.test.ts`: Undo and Redo of a sub-project creation each publish one frame with the root's `rootProjectId` | Refresh reaches the former root. |
 | `mcp-tools/contract.test.ts`, `registry.test.ts`: `create_project` result; creation Undo/Redo via tools; a connection lowered to `projects.read` is forbidden before any detail | MCP parity and grant order. |
 | `web/.../project-workspace-store.spec.ts`: `not_found` on load → `missing`; a frame's refresh that gets `not_found` → `missing` and project cleared; a later successful refresh clears it; a transport error on refresh stays quiet | Missing state is authoritative; other failures unchanged. |
-| `web/.../project-workspace-shell.spec.ts`: missing + Redo `project.add` → recovery section with controls; missing without it → *Project unavailable*; Undo result without a frame → one reload → recovery; Redo result without a frame → one reload → project; no reload loop on repeated summaries at the same `historyId:revision`; a cold load of the recovery URL starts no extra reload; a stale Redo `project.add` summary while the project is present reloads exactly once; `history.load` is never called by the reload | Recovery state and both dropped-frame paths. |
+| `web/.../project-workspace-shell.spec.ts`: missing + Redo `project.add` → recovery section with controls; missing without it → *Project unavailable*; an unavailable history read offers a generic Retry and a successful retry exposes only the creator's Redo; Undo result without a frame → one reload → recovery; Redo result without a frame → one reload → project; no reload loop on repeated summaries at the same `historyId:revision`; a cold load of the recovery URL starts no extra reload; a stale Redo `project.add` summary while the project is present reloads exactly once; `history.load` is never called by the reload | Recovery state, retry and both dropped-frame paths. |
 | `web/.../project-page-store.spec.ts`: a `not_found` re-read after a project's creation-undo frame sets no error | No error flash. |
 | `web/.../sub-projects-store.spec.ts`, `shell-store.spec.ts`: unwrap; sub-project creation reports with the child's id and name | Reporting. |
 | `web/.../history-feedback.spec.ts`: `project.add` both directions | Exhaustive wording. |
@@ -514,19 +517,51 @@ Resolved by default; each goes into the new decision entry:
   history tests to the file and test checklists; both must now assert the own-history `project.add`
   while preserving their root-versus-source ownership checks. Re-review confirmed these assertions
   cover the full finding with no substantive gaps.
+- **Implementation review (2026-09-23):** Two independent diff reviews found that an absent project's
+  history anchor must be bound to the exact actor of `project.created`, a failed recovery-summary
+  read needs a retry, and the written acceptance did not yet exercise restart/expiry or all ancestor
+  projections. Integrity now rejects another actor's or another workspace's absent-project history
+  and mismatched lifecycle actors; the missing route offers a generic Retry; host acceptance
+  reopens the absent and expired file; browser acceptance checks expiry plus root Work, Todos and
+  Archive and the parent's Sub-Projects projection through creation Undo/Redo.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
 ## Outcome
 
-**Deliverables** — <what now exists and works, with file links>.
+**Deliverables** — `project.add` now records project creation in the created project's own history;
+the HTTP and MCP create results include its receipt. Undo removes the untouched project and canonical
+Home page, and the creator can return to the same URL, retry a failed summary read and Redo the same
+project/page ids. Exact-actor Activity anchoring, absent-project integrity and the browser journeys are
+covered in [ProjectService](../../../packages/domain/src/project-service.ts),
+[data-store integrity](../../../packages/repositories/src/data-store.ts), the
+[recovery route](../../../apps/web/src/app/features/projects/project-workspace-shell.html), and the
+[browser acceptance](../../../apps/e2e/project-creation-history.spec.ts).
 
-**Deliberate choices** — <decisions made and why; options rejected; links to decision entries>.
+**Deliberate choices** — Creation belongs to the created project's history. Durable absence uses its
+`project.created` Activity followed by the final `project.creation_undone` event, with every lifecycle
+event and absent history bound to the exact actor; no tombstone or schema bump is needed. The
+preflight refuses Undo when another actor's action or dependent content names the project, before
+writing the permanent Activity line. See the [project-creation decision](../../decisions/2026-09-project-creation-history.md).
 
-**Deviations from the plan** — <what changed mid-implementation and what caused it>.
+**Deviations from the plan** — Independent implementation reviews found the missing exact-actor
+binding, retry behavior after a failed history read, and gaps in restart, expiry and ancestor-projection
+acceptance. Those are now implemented, documented and tested. The nested browser journey also exposed
+that Todos projects child work and Redo advances the project's `updatedAt`; its assertions check the
+projection and stable ids without treating the timestamp as creation identity.
 
-**Deferred** — <what was left out and which slice owns it>.
+**Deferred** — The persisted transition retry cache is retired by the dated Slice 34 amendment rather
+than implemented. Stage D/E work remains in Slice 34. The real-use questions about section labels and
+reaching descendant history from a root remain follow-ups, captured by `note-2026-09-23-003` and
+`note-2026-09-23-005`.
 
-**Open questions** — <what the next phase or the user must answer>.
+**Open questions** — None block this slice. The next product pass should revisit whether section
+history labels should name the edit and whether a root should offer a lasting way to reach descendant
+steps; the browser note confirms the latter's revisit trigger.
 
-**Documentation updated** — <the architecture folders, decisions and guides touched>.
+**Documentation updated** — Spec §§14, 26, 31 and 69; the contracts, repositories, domain, MCP tools,
+prototype-host API/live-updates, web core/projects and testing architecture folders; the new
+project-creation decision and indexed amendments to the existing history decisions; `mcp-setup.md`,
+`goals.md`, `.prototype/notes.json`, and `CURRENT_SLICE = 42` in the dev-panel store. Verification passed:
+`pnpm test`, `pnpm lint` (including `docs:check`), `pnpm build`, host `acceptance`, `mcp-acceptance`
+on both transports, and the seven-spec Playwright command in Acceptance step 7 (25 tests).

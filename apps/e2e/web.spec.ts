@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { PROTOTYPE_HOST, api as requestApi, createRoot, seed, setClock } from './seed';
+import type { ProjectId, WorkspaceId } from '@cwm/contracts';
+import { PROTOTYPE_HOST, api as requestApi, createProject, createRoot, seed, setClock } from './seed';
 
 /**
  * §69's web path: load a seed, create a project, create a task, see it on the dashboard —
@@ -284,14 +285,14 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
   await expect(page).toHaveURL(new RegExp(`/projects/${projectId}/pages/reflections$`));
   await expect(page.locator('[data-reflections-page]')).toBeVisible();
 
-  const workspace = await requestApi.get<{ workspace: { id: string } }>('/api/me');
-  const child = await requestApi.post<{ id: string }>('/api/projects', {
+  const workspace = await requestApi.get<{ workspace: { id: WorkspaceId } }>('/api/me');
+  const child = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'subproject',
-    parentProjectId: projectId,
+    parentProjectId: projectId as ProjectId,
     name: 'Child unit',
   });
-  const grandchild = await requestApi.post<{ id: string }>('/api/projects', {
+  const grandchild = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'subproject',
     parentProjectId: child.id,

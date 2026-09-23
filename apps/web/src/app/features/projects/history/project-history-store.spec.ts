@@ -29,6 +29,9 @@ const expiresAt = '2026-09-23T10:00:00.000Z';
 const entry = (id: string, label: string, blockedBy: OperationHistoryEntry['blockedBy'] = null): OperationHistoryEntry => ({
   actionId: id as OperationActionId, operation: 'section.update', label, expiresAt, blockedBy,
 });
+const projectAddEntry = (id: string): OperationHistoryEntry => ({
+  actionId: id as OperationActionId, operation: 'project.add', label: 'Created "Recoverable project"', expiresAt, blockedBy: null,
+});
 const summaryOf = (overrides: Partial<OperationHistorySummary> = {}): OperationHistorySummary => ({
   projectId: ROOT, historyId: HISTORY, revision: 3, undo: entry('operation-3', 'Resized the Notes section'), redo: null, blockedBy: null, ...overrides,
 });
@@ -100,6 +103,15 @@ describe('ProjectHistoryStore — reading the summary', () => {
     await answer(summaryOf());
     expect(store.undoControl()).toEqual({ name: 'Undo: Resized the Notes section', enabled: true });
     expect(store.redoControl()).toEqual({ name: 'Nothing to redo', enabled: false });
+  });
+
+  it('exposes creation Undo and Redo entries from the held summary', async () => {
+    const { store, answer } = setup();
+    store.load(ROOT);
+    await answer(summaryOf({ undo: projectAddEntry('operation-created'), redo: projectAddEntry('operation-undone') }));
+
+    expect(store.creationUndo()).toMatchObject({ operation: 'project.add', label: 'Created "Recoverable project"' });
+    expect(store.creationRedo()).toMatchObject({ operation: 'project.add', label: 'Created "Recoverable project"' });
   });
 
   it('a failed read is unavailable with a Retry that re-reads', async () => {

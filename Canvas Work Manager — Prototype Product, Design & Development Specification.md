@@ -629,6 +629,15 @@ title or reflection label needed if Undo Add later removes its target. The earli
 frozen at their literal output versions
 ([decision](docs/decisions/2026-09-schema-version-5-conversion.md)).
 
+*Amended in Slice 42:* project creation Undo adds no collection or schema version. A stored project
+may be absent only when its workspace retains the lifecycle Activity that proves creation Undo and
+the creator's exact-actor history retains the corresponding `undone` `project.add`. The lifecycle
+events and history must name the same actor who created the project; a second actor's history or an
+absent-project history in another workspace is invalid. The Activity anchor and the history anchor
+are checked separately; all other records still require their project to exist.
+Neither anchor depends on a tombstone or a history record retained by Activity
+([decision](docs/decisions/2026-09-project-creation-history.md)).
+
 ---
 
 # 15. JSON Persistence Behavior
@@ -1130,6 +1139,13 @@ Open link. Archiving from More no longer leaves the page: the archived project s
 its Undo enabled. Below 40rem the header's actions move to their own row under the identity, so the
 name keeps its width ([why](docs/decisions/2026-09-project-header-history-controls.md)).
 
+*Landed in Slice 42.* The same header controls remain available after creation Undo: the creator's
+missing-project URL shows the captured creation action and its Redo. Undo is allowed only before
+content, children, references, field changes or another actor's history depend on the project; the
+project and its canonical page return with their original ids on Redo. The parent header does not
+gain the child action; it names the child's history and links to it
+([why](docs/decisions/2026-09-project-creation-history.md)).
+
 ## Two kinds of project
 
 A project is one of two things, and the difference is structural rather than cosmetic:
@@ -1164,8 +1180,13 @@ records nothing. Undo writes back exactly the fields that call changed and Redo 
 an unrelated edit someone made since survives both, while a later change to the same field refuses.
 A completion time comes back exactly as it was recorded, never re-stamped. Reversing a move re-checks
 the destination as if it were a new move: it must still exist, must not sit beneath the project, and
-must not be under anything archived. Creating a project is not recorded yet
-([why](docs/decisions/2026-09-project-update-operation-history.md)).
+must not be under anything archived. *Landed in Slice 42:* creating a root or subproject records one
+`project.add` in the created project's own history and returns `{ project, operation }`. Undo removes
+only an untouched project and its canonical page; Redo restores both with the same ids and original
+`createdAt` values, while stamping each `updatedAt` with the Redo time. A subproject's creation belongs to its own history, so a parent page reports it with an
+Open link. After the creator undoes creation, `/projects/:projectId` keeps that actor's Redo
+reachable in a recovery view; other actors see the ordinary unavailable state
+([decision](docs/decisions/2026-09-project-creation-history.md)).
 
 ## Pages
 
@@ -1802,6 +1823,15 @@ ProjectSectionFrame
 ```
 
 ---
+
+*Landed in Slice 42.* The creating actor's first history action is `project.add`. Undo preflights the
+captured project, its canonical page, and every reference before recording `project.creation_undone`
+and removing only that project and page. Later content and children, changed project or page fields,
+references, and any other actor's project history refuse creation Undo without a partial change.
+The last case retires the action without Activity or a live frame. Redo restores the same project
+and canonical page ids under the current hierarchy rules. Nothing is cascaded or retained as a
+tombstone; section content is preserved by refusing while any remains
+([decision](docs/decisions/2026-09-project-creation-history.md)).
 
 # 32. Section Editing
 
@@ -2755,8 +2785,14 @@ family, `page`, for them. The tool's name, input and permission are unchanged.*
 `project.reactivate` when it left it, `project.update` otherwise, and `operation: null` when nothing
 changed (archiving an archived project included). All three are reversed through `undo_operation`
 under `projects.write` alone, and the grant map discovery publishes gains a sixth family, `project`.
-`create_project` still returns the bare project. Names, inputs and permissions are unchanged
+Names, inputs and permissions are unchanged
 ([why](docs/decisions/2026-09-project-update-operation-history.md)).*
+
+*Amended in Slice 42:* `create_project` now returns `{ project, operation }` with its always-present
+`project.add` receipt. Creation is the first action in the created project's own history; its Undo
+and Redo follow the same project-family grant map. The history tools describe its preflight,
+permanent retirement case and creator-only summary while the project is absent. The registry still
+has thirty-seven tools ([why](docs/decisions/2026-09-project-creation-history.md)).*
 
 *Amended in Slice 37:* `restore_section` returns `{ section, operation }`, with `operation: null`
 for a repeat on a live section, and `add_section_shortcut` returns `{ shortcut, operation }` while
@@ -2928,6 +2964,13 @@ ordinary `project.updated` and `project.archived` do, and each successful step p
 and one live frame after commit. A write and its transition both record one event; a refusal records
 none.*
 
+*Extended in Slice 42:* `project.creation_undone` and `project.creation_redone` keep the creation
+audit line readable across project removal and restoration. The Undo event captures the project
+label while its target still resolves. Activity may name an absent project only when its workspace's
+document-order lifecycle ends with `project.creation_undone`; the creator's retained history is a
+separate anchor for the history record. A refusal or permanent retirement records no event
+([decision](docs/decisions/2026-09-project-creation-history.md)).*
+
 ---
 
 # 58. Agent Confirmation Experiments
@@ -3087,6 +3130,12 @@ bare project, with `operation: null` for a write that changed nothing. `POST /ap
 answers the bare project. Statuses and inputs are unchanged, and no captured field footprint is ever
 returned.*
 
+*Amended in Slice 42:* `POST /api/projects` answers `{ project, operation }`, where creation always
+records and returns `project.add`. `GET /api/projects/:id/history` remains caller-scoped; at an
+absent id it answers the creator's retained summary only, while other actors receive not-found.
+The host does not return the captured inverse payload
+([decision](docs/decisions/2026-09-project-creation-history.md)).*
+
 ---
 
 # 62. Live Updates
@@ -3161,6 +3210,13 @@ ancestor's archive changes a step's blocker), on `prototype.reloaded` and on rec
 a header Undo or Redo is reconciled by the transition's own frame, which every open surface already
 re-reads on; the header holds no rows.
 
+*Extended in Slice 42:* creation Undo and Redo each publish `project.creation_undone` or
+`project.creation_redone` with one frame addressed to the root the project belonged to before the
+step. Creation lifecycle frames are not project-record events; root work trees refresh from their
+`rootProjectId`, including the former root after a subproject is removed. Refusals and retirement
+publish no frame. A dropped frame is repaired by the current route's history summary and one
+project-context reload ([decision](docs/decisions/2026-09-project-creation-history.md)).*
+
 ---
 
 # 63. Optimistic UI
@@ -3233,6 +3289,14 @@ reads the confirmed `project` from it and ignores the receipt. Their optimistic 
 write guards and error messages are unchanged, and a committed response is never re-sent. *Since
 Slice 41* every one of them reports its receipt to the header's history, and a header archive applies
 the returned record and stays on the page.
+
+*Landed in Slice 42.* Project creation callers unwrap the same `{ project, operation }` envelope and
+report the receipt with the returned project's id and name. A missing-project read sets explicit
+route state; when the actor's summary offers Redo of `project.add`, the shell keeps the URL and shows
+the creation recovery controls. The route reloads project context once per history revision when a
+creation transition response lands without its live frame, without reloading the summary that proved
+which transition completed. A cold recovery URL does not retry itself, and ordinary not-found
+routes remain unavailable ([decision](docs/decisions/2026-09-project-creation-history.md)).
 
 ---
 
@@ -3467,6 +3531,13 @@ optional route carries its exact kind to an **Enable …** action, and navigatio
 state plus fresh page context. The manager is root-scoped and remains visible from descendant work
 routes; `/pages/work` and subproject page requests carry no enable action.*
 
+*Slice 42 makes creation Undo recoverable at the original `/projects/:projectId` URL. When the
+creator's history says its project is absent and Redo is the next `project.add`, the workspace
+shows a recovery state with the normal Undo/Redo controls and captured project label. That
+creator's history summary may name the absent project; another actor still receives not-found.
+Landing an Undo or Redo live update causes the workspace context to reload once for that history
+revision, so a root tree reflects restored descendants without a page reload.*
+
 ---
 
 # 69. Testing Strategy
@@ -3561,6 +3632,13 @@ open browser aggregate
 → canonical HTTP reads and activity attribution agree
 → missing-grant, read-only and foreign-root calls are refused without partial results
 ```
+
+*Slice 42 adds a creation-history journey: create a root in the sidebar, Undo it, reload at its
+same URL into creator-only recovery, Redo the same project and Home page ids, then create a child
+from its Sub-Projects section and repeat Undo, cross-owner not-found and recovery. The parent tree
+receives the child's committed Undo/Redo frames. Domain and HTTP/MCP checks also refuse Undo when
+the project gained content, children, references, changed fields or another actor's history, with
+no partial mutation; a retired creation remains absent after reload and history expiry.*
 
 The web and MCP journeys are kept isolated from the offline `pnpm test` suite and use their own
 data file. Focused aggregate journeys remain separate so the integrated pass can prove composition

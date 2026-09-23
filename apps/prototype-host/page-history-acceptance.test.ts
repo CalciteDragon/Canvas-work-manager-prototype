@@ -75,7 +75,7 @@ const onDisk = async (path: string): Promise<PrototypeDocument> =>
 
 /** A root with Home and nothing else, which is §26's stored state for a new root. */
 const homeOnlyRoot = async (host: Host, name = 'Renovation') => {
-  const project = await host.api.projects.create(DEMO, { workspaceId: DEMO.workspaceId, kind: 'root', name });
+  const { project } = await host.api.projects.create(DEMO, { workspaceId: DEMO.workspaceId, kind: 'root', name });
   expect((await host.api.pages.list(DEMO, project.id)).map(({ kind }) => kind)).toEqual(['home']);
   return project.id;
 };
@@ -155,6 +155,7 @@ describe('optional-page history over a persisted file (Slice 38)', () => {
     const stored = await onDisk(path);
     expect(stored.schemaVersion).toBe(5);
     expect(stored.operationActions.map(({ operation, state }) => [operation.type, state])).toEqual([
+      ['project.add', 'applied'],
       ['page.add', 'applied'],
       ['page.update', 'undone'],
     ]);

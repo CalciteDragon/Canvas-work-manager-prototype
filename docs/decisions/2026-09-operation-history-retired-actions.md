@@ -80,3 +80,10 @@ subject's `archiveGeneration` has advanced. `generationFloor` and document integ
 retained `section.restore` generations as well as `section.remove` ones, because retention prunes
 per history and a surviving Restore can be the only record that a section reached a generation
 ([decision](2026-09-section-restore-and-shortcut-history.md)).
+
+**Amended, 2026-09-23 — Slice 42.** The permanent-conflict list now includes another actor's
+operation history for a project whose creator is Undoing `project.add`. Histories are never deleted,
+even if that actor undoes every action, so this retires creation Undo. The complete preflight runs
+before `project.creation_undone` is recorded; retirement advances the cursor but writes no Activity
+and publishes no frame. The creator's own later writes remain ordinary cursor order and produce
+`history_not_next` until undone ([project creation history](2026-09-project-creation-history.md)).

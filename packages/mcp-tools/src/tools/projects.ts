@@ -32,7 +32,7 @@ export const projectTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'create_project',
     description:
-      'Create a project in the connection owner’s workspace. Two kinds exist: kind "root" is a workspace and takes no parent — it starts with a Home page and can enable Todos, Archive and Reflections through set_project_page_enabled; kind "subproject" is a unit of work with exactly one work canvas and no pages to configure, and requires parentProjectId, which may itself be a sub-project at any depth. Neither kind converts into the other. A root naming a parent, or a sub-project without one, is rejected rather than reinterpreted.',
+      'Create a project in the connection owner’s workspace. Answers { project, operation }; operation is the project.add receipt in the new project’s own history. Two kinds exist: kind "root" is a workspace and takes no parent — it starts with a Home page and can enable Todos, Archive and Reflections through set_project_page_enabled; kind "subproject" is a unit of work with exactly one work canvas and no pages to configure, and requires parentProjectId, which may itself be a sub-project at any depth. Neither kind converts into the other. A root naming a parent, or a sub-project without one, is rejected rather than reinterpreted.',
     permission: 'projects.write',
     // Each branch omits `workspaceId` separately: `.omit()` is an object operation and the
     // union has no single object to take it from. Rebuilding the union here rather than

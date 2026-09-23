@@ -10,14 +10,17 @@
  */
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import type {
+  CreateProjectInput,
   CreateSectionInput,
   CreateSectionShortcutInput,
   Project,
+  ProjectId,
   ProjectLayoutMode,
   OptionalProjectPageKind,
   ProjectPage,
   ProjectPageWriteResult,
   ProjectWriteResult,
+  WorkspaceId,
   ProjectSection,
   ResolvedSectionShortcut,
   SectionAddResult,
@@ -80,22 +83,22 @@ export const seed = (name: string): Promise<void> => post('/prototype/seed', { s
 export const setClock = (now: string | null): Promise<void> => post('/prototype/clock', { now });
 
 /** Create a root project in the current Demo workspace for focused canvas journeys. */
+/** Create a project and unwrap the `{ project, operation }` receipt returned by Slice 42. */
+export const createProject = async (input: CreateProjectInput, persona: Persona = 'user-demo'): Promise<Project> =>
+  (await api.post<ProjectWriteResult>('/api/projects', input, persona)).project;
+
 export const createRoot = async (name: string): Promise<Project> => {
-  const { workspace } = await api.get<{ workspace: { id: string } }>('/api/me');
-  return api.post<Project>('/api/projects', {
-    workspaceId: workspace.id,
-    kind: 'root',
-    name,
-  });
+  const { workspace } = await api.get<{ workspace: { id: WorkspaceId } }>('/api/me');
+  return createProject({ workspaceId: workspace.id, kind: 'root', name });
 };
 
 /** Add a predictable work tree under a root, retaining the returned ids in display order. */
-export const createSubprojects = async (rootId: string, count: number): Promise<Project[]> => {
-  const { workspace } = await api.get<{ workspace: { id: string } }>('/api/me');
+export const createSubprojects = async (rootId: ProjectId, count: number): Promise<Project[]> => {
+  const { workspace } = await api.get<{ workspace: { id: WorkspaceId } }>('/api/me');
   const projects: Project[] = [];
   for (let index = 0; index < count; index += 1) {
     projects.push(
-      await api.post<Project>('/api/projects', {
+      await createProject({
         workspaceId: workspace.id,
         kind: 'subproject',
         parentProjectId: rootId,

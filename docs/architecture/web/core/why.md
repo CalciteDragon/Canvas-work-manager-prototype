@@ -83,6 +83,7 @@ get one.
 - [Explicit section edits reverse only their operation's changes](../../../decisions/2026-09-section-edit-undo-boundaries.md) — typed add/move/update envelopes
 - [Undo and Redo follow one history per exact actor, per owning project](../../../decisions/2026-09-operation-history-scope.md) — `OperationHistoryGateway` and revision-ordered receipts
 - [The project header offers Undo and Redo of the displayed project's history](../../../decisions/2026-09-project-header-history-controls.md) — why the reporter port is core's and its default is inert
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the gateway validates the create receipt before the shell navigates
 
 ## Spec sections
 

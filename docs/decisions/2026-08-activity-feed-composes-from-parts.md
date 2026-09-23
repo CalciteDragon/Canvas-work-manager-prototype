@@ -74,3 +74,9 @@ the event's required historical context. The domain still prefers current entity
 when available, but falls back to the captured labels when they are gone; the UI composition rule
 and the live-frame re-fetch rule stay unchanged
 ([decision](2026-09-historical-activity-identity.md)).
+
+**Amended, 2026-09-23 — Slice 42.** A project-targeted event about an absent project uses its
+captured target label as `projectName` only when the event's own `projectId` is that same id. A
+task event that happened inside an absent project does not borrow that label. The Activity
+lifecycle anchor establishes when the project may be absent; composition still uses structured
+context rather than `summary` ([project creation history](2026-09-project-creation-history.md)).

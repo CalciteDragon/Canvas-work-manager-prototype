@@ -6,6 +6,7 @@ import { GatewayError } from '../../../../core/gateway/gateway-error';
 import type { WorkManagerGateway } from '../../../../core/gateway/work-manager-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-gateway';
+import { provideRecordingReporter } from '../../../../core/history/testing/recording-reporter';
 import { SubProjectsStore } from './sub-projects-store';
 
 const root = ProjectSchema.parse({ id: 'project-a', workspaceId: 'workspace-demo', kind: 'root', name: 'Root', status: 'active', projectLayoutMode: 'flow', createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z' });
@@ -31,6 +32,7 @@ describe('SubProjectsStore', () => {
 
   it('loads hierarchy and creates a trimmed direct child', async () => {
     const gateway = new FakeWorkManagerGateway({ projects: [root, child, grandchild] });
+    const reporter = provideRecordingReporter();
     TestBed.configureTestingModule({ providers: [SubProjectsStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
     const store = TestBed.inject(SubProjectsStore);
     await store.load(root.id);
@@ -39,6 +41,11 @@ describe('SubProjectsStore', () => {
     expect(store.depthOf(grandchild)).toBe(1);
     expect(await store.create('  New child  ')).toBe(true);
     expect(gateway.argumentTo('projects.create')).toMatchObject({ parentProjectId: root.id, name: 'New child' });
+    expect(reporter.reports()).toMatchObject([{
+      projectId: 'project-created',
+      projectName: 'New child',
+      receipt: { operation: 'project.add' },
+    }]);
   });
 
   // §31: archived work does not appear on ordinary pages or views, and a Sub-Projects section

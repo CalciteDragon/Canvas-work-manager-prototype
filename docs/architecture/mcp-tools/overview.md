@@ -7,6 +7,10 @@ nothing about MCP itself: no SDK, no transport, no server. The host mounts the s
 registry over Streamable HTTP and over stdio, and the contract tests exercise every tool
 with no socket open (§60).
 
+`create_project` returns the created project with its `project.add` receipt. The existing
+`get_operation_history`, `undo_operation` and `redo_operation` tools make creation Undo and its
+same-id Redo available over both transports without adding registry entries.
+
 **Code:** `packages/mcp-tools/src` · **Tests:** `packages/mcp-tools/src/*.test.ts` with
 `test/harness.ts` (vitest) · **Package:** `@cwm/mcp-tools` · **Depends on:**
 `@cwm/contracts`, `@cwm/domain`, `zod`

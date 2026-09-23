@@ -23,7 +23,9 @@
    `{ page, operation }`, validated so a host that stopped sending it fails here rather than
    silently; `ProjectGateway.update` answers `{ project, operation }` the same way since Slice 39.
    Every browser caller reports the receipt through `OPERATION_HISTORY_REPORTER` (Slice 41) —
-   `ProjectGateway.create` still answers the bare project. No API route answers 204 any more, so the adapter has
+   `ProjectGateway.create` answers the same validated `ProjectWriteResult` as update, with a
+   required creation receipt. Root creation is initiated outside a project shell, so its inert
+   reporter leaves the new project's header to read the history on navigation. No API route answers 204 any more, so the adapter has
    no body-less send path.
 5. `AppShell` provides `ShellStore`, which loads projects, derives the tree
    (`ProjectTreeNode`), and re-reads on `project.*` frames.

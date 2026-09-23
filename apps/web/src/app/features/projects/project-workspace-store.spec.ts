@@ -179,6 +179,22 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
     expect(store.loading()).toBe(false);
   });
 
+  it('marks not-found loads as missing and clears that state after a successful read', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+    const get = gateway.projects.get.bind(gateway.projects);
+    gateway.projects.get = () => Promise.reject(new GatewayError('not_found', 404, 'no such project'));
+
+    await store.load('project-renovation' as ProjectId);
+
+    expect(store.missing()).toBe(true);
+    expect(store.project()).toBeNull();
+    expect(store.error()).toContain('no such project');
+    gateway.projects.get = get;
+    await store.load('project-renovation' as ProjectId);
+    expect(store.missing()).toBe(false);
+    expect(store.project()?.id).toBe('project-renovation');
+  });
+
   it('discards a late response from the project the user has already left', async () => {
     const projects = renovation();
     const slow = deferred<Project>();
@@ -205,6 +221,32 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
 });
 
 describe('ProjectWorkspaceStore and live updates (§62)', () => {
+  it('treats not-found context refreshes as missing, clears them on recovery, and keeps other refresh failures quiet', async () => {
+    const live = new FakeLiveUpdates();
+    const { store, gateway } = storeWith({ projects: renovation() }, live);
+    await store.load('project-renovation' as ProjectId);
+    const get = gateway.projects.get.bind(gateway.projects);
+    gateway.projects.get = () => Promise.reject(new GatewayError('not_found', 404, 'project was removed'));
+
+    live.emit({ type: 'project.creation_undone', entityType: 'project', entityId: 'project-renovation', projectId: 'project-renovation' } as never);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(store.missing()).toBe(true);
+    expect(store.project()).toBeNull();
+
+    gateway.projects.get = get;
+    live.emit({ type: 'project.creation_redone', entityType: 'project', entityId: 'project-renovation', projectId: 'project-renovation' } as never);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(store.missing()).toBe(false);
+    expect(store.project()?.id).toBe('project-renovation');
+
+    gateway.projects.get = () => Promise.reject(new GatewayError('unreachable', 503, 'host starting'));
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: 'project-renovation', projectId: 'project-renovation' } as never);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(store.missing()).toBe(false);
+    expect(store.project()?.id).toBe('project-renovation');
+    expect(store.error()).toBeNull();
+  });
+
   it('refreshes header progress on a task event for this project', async () => {
     const live = new FakeLiveUpdates();
     const { store, gateway } = storeWith({ projects: renovation() }, live);

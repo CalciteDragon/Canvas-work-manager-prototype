@@ -84,3 +84,9 @@ Real use shows a person hunting for a descendant's step from a root page often e
 combined view; project **creation** joins history (the next Stage C phase) and needs its
 missing-project recovery route; keyboard shortcuts or a history list are asked for; or a surface is
 found stale after a header click that its frame did not reconcile.
+
+**Amended, 2026-09-23 — Slice 42.** The creation recovery question is answered. At the original
+project URL, the creator sees a recovery section when the project's history has Redo `project.add`;
+it uses the same header history controls and feedback, while other actors still see *Project
+unavailable*. A landed creation Undo or Redo frame triggers one context reload for that history
+revision, which refreshes the former root's tree too ([project creation history](2026-09-project-creation-history.md)).

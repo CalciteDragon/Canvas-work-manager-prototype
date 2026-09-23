@@ -103,6 +103,7 @@ unknown-tool response.
 - [Undo and Redo require their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md)
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `restore_section` and the shortcut tools' envelopes, and the fourth family in both history tools' map
 - [An existing project's writes are one action family](../../decisions/2026-09-project-update-operation-history.md) — the three project-update tools' envelopes and the sixth family in both history tools' map
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — `create_project` receipt, guarded Undo and creator-only absent-project summary
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `set_project_page_enabled`'s envelope and the fifth family in both history tools' map
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — safe deletion and exact-actor recovery after a lost response
 - [The project header offers Undo and Redo of the displayed project's history](../../decisions/2026-09-project-header-history-controls.md) — each summary entry carries its own `blockedBy`

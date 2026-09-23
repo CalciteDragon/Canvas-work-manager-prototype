@@ -402,6 +402,29 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.shortcuts()).toEqual([]);
   });
 
+  it('quietly ignores a not-found canvas refresh after creation Undo until the shell unmounts it', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT, PAGE);
+    const list = gateway.sections.list;
+    gateway.sections.list = vi.fn(async () => { throw new GatewayError('not_found', 404, 'project was removed'); });
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    live.emit({
+      type: 'project.creation_undone',
+      entityType: 'project',
+      entityId: PROJECT,
+      projectId: PROJECT,
+      rootProjectId: PROJECT,
+    } as never);
+    await settleLive();
+
+    expect(gateway.sections.list).not.toBe(list);
+    expect(store.error()).toBeNull();
+    expect(store.sectionError()).toBeNull();
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
+  });
+
   it('loads its page’s sections in position order, and reads no rows itself', async () => {
     const { store, gateway } = setup({
       sections: [section('section-tasks', 'task-list', 1), section('section-text', 'rich-text', 0)],

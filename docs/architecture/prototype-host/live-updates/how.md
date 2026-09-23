@@ -69,6 +69,12 @@
 - **Frames carry ids, never entities.** The browser re-reads through the gateway; a
   frame is "go and look", not a state delta (§62).
 
+Creation Undo/Redo frames use their captured `projectId` and `rootProjectId` to route even after
+the project record is removed. The workspace history re-read decides whether its creator has a
+Redo recovery state; root projections refresh from the same frame. These frames are not
+project-record events because creation never changes the project's root
+([decision](../../../decisions/2026-09-project-creation-history.md)).
+
 ## Commands
 
 ```bash

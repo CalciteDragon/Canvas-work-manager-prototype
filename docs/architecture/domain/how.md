@@ -12,7 +12,7 @@
    `LivePublication` to the `LiveEventPublisher` — held by the store until commit.
 4. On commit the store validates the whole document and persists it; on any throw the
    provisional state is discarded and the caller sees one of the three errors.
-5. A supported section, task, reflection, Home shortcut, optional-page or existing-project write applies its normalized change, records one typed
+5. A supported section, task, reflection, Home shortcut, optional-page or project write applies its normalized change, records one typed
    action through `OperationRecorder.record`, and returns a receipt from the same unit; automatic
    container resolution joins the row action instead of recording a separate section action. The recorder finds or creates the actor's history
    for the subject's project, appends the action (discarding the redo branch), prunes by expiry and
@@ -109,8 +109,10 @@
   `SectionShortcutService`, `ProjectPageService` and `ProjectService` hold an
   `OperationRecorder` for the same reason `SectionService` does, and `shortcut-history.ts`,
   `page-history.ts` and `project-history.ts` each declare their own narrower repository type — no task
-  or reflection repository, and for a project only the project repository written — so a reviewer can see from
-  the signature that a placement, page or project inverse cannot reach a row. A page's dependency preflight stops at the **section** level for that reason: §27's
+  or reflection repository, and for an existing-project inverse only the project repository written.
+  `ProjectAddHistoryRepositories` extends that narrow read shape for `project.add` preflight with
+  task, reflection, milestone and history reads; the creation executor removes only the project and
+  canonical page. A page's dependency preflight stops at the **section** level for that reason: §27's
   ownership chain runs `project → page → section → row`, so a page with no section has no row. A new edge is an AGENTS.md boundary
   change and needs saying so.
 - **Neither direction overwrites a later write.** Each executor compares the state the *other*
@@ -143,6 +145,13 @@
   only in `OperationHistoryService.transitionBlocker` and only for the three steps
   `mayRunWhileSubjectArchived` names, and only for the project the history belongs to
   ([decision](../../decisions/2026-09-project-update-operation-history.md)).
+- **Creation has a distinct absence lifecycle.** `project.add` captures the project and canonical
+  page. Before Undo records Activity, its read-only preflight checks exact state, every project
+  dependency and permanent other-actor histories; then one unit records `project.creation_undone`
+  and removes both records. Redo restores the same ids and `createdAt` values, with `updatedAt`
+  stamped at the new write time. Only the creator can read the summary while
+  the project is absent; its Activity and history anchors are validated independently by the
+  repository ([decision](../../decisions/2026-09-project-creation-history.md)).
 - **A removal refusal does not disclose a deleted id.** For a missing section, `SectionService`
   consults `outstandingRemovalFor` only after `projects.write` and workspace visibility checks,
   and only across the exact actor's own histories; it returns a receipt only when that actor's

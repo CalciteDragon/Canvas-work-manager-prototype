@@ -37,6 +37,7 @@ import { ProjectSchema, type
   UndoResult,
   OperationActionId,
   OperationHistorySummary,
+  ProjectWriteResult,
   OperationHistoryTransitionResult,
   OperationHistoryId,
   OperationHistoryTransitionInput,
@@ -88,6 +89,8 @@ export interface FakeGatewayOptions {
   dashboard?: DashboardResult;
   agentConnections?: AgentConnection[];
   activity?: ActivityFeedEntry[];
+  /** Scripted per-project history answers, including the absent-project creation recovery state. */
+  historySummaries?: OperationHistorySummary[];
   /** Rejects every call with this instead of answering — the failure path a shell needs. */
   failWith?: GatewayError;
   /** Reject only named calls after an otherwise successful load (for write failure UI). */
@@ -101,7 +104,9 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
    * Public so a spec can move the world underneath a component — the region re-reads on the
    * page's data revision, and a test of that has to change what the next read answers.
    */
-  constructor(readonly options: FakeGatewayOptions = {}) {}
+  constructor(readonly options: FakeGatewayOptions = {}) {
+    for (const summary of options.historySummaries ?? []) this.historySummaries.set(summary.projectId, summary);
+  }
 
   private createdSectionSequence = 0;
   private createdShortcutSequence = 0;
@@ -169,15 +174,21 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     //
     // Branching on `kind` rather than on whether a parent happened to be supplied: the two
     // agreed before §26 made the distinction explicit, and only one of them is the rule.
-    create: (input) =>
-      this.answer('projects.create', input, ProjectSchema.parse({
+    create: (input) => {
+      const project = ProjectSchema.parse({
         ...(input.kind === 'root'
           ? { status: 'planning', projectLayoutMode: 'flow', createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT }
           : this.find(this.options.projects, input.parentProjectId, 'project')),
         ...input,
         id: 'project-created' as ProjectId,
         targetDate: input.targetDate ?? undefined,
-      })),
+      });
+      const result: ProjectWriteResult = {
+        project,
+        operation: this.receipt('project.add', `Created "${project.name}"`),
+      };
+      return this.answer('projects.create', input, result);
+    },
     update: (id, input) => {
       const answer = this.answer(
         'projects.update',

@@ -36,7 +36,7 @@ const modernClient = (name) =>
 // both transports, Slice 38 with the optional-page toggle: a first enable undone to an
 // absent record, redone under the same id, and the boolean reversed both ways, and Slice 39 with
 // existing-project writes: a rename, a cross-root reparent, an archive undone while archived and a
-// reactivation, each through its own project's history.
+// reactivation, each through its own project's history; Slice 42 adds project creation Undo/Redo.
 const assertClient = async (client, title, dataFile, foreign, access) => {
   check(client.getProtocolEra() === 'modern', `${title} negotiated 2026-07-28`);
   const listed = await client.listTools();
@@ -94,6 +94,9 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
 
 /** The operation receipt a section tool answered with. */
 const receiptOf = (result) => result.structuredContent?.operation;
+
+/** `create_project` answers the project together with its creation receipt. */
+const projectIdOf = (result) => result.structuredContent?.project?.id ?? JSON.parse(result.content[0].text).project.id;
 
 /** This connection's own history summary for the project. */
 const historyOf = async (client) => {
@@ -301,7 +304,7 @@ const assertRestoreAndShortcuts = async (client, title) => {
     arguments: { kind: 'subproject', parentProjectId: PROJECT, name: `Kitchen ${title}` },
   });
   check(child.isError !== true, `${title} creates a sub-project to reference`);
-  const childId = child.structuredContent.id ?? JSON.parse(child.content[0].text).id;
+  const childId = projectIdOf(child);
   const source = await client.callTool({ name: 'create_section', arguments: { projectId: childId, type: 'task-list', title: 'Prep' } });
   const sourceId = source.structuredContent.section.id;
 
@@ -379,7 +382,7 @@ const assertRestoreAndShortcuts = async (client, title) => {
  */
 const assertPageHistory = async (client, foreign, title, dataFile, access) => {
   const created = await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Page history ${title}` } });
-  const rootId = created.structuredContent.id ?? JSON.parse(created.content[0].text).id;
+  const rootId = projectIdOf(created);
   const pagesOf = async (as = client) => {
     const listed = await as.callTool({ name: 'list_project_pages', arguments: { projectId: rootId } });
     return JSON.parse(listed.content[0].text);
@@ -493,10 +496,44 @@ const assertPageHistory = async (client, foreign, title, dataFile, access) => {
  * reverses — all under projects.write alone, and none of it reachable by another connection.
  */
 const assertProjectHistory = async (client, foreign, title, dataFile, access) => {
-  const idOf = (result) => result.structuredContent?.id ?? JSON.parse(result.content[0].text).id;
-  const first = idOf(await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Project history A ${title}` } }));
-  const second = idOf(await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Project history B ${title}` } }));
-  const child = idOf(await client.callTool({ name: 'create_project', arguments: { kind: 'subproject', parentProjectId: first, name: `Mover ${title}` } }));
+  const firstCreated = await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Project history A ${title}` } });
+  const first = projectIdOf(firstCreated);
+  const creation = receiptOf(firstCreated);
+  check(firstCreated.isError !== true && creation?.operation === 'project.add', `${title} create_project answers { project, operation } with project.add`);
+  const originalProject = await client.callTool({ name: 'get_project', arguments: { projectId: first } });
+  const originalPage = await client.callTool({ name: 'list_project_pages', arguments: { projectId: first } });
+  const creationUndo = await client.callTool({ name: 'undo_operation', arguments: {
+    historyId: creation.historyId, actionId: creation.actionId, expectedRevision: creation.revision,
+  } });
+  check(creationUndo.isError !== true && creationUndo.structuredContent?.result?.outcome === 'removed', `${title} undo_operation removes the newly created project`);
+  const recovery = await client.callTool({ name: 'get_operation_history', arguments: { projectId: first } });
+  check(recovery.isError !== true && recovery.structuredContent?.redo?.operation === 'project.add', `${title} the creator reads project.add Redo at the absent project id`);
+  check((await client.callTool({ name: 'get_project', arguments: { projectId: first } })).isError === true, `${title} get_project remains not-found after creation Undo`);
+  const foreignRecovery = await refusedText(() => foreign.callTool({ name: 'get_operation_history', arguments: { projectId: first } }));
+  check(foreignRecovery !== null && foreignRecovery.includes('was not found'), `${title} another connection cannot read the absent project history`);
+  const creationRedo = await client.callTool({ name: 'redo_operation', arguments: {
+    historyId: recovery.structuredContent.historyId,
+    actionId: recovery.structuredContent.redo.actionId,
+    expectedRevision: recovery.structuredContent.revision,
+  } });
+  check(
+    creationRedo.isError !== true && creationRedo.structuredContent?.result?.project?.id === first &&
+      creationRedo.structuredContent?.result?.project?.createdAt === originalProject.structuredContent.createdAt &&
+      creationRedo.structuredContent?.result?.page?.id === originalPage.structuredContent[0]?.id,
+    `${title} redo_operation restores the same project and canonical page ids`,
+  );
+  const restoredSummary = await client.callTool({ name: 'get_operation_history', arguments: { projectId: first } });
+  await access.setPermissions('agent-claude', ['projects.read']);
+  const beforeDeniedTransition = await businessState(dataFile);
+  const deniedTransition = await refusedText(() => client.callTool({ name: 'undo_operation', arguments: {
+    historyId: creation.historyId, actionId: creation.actionId, expectedRevision: restoredSummary.structuredContent.revision,
+  } }));
+  check(deniedTransition !== null && deniedTransition.includes('projects.write'), `${title} projects.read alone cannot undo project.add`);
+  check(!deniedTransition.includes(`Project history A ${title}`) && (await businessState(dataFile)) === beforeDeniedTransition, `${title} the grant refusal reveals no creation detail and writes nothing`);
+  await access.setPermissions('agent-claude', ['projects.read', 'projects.write', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write', 'workspace.read']);
+
+  const second = projectIdOf(await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Project history B ${title}` } }));
+  const child = projectIdOf(await client.callTool({ name: 'create_project', arguments: { kind: 'subproject', parentProjectId: first, name: `Mover ${title}` } }));
   const projectOf = async (id) => JSON.parse((await client.callTool({ name: 'get_project', arguments: { projectId: id } })).content[0].text);
   const step = async (receipt, direction = 'undo') => {
     const history = JSON.parse(await readFile(dataFile, 'utf8')).operationHistories.find(({ id }) => id === receipt.historyId);

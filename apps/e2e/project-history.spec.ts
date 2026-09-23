@@ -47,14 +47,17 @@ test('1. both controls render on every project page, are reachable, and fit a ph
     await expect(page.locator('[data-undo-action]'), url).toHaveCount(0);
   }
 
-  // A root made through the sidebar: creation is not recorded, so its history is empty.
+  // A root made through the sidebar starts with its own creation Undo.
   await page.goto('/app');
   await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');
   await page.locator('[data-new-project]').click();
   await page.locator('[data-create-project-name]').fill('Fresh root');
   await page.locator('[data-create-project-submit]').click();
   await expect(page.locator('[data-project-name]')).toHaveText('Fresh root');
-  await expectEmptyControls(page, 'sidebar-created root');
+  await expect(historyControl(page, 'undo'), 'sidebar-created root')
+    .toHaveAttribute('aria-label', 'Undo: Created "Fresh root"');
+  await expect(historyControl(page, 'undo'), 'sidebar-created root').not.toHaveAttribute('aria-disabled', 'true');
+  await expect(historyControl(page, 'redo'), 'sidebar-created root').toHaveAttribute('aria-label', 'Nothing to redo');
 
   // Keyboard: Tab moves Undo → Redo → More, so both unavailable controls stay in the tab order.
   await historyControl(page, 'undo').focus();

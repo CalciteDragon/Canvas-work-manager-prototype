@@ -86,6 +86,15 @@
 7. Following a Todos or Archive link to `#section-<id>` scrolls to the loaded frame,
    focuses its heading, and transiently expands a collapsed container.
 
+Creation recovery uses the same project route. A not-found project read clears the record and sets
+`missing`; the caller's history summary shows the recovery section only when its next Redo is
+`project.add`. The section uses the normal history controls and feedback. Creation Undo/Redo frames
+reload project context once per history revision, so a root tree updates after the project is
+removed or restored without another history read. An actor without that anchored summary continues
+to see *Project unavailable*. If the history summary itself is unavailable, that state offers a
+generic Retry for the summary read; it does not expose an Undo/Redo entry until the read confirms it
+([decision](../../../decisions/2026-09-project-creation-history.md)).
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |

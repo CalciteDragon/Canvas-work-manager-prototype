@@ -3,6 +3,7 @@ import {
   ProjectArchiveResultSchema,
   ProjectCompletedWorkResultSchema,
   ProjectJournalResultSchema,
+  ProjectWriteResultSchema,
   ResolvedSectionShortcutSchema,
   SectionRemovalResultSchema,
   ShortcutSourceSchema,
@@ -211,8 +212,14 @@ afterEach(() => {
 
 describe('PrototypeWorkManagerGateway — projects', () => {
   it('creates a direct child project through the project gateway', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...project, id: 'project-child', kind: 'subproject', parentProjectId: 'project-1' }, 201));
-    await gateway().projects.create({ workspaceId: 'workspace-demo' as never, kind: 'subproject', parentProjectId: 'project-1' as ProjectId, name: 'Child' });
+    const response = ProjectWriteResultSchema.parse({
+      project: { ...project, id: 'project-child', kind: 'subproject', parentProjectId: 'project-1' },
+      operation: { ...receiptOf('project.add', 1), label: 'Created "Child"' },
+    });
+    fetchMock.mockImplementation(jsonResponse(response, 201));
+    const created = await gateway().projects.create({ workspaceId: 'workspace-demo' as never, kind: 'subproject', parentProjectId: 'project-1' as ProjectId, name: 'Child' });
+    expect(created.project.id).toBe('project-child');
+    expect(created.operation?.operation).toBe('project.add');
     expect(lastCall().url).toBe('http://host.test/api/projects');
     expect(lastCall().init.method).toBe('POST');
   });

@@ -59,3 +59,9 @@ receipts and every transition result or refusal still carry the summary needed t
 a lost response. The one transition route and 409 stale-revision answer are unchanged. The static
 grant statement no longer holds for the two transition tools: their required grant now follows the
 stored operation family ([decision](2026-09-operation-family-permissions.md)).
+
+**Amended, 2026-09-23 — Slice 42.** The transition retry cache is now definitively retired. A
+transition response carries the current summary, and after creation Undo only the creator can
+read the anchored absent-project summary containing Redo; this is sufficient recovery without
+retaining request results ([project creation history](2026-09-project-creation-history.md)). The
+single transition route and stale-revision refusal are unchanged.

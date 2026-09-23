@@ -175,6 +175,7 @@ ISO string so ordering stays lossless without a clock or timezone
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md)
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md)
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md)
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md)
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md)

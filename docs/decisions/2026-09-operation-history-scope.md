@@ -72,3 +72,10 @@ its work page — and a write that recorded in another project's history (a desc
 completed from root Todos, a row restored from root Archive) says so with an Open link to that
 project's page. The store decides which history a write joined from the receipt's `historyId`, never
 from the page it was made on ([decision](2026-09-project-header-history-controls.md)).
+
+**Amended, 2026-09-23 — Slice 42.** Creation is now the first action in the created project's own
+history: a root's action is not stored in a global history, and a sub-project's action is not
+stored in its parent. After creation Undo, only that exact actor can read the anchored summary at
+the absent project id; another user, agent connection or foreign workspace still gets not-found.
+The creator's undone `project.add` anchors the history independently from the Activity lifecycle
+anchor ([project creation history](2026-09-project-creation-history.md)).

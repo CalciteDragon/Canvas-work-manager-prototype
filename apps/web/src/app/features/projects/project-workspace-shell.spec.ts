@@ -10,13 +10,16 @@ import {
   ProjectSectionSchema,
   ResolvedSectionShortcutSchema,
   TaskSchema,
+  type OperationHistoryEntry,
+  type OperationHistorySummary,
+  type OperationHistoryTransitionResult,
   type Project,
   type ProjectPage,
   type ProjectTodosResult,
   type ProjectSection,
   type Task,
 } from '@cwm/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
@@ -24,6 +27,8 @@ import { IDENTITY_PROVIDER } from '../../core/identity/identity-provider';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { routes } from '../../app.routes';
 import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
+import { LIVE_UPDATES } from '../../core/live/live-updates';
+import { FakeLiveUpdates } from '../../core/live/testing/fake-live-updates';
 import { ProjectHistoryStore } from './history/project-history-store';
 import { ArchivePage } from './pages/archive-page';
 import { ReflectionsPage } from './pages/reflections-page';
@@ -108,10 +113,13 @@ type Options = Partial<ReturnType<typeof defaults>> & {
   failOn?: Record<string, GatewayError>;
   /** §34's chronology, as the query would answer it. The shell only routes to it. */
   todos?: ProjectTodosResult;
+  historySummaries?: OperationHistorySummary[];
 };
 
 const open = async (url: string, options: Options = {}) => {
   const gateway = new FakeWorkManagerGateway({ ...defaults(), ...options });
+  const projectGet = vi.spyOn(gateway.projects, 'get');
+  const live = new FakeLiveUpdates();
   // Reset first, so a case that opens two workspaces — a refusal and an acceptance — gets two
   // independent routers rather than "the test module has already been instantiated".
   TestBed.resetTestingModule();
@@ -123,6 +131,7 @@ const open = async (url: string, options: Options = {}) => {
       // history, and the fallback notice cannot be read back at all.
       provideLocationMocks(),
       { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
+      { provide: LIVE_UPDATES, useValue: live },
       // A test that leaves the workspace lands on the dashboard, which reads the persona.
       { provide: IDENTITY_PROVIDER, useValue: fakeIdentityProvider(testIdentity()) },
     ],
@@ -136,7 +145,7 @@ const open = async (url: string, options: Options = {}) => {
   harness.fixture.detectChanges();
   await harness.fixture.whenStable();
   harness.fixture.detectChanges();
-  return { harness, component, gateway, router: TestBed.inject(Router), location: TestBed.inject(Location) };
+  return { harness, component, gateway, projectGet, live, router: TestBed.inject(Router), location: TestBed.inject(Location) };
 };
 
 const settle = async (harness: RouterTestingHarness) => {
@@ -156,6 +165,33 @@ const query = (harness: RouterTestingHarness, selector: string) =>
 
 const queryAll = (harness: RouterTestingHarness, selector: string) =>
   [...harness.fixture.nativeElement.querySelectorAll(selector)] as HTMLElement[];
+
+const projectAddEntry = (actionId: string, label: string): OperationHistoryEntry => ({
+  actionId: actionId as OperationHistoryEntry['actionId'],
+  operation: 'project.add',
+  label,
+  expiresAt: '2026-08-28T16:00:00.000Z',
+  blockedBy: null,
+});
+
+const projectAddSummary = (
+  projectId: string,
+  overrides: Partial<OperationHistorySummary> = {},
+): OperationHistorySummary => ({
+  projectId: projectId as OperationHistorySummary['projectId'],
+  historyId: 'history-created' as OperationHistorySummary['historyId'],
+  revision: 1,
+  undo: projectAddEntry('operation-created', 'Created "Recoverable project"'),
+  redo: null,
+  blockedBy: null,
+  ...overrides,
+});
+
+const creationTransition = (
+  direction: 'undo' | 'redo',
+  summary: OperationHistorySummary,
+  result: unknown,
+): OperationHistoryTransitionResult => ({ direction, actionId: 'operation-created' as never, summary, result } as OperationHistoryTransitionResult);
 
 describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', () => {
   it('renders a root’s column beside its canvas, with Home current', async () => {
@@ -227,6 +263,137 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
     expect(query(harness, '#project-nav-panel')).toBeNull();
     expect(query(harness, '[data-section-canvas]')).toBeNull();
+  });
+});
+
+describe('ProjectWorkspaceShell — creation recovery (§68)', () => {
+  const createdProject = project('project-created', 'Recoverable project');
+  const creationRedo = projectAddSummary(createdProject.id, {
+    undo: null,
+    redo: projectAddEntry('operation-created', 'Created "Recoverable project"'),
+    revision: 2,
+  });
+
+  it('shows the creator’s Redo controls at the missing project URL without an extra cold-load retry', async () => {
+    const { harness, gateway, projectGet } = await open(`/projects/${createdProject.id}`, {
+      projects: [],
+      pages: [],
+      historySummaries: [creationRedo],
+    });
+    await settle(harness);
+
+    const recovery = query(harness, '[data-project-creation-recovery]');
+    expect(recovery).not.toBeNull();
+    expect(recovery?.textContent).toContain('Creation undone');
+    expect(recovery?.textContent).toContain('Created "Recoverable project"');
+    expect(query(harness, '[data-history-redo]')?.getAttribute('aria-label')).toBe('Redo: Created "Recoverable project"');
+    expect(query(harness, '[data-history-redo]')?.getAttribute('aria-disabled')).toBeNull();
+    expect(query(harness, '[data-history-feedback]')).not.toBeNull();
+    expect(projectGet).toHaveBeenCalledTimes(1);
+    expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(1);
+  });
+
+  it('keeps Project unavailable when the missing id has no creation Redo', async () => {
+    const { harness } = await open('/projects/project-missing', {
+      projects: [],
+      pages: [],
+      historySummaries: [projectAddSummary('project-missing', { historyId: null, revision: 0, undo: null, redo: null })],
+    });
+
+    expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
+    expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
+  });
+
+  it('can retry an unavailable history read from the missing-project route', async () => {
+    const { harness, gateway } = await open(`/projects/${createdProject.id}`, {
+      projects: [],
+      pages: [],
+      historySummaries: [creationRedo],
+      failOn: { 'history.summary': new GatewayError('unreachable', 0, 'host stopped') },
+    });
+    await settle(harness);
+
+    expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
+    expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
+    const retry = query(harness, '[data-project-history-retry]') as HTMLButtonElement | null;
+    expect(retry).not.toBeNull();
+    expect(retry?.textContent).toContain('Retry');
+
+    gateway.options.failOn = undefined;
+    retry?.click();
+    await settle(harness);
+
+    expect(query(harness, '[data-project-creation-recovery]')).not.toBeNull();
+    expect(query(harness, '[data-history-redo]')?.getAttribute('aria-label')).toBe('Redo: Created "Recoverable project"');
+    expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(2);
+  });
+
+  it('reloads project context once when a creation Undo response lands without its live frame', async () => {
+    const beforeUndo = projectAddSummary(createdProject.id);
+    const afterUndo = projectAddSummary(createdProject.id, {
+      revision: 2,
+      undo: null,
+      redo: projectAddEntry('operation-created', 'Created "Recoverable project"'),
+    });
+    const { harness, gateway, projectGet } = await open(`/projects/${createdProject.id}`, {
+      projects: [createdProject],
+      pages: [page(`page-${createdProject.id}`, createdProject.id, 'home')],
+      historySummaries: [beforeUndo],
+    });
+    await settle(harness);
+    gateway.options.projects = [];
+    gateway.options.pages = [];
+    gateway.transitionAnswers.push(creationTransition('undo', afterUndo, {
+      operation: 'project.add', outcome: 'removed', projectId: createdProject.id,
+    }));
+
+    (query(harness, '[data-history-undo]') as HTMLButtonElement).click();
+    await settle(harness);
+
+    expect(query(harness, '[data-project-creation-recovery]')).not.toBeNull();
+    expect(projectGet).toHaveBeenCalledTimes(2);
+    expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(1);
+  });
+
+  it('reloads a missing project once when a creation Redo response lands without its live frame', async () => {
+    const afterRedo = projectAddSummary(createdProject.id, {
+      revision: 3,
+      undo: projectAddEntry('operation-created', 'Created "Recoverable project"'),
+      redo: null,
+    });
+    const { harness, gateway, projectGet } = await open(`/projects/${createdProject.id}`, {
+      projects: [],
+      pages: [],
+      historySummaries: [creationRedo],
+    });
+    await settle(harness);
+    gateway.options.projects = [createdProject];
+    gateway.options.pages = [page(`page-${createdProject.id}`, createdProject.id, 'home')];
+    gateway.transitionAnswers.push(creationTransition('redo', afterRedo, {
+      operation: 'project.add', outcome: 'reapplied', project: createdProject,
+      page: page(`page-${createdProject.id}`, createdProject.id, 'home'),
+    }));
+
+    (query(harness, '[data-history-redo]') as HTMLButtonElement).click();
+    await settle(harness);
+
+    expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
+    expect(query(harness, '[data-project-name]')?.textContent).toContain('Recoverable project');
+    expect(projectGet).toHaveBeenCalledTimes(2);
+    expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(1);
+  });
+
+  it('retries a stale Redo summary only once while the project is already present', async () => {
+    const { harness, gateway, projectGet } = await open(`/projects/${createdProject.id}`, {
+      projects: [createdProject],
+      pages: [page(`page-${createdProject.id}`, createdProject.id, 'home')],
+      historySummaries: [creationRedo],
+    });
+    await settle(harness);
+
+    expect(query(harness, '[data-project-name]')?.textContent).toContain('Recoverable project');
+    expect(projectGet).toHaveBeenCalledTimes(2);
+    expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(1);
   });
 });
 
@@ -718,4 +885,3 @@ describe('ProjectWorkspaceShell — the header’s Undo/Redo (Slice 41)', () => 
     }
   });
 });
-

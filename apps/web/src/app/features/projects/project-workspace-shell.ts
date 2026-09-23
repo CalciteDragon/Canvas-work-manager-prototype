@@ -93,6 +93,8 @@ export class ProjectWorkspaceShell {
   private readonly narrowState = signal(false);
   private readonly collapsedState = signal(false);
   private readonly archiveNavigationPendingState = signal(false);
+  /** A single reconciliation key prevents a held summary from reloading forever. */
+  private creationReconciliationKey: string | null = null;
 
   readonly notice = this.noticeState.asReadonly();
   readonly noticeEnableKind = this.noticeEnableKindState.asReadonly();
@@ -100,6 +102,12 @@ export class ProjectWorkspaceShell {
   readonly collapsed = computed(() => this.narrowState() && this.collapsedState());
   readonly archiveNavigationPending = this.archiveNavigationPendingState.asReadonly();
   readonly archiveRetryNeeded = computed(() => this.store.writeError()?.startsWith('Archive was enabled') ?? false);
+  /** Only the creating actor's held project.add Redo can recover a missing route. */
+  readonly creationRecovery = computed(() => {
+    const summary = this.history.summary();
+    const redo = this.history.creationRedo();
+    return this.store.missing() && summary?.projectId === this.projectId() ? redo : null;
+  });
 
   /**
    * §68's rule, run over what the store loaded. `null` until there is a project to decide
@@ -179,6 +187,25 @@ export class ProjectWorkspaceShell {
         void this.store.load(projectId);
         this.history.load(projectId);
       });
+    });
+
+    // A transition result includes the refreshed summary even if its live frame was dropped.
+    // Re-read only the project context, keyed by the held history revision; history.load here
+    // would discard the very summary that tells us which direction just landed.
+    effect(() => {
+      const projectId = this.projectId();
+      const loading = this.store.loading();
+      const missing = this.store.missing();
+      const project = this.store.project();
+      const summary = this.history.summary();
+      if (loading || summary?.projectId !== projectId || summary.historyId === null) return;
+      const creationUndoLanded = project?.id === projectId && summary.redo?.operation === 'project.add';
+      const creationRedoLanded = missing && summary.undo?.operation === 'project.add';
+      if (!creationUndoLanded && !creationRedoLanded) return;
+      const key = `${summary.historyId}:${summary.revision}`;
+      if (this.creationReconciliationKey === key) return;
+      this.creationReconciliationKey = key;
+      untracked(() => void this.store.load(projectId));
     });
 
     // §68's fallback. `replaceUrl` so Back still goes where the user came from, and the reason

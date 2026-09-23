@@ -889,6 +889,14 @@
       "projectId": "project-renovation",
       "slice": 41,
       "note": "Slice 41 real use: at 375 px the global sidebar still does not collapse (note-2026-09-06-007), leaving the project workspace ~135 px wide; the header's actions now wrap onto their own row under 40rem, but the page is not usable at phone width until the app shell collapses."
+    },
+    {
+      "id": "note-2026-09-23-005",
+      "createdAt": "2026-09-23T22:03:51.000Z",
+      "route": "/projects/:projectId",
+      "projectId": null,
+      "slice": 42,
+      "note": "Slice 42 real browser use: creating Field study from Research prototype's Sub-Projects frame immediately says the creation was recorded in Field study's history and offers Open; following it makes the child's creation Undo and recovery Redo reachable at the same URL. After that feedback is gone, the parent header has no lasting cue for the child action, so finding it again still depends on knowing which child owns the history. This confirms note-2026-09-23-003's revisit trigger; merged root history remains deferred."
     }
   ]
 }

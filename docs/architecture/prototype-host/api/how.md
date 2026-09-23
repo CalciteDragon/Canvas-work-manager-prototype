@@ -18,6 +18,9 @@
    `TaskWriteResult`. Reflection create answers `ReflectionAddResult`; update, archive and restore
    answer `ReflectionWriteResult`. Each shape is `{ task|reflection, operation }`: create requires
    the receipt and a normalized no-op carries `operation: null`.
+   Project create answers `ProjectWriteResult` with a required `project.add` receipt; Undo removes
+   the untouched project and canonical page, and Redo recreates the same ids. The history route
+   answers an absent project only for its creating actor's retained creation action.
    `POST /api/sections/:id/duplicate` answers `SectionAddResult`, because duplication records the
    add it is; `POST /api/sections/:id/restore` answers `SectionWriteResult`, with `operation: null`
    for a retry on a live section. The three shortcut writes answer
@@ -80,6 +83,9 @@
   `projects.write`, `tasks.write` or `reflections.write`, and one whose token was revoked is 401,
   re-read per call by the authenticator. An expired action refuses while stored
   and, once a later write prunes it, is no longer the next step. `routes.test.ts` pins each.
+- **Creation history reads remain actor-scoped.** `GET /api/projects/:id/history` may read an
+  absent id only when the caller's own history retains its undone `project.add`; another actor,
+  foreign workspace and unknown id remain 404. `GET /api/projects/:id` remains 404 for everyone.
 - **A repeated removal stays a refusal.** Only the exact actor's applied, unexpired removal
   receipt is returned, including when the section was deleted. It produces no second write or
   event; a different actor sees the normal not-found response. The route forwards the shared

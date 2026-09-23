@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { TaskWriteResultSchema, type LiveEvent, type TaskId } from '@cwm/contracts';
+import { ProjectWriteResultSchema, TaskWriteResultSchema, type LiveEvent, type TaskId } from '@cwm/contracts';
 import type { ActorContext } from '@cwm/domain';
 import { createToolRegistry } from '@cwm/mcp-tools';
 import { buildSeed } from '@cwm/prototype-data';
@@ -95,18 +95,18 @@ describe('live updates through the host (§62)', () => {
     const { api, routes, frames } = await harness();
     const actor = { actor: 'user' as const, workspaceId: 'workspace-demo' as never, userId: 'user-demo' as never };
 
-    const middle = await api.projects.create(actor, {
+    const middle = (await api.projects.create(actor, {
       kind: 'subproject',
       parentProjectId: 'project-work-manager' as never,
       workspaceId: 'workspace-demo' as never,
       name: 'Middle',
-    });
-    const leaf = await api.projects.create(actor, {
+    })).project;
+    const leaf = (await api.projects.create(actor, {
       kind: 'subproject',
       parentProjectId: middle.id,
       workspaceId: 'workspace-demo' as never,
       name: 'Leaf',
-    });
+    })).project;
     frames.length = 0;
 
     const created = await persona(routes, 'POST', '/api/tasks', { projectId: leaf.id, title: 'Deep work' });
@@ -236,12 +236,50 @@ describe('live updates through the host (§62)', () => {
     const actor = { actor: 'user' as const, workspaceId: 'workspace-demo' as never, userId: 'user-demo' as never };
 
     const tree = async (api: Awaited<ReturnType<typeof harness>>['api']) => {
-      const other = await api.projects.create(actor, { kind: 'root', workspaceId: 'workspace-demo' as never, name: 'Other root' });
-      const child = await api.projects.create(actor, {
+      const other = (await api.projects.create(actor, { kind: 'root', workspaceId: 'workspace-demo' as never, name: 'Other root' })).project;
+      const child = (await api.projects.create(actor, {
         kind: 'subproject', parentProjectId: 'project-work-manager' as never, workspaceId: 'workspace-demo' as never, name: 'Mover',
-      });
+      })).project;
       return { other, child };
     };
+
+    it('delivers one committed frame per direction for a sub-project creation, routed by its former root', async () => {
+      const { api, routes, persistence, events, frames } = await harness();
+      const created = ProjectWriteResultSchema.parse(await api.projects.create(actor, {
+        kind: 'subproject',
+        parentProjectId: 'project-work-manager' as never,
+        workspaceId: 'workspace-demo' as never,
+        name: 'Created under the root',
+      }));
+      const project = created.project;
+      const receipt = created.operation!;
+      const expected = (type: string) => ({
+        type,
+        entityType: 'project',
+        entityId: project.id,
+        projectId: project.id,
+        rootProjectId: 'project-work-manager',
+      });
+      const observedAtDelivery: Array<{ event: LiveEvent; projectExists: boolean; pageExists: boolean }> = [];
+      events.subscribe((event) => {
+        const snapshot = persistence.store.snapshot();
+        observedAtDelivery.push({
+          event,
+          projectExists: snapshot.projects.some(({ id }) => id === project.id),
+          pageExists: snapshot.projectPages.some(({ projectId }) => projectId === project.id),
+        });
+      });
+
+      expect(frames.map(({ event }) => event)).toEqual([expected('project.created')]);
+      frames.length = 0;
+      expect((await step(routes, receipt, 'undo', receipt.revision)).status).toBe(200);
+      expect(frames.map(({ event }) => event)).toEqual([expected('project.creation_undone')]);
+      expect(observedAtDelivery[0]).toMatchObject({ event: expected('project.creation_undone'), projectExists: false, pageExists: false });
+      frames.length = 0;
+      expect((await step(routes, receipt, 'redo', receipt.revision + 1)).status).toBe(200);
+      expect(frames.map(({ event }) => event)).toEqual([expected('project.creation_redone')]);
+      expect(observedAtDelivery[1]).toMatchObject({ event: expected('project.creation_redone'), projectExists: true, pageExists: true });
+    });
 
     it('delivers one committed frame per direction for a cross-root reparent, naming the current root', async () => {
       const { api, routes, persistence, events } = await harness();
@@ -278,6 +316,7 @@ describe('live updates through the host (§62)', () => {
       const { api, routes, persistence, frames } = await harness();
       const { other, child } = await tree(api);
       frames.length = 0;
+      const actionsBefore = persistence.store.snapshot().operationActions;
       const disk = readFileSync(persistence.path, 'utf8');
       persistence.store.persist = async () => {
         throw new Error('disk full');
@@ -288,7 +327,7 @@ describe('live updates through the host (§62)', () => {
       expect(moved.status).toBe(500);
       expect(frames).toEqual([]);
       expect(readFileSync(persistence.path, 'utf8')).toBe(disk);
-      expect(persistence.store.snapshot().operationActions).toEqual([]);
+      expect(persistence.store.snapshot().operationActions).toEqual(actionsBefore);
       expect(persistence.store.snapshot().projects.find(({ id }) => id === child.id)?.parentProjectId).toBe('project-work-manager');
     });
   });
@@ -441,7 +480,7 @@ describe('live updates through the host (§62)', () => {
         workspaceId: 'workspace-demo', kind: 'root', name: `Atomic ${family}`,
       });
       expect(projectResponse.status).toBe(201);
-      const projectId = (projectResponse.body as { id: string }).id;
+      const projectId = (projectResponse.body as { project: { id: string } }).project.id;
       const delivered: string[] = [];
       host.events.subscribe((event) => delivered.push(event.type));
       const forward = () => family === 'task'

@@ -113,3 +113,9 @@ an enabled "Undo: Archived "X"" and the feedback "X is archived. Undo is availab
 confirmation now reads "It leaves the sidebar; you can undo it from the header.", and the More menu
 does not offer Archive on a project that is already archived. `ProjectWorkspaceStore.archive()`
 applies the returned record, so the status changes without waiting for a frame ([decision](2026-09-project-header-history-controls.md)).
+
+**Amended, 2026-09-23 — Slice 42.** Sidebar creation now reports the `{ project, operation }`
+receipt, so the new project's header immediately offers Undo: Created "…". Creating from a
+Sub-Projects section still announces the action in the parent's header with an Open link to the
+child's own history. Undo leaves the creator at the child's URL in a recovery state where Redo
+restores the same project and page ids ([project creation history](2026-09-project-creation-history.md)).

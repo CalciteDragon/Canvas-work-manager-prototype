@@ -65,3 +65,9 @@ restore is one action; a compound create includes its implicit container rather 
 second action. A no-op still records nothing. A successful row Archive Restore is itself a new
 action, so it clears any redo branch even though invoking Restore remains receipt-free and durable
 ([decision](2026-09-row-operation-history.md)).
+
+**Amended, 2026-09-23 — Slice 42.** No action is exempt from the existing 24-hour and 50-action
+retention rules. An absent project's own history remains valid because it retains the undone
+`project.add` that anchors it; recorder pruning occurs only while recording another write in that
+same history, and every such write requires the project to exist. Writes to other histories cannot
+prune it ([project creation history](2026-09-project-creation-history.md)).

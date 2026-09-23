@@ -9,12 +9,14 @@ schemas, the seeds and every test import from here; there is no second definitio
 of these shapes anywhere in the repository.
 
 Operation history holds strict version-1 section, task, reflection, Home shortcut, optional-page
-and existing-project payloads under one per-actor, per-project cursor. Section, row, placement, page
-and project-update writes return `{ section|task|reflection|shortcut|page|project, operation }` (with
+and project payloads under one per-actor, per-project cursor. Creation captures the project and its
+canonical page as `project.add`; its directional results report removal or same-id recreation.
+Section, row, placement, page and project writes return `{ section|task|reflection|shortcut|page|project, operation }` (with
 `operation: null` for a normalized no-op), and a shortcut removal names ids instead; the receipt names the history,
 action and revision while captured fields, structural effects and optional implicit containers
 stay server-side. Public history shapes live apart from stored actions so browser consumers do not
-pull in inverse payloads. Activity carries durable captured identity, and `SCHEMA_VERSION` is 5.
+pull in inverse payloads. Activity carries durable captured identity; project absence is anchored
+separately by its creation lifecycle and retained undone history action. `SCHEMA_VERSION` stays 5.
 
 **Code:** `packages/contracts/src` · **Tests:** `packages/contracts/src/*.test.ts`
 (vitest) · **Package:** `@cwm/contracts` · **Depends on:** `zod` only

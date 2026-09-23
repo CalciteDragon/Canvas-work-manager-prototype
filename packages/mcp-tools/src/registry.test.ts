@@ -117,11 +117,11 @@ describe('the tool registry', () => {
 
   it('refuses a sub-project page toggle, and refuses disabling Home', async () => {
     const harness = buildHarness();
-    const subproject = (await harness.registry.call(
+    const subproject = ((await harness.registry.call(
       'create_project',
       { kind: 'subproject', parentProjectId: PROJECT, name: 'A unit of work' },
       agent(['projects.write']),
-    )) as { id: string };
+    )) as { project: { id: string } }).project;
 
     await expect(
       harness.registry.call(
@@ -150,11 +150,11 @@ describe('completing work an agent found on Todos (§34, §53)', () => {
 
   it('lets a read-only agent see the chronology and refuses both completions', async () => {
     const harness = buildHarness();
-    const unit = (await harness.registry.call(
+    const unit = ((await harness.registry.call(
       'create_project',
       { kind: 'subproject', parentProjectId: PROJECT, name: 'A unit of work' },
       agent(['projects.write']),
-    )) as { id: string; status: string };
+    )) as { project: { id: string; status: string } }).project;
 
     const before = (await harness.registry.call('get_project_todos', { projectId: PROJECT }, agent([...READ_ONLY]))) as {
       items: { kind: string; task?: { id: string; status: string } }[];

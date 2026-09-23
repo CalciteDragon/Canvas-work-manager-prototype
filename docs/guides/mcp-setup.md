@@ -160,6 +160,17 @@ one work canvas, requires `parentProjectId`, and has no pages to configure — n
 depth. A root naming a parent, or a subproject without one, is refused rather than reinterpreted,
 so a call that means one of the two cannot quietly produce the other.
 
+Creation returns `{ project, operation }`; the receipt is the first `project.add` action in that
+project's history. For a root, its canonical page is Home; for a subproject, it is Work. Undo removes
+the project and page only while both are unchanged and nothing refers to them, and Redo recreates
+the same ids:
+
+```jsonc
+{ "project": { "id": "project-…", "kind": "root", "name": "Launch plan", "…": "…" },
+  "operation": { "historyId": "history-…", "actionId": "operation-…", "operation": "project.add",
+                 "revision": 1, "label": "Created \"Launch plan\"", "…": "…" } }
+```
+
 `list_project_pages` shows what a project owns, including a page that is switched off; a disabled
 page keeps its sections and everything referring to them and is simply not navigation.
 `set_project_page_enabled` turns one of a root's optional three on or off, and the first enable
@@ -221,8 +232,9 @@ undone, its reactivation redone, and an edit made while it was archived undone o
 same project is archived — but an archived **ancestor** still answers `history_blocked:`.
 `get_operation_history`'s top-level `blockedBy` still names the archived project; the entry's own
 `blockedBy` is what says whether that one step may run (`null` for the archive's own Undo). `restore_project` itself needs
-no receipt, however long ago the project was archived. `create_project` still answers the bare project
-and records nothing.
+no receipt, however long ago the project was archived. `create_project` records and returns its
+`project.add` receipt in `{ project, operation }`; after Undo, only its creator can read the history
+summary at the absent project's id and Redo from that summary.
 
 ### Todos
 
@@ -284,7 +296,7 @@ never undo someone else's change, and nobody can undo yours.
 - `undo_operation` and `redo_operation` (input `{ historyId, actionId, expectedRevision }`) run
   exactly that action, which must be the next one in that direction. They require only the stored
   action family's grant: `projects.write` for a section, a Home shortcut placement, an optional
-  page or a project's own update, archive or reactivation, `tasks.write` for a task,
+  page or a project's creation, update, archive or reactivation, `tasks.write` for a task,
   `reflections.write` for a reflection. Discovery publishes
   that mapping under `_meta["local.canvas-work-manager/requiredPermissionsByOperationFamily"]`.
   Pass the history's current `revision`: a receipt's, or `get_operation_history`'s if anything

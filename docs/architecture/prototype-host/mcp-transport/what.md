@@ -30,7 +30,8 @@ For static tools, discovery publishes
 `requiredPermissionsByOperationFamily`, mapping section, task, reflection, Home shortcut,
 optional page and existing project to the one grant each of the six families needs — four of which
 are `projects.write`, because a placement is part of the destination canvas, a page is a property of
-its root and a project write reverses only that project's own fields. The two shapes are mutually exclusive.
+its root and a project write (including `project.add`) reverses only that project's own lifecycle
+and fields. The two shapes are mutually exclusive.
 
 ## A tool call over HTTP
 

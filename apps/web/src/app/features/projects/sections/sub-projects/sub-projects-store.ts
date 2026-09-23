@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { ProjectStatusSchema, type Project, type ProjectId } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../../core/history/operation-history-reporter';
 
 const messageOf = (error: unknown) => error instanceof Error ? error.message : String(error);
 /**
@@ -13,6 +14,7 @@ interface ActiveRead { generation: number; promise: Promise<void>; queued: boole
 @Injectable()
 export class SubProjectsStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
   private root: Project | null = null;
   private rootId: ProjectId | null = null;
   private generation = 0;
@@ -69,8 +71,19 @@ export class SubProjectsStore {
   depthOf(project: Project): number { return this.depths.get(project.id) ?? 0; }
   branchMarker(project: Project): string { return '↳ '.repeat(this.depthOf(project)); }
   async create(rawName: string): Promise<boolean> {
-    const name = rawName.trim(); if (name === '' || this.root === null) { this.errorState.set('A sub-project name is required.'); return false; }
-    try { const created = await this.gateway.projects.create({ workspaceId: this.root.workspaceId, kind: 'subproject', parentProjectId: this.root.id, name }); this.depths.set(created.id, 0); this.projectsState.update((items) => [...items, created]); return true; }
+    const name = rawName.trim();
+    const root = this.root;
+    if (name === '' || root === null) { this.errorState.set('A sub-project name is required.'); return false; }
+    try {
+      const created = await reportedWrite(
+        this.reporter,
+        () => this.gateway.projects.create({ workspaceId: root.workspaceId, kind: 'subproject', parentProjectId: root.id, name }),
+        ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }),
+      );
+      this.depths.set(created.project.id, 0);
+      this.projectsState.update((items) => [...items, created.project]);
+      return true;
+    }
     catch (error) { this.errorState.set(messageOf(error)); return false; }
   }
 }

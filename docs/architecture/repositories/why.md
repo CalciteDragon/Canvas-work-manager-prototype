@@ -103,6 +103,7 @@ domain, tool and host test runs on.
 - [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — why older files are rejected until converted
 - [Optional pages are created on first enable](../../decisions/2026-09-optional-pages-are-created-on-first-enable.md) (amended in Slice 38) — the one page removal seam
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `ProjectPageRepository.remove`, used only after first-enable Undo's preflight
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — `ProjectRepository.remove`, independent anchors bound to the exact creator identity
 
 ## Spec sections
 

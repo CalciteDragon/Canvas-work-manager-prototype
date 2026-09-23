@@ -82,6 +82,13 @@ export const transitionResultFeedback = (
   result: UndoResult | RedoResult,
 ): HistoryFeedback => {
   const done = `${direction === 'undo' ? 'Undid' : 'Redid'}: ${label}.`;
+  if (result.operation === 'project.add') {
+    const projectName = label.startsWith('Created ') ? label.slice('Created '.length) : label;
+    return {
+      tone: 'status',
+      message: `${direction === 'undo' ? 'Undid' : 'Redid'} creation of ${projectName}.`,
+    };
+  }
   if (direction === 'undo' && result.operation === 'section.remove' && 'placement' in result) {
     const { placement } = result;
     if (!placement.pageEnabled) {

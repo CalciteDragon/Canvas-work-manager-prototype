@@ -218,9 +218,10 @@ Redo rechecks the live-child restriction. Project recovery never implicitly unar
 All scopes, summaries, footprints, write results, transition inputs/results and errors are Zod
 contracts in `packages/contracts`. Public summaries/receipts expose IDs, labels, revision,
 availability and disabled reasons, never snapshots. Execute with selected action ID and expected
-history revision. Two tabs cannot both advance one cursor. A bounded transition request ID and
-cached result make an uncertain Undo/Redo retry return the original result, not execute another
-step. Ordinary uncertain create/edit responses trigger history/content reconciliation, never
+history revision. Two tabs cannot both advance one cursor. **Superseded by Slice 42:** the persisted
+transition retry cache is retired; replaying the same expected revision returns
+`history_revision_stale` with the current summary, which lets the client reconcile without executing
+a second step. Ordinary uncertain create/edit responses trigger history/content reconciliation, never
 blind replay; a general HTTP idempotency platform is not part of this prototype change.
 
 Recommend explicit v4 conversion because history lifecycle and owner integrity change.
@@ -289,15 +290,26 @@ reason and refreshes. Listing is eligibility at read time, not a promise that ra
 ## Delivery stages
 
 **Stage A landed as [Slice 35](../completed/35-operation-history-foundation.md)** — with historical
-activity identity moved to Stage B and the persisted retry cache moved to Stage C
+activity identity moved to Stage B; the retry cache was assigned to Stage C and retired by the dated
+Slice 42 amendment below
 ([decision](../../decisions/2026-09-history-stage-a-deferrals.md)). Its coverage-matrix audit, the
 inventory Stages B and C are scoped from, is in that slice's Outcome.
+
+**Stage C closed on 2026-09-23 through Slices 37–42.** Project creation now records `project.add`
+in the created project's exact-actor history; Undo removes an untouched project and its canonical
+page, while a creator-only recovery state at the same URL offers same-id Redo. Activity's durable
+absence anchor is the creation event followed by `project.creation_undone`, so no tombstone or
+schema bump is needed. This dated amendment supersedes the older retry-cache requirement in the
+Contracts, Atomicity/retry and acceptance sections above: the persisted transition retry cache
+formerly assigned to Stage C is retired, not an outstanding deliverable. See the [dated deferral amendment](../../decisions/2026-09-history-stage-a-deferrals.md)
+and [project-creation decision](../../decisions/2026-09-project-creation-history.md). Stages D and E
+remain planned.
 
 | Stage | Deliverable | Gate before proceeding |
 |---|---|---|
 | A — history foundation | Versioned state/converter, summary, grants, atomic Undo/Redo for existing section actions | A → B → Undo B → Undo A → Redo A → Redo B; branch invalidation, expiry/pruning, concurrent revision and reload tests through domain/API/MCP. |
 | B — task/reflection actions | CRUD/completion/moves and exact compound footprints; typed write results | Add → complete → edit → delete and reverse/replay each step, including implicit container; no lost dependents/unrelated edits. |
-| C — remaining project/layout actions and controls | Project/page/shortcut/duplicate/restore/layout/progress history; persistent header icons | Entire coverage matrix implemented; navigation, missing-project recovery, all pages and cross-owner feedback verified. |
+| C — remaining project/layout actions and controls | Project creation/page/project/shortcut/duplicate/restore/layout/progress history; persistent header icons | Entire coverage matrix implemented; navigation, creator-only missing-project recovery, all pages and cross-owner feedback verified. |
 | D — removal and Archive | Cascade-only input, task Delete UI, actionable Archive and Settings archived projects | No policy prompt, old reassignment rejected without mutation, parent-first recovery and whole-project restore demonstrated. |
 | E — integrated closure | Browser/HTTP/both MCP transports, real use, docs/spec/decision reconciliation | Acceptance matrix and verification commands pass, all known limitations recorded. |
 
@@ -363,7 +375,7 @@ Append dated amendments (do not rewrite) to:
 | Legacy conversion/activity | v2 corpus → fixed v3 → v4, old v3 without history, legacy reassign and consumed records; historical identity backfill and old events preserved; forged cross-workspace snapshot/backfill rejected. Creation → Undo commits valid integrity with audit readable/no false links, correct former-root live frame, reload/Redo and all history expired/pruned. |
 | History state machine | Mixed LIFO/FIFO, repeated cycles, same-field A/B chain, new-write branch clearing, no-op/cancel/failure preserve Redo, expiry/cap/restart/counter reuse, no resurrection after pruning. |
 | Identity/grants | Actor/project/workspace isolation, summary disclosure, each minimal grant, revoked grant/connection, foreign IDs, no snapshot leak. |
-| Atomicity/retry | Inject record/transition/persist failure: content/history/live frames unchanged. Two transitions at one revision: one advances. Lost transition response retry returns original result with no second event. |
+| Atomicity/retry | Inject record/transition/persist failure: content/history/live frames unchanged. Two transitions at one revision: one advances. A lost transition response followed by a retry at the old revision returns `history_revision_stale` with the current summary and no second event; the persisted retry cache is retired. |
 | Row/section operations | Implicit container single step, stable IDs, status/time restoration, cascade/pre-archived children, exact Restore inverse, independent move subtree, new dependents block destructive reversal, no-op normalization. |
 | Project/page/shortcut | Created project/pages/history lifecycle, own-archive Undo vs ancestor freeze, live-child Redo refusal, first-enabled page with later content, source reference protection, combined neighbors/partial fallback. |
 | Conflicts | Sequential own edits undo in order; another actor's overlapping edit refuses; unrelated edits survive; later restore/reparent/subject reference/new dependent blocks unsafe inverse or Redo. |
@@ -396,8 +408,9 @@ records with known returned IDs; assert those IDs, not “some row exists.”
 6. Every coverage row has a named domain test plus browser or MCP evidence in the stage ledger.
    Include project creation Undo/Redo at its recovery route, reflection CRUD, duplicate and
    optional-page first enable; do not infer these from section edit tests.
-7. Test overlapping agent edit, grant revocation, two-tab race, lost transition response,
-   persistence failure and expired history. Verify no partial changes and actionable feedback.
+7. Test overlapping agent edit, grant revocation, two-tab race, a lost transition response followed
+   by a stale-revision refusal with current summary, persistence failure and expired history. Verify
+   no partial changes, no duplicate event, and actionable feedback.
    Restore retained content through Archive after history expires.
 
 Run `pnpm test`, `pnpm lint`, `pnpm docs:check`, `pnpm build`; targeted E2E via
@@ -462,14 +475,17 @@ decisions before dependent implementation:
   returned no substantive findings. Marked the optional extracted CLI test as new and made
   cross-workspace historical identity validation explicit. Independent task moves and
   parent-first Archive recovery remain covered.
+- **Stage C closure amendment (2026-09-23):** Slice 42 completed creation history and same-URL
+  creator recovery, with exact-actor Activity/history anchors and restart/expiry/projection
+  acceptance. The retry cache is retired because expected revisions already make blind retries
+  safe and the returned summary shows whether a transition landed; the older cache language in
+  Contracts, Atomicity/retry, and acceptance step 7 is superseded by the stale-summary behavior above.
+  No cache work remains in Stage C.
+  Stages D and E remain planned.
 
 ## Planning delivery
 
-This document describes proposed work and acceptance obligations. Runtime spec, architecture and
-decision amendments happen with the implementing stages. No implementation phase has started;
-the roadmap must continue to show this as planned until explicitly activated.
-
-Planning validation: `node scripts/roadmap.mjs check`, `pnpm docs:check` and `git diff --check`
-passed. Documentation-only changes: this plan, the direction link in `goals.md`, and the
-script-generated `progress.md` entry. No application tests or runtime walkthrough were run
-because no application behavior changed.
+This document describes the remaining proposed work and acceptance obligations. Runtime spec,
+architecture and decision amendments happen with the implementing stages. Its original planning
+delivery was documentation-only on 2026-09-16; the planning checks passed and no behavior changed
+then. As amended above, Stage C has since closed and Stages D–E remain planned.

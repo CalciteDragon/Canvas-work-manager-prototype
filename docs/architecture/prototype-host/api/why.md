@@ -95,7 +95,8 @@ returns: `/todos`, `/archive`, `/journal`, `/completed-work` under a project, an
 - [Row writes record one operation, including an implicit container](../../../decisions/2026-09-row-operation-history.md)
 - [Undo and Redo require the stored operation family's grant](../../../decisions/2026-09-operation-family-permissions.md)
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../../decisions/2026-09-optional-page-operation-history.md) — the page PATCH answers `{ page, operation }`
-- [An existing project's writes are one action family](../../../decisions/2026-09-project-update-operation-history.md) — the project PATCH answers `{ project, operation }`; create stays bare
+- [An existing project's writes are one action family](../../../decisions/2026-09-project-update-operation-history.md) — the project update tools' `{ project, operation }` envelopes
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the create receipt and creator-only absent-project history route
 
 ## Spec sections
 

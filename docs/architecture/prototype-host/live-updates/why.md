@@ -48,6 +48,11 @@ another workspace's ids. `rootProjectId` was added in 25.2 because a root's Todo
 Archive project rows from anywhere beneath it, and `projectId` alone cannot say which root
 a deep change concerns.
 
+Creation Undo and Redo carry the root captured before removal, so the former root's tree can
+refresh even when the project id no longer resolves. Those lifecycle frames are not project-record
+changes: creation never reparents a project, so they do not enter `PROJECT_RECORD_EVENT_TYPES`
+([decision](../../../decisions/2026-09-project-creation-history.md)).
+
 **Host-state changes reload the tab that made them, and announce `prototype.reloaded` to
 the rest.** A seed swap, clock move or provider switch changes what every derived read
 means at once; one loud reload is cheaper and clearer than a fan-out of quiet refreshes

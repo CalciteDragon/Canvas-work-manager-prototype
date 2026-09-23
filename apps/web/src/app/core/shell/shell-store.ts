@@ -3,6 +3,7 @@ import { ProjectStatusSchema, type Identity, type LiveEvent, type Project, type 
 import { PrototypeSettings } from '../config/prototype-settings';
 import { GatewayError } from '../gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../history/operation-history-reporter';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { LIVE_UPDATES } from '../live/live-updates';
 
@@ -34,6 +35,8 @@ export class ShellStore {
   private readonly identityProvider = inject(IDENTITY_PROVIDER);
   private readonly pendingTasks = inject(PendingTasks);
   private readonly settings = inject(PrototypeSettings);
+  /** The root default is inert: the sidebar is outside any project header. */
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
   private activeRead: Promise<void> | null = null;
   private queuedRead: QueuedRead | null = null;
@@ -97,10 +100,14 @@ export class ShellStore {
     this.createErrorState.set(null);
     const settled = this.pendingTasks.add();
     try {
-      const created = await this.gateway.projects.create({ workspaceId, kind: 'root', name });
+      const created = await reportedWrite(
+        this.reporter,
+        () => this.gateway.projects.create({ workspaceId, kind: 'root', name }),
+        ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }),
+      );
       // Quiet: the tree is already on screen and this is the user's own write.
       await this.refresh();
-      return created.id;
+      return created.project.id;
     } catch (error) {
       this.createErrorState.set(messageOf(error));
       return null;

@@ -43,6 +43,10 @@ Undo and Redo use the same route with operation-specific action names. A task tr
 `project.section_*_{undone,redone}`. When an Add owns an implicit container, that single row frame
 also invalidates section existence in the open project surface.
 
+Creation transitions emit `project.creation_undone` or `project.creation_redone` with the captured
+former root in `rootProjectId`. These types stay outside `PROJECT_RECORD_EVENT_TYPES`: they do not
+move the project between roots.
+
 ## Inventory
 
 | Part | Path | Role |

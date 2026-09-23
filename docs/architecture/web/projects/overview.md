@@ -16,9 +16,12 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
 
 - `ProjectWorkspaceShell`: both §68 project routes; resolves the page positively (root,
   navigable kind, enabled, renderable) and falls back with a notice that survives the
-  redirect; a subproject opens on its work canvas and keeps its root's column.
-- `ProjectWorkspaceStore`: the project record, §39's progress, §26's writes, and the
-  root's work tree — the things that describe the *project* rather than one page.
+  redirect; a subproject opens on its work canvas and keeps its root's column. After project
+  creation Undo it renders creator-only recovery at the original project URL; if the history read
+  fails while that project is missing, the unavailable state offers a generic Retry.
+- `ProjectWorkspaceStore`: the project record, §39's progress, §26's writes, the `missing` state
+  used by creation recovery, and the root's work tree — the things that describe the *project*
+  rather than one page.
 - `ProjectHistoryStore` + `ProjectHistoryControls` + `ProjectHistoryFeedback` (`history/`):
   the header's Undo and Redo of the **displayed project's** history (Slice 41). The store is
   provided by the shell and bound to core's `OPERATION_HISTORY_REPORTER`, so every writer

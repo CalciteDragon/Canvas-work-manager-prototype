@@ -11,6 +11,8 @@
  * Home shortcut placement writes — each reversed and replayed over HTTP. Slice 38 adds the
  * optional-page toggle: a first enable undone to an absent record and redone to the same page id,
  * the boolean reversed both ways, and the exact state read back from the file after a restart.
+ * Slice 42 adds project creation Undo/Redo, creator-only absent-project history across a host
+ * restart, and the still-valid Activity/document after that history expires.
  *
  * Runs against a temporary data file via CWM_DATA_FILE, never the developer's own
  * workspace: an acceptance check that mutates the file you were about to demo is worse
@@ -42,6 +44,13 @@ const request = async (method, path, body) => {
   });
   return { status: response.status, body: await response.json() };
 };
+
+const step = (receipt, direction, expectedRevision) =>
+  request('POST', `/api/history/${receipt.historyId}/transition`, {
+    actionId: receipt.actionId,
+    direction,
+    expectedRevision,
+  });
 
 const startHost = async (dataFile) => {
   // Through tsx, not node's type stripping: the domain services use TypeScript
@@ -89,11 +98,44 @@ try {
     name: 'Acceptance project',
   });
   check(project.status === 201, 'POST /api/projects answers 201');
-  check(typeof project.body.id === 'string', 'the new project has an id');
-  check(project.body.workspaceId === 'workspace-demo', 'the project lands in the actor workspace');
+  check(typeof project.body.project.id === 'string', 'the new project has an id');
+  check(project.body.project.workspaceId === 'workspace-demo', 'the project lands in the actor workspace');
+  check(project.body.operation.operation === 'project.add' && project.body.operation.revision === 1, 'creation answers its first history receipt');
+
+  console.log('\nproject creation Undo, restart and Redo...\n');
+  const projectPages = async () => (await request('GET', `/api/projects/${project.body.project.id}/pages`)).body;
+  const projectHistory = async () => (await request('GET', `/api/projects/${project.body.project.id}/history`)).body;
+  const createdHome = (await projectPages())[0];
+  check(createdHome?.kind === 'home', 'the root has its canonical Home page');
+  const creationUndo = await step(project.body.operation, 'undo', (await projectHistory()).revision);
+  check(creationUndo.status === 200 && creationUndo.body.result.outcome === 'removed', 'Undo removes the created root');
+  check((await request('GET', `/api/projects/${project.body.project.id}`)).status === 404, 'the undone root is absent over HTTP');
+  check((await request('GET', `/api/projects/${project.body.project.id}/pages`)).status === 404, 'the absent root has no project pages');
+  check((await projectHistory()).redo?.actionId === project.body.operation.actionId, 'the creator can read its Redo summary while the root is absent');
+  const undoActivity = await request('GET', '/api/activity');
+  const undoActions = undoActivity.body.map((event) => event.action);
+  check(undoActions.includes('project.created') && undoActions.includes('project.creation_undone'), 'creation and Undo Activity remain readable');
+
+  console.log('\nreopening the file while the project is absent...\n');
+  await stopHost(host);
+  host = await startHost(dataFile);
+  check((await request('GET', `/api/projects/${project.body.project.id}`)).status === 404, 'the host reloads the absent project document');
+  const reopenedCreationHistory = await projectHistory();
+  check(reopenedCreationHistory.redo?.actionId === project.body.operation.actionId, 'the creation Redo survives the restart');
+  const reopenedCreationDocument = JSON.parse(await readFile(dataFile, 'utf8'));
+  check(!reopenedCreationDocument.projects.some(({ id }) => id === project.body.project.id), 'the project stays absent on disk');
+  check(!reopenedCreationDocument.projectPages.some(({ id }) => id === createdHome.id), 'the canonical Home page stays absent on disk');
+  check(
+    reopenedCreationDocument.operationActions.some(({ id, state }) => id === project.body.operation.actionId && state === 'undone'),
+    'the undone project.add anchor remains on disk',
+  );
+  const creationRedo = await step(project.body.operation, 'redo', reopenedCreationHistory.revision);
+  check(creationRedo.status === 200 && creationRedo.body.result.project.id === project.body.project.id, 'Redo restores the same project id');
+  check(creationRedo.body.result.page.id === createdHome.id, 'Redo restores the same canonical page id');
+  check((await projectPages())[0]?.id === createdHome.id, 'the restored Home page is readable');
 
   const task = await request('POST', '/api/tasks', {
-    projectId: project.body.id,
+    projectId: project.body.project.id,
     title: 'Configure deployment',
   });
   check(task.status === 201, 'POST /api/tasks answers 201');
@@ -119,8 +161,11 @@ try {
   await stopHost(host);
   host = await startHost(dataFile);
 
-  const afterRestart = await request('GET', `/api/tasks?projectId=${project.body.id}`);
-  check(afterRestart.status === 200, 'GET /api/tasks answers after a restart');
+  const afterRestart = await request('GET', `/api/tasks?projectId=${project.body.project.id}`);
+  check(
+    afterRestart.status === 200,
+    `GET /api/tasks answers after a restart (received ${afterRestart.status}: ${JSON.stringify(afterRestart.body)})`,
+  );
   check(afterRestart.body.length === 1, 'the task survived the restart');
   check(afterRestart.body[0].status === 'done', 'so did its completion');
 
@@ -131,8 +176,6 @@ try {
   const canvas = async () =>
     (await request('GET', '/api/projects/project-personal/sections')).body.map((section) => section.id);
   const summary = async () => (await request('GET', '/api/projects/project-personal/history')).body;
-  const step = (receipt, direction, expectedRevision) =>
-    request('POST', `/api/history/${receipt.historyId}/transition`, { actionId: receipt.actionId, direction, expectedRevision });
   const before = await canvas();
   check(before[0] === HOME && before.length > 1, 'the brief is the first of several placements on Home');
   check((await summary()).historyId === null, 'GET /api/projects/:id/history answers an empty summary before any recorded write');
@@ -264,7 +307,7 @@ try {
   const workspaceId = (await request('GET', '/api/projects')).body.find(({ id }) => id === 'project-personal').workspaceId;
   const child = (await request('POST', '/api/projects', {
     workspaceId, kind: 'subproject', parentProjectId: 'project-personal', name: 'Kitchen',
-  })).body;
+  })).body.project;
   const source = (await request('POST', `/api/projects/${child.id}/sections`, { type: 'task-list', title: 'Prep' })).body.section;
 
   const placed = await request('POST', '/api/projects/project-personal/shortcuts', {
@@ -322,7 +365,7 @@ try {
   console.log('\noptional-page first enable, toggle, Undo and Redo...\n');
   const pageRoot = (await request('POST', '/api/projects', {
     workspaceId, kind: 'root', name: 'Page history acceptance',
-  })).body;
+  })).body.project;
   const pagesOf = async () => (await request('GET', `/api/projects/${pageRoot.id}/pages`)).body;
   const pageSummary = async () => (await request('GET', `/api/projects/${pageRoot.id}/history`)).body;
   check(
@@ -384,6 +427,42 @@ try {
     (await request('GET', `/api/projects/${pageRoot.id}/history`)).body.undo?.operation === 'page.update',
     'and the reopened summary still offers the newest toggle as the next Undo',
   );
+
+  console.log('\nproject creation expiry and reopened document...\n');
+  const expiringProject = await request('POST', '/api/projects', {
+    workspaceId: 'workspace-demo', kind: 'root', name: 'Expired creation',
+  });
+  const expiringId = expiringProject.body.project.id;
+  const expiringReceipt = expiringProject.body.operation;
+  check(expiringReceipt.operation === 'project.add', 'the expiry fixture begins with a project.add');
+  const expiringPages = await request('GET', `/api/projects/${expiringId}/pages`);
+  const expiringHomeId = expiringPages.body[0].id;
+  const expiringHistory = await request('GET', `/api/projects/${expiringId}/history`);
+  check((await step(expiringReceipt, 'undo', expiringHistory.body.revision)).status === 200, 'the expiry fixture is absent after Undo');
+  const afterExpiry = new Date(Date.parse(expiringReceipt.createdAt) + 25 * 60 * 60 * 1000).toISOString();
+  await request('POST', '/prototype/clock', { now: afterExpiry });
+  check((await request('GET', `/api/projects/${expiringId}/history`)).body.redo === null, 'after 25 hours the absent project no longer offers Redo');
+  check((await request('GET', `/api/projects/${expiringId}`)).status === 404, 'the expired project remains absent');
+  const expiredActivity = await request('GET', '/api/activity');
+  check(
+    expiredActivity.body.some(({ action, entityId }) => action === 'project.created' && entityId === expiringId) &&
+      expiredActivity.body.some(({ action, entityId }) => action === 'project.creation_undone' && entityId === expiringId),
+    'the expired project’s creation Activity remains readable',
+  );
+  const expiredDocument = JSON.parse(await readFile(dataFile, 'utf8'));
+  check(!expiredDocument.projectPages.some(({ id }) => id === expiringHomeId), 'the expired canonical page remains absent on disk');
+  check(
+    expiredDocument.operationActions.some(({ id, state }) => id === expiringReceipt.actionId && state === 'undone'),
+    'the durable absent-project history anchor remains on disk after expiry',
+  );
+
+  console.log('\nreopening the expired document...\n');
+  await stopHost(host);
+  host = await startHost(dataFile);
+  check((await request('GET', `/api/projects/${expiringId}`)).status === 404, 'the host loads the valid expired document');
+  await request('POST', '/prototype/clock', { now: afterExpiry });
+  check((await request('GET', `/api/projects/${expiringId}/history`)).body.redo === null, 'the reopened expired summary still has no Redo');
+  check((await request('GET', '/api/activity')).body.some(({ action, entityId }) => action === 'project.creation_undone' && entityId === expiringId), 'Activity still reads after the expired-document restart');
 
   console.log('\nacceptance: all checks passed');
 } catch (error) {

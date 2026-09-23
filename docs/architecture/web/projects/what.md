@@ -82,12 +82,13 @@ sequenceDiagram
 
 | Part | Path | Role |
 |---|---|---|
-| `ProjectWorkspaceShell` | `project-workspace-shell.ts` | Both routes; header; page resolution and fallback notice; breadcrumbs for a subproject |
-| `ProjectWorkspaceStore`, `WorkTreeNode` | `project-workspace-store.ts` | Project-level state and writes |
+| `ProjectWorkspaceShell` | `project-workspace-shell.ts` | Both routes; header; page resolution and fallback notice; breadcrumbs for a subproject; creator recovery at a missing project's URL, with a generic Retry when the summary read is unavailable |
+| `ProjectWorkspaceStore`, `WorkTreeNode` | `project-workspace-store.ts` | Project-level state and writes; authoritative `missing` state after a not-found read |
 | `ProjectPageNavigation`, `ProjectWorkItem` | `project-page-navigation.ts`, `project-work-item.ts` | The column and its rows |
 | `ProjectHeader`, `ProjectMoreMenu` | `project-header.ts`, `project-more-menu.ts` | Name, status, progress, target date; projection slots for the history controls and their feedback; rename/status/date/archive (Archive not offered on an archived project) |
 | `ProjectHistoryStore` | `history/project-history-store.ts` | The displayed project's summary, generation and revision guards, coalesced re-reads, per-generation pending with owed reads, one transition at a time; implements `OperationHistoryReporter` |
 | `ProjectHistoryControls`, `ProjectHistoryFeedback` | `history/project-history-controls.ts`, `history/project-history-feedback.ts` | Two `aria-disabled` icon buttons named by their step or reason, Retry when unreadable; one polite feedback line with a cross-owner Open link |
+| `ProjectCreationRecovery` | `project-creation-recovery.stories.ts` | Storybook coverage for available Redo, pending and archived-parent blocked recovery states |
 | `historyControl`, `transitionResultFeedback`, `transitionRefusalFeedback`, `crossOwnerFeedback`, `archivedHereFeedback`, `nextStepCopy` | `history/history-feedback.ts` | Every sentence the controls say, exhaustive over the contract unions |
 | `PROJECT_PAGE_REGISTRY`, `ProjectPageDefinition` | `project-page-registry.ts` | Navigable kinds → renderer and label |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | `project-page-contract.ts` | What every renderer receives |
