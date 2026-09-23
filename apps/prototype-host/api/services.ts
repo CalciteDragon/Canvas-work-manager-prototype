@@ -77,7 +77,7 @@ export const createApi = (persistence: Persistence, options: CreateApiOptions = 
     reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai }),
     workspace: new WorkspaceService({ projects, tasks, reflections, clock }),
-    history: new OperationHistoryService({ histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
+    history: new OperationHistoryService({ histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, milestones, reflections, activity, clock, unitOfWork }),
     agents: connections,
     // §51's tokens only work on localhost — `main.ts` binds to 127.0.0.1 for this reason.
     authenticator: new PrototypeAgentAuthenticator({ agents, users, connections }),

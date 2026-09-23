@@ -590,7 +590,7 @@ describe('section edit history acceptance', () => {
     pages.find = async () => null;
     const history = new OperationHistoryService({
       histories: harness.operationHistories, actions: harness.operationActions, sections: harness.sections,
-      shortcuts: harness.shortcuts, pages, projects: harness.projects, tasks: harness.tasks, reflections: harness.reflections,
+      shortcuts: harness.shortcuts, pages, projects: harness.projects, tasks: harness.tasks, milestones: harness.milestones, reflections: harness.reflections,
       activity: harness.activity, clock: harness.clock, unitOfWork: unitOfWorkFor(harness.store),
     });
     const before = writable(harness);

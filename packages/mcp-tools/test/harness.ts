@@ -215,7 +215,7 @@ export const buildHarness = () => {
     reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     workspace: new WorkspaceService({ projects, tasks, reflections, clock }),
-    history: new OperationHistoryService({ histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork }),
+    history: new OperationHistoryService({ histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, milestones, reflections, activity, clock, unitOfWork }),
   };
 
   return { store, clock, activity, services, registry: createToolRegistry(services) };

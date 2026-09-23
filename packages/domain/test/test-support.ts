@@ -218,7 +218,7 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
   legacySectionService.restoreSection = async (...args) => (await sectionService.restoreSection(...args)).section;
 
   const operationHistoryService = new OperationHistoryService({
-    histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, reflections, activity, clock, unitOfWork,
+    histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, milestones, reflections, activity, clock, unitOfWork,
   });
 
   const taskWriteService = new TaskService({
@@ -288,10 +288,12 @@ export const buildHarness = (document: PrototypeDocument = twoPersonaDocument(),
    * project-history tests use it.
    */
   const projectWriteService = new ProjectService({ projects, pages, sections, shortcuts, activity, history: historyRecorder, clock, ids, unitOfWork });
-  const legacyProjectService = Object.create(projectWriteService) as Omit<ProjectService, 'update' | 'archive'> & {
+  const legacyProjectService = Object.create(projectWriteService) as Omit<ProjectService, 'create' | 'update' | 'archive'> & {
+    create: (...args: Parameters<ProjectService['create']>) => Promise<Project>;
     update: (...args: Parameters<ProjectService['update']>) => Promise<Project>;
     archive: (...args: Parameters<ProjectService['archive']>) => Promise<Project>;
   };
+  legacyProjectService.create = async (...args) => (await projectWriteService.create(...args)).project;
   legacyProjectService.update = async (...args) => (await projectWriteService.update(...args)).project;
   legacyProjectService.archive = async (...args) => (await projectWriteService.archive(...args)).project;
 

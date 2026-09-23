@@ -1741,6 +1741,21 @@ describe('operation history integrity', () => {
     expect(() => new InMemoryDataStore(withUndoneProjectCreation())).not.toThrow();
   });
 
+  it('uses only the project creation lifecycle sequence as the durable Activity anchor', () => {
+    const missingCreation = withUndoneProjectCreation();
+    missingCreation.activityEvents = missingCreation.activityEvents.filter(({ action }) => action !== 'project.created');
+    expect(() => new InMemoryDataStore(missingCreation)).toThrow(/latest project\.creation_undone event/);
+
+    const unrelatedTargetEvent = withUndoneProjectCreation();
+    const undone = unrelatedTargetEvent.activityEvents[1]!;
+    unrelatedTargetEvent.activityEvents.push({
+      ...undone,
+      id: 'activity-other-project-event' as never,
+      action: 'project.section_addition_undone',
+    });
+    expect(() => new InMemoryDataStore(unrelatedTargetEvent)).not.toThrow();
+  });
+
   it('requires both anchors and the undone state to agree with project presence', () => {
     const withoutHistory = withUndoneProjectCreation();
     withoutHistory.operationActions = [];

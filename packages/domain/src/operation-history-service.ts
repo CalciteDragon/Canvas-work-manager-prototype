@@ -21,6 +21,7 @@ import {
 import type {
   OperationActionRepository,
   OperationHistoryRepository,
+  MilestoneRepository,
   ProjectPageRepository,
   ProjectRepository,
   ReflectionRepository,
@@ -42,7 +43,15 @@ import {
 } from './operation-history';
 import { RepositoryOperationRecorder, historyBelongsToActor } from './operation-recorder';
 import { reapplyPageAdd, reapplyPageUpdate, revertPageAdd, revertPageUpdate } from './page-history';
-import { mayRunWhileSubjectArchived, reapplyProjectWrite, revertProjectWrite } from './project-history';
+import {
+  mayRunWhileSubjectArchived,
+  preflightProjectAddUndo,
+  reapplyProjectAdd,
+  reapplyProjectWrite,
+  revertProjectAdd,
+  revertProjectWrite,
+  type ProjectAddHistoryRepositories,
+} from './project-history';
 import { findHighestWriteBlocker } from './project-visibility';
 import {
   reapplyReflectionAdd,
@@ -87,6 +96,7 @@ export interface OperationHistoryServiceDependencies {
   pages: ProjectPageRepository;
   projects: ProjectRepository;
   tasks: TaskRepository;
+  milestones: MilestoneRepository;
   reflections: ReflectionRepository;
   activity: ActivityService;
   clock: Clock;
@@ -133,8 +143,17 @@ export class OperationHistoryService {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.read');
     const project = await this.dependencies.projects.find(projectId);
-    if (project === null || project.workspaceId !== actor.workspaceId) throw new EntityNotFoundError('project', projectId);
     const history = await RepositoryOperationRecorder.historyFor(this.dependencies.histories, actor, projectId);
+    if (project === null) {
+      if (history === undefined) throw new EntityNotFoundError('project', projectId);
+      const state: OperationHistoryState = { history, actions: await this.dependencies.actions.list({ historyId: history.id }) };
+      const hasUndoneCreation = state.actions.some((action) =>
+        action.state === 'undone' && action.operation.type === 'project.add' && action.operation.project.id === projectId,
+      );
+      if (!hasUndoneCreation) throw new EntityNotFoundError('project', projectId);
+      return this.summaryOf(state);
+    }
+    if (project.workspaceId !== actor.workspaceId) throw new EntityNotFoundError('project', projectId);
     if (history === undefined) {
       return OperationHistorySummarySchema.parse({
         projectId, historyId: null, revision: 0, undo: null, redo: null, blockedBy: await this.blockedBy(projectId),
@@ -223,18 +242,23 @@ export class OperationHistoryService {
 
       let result: UndoResult | RedoResult;
       const recordsBeforeRemoval = input.direction === 'undo' &&
-        (action.operation.type === 'task.add' || action.operation.type === 'reflection.add');
-      // Undo Add removes the canonical row, so Activity must capture its durable identity while
-      // the target still exists. The surrounding unit rolls this event/frame back if execution or
-      // either history write fails; successful publication still happens only after commit.
-      if (recordsBeforeRemoval) {
-        await this.dependencies.activity.record(
-          actor,
-          activityEntryFor(action.operation, input.direction, undefined),
-        );
-      }
+        (action.operation.type === 'task.add' || action.operation.type === 'reflection.add' || action.operation.type === 'project.add');
+      // Undo Add removes its target, so Activity must capture its durable identity while the
+      // target still exists. Project creation also preflights first, because a permanent conflict
+      // retires without an audit event. The unit rolls this line/frame back if execution or either
+      // history write fails; publication happens only after commit.
       try {
-        result = await this.execute(action.operation, input.direction);
+        if (action.operation.type === 'project.add' && input.direction === 'undo') {
+          await preflightProjectAddUndo(
+            this.dependencies as OperationHistoryServiceDependencies & ProjectAddHistoryRepositories,
+            action.operation,
+            history.id,
+          );
+        }
+        if (recordsBeforeRemoval) {
+          await this.dependencies.activity.record(actor, activityEntryFor(action.operation, input.direction, undefined));
+        }
+        result = await this.execute(action.operation, input.direction, history.id);
       } catch (error) {
         if (!(error instanceof OperationExecutionRefused)) throw error;
         const { problem } = error;
@@ -282,10 +306,14 @@ export class OperationHistoryService {
   }
 
   /** Per-type, per-direction dispatch. A `switch` with an exhaustive default, not a registry. */
-  private execute(operation: UndoOperation, direction: OperationHistoryDirection): Promise<UndoResult | RedoResult> {
+  private execute(operation: UndoOperation, direction: OperationHistoryDirection, historyId: OperationHistoryId): Promise<UndoResult | RedoResult> {
     const { clock } = this.dependencies;
     const repositories = this.dependencies;
     switch (operation.type) {
+      case 'project.add':
+        return direction === 'undo'
+          ? revertProjectAdd(repositories as OperationHistoryServiceDependencies & ProjectAddHistoryRepositories, operation, historyId)
+          : reapplyProjectAdd(repositories as OperationHistoryServiceDependencies & ProjectAddHistoryRepositories, clock, operation);
       case 'section.remove':
         return direction === 'undo' ? revertSectionRemoval(repositories, clock, operation) : reapplySectionRemoval(repositories, clock, operation);
       case 'section.add':
@@ -348,7 +376,7 @@ export class OperationHistoryService {
         ? null
         : {
           actionId: action.id, operation: action.operation.type, label: action.label, expiresAt: action.expiresAt,
-          blockedBy: await this.blockerOf(await this.transitionBlocker(projectId, action.operation, direction)),
+      blockedBy: await this.blockerOf(await this.transitionBlocker(projectId, action.operation, direction)),
         };
     return OperationHistorySummarySchema.parse({
       projectId,
@@ -356,7 +384,7 @@ export class OperationHistoryService {
       revision: state.history.revision,
       undo: await entry(nextOperationAction(state, 'undo'), 'undo'),
       redo: await entry(nextOperationAction(state, 'redo'), 'redo'),
-      blockedBy: await this.blockedBy(projectId),
+      blockedBy: await this.blockedBy(projectId, state),
     });
   }
 
@@ -378,6 +406,9 @@ export class OperationHistoryService {
     direction: OperationHistoryDirection,
   ): Promise<ProjectId | undefined> {
     const { projects } = this.dependencies;
+    if (operation.type === 'project.add') {
+      return operation.project.kind === 'root' ? undefined : findHighestWriteBlocker(projects, operation.project.parentProjectId);
+    }
     const selfExempt =
       (operation.type === 'project.update' || operation.type === 'project.archive' || operation.type === 'project.reactivate') &&
       operation.projectId === projectId &&
@@ -388,8 +419,14 @@ export class OperationHistoryService {
   }
 
   /** The summary's project-level blocker: the highest archived project on the chain, itself included. */
-  private async blockedBy(projectId: ProjectId): Promise<OperationHistorySummary['blockedBy']> {
-    return this.blockerOf(await findHighestWriteBlocker(this.dependencies.projects, projectId));
+  private async blockedBy(projectId: ProjectId, state?: OperationHistoryState): Promise<OperationHistorySummary['blockedBy']> {
+    const current = await this.dependencies.projects.find(projectId);
+    if (current !== null) return this.blockerOf(await findHighestWriteBlocker(this.dependencies.projects, projectId));
+    const creation = state?.actions.find((action) =>
+      action.state === 'undone' && action.operation.type === 'project.add' && action.operation.project.id === projectId,
+    );
+    if (creation === undefined || creation.operation.type !== 'project.add' || creation.operation.project.kind === 'root') return null;
+    return this.blockerOf(await findHighestWriteBlocker(this.dependencies.projects, creation.operation.project.parentProjectId));
   }
 
   /** A blocking project id as the `{ projectId, title }` the summary carries. */
@@ -430,6 +467,7 @@ export const activityActionFor = (operation: UndoOperation['type'], direction: O
     'page.add': 'page_addition',
     'page.update': 'page_update',
     'project.update': 'update',
+    'project.add': 'creation',
     'project.archive': 'archive',
     'project.reactivate': 'reactivation',
   }[operation];
@@ -470,6 +508,8 @@ const activityTargetFor = (operation: UndoOperation): {
     case 'project.archive':
     case 'project.reactivate':
       return { entityType: 'project', entityId: operation.projectId, projectId: operation.projectId };
+    case 'project.add':
+      return { entityType: 'project', entityId: operation.project.id, projectId: operation.project.id };
     case 'page.add':
       return { entityType: 'project', entityId: operation.page.projectId, projectId: operation.page.projectId };
     case 'task.add':
@@ -502,6 +542,7 @@ const activityEntryFor = (
 
 /** Undo Add is the only transition that must compose its line before execution deletes the row. */
 const activitySummaryForRemovedAdd = (operation: UndoOperation): string => {
+  if (operation.type === 'project.add') return `Undid creating "${operation.project.name}"`;
   if (operation.type === 'task.add') return `Undid creating "${operation.task.title}"`;
   if (operation.type === 'reflection.add') {
     const title = operation.reflection.title?.trim();
@@ -531,6 +572,7 @@ const OPERATION_GERUND: Record<UndoOperation['type'], string> = {
   'shortcut.remove': 'removing a shortcut from',
   'page.add': 'enabling the',
   'page.update': 'changing the',
+  'project.add': 'creating',
   'project.update': 'updating',
   'project.archive': 'archiving',
   'project.reactivate': 'reactivating',
@@ -568,6 +610,7 @@ const activitySummary = (operation: UndoOperation, result: UndoResult | RedoResu
   }
   // An Undo of a creation has no live entity to name, so the captured one names it.
   if (operation.type === 'task.add') return `${did} ${gerund} "${operation.task.title}"`;
+  if (operation.type === 'project.add') return `${did} ${gerund} "${operation.project.name}"`;
   if (operation.type === 'reflection.add') {
     const title = operation.reflection.title?.trim();
     return `${did} ${gerund} ${title === undefined || title.length === 0 ? 'a reflection' : `"${title}"`}`;

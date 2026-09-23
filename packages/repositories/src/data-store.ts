@@ -133,10 +133,17 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
 
   /** A missing project is historical only after its own creation was undone, in document order. */
   const hasCreationUndoActivityAnchor = (projectId: string, workspaceId: string): boolean => {
-    const events = document.activityEvents.filter((event) => event.entityType === 'project' && event.entityId === projectId);
-    const createdHere = events.some((event) => event.action === 'project.created' && event.workspaceId === workspaceId);
-    const latest = events[events.length - 1];
-    return createdHere && latest?.action === 'project.creation_undone' && latest.workspaceId === workspaceId;
+    const lifecycle = document.activityEvents.filter((event) =>
+      event.entityType === 'project' &&
+      event.entityId === projectId &&
+      event.projectId === projectId &&
+      event.context.projectId === projectId &&
+      event.workspaceId === workspaceId &&
+      (event.action === 'project.created' || event.action === 'project.creation_undone' || event.action === 'project.creation_redone'),
+    );
+    const createdIndex = lifecycle.findIndex((event) => event.action === 'project.created');
+    const latest = lifecycle.at(-1);
+    return createdIndex >= 0 && latest?.action === 'project.creation_undone' && createdIndex < lifecycle.length - 1;
   };
 
   for (const workspace of document.workspaces) {

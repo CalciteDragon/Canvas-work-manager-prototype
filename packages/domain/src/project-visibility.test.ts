@@ -38,6 +38,7 @@ const repositoryOf = (projects: Project[]) => ({
   list: async () => projects,
   insert: async () => undefined,
   update: async () => undefined,
+  remove: async () => undefined,
 });
 
 describe('archivedAncestry', () => {

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { PROJECT_RECORD_EVENT_TYPES, type OperationHistoryDirection, type OperationReceipt, type Project, type ProjectId } from '@cwm/contracts';
+import { PROJECT_RECORD_EVENT_TYPES, type OperationHistoryDirection, type OperationReceipt, type Project, type ProjectAddOperation, type ProjectId } from '@cwm/contracts';
 import { agentActorFor, buildHarness, MINE } from '../test/test-support';
 import type { ActorContext } from './actor';
 import { DomainRuleError } from './errors';
+import { OperationExecutionRefused } from './operation-execution';
+import { preflightProjectAddUndo, reapplyProjectAdd, type ProjectAddHistoryRepositories } from './project-history';
 
 type Harness = ReturnType<typeof buildHarness>;
 
@@ -44,6 +46,171 @@ const state = (h: Harness) => {
   const document = h.store.snapshot();
   return JSON.stringify([document.projects, document.operationHistories, document.operationActions, document.activityEvents]);
 };
+
+const projectAddFor = async (h: Harness) => {
+  const write = await h.projectWriteService.create(h.actor, {
+    workspaceId: h.actor.workspaceId, kind: 'root', name: 'Created project',
+  });
+  const action = await h.operationActions.find(write.operation!.actionId);
+  if (action?.operation.type !== 'project.add') throw new Error('create should record project.add');
+  return { project: write.project, operation: action.operation, historyId: write.operation!.historyId };
+};
+
+const projectAddRepositories = (h: Harness): ProjectAddHistoryRepositories => ({
+  projects: Object.create(h.projects) as typeof h.projects,
+  pages: Object.create(h.pages) as typeof h.pages,
+  sections: Object.create(h.sections) as typeof h.sections,
+  shortcuts: Object.create(h.shortcuts) as typeof h.shortcuts,
+  tasks: Object.create(h.tasks) as typeof h.tasks,
+  reflections: Object.create(h.reflections) as typeof h.reflections,
+  milestones: Object.create(h.milestones) as typeof h.milestones,
+  histories: Object.create(h.operationHistories) as typeof h.operationHistories,
+});
+
+
+describe('project.add Undo preflight', () => {
+  const dependants = [
+    {
+      name: 'a missing project',
+      expected: { entityType: 'project', problem: 'missing', nextStep: 'nothing-to-undo' },
+      configure: (repos: ProjectAddHistoryRepositories) => { repos.projects.find = async () => null; },
+    },
+    {
+      name: 'a changed project field',
+      expected: { entityType: 'project', id: 'project-1', problem: 'field-changed', nextStep: 'change-by-hand' },
+      configure: (repos: ProjectAddHistoryRepositories, _h: Harness, operation: ProjectAddOperation) => {
+        repos.projects.find = async () => ({ ...operation.project, name: 'Changed by hand' });
+      },
+    },
+    {
+      name: 'a changed canonical page field',
+      expected: { entityType: 'page', id: 'projectPage-1', problem: 'field-changed', nextStep: 'change-by-hand' },
+      configure: (repos: ProjectAddHistoryRepositories, _h: Harness, operation: ProjectAddOperation) => {
+        repos.pages.find = async () => ({ ...operation.page, enabled: false });
+      },
+    },
+    {
+      name: 'a missing canonical page',
+      expected: { entityType: 'page', problem: 'missing', nextStep: 'nothing-to-undo' },
+      configure: (repos: ProjectAddHistoryRepositories) => { repos.pages.find = async () => null; },
+    },
+    {
+      name: 'an additional project page',
+      expected: { entityType: 'page', id: 'page-extra', problem: 'new-dependent', nextStep: 'restore-or-move-dependent-and-retry' },
+      configure: (repos: ProjectAddHistoryRepositories, h: Harness, operation: ProjectAddOperation) => {
+        const list = h.pages.list.bind(h.pages);
+        repos.pages.list = async (query) => [...await list(query), { ...operation.page, id: 'page-extra' as never, kind: 'todos' }];
+      },
+    },
+    {
+      name: 'an archived section',
+      expected: { entityType: 'section', id: 'section-extra', problem: 'new-dependent', nextStep: 'restore-or-move-dependent-and-retry' },
+      configure: (repos: ProjectAddHistoryRepositories) => {
+        repos.sections.list = async () => [{ id: 'section-extra', title: 'Archived notes' } as never];
+      },
+    },
+    {
+      name: 'an archived task',
+      expected: { entityType: 'task', id: 'task-extra', problem: 'new-dependent', nextStep: 'restore-or-move-dependent-and-retry' },
+      configure: (repos: ProjectAddHistoryRepositories) => {
+        repos.tasks.list = async () => [{ id: 'task-extra', title: 'Archived task' } as never];
+      },
+    },
+    {
+      name: 'an archived reflection in the project',
+      expected: { entityType: 'reflection', id: 'reflection-extra', problem: 'new-dependent', nextStep: 'restore-or-move-dependent-and-retry' },
+      configure: (repos: ProjectAddHistoryRepositories) => {
+        repos.reflections.list = async (query) => query?.projectId === undefined ? [] : [{ id: 'reflection-extra', title: 'Archived entry' } as never];
+      },
+    },
+    {
+      name: 'a milestone',
+      expected: { entityType: 'project', id: 'project-1', problem: 'new-dependent', nextStep: 'restore-or-move-dependent-and-retry' },
+      configure: (repos: ProjectAddHistoryRepositories) => { repos.milestones.list = async () => [{ id: 'milestone-extra' } as never]; },
+    },
+    {
+      name: 'a child project, including archived children',
+      expected: { entityType: 'project', id: 'project-child', problem: 'new-dependent', nextStep: 'restore-or-move-dependent-and-retry' },
+      configure: (repos: ProjectAddHistoryRepositories, h: Harness, operation: ProjectAddOperation) => {
+        const list = h.projects.list.bind(h.projects);
+        repos.projects.list = async (query) => [...await list(query), {
+          ...operation.project, id: 'project-child' as never, kind: 'subproject', parentProjectId: operation.project.id, name: 'Archived child', status: 'archived',
+        } as never];
+      },
+    },
+    {
+      name: 'a reflection elsewhere that names the project as its subject',
+      expected: { entityType: 'reflection', id: 'reflection-subject', problem: 'new-dependent', nextStep: 'restore-or-move-dependent-and-retry' },
+      configure: (repos: ProjectAddHistoryRepositories, _h: Harness, operation: ProjectAddOperation) => {
+        repos.reflections.list = async (query) => query?.projectId === undefined ? [{
+          id: 'reflection-subject', projectId: MINE, subject: { kind: 'subproject', id: operation.project.id },
+        } as never] : [];
+      },
+    },
+    {
+      name: 'a shortcut on the captured canonical page',
+      expected: { entityType: 'shortcut', id: 'shortcut-extra', problem: 'new-dependent', nextStep: 'restore-or-move-dependent-and-retry' },
+      configure: (repos: ProjectAddHistoryRepositories) => { repos.shortcuts.list = async () => [{ id: 'shortcut-extra' } as never]; },
+    },
+    {
+      name: 'another actor history, permanently',
+      expected: { entityType: 'project', id: 'project-1', problem: 'new-dependent', nextStep: 'change-by-hand' },
+      permanent: true,
+      configure: (repos: ProjectAddHistoryRepositories) => { repos.histories.list = async () => [{ id: 'history-other' } as never]; },
+    },
+  ];
+
+  it.each(dependants)('refuses $name with its typed conflict and no write', async ({ configure, expected, permanent }) => {
+    const h = buildHarness();
+    const { operation, historyId } = await projectAddFor(h);
+    const repositories = projectAddRepositories(h);
+    configure(repositories, h, operation);
+    const before = JSON.stringify(h.store.snapshot());
+
+    const refusal = await preflightProjectAddUndo(repositories, operation, historyId).then(
+      () => { throw new Error('expected an executor refusal'); },
+      (error: unknown) => error,
+    );
+
+    expect(refusal).toBeInstanceOf(OperationExecutionRefused);
+    expect((refusal as OperationExecutionRefused).problem).toMatchObject({
+      kind: 'conflict', permanent: permanent ?? false, conflicts: [expect.objectContaining(expected)],
+    });
+    expect(JSON.stringify(h.store.snapshot())).toBe(before);
+  });
+
+  it('ignores only updatedAt on the captured project and page', async () => {
+    const h = buildHarness();
+    const { operation, historyId } = await projectAddFor(h);
+    const repositories = projectAddRepositories(h);
+    repositories.projects.find = async () => ({ ...operation.project, updatedAt: '2026-09-24T00:00:00.000Z' });
+    repositories.pages.find = async () => ({ ...operation.page, updatedAt: '2026-09-24T00:00:00.000Z' });
+
+    await expect(preflightProjectAddUndo(repositories, operation, historyId)).resolves.toBeUndefined();
+  });
+
+  it('Redo refuses an already occupied project and page id without writing', async () => {
+    const h = buildHarness();
+    const { operation } = await projectAddFor(h);
+    const repositories = projectAddRepositories(h);
+    const before = JSON.stringify(h.store.snapshot());
+
+    const refusal = await reapplyProjectAdd(repositories, h.clock, operation).then(
+      () => { throw new Error('expected an executor refusal'); },
+      (error: unknown) => error,
+    );
+
+    expect(refusal).toBeInstanceOf(OperationExecutionRefused);
+    expect((refusal as OperationExecutionRefused).problem).toMatchObject({
+      kind: 'conflict', permanent: false,
+      conflicts: [
+        expect.objectContaining({ entityType: 'project', id: operation.project.id, problem: 'already-exists' }),
+        expect.objectContaining({ entityType: 'page', id: operation.page.id, problem: 'already-exists' }),
+      ],
+    });
+    expect(JSON.stringify(h.store.snapshot())).toBe(before);
+  });
+});
 
 describe('project.update: captured fields reversed and replayed (§§26, 31, 39)', () => {
   it('records only the changed fields and restores exact prior values, clearing and setting optional ones', async () => {

@@ -8,6 +8,31 @@ import type { ActorContext } from './actor';
 const at = (iso: string) => new Date(iso);
 
 describe('ActivityService.record', () => {
+  it('keeps a removed project’s captured name in its creation audit and omits it for past task events', async () => {
+    const harness = buildHarness();
+    const agent = agentActorFor(0, ['projects.write', 'tasks.write']);
+    const created = await harness.projectWriteService.create(agent, {
+      workspaceId: agent.workspaceId, kind: 'root', name: 'Removed project',
+    });
+    const task = await harness.taskWriteService.create(agent, { projectId: created.project.id, title: 'Past work' });
+    const transition = async (receipt: NonNullable<typeof task.operation>, actor = agent) => {
+      const history = (await harness.operationHistories.find(receipt.historyId))!;
+      return harness.operationHistoryService.transition(actor, receipt.historyId, {
+        actionId: receipt.actionId, expectedRevision: history.revision, direction: 'undo',
+      });
+    };
+    await transition(task.operation);
+    await transition(created.operation! as typeof task.operation);
+
+    const events = await harness.activity.list(harness.actor);
+    const creationUndo = events.find(({ action }) => action === 'project.creation_undone');
+    const taskCreation = events.find(({ action, entityId }) => action === 'task.created' && entityId === task.task.id);
+
+    expect(creationUndo).toMatchObject({ entityId: created.project.id, entityTitle: 'Removed project', projectName: 'Removed project' });
+    expect(taskCreation).toMatchObject({ entityId: task.task.id, entityTitle: 'Past work' });
+    expect(taskCreation).not.toHaveProperty('projectName');
+  });
+
   it('records an attributable event for every mutation this slice introduces', async () => {
     const harness = buildHarness();
     await seedContainer(harness, MINE);

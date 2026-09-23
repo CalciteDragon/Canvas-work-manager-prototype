@@ -1,4 +1,4 @@
-import { OperationHistorySchema, type OperationAction } from '@cwm/contracts';
+import { OperationHistorySchema, ProjectAddOperationSchema, type OperationAction } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   OPERATION_HISTORY_LIMIT,
@@ -113,6 +113,40 @@ describe('operation history state machine', () => {
   });
 
   describe('retention', () => {
+    it('pruning an actor’s other histories leaves an absent project’s undone creation anchor in place', () => {
+      const operation = ProjectAddOperationSchema.parse({
+        version: 1,
+        type: 'project.add',
+        project: {
+          id: 'project-1', workspaceId: 'workspace-1', kind: 'root', name: 'Gone', status: 'planning',
+          projectLayoutMode: 'flow', progressFormula: 'count', createdAt, updatedAt: createdAt,
+        },
+        page: { id: 'page-1', projectId: 'project-1', kind: 'home', enabled: true, createdAt, updatedAt: createdAt },
+      });
+      const created = recordOperationAction(empty(), { ...action('creation'), operation });
+      const absent = transitionOperationHistory(created, 'undo').state;
+      const before = absent.actions;
+      let anotherHistory: OperationHistoryState = {
+        history: OperationHistorySchema.parse({ ...empty().history, id: 'history-other', projectId: 'project-other' }),
+        actions: [],
+      };
+      for (let index = 1; index <= OPERATION_HISTORY_LIMIT + 1; index += 1) {
+        anotherHistory = pruneOperationHistory(
+          recordOperationAction(anotherHistory, {
+            ...action(`other-${index}`),
+            id: `other-${index}` as OperationAction['id'],
+            historyId: anotherHistory.history.id,
+            expiresAt: index === 1 ? '2026-09-16T09:00:00.000Z' : expiresAt,
+          }),
+          NOW,
+        );
+      }
+
+      expect(anotherHistory.actions).toHaveLength(OPERATION_HISTORY_LIMIT);
+      expect(absent.actions).toBe(before);
+      expect(absent.actions).toMatchObject([{ operation: { type: 'project.add', project: { id: 'project-1' } }, state: 'undone' }]);
+    });
+
     it('an expired applied action discards itself and everything below it, contiguously', () => {
       let state = recordOperationAction(empty(), action('A'));
       state = recordOperationAction(state, action('B', '2026-09-16T09:00:00.000Z'));

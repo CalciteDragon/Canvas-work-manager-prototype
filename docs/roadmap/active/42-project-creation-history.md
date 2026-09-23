@@ -313,10 +313,12 @@ Paths are repository-relative. Paired `*.test.ts`/`*.spec.ts` change with their 
 ones, but the e2e helpers cast the POST response (`apps/e2e/seed.ts` `api.post<Project>`,
 `archive.spec.ts`, `reflections.spec.ts`, `todos.spec.ts`) and the `.mjs` acceptance scripts are
 untyped. And because a fresh project's history now starts at revision 1, tests that assume an
-empty history after creating through the service or POST change meaning. Before the first commit,
-grep the test and e2e trees for `post<Project>`, `/api/projects'`, `projects.create(`,
-`historyId: null`, `'Nothing to undo'`, `revision: 1` and undo-until-empty loops, and fix each
-hit in the commit that changes the result.
+empty history after creating through the service or POST change meaning. The project-page and
+shortcut history tests also enumerate every action in a newly created sub-project's history; those
+now include its `project.add` before later `section.add` writes. Before the first commit, grep the
+test and e2e trees for `post<Project>`, `/api/projects'`, `projects.create(`, `historyId: null`,
+`'Nothing to undo'`, `revision: 1` and undo-until-empty loops, and fix each hit in the commit that
+changes the result.
 
 | File | Change | Responsibility |
 |---|---|---|
@@ -330,6 +332,7 @@ hit in the commit that changes the result.
 | `packages/domain/src/operation-history.ts`, `packages/domain/src/operation-history.test.ts` | modify | State the never-pruned-while-absent invariant on `pruneOperationHistory`; test that `record` into any other history cannot remove an undone `project.add`. |
 | `packages/domain/src/project-history.ts`, `packages/domain/src/project-history.test.ts` | modify | `captureProjectAdd`, `projectAddLabel`, `preflightProjectAddUndo`, `revertProjectAdd`, `reapplyProjectAdd` per the tables; add `ProjectAddHistoryRepositories` for creation Undo/Redo reads while keeping `ProjectHistoryRepositories` narrow for existing-project inverses. |
 | `packages/domain/src/project-service.ts`, `packages/domain/src/project-service.test.ts` | modify | `create` records `project.add` in the new project's history and answers `ProjectWriteResult`; doc comments. |
+| `packages/domain/src/project-page-service.test.ts`, `packages/domain/src/shortcut-history.test.ts` | modify | Include the sub-project's own `project.add` in history action lists while proving optional-page writes remain in the root history and shortcut writes stay out of the source project's history. |
 | `packages/domain/src/operation-history-service.ts`, `packages/domain/src/operation-history-service.test.ts` | modify | Dispatch; preflight **before** `recordsBeforeRemoval` records for `project.add`; activity verb/target/gerund/summary (`Undid creating "…"`); `transitionBlocker` from the captured parent; `summary` answers an anchored absent project for its own actor only; require the milestone repository for creation preflight. |
 | `packages/domain/test/test-support.ts`, `packages/domain/src/section-edit-undo.test.ts`, `packages/mcp-tools/test/harness.ts` | modify | Supply the milestone repository at the remaining `OperationHistoryService` construction sites; the host constructors are wired in the API row below. |
 | `packages/domain/src/activity-service.ts`, `packages/domain/src/activity-service.test.ts`, `packages/domain/src/dashboard-service.test.ts` | modify | `projectName` falls back to the captured `targetLabel` **only** for a project-targeted event about that same project; otherwise it is omitted. Tests: a project event and a task event inside a removed project; the agent tile over an absent project (already tolerant — test only). |
@@ -381,6 +384,7 @@ hit in the commit that changes the result.
 | `repositories/repositories.test.ts`: `ProjectRepository.remove` deletes inside a unit and rolls back with it | Restricted removal is transactional. |
 | `domain/operation-history.test.ts`: pruning by cap and expiry in every other history of the same actor leaves an undone `project.add` untouched | The history anchor survives retention. |
 | `domain/project-service.test.ts`: create records one `project.add` in the new project's history (not the parent's), labelled, answering the receipt; a failed create records nothing; Activity unchanged | Recording boundary. |
+| `domain/project-page-service.test.ts`, `shortcut-history.test.ts`: a created sub-project's action list starts with `project.add`; its later section remains in its own history, while page toggles remain rooted and a destination shortcut adds no action to the source history | Creation does not move existing write ownership. |
 | `domain/project-history.test.ts`: Undo removes exactly project + page; **each preflight row** refuses with its conflict and writes nothing (called directly, including the rows callers normally meet as `history_not_next`); Redo recreates same ids with original `createdAt` and clock `updatedAt`; Redo refuses on an existing id and a missing parent; a project created `archived` is not self-blocked | Executors. |
 | `domain/operation-history-service.test.ts`: full create→Undo→Redo→Undo cycle via `transition`; same-actor later write → `history_not_next`; another actor's history (even after it undid everything) → through `transition`, reason `history_retired` with **no Activity event, no frame**, cursor moved, revision +1; a preflight conflict answers `history_conflict`, never a 500; a forced second-run refusal rolls the unit back (no audit line); creation with the clock set forward, then `reset`, then creation Undo commits (commit-time integrity accepts the earlier-stamped Undo); archived parent → `history_blocked` both directions, per-entry `blockedBy` names it; Q-reparent Redo after creation Undo → `missing`, not retired; `summary` at an absent id — own actor gets Redo, another user in the same workspace, another agent connection, a foreign workspace and a never-existed id get not-found; one Activity event per executed transition, recorded before removal, captured root correct; injected persistence failure leaves project, history and Activity unchanged | Service semantics, ordering and disclosure. |
 | `domain/activity-service.test.ts`, `dashboard-service.test.ts`: feed and agent tile read a `project.creation_undone` event and a task event inside a removed project; `projectName` is the captured label for the former, omitted for the latter | Audit readability without wrong names. |
@@ -505,6 +509,11 @@ Resolved by default; each goes into the new decision entry:
   system map limited project history to existing-project writes, and MCP transport's family map
   description omitted creation. Added both exact documentation paths; the transport metadata shape
   itself remains unchanged.
+- **Round 10 (2026-09-23):** The first full domain run found two tests whose exact action lists
+  assumed a created sub-project had only later section writes. Added the project-page and shortcut
+  history tests to the file and test checklists; both must now assert the own-history `project.add`
+  while preserving their root-versus-source ownership checks. Re-review confirmed these assertions
+  cover the full finding with no substantive gaps.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 

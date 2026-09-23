@@ -1,12 +1,17 @@
 import {
+  ProjectAddOperationSchema,
   ProjectArchiveOperationSchema,
+  ProjectPageSchema,
   ProjectReactivateOperationSchema,
   ProjectSchema,
   ProjectUpdateOperationSchema,
   type OperationHistoryDirection,
+  type OperationHistoryId,
   type Project,
+  type ProjectAddOperation,
   type ProjectFieldChange,
   type ProjectId,
+  type ProjectPage,
   type ProjectUndoOperation,
   type RedoResult,
   type SectionShortcut,
@@ -14,10 +19,19 @@ import {
   type UndoConflictNextStep,
   type UndoResult,
 } from '@cwm/contracts';
-import type { ProjectPageRepository, ProjectRepository, SectionRepository, SectionShortcutRepository } from '@cwm/repositories';
+import type {
+  MilestoneRepository,
+  OperationHistoryRepository,
+  ProjectPageRepository,
+  ProjectRepository,
+  ReflectionRepository,
+  SectionRepository,
+  SectionShortcutRepository,
+  TaskRepository,
+} from '@cwm/repositories';
 import type { Clock } from './clock';
 import { EntityNotFoundError } from './errors';
-import { directionWord, refuseOnConflicts } from './operation-execution';
+import { OperationExecutionRefused, directionWord, refuseOnConflicts } from './operation-execution';
 
 /**
  * **Capture, Undo and Redo for existing-project writes** (Slice 39, §§26, 31, 39;
@@ -50,6 +64,175 @@ export interface ProjectHistoryRepositories {
   shortcuts: SectionShortcutRepository;
 }
 
+/** Additional reads used only to prove a new project has no dependants before creation Undo. */
+export interface ProjectAddHistoryRepositories extends ProjectHistoryRepositories {
+  tasks: TaskRepository;
+  reflections: ReflectionRepository;
+  milestones: MilestoneRepository;
+  histories: OperationHistoryRepository;
+}
+
+/** Existing-project history payloads; their executor stays separate from project creation. */
+type ProjectWriteOperation = Exclude<ProjectUndoOperation, ProjectAddOperation>;
+
+/** The creation footprint is the project and its canonical page, captured as one action. */
+export const captureProjectAdd = (project: Project, page: ProjectPage): ProjectAddOperation =>
+  ProjectAddOperationSchema.parse({ version: 1, type: 'project.add', project, page });
+
+/** The receipt and history use one stable label for creation. */
+export const projectAddLabel = (project: Project): string => `Created "${project.name}"`;
+
+const creationConflict = (
+  entityType: 'section' | 'task' | 'reflection' | 'shortcut' | 'page' | 'project',
+  id: string,
+  problem: UndoConflict['problem'],
+  nextStep: UndoConflictNextStep,
+  title?: string,
+): UndoConflict => ({ entityType, id, problem, nextStep, ...(title === undefined ? {} : { title }) });
+
+const withoutUpdatedAt = <T extends { updatedAt: string }>(record: T): Omit<T, 'updatedAt'> => {
+  const { updatedAt: _updatedAt, ...rest } = record;
+  return rest;
+};
+
+/**
+ * Read-only proof for creation Undo. It runs before the service records the removal Activity line,
+ * so a permanent conflict can retire the action without leaving an audit event or live frame.
+ */
+export const preflightProjectAddUndo = async (
+  repositories: ProjectAddHistoryRepositories,
+  operation: ProjectAddOperation,
+  historyId: OperationHistoryId,
+): Promise<void> => {
+  const { project, page } = operation;
+  const current = await repositories.projects.find(project.id);
+  const conflicts: UndoConflict[] = [];
+  const permanent = new Set<UndoConflict>();
+
+  if (current === null) {
+    conflicts.push(creationConflict('project', project.id, 'missing', 'nothing-to-undo'));
+  } else if (JSON.stringify(withoutUpdatedAt(current)) !== JSON.stringify(withoutUpdatedAt(project))) {
+    conflicts.push(creationConflict('project', project.id, 'field-changed', 'change-by-hand', current.name));
+  }
+
+  const currentPage = await repositories.pages.find(page.id);
+  if (currentPage === null) {
+    conflicts.push(creationConflict('page', page.id, 'missing', 'nothing-to-undo'));
+  } else if (JSON.stringify(withoutUpdatedAt(currentPage)) !== JSON.stringify(withoutUpdatedAt(page))) {
+    conflicts.push(creationConflict('page', page.id, 'field-changed', 'change-by-hand'));
+  }
+
+  const [pages, sections, tasks, reflections, milestones, children, allReflections, shortcuts, histories] = await Promise.all([
+    repositories.pages.list({ projectId: project.id }),
+    repositories.sections.list({ projectId: project.id, includeArchived: true }),
+    repositories.tasks.list({ projectId: project.id, includeArchived: true }),
+    repositories.reflections.list({ projectId: project.id, includeArchived: true }),
+    repositories.milestones.list({ projectId: project.id }),
+    repositories.projects.list({ workspaceId: project.workspaceId, parentProjectId: project.id }),
+    repositories.reflections.list({ includeArchived: true }),
+    repositories.shortcuts.list({ pageId: page.id }),
+    repositories.histories.list({ projectId: project.id }),
+  ]);
+
+  for (const extra of pages.filter((candidate) => candidate.id !== page.id)) {
+    conflicts.push(creationConflict('page', extra.id, 'new-dependent', 'restore-or-move-dependent-and-retry'));
+  }
+  for (const section of sections) {
+    conflicts.push(creationConflict('section', section.id, 'new-dependent', 'restore-or-move-dependent-and-retry', section.title));
+  }
+  for (const task of tasks) {
+    conflicts.push(creationConflict('task', task.id, 'new-dependent', 'restore-or-move-dependent-and-retry', task.title));
+  }
+  for (const reflection of reflections) {
+    conflicts.push(creationConflict(
+      'reflection', reflection.id, 'new-dependent', 'restore-or-move-dependent-and-retry',
+      reflection.title?.trim() || undefined,
+    ));
+  }
+  if (milestones.length > 0) {
+    conflicts.push(creationConflict('project', project.id, 'new-dependent', 'restore-or-move-dependent-and-retry', current?.name));
+  }
+  for (const child of children) {
+    conflicts.push(creationConflict('project', child.id, 'new-dependent', 'restore-or-move-dependent-and-retry', child.name));
+  }
+  for (const reflection of allReflections) {
+    if (reflection.projectId !== project.id && reflection.subject?.kind === 'subproject' && reflection.subject.id === project.id) {
+      conflicts.push(creationConflict(
+        'reflection', reflection.id, 'new-dependent', 'restore-or-move-dependent-and-retry',
+        reflection.title?.trim() || undefined,
+      ));
+    }
+  }
+  for (const shortcut of shortcuts) {
+    conflicts.push(creationConflict('shortcut', shortcut.id, 'new-dependent', 'restore-or-move-dependent-and-retry'));
+  }
+  if (histories.some((candidate) => candidate.id !== historyId)) {
+    const conflict = creationConflict('project', project.id, 'new-dependent', 'change-by-hand', current?.name);
+    conflicts.push(conflict);
+    permanent.add(conflict);
+  }
+
+  refuseOnConflicts(
+    conflicts,
+    (shown) => `Undo of creating "${project.name}" was refused: ${shown}`,
+    (conflict) => permanent.has(conflict),
+  );
+};
+
+/** Undo: remove only the captured, still-untouched project and canonical page. */
+export const revertProjectAdd = async (
+  repositories: ProjectAddHistoryRepositories,
+  operation: ProjectAddOperation,
+  historyId: OperationHistoryId,
+): Promise<UndoResult> => {
+  try {
+    await preflightProjectAddUndo(repositories, operation, historyId);
+  } catch (error) {
+    if (error instanceof OperationExecutionRefused) {
+      // The service already preflighted before recording Activity. A second refusal can only mean
+      // an invariant changed inside this unit, so propagate a defect and roll the unit back.
+      throw new TypeError('project.add Undo preflight changed inside its unit of work', { cause: error });
+    }
+    throw error;
+  }
+  await repositories.pages.remove(operation.page.id);
+  await repositories.projects.remove(operation.project.id);
+  return { operation: 'project.add', outcome: 'removed', projectId: operation.project.id };
+};
+
+/** Redo: recreate both captured records with stable ids and creation times. */
+export const reapplyProjectAdd = async (
+  repositories: ProjectAddHistoryRepositories,
+  clock: Clock,
+  operation: ProjectAddOperation,
+): Promise<RedoResult> => {
+  const conflicts: UndoConflict[] = [];
+  if (await repositories.projects.find(operation.project.id) !== null) {
+    conflicts.push(creationConflict('project', operation.project.id, 'already-exists', 'change-by-hand', operation.project.name));
+  }
+  if (await repositories.pages.find(operation.page.id) !== null) {
+    conflicts.push(creationConflict('page', operation.page.id, 'already-exists', 'change-by-hand'));
+  }
+  if (operation.project.kind === 'subproject') {
+    const parent = await repositories.projects.find(operation.project.parentProjectId);
+    if (parent === null || parent.workspaceId !== operation.project.workspaceId) {
+      conflicts.push(creationConflict('project', operation.project.parentProjectId, 'missing', 'nothing-to-undo'));
+    }
+  }
+  refuseOnConflicts(
+    conflicts,
+    (shown) => `Redo of creating "${operation.project.name}" was refused: ${shown}`,
+    () => false,
+  );
+
+  const updatedAt = clock.now().toISOString();
+  const project = ProjectSchema.parse({ ...operation.project, updatedAt });
+  const page = ProjectPageSchema.parse({ ...operation.page, updatedAt });
+  await repositories.projects.insert(project);
+  await repositories.pages.insert(page);
+  return { operation: 'project.add', outcome: 'reapplied', project, page };
+};
+
 type Field = ProjectFieldChange['field'];
 
 /** The recorded fields, in the order a footprint lists them. `status` and `completedAt` stay adjacent. */
@@ -73,7 +256,7 @@ const valueOf = (project: Project, field: Field): unknown => (project as Record<
  * The operation one committed write stores, from the project before it and the normalized project
  * it wrote (`updatedAt` aside). The status decides the kind; everything else is `changes`.
  */
-export const captureProjectWrite = (before: Project, after: Project): ProjectUndoOperation => {
+export const captureProjectWrite = (before: Project, after: Project): ProjectWriteOperation => {
   const changes = FIELDS.flatMap((field) => {
     const was = valueOf(before, field);
     const now = valueOf(after, field);
@@ -120,7 +303,7 @@ const STATUS_WORD: Record<Project['status'], string> = {
  * one user-facing edit is `Edited "X"`. `parentName` is the new parent's name for a move, read by
  * the caller; without it a move is `Moved "X"`.
  */
-export const projectWriteLabel = (operation: ProjectUndoOperation, after: Project, parentName?: string): string => {
+export const projectWriteLabel = (operation: ProjectWriteOperation, after: Project, parentName?: string): string => {
   const subject = `"${after.name}"`;
   if (operation.type === 'project.archive') return `Archived ${subject}`;
   if (operation.type === 'project.reactivate') return `Reactivated ${subject}`;
@@ -162,7 +345,7 @@ export const projectWriteLabel = (operation: ProjectUndoOperation, after: Projec
  * itself a write whose Undo starts from an archived subject, and a reactivation's Redo does too;
  * without these three the cursor would wedge on the very project the actions are about.
  */
-export const mayRunWhileSubjectArchived = (operation: ProjectUndoOperation, direction: OperationHistoryDirection): boolean =>
+export const mayRunWhileSubjectArchived = (operation: ProjectWriteOperation, direction: OperationHistoryDirection): boolean =>
   (operation.type === 'project.archive' && direction === 'undo') ||
   (operation.type === 'project.reactivate' && direction === 'redo') ||
   (operation.type === 'project.update' && operation.archivedThroughout);
@@ -199,7 +382,7 @@ const conflict = (id: string, problem: UndoConflict['problem'], title?: string):
 });
 
 /** Refuses on conflicts. None is permanent: every one describes a tree someone can put back. */
-const refuse = (direction: OperationHistoryDirection, operation: ProjectUndoOperation, subject: string, conflicts: readonly UndoConflict[]): void =>
+const refuse = (direction: OperationHistoryDirection, operation: ProjectWriteOperation, subject: string, conflicts: readonly UndoConflict[]): void =>
   refuseOnConflicts(
     conflicts,
     (shown) => `${directionWord(direction)} of the ${operation.type.replace('project.', '')} on ${subject} was refused: ${shown}`,
@@ -316,7 +499,7 @@ const crossRootShortcutConflicts = async (
 const writeProject = async (
   repositories: ProjectHistoryRepositories,
   clock: Clock,
-  operation: ProjectUndoOperation,
+  operation: ProjectWriteOperation,
   direction: OperationHistoryDirection,
 ): Promise<Project> => {
   const expected = direction === 'undo' ? 'after' : 'before';
@@ -373,7 +556,7 @@ const writeProject = async (
 export const revertProjectWrite = async (
   repositories: ProjectHistoryRepositories,
   clock: Clock,
-  operation: ProjectUndoOperation,
+  operation: ProjectWriteOperation,
 ): Promise<UndoResult> =>
   ({ operation: operation.type, outcome: 'restored', project: await writeProject(repositories, clock, operation, 'undo') }) as UndoResult;
 
@@ -381,6 +564,6 @@ export const revertProjectWrite = async (
 export const reapplyProjectWrite = async (
   repositories: ProjectHistoryRepositories,
   clock: Clock,
-  operation: ProjectUndoOperation,
+  operation: ProjectWriteOperation,
 ): Promise<RedoResult> =>
   ({ operation: operation.type, outcome: 'reapplied', project: await writeProject(repositories, clock, operation, 'redo') }) as RedoResult;

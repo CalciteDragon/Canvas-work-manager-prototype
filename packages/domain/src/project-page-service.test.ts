@@ -149,7 +149,7 @@ describe('ProjectPageService.setEnabled (§26, §31)', () => {
     const nestedActions = (
       await Promise.all(nested.map((history) => harness.operationActions.list({ historyId: history.id })))
     ).flat();
-    expect(nestedActions.map(({ operation }) => operation.type)).toEqual(['section.add']);
+    expect(nestedActions.map(({ operation }) => operation.type)).toEqual(['project.add', 'section.add']);
   });
 
   /**

@@ -323,6 +323,14 @@ export class ActivityService {
 
   private async projectName(event: ActivityEvent): Promise<string | undefined> {
     if (event.projectId === undefined) return undefined;
-    return (await this.dependencies.projects.find(event.projectId))?.name;
+    const project = await this.dependencies.projects.find(event.projectId);
+    if (project !== null) return project.name;
+    // A project creation lifecycle event targets the project itself, so its captured label is
+    // still an honest project name after creation Undo removes the current record. A task or
+    // reflection event only happened *inside* that project; its target label cannot stand in for
+    // the missing project name.
+    return event.entityType === 'project' && event.entityId === event.projectId
+      ? event.context.targetLabel
+      : undefined;
   }
 }

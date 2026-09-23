@@ -19,7 +19,7 @@ import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
 import type { OperationRecorder } from './operation-recorder';
-import { captureProjectWrite, projectWriteLabel, shortcutsCarriedAcrossRoots } from './project-history';
+import { captureProjectAdd, captureProjectWrite, projectAddLabel, projectWriteLabel, shortcutsCarriedAcrossRoots } from './project-history';
 import { archivedAncestry } from './project-visibility';
 
 /**
@@ -43,9 +43,9 @@ export interface ProjectServiceDependencies {
   shortcuts: SectionShortcutRepository;
   activity: ActivityService;
   /**
-   * Makes each changed update or archive of an existing project undoable, in the **subject's own**
-   * history (Slice 39, §31) — never its root's, so a reparent that changes the root moves nothing
-   * between histories. `create` does not record yet.
+   * Makes creation and every changed update or archive undoable in the **subject's own** history
+   * (Slices 39 and 42, §31) — never its root's, so a sub-project creation and a reparent that
+   * changes the root move nothing between histories.
    */
   history: OperationRecorder;
   clock: Clock;
@@ -107,7 +107,7 @@ export class ProjectService {
     return matching.filter((project) => !ancestry.isHidden(project.id));
   }
 
-  async create(actor: ActorContext, input: CreateProjectInput): Promise<Project> {
+  async create(actor: ActorContext, input: CreateProjectInput): Promise<ProjectWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
     if (input.workspaceId !== actor.workspaceId) {
@@ -152,16 +152,15 @@ export class ProjectService {
       // In the same unit as the owner: a project with no canonical page has nowhere to put a
       // section, which `validateDocumentIntegrity` rejects — so the pair commits or neither
       // does. No separate "ensure page" path exists to drift from this one.
-      await this.dependencies.pages.insert(
-        ProjectPageSchema.parse({
+      const page = ProjectPageSchema.parse({
           id: ProjectPageIdSchema.parse(this.dependencies.ids.next('projectPage')),
           projectId: project.id,
           kind: canonicalPageKindFor(project.kind),
           enabled: true,
           createdAt: now,
           updatedAt: now,
-        }),
-      );
+        });
+      await this.dependencies.pages.insert(page);
       await this.dependencies.activity.record(actor, {
         action: 'project.created',
         entityType: 'project',
@@ -169,7 +168,13 @@ export class ProjectService {
         projectId: project.id,
         summary: `Created "${project.name}"`,
       });
-      return project;
+      const operation = captureProjectAdd(project, page);
+      const receipt = await this.dependencies.history.record(actor, {
+        projectId: project.id,
+        label: projectAddLabel(project),
+        operation,
+      });
+      return ProjectWriteResultSchema.parse({ project, operation: receipt });
     });
   }
 

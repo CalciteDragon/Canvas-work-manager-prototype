@@ -46,11 +46,11 @@ describe('shortcut placement history (§§27, 31)', () => {
     const action = (await h.operationActions.list()).find((candidate) => candidate.id === created.operation.actionId)!;
     const history = (await h.operationHistories.find(action.historyId))!;
     expect(history.projectId).toBe(MINE);
-    // The child's own history exists — its section was added there — but no placement action
-    // ever enters it: the source project is not where this write happened.
+    // The child's own history starts with creation and then records its section, but no placement
+    // action ever enters it: the source project is not where this write happened.
     const childHistories = await h.operationHistories.list({ projectId: child.id });
     const childActions = (await Promise.all(childHistories.map((candidate) => h.operationActions.list({ historyId: candidate.id })))).flat();
-    expect(childActions.map((candidate) => candidate.operation.type)).toEqual(['section.add']);
+    expect(childActions.map((candidate) => candidate.operation.type)).toEqual(['project.add', 'section.add']);
   });
 
   it('reverses and replays add, resize, collapse, move and remove in one stack', async () => {

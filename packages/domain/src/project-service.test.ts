@@ -12,8 +12,8 @@ type CreateOverrides = Partial<CreateSubprojectInput>;
  * overrides as the sub-project branch is what lets a caller pass `parentProjectId` — the
  * default `{}` inferred as `{}` and could carry neither.
  */
-const create = (harness: ReturnType<typeof buildHarness>, overrides: CreateOverrides = {}) =>
-  harness.projectService.create(harness.actor, {
+const createWrite = (harness: ReturnType<typeof buildHarness>, overrides: CreateOverrides = {}) =>
+  harness.projectWriteService.create(harness.actor, {
     workspaceId: harness.actor.workspaceId,
     name: 'Work Manager',
     // A parent is what makes something a unit of work rather than a workspace (§26), so the
@@ -21,12 +21,15 @@ const create = (harness: ReturnType<typeof buildHarness>, overrides: CreateOverr
     kind: overrides.parentProjectId === undefined ? 'root' : 'subproject',
     ...overrides,
   } as CreateProjectInput);
+const create = async (harness: ReturnType<typeof buildHarness>, overrides: CreateOverrides = {}) =>
+  (await createWrite(harness, overrides)).project;
 
 describe('ProjectService.create', () => {
   it('creates in the actor’s workspace with clock timestamps', async () => {
     const harness = buildHarness();
 
-    const project = await create(harness);
+    const write = await createWrite(harness);
+    const project = write.project;
 
     expect(() => ProjectSchema.parse(project)).not.toThrow();
     expect(project).toMatchObject({
@@ -35,6 +38,12 @@ describe('ProjectService.create', () => {
       createdAt: NOW,
       updatedAt: NOW,
     });
+    expect(write.operation).toMatchObject({ operation: 'project.add', label: 'Created "Work Manager"' });
+    const action = await harness.operationActions.find(write.operation!.actionId);
+    expect(action).toMatchObject({ order: 1, state: 'applied', operation: {
+      version: 1, type: 'project.add', project,
+      page: { projectId: project.id, kind: 'home', enabled: true },
+    } });
   });
 
   it('rejects a create naming another workspace', async () => {
@@ -49,6 +58,21 @@ describe('ProjectService.create', () => {
     const child = await create(harness, { name: 'Sub', parentProjectId: MINE });
 
     expect(child.parentProjectId).toBe(MINE);
+  });
+
+  it('records a sub-project in its own history rather than its parent’s', async () => {
+    const harness = buildHarness();
+
+    const write = await harness.projectWriteService.create(harness.actor, {
+      workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Own history',
+    });
+    const history = await harness.operationHistories.find(write.operation!.historyId);
+    const [action] = await harness.operationActions.list({ historyId: write.operation!.historyId });
+
+    expect(history).toMatchObject({ projectId: write.project.id, workspaceId: harness.actor.workspaceId });
+    expect(write.operation).toMatchObject({ operation: 'project.add', label: 'Created "Own history"', revision: 1 });
+    expect(action?.operation).toMatchObject({ type: 'project.add', project: { id: write.project.id }, page: { projectId: write.project.id, kind: 'work' } });
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).historyId).toBeNull();
   });
 
   it('rejects a parent that does not exist or belongs to another workspace', async () => {
@@ -376,21 +400,21 @@ describe('ProjectService owner kinds and pages', () => {
   });
 });
 
-describe('ProjectService write results and history (Slice 39, §31)', () => {
+describe('ProjectService write results and history (Slices 39 and 42, §31)', () => {
   it('answers one receipt per changed update and archive, and a null receipt for a no-op', async () => {
     const harness = buildHarness();
     const child = await create(harness, { name: 'Child', parentProjectId: MINE });
 
     const renamed = await harness.projectWriteService.update(harness.actor, child.id, { name: 'Renamed', targetDate: '2026-10-01' });
     expect(renamed.project).toMatchObject({ id: child.id, name: 'Renamed', targetDate: '2026-10-01' });
-    expect(renamed.operation).toMatchObject({ operation: 'project.update', label: 'Edited "Renamed"', revision: 1 });
+    expect(renamed.operation).toMatchObject({ operation: 'project.update', label: 'Edited "Renamed"', revision: 2 });
 
     const archived = await harness.projectWriteService.archive(harness.actor, child.id);
-    expect(archived.operation).toMatchObject({ operation: 'project.archive', historyId: renamed.operation!.historyId, revision: 2 });
+    expect(archived.operation).toMatchObject({ operation: 'project.archive', historyId: renamed.operation!.historyId, revision: 3 });
 
     expect((await harness.projectWriteService.archive(harness.actor, child.id)).operation).toBeNull();
     expect((await harness.projectWriteService.update(harness.actor, child.id, { name: 'Renamed' })).operation).toBeNull();
-    expect(await harness.operationActions.list({ historyId: renamed.operation!.historyId })).toHaveLength(2);
+    expect(await harness.operationActions.list({ historyId: renamed.operation!.historyId })).toHaveLength(3);
   });
 
   it('records a PATCH that changes status and other fields as one action and one activity event', async () => {
@@ -436,13 +460,15 @@ describe('ProjectService write results and history (Slice 39, §31)', () => {
     expect(JSON.stringify(harness.store.snapshot())).toEqual(before);
   });
 
-  it('keeps create answering the bare project, with nothing recorded', async () => {
+  it('rolls back the project, page, Activity and creation action when persistence fails', async () => {
     const harness = buildHarness();
+    const before = JSON.stringify(harness.store.snapshot());
+    harness.store.persistFailure = new Error('disk full');
 
-    const project = await create(harness);
+    await expect(createWrite(harness)).rejects.toThrow('disk full');
+    harness.store.persistFailure = undefined;
 
-    expect(project).not.toHaveProperty('operation');
-    expect(harness.store.snapshot().operationActions).toEqual([]);
+    expect(JSON.stringify(harness.store.snapshot())).toEqual(before);
   });
 });
 

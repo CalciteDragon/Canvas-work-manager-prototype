@@ -130,6 +130,10 @@ export const retireOperationAction = (state: OperationHistoryState, actionId: Op
  *
  * Expiry is lazy: the recorder prunes only after its next record, so an expired action can still be the
  * next step and refuse `history_expired` until then.
+ *
+ * A project absent after creation Undo cannot receive another write, and every recording write
+ * prunes only its own history. Its undone `project.add` therefore remains the operation-history
+ * anchor for that absence; pruning in any other history cannot remove it (Slice 42).
  */
 export const pruneOperationHistory = (state: OperationHistoryState, nowMs: number, limit = OPERATION_HISTORY_LIMIT): OperationHistoryState => {
   if (!Number.isInteger(limit) || limit < 1) throw new RangeError('history retention limit must be a positive integer');
