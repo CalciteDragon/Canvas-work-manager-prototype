@@ -473,7 +473,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(document.activeElement).toBe(query(fixture, '[data-section-item][data-section-id="section-text"] [data-section-drag-handle]'));
   });
 
-  it('moves focus from the removed section to Undo, then to the restored heading', async () => {
+  it('moves focus from the removed section to the recovery notice’s Open Archive, and offers no Undo here', async () => {
     const { fixture } = await render();
     const remove = query(fixture, '[data-section-id="section-text"] [data-section-remove]') as HTMLButtonElement;
     remove.focus();
@@ -484,18 +484,12 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const undo = query(fixture, '[data-undo-action]') as HTMLButtonElement;
-    expect(undo).not.toBeNull();
-    expect(document.activeElement).toBe(undo);
-
-    undo.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(query(fixture, '[data-section-id="section-text"]')).not.toBeNull();
-    expect(document.activeElement).toBe(
-      query(fixture, '[data-section-id="section-text"] [data-section-title]'),
-    );
+    // Slice 41: Undo is the header's; the notice keeps only recovery the header cannot offer.
+    expect(query(fixture, '[data-undo-action]')).toBeNull();
+    expect(query(fixture, '[data-recovery-message]')?.textContent).toBe('Removed the Rich Text section. Undo is in the header.');
+    const archive = query(fixture, '[data-open-archive]') as HTMLButtonElement;
+    expect(archive).not.toBeNull();
+    expect(document.activeElement).toBe(archive);
   });
 
   it('does not steal focus when a removal was started outside its section frame', async () => {
@@ -505,26 +499,26 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-undo-action]')).not.toBeNull();
-    expect(document.activeElement).not.toBe(query(fixture, '[data-undo-action]'));
+    expect(query(fixture, '[data-recovery-notice]')).not.toBeNull();
+    expect(document.activeElement).not.toBe(query(fixture, '[data-open-archive]'));
   });
 
-  it('returns focus to surviving canvas content when the Undo notice is dismissed', async () => {
+  it('returns focus to surviving canvas content when the recovery notice is dismissed', async () => {
     const { fixture } = await render();
     const remove = query(fixture, '[data-section-id="section-text"] [data-section-remove]') as HTMLButtonElement;
     remove.focus();
     remove.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    query(fixture, '[data-dismiss-undo-notice]')!.click();
+    query(fixture, '[data-dismiss-recovery-notice]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(query(fixture, '[data-undo-notice]')).toBeNull();
+    expect(query(fixture, '[data-recovery-notice]')).toBeNull();
     expect(document.activeElement).toBe(query(fixture, '[data-section-title]'));
   });
 
-  it('dismisses Undo and remove failures independently and focuses the remaining action', async () => {
+  it('dismisses the recovery notice and remove failures independently and focuses the remaining action', async () => {
     const { fixture, gateway } = await render();
     const removeSection = gateway.sections.remove.bind(gateway.sections);
     gateway.sections.remove = async (id, input) => {
@@ -538,165 +532,39 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     query(fixture, '[data-section-id="section-tasks"] [data-section-remove]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(query(fixture, '[data-undo-action]')).not.toBeNull();
+    expect(query(fixture, '[data-open-archive]')).not.toBeNull();
     expect(query(fixture, '[data-retry-remove]')).not.toBeNull();
 
     query(fixture, '[data-dismiss-removal-error]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(query(fixture, '[data-undo-action]')).not.toBeNull();
-    expect(document.activeElement).toBe(query(fixture, '[data-undo-action]'));
+    expect(query(fixture, '[data-open-archive]')).not.toBeNull();
+    expect(document.activeElement).toBe(query(fixture, '[data-open-archive]'));
 
     query(fixture, '[data-section-id="section-tasks"] [data-section-remove]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    query(fixture, '[data-dismiss-undo-notice]')!.click();
+    query(fixture, '[data-dismiss-recovery-notice]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(query(fixture, '[data-undo-notice]')).toBeNull();
+    expect(query(fixture, '[data-recovery-notice]')).toBeNull();
     expect(query(fixture, '[data-retry-remove]')).not.toBeNull();
     expect(document.activeElement).toBe(query(fixture, '[data-retry-remove]'));
   });
 
-  /** Slice 33 (Refactor §26.9–10): where focus lands after each edit Undo result. */
-  describe('edit Undo focus', () => {
-    const settle = async (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
-      await fixture.whenStable();
-      fixture.detectChanges();
-      await completeDeferredBlocks(fixture);
-      await fixture.whenStable();
-      fixture.detectChanges();
-    };
+  it('shows no notice after a forward write whose read succeeded: the header label is its confirmation', async () => {
+    const { fixture } = await render();
+    const grip = query(fixture, '[data-section-id="section-text"] [data-section-drag-handle]')!;
+    grip.focus();
+    grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await completeDeferredBlocks(fixture);
+    fixture.detectChanges();
 
-    const keyboardMove = async (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
-      const grip = query(fixture, '[data-section-id="section-text"] [data-section-drag-handle]')!;
-      grip.focus();
-      grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-      await settle(fixture);
-    };
-
-    const clickUndo = async (fixture: Awaited<ReturnType<typeof render>>['fixture']) => {
-      const undo = query(fixture, '[data-undo-action]') as HTMLButtonElement;
-      expect(undo).not.toBeNull();
-      undo.focus();
-      undo.click();
-      await settle(fixture);
-      return undo;
-    };
-
-    /** The fake gateway's first receipt, refused with host-shaped details. */
-    const refusal = (details: Record<string, unknown>) =>
-      new GatewayError('rule_violation', 409, 'Undo was refused', {
-        historyId: 'history-fake',
-        actionId: 'operation-fake-1',
-        summary: { projectId: 'project-a', historyId: 'history-fake', revision: 1, undo: null, redo: null, blockedBy: null },
-        ...details,
-      });
-
-    it('add Undo focuses notice after removing subject', async () => {
-      const { fixture } = await render({ sections: [] });
-      query(fixture, '[data-empty-canvas-add]')!.click();
-      fixture.detectChanges();
-      await completeDeferredBlocks(fixture);
-      query(fixture, '[data-create-section-submit]')!.click();
-      await settle(fixture);
-      expect(queryAll(fixture, '[data-section-item]')).toHaveLength(1);
-
-      await clickUndo(fixture);
-
-      expect(queryAll(fixture, '[data-section-item]')).toHaveLength(0);
-      expect(document.activeElement).toBe(query(fixture, '[data-undo-notice]'));
-    });
-
-    it('move/update Undo focuses surviving section title', async () => {
-      // A persisted title, so the fake's field restore has a prior value to put back.
-      const { fixture } = await render({
-        sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1, { title: 'Tasks' })],
-      });
-      await keyboardMove(fixture);
-      await clickUndo(fixture);
-      expect(queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId'])).toEqual(['section-text', 'section-tasks']);
-      expect(document.activeElement).toBe(query(fixture, '[data-section-id="section-text"] [data-section-title]'));
-
-      query(fixture, '[data-section-id="section-tasks"] [data-section-title-edit]')!.click();
-      fixture.detectChanges();
-      const input = query(fixture, '[data-section-name]') as HTMLInputElement;
-      input.value = 'Backlog';
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      await settle(fixture);
-      await clickUndo(fixture);
-
-      expect(query(fixture, '[data-section-id="section-tasks"] .section-frame__title')?.textContent).toContain('Tasks');
-      expect(document.activeElement).toBe(query(fixture, '[data-section-id="section-tasks"] [data-section-title]'));
-    });
-
-    it('refused Undo retains focus on the visible, still-enabled button for every repairable refusal', async () => {
-      const { fixture, gateway } = await render();
-      await keyboardMove(fixture);
-      const execute = vi.fn()
-        .mockRejectedValueOnce(refusal({ reason: 'history_blocked', blockingProjectId: 'project-a', blockingProjectTitle: 'Website launch' }))
-        .mockRejectedValueOnce(refusal({
-          reason: 'history_conflict',
-          conflicts: [{ entityType: 'section', id: 'section-text', problem: 'missing', nextStep: 'nothing-to-undo' }],
-        }));
-      gateway.history.transition = execute;
-
-      const reparable = await clickUndo(fixture);
-      expect(query(fixture, '[data-undo-action]')).toBe(reparable);
-      expect(reparable.getAttribute('aria-disabled')).toBe('false');
-      expect(document.activeElement).toBe(reparable);
-
-      const missing = await clickUndo(fixture);
-      expect(execute).toHaveBeenCalledTimes(2);
-      expect(query(fixture, '[data-undo-action]')).toBe(missing);
-      expect(missing.getAttribute('aria-disabled')).toBe('false');
-      expect(document.activeElement).toBe(missing);
-    });
-
-    it('late Undo cannot steal focus after navigation or newer receipt', async () => {
-      for (const interruption of ['navigation', 'newer receipt'] as const) {
-        TestBed.resetTestingModule();
-        const { fixture, gateway } = await render();
-        await keyboardMove(fixture);
-        const gate = deferred<void>();
-        const execute = gateway.history.transition.bind(gateway.history);
-        let executed = 0;
-        gateway.history.transition = (historyId, input) => gate.promise.then(() => execute(historyId, input)).then((result) => { executed += 1; return result; });
-        const outside = document.createElement('button');
-        document.body.appendChild(outside);
-        try {
-          const undo = query(fixture, '[data-undo-action]') as HTMLButtonElement;
-          undo.focus();
-          undo.click();
-          fixture.detectChanges();
-
-          if (interruption === 'navigation') {
-            fixture.componentRef.setInput('pageId', 'page-elsewhere');
-            fixture.detectChanges();
-          } else {
-            query(fixture, '[data-section-id="section-tasks"] [data-section-title-edit]')!.click();
-            fixture.detectChanges();
-            const input = query(fixture, '[data-section-name]') as HTMLInputElement;
-            input.value = 'Newer';
-            // Committed by blur, which deliberately leaves focus where the user put it.
-            input.focus();
-          }
-          outside.focus();
-          fixture.detectChanges();
-          gate.resolve();
-          await settle(fixture);
-
-          // The late result really arrived, and the interruption really happened, so focus staying put is the guard.
-          expect(executed, interruption).toBe(1);
-          if (interruption === 'newer receipt') {
-            expect(gateway.calls.filter(({ method }) => method === 'sections.update').at(-1)?.argument).toMatchObject({ input: { title: 'Newer' } });
-          }
-          expect(document.activeElement, interruption).toBe(outside);
-        } finally {
-          outside.remove();
-        }
-      }
-    });
+    expect(queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId'])).toEqual(['section-tasks', 'section-text']);
+    expect(query(fixture, '[data-recovery-notice]')).toBeNull();
+    expect(query(fixture, '[data-undo-action]')).toBeNull();
   });
 
   it('renders a removable fallback for a section type nothing registers', async () => {
@@ -882,7 +750,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(gateway.calls.filter(({ method }) => method === 'sections.remove').at(-1)?.argument).toMatchObject({
       input: { policy: 'cascade' },
     });
-    expect(document.activeElement).toBe(query(fixture, '[data-undo-action]'));
+    expect(document.activeElement).toBe(query(fixture, '[data-open-archive]'));
   });
 
   it('reloads every duplicated Progress view after one changes the canonical formula', async () => {

@@ -20,6 +20,7 @@ import { FakeWorkManagerGateway, type FakeGatewayOptions } from '../../core/gate
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { FakeLiveUpdates } from '../../core/live/testing/fake-live-updates';
 import { ProjectWorkspaceStore } from './project-workspace-store';
+import { provideRecordingReporter } from '../../core/history/testing/recording-reporter';
 
 const AT = '2026-08-27T16:00:00.000Z';
 
@@ -727,5 +728,48 @@ describe('ProjectWorkspaceStore — the project’s own writes (§26, §63, §81
     expect(archived).toBe(false);
     expect(store.project()?.status).toBe('active');
     expect(store.writeError()).toContain('archive its live sub-projects first');
+  });
+});
+
+describe('ProjectWorkspaceStore reports to the header’s history (Slice 41)', () => {
+  it('applies the returned archived project, so the header reads archived without a frame', async () => {
+    const reporter = provideRecordingReporter();
+    const { store } = storeWith({ projects: renovation() });
+    await store.load('project-garden' as ProjectId);
+
+    expect(await store.archive()).toBe(true);
+
+    expect(store.project()?.status).toBe('archived');
+    expect(reporter.events).toEqual([
+      'begin',
+      { projectId: 'project-garden', projectName: 'Garden', receipt: expect.objectContaining({ operation: 'project.archive' }) },
+      'end',
+    ]);
+  });
+
+  it('reports a page toggle with the root’s id, even from a sub-project', async () => {
+    const reporter = provideRecordingReporter();
+    const { store } = storeWith({ projects: renovation(), pages: [page('page-renovation-home', 'project-renovation', 'home')] });
+    await store.load('project-kitchen' as ProjectId);
+
+    expect(await store.setPageEnabled('reflections', true)).toBe(true);
+
+    expect(reporter.events).toEqual([
+      'begin',
+      { projectId: 'project-renovation', projectName: 'Home renovation', receipt: expect.objectContaining({ operation: 'page.add' }) },
+      'end',
+    ]);
+  });
+
+  it('reports a rename with the updated project’s own name', async () => {
+    const reporter = provideRecordingReporter();
+    const { store } = storeWith({ projects: renovation() });
+    await store.load('project-kitchen' as ProjectId);
+
+    expect(await store.rename('Galley')).toBe(true);
+
+    expect(reporter.reports()).toEqual([
+      { projectId: 'project-kitchen', projectName: 'Galley', receipt: expect.objectContaining({ operation: 'project.update' }) },
+    ]);
   });
 });

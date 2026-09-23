@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import type { ProgressFormula, ProgressResult, ProjectId } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../../core/history/operation-history-reporter';
 
 const messageOf = (error: unknown) => error instanceof Error ? error.message : String(error);
 interface ActiveRead { generation: number; promise: Promise<void>; queued: boolean; }
@@ -8,6 +9,8 @@ interface ActiveRead { generation: number; promise: Promise<void>; queued: boole
 @Injectable()
 export class ProgressStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
+  /** The progress setting is a project write; the header's history hears about it (Slice 41). */
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
   private readonly projectIdState = signal<ProjectId | null>(null);
   private readonly resultState = signal<ProgressResult | null>(null);
   private readonly loadingState = signal(false);
@@ -59,7 +62,13 @@ export class ProgressStore {
     if (id === null) return false;
     const generation = this.loadGeneration;
     this.errorState.set(null);
-    try { await this.gateway.projects.update(id, { progressFormula, ...(manualProgress === undefined ? {} : { manualProgress }) }); }
+    try {
+      await reportedWrite(
+        this.reporter,
+        () => this.gateway.projects.update(id, { progressFormula, ...(manualProgress === undefined ? {} : { manualProgress }) }),
+        ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }),
+      );
+    }
     catch (error) {
       if (id === this.projectIdState() && generation === this.loadGeneration) this.errorState.set(messageOf(error));
       return false;

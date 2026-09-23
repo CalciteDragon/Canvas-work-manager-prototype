@@ -50,3 +50,23 @@ export const OPERATION_HISTORY_REPORTER = new InjectionToken<OperationHistoryRep
   providedIn: 'root',
   factory: inertOperationHistoryReporter,
 });
+
+/**
+ * Runs one browser write under `reporter`: `begin()` before the request, `committed(...)` with the
+ * report built from the **response** once it arrives, and the end function in `finally`. Anything
+ * the write throws is rethrown untouched, so the caller's own failure handling is unchanged.
+ */
+export const reportedWrite = async <T>(
+  reporter: OperationHistoryReporter,
+  write: () => Promise<T>,
+  report: (result: T) => OperationWriteReport,
+): Promise<T> => {
+  const end = reporter.begin();
+  try {
+    const result = await write();
+    reporter.committed(report(result));
+    return result;
+  } finally {
+    end();
+  }
+};

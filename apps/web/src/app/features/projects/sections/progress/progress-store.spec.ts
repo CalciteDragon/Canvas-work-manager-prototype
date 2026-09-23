@@ -5,6 +5,7 @@ import { WORK_MANAGER_GATEWAY } from '../../../../core/gateway/work-manager-gate
 import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-gateway';
 import { GatewayError } from '../../../../core/gateway/gateway-error';
 import { ProgressStore } from './progress-store';
+import { provideRecordingReporter } from '../../../../core/history/testing/recording-reporter';
 
 const project = ProjectSchema.parse({ id: 'project-a', workspaceId: 'workspace-demo', kind: 'root', name: 'Launch', status: 'active', projectLayoutMode: 'flow', createdAt: '2026-08-01T16:00:00.000Z', updatedAt: '2026-08-01T16:00:00.000Z' });
 const PROJECT_A = ProjectIdSchema.parse('project-a');
@@ -107,5 +108,23 @@ describe('ProgressStore', () => {
     expect(await changing).toBe(false);
     expect(store.error()).toBeNull();
     expect(store.result()).toMatchObject({ projectId: PROJECT_B });
+  });
+});
+
+describe('ProgressStore reports the progress setting to the header’s history (Slice 41)', () => {
+  it('commits the updated project’s id, name and receipt', async () => {
+    const reporter = provideRecordingReporter();
+    const gateway = new FakeWorkManagerGateway({ projects: [project] });
+    TestBed.configureTestingModule({ providers: [ProgressStore, { provide: WORK_MANAGER_GATEWAY, useValue: gateway }] });
+    const store = TestBed.inject(ProgressStore);
+    await store.load(project.id);
+
+    expect(await store.setFormula('manual', 40)).toBe(true);
+
+    expect(reporter.events).toEqual([
+      'begin',
+      { projectId: project.id, projectName: 'Launch', receipt: expect.objectContaining({ operation: 'project.update' }) },
+      'end',
+    ]);
   });
 });

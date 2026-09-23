@@ -30,7 +30,7 @@ import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { ProjectPageStore, type ProjectCanvasPlacement } from './project-page-store';
 import { SectionCreateDialog } from './section-create-dialog';
 import { SectionRemovalDialog } from './section-removal-dialog';
-import { SectionUndoNotice } from './section-undo-notice';
+import { SectionRecoveryNotice } from './section-recovery-notice';
 import { CanvasIcon } from './canvas-chrome/canvas-icon';
 import { gridInsertionGaps } from './canvas-chrome/grid-insertion-gaps';
 import { InsertionPoint, type InsertionIntent } from './canvas-chrome/insertion-point';
@@ -63,7 +63,7 @@ interface GridInsertionTarget {
     ProjectSectionFrame,
     SectionCreateDialog,
     SectionRemovalDialog,
-    SectionUndoNotice,
+    SectionRecoveryNotice,
     SectionResizeHandle,
     ShortcutFrame,
   ],
@@ -97,10 +97,10 @@ export class ProjectCanvas {
   private readonly fragment = toSignal(inject(ActivatedRoute).fragment, { initialValue: null });
   private readonly releasedTarget = signal<SectionId | null>(null);
   private lastTargetKey: string | null = null;
-  private pendingUndoFocus: {
+  /** Focus that started inside a removed section, waiting for the (deferred) recovery notice. */
+  private pendingRemovalFocus: {
     projectId: ProjectId;
     pageId: ProjectPageId;
-    receiptId: string;
     originalTarget: HTMLElement | null;
   } | null = null;
 
@@ -349,10 +349,9 @@ export class ProjectCanvas {
   async removeSectionFromCanvas(id: SectionId, input: Parameters<ProjectPageStore['removeSection']>[1] = {}): Promise<boolean> {
     const projectId = this.projectId();
     const pageId = this.pageId();
-    this.pendingUndoFocus = null;
+    this.pendingRemovalFocus = null;
     const focusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusStartedInRemoval = this.focusIsInSectionOrDialog(id) || this.focusIsInUndoNotice();
-    const previousReceiptId = receiptIdOf(this.store.undoNotice()?.receipt);
+    const focusStartedInRemoval = this.focusIsInSectionOrDialog(id) || this.focusIsInRecoveryNotice();
     const removed = await this.store.removeSection(id, input);
     if (this.projectId() !== projectId || this.pageId() !== pageId) return removed;
 
@@ -366,96 +365,46 @@ export class ProjectCanvas {
     }
 
     if (!removed) return false;
-    const notice = this.store.undoNotice();
-    if (notice?.receipt === null || notice?.receipt === undefined) return true;
-    const recovered = notice.kind === 'already-removed';
-    if (!recovered && receiptIdOf(notice.receipt) === previousReceiptId) return true;
+    // The section that held focus is gone. Undo is in the header (Slice 41); here focus goes to the
+    // recovery notice's Open Archive when one is offered, else to the canvas.
     const active = document.activeElement;
-    const focusWasNotMovedElsewhere = active === document.body || active === focusedElement;
+    const focusWasNotMovedElsewhere = active === document.body || active === null || active === focusedElement;
     if (focusStartedInRemoval && focusWasNotMovedElsewhere) {
-      const receiptId = receiptIdOf(notice.receipt);
-      if (receiptId === null) return true;
-      this.pendingUndoFocus = { projectId, pageId, receiptId, originalTarget: focusedElement };
-      afterNextRender(() => {
-        this.focusPendingUndo();
-      }, { injector: this.injector });
+      this.pendingRemovalFocus = { projectId, pageId, originalTarget: focusedElement };
+      afterNextRender(() => this.focusAfterRemoval(), { injector: this.injector });
     }
     return true;
   }
 
-  /** Called by the deferred notice after it renders so slow chunk loading cannot lose focus. */
-  focusPendingUndo(): void {
-    const pending = this.pendingUndoFocus;
+  /** Called after render and by the deferred notice once it renders, so slow chunk loading cannot lose focus. */
+  focusAfterRemoval(): void {
+    const pending = this.pendingRemovalFocus;
     if (pending === null) return;
-    const notice = this.store.undoNotice();
-    if (
-      this.projectId() !== pending.projectId ||
-      this.pageId() !== pending.pageId ||
-      receiptIdOf(notice?.receipt) !== pending.receiptId
-    ) {
-      this.pendingUndoFocus = null;
+    if (this.projectId() !== pending.projectId || this.pageId() !== pending.pageId) {
+      this.pendingRemovalFocus = null;
       return;
     }
     const active = document.activeElement;
-    if (active !== document.body && active !== pending.originalTarget) {
-      this.pendingUndoFocus = null;
+    if (active !== null && active !== document.body && active !== pending.originalTarget) {
+      this.pendingRemovalFocus = null;
       return;
     }
-    const undo = this.host.nativeElement.querySelector<HTMLButtonElement>('[data-undo-action]');
-    if (undo === null) return;
-    this.pendingUndoFocus = null;
-    undo.focus();
+    const target = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]') ??
+      this.host.nativeElement.querySelector<HTMLElement>('[data-recovery-notice]');
+    // The notice is deferred; its `ready` calls back here once it has rendered.
+    if (target === null && this.store.recoveryNotice() !== null) return;
+    this.pendingRemovalFocus = null;
+    (target ?? this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]') ??
+      this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]'))?.focus();
   }
 
-  async undoFromNotice(): Promise<void> {
+  dismissRecoveryNotice(): void {
+    this.pendingRemovalFocus = null;
     const projectId = this.projectId();
     const pageId = this.pageId();
-    const result = await this.store.undoOperation();
-    if (this.projectId() !== projectId || this.pageId() !== pageId) return;
-    if (result === null) {
-      const notice = this.store.undoNotice();
-      if (notice === null) return;
-      afterNextRender(() => {
-        if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.undoNotice() !== notice) return;
-        if (this.host.nativeElement.querySelector('[data-undo-action]') === null) this.focusUndoNotice();
-      }, { injector: this.injector });
-      return;
-    }
-    const notice = this.store.undoNotice();
-    if (notice?.kind !== 'result' || notice.result !== result) return;
+    this.store.dismissRecoveryNotice();
     afterNextRender(() => {
-      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.undoNotice() !== notice) return;
-      if (
-        result.operation !== 'section.add' && result.operation !== 'section.update' &&
-        result.operation !== 'section.move' && result.operation !== 'section.remove'
-      ) {
-        this.focusUndoNotice();
-        return;
-      }
-      if (result.operation === 'section.add') {
-        this.focusUndoNotice();
-        return;
-      }
-      const restoredPageId = result.operation === 'section.remove' || result.operation === 'section.move'
-        ? result.placement.pageId
-        : result.operation === 'section.update'
-          ? result.section.pageId
-          : null;
-      const restoredTitle = restoredPageId === pageId
-        ? this.findSectionElement(result.section.id)?.querySelector<HTMLElement>('[data-section-title]')
-        : null;
-      if (restoredTitle !== null && restoredTitle !== undefined) restoredTitle.focus();
-      else this.focusUndoNotice();
-    }, { injector: this.injector });
-  }
-
-  dismissUndoNotice(): void {
-    this.pendingUndoFocus = null;
-    const projectId = this.projectId();
-    const pageId = this.pageId();
-    this.store.dismissUndoNotice();
-    afterNextRender(() => {
-      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.undoNotice() !== null) return;
+      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.recoveryNotice() !== null) return;
       const retry = this.store.failedRemoval() === null
         ? null
         : this.host.nativeElement.querySelector<HTMLElement>('[data-retry-remove]');
@@ -471,11 +420,10 @@ export class ProjectCanvas {
     this.store.dismissFailedRemoval();
     afterNextRender(() => {
       if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.failedRemoval() !== null) return;
-      if (this.store.undoNotice() !== null) {
-        const undoAction = this.host.nativeElement.querySelector<HTMLElement>('[data-undo-action]');
+      if (this.store.recoveryNotice() !== null) {
         const archiveAction = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]');
-        const notice = this.host.nativeElement.querySelector<HTMLElement>('[data-undo-notice]');
-        (undoAction ?? archiveAction ?? notice)?.focus();
+        const notice = this.host.nativeElement.querySelector<HTMLElement>('[data-recovery-notice]');
+        (archiveAction ?? notice)?.focus();
         return;
       }
       const dismissedSectionTitle = failedSectionId === undefined
@@ -507,8 +455,8 @@ export class ProjectCanvas {
     if (failed !== null) void this.removeSectionFromCanvas(failed.sectionId, failed.input);
   }
 
-  retryUndoRefresh(): void {
-    void this.store.retryUndoRefresh();
+  retryRefresh(): void {
+    void this.store.retryRefresh();
   }
 
   private focusIsInSectionOrDialog(id: SectionId): boolean {
@@ -518,18 +466,14 @@ export class ProjectCanvas {
     return this.store.removalPrompt()?.sectionId === id && active.closest('[data-section-removal-dialog]') !== null;
   }
 
-  private focusIsInUndoNotice(): boolean {
+  private focusIsInRecoveryNotice(): boolean {
     const active = document.activeElement;
-    return active instanceof HTMLElement && active.closest('app-section-undo-notice') !== null;
+    return active instanceof HTMLElement && active.closest('app-section-recovery-notice') !== null;
   }
 
   private findSectionElement(id: SectionId): HTMLElement | undefined {
     return [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-section-id]')]
       .find((element) => element.getAttribute('data-section-id') === id);
-  }
-
-  private focusUndoNotice(): void {
-    this.host.nativeElement.querySelector<HTMLElement>('[data-undo-notice]')?.focus();
   }
 
   collapse(event: { id: SectionId; collapsed: boolean }): void {
@@ -555,8 +499,6 @@ export class ProjectCanvas {
 const placementId = (placement: ProjectCanvasPlacement): string =>
   placement.kind === 'section' ? placement.section.id : placement.shortcut.id;
 
-/** The action a held receipt names — what Undo focus follows across notice changes. */
-const receiptIdOf = (receipt: { actionId: string } | null | undefined): string | null => receipt?.actionId ?? null;
 
 const placementSpan = (placement: ProjectCanvasPlacement): SectionColumnSpan =>
   placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan;

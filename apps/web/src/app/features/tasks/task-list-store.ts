@@ -1,6 +1,7 @@
 import { Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
-import type { ProjectId, ProjectSection, SectionId, Task, TaskId, TaskPriority, UpdateTaskInput } from '@cwm/contracts';
+import type { ProjectId, ProjectSection, SectionId, Task, TaskId, TaskPriority, TaskWriteResult, UpdateTaskInput } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../core/history/operation-history-reporter';
 
 type MutableTaskField = keyof Pick<
   Task,
@@ -8,6 +9,13 @@ type MutableTaskField = keyof Pick<
 >;
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+/**
+ * A task write's report names the **task's** project, from the response: a list inside a Home
+ * shortcut writes a row its source sub-project owns, and the header decides ownership from the
+ * receipt's history anyway (Slice 41).
+ */
+const taskReport = ({ task, operation }: TaskWriteResult): OperationWriteReport => ({ projectId: task.projectId, receipt: operation });
 
 /**
  * §19's feature-scoped state for **one Task List section's** tasks. Components send intent
@@ -24,6 +32,7 @@ const messageOf = (error: unknown): string => (error instanceof Error ? error.me
 export class TaskListStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
   private readonly tasksState = signal<Task[]>([]);
   private readonly projectIdState = signal<ProjectId | null>(null);
@@ -186,7 +195,7 @@ export class TaskListStore {
       try {
         // Named, not resolved: this list owns the row, and the domain would otherwise send
         // it to the project's *first* task list, which may well be a different one.
-        const { task } = await this.gateway.tasks.create({ projectId, title, sectionId });
+        const { task } = await reportedWrite(this.reporter, () => this.gateway.tasks.create({ projectId, title, sectionId }), taskReport);
         this.tasksState.update((tasks) => [...tasks, task]);
         this.selectedTaskIdState.set(task.id);
         return true;
@@ -231,7 +240,7 @@ export class TaskListStore {
       this.completingIdsState.update((ids) => new Set([...ids, id]));
 
       try {
-        const { task } = await this.gateway.tasks.complete(id);
+        const { task } = await reportedWrite(this.reporter, () => this.gateway.tasks.complete(id), taskReport);
         this.patchCurrent(id, task, fields, operationRevision);
         return true;
       } catch (error) {
@@ -263,7 +272,7 @@ export class TaskListStore {
 
       this.errorState.set(null);
       try {
-        const { task } = await this.gateway.tasks.update(id, { sectionId });
+        const { task } = await reportedWrite(this.reporter, () => this.gateway.tasks.update(id, { sectionId }), taskReport);
         this.tasksState.update((tasks) => [...tasks, task]);
         return true;
       } catch (error) {
@@ -288,7 +297,7 @@ export class TaskListStore {
       this.errorState.set(null);
       this.archivingIdsState.update((ids) => new Set([...ids, id]));
       try {
-        await this.gateway.tasks.archive(id);
+        await reportedWrite(this.reporter, () => this.gateway.tasks.archive(id), taskReport);
         return true;
       } catch (error) {
         this.errorState.set(messageOf(error));
@@ -323,7 +332,7 @@ export class TaskListStore {
         this.errorState.set(null);
         const operationRevision = this.claim(id, fields);
         try {
-          const { task } = await this.gateway.tasks.update(id, input);
+          const { task } = await reportedWrite(this.reporter, () => this.gateway.tasks.update(id, input), taskReport);
           this.patchCurrent(id, task, fields, operationRevision);
           return true;
         } catch (error) {

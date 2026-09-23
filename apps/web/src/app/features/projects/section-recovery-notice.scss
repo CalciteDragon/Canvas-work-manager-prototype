@@ -1,5 +1,5 @@
-// A status beside the canvas, never above it: every explicit add, move, resize and blur-save can
-// offer a receipt, and a notice in flow would push the canvas down under the pointer. Below the
+// A status beside the canvas, never above it: a removal or a failed refresh can offer recovery, and
+// a notice in flow would push the canvas down under the pointer. Below the
 // dialogs (z-index 20) so a create or removal dialog still covers it.
 :host {
   position: fixed;
@@ -11,11 +11,11 @@
   inline-size: min(var(--layout-reading-width), calc(100% - 2 * var(--space-4)));
 }
 
-.section-undo-notice {
+.section-recovery-notice {
   box-shadow: var(--shadow-md);
 }
 
-.section-undo-notice {
+.section-recovery-notice {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -28,36 +28,30 @@
   color: var(--color-text);
 }
 
-.section-undo-notice--alert {
+.section-recovery-notice--alert {
   border-color: var(--color-danger);
   background: var(--color-danger-surface);
 }
 
-.section-undo-notice__copy {
+.section-recovery-notice__copy {
   display: grid;
   flex: 1 1 var(--layout-reading-width);
   gap: var(--space-1);
   min-width: 0;
 }
 
-.section-undo-notice__message,
-.section-undo-notice__meta {
+.section-recovery-notice__message,
+.section-recovery-notice__meta {
   margin: 0;
 }
 
-.section-undo-notice__meta {
+.section-recovery-notice__meta {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 
-.section-undo-notice__conflicts {
-  display: grid;
-  gap: var(--space-1);
-  margin: var(--space-1) 0 0;
-  padding-inline-start: var(--space-5);
-}
 
-.section-undo-notice__actions {
+.section-recovery-notice__actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -65,7 +59,7 @@
   gap: var(--space-2);
 }
 
-.section-undo-notice button {
+.section-recovery-notice button {
   min-block-size: var(--size-hit-target);
   padding: var(--space-2) var(--space-3);
   border: var(--border-hairline) solid var(--color-border);
@@ -76,13 +70,13 @@
   cursor: pointer;
 }
 
-.section-undo-notice button[aria-disabled='true'] {
+.section-recovery-notice button[aria-disabled='true'] {
   cursor: progress;
   opacity: 0.65;
 }
 
-.section-undo-notice button:focus-visible,
-.section-undo-notice:focus-visible {
+.section-recovery-notice button:focus-visible,
+.section-recovery-notice:focus-visible {
   outline: var(--border-focus) solid var(--color-accent);
   outline-offset: var(--space-1);
 }

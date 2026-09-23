@@ -1,0 +1,67 @@
+@if (state(); as notice) {
+  <div
+    data-recovery-notice
+    class="section-recovery-notice"
+    [attr.aria-busy]="busy()"
+    tabindex="-1"
+  >
+    <div class="section-recovery-notice__copy">
+      <p data-recovery-message class="section-recovery-notice__message" role="status" aria-live="polite">{{ notice.message }}</p>
+      @if (notice.refreshFailed) {
+        <p data-recovery-refresh-error class="section-recovery-notice__meta">
+          The change was saved, but this canvas could not be refreshed.
+        </p>
+      }
+    </div>
+
+    <div class="section-recovery-notice__actions">
+      @if (notice.refreshFailed) {
+        <button
+          data-retry-refresh
+          type="button"
+          [attr.aria-disabled]="busy()"
+          (click)="requestRetryRefresh()"
+        >Retry refresh</button>
+      }
+      @if (showArchive()) {
+        <button
+          data-open-archive
+          type="button"
+          [attr.aria-disabled]="busy()"
+          (click)="requestOpenArchive()"
+        >Open Archive</button>
+      }
+      <button
+        data-dismiss-recovery-notice
+        type="button"
+        [attr.aria-disabled]="busy()"
+        aria-label="Dismiss notice"
+        (click)="requestDismissNotice()"
+      >Dismiss</button>
+    </div>
+  </div>
+}
+
+@if (failedRemoval(); as failure) {
+  <div data-removal-error class="section-recovery-notice section-recovery-notice--alert">
+    <div class="section-recovery-notice__copy">
+      <p class="section-recovery-notice__message" role="alert" aria-live="assertive">
+        Could not remove the section. {{ failure.message }}
+      </p>
+    </div>
+    <div class="section-recovery-notice__actions">
+      <button
+        data-retry-remove
+        type="button"
+        [attr.aria-disabled]="busy()"
+        (click)="requestRetryRemove()"
+      >Retry remove</button>
+      <button
+        data-dismiss-removal-error
+        type="button"
+        [attr.aria-disabled]="busy()"
+        (click)="requestDismissFailure()"
+      >Dismiss</button>
+    </div>
+  </div>
+}

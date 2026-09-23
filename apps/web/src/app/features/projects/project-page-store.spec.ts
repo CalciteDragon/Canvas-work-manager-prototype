@@ -21,6 +21,7 @@ import {
   type OperationReceipt,
   type UndoResult,
 } from '@cwm/contracts';
+import { OPERATION_HISTORY_REPORTER, type OperationWriteReport } from '../../core/history/operation-history-reporter';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { emptyDashboard } from '../../core/gateway/testing/fake-gateway';
@@ -138,18 +139,33 @@ const addReceipt = (id: string): OperationReceipt => ({
 /** The spec's stand-in for the host's Undo executor, keyed by the action a transition names. */
 type UndoExecute = (actionId: OperationActionId) => Promise<UndoResult>;
 
-/** Refusal details as the host sends them: the history, the named action and the current summary. */
-const historyDetails = (actionId: string, details: Record<string, unknown>, summary: Record<string, unknown> = {}) => ({
-  historyId: HISTORY,
-  actionId,
-  summary: { projectId: PROJECT, historyId: HISTORY, revision: 1, undo: null, redo: null, blockedBy: null, ...summary },
-  ...details,
-});
-
 type LegacySectionOverrides = Omit<Partial<WorkManagerGateway['sections']>, 'create' | 'update' | 'move'> & {
   create?: (...args: Parameters<WorkManagerGateway['sections']['create']>) => Promise<ProjectSection | SectionAddResult>;
   update?: (...args: Parameters<WorkManagerGateway['sections']['update']>) => Promise<ProjectSection | SectionWriteResult>;
   move?: (...args: Parameters<WorkManagerGateway['sections']['move']>) => Promise<ProjectSection | SectionWriteResult>;
+};
+
+/**
+ * The header's history as this store sees it: a reporter that records every begin, end and
+ * committed report in order (Slice 41).
+ */
+const recordingReporter = () => {
+  const events: Array<'begin' | 'end' | OperationWriteReport> = [];
+  return {
+    events,
+    committed: (report: OperationWriteReport) => void events.push(report),
+    begin: () => {
+      events.push('begin');
+      let ended = false;
+      return () => {
+        if (ended) return;
+        ended = true;
+        events.push('end');
+      };
+    },
+    /** The receipts committed so far, in order. */
+    receipts: () => events.filter((event): event is OperationWriteReport => typeof event === 'object').map(({ receipt }) => receipt),
+  };
 };
 
 const deferred = <T>() => {
@@ -336,6 +352,7 @@ const setup = (
       }),
       remove: vi.fn(async (id) => {
         shortcuts = shortcuts.filter((item) => item.id !== id);
+        return { shortcutId: id, projectId: PROJECT, pageId: PAGE, operation: { ...receipt(`undo-${id}`), operation: 'shortcut.remove' as const } };
       }),
       ...options.shortcutOverrides,
     } as WorkManagerGateway['shortcuts'],
@@ -356,15 +373,17 @@ const setup = (
   };
 
   const live = new FakeLiveUpdates();
+  const reporter = recordingReporter();
   TestBed.configureTestingModule({
     providers: [
       TaskListStore,
       ProjectPageStore,
       { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
       { provide: LIVE_UPDATES, useValue: live },
+      { provide: OPERATION_HISTORY_REPORTER, useValue: reporter },
     ],
   });
-  return { store: TestBed.inject(ProjectPageStore), tasks: TestBed.inject(TaskListStore), gateway, live };
+  return { store: TestBed.inject(ProjectPageStore), tasks: TestBed.inject(TaskListStore), gateway, live, reporter };
 };
 
 const definition = (overrides: Partial<SectionDefinition> = {}): SectionDefinition => ({
@@ -650,12 +669,12 @@ describe('ProjectPageStore (§19, §26)', () => {
     });
     await store.load(PROJECT, PAGE);
 
-    // The receipt is captured before the failed re-read, so a committed removal never
-    // looks like a failed write and can still be undone.
+    // The receipt went to the header before the failed re-read, so a committed removal never
+    // looks like a failed write and can still be undone from there.
     expect(await store.removeSection('section-text' as SectionId)).toBe(true);
     expect(store.sectionError()).toBeNull();
     expect(store.sections().map(({ id }) => id)).toEqual(['section-tasks']);
-    expect(store.undoNotice()).toMatchObject({ kind: 'available', refreshFailed: true });
+    expect(store.recoveryNotice()).toMatchObject({ removal: { archiveListed: true }, refreshFailed: true });
   });
 
   it('surfaces an unreadable canvas as a visible error rather than a silently empty one', async () => {
@@ -1062,8 +1081,8 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sectionError()).toContain('shortcut resize failed');
   });
 
-  it('removes a section and closes the position gap', async () => {
-    const { store } = setup();
+  it('removes a section, closes the position gap, reports its receipt and points to the header for Undo', async () => {
+    const { store, reporter } = setup();
     await store.load(PROJECT, PAGE);
 
     expect(await store.removeSection('section-text' as SectionId)).toBe(true);
@@ -1071,10 +1090,26 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sections().map(({ id, position }) => [id, position])).toEqual([
       ['section-tasks', 0],
     ]);
-    expect(store.undoNotice()).toMatchObject({ kind: 'available', receipt: { actionId: 'undo-section-text' } });
+    expect(reporter.events).toEqual(['begin', expect.objectContaining({ projectId: PROJECT, receipt: expect.objectContaining({ actionId: 'undo-section-text' }) }), 'end']);
+    expect(store.recoveryNotice()).toEqual({
+      message: 'Removed the Rich Text section. Undo is in the header.',
+      removal: { archiveListed: true },
+    });
   });
 
-  it('recovers the same actor’s receipt from a repeated-removal refusal', async () => {
+  it('shows no notice for a removal Archive will not list: the header label confirms it', async () => {
+    const first = section('section-text', 'rich-text', 0);
+    const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
+      .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, operation: receipt('undo-unlisted'), archiveListed: false });
+    const { store, reporter } = setup({ sectionOverrides: { remove } });
+    await store.load(PROJECT, PAGE);
+
+    expect(await store.removeSection(first.id)).toBe(true);
+    expect(store.recoveryNotice()).toBeNull();
+    expect(reporter.receipts()).toEqual([expect.objectContaining({ actionId: 'undo-unlisted' })]);
+  });
+
+  it('reports the same actor’s receipt recovered from a repeated-removal refusal', async () => {
     const undo = receipt('undo-lost-response');
     const list = vi.fn()
       .mockResolvedValueOnce([section('section-text', 'rich-text', 0)])
@@ -1086,26 +1121,22 @@ describe('ProjectPageStore (§19, §26)', () => {
         operation: undo,
       });
     });
-    const { store } = setup({ sectionOverrides: { list, remove } });
+    const { store, reporter } = setup({ sectionOverrides: { list, remove } });
     await store.load(PROJECT, PAGE);
 
     expect(await store.removeSection('section-text' as SectionId)).toBe(true);
 
-    expect(store.undoNotice()).toEqual({
-      kind: 'already-removed',
-      receipt: undo,
-      message: 'Already removed. Undo is available.',
-    });
+    expect(reporter.receipts()).toEqual([undo]);
+    expect(store.recoveryNotice()).toEqual({ message: 'This section was already removed. Undo is in the header.', removal: {} });
     expect(store.sections()).toEqual([]);
     expect(remove).toHaveBeenCalledTimes(1);
   });
 
-  it('recovers and executes its receipt after a committed remove response is lost', async () => {
+  it('recovers its receipt for the header after a committed remove response is lost', async () => {
     const first = section('section-text', 'rich-text', 0);
     const undo = receipt('undo-lost-response');
     let removalCommitted = false;
-    let undoCommitted = false;
-    const list = vi.fn(async () => (!removalCommitted || undoCommitted ? [first] : []));
+    const list = vi.fn(async () => (!removalCommitted ? [first] : []));
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
       .mockImplementationOnce(async () => {
         removalCommitted = true;
@@ -1116,29 +1147,17 @@ describe('ProjectPageStore (§19, §26)', () => {
         sectionId: first.id,
         operation: undo,
       }));
-    const undoExecute = vi.fn<UndoExecute>(async () => {
-      undoCommitted = true;
-      return {
-        operation: 'section.remove',
-        outcome: 'restored',
-        section: first,
-        placement: { pageId: PAGE, index: 0, strategy: 'index', pageEnabled: true },
-        restoredRowCount: 0,
-      };
-    });
-    const { store } = setup({ sectionOverrides: { list, remove }, undoExecute });
+    const { store, reporter } = setup({ sectionOverrides: { list, remove } });
     await store.load(PROJECT, PAGE);
 
     expect(await store.removeSection(first.id)).toBe(false);
+    // The lost response ended without a commit, which the header answers with a fresh read.
+    expect(reporter.events).toEqual(['begin', 'end']);
     expect(store.failedRemoval()?.sectionId).toBe(first.id);
     expect(await store.retryFailedRemoval()).toBe(true);
-    expect(store.undoNotice()).toMatchObject({ kind: 'already-removed', receipt: undo });
+    expect(reporter.receipts()).toEqual([undo]);
+    expect(store.recoveryNotice()).toMatchObject({ removal: {} });
     expect(store.failedRemoval()).toBeNull();
-
-    await expect(store.undoOperation()).resolves.toMatchObject({ operation: 'section.remove', outcome: 'restored' });
-
-    expect(undoExecute).toHaveBeenCalledWith(undo.actionId);
-    expect(store.sections().map(({ id }) => id)).toContain(first.id);
   });
 
   it('does not replace an unresolved removal retry with another request', async () => {
@@ -1166,138 +1185,54 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(remove).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps the prior receipt after a failed remove and retries the exact policy explicitly', async () => {
+  it('keeps the prior notice after a failed remove and retries the exact policy explicitly', async () => {
     const first = section('section-text', 'rich-text', 0);
     const next = section('section-tasks', 'task-list', 1);
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
       .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, operation: receipt('undo-first'), archiveListed: true })
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'remove response was lost'))
       .mockResolvedValueOnce({ section: { ...next, archivedAt: AT }, operation: receipt('undo-second'), archiveListed: true });
-    const { store } = setup({ sectionOverrides: { remove } });
+    const { store, reporter } = setup({ sectionOverrides: { remove } });
     await store.load(PROJECT, PAGE);
 
     expect(await store.removeSection(first.id)).toBe(true);
-    const previous = store.undoNotice()?.receipt;
+    const previous = store.recoveryNotice();
     const input = { policy: 'reassign' as const, reassignToSectionId: 'section-destination' as SectionId };
     expect(await store.removeSection(next.id, input)).toBe(false);
 
-    expect(store.undoNotice()?.receipt).toEqual(previous);
+    expect(store.recoveryNotice()).toEqual(previous);
     expect(store.failedRemoval()).toEqual({ sectionId: next.id, input, message: 'remove response was lost' });
     expect(await store.retryFailedRemoval()).toBe(true);
     expect(remove).toHaveBeenLastCalledWith(next.id, input);
-    expect(store.undoNotice()?.receipt?.actionId).toBe('undo-second');
+    expect(store.recoveryNotice()?.message).toBe('Removed the Task List section. Undo is in the header.');
+    expect(reporter.receipts().map((held) => held?.actionId)).toEqual(['undo-first', 'undo-second']);
     expect(store.failedRemoval()).toBeNull();
   });
 
-  it('keeps a failed later remove retryable when Undo succeeds for the prior receipt', async () => {
+  it('dismissing either notice leaves the other standing', async () => {
     const first = section('section-text', 'rich-text', 0);
     const next = section('section-tasks', 'task-list', 1);
     const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
       .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, operation: receipt('undo-first'), archiveListed: true })
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'remove response was lost'));
-    const undoExecute = vi.fn<UndoExecute>().mockResolvedValue({
-      operation: 'section.remove',
-      outcome: 'restored',
-      section: first,
-      placement: { pageId: PAGE, index: 0, strategy: 'index', pageEnabled: true },
-      restoredRowCount: 0,
-    });
-    const { store } = setup({ sectionOverrides: { remove }, undoExecute });
+    const { store } = setup({ sectionOverrides: { remove } });
     await store.load(PROJECT, PAGE);
     await store.removeSection(first.id);
     await store.removeSection(next.id, { policy: 'cascade' });
     const failed = store.failedRemoval();
-
-    await expect(store.undoOperation()).resolves.toMatchObject({ operation: 'section.remove' });
-
-    expect(store.undoNotice()).toMatchObject({ kind: 'result', receipt: null });
-    expect(store.failedRemoval()).toEqual(failed);
-    expect(undoExecute).toHaveBeenCalledWith('undo-first');
-
-    store.dismissUndoNotice();
-
-    expect(store.undoNotice()).toBeNull();
-    expect(store.failedRemoval()).toEqual(failed);
-  });
-
-  it('keeps an earlier Undo receipt when the failed removal error is dismissed', async () => {
-    const first = section('section-text', 'rich-text', 0);
-    const next = section('section-tasks', 'task-list', 1);
-    const remove = vi.fn<WorkManagerGateway['sections']['remove']>()
-      .mockResolvedValueOnce({ section: { ...first, archivedAt: AT }, operation: receipt('undo-first'), archiveListed: true })
-      .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'remove response was lost'));
-    const { store } = setup({ sectionOverrides: { remove } });
-    await store.load(PROJECT, PAGE);
-    await store.removeSection(first.id);
-    await store.removeSection(next.id);
-    const priorNotice = store.undoNotice();
+    const notice = store.recoveryNotice();
 
     store.dismissFailedRemoval();
-
     expect(store.failedRemoval()).toBeNull();
-    expect(store.undoNotice()).toEqual(priorNotice);
+    expect(store.recoveryNotice()).toEqual(notice);
+
+    await store.removeSection(next.id, { policy: 'cascade' }).catch(() => false);
+    store.dismissRecoveryNotice();
+    expect(store.recoveryNotice()).toBeNull();
+    expect(failed?.sectionId).toBe(next.id);
   });
 
-  it('reconciles an Undo whose successful response was lost: the stale refusal shows it landed', async () => {
-    const first = section('section-text', 'rich-text', 0);
-    const next = section('section-tasks', 'task-list', 1);
-    let removalCommitted = false;
-    let undoCommitted = false;
-    const list = vi.fn(async () => {
-      if (!removalCommitted || undoCommitted) return [first, next];
-      return [next];
-    });
-    const remove = vi.fn<WorkManagerGateway['sections']['remove']>(async () => {
-      removalCommitted = true;
-      return { section: { ...first, archivedAt: AT }, operation: receipt('undo-committed'), archiveListed: true };
-    });
-    const undoExecute = vi.fn<UndoExecute>()
-      .mockImplementationOnce(async () => {
-        undoCommitted = true;
-        throw new GatewayError('unreachable', 0, 'Undo response was lost');
-      })
-      // The replay refuses as stale, and the summary it carries names this action as the next Redo.
-      .mockRejectedValueOnce(new GatewayError('rule_violation', 409, 'history_revision_stale: moved on', historyDetails('undo-committed', {
-        reason: 'history_revision_stale',
-      }, { revision: 99, redo: { actionId: 'undo-committed', operation: 'section.remove', label: 'Removed', expiresAt: AT } })));
-    const { store } = setup({ sectionOverrides: { list, remove }, undoExecute });
-    await store.load(PROJECT, PAGE);
-    await store.removeSection(first.id);
-
-    expect(await store.undoOperation()).toBeNull();
-    expect(store.undoNotice()).toMatchObject({ kind: 'error', receipt: { actionId: 'undo-committed' } });
-    expect(store.sections().map(({ id }) => id)).toEqual([next.id]);
-
-    expect(await store.undoOperation()).toBeNull();
-
-    expect(undoExecute).toHaveBeenCalledTimes(2);
-    expect(undoExecute).toHaveBeenLastCalledWith('undo-committed');
-    expect(store.undoNotice()).toMatchObject({ kind: 'terminal', receipt: null, refusal: { reason: 'history_revision_stale' }, message: 'Undo was already completed. The canvas has been refreshed.' });
-    expect(store.undoNotice()).not.toHaveProperty('landed');
-    expect(store.sections().map(({ id }) => id)).toEqual([first.id, next.id]);
-  });
-
-  it('names a disabled destination when a partial Undo falls back there', async () => {
-    const first = section('section-text', 'rich-text', 0);
-    const partial = vi.fn<UndoExecute>().mockResolvedValue({
-      operation: 'section.remove',
-      outcome: 'partial',
-      section: first,
-      placement: { pageId: OTHER_PAGE, index: 0, strategy: 'fallback-page', pageEnabled: false },
-      restoredRowCount: 0,
-    });
-    const { store } = setup({ undoExecute: partial });
-    await store.load(PROJECT, PAGE);
-    await store.removeSection(first.id);
-
-    await store.undoOperation();
-
-    expect(store.undoNotice()?.message).toContain('disabled page');
-    expect(store.undoNotice()?.message).toContain('Enable that page to see it.');
-    expect(store.undoNotice()?.message).not.toContain('available page');
-  });
-
-  it('captures an Undo receipt before refresh failure and retries only the read', async () => {
+  it('retries only the read after a committed removal whose refresh failed', async () => {
     let listCallCount = 0;
     const list = vi.fn(async () => {
       listCallCount += 1;
@@ -1308,48 +1243,16 @@ describe('ProjectPageStore (§19, §26)', () => {
     await store.load(PROJECT, PAGE);
     expect(await store.removeSection('section-text' as SectionId)).toBe(true);
     const removeCalls = calls(gateway.sections.remove);
-    expect(store.undoNotice()).toMatchObject({ kind: 'available', refreshFailed: true });
+    expect(store.recoveryNotice()).toMatchObject({ removal: { archiveListed: true }, refreshFailed: true });
 
-    expect(await store.retryUndoRefresh()).toBe(true);
+    expect(await store.retryRefresh()).toBe(true);
 
     expect(calls(gateway.sections.remove)).toBe(removeCalls);
-    expect(store.undoNotice()?.refreshFailed).toBe(false);
+    // The removal keeps its Open Archive once the read succeeds.
+    expect(store.recoveryNotice()).toMatchObject({ removal: { archiveListed: true }, refreshFailed: false });
   });
 
-  it('executes a history transition for the held receipt, refreshes the canvas and invalidates project data after Undo', async () => {
-    const { store, gateway } = setup();
-    await store.load(PROJECT, PAGE);
-    await store.removeSection('section-text' as SectionId);
-    const revision = store.projectDataRevision();
-    const held = store.undoNotice()!.receipt!;
-
-    const result = await store.undoOperation();
-
-    expect(gateway.history.transition).toHaveBeenCalledWith(held.historyId, { actionId: held.actionId, direction: 'undo', expectedRevision: held.revision });
-    expect(result).toMatchObject({ outcome: 'restored', restoredRowCount: 0 });
-    expect(store.sections().map(({ id }) => id)).toContain('section-text');
-    expect(store.projectDataRevision()).toBe(revision + 1);
-    expect(store.undoNotice()).toMatchObject({ kind: 'result', receipt: null });
-  });
-
-  it('keeps a typed conflict receipt retryable, and clears it when the receipt is terminal', async () => {
-    const conflict = new GatewayError('rule_violation', 409, 'history_conflict: restore the section first', historyDetails('undo-section-text', {
-      reason: 'history_conflict',
-      conflicts: [{ entityType: 'task', id: 'task-a', problem: 'archive-state-changed', nextStep: 'restore-state-and-retry' }],
-    }));
-    const execute = vi.fn<UndoExecute>().mockRejectedValueOnce(conflict)
-      .mockRejectedValueOnce(new GatewayError('not_found', 404, 'no such undo'));
-    const { store } = setup({ undoExecute: execute });
-    await store.load(PROJECT, PAGE);
-    await store.removeSection('section-text' as SectionId);
-
-    expect(await store.undoOperation()).toBeNull();
-    expect(store.undoNotice()).toMatchObject({ kind: 'refusal', receipt: { actionId: 'undo-section-text' }, refusal: { reason: 'history_conflict' } });
-    expect(await store.undoOperation()).toBeNull();
-    expect(store.undoNotice()).toMatchObject({ kind: 'terminal', receipt: null });
-  });
-
-  it('does not let a pending removal or a late response replace the next page’s receipt state', async () => {
+  it('does not let a pending removal or a late response replace the next page’s notice', async () => {
     const pending = deferred<Awaited<ReturnType<WorkManagerGateway['sections']['remove']>>>();
     const remove = vi.fn(() => pending.promise);
     const { store } = setup({ sectionOverrides: { remove } });
@@ -1361,7 +1264,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     pending.resolve({ section: { ...section('section-text', 'rich-text', 0), archivedAt: AT }, operation: receipt('undo-stale'), archiveListed: true });
     await first;
 
-    expect(store.undoNotice()).toBeNull();
+    expect(store.recoveryNotice()).toBeNull();
     expect(store.sections().map(({ id }) => id)).toEqual(['section-text', 'section-tasks']);
   });
 
@@ -1377,7 +1280,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     await removal;
 
     expect(store.sections()).toEqual(before);
-    expect(store.undoNotice()).toBeNull();
+    expect(store.recoveryNotice()).toBeNull();
   });
 
   it('does not fabricate sibling positions when a successful remove cannot be re-read', async () => {
@@ -2095,7 +1998,7 @@ describe('ProjectPageStore and live updates (§62)', () => {
   });
 });
 
-describe('ProjectPageStore — section edit Undo receipts (Slice 32)', () => {
+describe('ProjectPageStore — every canvas write reports to the header’s history (Slice 41)', () => {
   const editReceipt = (id: string, operation: OperationReceipt['operation'], revision: number): OperationReceipt => ({
     historyId: HISTORY,
     actionId: id as OperationActionId,
@@ -2106,161 +2009,67 @@ describe('ProjectPageStore — section edit Undo receipts (Slice 32)', () => {
     expiresAt: '2026-08-28T16:00:00.000Z',
   });
 
-  it('holds a changed update receipt through a later no-op and a failed write', async () => {
+  it('begins before the request, reports the section’s own project and receipt, and ends in finally', async () => {
     const text = section('section-text', 'rich-text', 0);
+    let resolveUpdate!: (result: SectionWriteResult) => void;
     const update = vi.fn<WorkManagerGateway['sections']['update']>()
-      .mockResolvedValueOnce({ section: { ...text, title: 'Renamed' }, operation: editReceipt('undo-rename', 'section.update', 900) })
+      .mockImplementationOnce(() => new Promise((resolve) => { resolveUpdate = resolve; }))
       .mockResolvedValueOnce({ section: { ...text, title: 'Renamed' }, operation: null })
       .mockRejectedValueOnce(new GatewayError('unreachable', 0, 'offline'));
-    const { store } = setup({ sections: [text], sectionOverrides: { update } });
+    const { store, reporter } = setup({ sections: [text], sectionOverrides: { update } });
     await store.load(PROJECT, PAGE);
 
-    await store.renameSection(text.id, 'Renamed');
-    expect(store.undoNotice()).toMatchObject({ kind: 'available', receipt: { actionId: 'undo-rename' } });
+    const renaming = store.renameSection(text.id, 'Renamed');
+    await Promise.resolve();
+    expect(reporter.events).toEqual(['begin']);
+    resolveUpdate({ section: { ...text, title: 'Renamed' }, operation: editReceipt('undo-rename', 'section.update', 900) });
+    await renaming;
+    expect(reporter.events).toEqual(['begin', { projectId: PROJECT, receipt: editReceipt('undo-rename', 'section.update', 900) }, 'end']);
 
+    // A no-op reports a null receipt; a failure ends without a commit, so the header re-reads.
     await store.renameSection(text.id, 'Renamed');
     await store.setCollapsed(text.id, true);
-
-    expect(store.undoNotice()).toMatchObject({ kind: 'available', receipt: { actionId: 'undo-rename' } });
+    expect(reporter.events.slice(3)).toEqual(['begin', { projectId: PROJECT, receipt: null }, 'end', 'begin', 'end']);
+    expect(store.recoveryNotice()).toBeNull();
   });
 
-  it('selects receipts by server sequence when write responses arrive out of order', async () => {
-    const text = section('section-text', 'rich-text', 0);
-    const tasks = section('section-tasks', 'task-list', 1);
-    let resolveEarlier!: (result: SectionWriteResult) => void;
-    const update = vi.fn<WorkManagerGateway['sections']['update']>()
-      .mockImplementationOnce(() => new Promise((resolve) => { resolveEarlier = resolve; }))
-      .mockResolvedValueOnce({ section: { ...tasks, collapsed: true }, operation: editReceipt('undo-later', 'section.update', 1001) });
-    const { store } = setup({ sections: [text, tasks], sectionOverrides: { update } });
+  it('reports adds, moves and resizes, and shows no notice for a forward write whose read succeeded', async () => {
+    const { store, reporter } = setup();
     await store.load(PROJECT, PAGE);
 
-    const earlier = store.renameSection(text.id, 'Earlier');
-    await Promise.resolve();
-    await store.setCollapsed(tasks.id, true);
-    resolveEarlier({ section: { ...text, title: 'Earlier' }, operation: editReceipt('undo-earlier', 'section.update', 1000) });
-    await earlier;
+    await store.addSection({ type: 'progress', createDefaultConfig: () => ({}) } as unknown as SectionDefinition);
+    await store.moveSection('section-tasks' as SectionId, 0);
+    await store.setColumnSpan('section-text' as SectionId, 6);
 
-    expect(store.undoNotice()?.receipt?.actionId).toBe('undo-later');
+    expect(reporter.events.filter((event) => event === 'begin')).toHaveLength(3);
+    expect(reporter.events.filter((event) => event === 'end')).toHaveLength(3);
+    expect(reporter.receipts()[0]).toMatchObject({ operation: 'section.add' });
+    expect(store.recoveryNotice()).toBeNull();
   });
 
-  it('does not resurrect an older receipt after the newer notice is dismissed', async () => {
-    const text = section('section-text', 'rich-text', 0);
-    const update = vi.fn<WorkManagerGateway['sections']['update']>()
-      .mockResolvedValueOnce({ section: { ...text, title: 'Newer' }, operation: editReceipt('undo-newer', 'section.update', 2001) })
-      .mockResolvedValueOnce({ section: { ...text, collapsed: true }, operation: editReceipt('undo-stale', 'section.update', 2000) });
-    const { store } = setup({ sections: [text], sectionOverrides: { update } });
-    await store.load(PROJECT, PAGE);
-
-    await store.renameSection(text.id, 'Newer');
-    store.dismissUndoNotice();
-    await store.setCollapsed(text.id, true);
-
-    expect(store.undoNotice()).toBeNull();
-  });
-
-  it('refuses to execute a held receipt while a section write is pending', async () => {
-    const text = section('section-text', 'rich-text', 0);
-    let resolvePending!: (result: SectionWriteResult) => void;
-    const update = vi.fn<WorkManagerGateway['sections']['update']>()
-      .mockResolvedValueOnce({ section: { ...text, title: 'Held' }, operation: editReceipt('undo-held', 'section.update', 3000) })
-      .mockImplementationOnce(() => new Promise((resolve) => { resolvePending = resolve; }));
-    const undoExecute = vi.fn<UndoExecute>();
-    const { store } = setup({ sections: [text], sectionOverrides: { update }, undoExecute });
-    await store.load(PROJECT, PAGE);
-    await store.renameSection(text.id, 'Held');
-
-    const blurSave = store.updateConfig(text.id, { text: 'Saved on blur' });
-    await Promise.resolve();
-    expect(store.undoBusy()).toBe(true);
-    expect(await store.undoOperation()).toBeNull();
-    expect(undoExecute).not.toHaveBeenCalled();
-
-    resolvePending({ section: { ...text, config: { text: 'Saved on blur' } }, operation: editReceipt('undo-blur', 'section.update', 3001) });
-    await blurSave;
-    expect(store.undoBusy()).toBe(false);
-    expect(store.undoNotice()?.receipt?.actionId).toBe('undo-blur');
-  });
-
-  it('executes an add receipt and removes the created frame without restoring focus data', async () => {
-    const text = section('section-text', 'rich-text', 0);
-    let listed = [text];
-    const added = section('section-added', 'progress', 1);
-    const create = vi.fn<WorkManagerGateway['sections']['create']>(async () => {
-      listed = [text, added];
-      return { section: added, operation: editReceipt('undo-add', 'section.add', 4000) };
+  it('reports every shortcut write in the destination root, this canvas’s project', async () => {
+    const placed = shortcut('shortcut-a', 2);
+    const envelope = (value: ResolvedSectionShortcut, id: string) => ({ shortcut: value, operation: editReceipt(id, 'shortcut.update', 950) });
+    const { store, reporter } = setup({
+      shortcuts: [placed],
+      shortcutOverrides: {
+        create: vi.fn(async () => ({ shortcut: shortcut('shortcut-b', 3), operation: editReceipt('undo-add', 'shortcut.add', 951) })) as never,
+        update: vi.fn(async (_id, input) => envelope({ ...placed, ...input }, 'undo-update')) as never,
+        move: vi.fn(async (_id, input) => envelope({ ...placed, position: input.position }, 'undo-move')) as never,
+        remove: vi.fn(async () => ({ shortcutId: placed.id, projectId: PROJECT, pageId: PAGE, operation: editReceipt('undo-remove', 'shortcut.remove', 952) })) as never,
+      },
     });
-    const list = vi.fn(async () => [...listed]);
-    const undoExecute = vi.fn<UndoExecute>(async () => {
-      listed = [text];
-      return { operation: 'section.add', outcome: 'removed', sectionId: added.id, projectId: PROJECT, pageId: PAGE };
-    });
-    const { store } = setup({ sections: [text], sectionOverrides: { create, list }, undoExecute });
     await store.load(PROJECT, PAGE);
-    await store.addSection({ type: 'progress', label: 'Progress', createDefaultConfig: () => ({}) } as unknown as SectionDefinition);
-    expect(store.sections().map(({ id }) => id)).toEqual([text.id, added.id]);
 
-    await expect(store.undoOperation()).resolves.toMatchObject({ operation: 'section.add', outcome: 'removed' });
+    await store.addShortcut({ pageId: PAGE, sourceSectionId: 'source-b' as SectionId });
+    await store.setCollapsedShortcut(placed.id, true);
+    await store.setColumnSpanShortcut(placed.id, 6);
+    await store.moveShortcut(placed.id, 0);
+    await store.removeShortcut(placed.id);
 
-    expect(store.undoNotice()).toMatchObject({ kind: 'result', receipt: null, message: 'Undo removed the added section.' });
-    expect(store.sections().map(({ id }) => id)).toEqual([text.id]);
-  });
-
-  /**
-   * Page results are narrowed so the section notice's placement branch stays type-safe. Nothing
-   * routes a page receipt into this notice — §26's toggles live on the workspace store, whose
-   * write ignores its receipt — so this proves the boundary holds rather than offering a surface.
-   */
-  it.each([
-    [
-      'a first enable, whose record is gone',
-      { operation: 'page.add', outcome: 'removed', projectId: PROJECT, pageId: PAGE, kind: 'reflections' } as UndoResult,
-      'Undo removed the page that was enabled.',
-    ],
-    [
-      'a toggle, whose page came back on',
-      {
-        operation: 'page.update',
-        outcome: 'restored',
-        projectId: PROJECT,
-        pageId: PAGE,
-        kind: 'reflections',
-        page: { id: PAGE, projectId: PROJECT, kind: 'reflections', enabled: true, createdAt: AT, updatedAt: AT },
-      } as UndoResult,
-      'Undo enabled the page again.',
-    ],
-  ])('describes %s without treating it as a section placement', async (_name, result, message) => {
-    const text = section('section-text', 'rich-text', 0);
-    const undoExecute = vi.fn<UndoExecute>(async () => result);
-    const { store } = setup({ sections: [text], undoExecute });
-    await store.load(PROJECT, PAGE);
-    await store.removeSection(text.id);
-
-    await expect(store.undoOperation()).resolves.toMatchObject({ operation: result.operation });
-
-    expect(store.undoNotice()).toMatchObject({ kind: 'result', message });
-  });
-
-  it('keeps a newer receipt when a slow Undo response lands after it', async () => {
-    const text = section('section-text', 'rich-text', 0);
-    const tasks = section('section-tasks', 'task-list', 1);
-    const update = vi.fn<WorkManagerGateway['sections']['update']>()
-      .mockResolvedValueOnce({ section: { ...text, title: 'Held' }, operation: editReceipt('undo-held', 'section.update', 5000) })
-      .mockResolvedValueOnce({ section: { ...tasks, collapsed: true }, operation: editReceipt('undo-newer', 'section.update', 5001) });
-    let resolveUndo!: (result: UndoResult) => void;
-    const undoExecute = vi.fn<UndoExecute>(() => new Promise((resolve) => { resolveUndo = resolve; }));
-    const { store } = setup({ sections: [text, tasks], sectionOverrides: { update }, undoExecute });
-    await store.load(PROJECT, PAGE);
-    await store.renameSection(text.id, 'Held');
-
-    const undoing = store.undoOperation();
-    await Promise.resolve();
-    // The Undo counts as a pending write, so capture the newer receipt directly as a concurrent commit would.
-    (store as unknown as { captureUndoReceipt: (receipt: OperationReceipt, message: string) => void })
-      .captureUndoReceipt(editReceipt('undo-newer', 'section.update', 5001), 'Section updated. Undo is available on this page.');
-    resolveUndo({ operation: 'section.update', outcome: 'restored', section: text });
-    await undoing;
-
-    expect(store.undoNotice()).toMatchObject({ kind: 'available', receipt: { actionId: 'undo-newer' } });
+    const reports = reporter.events.filter((event): event is OperationWriteReport => typeof event === 'object');
+    expect(reports.map(({ projectId }) => projectId)).toEqual([PROJECT, PROJECT, PROJECT, PROJECT, PROJECT]);
+    expect(reports.map(({ receipt: held }) => held?.actionId)).toEqual(['undo-add', 'undo-update', 'undo-update', 'undo-move', 'undo-remove']);
   });
 
   it('offers read-only Retry refresh when the read after a committed move fails', async () => {
@@ -2278,111 +2087,11 @@ describe('ProjectPageStore — section edit Undo receipts (Slice 32)', () => {
     await store.load(PROJECT, PAGE);
 
     expect(await store.moveSection(tasks.id, 0)).toBe(true);
-    expect(store.undoNotice()).toMatchObject({ receipt: { actionId: 'undo-move' }, refreshFailed: true });
+    expect(store.recoveryNotice()).toEqual({ message: 'Saved. Undo is in the header.', refreshFailed: true });
 
-    expect(await store.retryUndoRefresh()).toBe(true);
+    expect(await store.retryRefresh()).toBe(true);
     expect(move).toHaveBeenCalledTimes(1);
-    expect(store.undoNotice()).toMatchObject({ receipt: { actionId: 'undo-move' }, refreshFailed: false });
-  });
-
-  it('still sends a receipt again after a conflict over something missing, which another Undo can bring back', async () => {
-    const text = section('section-text', 'rich-text', 0);
-    const update = vi.fn<WorkManagerGateway['sections']['update']>()
-      .mockResolvedValueOnce({ section: { ...text, title: 'Mine' }, operation: editReceipt('undo-mine', 'section.update', 7000) });
-    const undoExecute = vi.fn<UndoExecute>(async () => {
-      throw new GatewayError('rule_violation', 409, 'history_conflict: refused', historyDetails('undo-mine', {
-        reason: 'history_conflict',
-        conflicts: [{ entityType: 'section', id: text.id, problem: 'missing', nextStep: 'nothing-to-undo' }],
-      }));
-    });
-    const { store } = setup({ sections: [text], sectionOverrides: { update }, undoExecute });
-    await store.load(PROJECT, PAGE);
-    await store.renameSection(text.id, 'Mine');
-
-    expect(await store.undoOperation()).toBeNull();
-    expect(store.undoNotice()).toMatchObject({ kind: 'refusal', receipt: { actionId: 'undo-mine' } });
-    expect(await store.undoOperation()).toBeNull();
-
-    // Permanence is the server's call: it retires an action no repair can satisfy.
-    expect(undoExecute).toHaveBeenCalledTimes(2);
-  });
-
-  it('still sends a receipt again after a refusal that can be repaired', async () => {
-    const text = section('section-text', 'rich-text', 0);
-    const update = vi.fn<WorkManagerGateway['sections']['update']>()
-      .mockResolvedValueOnce({ section: { ...text, title: 'Mine' }, operation: editReceipt('undo-fixable', 'section.update', 7100) });
-    const undoExecute = vi.fn<UndoExecute>(async () => {
-      throw new GatewayError('rule_violation', 409, 'history_conflict: refused', historyDetails('undo-fixable', {
-        reason: 'history_conflict',
-        conflicts: [{ entityType: 'section', id: text.id, title: 'Mine', problem: 'field-changed', nextStep: 'change-by-hand' }],
-      }));
-    });
-    const { store } = setup({ sections: [text], sectionOverrides: { update }, undoExecute });
-    await store.load(PROJECT, PAGE);
-    await store.renameSection(text.id, 'Mine');
-
-    await store.undoOperation();
-    await store.undoOperation();
-
-    expect(undoExecute).toHaveBeenCalledTimes(2);
-  });
-
-  it('history_not_next leaves the recovery offer standing, because undoing the newer change repairs it', async () => {
-    const text = section('section-text', 'rich-text', 0);
-    const update = vi.fn<WorkManagerGateway['sections']['update']>()
-      .mockResolvedValueOnce({ section: { ...text, title: 'Mine' }, operation: editReceipt('undo-behind', 'section.update', 7200) });
-    const undoExecute = vi.fn<UndoExecute>().mockRejectedValueOnce(
-      new GatewayError('rule_violation', 409, 'history_not_next: a newer change is first', historyDetails('undo-behind', { reason: 'history_not_next' })),
-    ).mockResolvedValueOnce({ operation: 'section.update', outcome: 'restored', section: text });
-    const { store } = setup({ sections: [text], sectionOverrides: { update }, undoExecute });
-    await store.load(PROJECT, PAGE);
-    await store.renameSection(text.id, 'Mine');
-
-    expect(await store.undoOperation()).toBeNull();
-    expect(store.undoNotice()).toMatchObject({ kind: 'refusal', receipt: { actionId: 'undo-behind' }, refusal: { reason: 'history_not_next' } });
-
-    await expect(store.undoOperation()).resolves.toMatchObject({ operation: 'section.update' });
-    expect(undoExecute).toHaveBeenCalledTimes(2);
-  });
-
-  it.each([
-    ['history_expired', { reason: 'history_expired', expiresAt: AT }],
-    ['history_retired', { reason: 'history_retired', conflicts: [{ entityType: 'section', id: 'section-text', problem: 'not-archived', nextStep: 'nothing-to-undo' }] }],
-  ] as const)('%s is terminal: the receipt goes and is never sent again', async (_, details) => {
-    const text = section('section-text', 'rich-text', 0);
-    const update = vi.fn<WorkManagerGateway['sections']['update']>()
-      .mockResolvedValueOnce({ section: { ...text, title: 'Mine' }, operation: editReceipt('undo-done', 'section.update', 7300) });
-    const undoExecute = vi.fn<UndoExecute>(async () => {
-      throw new GatewayError('rule_violation', 409, `${details.reason}: refused`, historyDetails('undo-done', details));
-    });
-    const { store } = setup({ sections: [text], sectionOverrides: { update }, undoExecute });
-    await store.load(PROJECT, PAGE);
-    await store.renameSection(text.id, 'Mine');
-
-    expect(await store.undoOperation()).toBeNull();
-    expect(store.undoNotice()).toMatchObject({ kind: 'terminal', receipt: null, refusal: { reason: details.reason } });
-    expect(await store.undoOperation()).toBeNull();
-    expect(undoExecute).toHaveBeenCalledOnce();
-  });
-
-  it('a stale revision whose action is still next keeps the receipt at the current revision', async () => {
-    const text = section('section-text', 'rich-text', 0);
-    const update = vi.fn<WorkManagerGateway['sections']['update']>()
-      .mockResolvedValueOnce({ section: { ...text, title: 'Mine' }, operation: editReceipt('undo-still-next', 'section.update', 7400) });
-    const undoExecute = vi.fn<UndoExecute>().mockRejectedValueOnce(
-      new GatewayError('rule_violation', 409, 'history_revision_stale: moved on', historyDetails('undo-still-next', { reason: 'history_revision_stale' }, {
-        revision: 7402,
-        undo: { actionId: 'undo-still-next', operation: 'section.update', label: 'Mine', expiresAt: AT },
-      })),
-    ).mockResolvedValueOnce({ operation: 'section.update', outcome: 'restored', section: text });
-    const { store, gateway } = setup({ sections: [text], sectionOverrides: { update }, undoExecute });
-    await store.load(PROJECT, PAGE);
-    await store.renameSection(text.id, 'Mine');
-
-    expect(await store.undoOperation()).toBeNull();
-    expect(store.undoNotice()).toMatchObject({ kind: 'available', receipt: { actionId: 'undo-still-next', revision: 7402 } });
-
-    await expect(store.undoOperation()).resolves.toMatchObject({ operation: 'section.update' });
-    expect(gateway.history.transition).toHaveBeenLastCalledWith(HISTORY, { actionId: 'undo-still-next', direction: 'undo', expectedRevision: 7402 });
+    // A refresh-only notice has nothing left to offer once the read succeeds.
+    expect(store.recoveryNotice()).toBeNull();
   });
 });

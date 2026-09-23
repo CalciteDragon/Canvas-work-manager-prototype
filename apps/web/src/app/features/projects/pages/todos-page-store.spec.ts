@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
+import { provideRecordingReporter } from '../../../core/history/testing/recording-reporter';
 import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
 import { TodosPageStore } from './todos-page-store';
 
@@ -477,5 +478,24 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     live.emit({ type: 'task.updated', entityId: 'task-1', projectId: ROOT, rootProjectId: ROOT } as LiveEvent);
     await settleLive();
     expect(todosGet).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('TodosPageStore reports completions to the header’s history (Slice 41)', () => {
+  it('names each row’s own project, so a descendant’s step can be found in its history', async () => {
+    const reporter = provideRecordingReporter();
+    const { store } = setup({
+      items: [taskItem('task-kitchen', { projectId: 'project-kitchen' }), subprojectItem('project-kitchen')],
+      completeTask: async (id: TaskId) => taskWrite(task(id, { projectId: 'project-kitchen', status: 'done', completedAt: '2026-08-28T09:00:00.000Z' })),
+    });
+    await store.load(ROOT);
+
+    await store.complete(store.items()[0]!);
+    await store.complete(store.items()[1]!);
+
+    expect(reporter.events).toEqual([
+      'begin', { projectId: 'project-kitchen', receipt: null }, 'end',
+      'begin', expect.objectContaining({ projectId: 'project-kitchen', projectName: expect.any(String), receipt: null }), 'end',
+    ]);
   });
 });

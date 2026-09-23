@@ -71,7 +71,7 @@ const removalResult = SectionRemovalResultSchema.parse({
 });
 const historySummary = OperationHistorySummarySchema.parse({
   projectId: 'project-1', historyId: 'history-1', revision: 2, undo: null,
-  redo: { actionId: 'operation-1', operation: 'section.remove', label: 'Removed Kickoff', expiresAt: '2026-08-02T16:00:00.000Z' },
+  redo: { actionId: 'operation-1', operation: 'section.remove', label: 'Removed Kickoff', expiresAt: '2026-08-02T16:00:00.000Z', blockedBy: null },
   blockedBy: null,
 });
 const transitionResult = OperationHistoryTransitionResultSchema.parse({

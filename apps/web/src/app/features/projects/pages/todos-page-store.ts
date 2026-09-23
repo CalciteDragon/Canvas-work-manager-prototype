@@ -1,6 +1,7 @@
 import { DestroyRef, Injectable, PendingTasks, inject, signal } from '@angular/core';
 import { isProjectRecordEvent, type LiveEvent, type ProjectId, type ProjectTodoItem } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -34,6 +35,12 @@ export const isTodoFinished = (item: ProjectTodoItem): boolean =>
 export class TodosPageStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
+  /**
+   * Both completions report to the header's history (Slice 41). A row's owning project is often a
+   * descendant, whose history is not the root's: the report names it, from the response, so the
+   * header can say where the step was recorded.
+   */
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
   private readonly itemsState = signal<readonly ProjectTodoItem[]>([]);
   // Starts true for the reason `ProjectPageStore` states: before the first read resolves the
@@ -136,14 +143,22 @@ export class TodosPageStore {
         // Optimistic **status only**. `completedAt` is the clock's (§45) and arrives with the
         // canonical record; inventing one here would print a time nothing recorded.
         this.replace(id, { ...item, task: { ...item.task, status: 'done' } });
-        const record = await this.track(() => this.gateway.tasks.complete(item.task.id));
+        const record = await this.track(() => reportedWrite(
+          this.reporter,
+          () => this.gateway.tasks.complete(item.task.id),
+          ({ task, operation }) => ({ projectId: task.projectId, receipt: operation }),
+        ));
         if (!current()) return false;
         this.replace(id, { ...item, task: record.task });
       } else {
         this.replace(id, { ...item, project: { ...item.project, status: 'completed' } });
         // §26's completion of a unit of work is an ordinary status update, so it goes through
         // the same call the header uses — and it does **not** complete anything beneath it.
-        const { project: record } = await this.track(() => this.gateway.projects.update(item.project.id, { status: 'completed' }));
+        const { project: record } = await this.track(() => reportedWrite(
+          this.reporter,
+          () => this.gateway.projects.update(item.project.id, { status: 'completed' }),
+          ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }),
+        ));
         if (!current()) return false;
         // A root coming back here would mean the id named something else entirely; keep the
         // optimistic row rather than putting a shape this page cannot render into the list.

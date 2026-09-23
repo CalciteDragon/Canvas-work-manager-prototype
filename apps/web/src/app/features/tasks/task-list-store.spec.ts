@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { emptyDashboard } from '../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../../core/gateway/work-manager-gateway';
+import { provideRecordingReporter } from '../../core/history/testing/recording-reporter';
 import { TaskListStore } from './task-list-store';
 
 const AT = '2026-08-27T16:00:00.000Z';
@@ -538,5 +539,41 @@ describe('TaskListStore.archive', () => {
     expect(store.tasks().map(({ id }) => id)).toEqual([task().id]);
     expect(store.error()).toContain('cannot be archived');
     expect(store.archivingIds().has(task().id)).toBe(false);
+  });
+});
+
+describe('TaskListStore reports every write to the header’s history (Slice 41)', () => {
+  it('begins before each request, commits with the task’s own project, and ends in finally', async () => {
+    const reporter = provideRecordingReporter();
+    // The list sits in a Home shortcut: its rows belong to the source sub-project, project-b.
+    const owned = task({ projectId: 'project-b', sectionId: 'section-project-b-tasks' });
+    const { store } = setup({
+      tasks: [owned],
+      create: vi.fn(async (input) => resultOf(task({ id: 'task-created', ...input }))),
+      update: vi.fn(async (id, input) => resultOf({ ...owned, id, ...input } as Task)),
+      complete: vi.fn(async (id) => resultOf({ ...owned, id, status: 'done', completedAt: AT })),
+      archive: vi.fn(async () => resultOf({ ...owned, archivedAt: AT })),
+    });
+    await store.load(section('project-b'));
+
+    await store.create('Another');
+    await store.updateTitle(owned.id, 'Renamed');
+    await store.complete(owned.id);
+    await store.archive(owned.id);
+    await store.receive('task-elsewhere' as TaskId, 'section-project-b-tasks' as ProjectSection['id']);
+
+    expect(reporter.events.filter((event) => event === 'begin')).toHaveLength(5);
+    expect(reporter.events.filter((event) => event === 'end')).toHaveLength(5);
+    expect(reporter.reports().map(({ projectId }) => projectId)).toEqual(['project-b', 'project-b', 'project-b', 'project-b', 'project-b']);
+    expect(reporter.events.slice(0, 3)).toEqual(['begin', expect.objectContaining({ receipt: expect.objectContaining({ historyId: 'history-test' }) }), 'end']);
+  });
+
+  it('ends a failed write without a commit, so the header re-reads', async () => {
+    const reporter = provideRecordingReporter();
+    const { store } = setup({ complete: vi.fn(async () => { throw new GatewayError('unreachable', 0, 'offline'); }) });
+    await store.load(section());
+
+    expect(await store.complete('task-a' as TaskId)).toBe(false);
+    expect(reporter.events).toEqual(['begin', 'end']);
   });
 });

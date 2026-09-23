@@ -8,6 +8,7 @@ import {
 } from '../../../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../../../core/gateway/testing/fake-gateway';
 import { ReflectionsStore } from './reflections-store';
+import { provideRecordingReporter } from '../../../../core/history/testing/recording-reporter';
 
 /** The container the list renders: a reflections section owns its rows. */
 const section = (projectId = 'project-a'): ProjectSection =>
@@ -193,5 +194,25 @@ describe('ReflectionsStore (§36)', () => {
 
     expect(store.projectId()).toBe('project-b');
     expect(store.reflections().map(({ id }) => id)).toEqual(['reflection-b']);
+  });
+});
+
+describe('ReflectionsStore reports its writes to the header’s history (Slice 41)', () => {
+  it('commits a create and an edit with the reflection’s own project', async () => {
+    const reporter = provideRecordingReporter();
+    const gateway = new FakeWorkManagerGateway({ sections: [section()], reflections: [reflection()] });
+    const store = setup(gateway);
+    await store.load(section());
+
+    expect(await store.create('A second note')).toBe(true);
+    store.beginEdit('reflection-a' as Reflection['id']);
+    expect(await store.saveEdit('', 'Edited')).toBe(true);
+
+    expect(reporter.events.filter((event) => event === 'begin')).toHaveLength(2);
+    expect(reporter.events.filter((event) => event === 'end')).toHaveLength(2);
+    expect(reporter.reports().map(({ projectId, receipt }) => [projectId, receipt?.operation])).toEqual([
+      ['project-a', 'reflection.add'],
+      ['project-a', 'reflection.update'],
+    ]);
   });
 });

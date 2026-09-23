@@ -17,6 +17,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, type OperationWriteReport } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
 import { ReflectionsPageStore } from './reflections-page-store';
@@ -333,119 +334,61 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
   });
 });
 
-/** Refusal details as the host sends them: the history, the named action and the current summary. */
-const refusalDetails = (details: Record<string, unknown>) => ({
-  historyId: addReceipt.historyId,
-  actionId: addReceipt.actionId,
-  summary: {
-    projectId: PROJECT, historyId: addReceipt.historyId, revision: 1, blockedBy: null, redo: null,
-    undo: { actionId: addReceipt.actionId, operation: 'section.add', label: addReceipt.label, expiresAt: addReceipt.expiresAt },
-  },
-  ...details,
-});
-
-describe('ReflectionsPageStore — container add Undo (Slices 32, 35)', () => {
-  const addWithUndo = (gateway: FakeWorkManagerGateway, transition: FakeWorkManagerGateway['history']['transition']) => {
-    let listed: (typeof container)[] = [];
-    gateway.sections.list = async () => [...listed];
-    gateway.sections.create = vi.fn(async (_projectId, input) => {
-      listed = [container];
-      return { section: { ...container, ...input, projectId: PROJECT, pageId: PAGE }, operation: addReceipt };
-    });
-    gateway.history.transition = vi.fn(async (historyId, input) => {
-      const result = await transition(historyId, input);
-      listed = [];
-      return result;
-    });
+describe('ReflectionsPageStore — writes report to the header’s history (Slice 41)', () => {
+  const recording = () => {
+    const events: Array<'begin' | 'end' | OperationWriteReport> = [];
+    return {
+      events,
+      begin: () => {
+        events.push('begin');
+        return () => void events.push('end');
+      },
+      committed: (report: OperationWriteReport) => void events.push(report),
+    };
+  };
+  const setupReported = () => {
+    const reporter = recording();
+    TestBed.configureTestingModule({ providers: [{ provide: OPERATION_HISTORY_REPORTER, useValue: reporter }] });
+    return { ...setup(), reporter };
   };
 
-  it('holds the add receipt and Undo returns the page to its empty-container prompt', async () => {
-    const { store, gateway } = setup();
-    addWithUndo(gateway, async (historyId, input) => {
-      expect(historyId).toBe(addReceipt.historyId);
-      expect(input).toEqual({ actionId: addReceipt.actionId, direction: 'undo', expectedRevision: addReceipt.revision });
-      return {
-        direction: 'undo', actionId: addReceipt.actionId,
-        result: { operation: 'section.add', outcome: 'removed', sectionId: container.id, projectId: PROJECT, pageId: PAGE },
-        summary: { projectId: PROJECT, historyId: addReceipt.historyId, revision: 2, undo: null, redo: null, blockedBy: null },
-      };
-    });
+  it('reports the explicit container add with the section’s project, and holds no receipt of its own', async () => {
+    const { store, gateway, reporter } = setupReported();
+    gateway.sections.list = async () => [];
+    gateway.sections.create = vi.fn(async (_projectId, input) => ({
+      section: { ...container, ...input, projectId: PROJECT, pageId: PAGE }, operation: addReceipt,
+    }));
     await store.load(PROJECT, PAGE);
 
-    await store.ensureContainer();
-    expect(store.undoNotice()).toMatchObject({ kind: 'available', receipt: { actionId: addReceipt.actionId } });
+    expect(await store.ensureContainer()).toBe(true);
 
-    await expect(store.undoOperation()).resolves.toMatchObject({ operation: 'section.add' });
-    expect(store.undoNotice()).toMatchObject({ kind: 'result', receipt: null });
+    expect(reporter.events).toEqual(['begin', { projectId: PROJECT, receipt: addReceipt }, 'end']);
+    expect(Object.keys(store)).not.toContain('undoNoticeState');
+  });
+
+  it('returns to the empty-container prompt when a header Undo’s frame arrives', async () => {
+    const { store, gateway, live } = setupReported();
+    let listed = [container];
+    gateway.sections.list = async () => [...listed];
+    await store.load(PROJECT, PAGE);
+    expect(store.container()?.id).toBe(container.id);
+
+    listed = [];
+    live.emit({ type: 'project.section_addition_undone', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+
     expect(store.container()).toBeNull();
     expect(store.containerCount()).toBe(0);
   });
 
-  it('keeps the container and the receipt when the server refuses because a reflection was authored', async () => {
-    const { store, gateway } = setup();
-    addWithUndo(gateway, async () => {
-      throw new GatewayError('rule_violation', 409, 'history_conflict: a reflection now lives in it', refusalDetails({
-        reason: 'history_conflict',
-        conflicts: [{ entityType: 'reflection', id: 'reflection-new', title: 'Kept', problem: 'new-dependent', nextStep: 'remove-reference-and-retry' }],
-      }));
-    });
+  it('reports a reflection write with the reflection’s own project', async () => {
+    const { store, reporter } = setupReported();
     await store.load(PROJECT, PAGE);
-    await store.ensureContainer();
 
-    expect(await store.undoOperation()).toBeNull();
+    expect(await store.create('A note')).toBe(true);
 
-    expect(store.undoNotice()).toMatchObject({ kind: 'refusal', receipt: { actionId: addReceipt.actionId }, refusal: { reason: 'history_conflict' } });
-    expect(store.container()?.id).toBe(container.id);
-  });
-
-  it('re-reads the container when a stale refusal shows this Undo already landed', async () => {
-    const { store, gateway } = setup();
-    addWithUndo(gateway, async () => {
-      throw new GatewayError('rule_violation', 409, 'history_revision_stale: moved', refusalDetails({
-        reason: 'history_revision_stale',
-        summary: {
-          projectId: PROJECT, historyId: addReceipt.historyId, revision: 2, blockedBy: null, undo: null,
-          redo: { actionId: addReceipt.actionId, operation: 'section.add', label: addReceipt.label, expiresAt: addReceipt.expiresAt },
-        },
-      }));
-    });
-    await store.load(PROJECT, PAGE);
-    await store.ensureContainer();
-    expect(store.container()?.id).toBe(container.id);
-    // The Undo ran elsewhere (a lost response, or another tab): the container is gone on the host.
-    gateway.sections.list = async () => [];
-
-    expect(await store.undoOperation()).toBeNull();
-
-    expect(store.undoNotice()).toMatchObject({ kind: 'terminal', receipt: null });
-    expect(store.container()).toBeNull();
-  });
-
-  it('clears the notice on navigation', async () => {
-    const { store, gateway } = setup();
-    addWithUndo(gateway, async () => { throw new Error('not reached'); });
-    await store.load(PROJECT, PAGE);
-    await store.ensureContainer();
-
-    await store.load(PROJECT, 'page-other' as ProjectPageId);
-    expect(store.undoNotice()).toBeNull();
-  });
-
-  it('does not send the add receipt again once the server retired it', async () => {
-    const { store, gateway } = setup();
-    const refuse = vi.fn(async () => {
-      throw new GatewayError('rule_violation', 409, 'history_retired: retired', refusalDetails({
-        reason: 'history_retired',
-        conflicts: [{ entityType: 'section', id: container.id, title: 'Reflections', problem: 'already-exists', nextStep: 'nothing-to-restore' }],
-      }));
-    });
-    addWithUndo(gateway, refuse);
-    await store.load(PROJECT, PAGE);
-    await store.ensureContainer();
-
-    expect(await store.undoOperation()).toBeNull();
-    expect(await store.undoOperation()).toBeNull();
-
-    expect(refuse).toHaveBeenCalledOnce();
+    const report = reporter.events.find((event): event is OperationWriteReport => typeof event === 'object');
+    expect(report).toMatchObject({ projectId: PROJECT, receipt: { operation: 'reflection.add' } });
+    expect(reporter.events.at(-1)).toBe('end');
   });
 });

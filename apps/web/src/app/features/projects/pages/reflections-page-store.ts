@@ -7,13 +7,11 @@ import type {
   ProjectPageId,
   ProjectSection,
   ReflectionSubjectView,
-  OperationReceipt,
-  UndoResult,
 } from '@cwm/contracts';
 import { isProjectRecordEvent } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
-import { supersedesReceipt, undoFailureNotice, type SectionUndoNoticeState } from '../project-page-store';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
@@ -24,11 +22,16 @@ interface ActiveRead {
   next?: Promise<boolean>;
 }
 
-/** §36's page-local reads, picker and write coordination. */
+/**
+ * §36's page-local reads, picker and write coordination. Its two writes — the explicit container
+ * add and a reflection — report to the header's history (Slice 41), which is where their Undo lives;
+ * this page holds no receipt.
+ */
 @Injectable()
 export class ReflectionsPageStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
   private readonly journalState = signal<ProjectJournalResult | null>(null);
   private readonly candidatesState = signal<readonly ReflectionSubjectView[]>([]);
@@ -43,11 +46,7 @@ export class ReflectionsPageStore {
   private readonly refreshErrorState = signal<string | null>(null);
   private readonly writeErrorState = signal<string | null>(null);
   private readonly creatingContainerState = signal(false);
-  private readonly undoNoticeState = signal<SectionUndoNoticeState | null>(null);
-  private readonly undoPendingState = signal(false);
   private readonly writingState = signal(false);
-  /** The newest receipt captured on this page; see `supersedesReceipt`. */
-  private newestReceipt: OperationReceipt | null = null;
 
   private projectIdState = signal<ProjectId | null>(null);
   private pageIdState = signal<ProjectPageId | null>(null);
@@ -78,9 +77,6 @@ export class ReflectionsPageStore {
   readonly refreshError = this.refreshErrorState.asReadonly();
   readonly writeError = this.writeErrorState.asReadonly();
   readonly creatingContainer = this.creatingContainerState.asReadonly();
-  readonly undoNotice = this.undoNoticeState.asReadonly();
-  readonly undoBusy = computed(() => this.undoPendingState() || this.writingState());
-  readonly undoPending = this.undoPendingState.asReadonly();
 
   constructor() {
     const unsubscribe = inject(LIVE_UPDATES).subscribe(
@@ -108,8 +104,6 @@ export class ReflectionsPageStore {
       this.containerState.set(null);
       this.containerCountState.set(0);
     }
-    this.undoNoticeState.set(null);
-    this.newestReceipt = null;
     this.journalQueued = false;
     this.candidatesQueued = false;
     this.containerQueued = false;
@@ -143,13 +137,11 @@ export class ReflectionsPageStore {
     return projectId === null ? Promise.resolve(false) : this.readCandidates(this.generation, projectId, false);
   }
 
-  async retryContainer(): Promise<boolean> {
+  retryContainer(): Promise<boolean> {
     const projectId = this.projectIdState();
     const pageId = this.pageIdState();
-    if (projectId === null || pageId === null) return false;
-    const refreshed = await this.readContainer(this.generation, projectId, pageId, false);
-    if (refreshed) this.undoNoticeState.update((state) => state === null ? null : { ...state, refreshFailed: false });
-    return refreshed;
+    if (projectId === null || pageId === null) return Promise.resolve(false);
+    return this.readContainer(this.generation, projectId, pageId, false);
   }
 
   async ensureContainer(): Promise<boolean> {
@@ -163,13 +155,14 @@ export class ReflectionsPageStore {
     this.containerErrorState.set(null);
     this.beginWrite(generation);
     try {
-      const result = await this.track(() =>
-        this.gateway.sections.create(projectId, { type: 'reflections', pageId }),
-      );
+      const result = await this.track(() => reportedWrite(
+        this.reporter,
+        () => this.gateway.sections.create(projectId, { type: 'reflections', pageId }),
+        ({ section, operation }) => ({ projectId: section.projectId, receipt: operation }),
+      ));
       if (!this.current(generation, projectId, pageId)) return false;
       this.containerState.set(result.section);
       this.containerCountState.set(1);
-      this.captureUndoReceipt(result.operation, 'Reflections container added. Undo is available on this page.');
       return true;
     } catch (error) {
       if (this.current(generation, projectId, pageId)) this.containerErrorState.set(messageOf(error));
@@ -178,71 +171,6 @@ export class ReflectionsPageStore {
       this.endWrite(generation, projectId, pageId);
       if (!this.destroyed) this.creatingContainerState.set(false);
     }
-  }
-
-  /** Undoes the page's held receipt through the history transition route; the inverse stays on the server. */
-  async undoOperation(): Promise<UndoResult | null> {
-    const notice = this.undoNoticeState();
-    const receipt = notice?.receipt;
-    const projectId = this.projectIdState();
-    const pageId = this.pageIdState();
-    if (
-      receipt === null || receipt === undefined || projectId === null || pageId === null ||
-      this.undoPendingState() || this.writingGeneration !== null
-    ) {
-      return null;
-    }
-    const generation = this.generation;
-    this.undoPendingState.set(true);
-    this.beginWrite(generation);
-    let result: UndoResult | null = null;
-    try {
-      const transition = await this.track(() => this.gateway.history.transition(receipt.historyId, {
-        actionId: receipt.actionId,
-        direction: 'undo',
-        expectedRevision: receipt.revision,
-      }));
-      result = transition.direction === 'undo' ? transition.result : null;
-    } catch (error) {
-      if (this.current(generation, projectId, pageId) && this.newestReceipt?.actionId === receipt.actionId) {
-        const { landed, ...state } = undoFailureNotice(receipt, error, this.undoNoticeState(), 'The page has been refreshed.');
-        this.undoNoticeState.set(state);
-        if (state.receipt !== null) this.newestReceipt = state.receipt;
-        // The Undo already ran (a lost response, or another tab), so the container on screen is stale.
-        if (landed === true) await this.readContainer(generation, projectId, pageId, true);
-      }
-      return null;
-    } finally {
-      this.endWrite(generation, projectId, pageId);
-      this.undoPendingState.set(false);
-    }
-    if (result === null || !this.current(generation, projectId, pageId)) return null;
-    if (this.newestReceipt?.actionId !== receipt.actionId) {
-      await this.readContainer(generation, projectId, pageId, true);
-      return result;
-    }
-    this.undoNoticeState.set({
-      kind: 'result',
-      receipt: null,
-      result,
-      message: result.operation === 'section.add'
-        ? 'Undo removed the added Reflections container.'
-        : 'Undo restored the Reflections container.',
-    });
-    const refreshed = await this.readContainer(generation, projectId, pageId, true);
-    // A read queued behind another write is not a failure; only a failed read is.
-    if (!refreshed && this.refreshErrorState() !== null && this.current(generation, projectId, pageId)) {
-      this.undoNoticeState.update((state) => state === null ? null : {
-        ...state,
-        refreshFailed: true,
-        message: state.message || 'The change was saved, but this page could not be refreshed.',
-      });
-    }
-    return result;
-  }
-
-  dismissUndoNotice(): void {
-    this.undoNoticeState.set(null);
   }
 
   /** Writes through the same reflection gateway as a canvas section, then refreshes the feed. */
@@ -278,7 +206,11 @@ export class ReflectionsPageStore {
       };
       if (subject?.kind === 'task') input.subject = { kind: 'task', id: subject.id };
       if (subject?.kind === 'subproject') input.subject = { kind: 'subproject', id: subject.id };
-      await this.track(() => this.gateway.reflections.create(input));
+      await this.track(() => reportedWrite(
+        this.reporter,
+        () => this.gateway.reflections.create(input),
+        ({ reflection, operation }) => ({ projectId: reflection.projectId, receipt: operation }),
+      ));
       committed = true;
     } catch (error) {
       if (this.current(generation, projectId, this.pageIdState())) this.writeErrorState.set(messageOf(error));
@@ -516,12 +448,6 @@ export class ReflectionsPageStore {
       this.containerQueued = false;
       void this.readContainer(generation, projectId, pageId, true);
     }
-  }
-
-  private captureUndoReceipt(receipt: OperationReceipt, message: string): void {
-    if (!supersedesReceipt(this.newestReceipt, receipt)) return;
-    this.newestReceipt = receipt;
-    this.undoNoticeState.set({ kind: 'available', receipt, message });
   }
 
   private currentProject(generation: number, projectId: ProjectId): boolean {

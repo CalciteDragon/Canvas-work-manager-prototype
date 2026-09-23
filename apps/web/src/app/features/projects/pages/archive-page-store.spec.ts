@@ -14,6 +14,7 @@ import { GatewayError } from '../../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
+import { provideRecordingReporter } from '../../../core/history/testing/recording-reporter';
 import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
 import { ArchivePageStore } from './archive-page-store';
 
@@ -243,5 +244,21 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
     live.emit({ type: 'task.updated', entityType: 'task', entityId: 'task-9', projectId: 'project-elsewhere', rootProjectId: 'project-elsewhere' } as never);
     await settle();
     expect(reads()).toBe(before + 1);
+  });
+});
+
+describe('ArchivePageStore reports every Restore to the header’s history (Slice 41)', () => {
+  it('commits with the restored section’s own project, and ends in finally', async () => {
+    const reporter = provideRecordingReporter();
+    const { store } = setup();
+    await store.load(PROJECT);
+
+    expect(await store.restore(store.items()[0]!)).toBe(true);
+
+    expect(reporter.events).toEqual([
+      'begin',
+      expect.objectContaining({ projectId: section.projectId }),
+      'end',
+    ]);
   });
 });

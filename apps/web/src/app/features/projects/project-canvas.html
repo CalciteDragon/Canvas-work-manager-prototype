@@ -7,19 +7,19 @@
   </div>
 </section>
 
-@defer (when store.undoNotice() !== null || store.failedRemoval() !== null) {
-  @if (store.undoNotice() !== null || store.failedRemoval() !== null) {
-    <app-section-undo-notice
-      [state]="store.undoNotice()"
+<!-- Recovery only: Undo and Redo live in the project header (Slice 41). -->
+@defer (when store.recoveryNotice() !== null || store.failedRemoval() !== null) {
+  @if (store.recoveryNotice() !== null || store.failedRemoval() !== null) {
+    <app-section-recovery-notice
+      [state]="store.recoveryNotice()"
       [failedRemoval]="store.failedRemoval()"
-      [busy]="store.undoBusy()"
-      (undo)="undoFromNotice()"
+      [busy]="store.recoveryBusy()"
       (retryRemove)="retryFailedRemoval()"
-      (retryRefresh)="retryUndoRefresh()"
+      (retryRefresh)="retryRefresh()"
       (openArchive)="openArchiveFromNotice()"
-      (dismissUndo)="dismissUndoNotice()"
+      (dismissNotice)="dismissRecoveryNotice()"
       (dismissFailure)="dismissFailedRemoval()"
-      (ready)="focusPendingUndo()"
+      (ready)="focusAfterRemoval()"
     />
   }
 }
@@ -124,7 +124,7 @@
                 [rename]="renameSection"
                 [movePending]="keyboardMovePending().has(placement.section.id)"
                 [moveAllowed]="store.orderComplete()"
-                [removalPending]="store.removalUndoPending()"
+                [removalPending]="store.removalPending()"
                 [transientlyExpanded]="transientTargetId() === placement.section.id"
                 [projectDataRevision]="store.projectDataRevision()"
                 [projectHierarchyRevision]="store.projectHierarchyRevision()"
@@ -150,7 +150,7 @@
                   <button
                     data-unknown-section-remove
                     type="button"
-                    [attr.aria-disabled]="store.removalUndoPending()"
+                    [attr.aria-disabled]="store.removalPending()"
                     title="Remove section"
                     [attr.aria-label]="'Remove unrecognised section ' + placement.section.type"
                     (click)="removeSectionFromCanvas(placement.section.id)"
@@ -227,7 +227,7 @@
   @if (store.removalPrompt(); as prompt) {
     <app-section-removal-dialog
       [prompt]="prompt"
-      [pending]="store.removalUndoPending()"
+      [pending]="store.removalPending()"
       (cancelled)="cancelRemovalPrompt(prompt.sectionId)"
       (cascadeChosen)="cascadeAndRemove(prompt.sectionId)"
       (reassignChosen)="reassignAndRemove(prompt.sectionId, $event)"
