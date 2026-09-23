@@ -88,7 +88,12 @@ archived may run while their own subject is archived; an archived ancestor still
 projections re-read on project-record frames from any root, so a cross-root move refreshes the root it
 left. Project creation Undo with its recovery route, persistent controls with **subject-naming
 labels** (the Slice 39 real-use note), receipt reporting and the deferred retry cache remain for later
-bounded phases. The
+bounded phases. **[Slice 41 — project header Undo/Redo controls](active/41-header-history-controls.md)
+is active as Stage C4** (planned and reviewed 2026-09-22; not yet implemented): always-present header
+icons driven by the server summary with per-step availability, subject-naming shortcut and project
+labels, write reporting from every browser surface, archive staying on the project page, and the
+canvas notice's Undo retired. It goes first because the Slice 37 note asks for the controls before
+more families are recorded, and creation Undo's recovery route presupposes a Redo control. The
 paragraphs below describe the earlier shipped system and its choices.
 
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported

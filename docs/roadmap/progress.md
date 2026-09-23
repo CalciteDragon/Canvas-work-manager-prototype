@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 41 | Slice 41 — Project header Undo/Redo controls (Slice 34 Stage C4) | Always-present Undo/Redo icons in the project header, driven by the server history summary, with per-step availability, subject-naming labels and write reporting from every browser surface | [41-header-history-controls.md](active/41-header-history-controls.md) |
 
 ### Planned
 
