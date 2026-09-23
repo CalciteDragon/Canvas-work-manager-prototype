@@ -89,17 +89,71 @@ export const captureProjectWrite = (before: Project, after: Project): ProjectUnd
   return ProjectUpdateOperationSchema.parse({ ...shape, type: 'project.update', archivedThroughout: after.status === 'archived' });
 };
 
-/** What a receipt and a history summary call one write, e.g. `Archived "Kitchen"`. */
-export const projectWriteLabel = (operation: ProjectUndoOperation, after: Project): string => {
-  const verb = (() => {
-    if (operation.type === 'project.archive') return 'Archived';
-    if (operation.type === 'project.reactivate') return 'Reactivated';
-    const status = operation.changes.find((change) => change.field === 'status');
-    if (status?.after === 'completed') return 'Completed';
-    if (operation.changes.length === 1 && operation.changes[0]!.field === 'parentProjectId') return 'Moved';
-    return 'Updated';
-  })();
-  return `${verb} "${after.name}"`;
+/** The user-facing edit each recorded field belongs to; `completedAt` rides with `status`, manual progress with its formula. */
+const EDIT_OF: Record<Field, string> = {
+  name: 'name',
+  description: 'description',
+  icon: 'icon',
+  status: 'status',
+  completedAt: 'status',
+  targetDate: 'targetDate',
+  projectLayoutMode: 'projectLayoutMode',
+  progressFormula: 'progress',
+  manualProgress: 'progress',
+  parentProjectId: 'parentProjectId',
+};
+
+const STATUS_WORD: Record<Project['status'], string> = {
+  planning: 'Planning',
+  active: 'Active',
+  on_hold: 'On hold',
+  completed: 'Completed',
+  archived: 'Archived',
+};
+
+/**
+ * What a receipt and a history summary call one write, naming the edit and its result so a header
+ * control can say what it will undo (Slice 41): `Renamed "Old" to "New"`, `Completed "X"`,
+ * `Reopened "X"`, `Set "X" to On hold`, `Moved "X" under Kitchen`, `Changed the layout of "X"`,
+ * `Changed progress for "X"`, `Changed the target date of "X"`, `Edited the description of "X"`,
+ * `Changed the icon of "X"`; an archive or reactivation keeps `Archived`/`Reactivated`; more than
+ * one user-facing edit is `Edited "X"`. `parentName` is the new parent's name for a move, read by
+ * the caller; without it a move is `Moved "X"`.
+ */
+export const projectWriteLabel = (operation: ProjectUndoOperation, after: Project, parentName?: string): string => {
+  const subject = `"${after.name}"`;
+  if (operation.type === 'project.archive') return `Archived ${subject}`;
+  if (operation.type === 'project.reactivate') return `Reactivated ${subject}`;
+  const edits = new Set(operation.changes.map((change) => EDIT_OF[change.field]));
+  if (edits.size !== 1) return `Edited ${subject}`;
+  const [edit] = edits;
+  switch (edit) {
+    case 'name': {
+      const rename = operation.changes.find((change) => change.field === 'name');
+      return `Renamed "${String(rename?.before)}" to ${subject}`;
+    }
+    case 'status': {
+      const status = operation.changes.find((change) => change.field === 'status');
+      if (status === undefined) return `Edited ${subject}`;
+      if (status.after === 'completed') return `Completed ${subject}`;
+      if (status.before === 'completed') return `Reopened ${subject}`;
+      return `Set ${subject} to ${STATUS_WORD[status.after as Project['status']]}`;
+    }
+    case 'parentProjectId':
+      return parentName === undefined ? `Moved ${subject}` : `Moved ${subject} under ${parentName}`;
+    case 'projectLayoutMode':
+      return `Changed the layout of ${subject}`;
+    case 'progress':
+      return `Changed progress for ${subject}`;
+    case 'targetDate':
+      return `Changed the target date of ${subject}`;
+    case 'description':
+      return `Edited the description of ${subject}`;
+    case 'icon':
+      return `Changed the icon of ${subject}`;
+    default:
+      return `Edited ${subject}`;
+  }
 };
 
 /**

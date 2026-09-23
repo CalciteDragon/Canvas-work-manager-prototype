@@ -6,6 +6,7 @@ import {
   nameOf,
   operationSubjectOf,
   type OperationAction,
+  type OperationHistoryBlocker,
   type OperationHistoryDirection,
   type OperationHistoryId,
   type OperationHistoryRefusalDetails,
@@ -334,20 +335,28 @@ export class OperationHistoryService {
     }
   }
 
-  /** The snapshot-free projection of one history. An expired next action is not offered. */
+  /**
+   * The snapshot-free projection of one history. An expired next action is not offered. Each entry's
+   * `blockedBy` is computed by the same `transitionBlocker` a transition of that step would run, so
+   * the summary and the execution cannot disagree about availability.
+   */
   private async summaryOf(state: OperationHistoryState): Promise<OperationHistorySummary> {
     const now = this.dependencies.clock.now().getTime();
-    const entry = (action: OperationAction | null) =>
+    const { projectId } = state.history;
+    const entry = async (action: OperationAction | null, direction: OperationHistoryDirection) =>
       action === null || now >= Date.parse(action.expiresAt)
         ? null
-        : { actionId: action.id, operation: action.operation.type, label: action.label, expiresAt: action.expiresAt };
+        : {
+          actionId: action.id, operation: action.operation.type, label: action.label, expiresAt: action.expiresAt,
+          blockedBy: await this.blockerOf(await this.transitionBlocker(projectId, action.operation, direction)),
+        };
     return OperationHistorySummarySchema.parse({
-      projectId: state.history.projectId,
+      projectId,
       historyId: state.history.id,
       revision: state.history.revision,
-      undo: entry(nextOperationAction(state, 'undo')),
-      redo: entry(nextOperationAction(state, 'redo')),
-      blockedBy: await this.blockedBy(state.history.projectId),
+      undo: await entry(nextOperationAction(state, 'undo'), 'undo'),
+      redo: await entry(nextOperationAction(state, 'redo'), 'redo'),
+      blockedBy: await this.blockedBy(projectId),
     });
   }
 
@@ -360,8 +369,8 @@ export class OperationHistoryService {
    * reactivation's Redo, or an edit made while the project was archived — ignores its **own
    * subject's** archived status, because the service allowed the write it reverses and refusing
    * would wedge the cursor on that very project. An archived ancestor still blocks it, and no other
-   * family ever gets the exception. The summary's `blockedBy` deliberately keeps reporting the
-   * observed archived project, since it describes the project, not one step.
+   * family ever gets the exception. The summary's top-level `blockedBy` deliberately keeps reporting
+   * the observed archived project, since it describes the project; each entry's `blockedBy` is this.
    */
   private async transitionBlocker(
     projectId: ProjectId,
@@ -378,9 +387,13 @@ export class OperationHistoryService {
     return parentId === undefined ? undefined : findHighestWriteBlocker(projects, parentId);
   }
 
-  /** The one pre-validation the summary does: the archived ancestor that blocks every transition. */
+  /** The summary's project-level blocker: the highest archived project on the chain, itself included. */
   private async blockedBy(projectId: ProjectId): Promise<OperationHistorySummary['blockedBy']> {
-    const blocker = await findHighestWriteBlocker(this.dependencies.projects, projectId);
+    return this.blockerOf(await findHighestWriteBlocker(this.dependencies.projects, projectId));
+  }
+
+  /** A blocking project id as the `{ projectId, title }` the summary carries. */
+  private async blockerOf(blocker: ProjectId | undefined): Promise<OperationHistoryBlocker | null> {
     if (blocker === undefined) return null;
     return { projectId: blocker, title: (await this.dependencies.projects.find(blocker))?.name ?? blocker };
   }

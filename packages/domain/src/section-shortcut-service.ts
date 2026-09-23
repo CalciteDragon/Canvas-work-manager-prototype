@@ -42,6 +42,7 @@ import {
   captureShortcutMove,
   captureShortcutRemove,
   captureShortcutUpdate,
+  shortcutWriteLabel,
 } from './shortcut-history';
 
 export interface SectionShortcutServiceDependencies {
@@ -179,7 +180,7 @@ export class SectionShortcutService {
         // The **destination** root, always: the action belongs to the canvas the placement is on,
         // never to the sub-project the source happens to live in.
         projectId: destination.project.id,
-        label: `Added a shortcut to ${nameOf(source)}`,
+        label: shortcutWriteLabel('shortcut.add', [], nameOf(source)),
         operation: captureShortcutAdd(
           destination.project.id,
           stored,
@@ -225,7 +226,7 @@ export class SectionShortcutService {
       await this.record(actor, destination.project, 'project.shortcut_updated', 'Updated a shortcut');
       const operation = await this.dependencies.history.record(actor, {
         projectId: destination.project.id,
-        label: 'Updated a shortcut',
+        label: shortcutWriteLabel('shortcut.update', changes, await this.sourceNameOf(updated)),
         operation: captureShortcutUpdate({
           shortcutId: updated.id,
           projectId: destination.project.id,
@@ -274,7 +275,7 @@ export class SectionShortcutService {
       await this.record(actor, destination.project, 'project.shortcut_moved', 'Moved a shortcut');
       const operation = await this.dependencies.history.record(actor, {
         projectId: destination.project.id,
-        label: 'Moved a shortcut',
+        label: shortcutWriteLabel('shortcut.move', [], await this.sourceNameOf(updated)),
         operation: captureShortcutMove({
           shortcutId: id,
           projectId: destination.project.id,
@@ -313,11 +314,21 @@ export class SectionShortcutService {
       await this.record(actor, destination.project, 'project.shortcut_removed', 'Removed a shortcut');
       const operation = await this.dependencies.history.record(actor, {
         projectId: destination.project.id,
-        label: 'Removed a shortcut',
+        label: shortcutWriteLabel('shortcut.remove', [], await this.sourceNameOf(current)),
         operation: captureShortcutRemove(destination.project.id, current, placement),
       });
       return { shortcutId: id, projectId: destination.project.id, pageId: current.pageId, operation };
     });
+  }
+
+  /**
+   * The source section's name for a history label, read with a plain `find` — deliberately not
+   * `requireSource`/`assertSourceScope`, because a removal may run while the source is archived or
+   * hidden, and a label must never add a refusal. `null` when the source cannot be read.
+   */
+  private async sourceNameOf(placement: SectionShortcut): Promise<string | null> {
+    const source = await this.dependencies.sections.find(placement.sourceSectionId);
+    return source === null ? null : nameOf(source);
   }
 
   private async resolveCurrent(

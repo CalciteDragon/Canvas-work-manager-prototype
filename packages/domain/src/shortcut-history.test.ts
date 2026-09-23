@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { OperationHistoryDirection, OperationReceipt, ProjectPageId } from '@cwm/contracts';
 import { agentActorFor, buildHarness, MINE } from '../test/test-support';
 import { listPlacements } from './page-placements';
+import { shortcutWriteLabel } from './shortcut-history';
 
 type Harness = ReturnType<typeof buildHarness>;
 
@@ -206,3 +207,24 @@ describe('shortcut placement history (§§27, 31)', () => {
     expect((await h.operationHistoryService.summary(h.actor, MINE)).historyId).toBeNull();
   });
 });
+
+describe('shortcutWriteLabel (Slice 41)', () => {
+  it('names the source section for each kind, and the one changed field for an update', () => {
+    expect(shortcutWriteLabel('shortcut.add', [], 'Tasks')).toBe('Added the Tasks shortcut');
+    expect(shortcutWriteLabel('shortcut.update', [{ field: 'collapsed', before: false, after: true }], 'Tasks')).toBe('Collapsed the Tasks shortcut');
+    expect(shortcutWriteLabel('shortcut.update', [{ field: 'collapsed', before: true, after: false }], 'Tasks')).toBe('Expanded the Tasks shortcut');
+    expect(shortcutWriteLabel('shortcut.update', [{ field: 'columnSpan', before: 12, after: 6 }], 'Tasks')).toBe('Resized the Tasks shortcut');
+    expect(shortcutWriteLabel('shortcut.update', [
+      { field: 'columnSpan', before: 12, after: 6 },
+      { field: 'collapsed', before: false, after: true },
+    ], 'Tasks')).toBe('Updated the Tasks shortcut');
+    expect(shortcutWriteLabel('shortcut.move', [], 'Tasks')).toBe('Moved the Tasks shortcut');
+    expect(shortcutWriteLabel('shortcut.remove', [], 'Tasks')).toBe('Removed the Tasks shortcut');
+  });
+
+  it('falls back to "a shortcut" when the source cannot be read', () => {
+    expect(shortcutWriteLabel('shortcut.remove', [], null)).toBe('Removed a shortcut');
+    expect(shortcutWriteLabel('shortcut.move', [], null)).toBe('Moved a shortcut');
+  });
+});
+

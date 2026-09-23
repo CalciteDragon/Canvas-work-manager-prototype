@@ -73,7 +73,7 @@ const CASES: Record<string, ToolCase> = {
         'Rewritten by an agent.',
       );
       // One project.update receipt, and nothing of the captured footprint rides along with it.
-      expect(result.operation).toMatchObject({ operation: 'project.update', label: 'Updated "Work Manager"' });
+      expect(result.operation).toMatchObject({ operation: 'project.update', label: 'Edited the description of "Work Manager"' });
       expect(Object.keys(result.operation).sort()).toEqual(['actionId', 'createdAt', 'expiresAt', 'historyId', 'label', 'operation', 'revision']);
     },
   },
@@ -331,7 +331,7 @@ const CASES: Record<string, ToolCase> = {
     verify: (result) => {
       expect(result).toEqual({
         projectId: PROJECT, historyId: 'history-1', revision: 1,
-        undo: { actionId: 'operation-1', operation: 'section.remove', label: expect.stringMatching(/^Removed the /), expiresAt: expect.any(String) },
+        undo: { actionId: 'operation-1', operation: 'section.remove', label: expect.stringMatching(/^Removed the /), expiresAt: expect.any(String), blockedBy: null },
         redo: null, blockedBy: null,
       });
     },

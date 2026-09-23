@@ -318,6 +318,7 @@ const assertRestoreAndShortcuts = async (client, title) => {
     receiptOf(placed)?.operation === 'shortcut.add' && placed.structuredContent.shortcut.sourceSectionId === sourceId,
     `${title} add_section_shortcut answers the resolved placement and its receipt`,
   );
+  check(receiptOf(placed)?.label === 'Added the Prep shortcut', `${title} the shortcut receipt names its source section (Slice 41)`);
   const shortcutId = placed.structuredContent.shortcut.id;
   check((await placements()).some(({ id }) => id === shortcutId), `${title} the placement is on Home`);
 
@@ -327,6 +328,7 @@ const assertRestoreAndShortcuts = async (client, title) => {
       receiptOf(removedShortcut)?.operation === 'shortcut.remove',
     `${title} remove_section_shortcut names what it deleted and the receipt that restores it`,
   );
+  check(receiptOf(removedShortcut)?.label === 'Removed the Prep shortcut', `${title} the removal label names the source section`);
   check((await placements()).length === 0, `${title} the placement is gone`);
 
   const undoneRemoval = await stepReceipt(client, receiptOf(removedShortcut));
@@ -534,6 +536,7 @@ const assertProjectHistory = async (client, foreign, title, dataFile, access) =>
   const moved = await client.callTool({ name: 'update_project', arguments: { projectId: child, parentProjectId: second } });
   const moveReceipt = receiptOf(moved);
   check(moveReceipt?.historyId === renameReceipt.historyId, `${title} a cross-root reparent stays in the sub-project's history`);
+  check(moveReceipt?.label?.startsWith(`Moved "Renamed ${title}" under `), `${title} the move label names the new parent (Slice 41)`);
   check((await step(moveReceipt)).isError !== true && (await projectOf(child)).parentProjectId === first, `${title} Undo moves the sub-project back to its old root`);
   check((await step(moveReceipt, 'redo')).isError !== true && (await projectOf(child)).parentProjectId === second, `${title} Redo moves it across again`);
 
@@ -542,6 +545,12 @@ const assertProjectHistory = async (client, foreign, title, dataFile, access) =>
   check(archived.structuredContent.project.status === 'archived' && archiveReceipt?.operation === 'project.archive', `${title} archive_project answers a project.archive receipt`);
   const again = await client.callTool({ name: 'archive_project', arguments: { projectId: child } });
   check(receiptOf(again) === null, `${title} archiving an archived project answers a null receipt`);
+  const archivedSummary = (await client.callTool({ name: 'get_operation_history', arguments: { projectId: child } })).structuredContent;
+  check(
+    archivedSummary?.blockedBy?.projectId === child && archivedSummary?.undo?.operation === 'project.archive' &&
+      'blockedBy' in archivedSummary.undo && archivedSummary.undo.blockedBy === null,
+    `${title} get_operation_history offers the archive's own Undo unblocked while the project-level blockedBy names it (Slice 41)`,
+  );
   const undoneArchive = await step(archiveReceipt);
   check(
     undoneArchive.isError !== true && undoneArchive.structuredContent.result.project.status === 'planning',

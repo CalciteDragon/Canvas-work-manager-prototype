@@ -60,6 +60,38 @@ export interface ShortcutHistoryRepositories {
 type ShortcutPlacementOperation = ShortcutAddOperation | ShortcutRemoveOperation;
 type ShortcutOperation = ShortcutPlacementOperation | ShortcutUpdateOperation | ShortcutMoveOperation;
 
+/**
+ * The history label for one placement write, naming the **source section** so a control can say
+ * which shortcut it will change (Slice 41): `Collapsed the Tasks shortcut`, `Resized the Tasks
+ * shortcut`, `Removed the Tasks shortcut`. An update that changed both fields is `Updated`. When the
+ * source could not be read the noun falls back to `a shortcut` — a label never adds a refusal.
+ */
+export const shortcutWriteLabel = (
+  kind: ShortcutOperation['type'],
+  changes: readonly ShortcutFieldChange[],
+  sourceName: string | null,
+): string => {
+  const noun = sourceName === null ? 'a shortcut' : `the ${sourceName} shortcut`;
+  switch (kind) {
+    case 'shortcut.add':
+      return `Added ${noun}`;
+    case 'shortcut.move':
+      return `Moved ${noun}`;
+    case 'shortcut.remove':
+      return `Removed ${noun}`;
+    case 'shortcut.update': {
+      const [only] = changes;
+      if (changes.length !== 1 || only === undefined) return `Updated ${noun}`;
+      if (only.field === 'columnSpan') return `Resized ${noun}`;
+      return `${only.after ? 'Collapsed' : 'Expanded'} ${noun}`;
+    }
+    default: {
+      const unknown: never = kind;
+      throw new TypeError(`no shortcut label for "${String(unknown)}"`);
+    }
+  }
+};
+
 /** Builds the operation stored for a created placement, with the placement Redo returns it to. */
 export const captureShortcutAdd = (
   projectId: ProjectId,

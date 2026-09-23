@@ -45,7 +45,7 @@ const summary = {
   projectId: 'project-1',
   historyId: 'history-1',
   revision: 4,
-  undo: { actionId: 'operation-1', operation: 'section.update', label: 'Updated the Backlog section', expiresAt },
+  undo: { actionId: 'operation-1', operation: 'section.update', label: 'Updated the Backlog section', expiresAt, blockedBy: null },
   redo: null,
   blockedBy: null,
 };
@@ -84,7 +84,7 @@ describe('operation history contracts', () => {
     expect(
       OperationHistorySummarySchema.parse({
         ...summary,
-        undo: { actionId: 'operation-1', operation: 'page.add', label: 'Enabled the reflections page', expiresAt },
+        undo: { actionId: 'operation-1', operation: 'page.add', label: 'Enabled the reflections page', expiresAt, blockedBy: null },
       }).undo?.operation,
     ).toBe('page.add');
   });
@@ -109,6 +109,12 @@ describe('operation history contracts', () => {
     expect(OperationHistorySummarySchema.parse(summary)).toEqual(summary);
     expect(OperationHistorySummarySchema.safeParse({ ...summary, undo: { ...summary.undo, operationData: action.operation } }).success).toBe(false);
     expect(OperationHistorySummarySchema.safeParse({ ...summary, cursor: 1 }).success).toBe(false);
+    // Each entry says whether **that step** is blocked (Slice 41): required, nullable and strict.
+    const { blockedBy: _step, ...unblocked } = summary.undo;
+    expect(OperationHistorySummarySchema.safeParse({ ...summary, undo: unblocked }).success).toBe(false);
+    const blocked = { ...summary.undo, blockedBy: { projectId: 'project-1', title: 'Kitchen' } };
+    expect(OperationHistorySummarySchema.parse({ ...summary, undo: blocked }).undo?.blockedBy?.title).toBe('Kitchen');
+    expect(OperationHistorySummarySchema.safeParse({ ...summary, undo: { ...blocked, blockedBy: { ...blocked.blockedBy, since: expiresAt } } }).success).toBe(false);
     // An actor with no recorded write in the project has an empty summary, not a fabricated id.
     expect(OperationHistorySummarySchema.safeParse({ ...summary, historyId: null, revision: 0, undo: null }).success).toBe(true);
   });

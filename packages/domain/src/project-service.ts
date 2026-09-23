@@ -242,7 +242,10 @@ export class ProjectService {
       // The exposed route is PATCH, so a rule only `archive()` enforced would be decorative.
       if (archiving) await this.assertNoActiveChildren(actor, id);
 
-      return this.commit(actor, current, next, archiving);
+      // The label names the new parent; `assertParentIsUsable` does not keep it, so it is read once
+      // more inside the same unit, and only for a move.
+      const parentName = reparenting ? (await this.dependencies.projects.find(next.parentProjectId!))?.name : undefined;
+      return this.commit(actor, current, next, archiving, parentName);
     });
   }
 
@@ -264,7 +267,13 @@ export class ProjectService {
    * normalized change this method is about to apply, not from the caller's input, so an omitted
    * field, a `null` on an absent one and a status that did not move all record nothing.
    */
-  private async commit(actor: ActorContext, current: Project, next: Project, archiving: boolean): Promise<ProjectWriteResult> {
+  private async commit(
+    actor: ActorContext,
+    current: Project,
+    next: Project,
+    archiving: boolean,
+    parentName?: string,
+  ): Promise<ProjectWriteResult> {
     const changed = { ...next, updatedAt: current.updatedAt };
     if (JSON.stringify(changed) === JSON.stringify(current)) return ProjectWriteResultSchema.parse({ project: current, operation: null });
 
@@ -282,7 +291,7 @@ export class ProjectService {
     const operation = captureProjectWrite(current, updated);
     const receipt = await this.dependencies.history.record(actor, {
       projectId: updated.id,
-      label: projectWriteLabel(operation, updated),
+      label: projectWriteLabel(operation, updated, parentName),
       operation,
     });
     return ProjectWriteResultSchema.parse({ project: updated, operation: receipt });

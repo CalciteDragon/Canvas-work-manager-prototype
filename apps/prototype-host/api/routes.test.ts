@@ -259,7 +259,7 @@ describe('project routes', () => {
     expect(result.status).toBe(200);
     const body = ProjectWriteResultSchema.parse(result.body);
     expect(body.project).toMatchObject({ id: MINE, name: 'Renamed' });
-    expect(body.operation).toMatchObject({ operation: 'project.update', label: 'Updated "Renamed"' });
+    expect(body.operation).toMatchObject({ operation: 'project.update', label: 'Renamed "Project project-mine" to "Renamed"' });
 
     // A PATCH that sets what is already there changes nothing and answers a null receipt.
     const again = await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { name: 'Renamed' } });

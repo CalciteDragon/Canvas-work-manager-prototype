@@ -35,6 +35,12 @@ describe('the tool registry', () => {
     }
   });
 
+  it('tells an agent that each history entry carries its own blocker (Slice 41)', () => {
+    const history = registry.list().find(({ name }) => name === 'get_operation_history')!;
+    expect(history.description).toMatch(/Each entry’s blockedBy is that step’s own blocker/);
+    expect(history.description).toMatch(/top-level blockedBy describes the project/);
+  });
+
   it('declares only permissions that exist, additional grants included', () => {
     for (const tool of registry.list()) {
       for (const permission of requiredPermissions(tool)) {

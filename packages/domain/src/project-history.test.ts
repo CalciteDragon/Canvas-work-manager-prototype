@@ -61,7 +61,7 @@ describe('project.update: captured fields reversed and replayed (§§26, 31, 39)
       progressFormula: 'manual',
       manualProgress: 40,
     });
-    expect(written.operation).toMatchObject({ operation: 'project.update', label: 'Updated "Renamed"' });
+    expect(written.operation).toMatchObject({ operation: 'project.update', label: 'Edited "Renamed"' });
     const [action] = await h.operationActions.list({ historyId: written.operation!.historyId });
     expect(action!.operation).toEqual({
       version: 1,
@@ -175,7 +175,7 @@ describe('project.update: reparenting rechecks the hierarchy (§26)', () => {
     const { other, child } = await twoRoots(h);
 
     const moved = await h.projectWriteService.update(h.actor, child.id, { parentProjectId: other.id });
-    expect(moved.operation).toMatchObject({ operation: 'project.update', label: 'Moved "Kitchen"' });
+    expect(moved.operation).toMatchObject({ operation: 'project.update', label: 'Moved "Kitchen" under Other root' });
     const history = (await h.operationHistories.find(moved.operation!.historyId))!;
     expect(history.projectId).toBe(child.id);
 
@@ -511,3 +511,34 @@ describe('a reparent is not refused for a shortcut it does not carry', () => {
     expect((await project(h, mover.id)).parentProjectId).toBe(other.id);
   });
 });
+
+describe('projectWriteLabel names the edit (Slice 41)', () => {
+  const labelOf = async (input: Parameters<Harness['projectWriteService']['update']>[2], prepare?: (h: Harness) => Promise<void>) => {
+    const h = buildHarness();
+    await prepare?.(h);
+    return (await h.projectWriteService.update(h.actor, MINE, input)).operation?.label;
+  };
+  const withStatus = (status: Project['status']) => (h: Harness) => h.projectService.update(someoneElse, MINE, { status }).then(() => undefined);
+
+  it('names a single user-facing edit, and its result', async () => {
+    expect(await labelOf({ name: 'Garden' })).toBe('Renamed "Project project-mine" to "Garden"');
+    expect(await labelOf({ status: 'completed' })).toBe('Completed "Project project-mine"');
+    expect(await labelOf({ status: 'active' }, withStatus('completed'))).toBe('Reopened "Project project-mine"');
+    expect(await labelOf({ status: 'on_hold' })).toBe('Set "Project project-mine" to On hold');
+    expect(await labelOf({ status: 'planning' })).toBe('Set "Project project-mine" to Planning');
+    expect(await labelOf({ status: 'active' }, withStatus('on_hold'))).toBe('Set "Project project-mine" to Active');
+    expect(await labelOf({ projectLayoutMode: 'grid' })).toBe('Changed the layout of "Project project-mine"');
+    expect(await labelOf({ progressFormula: 'weighted' })).toBe('Changed progress for "Project project-mine"');
+    expect(await labelOf({ progressFormula: 'manual', manualProgress: 40 })).toBe('Changed progress for "Project project-mine"');
+    expect(await labelOf({ targetDate: '2026-12-01' })).toBe('Changed the target date of "Project project-mine"');
+    expect(await labelOf({ description: 'Notes' })).toBe('Edited the description of "Project project-mine"');
+    expect(await labelOf({ icon: '🌱' })).toBe('Changed the icon of "Project project-mine"');
+  });
+
+  it('counts completedAt with status and says Edited for more than one edit', async () => {
+    // `completedAt` changes with the status it follows; it is not a second edit.
+    expect(await labelOf({ status: 'completed' })).toBe('Completed "Project project-mine"');
+    expect(await labelOf({ name: 'Garden', icon: '🌱' })).toBe('Edited "Garden"');
+  });
+});
+

@@ -94,7 +94,7 @@ describe('OperationHistoryService — the Stage A gate', () => {
 
     expect(summary).toEqual({
       projectId: MINE, historyId: added.operation.historyId, revision: 2, undo: null,
-      redo: { actionId: added.operation.actionId, operation: 'section.add', label: 'Added the Progress section', expiresAt: added.operation.expiresAt },
+      redo: { actionId: added.operation.actionId, operation: 'section.add', label: 'Added the Progress section', expiresAt: added.operation.expiresAt, blockedBy: null },
       blockedBy: null,
     });
     expect(JSON.stringify(summary)).not.toMatch(/placement|section-|config/);
@@ -754,6 +754,88 @@ describe('OperationHistoryService — archived projects', () => {
     await harness.projectService.archive(someoneElse, kitchen.id);
     await harness.projectService.archive(someoneElse, MINE);
     expect((await refusalOf(harness.redo(harness.actor, operation))).details).toMatchObject({ reason: 'history_blocked', blockingProjectId: MINE });
+  });
+});
+
+describe('OperationHistoryService — per-step blockers in the summary (Slice 41)', () => {
+  const KITCHEN_NAME = 'Kitchen';
+  const createKitchen = (harness: Harness) => harness.projectService.create(harness.actor, {
+    workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: KITCHEN_NAME,
+  });
+  /** What `transition` decides for the summary's entry: blocked (with the blocker) or not. */
+  const decided = async (harness: Harness, projectId: typeof MINE, direction: 'undo' | 'redo') => {
+    const summary = await harness.operationHistoryService.summary(harness.actor, projectId);
+    const entry = summary[direction]!;
+    try {
+      await harness.operationHistoryService.transition(harness.actor, summary.historyId!, {
+        actionId: entry.actionId, direction, expectedRevision: summary.revision,
+      });
+      return { entry, blocker: null };
+    } catch (error) {
+      const details = (error as DomainRuleError).details as { reason: string; blockingProjectId?: string };
+      return { entry, blocker: details.reason === 'history_blocked' ? details.blockingProjectId! : null };
+    }
+  };
+
+  it('an ordinary step under an archived subject is blocked by it, as is the project-level blocker', async () => {
+    const harness = buildHarness();
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text' });
+    await harness.sectionService.remove(harness.actor, notes.id);
+    await harness.projectService.update(someoneElse, MINE, { status: 'archived' });
+
+    const summary = await harness.operationHistoryService.summary(harness.actor, MINE);
+    expect(summary.blockedBy).toEqual({ projectId: MINE, title: 'Project project-mine' });
+    expect(summary.undo?.blockedBy).toEqual({ projectId: MINE, title: 'Project project-mine' });
+    expect((await decided(harness, MINE, 'undo')).blocker).toBe(MINE);
+  });
+
+  it('an archive’s own Undo is unblocked while the subject is archived; the project-level blocker still names it', async () => {
+    const harness = buildHarness();
+    await harness.projectWriteService.archive(harness.actor, MINE);
+
+    const summary = await harness.operationHistoryService.summary(harness.actor, MINE);
+    expect(summary.blockedBy).toEqual({ projectId: MINE, title: 'Project project-mine' });
+    expect(summary.undo).toMatchObject({ operation: 'project.archive', blockedBy: null });
+    const { blocker } = await decided(harness, MINE, 'undo');
+    expect(blocker).toBeNull();
+  });
+
+  it('an archived ancestor blocks both entries of a subproject’s history, naming the highest', async () => {
+    const harness = buildHarness();
+    const kitchen = await createKitchen(harness);
+    await harness.projectWriteService.update(harness.actor, kitchen.id, { name: 'Kitchen A' });
+    const second = await harness.projectWriteService.update(harness.actor, kitchen.id, { name: 'Kitchen B' });
+    await harness.undo(harness.actor, second.operation!);
+    await harness.projectService.archive(someoneElse, kitchen.id);
+    await harness.projectService.archive(someoneElse, MINE);
+
+    const summary = await harness.operationHistoryService.summary(harness.actor, kitchen.id);
+    const blocked = { projectId: MINE, title: 'Project project-mine' };
+    expect(summary.undo?.blockedBy).toEqual(blocked);
+    expect(summary.redo?.blockedBy).toEqual(blocked);
+    expect((await decided(harness, kitchen.id, 'undo')).blocker).toBe(MINE);
+    expect((await decided(harness, kitchen.id, 'redo')).blocker).toBe(MINE);
+  });
+
+  it('matches transition for a reactivation’s Redo and an archived-throughout edit', async () => {
+    const harness = buildHarness();
+    const kitchen = await createKitchen(harness);
+    await harness.projectService.archive(someoneElse, kitchen.id);
+    const reactivated = await harness.projectWriteService.update(harness.actor, kitchen.id, { status: 'on_hold' });
+    await harness.undo(harness.actor, reactivated.operation!);
+    // Kitchen is archived again; the reactivation's Redo is exempt from its own subject.
+    expect((await harness.operationHistoryService.summary(harness.actor, kitchen.id)).redo).toMatchObject({
+      operation: 'project.reactivate', blockedBy: null,
+    });
+    expect((await decided(harness, kitchen.id, 'redo')).blocker).toBeNull();
+
+    const shelved = buildHarness();
+    await shelved.projectService.archive(someoneElse, MINE);
+    await shelved.projectWriteService.update(shelved.actor, MINE, { name: 'Shelved' });
+    expect((await shelved.operationHistoryService.summary(shelved.actor, MINE)).undo).toMatchObject({
+      operation: 'project.update', blockedBy: null,
+    });
+    expect((await decided(shelved, MINE, 'undo')).blocker).toBeNull();
   });
 });
 

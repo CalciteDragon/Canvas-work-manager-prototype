@@ -383,7 +383,7 @@ describe('ProjectService write results and history (Slice 39, §31)', () => {
 
     const renamed = await harness.projectWriteService.update(harness.actor, child.id, { name: 'Renamed', targetDate: '2026-10-01' });
     expect(renamed.project).toMatchObject({ id: child.id, name: 'Renamed', targetDate: '2026-10-01' });
-    expect(renamed.operation).toMatchObject({ operation: 'project.update', label: 'Updated "Renamed"', revision: 1 });
+    expect(renamed.operation).toMatchObject({ operation: 'project.update', label: 'Edited "Renamed"', revision: 1 });
 
     const archived = await harness.projectWriteService.archive(harness.actor, child.id);
     expect(archived.operation).toMatchObject({ operation: 'project.archive', historyId: renamed.operation!.historyId, revision: 2 });
@@ -399,9 +399,20 @@ describe('ProjectService write results and history (Slice 39, §31)', () => {
 
     const result = await harness.projectWriteService.update(harness.actor, MINE, { status: 'completed', name: 'Done' });
 
-    expect(result.operation).toMatchObject({ operation: 'project.update', label: 'Completed "Done"' });
+    // Two user-facing edits in one PATCH: the label says Edited rather than naming one of them.
+    expect(result.operation).toMatchObject({ operation: 'project.update', label: 'Edited "Done"' });
     expect(await harness.operationActions.list({ historyId: result.operation!.historyId })).toHaveLength(1);
     expect(await harness.activity.list(harness.actor)).toHaveLength(before + 1);
+  });
+
+  it('names the new parent in a reparent’s label, and leaves the archive label alone (Slice 41)', async () => {
+    const harness = buildHarness();
+    const other = await harness.projectService.create(harness.actor, { workspaceId: harness.actor.workspaceId, kind: 'root', name: 'Garden' });
+    const child = await create(harness, { name: 'Shed', parentProjectId: MINE });
+
+    const moved = await harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: other.id });
+    expect(moved.operation).toMatchObject({ operation: 'project.update', label: 'Moved "Shed" under Garden' });
+    expect((await harness.projectWriteService.archive(harness.actor, child.id)).operation).toMatchObject({ label: 'Archived "Shed"' });
   });
 
   it('records an agent’s write in its own history, never the person’s', async () => {

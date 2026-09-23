@@ -275,4 +275,39 @@ describe('SectionShortcutService', () => {
     expect(await harness.shortcuts.find(shortcut.id)).toBeNull();
     expect(await harness.sections.find(source.id)).toEqual(before);
   });
+
+  it('labels each recorded placement write with the source section’s name; Activity keeps its text (Slice 41)', async () => {
+    const { harness, source, home } = await setupNestedSource();
+    const writes = harness.sectionShortcutWriteService;
+    const added = await writes.create(harness.actor, MINE, { pageId: home.id, sourceSectionId: source.id });
+    const id = added.shortcut.id;
+    expect(added.operation.label).toBe('Added the Task List shortcut');
+    expect((await writes.update(harness.actor, id, { collapsed: true })).operation?.label).toBe('Collapsed the Task List shortcut');
+    expect((await writes.update(harness.actor, id, { collapsed: false })).operation?.label).toBe('Expanded the Task List shortcut');
+    expect((await writes.update(harness.actor, id, { columnSpan: 6 })).operation?.label).toBe('Resized the Task List shortcut');
+    expect((await writes.update(harness.actor, id, { columnSpan: 12, collapsed: true })).operation?.label).toBe('Updated the Task List shortcut');
+    await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    expect((await writes.move(harness.actor, id, 1)).operation?.label).toBe('Moved the Task List shortcut');
+    expect((await writes.remove(harness.actor, id)).operation.label).toBe('Removed the Task List shortcut');
+    const summaries = (await harness.activity.list(harness.actor)).map((event) => event.summary);
+    expect(summaries).toEqual(expect.arrayContaining(['Updated a shortcut', 'Moved a shortcut', 'Removed a shortcut']));
+  });
+
+  it('removes and labels a shortcut whose source is archived, or hidden under an archived subproject', async () => {
+    const archived = await setupNestedSource();
+    const first = await archived.harness.sectionShortcutWriteService.create(archived.harness.actor, MINE, {
+      pageId: archived.home.id, sourceSectionId: archived.source.id,
+    });
+    await archived.harness.sectionService.remove(archived.harness.actor, archived.source.id);
+    await expect(archived.harness.sectionShortcutWriteService.remove(archived.harness.actor, first.shortcut.id))
+      .resolves.toMatchObject({ operation: { label: 'Removed the Task List shortcut' } });
+
+    const hidden = await setupNestedSource();
+    const second = await hidden.harness.sectionShortcutWriteService.create(hidden.harness.actor, MINE, {
+      pageId: hidden.home.id, sourceSectionId: hidden.source.id,
+    });
+    await hidden.harness.projectService.update(hidden.harness.actor, hidden.child.id, { status: 'archived' });
+    await expect(hidden.harness.sectionShortcutWriteService.remove(hidden.harness.actor, second.shortcut.id))
+      .resolves.toMatchObject({ operation: { label: 'Removed the Task List shortcut' } });
+  });
 });
