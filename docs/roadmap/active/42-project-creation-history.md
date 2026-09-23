@@ -15,8 +15,8 @@ Undo has removed the project.
 ## Spec sections
 
 Main §14 (document integrity: which records may name an absent project), §26 (creating a
-project is now an operation like editing one), §31 (Undo/Redo: the last uncovered project
-write), §54 (`create_project` answers a receipt; history tool descriptions), §57 (an audit line
+project is now an operation like editing one; the project header owns Undo/Redo), §31 (Project
+Section Frame; creation Undo preserves section content), §54 (`create_project` answers a receipt; history tool descriptions), §57 (an audit line
 about a project outlives that project's creation Undo), §61 (`POST /api/projects` result), §62
 (the `project.creation_undone`/`_redone` frames and how they route), §63 (browser reconciliation
 after either direction), §68 (what `/projects/:id` shows the
@@ -160,9 +160,12 @@ frame's root are right), and the executor re-runs its preflight in the same unit
 the page and the project through restricted repository removals only it calls. A refusal from
 that **second** run — impossible unless something wrote inside this unit — is an invariant breach:
 it is rethrown as a `TypeError` so the unit rolls back, never retired with the audit line
-committed. The executors' repository set (`OperationExecutionRepositories` in
-`operation-execution.ts` has neither `histories` nor `milestones`) and
-`OperationHistoryServiceDependencies` grow explicitly for the reads the preflight needs.
+committed. `ProjectHistoryRepositories` in `project-history.ts` stays narrow for existing-project
+write inverses; the new `ProjectAddHistoryRepositories` extends it only for the creation executor,
+adding `tasks`, `reflections`, `milestones` and `histories` reads. `operation-execution.ts` remains
+the section-executor seam and does not change. `OperationHistoryServiceDependencies` adds the
+milestone repository needed by that executor, while `ProjectService` gains no repository or service
+edge.
 
 **Redo preflight (`reapplyProjectAdd`)** — project id and page id both absent (`already-exists`);
 for a sub-project the captured parent exists in the same workspace (`project` `missing`,
@@ -318,39 +321,49 @@ hit in the commit that changes the result.
 | File | Change | Responsibility |
 |---|---|---|
 | `packages/contracts/src/project-history.ts`, `project-history.test.ts` | modify | `ProjectAddOperationSchema` (`type: 'project.add'`, `version: 1`, `project: ProjectSchema`, `page: ProjectPageSchema`; refine: the page's `projectId` is the project's and its kind is `canonicalPageKindFor(project.kind)`); undo result `{ operation, outcome: 'removed', projectId }`, redo result `{ operation, outcome: 'reapplied', project, page }`; add to the unions and result arrays; module comment no longer says creation is absent. |
-| `packages/contracts/src/operation-receipt.ts`, `undo.ts`, `undo.test.ts`, `index.ts` | modify | `project.add` kind; `operationProjectOf`/`operationSubjectOf` answer `operation.project.id`; exports. |
+| `packages/contracts/src/operation-receipt.ts`, `packages/contracts/src/undo.ts`, `packages/contracts/src/undo.test.ts`, `packages/contracts/src/index.ts` | modify | `project.add` kind; `operationProjectOf`/`operationSubjectOf` answer `operation.project.id`; exports. |
 | `packages/contracts/src/project-write-result.ts` | modify | Doc comment: `create` answers it too, always with a receipt. |
-| `packages/contracts/src/live.ts`, `live.test.ts` | modify | Document the two new event types as root-routed (not record events); test `isProjectRecordEvent` excludes them. |
-| `packages/repositories/src/interfaces.ts`, `json-repositories.ts`, `repositories.test.ts` | modify | Restricted `ProjectRepository.remove(id)` with the single-caller doc comment (mirrors `ProjectPageRepository.remove`). |
-| `packages/repositories/src/data-store.ts`, `data-store.test.ts` | modify | The two anchors: Activity accepts an absent project whose `project.created` exists in the same workspace and whose last lifecycle event in document order is `project.creation_undone`; a history accepts an absent project only with a retained `undone` `project.add`; reject applied-and-absent and undone-and-present. Rewrite the comments that say no operation deletes a project. |
-| `packages/domain/src/operation-history.ts`, `operation-history.test.ts` | modify | State the never-pruned-while-absent invariant on `pruneOperationHistory`; test that `record` into any other history cannot remove an undone `project.add`. |
-| `packages/domain/src/project-history.ts`, `project-history.test.ts` | modify | `captureProjectAdd`, `projectAddLabel`, `preflightProjectAddUndo`, `revertProjectAdd`, `reapplyProjectAdd` per the tables; the executor's repository set gains `tasks`, `reflections`, `milestones`, `histories` reads (interfaces only). |
-| `packages/domain/src/project-service.ts`, `project-service.test.ts` | modify | `create` records `project.add` in the new project's history and answers `ProjectWriteResult`; doc comments. |
-| `packages/domain/src/operation-history-service.ts`, `operation-history-service.test.ts` | modify | Dispatch; preflight **before** `recordsBeforeRemoval` records for `project.add`; activity verb/target/gerund/summary (`Undid creating "…"`); `transitionBlocker` from the captured parent; `summary` answers an anchored absent project for its own actor only; dependencies gain `milestones` if the preflight needs it (wired in the host). |
-| `packages/domain/src/activity-service.ts`, `activity-service.test.ts`, `dashboard-service.test.ts` | modify | `projectName` falls back to the captured `targetLabel` **only** for a project-targeted event about that same project; otherwise it is omitted. Tests: a project event and a task event inside a removed project; the agent tile over an absent project (already tolerant — test only). |
-| `apps/prototype-host/api/services.ts`, `routes.ts`, `routes.test.ts` | modify | Wiring if dependencies change; `POST /api/projects` answers `ProjectWriteResult`; summary route tested for absent-project cases. |
-| `apps/prototype-host/live-updates.test.ts`, `page-history-acceptance.test.ts`, `recovery-undo-acceptance.test.ts`, `mcp/handler.test.ts` | modify | Result shape and empty-history assumptions; one frame each for creation Undo/Redo with the former root's `rootProjectId`. |
-| `apps/prototype-host/scripts/acceptance.mjs`, `mcp-acceptance.mjs` | modify | Unwrap `{ project }` at every creation; acceptance steps 1–3 and 5. |
-| `packages/mcp-tools/src/tools/projects.ts`, `tools/undo.ts`, `tools/project-pages.ts`, `contract.test.ts`, `registry.test.ts`, `activity.test.ts` | modify | `create_project` result and description; `undo_operation`/`redo_operation`/`get_operation_history` descriptions list `project.add`, what its Undo refuses, when it retires, and the absent-project summary. |
-| `apps/web/src/app/core/gateway/work-manager-gateway.ts`, `prototype-work-manager-gateway.ts`, `.spec.ts`, `testing/fake-gateway.ts` | modify | `projects.create` answers `ProjectWriteResult`; the fake can make `projects.get` answer `not_found` while `history.summary` answers a `project.add` step. |
-| `apps/web/src/app/core/shell/shell-store.ts`, `.spec.ts` | modify | Unwrap `project`; keeps the inert reporter (outside the shell), stated in the doc comment. |
-| `apps/web/src/app/features/projects/sections/sub-projects/sub-projects-store.ts` (+ spec) | modify | Unwrap and report through `reportedWrite` with the created project's id and name. |
-| `apps/web/src/app/features/projects/project-workspace-store.ts`, `.spec.ts` | modify | `missing` signal: set on a `not_found` load or context refresh (project cleared), cleared by a successful read; other refresh failures stay quiet. |
-| `apps/web/src/app/features/projects/project-page-store.ts` and section stores' specs as needed | modify if not already quiet | A `not_found` section/container re-read after the Undo frame shows no error before unmount. |
-| `apps/web/src/app/features/projects/history/project-history-store.ts`, `.spec.ts` | modify | `creationRedo`/`creationUndo` computed views over the held summary (no new state). |
-| `apps/web/src/app/features/projects/history/history-feedback.ts`, `.spec.ts` | modify | `project.add` Undo/Redo result wording. |
-| `apps/web/src/app/features/projects/project-workspace-shell.ts`, `.html`, `.scss`, `.spec.ts` | modify | Recovery section; the symmetric once-per-revision reloads; tokens only. |
+| `packages/contracts/src/live.ts`, `packages/contracts/src/live.test.ts` | modify | Document the two new event types as root-routed (not record events); test `isProjectRecordEvent` excludes them. |
+| `packages/repositories/src/interfaces.ts`, `packages/repositories/src/json-repositories.ts`, `packages/repositories/src/repositories.test.ts` | modify | Restricted `ProjectRepository.remove(id)` with the single-caller doc comment (mirrors `ProjectPageRepository.remove`). |
+| `packages/repositories/src/data-store.ts`, `packages/repositories/src/data-store.test.ts` | modify | The two anchors: Activity accepts an absent project whose `project.created` exists in the same workspace and whose last lifecycle event in document order is `project.creation_undone`; a history accepts an absent project only with a retained `undone` `project.add`; reject applied-and-absent and undone-and-present. Rewrite the comments that say no operation deletes a project. |
+| `packages/domain/src/operation-history.ts`, `packages/domain/src/operation-history.test.ts` | modify | State the never-pruned-while-absent invariant on `pruneOperationHistory`; test that `record` into any other history cannot remove an undone `project.add`. |
+| `packages/domain/src/project-history.ts`, `packages/domain/src/project-history.test.ts` | modify | `captureProjectAdd`, `projectAddLabel`, `preflightProjectAddUndo`, `revertProjectAdd`, `reapplyProjectAdd` per the tables; add `ProjectAddHistoryRepositories` for creation Undo/Redo reads while keeping `ProjectHistoryRepositories` narrow for existing-project inverses. |
+| `packages/domain/src/project-service.ts`, `packages/domain/src/project-service.test.ts` | modify | `create` records `project.add` in the new project's history and answers `ProjectWriteResult`; doc comments. |
+| `packages/domain/src/operation-history-service.ts`, `packages/domain/src/operation-history-service.test.ts` | modify | Dispatch; preflight **before** `recordsBeforeRemoval` records for `project.add`; activity verb/target/gerund/summary (`Undid creating "…"`); `transitionBlocker` from the captured parent; `summary` answers an anchored absent project for its own actor only; require the milestone repository for creation preflight. |
+| `packages/domain/test/test-support.ts`, `packages/domain/src/section-edit-undo.test.ts`, `packages/mcp-tools/test/harness.ts` | modify | Supply the milestone repository at the remaining `OperationHistoryService` construction sites; the host constructors are wired in the API row below. |
+| `packages/domain/src/activity-service.ts`, `packages/domain/src/activity-service.test.ts`, `packages/domain/src/dashboard-service.test.ts` | modify | `projectName` falls back to the captured `targetLabel` **only** for a project-targeted event about that same project; otherwise it is omitted. Tests: a project event and a task event inside a removed project; the agent tile over an absent project (already tolerant — test only). |
+| `apps/prototype-host/api/services.ts`, `apps/prototype-host/api/routes.ts`, `apps/prototype-host/api/routes.test.ts` | modify | Wiring if dependencies change; `POST /api/projects` answers `ProjectWriteResult`; summary route tested for absent-project cases. |
+| `apps/prototype-host/live-updates.test.ts`, `apps/prototype-host/page-history-acceptance.test.ts`, `apps/prototype-host/recovery-undo-acceptance.test.ts`, `apps/prototype-host/mcp/handler.test.ts` | modify | Result shape and empty-history assumptions; one frame each for creation Undo/Redo with the former root's `rootProjectId`. |
+| `apps/prototype-host/scripts/acceptance.mjs`, `apps/prototype-host/scripts/mcp-acceptance.mjs` | modify | Unwrap `{ project }` at every creation; acceptance steps 1–3 and 5. |
+| `packages/mcp-tools/src/tools/projects.ts`, `packages/mcp-tools/src/tools/undo.ts`, `packages/mcp-tools/src/tools/project-pages.ts`, `packages/mcp-tools/src/contract.test.ts`, `packages/mcp-tools/src/registry.test.ts`, `packages/mcp-tools/src/activity.test.ts` | modify | `create_project` result and description; `undo_operation`/`redo_operation`/`get_operation_history` descriptions list `project.add`, what its Undo refuses, when it retires, and the absent-project summary. |
+| `apps/web/src/app/core/gateway/work-manager-gateway.ts`, `apps/web/src/app/core/gateway/prototype-work-manager-gateway.ts`, `apps/web/src/app/core/gateway/prototype-work-manager-gateway.spec.ts`, `apps/web/src/app/core/gateway/testing/fake-gateway.ts` | modify | `projects.create` answers `ProjectWriteResult`; the fake can make `projects.get` answer `not_found` while `history.summary` answers a `project.add` step. |
+| `apps/web/src/app/core/shell/shell-store.ts`, `apps/web/src/app/core/shell/shell-store.spec.ts` | modify | Unwrap `project`; keeps the inert reporter (outside the shell), stated in the doc comment. |
+| `apps/web/src/app/features/projects/sections/sub-projects/sub-projects-store.ts`, `apps/web/src/app/features/projects/sections/sub-projects/sub-projects-store.spec.ts` | modify | Unwrap and report through `reportedWrite` with the created project's id and name. |
+| `apps/web/src/app/features/projects/project-workspace-store.ts`, `apps/web/src/app/features/projects/project-workspace-store.spec.ts` | modify | `missing` signal: set on a `not_found` load or context refresh (project cleared), cleared by a successful read; other refresh failures stay quiet. |
+| `apps/web/src/app/features/projects/project-page-store.spec.ts` | modify | A `not_found` section re-read after a project's creation-undo frame stays quiet until the shell unmounts the canvas. The stores already suppress quiet live-refresh failures, so no section-store implementation change is expected. |
+| `apps/web/src/app/features/projects/history/project-history-store.ts`, `apps/web/src/app/features/projects/history/project-history-store.spec.ts` | modify | `creationRedo`/`creationUndo` computed views over the held summary (no new state). |
+| `apps/web/src/app/features/projects/history/history-feedback.ts`, `apps/web/src/app/features/projects/history/history-feedback.spec.ts` | modify | `project.add` Undo/Redo result wording. |
+| `apps/web/src/app/features/projects/project-workspace-shell.ts`, `apps/web/src/app/features/projects/project-workspace-shell.html`, `apps/web/src/app/features/projects/project-workspace-shell.scss`, `apps/web/src/app/features/projects/project-workspace-shell.spec.ts` | modify | Recovery section; the symmetric once-per-revision reloads; tokens only. |
 | `apps/web/src/app/features/projects/project-creation-recovery.stories.ts` | create | The recovery state: Redo enabled, pending, blocked by an archived parent; both themes. |
 | `apps/web/src/app/prototype/dev-panel/dev-panel-store.ts` | modify | `CURRENT_SLICE = 42` (first implementation commit). |
 | `apps/e2e/project-creation-history.spec.ts` | create | Acceptance step 6. |
-| `apps/e2e/seed.ts`, `archive.spec.ts`, `reflections.spec.ts`, `todos.spec.ts`, `web.spec.ts`, `project-history.spec.ts` | modify | Unwrap POST results; a fresh root's header Undo is now enabled ("Nothing to undo" assertions after creation change). |
-| Main specification §§14, 26, 31, 54, 57, 61, 62, 63, 68 | modify | Creation is recorded; the two anchors; the recovery state; results and frames. |
+| `apps/e2e/seed.ts`, `apps/e2e/archive.spec.ts`, `apps/e2e/reflections.spec.ts`, `apps/e2e/todos.spec.ts`, `apps/e2e/web.spec.ts`, `apps/e2e/project-history.spec.ts` | modify | Unwrap POST results; a fresh root's header Undo is now enabled ("Nothing to undo" assertions after creation change). |
+| `Canvas Work Manager — Prototype Product, Design & Development Specification.md` §§14, 26, 31, 54, 57, 61, 62, 63, 68, 69 | modify | Creation is recorded; the two anchors; the recovery state; results and frames; the new browser journey in the testing strategy. |
 | `docs/decisions/2026-09-project-creation-history.md`, `docs/decisions/README.md` | create / modify | New §78 entry: subject-owned creation; anchors instead of a tombstone and why each is durable; the preflight list and its one permanent conflict (preflight before the audit line); actor-only summary while existence stays in Activity; the recovery state and its revisit trigger. |
-| Amendments: `2026-09-historical-activity-identity.md`, `2026-09-operation-history-scope.md`, `2026-09-project-update-operation-history.md`, `2026-09-history-stage-a-deferrals.md`, `2026-09-project-header-history-controls.md`, `2026-09-operation-history-retired-actions.md`, `2026-09-operation-history-retention.md`, `2026-08-project-create-edit-archive-surface.md`, `2026-08-activity-feed-composes-from-parts.md` | modify | Dated amendments: a project may be absent under the Activity anchor; a history outlives its project; creation now recorded; retry cache closed; the recovery state; the new permanent conflict and its ordering; retention exempts nothing but pruning cannot reach an absent project's history; create answers a receipt; project-name fallback. |
-| `docs/roadmap/planned/34-undo-redo-and-archive.md` | modify | Dated note: Stage C closed by Slices 37–42; creation Undo's Activity anchor is the `project.created` event rather than a retained record; retry cache retired by amendment. |
-| `docs/architecture/contracts/*`, `repositories/*`, `domain/*`, `mcp-tools/*`, `prototype-host/api/*`, `prototype-host/live-updates/*` (new frame types), `web/projects/*`, `web/core/*` (gateway result, shell store), `testing/*` (new e2e spec) | modify | Four files each where behaviour changed; `how.md` links to the new symbols. |
+| `docs/decisions/2026-09-historical-activity-identity.md`, `docs/decisions/2026-09-operation-history-scope.md`, `docs/decisions/2026-09-project-update-operation-history.md`, `docs/decisions/2026-09-history-stage-a-deferrals.md`, `docs/decisions/2026-09-project-header-history-controls.md`, `docs/decisions/2026-09-operation-history-retired-actions.md`, `docs/decisions/2026-09-operation-history-retention.md`, `docs/decisions/2026-08-project-create-edit-archive-surface.md`, `docs/decisions/2026-08-activity-feed-composes-from-parts.md` | modify | Dated amendments: a project may be absent under the Activity anchor; a history outlives the project; creation now recorded; retry cache closed; the recovery state; the new permanent conflict and its ordering; retention exempts nothing but pruning cannot reach an absent project's history; create answers a receipt; project-name fallback. |
+| `docs/architecture/contracts/overview.md`, `docs/architecture/contracts/why.md`, `docs/architecture/contracts/what.md`, `docs/architecture/contracts/how.md` | modify | Name the `project.add` payload and its directional results; link the creation-history decision; update operation counts and key-symbol links. |
+| `docs/architecture/repositories/overview.md`, `docs/architecture/repositories/why.md`, `docs/architecture/repositories/what.md`, `docs/architecture/repositories/how.md` | modify | Document the Activity/history anchors, absent-project integrity rules, and the restricted project/page removals. |
+| `docs/architecture/domain/overview.md`, `docs/architecture/domain/why.md`, `docs/architecture/domain/what.md`, `docs/architecture/domain/how.md` | modify | Document project creation recording, the project-add executor/preflight, actor-only absent-project summaries, and the unchanged acyclic service graph. |
+| `docs/architecture/mcp-tools/overview.md`, `docs/architecture/mcp-tools/why.md`, `docs/architecture/mcp-tools/what.md`, `docs/architecture/mcp-tools/how.md` | modify | Update `create_project`'s receipt result and the operation-history tool descriptions without changing the 37-tool registry. |
+| `docs/architecture/prototype-host/api/overview.md`, `docs/architecture/prototype-host/api/why.md`, `docs/architecture/prototype-host/api/what.md`, `docs/architecture/prototype-host/api/how.md` | modify | Document the project creation envelope and absent-project history route behavior. |
+| `docs/architecture/prototype-host/live-updates/overview.md`, `docs/architecture/prototype-host/live-updates/why.md`, `docs/architecture/prototype-host/live-updates/what.md`, `docs/architecture/prototype-host/live-updates/how.md` | modify | Document creation Undo/Redo frames routed by the former root and excluded from project-record events. |
+| `docs/architecture/web/core/overview.md`, `docs/architecture/web/core/why.md`, `docs/architecture/web/core/what.md`, `docs/architecture/web/core/how.md` | modify | Document the shared create result contract and shell caller's receipt handling through the gateway. |
+| `docs/architecture/web/projects/overview.md`, `docs/architecture/web/projects/why.md`, `docs/architecture/web/projects/what.md`, `docs/architecture/web/projects/how.md` | modify | Document create receipts, missing-project state, recovery rendering and once-per-revision route reconciliation. |
+| `docs/architecture/testing/overview.md`, `docs/architecture/testing/why.md`, `docs/architecture/testing/what.md`, `docs/architecture/testing/how.md` | modify | Add the project-creation E2E journey and the changed acceptance coverage to the test inventory. |
+| `docs/guides/mcp-setup.md` | modify | Correct the live `create_project` example/result description to `{ project, operation }`. |
+| `.prototype/notes.json` | modify | Record friction observed in the seeded browser and MCP real-use pass for Slice 42. |
+| `docs/roadmap/planned/34-undo-redo-and-archive.md` | modify during close, after `roadmap.mjs complete` moves Slice 42 out of `active/` | Add the dated Stage C closure note, the `project.created` Activity anchor choice, and the retry-cache amendment. This is deliberately not edited while Slice 42 is the active plan, per the roadmap's single-planning-document rule. |
 | `AGENTS.md` | modify only if a sentence becomes false | No new tool (count stays thirty-seven) and `ProjectService`'s recorder edge is already named. |
-| `README.md`, `docs/guides/mcp-setup.md`, `docs/guides/first-milestone-walkthrough.md` | modify if they show a `create_project` or POST result | Keep examples true. |
 | `docs/roadmap/goals.md`, this plan | modify | Stage C complete at close; Outcome. |
 
 ## Test plan — tests first
@@ -380,8 +393,10 @@ hit in the commit that changes the result.
 ## Boundaries touched
 
 - **Domain → repository abstractions only.** Executors are functions over repository interfaces
-  and `Clock`; `OperationHistoryService` gains no service edge. `ProjectService` already holds
-  `OperationRecorder`; it gains no other edge. No `new Date()`.
+  and `Clock`; `OperationHistoryService` gains no service edge. `ProjectAddHistoryRepositories`
+  alone exposes the row, milestone and history reads required for creation Undo; the shared
+  `ProjectHistoryRepositories` for existing-project inverses stays narrow, and `ProjectService`
+  gains no edge beyond its existing `OperationRecorder`. No `new Date()`.
 - **Restricted deletion is an explicit integrity change,** reachable only from `revertProjectAdd`,
   tested, and documented on the repository interface — Slice 34's condition for creation Undo.
 - **MCP calls domain.** Tools change result and descriptions only.
@@ -465,6 +480,19 @@ Resolved by default; each goes into the new decision entry:
 - **Round 4 (2026-09-22):** Reviewer confirmed both Round 3 fixes closed and found nothing
   substantive remaining. Added its optional suggestion: the clock-backward case also runs through
   `transition`, so commit-time integrity is tested, not only a document load.
+- **Round 5 (2026-09-23):** Fresh review found four plan corrections, all accepted. Corrected
+  §31's name and added §69 to the spec change list; named `ProjectHistoryRepositories` rather than
+  the section executor seam; expanded the architecture, MCP guide and friction-note file list;
+  and moved the Slice 34 note to the close, after this active plan is completed, to preserve the
+  roadmap rule that only the active plan is edited during a phase.
+- **Round 6 (2026-09-23):** Re-review found that adding creation-preflight repositories to the
+  existing `ProjectHistoryRepositories` would widen the authority of project-update inverses and
+  force unrelated `ProjectService` callers to supply repositories they do not need. Kept that
+  interface narrow and added `ProjectAddHistoryRepositories` for the new executor only; the
+  operation-history service receives its milestone read, and `ProjectService` gains no edge.
+- **Round 7 (2026-09-23):** Re-review traced the new required milestone dependency to every
+  constructor caller. Added the shared domain harness, the direct section-edit test, and the MCP
+  test harness to the file list; the two host construction sites were already listed.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 

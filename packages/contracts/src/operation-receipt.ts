@@ -16,7 +16,8 @@ import { OperationActionIdSchema, OperationHistoryIdSchema } from './ids';
  * Four section kinds from Slice 35, eight row kinds from Slice 36, from Slice 37 the durable
  * `section.restore` plus the four Home shortcut placement kinds, and from Slice 38 the two
  * optional-page toggles — `page.add` for the enable that creates the record, `page.update` for
- * every later change of its boolean — and from Slice 39 the three existing-project writes:
+ * every later change of its boolean — from Slice 39 the three existing-project writes, and from
+ * Slice 42 `project.add`:
  * `project.archive` and `project.reactivate` when the status crosses the archive boundary, and
  * `project.update` for every other change, a project's completion included. Completion is not a kind of its
  * own: §34 makes it a `task.update` whose label and verb say `Completed`, so PATCH-to-done and
@@ -43,6 +44,7 @@ export const OperationKindSchema = z.enum([
   'shortcut.remove',
   'page.add',
   'page.update',
+  'project.add',
   'project.update',
   'project.archive',
   'project.reactivate',

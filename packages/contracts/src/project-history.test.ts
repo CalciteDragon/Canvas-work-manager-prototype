@@ -141,6 +141,57 @@ describe('project.archive and project.reactivate payloads', () => {
 });
 
 describe('project operations in the shared unions', () => {
+  it('accept project creation with its canonical page and reject an inconsistent snapshot', () => {
+    const root = {
+      ...project,
+      id: 'project-new-root',
+      name: 'New root',
+      status: 'planning',
+      createdAt: AT,
+      updatedAt: AT,
+    };
+    const subproject = {
+      ...root,
+      id: 'project-new-child',
+      kind: 'subproject',
+      parentProjectId: 'project-kitchen',
+      name: 'New child',
+    };
+    const add = (subject: typeof root | typeof subproject) => ({
+      type: 'project.add',
+      version: 1,
+      project: subject,
+      page: {
+        id: `page-${subject.id}`,
+        projectId: subject.id,
+        kind: subject.kind === 'root' ? 'home' : 'work',
+        enabled: true,
+        createdAt: AT,
+        updatedAt: AT,
+      },
+    });
+
+    for (const operation of [add(root), add(subproject)]) {
+      const parsed = UndoOperationSchema.safeParse(operation);
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(operationProjectOf(parsed.data)).toBe(operation.project.id);
+        expect(operationSubjectOf(parsed.data)).toBe(operation.project.id);
+        expect(ProjectUndoOperationSchema.parse(operation)).toEqual(parsed.data);
+      }
+    }
+
+    expect(ProjectUndoOperationSchema.safeParse({
+      ...add(root),
+      page: { ...add(root).page, projectId: 'project-kitchen' },
+    }).success).toBe(false);
+    expect(ProjectUndoOperationSchema.safeParse({
+      ...add(root),
+      page: { ...add(root).page, kind: 'work' },
+    }).success).toBe(false);
+    expect(ProjectUndoOperationSchema.safeParse({ ...add(root), capturedAt: AT }).success).toBe(false);
+  });
+
   it('parse through the history union and name the subject project as owner and subject', () => {
     for (const operation of [update(), archive(), reactivate()]) {
       const parsed = UndoOperationSchema.parse(operation);
@@ -151,13 +202,18 @@ describe('project operations in the shared unions', () => {
   });
 
   it('answer the current project in both directions', () => {
-    expect(PROJECT_UNDO_RESULT_SCHEMAS).toHaveLength(3);
-    expect(PROJECT_REDO_RESULT_SCHEMAS).toHaveLength(3);
+    expect(PROJECT_UNDO_RESULT_SCHEMAS).toHaveLength(4);
+    expect(PROJECT_REDO_RESULT_SCHEMAS).toHaveLength(4);
     for (const operation of ['project.update', 'project.archive', 'project.reactivate']) {
       expect(UndoResultSchema.parse({ operation, outcome: 'restored', project }).operation).toBe(operation);
       expect(RedoResultSchema.parse({ operation, outcome: 'reapplied', project }).operation).toBe(operation);
       expect(UndoResultSchema.safeParse({ operation, outcome: 'reapplied', project }).success).toBe(false);
     }
+    expect(UndoResultSchema.parse({ operation: 'project.add', outcome: 'removed', projectId: 'project-kitchen' }))
+      .toEqual({ operation: 'project.add', outcome: 'removed', projectId: 'project-kitchen' });
+    expect(RedoResultSchema.parse({ operation: 'project.add', outcome: 'reapplied', project, page: {
+      id: 'page-kitchen', projectId: 'project-kitchen', kind: 'home', enabled: true, createdAt: AT, updatedAt: AT,
+    } }).operation).toBe('project.add');
   });
 });
 
@@ -174,6 +230,10 @@ describe('ProjectWriteResult', () => {
       expiresAt: LATER,
     };
     expect(ProjectWriteResultSchema.parse({ project, operation: receipt }).operation).toEqual(receipt);
+    expect(ProjectWriteResultSchema.parse({
+      project,
+      operation: { ...receipt, operation: 'project.add', label: 'Created "Kitchen"' },
+    }).operation?.operation).toBe('project.add');
   });
 
   it('is strict: no captured footprint rides along', () => {

@@ -237,6 +237,8 @@ export const operationProjectOf = (operation: UndoOperation): string => {
     // section does.
     case 'page.add':
       return operation.page.projectId;
+    case 'project.add':
+      return operation.project.id;
     // Every remaining member names its own project, including a shortcut, whose `projectId` is
     // the **destination** Home project rather than the source sub-project the placement points at,
     // and a project write, whose `projectId` is the subject itself — never its root, so a reparent
@@ -279,6 +281,8 @@ export const operationSubjectOf = (operation: UndoOperation): string => {
       return operation.page.id;
     case 'page.update':
       return operation.pageId;
+    case 'project.add':
+      return operation.project.id;
     default:
       return operation.projectId;
   }

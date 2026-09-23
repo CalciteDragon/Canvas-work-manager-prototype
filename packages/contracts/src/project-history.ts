@@ -1,13 +1,20 @@
 import { z } from 'zod';
 import { IsoDateSchema, IsoDateTimeSchema } from './common';
 import { ProjectIdSchema } from './ids';
+import { ProjectPageSchema, canonicalPageKindFor } from './project-page';
 import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectSchema, ProjectStatusSchema } from './project';
 
 /**
- * **The three existing-project operation payloads** (Slice 39, main §§26, 31, 39): the captured
- * footprint of one committed `ProjectService.update` or `archive`, held by an operation-history
- * action in the **subject project's own** history
- * (docs/decisions/2026-09-project-update-operation-history.md).
+ * **Project operation payloads** (main §§26, 31, 39): creation and the three existing-project
+ * writes, held by an operation-history action in the **subject project's own** history
+ * (docs/decisions/2026-09-project-creation-history.md,
+ * docs/decisions/2026-09-project-update-operation-history.md).
+ *
+ * `project.add` captures the new project and its canonical page as one action. Its Undo removes
+ * the pair only while the project is still untouched; Redo recreates both with their original ids.
+ *
+ * The existing-project payloads capture the footprint of one committed `ProjectService.update`
+ * or `archive`.
  *
  * One service path writes name, description, icon, target date, status, parent, layout and progress
  * settings, and archive calls the same commit, so one shape covers all of them. The `type` only says
@@ -16,8 +23,6 @@ import { ProgressFormulaSchema, ProjectLayoutModeSchema, ProjectSchema, ProjectS
  * because those two transitions are the ones the history executor lets run while the subject itself
  * is archived, and a label must say which one a step is.
  *
- * Creation is deliberately absent: `create` and its canonical page stay unrecorded until the
- * creation and missing-project recovery phase.
  */
 
 /** A cleared optional field is `null`, so a change can say "there was a value, now there is none". */
@@ -76,6 +81,27 @@ const projectShape = {
   changes: z.array(ProjectFieldChangeSchema).min(1),
 };
 
+/** The creation write: its captured project and canonical page are removed and restored together. */
+export const ProjectAddOperationSchema = z
+  .strictObject({
+    version: z.literal(1),
+    type: z.literal('project.add'),
+    project: ProjectSchema,
+    page: ProjectPageSchema,
+  })
+  .superRefine((operation, ctx) => {
+    if (operation.page.projectId !== operation.project.id) {
+      ctx.addIssue({ code: 'custom', path: ['page', 'projectId'], message: 'the canonical page belongs to the captured project' });
+    }
+    if (operation.page.kind !== canonicalPageKindFor(operation.project.kind)) {
+      ctx.addIssue({ code: 'custom', path: ['page', 'kind'], message: 'the page is canonical for the captured project kind' });
+    }
+    if (!operation.page.enabled) {
+      ctx.addIssue({ code: 'custom', path: ['page', 'enabled'], message: 'a canonical page is enabled' });
+    }
+  });
+export type ProjectAddOperation = z.infer<typeof ProjectAddOperationSchema>;
+
 /**
  * `project.update`: every committed change that does not cross the archive boundary.
  *
@@ -125,6 +151,7 @@ export type ProjectReactivateOperation = z.infer<typeof ProjectReactivateOperati
 
 /** Every project operation a history action can hold. */
 export const ProjectUndoOperationSchema = z.discriminatedUnion('type', [
+  ProjectAddOperationSchema,
   ProjectUpdateOperationSchema,
   ProjectArchiveOperationSchema,
   ProjectReactivateOperationSchema,
@@ -142,15 +169,32 @@ export const ProjectArchiveRedoResultSchema = projectResult('project.archive', '
 export const ProjectReactivateUndoResultSchema = projectResult('project.reactivate', 'restored');
 export const ProjectReactivateRedoResultSchema = projectResult('project.reactivate', 'reapplied');
 
-/** The three project members of `UndoResultSchema`, in operation order. */
+/** Undo of creation has removed the project and canonical page, so it returns the absent id. */
+export const ProjectAddUndoResultSchema = z.object({
+  operation: z.literal('project.add'),
+  outcome: z.literal('removed'),
+  projectId: ProjectIdSchema,
+});
+
+/** Redo of creation returns the recreated project and its canonical page. */
+export const ProjectAddRedoResultSchema = z.object({
+  operation: z.literal('project.add'),
+  outcome: z.literal('reapplied'),
+  project: ProjectSchema,
+  page: ProjectPageSchema,
+});
+
+/** The four project members of `UndoResultSchema`, in operation order. */
 export const PROJECT_UNDO_RESULT_SCHEMAS = [
+  ProjectAddUndoResultSchema,
   ProjectUpdateUndoResultSchema,
   ProjectArchiveUndoResultSchema,
   ProjectReactivateUndoResultSchema,
 ] as const;
 
-/** The three project members of `RedoResultSchema`, in the same order. */
+/** The four project members of `RedoResultSchema`, in the same order. */
 export const PROJECT_REDO_RESULT_SCHEMAS = [
+  ProjectAddRedoResultSchema,
   ProjectUpdateRedoResultSchema,
   ProjectArchiveRedoResultSchema,
   ProjectReactivateRedoResultSchema,
