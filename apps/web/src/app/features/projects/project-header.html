@@ -54,6 +54,8 @@
   </dl>
 
   <div class="project-header__actions">
+    <!-- §26's Undo and Redo (Slice 41), projected by the shell, which owns the history store. -->
+    <ng-content select="[projectHistoryControls]" />
     <!-- §26's "More": rename, description, status, date and archive (§81). -->
     <button
       data-project-more
@@ -80,6 +82,11 @@
       (dismissed)="closeMore()"
     />
   }
+
+  <!-- The history controls' one feedback line, full width under the facts. -->
+  <div class="project-header__history-feedback">
+    <ng-content select="[projectHistoryFeedback]" />
+  </div>
 
   <!-- A failed project write, in the header — never the full-page "Project unavailable"
        state, which would blank the page the user is standing on. -->

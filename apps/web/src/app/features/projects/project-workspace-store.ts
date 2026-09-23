@@ -13,6 +13,7 @@ import {
   type UpdateProjectInput,
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 
 const messageOf = (error: unknown): string =>
@@ -49,6 +50,8 @@ export interface WorkTreeNode {
 export class ProjectWorkspaceStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
+  /** The header's history hears about every page toggle and project write (Slice 41). */
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
   private requestedProjectId: ProjectId | undefined;
   private loadGeneration = 0;
@@ -332,13 +335,18 @@ export class ProjectWorkspaceStore {
       this.pageWritePendingState.set(true);
       this.clearPageFeedback(surface);
       try {
+        const end = this.reporter.begin();
         try {
-          await this.gateway.pages.setEnabled(root.id, { kind, enabled });
+          const written = await this.gateway.pages.setEnabled(root.id, { kind, enabled });
+          // The page's own project — the root — names the history, never the routed sub-project.
+          this.reporter.committed({ projectId: written.page.projectId, projectName: root.name, receipt: written.operation });
         } catch (error) {
           if (this.pageOperationCurrent(generation, epoch, routedProjectId)) {
             this.setPageOperationError(surface, messageOf(error));
           }
           return false;
+        } finally {
+          end();
         }
 
         if (!this.pageOperationCurrent(generation, epoch, routedProjectId)) return false;
@@ -514,17 +522,20 @@ export class ProjectWorkspaceStore {
 
   /**
    * §81's archive. `PATCH` with `status: 'archived'` *is* the domain's archive path, so there
-   * is no gateway method to add. Awaited rather than optimistic, because the page it runs from
-   * disappears when it succeeds — and it answers an outcome instead of navigating, because
-   * §19's stores decide and pages navigate.
+   * is no gateway method to add. Awaited rather than optimistic, because the shell words its
+   * outcome — the page stays on the archived project, whose header offers its Undo (Slice 41) —
+   * and it answers that outcome instead of deciding anything, because §19's stores decide and
+   * pages navigate. On success the returned record is applied, so the header reads `archived`
+   * without waiting for a frame.
    */
   archive(): Promise<boolean> {
     return this.writeProject({ status: 'archived' }, null);
   }
 
   /**
-   * One optimistic project write. `paint` is `null` for the write whose result the user never
-   * sees on this page, which is archive alone.
+   * One project write, optimistic unless `paint` is `null` (archive alone, which is awaited). The
+   * server's record is applied on success either way, and the write is reported to the header's
+   * history with the updated project's own id and name.
    */
   private writeProject(
     input: UpdateProjectInput,
@@ -546,11 +557,12 @@ export class ProjectWorkspaceStore {
 
     return this.track(() =>
       this.whileWriting(async () => {
+        const end = this.reporter.begin();
         try {
-          // The receipt is the server's history record; nothing here offers Undo yet (Slice 39).
-          const { project: updated } = await this.gateway.projects.update(projectId, input);
+          const { project: updated, operation } = await this.gateway.projects.update(projectId, input);
+          this.reporter.committed({ projectId: updated.id, projectName: updated.name, receipt: operation });
           // The server's record, not the paint: the host may have normalised something.
-          if (current() && paint !== null) this.projectState.set(updated);
+          if (current()) this.projectState.set(updated);
           return true;
         } catch (error) {
           if (current()) {
@@ -559,6 +571,7 @@ export class ProjectWorkspaceStore {
           }
           return false;
         } finally {
+          end();
           this.projectWritesState.update((count) => count - 1);
         }
       }),

@@ -13,6 +13,11 @@ import {
 import { DestroyRef } from '@angular/core';
 import { Router } from '@angular/router';
 import type { ProjectId, ProjectPageKind } from '@cwm/contracts';
+import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
+import { archivedHereFeedback } from './history/history-feedback';
+import { ProjectHistoryControls } from './history/project-history-controls';
+import { ProjectHistoryFeedback } from './history/project-history-feedback';
+import { ProjectHistoryStore } from './history/project-history-store';
 import { ProjectHeader } from './project-header';
 import { ProjectPageNavigation } from './project-page-navigation';
 import type { ProjectPageRendererInputs } from './project-page-contract';
@@ -53,8 +58,15 @@ const NARROW = '(max-width: 60rem)';
 @Component({
   selector: 'app-project-workspace-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet, ProjectHeader, ProjectPageNavigation],
-  providers: [ProjectWorkspaceStore],
+  imports: [NgComponentOutlet, ProjectHeader, ProjectHistoryControls, ProjectHistoryFeedback, ProjectPageNavigation],
+  // `providers`, not `viewProviders`: the page renderers are mounted through `NgComponentOutlet`,
+  // and every writer store inside them must resolve the header's history as its reporter
+  // (Slice 41). The inert root default would otherwise hide a wiring mistake.
+  providers: [
+    ProjectWorkspaceStore,
+    ProjectHistoryStore,
+    { provide: OPERATION_HISTORY_REPORTER, useExisting: ProjectHistoryStore },
+  ],
   templateUrl: './project-workspace-shell.html',
   styleUrl: './project-workspace-shell.scss',
   // The shell owns the workspace region's gutters, so `AppShell` gives it the full bleed and
@@ -69,6 +81,8 @@ export class ProjectWorkspaceShell {
   readonly pageKind = input<string | undefined>(undefined);
 
   readonly store = inject(ProjectWorkspaceStore);
+  /** §26's Undo/Redo: the displayed project's history (Slice 41). */
+  readonly history = inject(ProjectHistoryStore);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
 
@@ -161,7 +175,10 @@ export class ProjectWorkspaceShell {
     // `pageKind`, and must not re-read the context.
     effect(() => {
       const projectId = this.projectId();
-      untracked(() => void this.store.load(projectId));
+      untracked(() => {
+        void this.store.load(projectId);
+        this.history.load(projectId);
+      });
     });
 
     // §68's fallback. `replaceUrl` so Back still goes where the user came from, and the reason
@@ -306,12 +323,18 @@ export class ProjectWorkspaceShell {
   }
 
   /**
-   * §19: the store decided, the page navigates. A refusal leaves the user where they are,
-   * with the domain's own reason in the header.
+   * §19: the store decided, the shell words it. A successful archive **stays on the archived
+   * project's page** (Slice 41), which §31 keeps rendering, so the header's enabled Undo is the one
+   * place the archive can be reversed — the dashboard has no header to offer it. A refusal leaves
+   * the domain's own reason in the header.
    */
   async confirmArchive(): Promise<void> {
-    const archived = await this.store.archive();
-    if (!archived) return;
-    await this.router.navigate(['/app']);
+    const project = this.store.project();
+    if (project === null) return;
+    if (!await this.store.archive()) return;
+    this.history.announce(archivedHereFeedback(this.store.project()?.name ?? project.name));
   }
+
+  readonly undo = (): void => void this.history.undo();
+  readonly redo = (): void => void this.history.redo();
 }

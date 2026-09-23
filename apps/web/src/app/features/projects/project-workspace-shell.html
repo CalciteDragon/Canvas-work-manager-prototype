@@ -37,7 +37,22 @@
         (targetDateRequested)="setTargetDate($event)"
         (archiveRequested)="confirmArchive()"
         (openArchiveRequested)="openArchive()"
-      />
+      >
+        <app-project-history-controls
+          projectHistoryControls
+          [undo]="history.undoControl()"
+          [redo]="history.redoControl()"
+          [retryAvailable]="history.retryAvailable()"
+          (undoRequested)="undo()"
+          (redoRequested)="redo()"
+          (retryRequested)="history.retry()"
+        />
+        <app-project-history-feedback
+          projectHistoryFeedback
+          [feedback]="history.feedback()"
+          (dismissed)="history.dismissFeedback()"
+        />
+      </app-project-header>
 
       @if (archiveRetryNeeded()) {
         <button type="button" data-archive-open-retry class="project-workspace__retry" (click)="retryArchiveOpen()">

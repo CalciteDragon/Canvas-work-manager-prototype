@@ -8,6 +8,7 @@ import {
   ProjectPageSchema,
   ProjectSchema,
   ProjectSectionSchema,
+  ResolvedSectionShortcutSchema,
   TaskSchema,
   type Project,
   type ProjectPage,
@@ -22,7 +23,14 @@ import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
 import { IDENTITY_PROVIDER } from '../../core/identity/identity-provider';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { routes } from '../../app.routes';
+import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
+import { ProjectHistoryStore } from './history/project-history-store';
+import { ArchivePage } from './pages/archive-page';
+import { ReflectionsPage } from './pages/reflections-page';
+import { TodosPage } from './pages/todos-page';
 import { ProjectCanvas } from './project-canvas';
+import { TaskListSection } from './sections/tasks/task-list-section';
+import { ShortcutFrame } from './shortcuts/shortcut-frame';
 import { ProjectWorkspaceShell } from './project-workspace-shell';
 
 const AT = '2026-08-27T16:00:00.000Z';
@@ -115,7 +123,7 @@ const open = async (url: string, options: Options = {}) => {
       // history, and the fallback notice cannot be read back at all.
       provideLocationMocks(),
       { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
-      // A successful archive navigates to `/app`, and the dashboard there reads the persona.
+      // A test that leaves the workspace lands on the dashboard, which reads the persona.
       { provide: IDENTITY_PROVIDER, useValue: fakeIdentityProvider(testIdentity()) },
     ],
   });
@@ -453,7 +461,7 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
 });
 
 describe('ProjectWorkspaceShell — the header, the canvas and what crosses between them', () => {
-  it('leaves the workspace only after an archive resolves, and stays put when the domain refuses', async () => {
+  it('stays on the archived project with its Undo, and stays put with the reason when the domain refuses', async () => {
     const refused = await open('/projects/project-renovation', {
       failOn: { 'projects.update': new GatewayError('conflict', 409, 'archive its live sub-projects first') },
     });
@@ -467,7 +475,9 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     expect(refused.router.url).toBe('/projects/project-renovation');
     expect(query(refused.harness, '[data-project-write-error]')?.textContent).toContain('live sub-projects');
 
-    const accepted = await open('/projects/project-renovation');
+    // Slice 41: a successful archive no longer navigates to `/app`, where no header could offer
+    // the one step the per-step blocker exists for.
+    const accepted = await open('/projects/project-garden');
     query(accepted.harness, '[data-project-more]')!.click();
     accepted.harness.fixture.detectChanges();
     query(accepted.harness, '[data-project-archive]')!.click();
@@ -475,7 +485,10 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     query(accepted.harness, '[data-project-archive-confirm-yes]')!.click();
     await settle(accepted.harness);
 
-    expect(accepted.router.url).toBe('/app');
+    expect(accepted.router.url).toBe('/projects/project-garden');
+    expect(query(accepted.harness, '[data-project-status]')?.textContent?.trim()).toBe('archived');
+    expect(query(accepted.harness, '[data-history-message]')?.textContent).toBe('Garden is archived. Undo is available here.');
+    expect(query(accepted.harness, '[data-history-undo]')).not.toBeNull();
   });
 
   it('opens the root Archive from More after enabling its disabled page', async () => {
@@ -635,3 +648,74 @@ describe('ProjectWorkspaceShell — the Todos page (§34, §68)', () => {
     expect(gateway.calls.filter(({ method }) => method === 'progress.get').length).toBeGreaterThan(progressReads);
   });
 });
+
+describe('ProjectWorkspaceShell — the header’s Undo/Redo (Slice 41)', () => {
+  const HISTORY_PAGES = [
+    page('page-renovation-home', 'project-renovation', 'home'),
+    page('page-renovation-todos', 'project-renovation', 'todos'),
+    page('page-renovation-archive', 'project-renovation', 'archive'),
+    page('page-renovation-reflections', 'project-renovation', 'reflections'),
+    page('page-kitchen-work', 'project-kitchen', 'work'),
+    page('page-cabinets-work', 'project-cabinets', 'work'),
+    page('page-garden-work', 'project-garden', 'work'),
+  ];
+
+  it('renders both controls on every root page, a sub-project, and an unavailable page', async () => {
+    for (const url of [
+      '/projects/project-renovation',
+      '/projects/project-renovation/pages/todos',
+      '/projects/project-renovation/pages/archive',
+      '/projects/project-renovation/pages/reflections',
+      '/projects/project-kitchen',
+    ]) {
+      const { harness } = await open(url, { pages: HISTORY_PAGES });
+      await settle(harness);
+      expect(query(harness, '[data-history-undo]')?.getAttribute('aria-label'), url).toBe('Nothing to undo');
+      expect(query(harness, '[data-history-redo]')?.getAttribute('aria-label'), url).toBe('Nothing to redo');
+      expect(query(harness, '[data-history-undo]')?.getAttribute('aria-disabled'), url).toBe('true');
+    }
+    const unavailable = await open('/projects/project-renovation/pages/unbuilt-kind', { pages: HISTORY_PAGES });
+    await settle(unavailable.harness);
+    expect(query(unavailable.harness, '[data-history-undo]')).not.toBeNull();
+  });
+
+  it('loads the history of the routed project, again on a project change', async () => {
+    const { harness, gateway } = await open('/projects/project-renovation', { pages: HISTORY_PAGES });
+    await harness.navigateByUrl('/projects/project-garden');
+    await settle(harness);
+    const reads = gateway.calls.filter(({ method }) => method === 'history.summary').map(({ argument }) => argument);
+    expect(reads).toContain('project-renovation');
+    expect(reads.at(-1)).toBe('project-garden');
+  });
+
+  it('binds every writer store inside the shell to the header’s history, outlet pages and shortcut lists included', async () => {
+    const shortcut = ResolvedSectionShortcutSchema.parse({
+      id: 'shortcut-1', pageId: 'page-renovation-home', sourceSectionId: 'section-kitchen-tasks', position: 1,
+      columnSpan: 12, collapsed: false, createdAt: AT, updatedAt: AT,
+      source: section('section-kitchen-tasks', 'project-kitchen', 'page-kitchen-work', 'task-list'),
+      sourceProjectId: 'project-kitchen', sourceProjectName: 'Kitchen', sourcePageKind: 'work',
+      breadcrumb: ['Home renovation', 'Kitchen'], availability: 'available',
+    });
+    const home = await open('/projects/project-renovation', { pages: HISTORY_PAGES, shortcuts: [shortcut] } as Options);
+    await settle(home.harness);
+    const shell = home.harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell));
+    const history = shell.injector.get(ProjectHistoryStore);
+    expect(home.harness.fixture.debugElement.query(By.directive(ProjectCanvas)).injector.get(OPERATION_HISTORY_REPORTER)).toBe(history);
+    const shortcutList = home.harness.fixture.debugElement.query(By.directive(ShortcutFrame)).query(By.directive(TaskListSection));
+    expect(shortcutList.injector.get(OPERATION_HISTORY_REPORTER)).toBe(history);
+
+    const outlets: Array<[string, unknown]> = [
+      ['/projects/project-renovation/pages/todos', TodosPage],
+      ['/projects/project-renovation/pages/archive', ArchivePage],
+      ['/projects/project-renovation/pages/reflections', ReflectionsPage],
+    ];
+    for (const [url, component] of outlets) {
+      const opened = await open(url, { pages: HISTORY_PAGES });
+      await settle(opened.harness);
+      const outletPage = opened.harness.fixture.debugElement.query(By.directive(component as never));
+      const shellHistory = opened.harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell)).injector.get(ProjectHistoryStore);
+      expect(outletPage.injector.get(OPERATION_HISTORY_REPORTER), url).toBe(shellHistory);
+    }
+  });
+});
+

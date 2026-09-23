@@ -81,6 +81,14 @@
   grid-column: 1 / -1;
 }
 
+.project-header__history-feedback {
+  grid-column: 1 / -1;
+}
+
+.project-header__history-feedback:empty {
+  display: none;
+}
+
 .project-header__error {
   grid-column: 1 / -1;
   margin: 0;

@@ -18,7 +18,7 @@ const summary: OperationHistorySummary = {
   projectId: 'project-a' as ProjectId,
   historyId: receipt.historyId,
   revision: 1,
-  undo: { actionId: receipt.actionId, operation: 'section.remove', label: receipt.label, expiresAt: receipt.expiresAt },
+  undo: { actionId: receipt.actionId, operation: 'section.remove', label: receipt.label, expiresAt: receipt.expiresAt, blockedBy: null },
   redo: null,
   blockedBy: null,
 };

@@ -201,6 +201,8 @@ describe('ProjectHeader (§26)', () => {
     query(fixture, '[data-project-archive]')!.click();
     fixture.detectChanges();
     expect(query(fixture, '[data-project-archive-confirm]')).not.toBeNull();
+    // The page stays after an archive (Slice 41); the confirmation says where Undo is.
+    expect(query(fixture, '[data-project-archive-confirm]')!.textContent).toContain('It leaves the sidebar; you can undo it from the header.');
     expect(archives).toBe(0);
 
     query(fixture, '[data-project-archive-cancel]')!.click();
@@ -211,6 +213,13 @@ describe('ProjectHeader (§26)', () => {
     fixture.detectChanges();
     query(fixture, '[data-project-archive-confirm-yes]')!.click();
     expect(archives).toBe(1);
+  });
+
+  it('does not offer Archive on a project that is already archived (Slice 41)', async () => {
+    const fixture = await render({ project: root({ status: 'archived' }) });
+    await openMore(fixture);
+    expect(query(fixture, '[data-project-archive]')).toBeNull();
+    expect(query(fixture, '[data-project-open-archive]')).not.toBeNull();
   });
 
   it('clears a target date through the menu’s explicit Clear', async () => {

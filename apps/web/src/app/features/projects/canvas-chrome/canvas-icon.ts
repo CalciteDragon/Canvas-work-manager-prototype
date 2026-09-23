@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 /** The small set of SVG marks used by the project canvas's interaction chrome. */
 export type CanvasIconName =
-  'grip' | 'chevron' | 'plus' | 'archive' | 'remove' | 'settings' | 'resize';
+  'grip' | 'chevron' | 'plus' | 'archive' | 'remove' | 'settings' | 'resize' | 'undo' | 'redo';
 
 /** Decorative, token-sized SVG chrome shared by the canvas and its section frames. */
 @Component({
@@ -46,6 +46,18 @@ export type CanvasIconName =
           <path
             d="m19.4 15 .1.1 1.3 1-1.4 2.4-1.6-.6a8 8 0 0 1-1.8 1l-.3 1.7h-2.8l-.3-1.7a8 8 0 0 1-1.8-1l-1.6.6-1.4-2.4 1.3-1a8 8 0 0 1 0-2l-1.3-1 1.4-2.4 1.6.6a8 8 0 0 1 1.8-1L13 7.5h2.8l.3 1.7a8 8 0 0 1 1.8 1l1.6-.6 1.4 2.4-1.3 1a8 8 0 0 1-.2 2Z"
           />
+        </svg>
+      }
+      @case ('undo') {
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h11a5 5 0 0 1 0 10h-4" />
+        </svg>
+      }
+      @case ('redo') {
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+          <path d="m15 14 5-5-5-5" />
+          <path d="M20 9H9a5 5 0 0 0 0 10h4" />
         </svg>
       }
       @case ('resize') {

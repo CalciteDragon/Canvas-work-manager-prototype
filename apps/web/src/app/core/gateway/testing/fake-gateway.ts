@@ -228,20 +228,43 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       ),
   };
 
+  /**
+   * Scripted histories for the header's specs (Slice 41): a project named here answers exactly this
+   * summary, entries and step-level `blockedBy` included. A project not named falls back to the
+   * one-history stand-in below.
+   */
+  readonly historySummaries = new Map<ProjectId, OperationHistorySummary>();
+  /**
+   * Scripted transition answers, consumed in order in either direction: a result resolves, a
+   * `GatewayError` rejects (a refusal carries its `details`). Empty, the stand-in's undoers run.
+   */
+  readonly transitionAnswers: Array<OperationHistoryTransitionResult | GatewayError> = [];
+  /** The project the last summary was read for, which the stand-in's transition summary names. */
+  private historyProjectId: ProjectId = 'project-fake' as ProjectId;
+
   readonly history: OperationHistoryGateway = {
     summary: (projectId) => {
+      this.historyProjectId = projectId;
+      const scripted = this.historySummaries.get(projectId);
+      if (scripted !== undefined) return this.answer('history.summary', projectId, scripted);
       const latest = [...this.undoers.keys()].at(-1);
       const summary: OperationHistorySummary = {
         projectId,
         historyId: this.historyRevision === 0 ? null : ('history-fake' as OperationHistoryId),
         revision: this.historyRevision,
-        undo: latest === undefined ? null : { actionId: latest, operation: 'section.update', label: 'Latest change', expiresAt: '2026-08-28T16:00:00.000Z' },
+        undo: latest === undefined ? null : { actionId: latest, operation: 'section.update', label: 'Latest change', expiresAt: '2026-08-28T16:00:00.000Z', blockedBy: null },
         redo: null,
         blockedBy: null,
       };
       return this.answer('history.summary', projectId, summary);
     },
     transition: (historyId: OperationHistoryId, input: OperationHistoryTransitionInput) => {
+      const scripted = this.transitionAnswers.shift();
+      if (scripted instanceof GatewayError) {
+        this.calls.push({ method: 'history.transition', argument: { historyId, input } });
+        return Promise.reject(scripted);
+      }
+      if (scripted !== undefined) return this.answer('history.transition', { historyId, input }, scripted);
       const undoer = input.direction === 'undo' ? this.undoers.get(input.actionId) : undefined;
       if (undoer === undefined) throw new GatewayError('not_found', 404, `no such history action "${input.actionId}"`);
       const result = undoer();
@@ -250,7 +273,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         direction: 'undo',
         actionId: input.actionId,
         result,
-        summary: { projectId: 'project-fake' as ProjectId, historyId, revision: this.historyRevision, undo: null, redo: null, blockedBy: null },
+        summary: { projectId: this.historyProjectId, historyId, revision: this.historyRevision, undo: null, redo: null, blockedBy: null },
       };
       return this.answer('history.transition', { historyId, input }, transition).then((answered) => {
         this.undoers.delete(input.actionId);
