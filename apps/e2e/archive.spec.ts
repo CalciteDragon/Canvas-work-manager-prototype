@@ -1,6 +1,7 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { expect, test } from '@playwright/test';
 import { PROTOTYPE_HOST, seed, setClock } from './seed';
+import { undoFromHeader } from './history-controls';
 
 const TOKEN = 'prototype-user-a-readwrite';
 const PINNED_NOW = '2026-09-15T12:00:00.000Z';
@@ -422,7 +423,7 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     const firstReceipt = ((await (await firstRemoval).json()) as { operation: { historyId: string; actionId: string } }).operation;
     await expect(middleFrame).toHaveCount(0);
     expect(await archiveKeys(root.id)).toContain(`section:${middle.id}`);
-    await page.locator('[data-undo-action]').click();
+    await undoFromHeader(page, /^Undo: Removed the .+ section$/);
     await expect(middleFrame).toBeVisible();
     await expect.poll(combined).toEqual(initial);
     await page.reload();

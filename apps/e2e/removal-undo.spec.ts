@@ -1,5 +1,6 @@
 import type { ProjectPage, ProjectSection, ResolvedSectionShortcut } from '@cwm/contracts';
 import { expect, test } from '@playwright/test';
+import { historyControl, undoFromHeader } from './history-controls';
 import { addSection, addShortcut, api, createRoot, createSubprojects, seed, setClock } from './seed';
 
 const PINNED_NOW = '2026-09-15T12:00:00.000Z';
@@ -90,22 +91,26 @@ test('disposable sections stay out of Archive and Undo restores config, layout, 
       await remove.click();
     }
 
-    await expect(page.locator('[data-undo-notice]')).toBeVisible();
     await expect(frame).toHaveCount(0);
     expect(await archiveHasSection(root.id, section.id)).toBe(false);
-    // The notice must not offer a route to a page with no entry for this section
-    // (note-2026-09-15-006): Archive is offered on the removal's own verdict, not on its name.
+    // Slice 41: Archive will not list a deleted view, so there is no notice at all — no route to a
+    // page with no entry for it (note-2026-09-15-006) — and the header's label confirms the removal.
+    await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
     await expect(page.locator('[data-open-archive]')).toHaveCount(0);
     // Slice 33: unreferenced disposable removal is a deletion, not a hidden tombstone.
     expect((await api.get<ProjectSection[]>('/api/projects/' + root.id + '/sections?includeArchived=true&pageId=' + home.id)).some(({ id }) => id === section.id)).toBe(false);
 
-    const undo = page.locator('[data-undo-action]');
+    const label = `Removed the ${section.title} section`;
     if (index === 0) {
-      await expect(undo).toBeFocused();
+      // Keyboard only: focus that sat in the removed frame stays on the canvas, and the header's
+      // Undo is reachable and names what it will restore.
+      await expect(page.locator('[data-section-title]').first()).toBeFocused();
+      const undo = historyControl(page, 'undo');
+      await expect(undo).toHaveAttribute('aria-label', `Undo: ${label}`);
+      await undo.focus();
       await undo.press('Enter');
-      await expect(frame.locator('[data-section-title]')).toBeFocused();
     } else {
-      await undo.click();
+      await undoFromHeader(page, label);
     }
 
     await expect(frame).toBeVisible();
@@ -149,7 +154,7 @@ test('the nested-projects seeded canvas removes and restores its Progress view i
   await expect(frame).toHaveCount(0);
   expect(await archiveHasSection(projectId, progress.id)).toBe(false);
 
-  await page.locator('[data-undo-action]').click();
+  await undoFromHeader(page, `Removed the ${progress.title ?? 'Progress'} section`);
   await expect(frame).toBeVisible();
   const after = await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homeId}`);
   expect(after.map(({ id }) => id)).toEqual(before.map(({ id }) => id));
@@ -222,7 +227,8 @@ test('a shortcut on another browser page follows source removal and same-page Un
 
     await sourceFrame.locator('[data-section-remove]').click();
     await expect(sourceFrame).toHaveCount(0);
-    await expect(page.locator('[data-undo-notice]')).toBeVisible();
+    // Retained only for the shortcut, so Archive will not list it and there is no notice.
+    await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
     await expect(shortcutFrame).toHaveAttribute('data-shortcut-availability', 'source_archived');
     await expect(shortcutFrame.locator('[data-shortcut-unavailable]')).toContainText('source section is archived');
     expect(await homeLayoutOf()).toEqual(homeLayoutBefore);
@@ -236,7 +242,7 @@ test('a shortcut on another browser page follows source removal and same-page Un
     // Slice 33: a reference-required tombstone keeps the shortcut's source id, and still no Archive entry.
     expect(await archiveHasSection(homeProjectId, sourceSection.id)).toBe(false);
 
-    await page.locator('[data-undo-action]').click();
+    await undoFromHeader(page, 'Removed the Shortcut recovery progress section');
     await expect(page).toHaveURL(sourceUrl);
     await expect(sourceFrame).toBeVisible();
     await expect(shortcutFrame).toHaveAttribute('data-shortcut-availability', 'available');
@@ -413,7 +419,7 @@ test('retained content survives reload and Archive restore, while the next reass
     archivedAt: expect.any(String),
     archivedWithTaskId: filedParent.id,
   });
-  await page.locator('[data-undo-action]').click();
+  await undoFromHeader(page, 'Removed the Reassignment source section');
   await expect(page.locator(`[data-section-item][data-section-id="${source.id}"]`)).toBeVisible();
   await expect.poll(async () => (await api.get<{ sectionId: string }>(`/api/tasks/${parent.id}`)).sectionId).toBe(source.id);
   await expect.poll(async () => (await api.get<{ sectionId: string; parentTaskId?: string }>(`/api/tasks/${child.id}`)).sectionId).toBe(source.id);

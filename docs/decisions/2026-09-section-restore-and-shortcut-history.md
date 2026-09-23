@@ -91,3 +91,10 @@ deliberate Stage C work, not a gap this slice left behind.
 Persistent Undo/Redo header controls arrive and have to choose which of these receipts to offer;
 or when project and page lifecycle joins history, where a creation Undo must ship with its
 authorized recovery route rather than an unreachable Redo.
+
+**Amended, 2026-09-22 — Slice 41.** Shortcut labels name their source section:
+`Added the Tasks shortcut`, `Collapsed` / `Expanded` / `Resized` / `Updated the Tasks shortcut`,
+`Moved the Tasks shortcut`, `Removed the Tasks shortcut`. The source's name is read with a plain
+repository `find`, never through the source-scope checks, so a removal whose source is archived or
+hidden is still allowed and labelled; an unreadable source falls back to "a shortcut". Activity
+summaries are unchanged. Shortcut steps are now offered in the project header ([decision](2026-09-project-header-history-controls.md)).

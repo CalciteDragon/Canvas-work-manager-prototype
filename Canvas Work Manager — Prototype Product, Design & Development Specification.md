@@ -1100,6 +1100,8 @@ Progress
 
 Target Date  (Due date, on a unit of work)
 
+Undo · Redo
+
 More
 ```
 
@@ -1116,6 +1118,16 @@ The header itself is rendered **once per project** — at the top of the workspa
 §23's full-height navigation column and above whichever page is showing. It describes the
 project, not the page, and a header living inside Home would vanish the moment another page
 rendered.
+
+*Landed in Slice 41.* **Undo** and **Redo** are two always-present icons in the header, before More,
+and they are the only browser surface that offers Undo. They act on the **displayed project's**
+history (§31): a root's on every root page, a sub-project's on its work page. Each is enabled only
+when the server summary offers a step in that direction and that step is not blocked; otherwise it
+stays focusable and says why — "Nothing to undo", "Saving a change…", "Undo unavailable while
+Legacy attic is archived". One polite feedback line under the facts says what a transition did or
+why it was refused, and a write recorded in another project's history names that project with an
+Open link. Archiving from More no longer leaves the page: the archived project stays on screen with
+its Undo enabled ([why]({D})).
 
 ## Two kinds of project
 
@@ -1612,9 +1624,10 @@ Creation, movement and settings edits are also explicit writes. The contextual c
 returns a `section.add` receipt after the combined placement is committed. Drag and keyboard
 movement returns one `section.move` receipt only after the final placement is committed. Inline
 title, inspector configuration, collapse and supported width writes return a `section.update`
-receipt containing only the normalized fields that changed. The page-local notice offers Undo
-for all four operation families, while Archive is offered only for removal; a reload clears
-the in-memory notice.
+receipt containing only the normalized fields that changed. *Amended in Slice 41:* every one of
+these is undone and redone from the project header (§26), not from the canvas; the canvas-local
+notice offers only recovery the header cannot — Archive after a removal Archive will list, Retry
+remove and Retry refresh ([why]({D})).
 
 ## Where archived work is found
 
@@ -1727,14 +1740,19 @@ keeps one narrow exception, for the project's **own** status only: an archive's 
 reactivation's Redo and an edit made while the project was already archived may run while that same
 project is archived, because the ordinary write allowed them and refusing would wedge the stack on
 the very project it is about. An archived **ancestor** still blocks every step, and no other family
-gets the exception. The history summary keeps naming the archived project as the blocker, so a later
-control must know which single step is still eligible. Durable restoration is unchanged: it takes an
-explicit status and needs no receipt
+gets the exception. The history summary keeps naming the archived project as its project-level
+blocker; *since Slice 41* each summary entry also carries its own `blockedBy`, computed by the same
+check a transition runs, so a control knows which single step is still eligible. Durable restoration
+is unchanged: it takes an explicit status and needs no receipt
 ([why](docs/decisions/2026-09-project-update-operation-history.md)).
 
-The browser holds the receipt in the current canvas session and offers **Undo** there; dismissal
-removes the notice, successful Undo replaces it with a result, and the newest successful explicit
-section operation — add, move, settings update or removal — replaces the receipt. Page/project navigation or reload clears the local state.
+*Amended in Slice 41.* The browser offers **Undo** and **Redo** in the project header (§26), driven by
+the server's history summary rather than by a receipt the page holds. Every browser write reports
+its receipt to the header's history store; a write the store cannot place in the displayed
+project's history is named with an Open link to the project that owns it. After a removal that
+Archive will list, the canvas shows "Removed the Notes section. Undo is in the header." with **Open
+Archive**; a removal Archive will not list, and every forward write, shows no notice unless its
+follow-up read failed ([why]({D})).
 The server action remains independently scoped to the exact actor for 24 hours. If a removal
 response is lost, repeating it remains a refusal; while that removal is still the actor's applied,
 unexpired action, the exact actor receives its receipt in HTTP `details` or MCP error text, without a
@@ -2696,7 +2714,10 @@ fields, move actions carry before/after placement anchors for the page's combine
 actions carry the placement Redo returns to. A disposable section can be absent from storage even
 though the removal response snapshot carries `archivedAt`. `get_operation_history`
 (`projects.read`, input `{ projectId }`) returns the connection's own summary — the next Undo and
-Redo, the revision and any archived blocker. `undo_operation` and `redo_operation`
+Redo, the revision and any archived blocker. *Since Slice 41* each of the two entries carries its own
+`blockedBy` — the archived project a transition of **that step** would refuse for, or `null` — while
+the top-level `blockedBy` describes the project; history labels name what changed ("Collapsed the
+Tasks shortcut", `Renamed "Old" to "New"`). `undo_operation` and `redo_operation`
 (`projects.write`, input `{ historyId, actionId, expectedRevision }`) run exactly the next action in
 their direction for the exact actor whose history it is.
 MCP errors carry no structured details, so refusal text starts with its reason. Repeating a
@@ -3042,6 +3063,8 @@ another actor's or an unknown history is 404, and a missing write grant is a 403
 strict inputs and semantics apply over HTTP and MCP. Repeating a removal remains 409 but returns
 `section_already_removed` details with the exact actor's applied, unexpired removal receipt and no
 new write or event. The API still forwards only contracts, never inverse payloads.*
+*Extended in Slice 41:* each summary entry carries its own nullable `blockedBy`
+([why]({D})).
 
 *Amended in Slice 37:* `POST /api/sections/:id/duplicate` answers the same `{ section, operation }`
 envelope a create does; `POST /api/sections/:id/restore` answers `{ section, operation }`, with
@@ -3130,6 +3153,12 @@ project's update or archive, or the Undo or Redo of one — while content frames
 leave them alone, and the Archive list stays on screen while it re-reads. No second frame is
 published.*
 
+*Extended in Slice 41:* the header's history store re-reads its summary — coalesced, one read in
+flight and one queued — on a frame naming the displayed project, on any project-record frame (an
+ancestor's archive changes a step's blocker), on `prototype.reloaded` and on reconnect. Content after
+a header Undo or Redo is reconciled by the transition's own frame, which every open surface already
+re-reads on; the header holds no rows.
+
 ---
 
 # 63. Optimistic UI
@@ -3161,27 +3190,30 @@ show error
 The development panel's failure injection should test these flows.
 
 For section removal, the canvas reports success only after it receives the server receipt. It
-stores the receipt before refreshing so a failed refresh cannot hide the committed mutation;
-**Retry refresh** repeats only the read. Undo sends the held receipt's history transition — its
-action id and revision — and refreshes the authoritative section list. If a remove response is uncertain, **Retry remove** is an explicit
+reports the receipt to the header's history before refreshing so a failed refresh cannot hide the
+committed mutation; **Retry refresh** repeats only the read. If a remove response is uncertain, **Retry remove** is an explicit
 repeat of the exact original action; it is never triggered by a live refresh. Navigation and
 generation guards prevent stale receipts or responses from affecting another canvas
 ([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
-The same receipt-before-refresh rule applies to section add, move and update. The notice keeps
-the newest committed receipt by its history's revision, blocks Undo while another section write is
-in flight, and refreshes authoritative state after Undo. Update Undo restores only its recorded
-fields, move Undo resolves its recorded anchors against the current combined order, and neither
-offers Archive. A reload clears all local operation notices.
+The same receipt-before-refresh rule applies to section add, move and update.
+
+*Landed in Slice 41.* **Pending covers the whole write, including the summary read it owes.** Each
+browser writer marks its request in flight and reports the committed receipt; the header's controls
+stay unavailable from that moment until a summary read **requested after** the report has landed at
+the receipt's revision or later — without that, the window between the response and the re-read
+would offer the pre-write step. A write that fails at the transport level or with a 5xx may still
+have committed, so it also owes a read. A transition sends the held entry's action and the held
+revision, one at a time; its result's summary, or a refusal's, replaces the held one, and a transport
+failure re-reads rather than guessing. A slow read of an older revision never rolls the controls back
+([why]({D})).
 
 *Landed in Slice 37.* Placement writes carry receipts through the gateway, and the canvas unwraps
 them where it already inserted, replaced or optimistically resized a placement: generation guards,
 pending-write counting, the complete-combined-order guard, resize rollback and the read-only refresh
 retry are all unchanged. Archive Restore still reports success when the write committed and only the
-follow-up projection read failed. The Undo notice deliberately does **not** offer shortcut or
-Restore receipts in this phase — persistent Undo/Redo header controls are later Stage C work — and
-the notice's typed stale/not-next handling continues to refuse rather than undo a different action
-when a newer placement write has made an older notice stale.
+follow-up projection read failed. *Since Slice 41* these receipts are reported to the header's
+history like every other, and the canvas notice offers no Undo.
 
 *Landed in Slice 38.* The optional-page toggle answers a receipt, and the page manager deliberately
 ignores it: §26's confirmed page is still painted only after the write and a fresh context read both
@@ -3190,14 +3222,15 @@ unchanged. A page action or transition frame is an ordinary project frame, so it
 context and page resolution with no new case — undoing the enable that created the displayed page, or
 disabling it, returns to Home with the existing explanation and, because there is no record left to
 switch on, without the re-enable offer, while enabling or recreating one restores its tab and forces
-no navigation. Page receipts are not offered through the canvas Undo notice, for the same reason
-placement and Restore receipts are not.
+no navigation. *Since Slice 41* the toggle reports its receipt to the header's history, which is
+where its Undo lives.
 
 *Landed in Slice 39.* Project writes answer a receipt, and every browser caller — the header's
 rename, status, date and archive, Todos completion, the progress setting and the layout controls —
 reads the confirmed `project` from it and ignores the receipt. Their optimistic paint, rollback,
-write guards and error messages are unchanged, and a committed response is never re-sent. Project
-receipts are not offered through the canvas Undo notice; persistent Undo/Redo controls are later work.
+write guards and error messages are unchanged, and a committed response is never re-sent. *Since
+Slice 41* every one of them reports its receipt to the header's history, and a header archive applies
+the returned record and stays on the page.
 
 ---
 

@@ -94,3 +94,13 @@
   margin: 0;
   color: var(--color-danger);
 }
+
+// Slice 41: the actions cell holds Undo, Redo and More. At narrow widths it moves to its own row
+// under the identity, so the project name keeps the width it needs.
+@media (max-width: 40rem) {
+  .project-header__actions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-content: flex-end;
+  }
+}

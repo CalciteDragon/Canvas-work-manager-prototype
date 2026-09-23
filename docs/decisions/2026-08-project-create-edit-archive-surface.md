@@ -106,3 +106,10 @@ for the archive), and PATCH answers `{ project, operation }`. The menu itself is
 `project` from the answer and offers no Undo of its own — the receipt is reachable through the history
 route and the MCP tools until persistent header controls exist. Create is still unrecorded
 ([decision](2026-09-project-update-operation-history.md)).
+
+**Amended, 2026-09-22 — Slice 41.** A successful archive **no longer navigates to `/app`**. It stays
+on the archived project's page — which §31 keeps rendering — with the header reading "archived",
+an enabled "Undo: Archived "X"" and the feedback "X is archived. Undo is available here." The
+confirmation now reads "It leaves the sidebar; you can undo it from the header.", and the More menu
+does not offer Archive on a project that is already archived. `ProjectWorkspaceStore.archive()`
+applies the returned record, so the status changes without waiting for a frame ([decision](2026-09-project-header-history-controls.md)).

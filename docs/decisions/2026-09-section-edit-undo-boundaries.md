@@ -139,3 +139,8 @@ other refusal rather than second-guessing the server.
 copy rather than duplicating a source that may have changed or gone since. No `section.duplicate`
 kind exists, and duplication still copies no rows
 ([decision](2026-09-section-restore-and-shortcut-history.md)).
+
+**Amended, 2026-09-22 — Slice 41.** A forward section write — add, move, resize, settings — no
+longer opens a notice with an Undo button; the header's Undo label ("Undo: Moved the Notes section")
+is its confirmation, and a notice appears only when the follow-up read failed (Retry refresh). The
+footprint and inverse rules here are unchanged ([decision](2026-09-project-header-history-controls.md)).

@@ -122,3 +122,9 @@ Persistent Undo/Redo header controls arrive and have to say which page a receipt
 project lifecycle joins history, where a creation Undo must ship with its authorized recovery route;
 or if §26 ever gains a fourth optional page, which is one entry in `OPTIONAL_PAGE_KINDS` and no new
 rule here.
+
+**Amended, 2026-09-22 — Slice 41.** Page toggles and first enables are now undone and redone from
+the project header, which reads the root's history on every root page. Undoing the enable of the
+displayed page still returns to Home; the store is re-created there and reads the fresh summary, so
+the transition's own feedback line is lost in that case and the changed header label is its
+confirmation ([decision](2026-09-project-header-history-controls.md)).

@@ -363,8 +363,9 @@ test('injected gateway failures roll back a task but preserve confirmed optional
 
 /**
  * Slice 39: the header's existing writes keep working on the `{ project, operation }` envelope, and
- * each one lands in the person's own history for that project. The page offers no Undo of its own
- * yet; the receipt reverses through the history route, and the page follows the frame.
+ * each one lands in the person's own history for that project. A transition made through the route
+ * by another client is followed by the open page from its frame (the header's own controls are
+ * `project-history.spec.ts`); since Slice 41 the archive leaves the person on the project.
  */
 test('header rename and archive still write, and each records one project action the history can reverse', async ({ page }) => {
   await seed('personal-workspace');
@@ -382,7 +383,7 @@ test('header rename and archive still write, and each records one project action
   const body = (await (await patched).json()) as { project: { name: string }; operation: { operation: string } | null };
   expect(body).toMatchObject({ project: { name: 'Renamed in the header' }, operation: { operation: 'project.update' } });
   await expect(page.locator('[data-project-name]')).toHaveText('Renamed in the header');
-  expect((await history()).undo).toMatchObject({ operation: 'project.update', label: 'Updated "Renamed in the header"' });
+  expect((await history()).undo).toMatchObject({ operation: 'project.update', label: 'Renamed "Header history" to "Renamed in the header"' });
 
   // Undo through the route; the open header re-reads from the one committed frame.
   const summary = await history();
@@ -399,4 +400,5 @@ test('header rename and archive still write, and each records one project action
   await page.locator('[data-project-archive-confirm-yes]').click();
   expect(((await (await archived).json()) as { operation: { operation: string } }).operation.operation).toBe('project.archive');
   await expect.poll(async () => (await history()).undo?.operation).toBe('project.archive');
+  await expect(page).toHaveURL(new RegExp(`/projects/${root.id}$`));
 });

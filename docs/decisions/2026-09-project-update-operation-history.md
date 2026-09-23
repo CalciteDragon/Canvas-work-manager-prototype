@@ -130,3 +130,14 @@ because persistent header controls are a later phase.
 Persistent Undo/Redo header controls arrive and must decide how to present a step that is eligible
 while `blockedBy` is set; when project **creation** joins history with its missing-project recovery
 route; or if §83 settles the status set and a new status needs its own kind.
+
+**Amended, 2026-09-22 — Slice 41.** The open questions this entry left for header controls are
+answered ([decision](2026-09-project-header-history-controls.md)): each summary entry now carries its own `blockedBy`, computed by the same
+`transitionBlocker` a transition runs, so an archive's own Undo is offered while the summary's
+project-level `blockedBy` still names the project. Labels now name the edit and its result —
+`Renamed "Old" to "New"`, `Completed "X"`, `Reopened "X"`, `Set "X" to On hold`,
+`Moved "X" under Kitchen`, `Changed the layout of "X"`, `Changed progress for "X"`,
+`Changed the target date of "X"`, `Edited the description of "X"`, `Changed the icon of "X"`, or
+`Edited "X"` for more than one field (`status`+`completedAt` and formula+manual progress each count
+once) — for actions recorded from now on; retained actions keep their older text until they expire.
+Archive and reactivation labels are unchanged. The browser now offers these steps in the header.

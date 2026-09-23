@@ -98,3 +98,8 @@ about 43 kB above the measured bundle. This is a deliberate exception to the ear
 lever first” direction: lazy-loading the global panel changes §46's every-route chord and is outside
 this history slice, while moving both thresholds would hide the growth. The next increase still
 requires structural work and a new decision rather than another number bump.
+
+**Amended, 2026-09-22 — Slice 41.** The header's history controls, their store and the feedback
+wording load eagerly with the project header, because they are on every project page. The canvas
+notice stays behind `@defer` under its new name, `SectionRecoveryNotice`, and the Reflections page no
+longer loads a notice at all. The initial bundle stays under the 1050 kB error ceiling ([decision](2026-09-project-header-history-controls.md)).

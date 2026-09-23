@@ -8,6 +8,7 @@ import type {
   SectionWriteResult,
 } from '@cwm/contracts';
 import { expect, test } from '@playwright/test';
+import { historyControl, historyFeedback, undoFromHeader } from './history-controls';
 import { PROTOTYPE_HOST, addSection, api, connectMcp, createRoot, seed, setClock, setLayout } from './seed';
 
 const NOW = '2026-09-15T12:00:00.000Z';
@@ -133,7 +134,7 @@ test('HTTP and MCP section edits return typed receipts and restore only their ow
   await expect(page.locator(`[data-section-item][data-section-id="${moved.id}"]`)).toBeVisible();
 });
 
-test('canvas gestures and the Reflections page offer operation-neutral Undo after reload', async ({ page }) => {
+test('canvas gestures and the Reflections page are undone from the header, and survive reload', async ({ page }) => {
   await seed('nested-projects');
   await setClock(NOW);
   const projectId = 'project-renovation';
@@ -156,43 +157,42 @@ test('canvas gestures and the Reflections page offer operation-neutral Undo afte
   await page.locator('[data-create-section-submit]').click();
   const added = (await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).find(({ title }) => title === 'Contextual add');
   if (added === undefined) throw new Error('The contextual section was not created');
-  await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
-  await page.locator('[data-undo-action]').click();
+  // Slice 41: a forward write shows no notice; the header's label is its confirmation.
+  await undoFromHeader(page, 'Added the Contextual add section');
+  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
   await expect(page.locator(`[data-section-item][data-section-id="${added.id}"]`)).toHaveCount(0);
 
   const notesFrame = page.locator(`[data-section-item][data-section-id="${notes.id}"]`);
   await notesFrame.locator('[data-section-title-edit]').click();
   await notesFrame.locator('[data-section-name]').fill('Renamed notes');
   await notesFrame.locator('[data-section-name]').press('Enter');
-  await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
-  await page.locator('[data-undo-action]').click();
+  await undoFromHeader(page, 'Updated the Undo notes section');
   await expect(notesFrame.locator('[data-section-title-edit]')).toContainText('Undo notes');
 
   await notesFrame.locator('[data-rich-text-body]').fill('Changed prose');
   await notesFrame.locator('[data-rich-text-body]').press('Tab');
-  await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
-  await page.locator('[data-undo-action]').click();
+  await undoFromHeader(page, 'Updated the Undo notes section');
   expect((await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).find(({ id }) => id === notes.id)?.config).toEqual({ text: 'Keep this prose' });
 
   await notesFrame.locator('[data-section-collapse]').click();
   await expect(notesFrame.locator('[data-section-collapse]')).toHaveAttribute('aria-expanded', 'false');
-  await page.locator('[data-undo-action]').click();
+  await undoFromHeader(page, 'Updated the Undo notes section');
   await expect(notesFrame.locator('[data-section-collapse]')).toHaveAttribute('aria-expanded', 'true');
 
   const resize = notesFrame.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]');
   await resize.press('ArrowLeft');
   await resize.press('Enter');
   await expect(notesFrame).toHaveClass(/section-canvas__item--span-8/);
-  await page.locator('[data-undo-action]').click();
+  await undoFromHeader(page, 'Updated the Undo notes section');
   await expect(notesFrame).toHaveClass(/section-canvas__item--span-12/);
 
   const moveHandle = notesFrame.locator('[data-section-drag-handle]');
   await moveHandle.press('ArrowUp');
-  await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
-  await page.locator('[data-undo-action]').click();
-  expect(await orderOf(projectId, homePageId)).toEqual(beforeOrder);
+  await undoFromHeader(page, 'Moved the Undo notes section');
+  await expect.poll(() => orderOf(projectId, homePageId)).toEqual(beforeOrder);
   await page.reload();
-  await expect(page.locator('[data-undo-notice]')).toHaveCount(0);
+  // The history is the server's: after a reload the header offers the move's Redo.
+  await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Moved the Undo notes section');
   await expect(page.locator(`[data-section-item][data-section-id="${notes.id}"]`)).toBeVisible();
 
   const reflectionsProject = await createRoot('Reflections Undo journey');
@@ -202,20 +202,20 @@ test('canvas gestures and the Reflections page offer operation-neutral Undo afte
   await expect(page.locator('[data-reflections-no-container]')).toBeVisible();
   await page.locator('[data-reflections-add-container]').click();
   await expect(page.locator('[data-reflections-container-name]')).toBeVisible();
-  await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
-  await page.locator('[data-undo-action]').click();
+  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
+  // The container add's live frame returns the page to its prompt without a reload.
+  await undoFromHeader(page, 'Added the Reflections section');
+  await expect(page.locator('[data-reflections-no-container]')).toBeVisible();
   await page.reload();
   await expect(page.locator('[data-reflections-no-container]')).toBeVisible();
 
-  // A reflection authored into the added container makes its removal destructive.
+  // A reflection authored into the added container is the next step, not the add beneath it.
   await page.locator('[data-reflections-add-container]').click();
-  await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Added the Reflections section');
   await page.locator('[data-reflection-body]').fill('Written after the add.');
   await page.locator('[data-reflections-composer-region] [data-reflection-create] button[type="submit"]').click();
   await expect(page.locator('[data-reflections-entry]')).toHaveCount(1);
-  await page.locator('[data-undo-action]').click();
-  await expect(page.locator('[data-undo-message]')).toContainText('no longer the next step');
-  await expect(page.locator('[data-reflections-entry]')).toHaveCount(1);
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', /^Undo: Wrote /);
   await page.reload();
   await expect(page.locator('[data-reflections-entry]')).toContainText('Written after the add.');
 });
@@ -298,7 +298,7 @@ for (const mode of ['flow', 'grid'] as const) {
     await pointerResize(page, brief, 12, 6, mode);
     await expect.poll(() => spanOf(brief)).toBe(6);
     await expect(page.locator(`[data-section-item][data-section-id="${brief}"]`)).toHaveClass(/section-canvas__item--span-6/);
-    await page.locator('[data-undo-action]').click();
+    await undoFromHeader(page, /^Undo: Updated the .+ section$/);
     await expect.poll(() => spanOf(brief)).toBe(12);
     await page.reload();
     await expect(page.locator(`[data-section-item][data-section-id="${brief}"]`)).toHaveClass(/section-canvas__item--span-12/);
@@ -306,8 +306,7 @@ for (const mode of ['flow', 'grid'] as const) {
 
     await pointerMoveBefore(page, subProjects, brief);
     await expect.poll(async () => (await kitchenOrder()).indexOf(subProjects)).toBe(0);
-    await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
-    await page.locator('[data-undo-action]').click();
+    await undoFromHeader(page, /^Undo: Moved the .+ section$/);
     await expect.poll(() => kitchenOrder()).toEqual(originalOrder);
     await page.reload();
     await expect(page.locator('[data-section-item]').first()).toHaveAttribute('data-section-id', brief);
@@ -315,7 +314,7 @@ for (const mode of ['flow', 'grid'] as const) {
   });
 }
 
-test('nested injected failure keeps receipt and allows retry', async ({ page }) => {
+test('nested injected failure leaves the history readable again and the step retryable', async ({ page }) => {
   await seed('nested-projects');
   await setClock(NOW);
   const timeline = 'section-project-kitchen-timeline';
@@ -331,19 +330,24 @@ test('nested injected failure keeps receipt and allows retry', async ({ page }) 
     if (request.method() === 'POST' && request.url().includes('/api/history/')) undoRequests.push(request.url());
   });
 
+  const undo = historyControl(page, 'undo');
+  await expect(undo).toHaveAttribute('aria-label', /^Undo: Moved the .+ section$/);
   try {
     // Reads have settled; only now make every client request fail before it reaches the host.
     await openFailurePanel(page, '1');
-    await page.locator('[data-undo-action]').click();
-    await expect(page.locator('[data-undo-message]')).toContainText('prototype failure injection');
-    await expect(page.locator('[data-undo-action]')).toHaveAttribute('aria-disabled', 'false');
+    await undo.click();
+    // The transition may or may not have landed, so the store re-reads rather than guessing —
+    // and that read fails too, which leaves the controls honest: unavailable, with Retry.
+    await expect(historyFeedback(page)).toContainText('may not have completed');
+    await expect(undo).toHaveAttribute('aria-label', 'History unavailable');
     expect(undoRequests).toEqual([]);
   } finally {
     await openFailurePanel(page, '0');
   }
   expect(await kitchenOrder()).toEqual(moved);
 
-  await page.locator('[data-undo-action]').click();
+  await page.locator('[data-history-retry]').click();
+  await undoFromHeader(page, /^Undo: Moved the .+ section$/);
   await expect.poll(() => kitchenOrder()).toEqual(originalOrder);
   expect(undoRequests).toHaveLength(1);
   await page.reload();
@@ -359,7 +363,8 @@ test('agent overlap refuses Undo without losing newer content', async ({ page })
   await frame.locator('[data-section-title-edit]').click();
   await frame.locator('[data-section-name]').fill('User heading');
   await frame.locator('[data-section-name]').press('Enter');
-  await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
+  const label = /^Undo: Updated the .+ section$/;
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', label);
 
   const client = await connectMcp('prototype-user-a-readwrite', 'cwm-slice-33-overlap');
   try {
@@ -370,13 +375,14 @@ test('agent overlap refuses Undo without losing newer content', async ({ page })
   }
   await expect(frame.locator('[data-section-title-edit]')).toContainText('Agent heading');
 
-  await page.locator('[data-undo-action]').click();
-  await expect(page.locator('[data-undo-conflict]')).toHaveCount(1);
+  await undoFromHeader(page, label);
+  await expect(page.locator('[data-history-conflict]')).toHaveCount(1);
   // The agent's edit is in the agent connection's own history, never this person's, so the repair
   // is to make the change by hand — never a receipt this person cannot use (note-2026-09-15-005).
-  await expect(page.locator('[data-undo-next-step]')).toHaveText('Someone else changed it since. Make the change again by hand.');
+  await expect(page.locator('[data-history-conflict]')).toContainText('Someone else changed it since. Make the change again by hand.');
   // A changed field can be changed back, so the refusal is repairable and Undo stays enabled.
-  await expect(page.locator('[data-undo-action]')).toHaveAttribute('aria-disabled', 'false');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', label);
+  await expect(historyControl(page, 'undo')).not.toHaveAttribute('aria-disabled', 'true');
   await page.reload();
   await expect(frame.locator('[data-section-title-edit]')).toContainText('Agent heading');
   expect((await api.get<ProjectSection[]>(`/api/projects/${KITCHEN}/sections?pageId=${KITCHEN_PAGE}`)).find(({ id }) => id === brief)?.title).toBe('Agent heading');

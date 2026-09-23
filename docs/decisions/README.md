@@ -21,7 +21,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [The web app and the host start separately](2026-08-web-and-host-start-separately.md) | `pnpm dev` prints two commands and exits; `concurrently` hung `tsx watch` | current |
 | [The host's port variable is `CWM_HOST_PORT`, not `PORT`](2026-08-host-port-is-not-the-generic-port.md) | The host ignores the generic `PORT` entirely | current |
-| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning and error ceilings, with measured lazy boundaries | amended; Slice 36 set a 1050 kB hard ceiling |
+| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning and error ceilings, with measured lazy boundaries | amended; Slice 36 set a 1050 kB hard ceiling; Slice 41 adds the eager header controls |
 
 ## Contracts
 
@@ -68,16 +68,16 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Reflection subjects and the root journal feed](2026-09-reflection-subjects-and-the-journal-feed.md) | Optional subject id; journal resolves current state | amended; Slice 36 restores historical links by identity |
 | [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | What the Archive projection says about each item's restore path | amended |
 | [A section removal commits one scoped, expiring Undo record](2026-09-section-removal-undo-records.md) | Removal footprint, exact-actor scope, structural conflicts, neighbor placement | amended; Slice 31 deletion disposition and repeat-receipt recovery; Slice 32 operation union; Slice 35 records become history actions |
-| [Disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md) | Reference-safe deletion, canvas-local action, own-receipt recovery and actionable refusals | amended (Slice 32: notice serves every explicit operation; Slice 35: history transitions) |
-| [Explicit section edits reverse only their operation's changes](2026-09-section-edit-undo-boundaries.md) | Explicit action boundaries, safe add, changed-field inverses | amended (Slice 35: cursor order and applied-state checks; Slice 37: duplication is an add) |
-| [Undo and Redo follow one history per exact actor, per owning project](2026-09-operation-history-scope.md) | History key, caller-only summaries, family-dependent write grants, acyclic service | amended; Slice 36 adds row families |
+| [Disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md) | Reference-safe deletion, own-receipt recovery and actionable refusals; the canvas Undo is retired for the header | amended (Slice 32: notice serves every explicit operation; Slice 35: history transitions; Slice 41: header controls) |
+| [Explicit section edits reverse only their operation's changes](2026-09-section-edit-undo-boundaries.md) | Explicit action boundaries, safe add, changed-field inverses | amended (Slice 35: cursor order and applied-state checks; Slice 37: duplication is an add; Slice 41: no forward-write notice) |
+| [Undo and Redo follow one history per exact actor, per owning project](2026-09-operation-history-scope.md) | History key, caller-only summaries, family-dependent write grants, acyclic service | amended; Slice 36 adds row families; Slice 41 presents the displayed project's history |
 | [One explicit write is one history action, kept for 24 hours and at most 50 per history](2026-09-operation-history-retention.md) | Cursor movement, branch clearing, revision rule, contiguous lazy pruning | amended; Slice 36 adds row actions |
 | [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](2026-09-operation-history-retired-actions.md) | Per-family checks, `archiveGeneration`, verbatim reapply, the permanent-conflict list | amended; Slice 37 narrows the Restore retirement and widens the generation floor |
 | [Stage A defers historical activity identity and the retry cache, and uses one transition route](2026-09-history-stage-a-deferrals.md) | Route shape and retry-cache deferral remain; Activity and grants advanced in Stage B | amended (Slice 36) |
 | [Task and reflection writes record one reversible row action](2026-09-row-operation-history.md) | Row footprints, compound containers, envelopes and durable row Restore history | current (Slice 36) |
-| [A recorded Restore is a new action, and a shortcut action owns only its placement](2026-09-section-restore-and-shortcut-history.md) | Duplication as an add, exact Restore footprints, destination-owned placement history | current (Slice 37) |
-| [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](2026-09-optional-page-operation-history.md) | Exact creation inverse after a dependency preflight, nondestructive toggle history, and the freeze distinction | current (Slice 38) |
-| [An existing project's writes are one action family, and its own archive can be undone while archived](2026-09-project-update-operation-history.md) | Subject-owned project history, changed-field footprints, hierarchy rechecks and the narrow archived-subject exception | current (Slice 39) |
+| [A recorded Restore is a new action, and a shortcut action owns only its placement](2026-09-section-restore-and-shortcut-history.md) | Duplication as an add, exact Restore footprints, destination-owned placement history | amended (Slice 41: labels name the source) |
+| [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](2026-09-optional-page-operation-history.md) | Exact creation inverse after a dependency preflight, nondestructive toggle history, and the freeze distinction | amended (Slice 41: offered in the header) |
+| [An existing project's writes are one action family, and its own archive can be undone while archived](2026-09-project-update-operation-history.md) | Subject-owned project history, changed-field footprints, hierarchy rechecks and the narrow archived-subject exception | amended (Slice 41: per-step `blockedBy`, edit-naming labels) |
 | [A forward reparent refuses a Home shortcut it would carry across roots](2026-09-forward-reparent-refuses-cross-root-shortcut.md) | `ProjectService.update` shares the history executor's cross-root placement check; 409 naming each placement | current (Slice 40) |
 
 ## Repositories
@@ -118,7 +118,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [Direct canvas editing is the next development direction](2026-09-direct-canvas-editing-direction.md) | Approved direction, implemented in Slice 27 | implemented in Slice 27 |
 | [Canvas chrome is revealed in place, not gated by an editing mode](2026-09-canvas-chrome-is-revealed-not-moded.md) | Contextual reveal, keyboard and touch behavior, optimistic resize; pending shortcut writes, complete-order movement guards and browser-review reveal and handle fixes, slider handle and script-fitted Rich Text amended | amended |
-| [A recovery route is offered only when it leads somewhere](2026-09-recovery-routes-name-what-is-actually-there.md) | Archive offered on the removal's own verdict, Archive rows state the append | amended (Slice 35 removes `supersededBy`) |
+| [A recovery route is offered only when it leads somewhere](2026-09-recovery-routes-name-what-is-actually-there.md) | Archive offered on the removal's own verdict, Archive rows state the append | amended (Slice 35 removes `supersededBy`; Slice 41 moves Open Archive to the recovery notice) |
+| [The project header offers Undo and Redo of the displayed project's history, and nothing else does](2026-09-project-header-history-controls.md) | Displayed-project scope, per-step `blockedBy`, header-only action surface, cross-owner guidance, frames reconcile content, archive stays on the project | current (Slice 41) |
 | [The gateway interface grows with its implementations](2026-08-gateway-surface-grows-with-implementations.md) | No stubbed gateway members | current |
 | [A theme change lasts the session, not the persona](2026-08-theme-selection-is-session-only.md) | `ThemeService` owns `data-theme`; nothing persists it | current |
 | [How live reconnects recover derived project views](2026-08-live-recovery-invalidates-derived-views.md) | Reconnect invalidates derived reads quietly | current |
@@ -128,7 +129,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Flow and grid both remain prototype layout candidates](2026-08-flow-vs-grid-layout-experiment.md) | Both modes persist per project; no freeform canvas | open experiment |
 | [View Mode shows work; Edit Layout Mode shows canvas chrome](2026-08-view-mode-section-chrome.md) | Earlier mode-based visibility rules | superseded |
 | [The project header's Quick Add adds a section](2026-08-project-header-quick-add.md) | Quick Add's former meaning and placement | amended |
-| [The smallest surface that makes §81's project verbs demonstrable](2026-08-project-create-edit-archive-surface.md) | Sidebar create; More menu for rename, status, date, archive | amended; Slice 39 records each edit in history |
+| [The smallest surface that makes §81's project verbs demonstrable](2026-08-project-create-edit-archive-surface.md) | Sidebar create; More menu for rename, status, date, archive | amended; Slice 39 records each edit in history; Slice 41 keeps the archived project on screen |
 | [§4's *Agent Modified* task row has no data behind it](2026-08-agent-modified-has-no-data-behind-it.md) | Six of seven `TaskRow` variants; the seventh is a §58 question | current |
 | [Where the project navigation column lives, and what moved with it](2026-09-where-the-project-navigation-column-lives.md) | In the projects feature; height and recovery entry amended in Slice 27 | amended |
 | [Optional page management lives in project navigation](2026-09-optional-page-management-lives-in-project-navigation.md) | The page toggles sit in the navigation column | current |

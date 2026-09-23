@@ -125,3 +125,12 @@ receipt (`historyId`, `actionId`, `revision`) and runs Undo through
 section again, and undone by recreating it at a generation no lower than any stored removal
 captured. The notice remains Undo-only in Stage A; persistent Undo/Redo controls are Stage C's
 ([Slice 34](../roadmap/planned/34-undo-redo-and-archive.md)).
+
+**Amended, 2026-09-22 — Slice 41.** The canvas-local Undo is retired: Undo and Redo of a removal
+(and of every other recorded write) now live in the project header's persistent controls, driven by
+the server summary ([decision](2026-09-project-header-history-controls.md)). The notice is renamed `SectionRecoveryNotice` and keeps only what the
+header cannot do — "Removed the Notes section. Undo is in the header." with **Open Archive** when
+the removal's `archiveListed` is not `false`, **Retry remove** after an uncertain response, and
+**Retry refresh** after a committed write whose follow-up read failed. A removal Archive will not
+list shows no notice at all. The own-receipt recovery of a repeated removal is unchanged on the
+server; the browser reports that receipt to the header instead of holding it.

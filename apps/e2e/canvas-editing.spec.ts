@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { ProjectPage, ProjectSection, SectionShortcut } from '@cwm/contracts';
 import { addSection, addShortcut, api, createRoot, createSubprojects, seed, setClock, setLayout } from './seed';
+import { historyControl } from './history-controls';
 
 const PINNED_NOW = '2026-09-15T12:00:00.000Z';
 const HOME_RENOVATION = 'project-renovation';
@@ -607,10 +608,9 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await orderOf(root.id))[0]?.columnSpan).toBe(4);
 
-  // Each committed width offers an Undo notice fixed at the viewport's end corner; dismiss it so
-  // the pointer drag below reaches the shortcut's handle rather than the notice over it.
-  await page.locator('[data-dismiss-undo-notice]').click();
-  await expect(page.locator('[data-undo-notice]')).toHaveCount(0);
+  // Slice 41: a committed width shows no notice over the viewport's end corner — the header's Undo
+  // label is its confirmation — so the pointer drag below reaches the shortcut's handle directly.
+  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
 
   const shortcutWrapper = page.locator(`[data-shortcut-item][data-shortcut-id="${shortcut.id}"]`);
   const shortcutHandle = shortcutWrapper.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]');
@@ -637,8 +637,7 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   const nextBefore = await nextWrapper.boundingBox();
   const textBeforeResize = await flowText.boundingBox();
   if (nextBefore === null || textBeforeResize === null) throw new Error('Flow neighbor did not render');
-  // The blur save offered an Undo notice over the viewport's end corner; clear it before dragging.
-  await page.locator('[data-dismiss-undo-notice]').click();
+  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
   await dragResize(
     page,
     flowWrapper.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]'),
@@ -836,7 +835,9 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   await expect(insertedWrapper).toHaveCount(0);
   const archived = await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?includeArchived=true&pageId=${home}`);
   expect(archived.some(({ id }) => id === insertedSection.id)).toBe(false);
-  await expect(page.locator('[data-undo-notice]')).toContainText('Undo is available');
+  // Deleted rather than archived, so there is no notice; the header names the removal it can undo.
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', /^Undo: Removed the Keyboard renamed section/);
+  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
   expect((await orderOf(root.id, home)).map(({ id }) => id)).toEqual([first.id, shortcut.id, second.id]);
 });
 

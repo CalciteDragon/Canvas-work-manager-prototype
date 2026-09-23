@@ -60,25 +60,29 @@ prevents a re-render loop in a zoneless app (`project-page-contract.ts`,
 ([decision](../../../decisions/2026-08-flow-vs-grid-layout-experiment.md)). Direct canvas
 controls replace the View/Edit split: users move from a grip, resize in supported column
 steps, rename at the title, and create at a visible insertion point. Settings appear only
-for a type with an inspector; removal uses the domain's content and reference policy, with
-an immediate canvas-local Undo action for its receipt
+for a type with an inspector; removal uses the domain's content and reference policy, and its Undo is the header's
 ([canvas chrome](../../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md),
 [removal and Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
-**Edit receipts belong to the gesture that committed them.** Add, rename, Rich Text blur,
-collapse, snapped resize and completed move each capture one server receipt; previews, cancels,
-no-ops and implicit row containers do not. A placement write **does** return a receipt since
-Slice 37, but the canvas deliberately does not put it in the notice: the notice is section-only
-until the persistent header controls exist. The notice keeps the newest
-receipt by its history's `revision`, blocks Undo while a section write is pending, and runs the
-action through the history transition, which restores only the operation's field or placement
-footprint. Archive remains a removal-only repair path
-([section edit boundaries](../../../decisions/2026-09-section-edit-undo-boundaries.md)).
+**Undo and Redo live in the header, over the server's summary, and nowhere else** (Slice 41).
+Every recorded family — sections, shortcuts, rows, pages, the project — reaches the same two
+controls, which act on the **displayed project's** history; the canvas notice's Undo, which held
+one receipt for a subset of surfaces, would have been a second button for the same step. The
+header decides availability from **each entry's own** `blockedBy`, never the project-level one, or
+an archived project could not undo its own archive
+([decision](../../../decisions/2026-09-project-header-history-controls.md)).
 
-**A history refusal is mapped, not parsed.** Slice 32's terminal `undo_consumed` has no
-counterpart: its closest replacement, `history_not_next`, is repairable by undoing the newer change
-first, so the store keeps the receipt. A stale revision is reconciled from the summary it carries
-rather than retried blindly, which is what makes a lost response safe without a retry cache
+**Ownership is read from `historyId`, not guessed at the write site.** A task list inside a Home
+shortcut writes a row its source sub-project owns, and a restore from root Archive can record in a
+descendant; so a writer reports the response's own project only for wording, and the store compares
+the receipt's history with the one it holds — re-reading when it cannot tell — before saying a step
+was "recorded in Kitchen's history". **Pending lasts until the owed re-read lands**, so the window
+between a write's response and its summary read never offers the pre-write step
+([decision](../../../decisions/2026-09-project-header-history-controls.md)).
+
+**A history refusal is mapped, not parsed.** Every refusal carries the caller's current summary,
+which the store adopts before it words the reason; a transport failure re-reads rather than
+assuming either outcome, which is what makes a lost response safe without a retry cache
 ([deferrals](../../../decisions/2026-09-history-stage-a-deferrals.md),
 [retired actions](../../../decisions/2026-09-operation-history-retired-actions.md)).
 
@@ -94,19 +98,18 @@ no rows, so the count in "It still holds 3 tasks" travels from the domain in
 `DomainRuleError.details`, and the dialog offers containers by name
 ([decision](../../../decisions/2026-09-a-section-has-a-name.md)).
 
-**Immediate Undo belongs to the page that committed the section operation.** `SectionUndoNotice`
-holds only the returned server receipt in memory, offers typed refusal guidance and an
-Archive path only for a removal the server said it listed there, and is cleared when the page or
-project changes. It floats at the
-viewport's end corner instead of sitting above the canvas: once adds, moves, resizes and blur
-saves all offer a receipt, an in-flow notice pushed the canvas down under the pointer. The cost is
-that it can cover content near that corner until dismissed. An uncertain remove has a
-separate explicit retry using the original input; refresh retry only repeats the read.
-This keeps recovery in the current work context without claiming durable browser history
-([decision](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+**The canvas keeps only the recovery the header cannot offer.** `SectionRecoveryNotice` offers
+Open Archive after a removal the server said Archive lists, an explicit Retry remove using the
+original input after an uncertain response, and a read-only Retry refresh after a committed write
+whose follow-up read failed; a forward write shows nothing, because the header's changed label is
+its confirmation. It floats at the viewport's end corner rather than in flow, so it never pushes
+the canvas under the pointer
+([decision](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md),
+[header controls](../../../decisions/2026-09-project-header-history-controls.md)).
 
 **A route is offered only when the person can take it.** The notice reads `archiveListed` off the
-removal result rather than inferring Archive from the operation's name, and a conflict's copy
+removal result rather than inferring Archive from the operation's name, and a conflict's copy in
+the header
 says "Someone else changed it since" — under a per-actor history a conflict is always someone
 else's change, and the person's own later change is a newer step to undo first. `ArchivedRegion`
 says on the row that Archive Restore returns a section
@@ -157,6 +160,7 @@ opens a collapsed target through a transient input that leaves the record alone
 - [Task and reflection writes join operation history](../../../decisions/2026-09-row-operation-history.md) — row envelopes and compound-container live refresh
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../../decisions/2026-09-optional-page-operation-history.md) — the page envelope the store ignores, and a removed page's Home fallback
 - [An existing project's writes are one action family](../../../decisions/2026-09-project-update-operation-history.md) — the project envelope every caller unwraps, and root projections re-reading on project-record frames from any root
+- [The project header offers Undo and Redo of the displayed project's history, and nothing else does](../../../decisions/2026-09-project-header-history-controls.md) — header-only action surface, per-step blockers, write reporting, archive stays on the project
 
 ## Spec sections
 

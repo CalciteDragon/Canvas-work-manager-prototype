@@ -98,3 +98,7 @@ history. `UndoConflict.supersededBy`, the `superseded` problem and the `use-late
 names the other party — it cannot tell a person from an agent from a changed value alone — and the
 Archive-offer rule and placement line are unchanged
 ([retired actions](2026-09-operation-history-retired-actions.md)).
+
+**Amended, 2026-09-22 — Slice 41.** Open Archive moves to `SectionRecoveryNotice`, which no longer
+offers Undo; the rule is unchanged — the route is offered on the removal's own `archiveListed`
+verdict, and a repeated removal's unknown verdict still offers it ([decision](2026-09-project-header-history-controls.md)).

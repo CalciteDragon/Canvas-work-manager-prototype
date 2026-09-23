@@ -65,3 +65,10 @@ summary read remains `projects.read`. A write-only agent starts from its receipt
 the summary returned by every transition result or refusal; it does not gain a project read
 ([row history](2026-09-row-operation-history.md),
 [family permissions](2026-09-operation-family-permissions.md)).
+
+**Amended, 2026-09-22 — Slice 41.** The browser presents this scope in the project header: a page
+shows the history of the **displayed** project — the root's on every root page, a sub-project's on
+its work page — and a write that recorded in another project's history (a descendant's task
+completed from root Todos, a row restored from root Archive) says so with an Open link to that
+project's page. The store decides which history a write joined from the receipt's `historyId`, never
+from the page it was made on ([decision](2026-09-project-header-history-controls.md)).

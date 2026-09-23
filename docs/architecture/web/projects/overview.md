@@ -2,12 +2,12 @@
 
 `apps/web/src/app/features/projects` is the project workspace (§23, §26–§32): the shell
 that serves both project routes, the project navigation column with its page toggles,
-the header rendered once per project, the page renderers — a section canvas for Home and
+the header rendered once per project with its Undo and Redo, the page renderers — a section canvas for Home and
 for a subproject's work page, and the Todos, Archive and Reflections projections for a
 root — the section registry and its seven section types, Home shortcuts, and the shared
 archive list. It is the largest feature and where most of the product learning happens.
 
-**Code:** `apps/web/src/app/features/projects` and its `pages/`, `sections/`,
+**Code:** `apps/web/src/app/features/projects` and its `history/`, `pages/`, `sections/`,
 `shortcuts/`, `archived-region/` · **Tests:** `*.spec.ts` beside each file; stories for
 the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
 [web](../overview.md)
@@ -19,13 +19,18 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
   redirect; a subproject opens on its work canvas and keeps its root's column.
 - `ProjectWorkspaceStore`: the project record, §39's progress, §26's writes, and the
   root's work tree — the things that describe the *project* rather than one page.
+- `ProjectHistoryStore` + `ProjectHistoryControls` + `ProjectHistoryFeedback` (`history/`):
+  the header's Undo and Redo of the **displayed project's** history (Slice 41). The store is
+  provided by the shell and bound to core's `OPERATION_HISTORY_REPORTER`, so every writer
+  inside the workspace reports its receipts to it; it holds the server summary, the pending
+  state that covers each write's owed re-read, transitions and one feedback line, and words
+  all of it through the pure `history-feedback.ts`.
 - `ProjectPageNavigation`: the column — pages, optional-page toggles, the work tree —
   placed beside the sidebar by one `:has()` rule.
 - `ProjectCanvas` + `ProjectPageStore`: one page's sections and shortcut placements in
   flow or grid, direct drag, contextual insertion, snapped resizing, inline naming and
-  removal, plus canonical navigation to `#section-<id>`. A canvas-local notice holds the
-  newest committed add/move/update/removal receipt, offers operation-specific Undo, and keeps
-  Archive access only for removal.
+  removal, plus canonical navigation to `#section-<id>`. Every canvas write reports its
+  receipt to the header's history; the canvas holds no receipt.
 - `SECTION_REGISTRY` and the section types: Rich Text, Task List, Sub-Projects,
   Progress, Reflections, Timeline, Recent Activity — each its own folder inside
   `ProjectSectionFrame`.
@@ -33,10 +38,10 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
   store over the matching derived read.
 - Home shortcuts: `ShortcutFrame` (read-only source content), `ShortcutPicker`,
   `ShortcutStore`.
-- `SectionUndoNotice`: accessible, in-memory feedback for one explicit section receipt or an
-  uncertain removal request, fixed at the viewport's end corner so it never shifts the canvas; it
-  does not persist Undo state across page changes or reloads. The Reflections page's explicit
-  Add container holds its own page-local add receipt and reuses the same notice.
+- `SectionRecoveryNotice`: the canvas's recovery the header cannot offer — Open Archive after a
+  removal Archive lists, Retry remove after an uncertain removal, Retry refresh after a committed
+  write whose read failed — fixed at the viewport's end corner so it never shifts the canvas. It
+  offers **no Undo**; the Reflections page has no notice.
 
 ## Not responsible for
 
