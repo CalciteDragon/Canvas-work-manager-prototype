@@ -305,6 +305,13 @@ formerly assigned to Stage C is retired, not an outstanding deliverable. See the
 and [project-creation decision](../../decisions/2026-09-project-creation-history.md). Stages D and E
 remain planned.
 
+**Stage D activation amendment — 2026-09-24.** Stage D is being executed in bounded phases.
+[Slice 43](../active/43-one-step-removal-and-task-delete.md) is D1: direct cascade removal,
+retirement of new removal-time reassignment requests, and the task Delete affordance, while
+preserving stored reassign actions. Parent-first Archive filtering and Settings archived-project
+recovery remain D2; integrated closure remains Stage E. The D gate below applies to the combined
+Stage D result, not to Slice 43 alone.
+
 | Stage | Deliverable | Gate before proceeding |
 |---|---|---|
 | A — history foundation | Versioned state/converter, summary, grants, atomic Undo/Redo for existing section actions | A → B → Undo B → Undo A → Redo A → Redo B; branch invalidation, expiry/pruning, concurrent revision and reload tests through domain/API/MCP. |

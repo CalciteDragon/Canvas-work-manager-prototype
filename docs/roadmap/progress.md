@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 43 | Slice 43 — One-step section removal and task Delete (Slice 34 Stage D1) | One-step cascade removal for sections and task Delete icons, with legacy reassign history preserved | [43-one-step-removal-and-task-delete.md](active/43-one-step-removal-and-task-delete.md) |
 
 ### Planned
 
