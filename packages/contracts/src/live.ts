@@ -51,7 +51,10 @@ export type LiveEvent = z.infer<typeof LiveEventSchema>;
  * exactly this vocabulary and the browser can route on it without restating it.
  *
  * `project.created` is deliberately absent: a create already names its own root, and it cannot take
- * a sub-project away from another one.
+ * a sub-project away from another one. So are `project.creation_undone` and
+ * `project.creation_redone` (Slice 42), for the same reason: creation Undo and Redo never move a
+ * project between roots, and each frame's `rootProjectId` is the root the project belongs to — or,
+ * after Undo, belonged to — which already reaches every tree that changed.
  */
 export const PROJECT_RECORD_EVENT_TYPES = [
   'project.updated',

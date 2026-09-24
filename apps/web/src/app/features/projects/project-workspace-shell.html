@@ -3,7 +3,7 @@
 } @else if (creationRecovery(); as creation) {
   <section data-project-creation-recovery class="project-workspace__recovery" aria-labelledby="project-creation-recovery-heading">
     <h1 id="project-creation-recovery-heading">Creation undone</h1>
-    <p>The action “{{ creation.label }}” removed this project. Redo it to restore the project and its canonical page.</p>
+    <p>Undo removed {{ creationSubject(creation.label) }}. Redo brings it back at this address, as it was.</p>
     <app-project-history-controls
       [undo]="history.undoControl()"
       [redo]="history.redoControl()"

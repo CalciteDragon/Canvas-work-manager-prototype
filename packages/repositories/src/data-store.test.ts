@@ -1802,6 +1802,45 @@ describe('operation history integrity', () => {
     expect(() => new InMemoryDataStore(unrelatedTargetEvent)).not.toThrow();
   });
 
+  it('rejects a hand-deleted project whose lifecycle ends at project.created', () => {
+    const document = withUndoneProjectCreation();
+    document.activityEvents = document.activityEvents.filter(({ action }) => action === 'project.created');
+    document.operationActions = [];
+    document.operationHistories = [];
+    expect(() => new InMemoryDataStore(document)).toThrow(/latest project\.creation_undone event/);
+  });
+
+  it('lets nothing but Activity and the creator’s history name an absent project', () => {
+    const original = validDocument();
+    const withPage = withUndoneProjectCreation();
+    withPage.projectPages = [original.projectPages[0]!];
+    expect(() => new InMemoryDataStore(withPage)).toThrow(/page "page-1".*project-1|project-1.*page-1|missing project "project-1"/);
+
+    const withSection = withUndoneProjectCreation();
+    withSection.sections = [original.sections[0]!];
+    expect(() => new InMemoryDataStore(withSection)).toThrow(/section-1/);
+
+    const withTask = withUndoneProjectCreation();
+    withTask.tasks = [original.tasks[0]!];
+    expect(() => new InMemoryDataStore(withTask)).toThrow(/task-1/);
+
+    const withChild = withUndoneProjectCreation();
+    withChild.projects = [{
+      ...original.projects[0]!, id: 'project-child' as never, kind: 'subproject', parentProjectId: 'project-1' as never, name: 'Child',
+    } as (typeof withChild.projects)[number]];
+    withChild.projectPages = [{ ...original.projectPages[0]!, id: 'page-child' as never, projectId: 'project-child' as never, kind: 'work' }];
+    expect(() => new InMemoryDataStore(withChild)).toThrow(/project-child/);
+
+    const withSubject = withUndoneProjectCreation();
+    withSubject.projects = [{ ...original.projects[0]!, id: 'project-2' as never, name: 'Other root' }];
+    withSubject.projectPages = [{ ...original.projectPages[0]!, id: 'page-2' as never, projectId: 'project-2' as never }];
+    withSubject.sections = [{ ...original.sections[1]!, projectId: 'project-2' as never, pageId: 'page-2' as never }];
+    withSubject.reflections = [{
+      ...original.reflections[0]!, projectId: 'project-2' as never, subject: { kind: 'subproject', id: 'project-1' as never },
+    }];
+    expect(() => new InMemoryDataStore(withSubject)).toThrow(/missing subject project "project-1"/);
+  });
+
   it('requires both anchors and the undone state to agree with project presence', () => {
     const withoutHistory = withUndoneProjectCreation();
     withoutHistory.operationActions = [];

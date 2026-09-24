@@ -43,7 +43,8 @@
    re-create the shell, so every such navigation starts in `loading`. The store:
    - reads the summary coalesced (one in flight, one queued), drops a read from an earlier
      generation (navigation, `prototype.reloaded`, destruction) and a lower `revision` of the held
-     history, and moves to `unavailable` with a read-only Retry when a read fails;
+     history, and moves to `unavailable` when a read fails — with a read-only Retry, except after
+     a `not_found` answer, which a second read cannot change;
    - re-reads on a frame naming the displayed project, any `isProjectRecordEvent` frame,
      `prototype.reloaded` (a new generation) and reconnect;
    - hands each write a handle bound to the generation it began in (a commit or end from before a

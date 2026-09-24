@@ -127,7 +127,9 @@ test('Open archive records one action, and reversing it sends a viewer of that p
   await expect.poll(async () => (await pageOf(root.id, 'archive'))?.enabled).toBe(false);
   const afterNested = await history(root.id);
   expect(afterNested.undo).toMatchObject({ operation: 'page.update' });
-  expect((await history(child.id)).historyId).toBeNull();
+  // The child's own history holds only its creation (Slice 42), never the root's page toggle.
+  const childHistory = await history(child.id);
+  expect(childHistory).toMatchObject({ revision: 1, undo: { operation: 'project.add' }, redo: null });
 
   // Undo the disable, then Undo the enable beneath it while a second tab is on that very page:
   // removing the displayed page returns to Home with the existing explanation.

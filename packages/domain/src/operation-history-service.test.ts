@@ -295,20 +295,27 @@ describe('OperationHistoryService — project creation history', () => {
     expect(JSON.stringify(harness.store.snapshot())).toBe(before);
   });
 
-  it('treats a missing captured parent on Redo as repairable, not retired', async () => {
+  it('treats a parent absent after its own creation Undo as repairable on Redo, not retired', async () => {
     const harness = buildHarness();
-    const created = await createProject(harness, 'Needs parent', MINE);
-    const receipt = created.operation!;
-    await transition(harness, harness.actor, receipt, 'undo', receipt.revision);
-    // The seeded parent cannot be removed while its other dependants remain, so simulate the
-    // repairable lookup result at the executor boundary instead of corrupting document storage.
-    const find = harness.projects.find.bind(harness.projects);
-    harness.projects.find = async (id) => id === MINE ? null : find(id);
-    const summary = await harness.operationHistoryService.summary(harness.actor, created.project.id);
+    const parent = await createProject(harness, 'Parent to undo');
+    const child = await createProject(harness, 'Child to redo', parent.project.id);
+    await transition(harness, harness.actor, child.operation!, 'undo', child.operation!.revision);
+    await transition(harness, harness.actor, parent.operation!, 'undo', parent.operation!.revision);
+    const childSummary = await harness.operationHistoryService.summary(harness.actor, child.project.id);
 
-    const refusal = await refusalOf(transition(harness, harness.actor, receipt, 'redo', summary.revision));
-    expect(refusal.details).toMatchObject({ reason: 'history_conflict', conflicts: [{ entityType: 'project', id: MINE, problem: 'missing' }] });
-    expect(await harness.operationActions.find(receipt.actionId)).toMatchObject({ state: 'undone' });
+    const refusal = await refusalOf(transition(harness, harness.actor, child.operation!, 'redo', childSummary.revision));
+
+    expect(refusal.details).toMatchObject({
+      reason: 'history_conflict',
+      conflicts: [{ entityType: 'project', id: parent.project.id, problem: 'missing' }],
+    });
+    expect(await harness.operationActions.find(child.operation!.actionId)).toMatchObject({ state: 'undone' });
+
+    // Redoing the parent's creation first makes the child's Redo succeed with its original ids.
+    const parentSummary = await harness.operationHistoryService.summary(harness.actor, parent.project.id);
+    await transition(harness, harness.actor, parent.operation!, 'redo', parentSummary.revision);
+    await transition(harness, harness.actor, child.operation!, 'redo', childSummary.revision);
+    expect(await harness.projects.find(child.project.id)).toMatchObject({ id: child.project.id, parentProjectId: parent.project.id });
   });
 
   it('refuses replaying a reparent after the new parent’s creation was undone', async () => {
@@ -323,6 +330,55 @@ describe('OperationHistoryService — project creation history', () => {
 
     expect(refusal.details).toMatchObject({ reason: 'history_conflict', conflicts: [{ entityType: 'project', id: target.project.id, problem: 'missing' }] });
     expect(await harness.operationActions.find(reparent.operation!.actionId)).toMatchObject({ state: 'undone' });
+  });
+
+  // Acceptance step 3: a same-history write refuses `history_not_next`, never a conflict, and
+  // creation Undo succeeds once that write is undone.
+  it.each([
+    ['a section', async (harness: Harness, projectId: ProjectId) =>
+      (await harness.sectionWriteService.add(harness.actor, projectId, { type: 'rich-text', title: 'Notes' })).operation!],
+    ['a task through a new container', async (harness: Harness, projectId: ProjectId) =>
+      (await harness.taskWriteService.create(harness.actor, { projectId, title: 'First task' })).operation!],
+    ['an enabled Todos page', async (harness: Harness, projectId: ProjectId) =>
+      (await harness.projectPageService.setEnabled(harness.actor, projectId, { kind: 'todos', enabled: true })).operation!],
+  ] as const)('refuses creation Undo past %s in the same history until that write is undone', async (_name, write) => {
+    const harness = buildHarness();
+    const created = await createProject(harness, 'Busy root');
+    const receipt = created.operation!;
+    const later = await write(harness, created.project.id);
+    expect(later.historyId).toBe(receipt.historyId);
+
+    const refusal = await refusalOf(transition(harness, harness.actor, receipt, 'undo', later.revision));
+    expect(refusal.details).toMatchObject({ reason: 'history_not_next', summary: { undo: { actionId: later.actionId } } });
+
+    await transition(harness, harness.actor, later, 'undo', later.revision);
+    await transition(harness, harness.actor, receipt, 'undo', (await historyOf(harness, receipt)).revision);
+    expect(await harness.projects.find(created.project.id)).toBeNull();
+    expect(harness.store.snapshot().projectPages.filter(({ projectId }) => projectId === created.project.id)).toEqual([]);
+  });
+
+  it('refuses a sub-project’s creation Undo while a root reflection is about it, then succeeds after that reflection’s Undo', async () => {
+    const harness = buildHarness();
+    const created = await createProject(harness, 'Finished study', MINE, 'completed');
+    const reflection = await harness.reflectionWriteService.create(harness.actor, {
+      projectId: MINE,
+      body: 'What the study taught us',
+      subject: { kind: 'subproject', id: created.project.id },
+    });
+    expect(reflection.operation!.historyId).not.toBe(created.operation!.historyId);
+    const before = JSON.stringify(harness.store.snapshot());
+
+    const refusal = await refusalOf(transition(harness, harness.actor, created.operation!, 'undo', created.operation!.revision));
+
+    expect(refusal.details).toMatchObject({
+      reason: 'history_conflict',
+      conflicts: [{ entityType: 'reflection', id: reflection.reflection.id, problem: 'new-dependent' }],
+    });
+    expect(JSON.stringify(harness.store.snapshot())).toBe(before);
+
+    await transition(harness, harness.actor, reflection.operation!, 'undo', reflection.operation!.revision);
+    await transition(harness, harness.actor, created.operation!, 'undo', created.operation!.revision);
+    expect(await harness.projects.find(created.project.id)).toBeNull();
   });
 });
 

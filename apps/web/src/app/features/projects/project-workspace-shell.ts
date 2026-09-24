@@ -14,7 +14,7 @@ import { DestroyRef } from '@angular/core';
 import { Router } from '@angular/router';
 import type { ProjectId, ProjectPageKind } from '@cwm/contracts';
 import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
-import { archivedHereFeedback } from './history/history-feedback';
+import { archivedHereFeedback, createdSubjectOf } from './history/history-feedback';
 import { ProjectHistoryControls } from './history/project-history-controls';
 import { ProjectHistoryFeedback } from './history/project-history-feedback';
 import { ProjectHistoryStore } from './history/project-history-store';
@@ -108,6 +108,8 @@ export class ProjectWorkspaceShell {
     const redo = this.history.creationRedo();
     return this.store.missing() && summary?.projectId === this.projectId() ? redo : null;
   });
+  /** The removed project's quoted name, read from its creation label. */
+  readonly creationSubject = createdSubjectOf;
 
   /**
    * §68's rule, run over what the store loaded. `null` until there is a project to decide

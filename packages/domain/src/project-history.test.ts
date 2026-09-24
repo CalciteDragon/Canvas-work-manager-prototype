@@ -179,6 +179,31 @@ describe('project.add Undo preflight', () => {
     expect(JSON.stringify(h.store.snapshot())).toBe(before);
   });
 
+  it('reads archived sections, tasks and reflections, children of every status and every other history', async () => {
+    const h = buildHarness();
+    const { operation, historyId } = await projectAddFor(h);
+    const repositories = projectAddRepositories(h);
+    const queries: Record<string, unknown[]> = {};
+    for (const name of ['sections', 'tasks', 'reflections', 'projects', 'histories'] as const) {
+      const repository = repositories[name] as { list: (query?: unknown) => Promise<unknown[]> };
+      const list = repository.list.bind(repository);
+      repository.list = async (query?: unknown) => {
+        (queries[name] ??= []).push(query);
+        return list(query);
+      };
+    }
+
+    await preflightProjectAddUndo(repositories, operation, historyId);
+
+    const id = operation.project.id;
+    expect(queries['sections']).toEqual([{ projectId: id, includeArchived: true }]);
+    expect(queries['tasks']).toEqual([{ projectId: id, includeArchived: true }]);
+    expect(queries['reflections']).toEqual(expect.arrayContaining([{ projectId: id, includeArchived: true }, { includeArchived: true }]));
+    // No status filter: an archived or completed child still depends on the project.
+    expect(queries['projects']).toEqual([{ workspaceId: operation.project.workspaceId, parentProjectId: id }]);
+    expect(queries['histories']).toEqual([{ projectId: id }]);
+  });
+
   it('ignores only updatedAt on the captured project and page', async () => {
     const h = buildHarness();
     const { operation, historyId } = await projectAddFor(h);

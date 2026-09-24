@@ -81,6 +81,8 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
   private owed: OwedRead[] = [];
 
   private readonly readStateSignal = signal<HistoryReadState>('loading');
+  /** The last read failed as not-found: the history is gone for this caller, not unreachable. */
+  private readonly readNotFoundState = signal(false);
   private readonly summaryState = signal<OperationHistorySummary | null>(null);
   private readonly writesState = signal(0);
   private readonly owedState = signal(0);
@@ -103,7 +105,8 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
   readonly transitionPending = this.transitionState.asReadonly();
   /** A write, or a re-read it owes, has not settled. */
   readonly writePending = computed(() => this.writesState() > 0 || this.owedState() > 0);
-  readonly retryAvailable = computed(() => this.readStateSignal() === 'unavailable');
+  /** A not-found read is an answer, not a transport failure, so a second read cannot change it. */
+  readonly retryAvailable = computed(() => this.readStateSignal() === 'unavailable' && !this.readNotFoundState());
   readonly undoControl = computed<HistoryControlView>(() => this.control('undo'));
   readonly redoControl = computed<HistoryControlView>(() => this.control('redo'));
 
@@ -208,6 +211,7 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
     this.readQueued = false;
     this.summaryState.set(null);
     this.readStateSignal.set('loading');
+    this.readNotFoundState.set(false);
     this.transitionState.set(null);
     this.feedbackState.set(null);
   }
@@ -245,12 +249,14 @@ export class ProjectHistoryStore implements OperationHistoryReporter {
       (summary) => {
         if (!this.current(generation)) return;
         this.readInFlight = false;
+        this.readNotFoundState.set(false);
         this.adopt(summary);
         this.settleOwed(sequence, true);
       },
-      () => {
+      (error: unknown) => {
         if (!this.current(generation)) return;
         this.readInFlight = false;
+        this.readNotFoundState.set(error instanceof GatewayError && error.code === 'not_found');
         this.readStateSignal.set('unavailable');
         this.settleOwed(sequence, false);
       },

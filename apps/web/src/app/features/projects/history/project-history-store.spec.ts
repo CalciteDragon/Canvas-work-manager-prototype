@@ -127,6 +127,14 @@ describe('ProjectHistoryStore — reading the summary', () => {
     expect(store.undoControl().enabled).toBe(true);
   });
 
+  it('offers no Retry for a not-found history, which a second read cannot change', async () => {
+    const { store, answer } = setup();
+    store.load(ROOT);
+    await answer(new GatewayError('not_found', 404, 'project "root" was not found'));
+    expect(store.undoControl().name).toBe('History unavailable');
+    expect(store.retryAvailable()).toBe(false);
+  });
+
   it('drops a read from an earlier project and a lower revision of the same history', async () => {
     const { store, answer, live } = setup();
     store.load(OTHER);

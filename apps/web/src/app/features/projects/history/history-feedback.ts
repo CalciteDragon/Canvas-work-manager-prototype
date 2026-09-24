@@ -71,6 +71,10 @@ export const conflictLines = (conflicts: readonly UndoConflict[], direction: Ope
   });
 };
 
+/** The quoted subject of a `project.add` label (`Created "X"` → `"X"`), or the label itself. */
+export const createdSubjectOf = (label: string): string =>
+  label.startsWith('Created ') ? label.slice('Created '.length) : label;
+
 /**
  * What a successful transition says. The label is the held entry's, so the sentence names the
  * step the person clicked. A removal Undo that could not return the section to its own place says
@@ -83,10 +87,9 @@ export const transitionResultFeedback = (
 ): HistoryFeedback => {
   const done = `${direction === 'undo' ? 'Undid' : 'Redid'}: ${label}.`;
   if (result.operation === 'project.add') {
-    const projectName = label.startsWith('Created ') ? label.slice('Created '.length) : label;
     return {
       tone: 'status',
-      message: `${direction === 'undo' ? 'Undid' : 'Redid'} creation of ${projectName}.`,
+      message: `${direction === 'undo' ? 'Undid' : 'Redid'} creation of ${createdSubjectOf(label)}.`,
     };
   }
   if (direction === 'undo' && result.operation === 'section.remove' && 'placement' in result) {

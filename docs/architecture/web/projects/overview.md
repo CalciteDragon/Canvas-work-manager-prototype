@@ -18,7 +18,8 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
   navigable kind, enabled, renderable) and falls back with a notice that survives the
   redirect; a subproject opens on its work canvas and keeps its root's column. After project
   creation Undo it renders creator-only recovery at the original project URL; if the history read
-  fails while that project is missing, the unavailable state offers a generic Retry.
+  fails while that project is missing, the unavailable state offers a generic Retry — but not
+  for a `not_found` history, which is what everyone but the creator receives.
 - `ProjectWorkspaceStore`: the project record, §39's progress, §26's writes, the `missing` state
   used by creation recovery, and the root's work tree — the things that describe the *project*
   rather than one page.

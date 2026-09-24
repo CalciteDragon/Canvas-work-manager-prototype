@@ -140,8 +140,10 @@ export interface UserRepository {
  * One actor's operation history per project (docs/decisions/2026-09-operation-history-scope.md).
  *
  * There is no `remove`: a history outlives every action it held, so its order high-water mark and
- * revision never restart. Its project reference stays strict because no Stage A operation deletes
- * a project; the stage that first does decides what happens to the history.
+ * revision never restart. Its project reference is strict except after creation Undo (Slice 42),
+ * the one operation that deletes a project: the creator's history then outlives the project,
+ * anchored by its retained undone `project.add` and the project's `project.creation_undone`
+ * Activity (docs/decisions/2026-09-project-creation-history.md).
  */
 export interface OperationHistoryRepository {
   find(id: OperationHistoryId): Promise<OperationHistory | null>;

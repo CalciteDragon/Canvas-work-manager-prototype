@@ -138,6 +138,11 @@ export class OperationHistoryService {
    * The caller's own history for `projectId`: the next action in each direction and the revision a
    * transition must cite. An unknown or invisible project is not found; a visible project with no
    * recorded write yet answers an empty summary with a `null` history id.
+   *
+   * A project absent after creation Undo answers only the creating actor, and only while that
+   * actor's history still holds the undone `project.add`, so its Redo stays reachable at the
+   * project's id; everyone else gets the same not-found as for an id that never existed
+   * (docs/decisions/2026-09-project-creation-history.md).
    */
   async summary(actor: ActorContext, projectId: ProjectId): Promise<OperationHistorySummary> {
     assertValidActor(actor);
@@ -376,7 +381,7 @@ export class OperationHistoryService {
         ? null
         : {
           actionId: action.id, operation: action.operation.type, label: action.label, expiresAt: action.expiresAt,
-      blockedBy: await this.blockerOf(await this.transitionBlocker(projectId, action.operation, direction)),
+          blockedBy: await this.blockerOf(await this.transitionBlocker(projectId, action.operation, direction)),
         };
     return OperationHistorySummarySchema.parse({
       projectId,

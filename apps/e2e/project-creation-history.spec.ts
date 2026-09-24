@@ -65,6 +65,8 @@ test('project creation Undo and Redo recover roots and sub-projects at the same 
   await expect(page.locator('[data-project-creation-recovery]')).toContainText('Research prototype');
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}$`));
   expect((await rawGet('user-demo', root.id)).status).toBe(404);
+  // The empty seed's only root is gone, so the sidebar tree is empty again.
+  await expect(page.locator('[data-projects-empty]')).toHaveText('No projects yet');
   const rootUndoSummary = await api.get<OperationHistorySummary>(`/api/projects/${root.id}/history`);
   expect(rootUndoSummary.redo).toMatchObject({ operation: 'project.add', actionId: rootOperation.actionId });
   await page.reload();
@@ -73,6 +75,7 @@ test('project creation Undo and Redo recover roots and sub-projects at the same 
 
   await redoFromHeader(page, 'Created "Research prototype"');
   await expect(page.locator('[data-project-name]')).toHaveText('Research prototype');
+  await expect(page.locator('[data-projects-empty]')).toHaveCount(0);
   expect((await api.get<ProjectPage[]>(`/api/projects/${root.id}/pages`)).map(({ id }) => id)).toEqual([rootPage!.id]);
 
   // Build the child through the root's visible Sub-Projects section. A second open browser page
@@ -126,6 +129,8 @@ test('project creation Undo and Redo recover roots and sub-projects at the same 
   await outsider.goto(`/projects/${child.id}`);
   await expect(outsider.locator('[data-identity-name]')).toHaveText('Alex');
   await expect(outsider.locator('[data-project-error]')).toContainText('not found');
+  // Their history read is a not-found answer too, so nothing offers a Retry that cannot help.
+  await expect(outsider.locator('[data-project-history-retry]')).toHaveCount(0);
 
   await page.reload();
   await expect(page.locator('[data-project-creation-recovery]')).toContainText('Creation undone');

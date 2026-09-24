@@ -44,6 +44,9 @@ describe('project-record frames (Slice 39)', () => {
     for (const type of PROJECT_RECORD_EVENT_TYPES) expect(isProjectRecordEvent(frame(type)), type).toBe(true);
     // A create names its own root already, and cannot take a sub-project away from another one.
     expect(isProjectRecordEvent(frame('project.created'))).toBe(false);
+    // Creation Undo and Redo route by the project's (former) root, like creation itself (Slice 42).
+    expect(isProjectRecordEvent(frame('project.creation_undone'))).toBe(false);
+    expect(isProjectRecordEvent(frame('project.creation_redone'))).toBe(false);
     expect(isProjectRecordEvent(frame('project.section_added'))).toBe(false);
     expect(isProjectRecordEvent(frame('project.section_update_undone'))).toBe(false);
     expect(isProjectRecordEvent(frame('project.page_update_redone'))).toBe(false);

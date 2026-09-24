@@ -285,7 +285,7 @@ describe('ProjectWorkspaceShell — creation recovery (§68)', () => {
     const recovery = query(harness, '[data-project-creation-recovery]');
     expect(recovery).not.toBeNull();
     expect(recovery?.textContent).toContain('Creation undone');
-    expect(recovery?.textContent).toContain('Created "Recoverable project"');
+    expect(recovery?.textContent).toContain('Undo removed "Recoverable project".');
     expect(query(harness, '[data-history-redo]')?.getAttribute('aria-label')).toBe('Redo: Created "Recoverable project"');
     expect(query(harness, '[data-history-redo]')?.getAttribute('aria-disabled')).toBeNull();
     expect(query(harness, '[data-history-feedback]')).not.toBeNull();
@@ -302,6 +302,21 @@ describe('ProjectWorkspaceShell — creation recovery (§68)', () => {
 
     expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
     expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
+  });
+
+  // What the host actually answers another person, a foreign workspace or an id that never
+  // existed: a not-found history, which no Retry can turn into a Redo.
+  it('offers no Retry when the missing project’s history is itself not found', async () => {
+    const { harness } = await open('/projects/project-missing', {
+      projects: [],
+      pages: [],
+      failOn: { 'history.summary': new GatewayError('not_found', 404, 'project "project-missing" was not found') },
+    });
+    await settle(harness);
+
+    expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
+    expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
+    expect(query(harness, '[data-project-history-retry]')).toBeNull();
   });
 
   it('can retry an unavailable history read from the missing-project route', async () => {

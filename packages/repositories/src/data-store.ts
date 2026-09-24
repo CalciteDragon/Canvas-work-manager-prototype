@@ -142,8 +142,18 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     actor.actor === 'agent' ? actor.actorAgentConnectionId ?? null : null,
   ]);
 
-  /** A missing project is historical only after its own creation was undone, by its creator. */
+  /**
+   * A missing project is historical only after its own creation was undone, by its creator.
+   * Memoized per (project, workspace): every Activity line and history naming an absent project
+   * asks, and each answer would otherwise re-scan all Activity.
+   */
+  const creationUndoActors = new Map<string, string | undefined>();
   const creationUndoActivityActor = (projectId: string, workspaceId: string): string | undefined => {
+    const key = JSON.stringify([projectId, workspaceId]);
+    if (!creationUndoActors.has(key)) creationUndoActors.set(key, findCreationUndoActivityActor(projectId, workspaceId));
+    return creationUndoActors.get(key);
+  };
+  const findCreationUndoActivityActor = (projectId: string, workspaceId: string): string | undefined => {
     const lifecycle = document.activityEvents.filter((event) =>
       event.entityType === 'project' &&
       event.entityId === projectId &&

@@ -89,7 +89,9 @@ assuming either outcome, which is what makes a lost response safe without a retr
 **A missing project keeps a generic Retry when its history read is unavailable.** The route cannot
 claim creation was undone until the creator's summary confirms it, and an unavailable summary must
 not strand a person who could restore the project as soon as the host responds again. The button
-does not identify the history or reveal whether the project ever existed.
+does not identify the history or reveal whether the project ever existed. A `not_found` summary is
+an answer rather than a failure — another person, another workspace, an id that never existed —
+so it offers no Retry: pressing it could only ever produce the same answer.
 
 **Section stores follow ownership.** A Task List provides its own `TaskListStore`, a
 Reflections section its `ReflectionsStore`, Progress its `ProgressStore` — one per
