@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 44 | Slice 44 — Actionable Archive and archived-project recovery | Parent-first Archive projection and Settings recovery for archived projects (Slice 34 Stage D2) | [44-actionable-archive-and-archived-projects.md](active/44-actionable-archive-and-archived-projects.md) |
 
 ### Planned
 
