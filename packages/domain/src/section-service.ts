@@ -14,10 +14,8 @@ import {
   type OwnedDataKind,
   type ProjectId,
   type ProjectSection,
-  type RemoveSectionInput,
   type SectionId,
   type SectionQuery,
-  type SectionRemovalRefusalDetails,
   type SectionRemovalDisposition,
   type SectionRemovalResult,
   type SectionAddResult,
@@ -585,11 +583,9 @@ export class SectionService {
    * and hard-delete only disposable sections that nothing canonically references. The returned
    * section is the removal snapshot in either case; a deleted one exists only in the receipt.
    *
-   * A container holding **live** rows still needs a policy, because the question is what
-   * should happen to the *rows*: `cascade` archives them with the section and stamps each
-   * with `archivedWithSectionId`; `reassign` moves them to another live container of the
-   * same type and archives the emptied section, marking nothing — the rows left under their
-   * own policy, so they are not "archived with" anything.
+   * A container holding live rows is removed in one step: each live row archives with the
+   * section and is stamped with `archivedWithSectionId`. Rows archived independently stay
+   * where they are with their original markers. Task movement remains a separate task write.
    *
    * Archive inclusion and deletion safety are separate checks. `sectionRecoveryOf` keeps
    * meaningful or uncertain content recoverable; a second canonical-reference check keeps rows
@@ -615,7 +611,7 @@ export class SectionService {
    * surface can offer an Archive route on the answer rather than on the operation's name. See
    * `removalOutcome` for why that is not the same as the section being retained.
    */
-  async remove(actor: ActorContext, id: SectionId, input: RemoveSectionInput = {}): Promise<SectionRemovalResult> {
+  async remove(actor: ActorContext, id: SectionId): Promise<SectionRemovalResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
@@ -635,14 +631,14 @@ export class SectionService {
       }
       const owned = ownedKindOf(current.type);
       const archivedAt = this.dependencies.clock.now().toISOString();
-      // `settleRows` runs its refusals first and writes rows only, never a placement.
+      // `settleRows` archives only live owned rows and writes no placement.
       const settled =
-        owned === undefined ? NOTHING_SETTLED : await this.settleRows(actor, current, owned, input, archivedAt);
+        owned === undefined ? NOTHING_SETTLED : await this.settleRows(current, owned, archivedAt);
       // Before the section archives or the page renumbers: the placement Undo returns to is the one
       // the canvas showed.
       const placement = snapshotPlacement(await this.placementsOnPage(current.pageId), { kind: 'section', id });
-      // Recovery is judged after cascade/reassign has actually settled. It answers whether
-      // meaningful or uncertain content remains; canonical references are checked separately.
+      // Recovery is judged after the cascade has actually settled. It answers whether meaningful
+      // or uncertain content remains; canonical references are checked separately.
       const { disposition, archiveListed } = await this.removalOutcome(current);
 
       const archived = ProjectSectionSchema.parse({
@@ -815,75 +811,28 @@ export class SectionService {
   }
 
   /**
-   * Cascade changes only live rows. Reassign moves every row, including archived rows, when at
-   * least one live row makes settlement necessary; their archive markers remain attached.
+   * A removal archives only the live rows it owns. Rows archived independently stay with their
+   * container and retain their own markers for the existing Archive recovery path.
    *
-   * No live rows means nothing to settle, even when a caller supplies a policy and target. In
-   * particular, an archived-only owner and its rows stay together for the existing Archive
-   * recovery path.
-   *
-   * Returns what it **applied**, for the history action.
+   * Returns the exact rows it changed for the history action.
    */
   private async settleRows(
-    actor: ActorContext,
     section: ProjectSection,
     owned: OwnedDataKind,
-    input: RemoveSectionInput,
     archivedAt: string,
   ): Promise<SettledRows> {
     const rows = await rowsOf(this.dependencies, section.id, owned);
     const live = rows.filter((row) => row.archivedAt === undefined);
     if (live.length === 0) return NOTHING_SETTLED;
-
-    if (input.policy === undefined) {
-      // The sentence stays for MCP and `curl` callers, who have no UI to compose one. The
-      // details are what let a UI ask its own question — see `SectionRemovalRefusalDetails`.
-      throw new DomainRuleError(
-        `section "${section.id}" still holds ${live.length} ${owned}; removing it needs a policy of "cascade" or "reassign"`,
-        { reason: 'section_not_empty', liveRowCount: live.length } satisfies SectionRemovalRefusalDetails,
-      );
-    }
-
-    if (input.policy === 'cascade') {
-      // The marker is what makes the cascade reversible: `restoreSection` brings back
-      // exactly the rows naming this section, and nothing else it happened to hold.
-      const changes = [];
-      for (const row of live) {
-        const next = { ...row, archivedAt, archivedWithSectionId: section.id };
-        changes.push(rowChangeOf(owned, row, next));
-        await this.writeRow(owned, next);
-      }
-      return { appliedPolicy: 'cascade', rows: changes };
-    }
-
-    if (input.reassignToSectionId === undefined) {
-      throw new DomainRuleError('reassigning rows needs a reassignToSectionId');
-    }
-    if (input.reassignToSectionId === section.id) {
-      throw new DomainRuleError('a section cannot take over its own rows');
-    }
-    const target = await this.require(actor, input.reassignToSectionId);
-    // `require` is the unchecked lookup, so it finds archived sections deliberately —
-    // without this, reassign would move live rows into a container that has left the canvas.
-    assertLive(target);
-    if (target.projectId !== section.projectId) {
-      throw new DomainRuleError('rows can only be reassigned within their own project');
-    }
-    if (target.type !== section.type) {
-      throw new DomainRuleError(`rows can only be reassigned to another ${section.type} section`);
-    }
-    // Deliberately **no** page-equality rule: §31 says "another container of the same type" and
-    // states no page constraint, and both containers render what they hold — see
-    // docs/decisions/2026-09-reassign-may-cross-pages.md. The destination still has to be
-    // somewhere a write may land, which is the one page rule that applies.
-    await this.assertWritablePage(target);
     const changes = [];
-    for (const row of rows) {
-      const next = { ...row, sectionId: target.id };
+    for (const row of live) {
+      // The marker makes the cascade reversible: `restoreSection` brings back exactly the rows
+      // naming this section, and nothing else it happened to hold.
+      const next = { ...row, archivedAt, archivedWithSectionId: section.id };
       changes.push(rowChangeOf(owned, row, next));
       await this.writeRow(owned, next);
     }
-    return { appliedPolicy: 'reassign', reassignToSectionId: target.id, rows: changes };
+    return { appliedPolicy: 'cascade', rows: changes };
   }
 
   /** See `owned-rows.ts` for why rows are written through the schema, not their service. */

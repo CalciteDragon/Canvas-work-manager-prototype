@@ -897,6 +897,14 @@
       "projectId": null,
       "slice": 42,
       "note": "Slice 42 real browser use: creating Field study from Research prototype's Sub-Projects frame immediately says the creation was recorded in Field study's history and offers Open; following it makes the child's creation Undo and recovery Redo reachable at the same URL. After that feedback is gone, the parent header has no lasting cue for the child action, so finding it again still depends on knowing which child owns the history. This confirms note-2026-09-23-003's revisit trigger; merged root history remains deferred."
+    },
+    {
+      "id": "note-2026-09-24-001",
+      "createdAt": "2026-09-24T22:40:08.000Z",
+      "route": "/projects/project-renovation/pages/todos",
+      "projectId": "project-renovation",
+      "slice": 43,
+      "note": "Slice 43 real browser/MCP acceptance: on the nested-projects fixture, the canvas removed live-row containers without a policy choice; Archive Restore returned the content, while the HTTP/MCP history checks confirmed Undo/Redo preserve exact IDs and independent archive markers. A connected MCP client also changed the nested showcase while the open browser followed live updates. On Todos, tapping Delete on a finished task removed the row immediately, and the stored task remained archived and recoverable. Friction: the optimistic disappearance itself does not say 'Archived'; the reversible meaning is only clear from the shared history/Archive path, so the Delete label could read as permanent at the moment of action. Revisit the feedback cue if user use confirms that confusion, while keeping the archive semantics."
     }
   ]
 }

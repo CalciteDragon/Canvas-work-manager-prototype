@@ -39,8 +39,11 @@
    unchanged `operation: null`), the same-field chain through `get_operation_history`,
    `undo_operation` and `redo_operation` (refusing an out-of-order `history_not_next:`), and move
    over both transports, and a fresh connection after restart sees its own persisted history. Connection revocation after a receipt is
-    issued is pinned in `apps/prototype-host/mcp/handler.test.ts`. Slice 33 adds, per transport,
-    reassign and cascade with exact row and section ids and the Archive projection, a second
+   issued is pinned in `apps/prototype-host/mcp/handler.test.ts`. Slice 33 originally exercised
+    reassign and cascade with exact row and section ids; Slice 43 retires new reassign requests and
+    now checks, per transport, that their refusal leaves business/history/activity state unchanged,
+    an independent `update_task` remains Undoable/Redoable, and an ID-only removal cascades with
+    the Archive projection. A second
     connection (`prototype-user-a-readonly`, granted `projects.write` in the temp file) refused
     as not-found, then removal of `projects.write` from the primary `agent-claude` connection and
     revocation of the second (`agent-cursor`), plus Progress, Timeline and Recent Activity removal
@@ -150,14 +153,15 @@ pnpm storybook                                        # :6006
   cannot pass vacuously — 25.5's review found one that could.
 - **Archive acceptance** lives in `archive.spec.ts`: the original cascade/subproject journey,
   and Slice 29's content journey over `nested-projects` — created-id assertions that removed
-  views, blank prose and reassigned sources are absent while prose, cascaded and
+  views, blank prose and independently moved empty sources are absent while prose, cascaded and
   pre-archived-only containers are present with recovery metadata; reload; append after an
   interposed Home shortcut; retry idempotency; the disabled tab reopened from a nested route;
   and the same projection and canonical restores through a real MCP client.
 - **Removal Undo acceptance** lives in `removal-undo.spec.ts`: disposable views leave both
-  the canvas and Archive and return with their saved config/order; meaningful content and
-  cascaded rows remain durably recoverable; reassign removes the empty section and Undo
-  reverses all moved rows; reload preserves Archive and section state.
+  the canvas and Archive and return with their saved config/order; live task and reflection rows
+  cascade in one gesture; independently archived rows keep their markers; an independent task
+  move keeps its own Undo/Redo; old HTTP reassign fields are refused without a write; reload
+  preserves Archive and section state.
 - **Section edit Undo acceptance** lives in `section-edit-undo.spec.ts`: explicit HTTP
   add/update/move Undo, disjoint and overlapping agent edits over MCP, canvas contextual add,
   rename, Rich Text blur save, collapse, keyboard resize and keyboard move Undo with reload, and

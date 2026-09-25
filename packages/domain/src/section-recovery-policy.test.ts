@@ -80,7 +80,7 @@ describe('sectionRecoveryOf — containers, by the rows still assigned', () => {
     });
   });
 
-  it.each(['task-list', 'reflections'])('leaves out an empty %s, including one emptied by reassignment', (type) => {
+  it.each(['task-list', 'reflections'])('leaves out an empty %s, including one emptied by an independent move', (type) => {
     expect(sectionRecoveryOf(section(type), none)).toEqual({ include: false });
     expect(sectionRecoveryOf(section(type), { tasks: [row(OTHER_ID)], reflections: [row(OTHER_ID)] })).toEqual({ include: false });
   });

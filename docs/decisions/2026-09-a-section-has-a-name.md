@@ -138,3 +138,6 @@ and clearing it restores the derived default. The rename callback reports failur
 keeps the entered text available for correction or retry. The optional `title` override and
 `nameOf` derivation remain unchanged; see
 [the contextual chrome decision](2026-09-canvas-chrome-is-revealed-not-moded.md).
+
+
+**Amended, 2026-09-24 (Slice 43).** Section names remain useful in receipts, history labels and Archive. The former `section_not_empty` refusal, row-count copy and cascade/reassign dialog are retired because removal now cascades live owned rows in one gesture; `SectionRemovalRefusalDetailsSchema` is no longer a public contract.

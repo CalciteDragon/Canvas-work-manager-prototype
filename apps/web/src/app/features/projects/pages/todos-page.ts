@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { ProjectId, ProjectLayoutMode, ProjectPageId, ProjectTodoItem } from '@cwm/contracts';
 import { TodosPageStore, isTodoFinished, todoIdOf } from './todos-page-store';
@@ -22,11 +32,12 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
 
 /**
  * §34's Todos page: **one root's whole tree, in due-date order**, with a link to the canvas that
- * owns each row and one control to finish it.
+ * owns each row, a control to finish it, and reversible Delete for tasks.
  *
  * A list, not a canvas. There is no Quick Add, no Edit Layout Mode, no drag ordering and no
  * filter — §34 is explicit that "the order is the chronology" — and every row is a projection of
- * something owned elsewhere, so the only write on this page is the canonical completion.
+ * something owned elsewhere. Completion and task Delete use the canonical operations for those
+ * records; a unit of work has no Delete control.
  *
  * It is mounted through `NgComponentOutlet`, so it declares all seven of the shell's inputs even
  * though a chronology has no layout mode and takes no shortcut placements (§27).
@@ -47,16 +58,20 @@ export class TodosPage {
   readonly projectLayoutMode = input<ProjectLayoutMode>('flow');
   /** Shortcut placement is a Home-only capability (§27), and Todos holds no sections at all. */
   readonly shortcutsAllowed = input<boolean>(false);
-  /** The shell's write freeze. Todos writes exactly one thing, and this is what stops it. */
+  /** The shell's write freeze. */
   readonly restoreBlocked = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});
   readonly onProjectHierarchyChange = input<() => void>(() => {});
   readonly onOpenArchive = input<() => void>(() => {});
 
   readonly store = inject(TodosPageStore);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
 
   /** No control at all is offered while the shell is blocking writes, so nothing lies. */
-  readonly writesBlocked = computed(() => this.restoreBlocked() || this.store.completing() !== null);
+  readonly writesBlocked = computed(() =>
+    this.restoreBlocked() || this.store.completing() !== null || this.store.deleting() !== null,
+  );
 
   constructor() {
     // Re-reads when the shell routes to another root without re-creating this component.
@@ -123,5 +138,44 @@ export class TodosPage {
     // §39's progress may have moved, and a completed unit of work moves the work tree too.
     this.onProjectDataChange()();
     if (item.kind === 'subproject') this.onProjectHierarchyChange()();
+  }
+
+  async delete(item: ProjectTodoItem): Promise<void> {
+    if (this.restoreBlocked() || item.kind !== 'task') return;
+    const projectId = this.projectId();
+    const id = this.idOf(item);
+    const oldIndex = this.store.items().findIndex((candidate) => this.idOf(candidate) === id);
+    const focusedRow = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')]
+      .find((row) => row.getAttribute('data-todo-id') === id);
+    const focusedDelete = focusedRow?.querySelector<HTMLButtonElement>('[data-todo-delete]') ?? null;
+    const focusStartedInDelete = focusedDelete !== null && document.activeElement === focusedDelete;
+    let managedFocusTarget: HTMLElement | null = null;
+    const deletion = this.store.delete(item);
+    const scheduleFocus = (restore: boolean): void => {
+      if (!focusStartedInDelete) return;
+      afterNextRender(() => {
+        if (this.projectId() !== projectId) return;
+        const active = document.activeElement;
+        if (active !== document.body && active !== null && active !== focusedDelete && active !== managedFocusTarget) return;
+        if (restore) {
+          const restoredRow = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')]
+            .find((row) => row.getAttribute('data-todo-id') === id);
+          managedFocusTarget = restoredRow?.querySelector<HTMLElement>('[data-todo-delete]') ?? null;
+          managedFocusTarget?.focus();
+          return;
+        }
+        const rows = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')];
+        const nextRow = rows[Math.min(oldIndex, rows.length - 1)];
+        // The store freezes row writes until the archive settles. The title link remains
+        // available during that interval and keeps focus with the next row.
+        managedFocusTarget = nextRow?.querySelector<HTMLElement>('[data-todo-link]') ??
+          this.host.nativeElement.querySelector<HTMLElement>('#todos-heading');
+        managedFocusTarget?.focus();
+      }, { injector: this.injector });
+    };
+    scheduleFocus(false);
+    const applied = await deletion;
+    if (applied) this.onProjectDataChange()();
+    if (!applied) scheduleFocus(true);
   }
 }

@@ -37,7 +37,7 @@ concatenates them in `SPEC_TOOL_NAMES` order and exposes `list`, `get` and `call
 | Projects | `list_projects`, `get_project`, `create_project` (`{ project, operation }`), `update_project`, `archive_project`, `restore_project` | `projects.read` / `projects.write` |
 | Tasks | `list_tasks`, `get_task`, `create_task`, `update_task`, `complete_task`, `archive_task`, `restore_task` | `tasks.read` / `tasks.write` |
 | Reflections | `list_reflections`, `add_reflection`, `archive_reflection`, `restore_reflection` | `reflections.read` / `reflections.write` |
-| Sections | `list_sections`, `create_section`, `move_section`, `update_section`, `remove_section`, `restore_section` | `projects.read` / `projects.write` |
+| Sections | `list_sections`, `create_section`, `move_section`, `update_section`, `remove_section` (ID-only cascade), `restore_section` | `projects.read` / `projects.write` |
 | History | `get_operation_history` — the connection's own next Undo and Redo in a project | `projects.read` |
 | | `undo_operation`, `redo_operation` — run the next action of the connection's history in that direction | stored family: `projects.write`, `tasks.write` or `reflections.write` |
 | Shortcuts | `list_section_shortcuts`, `add_section_shortcut`, `remove_section_shortcut` | `projects.read` / `projects.write` |

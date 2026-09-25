@@ -175,19 +175,8 @@ export const UpdateSectionInputSchema = z.object({
 });
 export type UpdateSectionInput = z.infer<typeof UpdateSectionInputSchema>;
 
-/**
- * Removing a section archives it — every section, container or view. A container that
- * still holds **live** rows takes a policy rather than a confirmation alone: `cascade`
- * archives the section and those rows together, `reassign` moves the rows to another
- * container of the same type and archives the emptied section. Absent, the service raises
- * with the live row count so the caller can offer the choice rather than guess. A view, an
- * empty container, and a container holding only already-archived rows need no policy —
- * there are no rows to settle, so there is no question to ask.
- */
-export const RemoveSectionInputSchema = z.object({
-  policy: z.enum(['cascade', 'reassign']).optional(),
-  reassignToSectionId: SectionIdSchema.optional(),
-});
+/** Section removal takes no choices: live owned rows are archived in the same operation. */
+export const RemoveSectionInputSchema = z.strictObject({});
 export type RemoveSectionInput = z.infer<typeof RemoveSectionInputSchema>;
 
 /** Reordering is its own operation: it renumbers siblings, which a field patch cannot. */

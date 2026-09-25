@@ -134,3 +134,6 @@ the removal's `archiveListed` is not `false`, **Retry remove** after an uncertai
 **Retry refresh** after a committed write whose follow-up read failed. A removal Archive will not
 list shows no notice at all. The own-receipt recovery of a repeated removal is unchanged on the
 server; the browser reports that receipt to the header instead of holding it.
+
+
+**Amended, 2026-09-24 (Slice 43).** Removal no longer returns a `section_not_empty` refusal or opens a policy dialog. The canvas and gateway send only the section id; live owned rows cascade in that same operation. An uncertain retry repeats the same ID-only request, and a retired policy or target field is refused at the transport contract. The header remains the Undo surface.

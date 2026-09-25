@@ -18,7 +18,8 @@ import type { ActorContext } from './actor';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
 import { PrototypeIdGenerator } from './ids';
 import type { LivePublication } from './live-events';
-import { listPlacements } from './page-placements';
+import { listPlacements, renumberPlacements, snapshotPlacement } from './page-placements';
+import { captureSectionRemoval, rowChangeOf } from './section-removal-undo';
 
 type Harness = ReturnType<typeof buildHarness>;
 
@@ -52,6 +53,44 @@ const transition = (harness: Harness, actor: ActorContext, receipt: OperationRec
   harness.operationHistoryService.transition(actor, receipt.historyId, { actionId: receipt.actionId, direction, expectedRevision });
 
 const historyOf = async (harness: Harness, receipt: OperationReceipt) => (await harness.operationHistories.find(receipt.historyId))!;
+
+/** Writes the persisted shape produced by Slice 30's reassign policy for legacy-history tests. */
+const legacyReassigned = async (harness: Harness) => {
+  const live = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Live' });
+  const filed = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Filed' });
+  await harness.taskService.archive(harness.actor, filed.id);
+  const filedBefore = (await harness.tasks.find(filed.id))!;
+  const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
+  const own = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Own', sectionId: target.id });
+  const source = (await harness.sections.find(live.sectionId))!;
+  const placement = snapshotPlacement(await listPlacements(harness, source.pageId), { kind: 'section', id: source.id });
+  const liveAfter = { ...live, sectionId: target.id };
+  const filedAfter = { ...filedBefore, sectionId: target.id };
+  const operation = captureSectionRemoval({
+    section: source,
+    placement,
+    settled: {
+      appliedPolicy: 'reassign',
+      reassignToSectionId: target.id,
+      rows: [rowChangeOf('tasks', live, liveAfter), rowChangeOf('tasks', filedBefore, filedAfter)],
+    },
+    disposition: 'deleted',
+    postSectionArchivedAt: SEED_NOW,
+    archiveGeneration: source.archiveGeneration + 1,
+  });
+  const receipt = await harness.store.runUnitOfWork(async () => {
+    await harness.tasks.update(liveAfter);
+    await harness.tasks.update(filedAfter);
+    await harness.sections.remove(source.id);
+    await renumberPlacements(harness, harness.clock, await listPlacements(harness, source.pageId));
+    return harness.historyRecorder.record(harness.actor, {
+      projectId: MINE,
+      label: 'Removed the Task List section',
+      operation,
+    });
+  });
+  return { live, filed, target, own, operation: receipt };
+};
 
 describe('OperationHistoryService — the Stage A gate', () => {
   it('creates, removes and restores a project with its canonical page and captured Activity identity', async () => {
@@ -452,7 +491,7 @@ describe('OperationHistoryService — every family in both directions', () => {
     const harness = buildHarness();
     const parent = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Parent' });
     const child = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Child', parentTaskId: parent.id });
-    const removed = await harness.sectionWriteService.remove(harness.actor, parent.sectionId, { policy: 'cascade' });
+    const removed = await harness.sectionWriteService.remove(harness.actor, parent.sectionId);
     const archived = structuredClone(harness.store.snapshot());
     harness.clock.setNow(new Date(LATER));
 
@@ -476,7 +515,7 @@ describe('OperationHistoryService — every family in both directions', () => {
     const filed = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Filed' });
     await harness.taskService.archive(harness.actor, filed.id);
     const filedBefore = await harness.tasks.find(filed.id);
-    const removed = await harness.sectionWriteService.remove(harness.actor, live.sectionId, { policy: 'cascade' });
+    const removed = await harness.sectionWriteService.remove(harness.actor, live.sectionId);
 
     await harness.undo(harness.actor, removed.operation);
     expect(await harness.tasks.find(filed.id)).toEqual(filedBefore);
@@ -509,7 +548,7 @@ describe('OperationHistoryService — every family in both directions', () => {
     const harness = buildHarness();
     const list = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'task-list', title: 'List' });
     const live = await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: list.section.id, title: 'Live' });
-    const removed = await harness.sectionWriteService.remove(harness.actor, list.section.id, { policy: 'cascade' });
+    const removed = await harness.sectionWriteService.remove(harness.actor, list.section.id);
     await harness.undo(harness.actor, removed.operation);
     const later = await harness.taskService.create(someoneElsesRows, { projectId: MINE, sectionId: list.section.id, title: 'Later' });
     const before = state(harness);
@@ -788,7 +827,7 @@ describe('OperationHistoryService — removal Undo rows', () => {
     const filedChild = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Filed child', parentTaskId: filed.id });
     await harness.taskService.archive(harness.actor, filed.id);
     const filedBefore = [await harness.tasks.find(filed.id), await harness.tasks.find(filedChild.id)];
-    const { operation } = await harness.sectionService.remove(harness.actor, parent.sectionId, { policy: 'cascade' });
+    const { operation } = await harness.sectionService.remove(harness.actor, parent.sectionId);
 
     const result = await harness.undo(harness.actor, operation);
 
@@ -811,7 +850,7 @@ describe('OperationHistoryService — removal Undo rows', () => {
     const filed = await harness.reflectionService.create(harness.actor, { projectId: MINE, body: 'Old news' });
     await harness.reflectionService.archive(harness.actor, filed.id);
     const filedBefore = await harness.reflections.find(filed.id);
-    const { operation } = await harness.sectionService.remove(harness.actor, live.sectionId, { policy: 'cascade' });
+    const { operation } = await harness.sectionService.remove(harness.actor, live.sectionId);
 
     const result = await harness.undo(harness.actor, operation);
 
@@ -823,28 +862,33 @@ describe('OperationHistoryService — removal Undo rows', () => {
     expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
   });
 
-  it('reverses and reapplies a reassign after later title and status edits, preserving the edits', async () => {
+  it('reopens schema-v5 applied and undone reassign actions before Undo and Redo', async () => {
     const harness = buildHarness();
-    const live = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Live' });
-    const filed = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Filed' });
-    await harness.taskService.archive(harness.actor, filed.id);
-    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
-    const own = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Own', sectionId: target.id });
-    const source = live.sectionId;
-    const { operation } = await harness.sectionService.remove(harness.actor, source, { policy: 'reassign', reassignToSectionId: target.id });
-    await harness.taskService.update(someoneElsesRows, live.id, { title: 'Renamed', status: 'in_progress' });
+    const legacy = await legacyReassigned(harness);
+    expect(legacy.operation).toBeDefined();
 
-    const result = await harness.undo(harness.actor, operation);
+    const appliedV5 = PrototypeDocumentSchema.parse(harness.store.snapshot());
+    expect(appliedV5.schemaVersion).toBe(5);
+    const reopenedApplied = buildHarness(appliedV5, { ids: new PrototypeIdGenerator() });
+    await reopenedApplied.taskService.update(someoneElsesRows, legacy.live.id, { title: 'Renamed', status: 'in_progress' });
+    const result = await reopenedApplied.undo(harness.actor, legacy.operation);
 
     expect(result).toMatchObject({ restoredRowCount: 2 });
-    expect(await harness.tasks.find(live.id)).toMatchObject({ sectionId: source, title: 'Renamed', status: 'in_progress' });
-    expect(await harness.tasks.find(filed.id)).toMatchObject({ sectionId: source, archivedAt: SEED_NOW });
-    expect((await harness.tasks.find(own.id))?.sectionId).toBe(target.id);
+    expect(await reopenedApplied.tasks.find(legacy.live.id)).toMatchObject({
+      sectionId: legacy.live.sectionId,
+      title: 'Renamed',
+      status: 'in_progress',
+    });
+    expect(await reopenedApplied.tasks.find(legacy.filed.id)).toMatchObject({ sectionId: legacy.live.sectionId, archivedAt: SEED_NOW });
+    expect((await reopenedApplied.tasks.find(legacy.own.id))?.sectionId).toBe(legacy.target.id);
 
-    await harness.redo(harness.actor, operation);
-    expect(await harness.tasks.find(live.id)).toMatchObject({ sectionId: target.id, title: 'Renamed' });
-    expect(await harness.tasks.find(filed.id)).toMatchObject({ sectionId: target.id, archivedAt: SEED_NOW });
-    expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
+    const undoneV5 = PrototypeDocumentSchema.parse(reopenedApplied.store.snapshot());
+    expect(undoneV5.schemaVersion).toBe(5);
+    const reopenedUndone = buildHarness(undoneV5, { ids: new PrototypeIdGenerator() });
+    await reopenedUndone.redo(harness.actor, legacy.operation);
+    expect(await reopenedUndone.tasks.find(legacy.live.id)).toMatchObject({ sectionId: legacy.target.id, title: 'Renamed' });
+    expect(await reopenedUndone.tasks.find(legacy.filed.id)).toMatchObject({ sectionId: legacy.target.id, archivedAt: SEED_NOW });
+    expect(() => new InMemoryDataStore(reopenedUndone.store.snapshot())).not.toThrow();
   });
 });
 
@@ -942,19 +986,9 @@ describe('OperationHistoryService — conflicts and retirement', () => {
     expect((await harness.sections.find(progress.id))?.title).toBe('Replacement');
   });
 
-  /** A live row and an archived one reassigned from their list to another. */
-  const reassigned = async (harness: Harness) => {
-    const live = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Live' });
-    const filed = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Filed' });
-    await harness.taskService.archive(harness.actor, filed.id);
-    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
-    const { operation } = await harness.sectionService.remove(harness.actor, live.sectionId, { policy: 'reassign', reassignToSectionId: target.id });
-    return { live, filed, target, operation };
-  };
-
   it('refuses when a reassigned row has since moved', async () => {
     const harness = buildHarness();
-    const { live, operation } = await reassigned(harness);
+    const { live, operation } = await legacyReassigned(harness);
     const other = await harness.sectionService.add(someoneElse, MINE, { type: 'task-list' });
     await harness.taskService.update(someoneElsesRows, live.id, { sectionId: other.id });
 
@@ -963,7 +997,7 @@ describe('OperationHistoryService — conflicts and retirement', () => {
 
   it('refuses when a reassigned row has since been archived', async () => {
     const harness = buildHarness();
-    const { live, operation } = await reassigned(harness);
+    const { live, operation } = await legacyReassigned(harness);
     await harness.taskService.archive(someoneElsesRows, live.id);
 
     await expectConflict(harness, operation, [{
@@ -973,7 +1007,7 @@ describe('OperationHistoryService — conflicts and retirement', () => {
 
   it('refuses when a subtask was created under a moved parent', async () => {
     const harness = buildHarness();
-    const { live, operation } = await reassigned(harness);
+    const { live, operation } = await legacyReassigned(harness);
     const subtask = await harness.taskService.create(someoneElsesRows, { projectId: MINE, title: 'Sub', parentTaskId: live.id });
 
     await expectConflict(harness, operation, [{
@@ -983,7 +1017,7 @@ describe('OperationHistoryService — conflicts and retirement', () => {
 
   it('refuses when a reassigned row was reparented, listing every problem at once', async () => {
     const harness = buildHarness();
-    const { live, filed, target, operation } = await reassigned(harness);
+    const { live, filed, target, operation } = await legacyReassigned(harness);
     const sibling = await harness.taskService.create(someoneElsesRows, { projectId: MINE, title: 'Sibling', sectionId: target.id });
     await harness.taskService.update(someoneElsesRows, live.id, { parentTaskId: sibling.id });
     await harness.taskService.restore(someoneElsesRows, filed.id);
@@ -1328,7 +1362,7 @@ describe('OperationHistoryService — revision, order, expiry and atomicity', ()
   it('an injected persist failure rolls back content, history, cursor and activity', async () => {
     const harness = buildHarness();
     const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Row' });
-    const { operation } = await harness.sectionService.remove(harness.actor, task.sectionId, { policy: 'cascade' });
+    const { operation } = await harness.sectionService.remove(harness.actor, task.sectionId);
     const before = state(harness);
     harness.store.persistFailure = new Error('disk full');
 
@@ -1402,7 +1436,7 @@ describe('OperationHistoryService — revision, order, expiry and atomicity', ()
       (await harness.tasks.find(task.task.id))?.archivedWithSectionId ?? null,
     ];
 
-    const removed = (await harness.sectionWriteService.remove(harness.actor, added.section.id, { policy: 'cascade' })).operation;
+    const removed = (await harness.sectionWriteService.remove(harness.actor, added.section.id)).operation;
     const archived = await markers();
     expect(archived[0]).not.toBeNull();
 

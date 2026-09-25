@@ -29,7 +29,6 @@ import { nameOf } from '@cwm/contracts';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { ProjectPageStore, type ProjectCanvasPlacement } from './project-page-store';
 import { SectionCreateDialog } from './section-create-dialog';
-import { SectionRemovalDialog } from './section-removal-dialog';
 import { SectionRecoveryNotice } from './section-recovery-notice';
 import { CanvasIcon } from './canvas-chrome/canvas-icon';
 import { gridInsertionGaps } from './canvas-chrome/grid-insertion-gaps';
@@ -62,7 +61,6 @@ interface GridInsertionTarget {
     InsertionPoint,
     ProjectSectionFrame,
     SectionCreateDialog,
-    SectionRemovalDialog,
     SectionRecoveryNotice,
     SectionResizeHandle,
     ShortcutFrame,
@@ -338,31 +336,14 @@ export class ProjectCanvas {
     void this.store.removeShortcut(id);
   }
 
-  cascadeAndRemove(id: SectionId): void {
-    void this.removeSectionFromCanvas(id, { policy: 'cascade' });
-  }
-
-  reassignAndRemove(id: SectionId, reassignToSectionId: SectionId): void {
-    void this.removeSectionFromCanvas(id, { policy: 'reassign', reassignToSectionId });
-  }
-
-  async removeSectionFromCanvas(id: SectionId, input: Parameters<ProjectPageStore['removeSection']>[1] = {}): Promise<boolean> {
+  async removeSectionFromCanvas(id: SectionId): Promise<boolean> {
     const projectId = this.projectId();
     const pageId = this.pageId();
     this.pendingRemovalFocus = null;
     const focusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusStartedInRemoval = this.focusIsInSectionOrDialog(id) || this.focusIsInRecoveryNotice();
-    const removed = await this.store.removeSection(id, input);
+    const focusStartedInRemoval = this.focusIsInSection(id) || this.focusIsInRecoveryNotice();
+    const removed = await this.store.removeSection(id);
     if (this.projectId() !== projectId || this.pageId() !== pageId) return removed;
-
-    const prompt = this.store.removalPrompt();
-    if (prompt?.sectionId === id && focusStartedInRemoval) {
-      afterNextRender(() => {
-        if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.removalPrompt() !== prompt) return;
-        this.host.nativeElement.querySelector<HTMLButtonElement>('[data-section-removal-cancel]')?.focus();
-      }, { injector: this.injector });
-      return removed;
-    }
 
     if (!removed) return false;
     // The section that held focus is gone. Undo is in the header (Slice 41); here focus goes to the
@@ -438,32 +419,33 @@ export class ProjectCanvas {
     this.onOpenArchive()();
   }
 
-  cancelRemovalPrompt(id: SectionId): void {
+  retryFailedRemoval(): void {
+    const failed = this.store.failedRemoval();
+    if (failed !== null) void this.removeSectionFromCanvas(failed.sectionId);
+  }
+
+  async retryRefresh(): Promise<void> {
     const projectId = this.projectId();
     const pageId = this.pageId();
-    this.store.dismissRemovalPrompt();
+    const retry = this.host.nativeElement.querySelector<HTMLElement>('[data-retry-refresh]');
+    const focusedRetry = document.activeElement === retry;
+    const refreshed = await this.store.retryRefresh();
+    if (!refreshed || !focusedRetry || this.projectId() !== projectId || this.pageId() !== pageId) return;
     afterNextRender(() => {
-      if (this.projectId() !== projectId || this.pageId() !== pageId) return;
-      const frame = this.findSectionElement(id);
-      const removeButton = frame?.querySelector<HTMLElement>('[data-section-remove], [data-unknown-section-remove]');
-      (removeButton ?? frame?.querySelector<HTMLElement>('[data-section-title]'))?.focus();
+      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.recoveryNotice()?.refreshFailed) return;
+      const active = document.activeElement;
+      if (active !== null && active !== document.body && active !== retry) return;
+      const target = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]') ??
+        this.host.nativeElement.querySelector<HTMLElement>('[data-dismiss-recovery-notice]') ??
+        this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]') ??
+        this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]');
+      target?.focus();
     }, { injector: this.injector });
   }
 
-  retryFailedRemoval(): void {
-    const failed = this.store.failedRemoval();
-    if (failed !== null) void this.removeSectionFromCanvas(failed.sectionId, failed.input);
-  }
-
-  retryRefresh(): void {
-    void this.store.retryRefresh();
-  }
-
-  private focusIsInSectionOrDialog(id: SectionId): boolean {
+  private focusIsInSection(id: SectionId): boolean {
     const active = document.activeElement;
-    if (!(active instanceof HTMLElement)) return false;
-    if (this.findSectionElement(id)?.contains(active)) return true;
-    return this.store.removalPrompt()?.sectionId === id && active.closest('[data-section-removal-dialog]') !== null;
+    return active instanceof HTMLElement && this.findSectionElement(id)?.contains(active) === true;
   }
 
   private focusIsInRecoveryNotice(): boolean {

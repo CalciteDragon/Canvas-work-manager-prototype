@@ -33,7 +33,6 @@ flowchart TB
     ra["RecentActivitySection → ActivityStore (activity)"]
   end
   sc["ShortcutFrame (read-only source) · ShortcutPicker · ShortcutStore"]
-  dialog["SectionRemovalDialog"]
   notice["SectionRecoveryNotice<br/>Archive when listed, Retry remove, Retry refresh — no Undo"]
   create["SectionCreateDialog · InsertionPoint · SectionResizeHandle"]
   shell --> wstore
@@ -53,7 +52,6 @@ flowchart TB
   refl --> rstore
   canvas --> frame --> sreg --> sections
   canvas --> sc
-  canvas --> dialog
   canvas --> notice
   canvas --> create
 ```
@@ -92,13 +90,12 @@ sequenceDiagram
 | `historyControl`, `transitionResultFeedback`, `transitionRefusalFeedback`, `crossOwnerFeedback`, `archivedHereFeedback`, `nextStepCopy` | `history/history-feedback.ts` | Every sentence the controls say, exhaustive over the contract unions |
 | `PROJECT_PAGE_REGISTRY`, `ProjectPageDefinition` | `project-page-registry.ts` | Navigable kinds → renderer and label |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | `project-page-contract.ts` | What every renderer receives |
-| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, explicit edit receipts, removal dialog and arrival at `#section-<id>` |
-| `ProjectPageStore`, `CanvasWriteResult`, `SectionRemovalPrompt`, `SectionRecoveryNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation, typed refusal, write reporting and the recovery-notice state |
-| `SectionRemovalDialog` | `section-removal-dialog.ts` | Cascade or reassign, containers by name |
+| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, explicit edit receipts, one-gesture cascade removal and arrival at `#section-<id>` |
+| `ProjectPageStore`, `CanvasWriteResult`, `SectionRecoveryNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation, ID-only removal/retry, write reporting and recovery-notice state |
 | `SectionRecoveryNotice` | `section-recovery-notice.ts` | Archive for a removal the server listed there, explicit retry after an uncertain removal, read-only refresh retry; no Undo |
 | `SectionCreateDialog` | `section-create-dialog.ts` | Section or Home shortcut creation at the selected canvas position |
 | `CanvasIcon`, `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor` | `canvas-chrome/` | Shared SVG canvas controls, insertion overlays, snapped resize, sparse-grid gap targets and grip move keys |
-| `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with inline completion and canonical links |
+| `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with its own task row, inline completion and Delete writes, and canonical links |
 | `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's root-wide content projection, recovery copy and restores |
 | `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal; the explicit Add container and reflection writes report to the header's history |
 | `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29 |

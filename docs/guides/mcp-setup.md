@@ -258,8 +258,8 @@ cause, and the current blocker or canonical restore operation. It remains querya
 Archive page is disabled and does not create the page.
 
 Since Slice 29 section entries are **content-only**: removed Progress, Timeline, Recent Activity
-and Sub-Projects views, blank Notes (including one created with no `config`, which stores `{}`)
-and containers emptied by reassignment are retained in storage but not listed. Each listed section
+and Sub-Projects views, blank Notes (including one created with no `config`, which stores `{}`),
+and empty containers after their tasks are moved through `update_task` are not listed. Each listed section
 carries `recovery` — `owned-content` (with `ownedData`; `contentCount`, every row still in the
 container; and `separateRestoreCount`, the row restores still needed after the section's own),
 `config` (Notes prose) or `unknown` (a type or config the prototype cannot read as empty) — beside
@@ -306,12 +306,17 @@ Only the newest applied action can be undone and only the most recently undone o
 undo several changes in order. Any new undoable write in the project discards what was waiting to
 be redone. An action is available for 24 hours; each history keeps its newest 50.
 
-`remove_section` (`projects.write`) returns `{ section, operation, archiveListed }`: an
-archived-shaped final section snapshot and the receipt. A disposable section may already be absent
-from storage; the response snapshot is not evidence it remains there. Undo returns the section
-between the neighbours it left (Archive Restore appends instead), with exactly the rows the removal
-archived or moved, while later non-structural edits such as renamed tasks are kept; Redo re-removes
-exactly those rows again, and refuses rather than sweep in a task added since.
+`remove_section` (`projects.write`) takes only `{ sectionId }` and returns
+`{ section, operation, archiveListed }`: an archived-shaped final section snapshot and the receipt.
+There is no removal-time policy or destination input; old `policy` and `reassignToSectionId`
+arguments are refused. One request archives every live task or reflection owned by that section
+with it. Independently archived rows keep their existing markers and recovery steps. A disposable
+section may already be absent from storage; the response snapshot is not evidence it remains there.
+Undo returns the section between the neighbours it left (Archive Restore appends instead), with
+exactly the rows this removal cascaded, while later non-structural edits such as renamed tasks are
+kept; Redo re-cascades exactly those rows and refuses rather than sweep in a task added since.
+Previously stored version-1 reassign actions remain readable and executable; new task moves use
+`update_task` and their own Undo/Redo receipts.
 
 If the remove response was lost, repeating `remove_section` for the same id is still a refusal.
 While that removal is still your connection's applied, unexpired action, `section_already_removed:`

@@ -89,6 +89,9 @@ from receipts and returned summaries. Four families naming one grant is why the 
 `remove_section` returns `SectionRemovalResult`: a final archived-shaped section snapshot, an
 operation receipt `undo_operation` accepts, and `archiveListed`. Disposable views and empty
 sections may be deleted; the result snapshot does not claim that the section is still stored.
+Its only input is `{ sectionId }`; it archives each live owned task or reflection with the section
+and leaves independently archived rows untouched. Policy and target fields are rejected. The
+stored history schema and executor still support reassign actions recorded before this input change.
 `archiveListed` is true only when `get_project_archive` will list the section, which is false for
 a deleted one and also for one kept solely because a shortcut or an archived row still names it. If the response is
 lost, repeating `remove_section` for that id on the same connection returns a refusal naming the

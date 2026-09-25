@@ -125,3 +125,6 @@ excluded section. Tasks and reflections (including archived rows) and shortcut s
 referenced section alive. These retained shortcut tombstones remain absent from Archive, and no
 old tombstones are purged. The content projection and existing Archive Restore behavior are
 unchanged.
+
+
+**Amended, 2026-09-24 (Slice 43).** Archive eligibility remains based on rows and content actually left in the owner section. New removal archives every live owned row with the section, preserving independently archived rows and markers; it no longer reassigns rows. An empty container after an independent task move is not recoverable and can be deleted when no canonical reference remains. Stored reassign actions remain a history-compatibility case only.

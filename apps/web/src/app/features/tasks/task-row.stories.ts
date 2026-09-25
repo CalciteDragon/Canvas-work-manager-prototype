@@ -61,11 +61,11 @@ export const HighPriority: Story = {
 
 export const Selected: Story = { args: { selected: true } };
 
-/** §34's per-row archive, in the state a live row shows it: available, not in flight. */
-export const Archivable: Story = { args: { task: task({ title: 'Retire the old checklist' }) } };
+/** §34's reversible Delete, available on a live row. */
+export const Deletable: Story = { args: { task: task({ title: 'Retire the old checklist' }) } };
 
 /** The same control while the request is out — the row it belongs to has not gone yet. */
-export const Archiving: Story = {
+export const Deleting: Story = {
   args: { task: task({ title: 'Retire the old checklist' }), archiving: true },
 };
 

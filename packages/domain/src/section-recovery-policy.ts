@@ -27,7 +27,7 @@ const UNKNOWN: SectionRecoveryDecision = { include: true, recovery: { kind: 'unk
  * The contracts capability says what a type *could* hold; this reads the current state: a
  * container is content while any row is still assigned to it (archived rows included, since
  * the section is the dependency their own Restore needs), and rich text is content while its
- * prose trims to something. It evaluates state after removal or reassignment, never intent.
+ * prose trims to something. It evaluates state after removal settlement, never intent.
  *
  * Uncertainty is kept, not dropped: an unregistered type, or rich-text config with a non-string
  * `text` or any other key, is `unknown`. An empty rich-text config (`{}`) holds nothing and is

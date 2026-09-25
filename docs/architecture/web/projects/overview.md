@@ -33,13 +33,14 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
   placed beside the sidebar by one `:has()` rule.
 - `ProjectCanvas` + `ProjectPageStore`: one page's sections and shortcut placements in
   flow or grid, direct drag, contextual insertion, snapped resizing, inline naming and
-  removal, plus canonical navigation to `#section-<id>`. Every canvas write reports its
-  receipt to the header's history; the canvas holds no receipt.
+  one-gesture removal (live rows cascade with their owner), plus canonical navigation to
+  `#section-<id>`. Every canvas write reports its receipt to the header's history; the canvas
+  holds no receipt.
 - `SECTION_REGISTRY` and the section types: Rich Text, Task List, Sub-Projects,
   Progress, Reflections, Timeline, Recent Activity — each its own folder inside
   `ProjectSectionFrame`.
 - The three root pages: `TodosPage`, `ArchivePage`, `ReflectionsPage`, each with its
-  store over the matching derived read.
+  store over the matching derived read. Todos owns its own task rows and Delete writes.
 - Home shortcuts: `ShortcutFrame` (read-only source content), `ShortcutPicker`,
   `ShortcutStore`.
 - `SectionRecoveryNotice`: the canvas's recovery the header cannot offer — Open Archive after a
@@ -49,8 +50,9 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
 
 ## Not responsible for
 
-- Task rows and the task detail drawer — [tasks](../tasks/overview.md), reused by the
-  Task List section and the Todos page.
+- Task rows and the task detail drawer — [tasks](../tasks/overview.md), used by the Task List
+  section. Todos renders its own rows and store because it has a different projection and write
+  lifecycle.
 - The activity feed component — `features/activity`, reused by the Recent Activity
   section.
 - Rules: which page accepts which section, where a write lands, what removal does —

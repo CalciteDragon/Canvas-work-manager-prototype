@@ -16,6 +16,22 @@ export const isTodoFinished = (item: ProjectTodoItem): boolean =>
     ? item.task.status === 'done' || item.task.status === 'cancelled'
     : item.project.status === 'completed' || item.project.status === 'archived';
 
+/** The live task ids a parent-first archive removes from the chronology. */
+const taskSubtreeIds = (items: readonly ProjectTodoItem[], rootId: string): Set<string> => {
+  const ids = new Set([rootId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const item of items) {
+      if (item.kind !== 'task' || item.task.parentTaskId === undefined || !ids.has(item.task.parentTaskId)) continue;
+      if (ids.has(item.task.id)) continue;
+      ids.add(item.task.id);
+      changed = true;
+    }
+  }
+  return ids;
+};
+
 /**
  * §34's Todos page, as one store: **the chronology of one root, and the completion of a row in
  * it** (§20 — feature-scoped, provided by the page component alone).
@@ -50,6 +66,7 @@ export class TodosPageStore {
   private readonly refreshErrorState = signal<string | null>(null);
   private readonly writeErrorState = signal<string | null>(null);
   private readonly completingState = signal<string | null>(null);
+  private readonly deletingState = signal<string | null>(null);
 
   private generation = 0;
   private requestedProjectId: ProjectId | undefined;
@@ -74,6 +91,8 @@ export class TodosPageStore {
   readonly writeError = this.writeErrorState.asReadonly();
   /** The row whose completion is in flight. Non-null freezes every row's control. */
   readonly completing = this.completingState.asReadonly();
+  /** The task whose reversible Delete is in flight. */
+  readonly deleting = this.deletingState.asReadonly();
 
   constructor() {
     const unsubscribe = inject(LIVE_UPDATES).subscribe(
@@ -99,6 +118,7 @@ export class TodosPageStore {
     this.refreshErrorState.set(null);
     this.writeErrorState.set(null);
     this.completingState.set(null);
+    this.deletingState.set(null);
     this.readQueued = false;
     this.writing = false;
     return this.read(generation, projectId, { quiet: false });
@@ -125,7 +145,7 @@ export class TodosPageStore {
     if (projectId === undefined) return false;
     // Serialized, deliberately: a bounded first implementation (§71). A second click on the
     // same row, and a click on another row, are both refused while one write is in flight.
-    if (this.completingState() !== null || isTodoFinished(item)) return false;
+    if (this.completingState() !== null || this.deletingState() !== null || isTodoFinished(item)) return false;
 
     const generation = this.generation;
     const id = todoIdOf(item);
@@ -174,11 +194,60 @@ export class TodosPageStore {
       this.writeErrorState.set(messageOf(error));
       return false;
     } finally {
-      this.writing = false;
       if (current()) {
+        this.writing = false;
         this.completingState.set(null);
         // Whatever arrived while the write was in flight — including the write's own §62 echo —
         // is read now, once, against the settled row.
+        if (this.readQueued) {
+          this.readQueued = false;
+          void this.refresh();
+        }
+      }
+    }
+  }
+
+  /**
+   * Reversible Delete for a task shown in Todos. The row remains an archive operation at the
+   * gateway, so the response receipt is reported to the task's own project history. The page
+   * removes the task and its descendants optimistically, then restores its exact snapshot if
+   * the write fails.
+   */
+  async delete(item: ProjectTodoItem): Promise<boolean> {
+    const projectId = this.requestedProjectId;
+    if (projectId === undefined || item.kind !== 'task') return false;
+    // Complete and Delete share one write slot across all rows on this bounded prototype page.
+    if (this.completingState() !== null || this.deletingState() !== null) return false;
+
+    const generation = this.generation;
+    const id = item.task.id;
+    const current = () => this.current(generation, projectId);
+    const before = this.itemsState();
+    const removedIds = taskSubtreeIds(before, id);
+
+    this.writeErrorState.set(null);
+    this.deletingState.set(id);
+    this.writing = true;
+    this.writeEpoch += 1;
+    this.itemsState.set(before.filter((candidate) => candidate.kind !== 'task' || !removedIds.has(candidate.task.id)));
+
+    try {
+      await this.track(() => reportedWrite(
+        this.reporter,
+        () => this.gateway.tasks.archive(id),
+        ({ task, operation }) => ({ projectId: task.projectId, receipt: operation }),
+      ));
+      if (!current()) return false;
+      return true;
+    } catch (error) {
+      if (!current()) return false;
+      this.itemsState.set(before);
+      this.writeErrorState.set(messageOf(error));
+      return false;
+    } finally {
+      if (current()) {
+        this.writing = false;
+        this.deletingState.set(null);
         if (this.readQueued) {
           this.readQueued = false;
           void this.refresh();

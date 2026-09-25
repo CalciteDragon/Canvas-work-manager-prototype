@@ -1,6 +1,6 @@
 // A status beside the canvas, never above it: a removal or a failed refresh can offer recovery, and
 // a notice in flow would push the canvas down under the pointer. Below the
-// dialogs (z-index 20) so a create or removal dialog still covers it.
+// dialogs (z-index 20) so a create dialog still covers it.
 :host {
   position: fixed;
   z-index: 10;

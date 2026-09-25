@@ -50,6 +50,33 @@
   align-self: flex-start;
 }
 
+.todos__delete {
+  display: grid;
+  place-items: center;
+  min-inline-size: var(--size-hit-target);
+  min-block-size: var(--size-hit-target);
+  border: 0;
+  padding: var(--space-1);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.todos__delete-icon {
+  inline-size: var(--size-icon-sm);
+  block-size: var(--size-icon-sm);
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.todos__delete:disabled {
+  cursor: progress;
+  opacity: 0.5;
+}
+
 .todos__list {
   display: flex;
   flex-direction: column;

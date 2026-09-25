@@ -150,22 +150,11 @@ export const normaliseSectionTitle = (title: string | null | undefined): string 
 
 /**
  * **A section's name, for every surface that has to say one.** Its normalised override, else
- * the derived default. The frame, the removal dialog, the domain's activity summary and the
- * Notes aria-label each had their own answer and the four disagreed; this is the one.
+ * the derived default. The frame, the removal recovery notice, the domain's activity summary
+ * and the Notes aria-label each had their own answer and the four disagreed; this is the one.
  */
 export const nameOf = (section: Pick<ProjectSection, 'type' | 'title'>): string =>
   normaliseSectionTitle(section.title) ?? displayNameOf(section.type);
-
-/**
- * The only 409 the canvas may turn into a removal-policy question. Positive and
- * discriminated on purpose: a refusal that carries no count, or a different reason, is not
- * safely identifiable as the question the dialog can answer, so it stays an ordinary error.
- */
-export const SectionRemovalRefusalDetailsSchema = z.object({
-  reason: z.literal('section_not_empty'),
-  liveRowCount: z.number().int().positive(),
-});
-export type SectionRemovalRefusalDetails = z.infer<typeof SectionRemovalRefusalDetailsSchema>;
 
 export const ProjectSectionSchema = z.object({
   id: SectionIdSchema,

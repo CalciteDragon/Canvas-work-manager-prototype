@@ -83,7 +83,7 @@ describe('TaskListSection (§30, §66)', () => {
     expect(query(fixture, '[data-quick-create]')).toBeNull();
     expect(query(fixture, '[data-task-complete]')).toBeNull();
     expect(query(fixture, '[data-task-details]')).toBeNull();
-    expect(query(fixture, '[data-task-archive]')).toBeNull();
+    expect(query(fixture, '[data-task-delete]')).toBeNull();
     expect(query(fixture, '[data-task-title-editor]')).toBeNull();
     expect(query(fixture, '#task-list-section-tasks')).toBeNull();
 
@@ -128,17 +128,21 @@ describe('TaskListSection (§30, §66)', () => {
     const { fixture, store, gateway } = await render();
     const archive = vi.spyOn(store, 'archive');
 
-    query(fixture, '[data-task-archive]')!.click();
+    const firstDelete = query(fixture, '[data-task-delete]') as HTMLButtonElement;
+    firstDelete.focus();
+    firstDelete.click();
     await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(archive).toHaveBeenCalledWith('task-1');
     expect(gateway.argumentTo('tasks.archive')).toBe('task-1');
+    expect(document.activeElement).toBe(query(fixture, '[data-task-row] [data-task-delete]'));
   });
 
   it('tells the page a successful archive happened, so projections can refresh', async () => {
     const { fixture, onProjectDataChange } = await render();
 
-    query(fixture, '[data-task-archive]')!.click();
+    query(fixture, '[data-task-delete]')!.click();
     await fixture.whenStable();
 
     expect(onProjectDataChange).toHaveBeenCalled();
@@ -152,7 +156,7 @@ describe('TaskListSection (§30, §66)', () => {
       }),
     );
 
-    query(fixture, '[data-task-archive]')!.click();
+    query(fixture, '[data-task-delete]')!.click();
     await fixture.whenStable();
 
     expect(onProjectDataChange).not.toHaveBeenCalled();
@@ -165,13 +169,13 @@ describe('TaskListSection (§30, §66)', () => {
     gateway.tasks.archive = () => new Promise((resolve) => (settle = () => resolve({ task: task('task-1'), operation: null })));
     const { fixture, store } = await render(gateway);
 
-    query(fixture, '[data-task-archive]')!.click();
+    query(fixture, '[data-task-delete]')!.click();
     fixture.detectChanges();
 
     // The row cannot paint the outcome itself, so the only honest feedback it can give while
     // the write is out is to refuse a second one.
     expect(store.archivingIds().has('task-1' as TaskId)).toBe(true);
-    expect((query(fixture, '[data-task-archive]') as HTMLButtonElement).disabled).toBe(true);
+    expect((query(fixture, '[data-task-delete]') as HTMLButtonElement).disabled).toBe(true);
 
     settle();
     await fixture.whenStable();
@@ -194,7 +198,7 @@ describe('TaskListSection — the per-row Archive control (§34)', () => {
     const { fixture, store } = await render();
     const archive = vi.spyOn(store, 'archive');
 
-    query(fixture, '[data-task-archive]')!.click();
+    query(fixture, '[data-task-delete]')!.click();
     await fixture.whenStable();
 
     expect(archive).toHaveBeenCalledWith('task-1');
@@ -205,7 +209,7 @@ describe('TaskListSection — the per-row Archive control (§34)', () => {
     // projections without coupling this section to the root Archive store.
     const { fixture, onProjectDataChange } = await render();
 
-    query(fixture, '[data-task-archive]')!.click();
+    query(fixture, '[data-task-delete]')!.click();
     await fixture.whenStable();
 
     expect(onProjectDataChange).toHaveBeenCalled();
@@ -219,7 +223,7 @@ describe('TaskListSection — the per-row Archive control (§34)', () => {
       }),
     );
 
-    query(fixture, '[data-task-archive]')!.click();
+    query(fixture, '[data-task-delete]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -228,7 +232,7 @@ describe('TaskListSection — the per-row Archive control (§34)', () => {
     expect(query(fixture, '[data-tasks-error]')?.textContent).toContain('nope');
   });
 
-  it('disables only the row whose archive is in flight', async () => {
+  it('disables only the row whose Delete archive is in flight', async () => {
     // Driven through a real pending write rather than a stubbed signal: the disabled state
     // has to survive the store's own change propagation, which is the part that can break.
     let release!: () => void;
@@ -238,12 +242,12 @@ describe('TaskListSection — the per-row Archive control (§34)', () => {
       .mockReturnValue(new Promise((resolve) => (release = () => resolve({ task: task('task-1'), operation: null }))));
     const { fixture } = await render(gateway);
 
-    query(fixture, '[data-task-archive]')!.click();
+    query(fixture, '[data-task-delete]')!.click();
     fixture.detectChanges();
 
-    const controls = [...fixture.nativeElement.querySelectorAll('[data-task-archive]')] as HTMLButtonElement[];
+    const controls = [...fixture.nativeElement.querySelectorAll('[data-task-delete]')] as HTMLButtonElement[];
     expect(controls.map((control) => control.disabled)).toEqual([true, false]);
-    expect(controls[0]!.textContent).toContain('Archiving');
+    expect(controls[0]!.getAttribute('aria-label')).toBe('Delete task ' + task('task-1').title);
 
     release();
     await fixture.whenStable();

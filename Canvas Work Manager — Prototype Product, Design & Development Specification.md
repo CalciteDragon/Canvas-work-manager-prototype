@@ -365,7 +365,7 @@ interface WorkManagerGateway {
 
 ```ts
 interface SectionGateway {
-  remove(id: SectionId, input?: RemoveSectionInput): Promise<SectionRemovalResult>;
+  remove(id: SectionId): Promise<SectionRemovalResult>;
 }
 
 interface OperationHistoryGateway {
@@ -1386,7 +1386,7 @@ write already uses on its own behalf, and acquires no `projects.read`.*
 *The disabled-page rule needed one more sentence than it has above, because §27 also says a
 source on a disabled page is still a valid source. The two are about different verbs: **placing**
 new content on a disabled page is refused — adding or duplicating a section there, creating or
-moving a row into a container there, reassigning rows there — while everything already there
+moving a row into a container there — while everything already there
 stays readable, editable, reorderable, removable and restorable. Undo is never behind a toggle
 ([why](docs/decisions/2026-09-a-disabled-page-hides-navigation-not-data.md)).*
 
@@ -1635,8 +1635,10 @@ rename keeps the entered text available to correct or retry
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
 **Remove preserves what the person can lose and deletes only an unreferenced disposable.**
-The domain first settles any row policy: a container with live rows asks whether to archive
-them with the section or move them to a same-type container. It then retains the section when
+One remove gesture archives every live task or reflection still owned by the container with the
+section; removal has no policy or destination input. Tasks can still move through their own
+ordinary update. Independently archived rows are not changed by removal, so their own Archive
+markers and restore steps remain intact. The domain then retains the section when
 recoverable or uncertain content remains, or when any canonical task, reflection or Home
 shortcut still references it. Otherwise it deletes the section: known disposable views,
 empty containers and whitespace-only Rich Text do not need permanent tombstones. Archived
@@ -1687,12 +1689,12 @@ is offered.
 *Landed in Slice 27.* The secondary navigation column has no Open archive button; the project's
 More menu is the single recovery entry point from root and nested work routes.
 
-*Landed in Slice 29: Archive lists **recoverable content**, not every section tombstone.* A
+*Landed in Slice 29, amended in Slice 43: Archive lists **recoverable content**, not every section tombstone.* A
 removed or hidden section is listed only when something in it remains to recover: a Task List
 or Reflections container with any rows still assigned to it (archived rows included), Rich Text
 whose only config is prose that trims to something (an empty config holds nothing), or a type or config the domain cannot read as
 empty (listed conservatively as unknown content). Removed Progress, Timeline, Recent Activity and
-Sub-Projects views — and a container emptied by reassignment, or blank prose — are deleted
+Sub-Projects views — and a container with no remaining rows, or blank prose — are deleted
 when no canonical row or shortcut references them. Historical tombstones remain unlisted;
 shortcut-backed disposable sections keep an internal tombstone, leaving Home's source
 unavailable placeholder intact. Archived sub-projects, tasks and reflections are
@@ -1700,10 +1702,9 @@ listed exactly as before. Each section entry carries the domain's recovery metad
 rows still in the container, apart from the exact count that restores with it and the number of
 row restores still needed afterwards (a subtask archived with its parent comes back with it). A container
 holding only independently archived rows stays listed on purpose — it is the first step of their
-recovery: restore the section, then restore those rows individually. Supplying `reassign` does
-not change this branch: no rows move unless at least one live row makes settlement necessary.
-When live rows do require reassignment, all rows assigned to the source, including independently
-archived subtrees, move together. A live container beneath an
+recovery: restore the section, then restore those rows individually. Removal changes only live
+rows, marking each with its owner's section id so Undo, Redo and Archive Restore recover the exact
+cascade. A live container beneath an
 archived project needs only that project's reactivation. Restore itself is unchanged: it appends
 to the page's current combined order, revives exactly its cascade, and a retry changes nothing
 ([why](docs/decisions/2026-09-content-oriented-archive-policy.md)).
@@ -1713,8 +1714,9 @@ from Archive Restore.* Every supported section, task and reflection write record
 into the actor's **operation history** for the owning project, in the same unit of work, and returns
 a receipt with its final entity. Undo puts a removed section back on its page
 **between the neighbours it left** — after the surviving previous section or shortcut, else before
-the next, else at its old index — with exactly the rows the removal archived or moved, keeping later
-edits such as a renamed task. Redo re-removes exactly what the removal removed, replaying its
+the next, else at its old index — with exactly the rows the removal archived, keeping later edits
+such as a renamed task. New removals cascade live owned rows; a stored version-1 reassign action
+still restores the rows it moved. Redo re-removes exactly what the removal removed, replaying its
 recorded state. The history is **bidirectional and per exact actor**: a person or agent connection
 steps only its own stack, only the next action in either direction, for 24 hours per action and 50
 actions per history. A transition requires the stored action family's one write grant —
@@ -1873,8 +1875,8 @@ the actor's actions, reversible from the same history — durability and reversi
 tension, because Restore still needs no receipt to invoke and still survives every expiry. The canvas's **Open Archive** action lets a
 person check saved content without promising that a deleted disposable view will appear there.
 Gating recovery behind Edit Layout Mode would hide it exactly when someone needs it — right
-after a removal they did not mean. The per-row archive control in §34 is likewise a row
-affordance rather than a layout one. The same reasoning carries to the project controls that
+after a removal they did not mean. The per-row **Delete** action in §34 is likewise a row
+affordance that uses the reversible archive operation, rather than a layout one. The same reasoning carries to the project controls that
 open the page even when its tab is disabled.
 
 Shortcut placements (§27) are layout. Adding and removing one uses the same contextual
@@ -1968,6 +1970,9 @@ subtask archived on its own beforehand stays archived. A subtask cannot be resto
 while its parent or its section is archived; restore the one that took it down instead.
 Archived rows are reached through §31's Archive page.
 
+The task-row action is labelled **Delete** in Task Lists and Todos. It uses this same reversible
+archive operation, including for finished tasks; there is no hard-delete task action.
+
 Prefer a side drawer over a modal for detailed task editing so workspace context remains visible.
 
 ## The Todos page
@@ -1994,7 +1999,8 @@ cancelled, since a task that was dropped is part of the week's record too, and a
 that erases what happened is a worse record than one that shows it. Archived entities, and
 anything beneath an archived ancestor, are excluded. Every row carries an origin breadcrumb
 and links to its canonical owner; completing one there and completing it here are the same
-operation on the same row.
+operation on the same row. A task row also offers **Delete**, including when finished; this archives
+the canonical task and removes it from the projection until it is restored.
 
 There is no drag ordering on Todos. The order is the chronology.
 
@@ -2737,6 +2743,11 @@ adds `get_project_journal` with the same three read grants: it aggregates live j
 from the root tree, resolves current linked-subject state (including an archived subject), and
 does not depend on the Reflections tab being enabled.*
 
+*Amended in Slice 43:* `remove_section` takes only `{ sectionId }` and archives every live task or
+reflection owned by that section in one operation. It rejects the retired `policy` and
+`reassignToSectionId` inputs. Previously stored version-1 reassign actions remain readable and
+executable by operation history; new task moves use `update_task` as their own reversible write.
+
 *Landed in Slices 30–32, amended in Slice 35: `create_section` and `remove_section` return
 `{ section, operation }` (removal adds `archiveListed`), while `move_section` and `update_section`
 return `{ section, operation }` with `operation: null` for a normalized no-op. The receipt names the
@@ -3081,6 +3092,8 @@ GET    /api/tasks
 POST   /api/tasks
 
 PATCH  /api/tasks/:id
+
+DELETE /api/sections/:id
 
 GET    /api/dashboard
 
@@ -3569,7 +3582,7 @@ permission checks
 Test important reusable interactions:
 
 ```text
-TaskRow completion
+TaskRow completion and Delete
 
 ProjectSection collapse
 
@@ -3651,8 +3664,8 @@ criterion is traced to a named assertion at the lowest layer that can observe it
 preconditions and pruning, commit-before-publish against the bytes on disk, converter and reopen
 over temp copies of the committed fixtures — and then joined through the browser (nested pointer
 move and resize Undo, an injected client failure with retry, an agent's overlapping edit, Archive
-Restore appending where Undo returns between neighbours) and both MCP transports (exact row ids
-through reassign and cascade, a foreign connection, a removed `projects.write` grant and a revoked
+Restore appending where Undo returns between neighbours) and both MCP transports (retired reassign
+inputs refused without writes, independent task update Undo/Redo, exact row ids through cascade, a foreign connection, a removed `projects.write` grant and a revoked
 connection, each refused without changing the file's business data). The shared seeds and their
 snapshots did not change.
 

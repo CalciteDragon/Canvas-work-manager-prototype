@@ -183,3 +183,6 @@ still carries its generation. See [scope](2026-09-operation-history-scope.md),
 [retention](2026-09-operation-history-retention.md),
 [retired actions](2026-09-operation-history-retired-actions.md) and
 [the version-4 conversion](2026-09-schema-version-4-conversion.md).
+
+
+**Amended, 2026-09-24 (Slice 43).** New removal actions capture only the live owned rows the one-step cascade archives (or no rows when none are live). The version-1 payload still accepts `appliedPolicy: 'reassign'` and its target for already persisted schema-v5 history; no data conversion or schema bump is needed. Ordinary moves are separate task updates with their own receipts.

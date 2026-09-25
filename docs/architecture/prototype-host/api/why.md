@@ -33,10 +33,11 @@ alternative by accident: the identity provider flattened every status to
 `internal_error` while the gateway read the envelope properly — one rule, two entry
 points, already diverged.
 
-**Typed refusals cross the boundary.** `DomainRuleError.details` (a discriminated
-record such as `{ reason: 'section_not_empty', liveRowCount }`) is forwarded in the 409
-body, so a UI can open the right dialog without parsing prose; the browser preserves it
-untrusted ([decision](../../../decisions/2026-09-a-section-has-a-name.md)).
+**Typed refusals cross the boundary.** `DomainRuleError.details` carries recoverable operation
+receipts and typed Undo conflicts across the 409 boundary; the browser preserves the payload as
+untrusted input rather than parsing prose. The removal flow no longer has a live-row refusal or
+choice dialog: a strict empty query accepts an ID-only cascade request, and retired query fields
+receive 400 ([decision](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md)).
 
 **A lost section-removal response can be recovered without turning a refusal into a
 write.** A repeat stays a 409 and returns only that exact actor's applied, unexpired removal
@@ -90,6 +91,7 @@ returns: `/todos`, `/archive`, `/journal`, `/completed-work` under a project, an
 - [Workspace scoping, and why a foreign id is 404 rather than 409](../../../decisions/2026-08-workspace-scoping-and-not-found.md)
 - [A section has a name](../../../decisions/2026-09-a-section-has-a-name.md) — typed refusal details across the boundary
 - [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)
+- [One-step section removal and task Delete](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — ID-only cascade route and strict refusal of retired fields
 - [Undo and Redo follow one history per exact actor, per owning project](../../../decisions/2026-09-operation-history-scope.md) — summary and transition scope, 403 versus 404
 - [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../../decisions/2026-09-history-stage-a-deferrals.md) — route shape, 409 for stale revisions
 - [Row writes record one operation, including an implicit container](../../../decisions/2026-09-row-operation-history.md)

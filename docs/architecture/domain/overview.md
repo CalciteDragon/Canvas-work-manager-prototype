@@ -20,7 +20,9 @@ service through an acyclic edge. They never know about HTTP, MCP, JSON or seeds.
 - **Rules.** Project kinds, nesting and archive; page ownership of sections; container
   ownership of rows; the resolution of where a write lands when nobody said (§27); task
   status transitions and `completedAt`; archive cascades and exact restore; the
-  archived-ancestor rule; reflection subjects.
+  archived-ancestor rule; reflection subjects. Removing a section archives its live owned rows
+  in one step; independently archived rows keep their own markers. Ordinary task moves remain
+  separate task writes, and historical reassign actions remain executable.
 - **Activity.** One `ActivityEvent` per state-changing operation, with the actor, through
   `ActivityService.record` — which is also where a live frame is published, after commit.
 - **Undo and Redo.** Section add (duplication included), move, settings, removal and Archive

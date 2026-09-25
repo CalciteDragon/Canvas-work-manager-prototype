@@ -54,24 +54,24 @@ describe('TaskRow', () => {
   it('hides every row mutation in read-only mode and ignores intent methods', async () => {
     const { fixture, component, element } = await render(task(), { readOnly: true });
     const completed = vi.fn();
-    const archived = vi.fn();
+    const deleted = vi.fn();
     const edited = vi.fn();
     component.completionRequested.subscribe(completed);
-    component.archiveRequested.subscribe(archived);
+    component.deleteRequested.subscribe(deleted);
     component.titleEdited.subscribe(edited);
 
     expect(element.querySelector('[data-task-complete]')).toBeNull();
     expect(element.querySelector('[data-task-details]')).toBeNull();
-    expect(element.querySelector('[data-task-archive]')).toBeNull();
+    expect(element.querySelector('[data-task-delete]')).toBeNull();
     expect(element.querySelector('[data-task-title]')?.tagName).toBe('SPAN');
 
     component.requestCompletion();
-    component.requestArchive();
+    component.requestDelete();
     component.beginEditing();
     fixture.detectChanges();
 
     expect(completed).not.toHaveBeenCalled();
-    expect(archived).not.toHaveBeenCalled();
+    expect(deleted).not.toHaveBeenCalled();
     expect(edited).not.toHaveBeenCalled();
     expect(component.editing()).toBe(false);
     expect(element.querySelector('[data-task-title-editor]')).toBeNull();
@@ -150,28 +150,32 @@ describe('TaskRow', () => {
     expect(row.classList.contains('task-row--overdue')).toBe(false);
   });
 
-  it('emits archive intent with the row’s own id', async () => {
+  it('offers an icon-only Delete button and emits the row’s own id', async () => {
     const { component, element } = await render();
     const emitted = vi.fn();
-    component.archiveRequested.subscribe(emitted);
+    component.deleteRequested.subscribe(emitted);
 
-    element.querySelector<HTMLButtonElement>('[data-task-archive]')?.click();
+    const remove = element.querySelector<HTMLButtonElement>('[data-task-delete]')!;
+    expect(remove.getAttribute('aria-label')).toBe('Delete task Write the first draft');
+    expect(remove.querySelector('svg')).not.toBeNull();
+    expect(remove.textContent?.trim()).toBe('');
+    remove.click();
 
     expect(emitted).toHaveBeenCalledWith(task().id);
   });
 
-  it('says an archive is under way and refuses a second one', async () => {
+  it('keeps Delete unavailable while its archive write is under way', async () => {
     // A row is archived once. Without the guard a double click would send two requests, and
     // the second would fail against a task the first has already archived.
     const { component, element } = await render(task(), { archiving: true });
     const emitted = vi.fn();
-    component.archiveRequested.subscribe(emitted);
-    const archive = element.querySelector<HTMLButtonElement>('[data-task-archive]')!;
+    component.deleteRequested.subscribe(emitted);
+    const remove = element.querySelector<HTMLButtonElement>('[data-task-delete]')!;
 
-    expect(archive.disabled).toBe(true);
-    expect(archive.textContent?.trim()).toBe('Archiving…');
+    expect(remove.disabled).toBe(true);
+    expect(element.querySelector('[data-task-row]')?.getAttribute('aria-busy')).toBe('true');
 
-    archive.click();
+    remove.click();
     expect(emitted).not.toHaveBeenCalled();
   });
 
@@ -183,7 +187,7 @@ describe('TaskRow', () => {
 
     TestBed.resetTestingModule();
     const pending = await render(task(), { pending: true });
-    expect(pending.element.querySelector<HTMLButtonElement>('[data-task-archive]')?.disabled).toBe(false);
+    expect(pending.element.querySelector<HTMLButtonElement>('[data-task-delete]')?.disabled).toBe(false);
   });
 
   it('exposes high-priority, selected, and compact states independently', async () => {

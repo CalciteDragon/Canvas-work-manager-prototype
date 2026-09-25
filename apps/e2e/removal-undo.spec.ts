@@ -1,4 +1,4 @@
-import type { ProjectPage, ProjectSection, ResolvedSectionShortcut } from '@cwm/contracts';
+import type { ProjectId, ProjectPage, ProjectSection, ResolvedSectionShortcut } from '@cwm/contracts';
 import { expect, test } from '@playwright/test';
 import { historyControl, undoFromHeader } from './history-controls';
 import { addSection, addShortcut, api, createRoot, createSubprojects, seed, setClock } from './seed';
@@ -260,7 +260,7 @@ test('a shortcut on another browser page follows source removal and same-page Un
   }
 });
 
-test('retained content survives reload and Archive restore, while the next reassign action reverses every move', async ({ page }) => {
+test('retained content survives reload and Archive restore, while independently archived rows keep their markers', async ({ page }) => {
   await seed('empty');
   await setClock(PINNED_NOW);
   const root = await createRoot('Content and Undo journey');
@@ -300,19 +300,15 @@ test('retained content survives reload and Archive restore, while the next reass
   expect(await archiveHasSection(root.id, notes.id)).toBe(true);
 
   await page.locator(`[data-section-item][data-section-id="${cascade.id}"] [data-section-remove]`).click();
-  const dialog = page.getByRole('dialog', { name: 'Remove “Saved tasks”?' });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.locator('[data-section-removal-message]')).toContainText('1 task');
-  await dialog.locator('[data-section-removal-cascade]').click();
   await expect(page.locator(`[data-section-item][data-section-id="${cascade.id}"]`)).toHaveCount(0);
+  await expect(page.locator('[data-open-archive]')).toBeFocused();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Saved tasks section');
   expect(await archiveHasSection(root.id, cascade.id)).toBe(true);
 
   await page.locator('[data-section-item][data-section-id="' + reflectionSection.id + '"] [data-section-remove]').click();
-  const reflectionDialog = page.getByRole('dialog', { name: 'Remove “Saved reflections”?' });
-  await expect(reflectionDialog).toBeVisible();
-  await expect(reflectionDialog.locator('[data-section-removal-message]')).toContainText('1 reflection');
-  await reflectionDialog.locator('[data-section-removal-cascade]').click();
   await expect(page.locator('[data-section-item][data-section-id="' + reflectionSection.id + '"]')).toHaveCount(0);
+  await expect(page.locator('[data-open-archive]')).toBeFocused();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Saved reflections section');
   expect(await archiveHasSection(root.id, reflectionSection.id)).toBe(true);
 
   await page.locator('[data-open-archive]').click();
@@ -367,18 +363,12 @@ test('retained content survives reload and Archive restore, while the next reass
     body: 'Keep this reflection body.',
   }));
 
-  const source = await addSection(root.id, { type: 'task-list', title: 'Reassignment source', position: 2, config: {} });
-  const target = await addSection(root.id, { type: 'task-list', title: 'Reassignment target', position: 3, config: {} });
+  const source = await addSection(root.id, { type: 'task-list', title: 'Moved source', position: 2, config: {} });
+  const target = await addSection(root.id, { type: 'task-list', title: 'Move target', position: 3, config: {} });
   const parent = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: root.id,
     sectionId: source.id,
     title: 'Move with the source',
-  })).task;
-  const child = (await api.post<{ task: { id: string } }>('/api/tasks', {
-    projectId: root.id,
-    sectionId: source.id,
-    parentTaskId: parent.id,
-    title: 'Keep the child relationship',
   })).task;
   const filedParent = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: root.id,
@@ -393,19 +383,20 @@ test('retained content survives reload and Archive restore, while the next reass
   })).task;
   await api.post('/api/tasks/' + filedParent.id + '/archive', {});
 
+  const move = await api.patch<{ operation: { historyId: string; actionId: string; revision: number } }>(
+    `/api/tasks/${parent.id}`,
+    { sectionId: target.id },
+  );
+  expect((await api.get<{ sectionId: string }>(`/api/tasks/${parent.id}`)).sectionId).toBe(target.id);
+
   await page.goto(`/projects/${root.id}`);
   await page.locator(`[data-section-item][data-section-id="${source.id}"] [data-section-remove]`).click();
-  const reassignment = page.getByRole('dialog', { name: 'Remove “Reassignment source”?' });
-  await expect(reassignment).toBeVisible();
-  await reassignment.locator('[data-section-removal-target]').selectOption(target.id);
-  await reassignment.locator('[data-section-removal-reassign]').click();
   await expect(page.locator(`[data-section-item][data-section-id="${source.id}"]`)).toHaveCount(0);
-  expect(await archiveHasSection(root.id, source.id)).toBe(false);
-  await expect.poll(async () => (await api.get<{ sectionId: string }>(`/api/tasks/${parent.id}`)).sectionId).toBe(target.id);
-  await expect.poll(async () => (await api.get<{ sectionId: string }>(`/api/tasks/${child.id}`)).sectionId).toBe(target.id);
+  expect(await archiveHasSection(root.id, source.id)).toBe(true);
+  expect(await api.get<{ sectionId: string; archivedAt?: string }>(`/api/tasks/${parent.id}`)).toMatchObject({ sectionId: target.id });
 
   expect(await api.get<{ sectionId: string; archivedAt?: string }>('/api/tasks/' + filedParent.id)).toMatchObject({
-    sectionId: target.id,
+    sectionId: source.id,
     archivedAt: expect.any(String),
   });
   expect(await api.get<{
@@ -414,19 +405,28 @@ test('retained content survives reload and Archive restore, while the next reass
     archivedAt?: string;
     archivedWithTaskId?: string;
   }>('/api/tasks/' + filedChild.id)).toMatchObject({
-    sectionId: target.id,
+    sectionId: source.id,
     parentTaskId: filedParent.id,
     archivedAt: expect.any(String),
     archivedWithTaskId: filedParent.id,
   });
-  await undoFromHeader(page, 'Removed the Reassignment source section');
+  await undoFromHeader(page, 'Removed the Moved source section');
   await expect(page.locator(`[data-section-item][data-section-id="${source.id}"]`)).toBeVisible();
-  await expect.poll(async () => (await api.get<{ sectionId: string }>(`/api/tasks/${parent.id}`)).sectionId).toBe(source.id);
-  await expect.poll(async () => (await api.get<{ sectionId: string; parentTaskId?: string }>(`/api/tasks/${child.id}`)).sectionId).toBe(source.id);
-  expect(await api.get<{ sectionId: string; parentTaskId?: string }>(`/api/tasks/${child.id}`)).toMatchObject({
-    sectionId: source.id,
-    parentTaskId: parent.id,
-  });
+
+  const transitionMove = async (direction: 'undo' | 'redo') => {
+    const { revision } = await api.get<{ revision: number }>(`/api/projects/${root.id}/history`);
+    return api.post(`/api/history/${move.operation.historyId}/transition`, {
+      actionId: move.operation.actionId,
+      direction,
+      expectedRevision: revision,
+    });
+  };
+  expect((await api.get<{ sectionId: string }>(`/api/tasks/${parent.id}`)).sectionId).toBe(target.id);
+  await transitionMove('undo');
+  expect((await api.get<{ sectionId: string }>(`/api/tasks/${parent.id}`)).sectionId).toBe(source.id);
+  await transitionMove('redo');
+  expect((await api.get<{ sectionId: string }>(`/api/tasks/${parent.id}`)).sectionId).toBe(target.id);
+
   await page.reload();
   await expect(page.locator(`[data-section-item][data-section-id="${source.id}"]`)).toBeVisible();
   expect(await sectionById(root.id, source.id)).toMatchObject({ position: source.position });
@@ -435,11 +435,7 @@ test('retained content survives reload and Archive restore, while the next reass
     title: string;
     status: string;
     description?: string;
-  }>('/api/tasks/' + parent.id)).toMatchObject({
-    sectionId: source.id,
-    title: 'Move with the source',
-    status: 'todo',
-  });
+  }>('/api/tasks/' + parent.id)).toMatchObject({ sectionId: target.id, title: 'Move with the source', status: 'todo' });
   expect(await api.get<{ sectionId: string; archivedAt?: string }>('/api/tasks/' + filedParent.id)).toMatchObject({
     sectionId: source.id,
     archivedAt: expect.any(String),
@@ -458,20 +454,29 @@ test('retained content survives reload and Archive restore, while the next reass
 });
 
 /**
- * Slice 33 (Refactor §26.4, §26.9): Reflections leave Home for the Reflections page and come back
- * under their own ids, with an independently archived reflection keeping its marker both ways.
- * The browser removal dialog offers same-page targets only, so the cross-page reassignment is the
- * HTTP write the domain permits; both browser pages observe it and its Undo.
+ * Slice 43: an old cross-page reassign request is refused without a write. An ID-only removal
+ * cascades live reflections on Home, preserves the independently archived marker, and Undo/Redo
+ * restore the exact IDs and the owner link on another canvas.
  */
-test('cross-page reassignment and Undo preserve every reflection id and archive marker', async ({ page }) => {
+test('one-step cross-page reflection removal rejects old reassign fields and preserves exact markers through Undo/Redo', async ({ page }) => {
   await seed('nested-projects');
   await setClock(PINNED_NOW);
   const root = 'project-renovation';
   const homeContainer = 'section-project-renovation-reflections';
   const pageContainer = 'section-project-renovation-reflections-page';
   const reflectionsOf = async (sectionId: string) =>
-    (await api.get<Array<{ id: string; sectionId: string; archivedAt?: string }>>(`/api/reflections?projectId=${root}&sectionId=${sectionId}&includeArchived=true`))
-      .map(({ id, sectionId: owner, archivedAt }) => ({ id, sectionId: owner, archived: archivedAt !== undefined }))
+    (await api.get<Array<{
+      id: string;
+      sectionId: string;
+      archivedAt?: string;
+      archivedWithSectionId?: string;
+    }>>(`/api/reflections?projectId=${root}&sectionId=${sectionId}&includeArchived=true`))
+      .map(({ id, sectionId: owner, archivedAt, archivedWithSectionId }) => ({
+        id,
+        sectionId: owner,
+        archived: archivedAt !== undefined,
+        ...(archivedWithSectionId === undefined ? {} : { archivedWithSectionId }),
+      }))
       .sort((left, right) => left.id.localeCompare(right.id));
   const untouched = await reflectionsOf(pageContainer);
   expect(untouched.length).toBeGreaterThan(0);
@@ -497,28 +502,32 @@ test('cross-page reassignment and Undo preserve every reflection id and archive 
     await expect(reflectionsPage.locator('[data-reflections-page]')).toBeVisible();
     await expect(owner).toHaveAttribute('href', ownerHref(homeContainer));
 
-    const removal = await api.delete<{ operation: { historyId: string; actionId: string } }>(`/api/sections/${homeContainer}?policy=reassign&reassignToSectionId=${pageContainer}`);
-    expect(await reflectionsOf(pageContainer)).toEqual([
-      ...untouched,
-      { id: live.id, sectionId: pageContainer, archived: false },
-      { id: filed.id, sectionId: pageContainer, archived: true },
-    ].sort((left, right) => left.id.localeCompare(right.id)));
-    expect(await archiveHasSection(root, homeContainer)).toBe(false);
+    const beforeRejectedRequest = await reflectionsOf(homeContainer);
+    await expect(api.delete(`/api/sections/${homeContainer}?policy=reassign&reassignToSectionId=${pageContainer}`)).rejects.toThrow(/answered 400:/);
+    expect(await reflectionsOf(homeContainer)).toEqual(beforeRejectedRequest);
+    expect(await api.get<ProjectSection[]>(`/api/projects/${root}/sections?pageId=page-project-renovation`))
+      .toEqual(expect.arrayContaining([expect.objectContaining({ id: homeContainer })]));
+
+    const removal = await api.delete<{ operation: { historyId: string; actionId: string; revision: number; operation: string } }>(`/api/sections/${homeContainer}`);
+    expect(removal.operation.operation).toBe('section.remove');
+    const cascaded = [
+      { id: live.id, sectionId: homeContainer, archived: true, archivedWithSectionId: homeContainer },
+      { id: filed.id, sectionId: homeContainer, archived: true },
+    ].sort((left, right) => left.id.localeCompare(right.id));
+    expect(await reflectionsOf(homeContainer)).toEqual(cascaded);
+    expect(await reflectionsOf(pageContainer)).toEqual(untouched);
+    expect(await archiveHasSection(root, homeContainer)).toBe(true);
     await expect(homeFrame).toHaveCount(0);
     await reflectionsPage.reload();
-    await expect(owner).toHaveAttribute('href', ownerHref(pageContainer));
+    // Archived reflections leave the live journal until Undo restores the owner section.
+    await expect(owner).toHaveCount(0);
 
     const transition = (direction: 'undo' | 'redo') => api.get<{ revision: number }>(`/api/projects/${root}/history`).then(({ revision }) =>
       api.post(`/api/history/${removal.operation.historyId}/transition`, { actionId: removal.operation.actionId, direction, expectedRevision: revision }));
     await transition('undo');
     expect(await reflectionsOf(homeContainer)).toEqual(homeRows);
-    // The undo-then-redo round trip: Redo moves exactly the same rows across again, then Undo brings them home.
     await transition('redo');
-    expect(await reflectionsOf(pageContainer)).toEqual([
-      ...untouched,
-      { id: live.id, sectionId: pageContainer, archived: false },
-      { id: filed.id, sectionId: pageContainer, archived: true },
-    ].sort((left, right) => left.id.localeCompare(right.id)));
+    expect(await reflectionsOf(homeContainer)).toEqual(cascaded);
     await transition('undo');
     expect(await reflectionsOf(homeContainer)).toEqual(homeRows);
     expect(await reflectionsOf(pageContainer)).toEqual(untouched);
@@ -526,9 +535,272 @@ test('cross-page reassignment and Undo preserve every reflection id and archive 
     await expect(homeFrame).toContainText('Moves across pages and back.');
     await reflectionsPage.reload();
     await expect(owner).toHaveAttribute('href', ownerHref(homeContainer));
+
+    const [workUnit] = await createSubprojects(root as ProjectId, 1);
+    if (workUnit === undefined) throw new Error('The reflections canvas project was not created');
+    const workContainer = await addSection(workUnit.id, { type: 'reflections', title: 'Work reflections' });
+    const workReflection = (await api.post<{ reflection: { id: string } }>('/api/reflections', {
+      projectId: workUnit.id,
+      sectionId: workContainer.id,
+      body: 'A live reflection on the work canvas.',
+    })).reflection;
+    const workRows = async () => (await api.get<Array<{
+      id: string;
+      sectionId: string;
+      archivedAt?: string;
+      archivedWithSectionId?: string;
+    }>>(`/api/reflections?projectId=${workUnit.id}&sectionId=${workContainer.id}&includeArchived=true`))
+      .map(({ id, sectionId, archivedAt, archivedWithSectionId }) => ({
+        id,
+        sectionId,
+        archived: archivedAt !== undefined,
+        ...(archivedWithSectionId === undefined ? {} : { archivedWithSectionId }),
+      }));
+    const workRowsBefore = await workRows();
+    await reflectionsPage.goto(`/projects/${workUnit.id}`);
+    const workFrame = reflectionsPage.locator(`[data-section-item][data-section-id="${workContainer.id}"]`);
+    await expect(workFrame).toContainText('A live reflection on the work canvas.');
+    await workFrame.locator('[data-section-remove]').click();
+    await expect(workFrame).toHaveCount(0);
+    await expect(reflectionsPage.locator('[data-open-archive]')).toBeFocused();
+    expect(await workRows()).toEqual([{
+      id: workReflection.id,
+      sectionId: workContainer.id,
+      archived: true,
+      archivedWithSectionId: workContainer.id,
+    }]);
+    await undoFromHeader(reflectionsPage, 'Removed the Work reflections section');
+    await expect(workFrame).toContainText('A live reflection on the work canvas.');
+    expect(await workRows()).toEqual(workRowsBefore);
+
+    const keyboardContainer = await addSection(workUnit.id, { type: 'reflections', title: 'Keyboard work reflections' });
+    const keyboardReflection = (await api.post<{ reflection: { id: string } }>('/api/reflections', {
+      projectId: workUnit.id,
+      sectionId: keyboardContainer.id,
+      body: 'A keyboard-removed live reflection.',
+    })).reflection;
+    await reflectionsPage.reload();
+    const keyboardFrame = reflectionsPage.locator(`[data-section-item][data-section-id="${keyboardContainer.id}"]`);
+    await expect(keyboardFrame).toContainText('A keyboard-removed live reflection.');
+    const keyboardRemove = keyboardFrame.locator('[data-section-remove]');
+    await keyboardRemove.focus();
+    await keyboardRemove.press('Enter');
+    await expect(keyboardFrame).toHaveCount(0);
+    await expect(reflectionsPage.locator('[data-open-archive]')).toBeFocused();
+    await expect(historyControl(reflectionsPage, 'undo')).toHaveAttribute(
+      'aria-label',
+      'Undo: Removed the Keyboard work reflections section',
+    );
+    expect(await api.get<Array<{ id: string; archivedAt?: string; archivedWithSectionId?: string }>>(
+      `/api/reflections?projectId=${workUnit.id}&sectionId=${keyboardContainer.id}&includeArchived=true`,
+    )).toEqual([expect.objectContaining({
+      id: keyboardReflection.id,
+      archivedAt: expect.any(String),
+      archivedWithSectionId: keyboardContainer.id,
+    })]);
+    await undoFromHeader(reflectionsPage, 'Removed the Keyboard work reflections section');
+    await expect(keyboardFrame).toBeVisible();
+
     await page.reload();
     await expect(homeFrame).toContainText('Moves across pages and back.');
   } finally {
     await reflectionsPage.close();
+  }
+});
+
+test('Retry remove repeats an uncertain ID-only removal and recovers the same receipt', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  const root = await createRoot('Uncertain removal retry');
+  const section = await addSection(root.id, {
+    type: 'rich-text',
+    title: 'Retry this removal',
+    config: { text: 'The host commits before the response is lost.' },
+  });
+  await page.goto(`/projects/${root.id}`);
+
+  let attempts = 0;
+  let firstOperation: unknown;
+  let retryOperation: unknown;
+  await page.route(`**/api/sections/${section.id}`, async (route) => {
+    attempts += 1;
+    const response = await route.fetch();
+    const body = await response.json() as { operation?: unknown; details?: { operation?: unknown } };
+    if (attempts === 1) {
+      firstOperation = body.operation;
+      await route.abort('failed');
+      return;
+    }
+    retryOperation = body.operation ?? body.details?.operation;
+    await route.fulfill({ response });
+  });
+
+  const frame = page.locator(`[data-section-item][data-section-id="${section.id}"]`);
+  await frame.locator('[data-section-remove]').click();
+  await expect(page.locator('[data-removal-error]')).toBeVisible();
+  await expect(page.locator('[data-retry-remove]')).toBeVisible();
+  expect(await archiveHasSection(root.id, section.id)).toBe(true);
+
+  await page.locator('[data-retry-remove]').click();
+  await expect(frame).toHaveCount(0);
+  await expect(page.locator('[data-removal-error]')).toHaveCount(0);
+  await expect(page.locator('[data-open-archive]')).toBeFocused();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Retry this removal section');
+  expect(attempts).toBe(2);
+  expect(retryOperation).toEqual(firstOperation);
+  expect(await archiveHasSection(root.id, section.id)).toBe(true);
+});
+
+test('Retry refresh performs only a read after removal commits but its canvas refresh fails', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  const root = await createRoot('Removal refresh retry');
+  const section = await addSection(root.id, { type: 'rich-text', title: 'Refresh after removal', config: { text: 'Saved.' } });
+  await page.goto(`/projects/${root.id}`);
+
+  let committed = false;
+  let removals = 0;
+  let sectionReads = 0;
+  await page.route(`**/api/sections/${section.id}`, async (route) => {
+    removals += 1;
+    const response = await route.fetch();
+    committed = true;
+    await route.fulfill({ response });
+  });
+  await page.route(`**/api/projects/${root.id}/sections**`, async (route) => {
+    if (route.request().method() === 'GET') {
+      sectionReads += 1;
+      if (committed) {
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'injected canvas refresh failure' }),
+        });
+        return;
+      }
+    }
+    await route.continue();
+  });
+
+  const frame = page.locator(`[data-section-item][data-section-id="${section.id}"]`);
+  await frame.locator('[data-section-remove]').click();
+  await expect(page.locator('[data-recovery-refresh-error]')).toBeVisible();
+  await expect(page.locator('[data-retry-refresh]')).toBeVisible();
+  expect(removals).toBe(1);
+  expect(await archiveHasSection(root.id, section.id)).toBe(true);
+
+  committed = false;
+  const readsBeforeRetry = sectionReads;
+  const retryRead = page.waitForResponse((response) =>
+    response.request().method() === 'GET' && new URL(response.url()).pathname === `/api/projects/${root.id}/sections`,
+  );
+  await page.locator('[data-retry-refresh]').click();
+  expect((await retryRead).status()).toBe(200);
+  await expect(page.locator('[data-retry-refresh]')).toHaveCount(0);
+  await expect(page.locator('[data-open-archive]')).toBeFocused();
+  expect(sectionReads).toBe(readsBeforeRetry + 1);
+  expect(removals).toBe(1);
+  await expect(frame).toHaveCount(0);
+});
+
+test('Retry refresh returns focus to the canvas after an unlisted removal clears its notice', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  const root = await createRoot('Unlisted removal refresh retry');
+  const [child] = await createSubprojects(root.id, 1);
+  if (child === undefined) throw new Error('The shortcut source project was not created');
+  const pages = await api.get<ProjectPage[]>(`/api/projects/${root.id}/pages`);
+  const home = pages.find(({ kind }) => kind === 'home');
+  if (home === undefined) throw new Error('The root has no Home page');
+  const section = await addSection(child.id, { type: 'reflections', title: 'Shortcut-only container' });
+  await addShortcut(root.id, { pageId: home.id, sourceSectionId: section.id });
+  await page.goto(`/projects/${child.id}`);
+
+  let committed = false;
+  let removals = 0;
+  let sectionReads = 0;
+  await page.route(`**/api/sections/${section.id}`, async (route) => {
+    removals += 1;
+    const response = await route.fetch();
+    committed = true;
+    await route.fulfill({ response });
+  });
+  await page.route(`**/api/projects/${child.id}/sections**`, async (route) => {
+    if (route.request().method() === 'GET') {
+      sectionReads += 1;
+      if (committed) {
+        await route.fulfill({
+          status: 503,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: 'injected canvas refresh failure' }),
+        });
+        return;
+      }
+    }
+    await route.continue();
+  });
+
+  const frame = page.locator(`[data-section-item][data-section-id="${section.id}"]`);
+  await frame.locator('[data-section-remove]').click();
+  await expect(frame).toHaveCount(0);
+  await expect(page.locator('[data-recovery-refresh-error]')).toBeVisible();
+  await expect(page.locator('[data-open-archive]')).toHaveCount(0);
+  await expect(page.locator('[data-dismiss-recovery-notice]')).toBeVisible();
+  expect(await archiveHasSection(root.id, section.id)).toBe(false);
+  expect((await api.get<ProjectSection[]>(`/api/projects/${child.id}/sections?includeArchived=true`))
+    .find(({ id }) => id === section.id)?.archivedAt).toEqual(expect.any(String));
+
+  committed = false;
+  const readsBeforeRetry = sectionReads;
+  const retryRead = page.waitForResponse((response) =>
+    response.request().method() === 'GET' && new URL(response.url()).pathname === `/api/projects/${child.id}/sections`,
+  );
+  const retry = page.locator('[data-retry-refresh]');
+  await retry.focus();
+  await retry.press('Enter');
+  expect((await retryRead).status()).toBe(200);
+  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
+  await expect(page.locator('[data-section-canvas]')).toBeFocused();
+  expect(sectionReads).toBe(readsBeforeRetry + 1);
+  expect(removals).toBe(1);
+});
+
+test('live task-container removal keeps its focus and recovery behavior at a narrow width in both themes', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  await page.setViewportSize({ width: 375, height: 812 });
+  const root = await createRoot('Narrow themed removal');
+  const section = await addSection(root.id, { type: 'task-list', title: 'Narrow cascade' });
+  const task = (await api.post<{ task: { id: string } }>('/api/tasks', {
+    projectId: root.id,
+    sectionId: section.id,
+    title: 'Narrow live task',
+  })).task;
+  await page.goto(`/projects/${root.id}`);
+
+  const frame = page.locator(`[data-section-item][data-section-id="${section.id}"]`);
+  for (const [index, theme] of (['dark', 'light'] as const).entries()) {
+    if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('[data-theme-toggle]').click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    const remove = frame.locator('[data-section-remove]');
+    await remove.focus();
+    await expect(remove).toBeVisible();
+    await remove.click();
+    await expect(frame).toHaveCount(0);
+    await expect(page.locator('[data-open-archive]')).toBeFocused();
+    await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Narrow cascade section');
+    expect(await api.get<{ archivedAt?: string; archivedWithSectionId?: string }>(`/api/tasks/${task.id}`))
+      .toMatchObject({ archivedAt: expect.any(String), archivedWithSectionId: section.id });
+
+    if (index === 0) {
+      const undo = historyControl(page, 'undo');
+      const transition = page.waitForResponse((response) =>
+        response.request().method() === 'POST' && /\/api\/history\/[^/]+\/transition$/.test(response.url()),
+      );
+      await undo.focus();
+      await undo.press('Enter');
+      expect((await transition).status()).toBe(200);
+      await expect(frame).toBeVisible();
+    }
   }
 });

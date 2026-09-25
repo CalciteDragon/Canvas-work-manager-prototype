@@ -103,6 +103,7 @@ visually moved after a refused toggle — none of it visible to a unit test.
 - [What the tool registry knows about MCP](../../decisions/2026-08-tool-registry-is-transport-free.md)
 - [§4's *Agent Modified* task row has no data behind it](../../decisions/2026-08-agent-modified-has-no-data-behind-it.md) — why the story set has six variants
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — host acceptance covers permanent refusal, same-file restart, same-id Redo and expiry; the component spec covers missing-summary retry; browser acceptance covers creator-only recovery, expiry, and ancestor projections across create/Undo/Redo
+- [Section removal is one cascade gesture, and task Delete is reversible](../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — slice acceptance spans contracts, history, HTTP, MCP, components and the browser
 
 ## Spec sections
 

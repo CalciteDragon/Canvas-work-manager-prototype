@@ -39,7 +39,7 @@ nineteen strict members are pinned to `version: 1`: an unknown type, a later ver
 fails parsing, so a stored action can never smuggle arbitrary JSON into an executor. Add captures
 the created section and the placement Redo returns it to; move captures the subject page and
 before/after neighbours; update captures a unique set of title, config, collapsed and column-span
-changes; removal captures the section, placement, applied policy, exact rows, a required
+changes; removal captures the section, placement, the policy its historical action applied, exact rows, a required
 `disposition` and the `archiveGeneration` it wrote, which must be the snapshot's plus one. Restore captures the archived marker and generation it found, the tombstone's
 old position, the placement it actually landed on, and only the rows it revived — each of which must
 say it came down with that section and is live in it afterwards. Each of the four shortcut payloads names
@@ -67,6 +67,11 @@ transition of **that step** would refuse for (Slice 41). `OperationHistoryTransi
 typed half of a 409: seven reasons, each carrying the history, the named action and the current
 summary. `SectionAlreadyRemovedDetailsSchema` carries only the section id and the recovered receipt.
 MCP carries only the message, which starts with the same `reason`.
+
+`RemoveSectionInputSchema` is deliberately `z.strictObject({})`: transports need only the section
+id, and old `policy` or `reassignToSectionId` fields fail parsing rather than being silently
+stripped. The stored removal union stays unchanged so schema-v5 histories that captured a reassign
+still parse and can be stepped.
 
 `PrototypeDocumentSchema` has `operationHistories` and `operationActions`, defaulted to `[]`, and no
 `undoRecords` — a leftover key is stripped. `SCHEMA_VERSION` is 5; an older file needs

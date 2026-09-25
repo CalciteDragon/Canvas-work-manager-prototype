@@ -251,7 +251,7 @@ describe('ordering is per page (§27)', () => {
     const { home, reflections, first, journal } = await stage(harness);
     await harness.reflectionService.create(harness.actor, { projectId: MINE, sectionId: journal.id, body: 'Archive content' });
     await harness.sectionService.remove(harness.actor, first.id);
-    await harness.sectionService.remove(harness.actor, journal.id, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, journal.id);
 
     const pagesIn = (sections: ProjectSection[]) => new Set(sections.map(({ pageId }) => pageId));
     const live = await harness.sectionService.list(harness.actor, MINE);
@@ -317,7 +317,7 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     const harness = buildHarness();
     const { reflections, journal } = await staged(harness);
 
-    // Named by page, named by section, duplicated, and reassigned into.
+    // Named by page, named by section, duplicated, and independently moved into.
     await expect(
       harness.sectionService.add(harness.actor, MINE, { type: 'reflections', pageId: reflections.id }),
     ).rejects.toThrow(/is disabled/);
@@ -327,13 +327,12 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     await expect(harness.sectionService.duplicate(harness.actor, journal.id)).rejects.toThrow(/is disabled/);
 
     const onHome = await harness.sectionService.add(harness.actor, MINE, { type: 'reflections' });
-    await harness.reflectionService.create(harness.actor, { projectId: MINE, sectionId: onHome.id, body: 'Home' });
-    await expect(
-      harness.sectionService.remove(harness.actor, onHome.id, {
-        policy: 'reassign',
-        reassignToSectionId: journal.id,
-      }),
-    ).rejects.toThrow(/is disabled/);
+    const homeRow = await harness.reflectionService.create(harness.actor, { projectId: MINE, sectionId: onHome.id, body: 'Home' });
+    await harness.sectionService.remove(harness.actor, onHome.id);
+    expect(await harness.reflections.find(homeRow.id)).toMatchObject({
+      archivedAt: expect.any(String),
+      archivedWithSectionId: onHome.id,
+    });
   });
 
   /**
@@ -376,7 +375,7 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     await expect(harness.sectionService.move(harness.actor, journal.id, 0)).resolves.toBeDefined();
 
     // Undo is never behind a toggle (§31): removal and restore both work on a disabled page.
-    const { section: archived } = await harness.sectionService.remove(harness.actor, journal.id, { policy: 'cascade' });
+    const { section: archived } = await harness.sectionService.remove(harness.actor, journal.id);
     const restored = await harness.sectionService.restoreSection(harness.actor, archived.id);
     expect(restored.pageId).toBe(reflections.id);
     expect((await harness.reflections.list({ sectionId: journal.id }))[0]?.archivedAt).toBeUndefined();
@@ -400,34 +399,6 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     await expect(
       harness.taskService.update(harness.actor, child.id, { title: 'Buy grout and spacers' }),
     ).resolves.toMatchObject({ title: 'Buy grout and spacers', sectionId: parent.sectionId });
-  });
-});
-
-describe('reassigning rows across pages (§31)', () => {
-  it('is allowed within a project — §31 constrains the type, not the page', async () => {
-    const harness = buildHarness();
-    const { home, reflections } = await rootWithReflections(harness);
-    const source = await harness.sectionService.add(harness.actor, MINE, { type: 'reflections', pageId: home.id });
-    const target = await harness.sectionService.add(harness.actor, MINE, {
-      type: 'reflections',
-      pageId: reflections.id,
-    });
-    const row = await harness.reflectionService.create(harness.actor, {
-      projectId: MINE,
-      sectionId: source.id,
-      body: 'Moves with its policy',
-    });
-
-    await harness.sectionService.remove(harness.actor, source.id, {
-      policy: 'reassign',
-      reassignToSectionId: target.id,
-    });
-
-    const moved = (await harness.reflections.list({ sectionId: target.id }))[0];
-    expect(moved?.id).toBe(row.id);
-    // Live, not archived: `reassign` settles the rows under their own policy, so they are not
-    // "archived with" the section that gave them up.
-    expect(moved?.archivedAt).toBeUndefined();
   });
 });
 

@@ -28,7 +28,7 @@ describe('SectionRecoveryNotice (Slice 41)', () => {
       { message: 'Saved. Undo is in the header.', refreshFailed: true },
     ];
     for (const state of states) {
-      const fixture = render(state, { sectionId: 'section-a' as SectionId, input: {}, message: 'Host unreachable' });
+      const fixture = render(state, { sectionId: 'section-a' as SectionId, message: 'Host unreachable' });
       expect(fixture.nativeElement.querySelector('[data-undo-action]')).toBeNull();
       expect(fixture.nativeElement.textContent).not.toMatch(/\bUndo\b(?! is in the header)/);
     }
@@ -63,7 +63,7 @@ describe('SectionRecoveryNotice (Slice 41)', () => {
   });
 
   it('offers Retry remove after an uncertain removal, and swallows actions while busy', () => {
-    const failure: FailedSectionRemoval = { sectionId: 'section-a' as SectionId, input: { policy: 'cascade' }, message: 'Host unreachable' };
+    const failure: FailedSectionRemoval = { sectionId: 'section-a' as SectionId, message: 'Host unreachable' };
     const fixture = render(null, failure, true);
     const retry = vi.fn();
     fixture.componentInstance.retryRemove.subscribe(retry);

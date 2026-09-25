@@ -134,7 +134,7 @@ describe('row history acceptance (§31, §34, §36, §57)', () => {
     const task = await h.taskWriteService.create(h.actor, { projectId: MINE, sectionId: source.section.id, title: 'Filed' });
     await h.taskWriteService.archive(h.actor, task.task.id);
     const moved = await h.taskWriteService.update(h.actor, task.task.id, { sectionId: target.section.id });
-    await h.sectionWriteService.remove(agentActorFor(0, ['projects.write']), source.section.id, {});
+    await h.sectionWriteService.remove(agentActorFor(0, ['projects.write']), source.section.id);
     const before = h.store.snapshot();
 
     await expect(step(h, moved.operation!)).rejects.toThrow('history_conflict');

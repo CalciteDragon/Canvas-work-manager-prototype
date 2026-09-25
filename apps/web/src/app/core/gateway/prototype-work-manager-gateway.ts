@@ -42,7 +42,6 @@ import {
   type ProjectQuery,
   type ReflectionId,
   type ReflectionQuery,
-  type RemoveSectionInput,
   type CreateSectionShortcutInput,
   type UpdateProjectInput,
   type UpdateReflectionInput,
@@ -163,14 +162,9 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/move`, SectionWriteResultSchema, input),
     duplicate: (id: SectionId) =>
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/duplicate`, SectionAddResultSchema),
-    // The policy rides on the query string, matching the host route. The result carries only
-    // the public receipt; the inverse remains on the server.
-    remove: (id: SectionId, input: RemoveSectionInput = {}) =>
-      this.send(
-        'DELETE',
-        `/api/sections/${encodeURIComponent(id)}${queryString(removeSectionParams(input))}`,
-        SectionRemovalResultSchema,
-      ),
+    // No removal policy travels across the gateway; live owned rows cascade with the section.
+    remove: (id: SectionId) =>
+      this.send('DELETE', `/api/sections/${encodeURIComponent(id)}`, SectionRemovalResultSchema),
     restore: (id: SectionId) =>
       this.send('POST', `/api/sections/${encodeURIComponent(id)}/restore`, SectionWriteResultSchema),
   };
@@ -365,13 +359,6 @@ const shortcutQueryParams = (query: SectionShortcutQuery): URLSearchParams => {
 const shortcutSourceQueryParams = (query: ShortcutSourceQuery): URLSearchParams => {
   const params = new URLSearchParams();
   append(params, 'pageId', query.pageId);
-  return params;
-};
-
-const removeSectionParams = (input: RemoveSectionInput): URLSearchParams => {
-  const params = new URLSearchParams();
-  append(params, 'policy', input.policy);
-  append(params, 'reassignToSectionId', input.reassignToSectionId);
   return params;
 };
 

@@ -26,7 +26,8 @@
    `ProjectGateway.create` answers the same validated `ProjectWriteResult` as update, with a
    required creation receipt. Root creation is initiated outside a project shell, so its inert
    reporter leaves the new project's header to read the history on navigation. No API route answers 204 any more, so the adapter has
-   no body-less send path.
+   no body-less send path. `SectionGateway.remove` sends only the section id, with no policy or
+   destination query parameters.
 5. `AppShell` provides `ShellStore`, which loads projects, derives the tree
    (`ProjectTreeNode`), and re-reads on `project.*` frames.
 6. A writer calls `reportedWrite(reporter, write, report)`: `begin()` before the request returns an

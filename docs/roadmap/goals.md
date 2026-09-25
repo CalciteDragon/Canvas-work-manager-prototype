@@ -94,7 +94,7 @@ project while the same URL offers creator-only recovery and same-id Redo. Its du
 is Activity, bound to the exact actor that created the project; no tombstone or schema bump is needed.
 The transition retry cache was retired by dated amendment instead of being built. Real use leaves two
 follow-up questions: whether section labels should name the edit too, and whether root pages need a way
-to reach a descendant's steps. **[Slice 43 — one-step removal and task Delete](active/43-one-step-removal-and-task-delete.md)
+to reach a descendant's steps. **[Slice 43 — one-step removal and task Delete](completed/43-one-step-removal-and-task-delete.md)
 is the active Stage D1 plan**: direct section cascade, retirement of removal-time reassignment
 requests, and task Delete icons. Stage D2 will address parent-first Archive and Settings archived
 projects; Stage E remains integrated closure. The paragraphs below describe the earlier shipped

@@ -569,17 +569,20 @@ describe('section routes', () => {
     ]);
   });
 
-  it('refuses a container that still holds rows, and takes a policy on the query string', async () => {
+  it('cascades from an ID-only request and rejects retired policy query fields without writing', async () => {
     const routes = buildRoutes();
     const task = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
 
-    // No policy: 409 naming the count, which is what lets the canvas offer a choice.
-    const refused = await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
-    expect(refused).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
-    expect(String((refused.body as { message: string }).message)).toContain('holds 1 tasks');
+    const cascadeField = await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
+    expect(cascadeField.status).toBe(400);
+    expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).archivedAt).toBeUndefined();
 
-    const cascaded = await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
-    expect(cascaded.status).toBe(200);
+    const reassignField = await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=reassign&reassignToSectionId=section-target`);
+    expect(reassignField.status).toBe(400);
+    expect(ProjectSectionSchema.array().parse((await call(routes, 'GET', `/api/projects/${MINE}/sections`)).body).map(({ id }) => id)).toContain(task.sectionId);
+
+    const removed = await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
+    expect(removed.status).toBe(200);
     // Archived, not deleted — the removal is undoable, and the section comes down too, so
     // the row's container still exists to come back to.
     const archived = await call(routes, 'GET', `/api/tasks/${task.id}`);
@@ -587,21 +590,6 @@ describe('section routes', () => {
     expect(TaskSchema.parse(archived.body).archivedWithSectionId).toBe(task.sectionId);
     const canvas = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
     expect(ProjectSectionSchema.array().parse(canvas.body).map((item) => item.id)).not.toContain(task.sectionId);
-  });
-
-  it('reassigns rows to another container named on the query string', async () => {
-    const routes = buildRoutes();
-    const task = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
-    const target = await newSection(routes, { type: 'task-list' });
-
-    const removed = await call(
-      routes,
-      'DELETE',
-      `/api/sections/${task.sectionId}?policy=reassign&reassignToSectionId=${target.id}`,
-    );
-
-    expect(removed.status).toBe(200);
-    expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).sectionId).toBe(target.id);
   });
 
   it('answers 404 for the sections of a project in another workspace', async () => {
@@ -646,7 +634,7 @@ describe('section routes', () => {
   it('restores an archived section and the rows it took down, and retries idempotently', async () => {
     const routes = buildRoutes();
     const task = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
-    await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
+    await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
 
     const restored = await call(routes, 'POST', `/api/sections/${task.sectionId}/restore`);
 
@@ -904,6 +892,10 @@ describe('agent connections, permissions and activity (§§51, 52, 53, 57)', () 
     const after = await call(routes, 'GET', '/api/tasks', { token: READWRITE });
     expect(after.status).toBe(401);
     expect(after.body).toMatchObject({ error: 'unauthorized' });
+
+    const malformedRemoval = await call(routes, 'DELETE', '/api/sections/section-nope?policy=reassign', { token: READWRITE });
+    expect(malformedRemoval.status).toBe(401);
+    expect(malformedRemoval.body).toMatchObject({ error: 'unauthorized' });
   });
 
   it('answers 401 for a token nothing issued, and 401 for a scheme it does not implement', async () => {
@@ -1435,16 +1427,17 @@ describe('section receipts and operation history routes (Slices 30, 35)', () => 
     expect(Object.keys(result.operation).sort()).toEqual(['actionId', 'createdAt', 'expiresAt', 'historyId', 'label', 'operation', 'revision']);
   });
 
-  it('issues no receipt and records no action for a refused removal', async () => {
+  it('issues no receipt and records no action when a retired removal query is rejected', async () => {
     const { store, routes } = withStore();
     const task = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Live' } })).body);
     const before = store.snapshot().operationActions;
 
-    const refused = await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
+    const refused = await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
 
-    expect(refused.status).toBe(409);
+    expect(refused.status).toBe(400);
     expect(refused.body).not.toHaveProperty('operation');
     expect(store.snapshot().operationActions).toEqual(before);
+    expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).archivedAt).toBeUndefined();
   });
 
   it('recovers a hard-deleted section receipt only for its exact actor, then executes it', async () => {

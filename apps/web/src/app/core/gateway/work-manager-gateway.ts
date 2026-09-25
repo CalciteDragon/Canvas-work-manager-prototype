@@ -50,7 +50,6 @@ import type {
   UpdateSectionShortcutInput,
   UpdateProjectInput,
   UpdateTaskInput,
-  RemoveSectionInput,
   SectionRemovalResult,
   SectionAddResult,
   SectionShortcutAddResult,
@@ -198,8 +197,8 @@ export interface SectionGateway {
   move(id: SectionId, input: MoveSectionInput): Promise<SectionWriteResult>;
   /** §31's duplicate. Recorded as the add it is, so it answers the add envelope. */
   duplicate(id: SectionId): Promise<SectionAddResult>;
-  /** Removes or retains the section according to content and references, and returns its operation receipt. */
-  remove(id: SectionId, input?: RemoveSectionInput): Promise<SectionRemovalResult>;
+  /** Removes the section and cascades any live owned rows, returning its operation receipt. */
+  remove(id: SectionId): Promise<SectionRemovalResult>;
   /** Archive Restore. A repeat on a live section answers the section and a `null` receipt. */
   restore(id: SectionId): Promise<SectionWriteResult>;
 }

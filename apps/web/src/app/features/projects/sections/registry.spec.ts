@@ -26,7 +26,7 @@ describe('SECTION_REGISTRY (§29)', () => {
     // `displayName` stays a field here — it is what a designer edits and what Quick add
     // renders. This is the guard, not a second definition: the next type whose name the
     // derivation cannot produce fails here, at the moment it is added, rather than surfacing
-    // later as a section the removal dialog and the frame call different things.
+    // later as a section the registry and the frame call different things.
     for (const definition of SECTION_REGISTRY) {
       expect(definition.displayName).toBe(displayNameOf(definition.type));
     }

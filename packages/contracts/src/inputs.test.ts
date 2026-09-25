@@ -342,13 +342,11 @@ describe('naming a container on the write inputs', () => {
     expect(UpdateTaskInputSchema.safeParse({ sectionId: null }).success).toBe(false);
   });
 
-  it('carries a removal policy, and defaults to none so the caller is asked', () => {
+  it('accepts an empty removal input and rejects retired policy fields instead of stripping them', () => {
     expect(RemoveSectionInputSchema.parse({})).toEqual({});
-    expect(RemoveSectionInputSchema.parse({ policy: 'cascade' }).policy).toBe('cascade');
-    expect(
-      RemoveSectionInputSchema.parse({ policy: 'reassign', reassignToSectionId: 'section-2' }),
-    ).toMatchObject({ policy: 'reassign', reassignToSectionId: 'section-2' });
-    expect(RemoveSectionInputSchema.safeParse({ policy: 'delete' }).success).toBe(false);
+    expect(RemoveSectionInputSchema.safeParse({ policy: 'cascade' }).success).toBe(false);
+    expect(RemoveSectionInputSchema.safeParse({ policy: 'reassign', reassignToSectionId: 'section-2' }).success).toBe(false);
+    expect(RemoveSectionInputSchema.safeParse({ reassignToSectionId: 'section-2' }).success).toBe(false);
   });
 });
 

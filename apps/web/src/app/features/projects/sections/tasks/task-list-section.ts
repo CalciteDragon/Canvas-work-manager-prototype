@@ -1,5 +1,15 @@
 import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+} from '@angular/core';
 import type { ProjectSection, SectionConfig, SectionId, TaskId, TaskPriority } from '@cwm/contracts';
 import { TaskDetailDrawer } from '../../../tasks/task-detail-drawer';
 import { TaskListStore } from '../../../tasks/task-list-store';
@@ -39,6 +49,8 @@ export class TaskListSection {
   readonly readOnly = input(false);
 
   readonly store = inject(TaskListStore);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   /**
    * Optional on purpose. The section needs the *canvas* to know which other lists exist,
    * but §66 asks that a section stay removable and renderable on its own — a hard
@@ -118,7 +130,25 @@ export class TaskListSection {
    */
   async archive(id: TaskId): Promise<void> {
     if (this.readOnly()) return;
-    if (await this.store.archive(id)) this.onProjectDataChange()();
+    const sectionId = this.section().id;
+    const deleteButtons = [...this.host.nativeElement.querySelectorAll<HTMLButtonElement>('[data-task-delete]')];
+    const focusIndex = deleteButtons.findIndex((button) => button === document.activeElement);
+    const focusedDelete = focusIndex >= 0 ? deleteButtons[focusIndex] : null;
+    if (!(await this.store.archive(id))) return;
+    this.onProjectDataChange()();
+    if (focusedDelete === null) return;
+
+    const active = document.activeElement;
+    if (active !== document.body && active !== null && active !== focusedDelete) return;
+    afterNextRender(() => {
+      if (this.section().id !== sectionId) return;
+      const activeAfterRender = document.activeElement;
+      if (activeAfterRender !== document.body && activeAfterRender !== null && activeAfterRender !== focusedDelete) return;
+      const buttons = [...this.host.nativeElement.querySelectorAll<HTMLButtonElement>('[data-task-delete]')];
+      const next = buttons[focusIndex] ?? buttons[focusIndex - 1] ??
+        this.host.nativeElement.querySelector<HTMLInputElement>('[data-quick-task-title]');
+      next?.focus();
+    }, { injector: this.injector });
   }
 
   async changeEstimate(event: { id: TaskId; estimate: number | null }): Promise<void> {

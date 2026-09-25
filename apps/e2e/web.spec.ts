@@ -86,8 +86,6 @@ test('create a project, add a task list, add a task, and see it on Today', async
   await expect(page.locator('[data-task-row]')).toHaveCount(1);
 
   await page.locator('[data-section-remove]').click();
-  // A container still holding live rows asks what should happen to them.
-  await page.locator('[data-section-removal-cascade]').click();
   await expect(page.locator('[data-section-frame][data-section-type="task-list"]')).toHaveCount(0);
 
   // Archive is root-wide. The project menu can enable and open it even though this fixture

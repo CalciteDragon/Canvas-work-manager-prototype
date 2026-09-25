@@ -56,10 +56,10 @@ const ROW_KIND_FOR_OWNED = { tasks: 'task', reflections: 'reflection' } as const
 /**
  * The inverse of one `SectionService.remove`, version 1.
  *
- * `appliedPolicy` is what removal *did*: `RemoveSectionInput` accepts `policy: 'reassign'` with
- * no target, and removal never inspects it when nothing is live, so such a removal records
- * `none`. `rows` holds exactly the rows the removal wrote — for cascade the live rows it archived,
- * for reassign every row it moved, pre-archived ones included.
+ * `appliedPolicy` is what this stored version-1 action did. New removals cascade live rows;
+ * the `reassign` member remains here so existing histories stay executable. `rows` holds exactly
+ * what that historical removal wrote — for cascade the live rows it archived, for reassign every
+ * row it moved, pre-archived ones included.
  *
  * `disposition` says whether the section was retained or deleted. Only a recorded deletion allows
  * Undo to recreate a missing section, and only a recorded deletion makes Redo delete it again.

@@ -88,3 +88,6 @@ task update, completion, archive and restore now returns `{ task, operation }` a
 and markers they changed. Idempotent completion, archive, restore and normalized update return
 `operation: null`, preserving the no-write/no-event rule
 ([decision](2026-09-row-operation-history.md)).
+
+
+**Amended, 2026-09-24 (Slice 43).** Task List and Todos rows now present the existing reversible task archive action as **Delete**, including on finished tasks. It still archives the task and descendants with their markers for Undo and Archive Restore; it does not hard-delete task data.

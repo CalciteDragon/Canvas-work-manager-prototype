@@ -65,7 +65,7 @@ describe('ProjectArchiveService (§31)', () => {
       title: 'Archived before section removal',
     });
     await harness.taskService.archive(harness.actor, independent.id);
-    await harness.sectionService.remove(harness.actor, ROOT_TASKS, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, ROOT_TASKS);
 
     // This is a valid hand-edited state explicitly called out by the plan: the canonical
     // project writer refuses it, but Archive must still make the live descendants findable.
@@ -237,7 +237,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     await harness.taskService.create(harness.actor, { projectId: ROOT, sectionId: list.id, parentTaskId: parent.id, title: 'Child' });
     const earlier = await harness.taskService.create(harness.actor, { projectId: ROOT, sectionId: list.id, title: 'Filed earlier' });
     await harness.taskService.archive(harness.actor, earlier.id);
-    await harness.sectionService.remove(harness.actor, list.id, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, list.id);
 
     const { items } = await archive.derive(harness.actor, ROOT);
 
@@ -247,10 +247,9 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     });
   });
 
-  it('deletes a source emptied by reassignment, which takes its archived subtree along', async () => {
+  it('keeps a removed container as the recovery path for its independently archived subtree', async () => {
     const { harness, archive } = buildArchive();
     const source = await harness.sectionService.add(harness.actor, ROOT, { type: 'task-list' });
-    const target = await harness.sectionService.add(harness.actor, ROOT, { type: 'task-list' });
     const live = await harness.taskService.create(harness.actor, { projectId: ROOT, sectionId: source.id, title: 'Live' });
     const parent = await harness.taskService.create(harness.actor, { projectId: ROOT, sectionId: source.id, title: 'Archived parent' });
     const child = await harness.taskService.create(harness.actor, {
@@ -260,29 +259,31 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
       title: 'Archived child',
     });
     await harness.taskService.archive(harness.actor, parent.id);
-    await harness.sectionService.remove(harness.actor, source.id, { policy: 'reassign', reassignToSectionId: target.id });
+    await harness.sectionService.remove(harness.actor, source.id);
 
     const { items } = await archive.derive(harness.actor, ROOT);
 
-    expect(await harness.sections.find(source.id)).toBeNull();
-    expect(sectionItem(items, source.id)).toBeUndefined();
-    for (const id of [live.id, parent.id, child.id]) expect((await harness.tasks.find(id))?.sectionId).toBe(target.id);
-    expect(items.find((item) => keyOf(item) === `task:${child.id}`)).toMatchObject({
-      origin: { sectionId: target.id },
-      restoration: { kind: 'blocked', blocker: { kind: 'task', taskId: parent.id } },
+    expect(await harness.sections.find(source.id)).toMatchObject({ id: source.id, archivedAt: expect.any(String) });
+    expect(sectionItem(items, source.id)).toMatchObject({
+      recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 3, separateRestoreCount: 1 },
+      restoration: { kind: 'ready', operation: 'restore_section' },
+    });
+    expect(await harness.tasks.find(live.id)).toMatchObject({ sectionId: source.id, archivedWithSectionId: source.id });
+    expect(await harness.tasks.find(parent.id)).toMatchObject({ sectionId: source.id, archivedAt: expect.any(String) });
+    expect(await harness.tasks.find(parent.id)).not.toHaveProperty('archivedWithSectionId');
+    expect(await harness.tasks.find(child.id)).toMatchObject({
+      sectionId: source.id,
+      parentTaskId: parent.id,
+      archivedWithTaskId: parent.id,
     });
   });
 
-  it('keeps an archived-only owner as the recovery path when reassign is requested', async () => {
+  it('keeps an archived-only owner as the recovery path', async () => {
     const { harness, archive } = buildArchive();
     const source = await harness.sectionService.add(harness.actor, ROOT, { type: 'reflections' });
-    const target = await harness.sectionService.add(harness.actor, ROOT, { type: 'reflections' });
     const filed = await harness.reflectionService.create(harness.actor, { projectId: ROOT, sectionId: source.id, body: 'Filed' });
     await harness.reflectionService.archive(harness.actor, filed.id);
-    const { operation } = await harness.sectionService.remove(harness.actor, source.id, {
-      policy: 'reassign',
-      reassignToSectionId: target.id,
-    });
+    const { operation } = await harness.sectionService.remove(harness.actor, source.id);
 
     const { items } = await archive.derive(harness.actor, ROOT);
 

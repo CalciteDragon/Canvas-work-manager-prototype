@@ -96,6 +96,7 @@ unknown-tool response.
 - [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md) — one combined index space for sections and shortcuts
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md) — accepted contextual insertion
 - [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `remove_section` receipts, reason-token refusal messages
+- [One-step section removal and task Delete](../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — strict ID-only `remove_section`; old stored reassign actions remain executable
 - [Explicit section edits reverse only their operation's changes](../../decisions/2026-09-section-edit-undo-boundaries.md) — `move_section`, add/update/move receipts, `operation: null` no-ops
 - [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — `get_operation_history` reads, the transitions write, per connection
 - [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../decisions/2026-09-history-stage-a-deferrals.md) — `undo_operation`/`redo_operation` inputs, one transition route; their grants became family-derived in Slice 36

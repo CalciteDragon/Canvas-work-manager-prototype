@@ -221,7 +221,7 @@ describe('ReflectionService.archive and restore', () => {
   it('refuses to restore a reflection whose section is archived, naming the section', async () => {
     const harness = buildHarness();
     const reflection = await write(harness);
-    await harness.sectionService.remove(harness.actor, reflection.sectionId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, reflection.sectionId);
 
     const refusal = await harness.reflectionService
       .restore(harness.actor, reflection.id)

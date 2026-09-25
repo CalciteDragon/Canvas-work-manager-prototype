@@ -227,3 +227,6 @@ changes something. Its response is `{ section, operation }`, and a repeat on a l
 no-op with a null operation. Undoing a recorded Restore re-archives exactly what that Restore
 revived; it is not the removal beneath it, which remains its own step
 ([decision](2026-09-section-restore-and-shortcut-history.md)).
+
+
+**Amended, 2026-09-24 (Slice 43).** New section removal writes the existing cascade markers for live owned rows, so Undo, Redo and Archive Restore keep the exact footprint described here. Independently archived rows remain untouched. New removals no longer create reassign actions, although the history executor still understands persisted version-1 reassign payloads.

@@ -138,7 +138,7 @@ const CASES: Record<string, ToolCase> = {
       await harness.services.sections.remove(writer, VIEW_SECTION);
       const notes = await harness.services.sections.add(writer, PROJECT, { type: 'rich-text', config: { text: 'Keep me' } });
       await harness.services.sections.remove(writer, notes.section.id);
-      await harness.services.sections.remove(writer, TASK_CONTAINER, { policy: 'cascade' });
+      await harness.services.sections.remove(writer, TASK_CONTAINER);
     },
     verify: (result) => {
       expect(result.projectId).toBe(PROJECT);
@@ -295,8 +295,8 @@ const CASES: Record<string, ToolCase> = {
     },
   },
   remove_section: {
-    // A view: it owns nothing, so it needs no policy. The container case — a policy, and
-    // the rows it settles — is asserted in the domain, where the rule lives.
+    // A view owns no rows; the ID-only container cascade and the rows it settles are asserted
+    // in the domain, where the rule lives.
     input: { sectionId: VIEW_SECTION },
     mutates: true,
     verify: async (result, harness) => {
@@ -524,6 +524,17 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
 
   it('denies a connection holding nothing at all', async () => {
     await expect(harness.registry.call('list_tasks', {}, agent())).rejects.toThrow(PermissionDeniedError);
+  });
+
+  it('rejects retired removal policy fields before touching the section', async () => {
+    const harness = buildHarness();
+    const before = harness.store.snapshot();
+
+    await expect(
+      harness.registry.call('remove_section', { sectionId: VIEW_SECTION, policy: 'cascade' }, agent(['projects.write'])),
+    ).rejects.toThrow();
+
+    expect(harness.store.snapshot()).toEqual(before);
   });
 });
 

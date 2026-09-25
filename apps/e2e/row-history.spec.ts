@@ -53,10 +53,21 @@ test('browser row commits record once and HTTP history updates Home, Todos, Arch
   await step(root.id, 'redo');
   await expect(todos.locator('[data-todo-status]')).toHaveText('Done');
 
-  await page.locator('[data-task-archive]').click();
+  const deleteTask = page.locator('[data-task-delete]');
+  await deleteTask.focus();
+  await deleteTask.press('Enter');
   await expect(page.locator('[data-task-row]')).toHaveCount(0);
+  await expect(page.locator('[data-quick-task-title]')).toBeFocused();
   const archive = await context.newPage();
   await archive.goto(`/projects/${root.id}/pages/archive`);
+  await expect(archive.getByText('Committed title', { exact: true })).toBeVisible();
+  await step(root.id, 'undo');
+  await expect(page.locator('[data-task-title]')).toHaveText('Committed title');
+  await expect(archive.getByText('Committed title', { exact: true })).toHaveCount(0);
+  await deleteTask.focus();
+  await deleteTask.press('Space');
+  await expect(page.locator('[data-task-row]')).toHaveCount(0);
+  await expect(page.locator('[data-quick-task-title]')).toBeFocused();
   await expect(archive.getByText('Committed title', { exact: true })).toBeVisible();
   await step(root.id, 'undo');
   await expect(page.locator('[data-task-title]')).toHaveText('Committed title');

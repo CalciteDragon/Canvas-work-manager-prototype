@@ -71,14 +71,17 @@
     </button>
 
     <button
-      data-task-archive
-      class="task-row__archive"
+      data-task-delete
+      class="task-row__delete"
       type="button"
       [disabled]="archiving()"
-      [attr.aria-label]="'Archive ' + task().title"
-      (click)="requestArchive()"
+      [attr.aria-label]="'Delete task ' + task().title"
+      [attr.title]="'Delete task ' + task().title"
+      (click)="requestDelete()"
     >
-      {{ archiving() ? 'Archiving…' : 'Archive' }}
+      <svg class="task-row__delete-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+        <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m3 3v7m6-7v7" />
+      </svg>
     </button>
   }
 </article>

@@ -514,8 +514,8 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         operation: this.receipt('section.add', `Duplicate ${id}`),
       });
     },
-    // The policy and public receipt are recorded too; no inverse snapshot crosses the gateway.
-    remove: (id, input = {}) => {
+    // The public receipt crosses the gateway; no removal policy or inverse snapshot does.
+    remove: (id) => {
       const current = this.sectionFor(id);
       const original = { ...current };
       const operation = this.receipt('section.remove', `Remove ${id}`);
@@ -524,7 +524,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         operation,
         archiveListed: this.archiveListedOnRemoval,
       };
-      return this.answer('sections.remove', { id, input }, result).then((removed) => {
+      return this.answer('sections.remove', { id }, result).then((removed) => {
         current.archivedAt = COMPLETED_AT;
         this.undoers.set(operation.actionId, () => {
           const restored: ProjectSection = { ...original };

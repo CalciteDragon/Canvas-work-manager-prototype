@@ -751,19 +751,17 @@ describe('PrototypeWorkManagerGateway — failures the UI has to see', () => {
   });
 
   it('preserves the untrusted details a 409 carries, and preserves their absence', async () => {
-    // The adapter keeps wire data as it found it; the feature that branches on it owns the
-    // validation. Without this the host and store tests both pass while the real removal
-    // dialog never sees the discriminator it opens on.
+    // The adapter forwards opaque wire data; any feature that branches on it owns validation.
     const adapter = gateway();
     fetchMock.mockImplementation(
       jsonResponse(
-        { error: 'rule_violation', message: 'still holds 3 tasks', details: { reason: 'section_not_empty', liveRowCount: 3 } },
+        { error: 'rule_violation', message: 'the write conflicts', details: { reason: 'write_conflict', conflictingRecordCount: 3 } },
         409,
       ),
     );
     await expect(adapter.sections.remove('section-1' as SectionId)).rejects.toMatchObject({
       code: 'rule_violation',
-      details: { reason: 'section_not_empty', liveRowCount: 3 },
+      details: { reason: 'write_conflict', conflictingRecordCount: 3 },
     });
 
     fetchMock.mockImplementation(jsonResponse({ error: 'rule_violation', message: 'nope' }, 409));

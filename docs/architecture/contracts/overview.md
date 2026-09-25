@@ -11,6 +11,9 @@ of these shapes anywhere in the repository.
 Operation history holds strict version-1 section, task, reflection, Home shortcut, optional-page
 and project payloads under one per-actor, per-project cursor. Creation captures the project and its
 canonical page as `project.add`; its directional results report removal or same-id recreation.
+The public section-removal input is a strict empty object: transports need only the section id,
+and new removal actions cascade live owned rows. The stored version-1 payload still includes its
+applied policy so historical reassign actions remain executable without changing schema version 5.
 Section, row, placement, page and project writes return `{ section|task|reflection|shortcut|page|project, operation }` (with
 `operation: null` for a normalized no-op), and a shortcut removal names ids instead; the receipt names the history,
 action and revision while captured fields, structural effects and optional implicit containers

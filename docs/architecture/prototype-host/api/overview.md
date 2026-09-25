@@ -29,7 +29,8 @@ contract inputs and answer contract shapes; they hold no rules.
   and PATCH carry `{ project, operation }` (Slice 42 adds the creation receipt). Creates always carry a receipt and normalized no-op updates carry
   `operation: null`. A deleted disposable section's `section` is a response snapshot. A repeated
   section removal remains a 409 and may carry only the exact actor's newest outstanding receipt
-  in typed `details`.
+  in typed `details`. New `DELETE /api/sections/:id` requests accept no query fields: live owned
+  rows cascade with the section, and old policy or target parameters receive 400.
 
 ## Not responsible for
 

@@ -1,11 +1,8 @@
 import { DestroyRef, Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
 import {
   SectionConfigSchema,
-  SectionRemovalRefusalDetailsSchema,
   SectionAlreadyRemovedDetailsSchema,
   nameOf,
-  ownedKindOf,
-  type OwnedDataKind,
   type CreateSectionInput,
   type ProjectId,
   type ProjectPageId,
@@ -13,7 +10,6 @@ import {
   type ResolvedSectionShortcut,
   type CreateSectionShortcutInput,
   type UpdateSectionShortcutInput,
-  type RemoveSectionInput,
   type SectionColumnSpan,
   type SectionConfig,
   type SectionId,
@@ -57,23 +53,6 @@ const byPlacementPosition = (a: ProjectCanvasPlacement, b: ProjectCanvasPlacemen
 };
 
 /**
- * A container that refused removal, and what the canvas can offer instead.
- *
- * Not the domain's sentence: that one answers an **agent**, so it names an id, says
- * "1 tasks", and explains the policy vocabulary rather than the choice
- * (`.prototype/notes.json`, `note-2026-09-01-001`). These are the parts the UI writes its
- * own question from; the count still travels from the domain, so the dialog and the rule
- * cannot disagree.
- */
-export interface SectionRemovalPrompt {
-  sectionId: SectionId;
-  sectionName: string;
-  rowCount: number;
-  ownedKind: OwnedDataKind;
-  targets: ProjectSection[];
-}
-
-/**
  * What the canvas-local recovery notice offers (Slice 41). **Undo is not here**: the project
  * header's Undo/Redo controls are the one action surface for history, so the notice keeps only what
  * the header cannot do — Open Archive after a removal Archive will list, and a read-only Retry
@@ -92,7 +71,6 @@ export interface SectionRecoveryNoticeState {
 /** An explicit Retry remove repeats the exact canvas action after an uncertain failure. */
 export interface FailedSectionRemoval {
   sectionId: SectionId;
-  input: RemoveSectionInput;
   message: string;
 }
 
@@ -156,8 +134,6 @@ export class ProjectPageStore {
   private fullRecoveryQueued = false;
   private readonly errorState = signal<string | null>(null);
   private readonly sectionErrorState = signal<string | null>(null);
-  /** Set when a container refuses removal because it still holds rows — see `removeSection`. */
-  private readonly removalPromptState = signal<SectionRemovalPrompt | null>(null);
   private readonly recoveryNoticeState = signal<SectionRecoveryNoticeState | null>(null);
   private readonly failedRemovalState = signal<FailedSectionRemoval | null>(null);
   private readonly removalPendingState = signal(false);
@@ -198,7 +174,6 @@ export class ProjectPageStore {
   readonly sectionError = this.sectionErrorState.asReadonly();
   readonly canvasRevision = this.canvasRevisionState.asReadonly();
   readonly projectDataRevision = this.projectDataRevisionState.asReadonly();
-  readonly removalPrompt = this.removalPromptState.asReadonly();
   readonly recoveryNotice = this.recoveryNoticeState.asReadonly();
   readonly failedRemoval = this.failedRemovalState.asReadonly();
   readonly removalPending = this.removalPendingState.asReadonly();
@@ -417,7 +392,6 @@ export class ProjectPageStore {
     this.requestedShortcutsAllowed = shortcutsAllowed;
     this.recoveryNoticeState.set(null);
     this.failedRemovalState.set(null);
-    this.removalPromptState.set(null);
     this.orderCompleteState.set(false);
     if (!shortcutsAllowed) this.setCanvas(this.composePlacements(this.sectionsState(), []));
     this.loaded = false;
@@ -748,13 +722,12 @@ export class ProjectPageStore {
    * Removes or retains one section. Its receipt goes to the header's history, which is where the
    * removal's Undo lives (Slice 41); the canvas keeps only the recovery the header cannot offer —
    * Open Archive when Archive will list the section, and Retry refresh when the follow-up read
-   * fails. A live-row refusal remains a question for the existing policy dialog.
+   * fails. One request always cascades live owned rows with the section.
    */
-  removeSection(id: SectionId, input: RemoveSectionInput = {}): Promise<boolean> {
+  removeSection(id: SectionId): Promise<boolean> {
     if (this.removalPendingState()) return Promise.resolve(false);
-    const savedInput = { ...input };
     const unresolved = this.failedRemovalState();
-    if (unresolved !== null && !this.isSameFailedRemoval(unresolved, id, savedInput)) {
+    if (unresolved !== null && !this.isSameFailedRemoval(unresolved, id)) {
       this.sectionErrorState.set(FAILED_REMOVAL_GUARD_MESSAGE);
       return Promise.resolve(false);
     }
@@ -765,7 +738,7 @@ export class ProjectPageStore {
     const operation = this.mutate(async ({ current, projectId, pageId, generation }) => {
       let result: Awaited<ReturnType<typeof this.gateway.sections.remove>>;
       try {
-        result = await reportedWrite(this.reporter, () => this.gateway.sections.remove(id, savedInput), sectionReport);
+        result = await reportedWrite(this.reporter, () => this.gateway.sections.remove(id), sectionReport);
       } catch (error) {
         if (!current()) return;
         if (error instanceof GatewayError && error.code === 'rule_violation') {
@@ -775,7 +748,6 @@ export class ProjectPageStore {
             const recovered = this.reporter.begin();
             recovered.committed({ projectId, receipt: available.data.operation });
             recovered.end();
-            this.removalPromptState.set(null);
             this.clearFailedRemovalFor(id);
             this.recoveryNoticeState.set({ message: 'This section was already removed. Undo is in the header.', removal: { sectionId: id } });
             this.removePlacement(id);
@@ -785,19 +757,12 @@ export class ProjectPageStore {
             if (!refreshed) this.markRefreshFailed(current);
             return;
           }
-          const refusal = SectionRemovalRefusalDetailsSchema.safeParse(error.details);
-          if (refusal.success) {
-            this.clearFailedRemovalFor(id);
-            this.removalPromptState.set(this.removalPromptFor(id, refusal.data.liveRowCount));
-            return;
-          }
         }
-        this.failedRemovalState.set({ sectionId: id, input: savedInput, message: messageOf(error) });
+        this.failedRemovalState.set({ sectionId: id, message: messageOf(error) });
         failed = true;
         return;
       }
       if (!current()) return;
-      this.removalPromptState.set(null);
       this.clearFailedRemovalFor(id);
       // Archive is offered only when the removal says Archive will list the section
       // (`note-2026-09-15-006`); otherwise the header's changed label is the confirmation.
@@ -807,7 +772,7 @@ export class ProjectPageStore {
       // Paint the committed removal immediately. Neighbor positions still come from the
       // authoritative read.
       this.removePlacement(id);
-      if (savedInput.policy !== undefined) this.notifyProjectDataChanged();
+      this.notifyProjectDataChanged();
       await this.waitForOtherSectionWrites();
       const refreshed = await this.reconcileSections(projectId, pageId, generation);
       if (!refreshed) this.markRefreshFailed(current);
@@ -817,10 +782,10 @@ export class ProjectPageStore {
       .finally(() => this.removalPendingState.set(false));
   }
 
-  /** Retry uses the exact section id and policy the user selected; it is never automatic. */
+  /** Retry repeats only the ID-only removal after an uncertain response; it is never automatic. */
   retryFailedRemoval(): Promise<boolean> {
     const failed = this.failedRemovalState();
-    return failed === null ? Promise.resolve(false) : this.removeSection(failed.sectionId, failed.input);
+    return failed === null ? Promise.resolve(false) : this.removeSection(failed.sectionId);
   }
 
   /** Retries only the read after a committed mutation, never the write itself. */
@@ -861,14 +826,8 @@ export class ProjectPageStore {
     if (this.failedRemovalState()?.sectionId === id) this.failedRemovalState.set(null);
   }
 
-  private isSameFailedRemoval(
-    failed: FailedSectionRemoval,
-    id: SectionId,
-    input: RemoveSectionInput,
-  ): boolean {
-    return failed.sectionId === id &&
-      failed.input.policy === input.policy &&
-      failed.input.reassignToSectionId === input.reassignToSectionId;
+  private isSameFailedRemoval(failed: FailedSectionRemoval, id: SectionId): boolean {
+    return failed.sectionId === id;
   }
 
   private removePlacement(id: SectionId): void {
@@ -894,33 +853,6 @@ export class ProjectPageStore {
   private async waitForOtherSectionWrites(threshold = 1): Promise<void> {
     if (this.pendingSectionWrites <= threshold) return;
     await new Promise<void>((resolve) => this.sectionWriteWaiters.push({ threshold, resolve }));
-  }
-
-  /**
-   * The parts the dialog composes its question from. `ownedKindOf` is narrowed rather than
-   * cast: only a container can refuse this way, so a `undefined` here is a bug — and an
-   * early throw lands it in `mutate`'s catch and the section error line, which is where a
-   * bug belongs.
-   */
-  private removalPromptFor(id: SectionId, rowCount: number): SectionRemovalPrompt {
-    const section = this.sectionsState().find((candidate) => candidate.id === id);
-    if (section === undefined) throw new Error(`section "${id}" refused removal but is not on the canvas`);
-    const ownedKind = ownedKindOf(section.type);
-    if (ownedKind === undefined) throw new TypeError(`section "${id}" refused removal as non-empty but owns no rows`);
-    return { sectionId: id, sectionName: nameOf(section), rowCount, ownedKind, targets: this.reassignTargets(id) };
-  }
-
-  /** The containers a refused removal could hand its rows to: same type, same page. */
-  private reassignTargets(id: SectionId): ProjectSection[] {
-    const section = this.sectionsState().find((candidate) => candidate.id === id);
-    if (section === undefined) return [];
-    return this.sectionsState().filter(
-      (candidate) => candidate.id !== id && candidate.type === section.type,
-    );
-  }
-
-  dismissRemovalPrompt(): void {
-    this.removalPromptState.set(null);
   }
 
   private updateSection(

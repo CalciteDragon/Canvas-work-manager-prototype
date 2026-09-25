@@ -60,7 +60,8 @@ prevents a re-render loop in a zoneless app (`project-page-contract.ts`,
 ([decision](../../../decisions/2026-08-flow-vs-grid-layout-experiment.md)). Direct canvas
 controls replace the View/Edit split: users move from a grip, resize in supported column
 steps, rename at the title, and create at a visible insertion point. Settings appear only
-for a type with an inspector; removal uses the domain's content and reference policy, and its Undo is the header's
+for a type with an inspector; removal is one ID-only gesture whose cascade and recovery are
+decided by the domain, and its Undo is the header's
 ([canvas chrome](../../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md),
 [removal and Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
@@ -100,14 +101,15 @@ section, synced against the page's data revision — because under
 Task Lists must differ. A shortcut never gets a writable store: `ShortcutFrame` mounts
 the source read-only ([decision](../../../decisions/2026-09-a-shortcut-resolves-identity-not-content.md)).
 
-**The removal dialog opens only on the host's typed refusal.** `ProjectPageStore` holds
-no rows, so the count in "It still holds 3 tasks" travels from the domain in
-`DomainRuleError.details`, and the dialog offers containers by name
-([decision](../../../decisions/2026-09-a-section-has-a-name.md)).
+**Section removal is one gesture with a recoverable result.** The canvas sends only the section
+id; the domain archives live owned rows with it and leaves independently archived rows alone.
+An uncertain write keeps an ID-only Retry remove, while a failed follow-up read offers Retry
+refresh. Stored operation history still executes earlier reassign actions
+([decision](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md)).
 
 **The canvas keeps only the recovery the header cannot offer.** `SectionRecoveryNotice` offers
 Open Archive after a removal the server said Archive lists, an explicit Retry remove using the
-original input after an uncertain response, and a read-only Retry refresh after a committed write
+saved section id after an uncertain response, and a read-only Retry refresh after a committed write
 whose follow-up read failed; a forward write shows nothing, because the header's changed label is
 its confirmation. It floats at the viewport's end corner rather than in flow, so it never pushes
 the canvas under the pointer
@@ -162,6 +164,7 @@ opens a collapsed target through a transient input that leaves the record alone
 - [What the Todos page decides for itself](../../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)
 - [Root Archive recovery guidance](../../../decisions/2026-09-root-archive-recovery-guidance.md)
 - [Content-oriented Archive policy](../../../decisions/2026-09-content-oriented-archive-policy.md)
+- [Section removal is one cascade gesture, and task Delete is reversible](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md)
 - [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)
 - [Reflection subjects and the root journal feed](../../../decisions/2026-09-reflection-subjects-and-the-journal-feed.md)
 - [Task and reflection writes join operation history](../../../decisions/2026-09-row-operation-history.md) — row envelopes and compound-container live refresh

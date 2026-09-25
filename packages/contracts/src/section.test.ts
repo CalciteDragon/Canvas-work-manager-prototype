@@ -6,7 +6,6 @@ import {
   SectionCapabilitySchema,
   sectionCapabilityOf,
   SectionColumnSpanSchema,
-  SectionRemovalRefusalDetailsSchema,
   containerTypeFor,
   displayNameOf,
   nameOf,
@@ -180,17 +179,6 @@ describe('what a section is called', () => {
     expect(normaliseSectionTitle(null)).toBeUndefined();
   });
 
-  it('discriminates the one refusal the canvas can turn into a question', () => {
-    expect(
-      SectionRemovalRefusalDetailsSchema.parse({ reason: 'section_not_empty', liveRowCount: 2 }),
-    ).toEqual({ reason: 'section_not_empty', liveRowCount: 2 });
-    // A count of zero is not the question this dialog answers, and a different reason is a
-    // different 409 — both stay ordinary errors.
-    expect(SectionRemovalRefusalDetailsSchema.safeParse({ reason: 'section_not_empty', liveRowCount: 0 }).success).toBe(false);
-    expect(SectionRemovalRefusalDetailsSchema.safeParse({ reason: 'section_not_empty', liveRowCount: 1.5 }).success).toBe(false);
-    expect(SectionRemovalRefusalDetailsSchema.safeParse({ reason: 'section_archived', liveRowCount: 2 }).success).toBe(false);
-    expect(SectionRemovalRefusalDetailsSchema.safeParse(undefined).success).toBe(false);
-  });
 });
 
 describe('ProjectSectionSchema archivedAt', () => {

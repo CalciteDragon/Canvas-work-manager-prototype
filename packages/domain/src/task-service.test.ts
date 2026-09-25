@@ -472,7 +472,7 @@ describe('TaskService archive cascades, and restore undoes exactly that', () => 
     const marked = await create(harness);
     const beforehand = await create(harness, { title: 'Filed first' });
     await harness.taskService.archive(harness.actor, beforehand.id);
-    await harness.sectionService.remove(harness.actor, marked.sectionId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, marked.sectionId);
 
     // Both cases: the row the cascade marked, and the one archived individually beforehand.
     for (const id of [marked.id, beforehand.id]) {
@@ -534,7 +534,7 @@ describe('TaskService archived-parent and archived-project policy', () => {
     const harness = buildHarness();
     const marked = await create(harness);
     const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
-    await harness.sectionService.remove(harness.actor, marked.sectionId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, marked.sectionId);
 
     const refusal = await harness.taskService
       .update(harness.actor, marked.id, { sectionId: target.id })

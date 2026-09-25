@@ -16,9 +16,8 @@ import { defineTool, type WorkManagerTool } from '../tool';
  * layout, which is the gap docs/decisions/2026-09-sections-own-their-data.md closes.
  *
  * Removal can delete disposable views and empty containers, while content-bearing sections
- * stay recoverable in Archive. A container still holding live rows takes a policy rather than
- * a confirmation: it owns them, so the service refuses to guess between archiving them with it
- * and moving them elsewhere first.
+ * stay recoverable in Archive. Removing an owned container archives its live rows with it in
+ * one reversible operation; rows moved elsewhere first remain available there.
  *
  * Archive and restore are separate canonical operations so an agent can undo the same
  * operation the person sees in Archive. `list_sections` remains live-only — the agent's
@@ -60,13 +59,13 @@ export const sectionTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'remove_section',
     description:
-      'Remove a section from a project’s canvas. Disposable views, empty containers and empty rich-text sections are deleted; sections that hold content remain recoverable in Archive. A container still holding live rows needs a policy: "cascade" archives those rows with the section, or "reassign" moves them to another live container of the same type named by reassignToSectionId. A view, an empty container, and a container holding only archived rows need no policy. The result is { section, operation, archiveListed }: section is the final archived-shaped removal result, even when the stored section was deleted; operation is the receipt { historyId, actionId, revision, … } that undo_operation accepts for 24 hours, restoring the section between the same neighbours and restoring exactly the rows this removal changed; archiveListed is true only when get_project_archive will list this section, which is false for a deleted section and also for one kept solely because a shortcut or an archived row still names it. If a removal response is lost, repeat remove_section on the same section from the same connection: while that removal is still this connection’s to undo, the refusal names its historyId, actionId, expectedRevision and expiresAt, and the repeat does not write again.',
+      'Remove a section from a project’s canvas. Disposable views and empty containers can be deleted; sections that hold meaningful or uncertain content remain recoverable in Archive. Removing a task-list or reflections container archives every live row it owns with the section in one reversible operation; independently archived rows stay attached and keep their existing archive markers. The result is { section, operation, archiveListed }: section is the final archived-shaped removal result, even when the stored section was deleted; operation is the receipt { historyId, actionId, revision, … } that undo_operation accepts for 24 hours, restoring the section between the same neighbours and restoring exactly the rows this removal changed; archiveListed is true only when get_project_archive will list this section, which is false for a deleted section and also for one kept solely because a shortcut or an archived row still names it. If a removal response is lost, repeat remove_section on the same section from the same connection: while that removal is still this connection’s to undo, the refusal names its historyId, actionId, expectedRevision and expiresAt, and the repeat does not write again.',
     permission: 'projects.write',
     inputSchema: RemoveSectionInputSchema.extend({ sectionId: SectionIdSchema }),
     // The final archived-shaped result and operation receipt, so the agent can hold the action id
     // rather than infer it. Returned directly by the service: a second `get` would
     // demand `projects.read`, which this tool does not require.
-    execute: ({ sectionId, ...input }, { actor, services }) => services.sections.remove(actor, sectionId, input),
+    execute: ({ sectionId }, { actor, services }) => services.sections.remove(actor, sectionId),
   }),
   defineTool({
     name: 'restore_section',

@@ -197,7 +197,7 @@ const assertUndo = async (client, title, dataFile) => {
 
   // The edit journeys above leave sections behind, so compare removal against this order.
   const beforeRemoval = await canvas();
-  const removed = await client.callTool({ name: 'remove_section', arguments: { sectionId: UNDO_SECTION, policy: 'cascade' } });
+  const removed = await client.callTool({ name: 'remove_section', arguments: { sectionId: UNDO_SECTION } });
   const removal = receiptOf(removed);
   check(removed.isError !== true && typeof removal?.actionId === 'string', `${title} remove_section returns a receipt`);
   check((await liveTasks()).length === 0, `${title} cascade archived the tasks`);
@@ -243,7 +243,8 @@ const assertUndo = async (client, title, dataFile) => {
 };
 
 /**
- * Slice 33 (Refactor §26.3–4, §26.6, §26.9): exact ids through reassign and cascade, the Archive
+ * Slice 43 (Refactor §26.3–4, §26.6, §26.9): reject removal-time reassignment, keep ordinary task
+ * moves reversible, cascade on an ID-only removal, the Archive
  * projection, and refusals for a foreign actor, a removed grant and a revoked connection.
  * `access` changes grants the way that transport's file is really changed: REST for the running
  * HTTP host, a direct edit between completed calls for stdio (which reloads on every call).
@@ -662,27 +663,39 @@ const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access)
     check((await businessState(dataFile)) === afterUndo, `${title} the replayed ${type} Undo adds no event or action`);
   }
 
-  // Reassign: every row id moves to the target and back; the emptied source never reaches Archive.
+  // New remove_section requests reject the retired reassign fields without committing anything.
   const original = await tasksIn(UNDO_SECTION);
   check(original.length > 0, `${title} recovery starts from live rows in ${UNDO_SECTION}`);
-  const target = await client.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type: 'task-list', title: `Reassign target ${title}` } });
+  const target = await client.callTool({ name: 'create_section', arguments: { projectId: PROJECT, type: 'task-list', title: `Move target ${title}` } });
   const targetId = target.structuredContent.section.id;
-  const reassigned = await client.callTool({
+  const beforeRejectedRemoval = await businessState(dataFile);
+  const rejectedReassign = await client.callTool({
     name: 'remove_section',
     arguments: { sectionId: UNDO_SECTION, policy: 'reassign', reassignToSectionId: targetId },
   });
-  check(reassigned.isError !== true, `${title} reassign removal succeeds`);
-  check(JSON.stringify(await tasksIn(targetId)) === JSON.stringify(original), `${title} reassign moves exactly the original row ids`);
-  check(!(await archivedSectionIds()).includes(UNDO_SECTION), `${title} the emptied reassign source stays out of Archive`);
-  const undoneReassign = await stepReceipt(client, receiptOf(reassigned));
-  check(undoneReassign.isError !== true, `${title} reassign Undo succeeds`);
+  check(rejectedReassign.isError === true, `${title} MCP refuses retired reassign removal fields`);
+  check((await businessState(dataFile)) === beforeRejectedRemoval, `${title} rejected reassign removal leaves business, history and activity state unchanged`);
+
+  // Independent task moves still use update_task and retain their own Undo/Redo receipt.
+  const movedTaskId = original[0];
+  const taskMove = await client.callTool({
+    name: 'update_task',
+    arguments: { taskId: movedTaskId, sectionId: targetId },
+  });
+  check(taskMove.isError !== true, `${title} update_task moves a task into another section`);
+  check((await tasksIn(targetId)).includes(movedTaskId), `${title} ordinary task move preserves its id at the target`);
+  check(!(await tasksIn(UNDO_SECTION)).includes(movedTaskId), `${title} ordinary task move removes that id from its source`);
+  const undoneMove = await stepReceipt(client, receiptOf(taskMove));
+  check(undoneMove.isError !== true && (await tasksIn(UNDO_SECTION)).includes(movedTaskId), `${title} update_task Undo returns the task to its source`);
+  const redoneMove = await stepReceipt(client, receiptOf(taskMove), 'redo');
+  check(redoneMove.isError !== true && (await tasksIn(targetId)).includes(movedTaskId), `${title} update_task Redo moves the same task back to its target`);
   check(
-    JSON.stringify(await tasksIn(UNDO_SECTION)) === JSON.stringify(original) && (await tasksIn(targetId)).length === 0,
-    `HTTP/stdio recovery preserves exact row and source IDs (${title}, reassign)`,
+    (await tasksIn(targetId)).includes(movedTaskId) && (await tasksIn(UNDO_SECTION)).length === original.length - 1,
+    `HTTP/stdio recovery preserves exact row and source IDs (${title}, independent move)`,
   );
 
   // Cascade: retained under its own id and projected by Archive while removed.
-  const cascade = await client.callTool({ name: 'remove_section', arguments: { sectionId: UNDO_SECTION, policy: 'cascade' } });
+  const cascade = await client.callTool({ name: 'remove_section', arguments: { sectionId: UNDO_SECTION } });
   check(cascade.isError !== true && cascade.structuredContent.section.id === UNDO_SECTION, `${title} cascade removal keeps the section id`);
   check((await archivedSectionIds()).includes(UNDO_SECTION), `${title} get_project_archive projects the cascaded list`);
   const receipt = receiptOf(cascade);
@@ -705,9 +718,11 @@ const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access)
   check((await businessState(dataFile)) === withoutGrant, `HTTP/stdio current grant removal refuses issued receipt (${title})`);
   await access.setPermissions('agent-claude', ['projects.read', 'projects.write', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write', 'workspace.read']);
   const regranted = await client.callTool({ name: 'undo_operation', arguments: receiptArgs });
+  const remainingSourceRows = original.filter((id) => id !== movedTaskId);
   check(
-    regranted.isError !== true && JSON.stringify(await tasksIn(UNDO_SECTION)) === JSON.stringify(original),
-    `${title} the same receipt works once the grant is back, with every row id live`,
+    regranted.isError !== true && JSON.stringify(await tasksIn(UNDO_SECTION)) === JSON.stringify(remainingSourceRows) &&
+      (await tasksIn(targetId)).includes(movedTaskId),
+    `${title} the same receipt restores source rows while the independent move stays at its target`,
   );
 
   // Revocation, on the second connection so the primary token still serves the restart checks.

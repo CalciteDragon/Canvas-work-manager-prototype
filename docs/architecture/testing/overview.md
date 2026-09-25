@@ -29,7 +29,8 @@ unit-test builder, `@playwright/test`, `@modelcontextprotocol/client`, `storyboo
   file.
 - **End-to-end**: the web path, direct canvas editing, section and row Undo/Redo, MCP, and the
   todos, archive and reflections journeys, each seeding the host itself from a freshly prepared
-  version-5 scratch document.
+  version-5 scratch document. Slice 43 covers one-gesture cascade removal, old-input rejection,
+  independent task moves, and task Delete on Task List and Todos.
 - **Root tooling tests**: roadmap Outcome and built Compodoc anchor guards, using Node's built-in test runner.
 - **Lints**: package imports, no direct `Date`, design tokens, and the documentation
   structure.

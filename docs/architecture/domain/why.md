@@ -53,7 +53,9 @@ cannot confirm that someone else's project exists
 tasks, reflections and sections, with `archivedWithSectionId` / `archivedWithTaskId`
 marking what one operation took down so that restore brings back exactly that and nothing
 independently archived ([decision](../../decisions/2026-09-what-undo-means-for-an-archived-row.md)).
-New section removal deletes only after the content policy says nothing needs recovery and an
+New section removal archives live owned rows in one step, leaving independently archived rows
+unchanged; its public request has no policy or target. The history executor still accepts older
+stored `reassign` actions. Removal deletes only after the content policy says nothing needs recovery and an
 independent audit proves no task, reflection or shortcut still references the section. Required
 references retain an integrity tombstone; existing tombstones are never purged
 ([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
@@ -196,6 +198,7 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [A shortcut resolves source identity, not source content](../../decisions/2026-09-a-shortcut-resolves-identity-not-content.md)
 - [Live work under an archived ancestor is hidden, and cannot be newly created](../../decisions/2026-09-reactivating-under-an-archived-ancestor.md)
 - [Reassigning a container's rows may cross pages within a project](../../decisions/2026-09-reassign-may-cross-pages.md)
+- [One-step section removal and task Delete](../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — new removals cascade live rows; stored reassign history remains executable
 - [A disabled page refuses new content and keeps everything already on it](../../decisions/2026-09-a-disabled-page-hides-navigation-not-data.md)
 - [A root's optional pages are created on first enable](../../decisions/2026-09-optional-pages-are-created-on-first-enable.md)
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md)

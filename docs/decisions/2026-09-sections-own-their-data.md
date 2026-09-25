@@ -165,3 +165,6 @@ source only when it is safe. If only pre-archived rows remain, explicit reassign
 container in place. Receipt-based Undo restores the removed section and reverses recorded moves;
 Archive remains the recovery path for retained content. The full policy and matrix are recorded
 in [disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md).
+
+
+**Amended, 2026-09-24 (Slice 43).** Removing a container no longer reparents its rows. The one-step removal archives its live owned rows with the section; independently archived rows keep their original markers. A person or agent who wants a task in another container uses the ordinary task update, which records its own history action.

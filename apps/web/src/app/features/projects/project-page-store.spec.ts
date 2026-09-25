@@ -1206,7 +1206,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(remove).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps the prior notice after a failed remove and retries the exact policy explicitly', async () => {
+  it('keeps the prior notice after a failed remove and retries the same section explicitly', async () => {
     const first = section('section-text', 'rich-text', 0);
     const next = section('section-tasks', 'task-list', 1);
     let listed = [first, next];
@@ -1222,14 +1222,13 @@ describe('ProjectPageStore (§19, §26)', () => {
     listed = [next];
     expect(await store.removeSection(first.id)).toBe(true);
     const previous = store.recoveryNotice();
-    const input = { policy: 'reassign' as const, reassignToSectionId: 'section-destination' as SectionId };
-    expect(await store.removeSection(next.id, input)).toBe(false);
+    expect(await store.removeSection(next.id)).toBe(false);
 
     expect(store.recoveryNotice()).toEqual(previous);
-    expect(store.failedRemoval()).toEqual({ sectionId: next.id, input, message: 'remove response was lost' });
+    expect(store.failedRemoval()).toEqual({ sectionId: next.id, message: 'remove response was lost' });
     listed = [];
     expect(await store.retryFailedRemoval()).toBe(true);
-    expect(remove).toHaveBeenLastCalledWith(next.id, input);
+    expect(remove).toHaveBeenLastCalledWith(next.id);
     expect(store.recoveryNotice()?.message).toBe('Removed the Task List section. Undo is in the header.');
     expect(reporter.receipts().map((held) => held?.actionId)).toEqual(['undo-first', 'undo-second']);
     expect(store.failedRemoval()).toBeNull();
@@ -1244,7 +1243,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     const { store } = setup({ sectionOverrides: { remove } });
     await store.load(PROJECT, PAGE);
     await store.removeSection(first.id);
-    await store.removeSection(next.id, { policy: 'cascade' });
+    await store.removeSection(next.id);
     const failed = store.failedRemoval();
     const notice = store.recoveryNotice();
 
@@ -1252,7 +1251,7 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.failedRemoval()).toBeNull();
     expect(store.recoveryNotice()).toEqual(notice);
 
-    await store.removeSection(next.id, { policy: 'cascade' }).catch(() => false);
+    await store.removeSection(next.id).catch(() => false);
     store.dismissRecoveryNotice();
     expect(store.recoveryNotice()).toBeNull();
     expect(failed?.sectionId).toBe(next.id);
@@ -1349,7 +1348,6 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sections()).toEqual(before);
     expect(store.failedRemoval()).toMatchObject({
       sectionId: 'section-text',
-      input: {},
       message: 'could not reach the prototype host',
     });
     expect(store.sectionError()).toBeNull();
@@ -1386,35 +1384,27 @@ describe('ProjectPageStore (§19, §26)', () => {
     expect(store.sectionError()).toContain('nope');
   });
 
-  it('opens the removal dialog with the parts the UI writes its question from', async () => {
-    const { store } = setup({
-      sections: [section('section-tasks', 'task-list', 0), section('section-shipped', 'task-list', 1)],
+  it('removes a live-row container with one ID-only write and refreshes owned data', async () => {
+    const container = section('section-tasks', 'task-list', 0);
+    let listCalls = 0;
+    const { store, gateway } = setup({
+      sections: [container],
       sectionOverrides: {
-        remove: vi.fn(async () => {
-          throw new GatewayError('rule_violation', 409, 'still holds 3 tasks', {
-            reason: 'section_not_empty',
-            liveRowCount: 3,
-          });
-        }),
+        list: vi.fn(async () => listCalls++ === 0 ? [container] : []),
+        remove: vi.fn(async () => ({ section: { ...container, archivedAt: AT }, operation: receipt('undo-container'), archiveListed: true })),
       },
     });
     await store.load(PROJECT, PAGE);
+    const revision = store.projectDataRevision();
 
     expect(await store.removeSection('section-tasks' as SectionId)).toBe(true);
-    expect(store.removalPrompt()).toEqual({
-      sectionId: 'section-tasks',
-      sectionName: 'Task List',
-      rowCount: 3,
-      ownedKind: 'tasks',
-      targets: [expect.objectContaining({ id: 'section-shipped' })],
-    });
-    // A question, not an error: the dialog is already saying it.
-    expect(store.sectionError()).toBeNull();
+    expect(gateway.sections.remove).toHaveBeenCalledWith('section-tasks');
+    expect(store.projectDataRevision()).toBe(revision + 1);
+    expect(store.failedRemoval()).toBeNull();
+    expect(store.recoveryNotice()).toMatchObject({ removal: { sectionId: 'section-tasks', archiveListed: true } });
   });
 
-  it('surfaces every other 409 as an error rather than as a removal-policy question', async () => {
-    // The archive phase's coming refusals — an already-archived section, an archived
-    // reassign target — must never masquerade as this dialog's question.
+  it('surfaces a removal refusal as an error instead of reviving policy-choice UI', async () => {
     let details: unknown;
     const { store } = setup({
       sectionOverrides: {
@@ -1425,21 +1415,10 @@ describe('ProjectPageStore (§19, §26)', () => {
     });
     await store.load(PROJECT, PAGE);
 
-    for (const candidate of [
-      undefined,
-      null,
-      'section_not_empty',
-      { reason: 'section_not_empty' },
-      { reason: 'section_not_empty', liveRowCount: 0 },
-      { reason: 'section_not_empty', liveRowCount: 1.5 },
-      { reason: 'section_not_empty', liveRowCount: '3' },
-      { reason: 'section_archived', liveRowCount: 3 },
-      { reason: 'section_already_removed', sectionId: 'section-other', operation: receipt('undo-other') },
-    ]) {
+    for (const candidate of [undefined, null, 'section_already_removed', { reason: 'section_already_removed', sectionId: 'section-other', operation: receipt('undo-other') }]) {
       details = candidate;
 
       expect(await store.removeSection('section-tasks' as SectionId)).toBe(false);
-      expect(store.removalPrompt()).toBeNull();
       expect(store.failedRemoval()?.message).toContain('still holds 3 tasks');
       expect(store.sectionError()).toBeNull();
     }

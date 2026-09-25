@@ -306,24 +306,20 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'POST /api/sections/:id/restore': async (request) =>
       ok(await sections.restoreSection(await actorFor(request), sectionId(request))),
 
-    // The policy rides on the query string, not a body: a DELETE with a body is awkward
-    // through `fetch` and every client here already builds query strings. Removing a
-    // container that still holds **live** rows without one answers 409 naming the count,
-    // which is what lets the canvas offer cascade or reassign rather than guess. Removing
-    // a repeat from the exact actor may recover its outstanding receipt in the 409 details,
-    // even when removal deleted the section. Other callers still get the ordinary 404.
+    // Removal has no policy input: every owned container takes its live rows with it as one
+    // recoverable operation. Parse the strict empty query so clients still sending the retired
+    // policy or target fields get a 400 before any domain write. A repeat from the exact actor
+    // may recover its outstanding receipt in the 409 details, even when removal deleted the
+    // section. Other callers still get the ordinary 404.
     //
     // A successful removal answers 200 with `SectionRemovalResult`: the final archived-shaped
     // section, the operation receipt for it, and `archiveListed` — whether Archive will actually list
     // it. The section itself may have been deleted.
-    'DELETE /api/sections/:id': async (request) =>
-      ok(
-        await sections.remove(
-          await actorFor(request),
-          sectionId(request),
-          RemoveSectionInputSchema.parse(queryObject(request.query, [])),
-        ),
-      ),
+    'DELETE /api/sections/:id': async (request) => {
+      const actor = await actorFor(request);
+      RemoveSectionInputSchema.parse(queryObject(request.query, []));
+      return ok(await sections.remove(actor, sectionId(request)));
+    },
 
     // One Undo or Redo step. The path names the history; the strict body names the action and the
     // revision the caller read, so a stale caller is refused rather than running a different step.

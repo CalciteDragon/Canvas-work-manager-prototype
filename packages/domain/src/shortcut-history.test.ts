@@ -114,7 +114,7 @@ describe('shortcut placement history (§§27, 31)', () => {
 
     // Archived and hidden sources are the existing unavailable placeholder, not a reason to refuse:
     // recovering a reference is not an ordinary Add and never unarchives the source.
-    await h.sectionWriteService.remove(h.actor, source.id, { policy: 'cascade' });
+    await h.sectionWriteService.remove(h.actor, source.id);
     await h.projectService.update(h.actor, child.id, { status: 'archived' });
     await step(h, created.operation, 'redo');
     expect((await h.shortcuts.find(created.shortcut.id))?.sourceSectionId).toBe(source.id);

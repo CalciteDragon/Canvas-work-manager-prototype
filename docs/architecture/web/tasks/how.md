@@ -12,8 +12,10 @@
    [what](what.md). Title Escape closes editing before the ensuing blur, so it records no write.
 4. Live frames naming a task the store holds trigger a quiet re-read unless a write is in
    flight, in which case the re-read waits; a read whose epoch is stale is discarded.
-5. Archive from the row calls `tasks.archive`; restore comes from the root Archive page
+5. TaskRow's **Delete** emits the task id to the section, which calls `tasks.archive`; restore comes from the root Archive page
    through the same gateway, not from here.
+6. Todos does not render `TaskRow`: `TodosPageStore` serializes its own Complete and Delete
+   writes, removes a task subtree optimistically and reports the task's receipt to its project.
 
 ## Key symbols
 
@@ -37,7 +39,7 @@
 **Depended on by**
 
 - [projects](../projects/overview.md) — the Task List section provides the store; the
-  Todos page renders `TaskRow`.
+  Todos page owns its own row and store.
 - [prototype-tooling](../prototype-tooling/overview.md) — the Design Lab's live panels
   render the six variants from fixtures.
 - [testing](../../testing/overview.md) — the `TaskRow` story set and the web e2e journey.

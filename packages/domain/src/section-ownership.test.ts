@@ -223,20 +223,22 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     await expect(harness.undo(harness.actor, operation)).resolves.toMatchObject({ section: { id: list.id } });
   });
 
-  it('refuses a container that still holds rows, naming the count', async () => {
+  it('archives live rows instead of requiring a policy choice', async () => {
     const harness = buildHarness();
-    const { list } = await projectWithWork(harness);
+    const { task, list } = await projectWithWork(harness);
 
-    await expect(harness.sectionService.remove(harness.actor, list.id)).rejects.toThrow(/holds 1 tasks/);
-    // Nothing removed: the caller is asked, not guessed at.
-    expect(await harness.sectionService.list(harness.actor, MINE)).toHaveLength(1);
+    const result = await harness.sectionService.remove(harness.actor, list.id);
+
+    expect(result.section.archivedAt).toBeDefined();
+    expect(await harness.tasks.find(task.id)).toMatchObject({ archivedAt: result.section.archivedAt, archivedWithSectionId: list.id });
+    expect(await harness.sectionService.list(harness.actor, MINE)).toEqual([]);
   });
 
   it('cascades by archiving the section and its rows, so the removal is undoable', async () => {
     const harness = buildHarness();
     const { task, list } = await projectWithWork(harness);
 
-    await harness.sectionService.remove(harness.actor, list.id, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, list.id);
 
     const archived = await harness.tasks.find(task.id);
     expect(archived).not.toBeNull();
@@ -255,7 +257,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     const beforehand = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Filed away' });
     await harness.taskService.archive(harness.actor, beforehand.id);
 
-    await harness.sectionService.remove(harness.actor, list.id, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, list.id);
     expect((await harness.tasks.find(beforehand.id))?.archivedWithSectionId).toBeUndefined();
 
     await harness.sectionService.restoreSection(harness.actor, list.id);
@@ -284,54 +286,53 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
   });
 
-  it('reassigns rows to another container of the same type and deletes the emptied source', async () => {
+  it('moves a task independently, then removes the empty source container', async () => {
     const harness = buildHarness();
     const { task, list } = await projectWithWork(harness);
-    const archived = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Old' });
-    await harness.taskService.archive(harness.actor, archived.id);
     const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
 
-    const { operation } = await harness.sectionService.remove(harness.actor, list.id, {
-      policy: 'reassign',
-      reassignToSectionId: target.id,
-    });
+    const moved = await harness.taskService.update(harness.actor, task.id, { sectionId: target.id });
 
-    expect((await harness.taskService.get(harness.actor, task.id)).sectionId).toBe(target.id);
-    expect((await harness.tasks.find(archived.id))?.sectionId).toBe(target.id);
-    // Reassignment leaves no canonical row under the source. Undo's operation snapshot is
-    // enough to recreate the section and return every moved row.
+    expect(moved.sectionId).toBe(target.id);
+    const { operation } = await harness.sectionService.remove(harness.actor, list.id);
+
+    // The move is its own task write. Removing the now-empty source neither reassigns nor
+    // changes the row, and Undo recreates only that source section.
     expect(await harness.sections.find(list.id)).toBeNull();
-    expect(harness.store.snapshot().operationActions.at(-1)?.operation).toMatchObject({ disposition: 'deleted' });
-    expect((await harness.tasks.find(task.id))?.archivedWithSectionId).toBeUndefined();
+    expect(harness.store.snapshot().operationActions.at(-1)?.operation).toMatchObject({ appliedPolicy: 'none', disposition: 'deleted' });
+    expect((await harness.tasks.find(task.id))?.sectionId).toBe(target.id);
     expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
 
     await harness.undo(harness.actor, operation);
-    expect((await harness.taskService.get(harness.actor, task.id)).sectionId).toBe(list.id);
-    expect((await harness.tasks.find(archived.id))?.sectionId).toBe(list.id);
+    expect(await harness.sections.find(list.id)).toMatchObject({ id: list.id });
+    expect((await harness.sections.find(list.id))?.archivedAt).toBeUndefined();
+    expect((await harness.tasks.find(task.id))?.sectionId).toBe(target.id);
   });
 
-  it('moves an archived subtree whole on reassign, keeping its own markers', async () => {
+  it('keeps an independently archived task subtree under its archived container', async () => {
     const harness = buildHarness();
     const { list } = await projectWithWork(harness);
     const parent = await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: list.id, title: 'Parent' });
     const child = await harness.taskService.create(harness.actor, { projectId: MINE, parentTaskId: parent.id, title: 'Child' });
     await harness.taskService.archive(harness.actor, parent.id);
-    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
+    await harness.sectionService.remove(harness.actor, list.id);
 
-    await harness.sectionService.remove(harness.actor, list.id, { policy: 'reassign', reassignToSectionId: target.id });
-
-    expect(await harness.tasks.list({ sectionId: list.id, includeArchived: true })).toEqual([]);
-    expect(await harness.tasks.find(child.id)).toMatchObject({ sectionId: target.id, archivedWithTaskId: parent.id });
-    expect((await harness.tasks.find(parent.id))?.archivedWithSectionId).toBeUndefined();
+    expect(await harness.tasks.find(parent.id)).toMatchObject({ sectionId: list.id, archivedAt: SEED_NOW });
+    expect(await harness.tasks.find(parent.id)).not.toHaveProperty('archivedWithSectionId');
+    expect(await harness.tasks.find(child.id)).toMatchObject({
+      sectionId: list.id,
+      parentTaskId: parent.id,
+      archivedAt: SEED_NOW,
+      archivedWithTaskId: parent.id,
+    });
+    expect((await harness.sections.find(list.id))?.archivedAt).toBe(SEED_NOW);
   });
 
-  it('keeps an archived-only owner and its rows when reassign is requested', async () => {
+  it('keeps an archived-only owner and its rows together', async () => {
     const harness = buildHarness();
     const { task, list } = await projectWithWork(harness);
     await harness.taskService.archive(harness.actor, task.id);
-    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
-
-    const { operation } = await harness.sectionService.remove(harness.actor, list.id, { policy: 'reassign', reassignToSectionId: target.id });
+    const { operation } = await harness.sectionService.remove(harness.actor, list.id);
 
     expect(await harness.tasks.find(task.id)).toMatchObject({ sectionId: list.id, archivedAt: SEED_NOW });
     expect(await harness.sections.find(list.id)).toMatchObject({ id: list.id, archivedAt: SEED_NOW });
@@ -403,7 +404,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     const prose = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Keep this' } });
     await harness.sectionService.remove(harness.actor, prose.id);
     const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Recover me' });
-    await harness.sectionService.remove(harness.actor, task.sectionId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, task.sectionId);
 
     expect((await harness.sections.find(prose.id))?.archivedAt).toBe(SEED_NOW);
     expect((await harness.sections.find(task.sectionId))?.archivedAt).toBe(SEED_NOW);
@@ -420,61 +421,14 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Recover me' });
 
     expect((await harness.sectionService.remove(harness.actor, prose.id)).archiveListed).toBe(true);
-    expect((await harness.sectionService.remove(harness.actor, task.sectionId, { policy: 'cascade' })).archiveListed).toBe(true);
-  });
-
-  it('refuses a reassign target that is archived, naming it', async () => {
-    // `require` finds archived sections deliberately, and the checks after it were project
-    // and type only — so this moved live rows into a container off the canvas.
-    const harness = buildHarness();
-    const { list } = await projectWithWork(harness);
-    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
-    await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: target.id, title: 'Keep target archived' });
-    await harness.sectionService.remove(harness.actor, target.id, { policy: 'cascade' });
-
-    const refusal = await harness.sectionService
-      .remove(harness.actor, list.id, { policy: 'reassign', reassignToSectionId: target.id })
-      .then(() => null, (error: unknown) => error);
-
-    // A rule error, not a commit-time integrity failure and rollback.
-    expect(refusal).toBeInstanceOf(DomainRuleError);
-    expect((refusal as DomainRuleError).message).toContain(target.id);
-  });
-
-  it('refuses a reassign target that is missing, itself, or the wrong type', async () => {
-    const harness = buildHarness();
-    const { list } = await projectWithWork(harness);
-    const reflections = await harness.sectionService.add(harness.actor, MINE, { type: 'reflections' });
-
-    await expect(harness.sectionService.remove(harness.actor, list.id, { policy: 'reassign' })).rejects.toBeInstanceOf(
-      DomainRuleError,
-    );
-    await expect(
-      harness.sectionService.remove(harness.actor, list.id, { policy: 'reassign', reassignToSectionId: list.id }),
-    ).rejects.toBeInstanceOf(DomainRuleError);
-    await expect(
-      harness.sectionService.remove(harness.actor, list.id, {
-        policy: 'reassign',
-        reassignToSectionId: reflections.id,
-      }),
-    ).rejects.toBeInstanceOf(DomainRuleError);
-  });
-
-  it('refuses a reassign target in another project', async () => {
-    const harness = buildHarness();
-    const { list } = await projectWithWork(harness);
-    const theirs = await harness.sectionService.add(harness.other, THEIRS, { type: 'task-list' });
-
-    await expect(
-      harness.sectionService.remove(harness.actor, list.id, { policy: 'reassign', reassignToSectionId: theirs.id }),
-    ).rejects.toBeInstanceOf(EntityNotFoundError);
+    expect((await harness.sectionService.remove(harness.actor, task.sectionId)).archiveListed).toBe(true);
   });
 
   it('cascades reflections too, which is why they gained archivedAt', async () => {
     const harness = buildHarness();
     const reflection = await harness.reflectionService.create(harness.actor, { projectId: MINE, body: 'A week' });
 
-    await harness.sectionService.remove(harness.actor, reflection.sectionId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, reflection.sectionId);
 
     expect((await harness.reflections.find(reflection.id))?.archivedAt).toBe(SEED_NOW);
     expect((await harness.reflections.find(reflection.id))?.archivedWithSectionId).toBe(reflection.sectionId);
@@ -505,7 +459,7 @@ const recorded = (harness: ReturnType<typeof buildHarness>) => {
     await harness.sectionService.update(harness.actor, progress.id, { collapsed: true, config: { milestoneIds: ['m-1'] } });
     const before = await harness.sections.find(progress.id);
 
-    await harness.sectionService.remove(harness.actor, progress.id, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, progress.id);
 
     expect(recorded(harness)).toEqual({
       version: 1,
@@ -533,7 +487,7 @@ const recorded = (harness: ReturnType<typeof buildHarness>) => {
     const filed = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Filed' });
     await harness.taskService.archive(harness.actor, filed.id);
 
-    await harness.sectionService.remove(harness.actor, parent.sectionId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, parent.sectionId);
 
     const archived = { archivedAt: SEED_NOW, archivedWithSectionId: parent.sectionId };
     expect(recorded(harness)).toMatchObject({ appliedPolicy: 'cascade' });
@@ -549,32 +503,4 @@ const recorded = (harness: ReturnType<typeof buildHarness>) => {
     ]);
   });
 
-  it('captures a reassign as every moved row, pre-archived subtrees included with their markers intact', async () => {
-    const harness = buildHarness();
-    const parent = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Parent' });
-    const oldParent = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Old parent' });
-    const oldChild = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Old child', parentTaskId: oldParent.id });
-    await harness.taskService.archive(harness.actor, oldParent.id);
-    const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
-    const source = parent.sectionId;
-
-    await harness.sectionService.remove(harness.actor, source, { policy: 'reassign', reassignToSectionId: target.id });
-
-    expect(recorded(harness)).toMatchObject({ appliedPolicy: 'reassign', reassignToSectionId: target.id });
-    expect(recorded(harness).rows).toEqual([
-      { kind: 'task', id: parent.id, before: { sectionId: source }, after: { sectionId: target.id } },
-      {
-        kind: 'task',
-        id: oldParent.id,
-        before: { sectionId: source, archivedAt: SEED_NOW },
-        after: { sectionId: target.id, archivedAt: SEED_NOW },
-      },
-      {
-        kind: 'task',
-        id: oldChild.id,
-        before: { sectionId: source, parentTaskId: oldParent.id, archivedAt: SEED_NOW, archivedWithTaskId: oldParent.id },
-        after: { sectionId: target.id, parentTaskId: oldParent.id, archivedAt: SEED_NOW, archivedWithTaskId: oldParent.id },
-      },
-    ]);
-  });
 });

@@ -134,7 +134,7 @@ describe('dependents protect the creation inverse (§§27, 31)', () => {
     const created = await enable(h, 'reflections');
     const container = await h.sectionWriteService.add(someoneElse, MINE, { type: 'reflections', pageId: created.page.id });
     await h.reflectionWriteService.create(someoneElse, { projectId: MINE, sectionId: container.section.id, body: 'Went well' });
-    const removed = await h.sectionWriteService.remove(someoneElse, container.section.id, { policy: 'cascade' });
+    const removed = await h.sectionWriteService.remove(someoneElse, container.section.id);
     expect(removed.section.archivedAt).toBeDefined();
     expect(await h.sections.list({ pageId: created.page.id, includeArchived: true })).toHaveLength(1);
 

@@ -271,3 +271,60 @@ test('a cross-root reparent, its Undo and its Redo move a unit of work out of an
   await expect(row).toHaveCount(0);
   expect(await todoNames(right.id)).toContain('subproject:Traveller');
 });
+
+test.describe('coarse pointer task Delete', () => {
+  test.use({ viewport: { width: 1024, height: 1366 }, hasTouch: true, isMobile: true });
+
+  test('Todos keeps Delete available on a finished task and accepts a touch tap', async ({ page }) => {
+    await seed('empty');
+    await setClock(PINNED_NOW);
+    const { workspace } = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+    const root = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Touch Todos Delete' });
+    const section = (await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' })).section;
+    const task = await addTask({ projectId: root.id, sectionId: section.id, title: 'Finished then deleted' });
+    await api('PATCH', `/api/projects/${root.id}/pages/todos`, { enabled: true });
+
+    await page.goto(`/projects/${root.id}/pages/todos`);
+    const row = page.locator(`[data-todo-row][data-todo-id="${task.id}"]`);
+    const complete = row.locator('[data-todo-complete]');
+    await expect(complete).toBeVisible();
+    await complete.tap();
+    const deleteButton = row.locator('[data-todo-delete]');
+    await expect(deleteButton).toHaveAttribute('aria-label', 'Delete task Finished then deleted');
+    await deleteButton.tap();
+    await expect(row).toHaveCount(0);
+    expect(await api<{ archivedAt?: string }>('GET', `/api/tasks/${task.id}`)).toMatchObject({ archivedAt: expect.any(String) });
+  });
+});
+
+test('Todos task Delete works by pointer, Enter and Space, and moves focus with the rows', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  const { workspace } = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+  const root = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Keyboard Todos Delete' });
+  const section = (await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' })).section;
+  const tasks = await Promise.all(['2026-09-16', '2026-09-17', '2026-09-18'].map((day, index) =>
+    addTask({ projectId: root.id, sectionId: section.id, title: `Delete ${index + 1}`, dueAt: `${day}T09:00:00.000Z` }),
+  ));
+  await api('PATCH', `/api/projects/${root.id}/pages/todos`, { enabled: true });
+  await page.goto(`/projects/${root.id}/pages/todos`);
+
+  const deleteButton = (id: string) => page.locator(`[data-todo-row][data-todo-id="${id}"] [data-todo-delete]`);
+  await expect(deleteButton(tasks[0]!.id)).toBeVisible();
+  await deleteButton(tasks[0]!.id).click();
+  await expect(page.locator(`[data-todo-id="${tasks[0]!.id}"]`)).toHaveCount(0);
+  const secondRowLink = page.locator(`[data-todo-row][data-todo-id="${tasks[1]!.id}"] [data-todo-link]`);
+  await expect(secondRowLink).toBeFocused();
+
+  await deleteButton(tasks[1]!.id).focus();
+  await deleteButton(tasks[1]!.id).press('Enter');
+  await expect(page.locator(`[data-todo-id="${tasks[1]!.id}"]`)).toHaveCount(0);
+  await expect(page.locator(`[data-todo-row][data-todo-id="${tasks[2]!.id}"] [data-todo-link]`)).toBeFocused();
+
+  await deleteButton(tasks[2]!.id).focus();
+  await deleteButton(tasks[2]!.id).press('Space');
+  await expect(page.locator(`[data-todo-id="${tasks[2]!.id}"]`)).toHaveCount(0);
+  await expect(page.locator('#todos-heading')).toBeFocused();
+  const archived = await Promise.all(tasks.map(({ id }) => api<{ archivedAt?: string }>('GET', `/api/tasks/${id}`)));
+  expect(archived.every(({ archivedAt }) => archivedAt !== undefined)).toBe(true);
+});

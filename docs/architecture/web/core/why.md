@@ -80,6 +80,7 @@ get one.
 - [Where the project navigation column lives](../../../decisions/2026-09-where-the-project-navigation-column-lives.md) — why it is *not* here
 - [CORS on the host, not a dev-server proxy](../../../decisions/2026-08-host-cors-over-dev-proxy.md) — why the adapter talks to `:4310` directly
 - [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the receipt-driven Undo seam beside section removal
+- [Section removal is one cascade gesture, and task Delete is reversible](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — the gateway sends the section id alone
 - [Explicit section edits reverse only their operation's changes](../../../decisions/2026-09-section-edit-undo-boundaries.md) — typed add/move/update envelopes
 - [Undo and Redo follow one history per exact actor, per owning project](../../../decisions/2026-09-operation-history-scope.md) — `OperationHistoryGateway` and revision-ordered receipts
 - [The project header offers Undo and Redo of the displayed project's history](../../../decisions/2026-09-project-header-history-controls.md) — why the reporter port is core's and its default is inert

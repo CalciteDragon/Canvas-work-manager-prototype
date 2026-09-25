@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 43 | Slice 43 — One-step section removal and task Delete (Slice 34 Stage D1) | One-step cascade removal for sections and task Delete icons, with legacy reassign history preserved | [43-one-step-removal-and-task-delete.md](active/43-one-step-removal-and-task-delete.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -81,4 +79,5 @@ verification follow-ups rather than feature slices.
 | 40 | Slice 40 — Forward reparent refuses a cross-root Home shortcut | 2026-09-22 | ProjectService.update refuses, 409, a reparent that would carry an old-root Home shortcut's source across roots, sharing the check with the history executor. | [40-forward-reparent-shortcut-refusal.md](completed/40-forward-reparent-shortcut-refusal.md) |
 | 41 | Slice 41 — Project header Undo/Redo controls (Slice 34 Stage C4) | 2026-09-23 | Always-present header Undo/Redo over the displayed project's history, per-step blockedBy, edit-naming labels, every browser write reporting through a core token, the canvas notice reduced to recovery, and archive staying on the project | [41-header-history-controls.md](completed/41-header-history-controls.md) |
 | 42 | Slice 42 — Project creation history and recovery state (Slice 34 Stage C5) | 2026-09-23 | Project creation is recorded and recoverable through creator-bound history, same-file persistence, browser and MCP checks. | [42-project-creation-history.md](completed/42-project-creation-history.md) |
+| 43 | Slice 43 — One-step section removal and task Delete (Slice 34 Stage D1) | 2026-09-25 | One-step cascade removal and reversible task Delete | [43-one-step-removal-and-task-delete.md](completed/43-one-step-removal-and-task-delete.md) |
 <!-- roadmap:end -->

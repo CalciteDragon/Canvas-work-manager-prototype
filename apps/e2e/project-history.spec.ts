@@ -100,7 +100,7 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   const renamedRow = list.locator('[data-task-row]', { hasText: 'Order tile grout' });
   await renamedRow.locator('[data-task-complete]').click();
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Completed "Order tile grout"');
-  await renamedRow.locator('[data-task-archive]').click();
+  await renamedRow.locator('[data-task-delete]').click();
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Archived "Order tile grout"');
 
   // Sections: resize, move, and remove a Rich Text section with prose.

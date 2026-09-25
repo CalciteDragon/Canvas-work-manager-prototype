@@ -19,8 +19,8 @@
    a placement ID as the insertion anchor and resolves its current position at submit;
    `ProjectPageStore.orderComplete` withholds insertion points and blocks move writes
    when Home's combined section/shortcut order could not be fully read. Writes go through
-   the gateway behind the store's in-flight guards. A refused removal with
-   `section_not_empty` details opens the existing cascade/reassign dialog. Every canvas write — section add, move,
+   the gateway behind the store's in-flight guards. One remove action sends only the section id;
+   the domain cascades live owned rows and the canvas has no policy dialog. Every canvas write — section add, move,
    update and removal, and every shortcut placement write — runs through `reportedWrite`, which
    tells core's `OPERATION_HISTORY_REPORTER` the write began, what it committed (the response's own
    project and receipt) and that it ended; the canvas holds no receipt. `SectionRecoveryNotice`
@@ -28,10 +28,13 @@
    Notes section. Undo is in the header." with **Open Archive**; after a repeated removal whose
    exact-actor receipt came back in `details`, that receipt is reported and the notice keeps Archive
    (an unknown verdict); after a committed write whose follow-up read failed, a read-only
-   **Retry refresh**. A forward write whose read succeeded shows no notice. If a remove response is
-   uncertain and a live frame has already removed the section, the store keeps the exact removal
-   input and exposes an explicit **Retry remove**. Leaving the page/project clears the notice.
-   Angular `@defer` loads the create dialog, removal dialog and recovery notice when needed; the
+   **Retry refresh**. After a successful read, if the notice remains, focus moves to **Open Archive**
+   when offered or **Dismiss** otherwise. If refresh clears the notice (refresh-only or unlisted
+   removal), focus moves to the first surviving section title, or to the canvas when no title remains.
+   Focus stays where the person moved it during the request. A forward write whose read succeeded shows no notice. If a remove response is
+   uncertain and a live frame has already removed the section, the store keeps that id and exposes
+   an explicit **Retry remove**. Leaving the page/project clears the notice. Angular `@defer` loads
+   the create dialog and recovery notice when needed; the
    Archive page loads `ArchivedRegion` after its read completes. These boundaries keep the
    eager route graph under the 1050 kB initial-bundle error ceiling.
 5. **Undo and Redo** (Slice 41). The shell provides `ProjectHistoryStore` and binds
@@ -108,7 +111,6 @@ generic Retry for the summary read; it does not expose an Undo/Redo entry until 
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | interfaces | Renderer contract | [API](../../../api/interfaces/ProjectPageRenderer.html) |
 | `ProjectCanvas` | component | One page's canvas, contextual editing and stable callback inputs | [API](../../../api/components/ProjectCanvas.html) |
 | `ProjectPageStore` | injectable | Sections and placements of one page | [API](../../../api/injectables/ProjectPageStore.html) |
-| `SectionRemovalDialog`, `SectionRemovalPrompt` | component / interface | Cascade or reassign | [API](../../../api/components/SectionRemovalDialog.html) |
 | `ProjectHistoryStore` | injectable | The displayed project's summary, pending state, transitions and feedback; the reporter | [API](../../../api/injectables/ProjectHistoryStore.html) |
 | `ProjectHistoryControls`, `ProjectHistoryFeedback` | components | Header Undo/Redo icons and their feedback line | [API](../../../api/components/ProjectHistoryControls.html) |
 | `historyControl`, `transitionRefusalFeedback` | functions | Control names and refusal wording | [API](../../../api/miscellaneous/variables.html#historyControl) |
@@ -136,7 +138,7 @@ generic Retry for the summary read; it does not expose an Undo/Redo entry until 
   `reflections`, `timeline`), `LIVE_UPDATES`, `OPERATION_HISTORY_REPORTER` and `reportedWrite`,
   `PrototypeSettings` for the layout flags.
 - [tasks](../tasks/overview.md) — `TaskListStore`, `TaskRow`, `TaskDetailDrawer` inside
-  the Task List section and on the Todos page.
+  the Task List section. Todos owns its separate task row and store.
 - `features/activity` — `ActivityFeed` and `ActivityStore` in the Recent Activity section.
 - [contracts](../../contracts/overview.md) — `nameOf`, `SECTION_OWNERSHIP` (through the
   registry's `kind`), `NAVIGABLE_PAGE_KINDS`, `isRootProject`, and every shape.
@@ -168,7 +170,7 @@ generic Retry for the summary read; it does not expose an Undo/Redo entry until 
   whether a removal is safe — the host answers; a refusal is shown, never softened.
 - **Undo is the header's alone.** No surface other than `ProjectHistoryControls` offers Undo or
   Redo; the canvas reports receipts and never holds one. An explicit Retry remove uses the saved id
-  and policy only after an uncertain response.
+  after an uncertain response.
 - **Every browser write reports**, through `reportedWrite` or `begin`/`committed`/end, with the
   project named by its **response**. A new write site that forgets leaves the header offering a stale
   step until the next frame.

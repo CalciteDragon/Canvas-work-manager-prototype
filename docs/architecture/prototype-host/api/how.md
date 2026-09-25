@@ -14,6 +14,8 @@
    /api/sections/:id` answers `SectionRemovalResult` — the final archived-shaped result, its
    operation receipt, and `archiveListed`, which says whether Archive will actually list the section.
    When the section was disposable, that result is a snapshot and the stored row is absent. A repeat can answer 409 with the exact actor's outstanding receipt in typed details.
+   The DELETE query is strict and empty: one ID-only request archives live owned rows with the
+   section, while old `policy` or `reassignToSectionId` fields receive 400 before the service runs.
    Task create answers `TaskAddResult`; update, complete, archive and restore answer
    `TaskWriteResult`. Reflection create answers `ReflectionAddResult`; update, archive and restore
    answer `ReflectionWriteResult`. Each shape is `{ task|reflection, operation }`: create requires

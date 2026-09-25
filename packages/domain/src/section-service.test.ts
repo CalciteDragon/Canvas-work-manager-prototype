@@ -519,22 +519,24 @@ describe('SectionService.remove', () => {
     expect(harness.store.snapshot().activityEvents).not.toHaveLength(0);
   });
 
-  it('refuses a non-empty container with a typed reason and a live-only count', async () => {
+  it('cascades live rows on one call and leaves independently archived rows untouched', async () => {
     const harness = buildHarness();
     const live = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Ship it' });
     const archived = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Done with' });
     await harness.taskService.archive(harness.actor, archived.id);
 
-    const refusal = await harness.sectionService
-      .remove(harness.actor, live.sectionId)
-      .then(() => null, (error: unknown) => error);
+    const removed = await harness.sectionService.remove(harness.actor, live.sectionId);
 
-    // The count travels as data rather than inside a sentence, so the canvas can compose its
-    // own question — and it counts what is *live*, since an archived row is already unrendered.
-    expect(refusal).toBeInstanceOf(DomainRuleError);
-    expect((refusal as DomainRuleError).details).toEqual({ reason: 'section_not_empty', liveRowCount: 1 });
-    // The sentence stays, for MCP and `curl` callers with no UI to compose one.
-    expect((refusal as DomainRuleError).message).toContain('holds 1 tasks');
+    expect(removed.section.archivedAt).toBe(SEED_NOW);
+    expect(await harness.tasks.find(live.id)).toMatchObject({
+      archivedAt: SEED_NOW,
+      archivedWithSectionId: live.sectionId,
+    });
+    expect(await harness.tasks.find(archived.id)).toMatchObject({
+      archivedAt: SEED_NOW,
+      sectionId: live.sectionId,
+    });
+    expect(await harness.tasks.find(archived.id)).not.toHaveProperty('archivedWithSectionId');
   });
 
   it('archives a container holding only already-archived rows, with no policy', async () => {
@@ -595,7 +597,7 @@ describe('section activity (§57)', () => {
     const section = await add(harness, 'task-list');
     await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: section.id, title: 'Keep this section' });
 
-    await harness.sectionService.remove(harness.actor, section.id, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, section.id);
     await harness.sectionService.restoreSection(harness.actor, section.id);
 
     const summaries = harness.store.snapshot().activityEvents.map((event) => event.summary);
@@ -609,7 +611,7 @@ describe('section activity (§57)', () => {
     const backlog = await add(harness, 'task-list', { title: 'Backlog' });
     await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: backlog.id, title: 'Keep backlog' });
 
-    await harness.sectionService.remove(harness.actor, backlog.id, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, backlog.id);
     await harness.sectionService.restoreSection(harness.actor, backlog.id);
     // A later rename does not rewrite either event — `nameOf` is read at write time.
     await harness.sectionService.update(harness.actor, backlog.id, { title: 'Later' });
@@ -628,7 +630,7 @@ describe('section activity (§57)', () => {
     const stored = await harness.sectionService.get(harness.actor, sectionId);
     await harness.sections.update({ ...stored, title: '   ' });
 
-    await harness.sectionService.remove(harness.actor, sectionId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, sectionId);
 
     expect(harness.store.snapshot().activityEvents.map((event) => event.summary)).toContain(
       'Archived the Task List section',
@@ -876,7 +878,7 @@ describe('SectionService.restoreSection', () => {
     const section = await add(harness, 'task-list');
     await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: section.id, title: 'Keep archived container' });
     const second = await add(harness, 'rich-text');
-    await harness.sectionService.remove(harness.actor, section.id, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, section.id);
     await harness.projectService.archive(harness.actor, MINE);
 
     await expect(harness.sectionService.restoreSection(harness.actor, section.id)).rejects.toBeInstanceOf(
@@ -1016,7 +1018,7 @@ describe('SectionService.remove — operation receipt', () => {
     const { listId, parent, first, second } = await listWithSubtree(harness);
     const eventsBefore = harness.store.snapshot().activityEvents.length;
 
-    const result = await harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' });
+    const result = await harness.sectionService.remove(harness.actor, listId);
 
     expect(result.section).toMatchObject({ id: listId, archivedAt: SEED_NOW });
     // The five task writes of the arrangement each record an action of their own since Slice 36, so
@@ -1047,11 +1049,11 @@ describe('SectionService.remove — operation receipt', () => {
   it.each([
     ['an empty container', 'task-list'],
     ['a view', 'progress'],
-  ])('accepts reassign with no target on %s, as before, and records the policy it applied', async (_, type) => {
+  ])('records no settled rows for %s', async (_, type) => {
     const harness = buildHarness();
     const section = await add(harness, type);
 
-    await harness.sectionService.remove(harness.actor, section.id, { policy: 'reassign' });
+    await harness.sectionService.remove(harness.actor, section.id);
 
     const operation = harness.store.snapshot().operationActions.at(-1)!.operation;
     if (operation.type !== 'section.remove') throw new Error('expected a section removal record');
@@ -1084,31 +1086,6 @@ describe('SectionService.remove — operation receipt', () => {
         const section = await add(harness);
         await harness.sectionService.remove(harness.actor, section.id);
         return () => harness.sectionService.remove(harness.actor, section.id);
-      },
-    ],
-    [
-      'a container with live rows and no policy',
-      async (harness) => {
-        const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Live' });
-        return () => harness.sectionService.remove(harness.actor, task.sectionId);
-      },
-    ],
-    [
-      'a reassign onto itself',
-      async (harness) => {
-        const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Live' });
-        return () =>
-          harness.sectionService.remove(harness.actor, task.sectionId, { policy: 'reassign', reassignToSectionId: task.sectionId });
-      },
-    ],
-    [
-      'a reassign onto an archived target',
-      async (harness) => {
-        const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Live' });
-        const target = await add(harness, 'task-list');
-        await harness.sectionService.remove(harness.actor, target.id);
-        return () =>
-          harness.sectionService.remove(harness.actor, task.sectionId, { policy: 'reassign', reassignToSectionId: target.id });
       },
     ],
     [
@@ -1153,7 +1130,7 @@ describe('SectionService.remove — operation receipt', () => {
       });
       const { listId, before, persistCalls } = await arrange(harness);
 
-      await expect(harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' })).rejects.toThrow(
+      await expect(harness.sectionService.remove(harness.actor, listId)).rejects.toThrow(
         'recorder unavailable',
       );
 
@@ -1180,7 +1157,7 @@ describe('SectionService.remove — operation receipt', () => {
       });
       const { listId, before, persistCalls } = await arrange(harness);
 
-      await expect(harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' })).rejects.toThrow(/operation history/);
+      await expect(harness.sectionService.remove(harness.actor, listId)).rejects.toThrow(/operation history/);
 
       expect(writable(harness)).toEqual(before);
       expect(harness.store.persistCalls).toBe(persistCalls);
@@ -1191,7 +1168,7 @@ describe('SectionService.remove — operation receipt', () => {
       const { listId, before, persistCalls } = await arrange(harness);
       harness.store.persistFailure = new Error('disk full');
 
-      await expect(harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' })).rejects.toThrow('disk full');
+      await expect(harness.sectionService.remove(harness.actor, listId)).rejects.toThrow('disk full');
 
       harness.store.persistFailure = undefined;
       expect(writable(harness)).toEqual(before);
@@ -1206,7 +1183,7 @@ describe('SectionService.remove — operation receipt', () => {
     frames.length = 0;
     const eventsBefore = harness.store.snapshot().activityEvents.length;
 
-    await harness.sectionService.remove(harness.actor, listId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, listId);
 
     expect(frames).toHaveLength(1);
     expect(Object.keys(frames[0]!).sort()).toEqual(['event', 'workspaceId']);

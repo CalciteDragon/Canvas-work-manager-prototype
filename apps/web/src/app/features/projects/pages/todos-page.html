@@ -1,6 +1,6 @@
 <section class="todos" aria-labelledby="todos-heading">
   <header class="todos__header">
-    <h2 id="todos-heading" class="todos__heading">What is coming up</h2>
+    <h2 id="todos-heading" class="todos__heading" tabindex="-1">What is coming up</h2>
     <p class="todos__hint">
       Everything under this project, in due-date order. Open a row to work on it where it lives.
     </p>
@@ -61,6 +61,22 @@
               (click)="complete(item)"
             >
               {{ store.completing() === idOf(item) ? 'Completing…' : 'Complete' }}
+            </button>
+          }
+
+          @if (item.kind === 'task') {
+            <button
+              data-todo-delete
+              type="button"
+              class="todos__delete"
+              [disabled]="writesBlocked()"
+              [attr.aria-label]="'Delete task ' + item.task.title"
+              [attr.title]="'Delete task ' + item.task.title"
+              (click)="delete(item)"
+            >
+              <svg class="todos__delete-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m3 3v7m6-7v7" />
+              </svg>
             </button>
           }
         </li>

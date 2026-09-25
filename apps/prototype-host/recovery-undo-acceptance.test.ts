@@ -209,7 +209,7 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
     const source = 'section-project-kitchen-tasks' as SectionId;
     const kitchenTasks = loaded.document().tasks.filter((task) => task.sectionId === source && task.archivedAt === undefined).map(({ id }) => id);
     expect(kitchenTasks.length).toBeGreaterThan(0);
-    const cascade = await loaded.api.sections.remove(DEMO, source, { policy: 'cascade' });
+    const cascade = await loaded.api.sections.remove(DEMO, source);
     expect(cascade.section).toMatchObject({ id: source, archivedAt: expect.any(String) });
 
     const removedOnDisk = await reopen(v3.path);
@@ -293,7 +293,7 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
     const cascaded = host.document().tasks.filter((task) => task.sectionId === container && task.archivedAt === undefined).map(({ id }) => id);
 
     const proseRemoval = await host.api.sections.remove(DEMO, prose);
-    const containerRemoval = await host.api.sections.remove(DEMO, container, { policy: 'cascade' });
+    const containerRemoval = await host.api.sections.remove(DEMO, container);
     const theirs = await host.api.sections.add(ALEX, 'project-alex-private' as never, { type: 'rich-text', title: 'Alex scratch' });
     const theirAction = host.document().operationActions.find(({ id }) => id === theirs.operation.actionId);
 

@@ -40,7 +40,7 @@ describe('section restore history (§§27, 31–32)', () => {
     // Archived on its own beforehand, so the removal's cascade never touches it and the Restore
     // must leave it archived in both directions.
     await h.taskWriteService.archive(h.actor, alone.task.id);
-    await h.sectionWriteService.remove(h.actor, add.section.id, { policy: 'cascade' });
+    await h.sectionWriteService.remove(h.actor, add.section.id);
     const archived = await footprint(h, add.section.id);
 
     const restore = await h.sectionWriteService.restoreSection(h.actor, add.section.id);
@@ -113,7 +113,7 @@ describe('section restore history (§§27, 31–32)', () => {
     const h = buildHarness();
     const add = await h.sectionWriteService.add(h.actor, MINE, { type: 'task-list', title: 'Backlog' });
     const original = await h.taskWriteService.create(h.actor, { projectId: MINE, sectionId: add.section.id, title: 'Original' });
-    await h.sectionWriteService.remove(h.actor, add.section.id, { policy: 'cascade' });
+    await h.sectionWriteService.remove(h.actor, add.section.id);
     const restore = await h.sectionWriteService.restoreSection(h.actor, add.section.id);
 
     const agent = agentActorFor(0, ['tasks.write']);
@@ -152,7 +152,7 @@ describe('section restore history (§§27, 31–32)', () => {
     const add = await h.sectionWriteService.add(h.actor, MINE, { type: 'task-list', title: 'Backlog' });
     const elsewhere = await h.sectionWriteService.add(h.actor, MINE, { type: 'task-list', title: 'Elsewhere' });
     const task = await h.taskWriteService.create(h.actor, { projectId: MINE, sectionId: add.section.id, title: 'Ship it' });
-    await h.sectionWriteService.remove(h.actor, add.section.id, { policy: 'cascade' });
+    await h.sectionWriteService.remove(h.actor, add.section.id);
     const restore = await h.sectionWriteService.restoreSection(h.actor, add.section.id);
 
     // The row did not vanish — somebody moved it. Saying "missing" would send the caller looking

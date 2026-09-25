@@ -306,7 +306,7 @@ and [project-creation decision](../../decisions/2026-09-project-creation-history
 remain planned.
 
 **Stage D activation amendment — 2026-09-24.** Stage D is being executed in bounded phases.
-[Slice 43](../active/43-one-step-removal-and-task-delete.md) is D1: direct cascade removal,
+[Slice 43](../completed/43-one-step-removal-and-task-delete.md) is D1: direct cascade removal,
 retirement of new removal-time reassignment requests, and the task Delete affordance, while
 preserving stored reassign actions. Parent-first Archive filtering and Settings archived-project
 recovery remain D2; integrated closure remains Stage E. The D gate below applies to the combined

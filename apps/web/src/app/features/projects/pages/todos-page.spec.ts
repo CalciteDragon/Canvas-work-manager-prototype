@@ -96,11 +96,14 @@ interface RenderOptions {
   failWith?: GatewayError;
   completeRejects?: GatewayError;
   gateComplete?: boolean;
+  archiveRejects?: GatewayError;
+  gateArchive?: boolean;
 }
 
 const render = async (options: RenderOptions = {}) => {
   const items = options.items ?? MIXED;
   let releaseCompletion: (() => void) | undefined;
+  let releaseArchive: (() => void) | undefined;
   const todosGet = vi.fn(async (projectId: ProjectId) => {
     if (options.failWith !== undefined) throw options.failWith;
     return { projectId, items };
@@ -114,6 +117,12 @@ const render = async (options: RenderOptions = {}) => {
       operation: null,
     };
   });
+  const archive = vi.fn(async (id: string) => {
+    if (options.gateArchive === true) await new Promise<void>((resolve) => (releaseArchive = resolve));
+    if (options.archiveRejects !== undefined) throw options.archiveRejects;
+    const row = items.find((item) => item.kind === 'task' && item.task.id === id);
+    return { task: { ...(row as Extract<ProjectTodoItem, { kind: 'task' }>).task, archivedAt: AT }, operation: null };
+  });
   const update = vi.fn(async (id: ProjectId) => {
     if (options.completeRejects !== undefined) throw options.completeRejects;
     const row = items.find((item) => item.kind === 'subproject' && item.project.id === id);
@@ -121,7 +130,7 @@ const render = async (options: RenderOptions = {}) => {
   });
   const gateway = {
     todos: { get: todosGet },
-    tasks: { complete },
+    tasks: { complete, archive },
     projects: { update },
   } as unknown as WorkManagerGateway;
   const dataChanged = vi.fn();
@@ -147,7 +156,17 @@ const render = async (options: RenderOptions = {}) => {
   await fixture.whenStable();
   fixture.detectChanges();
 
-  return { fixture, todosGet, complete, update, dataChanged, hierarchyChanged, release: () => releaseCompletion?.() };
+  return {
+    fixture,
+    todosGet,
+    complete,
+    archive,
+    update,
+    dataChanged,
+    hierarchyChanged,
+    release: () => releaseCompletion?.(),
+    releaseArchive: () => releaseArchive?.(),
+  };
 };
 
 type Fixture = Awaited<ReturnType<typeof render>>['fixture'];
@@ -215,6 +234,28 @@ describe('TodosPage (§34)', () => {
     expect(hierarchyChanged).toHaveBeenCalledTimes(1);
   });
 
+  it('offers Delete on unfinished and finished task rows, but never on project rows', async () => {
+    const { fixture, archive, dataChanged } = await render();
+    const unfinished = rowFor(fixture, 'task-early').querySelector<HTMLButtonElement>('[data-todo-delete]')!;
+    const finished = rowFor(fixture, 'task-cancelled').querySelector<HTMLButtonElement>('[data-todo-delete]')!;
+
+    expect(unfinished.getAttribute('aria-label')).toBe('Delete task Task task-early');
+    expect(finished.getAttribute('aria-label')).toBe('Delete task Task task-cancelled');
+    expect(rowFor(fixture, 'project-kitchen').querySelector('[data-todo-delete]')).toBeNull();
+    expect(finished.querySelector('svg')).not.toBeNull();
+
+    finished.focus();
+    expect(document.activeElement).toBe(finished);
+    finished.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(archive).toHaveBeenCalledWith('task-cancelled');
+    expect(query(fixture, '[data-todo-id="task-cancelled"]')).toBeNull();
+    expect(dataChanged).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(rowFor(fixture, 'task-undated').querySelector('[data-todo-link]'));
+  });
+
   it('offers a labelled native control that a keyboard reaches, and none on a finished row', async () => {
     const { fixture, complete } = await render();
 
@@ -234,12 +275,39 @@ describe('TodosPage (§34)', () => {
     (rowFor(inFlight.fixture, 'task-early').querySelector('[data-todo-complete]') as HTMLButtonElement).click();
     inFlight.fixture.detectChanges();
 
-    const controls = queryAll(inFlight.fixture, '[data-todo-complete]') as HTMLButtonElement[];
+    const controls = queryAll(inFlight.fixture, '[data-todo-complete], [data-todo-delete]') as HTMLButtonElement[];
     expect(controls.every((control) => control.disabled)).toBe(true);
     inFlight.release();
 
     const blocked = await render({ restoreBlocked: true });
-    expect((queryAll(blocked.fixture, '[data-todo-complete]') as HTMLButtonElement[]).every((c) => c.disabled)).toBe(true);
+    expect((queryAll(blocked.fixture, '[data-todo-complete], [data-todo-delete]') as HTMLButtonElement[]).every((c) => c.disabled)).toBe(true);
+  });
+
+  it('serializes Delete with Complete and reports a failed delete without removing the row', async () => {
+    const inFlight = await render({ gateArchive: true });
+    const remove = rowFor(inFlight.fixture, 'task-early').querySelector<HTMLButtonElement>('[data-todo-delete]')!;
+    remove.focus();
+    remove.click();
+    inFlight.fixture.detectChanges();
+    // The target and its live descendants disappear optimistically. Remaining rows are frozen
+    // until the reversible archive settles.
+    expect(query(inFlight.fixture, '[data-todo-id="task-early"]')).toBeNull();
+    expect((rowFor(inFlight.fixture, 'task-undated').querySelector('[data-todo-delete]') as HTMLButtonElement).disabled).toBe(true);
+    expect((rowFor(inFlight.fixture, 'task-undated').querySelector('[data-todo-complete]') as HTMLButtonElement).disabled).toBe(true);
+    expect(document.activeElement).toBe(rowFor(inFlight.fixture, 'project-kitchen').querySelector('[data-todo-link]'));
+    inFlight.releaseArchive();
+    await inFlight.fixture.whenStable();
+    expect(query(inFlight.fixture, '[data-todo-id="task-early"]')).toBeNull();
+
+    const failed = await render({ archiveRejects: new GatewayError('conflict', 409, 'the task cannot be archived') });
+    const failedDelete = rowFor(failed.fixture, 'task-early').querySelector('[data-todo-delete]') as HTMLButtonElement;
+    failedDelete.focus();
+    failedDelete.click();
+    await failed.fixture.whenStable();
+    failed.fixture.detectChanges();
+    expect(query(failed.fixture, '[data-todo-write-error]')?.textContent).toContain('cannot be archived');
+    expect(query(failed.fixture, '[data-todo-id="task-early"]')).not.toBeNull();
+    expect(document.activeElement).toBe(rowFor(failed.fixture, 'task-early').querySelector('[data-todo-delete]'));
   });
 
   it('reports a rejected completion, restores the row and does not tell the shell', async () => {

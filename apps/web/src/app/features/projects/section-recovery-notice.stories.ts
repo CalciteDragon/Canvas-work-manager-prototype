@@ -33,6 +33,6 @@ export const RefreshFailed: Story = {
 export const RemovalFailed: Story = {
   args: {
     state: null,
-    failedRemoval: { sectionId: 'section-notes' as SectionId, input: {}, message: 'could not reach the prototype host' },
+    failedRemoval: { sectionId: 'section-notes' as SectionId, message: 'could not reach the prototype host' },
   },
 };

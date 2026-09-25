@@ -16,8 +16,9 @@
    action through `OperationRecorder.record`, and returns a receipt from the same unit; automatic
    container resolution joins the row action instead of recording a separate section action. The recorder finds or creates the actor's history
    for the subject's project, appends the action (discarding the redo branch), prunes by expiry and
-   the 50-action cap, and returns the receipt at the new revision. Removal additionally settles rows,
-   bumps `archiveGeneration` and decides whether recovery or an integrity reference requires
+   the 50-action cap, and returns the receipt at the new revision. Removal archives each live owned
+   row with `archivedWithSectionId`, leaves independently archived rows unchanged, bumps
+   `archiveGeneration` and decides whether recovery or an integrity reference requires
    retention; Archive Restore renumbers the combined order before capturing its appended placement,
    so a hand-edited sparse page still appends, and leaves `archiveGeneration` alone. A move — of a
    section or of a placement — compares the combined index before writing, so a clamped no-op
@@ -165,11 +166,12 @@
   no-op write records nothing and therefore announces nothing. The service captures and validates
   target label and owning project/root before a row can be removed, then resolves current names
   when the target remains and captured names when it does not.
-- **Archive and deletion share the content policy but use separate checks.** A removal policy
-  settles a container only when live rows remain: cascade archives those live rows, while
-  reassign moves every assigned row, including independently archived subtrees. If only
-  pre-archived rows remain, even an explicit reassign is a no-op so the owner section stays as
-  their first Archive recovery step. After settlement, `sectionRecoveryOf` decides whether
+- **New section removals cascade live rows; stored history preserves its old executor.**
+  `SectionService.remove` has no policy or target input: it archives only live owned rows with
+  the section, and preserves independently archived rows and their markers. Ordinary task moves
+  use `TaskService.update` and have their own receipts. `section-removal-undo.ts` retains the
+  reassign branch solely for schema-v5 actions already stored with that policy. After settlement,
+  `sectionRecoveryOf` decides whether
   content must remain recoverable. Canonical task/reflection references and Home shortcut sources
   independently prevent deletion. New disposable sections with no such reference are deleted;
   historical tombstones are never purged. Archive projects retained content only and never

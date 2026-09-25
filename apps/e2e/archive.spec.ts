@@ -85,7 +85,7 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
   });
 
   await api('POST', `/api/tasks/${parent.id}/archive`);
-  await api('DELETE', `/api/sections/${section.id}?policy=cascade`);
+  await api('DELETE', `/api/sections/${section.id}`);
   await api('PATCH', `/api/projects/${leaf.id}`, { status: 'archived' });
 
   expect(await archiveKeys(root.id)).toEqual(
@@ -215,11 +215,12 @@ test('Archive lists recoverable content only, and independently archived rows ke
   const cascadedTask = await addTaskToSection(cascaded.id, 'Comes back with its list');
   const filedEarly = await addTaskToSection(cascaded.id, 'Filed before removal');
   await api('POST', `/api/tasks/${filedEarly.id}/archive`);
-  await api('DELETE', `/api/sections/${cascaded.id}?policy=cascade`);
+  await api('DELETE', `/api/sections/${cascaded.id}`);
 
-  const reassigned = await addSection({ type: 'task-list', title: 'Reassigned source' });
-  const moved = await addTaskToSection(reassigned.id, 'Moves to the main list');
-  await api('DELETE', `/api/sections/${reassigned.id}?policy=reassign&reassignToSectionId=section-${ROOT}-tasks`);
+  const movedSource = await addSection({ type: 'task-list', title: 'Moved source' });
+  const moved = await addTaskToSection(movedSource.id, 'Moves to the main list');
+  await api('PATCH', `/api/tasks/${moved.id}`, { sectionId: `section-${ROOT}-tasks` });
+  await api('DELETE', `/api/sections/${movedSource.id}`);
 
   const oldTasks = await addSection({ type: 'task-list', title: 'Old tasks' });
   const oldTask = await addTaskToSection(oldTasks.id, 'Archived on its own');
@@ -247,7 +248,7 @@ test('Archive lists recoverable content only, and independently archived rows ke
   const assertProjection = (items: ProjectedItem[]) => {
     const keys = items.map(keyOf);
     const entry = (id: string) => items.find((item) => item.kind === 'section' && item.section?.id === id);
-    for (const id of [...views, blank.id, reassigned.id]) expect(keys).not.toContain(`section:${id}`);
+    for (const id of [...views, blank.id, movedSource.id]) expect(keys).not.toContain(`section:${id}`);
     expect(entry(notes.id)).toMatchObject({ recovery: { kind: 'config' }, section: { config: { text: 'Measure the hallway shelf' } } });
     expect(entry(cascaded.id)).toMatchObject({
       cascadeCount: 1,
@@ -281,7 +282,7 @@ test('Archive lists recoverable content only, and independently archived rows ke
   await expect(page).toHaveURL(new RegExp(`/projects/${ROOT}/pages/archive$`));
   const row = (id: string) => page.locator(`[data-archived-item][data-archived-id="${id}"]`);
   await expect(row(notes.id)).toContainText('Keeps its text');
-  for (const id of [...views, blank.id, reassigned.id]) await expect(row(id)).toHaveCount(0);
+  for (const id of [...views, blank.id, movedSource.id]) await expect(row(id)).toHaveCount(0);
   await expect(row(cascaded.id)).toContainText('2 tasks in this section');
   await expect(row(cascaded.id)).toContainText('1 task restores with this section');
   await expect(row(cascaded.id)).toContainText('1 other task stays archived; restore it separately afterwards.');

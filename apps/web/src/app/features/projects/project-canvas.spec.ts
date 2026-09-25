@@ -521,9 +521,9 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   it('dismisses the recovery notice and remove failures independently and focuses the remaining action', async () => {
     const { fixture, gateway } = await render();
     const removeSection = gateway.sections.remove.bind(gateway.sections);
-    gateway.sections.remove = async (id, input) => {
+    gateway.sections.remove = async (id) => {
       if (id === 'section-tasks') throw new GatewayError('unreachable', 0, 'Task removal response was lost');
-      return removeSection(id, input);
+      return removeSection(id);
     };
     query(fixture, '[data-section-id="section-text"] [data-section-remove]')!.click();
     await fixture.whenStable();
@@ -579,7 +579,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     await fixture.whenStable();
 
     // No policy: an unknown type reads as a view, so removing it can never touch data.
-    expect(gateway.argumentTo('sections.remove')).toEqual({ id: 'section-unknown', input: {} });
+    expect(gateway.argumentTo('sections.remove')).toEqual({ id: 'section-unknown' });
   });
 
   it('inserts a named section before the selected anchor from the contextual dialog', async () => {
@@ -702,54 +702,21 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(query(fixture, '[data-section-error]')?.textContent).toContain('could not reach');
   });
 
-  it('asks how to remove a container that still holds rows, and removes a view outright', async () => {
+  it('removes a live-row container in one request without a policy dialog', async () => {
     const { fixture, gateway } = await render({
       sections: [
         section('section-tasks', 'task-list', 0),
-        section('section-tasks-copy', 'task-list', 1),
-        section('section-progress', 'progress', 2),
       ],
     });
-    const remove = gateway.sections.remove.bind(gateway.sections);
-    const refusal = new GatewayError(
-      'rule_violation',
-      409,
-      'section "section-tasks" still holds 2 tasks; removing it needs a policy of "cascade" or "reassign"',
-      // The discriminator is what opens the dialog at all; without it the store would
-      // retain an explicit failed-removal action rather than ask a policy question.
-      { reason: 'section_not_empty', liveRowCount: 2 },
-    );
-    gateway.sections.remove = vi.fn<typeof gateway.sections.remove>(async (id, input) => {
-      if (input?.policy === undefined) throw refusal;
-      return remove(id, input);
-    });
-    const frames = queryAll(fixture, '[data-section-frame]');
-    frames[0]!.querySelector<HTMLElement>('[data-section-remove]')!.click();
+    const remove = query(fixture, '[data-section-remove]') as HTMLButtonElement;
+    remove.focus();
+    remove.click();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    // The count is the domain's, so it cannot drift from the rule; the sentence is the UI's,
-    // so it says "2 tasks" rather than naming a section id and a policy vocabulary.
-    const dialog = query(fixture, '[data-section-removal-dialog]');
-    expect(dialog).not.toBeNull();
-    expect(query(fixture, '[data-section-removal-message]')?.textContent).toContain(
-      'It still holds 2 tasks.',
-    );
-    expect(dialog?.textContent).toContain('Remove “Task List”?');
-    expect(dialog?.textContent).not.toContain('section-tasks');
-    // A refusal is a question, not an error to park in the page's error line.
-    expect(query(fixture, '[data-section-error]')).toBeNull();
-    // Reassign is offered only because a second task-list exists to take the rows.
-    expect(query(fixture, '[data-section-removal-reassign]')).not.toBeNull();
-    expect(document.activeElement).toBe(query(fixture, '[data-section-removal-cancel]'));
-
-    query(fixture, '[data-section-removal-cascade]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(gateway.calls.filter(({ method }) => method === 'sections.remove').at(-1)?.argument).toMatchObject({
-      input: { policy: 'cascade' },
-    });
+    expect(gateway.calls.filter(({ method }) => method === 'sections.remove').at(-1)?.argument).toEqual({ id: 'section-tasks' });
+    expect(query(fixture, '[data-section-removal-dialog]')).toBeNull();
+    expect(query(fixture, '[data-section-frame]')).toBeNull();
     expect(document.activeElement).toBe(query(fixture, '[data-open-archive]'));
   });
 

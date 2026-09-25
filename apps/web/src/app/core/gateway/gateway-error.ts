@@ -39,9 +39,9 @@ export class GatewayError extends Error {
     message: string,
     /**
      * Whatever the host sent beside the message, untouched and **untrusted**. A boundary
-     * preserves wire data; the feature that branches on it owns the validation — the removal
-     * dialog parses this through `SectionRemovalRefusalDetailsSchema` and treats anything
-     * else as an ordinary error.
+     * preserves wire data; the feature that branches on it owns the validation — the canvas
+     * validates only the exact-actor repeated-removal receipt and treats anything else as an
+     * ordinary error.
      */
     readonly details?: unknown,
   ) {

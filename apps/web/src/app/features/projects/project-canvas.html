@@ -222,15 +222,3 @@
     />
   }
 }
-
-@defer (when store.removalPrompt() !== null) {
-  @if (store.removalPrompt(); as prompt) {
-    <app-section-removal-dialog
-      [prompt]="prompt"
-      [pending]="store.removalPending()"
-      (cancelled)="cancelRemovalPrompt(prompt.sectionId)"
-      (cascadeChosen)="cascadeAndRemove(prompt.sectionId)"
-      (reassignChosen)="reassignAndRemove(prompt.sectionId, $event)"
-    />
-  }
-}

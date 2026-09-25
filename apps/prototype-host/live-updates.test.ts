@@ -186,6 +186,43 @@ describe('live updates through the host (§62)', () => {
       return delivered;
     };
 
+    it('publishes no frame and changes no state when HTTP and MCP reject retired removal fields', async () => {
+      const { api, routes, persistence, events } = await harness();
+      const delivered: LiveEvent[] = [];
+      events.subscribe((event) => delivered.push(event));
+      const before = JSON.stringify(persistence.store.snapshot());
+
+      const http = await resolveRoute(routes, 'DELETE', `/api/sections/${SECTION}`, {
+        query: new URLSearchParams('policy=reassign&reassignToSectionId=section-target'),
+        headers: { 'x-prototype-user': 'user-demo' },
+        body: undefined,
+      });
+      expect(http.status).toBe(400);
+
+      const registry = createToolRegistry({
+        projects: api.projects,
+        pages: api.pages,
+        todos: api.todos,
+        archive: api.archive,
+        journal: api.journal,
+        tasks: api.tasks,
+        reflections: api.reflections,
+        sections: api.sections,
+        shortcuts: api.shortcuts,
+        dashboard: api.dashboard,
+        workspace: api.workspace,
+        history: api.history,
+      });
+      await expect(registry.call('remove_section', {
+        sectionId: SECTION,
+        policy: 'reassign',
+        reassignToSectionId: 'section-target',
+      }, AGENT)).rejects.toThrow();
+
+      expect(delivered).toEqual([]);
+      expect(JSON.stringify(persistence.store.snapshot())).toBe(before);
+    });
+
     it('delivers one committed frame per transition, per direction, with no inverse data', async () => {
       const { routes, persistence, events } = await harness();
       const delivered = watchSection(persistence, events);
