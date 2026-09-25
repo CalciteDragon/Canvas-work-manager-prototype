@@ -95,9 +95,12 @@ is Activity, bound to the exact actor that created the project; no tombstone or 
 The transition retry cache was retired by dated amendment instead of being built. Real use leaves two
 follow-up questions: whether section labels should name the edit too, and whether root pages need a way
 to reach a descendant's steps. **[Slice 43 — one-step removal and task Delete](completed/43-one-step-removal-and-task-delete.md)
-is the active Stage D1 plan**: direct section cascade, retirement of removal-time reassignment
-requests, and task Delete icons. Stage D2 will address parent-first Archive and Settings archived
-projects; Stage E remains integrated closure. The paragraphs below describe the earlier shipped
+shipped Stage D1 on 2026-09-25**: removing a task or reflection container archives its live rows in
+one gesture with no policy dialog, HTTP and MCP refuse the retired `policy`/`reassignToSectionId`
+inputs, stored version-1 reassign actions stay executable, and Task List and Todos rows offer a
+reversible **Delete** icon over the existing task archive. Real use asks whether the optimistic row
+disappearance needs an "Archived" cue so Delete does not read as permanent. Stage D2 — parent-first
+Archive and Settings archived projects — is next; Stage E remains integrated closure. The paragraphs below describe the earlier shipped
 system and its choices.
 
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported
