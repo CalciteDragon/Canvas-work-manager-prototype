@@ -74,9 +74,7 @@
               [attr.title]="'Delete task ' + item.task.title"
               (click)="delete(item)"
             >
-              <svg class="todos__delete-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24">
-                <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m3 3v7m6-7v7" />
-              </svg>
+              <app-icon name="remove" />
             </button>
           }
         </li>

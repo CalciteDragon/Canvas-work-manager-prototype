@@ -1,12 +1,16 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
-/** The small set of SVG marks used by the project canvas's interaction chrome. */
-export type CanvasIconName =
+/** The small set of SVG marks used by project chrome and task-row actions; `remove` is the trash can. */
+export type IconName =
   'grip' | 'chevron' | 'plus' | 'archive' | 'remove' | 'settings' | 'resize' | 'undo' | 'redo';
 
-/** Decorative, token-sized SVG chrome shared by the canvas and its section frames. */
+/**
+ * Decorative, token-sized SVG marks shared across features: the canvas, its section frames, the
+ * history controls, and the task Delete buttons in TaskRow and Todos. The owning button supplies
+ * the accessible name.
+ */
 @Component({
-  selector: 'app-canvas-icon',
+  selector: 'app-icon',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @switch (name()) {
@@ -96,7 +100,7 @@ export type CanvasIconName =
     `,
   ],
 })
-export class CanvasIcon {
+export class Icon {
   /** Selects one of the decorative inline SVGs. */
-  readonly name = input.required<CanvasIconName>();
+  readonly name = input.required<IconName>();
 }

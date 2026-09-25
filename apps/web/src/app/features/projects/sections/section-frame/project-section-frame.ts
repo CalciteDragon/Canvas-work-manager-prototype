@@ -16,7 +16,7 @@ import {
 import { nameOf, type ProjectSection, type SectionConfig, type SectionId } from '@cwm/contracts';
 import type { SectionContentInputs } from '../section-contract';
 import type { SectionDefinition } from '../registry';
-import { CanvasIcon } from '../../canvas-chrome/canvas-icon';
+import { Icon } from '../../../../shared/components/icon/icon';
 import { moveDirectionFor } from '../../canvas-chrome/move-keys';
 
 /**
@@ -26,7 +26,7 @@ import { moveDirectionFor } from '../../canvas-chrome/move-keys';
 @Component({
   selector: 'app-project-section-frame',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDragHandle, NgComponentOutlet, CanvasIcon],
+  imports: [CdkDragHandle, NgComponentOutlet, Icon],
   templateUrl: './project-section-frame.html',
   styleUrl: './project-section-frame.scss',
 })

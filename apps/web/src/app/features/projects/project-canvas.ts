@@ -30,7 +30,7 @@ import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { ProjectPageStore, type ProjectCanvasPlacement } from './project-page-store';
 import { SectionCreateDialog } from './section-create-dialog';
 import { SectionRecoveryNotice } from './section-recovery-notice';
-import { CanvasIcon } from './canvas-chrome/canvas-icon';
+import { Icon } from '../../shared/components/icon/icon';
 import { gridInsertionGaps } from './canvas-chrome/grid-insertion-gaps';
 import { InsertionPoint, type InsertionIntent } from './canvas-chrome/insertion-point';
 import { moveDirectionFor } from './canvas-chrome/move-keys';
@@ -57,7 +57,7 @@ interface GridInsertionTarget {
     CdkDrag,
     CdkDragHandle,
     CdkDropList,
-    CanvasIcon,
+    Icon,
     InsertionPoint,
     ProjectSectionFrame,
     SectionCreateDialog,

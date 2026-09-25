@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
-import { CanvasIcon, type CanvasIconName } from './canvas-icon';
+import { Icon, type IconName } from './icon';
 
-describe('CanvasIcon (§27)', () => {
+describe('Icon (§27)', () => {
   it('renders each supported chrome icon as a decorative SVG', () => {
-    const names: CanvasIconName[] = [
+    const names: IconName[] = [
       'grip',
       'chevron',
       'plus',
@@ -15,7 +15,7 @@ describe('CanvasIcon (§27)', () => {
     ];
 
     for (const name of names) {
-      const fixture = TestBed.createComponent(CanvasIcon);
+      const fixture = TestBed.createComponent(Icon);
       fixture.componentRef.setInput('name', name);
       fixture.detectChanges();
 

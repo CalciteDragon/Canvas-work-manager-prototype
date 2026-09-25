@@ -11,14 +11,14 @@ import {
 } from '@cwm/contracts';
 import type { SectionContentInputs } from '../sections/section-contract';
 import { definitionFor } from '../sections/registry';
-import { CanvasIcon } from '../canvas-chrome/canvas-icon';
+import { Icon } from '../../../shared/components/icon/icon';
 import { moveDirectionFor } from '../canvas-chrome/move-keys';
 
 /** §27's read-only reference frame. It owns placement chrome and never the source's content. */
 @Component({
   selector: 'app-shortcut-frame',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDragHandle, NgComponentOutlet, RouterLink, CanvasIcon],
+  imports: [CdkDragHandle, NgComponentOutlet, RouterLink, Icon],
   templateUrl: './shortcut-frame.html',
   styleUrl: './shortcut-frame.scss',
 })

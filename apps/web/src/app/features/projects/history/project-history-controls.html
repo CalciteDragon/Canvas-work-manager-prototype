@@ -8,7 +8,7 @@
     [attr.aria-disabled]="undo().enabled ? null : 'true'"
     (click)="requestUndo()"
   >
-    <app-canvas-icon name="undo" />
+    <app-icon name="undo" />
   </button>
   <button
     data-history-redo
@@ -19,7 +19,7 @@
     [attr.aria-disabled]="redo().enabled ? null : 'true'"
     (click)="requestRedo()"
   >
-    <app-canvas-icon name="redo" />
+    <app-icon name="redo" />
   </button>
   @if (retryAvailable()) {
     <button data-history-retry type="button" class="history-controls__retry" (click)="retryRequested.emit()">

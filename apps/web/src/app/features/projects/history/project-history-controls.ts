@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { CanvasIcon } from '../canvas-chrome/canvas-icon';
+import { Icon } from '../../../shared/components/icon/icon';
 import type { HistoryControlView } from './history-feedback';
 
 const NOTHING: HistoryControlView = { name: 'Loading history…', enabled: false };
@@ -16,7 +16,7 @@ const NOTHING: HistoryControlView = { name: 'Loading history…', enabled: false
 @Component({
   selector: 'app-project-history-controls',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CanvasIcon],
+  imports: [Icon],
   templateUrl: './project-history-controls.html',
   styleUrl: './project-history-controls.scss',
 })

@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { ProjectId, ProjectLayoutMode, ProjectPageId, ProjectTodoItem } from '@cwm/contracts';
+import { Icon } from '../../../shared/components/icon/icon';
 import { TodosPageStore, isTodoFinished, todoIdOf } from './todos-page-store';
 
 /** §33's and §26's statuses, in the words the page says them. */
@@ -45,7 +46,7 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-todos-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, Icon],
   providers: [TodosPageStore],
   templateUrl: './todos-page.html',
   styleUrl: './todos-page.scss',

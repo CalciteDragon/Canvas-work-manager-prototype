@@ -56,6 +56,8 @@ Smaller features that do not earn a folder of their own:
   permission grid and revoke (`AgentConnectionsPage`, `AgentConnectionsStore`).
 - `features/calendar`, `features/search` — placeholders until Slices 18 and 21.
 - `shared/components/placeholder-page` — `PlaceholderPage`, `NotFoundPage`.
+- `shared/components/icon` — `Icon`, the decorative SVG marks used by canvas chrome, history
+  controls and the task Delete buttons in `TaskRow` and Todos.
 
 ## Read next
 

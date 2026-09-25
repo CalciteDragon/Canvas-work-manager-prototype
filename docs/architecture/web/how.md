@@ -30,6 +30,7 @@
 | `AppShell` | component | §23's layout; owns `ShellStore` | [API](../../api/components/AppShell.html) |
 | `WorkManagerGateway` | interface | The one dependency every store has | [API](../../api/interfaces/WorkManagerGateway.html) |
 | `SECTION_REGISTRY`, `DASHBOARD_WIDGET_REGISTRY`, `PROJECT_PAGE_REGISTRY` | consts | The three open-ended lists | [API](../../api/miscellaneous/variables.html#SECTION_REGISTRY) |
+| `Icon` | component | Shared decorative SVG marks (`shared/components/icon`) | [API](../../api/components/Icon.html) |
 
 Each subsystem's `how.md` lists its own.
 

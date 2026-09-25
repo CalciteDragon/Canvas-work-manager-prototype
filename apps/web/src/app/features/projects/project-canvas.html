@@ -69,7 +69,7 @@
             type="button"
             (click)="openCreate({ kind: 'end', beforeId: null, columnSpan: 12 })"
           >
-            <app-canvas-icon name="plus" /> Add a section
+            <app-icon name="plus" /> Add a section
           </button>
         }
       </div>
@@ -145,7 +145,7 @@
                     [attr.aria-disabled]="keyboardMovePending().has(placement.section.id) || !store.orderComplete()"
                     [attr.aria-label]="'Move unrecognised section ' + placement.section.type"
                     (keydown)="unknownMoveKeydown($event, placement.section.id)"
-                  ><app-canvas-icon name="grip" /></button>
+                  ><app-icon name="grip" /></button>
                   <h2>Unrecognised section</h2>
                   <button
                     data-unknown-section-remove
@@ -154,7 +154,7 @@
                     title="Remove section"
                     [attr.aria-label]="'Remove unrecognised section ' + placement.section.type"
                     (click)="removeSectionFromCanvas(placement.section.id)"
-                  ><app-canvas-icon name="remove" /></button>
+                  ><app-icon name="remove" /></button>
                 </header>
                 <p>Nothing in this build knows how to render a “{{ placement.section.type }}” section.</p>
               </section>

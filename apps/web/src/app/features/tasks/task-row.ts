@@ -10,9 +10,11 @@ import {
   viewChild,
 } from '@angular/core';
 import type { Task, TaskId } from '@cwm/contracts';
+import { Icon } from '../../shared/components/icon/icon';
 
 @Component({
   selector: 'app-task-row',
+  imports: [Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './task-row.html',
   styleUrl: './task-row.scss',

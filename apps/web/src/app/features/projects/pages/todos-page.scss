@@ -62,16 +62,6 @@
   cursor: pointer;
 }
 
-.todos__delete-icon {
-  inline-size: var(--size-icon-sm);
-  block-size: var(--size-icon-sm);
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.8;
-}
-
 .todos__delete:disabled {
   cursor: progress;
   opacity: 0.5;
