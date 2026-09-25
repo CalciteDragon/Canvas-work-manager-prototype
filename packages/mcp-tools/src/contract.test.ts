@@ -530,9 +530,13 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
     const harness = buildHarness();
     const before = harness.store.snapshot();
 
+    // The strict schema, not a permission or rule error, is what refuses the retired field.
     await expect(
       harness.registry.call('remove_section', { sectionId: VIEW_SECTION, policy: 'cascade' }, agent(['projects.write'])),
-    ).rejects.toThrow();
+    ).rejects.toThrow(expect.objectContaining({
+      name: 'ZodError',
+      issues: [expect.objectContaining({ code: 'unrecognized_keys', keys: ['policy'] })],
+    }));
 
     expect(harness.store.snapshot()).toEqual(before);
   });

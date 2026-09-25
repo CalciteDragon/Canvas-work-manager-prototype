@@ -217,7 +217,10 @@ describe('live updates through the host (§62)', () => {
         sectionId: SECTION,
         policy: 'reassign',
         reassignToSectionId: 'section-target',
-      }, AGENT)).rejects.toThrow();
+      }, AGENT)).rejects.toThrow(expect.objectContaining({
+        name: 'ZodError',
+        issues: [expect.objectContaining({ code: 'unrecognized_keys', keys: ['policy', 'reassignToSectionId'] })],
+      }));
 
       expect(delivered).toEqual([]);
       expect(JSON.stringify(persistence.store.snapshot())).toBe(before);
