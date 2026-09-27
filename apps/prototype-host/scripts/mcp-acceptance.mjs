@@ -87,9 +87,12 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
   await assertRestoreAndShortcuts(client, title);
   const foreignPageReceipt = await assertPageHistory(client, foreign, title, dataFile, access);
   await assertProjectHistory(client, foreign, title, dataFile, access);
+  await assertRowAndLayoutHistory(client, title, dataFile);
   await assertRecoveryAndGrants(client, foreign, title, dataFile, access);
   // After the block above revoked the second connection, which is what makes this a revocation.
   await assertRevokedPageReceipt(foreign, foreignPageReceipt, title, dataFile);
+  // Only the Streamable HTTP host has a simulated clock to move; stdio runs on real time.
+  if (access.setNow !== undefined) await assertArchiveOutlivesExpiry(client, title, dataFile, access);
   return { task, reflectionId: reflection.structuredContent?.reflection?.id, ...undo };
 };
 
@@ -664,6 +667,129 @@ const assertProjectHistory = async (client, foreign, title, dataFile, access) =>
   check((await projectOf(child)).status === 'on_hold', `${title} the sub-project ends reactivated`);
 };
 
+/**
+ * Slice 45: the task Delete/complete/rename chain, reflection archive/restore and the saved
+ * layout/progress options, undone and redone over this transport with exact ids and fields read
+ * back from the file. Stage B and C proved these at the registry and domain; this is the
+ * transport evidence Stage E's ledger asks for.
+ */
+const assertRowAndLayoutHistory = async (client, title, dataFile) => {
+  const document = async () => JSON.parse(await readFile(dataFile, 'utf8'));
+  const taskOf = async (id) => (await document()).tasks.find((task) => task.id === id) ?? null;
+  const reflectionOf = async (id) => (await document()).reflections.find((row) => row.id === id) ?? null;
+  const step = async (receipt, direction = 'undo') => {
+    const history = (await document()).operationHistories.find(({ id }) => id === receipt.historyId);
+    return client.callTool({
+      name: `${direction}_operation`,
+      arguments: { historyId: receipt.historyId, actionId: receipt.actionId, expectedRevision: history.revision },
+    });
+  };
+  const business = ({ id, createdAt, title: name, status, completedAt, archivedAt, archivedWithTaskId, archivedWithSectionId, parentTaskId, sectionId }) =>
+    JSON.stringify({ id, createdAt, name, status, completedAt, archivedAt, archivedWithTaskId, archivedWithSectionId, parentTaskId, sectionId });
+
+  const root = projectIdOf(await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Row history ${title}` } }));
+  const added = await client.callTool({ name: 'create_task', arguments: { projectId: root, title: 'Chain' } });
+  const taskId = added.structuredContent.task.id;
+  const sectionId = added.structuredContent.task.sectionId;
+  const live = (await client.callTool({ name: 'create_task', arguments: { projectId: root, sectionId, parentTaskId: taskId, title: 'Live child' } })).structuredContent.task.id;
+  const filed = (await client.callTool({ name: 'create_task', arguments: { projectId: root, sectionId, parentTaskId: taskId, title: 'Filed child' } })).structuredContent.task.id;
+  check((await client.callTool({ name: 'archive_task', arguments: { taskId: filed } })).isError !== true, `${title} files one child on its own first`);
+  const filedState = business(await taskOf(filed));
+
+  const receipts = [receiptOf(added)];
+  const states = [null, business(await taskOf(taskId))];
+  for (const [name, args] of [
+    ['complete_task', { taskId }],
+    ['update_task', { taskId, title: 'Chain renamed' }],
+    ['archive_task', { taskId }],
+  ]) {
+    const written = await client.callTool({ name, arguments: args });
+    check(written.isError !== true && typeof receiptOf(written)?.actionId === 'string', `${title} ${name} answers a receipt for the chain`);
+    receipts.push(receiptOf(written));
+    states.push(business(await taskOf(taskId)));
+  }
+  check(receipts.map(({ operation }) => operation).join(',') === 'task.add,task.update,task.update,task.archive', `${title} the chain records an add, two updates (completion is one) and an archive`);
+  const completed = await taskOf(taskId);
+  const deletedLive = business(await taskOf(live));
+  check((await taskOf(live)).archivedWithTaskId === taskId && business(await taskOf(filed)) === filedState, `${title} Delete cascades to the live child only`);
+
+  // Undo Delete, rename and completion. Creation stays applied: the two children depend on it.
+  for (let index = 3; index >= 1; index--) {
+    const undone = await step(receipts[index]);
+    check(undone.isError !== true && business(await taskOf(taskId)) === states[index], `${title} Undo ${receipts[index].operation} restores the exact prior task fields`);
+    if (index === 3) {
+      check(business(await taskOf(filed)) === filedState && (await taskOf(live)).archivedAt === undefined, `${title} Undo Delete revives only its own cascade`);
+    }
+  }
+  check((await taskOf(taskId)).status !== 'done' && (await taskOf(taskId)).completedAt === undefined, `${title} Undo completion restores the prior status and clears completedAt`);
+  for (let index = 1; index <= 3; index++) {
+    const redone = await step(receipts[index], 'redo');
+    check(redone.isError !== true && business(await taskOf(taskId)) === states[index + 1], `${title} Redo ${receipts[index].operation} reapplies the exact task fields`);
+  }
+  check((await taskOf(taskId)).completedAt === completed.completedAt, `${title} Redo completion keeps the captured completedAt`);
+  check(business(await taskOf(live)) === deletedLive && business(await taskOf(filed)) === filedState, `${title} Redo Delete re-archives exactly its cascade`);
+
+  const note = await client.callTool({ name: 'add_reflection', arguments: { projectId: root, body: `Row note ${title}` } });
+  const noteId = note.structuredContent.reflection.id;
+  const noteArchive = await client.callTool({ name: 'archive_reflection', arguments: { reflectionId: noteId } });
+  const noteRestore = await client.callTool({ name: 'restore_reflection', arguments: { reflectionId: noteId } });
+  check(
+    [note, noteArchive, noteRestore].map(receiptOf).map((receipt) => receipt?.operation).join(',') === 'reflection.add,reflection.archive,reflection.restore',
+    `${title} reflection add, archive and restore each answer their receipt`,
+  );
+  check((await step(receiptOf(noteRestore))).isError !== true && typeof (await reflectionOf(noteId)).archivedAt === 'string', `${title} Undo reflection Restore archives it again`);
+  check((await step(receiptOf(noteArchive))).isError !== true && (await reflectionOf(noteId)).archivedAt === undefined, `${title} Undo reflection archive revives it`);
+  check((await step(receiptOf(note))).isError !== true && (await reflectionOf(noteId)) === null, `${title} Undo reflection Add removes it`);
+  check((await step(receiptOf(note), 'redo')).isError !== true && (await reflectionOf(noteId))?.id === noteId, `${title} Redo reflection Add recreates the same id`);
+
+  const projectOf = async () => (await document()).projects.find(({ id }) => id === root);
+  const before = await projectOf();
+  const layout = await client.callTool({ name: 'update_project', arguments: { projectId: root, projectLayoutMode: 'grid', progressFormula: 'manual', manualProgress: 40 } });
+  const layoutReceipt = receiptOf(layout);
+  check(layoutReceipt?.operation === 'project.update', `${title} layout and progress settings answer one project.update receipt`);
+  const same = await client.callTool({ name: 'update_project', arguments: { projectId: root, projectLayoutMode: 'grid' } });
+  check(same.isError !== true && receiptOf(same) === null, `${title} a same-value layout write answers a null receipt`);
+  check((await step(layoutReceipt)).isError !== true, `${title} Undo layout and progress settings`);
+  const reverted = await projectOf();
+  check(
+    reverted.projectLayoutMode === before.projectLayoutMode && reverted.progressFormula === before.progressFormula && reverted.manualProgress === before.manualProgress,
+    `${title} Undo restores the exact prior layout and progress fields`,
+  );
+  check((await step(layoutReceipt, 'redo')).isError !== true, `${title} Redo layout and progress settings`);
+  const reapplied = await projectOf();
+  check(reapplied.projectLayoutMode === 'grid' && reapplied.progressFormula === 'manual' && reapplied.manualProgress === 40, `${title} Redo reapplies grid, manual and 40`);
+};
+
+/**
+ * Slice 45: once a removal's action has expired, undo_operation refuses it without writing, and
+ * Archive Restore — which needs no receipt — still recovers the retained content.
+ */
+const assertArchiveOutlivesExpiry = async (client, title, dataFile, access) => {
+  const prose = await client.callTool({
+    name: 'create_section',
+    arguments: { projectId: PROJECT, type: 'rich-text', title: `Expiring ${title}`, config: { text: 'Still worth keeping' } },
+  });
+  const proseId = prose.structuredContent.section.id;
+  const removal = receiptOf(await client.callTool({ name: 'remove_section', arguments: { sectionId: proseId } }));
+  await access.setNow(new Date(Date.parse(removal.createdAt) + 25 * 60 * 60 * 1000).toISOString());
+  try {
+    const before = await businessState(dataFile);
+    const history = JSON.parse(await readFile(dataFile, 'utf8')).operationHistories.find(({ id }) => id === removal.historyId);
+    const expired = await client.callTool({
+      name: 'undo_operation',
+      arguments: { historyId: removal.historyId, actionId: removal.actionId, expectedRevision: history.revision },
+    });
+    check(expired.isError === true && textOf(expired).startsWith("history_expired:"), `${title} an expired removal Undo is refused with history_expired:`);
+    check((await businessState(dataFile)) === before, `${title} the expired Undo refusal writes nothing`);
+    const archive = await client.callTool({ name: 'get_project_archive', arguments: { projectId: PROJECT } });
+    check(archive.structuredContent.items.some(({ section }) => section?.id === proseId), `${title} Archive still lists the retained section after expiry`);
+    const restored = await client.callTool({ name: 'restore_section', arguments: { sectionId: proseId } });
+    check(restored.isError !== true && restored.structuredContent.section.archivedAt === undefined, `${title} Archive Restore recovers it after its history expired`);
+  } finally {
+    await access.setNow(null);
+  }
+};
+
 /** A revoked connection cannot run a page transition either, and its page stays put. */
 const assertRevokedPageReceipt = async (foreign, receipt, title, dataFile) => {
   const before = await businessState(dataFile);
@@ -806,6 +932,7 @@ const httpAccess = (baseUrl) => {
   return {
     setPermissions: (id, permissions) => call('PATCH', `/api/agent-connections/${id}`, { permissions }),
     revoke: (id) => call('POST', `/api/agent-connections/${id}/revoke`),
+    setNow: (now) => call('POST', '/prototype/clock', { now }),
   };
 };
 

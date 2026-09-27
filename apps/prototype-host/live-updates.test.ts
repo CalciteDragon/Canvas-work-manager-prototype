@@ -603,4 +603,138 @@ describe('live updates through the host (§62)', () => {
       host.persistence.store.persist = persist;
     });
   });
+
+  /**
+   * Slice 45: a canonical Archive Restore is not a history transition, so an owner, ancestor or
+   * parent archived after the entry was listed must refuse it at the commit boundary without a
+   * business, history or Activity change and without a frame. A new dependent refusing an unsafe
+   * Redo has the same obligation. HTTP and the MCP registry reach the same persistence.
+   */
+  describe('canonical Restore races and unsafe Redo refusals', () => {
+    type Harness = Awaited<ReturnType<typeof harness>>;
+    const WRITER: ActorContext = {
+      ...AGENT,
+      permissions: ['projects.read', 'projects.write', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write'],
+    };
+    const canonical = (document: ReturnType<Harness['persistence']['store']['snapshot']>) => ({
+      projects: document.projects,
+      sections: document.sections,
+      tasks: document.tasks,
+      reflections: document.reflections,
+      activityEvents: document.activityEvents,
+      operationHistories: document.operationHistories,
+      operationActions: document.operationActions,
+    });
+    const registryOf = (api: Harness['api']) => createToolRegistry({
+      projects: api.projects, pages: api.pages, todos: api.todos, archive: api.archive, archivedProjects: api.archivedProjects,
+      journal: api.journal, tasks: api.tasks, reflections: api.reflections, sections: api.sections, shortcuts: api.shortcuts,
+      dashboard: api.dashboard, workspace: api.workspace, history: api.history,
+    });
+    const created = async (routes: RouteTable, path: string, body: unknown) => {
+      const result = await persona(routes, 'POST', path, body);
+      expect(result.status).toBe(201);
+      return result.body as Record<string, { id: string; sectionId: string }>;
+    };
+    /** Runs one refusal and proves it left memory, disk and the hub exactly as they were. */
+    const refusesAtomically = async (host: Harness, attempt: () => Promise<unknown>) => {
+      const delivered: string[] = [];
+      host.events.subscribe((event) => delivered.push(event.type));
+      const before = canonical(host.persistence.store.snapshot());
+      const bytes = readFileSync(host.persistence.path, 'utf8');
+      await attempt();
+      expect(delivered).toEqual([]);
+      expect(canonical(host.persistence.store.snapshot())).toEqual(before);
+      expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
+    };
+
+    it('refuses a Restore under an archived section, parent task, owner project or ancestor over HTTP and MCP with nothing written or published', async () => {
+      const host = await harness();
+      const registry = registryOf(host.api);
+      const root = (await created(host.routes, '/api/projects', { workspaceId: 'workspace-demo', kind: 'root', name: 'Race root' })).project!.id;
+      const child = (await created(host.routes, '/api/projects', { workspaceId: 'workspace-demo', kind: 'subproject', parentProjectId: root, name: 'Race child' })).project!.id;
+      const container = (await created(host.routes, `/api/projects/${root}/sections`, { type: 'task-list', title: 'Container' })).section!.id;
+      const cascaded = (await created(host.routes, '/api/tasks', { projectId: root, sectionId: container, title: 'Cascaded' })).task!.id;
+      const holder = (await created(host.routes, `/api/projects/${root}/sections`, { type: 'task-list', title: 'Holder' })).section!.id;
+      const parent = (await created(host.routes, '/api/tasks', { projectId: root, sectionId: holder, title: 'Parent' })).task!.id;
+      const subtask = (await created(host.routes, '/api/tasks', { projectId: root, sectionId: holder, parentTaskId: parent, title: 'Filed subtask' })).task!.id;
+      const reflection = (await created(host.routes, '/api/reflections', { projectId: root, body: 'Race note' })).reflection!;
+      expect((await persona(host.routes, 'POST', `/api/tasks/${subtask}/archive`)).status).toBe(200);
+      expect((await persona(host.routes, 'POST', `/api/tasks/${parent}/archive`)).status).toBe(200);
+      expect((await persona(host.routes, 'DELETE', `/api/sections/${container}`)).status).toBe(200);
+      expect((await persona(host.routes, 'DELETE', `/api/sections/${reflection.sectionId}`)).status).toBe(200);
+
+      const rows = [
+        [`/api/tasks/${cascaded}/restore`, 'restore_task', { taskId: cascaded }],
+        [`/api/tasks/${subtask}/restore`, 'restore_task', { taskId: subtask }],
+        [`/api/reflections/${reflection.id}/restore`, 'restore_reflection', { reflectionId: reflection.id }],
+      ] as const;
+      for (const [path, tool, input] of rows) {
+        await refusesAtomically(host, async () => expect((await persona(host.routes, 'POST', path)).status).toBe(409));
+        await refusesAtomically(host, () => expect(registry.call(tool, input, WRITER)).rejects.toThrow(/archived/));
+      }
+
+      // Now the owners go: the child first, because a live child blocks its root's archive.
+      expect((await persona(host.routes, 'PATCH', `/api/projects/${child}`, { status: 'archived' })).status).toBe(200);
+      expect((await persona(host.routes, 'PATCH', `/api/projects/${root}`, { status: 'archived' })).status).toBe(200);
+      await refusesAtomically(host, async () => expect((await persona(host.routes, 'POST', `/api/sections/${container}/restore`)).status).toBe(409));
+      await refusesAtomically(host, () => expect(registry.call('restore_section', { sectionId: container }, WRITER)).rejects.toThrow(/archived/));
+      await refusesAtomically(host, async () => expect((await persona(host.routes, 'PATCH', `/api/projects/${child}`, { status: 'active' })).status).toBe(409));
+      await refusesAtomically(host, () => expect(registry.call('restore_project', { projectId: child, status: 'active' }, WRITER)).rejects.toThrow(/archived/));
+    });
+
+    it('refuses a removal Redo once a new row joined the restored container, with nothing written or published', async () => {
+      const host = await harness();
+      const root = (await created(host.routes, '/api/projects', { workspaceId: 'workspace-demo', kind: 'root', name: 'Redo root' })).project!.id;
+      const container = (await created(host.routes, `/api/projects/${root}/sections`, { type: 'task-list', title: 'Container' })).section!.id;
+      await created(host.routes, '/api/tasks', { projectId: root, sectionId: container, title: 'Captured' });
+      const receipt = receiptOf((await persona(host.routes, 'DELETE', `/api/sections/${container}`)).body)!;
+      expect((await step(host.routes, receipt, 'undo', receipt.revision)).status).toBe(200);
+      // Another connection adds the dependent, so it lands in its own history and the person's
+      // removal is still their next Redo.
+      const newcomer = (await registryOf(host.api).call('create_task', { projectId: root, sectionId: container, title: 'Newcomer' }, WRITER)) as { task: { id: string } };
+      const revision = host.persistence.store.snapshot().operationHistories.find(({ id }) => id === receipt.historyId)!.revision;
+
+      await refusesAtomically(host, async () => expect((await step(host.routes, receipt, 'redo', revision)).status).toBe(409));
+      expect(host.persistence.store.snapshot().tasks.find(({ id }) => id === newcomer.task.id)?.archivedAt).toBeUndefined();
+    });
+
+    it.each(['recorder', 'persistence'] as const)('an MCP task write and its undo_operation roll back a failed %s with no frame, and a retry lands once', async (fault) => {
+      const host = await harness();
+      const registry = registryOf(host.api);
+      const root = (await created(host.routes, '/api/projects', { workspaceId: 'workspace-demo', kind: 'root', name: `Fault ${fault}` })).project!.id;
+      const insertAction = host.persistence.operationActions.insert;
+      const persist = host.persistence.store.persist;
+      const inject = () => {
+        if (fault === 'recorder') host.persistence.operationActions.insert = async () => { throw new Error('action insert failed'); };
+        else host.persistence.store.persist = async () => { throw new Error('disk full'); };
+      };
+      const heal = () => {
+        host.persistence.operationActions.insert = insertAction;
+        host.persistence.store.persist = persist;
+      };
+      const write = () => registry.call('create_task', { projectId: root, title: 'Agent row' }, WRITER) as Promise<{ task: { id: string }; operation: { historyId: string; actionId: string; revision: number } }>;
+
+      inject();
+      await refusesAtomically(host, () => expect(write()).rejects.toThrow());
+      heal();
+      const frames: string[] = [];
+      host.events.subscribe((event) => frames.push(event.type));
+      const added = await write();
+      expect(frames).toEqual(['task.created']);
+
+      const undo = () => registry.call('undo_operation', { historyId: added.operation.historyId, actionId: added.operation.actionId, expectedRevision: added.operation.revision }, WRITER);
+      // A transition records no action, so only the persistence fault applies to it.
+      if (fault === 'persistence') {
+        inject();
+        await refusesAtomically(host, () => expect(undo()).rejects.toThrow('disk full'));
+        heal();
+      }
+      await undo();
+      expect(frames).toHaveLength(2);
+      expect(host.persistence.store.snapshot().tasks.some(({ id }) => id === added.task.id)).toBe(false);
+      // Activity keeps the row's captured identity by design; the task collection on disk does not.
+      const onDisk = JSON.parse(readFileSync(host.persistence.path, 'utf8')) as { tasks: Array<{ id: string }> };
+      expect(onDisk.tasks.some(({ id }) => id === added.task.id)).toBe(false);
+    });
+  });
 });
