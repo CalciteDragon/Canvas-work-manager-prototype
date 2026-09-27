@@ -1,5 +1,5 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { ProjectArchiveResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, PrototypeDocumentSchema, TaskWriteResultSchema } from '@cwm/contracts';
+import { ArchivedProjectsResultSchema, ProjectArchiveResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, PrototypeDocumentSchema, TaskWriteResultSchema } from '@cwm/contracts';
 import { createToolRegistry, toolPermission, SPEC_TOOL_NAMES } from '@cwm/mcp-tools';
 import { buildSeed } from '@cwm/prototype-data';
 import {
@@ -27,8 +27,16 @@ import {
   REQUIRED_PERMISSIONS_META_KEY,
 } from './handler.ts';
 
-const inMemoryPersistence = () => {
-  const store = new InMemoryDataStore(PrototypeDocumentSchema.parse(buildSeed('agent-heavy')));
+const inMemoryPersistence = (projectWrite = false) => {
+  const seed = buildSeed('agent-heavy');
+  if (projectWrite) {
+    seed.agentConnections = seed.agentConnections.map((connection) =>
+      connection.id === 'agent-claude'
+        ? { ...connection, permissions: [...connection.permissions, 'projects.write' as const] }
+        : connection,
+    );
+  }
+  const store = new InMemoryDataStore(PrototypeDocumentSchema.parse(seed));
   return {
     path: 'in-memory://slice-15',
     store,
@@ -48,14 +56,15 @@ const inMemoryPersistence = () => {
   };
 };
 
-const buildServer = () => {
-  const persistence = inMemoryPersistence();
+const buildServer = (projectWrite = false) => {
+  const persistence = inMemoryPersistence(projectWrite);
   const api = createApi(persistence);
   const registry = createToolRegistry({
     projects: api.projects,
     pages: api.pages,
     todos: api.todos,
     archive: api.archive,
+    archivedProjects: api.archivedProjects,
     journal: api.journal,
     tasks: api.tasks,
     reflections: api.reflections,
@@ -70,8 +79,8 @@ const buildServer = () => {
   return { api, authenticate, handler, persistence, registry };
 };
 
-const build = async (token = 'prototype-user-a-readwrite') => {
-  const server = buildServer();
+const build = async (token = 'prototype-user-a-readwrite', projectWrite = false) => {
+  const server = buildServer(projectWrite);
   const client = new Client(
     { name: 'slice-15-contract-test', version: '0.0.0' },
     { versionNegotiation: { mode: { pin: '2026-07-28' } } },
@@ -174,6 +183,42 @@ describe('MCP HTTP handler (§49, §50, §60)', () => {
 
       expect(result.isError).not.toBe(true);
       expect(ProjectArchiveResultSchema.parse(result.structuredContent).projectId).toBe('project-work-manager');
+    } finally {
+      await client.close();
+      await handler.close();
+    }
+  });
+
+  it('lists restorable archived projects and restores one through MCP', async () => {
+    const { client, handler } = await build('prototype-user-a-readwrite', true);
+    try {
+      const listed = await client.listTools();
+      expect(listed.tools.find(({ name }) => name === 'list_archived_projects')?._meta).toMatchObject({
+        [REQUIRED_PERMISSION_META_KEY]: 'projects.read',
+      });
+      const archived = await client.callTool({ name: 'archive_project', arguments: { projectId: 'project-agent-ops' } });
+      expect(archived.isError).not.toBe(true);
+      const result = await client.callTool({ name: 'list_archived_projects', arguments: {} });
+      expect(result.isError).not.toBe(true);
+      expect(ArchivedProjectsResultSchema.parse(result.structuredContent).items.map(({ project }) => project.id)).toContain('project-agent-ops');
+      const restored = await client.callTool({ name: 'restore_project', arguments: { projectId: 'project-agent-ops', status: 'active' } });
+      expect(restored.isError).not.toBe(true);
+      const after = await client.callTool({ name: 'list_archived_projects', arguments: {} });
+      expect(ArchivedProjectsResultSchema.parse(after.structuredContent).items.map(({ project }) => project.id)).not.toContain('project-agent-ops');
+    } finally {
+      await client.close();
+      await handler.close();
+    }
+  });
+
+  it('lets a read-only MCP connection list archived projects but refuses Restore', async () => {
+    const { client, handler } = await build('prototype-user-a-readonly');
+    try {
+      const listed = await client.callTool({ name: 'list_archived_projects', arguments: {} });
+      expect(listed.isError).not.toBe(true);
+      expect(ArchivedProjectsResultSchema.parse(listed.structuredContent).items).toEqual([]);
+      const restore = await client.callTool({ name: 'restore_project', arguments: { projectId: 'project-agent-ops', status: 'active' } });
+      expect(restore.isError).toBe(true);
     } finally {
       await client.close();
       await handler.close();

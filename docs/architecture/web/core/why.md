@@ -72,6 +72,8 @@ get one.
 
 ## Decisions that shape this system
 
+- [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — the shared gateway keeps workspace Settings off HTTP details.
+
 - [The gateway interface grows with its implementations](../../../decisions/2026-08-gateway-surface-grows-with-implementations.md)
 - [What an `Identity` is, and where it comes from](../../../decisions/2026-08-identity-contract-and-me-route.md)
 - [Latency and failure injection live in the client, not the host](../../../decisions/2026-08-latency-and-failure-live-in-the-client.md)

@@ -96,7 +96,7 @@ sequenceDiagram
 | `SectionCreateDialog` | `section-create-dialog.ts` | Section or Home shortcut creation at the selected canvas position |
 | `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor` | `canvas-chrome/` | Insertion overlays, snapped resize, sparse-grid gap targets and grip move keys |
 | `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with its own task row, inline completion and Delete writes, and canonical links |
-| `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's root-wide content projection, recovery copy and restores |
+| `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's ready-only root projection, owner-first recovery copy and restores |
 | `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal; the explicit Add container and reflection writes report to the header's history |
 | `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29 |
 | `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |

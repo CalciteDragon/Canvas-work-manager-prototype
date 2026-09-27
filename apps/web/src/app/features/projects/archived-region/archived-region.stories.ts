@@ -3,7 +3,6 @@ import {
   ProjectArchiveItemSchema,
   ProjectSectionSchema,
   SubprojectSchema,
-  TaskSchema,
   type ProjectArchiveItem,
 } from '@cwm/contracts';
 import { ArchivedRegion } from './archived-region';
@@ -31,17 +30,6 @@ const section = ProjectSectionSchema.parse({
   createdAt: AT,
   updatedAt: AT,
 });
-const task = TaskSchema.parse({
-  id: 'task-archive',
-  projectId: PROJECT,
-  sectionId: section.id,
-  title: 'Retire the old checklist',
-  status: 'todo',
-  priority: 'medium',
-  archivedAt: AT,
-  createdAt: AT,
-  updatedAt: AT,
-});
 const subproject = SubprojectSchema.parse({
   id: 'project-kitchen',
   workspaceId: 'workspace-demo',
@@ -63,13 +51,6 @@ const archivedItems: ProjectArchiveItem[] = [
     cascadeCount: 1,
     recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 1, separateRestoreCount: 0 },
     restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
-  }),
-  ProjectArchiveItemSchema.parse({
-    kind: 'task',
-    task,
-    origin: { ...origin, sectionId: section.id, sectionName: 'Backlog' },
-    cause: { kind: 'section-cascade', sectionId: section.id },
-    restoration: { kind: 'blocked', blocker: { kind: 'section', sectionId: section.id, name: 'Backlog' } },
   }),
   ProjectArchiveItemSchema.parse({
     kind: 'subproject',
@@ -106,13 +87,6 @@ const recoveryItems: ProjectArchiveItem[] = [
     recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 2, separateRestoreCount: 1 },
     restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
   }),
-  ProjectArchiveItemSchema.parse({
-    kind: 'task',
-    task: { ...task, id: 'task-filed', sectionId: 'section-old-list', title: 'Filed before the list was removed' },
-    origin: { ...origin, sectionId: 'section-old-list', sectionName: 'Old list' },
-    cause: { kind: 'own' },
-    restoration: { kind: 'blocked', blocker: { kind: 'section', sectionId: 'section-old-list', name: 'Old list' } },
-  }),
 ];
 
 const meta: Meta<ArchivedRegion> = {
@@ -125,8 +99,8 @@ export default meta;
 type Story = StoryObj<ArchivedRegion>;
 
 export const Empty: Story = { args: { items: [] } };
-export const ArchivedSectionsAndRows: Story = {};
-export const ArchivedProjectWithStatusChoice: Story = { args: { items: archivedItems.slice(2, 3) } };
+export const ArchivedOwners: Story = {};
+export const ArchivedProjectWithStatusChoice: Story = { args: { items: archivedItems.slice(1, 2) } };
 export const RootArchived: Story = { args: { restoreBlocked: true } };
 export const ContentAndUnknownSections: Story = { args: { items: recoveryItems.slice(0, 2) } };
 export const PreArchivedOnlyContainer: Story = { args: { items: recoveryItems.slice(2) } };

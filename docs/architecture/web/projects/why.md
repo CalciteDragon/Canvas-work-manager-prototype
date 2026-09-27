@@ -148,6 +148,8 @@ opens a collapsed target through a transient input that leaves the record alone
 
 ## Decisions that shape this system
 
+- [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — ready-only root rows and separate workspace Settings recovery.
+
 - [Direct canvas editing direction](../../../decisions/2026-09-direct-canvas-editing-direction.md) (implemented in Slice 27)
 - [Contextual insertion names its position](../../../decisions/2026-09-contextual-insertion-names-its-position.md)
 - [Canvas chrome is revealed, not moded](../../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)
@@ -184,5 +186,5 @@ shortcuts · §28 layout flag · §29 registry · §30 section types · §31 fra
 `ArchivedRegion` labels the supplied `recovery` metadata — total content apart from the exact
 "restores with this section" count, kept text, or conservative unknown content — and spells out
 the two steps for an archived container whose rows were archived on their own. A live container
-beneath an archived project gets reactivation guidance only
+beneath an archived project is omitted until that project returns
 ([decision](../../../decisions/2026-09-content-oriented-archive-policy.md)).

@@ -212,7 +212,7 @@ test('nested-projects is a coherent multi-page showcase across chronology, short
   await page.goto(`/projects/${SHOWCASE_ROOT}/pages/archive`);
   await expect(page.locator('[data-archived-item][data-archived-id="task-renovation-archived"]')).toBeVisible();
   await expect(page.locator(`[data-archived-item][data-archived-id="${SHOWCASE_LEGACY}"]`)).toBeVisible();
-  await expect(page.locator(`[data-archived-item][data-archived-id="${SHOWCASE_LEGACY_CHILD}"]`)).toContainText('Hidden by an archived project');
+  await expect(page.locator(`[data-archived-item][data-archived-id="${SHOWCASE_LEGACY_CHILD}"]`)).toHaveCount(0);
   await page.locator('[data-archived-item][data-archived-id="task-renovation-archived"] [data-archived-restore]').click();
   await expect(page.locator('[data-archived-item][data-archived-id="task-renovation-archived"]')).toHaveCount(0);
   await page.locator('[data-archived-item][data-archived-id="section-project-renovation-archived-notes"] [data-archived-restore]').click();

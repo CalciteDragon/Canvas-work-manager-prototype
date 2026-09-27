@@ -62,31 +62,6 @@ const archive: ProjectArchiveResult = ProjectArchiveResultSchema.parse({
       cascadeCount: 3,
       restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
     }),
-    ProjectArchiveItemSchema.parse({
-      kind: 'task',
-      task: {
-        id: 'task-archive-story',
-        projectId: PROJECT,
-        sectionId: section.id,
-        title: 'Retire the old checklist',
-        status: 'todo',
-        priority: 'medium',
-        archivedAt: AT,
-        createdAt: AT,
-        updatedAt: AT,
-      },
-      origin: {
-        projectId: PROJECT,
-        pageId: section.pageId,
-        pageKind: 'home',
-        pageEnabled: true,
-        breadcrumb: [{ projectId: PROJECT, name: root.name }],
-        sectionId: section.id,
-        sectionName: section.title,
-      },
-      cause: { kind: 'section-cascade', sectionId: section.id },
-      restoration: { kind: 'blocked', blocker: { kind: 'section', sectionId: section.id, name: section.title! } },
-    }),
   ],
 });
 
@@ -97,17 +72,6 @@ const archivedAncestor = SubprojectSchema.parse({
   parentProjectId: PROJECT,
   name: 'Legacy attic',
   status: 'archived',
-  projectLayoutMode: 'flow',
-  createdAt: AT,
-  updatedAt: AT,
-});
-const hiddenDescendant = SubprojectSchema.parse({
-  id: 'project-legacy-child-story',
-  workspaceId: 'workspace-story',
-  kind: 'subproject',
-  parentProjectId: archivedAncestor.id,
-  name: 'Legacy shelving',
-  status: 'active',
   projectLayoutMode: 'flow',
   createdAt: AT,
   updatedAt: AT,
@@ -128,26 +92,6 @@ const ancestorArchive: ProjectArchiveResult = ProjectArchiveResultSchema.parse({
       },
       cause: { kind: 'own' },
       restoration: { kind: 'ready', operation: 'restore_project', permission: 'projects.write' },
-    }),
-    ProjectArchiveItemSchema.parse({
-      kind: 'subproject',
-      project: hiddenDescendant,
-      origin: {
-        ...archive.items[0]!.origin,
-        projectId: hiddenDescendant.id,
-        pageId: 'page-project-legacy-child-story' as ProjectPageId,
-        pageKind: 'work',
-        breadcrumb: [
-          { projectId: PROJECT, name: root.name },
-          { projectId: archivedAncestor.id, name: archivedAncestor.name },
-          { projectId: hiddenDescendant.id, name: hiddenDescendant.name },
-        ],
-      },
-      cause: { kind: 'hidden-by-project', projectId: archivedAncestor.id },
-      restoration: {
-        kind: 'blocked',
-        blocker: { kind: 'project', projectId: archivedAncestor.id, name: archivedAncestor.name },
-      },
     }),
   ],
 });
@@ -197,7 +141,7 @@ const meta: Meta<ArchivePage> = {
 export default meta;
 type Story = StoryObj<ArchivePage>;
 
-export const MixedArchive: Story = {
+export const ReadyArchive: Story = {
   decorators: [applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor(archive) }] })],
 };
 
@@ -228,7 +172,7 @@ export const ReadyRestore: Story = {
   ],
 };
 
-export const AncestorBlocked: Story = {
+export const ArchivedSubprojectOwner: Story = {
   args: { restoreBlocked: false },
   decorators: [
     applicationConfig({ providers: [{ provide: WORK_MANAGER_GATEWAY, useValue: gatewayFor(ancestorArchive) }] }),

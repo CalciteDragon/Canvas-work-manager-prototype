@@ -50,6 +50,16 @@ const CASES: Record<string, ToolCase> = {
       expect(result.map((project: { id: string }) => project.id)).toContain(PROJECT);
     },
   },
+  list_archived_projects: {
+    input: {},
+    prepare: async (harness) => {
+      await harness.services.projects.archive(agent(['projects.write']), SHORTCUT_SOURCE_PROJECT);
+    },
+    verify: (result) => {
+      expect(result.items.map(({ project }: { project: { id: string } }) => project.id)).toContain(SHORTCUT_SOURCE_PROJECT);
+      expect(result.items.every(({ project }: { project: { status: string } }) => project.status === 'archived')).toBe(true);
+    },
+  },
   get_project: {
     input: { projectId: PROJECT },
     verify: (result) => expect(result.name).toBe('Work Manager'),

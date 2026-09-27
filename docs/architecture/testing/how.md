@@ -1,5 +1,11 @@
 # How testing works
 
+For Slice 44, run the focused Archive and archived-project suites, then `pnpm test`,
+`pnpm docs:check`, `pnpm lint`, `pnpm build`, `pnpm e2e`, host acceptance and MCP acceptance.
+Use `nested-projects` and `personal-workspace` in isolated data. Inspect exact archive markers
+and IDs before and after each owner Restore; a listing is only a current read, so a race is
+verified against the canonical project's write refusal too.
+
 ## Runtime flow
 
 1. `pnpm test` first runs `node --test scripts/roadmap.test.mjs scripts/check-docs.test.mjs` for roadmap and documentation guards,

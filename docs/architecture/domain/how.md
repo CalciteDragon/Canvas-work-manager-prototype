@@ -1,5 +1,11 @@
 # How the domain works
 
+[`restoreEligibility`](../../api/miscellaneous/variables.html#restoreEligibility) checks archived
+ancestors and owner containers for the two projections. [`ArchivedProjectsService`](../../api/classes/ArchivedProjectsService.html)
+requires `projects.read`, queries the actor's workspace and returns archived roots or children
+whose ancestors are live. `ProjectArchiveService` applies content recovery and structural readiness
+before returning a root's archived items. Each canonical Restore validates again during its write.
+
 ## Runtime flow
 
 1. A caller — a host route, an MCP tool, or a test — constructs an `ActorContext`
@@ -66,6 +72,8 @@
 | `WorkspaceService` | class | Search and upcoming work under one grant | [API](../../api/classes/WorkspaceService.html) |
 | `ProjectTodosService` | class | Root-wide chronology | [API](../../api/classes/ProjectTodosService.html) |
 | `ProjectArchiveService` | class | Root-wide archive projection; section entries filtered and annotated by the internal pure `sectionRecoveryOf` | [API](../../api/classes/ProjectArchiveService.html) |
+| `ArchivedProjectsService` | class | Workspace-scoped ready project recovery under `projects.read` | [API](../../api/classes/ArchivedProjectsService.html) |
+| `restoreEligibility` | function | Shared structural readiness for Archive and workspace recovery reads | [API](../../api/miscellaneous/variables.html#restoreEligibility) |
 | `ProjectJournalService` | class | Root-wide reflection feed and completed-work picker | [API](../../api/classes/ProjectJournalService.html) |
 | `AIProvider` | interface | §42's two methods | [API](../../api/interfaces/AIProvider.html) |
 | `PrototypeAIProvider` | class | §43's deterministic composer | [API](../../api/classes/PrototypeAIProvider.html) |

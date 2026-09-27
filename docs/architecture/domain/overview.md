@@ -1,5 +1,9 @@
 # Domain
 
+`restoreEligibility` computes current structural readiness for the root Archive and workspace
+archived-project reads. `ArchivedProjectsService` lists archived roots and subprojects with live
+ancestors under `projects.read`; `ProjectArchiveService` lists highest ready owners within one root.
+
 `@cwm/domain` is the product's rules as code (§12): what a project, page, section, task,
 shortcut and reflection may do, who may do it, what each operation records, and what the
 derived pages — dashboard, progress, timeline, todos, archive, journal — compute. Every

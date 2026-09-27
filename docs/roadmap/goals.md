@@ -100,8 +100,9 @@ one gesture with no policy dialog, HTTP and MCP refuse the retired `policy`/`rea
 inputs, stored version-1 reassign actions stay executable, and Task List and Todos rows offer a
 reversible **Delete** icon over the existing task archive. Real use asks whether the optimistic row
 disappearance needs an "Archived" cue so Delete does not read as permanent. **[Slice 44 — actionable
-Archive and archived-project recovery](active/44-actionable-archive-and-archived-projects.md)** is the
-active Stage D2 plan for parent-first Archive and Settings archived projects; Stage E remains
+Archive and archived-project recovery](completed/44-actionable-archive-and-archived-projects.md)
+shipped Stage D2 on 2026-09-27**: root Archive now lists ready owners first, and workspace
+Settings restores archived roots and ready subprojects with an explicit status. Stage E remains
 integrated closure. The paragraphs below describe the earlier shipped
 system and its choices.
 

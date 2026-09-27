@@ -85,6 +85,8 @@ returns: `/todos`, `/archive`, `/journal`, `/completed-work` under a project, an
 
 ## Decisions that shape this system
 
+- [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — thin routes expose the two domain reads and leave Restore validation in the canonical write.
+
 - [What an `Identity` is, and where it comes from](../../../decisions/2026-08-identity-contract-and-me-route.md)
 - [CORS on the host, not a dev-server proxy](../../../decisions/2026-08-host-cors-over-dev-proxy.md)
 - [The gateway interface grows with its implementations](../../../decisions/2026-08-gateway-surface-grows-with-implementations.md)

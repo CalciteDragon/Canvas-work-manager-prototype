@@ -1,5 +1,9 @@
 # Core
 
+`ProjectGateway.archived()` and its prototype adapter carry the shared workspace
+`ArchivedProjectsResult` to Settings; the fake gateway supplies the same shape for component
+tests. The shell tree refreshes on project-record frames after recovery.
+
 `apps/web/src/app/core` is the boundary and the shell: the gateway interfaces every
 store depends on and the one adapter that implements them over HTTP (§8–§10); the
 identity provider (§18); the live-updates port and its `EventSource` adapter (§62); the

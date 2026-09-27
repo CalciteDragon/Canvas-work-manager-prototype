@@ -211,6 +211,16 @@ afterEach(() => {
 });
 
 describe('PrototypeWorkManagerGateway — projects', () => {
+  it('reads and validates workspace archived projects under the current persona', async () => {
+    const subject = gateway();
+    fetchMock.mockImplementation(jsonResponse({ items: [{ project: { ...project, status: 'archived' }, breadcrumb: [{ projectId: project.id, name: project.name }] }] }));
+    const result = await subject.projects.archived();
+    expect(result.items[0]?.project.id).toBe(project.id);
+    expect(lastCall().url).toBe('http://host.test/api/archived-projects');
+    expect((lastCall().init.headers as Record<string, string>)['x-prototype-user']).toBe('user-demo');
+    fetchMock.mockImplementation(jsonResponse({ items: [{ project, breadcrumb: [] }] }));
+    await expect(subject.projects.archived()).rejects.toMatchObject({ code: 'invalid_response' });
+  });
   it('creates a direct child project through the project gateway', async () => {
     const response = ProjectWriteResultSchema.parse({
       project: { ...project, id: 'project-child', kind: 'subproject', parentProjectId: 'project-1' },

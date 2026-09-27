@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 44 | Slice 44 — Actionable Archive and archived-project recovery | Parent-first Archive projection and Settings recovery for archived projects (Slice 34 Stage D2) | [44-actionable-archive-and-archived-projects.md](active/44-actionable-archive-and-archived-projects.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -82,4 +80,5 @@ verification follow-ups rather than feature slices.
 | 41 | Slice 41 — Project header Undo/Redo controls (Slice 34 Stage C4) | 2026-09-23 | Always-present header Undo/Redo over the displayed project's history, per-step blockedBy, edit-naming labels, every browser write reporting through a core token, the canvas notice reduced to recovery, and archive staying on the project | [41-header-history-controls.md](completed/41-header-history-controls.md) |
 | 42 | Slice 42 — Project creation history and recovery state (Slice 34 Stage C5) | 2026-09-23 | Project creation is recorded and recoverable through creator-bound history, same-file persistence, browser and MCP checks. | [42-project-creation-history.md](completed/42-project-creation-history.md) |
 | 43 | Slice 43 — One-step section removal and task Delete (Slice 34 Stage D1) | 2026-09-25 | One-step cascade removal and reversible task Delete | [43-one-step-removal-and-task-delete.md](completed/43-one-step-removal-and-task-delete.md) |
+| 44 | Slice 44 — Actionable Archive and archived-project recovery | 2026-09-27 | Parent-first Archive and workspace Settings recovery for archived projects | [44-actionable-archive-and-archived-projects.md](completed/44-actionable-archive-and-archived-projects.md) |
 <!-- roadmap:end -->

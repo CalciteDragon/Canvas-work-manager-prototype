@@ -174,6 +174,8 @@ ISO string so ordering stays lossless without a clock or timezone
 
 ## Decisions that shape this system
 
+- [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — pure read eligibility is shared by two projections while canonical Restore writes recheck blockers.
+
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md)

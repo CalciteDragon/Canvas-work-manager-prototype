@@ -1,6 +1,6 @@
 # MCP setup
 
-Canvas Work Manager serves the same thirty-seven tools over Streamable HTTP and stdio (§59) —
+Canvas Work Manager serves the same thirty-eight tools over Streamable HTTP and stdio (§59) —
 §54's fourteen, the five section-edit/removal tools the canvas needs, §54's three page tools, Slice 25.4's
 three shortcut tools, Slice 25.6's eight archive/recovery tools, Slice 25.7's journal tool, and
 Slices 35–36's history tools `get_operation_history`, `undo_operation` and `redo_operation`.
@@ -251,11 +251,13 @@ chronology neither creates the Todos page nor depends on it being switched on.
 
 ### Archive
 
-Slice 25.6 adds `get_project_archive` (`projects.read`, `tasks.read` and `reflections.read`):
-the root-wide recovery projection across archived and effectively hidden subprojects, sections,
-tasks and reflections. Each item carries its owning project/page/container breadcrumb, archive
-cause, and the current blocker or canonical restore operation. It remains queryable when the
-Archive page is disabled and does not create the page.
+`get_project_archive` (`projects.read`, `tasks.read` and `reflections.read`) returns the
+root-wide, **ready-only** recovery projection. It lists archived subprojects, sections, tasks
+and reflections whose Restore is structurally available now, highest owner first. An archived
+project suppresses descendants, an archived section suppresses its rows, and an archived task
+suppresses archived subtasks. Live content hidden solely by an archived project and blocked
+descendants are omitted. Listed items keep their owning breadcrumb, cause, cascade and restore
+metadata. The query works while the optional Archive page is disabled.
 
 Since Slice 29 section entries are **content-only**: removed Progress, Timeline, Recent Activity
 and Sub-Projects views, blank Notes (including one created with no `config`, which stores `{}`),
@@ -263,12 +265,16 @@ and empty containers after their tasks are moved through `update_task` are not l
 carries `recovery` — `owned-content` (with `ownedData`; `contentCount`, every row still in the
 container; and `separateRestoreCount`, the row restores still needed after the section's own),
 `config` (Notes prose) or `unknown` (a type or config the prototype cannot read as empty) — beside
-`cascadeCount`, exactly the rows that `restore_section` brings back. An *archived* container
-(`restoration` ready or blocked) with a `separateRestoreCount` above zero holds rows archived on
+`cascadeCount`, exactly the rows that `restore_section` brings back. A listed archived container
+with a `separateRestoreCount` above zero holds rows archived on
 their own: call `restore_section` first, then `restore_task` / `restore_reflection` for each row
-entry that becomes ready (a parent task brings back the subtasks archived with it). A live
-container hidden beneath an archived project has `restoration.kind: "not-archived"`; nothing in it
-needs restoring — reactivate the project its blocker names.
+entry that becomes ready (a parent task brings back the subtasks archived with it).
+
+`list_archived_projects` needs only `projects.read` and lists archived roots plus archived
+subprojects whose ancestors are live across the actor's workspace. It is independent of any
+project's Archive page. A root archived with a child appears first; after `restore_project` on
+the root, the independently archived child becomes the next listed project. The same recovery
+is available to a person under **Settings → Archived projects**.
 
 The matching canonical writes are `archive_project` / `restore_project`, `remove_section` /
 `restore_section`, `archive_task` / `restore_task`, and `archive_reflection` /

@@ -8,7 +8,7 @@ import { agent, buildHarness, FOREIGN_PROJECT, OPEN_TASK, PROJECT } from '../tes
 const registry = buildHarness().registry;
 
 describe('the tool registry', () => {
-  it('registers exactly the thirty-seven tools the spec and the canvas ask for, each once', () => {
+  it('registers exactly the thirty-eight tools the spec and the canvas ask for, each once', () => {
     const registered = registry.list().map(({ name }) => name);
 
     // Both directions: a missing tool and an extra one are different defects, and a
@@ -17,7 +17,7 @@ describe('the tool registry', () => {
     // §54's fourteen, plus the four section tools, five page tools (including the journal),
     // three shortcut tools, the eight canonical archive/recovery tools from Slice 25.6, Slice 32's
     // move_section, and Slice 35's history tools: get_operation_history, undo_operation, redo_operation.
-    expect(registered).toHaveLength(37);
+    expect(registered).toHaveLength(38);
     for (const name of ['get_operation_history', 'undo_operation', 'redo_operation']) {
       expect(registered.filter((candidate) => candidate === name), name).toHaveLength(1);
     }

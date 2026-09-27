@@ -9,6 +9,7 @@ import type {
   DashboardService,
   ProjectPageService,
   ProjectArchiveService,
+  ArchivedProjectsService,
   ProjectJournalService,
   ProjectService,
   ProjectTodosService,
@@ -37,6 +38,7 @@ export interface WorkManagerServices {
   todos: ProjectTodosService;
   /** §31's whole-tree Archive projection. */
   archive: ProjectArchiveService;
+  archivedProjects: ArchivedProjectsService;
   /** §36's root-wide reflections journal. */
   journal: ProjectJournalService;
   tasks: TaskService;

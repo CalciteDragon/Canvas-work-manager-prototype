@@ -13,6 +13,8 @@
  * the boolean reversed both ways, and the exact state read back from the file after a restart.
  * Slice 42 adds project creation Undo/Redo, creator-only absent-project history across a host
  * restart, and the still-valid Activity/document after that history expires.
+ * Slice 44 checks the workspace archived-project query and parent-first Archive projection
+ * with exact created ids, explicit project status, and the optional Archive page disabled.
  *
  * Runs against a temporary data file via CWM_DATA_FILE, never the developer's own
  * workspace: an acceptance check that mutates the file you were about to demo is worse
@@ -427,6 +429,43 @@ try {
     (await request('GET', `/api/projects/${pageRoot.id}/history`)).body.undo?.operation === 'page.update',
     'and the reopened summary still offers the newest toggle as the next Undo',
   );
+
+  console.log('\nparent-first archived-project recovery...\n');
+  const recoveryRoot = (await request('POST', '/api/projects', {
+    workspaceId: 'workspace-demo', kind: 'root', name: 'Recovery root',
+  })).body.project;
+  const recoveryChild = (await request('POST', '/api/projects', {
+    workspaceId: 'workspace-demo', kind: 'subproject', parentProjectId: recoveryRoot.id, name: 'Recovery child',
+  })).body.project;
+  const recoverySection = (await request('POST', `/api/projects/${recoveryRoot.id}/sections`, {
+    type: 'task-list', title: 'Independent-only list',
+  })).body.section;
+  const recoveryTask = (await request('POST', '/api/tasks', {
+    projectId: recoveryRoot.id, sectionId: recoverySection.id, title: 'Filed before its list',
+  })).body.task;
+  await request('POST', `/api/tasks/${recoveryTask.id}/archive`);
+  await request('DELETE', `/api/sections/${recoverySection.id}`);
+  await request('PATCH', `/api/projects/${recoveryChild.id}`, { status: 'archived' });
+  await request('PATCH', `/api/projects/${recoveryRoot.id}/pages/archive`, { enabled: false });
+  await request('PATCH', `/api/projects/${recoveryRoot.id}`, { status: 'archived' });
+  const archivedProjects = async () => (await request('GET', '/api/archived-projects')).body.items.map(({ project }) => project.id);
+  const archiveItems = async () => (await request('GET', `/api/projects/${recoveryRoot.id}/archive`)).body.items;
+  check(JSON.stringify(await archivedProjects()) === JSON.stringify([recoveryRoot.id]), 'Settings query offers the archived root before its archived child');
+  check(!(await archiveItems()).some(({ project }) => project?.id === recoveryChild.id), 'root Archive omits a child behind its archived ancestor');
+  const rootRestore = await request('PATCH', `/api/projects/${recoveryRoot.id}`, { status: 'active' });
+  check(rootRestore.status === 200 && rootRestore.body.project.status === 'active', 'the root restores to the chosen status');
+  check((await archivedProjects()).includes(recoveryChild.id) && !(await archivedProjects()).includes(recoveryRoot.id), 'the child becomes the next Settings recovery owner');
+  const ready = await archiveItems();
+  const sectionEntry = ready.find(({ section }) => section?.id === recoverySection.id);
+  check(ready.some(({ project }) => project?.id === recoveryChild.id), 'the disabled Archive projection includes the now-ready child');
+  check(sectionEntry?.recovery?.separateRestoreCount === 1 && sectionEntry?.cascadeCount === 0, 'independent-only list stays recoverable without a cascade');
+  check(!ready.some(({ task }) => task?.id === recoveryTask.id) && ready.every(({ restoration }) => restoration.kind === 'ready'), 'Archive omits blocked rows and reports only ready entries');
+  const childRestore = await request('PATCH', `/api/projects/${recoveryChild.id}`, { status: 'on_hold' });
+  check(childRestore.status === 200 && childRestore.body.project.status === 'on_hold', 'the child restores separately to its explicit status');
+  await request('POST', `/api/sections/${recoverySection.id}/restore`);
+  check((await archiveItems()).some(({ task }) => task?.id === recoveryTask.id), 'restoring the container exposes the independently archived task');
+  await request('POST', `/api/tasks/${recoveryTask.id}/restore`);
+  check(!(await archiveItems()).some(({ task }) => task?.id === recoveryTask.id), 'restoring the task clears its Archive entry');
 
   console.log('\nproject creation expiry and reopened document...\n');
   const expiringProject = await request('POST', '/api/projects', {

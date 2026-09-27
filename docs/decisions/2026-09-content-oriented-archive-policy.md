@@ -128,3 +128,9 @@ unchanged.
 
 
 **Amended, 2026-09-24 (Slice 43).** Archive eligibility remains based on rows and content actually left in the owner section. New removal archives every live owned row with the section, preserving independently archived rows and markers; it no longer reassigns rows. An empty container after an independent task move is not recoverable and can be deleted when no canonical reference remains. Stored reassign actions remain a history-compatibility case only.
+
+**Amended, 2026-09-25 (Slice 44).** `sectionRecoveryOf` continues to decide meaningful section
+content, including the independently archived-only container. Root Archive now applies a second,
+structural eligibility test and lists that section only when its own Restore is currently ready.
+Blocked descendants wait behind their highest archived owner without losing canonical records or
+independent markers. See [Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md).

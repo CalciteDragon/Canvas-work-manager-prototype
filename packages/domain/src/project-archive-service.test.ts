@@ -43,7 +43,7 @@ const sectionItem = (items: readonly ProjectArchiveItem[], id: string) =>
   );
 
 describe('ProjectArchiveService (§31)', () => {
-  it('includes the whole selected tree once, with causes and actionable blockers', async () => {
+  it('lists only highest currently restorable owners, with exact IDs', async () => {
     const { harness, archive } = buildArchive();
     const taskContainer = await harness.sectionService.add(harness.actor, ROOT, { type: 'task-list' });
     const parent = await harness.taskService.create(harness.actor, {
@@ -80,41 +80,32 @@ describe('ProjectArchiveService (§31)', () => {
 
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys).toContain(`task:${parent.id}`);
-    expect(keys).toContain(`task:${child.id}`);
     expect(keys).toContain(`section:${ROOT_TASKS}`);
-
-    const childItem = result.items.find((item) => item.kind === 'task' && item.task.id === child.id);
-    expect(childItem).toMatchObject({
-      cause: { kind: 'task-cascade', taskId: parent.id },
-      restoration: { kind: 'blocked', blocker: { kind: 'task', taskId: parent.id } },
-    });
-
-    const hiddenKitchen = result.items.find((item) => item.kind === 'section' && item.section.projectId === KITCHEN);
-    expect(hiddenKitchen).toMatchObject({
-      cause: { kind: 'hidden-by-project', projectId: KITCHEN },
-      restoration: { kind: 'not-archived', blocker: { kind: 'project', projectId: KITCHEN } },
-    });
-
-    const hiddenCabinets = result.items.find((item) => item.kind === 'subproject' && item.project.id === 'project-cabinets');
-    expect(hiddenCabinets).toMatchObject({
-      cause: { kind: 'hidden-by-project', projectId: KITCHEN },
-      restoration: { kind: 'not-archived', blocker: { kind: 'project', projectId: KITCHEN } },
-    });
+    expect(keys).not.toContain(`task:${child.id}`);
+    expect(keys).not.toContain(`task:${independent.id}`);
+    expect(keys).toContain(`subproject:${KITCHEN}`);
+    expect(keys).not.toContain('subproject:project-cabinets');
+    expect(result.items.every((item) => item.restoration.kind === 'ready')).toBe(true);
+    expect(result.items.every((item) => item.cause.kind === 'own')).toBe(true);
   });
 
-  it('keeps independently archived sections and subprojects blocked by their archived ancestor', async () => {
+  it('reveals independently archived sections and subprojects only after their ancestor returns', async () => {
     const { harness, archive } = buildArchive();
     const section = await harness.sectionService.add(harness.actor, KITCHEN, { type: 'rich-text', config: { text: 'Kitchen notes' } });
     await harness.sectionService.remove(harness.actor, section.id);
     await harness.projectService.archive(harness.actor, 'project-cabinets' as never);
     await harness.projectService.archive(harness.actor, KITCHEN);
 
-    const result = await archive.derive(harness.actor, ROOT);
-    const blocked = { kind: 'blocked', blocker: { kind: 'project', projectId: KITCHEN } };
-    expect(result.items.find((item) => item.kind === 'section' && item.section.id === section.id))
-      .toMatchObject({ cause: { kind: 'own' }, restoration: blocked });
-    expect(result.items.find((item) => item.kind === 'subproject' && item.project.id === 'project-cabinets'))
-      .toMatchObject({ cause: { kind: 'own' }, restoration: blocked });
+    const first = (await archive.derive(harness.actor, ROOT)).items.map(keyOf);
+    expect(first).toContain(`subproject:${KITCHEN}`);
+    expect(first).not.toContain(`section:${section.id}`);
+    expect(first).not.toContain('subproject:project-cabinets');
+
+    await harness.projectService.update(harness.actor, KITCHEN, { status: 'active' });
+    const second = (await archive.derive(harness.actor, ROOT)).items.map(keyOf);
+    expect(second).not.toContain(`subproject:${KITCHEN}`);
+    expect(second).toContain(`section:${section.id}`);
+    expect(second).toContain('subproject:project-cabinets');
   });
 
   it('requires all combined read grants before touching repositories', async () => {
@@ -138,6 +129,16 @@ describe('ProjectArchiveService (§31)', () => {
 
     await expect(archive.derive(harness.actor, ROOT)).resolves.toMatchObject({ root: { status: 'archived' } });
     await expect(archive.derive(harness.actor, KITCHEN)).rejects.toThrow(/only a root project/);
+  });
+
+  it('keeps ready content visible when the optional Archive page is disabled', async () => {
+    const { harness, archive } = buildArchive();
+    const before = (await archive.derive(harness.actor, ROOT)).items.map(keyOf);
+    await harness.projectPageService.setEnabled(harness.actor, ROOT, { kind: 'archive', enabled: false });
+
+    const after = (await archive.derive(harness.actor, ROOT)).items.map(keyOf);
+    expect(after).toEqual(before);
+    expect(after).toContain('section:section-project-renovation-archived-notes');
   });
 });
 
@@ -169,7 +170,6 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
         'section:section-project-renovation-archived-notes',
         'task:task-renovation-archived',
         'subproject:project-legacy',
-        'subproject:project-legacy-child',
       ]),
     );
   });
@@ -293,9 +293,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
       recovery: { kind: 'owned-content', contentCount: 1 },
       restoration: { kind: 'ready', operation: 'restore_section' },
     });
-    expect(items.find((item) => keyOf(item) === `reflection:${filed.id}`)).toMatchObject({
-      restoration: { kind: 'blocked', blocker: { kind: 'section', sectionId: source.id } },
-    });
+    expect(items.map(keyOf)).not.toContain(`reflection:${filed.id}`);
 
     await harness.undo(harness.actor, operation);
     expect((await harness.reflections.find(filed.id))?.sectionId).toBe(source.id);
@@ -322,9 +320,8 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
       recovery: { kind: 'owned-content', contentCount: 2, separateRestoreCount: 1 },
       restoration: { kind: 'ready', operation: 'restore_section' },
     });
-    expect(first.items.find((item) => keyOf(item) === `task:${parent.id}`)).toMatchObject({
-      restoration: { kind: 'blocked', blocker: { kind: 'section', sectionId: list.id, name: 'Old list' } },
-    });
+    expect(first.items.map(keyOf)).not.toContain(`task:${parent.id}`);
+    expect(first.items.map(keyOf)).not.toContain(`task:${child.id}`);
 
     await harness.sectionService.restoreSection(harness.actor, list.id);
     const second = await archive.derive(harness.actor, ROOT);
@@ -335,39 +332,32 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
       cause: { kind: 'own' },
       restoration: { kind: 'ready', operation: 'restore_task' },
     });
-    expect(second.items.find((item) => keyOf(item) === `task:${child.id}`)).toMatchObject({
-      task: { archivedWithTaskId: parent.id },
-      restoration: { kind: 'blocked', blocker: { kind: 'task', taskId: parent.id } },
-    });
+    expect(second.items.map(keyOf)).not.toContain(`task:${child.id}`);
+
+    await harness.taskService.restore(harness.actor, parent.id);
+    const third = await archive.derive(harness.actor, ROOT);
+    expect(third.items.map(keyOf)).not.toContain(`task:${parent.id}`);
+    expect(third.items.map(keyOf)).not.toContain(`task:${child.id}`);
+    expect((await harness.tasks.find(child.id))?.archivedWithTaskId).toBeUndefined();
   });
 
-  it('shows meaningful live content beneath an archived project as not-archived, and drops its views', async () => {
+  it('omits live content hidden beneath archived projects and their nested descendants', async () => {
     const { harness, archive } = buildArchive();
     await harness.projectService.archive(harness.actor, 'project-cabinets' as never);
     await harness.projectService.archive(harness.actor, KITCHEN);
 
     const { items } = await archive.derive(harness.actor, ROOT);
-    const notArchived = { kind: 'not-archived', blocker: { kind: 'project', projectId: KITCHEN } };
-
-    expect(sectionItem(items, 'section-project-kitchen-brief')).toMatchObject({
-      recovery: { kind: 'config' },
-      cause: { kind: 'hidden-by-project', projectId: KITCHEN },
-      restoration: notArchived,
-    });
-    expect(sectionItem(items, 'section-project-kitchen-tasks')).toMatchObject({
-      recovery: { kind: 'owned-content', ownedData: 'tasks' },
-      restoration: notArchived,
-    });
+    expect(sectionItem(items, 'section-project-kitchen-brief')).toBeUndefined();
+    expect(sectionItem(items, 'section-project-kitchen-tasks')).toBeUndefined();
     for (const type of ['sub-projects', 'progress', 'timeline', 'recent-activity']) {
       expect(sectionItem(items, `section-project-kitchen-${type}`)).toBeUndefined();
     }
     // An actual archived project stays an entry, whatever happened to the views that listed it.
-    expect(items.find((item) => keyOf(item) === 'subproject:project-cabinets')).toMatchObject({
-      restoration: { kind: 'blocked', blocker: { kind: 'project', projectId: KITCHEN } },
-    });
+    expect(items.map(keyOf)).toContain(`subproject:${KITCHEN}`);
+    expect(items.map(keyOf)).not.toContain('subproject:project-cabinets');
   });
 
-  it('names the highest archived ancestor above section and task blockers', async () => {
+  it('returns no descendants when the root is archived', async () => {
     const { harness, archive } = buildArchive();
     const list = await harness.sectionService.add(harness.actor, KITCHEN, { type: 'task-list' });
     const task = await harness.taskService.create(harness.actor, { projectId: KITCHEN, sectionId: list.id, title: 'Buried' });
@@ -382,14 +372,9 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     });
 
     const { items } = await archive.derive(harness.actor, ROOT);
-    const blockedByRoot = { kind: 'blocked', blocker: { kind: 'project', projectId: ROOT } };
-
-    expect(sectionItem(items, list.id)).toMatchObject({
-      cascadeCount: 0,
-      recovery: { kind: 'owned-content', contentCount: 1 },
-      restoration: blockedByRoot,
-    });
-    expect(items.find((item) => keyOf(item) === `task:${task.id}`)).toMatchObject({ restoration: blockedByRoot });
+    expect(items).toEqual([]);
+    expect(await harness.sections.find(list.id)).toMatchObject({ archivedAt: expect.any(String) });
+    expect(await harness.tasks.find(task.id)).toMatchObject({ archivedAt: expect.any(String) });
   });
 
   it('succeeds with exactly the three read grants and refuses each missing one before any read', async () => {

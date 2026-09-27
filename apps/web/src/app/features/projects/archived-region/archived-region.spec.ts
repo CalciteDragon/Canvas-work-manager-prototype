@@ -2,10 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import {
   ProjectArchiveItemSchema,
   ProjectSectionSchema,
-  ProjectSchema,
-  ReflectionSchema,
   SubprojectSchema,
-  TaskSchema,
   type ProjectArchiveItem,
 } from '@cwm/contracts';
 import { provideRouter } from '@angular/router';
@@ -21,16 +18,6 @@ const origin = {
   pageEnabled: true,
   breadcrumb: [{ projectId: ROOT_ID, name: 'Website launch' }],
 };
-const root = ProjectSchema.parse({
-  id: ROOT_ID,
-  workspaceId: 'workspace-demo',
-  kind: 'root',
-  name: 'Website launch',
-  status: 'active',
-  projectLayoutMode: 'flow',
-  createdAt: AT,
-  updatedAt: AT,
-});
 const section = ProjectSectionSchema.parse({
   id: 'section-archive',
   projectId: ROOT_ID,
@@ -41,27 +28,6 @@ const section = ProjectSectionSchema.parse({
   columnSpan: 12,
   collapsed: false,
   config: {},
-  archivedAt: AT,
-  createdAt: AT,
-  updatedAt: AT,
-});
-const task = TaskSchema.parse({
-  id: 'task-archive',
-  projectId: ROOT_ID,
-  sectionId: section.id,
-  title: 'Ship it',
-  status: 'todo',
-  priority: 'medium',
-  archivedAt: AT,
-  createdAt: AT,
-  updatedAt: AT,
-});
-const reflection = ReflectionSchema.parse({
-  id: 'reflection-archive',
-  projectId: ROOT_ID,
-  sectionId: section.id,
-  title: 'A note',
-  body: 'A week of it',
   archivedAt: AT,
   createdAt: AT,
   updatedAt: AT,
@@ -86,20 +52,6 @@ const items: ProjectArchiveItem[] = [
     cause: { kind: 'own' },
     cascadeCount: 1,
     restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
-  }),
-  ProjectArchiveItemSchema.parse({
-    kind: 'task',
-    task,
-    origin: { ...origin, sectionId: section.id, sectionName: 'Backlog' },
-    cause: { kind: 'section-cascade', sectionId: section.id },
-    restoration: { kind: 'blocked', blocker: { kind: 'section', sectionId: section.id, name: 'Backlog' } },
-  }),
-  ProjectArchiveItemSchema.parse({
-    kind: 'reflection',
-    reflection,
-    origin: { ...origin, sectionId: section.id, sectionName: 'Backlog' },
-    cause: { kind: 'hidden-by-project', projectId: ROOT_ID },
-    restoration: { kind: 'not-archived', blocker: { kind: 'project', projectId: ROOT_ID, name: root.name } },
   }),
   ProjectArchiveItemSchema.parse({
     kind: 'subproject',
@@ -131,40 +83,37 @@ describe('ArchivedRegion', () => {
     expect(fixture.nativeElement.querySelector('[data-archived-region]')).toBeNull();
   });
 
-  it('renders every archive kind, cause, and exact cascade count', async () => {
+  it('renders only ready owner entries and the exact cascade count', async () => {
     const fixture = await render();
-    expect(all(fixture, '[data-archived-item]')).toHaveLength(4);
+    expect(all(fixture, '[data-archived-item]')).toHaveLength(2);
     expect(all(fixture, '[data-archived-kind="section"] [data-archived-name]')[0]?.textContent).toContain('Backlog');
     expect(all(fixture, '[data-archived-origin]')[0]?.textContent).toContain('Website launch');
     expect(all(fixture, '[data-archived-origin-link]')[0]?.textContent).toContain('Home');
     expect(fixture.nativeElement.querySelector('[data-archived-cascade-count]')?.textContent).toContain('1 task');
-    expect(all(fixture, '[data-archived-cause]')[1]?.textContent).toContain('with its section');
-    expect(all(fixture, '[data-archived-blocker]')[0]?.textContent).toContain('Restore “Backlog” first');
+    expect(all(fixture, '[data-archived-cause]')[1]?.textContent).toContain('directly');
+    expect(all(fixture, '[data-archived-blocker]')).toHaveLength(0);
   });
 
-  it('emits only a ready canonical restore request', async () => {
+  it('emits a canonical restore request for a ready entry', async () => {
     const fixture = await render();
     const restored = vi.fn<(request: { item: ProjectArchiveItem; status: 'active' | 'planning' | 'on_hold' | 'completed' }) => void>();
     fixture.componentInstance.restoreRequested.subscribe(restored);
 
     const buttons = all(fixture, '[data-archived-restore]') as HTMLButtonElement[];
     buttons[0]!.click();
-    buttons[1]!.click();
-
     expect(restored).toHaveBeenCalledTimes(1);
     expect(restored).toHaveBeenCalledWith({ item: items[0], status: 'active' });
-    expect(buttons[1]!.disabled).toBe(true);
   });
 
   it('labels archived sections as saved content and leaves other restore labels intact', async () => {
     const fixture = await render();
     const sectionRestore = fixture.nativeElement.querySelector('[data-archived-kind="section"] [data-archived-restore]') as HTMLButtonElement;
-    const taskRestore = fixture.nativeElement.querySelector('[data-archived-kind="task"] [data-archived-restore]') as HTMLButtonElement;
+    const projectRestore = fixture.nativeElement.querySelector('[data-archived-kind="subproject"] [data-archived-restore]') as HTMLButtonElement;
 
     expect(sectionRestore.textContent?.trim()).toBe('Restore saved content');
     expect(sectionRestore.getAttribute('aria-label')).toBe('Restore saved content for Backlog');
-    expect(taskRestore.textContent?.trim()).toBe('Restore');
-    expect(taskRestore.getAttribute('aria-label')).toBe('Restore Ship it');
+    expect(projectRestore.textContent?.trim()).toBe('Restore');
+    expect(projectRestore.getAttribute('aria-label')).toBe('Restore Kitchen');
   });
 
   it('lets a project restore choose an explicit non-archived status', async () => {
@@ -177,7 +126,7 @@ describe('ArchivedRegion', () => {
     fixture.detectChanges();
     (all(fixture, '[data-archived-kind="subproject"] [data-archived-restore]')[0] as HTMLButtonElement).click();
 
-    expect(restored).toHaveBeenCalledWith({ item: items[3], status: 'on_hold' });
+    expect(restored).toHaveBeenCalledWith({ item: items[1], status: 'on_hold' });
   });
 
   describe('recovery metadata from the domain (Slice 29)', () => {
@@ -194,7 +143,6 @@ describe('ArchivedRegion', () => {
       });
     const text = (fixture: Awaited<ReturnType<typeof render>>, selector: string) =>
       fixture.nativeElement.querySelector(selector)?.textContent?.replace(/\s+/g, ' ').trim() ?? null;
-    const kitchenBlocker = { kind: 'project', projectId: subproject.id, name: 'Kitchen' };
 
     it('shows total content apart from the exact cascade count', async () => {
       const fixture = await render([
@@ -237,15 +185,12 @@ describe('ArchivedRegion', () => {
       ]);
     });
 
-    it('warns that an archived section returns at the end of its page, but not a live hidden one', async () => {
+    it('warns that an archived section returns at the end of its page', async () => {
       // note-2026-09-15-007: Archive Restore appends; Undo is the operation that returns a
       // section between its old neighbours. The row says so before the click.
       const archived = await render([sectionEntry({})]);
       expect(text(archived, '[data-archived-placement]')).toBe('Returns at the end of its page, not its old position.');
 
-      // A live section hidden beneath an archived project is not moved by anything here.
-      const hidden = await render([sectionEntry({ restoration: { kind: 'not-archived', blocker: kitchenBlocker } })]);
-      expect(hidden.nativeElement.querySelector('[data-archived-placement]')).toBeNull();
     });
 
     it('offers no row guidance when every archived row returns with the section', async () => {
@@ -254,40 +199,6 @@ describe('ArchivedRegion', () => {
       ]);
 
       expect(fixture.nativeElement.querySelector('[data-archived-recovery-guidance]')).toBeNull();
-    });
-
-    it('names the highest project blocker before the two steps', async () => {
-      const fixture = await render([sectionEntry({ restoration: { kind: 'blocked', blocker: kitchenBlocker } })]);
-
-      const identity = text(fixture, '[data-archived-item]')!;
-      expect(identity.indexOf('Restore “Kitchen” first')).toBeGreaterThan(-1);
-      expect(identity.indexOf('Restore “Kitchen” first')).toBeLessThan(identity.indexOf('Then restore this section'));
-      expect(text(fixture, '[data-archived-recovery-guidance]')).toBe(
-        'Then restore this section, then restore its 3 archived tasks separately.',
-      );
-      expect((all(fixture, '[data-archived-restore]')[0] as HTMLButtonElement).disabled).toBe(true);
-    });
-
-    it.each([
-      ['live rows only', 3],
-      ['live and independently archived rows', 5],
-    ])('gives a live container beneath an archived project reactivation guidance only (%s)', async (_label, contentCount) => {
-      const live = ProjectSectionSchema.parse({ ...section, archivedAt: undefined });
-      const fixture = await render([
-        sectionEntry({
-          section: live,
-          cause: { kind: 'hidden-by-project', projectId: subproject.id },
-          recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount, separateRestoreCount: contentCount - 3 },
-          restoration: { kind: 'not-archived', blocker: kitchenBlocker },
-        }),
-      ]);
-
-      expect(text(fixture, '[data-archived-recovery-guidance]')).toBe(
-        'Still on its canvas: reactivate “Kitchen” to see it again.',
-      );
-      expect(text(fixture, '[data-archived-item]')).not.toMatch(/restore this section|restore its archived/i);
-      expect(fixture.nativeElement.querySelector('[data-archived-cascade-count]')).toBeNull();
-      expect((all(fixture, '[data-archived-restore]')[0] as HTMLButtonElement).disabled).toBe(true);
     });
 
     it('labels rich-text and unknown content without counts', async () => {

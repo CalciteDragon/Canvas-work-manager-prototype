@@ -46,9 +46,6 @@
             @if (cascadeLabel(item); as cascade) {
               <span data-archived-cascade-count class="archived-region__meta">{{ cascade }}</span>
             }
-            @if (blockerLabel(item); as blocker) {
-              <span data-archived-blocker class="archived-region__meta">{{ blocker }}</span>
-            }
             @if (placementHint(item); as placement) {
               <span data-archived-placement class="archived-region__meta">{{ placement }}</span>
             }
@@ -56,7 +53,7 @@
               <span data-archived-recovery-guidance class="archived-region__meta">{{ guidance }}</span>
             }
           </div>
-          @if (item.kind === 'subproject' && item.restoration.kind === 'ready') {
+          @if (item.kind === 'subproject') {
             <label class="archived-region__status">
               Restore as
               <select

@@ -84,7 +84,9 @@ export class ArchivePageStore {
 
   async restore(item: ProjectArchiveItem, status: ProjectRestoreStatus = 'active'): Promise<boolean> {
     if (item.restoration.kind !== 'ready') return false;
-    if (this.destroyed || this.restoringState().size > 0) return false;
+    // After a refused write or failed re-read, the displayed item may already be stale. Retry
+    // the projection before offering another write against it.
+    if (this.destroyed || this.restoringState().size > 0 || this.errorState() !== null) return false;
     const projectId = this.projectIdState();
     if (projectId === null) return false;
     const generation = ++this.generation;

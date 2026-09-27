@@ -10,7 +10,7 @@ flowchart LR
     reg["ToolRegistry<br/>list() · get(name) · call(name, input, context)"]
   end
   subgraph defs["src/tools/"]
-    projects["projects.ts — 6"]
+    projects["projects.ts — 7"]
     tasks["tasks.ts — 7"]
     reflections["reflections.ts — 4"]
     sections["sections.ts — 6"]
@@ -30,11 +30,11 @@ flowchart LR
 Each file in `src/tools/` exports the definitions for one entity group; the registry
 concatenates them in `SPEC_TOOL_NAMES` order and exposes `list`, `get` and `call`.
 
-## The thirty-seven tools
+## The thirty-eight tools
 
 | Group | Tools | Grant(s) |
 |---|---|---|
-| Projects | `list_projects`, `get_project`, `create_project` (`{ project, operation }`), `update_project`, `archive_project`, `restore_project` | `projects.read` / `projects.write` |
+| Projects | `list_projects`, `list_archived_projects`, `get_project`, `create_project` (`{ project, operation }`), `update_project`, `archive_project`, `restore_project` | `projects.read` / `projects.write`; the archived-project list is read-only |
 | Tasks | `list_tasks`, `get_task`, `create_task`, `update_task`, `complete_task`, `archive_task`, `restore_task` | `tasks.read` / `tasks.write` |
 | Reflections | `list_reflections`, `add_reflection`, `archive_reflection`, `restore_reflection` | `reflections.read` / `reflections.write` |
 | Sections | `list_sections`, `create_section`, `move_section`, `update_section`, `remove_section` (ID-only cascade), `restore_section` | `projects.read` / `projects.write` |
@@ -49,7 +49,9 @@ without ordering them, so their position is the slice's choice.
 
 `create_project` records `project.add` in the created project's history. Its Undo removes only an
 unchanged project and canonical page with no dependents; its Redo recreates both with the same ids.
-The tool count remains thirty-seven.
+The tool count is thirty-eight. `list_archived_projects` returns the current workspace's
+archived roots and subprojects with live ancestors; restoring one still calls the existing
+`restore_project` tool with an explicit non-archived status.
 
 ## A call
 

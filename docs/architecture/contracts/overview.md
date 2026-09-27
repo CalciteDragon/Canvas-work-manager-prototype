@@ -1,5 +1,9 @@
 # Contracts
 
+Slice 44 adds `ArchivedProjectsResultSchema` for the workspace recovery list and makes
+`ProjectArchiveResultSchema` accept only currently restorable archived entries. Both reads
+reuse canonical project and Archive breadcrumb shapes; neither adds persisted state.
+
 `@cwm/contracts` is the one place every entity in the prototype is defined (§11): Zod
 schemas with inferred types for users, workspaces, projects, pages, sections, shortcuts,
 tasks, milestones, reflections, activity, agent connections, dashboard widgets, the

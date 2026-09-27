@@ -82,6 +82,8 @@ themes; the token lint permits literals in exactly one file
 
 ## Decisions that shape this system
 
+- [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — workspace Settings provides root recovery independently of any project page.
+
 - [The gateway interface grows with its implementations](../../decisions/2026-08-gateway-surface-grows-with-implementations.md)
 - [A theme change lasts the session, not the persona](../../decisions/2026-08-theme-selection-is-session-only.md)
 - [Latency and failure injection live in the client, not the host](../../decisions/2026-08-latency-and-failure-live-in-the-client.md)

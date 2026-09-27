@@ -349,7 +349,8 @@ test('retained content survives reload and Archive restore, while independently 
   });
   const stillArchived = (await api.get<{ items: Array<{ kind: string; task?: { id: string } }> }>(`/api/projects/${root.id}/archive`)).items
     .flatMap((item) => (item.kind === 'task' && item.task !== undefined ? [item.task.id] : []));
-  expect(stillArchived).toEqual(expect.arrayContaining([filedParentInCascade.id, filedChildInCascade.id]));
+  expect(stillArchived).toContain(filedParentInCascade.id);
+  expect(stillArchived).not.toContain(filedChildInCascade.id);
   expect(stillArchived).not.toContain(cascadeTask.id);
 
   await reflectionRow.locator('[data-archived-restore]').click();

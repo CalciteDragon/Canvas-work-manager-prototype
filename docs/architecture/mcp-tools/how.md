@@ -1,5 +1,11 @@
 # How the tool registry works
 
+`list_archived_projects` delegates to `ArchivedProjectsService.list(actor)` under
+`projects.read` alone and returns the shared workspace result. `get_project_archive` delegates
+to the ready-only root projection under its three read grants. Restoring a listed project uses
+`restore_project` with an explicit non-archived status and `projects.write`; transport handlers
+do not filter either projection.
+
 ## Runtime flow
 
 1. The host calls `createToolRegistry` once with the `WorkManagerServices` that
@@ -66,7 +72,8 @@ recording it only means the same connection can take it back. `add_section_short
 `{ shortcutId, projectId, pageId, operation }` — there is no placement left to return — and both
 record into the **destination** root project's history, never the source's. Section duplication and
 shortcut resize, collapse and move have no tool of their own; they stay HTTP-and-domain operations,
-so the registry still holds thirty-seven tools.
+so the registry holds thirty-eight tools, including the workspace-scoped
+`list_archived_projects` read under `projects.read`.
 
 Task tools return `{ task, operation }` and reflection tools return `{ reflection, operation }`;
 their receipts enter the same history as section writes. Compound row Add owns an implicitly

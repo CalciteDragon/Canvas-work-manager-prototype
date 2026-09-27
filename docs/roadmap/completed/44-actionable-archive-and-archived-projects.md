@@ -1,4 +1,4 @@
-<!-- plan id="44" status="active" summary="Parent-first Archive projection and Settings recovery for archived projects (Slice 34 Stage D2)" -->
+<!-- completed-record id="44" closed="2026-09-27" summary="Parent-first Archive and workspace Settings recovery for archived projects" -->
 # Slice 44 — Actionable Archive and archived-project recovery
 
 ## Goal
@@ -95,7 +95,35 @@ None changes this phase's shape. Adopt Slice 34's proposed `/settings/archived-p
 - **Draft (2026-09-25):** Split Stage D2 from shipped Slice 43 and reserved integrated closure for Stage E. Grounded the contract, domain, host, MCP, gateway and UI seams in current source and architecture docs.
 - **Review round 1 (2026-09-25):** Added the explicit MCP service interface, every registry-construction call site and a separate archived-project contract matching Slice 34's file map. Corrected the existing `get_project_archive` tool description's owner in `project-pages.ts`. Made ready-only a parsed result invariant and added shortcut-source regression cases. Corrected the race check: archiving an ancestor blocks Restore, while legal reparenting to another live root permits it and requires both roots to refresh. Added the three docs with tool-count claims (`AGENTS.md`, `README.md`, architecture overview). Removed speculative edits to four canonical write services; their existing preflight remains the write-time arbiter.
 - **Review round 2 (2026-09-25):** Re-review found no substantive gap after the exact-path checklist and scope correction. Named `pnpm docs:check` explicitly beside lint as the phase-closing gate.
+- **Implementation continuation (2026-09-27):** Corrected three browser assertions/fixtures left at handoff: created the optional Archive page before disabling it, expected only the archived task parent, and omitted a live child hidden by its archived owner. Added a typed ProjectId fixture for E2E lint.
+- **Diff review round 1 (2026-09-27):** Independent correctness, spec/boundary and documentation/acceptance reviewers found a duplicate Restore write after a successful write/failed refresh, a stale contracts runtime claim and missing key-symbol/E2E inventory entries, and incomplete reparent/race acceptance evidence. Added a red store test, guarded Restore on error/loading, tested the disabled button, corrected the docs, and asserted current-ancestry Restore and both roots' Archive projections.
+- **Diff review rounds 2–4 (2026-09-27):** Re-review found that a quiet frame read could clear a retained-list error before it settled, then that a persona reload during the follow-up read could paint the former persona's error. Deferred-read tests failed for each race before the fixes. The store now retains an error until a replacement read succeeds and checks the refresh generation before reporting post-read errors. Final independent review reported no substantive finding.
 
 ## Outcome
 
-To be written after implementation and real-use verification.
+**Deliverables.** Root Archive now projects only structurally ready archived entries, highest
+owner first, using `restoreEligibility` and the existing content policy. The shared
+`ArchivedProjectsResultSchema`, `ArchivedProjectsService`, HTTP route and
+`list_archived_projects` MCP tool expose archived roots and ready subprojects throughout the
+actor's workspace under `projects.read`. Settings → Archived projects uses the gateway to
+choose an explicit non-archived status, Restore through the existing project write, Open the
+canonical project route, and recover from errors and live updates. The optional Archive page
+and its More-menu path remain available. No persisted collection or schema change was needed.
+
+**Choices and deviations.** [The Slice 44 decision](../../decisions/2026-09-actionable-archive-and-archived-projects.md)
+records why blocked descendants wait behind their owner and why workspace Settings supplies
+root recovery. Canonical writes still recheck ancestry. The implementation handoff left three
+browser cases expecting the former projection; they were corrected. Independent diff reviews
+then exposed stale-row retry and persona-switch races in Settings. Tests reproduced each before
+the store and button guards were added. A reparented archived child is covered through actual
+Restore and both old/new root projections, and a newly blocked child gets a real 409 write
+refusal. The updated spec, architecture tree, decision amendments, README and guides describe
+the current behavior. `CURRENT_SLICE` and `.prototype/notes.json` record the real-use pass.
+
+**Verification and follow-up.** The `nested-projects` and `personal-workspace` browser journeys
+exercised parent-first recovery, an Archive-disabled root, persona isolation, 375 px keyboard
+and touch use in both themes, focus, reload and live frames. Connected MCP acceptance used
+Streamable HTTP and stdio, with exact IDs and read/write grant separation. Full `pnpm test`,
+`pnpm docs:check`, `pnpm lint`, `pnpm build`, `pnpm e2e`, host acceptance and MCP acceptance
+passed. The build retains its existing initial-bundle size warning. Slice 34 Stage E's integrated
+closure remains separate; no new product question was left open by this phase.

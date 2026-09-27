@@ -138,6 +138,8 @@ general migration framework
 
 ## Decisions that shape this system
 
+- [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — parsed read results distinguish current structural readiness from meaningful section content.
+
 - [Persona contract fields](../../decisions/2026-08-persona-contract-fields.md)
 - [Project statuses, milestone statuses, task priorities](../../decisions/2026-08-status-and-priority-value-sets.md)
 - [A date-only task due date is stored at UTC end-of-day](../../decisions/2026-08-task-date-only-due-time.md)

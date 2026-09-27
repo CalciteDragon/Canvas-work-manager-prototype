@@ -9,6 +9,7 @@ import { ProjectSchema, type
   Identity,
   ProgressResult,
   ProjectArchiveResult,
+  ArchivedProjectsResult,
   ProjectCompletedWorkResult,
   ProjectJournalResult,
   Project,
@@ -82,6 +83,7 @@ export interface FakeGatewayOptions {
   todos?: ProjectTodosResult;
   /** §31's whole-tree recovery projection. */
   archive?: ProjectArchiveResult;
+  archivedProjects?: ArchivedProjectsResult;
   /** §36's root-wide journal and completed-work picker. */
   journal?: ProjectJournalResult;
   completedWork?: ProjectCompletedWorkResult;
@@ -165,6 +167,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   readonly projects: ProjectGateway = {
     list: (query) => this.answer('projects.list', query, this.options.projects ?? []),
+    archived: () => this.answer('projects.archived', undefined, this.options.archivedProjects ?? { items: [] }),
     get: (id: ProjectId) =>
       this.answer('projects.get', id, this.find(this.options.projects, id, 'project')),
     // A sub-project echoes its parent's record; a **root** has no record to echo, so it gets

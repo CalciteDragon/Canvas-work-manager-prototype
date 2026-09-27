@@ -1,5 +1,9 @@
 # Projects
 
+Root Archive now presents only the domain's currently restorable archived items, highest ready
+owner first. Restoring an owner can reveal independently archived children; hidden live content
+and blocked descendants are absent from the list. Archived-root recovery is in workspace Settings.
+
 `apps/web/src/app/features/projects` is the project workspace (§23, §26–§32): the shell
 that serves both project routes, the project navigation column with its page toggles,
 the header rendered once per project with its Undo and Redo, the page renderers — a section canvas for Home and

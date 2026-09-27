@@ -248,6 +248,7 @@ const setup = (
     },
     projects: {
       list: vi.fn(async () => [project()]),
+      archived: vi.fn(async () => ({ items: [] })),
       get: options.projectGet ?? vi.fn(async () => project()),
       create: vi.fn(),
       // The host's `null` clears / `undefined` leaves alone rule, so a spec clearing a

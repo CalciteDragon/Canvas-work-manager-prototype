@@ -32,7 +32,7 @@ import {
   OperationHistoryTransitionInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, AgentConnectionService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import type { ActivityService, AgentConnectionService, ArchivedProjectsService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveIdentityUser } from './context.ts';
 import type { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
@@ -53,6 +53,7 @@ export interface ApiDependencies {
   todos: ProjectTodosService;
   /** §31's whole-tree archive projection; it reads all three content categories. */
   archive: ProjectArchiveService;
+  archivedProjects: ArchivedProjectsService;
   /** §36's root-wide reflection feed and completed-work picker. */
   journal: ProjectJournalService;
   reflections: ReflectionService;
@@ -113,7 +114,7 @@ const shortcutPageQuery = (query: URLSearchParams): Record<string, unknown> => (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, archive, journal, reflections, dashboard, agents, history, authenticator } =
+  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, archive, archivedProjects, journal, reflections, dashboard, agents, history, authenticator } =
     dependencies;
   // Async now: an agent request has to resolve its token against the live connection
   // before the handler runs, because that read is what carries the permission set (§51).
@@ -149,6 +150,9 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
           ProjectQuerySchema.parse(queryObject(request.query, ['status'])),
         ),
       ),
+
+    'GET /api/archived-projects': async (request) =>
+      ok(await archivedProjects.list(await actorFor(request))),
 
     'POST /api/projects': async (request) =>
       created(await projects.create(await actorFor(request), CreateProjectInputSchema.parse(request.body))),

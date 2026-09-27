@@ -21,6 +21,7 @@ import type {
   ProjectQuery,
   ProjectSection,
   ProjectArchiveResult,
+  ArchivedProjectsResult,
   ProjectCompletedWorkResult,
   ProjectJournalResult,
   ProjectTodosResult,
@@ -99,6 +100,7 @@ export interface TaskGateway {
  */
 export interface ProjectGateway {
   list(query: ProjectQuery): Promise<Project[]>;
+  archived(): Promise<ArchivedProjectsResult>;
   get(id: ProjectId): Promise<Project>;
   create(input: CreateProjectInput): Promise<ProjectWriteResult>;
   update(id: ProjectId, input: UpdateProjectInput): Promise<ProjectWriteResult>;

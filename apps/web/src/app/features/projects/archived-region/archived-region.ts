@@ -98,11 +98,6 @@ export class ArchivedRegion {
     }
   }
 
-  blockerLabel(item: ProjectArchiveItem): string | null {
-    if (item.restoration.kind === 'ready') return null;
-    return `Restore “${item.restoration.blocker.name}” first`;
-  }
-
   /**
    * Copy for the domain's `recovery` verdict. Presentational only: whether a section is listed,
    * and what it holds, was decided by `sectionRecoveryOf` — nothing here re-derives it.
@@ -119,9 +114,9 @@ export class ArchivedRegion {
     }
   }
 
-  /** The exact `archivedWithSectionId` count, only for an archived container (never a live hidden one). */
+  /** The exact `archivedWithSectionId` count for an archived container. */
   cascadeLabel(item: ProjectArchiveItem): string | null {
-    if (item.kind !== 'section' || item.cascadeCount === undefined || item.restoration.kind === 'not-archived') return null;
+    if (item.kind !== 'section' || item.cascadeCount === undefined) return null;
     const ownedData = item.recovery?.kind === 'owned-content' ? item.recovery.ownedData : ownedKindOf(item.section.type);
     if (ownedData === undefined) return null;
     const verb = item.cascadeCount === 1 ? 'restores' : 'restore';
@@ -131,14 +126,11 @@ export class ArchivedRegion {
   /**
    * What recovering the rows a section Restore will *not* bring back takes. An archived
    * container's other rows were archived on their own, so they need their own Restore after
-   * it. A live container hidden beneath an archived project needs no restore at all — only the
-   * project's reactivation, which the blocker names — so it never gets row instructions.
+   * it. The projection includes only the highest currently restorable owner, so this guidance
+   * prepares the person for rows that will appear after the section has been restored.
    */
   recoveryGuidance(item: ProjectArchiveItem): string | null {
     if (item.kind !== 'section' || item.recovery?.kind !== 'owned-content') return null;
-    if (item.restoration.kind === 'not-archived') {
-      return `Still on its canvas: reactivate “${item.restoration.blocker.name}” to see it again.`;
-    }
     // Restore calls, not rows: the domain already excludes cascade members and subtasks that
     // return with an archived parent.
     const separate = item.recovery.separateRestoreCount;
@@ -150,9 +142,7 @@ export class ArchivedRegion {
         : `${separate} other ${rows} stay archived; restore them separately afterwards.`;
     }
     const which = separate === 1 ? `its archived ${rows}` : `its ${separate} archived ${rows}`;
-    return item.restoration.kind === 'blocked'
-      ? `Then restore this section, then restore ${which} separately.`
-      : `Restore this section first, then restore ${which} separately.`;
+    return `Restore this section first, then restore ${which} separately.`;
   }
 
   /**
@@ -162,11 +152,10 @@ export class ArchivedRegion {
    * Undo is the operation that returns a section between its old neighbours; this one does not,
    * and the row should not let a person assume otherwise.
    *
-   * Only for a section that is actually archived: a live section hidden beneath an archived
-   * project is not moved by anything here, and its blocker line already says what to do.
+   * Only archived sections reach this list.
    */
   placementHint(item: ProjectArchiveItem): string | null {
-    if (item.kind !== 'section' || item.restoration.kind === 'not-archived') return null;
+    if (item.kind !== 'section') return null;
     return 'Returns at the end of its page, not its old position.';
   }
 

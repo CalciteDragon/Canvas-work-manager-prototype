@@ -22,6 +22,13 @@ export const projectTools: readonly WorkManagerTool[] = [
     execute: (input, { actor, services }) => services.projects.list(actor, input),
   }),
   defineTool({
+    name: 'list_archived_projects',
+    description: 'List archived root and sub-projects in this workspace whose ancestors are live and which can be restored now. Requires projects.read. Restore with an explicit non-archived status using restore_project; archived descendants appear after their parent returns.',
+    permission: 'projects.read',
+    inputSchema: z.object({}),
+    execute: (_input, { actor, services }) => services.archivedProjects.list(actor),
+  }),
+  defineTool({
     name: 'get_project',
     description:
       'Read one project by id, including its kind — "root" for a workspace, "subproject" for a unit of work — its status, target date, description, completion time and progress settings.',

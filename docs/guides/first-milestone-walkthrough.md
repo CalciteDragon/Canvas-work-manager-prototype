@@ -79,9 +79,10 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    action with confirmation; archiving Home renovation while live children remain is refused.
 9. **Recover archived work.** On the showcase's **Archive** page, inspect the independently
    archived permit task and notes section, then the archived **Legacy attic**. Its live
-   **Legacy shelving** descendant is listed as hidden by the archived project and cannot be
-   restored first. Restore the direct rows, then restore Legacy attic with an explicit status;
-   the child returns, while independently archived rows remain archived.
+   **Legacy shelving** descendant is omitted until the owner returns. Restore the ready rows,
+   then restore Legacy attic with an explicit status; the child returns, while independently
+   archived rows remain archived. For an archived root, open **Settings → Archived projects**,
+   choose a non-archived status and Restore. This works with the optional Archive tab disabled.
 
 ---
 
@@ -144,9 +145,11 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
     entries about the completed Garden subproject and lighting task. Complete **Confirm
     renovation budget**, choose it in the completed-work picker, and add a reflection. Reopen the
     task; the reflection stays in the journal and shows its current Todo state.
-21. **Archive.** The root Archive page is the recovery projection for sections, tasks,
+21. **Archive.** The root Archive page lists currently restorable archived sections, tasks,
     reflections and subprojects across the tree, including content whose page is disabled. Each
-    row names its origin and says whether to restore it directly or restore an ancestor first.
+    row names its origin. Restore the highest owner first; independently archived children then
+    appear as their own next steps. Settings lists archived roots and subprojects ready for
+    project Restore throughout the workspace.
 22. **Reflections sections.** A Reflections section on an ordinary canvas shows its own entries;
     the Reflections page owns its dedicated container and composer. The page feed is read-only and
     links back to canonical owners.
@@ -231,7 +234,9 @@ standalone connection matrix. Both processes still running. Full setup in
     `operation: null` and writes nothing.
 40. **Aggregate pages.** Call `get_project_todos`, `get_project_archive` and
     `get_project_journal`; the responses retain canonical project/page/container origins. Archive
-    remains queryable even when its navigation page is disabled.
+    remains queryable even when its navigation page is disabled. Call `list_archived_projects`
+    under `projects.read`, then `restore_project` with an explicit non-archived status under
+    `projects.write` to recover an archived root or ready subproject.
 41. **Agent permissions.** Go to **Settings → AI & Agents**. Each connection lists its grants as
     checkboxes. Uncheck a write permission for Claude and ask the agent to create another task:
     it is refused, and the refusal **names the missing permission**. For a derived read, the

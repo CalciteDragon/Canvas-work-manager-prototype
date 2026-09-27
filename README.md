@@ -61,13 +61,18 @@ delete a stale one and it reseeds itself.
 | `web` | http://localhost:4200 | The Angular application — shell, dashboard, project workspaces, tasks |
 | `host` | http://127.0.0.1:4310 | The prototype host — fake API (§61), Streamable HTTP MCP at `/mcp`, and §62's event stream at `/prototype/events`, over `.prototype/data.json` |
 
-The host serves thirty-seven transport-free tool definitions — §54's fourteen plus the
+The host serves thirty-eight transport-free tool definitions — §54's fourteen plus the
 section, page, shortcut, archive/recovery, journal and Undo/Redo history tools that later slices added —
 through the official MCP SDK v2, targeting protocol `2026-07-28`. Streamable HTTP is
 mounted at `/mcp`; `pnpm mcp:stdio` serves the identical registry for local child-process
 clients. Both use the fake agent credentials and real domain services. See
 [docs/guides/mcp-setup.md](docs/guides/mcp-setup.md) for client configuration and the JSON
 store's cross-process limitation.
+
+Archived roots and currently restorable subprojects are available at
+`/settings/archived-projects`, independent of a project's optional Archive page. The page uses
+`GET /api/archived-projects`; `list_archived_projects` provides the same workspace read over MCP.
+Restoring one requires an explicit non-archived status through the existing project write.
 
 **Changes appear in the open browser.** Every domain mutation that records activity — from
 the UI, from an HTTP MCP client, or from the development panel — broadcasts one Server-Sent

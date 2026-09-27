@@ -95,7 +95,7 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
   });
 
   it('passes recovery metadata through unchanged and restores a container before its own archived row', async () => {
-    const list = ProjectSectionSchema.parse({ ...section, id: 'section-old-list', type: 'task-list', config: {} });
+    const list = ProjectSectionSchema.parse({ ...section, id: 'section-old-list', type: 'task-list', config: {}, archivedAt: AT });
     const task = TaskSchema.parse({
       id: 'task-filed',
       projectId: PROJECT,
@@ -117,15 +117,17 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
       recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 1, separateRestoreCount: 1 },
       restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' },
     });
-    const blockedTask = (restoration: unknown) =>
-      ProjectArchiveItemSchema.parse({ kind: 'task', task, origin, cause: { kind: 'own' }, restoration });
+    const readyTask = ProjectArchiveItemSchema.parse({
+      kind: 'task', task, origin, cause: { kind: 'own' },
+      restoration: { kind: 'ready', operation: 'restore_task', permission: 'tasks.write' },
+    });
     const first = ProjectArchiveResultSchema.parse({
       ...archived,
-      items: [sectionItem, blockedTask({ kind: 'blocked', blocker: { kind: 'section', sectionId: list.id, name: 'Task List' } })],
+      items: [sectionItem],
     });
     const second = ProjectArchiveResultSchema.parse({
       ...archived,
-      items: [blockedTask({ kind: 'ready', operation: 'restore_task', permission: 'tasks.write' })],
+      items: [readyTask],
     });
     const { store, gateway } = setup({ sections: [list], tasks: [task] });
     gateway.archive.get = vi.fn()
@@ -135,9 +137,6 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
 
     await store.load(PROJECT);
     expect(store.items()[0]).toEqual(sectionItem);
-    // A blocked row is refused without a write; the UI never works around the domain's order.
-    expect(await store.restore(store.items()[1]!)).toBe(false);
-
     expect(await store.restore(store.items()[0]!)).toBe(true);
     expect(await store.restore(store.items()[0]!)).toBe(true);
 
@@ -167,6 +166,8 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
     expect(await store.restore(archived.items[0]!)).toBe(true);
     expect(store.items()).toHaveLength(1);
     expect(store.error()).toContain('Restore succeeded, but Archive could not refresh');
+    expect(await store.restore(archived.items[0]!)).toBe(false);
+    expect(gateway.calls.filter(({ method }) => method === 'sections.restore')).toHaveLength(1);
   });
 
   it('serializes restore writes and disables the second stale request', async () => {

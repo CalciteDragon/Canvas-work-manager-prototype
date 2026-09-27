@@ -1,5 +1,10 @@
 # What the domain is made of
 
+`src/restore-eligibility.ts` is a pure structural predicate over current projects, sections and
+tasks. `src/project-archive-service.ts` applies it inside one root; `src/archived-projects-service.ts`
+uses the project predicate for a workspace list. These are derived reads over canonical records,
+not a stored Archive collection.
+
 ## Structure
 
 ```mermaid

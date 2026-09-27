@@ -1,0 +1,48 @@
+<header class="archived-projects__header">
+  <h1 #heading tabindex="-1">Archived projects</h1>
+  <p>Restore a project to bring it back to the workspace. Its separately archived contents remain in Archive.</p>
+</header>
+
+@if (store.error(); as message) {
+  <div class="archived-projects__error" role="alert">
+    <p data-archived-error>{{ message }}</p>
+    <button data-archived-retry type="button" [disabled]="store.busy() !== null" (click)="store.retry()">Retry list</button>
+  </div>
+}
+
+@if (store.loading() && store.items().length === 0) {
+  <p data-archived-loading role="status">Loading archived projects…</p>
+} @else if (store.items().length === 0 && store.error() === null) {
+  <p data-archived-empty>No archived projects are ready to restore in this workspace.</p>
+} @else if (store.items().length > 0) {
+  <ul class="archived-projects__list">
+    @for (item of store.items(); track item.project.id) {
+      <li class="archived-projects__row" data-archived-project [attr.data-project-id]="item.project.id">
+        <div class="archived-projects__identity">
+          <h2>{{ item.project.name }}</h2>
+          <p class="archived-projects__breadcrumb">
+            @for (step of item.breadcrumb; track step.projectId; let last = $last) {
+              {{ step.name }}@if (!last) { <span aria-hidden="true"> / </span> }
+            }
+          </p>
+        </div>
+        <div class="archived-projects__actions">
+          <label>
+            Restore as
+            <select data-archived-status [value]="store.statusFor(item.project.id)" [disabled]="store.busy() !== null" (change)="choose(item.project.id, $event)">
+              <option value="">Choose status</option>
+              <option value="planning">Planning</option>
+              <option value="active">Active</option>
+              <option value="on_hold">On hold</option>
+              <option value="completed">Completed</option>
+            </select>
+          </label>
+          <button data-archived-restore type="button" [disabled]="store.statusFor(item.project.id) === '' || store.error() !== null || store.loading() || store.busy() !== null" (click)="restore(item.project.id)">
+            {{ store.busy() === item.project.id ? 'Restoring…' : 'Restore' }}
+          </button>
+          <a data-archived-open [routerLink]="['/projects', item.project.id]">Open project</a>
+        </div>
+      </li>
+    }
+  </ul>
+}

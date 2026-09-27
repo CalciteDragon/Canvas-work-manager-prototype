@@ -1,5 +1,10 @@
 # How contracts work
 
+The domain parses `ArchivedProjectsResultSchema`, the host and MCP forward that result, and the
+web gateway validates it again from the same shared definition. `ProjectArchiveResultSchema` enforces the ready-only read boundary; canonical
+Restore writes retain their own current-state validation. See
+[`ArchivedProjectsResultSchema`](../../api/miscellaneous/variables.html#ArchivedProjectsResultSchema).
+
 ## Runtime flow
 
 Contracts have no runtime of their own; they are parsed at boundaries.
@@ -17,8 +22,9 @@ Contracts have no runtime of their own; they are parsed at boundaries.
    as JSON Schema in `tools/list`.
 5. **Seeds** — every builder's output is parsed by the document schema in
    `seeds.test.ts`, so a broken seed fails CI.
-6. **Web** — the gateway adapter types its responses with the inferred types; forms build
-   inputs of the input types. The browser trusts the host and does not re-parse.
+6. **Web** — the gateway adapter types responses with the inferred types and parses the
+   archived-project workspace result and write envelopes at its boundary; forms build inputs
+   of the shared input types. Other read responses retain their inferred types.
 
 ## Section create positions
 
@@ -93,6 +99,8 @@ still parse and can be stepped.
 | `ownedKindOf` | function | Lookup over that map | [API](../../api/miscellaneous/variables.html#ownedKindOf) |
 | `nameOf` | function | A section's display name: `title` override, else derived from `type` | [API](../../api/miscellaneous/variables.html#nameOf) |
 | `ProjectArchiveSectionRecoverySchema` | const | Archive section entry's recovery metadata union | [API](../../api/miscellaneous/variables.html#ProjectArchiveSectionRecoverySchema) |
+| `ProjectArchiveResultSchema` | const | Ready-only root Archive result | [API](../../api/miscellaneous/variables.html#ProjectArchiveResultSchema) |
+| `ArchivedProjectsResultSchema` | const | Workspace archived-project recovery result | [API](../../api/miscellaneous/variables.html#ArchivedProjectsResultSchema) |
 | `UndoOperationSchema` | const | Typed, versioned union of section operations and task/reflection add, update, archive and restore | [API](../../api/miscellaneous/variables.html#UndoOperationSchema) |
 | `SectionRemovalDispositionSchema` | const | `retained` or `deleted`, required on every removal payload | [API](../../api/miscellaneous/variables.html#SectionRemovalDispositionSchema) |
 | `OperationHistorySchema` | const | One actor's cursor, order high-water mark and revision in one project | [API](../../api/miscellaneous/variables.html#OperationHistorySchema) |

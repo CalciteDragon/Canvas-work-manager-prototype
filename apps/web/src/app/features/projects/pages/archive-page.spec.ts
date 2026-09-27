@@ -23,7 +23,7 @@ const root = ProjectSchema.parse({
   workspaceId: 'workspace-demo',
   kind: 'root',
   name: 'Website launch',
-  status: 'archived',
+  status: 'active',
   projectLayoutMode: 'flow',
   createdAt: AT,
   updatedAt: AT,
@@ -96,12 +96,10 @@ const render = async (answer: ProjectArchiveResult = archive) => {
 };
 
 describe('ArchivePage (§31)', () => {
-  it('renders root guidance, archive rows, and their owning-page origin', async () => {
+  it('renders archive rows and their owning-page origin', async () => {
     const { fixture } = await render();
 
-    expect(fixture.nativeElement.querySelector('[data-archive-root-guidance]')?.textContent).toContain(
-      'Use More project actions above to choose a non-archived status',
-    );
+    expect(fixture.nativeElement.querySelector('[data-archive-root-guidance]')).toBeNull();
     expect(fixture.nativeElement.querySelectorAll('[data-archived-item]')).toHaveLength(1);
     expect(fixture.nativeElement.querySelector('[data-archived-origin-link]')?.textContent).toContain('Home');
     expect(fixture.nativeElement.querySelector('[data-archived-origin-link]')?.getAttribute('href')).toBe(
@@ -121,7 +119,7 @@ describe('ArchivePage (§31)', () => {
   it('says nothing is archived for an empty projection', async () => {
     const { fixture } = await render({ ...archive, items: [] });
 
-    expect(fixture.nativeElement.querySelector('[data-archive-empty]')?.textContent).toContain('Nothing is archived');
+    expect(fixture.nativeElement.querySelector('[data-archive-empty]')?.textContent).toContain('Nothing is ready to restore');
     expect(fixture.nativeElement.querySelector('[data-archived-item]')).toBeNull();
   });
 

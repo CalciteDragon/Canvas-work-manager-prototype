@@ -1,5 +1,9 @@
 # Testing
 
+Slice 44 adds exact-ID parent-first Archive and workspace archived-project checks in contract,
+domain, route, MCP, gateway, component, acceptance and browser suites. Tests separate read grants
+from Restore grants and pin current-ancestry refusals without partial writes.
+
 How the prototype is verified (§69): fast offline unit and contract suites in every
 package, component specs and Storybook in the web app (including the missing-history-summary
 Retry), four acceptance scripts that run a real host (including project-creation same-file restart

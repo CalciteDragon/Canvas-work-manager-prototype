@@ -1,5 +1,9 @@
 # API
 
+`GET /api/archived-projects` forwards the actor's workspace recovery list from
+`ArchivedProjectsService`. Root `GET /api/projects/:id/archive` forwards its ready-only
+projection. Project Restore remains the existing `PATCH /api/projects/:id` write.
+
 The host's REST surface (§61): the `/api/*` route table the browser's gateway calls,
 the persona-header context that turns a request into an `ActorContext`, the error mapping
 that turns a thrown domain error into a status, and `createApi` — the composition root

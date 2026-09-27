@@ -1,5 +1,10 @@
 # How the API works
 
+`createApi` wires `ArchivedProjectsService` over the project repository. The
+`GET /api/archived-projects` route resolves the actor and forwards `list(actor)` without route
+filtering; it needs `projects.read`. `PATCH /api/projects/:id` remains the only HTTP project
+Restore path and checks the current ancestry and `projects.write` during its write.
+
 ## Runtime flow
 
 1. `createRequestHandler` matches `'METHOD /path'` against the table `createApiRoutes`

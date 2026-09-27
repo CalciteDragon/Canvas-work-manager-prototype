@@ -1,5 +1,5 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectPageWriteResultSchema, ProjectWriteResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ReflectionWriteResultSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionShortcutAddResultSchema, SectionShortcutRemovalResultSchema, SectionShortcutWriteResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TaskWriteResultSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
-import { ActivityService, AgentConnectionService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryOperationRecorder, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import { ArchivedProjectsResultSchema, DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectPageWriteResultSchema, ProjectWriteResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ReflectionWriteResultSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionShortcutAddResultSchema, SectionShortcutRemovalResultSchema, SectionShortcutWriteResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TaskWriteResultSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
+import { ActivityService, AgentConnectionService, ArchivedProjectsService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryOperationRecorder, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
@@ -169,6 +169,7 @@ const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-0
     timeline: new TimelineService({ projects, tasks, milestones }),
     todos: new ProjectTodosService({ projects, tasks, sections, pages }),
     archive: new ProjectArchiveService({ projects, pages, sections, tasks, reflections }),
+    archivedProjects: new ArchivedProjectsService({ projects }),
     journal: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
     reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
@@ -896,6 +897,17 @@ describe('agent connections, permissions and activity (§§51, 52, 53, 57)', () 
     const malformedRemoval = await call(routes, 'DELETE', '/api/sections/section-nope?policy=reassign', { token: READWRITE });
     expect(malformedRemoval.status).toBe(401);
     expect(malformedRemoval.body).toMatchObject({ error: 'unauthorized' });
+  });
+
+  it('lists archived projects across the workspace and restores a chosen status through PATCH', async () => {
+    const routes = buildRoutes();
+    await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { status: 'archived' } });
+    const own = ArchivedProjectsResultSchema.parse((await call(routes, 'GET', '/api/archived-projects')).body);
+    expect(own.items.map(({ project }) => project.id)).toEqual([MINE]);
+    expect(ArchivedProjectsResultSchema.parse((await call(routes, 'GET', '/api/archived-projects', { user: ALEX })).body).items).toEqual([]);
+    const restored = await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { status: 'planning' } });
+    expect(ProjectWriteResultSchema.parse(restored.body).project.status).toBe('planning');
+    expect(ArchivedProjectsResultSchema.parse((await call(routes, 'GET', '/api/archived-projects')).body).items).toEqual([]);
   });
 
   it('answers 401 for a token nothing issued, and 401 for a scheme it does not implement', async () => {

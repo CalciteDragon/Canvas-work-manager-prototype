@@ -109,6 +109,7 @@ const setup = (options: {
     history: { summary: vi.fn(async (projectId) => ({ projectId, historyId: null, revision: 0, undo: null, redo: null, blockedBy: null })), transition: vi.fn() },
     projects: {
       list: vi.fn(async () => projects),
+      archived: vi.fn(async () => ({ items: [] })),
       get: vi.fn(async () => projects[0]!),
       create: vi.fn(),
       update: vi.fn(async (_id, input) => ({ project: { ...projects[0]!, ...input } as Project, operation: null })),

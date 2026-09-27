@@ -126,6 +126,7 @@ if (isDirectRun) {
       pages: api.pages,
       todos: api.todos,
       archive: api.archive,
+      archivedProjects: api.archivedProjects,
       journal: api.journal,
       tasks: api.tasks,
       reflections: api.reflections,

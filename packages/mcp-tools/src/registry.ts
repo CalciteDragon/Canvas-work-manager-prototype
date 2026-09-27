@@ -19,6 +19,7 @@ import { workspaceTools } from './tools/workspace';
  */
 export const SPEC_TOOL_NAMES = [
   'list_projects',
+  'list_archived_projects',
   'get_project',
   'create_project',
   'update_project',

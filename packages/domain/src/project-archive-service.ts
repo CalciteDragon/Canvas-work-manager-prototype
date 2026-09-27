@@ -24,6 +24,7 @@ import type {
 import { assertPermitted, type ActorContext } from './actor';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import { sectionRecoveryOf } from './section-recovery-policy';
+import { restoreEligibility } from './restore-eligibility';
 
 export interface ProjectArchiveServiceDependencies {
   projects: ProjectRepository;
@@ -40,10 +41,10 @@ const KIND_ORDER = { subproject: 0, section: 1, task: 2, reflection: 3 } as cons
  * §31's root-wide read model. It is deliberately repository-only: Archive composes the
  * canonical records and eligibility here, while all writes remain on their existing services.
  *
- * Section entries are **content-oriented**: a removed or hidden section is listed only when
+ * Section entries are **content-oriented**: a removed section is listed only when
  * `sectionRecoveryOf` finds something to recover in it, and carries that verdict as `recovery`.
  * Disposable view tombstones stay in storage but out of the list. Sub-project, task and
- * reflection entries are not filtered. See docs/decisions/2026-09-content-oriented-archive-policy.md.
+ * reflection entries are listed only when their canonical Restore can run now.
  */
 export class ProjectArchiveService {
   constructor(private readonly dependencies: ProjectArchiveServiceDependencies) {}
@@ -70,7 +71,7 @@ export class ProjectArchiveService {
     const projectById = new Map<ProjectId, Project>(projects.map((project) => [project.id, project]));
     const pageById = new Map(pages.map((page) => [page.id, page]));
     const sectionById = new Map(sections.map((section) => [section.id, section]));
-    const taskById = new Map(tasks.map((task) => [task.id, task]));
+    const eligible = restoreEligibility(projects, sections, tasks);
     // Rows keep their section's project, so the tree scope is also the section's content scope.
     const content = {
       tasks: tasks.filter(({ projectId: owner }) => treeIds.has(owner)),
@@ -79,52 +80,24 @@ export class ProjectArchiveService {
     const items: ProjectArchiveItem[] = [];
 
     for (const project of tree) {
-      if (project.kind !== 'subproject') continue;
+      if (project.kind !== 'subproject' || !eligible.project(project.id)) continue;
       const page = this.canvasPage(project, pageById);
-      const projectBlocker = this.highestArchivedProject(project.id, projectById, false);
-      const cause: ProjectArchiveCause =
-        project.status === 'archived'
-          ? { kind: 'own' }
-          : projectBlocker === undefined
-            ? { kind: 'own' }
-            : { kind: 'hidden-by-project', projectId: projectBlocker.id };
-      // The sub-project item is useful only when it is archived or hidden beneath an ancestor.
-      if (project.status === 'archived' || projectBlocker !== undefined) {
-        items.push({
-          kind: 'subproject',
-          project,
-          origin: this.origin(project.id, page, projectById),
-          cause,
-          restoration:
-            projectBlocker === undefined
-              ? this.ready('restore_project', 'projects.write')
-              : { kind: project.status === 'archived' ? 'blocked' : 'not-archived', blocker: this.projectBlocker(projectBlocker) },
-        });
-      }
+      items.push({ kind: 'subproject', project, origin: this.origin(project.id, page, projectById),
+        cause: { kind: 'own' }, restoration: this.ready('restore_project', 'projects.write') });
     }
 
     for (const section of sections) {
-      if (!treeIds.has(section.projectId)) continue;
+      if (!treeIds.has(section.projectId) || !eligible.section(section)) continue;
       const page = pageById.get(section.pageId);
       if (page === undefined) continue;
-      const projectBlocker = this.highestArchivedProject(section.projectId, projectById, true);
-      const isVisibleInArchive = section.archivedAt !== undefined || projectBlocker !== undefined;
-      if (!isVisibleInArchive) continue;
       const decision = sectionRecoveryOf(section, content);
       if (!decision.include) continue;
-      const restoration =
-        projectBlocker !== undefined
-          ? ({ kind: section.archivedAt === undefined ? 'not-archived' : 'blocked', blocker: this.projectBlocker(projectBlocker) } satisfies ProjectArchiveRestoration)
-          : this.ready('restore_section', 'projects.write');
       const item: ProjectArchiveItem = {
         kind: 'section',
         section,
         origin: this.origin(section.projectId, page, projectById, section),
-        cause:
-          section.archivedAt === undefined
-            ? { kind: 'hidden-by-project', projectId: projectBlocker!.id }
-            : { kind: 'own' },
-        restoration,
+        cause: { kind: 'own' },
+        restoration: this.ready('restore_section', 'projects.write'),
         recovery: decision.recovery,
       };
       if (ownedKindOf(section.type) !== undefined) {
@@ -135,52 +108,32 @@ export class ProjectArchiveService {
     }
 
     for (const task of tasks) {
-      if (!treeIds.has(task.projectId)) continue;
+      if (!treeIds.has(task.projectId) || !eligible.task(task)) continue;
       const section = sectionById.get(task.sectionId);
       const page = section === undefined ? undefined : pageById.get(section.pageId);
       if (section === undefined || page === undefined) continue;
-      const projectBlocker = this.highestArchivedProject(task.projectId, projectById, true);
-      const taskAncestor = this.highestArchivedTask(task, taskById);
-      const sectionBlocker = section.archivedAt === undefined ? undefined : section;
-      const archived = task.archivedAt !== undefined;
-      const hidden = !archived && projectBlocker !== undefined;
-      if (!archived && !hidden) continue;
       items.push({
         kind: 'task',
         task,
         origin: this.origin(task.projectId, page, projectById, section),
-        cause: archived ? this.taskCause(task) : { kind: 'hidden-by-project', projectId: projectBlocker!.id },
-        restoration: archived
-          ? this.restoreTaskState(projectBlocker, sectionBlocker, taskAncestor)
-          : { kind: 'not-archived', blocker: this.projectBlocker(projectBlocker!) },
+        cause: this.taskCause(task),
+        restoration: this.ready('restore_task', 'tasks.write'),
       });
     }
 
     for (const reflection of reflections) {
-      if (!treeIds.has(reflection.projectId)) continue;
+      if (!treeIds.has(reflection.projectId) || !eligible.reflection(reflection)) continue;
       const section = sectionById.get(reflection.sectionId);
       const page = section === undefined ? undefined : pageById.get(section.pageId);
       if (section === undefined || page === undefined) continue;
-      const projectBlocker = this.highestArchivedProject(reflection.projectId, projectById, true);
-      const archived = reflection.archivedAt !== undefined;
-      const hidden = !archived && projectBlocker !== undefined;
-      if (!archived && !hidden) continue;
       items.push({
         kind: 'reflection',
         reflection,
         origin: this.origin(reflection.projectId, page, projectById, section),
-        cause: archived
-          ? reflection.archivedWithSectionId !== undefined
-            ? { kind: 'section-cascade', sectionId: reflection.archivedWithSectionId }
-            : { kind: 'own' }
-          : { kind: 'hidden-by-project', projectId: projectBlocker!.id },
-        restoration: archived
-          ? projectBlocker === undefined
-            ? section.archivedAt === undefined
-              ? this.ready('restore_reflection', 'reflections.write')
-              : { kind: 'blocked', blocker: this.sectionBlocker(section) }
-            : { kind: 'blocked', blocker: this.projectBlocker(projectBlocker) }
-          : { kind: 'not-archived', blocker: this.projectBlocker(projectBlocker!) },
+        cause: reflection.archivedWithSectionId !== undefined
+          ? { kind: 'section-cascade', sectionId: reflection.archivedWithSectionId }
+          : { kind: 'own' },
+        restoration: this.ready('restore_reflection', 'reflections.write'),
       });
     }
 
@@ -245,36 +198,6 @@ export class ProjectArchiveService {
     };
   }
 
-  private highestArchivedProject(
-    projectId: ProjectId,
-    projects: ReadonlyMap<ProjectId, Project>,
-    includeSelf: boolean,
-  ): Project | undefined {
-    const chain: Project[] = [];
-    const seen = new Set<ProjectId>();
-    let current = projects.get(projectId);
-    while (current !== undefined && !seen.has(current.id)) {
-      chain.unshift(current);
-      seen.add(current.id);
-      if (current.kind === 'root') break;
-      current = projects.get(current.parentProjectId);
-    }
-    const candidates = includeSelf ? chain : chain.slice(0, -1);
-    return candidates.find(({ status }) => status === 'archived');
-  }
-
-  private projectBlocker(project: Project): { kind: 'project'; projectId: ProjectId; name: string } {
-    return { kind: 'project', projectId: project.id, name: project.name };
-  }
-
-  private sectionBlocker(section: ProjectSection): { kind: 'section'; sectionId: ProjectSection['id']; name: string } {
-    return { kind: 'section', sectionId: section.id, name: nameOf(section) };
-  }
-
-  private taskBlocker(task: Task): { kind: 'task'; taskId: Task['id']; name: string } {
-    return { kind: 'task', taskId: task.id, name: task.title };
-  }
-
   private ready(operation: 'restore_project' | 'restore_section' | 'restore_task' | 'restore_reflection', permission: 'projects.write' | 'tasks.write' | 'reflections.write'): ProjectArchiveRestoration {
     return { kind: 'ready', operation, permission };
   }
@@ -283,31 +206,6 @@ export class ProjectArchiveService {
     if (task.archivedWithSectionId !== undefined) return { kind: 'section-cascade', sectionId: task.archivedWithSectionId };
     if (task.archivedWithTaskId !== undefined) return { kind: 'task-cascade', taskId: task.archivedWithTaskId };
     return { kind: 'own' };
-  }
-
-  private restoreTaskState(
-    projectBlocker: Project | undefined,
-    sectionBlocker: ProjectSection | undefined,
-    taskBlocker: Task | undefined,
-  ): ProjectArchiveRestoration {
-    if (projectBlocker !== undefined) return { kind: 'blocked', blocker: this.projectBlocker(projectBlocker) };
-    if (sectionBlocker !== undefined) return { kind: 'blocked', blocker: this.sectionBlocker(sectionBlocker) };
-    if (taskBlocker !== undefined) return { kind: 'blocked', blocker: this.taskBlocker(taskBlocker) };
-    return this.ready('restore_task', 'tasks.write');
-  }
-
-  private highestArchivedTask(task: Task, tasks: ReadonlyMap<Task['id'], Task>): Task | undefined {
-    const ancestors: Task[] = [];
-    const seen = new Set<Task['id']>([task.id]);
-    let parentId = task.parentTaskId;
-    while (parentId !== undefined && !seen.has(parentId)) {
-      const parent = tasks.get(parentId);
-      if (parent === undefined) break;
-      ancestors.unshift(parent);
-      seen.add(parent.id);
-      parentId = parent.parentTaskId;
-    }
-    return ancestors.find(({ archivedAt }) => archivedAt !== undefined);
   }
 
   private cascadeCount(section: ProjectSection, tasks: readonly Task[], reflections: readonly Reflection[]): number {

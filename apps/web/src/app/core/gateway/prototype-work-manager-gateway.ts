@@ -6,6 +6,7 @@ import {
   ProjectPageSchema,
   ProjectPageWriteResultSchema,
   ProjectArchiveResultSchema,
+  ArchivedProjectsResultSchema,
   ProjectCompletedWorkResultSchema,
   ProjectJournalResultSchema,
   ProjectSchema,
@@ -84,7 +85,8 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
     list: (query) =>
       matchesNothing(query)
         ? Promise.resolve([])
-        : this.send('GET', `/api/projects${queryString(projectQueryParams(query))}`, ProjectSchema.array()),
+          : this.send('GET', `/api/projects${queryString(projectQueryParams(query))}`, ProjectSchema.array()),
+    archived: () => this.send('GET', '/api/archived-projects', ArchivedProjectsResultSchema),
     get: (id: ProjectId) => this.send('GET', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema),
     create: (input: CreateProjectInput) => this.send('POST', '/api/projects', ProjectWriteResultSchema, input),
     update: (id: ProjectId, input: UpdateProjectInput) =>

@@ -146,6 +146,14 @@ export const ProjectArchiveResultSchema = z.object({
   projectId: ProjectIdSchema,
   root: RootProjectSchema,
   items: z.array(ProjectArchiveItemSchema),
+}).refine(({ items }) => items.every((item) =>
+  item.restoration.kind === 'ready' &&
+  (item.kind === 'subproject' ? item.project.status === 'archived' :
+    item.kind === 'section' ? item.section.archivedAt !== undefined :
+      item.kind === 'task' ? item.task.archivedAt !== undefined : item.reflection.archivedAt !== undefined),
+), {
+  message: 'Archive results contain only archived, currently restorable entries',
+  path: ['items'],
 });
 export type ProjectArchiveResult = z.infer<typeof ProjectArchiveResultSchema>;
 

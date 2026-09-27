@@ -407,6 +407,10 @@ and history are interface members shared by the HTTP gateway and its fake
 
 The frontend depends on these interfaces.
 
+*Landed in Slice 44.* `projects.archived()` reads the current actor's archived projects
+through the same gateway boundary. The adapter validates the shared workspace result from
+`GET /api/archived-projects`; Settings never fetches directly or infers eligibility locally.
+
 ---
 
 # 10. Prototype Adapter
@@ -995,6 +999,11 @@ collapses behind a labelled button and its links leave the tab order with it.
 Today the column lists Home, any enabled optional page this build can render, and the work
 hierarchy. Archive and Reflections are both registered renderers; Archive also remains reachable
 through the project controls when its tab is disabled.
+
+Workspace **Settings → Archived projects** is a separate recovery route. It lists archived roots
+and subprojects whose ancestors are live across the actor's workspace, even if a root's optional
+Archive page is disabled. Restore requires a deliberate non-archived status and uses the existing
+project write; Open project goes to the canonical project route.
 
 *Landed in Slice 27.* The column fills the available workspace height below the top bar and
 keeps its own long navigation list scrollable while the canvas scrolls independently. The
@@ -1656,24 +1665,21 @@ remove and Retry refresh ([why](docs/decisions/2026-09-project-header-history-co
 
 ## Where archived work is found
 
-Archived work does not appear on ordinary pages, views or read models — that is what archiving
-means. It is not deleted, so it has to be reachable somewhere, and that somewhere becomes the
-root's optional **Archive** page: every archived task, reflection and subproject, and every
-removed section that still holds something to recover, across the whole root tree, each with its origin, what caused it to be archived, and whether it
-can be restored.
+Archived work does not appear on ordinary pages, views or read models. Root **Archive** is a
+current recovery projection across its tree: it lists only archived items that can be restored
+now, with the highest ready owner first. An archived subproject suppresses its descendants; an
+archived section suppresses its owned rows; an archived task suppresses its archived subtasks.
+The underlying records and independent archive markers remain intact. Restoring an owner can
+reveal independently archived children as the next steps. A container holding only independently
+archived rows stays listed when that container itself is archived, because it must be restored
+before its rows. The projection keeps origin, cause, cascade and separate-restore information on
+each listed item, and works when the optional Archive page is disabled.
 
-The root-wide **Archive** page is canonical. It lists the rows a canvas-scoped undo surface
-could miss — those an ancestor took down, which cannot be restored on their own, and those whose
-container lives on another page of the same project — with guidance naming the operation or
-ancestor to restore instead. It also identifies each item's owning project, page and container,
-whether the cause was its own archive or a cascade marker, and the canonical restore operation.
-The owning page may be disabled or not yet rendered; the Archive page remains the place to find
-and restore its content.
-
-A project whose own status is `archived` hides its live contents from ordinary reads too. The
-Archive page may still show them under their archived owner, distinguishing *hidden because an
-ancestor is archived* from *archived in its own right*. Reactivating is an explicit status
-choice; the prototype does not guess a prior status.
+Live content merely hidden by an archived project and archived descendants whose current
+structure blocks their own Restore do not appear as rows. Archived roots are recovered from
+workspace **Settings → Archived projects**, not from their own root Archive. That Settings list
+also includes archived subprojects whose ancestors are live. Project reactivation requires an
+explicit non-archived status; the prototype does not guess a prior status.
 
 None of this adds a cascade. Archiving a project with **live child subprojects is still
 refused**, exactly as it is today, and archiving a project never archives anything beneath it —
@@ -1697,15 +1703,15 @@ empty (listed conservatively as unknown content). Removed Progress, Timeline, Re
 Sub-Projects views — and a container with no remaining rows, or blank prose — are deleted
 when no canonical row or shortcut references them. Historical tombstones remain unlisted;
 shortcut-backed disposable sections keep an internal tombstone, leaving Home's source
-unavailable placeholder intact. Archived sub-projects, tasks and reflections are
-listed exactly as before. Each section entry carries the domain's recovery metadata: the total
+unavailable placeholder intact. Only currently restorable archived sub-projects, tasks and
+reflections are listed. Each section entry carries the domain's recovery metadata: the total
 rows still in the container, apart from the exact count that restores with it and the number of
 row restores still needed afterwards (a subtask archived with its parent comes back with it). A container
 holding only independently archived rows stays listed on purpose — it is the first step of their
 recovery: restore the section, then restore those rows individually. Removal changes only live
 rows, marking each with its owner's section id so Undo, Redo and Archive Restore recover the exact
-cascade. A live container beneath an
-archived project needs only that project's reactivation. Restore itself is unchanged: it appends
+cascade. A live container beneath an archived project is omitted until that project returns.
+Restore itself is unchanged: it appends
 to the page's current combined order, revives exactly its cascade, and a retry changes nothing
 ([why](docs/decisions/2026-09-content-oriented-archive-policy.md)).
 
@@ -1788,9 +1794,9 @@ as a recovery destination for retained content; it does not promise to recreate 
 ([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
 *Landed in Slice 25.6: the per-canvas Archived region was replaced by the root-wide Archive
-page, which keeps cascade members and effectively hidden live work findable, explains blockers,
-and delegates every restore to the existing canonical domain operation. Disabling the page no
-longer makes undo unreachable.*
+page, delegating every restore to the existing canonical domain operation. Slice 44 limits its
+rows to currently restorable archived items; blocked cascade members and effectively hidden live
+work wait behind their owner. Disabling the page does not block Settings recovery.*
 
 *The same slice made the rest of this section's visibility promise real, and the two halves of
 it are not the same rule. **Archived owners** are excluded by the `status` filter each aggregate
@@ -2706,6 +2712,8 @@ get_project_todos
 get_project_archive
 
 get_project_journal
+
+list_archived_projects
 ```
 
 Shortcuts (§27) are created and removed through their own tools, and archive/restore are
@@ -2729,9 +2737,9 @@ answering with the half it was allowed to read. `WorkManagerTool` carries the ex
 optional `additionalPermissions`, and the transports publish the complete list under
 `_meta["local.canvas-work-manager/requiredPermissions"]` beside the unchanged singular key.
 `get_project_archive` and the Archive page landed in Slice 25.6. The query requires
-`projects.read`, `tasks.read` and `reflections.read` together, returns archived and effectively
-hidden work with origin/cause/blocker guidance, and does not depend on the Archive tab being
-enabled. Since Slice 29 its section entries are the recoverable-content projection of §31, each
+`projects.read`, `tasks.read` and `reflections.read` together, returns only currently
+restorable archived work with origin and cause metadata, and does not depend on the Archive tab
+being enabled. Since Slice 29 its section entries are the recoverable-content projection of §31, each
 with `recovery` metadata (`owned-content` with `contentCount` and `separateRestoreCount`, `config`, or `unknown`) beside the
 exact `cascadeCount`; the tool's shape is otherwise unchanged. Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
 `add_section_shortcut` / `remove_section_shortcut` under `projects.write`; the list returns
@@ -2742,6 +2750,11 @@ the same operations used by the UI: `archive_project` / `restore_project`, `remo
 adds `get_project_journal` with the same three read grants: it aggregates live journal entries
 from the root tree, resolves current linked-subject state (including an archived subject), and
 does not depend on the Reflections tab being enabled.*
+
+*Landed in Slice 44.* `list_archived_projects` is a workspace read under `projects.read` alone.
+It lists archived roots and archived subprojects with live ancestors across the actor's workspace.
+The 38-tool registry delegates to the domain projection; `restore_project` remains the write
+with an explicit non-archived status and its existing write grant.
 
 *Amended in Slice 43:* `remove_section` takes only `{ sectionId }` and archives every live task or
 reflection owned by that section in one operation. It rejects the retired `policy` and
@@ -2768,8 +2781,8 @@ removal recovers only that actor's applied, unexpired removal receipt in `sectio
 it remains a refusal with no second write. Conflicts include current names and ids plus typed next
 steps, capped at five; blocked refusals name the blocking project. The history refusal prefixes are
 `history_not_next:`, `history_revision_stale:`, `history_expired:`, `history_blocked:`,
-`history_conflict:`, `history_unavailable:` and `history_retired:`. The registry now holds
-thirty-seven tools
+`history_conflict:`, `history_unavailable:` and `history_retired:`. The registry held
+thirty-seven tools at this stage
 ([removal footprint](docs/decisions/2026-09-section-removal-undo-records.md),
 [Slice 31 decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md),
 [Slice 32 decision](docs/decisions/2026-09-section-edit-undo-boundaries.md),
@@ -2803,7 +2816,7 @@ Names, inputs and permissions are unchanged
 `project.add` receipt. Creation is the first action in the created project's own history; its Undo
 and Redo follow the same project-family grant map. The history tools describe its preflight,
 permanent retirement case and creator-only summary while the project is absent. The registry still
-has thirty-seven tools ([why](docs/decisions/2026-09-project-creation-history.md)).*
+had thirty-seven tools at this stage ([why](docs/decisions/2026-09-project-creation-history.md)).*
 
 *Amended in Slice 37:* `restore_section` returns `{ section, operation }`, with `operation: null`
 for a repeat on a live section, and `add_section_shortcut` returns `{ shortcut, operation }` while
@@ -2811,7 +2824,7 @@ for a repeat on a live section, and `add_section_shortcut` returns `{ shortcut, 
 bare placement and `undefined` it answered before. A fourth operation family, `shortcut`, joins the
 family map both history tools publish; it needs `projects.write`, the same grant `section` does,
 and is named separately so a later split is a value change rather than a breaking one. The registry
-still holds thirty-seven tools: duplication and shortcut resize, collapse and move remain
+held thirty-seven tools at this stage: duplication and shortcut resize, collapse and move remain
 HTTP-and-domain operations with no tool of their own ([why](docs/decisions/2026-09-section-restore-and-shortcut-history.md)).*
 
 *The 25.8 HTTP acceptance exercised the combined Todos, Archive and Journal reads with the declared
@@ -3149,6 +3162,11 @@ absent id it answers the creator's retained summary only, while other actors rec
 The host does not return the captured inverse payload
 ([decision](docs/decisions/2026-09-project-creation-history.md)).*
 
+*Landed in Slice 44.* `GET /api/archived-projects` forwards the workspace-scoped domain result
+under `projects.read`. A project is restored through the existing `PATCH /api/projects/:id` with
+an explicit non-archived status; the route rechecks current ancestry and refuses a blocker
+without a partial write.
+
 ---
 
 # 62. Live Updates
@@ -3230,6 +3248,11 @@ step. Creation lifecycle frames are not project-record events; root work trees r
 publish no frame. A dropped frame is repaired by the current route's history summary and one
 project-context reload ([decision](docs/decisions/2026-09-project-creation-history.md)).*
 
+*Extended in Slice 44:* the Settings archived-project list refreshes on project-record frames
+throughout the workspace, as do open root projections and the shell tree. It reads the current
+projection again after a Restore or refusal, so a moved or newly blocked subproject is shown
+according to its current ancestry.
+
 ---
 
 # 63. Optimistic UI
@@ -3259,6 +3282,11 @@ show error
 ```
 
 The development panel's failure injection should test these flows.
+
+Settings recovery keeps a selected non-archived status and disables repeat Restore while its
+write is pending. A successful project write remains acknowledged even if the following list read
+fails; Retry repeats only the read. A concurrent archive blocker refuses the write and refreshes
+the list without claiming a Restore.
 
 For section removal, the canvas reports success only after it receives the server receipt. It
 reports the receipt to the header's history before refreshing so a failed refresh cannot hide the
@@ -3519,6 +3547,11 @@ settings
 MCP / agent connections
 
 
+/settings/archived-projects
+
+workspace-scoped recovery of archived roots and ready subprojects
+
+
 /prototype/design
 
 design lab
@@ -3652,6 +3685,12 @@ from its Sub-Projects section and repeat Undo, cross-owner not-found and recover
 receives the child's committed Undo/Redo frames. Domain and HTTP/MCP checks also refuse Undo when
 the project gained content, children, references, changed fields or another actor's history, with
 no partial mutation; a retired creation remains absent after reload and history expiry.*
+
+*Slice 44 adds a parent-first recovery journey:* verify exact Archive IDs before and after each
+owner Restore, restore an archived root and then an independently archived subproject from
+Settings with chosen statuses, and repeat while the optional Archive page is disabled. Domain,
+route, gateway and MCP tests pin ready-only projections, workspace isolation, read/write grants
+and race refusals; browser checks cover retry, focus, narrow layout and both themes.
 
 The web and MCP journeys are kept isolated from the offline `pnpm test` suite and use their own
 data file. Focused aggregate journeys remain separate so the integrated pass can prove composition

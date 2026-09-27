@@ -82,6 +82,7 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
       journal.structuredContent?.items?.some(({ reflection: item }) => item.id === reflection.structuredContent?.reflection?.id),
     `${title} reads the linked reflection from the journal`,
   );
+  await assertArchivedProjects(client, title, dataFile, access);
   const undo = await assertUndo(client, title, dataFile);
   await assertRestoreAndShortcuts(client, title);
   const foreignPageReceipt = await assertPageHistory(client, foreign, title, dataFile, access);
@@ -97,6 +98,51 @@ const receiptOf = (result) => result.structuredContent?.operation;
 
 /** `create_project` answers the project together with its creation receipt. */
 const projectIdOf = (result) => result.structuredContent?.project?.id ?? JSON.parse(result.content[0].text).project.id;
+
+/** Slice 44's parent-first workspace query and project restoration over each real transport. */
+const assertArchivedProjects = async (client, title, dataFile, access) => {
+  const createdRoot = await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Archived owner ${title}` } });
+  const rootId = projectIdOf(createdRoot);
+  const createdChild = await client.callTool({ name: 'create_project', arguments: {
+    kind: 'subproject', parentProjectId: rootId, name: `Archived child ${title}`,
+  } });
+  const childId = projectIdOf(createdChild);
+  check(createdRoot.isError !== true && createdChild.isError !== true, `${title} creates exact root and child ids for recovery`);
+  const section = await client.callTool({ name: 'create_section', arguments: { projectId: rootId, type: 'task-list', title: 'Independent-only list' } });
+  const sectionId = section.structuredContent.section.id;
+  const task = await client.callTool({ name: 'create_task', arguments: { projectId: rootId, sectionId, title: 'Filed row' } });
+  const taskId = task.structuredContent.task.id;
+  check((await client.callTool({ name: 'archive_task', arguments: { taskId } })).isError !== true, `${title} independently archives the row`);
+  check((await client.callTool({ name: 'remove_section', arguments: { sectionId } })).isError !== true, `${title} removes its container in one operation`);
+  check((await client.callTool({ name: 'archive_project', arguments: { projectId: childId } })).isError !== true, `${title} archives the child`);
+  check((await client.callTool({ name: 'archive_project', arguments: { projectId: rootId } })).isError !== true, `${title} archives the root after its child`);
+  const list = async () => (await client.callTool({ name: 'list_archived_projects', arguments: {} })).structuredContent.items.map(({ project }) => project.id);
+  check(JSON.stringify(await list()) === JSON.stringify([rootId]), `${title} workspace query lists only the highest archived owner`);
+
+  await access.setPermissions('agent-claude', ['projects.read', 'tasks.read', 'reflections.read']);
+  const beforeRefusal = await businessState(dataFile);
+  const readable = await client.callTool({ name: 'list_archived_projects', arguments: {} });
+  const archive = await client.callTool({ name: 'get_project_archive', arguments: { projectId: rootId } });
+  check(readable.isError !== true && archive.isError !== true && archive.structuredContent.items.every(({ restoration }) => restoration.kind === 'ready'), `${title} read grants show ready recovery without a write grant`);
+  const refusal = await refusedText(() => client.callTool({ name: 'restore_project', arguments: { projectId: rootId, status: 'active' } }));
+  check(refusal !== null && refusal.includes('projects.write'), `${title} Restore names the missing write grant`);
+  check((await businessState(dataFile)) === beforeRefusal, `${title} read-only Restore changes no business state`);
+  await access.setPermissions('agent-claude', ['projects.read', 'projects.write', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write', 'workspace.read']);
+
+  const rootRestore = await client.callTool({ name: 'restore_project', arguments: { projectId: rootId, status: 'active' } });
+  check(rootRestore.isError !== true && rootRestore.structuredContent.project.status === 'active', `${title} restores the root to an explicit status`);
+  check(JSON.stringify(await list()) === JSON.stringify([childId]), `${title} the archived child is the next workspace owner`);
+  const ready = await client.callTool({ name: 'get_project_archive', arguments: { projectId: rootId } });
+  const items = ready.structuredContent.items;
+  check(items.some(({ project }) => project?.id === childId) && items.some(({ section }) => section?.id === sectionId), `${title} root Archive lists exact ready child and section ids`);
+  check(!items.some(({ task: row }) => row?.id === taskId) && items.find(({ section: container }) => container?.id === sectionId)?.recovery?.separateRestoreCount === 1, `${title} independently archived row waits behind its section`);
+  const childRestore = await client.callTool({ name: 'restore_project', arguments: { projectId: childId, status: 'on_hold' } });
+  check(childRestore.isError !== true && childRestore.structuredContent.project.status === 'on_hold', `${title} restores the child separately`);
+  check((await client.callTool({ name: 'restore_section', arguments: { sectionId } })).isError !== true, `${title} restores the container separately`);
+  const revealed = await client.callTool({ name: 'get_project_archive', arguments: { projectId: rootId } });
+  check(revealed.structuredContent.items.some(({ task: row }) => row?.id === taskId), `${title} the independent row becomes actionable`);
+  check((await client.callTool({ name: 'restore_task', arguments: { taskId } })).isError !== true, `${title} restores the row separately`);
+};
 
 /** This connection's own history summary for the project. */
 const historyOf = async (client) => {

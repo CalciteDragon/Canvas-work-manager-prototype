@@ -92,10 +92,10 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
     expect.arrayContaining([
       `section:${section.id}`,
       `task:${parent.id}`,
-      `task:${child.id}`,
       `subproject:${leaf.id}`,
     ]),
   );
+  expect(await archiveKeys(root.id)).not.toContain(`task:${child.id}`);
 
   await page.goto(`/projects/${root.id}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Archive journey');
@@ -104,11 +104,10 @@ test('the root Archive keeps cascades and archived subprojects reachable across 
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/archive$`));
   await expect(page.locator('[data-archive-page]')).toBeVisible();
 
-  // The section and its task are separate entries, while the task cascade remains blocked by
-  // its parent. The root page is the one place where all of those identities coexist.
+  // The parent owns its cascade; blocked child rows are not actionable Archive entries.
   await expect(page.locator(`[data-archived-item][data-archived-id="${section.id}"]`)).toBeVisible();
   await expect(page.locator(`[data-archived-item][data-archived-id="${parent.id}"]`)).toBeVisible();
-  await expect(page.locator(`[data-archived-item][data-archived-id="${child.id}"]`)).toContainText('Restore “Parent task” first');
+  await expect(page.locator(`[data-archived-item][data-archived-id="${child.id}"]`)).toHaveCount(0);
   await expect(page.locator(`[data-archived-item][data-archived-id="${leaf.id}"]`)).toBeVisible();
 
   const restoreSection = page.locator(`[data-archived-item][data-archived-id="${section.id}"] [data-archived-restore]`);
@@ -263,14 +262,8 @@ test('Archive lists recoverable content only, and independently archived rows ke
       cascadeCount: 0,
       recovery: { kind: 'owned-content', ownedData: 'reflections', contentCount: 1, separateRestoreCount: 1 },
     });
-    expect(keys).toEqual(
-      expect.arrayContaining([
-        `task:${cascadedTask.id}`,
-        `task:${filedEarly.id}`,
-        `task:${oldTask.id}`,
-        `reflection:${oldReflection.id}`,
-      ]),
-    );
+    for (const id of [cascadedTask.id, filedEarly.id, oldTask.id]) expect(keys).not.toContain(`task:${id}`);
+    expect(keys).not.toContain(`reflection:${oldReflection.id}`);
   };
   assertProjection(await archiveItems(ROOT));
   expect((await api<{ sectionId: string }>('GET', `/api/tasks/${moved.id}`)).sectionId).toBe(`section-${ROOT}-tasks`);
@@ -287,7 +280,7 @@ test('Archive lists recoverable content only, and independently archived rows ke
   await expect(row(cascaded.id)).toContainText('1 task restores with this section');
   await expect(row(cascaded.id)).toContainText('1 other task stays archived; restore it separately afterwards.');
   await expect(row(oldTasks.id)).toContainText('Restore this section first, then restore its archived task separately.');
-  await expect(row(oldTask.id)).toContainText('Restore “Old tasks” first');
+  await expect(row(oldTask.id)).toHaveCount(0);
 
   // Reload: the same ids and config come back from the persisted file.
   await page.reload();
@@ -308,7 +301,7 @@ test('Archive lists recoverable content only, and independently archived rows ke
   await expect(row(oldTasks.id)).toHaveCount(0);
   expect(await placements()).toEqual([...before, oldTasks.id]);
   await expect(row(oldTask.id).locator('[data-archived-restore]')).toBeEnabled();
-  await expect(row(oldSubtask.id)).toContainText('Restore “Archived on its own” first');
+  await expect(row(oldSubtask.id)).toHaveCount(0);
   await row(oldTask.id).locator('[data-archived-restore]').click();
   await expect(row(oldTask.id)).toHaveCount(0);
   await expect(row(oldSubtask.id)).toHaveCount(0);

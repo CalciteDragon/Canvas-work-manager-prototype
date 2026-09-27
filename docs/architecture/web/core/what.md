@@ -58,6 +58,9 @@ ordering and conflicts are the host's rules, proved there.
 create always carries the `project.add` receipt, while an existing-project no-op may carry
 `operation: null`. Callers unwrap `project` only after the adapter validates the envelope.
 
+`ProjectGateway.archived()` returns `ArchivedProjectsResult`; the prototype adapter requests
+`GET /api/archived-projects`, and the fake gateway can supply the same result to Settings specs.
+
 ## A store's three connections
 
 ```mermaid

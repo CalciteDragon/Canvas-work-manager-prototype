@@ -1,5 +1,10 @@
 # How the projects feature works
 
+`ArchivePageStore` passes the root's ready-only projection to `ArchivedRegion`. The component
+words the supplied origin, cause and recovery counts without determining eligibility. Restore
+uses the canonical project, section, task or reflection write and then re-reads; independent
+archived children become visible only once their owner has returned.
+
 ## Runtime flow
 
 1. `ProjectWorkspaceShell` reads `projectId` and optional `pageKind` from the route,

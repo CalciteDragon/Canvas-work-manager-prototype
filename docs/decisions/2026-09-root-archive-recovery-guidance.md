@@ -63,3 +63,10 @@ independently stays listed and ready, with copy saying to restore it and then th
 container beneath an archived project keeps its `not-archived` project blocker and gets only
 reactivation guidance. No new blocker kind, restore operation or automatic dependency restore was
 added.
+
+**Amended, 2026-09-25 (Slice 44).** Root Archive now lists only currently restorable archived
+entries, highest ready owner first. Blocked descendants and live content hidden solely by an
+archived project are omitted until their owner returns. Archived roots and independently
+restorable subprojects are also reachable from workspace Settings, with an explicit status
+choice; the optional root Archive and its More-menu entry remain. See
+[Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md).

@@ -1,5 +1,9 @@
 # What contracts are made of
 
+`src/archived-projects.ts` defines the workspace result as archived project records with
+breadcrumbs. `src/project-archive.ts` validates ready-only root Archive items; a blocked or
+live item cannot cross the result contract. Both schemas are re-exported from `src/index.ts`.
+
 ## Structure
 
 ```mermaid

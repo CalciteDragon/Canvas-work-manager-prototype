@@ -22,6 +22,7 @@ export * from './project-history';
 export * from './project-page';
 export * from './project-write-result';
 export * from './project-archive';
+export * from './archived-projects';
 export * from './project-journal';
 export * from './project-todos';
 export * from './prototype';

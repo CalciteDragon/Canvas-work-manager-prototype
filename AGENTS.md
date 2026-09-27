@@ -53,7 +53,7 @@ decisions and the roadmap — as a browsable site with search and rendered Merma
 - **Domain:** `packages/domain`, every rule, over repository interfaces and a `Clock` —
   [domain](docs/architecture/domain/overview.md)
 - **MCP:** official TypeScript SDK v2, protocol `2026-07-28`, Streamable HTTP at `/mcp`
-  and stdio, serving the thirty-seven tools of the transport-free registry (§50, §54, §59)
+  and stdio, serving the thirty-eight tools of the transport-free registry (§50, §54, §59)
   — [mcp-tools](docs/architecture/mcp-tools/overview.md),
   [mcp-transport](docs/architecture/prototype-host/mcp-transport/overview.md)
 - **Seeds and personas:** `packages/prototype-data`, six seeds, three personas, fixture

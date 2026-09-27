@@ -1,5 +1,9 @@
 # How core works
 
+`ProjectGateway.archived()` reads the workspace-scoped result through the only concrete adapter,
+`PrototypeWorkManagerGateway`; the adapter validates `ArchivedProjectsResultSchema` before
+returning it. `projects.update(id, { status })` is the existing Restore write used by Settings.
+
 ## Runtime flow
 
 1. `appConfig` provides `PrototypeIdentityProvider` as `IDENTITY_PROVIDER`,

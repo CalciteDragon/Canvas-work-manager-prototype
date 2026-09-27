@@ -102,3 +102,10 @@ Archive-offer rule and placement line are unchanged
 **Amended, 2026-09-22 — Slice 41.** Open Archive moves to `SectionRecoveryNotice`, which no longer
 offers Undo; the rule is unchanged — the route is offered on the removal's own `archiveListed`
 verdict, and a repeated removal's unknown verdict still offers it ([decision](2026-09-project-header-history-controls.md)).
+
+**Amended, 2026-09-25 (Slice 44).** The root Archive projection is now ready-only and
+parent-first. A section removal's `archiveListed` still reports its content-policy verdict;
+current ancestry can later make its row wait behind an archived owner. The More-menu Archive
+route remains available. Workspace Settings gives archived roots and ready subprojects their
+own recovery route, independent of an Archive tab. See
+[Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md).

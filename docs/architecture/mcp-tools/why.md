@@ -76,7 +76,7 @@ unknown-tool response.
 
 - Adding a tool is one file in `src/tools/`, one registry line, and one contract case —
   and the suite fails until the case exists.
-- The tool count grew from §54's fourteen to thirty-seven as the section, page,
+- The tool count grew from §54's fourteen to thirty-eight as the section, page,
   shortcut, archive, journal and history tools arrived; each arrived with its slice, and the list
   in `SPEC_TOOL_NAMES` is what the host's `tools/list` test asserts against.
 - Tool experiments (§56 — `complete_task` versus `update_task(status)`, combined versus
@@ -87,6 +87,8 @@ unknown-tool response.
   is what will show whether it matters.
 
 ## Decisions that shape this system
+
+- [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — a read tool exposes the domain's workspace projection without widening Restore grants.
 
 - [What the tool registry knows about MCP](../../decisions/2026-08-tool-registry-is-transport-free.md)
 - [MCP tools advertise their required permission in namespaced metadata](../../decisions/2026-08-mcp-tool-permission-metadata.md)

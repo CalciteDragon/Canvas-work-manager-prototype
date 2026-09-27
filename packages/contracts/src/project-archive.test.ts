@@ -80,6 +80,17 @@ describe('Project Archive contracts (§31)', () => {
     if (result.success) expect(result.data.items).toEqual([]);
   });
 
+  it('rejects blocked entries in the root Archive result', () => {
+    const item = {
+      kind: 'task',
+      task: { id: 'task-1', projectId: root.id, sectionId: 'section-tasks', title: 'Task', status: 'todo', priority: 'medium', createdAt: AT, updatedAt: AT, archivedAt: AT },
+      origin: { ...origin, sectionId: 'section-tasks', sectionName: 'Tasks' },
+      cause: { kind: 'own' },
+      restoration: { kind: 'blocked', blocker: { kind: 'section', sectionId: 'section-tasks', name: 'Tasks' } },
+    };
+    expect(ProjectArchiveResultSchema.safeParse({ projectId: root.id, root, items: [item] }).success).toBe(false);
+  });
+
   describe('section recovery metadata', () => {
     const sectionItem = {
       kind: 'section' as const,

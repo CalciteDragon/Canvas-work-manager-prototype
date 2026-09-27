@@ -1,5 +1,10 @@
 # Web
 
+Workspace Settings now links to `/settings/archived-projects`. Its page reads the actor's
+archived roots and currently restorable subprojects through `projects.archived()` and restores
+with an explicit status through the existing project gateway write. Root Archive shows the
+domain's ready-only, parent-first list.
+
 `apps/web` is the Angular 22 application on `http://localhost:4200` (§4, §19): the shell
 with its sidebar and top bar, the dashboard, the project workspaces with their pages and
 section canvases, the agent settings page, and the development tooling. It is
