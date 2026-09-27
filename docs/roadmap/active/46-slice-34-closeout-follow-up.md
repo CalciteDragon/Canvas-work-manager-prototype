@@ -104,3 +104,4 @@ This phase changes roadmap documentation only. The candidate plans must preserve
 ## Revisions
 
 - **Self-review, 2026-09-27:** The draft combined a planning handoff with the final implementation acceptance, which would leave an umbrella active alongside its implementing candidates. Restricted Slice 46's completion to a bounded candidate handoff, retained all fourteen findings as the downstream acceptance contract, and added executable roadmap checks. The user explicitly requested this review without subagents.
+- **First candidate, 2026-09-27:** [Slice 47](../planned/47-archive-recovery-state-and-focus.md) owns findings 1–2 as one browser recovery phase. Finding 3 needs a separate domain-policy candidate; B–D remain to be split before Slice 46 closes.

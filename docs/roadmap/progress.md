@@ -29,6 +29,7 @@ verification follow-ups rather than feature slices.
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
 | 34 | Slice 34 — Project Undo/Redo and simpler Archive | Development plan for persistent project history, recoverable deletion and restorable-only archives | [34-undo-redo-and-archive.md](planned/34-undo-redo-and-archive.md) |
+| 47 | Slice 47 — Archive recovery state and focus | Keep stale Archive restores blocked through refresh and move Settings focus to the next usable control | [47-archive-recovery-state-and-focus.md](planned/47-archive-recovery-state-and-focus.md) |
 
 ### Completed
 

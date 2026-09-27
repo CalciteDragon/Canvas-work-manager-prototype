@@ -59,6 +59,8 @@ safety gaps, recorded UX friction, and Slice 34's umbrella status. Slice 46 is a
 the bounded candidate handoff; implementation follows in separate slices. The
 historical Stage E closure below remains its original evidence.
 
+The first implementation candidate is [Slice 47 — Archive recovery state and focus](planned/47-archive-recovery-state-and-focus.md), covering the two browser recovery defects in Slice 46 findings 1–2. It starts after Slice 46 finishes its candidate handoff; the archived-container task-history rule follows in a separate slice.
+
 **Current direction — Project Undo/Redo and simpler Archive.**
 The user requested [the detailed development plan in Slice 34](planned/34-undo-redo-and-archive.md)
 on 2026-09-16: always-present project Undo/Redo icons, history for committed content and layout
