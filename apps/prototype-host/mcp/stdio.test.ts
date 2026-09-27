@@ -111,4 +111,44 @@ describe('MCP stdio entry (§59)', () => {
       await client.close();
     }
   }, 15_000);
+
+  /**
+   * Slice 45 (defect D2): each call reloads the file, so without serialization two calls could each
+   * read the same revision. Several transitions at one expected revision: exactly one lands.
+   */
+  it('lets exactly one of several concurrent transitions at one revision land', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-mcp-stdio-race-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
+    await writeSeedFile('agent-heavy', { targetPath: path });
+    const client = new Client(
+      { name: 'slice-45-stdio-race', version: '0.0.0' },
+      { versionNegotiation: { mode: { pin: '2026-07-28' } } },
+    );
+    await client.connect(new StdioClientTransport({
+      command: process.execPath,
+      args: ['--import', 'tsx', join(here, 'stdio.ts')],
+      cwd: join(here, '..'),
+      env: { ...getDefaultEnvironment(), CWM_DATA_FILE: path, CWM_MCP_TOKEN: 'prototype-user-a-readwrite' },
+      stderr: 'pipe',
+    }));
+    try {
+      const created = await client.callTool({ name: 'create_task', arguments: { projectId: 'project-work-manager', title: 'Raced' } });
+      const { historyId, actionId, revision } = (created.structuredContent as { operation: { historyId: string; actionId: string; revision: number } }).operation;
+      const eventsBefore = (await loadPersistence(path)).store.snapshot().activityEvents.length;
+
+      const results = await Promise.all([0, 1, 2].map(() =>
+        client.callTool({ name: 'undo_operation', arguments: { historyId, actionId, expectedRevision: revision } })));
+      const texts = results.map((result) => result.isError === true
+        ? (result.content as Array<{ text?: string }>)[0]?.text ?? '' : 'ok');
+
+      expect(texts.filter((text) => text === 'ok')).toHaveLength(1);
+      expect(texts.filter((text) => text.startsWith('history_revision_stale:'))).toHaveLength(2);
+      const after = (await loadPersistence(path)).store.snapshot();
+      expect(after.activityEvents).toHaveLength(eventsBefore + 1);
+      expect(after.operationHistories.find(({ id }) => id === historyId)?.revision).toBe(revision + 1);
+    } finally {
+      await client.close();
+    }
+  }, 20_000);
 });

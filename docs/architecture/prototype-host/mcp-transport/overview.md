@@ -22,7 +22,8 @@ every call. The protocol is never hand-implemented (§50).
   tokens all fail with the same 401, deliberately without saying which.
 - Refuse non-localhost `Host` and `Origin` headers with 403 before protocol negotiation.
 - Stdio: read `CWM_MCP_TOKEN`, reload the data file and re-authenticate before each call,
-  keep protocol data on stdout and diagnostics on stderr.
+  run one call at a time within the process, keep protocol data on stdout and diagnostics on
+  stderr.
 
 ## Not responsible for
 

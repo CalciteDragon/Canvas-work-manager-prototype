@@ -43,7 +43,10 @@ host's in-memory state, so it re-reads the file and re-authenticates each time â
 therefore sees host-side revocations, while the host does not see its writes
 ([decision](../../../decisions/2026-08-stdio-token-and-live-auth.md)). The documented
 safe workflow is to stop the host for a stdio mutation session, or point each transport
-at its own `CWM_DATA_FILE`.
+at its own `CWM_DATA_FILE`. Because every reload is a separate store, the process also takes
+calls one at a time: Slice 45 found two concurrent transitions at one expected revision both
+landing when calls overlapped. That serialization is within one stdio process only; it does not
+make two processes on one file safe.
 
 **Permission metadata is namespaced under `_meta`.** Static tools keep the singular key for
 existing clients and a plural key carrying every grant a combined read needs. `undo_operation`

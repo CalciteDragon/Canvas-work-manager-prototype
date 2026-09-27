@@ -12,7 +12,10 @@ any failure); the SDK handler runs with the resulting actor; a `tools/call` reac
 **Stdio.** `pnpm mcp:stdio` runs `mcp/stdio.ts` with `tsx`: it reads `CWM_MCP_TOKEN`
 (exits immediately if absent), then for every call reloads the data file at
 `CWM_DATA_FILE`, authenticates the token against the freshly loaded connections, and
-serves the same registry through the SDK's stdio transport. Protocol bytes go to stdout
+serves the same registry through the SDK's stdio transport. Calls take turns: the next call
+loads only after the previous one's `registry.call` has finished and persisted, because each
+reload is its own store with its own write lock, and two overlapping calls at one history
+revision would otherwise both commit (Slice 45's `stdio.test.ts` race case). Protocol bytes go to stdout
 only; diagnostics to stderr.
 
 **Authentication.** `PrototypeAgentAuthenticator` maps the token through the fixture

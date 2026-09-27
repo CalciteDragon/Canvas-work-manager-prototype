@@ -32,11 +32,39 @@ if (token === undefined || token.trim() === '') {
 // child is a second process, so its prior JsonDataStore cannot observe a permission edit or
 // revocation written by the HTTP/UI host (§53).
 const definitions = registryFor(createApi(await loadPersistence()));
+
+// That reload gives every call its own store, and so its own write lock: two overlapping calls
+// would each read the same history revision and both commit (Slice 45, defect D2). Calls
+// therefore take turns — the next one loads only after the previous call has persisted. The turn
+// is held from resolution until the one `call` the server makes with the resolved registry.
+let turn: Promise<void> = Promise.resolve();
 const resolveInvocation = async () => {
-  const api = createApi(await loadPersistence());
-  const actor = await api.authenticator!.authenticate(`Bearer ${token}`);
-  if (actor === null) throw new AgentAuthenticationError();
-  return { registry: registryFor(api), actor };
+  const previous = turn;
+  let release!: () => void;
+  turn = new Promise((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    const api = createApi(await loadPersistence());
+    const actor = await api.authenticator!.authenticate(`Bearer ${token}`);
+    if (actor === null) throw new AgentAuthenticationError();
+    const registry = registryFor(api);
+    const serialized: ToolRegistry = {
+      ...registry,
+      call: async (name, input, caller) => {
+        try {
+          return await registry.call(name, input, caller);
+        } finally {
+          release();
+        }
+      },
+    };
+    return { registry: serialized, actor };
+  } catch (error) {
+    release();
+    throw error;
+  }
 };
 
 serveStdio(() => createWorkManagerMcpServer(definitions, resolveInvocation), {

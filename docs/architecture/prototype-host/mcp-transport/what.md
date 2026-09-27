@@ -60,7 +60,7 @@ sequenceDiagram
 | `createAuthenticatedMcpHandler`, `AuthenticatedMcpDependencies` | `mcp/handler.ts` | Guards + authenticator + SDK handler as one raw route |
 | `createMcpNodeHandler` | `mcp/handler.ts` | The SDK's fetch-shaped handler adapted to `node:http` |
 | SDK server factory and permission metadata keys | `mcp/server.ts` | Builds the `McpServer` over the registry; publishes either the static keys or the operation-family key |
-| Stdio entry | `mcp/stdio.ts` | `pnpm mcp:stdio`; reload-and-authenticate per call |
+| Stdio entry | `mcp/stdio.ts` | `pnpm mcp:stdio`; reload-and-authenticate per call, one call at a time |
 | `PrototypeAgentAuthenticator`, `AgentAuthenticationError`, `AgentAuthenticatorDependencies` | `auth/prototype-agent-authenticator.ts` | Token → live connection → actor; one 401 |
 | Fixture tokens | `packages/prototype-data/src/agent-tokens.ts` | The table the authenticator reads |
 | Acceptance | `scripts/mcp-acceptance.mjs` | Real client over both transports; `scripts/live-acceptance.mjs` for the HTTP + SSE path |
