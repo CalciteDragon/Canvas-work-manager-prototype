@@ -312,6 +312,12 @@ preserving stored reassign actions. Parent-first Archive filtering and Settings 
 recovery remain D2; integrated closure remains Stage E. The D gate below applies to the combined
 Stage D result, not to Slice 43 alone.
 
+**Stage D closure amendment — 2026-09-27.** [Slice 44](../completed/44-actionable-archive-and-archived-projects.md)
+shipped parent-first Archive and Settings archived-project recovery, closing the combined Stage D
+gate. [Slice 45](../active/45-undo-redo-archive-integrated-closure.md) is the active Stage E
+integrated-acceptance and documentation-closure phase. This amendment supersedes the older
+"Stages D and E remain planned" status above; the acceptance matrix remains the gate.
+
 | Stage | Deliverable | Gate before proceeding |
 |---|---|---|
 | A — history foundation | Versioned state/converter, summary, grants, atomic Undo/Redo for existing section actions | A → B → Undo B → Undo A → Redo A → Redo B; branch invalidation, expiry/pruning, concurrent revision and reload tests through domain/API/MCP. |
@@ -487,12 +493,13 @@ decisions before dependent implementation:
   acceptance. The retry cache is retired because expected revisions already make blind retries
   safe and the returned summary shows whether a transition landed; the older cache language in
   Contracts, Atomicity/retry, and acceptance step 7 is superseded by the stale-summary behavior above.
-  No cache work remains in Stage C.
-  Stages D and E remain planned.
+  No cache work remains in Stage C. Stages D and E remain planned.
+- **Stage D closure amendment (2026-09-27):** Slice 44 closed the combined D gate. Slice 45
+  is active for Stage E's integrated acceptance and documentation reconciliation.
 
 ## Planning delivery
 
 This document describes the remaining proposed work and acceptance obligations. Runtime spec,
 architecture and decision amendments happen with the implementing stages. Its original planning
 delivery was documentation-only on 2026-09-16; the planning checks passed and no behavior changed
-then. As amended above, Stage C has since closed and Stages D–E remain planned.
+then. As amended above, Stages A–D have closed and Stage E is active as Slice 45.

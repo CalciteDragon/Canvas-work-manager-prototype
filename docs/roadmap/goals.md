@@ -103,7 +103,9 @@ disappearance needs an "Archived" cue so Delete does not read as permanent. **[S
 Archive and archived-project recovery](completed/44-actionable-archive-and-archived-projects.md)
 shipped Stage D2 on 2026-09-27**: root Archive now lists ready owners first, and workspace
 Settings restores archived roots and ready subprojects with an explicit status. Stage E remains
-integrated closure. The paragraphs below describe the earlier shipped
+integrated closure, now active as [Slice 45](active/45-undo-redo-archive-integrated-closure.md).
+Its gate is a row-by-row evidence ledger across domain, browser, HTTP and both MCP transports,
+real use, and reconciliation of current documentation. The paragraphs below describe the earlier shipped
 system and its choices.
 
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported

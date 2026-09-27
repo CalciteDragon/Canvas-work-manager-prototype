@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 45 | Slice 45 — Undo/Redo and Archive integrated closure | Integrated acceptance and documentation closure for Slice 34 stages A–D | [45-undo-redo-archive-integrated-closure.md](active/45-undo-redo-archive-integrated-closure.md) |
 
 ### Planned
 
