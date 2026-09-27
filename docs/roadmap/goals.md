@@ -53,6 +53,12 @@ would implement and the scope guards it inherits.
 
 ## Now
 
+**2026-09-27 review follow-up.** The user requested [Slice 46's close-out plan](active/46-slice-34-closeout-follow-up.md)
+for recovery UI defects, task-history container-policy inconsistency, evidence and one-file
+safety gaps, recorded UX friction, and Slice 34's umbrella status. Slice 46 is active for
+the bounded candidate handoff; implementation follows in separate slices. The
+historical Stage E closure below remains its original evidence.
+
 **Current direction — Project Undo/Redo and simpler Archive.**
 The user requested [the detailed development plan in Slice 34](planned/34-undo-redo-and-archive.md)
 on 2026-09-16: always-present project Undo/Redo icons, history for committed content and layout

@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 46 | Slice 46 — Slice 34 close-out follow-up | Resolve review defects, evidence gaps, recovery UX and umbrella documentation before final closure | [46-slice-34-closeout-follow-up.md](active/46-slice-34-closeout-follow-up.md) |
 
 ### Planned
 
