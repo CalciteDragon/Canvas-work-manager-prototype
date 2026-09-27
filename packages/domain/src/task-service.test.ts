@@ -475,11 +475,15 @@ describe('TaskService archive cascades, and restore undoes exactly that', () => 
     await harness.sectionService.remove(harness.actor, marked.sectionId);
 
     // Both cases: the row the cascade marked, and the one archived individually beforehand.
+    // The refusal is canonical, not a history transition, so it must write no row, no history
+    // step and no Activity event (Slice 45).
+    const before = harness.store.snapshot();
     for (const id of [marked.id, beforehand.id]) {
       const refusal = await harness.taskService.restore(harness.actor, id).then(() => null, (error: unknown) => error);
       expect(refusal).toBeInstanceOf(DomainRuleError);
       expect((refusal as DomainRuleError).message).toContain(marked.sectionId);
     }
+    expect(harness.store.snapshot()).toEqual(before);
   });
 
   it('refuses to restore a subtask whose parent is archived, naming the parent', async () => {
@@ -489,12 +493,14 @@ describe('TaskService archive cascades, and restore undoes exactly that', () => 
     const { parent, first } = await family(harness);
     await harness.taskService.archive(harness.actor, first.id);
     await harness.taskService.archive(harness.actor, parent.id);
+    const before = harness.store.snapshot();
 
     const refusal = await harness.taskService
       .restore(harness.actor, first.id)
       .then(() => null, (error: unknown) => error);
     expect(refusal).toBeInstanceOf(DomainRuleError);
     expect((refusal as DomainRuleError).message).toContain(parent.id);
+    expect(harness.store.snapshot()).toEqual(before);
   });
 
   it('refuses restore without tasks.write, and answers not-found across workspaces', async () => {

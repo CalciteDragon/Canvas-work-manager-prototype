@@ -228,3 +228,19 @@ describe('shortcutWriteLabel (Slice 41)', () => {
   });
 });
 
+
+describe('shortcut settings no-op (Slice 45 closure evidence; §§27, 31)', () => {
+  it('an unchanged settings update records nothing and keeps the Redo branch', async () => {
+    const h = buildHarness();
+    const { source } = await withSource(h);
+    const created = await h.sectionShortcutWriteService.create(h.actor, MINE, { pageId: HOME, sourceSectionId: source.id });
+    const collapsed = await h.sectionShortcutWriteService.update(h.actor, created.shortcut.id, { collapsed: true });
+    await step(h, collapsed.operation!);
+    const before = JSON.stringify(h.store.snapshot());
+
+    const current = (await h.shortcuts.find(created.shortcut.id))!;
+    expect((await h.sectionShortcutWriteService.update(h.actor, current.id, { collapsed: current.collapsed, columnSpan: current.columnSpan })).operation).toBeNull();
+    expect(JSON.stringify(h.store.snapshot())).toBe(before);
+    expect((await h.operationHistoryService.summary(h.actor, MINE)).redo?.actionId).toBe(collapsed.operation!.actionId);
+  });
+});

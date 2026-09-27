@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildHarness, MINE, agentActorFor } from '../test/test-support';
 import type { OperationReceipt, OperationHistoryDirection, TaskId } from '@cwm/contracts';
+import { ProjectArchiveService } from './project-archive-service';
 
 const step = async (h: ReturnType<typeof buildHarness>, receipt: OperationReceipt, direction: OperationHistoryDirection = 'undo', actor = h.actor) => {
   const history = h.store.snapshot().operationHistories.find(x => x.id === receipt.historyId)!;
@@ -226,5 +227,109 @@ describe('row history regressions found in the closing review (§§31, 34)', () 
     expect(await h.tasks.find(middle.id)).toMatchObject({ parentTaskId: newParent.id });
     expect((await h.tasks.find(middle.id))?.archivedWithTaskId).toBeUndefined();
     expect(await h.tasks.find(leaf.id)).toMatchObject({ archivedWithTaskId: inner.id });
+  });
+});
+
+/**
+ * Slice 45's integrated audit found these row guarantees asserted only forward, or only for a
+ * single row, so each one is pinned here at its rule owner.
+ */
+describe('row history closure evidence (Slice 45; §§31, 34, 36)', () => {
+  const later = (h: ReturnType<typeof buildHarness>) => {
+    h.clock.setNow(new Date(h.clock.now().getTime() + 60_000));
+    return h.clock.now().toISOString();
+  };
+  const markers = async (h: ReturnType<typeof buildHarness>, id: TaskId) => {
+    const task = await h.tasks.find(id);
+    return [task?.archivedAt ?? null, task?.archivedWithTaskId ?? null, task?.archivedWithSectionId ?? null];
+  };
+
+  it('task Delete over a live and an independently archived subtree reverses and replays only its own cascade, stamping updatedAt from the Clock', async () => {
+    const h = buildHarness();
+    const parent = await h.taskWriteService.create(h.actor, { projectId: MINE, title: 'Parent' });
+    const live = await h.taskWriteService.create(h.actor, { projectId: MINE, sectionId: parent.task.sectionId, parentTaskId: parent.task.id, title: 'Live child' });
+    const filed = await h.taskWriteService.create(h.actor, { projectId: MINE, sectionId: parent.task.sectionId, parentTaskId: parent.task.id, title: 'Filed child' });
+    await h.taskWriteService.archive(h.actor, filed.task.id);
+    const filedMarkers = await markers(h, filed.task.id);
+    const deleted = await h.taskWriteService.archive(h.actor, parent.task.id);
+    const deletedMarkers = { parent: await markers(h, parent.task.id), live: await markers(h, live.task.id) };
+    expect(deletedMarkers.live).toEqual([expect.any(String), parent.task.id, null]);
+
+    const undoAt = later(h);
+    const events = h.store.snapshot().activityEvents.length;
+    await step(h, deleted.operation!);
+    expect(h.store.snapshot().activityEvents).toHaveLength(events + 1);
+    for (const id of [parent.task.id, live.task.id]) {
+      expect(await markers(h, id)).toEqual([null, null, null]);
+      expect(await h.tasks.find(id)).toMatchObject({ updatedAt: undoAt });
+    }
+    expect(await markers(h, filed.task.id)).toEqual(filedMarkers);
+    expect(await h.tasks.find(parent.task.id)).toMatchObject({ createdAt: parent.task.createdAt, status: parent.task.status });
+
+    const redoAt = later(h);
+    await step(h, deleted.operation!, 'redo');
+    expect(h.store.snapshot().activityEvents).toHaveLength(events + 2);
+    expect({ parent: await markers(h, parent.task.id), live: await markers(h, live.task.id) }).toEqual(deletedMarkers);
+    expect(await h.tasks.find(live.task.id)).toMatchObject({ updatedAt: redoAt });
+    expect(await markers(h, filed.task.id)).toEqual(filedMarkers);
+  });
+
+  it('Undo of a task Restore re-archives only the rows that Restore revived', async () => {
+    const h = buildHarness();
+    const parent = await h.taskWriteService.create(h.actor, { projectId: MINE, title: 'Parent' });
+    const live = await h.taskWriteService.create(h.actor, { projectId: MINE, sectionId: parent.task.sectionId, parentTaskId: parent.task.id, title: 'Live child' });
+    const filed = await h.taskWriteService.create(h.actor, { projectId: MINE, sectionId: parent.task.sectionId, parentTaskId: parent.task.id, title: 'Filed child' });
+    await h.taskWriteService.archive(h.actor, filed.task.id);
+    await h.taskWriteService.archive(h.actor, parent.task.id);
+    const archived = { parent: await markers(h, parent.task.id), live: await markers(h, live.task.id), filed: await markers(h, filed.task.id) };
+    const restored = await h.taskWriteService.restore(h.actor, parent.task.id);
+    expect(restored.operation).not.toBeNull();
+    expect(await markers(h, live.task.id)).toEqual([null, null, null]);
+    expect(await markers(h, filed.task.id)).toEqual(archived.filed);
+
+    await step(h, restored.operation!);
+    expect({ parent: await markers(h, parent.task.id), live: await markers(h, live.task.id), filed: await markers(h, filed.task.id) }).toEqual(archived);
+    await step(h, restored.operation!, 'redo');
+    expect(await markers(h, parent.task.id)).toEqual([null, null, null]);
+    expect(await markers(h, live.task.id)).toEqual([null, null, null]);
+    expect(await markers(h, filed.task.id)).toEqual(archived.filed);
+  });
+
+  it('Undo Add leaves the task out of both normal views and the Archive projection', async () => {
+    const h = buildHarness();
+    const archive = new ProjectArchiveService({ projects: h.projects, pages: h.pages, sections: h.sections, tasks: h.tasks, reflections: h.reflections });
+    const container = await h.sectionWriteService.add(h.actor, MINE, { type: 'task-list', title: 'Kept container' });
+    const add = await h.taskWriteService.create(h.actor, { projectId: MINE, sectionId: container.section.id, title: 'Short-lived' });
+    await step(h, add.operation);
+
+    expect(await h.tasks.find(add.task.id)).toBeNull();
+    expect(await h.tasks.list({ includeArchived: true })).not.toContainEqual(expect.objectContaining({ id: add.task.id }));
+    const { items } = await archive.derive(h.actor, MINE);
+    expect(items.filter((item) => item.kind === 'task')).toEqual([]);
+  });
+
+  it('a no-op task write answers a null receipt and leaves the Redo branch standing', async () => {
+    const h = buildHarness();
+    const add = await h.taskWriteService.create(h.actor, { projectId: MINE, title: 'Same' });
+    const edit = await h.taskWriteService.update(h.actor, add.task.id, { title: 'Changed' });
+    await step(h, edit.operation!);
+    const before = h.store.snapshot();
+
+    expect((await h.taskWriteService.update(h.actor, add.task.id, { title: 'Same' })).operation).toBeNull();
+    expect(h.store.snapshot().operationActions).toEqual(before.operationActions);
+    expect(h.store.snapshot().operationHistories).toEqual(before.operationHistories);
+    expect((await h.operationHistoryService.summary(h.actor, MINE)).redo?.actionId).toBe(edit.operation!.actionId);
+  });
+
+  it('a reflection transition needs reflections.write, and tasks.write alone is refused before any change', async () => {
+    const h = buildHarness();
+    const writer = agentActorFor(0, ['reflections.write']);
+    const add = await h.reflectionWriteService.create(writer, { projectId: MINE, body: 'Agent note' });
+    const before = h.store.snapshot();
+
+    await expect(step(h, add.operation, 'undo', agentActorFor(0, ['tasks.write']))).rejects.toThrow();
+    expect(h.store.snapshot()).toEqual(before);
+    await step(h, add.operation, 'undo', writer);
+    expect(await h.reflections.find(add.reflection.id)).toBeNull();
   });
 });

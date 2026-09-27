@@ -340,6 +340,24 @@ describe('SectionService.move', () => {
 });
 
 describe('SectionService.duplicate', () => {
+  it('records the copy as one add whose Undo removes only the copy and whose Redo recreates it with the same id and place (Slice 45)', async () => {
+    const harness = buildHarness();
+    const [first] = await withThree(harness);
+    await harness.sectionService.update(harness.actor, first.id, { config: { text: 'original' } });
+    const copy = await harness.sectionWriteService.duplicate(harness.actor, first.id);
+    expect(copy.operation).toMatchObject({ operation: 'section.add' });
+    const placed = await positions(harness);
+
+    expect(await harness.undo(harness.actor, copy.operation)).toMatchObject({ outcome: 'removed' });
+    expect(await harness.sections.find(copy.section.id)).toBeNull();
+    expect((await harness.sectionService.get(harness.actor, first.id)).config).toEqual({ text: 'original' });
+    await harness.redo(harness.actor, copy.operation);
+    expect(await harness.sectionService.get(harness.actor, copy.section.id)).toMatchObject({
+      id: copy.section.id, createdAt: copy.section.createdAt, position: 1, config: { text: 'original' },
+    });
+    expect(await positions(harness)).toEqual(placed);
+  });
+
   it('copies a section directly below the original, with a new id and a detached config', async () => {
     const harness = buildHarness();
     const [first] = await withThree(harness);
@@ -880,10 +898,13 @@ describe('SectionService.restoreSection', () => {
     const second = await add(harness, 'rich-text');
     await harness.sectionService.remove(harness.actor, section.id);
     await harness.projectService.archive(harness.actor, MINE);
+    const before = harness.store.snapshot();
 
     await expect(harness.sectionService.restoreSection(harness.actor, section.id)).rejects.toBeInstanceOf(
       DomainRuleError,
     );
+    // Canonical refusal: no section, row, history step or Activity event (Slice 45).
+    expect(harness.store.snapshot()).toEqual(before);
     await expect(harness.sectionService.add(harness.actor, MINE, { type: 'task-list' })).rejects.toBeInstanceOf(
       DomainRuleError,
     );

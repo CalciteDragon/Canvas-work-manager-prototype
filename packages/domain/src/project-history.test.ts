@@ -734,3 +734,26 @@ describe('projectWriteLabel names the edit (Slice 41)', () => {
   });
 });
 
+
+describe('saved layout and progress options (Slice 45 closure evidence; §§29, 34)', () => {
+  it('a same-value layout or progress write records nothing, and its transition needs projects.write', async () => {
+    const h = buildHarness();
+    const written = await h.projectWriteService.update(h.actor, MINE, { projectLayoutMode: 'grid', progressFormula: 'manual', manualProgress: 40 });
+    await step(h, written.operation!);
+    await step(h, written.operation!, 'redo');
+    const before = state(h);
+
+    for (const input of [{ projectLayoutMode: 'grid' as const }, { progressFormula: 'manual' as const, manualProgress: 40 }]) {
+      expect((await h.projectWriteService.update(h.actor, MINE, input)).operation).toBeNull();
+    }
+    expect(state(h)).toEqual(before);
+
+    const agent = agentActorFor(0, ['projects.write']);
+    const agentWrite = await h.projectWriteService.update(agent, MINE, { projectLayoutMode: 'flow' });
+    const settled = state(h);
+    await expect(step(h, agentWrite.operation!, 'undo', agentActorFor(0, ['tasks.write', 'reflections.write']))).rejects.toThrow();
+    expect(state(h)).toEqual(settled);
+    await step(h, agentWrite.operation!, 'undo', agent);
+    expect(await project(h, MINE)).toMatchObject({ projectLayoutMode: 'grid' });
+  });
+});
