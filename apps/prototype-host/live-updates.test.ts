@@ -633,7 +633,8 @@ describe('live updates through the host (§62)', () => {
     const created = async (routes: RouteTable, path: string, body: unknown) => {
       const result = await persona(routes, 'POST', path, body);
       expect(result.status).toBe(201);
-      return result.body as Record<string, { id: string; sectionId: string }>;
+      type Row = { id: string; sectionId: string };
+      return result.body as { project?: Row; section?: Row; task?: Row; reflection?: Row };
     };
     /** Runs one refusal and proves it left memory, disk and the hub exactly as they were. */
     const refusesAtomically = async (host: Harness, attempt: () => Promise<unknown>) => {

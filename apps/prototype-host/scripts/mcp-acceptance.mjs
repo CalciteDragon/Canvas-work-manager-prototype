@@ -779,7 +779,7 @@ const assertArchiveOutlivesExpiry = async (client, title, dataFile, access) => {
       name: 'undo_operation',
       arguments: { historyId: removal.historyId, actionId: removal.actionId, expectedRevision: history.revision },
     });
-    check(expired.isError === true && textOf(expired).startsWith("history_expired:"), `${title} an expired removal Undo is refused with history_expired:`);
+    check(expired.isError === true && textOf(expired).startsWith('history_expired:'), `${title} an expired removal Undo is refused with history_expired:`);
     check((await businessState(dataFile)) === before, `${title} the expired Undo refusal writes nothing`);
     const archive = await client.callTool({ name: 'get_project_archive', arguments: { projectId: PROJECT } });
     check(archive.structuredContent.items.some(({ section }) => section?.id === proseId), `${title} Archive still lists the retained section after expiry`);
