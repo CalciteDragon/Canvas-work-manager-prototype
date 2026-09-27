@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PROJECT_RECORD_EVENT_TYPES, type OperationHistoryDirection, type OperationReceipt, type Project, type ProjectAddOperation, type ProjectId } from '@cwm/contracts';
 import { agentActorFor, buildHarness, MINE } from '../test/test-support';
 import type { ActorContext } from './actor';
-import { DomainRuleError } from './errors';
+import { DomainRuleError, PermissionDeniedError } from './errors';
 import { OperationExecutionRefused } from './operation-execution';
 import { preflightProjectAddUndo, reapplyProjectAdd, type ProjectAddHistoryRepositories } from './project-history';
 
@@ -751,7 +751,7 @@ describe('saved layout and progress options (Slice 45 closure evidence; §§29, 
     const agent = agentActorFor(0, ['projects.write']);
     const agentWrite = await h.projectWriteService.update(agent, MINE, { projectLayoutMode: 'flow' });
     const settled = state(h);
-    await expect(step(h, agentWrite.operation!, 'undo', agentActorFor(0, ['tasks.write', 'reflections.write']))).rejects.toThrow();
+    await expect(step(h, agentWrite.operation!, 'undo', agentActorFor(0, ['tasks.write', 'reflections.write']))).rejects.toBeInstanceOf(PermissionDeniedError);
     expect(state(h)).toEqual(settled);
     await step(h, agentWrite.operation!, 'undo', agent);
     expect(await project(h, MINE)).toMatchObject({ projectLayoutMode: 'grid' });

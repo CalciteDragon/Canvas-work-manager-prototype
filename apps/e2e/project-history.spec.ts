@@ -29,6 +29,12 @@ test.beforeEach(async () => {
   await setClock(NOW);
 });
 
+// Seeding does not reset the host clock, and Slice 45 · 3 moves it a day ahead; later specs
+// must not inherit a pinned or advanced clock.
+test.afterEach(async () => {
+  await setClock(null);
+});
+
 test('1. both controls render on every project page, are reachable, and fit a phone width', async ({ page }) => {
   for (const url of [
     `/projects/${ROOT}`,
@@ -502,8 +508,9 @@ test('Slice 45 · 1. the controls work with Archive disabled, populated off Home
   // The controls are drawn from theme tokens, so the two themes paint them differently.
   expect(colours[0]).not.toBe(colours[1]);
 
-  // Another persona in a second browser: Demo's project is not theirs, and their own writes never
-  // enter Demo's history.
+  // Another persona in a second browser: Demo's project answers not-found, and Alex's own header
+  // runs on Alex's own history. (Histories are keyed by exact actor, so Demo's summary staying equal
+  // is corroboration; the isolation itself is proven in the domain and route suites.)
   const before = await summaryOf(ROOT);
   const outsiderContext = await browser.newContext();
   await outsiderContext.addInitScript((key: string) => localStorage.setItem(key, 'user-alex'), PERSONA_STORAGE_KEY);
@@ -615,6 +622,11 @@ test('Slice 45 · 3. layout, progress and shortcut moves undo and redo from the 
   expect((await projectOf()).progressFormula).toBe(initial.progressFormula);
   await undoFromHeader(page, /^Undo: Changed the layout of /);
   expect((await projectOf()).projectLayoutMode).toBe(initial.projectLayoutMode);
+  // Each family's Redo survives a reload and a round trip through another page.
+  await page.reload();
+  await page.goto(`/projects/${ROOT}/pages/todos`);
+  await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', /^Redo: Changed the layout of /);
+  await page.goto(`/projects/${ROOT}`);
   await redoFromHeader(page, /^Redo: Changed the layout of /);
   expect((await projectOf()).projectLayoutMode).toBe(target);
   await redoFromHeader(page, /^Redo: Changed progress for /);

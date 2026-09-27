@@ -344,12 +344,16 @@ describe('SectionService.duplicate', () => {
     const harness = buildHarness();
     const [first] = await withThree(harness);
     await harness.sectionService.update(harness.actor, first.id, { config: { text: 'original' } });
+    const original = await positions(harness);
+    const actions = harness.store.snapshot().operationActions.length;
     const copy = await harness.sectionWriteService.duplicate(harness.actor, first.id);
     expect(copy.operation).toMatchObject({ operation: 'section.add' });
+    expect(harness.store.snapshot().operationActions).toHaveLength(actions + 1);
     const placed = await positions(harness);
 
     expect(await harness.undo(harness.actor, copy.operation)).toMatchObject({ outcome: 'removed' });
     expect(await harness.sections.find(copy.section.id)).toBeNull();
+    expect(await positions(harness)).toEqual(original);
     expect((await harness.sectionService.get(harness.actor, first.id)).config).toEqual({ text: 'original' });
     await harness.redo(harness.actor, copy.operation);
     expect(await harness.sectionService.get(harness.actor, copy.section.id)).toMatchObject({

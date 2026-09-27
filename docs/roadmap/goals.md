@@ -102,11 +102,17 @@ reversible **Delete** icon over the existing task archive. Real use asks whether
 disappearance needs an "Archived" cue so Delete does not read as permanent. **[Slice 44 — actionable
 Archive and archived-project recovery](completed/44-actionable-archive-and-archived-projects.md)
 shipped Stage D2 on 2026-09-27**: root Archive now lists ready owners first, and workspace
-Settings restores archived roots and ready subprojects with an explicit status. Stage E remains
-integrated closure, now active as [Slice 45](active/45-undo-redo-archive-integrated-closure.md).
-Its gate is a row-by-row evidence ledger across domain, browser, HTTP and both MCP transports,
-real use, and reconciliation of current documentation. The paragraphs below describe the earlier shipped
-system and its choices.
+Settings restores archived roots and ready subprojects with an explicit status. **[Slice 45 —
+Undo/Redo and Archive integrated closure](completed/45-undo-redo-archive-integrated-closure.md)
+closed Stage E, and with it this direction, on 2026-09-27**: every coverage row and acceptance step
+has a named domain assertion plus browser or MCP evidence. The pass repaired two defects. The
+header Undo was unreachable at 375 px, and stdio MCP let two concurrent transitions at one revision
+both land. Its recorded limits are that faults are injected at the host commit boundary rather than
+inside a transport, and that stdio has no simulated clock for expiry. The open questions for a
+friction-chosen next phase are whether section labels should name the edit, whether root pages need
+a way to reach a descendant's steps, and whether Delete needs an "Archived" cue. The global sidebar
+still does not collapse at phone width. The paragraphs below describe the earlier shipped system
+and its choices.
 
 **Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported
 [proposed specification](../specifications/README.md), and a development plan on 2026-09-13.

@@ -314,9 +314,16 @@ Stage D result, not to Slice 43 alone.
 
 **Stage D closure amendment — 2026-09-27.** [Slice 44](../completed/44-actionable-archive-and-archived-projects.md)
 shipped parent-first Archive and Settings archived-project recovery, closing the combined Stage D
-gate. [Slice 45](../active/45-undo-redo-archive-integrated-closure.md) is the active Stage E
+gate. [Slice 45](../completed/45-undo-redo-archive-integrated-closure.md) was then the active Stage E
 integrated-acceptance and documentation-closure phase. This amendment supersedes the older
 "Stages D and E remain planned" status above; the acceptance matrix remains the gate.
+
+**Stage E closure amendment — 2026-09-27.** [Slice 45](../completed/45-undo-redo-archive-integrated-closure.md)
+closed Stage E. Its Outcome ledger names a domain assertion and browser or MCP evidence for every
+coverage-matrix row and each of the seven acceptance steps, including the recorded transport
+limits. It repaired two defects the integrated pass found: the header controls at 375 px, and
+concurrent stdio transitions. All five stages have now closed. This file stays in `planned/` as the
+direction's umbrella record.
 
 | Stage | Deliverable | Gate before proceeding |
 |---|---|---|
@@ -496,10 +503,12 @@ decisions before dependent implementation:
   No cache work remains in Stage C. Stages D and E remain planned.
 - **Stage D closure amendment (2026-09-27):** Slice 44 closed the combined D gate. Slice 45
   is active for Stage E's integrated acceptance and documentation reconciliation.
+- **Stage E closure amendment (2026-09-27):** Slice 45 closed Stage E with its evidence ledger
+  and two defect repairs; the direction is complete.
 
 ## Planning delivery
 
 This document describes the remaining proposed work and acceptance obligations. Runtime spec,
 architecture and decision amendments happen with the implementing stages. Its original planning
 delivery was documentation-only on 2026-09-16; the planning checks passed and no behavior changed
-then. As amended above, Stages A–D have closed and Stage E is active as Slice 45.
+then. As amended above, Stages A–E have closed; Stage E closed as Slice 45.

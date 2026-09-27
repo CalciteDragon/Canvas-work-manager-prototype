@@ -1,10 +1,10 @@
 # How testing works
 
-For Slice 44, run the focused Archive and archived-project suites, then `pnpm test`,
-`pnpm docs:check`, `pnpm lint`, `pnpm build`, `pnpm e2e`, host acceptance and MCP acceptance.
-Use `nested-projects` and `personal-workspace` in isolated data. Inspect exact archive markers
-and IDs before and after each owner Restore; a listing is only a current read, so a race is
-verified against the canonical project's write refusal too.
+For Slice 45's integrated closure, run every gate — `pnpm docs:api`, `pnpm test`,
+`pnpm docs:check`, `pnpm lint`, `pnpm build`, `pnpm storybook:build`, `pnpm e2e` and the four host
+acceptance scripts — then use `nested-projects`, `personal-workspace` and `agent-heavy` in isolated
+data. Inspect exact archive markers and IDs before and after each owner Restore; a listing is only
+a current read, so a race is verified against the canonical write refusal too.
 
 ## Runtime flow
 
@@ -64,7 +64,11 @@ verified against the canonical project's write refusal too.
     reactivation and redoes it while archived. Slice 42 creates a root, undoes its `project.add`,
     verifies the absent project and canonical page, restarts from the same JSON document, and redoes
     the same ids. It also advances a second creation past the 24-hour receipt window, restarts again,
-    and confirms the lifecycle Activity remains while Redo stays unavailable.
+    and confirms the lifecycle Activity remains while Redo stays unavailable. Slice 45 adds, on
+    both transports, the task add → complete → rename → Delete chain with exact fields and cascade
+    markers, reflection Undo and Add Redo, layout/progress Undo/Redo with a same-value null receipt,
+    two transitions at one revision (one lands, one is stale) and a Restore refused under an
+    archived container; on Streamable HTTP only, Archive Restore after a removal's history expired.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) first copies the current empty seed
    to its disposable scratch file, then starts both processes,
     seeds before each spec, and runs the web, canvas editing, section edit/removal Undo, row history,
@@ -194,6 +198,15 @@ pnpm storybook                                        # :6006
   checks the bytes on disk are unchanged and no frame was delivered, then restores the original
   and retries once. `section-edit-undo.spec.ts` sets the dev panel's failure rate to 100% only
   after reads settle and back to 0% before re-reading.
+- **Integrated Undo/Redo and Archive acceptance (Slice 45)** is likewise a ledger: the
+  [Slice 45 record](../../roadmap/completed/45-undo-redo-archive-integrated-closure.md) names a
+  domain assertion and browser or MCP evidence for every Slice 34 coverage row. Its known limits:
+  persistence and recorder faults are injected at the host commit boundary the MCP tools share
+  (`live-updates.test.ts`), not inside the stdio or Streamable HTTP transports; history expiry over
+  MCP runs only on Streamable HTTP, whose host exposes `/prototype/clock`; the browser has no
+  reflection Delete or section Duplicate control, so those families' browser evidence is HTTP or
+  MCP driven. A size check is not a reachability check: at 375 px assert that a control lies inside
+  its container and the viewport, then tap it.
 - **The trap:** a test that passes before the implementation, or fails on a typo. Watch
   it fail for the right reason first. When a new acceptance assertion passes against code that
   already works, inject a temporary targeted fault, watch it fail, and revert the fault.

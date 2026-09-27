@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildHarness, MINE, agentActorFor } from '../test/test-support';
 import type { OperationReceipt, OperationHistoryDirection, TaskId } from '@cwm/contracts';
+import { PermissionDeniedError } from './errors';
 import { ProjectArchiveService } from './project-archive-service';
 
 const step = async (h: ReturnType<typeof buildHarness>, receipt: OperationReceipt, direction: OperationHistoryDirection = 'undo', actor = h.actor) => {
@@ -295,7 +296,7 @@ describe('row history closure evidence (Slice 45; §§31, 34, 36)', () => {
     expect(await markers(h, filed.task.id)).toEqual(archived.filed);
   });
 
-  it('Undo Add leaves the task out of both normal views and the Archive projection', async () => {
+  it('Undo Add leaves the task out of the task repository and the Archive projection', async () => {
     const h = buildHarness();
     const archive = new ProjectArchiveService({ projects: h.projects, pages: h.pages, sections: h.sections, tasks: h.tasks, reflections: h.reflections });
     const container = await h.sectionWriteService.add(h.actor, MINE, { type: 'task-list', title: 'Kept container' });
@@ -327,7 +328,7 @@ describe('row history closure evidence (Slice 45; §§31, 34, 36)', () => {
     const add = await h.reflectionWriteService.create(writer, { projectId: MINE, body: 'Agent note' });
     const before = h.store.snapshot();
 
-    await expect(step(h, add.operation, 'undo', agentActorFor(0, ['tasks.write']))).rejects.toThrow();
+    await expect(step(h, add.operation, 'undo', agentActorFor(0, ['tasks.write']))).rejects.toBeInstanceOf(PermissionDeniedError);
     expect(h.store.snapshot()).toEqual(before);
     await step(h, add.operation, 'undo', writer);
     expect(await h.reflections.find(add.reflection.id)).toBeNull();

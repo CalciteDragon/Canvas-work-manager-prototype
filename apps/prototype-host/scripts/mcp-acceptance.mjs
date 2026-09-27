@@ -758,6 +758,32 @@ const assertRowAndLayoutHistory = async (client, title, dataFile) => {
   check((await step(layoutReceipt, 'redo')).isError !== true, `${title} Redo layout and progress settings`);
   const reapplied = await projectOf();
   check(reapplied.projectLayoutMode === 'grid' && reapplied.progressFormula === 'manual' && reapplied.manualProgress === 40, `${title} Redo reapplies grid, manual and 40`);
+
+  // Two transitions sent at one expected revision, as two tabs would: exactly one lands, the other
+  // is stale, and only one Activity event is added.
+  const renamed = receiptOf(await client.callTool({ name: 'update_task', arguments: { taskId, title: 'Raced title' } }));
+  const history = (await document()).operationHistories.find(({ id }) => id === renamed.historyId);
+  const eventsBefore = (await document()).activityEvents.length;
+  const raced = await Promise.all([0, 1].map(() => client.callTool({
+    name: 'undo_operation',
+    arguments: { historyId: renamed.historyId, actionId: renamed.actionId, expectedRevision: history.revision },
+  })));
+  check(
+    raced.filter((result) => result.isError !== true).length === 1 &&
+      raced.filter((result) => result.isError === true && textOf(result).startsWith('history_revision_stale:')).length === 1,
+    `${title} two transitions at one revision: one advances, the other is history_revision_stale (${raced.map((result) => result.isError === true ? textOf(result).slice(0, 80) : 'ok').join(' | ')})`,
+  );
+  check((await document()).activityEvents.length === eventsBefore + 1 && (await taskOf(taskId)).title === 'Chain renamed', `${title} the race adds exactly one event and one Undo`);
+
+  // A canonical Restore under an archived container refuses without writing anything.
+  const holder = (await client.callTool({ name: 'create_section', arguments: { projectId: root, type: 'task-list', title: `Holder ${title}` } })).structuredContent.section.id;
+  const held = (await client.callTool({ name: 'create_task', arguments: { projectId: root, sectionId: holder, title: 'Held' } })).structuredContent.task.id;
+  check((await client.callTool({ name: 'archive_task', arguments: { taskId: held } })).isError !== true, `${title} files the held task on its own`);
+  check((await client.callTool({ name: 'remove_section', arguments: { sectionId: holder } })).isError !== true, `${title} then removes its container`);
+  const beforeRestore = await businessState(dataFile);
+  const refused = await client.callTool({ name: 'restore_task', arguments: { taskId: held } });
+  check(refused.isError === true && textOf(refused).includes('archived section') && textOf(refused).includes(holder), `${title} restore_task under an archived container is refused, naming it`);
+  check((await businessState(dataFile)) === beforeRestore, `${title} the refused Restore changes no business, history or Activity state`);
 };
 
 /**

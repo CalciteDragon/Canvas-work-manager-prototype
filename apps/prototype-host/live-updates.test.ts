@@ -695,11 +695,17 @@ describe('live updates through the host (§62)', () => {
       const newcomer = (await registryOf(host.api).call('create_task', { projectId: root, sectionId: container, title: 'Newcomer' }, WRITER)) as { task: { id: string } };
       const revision = host.persistence.store.snapshot().operationHistories.find(({ id }) => id === receipt.historyId)!.revision;
 
-      await refusesAtomically(host, async () => expect((await step(host.routes, receipt, 'redo', revision)).status).toBe(409));
+      await refusesAtomically(host, async () => {
+        const refused = await step(host.routes, receipt, 'redo', revision);
+        expect(refused.status).toBe(409);
+        // The refusal names the newcomer as the new dependent, not a stale or out-of-order step.
+        expect(JSON.stringify(refused.body)).toContain('history_conflict');
+        expect(JSON.stringify(refused.body)).toContain(newcomer.task.id);
+      });
       expect(host.persistence.store.snapshot().tasks.find(({ id }) => id === newcomer.task.id)?.archivedAt).toBeUndefined();
     });
 
-    it.each(['recorder', 'persistence'] as const)('an MCP task write and its undo_operation roll back a failed %s with no frame, and a retry lands once', async (fault) => {
+    it.each(['recorder', 'persistence'] as const)('an MCP task write rolls back a failed %s with no frame and a retry lands once; a failed persist does the same for its undo_operation', async (fault) => {
       const host = await harness();
       const registry = registryOf(host.api);
       const root = (await created(host.routes, '/api/projects', { workspaceId: 'workspace-demo', kind: 'root', name: `Fault ${fault}` })).project!.id;
@@ -722,6 +728,7 @@ describe('live updates through the host (§62)', () => {
       host.events.subscribe((event) => frames.push(event.type));
       const added = await write();
       expect(frames).toEqual(['task.created']);
+      expect(host.persistence.store.snapshot().tasks.filter(({ title }) => title === 'Agent row')).toHaveLength(1);
 
       const undo = () => registry.call('undo_operation', { historyId: added.operation.historyId, actionId: added.operation.actionId, expectedRevision: added.operation.revision }, WRITER);
       // A transition records no action, so only the persistence fault applies to it.
@@ -731,7 +738,7 @@ describe('live updates through the host (§62)', () => {
         heal();
       }
       await undo();
-      expect(frames).toHaveLength(2);
+      expect(frames).toEqual(['task.created', 'task.task_addition_undone']);
       expect(host.persistence.store.snapshot().tasks.some(({ id }) => id === added.task.id)).toBe(false);
       // Activity keeps the row's captured identity by design; the task collection on disk does not.
       const onDisk = JSON.parse(readFileSync(host.persistence.path, 'utf8')) as { tasks: Array<{ id: string }> };

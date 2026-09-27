@@ -1,8 +1,10 @@
 # Testing
 
-Slice 44 adds exact-ID parent-first Archive and workspace archived-project checks in contract,
-domain, route, MCP, gateway, component, acceptance and browser suites. Tests separate read grants
-from Restore grants and pin current-ancestry refusals without partial writes.
+Slice 45 closes Slice 34 with a ledger: every Undo/Redo and Archive coverage row has a named
+domain assertion plus browser or MCP evidence. It adds canonical Restore races and MCP-path faults
+at the host commit boundary, both-transport row, layout and race journeys, a stdio concurrency
+case, and a 375 px containment check. Slice 44's exact-ID parent-first Archive and workspace
+archived-project checks remain, with read grants separate from Restore grants.
 
 How the prototype is verified (§69): fast offline unit and contract suites in every
 package, component specs and Storybook in the web app (including the missing-history-summary

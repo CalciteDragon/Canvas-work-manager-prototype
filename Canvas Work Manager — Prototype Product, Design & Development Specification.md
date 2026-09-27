@@ -1146,7 +1146,7 @@ Legacy attic is archived". One polite feedback line under the facts says what a 
 why it was refused, and a write recorded in another project's history names that project with an
 Open link. Archiving from More no longer leaves the page: the archived project stays on screen with
 its Undo enabled. Below 40rem the header's actions move to their own row under the identity, so the
-name keeps its width ([why](docs/decisions/2026-09-project-header-history-controls.md)). *Corrected in
+name keeps its width ([why](docs/decisions/2026-09-project-header-history-controls.md)). *Repaired in
 Slice 45:* that row and the Undo/Redo pair wrap, so the controls stay inside the header and can be
 tapped at 375 px even though the global sidebar keeps its width.
 
@@ -3698,10 +3698,13 @@ and race refusals; browser checks cover retry, focus, narrow layout and both the
 has a named domain assertion plus browser or MCP evidence. The additions are a task Delete over
 live and independently archived descendants, and Undo of a task Restore. Canonical Restore refused
 under an archived owner, parent or ancestor leaves business rows, history, Activity, disk bytes and
-live frames unchanged over HTTP and MCP. Recorder and persist faults through the MCP tool path
-retry once. Both transports cover the task chain, reflection and layout/progress history, and
-Archive Restore still works after a removal's history expires. The browser pass found the header
-Undo unreachable at 375 px, and §26's narrow header now wraps.
+live frames unchanged, over HTTP and the MCP tool registry at the host's commit boundary, and over
+both transports for a row under an archived container. Recorder and persist faults are injected at
+that shared boundary, not inside a transport. Both transports cover the task chain, reflection and
+layout/progress history, and a two-transition race. Over Streamable HTTP, whose host has a
+simulated clock, Archive Restore still works after a removal's history expires. The pass found
+two defects. The header Undo was unreachable at 375 px, and §26's narrow header now wraps. Stdio
+MCP let two concurrent transitions at one revision both land, and it now runs one call at a time.
 
 The web and MCP journeys are kept isolated from the offline `pnpm test` suite and use their own
 data file. Focused aggregate journeys remain separate so the integrated pass can prove composition
