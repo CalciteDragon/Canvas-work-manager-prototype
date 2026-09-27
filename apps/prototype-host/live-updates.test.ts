@@ -614,7 +614,7 @@ describe('live updates through the host (§62)', () => {
     type Harness = Awaited<ReturnType<typeof harness>>;
     const WRITER: ActorContext = {
       ...AGENT,
-      permissions: ['projects.read', 'projects.write', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write'],
+      permissions: ['projects.read', 'projects.write', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write'] as const,
     };
     const canonical = (document: ReturnType<Harness['persistence']['store']['snapshot']>) => ({
       projects: document.projects,
