@@ -913,6 +913,14 @@
       "projectId": null,
       "slice": 44,
       "note": "Slice 44 browser and connected MCP acceptance on isolated nested-projects and personal-workspace data: Settings showed the archived root first, then its independently archived child after root Restore; choosing each status and restoring left the child's independent section and task markers intact. The disabled Archive tab did not block Settings recovery. At 375 px, keyboard and touch Restore remained reachable in dark and light themes and focus returned to the heading after the last row disappeared. Streamable HTTP and stdio MCP returned the same ready-only sequence. No new in-app friction surfaced in these journeys; the previously recorded narrow shell sidebar constraint remains outside this slice."
+    },
+    {
+      "id": "note-2026-09-27-002",
+      "createdAt": "2026-09-27T11:05:00.000Z",
+      "route": "/projects/:projectId",
+      "projectId": "project-renovation",
+      "slice": 45,
+      "note": "Slice 45 integrated real use on an isolated nested-projects copy: on Home a task was added, completed and deleted; its row vanished with no feedback line, and the header offered Undo: Archived \"Real use: patch drywall\". Navigating to Todos and reloading kept that label, and three header Undos walked back archive, completion and creation. Removing the Task List took one click with no dialog; Archive listed only the container (\"6 tasks restore with this section… 1 other task stays archived\"), and after Restore the independently archived task became its own entry. Archiving Garden from its header needs a confirm step; Settings then restored it with an explicit on-hold status and its history offered Undo: Reactivated. Friction: at 375 px the header Undo was drawn beneath the unshrinking sidebar and could not be tapped (fixed in this slice by wrapping the header actions); the sidebar itself still leaves the workspace ~135 px (note-2026-09-06-007). Delete's silent disappearance still reads as permanent at the moment of action (note-2026-09-24-001)."
     }
   ]
 }

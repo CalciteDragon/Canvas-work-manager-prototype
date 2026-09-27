@@ -4,6 +4,8 @@
 
 .history-controls {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-1);
   align-items: center;
 }

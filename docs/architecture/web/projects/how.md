@@ -72,7 +72,10 @@ archived children become visible only once their owner has returned.
      sends the shell to Home) is dropped.
    `ProjectHistoryControls` renders two icon buttons with `aria-disabled` and a guarded click (never
    `disabled`), named by `historyControl`, projected into the header's actions cell — which moves to
-   its own row below 40rem so the project name keeps its width; `ProjectHistoryFeedback` is the always-present polite
+   its own row below 40rem so the project name keeps its width, and there both that row and the
+   Undo/Redo pair wrap, so at 375 px — beside the global sidebar, which does not collapse — the
+   controls stay inside the header box instead of overflowing beneath the sidebar (Slice 45).
+   `ProjectHistoryFeedback` is the always-present polite
    region under the header's facts. `confirmArchive` stays on the project and `announce`s "X is
    archived. Undo is available here."; the More menu does not offer Archive on an archived project.
 6. Live frames: progress re-reads on any frame naming the project; the record on

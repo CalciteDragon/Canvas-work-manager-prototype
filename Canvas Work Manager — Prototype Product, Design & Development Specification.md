@@ -1146,7 +1146,9 @@ Legacy attic is archived". One polite feedback line under the facts says what a 
 why it was refused, and a write recorded in another project's history names that project with an
 Open link. Archiving from More no longer leaves the page: the archived project stays on screen with
 its Undo enabled. Below 40rem the header's actions move to their own row under the identity, so the
-name keeps its width ([why](docs/decisions/2026-09-project-header-history-controls.md)).
+name keeps its width ([why](docs/decisions/2026-09-project-header-history-controls.md)). *Corrected in
+Slice 45:* that row and the Undo/Redo pair wrap, so the controls stay inside the header and can be
+tapped at 375 px even though the global sidebar keeps its width.
 
 *Landed in Slice 42.* The same header controls remain available after creation Undo: the creator's
 missing-project URL shows the captured creation action and its Redo. Undo is allowed only before
@@ -3691,6 +3693,15 @@ owner Restore, restore an archived root and then an independently archived subpr
 Settings with chosen statuses, and repeat while the optional Archive page is disabled. Domain,
 route, gateway and MCP tests pin ready-only projections, workspace isolation, read/write grants
 and race refusals; browser checks cover retry, focus, narrow layout and both themes.
+
+*Slice 45 closed Slice 34's Undo/Redo and Archive direction the same way:* every coverage-matrix row
+has a named domain assertion plus browser or MCP evidence. The additions are a task Delete over
+live and independently archived descendants, and Undo of a task Restore. Canonical Restore refused
+under an archived owner, parent or ancestor leaves business rows, history, Activity, disk bytes and
+live frames unchanged over HTTP and MCP. Recorder and persist faults through the MCP tool path
+retry once. Both transports cover the task chain, reflection and layout/progress history, and
+Archive Restore still works after a removal's history expires. The browser pass found the header
+Undo unreachable at 375 px, and §26's narrow header now wraps.
 
 The web and MCP journeys are kept isolated from the offline `pnpm test` suite and use their own
 data file. Focused aggregate journeys remain separate so the integrated pass can prove composition

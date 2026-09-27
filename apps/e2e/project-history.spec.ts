@@ -5,7 +5,7 @@
 import type { OperationHistorySummary, ProjectPage, ProjectSection, Task } from '@cwm/contracts';
 import { expect, test, type Page } from '@playwright/test';
 import { historyControl, historyFeedback, redoFromHeader, stepFromHeader, undoFromHeader } from './history-controls';
-import { api, connectMcp, seed, setClock } from './seed';
+import { api, connectMcp, seed, setClock, setPageEnabled } from './seed';
 
 const NOW = '2026-09-15T12:00:00.000Z';
 const ROOT = 'project-renovation';
@@ -406,4 +406,234 @@ test('7. a conflicting later edit refuses with its subject and next step, and ex
   await setClock('2026-09-16T13:00:00.000Z');
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Nothing to undo');
   await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Nothing to redo');
+});
+
+/**
+ * Slice 45 — Stage E closure. The journeys above prove the controls and each family; these close
+ * the gaps its evidence ledger found: controls with Archive disabled, populated beyond Home, by
+ * touch at 375 px in both themes and beside another persona; the exact business fields of the
+ * task chain as the Clock moves; and the saved-layout, progress and shortcut-move families plus
+ * Archive recovery after history expiry.
+ */
+const PERSONA_STORAGE_KEY = 'cwm.prototype.persona';
+const at = (minutes: number): string => new Date(Date.parse(NOW) + minutes * 60_000).toISOString();
+/**
+ * The simulated clock keeps running from the instant it is set, so a stamp written after
+ * `setClock(at(n))` lies within that minute rather than exactly on it.
+ */
+const inMinute = (stamp: string | null | undefined, minutes: number): boolean =>
+  stamp != null && stamp >= at(minutes) && stamp < at(minutes + 1);
+
+/** The task through HTTP, or `null` once creation Undo removed it. */
+const taskOrNull = async (id: string): Promise<Task | null> => {
+  try {
+    return await api.get<Task>(`/api/tasks/${id}`);
+  } catch (error) {
+    if (String(error).includes('answered 404')) return null;
+    throw error;
+  }
+};
+const businessOf = (task: Task | null) => task === null ? null : {
+  id: task.id, createdAt: task.createdAt, title: task.title, status: task.status,
+  completedAt: task.completedAt ?? null, archivedAt: task.archivedAt ?? null,
+};
+const archiveTaskIds = async (): Promise<string[]> =>
+  (await api.get<{ items: Array<{ kind: string; task?: { id: string } }> }>(`/api/projects/${ROOT}/archive`)).items
+    .filter(({ kind }) => kind === 'task').map(({ task }) => task!.id);
+
+test('Slice 45 · 1. the controls work with Archive disabled, populated off Home, by touch at 375 px in both themes, and beside another persona', async ({ browser }) => {
+  test.setTimeout(180_000);
+  await setPageEnabled(ROOT, 'archive', false);
+  const rootTask = (await api.post<{ task: Task }>('/api/tasks', { projectId: ROOT, title: 'Populated root' })).task;
+  await api.post('/api/tasks', { projectId: 'project-kitchen', title: 'Populated kitchen' });
+  const colours: string[] = [];
+
+  for (const colorScheme of ['dark', 'light'] as const) {
+    const context = await browser.newContext({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true, colorScheme });
+    const page = await context.newPage();
+    // The toggle is session-only: every full load applies the persona's stored theme again.
+    const visit = async (url: string) => {
+      await page.goto(url);
+      await expect(page.locator('[data-theme-toggle]')).toBeVisible();
+      if (await page.locator('html').getAttribute('data-theme') !== colorScheme) await page.locator('[data-theme-toggle]').click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', colorScheme);
+    };
+
+    // Archive is disabled, and its URL falls back to Home; no page, populated or not, loses the controls.
+    for (const url of [`/projects/${ROOT}`, `/projects/${ROOT}/pages/todos`, `/projects/${ROOT}/pages/reflections`, `/projects/${ROOT}/pages/archive`]) {
+      await visit(url);
+      await expect(historyControl(page, 'undo'), `${colorScheme} ${url}`).toHaveAttribute('aria-label', 'Undo: Created "Populated root"');
+      await expect(historyControl(page, 'undo'), `${colorScheme} ${url}`).not.toHaveAttribute('aria-disabled', 'true');
+      await expect(historyControl(page, 'redo'), `${colorScheme} ${url}`).toHaveAttribute('aria-label', 'Nothing to redo');
+    }
+    await expect(page.locator('[data-project-page-tab][data-page-kind="archive"]')).toHaveCount(0);
+    await visit('/projects/project-kitchen');
+    await expect(historyControl(page, 'undo'), `${colorScheme} sub-project`).toHaveAttribute('aria-label', 'Undo: Created "Populated kitchen"');
+
+    // Touch: tap Undo, then Redo, on the phone-width Home.
+    await visit(`/projects/${ROOT}`);
+    for (const direction of ['undo', 'redo'] as const) {
+      const box = await historyControl(page, direction).boundingBox();
+      expect(box!.width, `${colorScheme} ${direction}`).toBeGreaterThanOrEqual(44);
+      expect(box!.height, `${colorScheme} ${direction}`).toBeGreaterThanOrEqual(44);
+    }
+    // D1: both controls lie inside the header's own box and the viewport. A box can meet the hit
+    // size and still be drawn beneath the unshrinking sidebar, which is what Slice 41's check missed.
+    const header = (await page.locator('.project-header').boundingBox())!;
+    for (const direction of ['undo', 'redo'] as const) {
+      const box = (await historyControl(page, direction).boundingBox())!;
+      expect(box.x, `${colorScheme} ${direction} left edge`).toBeGreaterThanOrEqual(header.x);
+      expect(box.x + box.width, `${colorScheme} ${direction} right edge`).toBeLessThanOrEqual(Math.min(header.x + header.width, 375));
+    }
+    colours.push(await historyControl(page, 'undo').evaluate((element) => getComputedStyle(element).color));
+    const undone = page.waitForResponse((response) => /\/api\/history\/[^/]+\/transition$/.test(response.url()));
+    await historyControl(page, 'undo').tap();
+    expect((await undone).status()).toBe(200);
+    expect(await taskOrNull(rootTask.id)).toBeNull();
+    await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Created "Populated root"');
+    const redone = page.waitForResponse((response) => /\/api\/history\/[^/]+\/transition$/.test(response.url()));
+    await historyControl(page, 'redo').tap();
+    expect((await redone).status()).toBe(200);
+    expect(businessOf(await taskOrNull(rootTask.id))).toEqual(businessOf(rootTask));
+    await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Created "Populated root"');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    await context.close();
+  }
+  // The controls are drawn from theme tokens, so the two themes paint them differently.
+  expect(colours[0]).not.toBe(colours[1]);
+
+  // Another persona in a second browser: Demo's project is not theirs, and their own writes never
+  // enter Demo's history.
+  const before = await summaryOf(ROOT);
+  const outsiderContext = await browser.newContext();
+  await outsiderContext.addInitScript((key: string) => localStorage.setItem(key, 'user-alex'), PERSONA_STORAGE_KEY);
+  const outsider = await outsiderContext.newPage();
+  await outsider.goto(`/projects/${ROOT}`);
+  await expect(outsider.locator('[data-identity-name]')).toHaveText('Alex');
+  await expect(outsider.locator('[data-project-error]')).toContainText('not found');
+  await outsider.goto('/app');
+  await outsider.locator('[data-new-project]').click();
+  await outsider.locator('[data-create-project-name]').fill('Alex root');
+  await outsider.locator('[data-create-project-submit]').click();
+  await expect(historyControl(outsider, 'undo')).toHaveAttribute('aria-label', 'Undo: Created "Alex root"');
+  await outsiderContext.close();
+  expect(await summaryOf(ROOT)).toEqual(before);
+});
+
+test('Slice 45 · 2. add → complete → rename → Delete undo and redo with the same id, createdAt and captured fields, the Clock stamping updatedAt', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto(`/projects/${ROOT}`);
+  const list = page.locator('[data-section-item][data-section-id="section-project-renovation-tasks"]');
+  const created = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/api/tasks'));
+  await list.locator('[data-quick-task-title]').fill('Seal the tub');
+  await list.locator('[data-quick-create] button[type="submit"]').click();
+  const id = ((await (await created).json()) as { task: Task }).task.id;
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Created "Seal the tub"');
+  const states = [null, businessOf(await taskOrNull(id))];
+
+  await setClock(at(1));
+  await list.locator('[data-task-row]', { hasText: 'Seal the tub' }).locator('[data-task-complete]').click();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Completed "Seal the tub"');
+  states.push(businessOf(await taskOrNull(id)));
+  expect(states[2]!.status).toBe('done');
+  expect(inMinute(states[2]!.completedAt, 1), 'completedAt comes from the Clock').toBe(true);
+  await setClock(at(2));
+  await list.locator('[data-task-row]', { hasText: 'Seal the tub' }).locator('button[data-task-title]').click();
+  await list.locator('[data-task-title-editor]').fill('Seal the bathtub');
+  await list.locator('[data-task-title-editor]').press('Enter');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Updated "Seal the bathtub"');
+  states.push(businessOf(await taskOrNull(id)));
+  await setClock(at(3));
+  await list.locator('[data-task-row]', { hasText: 'Seal the bathtub' }).locator('[data-task-delete]').click();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Archived "Seal the bathtub"');
+  states.push(businessOf(await taskOrNull(id)));
+  expect(await archiveTaskIds()).toContain(id);
+
+  const labels = ['Created "Seal the tub"', 'Completed "Seal the tub"', 'Updated "Seal the bathtub"', 'Archived "Seal the bathtub"'];
+  let minute = 10;
+  for (let index = 3; index >= 0; index--) {
+    await setClock(at(++minute));
+    await undoFromHeader(page, labels[index]!);
+    const task = await taskOrNull(id);
+    expect(businessOf(task), `Undo ${labels[index]}`).toEqual(states[index]);
+    if (task !== null) expect(inMinute(task.updatedAt, minute), `Undo ${labels[index]} stamps the Clock`).toBe(true);
+  }
+  // Undo Add is not a Delete: the task is in neither the normal views nor Archive.
+  expect(await archiveTaskIds()).not.toContain(id);
+  await expect(list.locator('[data-task-row]', { hasText: 'Seal the' })).toHaveCount(0);
+
+  for (let index = 0; index <= 3; index++) {
+    await setClock(at(++minute));
+    await redoFromHeader(page, labels[index]!);
+    const task = await taskOrNull(id);
+    expect(businessOf(task), `Redo ${labels[index]}`).toEqual(states[index + 1]);
+    expect(inMinute(task!.updatedAt, minute), `Redo ${labels[index]} stamps the Clock`).toBe(true);
+  }
+  expect(await archiveTaskIds()).toContain(id);
+});
+
+test('Slice 45 · 3. layout, progress and shortcut moves undo and redo from the header, and Archive recovers content after history expires', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto(`/projects/${ROOT}`);
+  const projectOf = () => api.get<{ projectLayoutMode: string; progressFormula: string }>(`/api/projects/${ROOT}`);
+  const initial = await projectOf();
+
+  // Saved layout, through the development panel's control of the real project write.
+  const target = initial.projectLayoutMode === 'grid' ? 'flow' : 'grid';
+  await page.keyboard.press('Control+Shift+D');
+  const panel = page.locator('[data-dev-panel]');
+  await expect(panel).toBeVisible();
+  await panel.locator(`[data-panel-layout][data-mode="${target}"]`).click();
+  await panel.locator('[data-dev-panel-close]').click();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', /^Undo: Changed the layout of /);
+  expect((await projectOf()).projectLayoutMode).toBe(target);
+
+  // Progress formula, from the Progress section.
+  const progress = page.locator('[data-section-item][data-section-id="section-project-renovation-progress"]');
+  const formula = initial.progressFormula === 'weighted' ? 'Count' : 'Weighted';
+  await progress.getByRole('button', { name: formula }).click();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', /^Undo: Changed progress for /);
+  const changedFormula = (await projectOf()).progressFormula;
+  expect(changedFormula).not.toBe(initial.progressFormula);
+
+  // A Home shortcut, moved by keyboard.
+  /** Combined section and shortcut order, as the canvas draws it. */
+  const order = () => page.locator('[data-section-canvas] [data-section-item], [data-section-canvas] [data-shortcut-item]')
+    .evaluateAll((items) => items.map((item) => item.getAttribute('data-section-id') ?? item.getAttribute('data-shortcut-id')));
+  const shortcut = page.locator('[data-shortcut-item]').first();
+  await expect(shortcut).toBeVisible();
+  const beforeMove = await order();
+  await shortcut.locator('[data-shortcut-drag-handle]').press('ArrowUp');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', /^Undo: Moved the .* shortcut$/);
+  await expect.poll(order).not.toEqual(beforeMove);
+  const afterMove = await order();
+
+  // Undo the three, newest first, then Redo them.
+  await undoFromHeader(page, /^Undo: Moved the .* shortcut$/);
+  await expect.poll(order).toEqual(beforeMove);
+  await undoFromHeader(page, /^Undo: Changed progress for /);
+  expect((await projectOf()).progressFormula).toBe(initial.progressFormula);
+  await undoFromHeader(page, /^Undo: Changed the layout of /);
+  expect((await projectOf()).projectLayoutMode).toBe(initial.projectLayoutMode);
+  await redoFromHeader(page, /^Redo: Changed the layout of /);
+  expect((await projectOf()).projectLayoutMode).toBe(target);
+  await redoFromHeader(page, /^Redo: Changed progress for /);
+  expect((await projectOf()).progressFormula).toBe(changedFormula);
+  await redoFromHeader(page, /^Redo: Moved the .* shortcut$/);
+  await expect.poll(order).toEqual(afterMove);
+
+  // Remove retained prose, let its history expire, then recover it through Archive.
+  const brief = page.locator('[data-section-item][data-section-id="section-project-renovation-brief"]');
+  await brief.locator('[data-section-remove]').click();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Rich Text section');
+  await setClock(at(25 * 60 + 5));
+  await page.reload();
+  await expect(historyControl(page, 'undo')).not.toHaveAttribute('aria-label', 'Undo: Removed the Rich Text section');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-disabled', 'true');
+  await page.goto(`/projects/${ROOT}/pages/archive`);
+  const entry = page.locator('[data-archived-item][data-archived-id="section-project-renovation-brief"]');
+  await entry.locator('[data-archived-restore]').click();
+  await expect(entry).toHaveCount(0);
+  expect((await sectionsOf(ROOT, HOME)).some(({ id }) => id === 'section-project-renovation-brief')).toBe(true);
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Restored the Rich Text section');
 });
