@@ -53,3 +53,9 @@ tests; the editing cadence still needs sustained use before the action granulari
 
 Stage C exposes persistent browser controls, or real editing shows that one saved text change is
 too fine or too coarse for one action.
+
+**Amended, 2026-09-28 (Slice 48).** A `task.update` Undo or Redo — edit, completion, reopen, move
+or reparent — now refuses with `history_conflict` while the row's current section, or a differing
+recorded target section, is archived, and works again once that section is restored. The Add,
+Archive and Restore executors are unchanged
+([decision](2026-09-task-history-under-archived-sections.md)).

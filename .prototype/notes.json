@@ -929,6 +929,22 @@
       "projectId": "project-renovation",
       "slice": 47,
       "note": "Slice 47 real use on an isolated nested-projects copy (host on a scratch CWM_DATA_FILE). Settings: with Kitchen (whose Cabinets child was archived first) and Legacy attic listed, choosing Active by keyboard and pressing Enter on Restore removed Kitchen and put focus on the revealed Cabinets row's status selector. Root Archive: a task Restore whose re-read failed (archive reads failed in-page) kept the row with \"Restore succeeded, but Archive could not refresh\", every Restore disabled and no \"Reactivate this project\" note; a root rename's quiet frame and a keyboard Retry, both held open, kept the error, the Retry control and its focus, and only the released current read removed the row and re-enabled the rest, after exactly one write. Found and fixed: the root Archive's sub-project \"Restore as\" select displayed Planning while Restore would send Active, because its [value] bound before its @for options existed. Friction, not fixed here: on the root Archive, focus drops to the page body after a Restore removes its row and after a successful Retry removes itself; in Settings, a live frame (rather than Retry) that clears the error removes a focused Retry the same way. A restored row vanishing still has no spoken confirmation."
+    },
+    {
+      "id": "note-2026-09-28-001",
+      "createdAt": "2026-09-28T03:00:00.000Z",
+      "route": "/projects/:projectId",
+      "projectId": "project-kitchen",
+      "slice": 48,
+      "note": "Slice 48 real use on an isolated nested-projects copy (host on a scratch CWM_DATA_FILE). Actor A, agent-claude over HTTP MCP, renamed task-kitchen-appliances; the signed-in persona removed Kitchen's Task List on the canvas. A's undo_operation answered \"history_conflict: Undo of the update on Choose appliance finishes (agent edit) was refused: archived-subject: section \\\"Task List\\\" [section-project-kitchen-tasks]\" and get_operation_history kept revision 1 with the same Undo. After Restore saved content on the root Archive, the Undo succeeded; after a second removal the Redo refused the same way, and after a second Restore it succeeded (revision 3). Friction, not fixed here: the MCP text carries the problem token but not the typed nextStep, so an agent must know that archived-subject means restore-then-retry; the section is named only \"Task List\", with no project or page, so an agent in a root with several task lists cannot tell which one to restore without reading the Archive; and the history summary still offers the step as eligible until it is tried (a per-entry blocker is a summary contract change, deferred by the plan)."
+    },
+    {
+      "id": "note-2026-09-28-002",
+      "createdAt": "2026-09-28T03:05:00.000Z",
+      "route": "/projects/:projectId",
+      "projectId": "project-kitchen",
+      "slice": 48,
+      "note": "Slice 48 deferred divergences between task history and TaskService, for the Slice 46 umbrella to route. (1) Archived-row completion: TaskService.update refuses to complete an archived task, but a task.update Redo of a completion, or Undo of a reopen, can still write done onto a row another actor archived in a live section. (2) Reparent into an archived section: TaskService.update lets an independently archived row follow an archived parent into an archived section; history now refuses that step's Redo there, so history is stricter than the service on that path (docs/decisions/2026-09-task-history-under-archived-sections.md)."
     }
   ]
 }

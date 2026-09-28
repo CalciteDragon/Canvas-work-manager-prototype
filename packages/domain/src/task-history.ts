@@ -256,7 +256,11 @@ export const descendantsOf = (tasks: ReadonlyMap<TaskId, Task>, rootId: TaskId):
   return found;
 };
 
-/** The container a row must sit in for a transition that leaves it live, with typed guidance. */
+/**
+ * The container a row must sit in — present and live — with typed guidance. A live row needs it to
+ * stay live; an update step needs it for any row, archived or not, because an archived section is
+ * frozen against row edits and moves.
+ */
 const liveContainerConflicts = async (
   repositories: RowHistoryRepositories,
   sectionId: Task['sectionId'],
@@ -648,7 +652,39 @@ const applyFields = (task: Task, changes: readonly TaskFieldChange[], direction:
   return next;
 };
 
-/** Runs one direction of an update: the recorded fields, then the recorded structure. */
+/**
+ * The sections an update transition would leave the row in or put it in, each once.
+ *
+ * Every `task.update` step is refused while the row's **current** section is archived, and while a
+ * recorded structural target in a **different** section is — whether the row itself is live or
+ * archived, and whatever the target's state, so the check never depends on which one is archived:
+ * an archived section is frozen against row edits and moves (§31), so a scalar step — an edit, a
+ * completion, a reopen — is refused there as much as a move. A section that no longer exists reads
+ * `missing`. Both are checked before any write, so one refusal names every section to restore and
+ * one Restore round repairs it (docs/decisions/2026-09-task-history-under-archived-sections.md).
+ */
+const sectionConflicts = async (
+  repositories: RowHistoryRepositories,
+  operation: TaskUpdateOperation,
+  current: Task | null,
+  direction: OperationHistoryDirection,
+): Promise<UndoConflict[]> => {
+  if (current === null) return [];
+  const subject = operation.rows.find((row) => row.id === operation.taskId);
+  const target = subject === undefined ? undefined : (subject[direction === 'undo' ? 'before' : 'after'] as TaskStructuralState);
+  const sectionIds = new Set([current.sectionId, ...(target === undefined ? [] : [target.sectionId])]);
+  const conflicts: UndoConflict[] = [];
+  for (const sectionId of sectionIds) conflicts.push(...(await liveContainerConflicts(repositories, sectionId, operation.taskId)));
+  return conflicts;
+};
+
+/**
+ * Runs one direction of an update: the recorded fields, then the recorded structure.
+ *
+ * Conflicts are listed row first — recorded fields, then recorded structure — and then the
+ * sections, current before target. A structural conflict no longer hides an archived or missing
+ * target section: both are reported together.
+ */
 const writeTaskUpdate = async (
   repositories: RowHistoryRepositories,
   clock: Clock,
@@ -665,6 +701,7 @@ const writeTaskUpdate = async (
     conflicts.push(rowConflict('task', operation.taskId, 'field-changed', taskLabel(current, operation.taskId)));
   }
   conflicts.push(...structuralConflicts(tasks, operation.rows, expected));
+  conflicts.push(...(await sectionConflicts(repositories, operation, current, direction)));
 
   if (operation.rows.length > 0 && current !== null && conflicts.length === 0) {
     const subject = operation.rows.find((row) => row.id === operation.taskId);
@@ -695,16 +732,12 @@ const writeTaskUpdate = async (
           ),
         );
       }
+      // The target section is already known to be present and live: `sectionConflicts` checked it
+      // above, and any conflict it found closed this gate.
       if (target.archivedAt === undefined) {
-        conflicts.push(...(await liveContainerConflicts(repositories, target.sectionId, operation.taskId)));
         conflicts.push(...liveParentConflicts(tasks, target.parentTaskId));
-      } else {
-        if ((await repositories.sections.find(target.sectionId)) === null) {
-          conflicts.push(rowConflict('section', target.sectionId, 'missing'));
-        }
-        if (target.parentTaskId !== undefined && !tasks.has(target.parentTaskId)) {
-          conflicts.push(rowConflict('task', target.parentTaskId, 'missing'));
-        }
+      } else if (target.parentTaskId !== undefined && !tasks.has(target.parentTaskId)) {
+        conflicts.push(rowConflict('task', target.parentTaskId, 'missing'));
       }
     }
   }

@@ -130,7 +130,12 @@ before returning a root's archived items. Each canonical Restore validates again
   (`after` for Undo, `before` for Redo); a move's surviving recorded neighbours, never its index; an
   add's substance and references; a Restore's archived marker, generation and recorded rows, plus
   any live row Undo would hide or newly marked row Redo would absorb; a placement's page, source and
-  substantive fields, with a source **content** edit deliberately not a conflict. Any difference
+  substantive fields, with a source **content** edit deliberately not a conflict. A task update
+  also checks its row's current section and, when it differs, the recorded target section: an
+  archived one is `archived-subject` with restore guidance, listed once after the row's own
+  conflicts, current first. A missing or archived target is listed alongside a structural conflict
+  rather than hidden by it
+  ([decision](../../decisions/2026-09-task-history-under-archived-sections.md)). Any difference
   refuses with `history_conflict` before a write,
   and untouched fields and disjoint edits survive. Only the next action is ever executable, so a
   caller's own later change is `history_not_next`, not a conflict. Redo replays captured values

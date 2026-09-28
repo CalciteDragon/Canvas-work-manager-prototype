@@ -11,11 +11,11 @@ Close the 2026-09-27 review findings against [Slice 34](34-undo-redo-and-archive
 
 ## Build
 
-The findings below are the follow-up ledger, not one implementation phase. [Slice 47](../completed/47-archive-recovery-state-and-focus.md) closed 1–2 (its recovery-focus friction remains for later recovery UX work). Give 3–11 bounded implementing slices, one active at a time; then activate this umbrella only for final evidence and documentation reconciliation. Preserve the delivered history model and use current code and decisions when each candidate is activated.
+The findings below are the follow-up ledger, not one implementation phase. [Slice 47](../completed/47-archive-recovery-state-and-focus.md) closed 1–2 (its recovery-focus friction remains for later recovery UX work). [Slice 48](../completed/48-task-history-under-archived-sections.md) closed 3 and left two history/service divergences for this umbrella to route (`note-2026-09-28-002`). Give 3–11 bounded implementing slices, one active at a time; then activate this umbrella only for final evidence and documentation reconciliation. Preserve the delivered history model and use current code and decisions when each candidate is activated.
 
 1. **Root Archive stale Restore:** keep a failed-refresh error and write block until a current projection read succeeds; cover quiet live refresh, Retry, and stale project status. Slice 47.
 2. **Settings focus:** after a restored row disappears, focus the next enabled status selector or heading; preserve focus moved during the request. Cover remaining rows, revealed child, last row and failed refresh. Slice 47.
-3. **Task history under archived sections:** decide and index the container rule first, then test exact-state Undo/Redo refusal and recovery in both directions. Preserve Delete/Restore inverses and project exceptions. [Slice 48](../active/48-task-history-under-archived-sections.md).
+3. **Task history under archived sections:** decide and index the container rule first, then test exact-state Undo/Redo refusal and recovery in both directions. Preserve Delete/Restore inverses and project exceptions. [Slice 48](../completed/48-task-history-under-archived-sections.md).
 4. **Test sensitivity:** separately inject a missing reflection grant check and a fake task no-op receipt, prove the existing assertions detect each, revert the faults and record exact results.
 5. **MCP failure paths:** SDK-driven HTTP and stdio tests for failed commit and lost response; prove no partial business/history/Activity/frame change and one transition on stale-revision retry.
 6. **Stdio expiry:** advance an injected Clock beyond 24 hours in an isolated process; prove history expiry, same-content Archive recovery, restart and retained Activity.

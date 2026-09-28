@@ -1,8 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { buildHarness, MINE, agentActorFor } from '../test/test-support';
-import type { OperationReceipt, OperationHistoryDirection, TaskId } from '@cwm/contracts';
-import { PermissionDeniedError } from './errors';
+import {
+  nameOf,
+  OperationHistoryRefusalDetailsSchema,
+  type OperationHistoryDirection,
+  type OperationHistoryRefusalDetails,
+  type OperationReceipt,
+  type SectionId,
+  type Task,
+  type TaskId,
+  type UndoConflict,
+} from '@cwm/contracts';
+import { DomainRuleError, PermissionDeniedError } from './errors';
 import { ProjectArchiveService } from './project-archive-service';
+
+/** A refused transition's details, parsed against the contract rather than read loosely. */
+const refusalOf = async (promise: Promise<unknown>): Promise<OperationHistoryRefusalDetails> => {
+  try {
+    await promise;
+  } catch (error) {
+    if (error instanceof DomainRuleError) return OperationHistoryRefusalDetailsSchema.parse(error.details);
+    throw error;
+  }
+  throw new Error('expected the transition to be refused, but it resolved');
+};
 
 const step = async (h: ReturnType<typeof buildHarness>, receipt: OperationReceipt, direction: OperationHistoryDirection = 'undo', actor = h.actor) => {
   const history = h.store.snapshot().operationHistories.find(x => x.id === receipt.historyId)!;
@@ -139,7 +160,10 @@ describe('row history acceptance (§31, §34, §36, §57)', () => {
     await h.sectionWriteService.remove(agentActorFor(0, ['projects.write']), source.section.id);
     const before = h.store.snapshot();
 
-    await expect(step(h, moved.operation!)).rejects.toThrow('history_conflict');
+    const refusal = await refusalOf(step(h, moved.operation!));
+    expect(refusal.reason).toBe('history_conflict');
+    expect('conflicts' in refusal ? refusal.conflicts : undefined)
+      .toEqual([{ entityType: 'section', id: source.section.id, problem: 'missing', nextStep: 'nothing-to-undo' }]);
     expect(h.store.snapshot()).toEqual(before);
   });
 
@@ -332,5 +356,343 @@ describe('row history closure evidence (Slice 45; §§31, 34, 36)', () => {
     expect(h.store.snapshot()).toEqual(before);
     await step(h, add.operation, 'undo', writer);
     expect(await h.reflections.find(add.reflection.id)).toBeNull();
+  });
+});
+
+/**
+ * Slice 48: a task step's Undo and Redo refuse while the row's section, or the section the step
+ * would put it in, is archived, and work again once that section is restored
+ * (docs/decisions/2026-09-task-history-under-archived-sections.md). The Add, Delete and Restore
+ * inverses already refused there and are pinned unchanged. B removes and restores every section
+ * from its own history, so A's task step stays next, and every section B removes keeps B's live
+ * filler row, so a removal always retains it rather than deleting it.
+ */
+describe('task history under archived sections (Slice 48; §§31, 34)', () => {
+  const B = agentActorFor(0, ['projects.read', 'projects.write', 'tasks.write']);
+  type Harness = ReturnType<typeof buildHarness>;
+
+  const tick = (h: Harness): string => {
+    h.clock.setNow(new Date(h.clock.now().getTime() + 60_000));
+    return h.clock.now().toISOString();
+  };
+  /** A task list B made, holding B's live filler row. */
+  const list = async (h: Harness): Promise<SectionId> => {
+    const { section } = await h.sectionWriteService.add(B, MINE, { type: 'task-list' });
+    await h.taskWriteService.create(B, { projectId: MINE, sectionId: section.id, title: 'Filler' });
+    return section.id;
+  };
+  const remove = (h: Harness, id: SectionId) => h.sectionWriteService.remove(B, id);
+  const restore = (h: Harness, id: SectionId) => h.sectionWriteService.restoreSection(B, id);
+  const stored = async (h: Harness, id: TaskId): Promise<Task> => (await h.tasks.find(id))!;
+  const create = async (h: Harness, sectionId: SectionId, title: string, parentTaskId?: TaskId) =>
+    (await h.taskWriteService.create(h.actor, { projectId: MINE, sectionId, title, ...(parentTaskId === undefined ? {} : { parentTaskId }) })).task;
+  /** `S(x)`: the archived-section conflict, titled from the stored section. */
+  const archivedSection = async (h: Harness, id: SectionId): Promise<UndoConflict> => ({
+    entityType: 'section', id, title: nameOf((await h.sections.find(id))!), problem: 'archived-subject', nextStep: 'restore-state-and-retry',
+  });
+  /** A task conflict carrying the row's current title and the step its problem implies. */
+  const taskConflict = async (
+    h: Harness,
+    id: TaskId,
+    problem: 'field-changed' | 'archived-subject' | 'archive-state-changed',
+  ): Promise<UndoConflict> => ({
+    entityType: 'task', id, title: (await stored(h, id)).title, problem,
+    nextStep: problem === 'field-changed' ? 'change-by-hand' : 'restore-state-and-retry',
+  });
+  /** Refused with exactly these conflicts, the step still next, and nothing written. */
+  const refuses = async (h: Harness, receipt: OperationReceipt, direction: OperationHistoryDirection, conflicts: UndoConflict[]) => {
+    const before = h.store.snapshot();
+    const refusal = await refusalOf(step(h, receipt, direction));
+    expect(refusal.reason).toBe('history_conflict');
+    expect('conflicts' in refusal ? refusal.conflicts : undefined).toEqual(conflicts);
+    expect(refusal.summary[direction]?.actionId).toBe(receipt.actionId);
+    expect(h.store.snapshot()).toEqual(before);
+  };
+  /** The same step then succeeds: the exact row (or none), stamped by the ticked Clock, and one event. */
+  const recovers = async (h: Harness, receipt: OperationReceipt, direction: OperationHistoryDirection, id: TaskId, expected: Task | null) => {
+    const now = tick(h);
+    const events = h.store.snapshot().activityEvents.length;
+    await step(h, receipt, direction);
+    expect(await h.tasks.find(id)).toEqual(expected === null ? null : { ...expected, updatedAt: now });
+    expect(h.store.snapshot().activityEvents).toHaveLength(events + 1);
+  };
+
+  // Preserved: the Add, Delete and Restore executors already refuse here.
+
+  it('Add inverses keep refusing under an archived section and recover after a Restore', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const add = await h.taskWriteService.create(h.actor, { projectId: MINE, sectionId: s, title: 'Added' });
+
+    await remove(h, s);
+    await refuses(h, add.operation, 'undo', [await taskConflict(h, add.task.id, 'archived-subject')]);
+    await restore(h, s);
+    await recovers(h, add.operation, 'undo', add.task.id, null);
+
+    await remove(h, s);
+    await refuses(h, add.operation, 'redo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, add.operation, 'redo', add.task.id, add.task);
+  });
+
+  it('Delete inverses keep refusing under an archived section and recover after a Restore', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Deleted');
+    const deleted = await h.taskWriteService.archive(h.actor, t.id);
+
+    await remove(h, s);
+    await refuses(h, deleted.operation!, 'undo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, deleted.operation!, 'undo', t.id, t);
+
+    await remove(h, s);
+    await refuses(h, deleted.operation!, 'redo', [await taskConflict(h, t.id, 'archive-state-changed')]);
+    await restore(h, s);
+    await recovers(h, deleted.operation!, 'redo', t.id, deleted.task);
+  });
+
+  it('Restore inverses keep refusing under an archived section and recover after a Restore', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Restored');
+    const archived = await h.taskWriteService.archive(h.actor, t.id);
+    const restored = await h.taskWriteService.restore(h.actor, t.id);
+
+    await remove(h, s);
+    await refuses(h, restored.operation!, 'undo', [await taskConflict(h, t.id, 'archive-state-changed')]);
+    await restore(h, s);
+    await recovers(h, restored.operation!, 'undo', t.id, archived.task);
+
+    await remove(h, s);
+    await refuses(h, restored.operation!, 'redo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, restored.operation!, 'redo', t.id, restored.task);
+  });
+
+  // task.update: the container rule.
+
+  it('an edit refuses both ways while its section is archived, and a Restore is the whole repair', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Original');
+    const edit = await h.taskWriteService.update(h.actor, t.id, { title: 'Edited' });
+
+    await remove(h, s);
+    await refuses(h, edit.operation!, 'undo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, edit.operation!, 'undo', t.id, t);
+
+    await remove(h, s);
+    await refuses(h, edit.operation!, 'redo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, edit.operation!, 'redo', t.id, edit.task);
+  });
+
+  it('a completion refuses both ways while its section is archived, with status and completedAt exact on recovery', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Finish me');
+    const complete = await h.taskWriteService.complete(h.actor, t.id);
+    expect(complete.task).toMatchObject({ status: 'done', completedAt: expect.any(String) });
+
+    await remove(h, s);
+    await refuses(h, complete.operation!, 'undo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, complete.operation!, 'undo', t.id, t);
+
+    await remove(h, s);
+    await refuses(h, complete.operation!, 'redo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, complete.operation!, 'redo', t.id, complete.task);
+  });
+
+  it('a reopen refuses both ways while its section is archived, and brings completedAt back verbatim', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Reopen me');
+    const complete = await h.taskWriteService.complete(h.actor, t.id);
+    const reopen = await h.taskWriteService.update(h.actor, t.id, { status: 'todo' });
+    expect(reopen.task.completedAt).toBeUndefined();
+
+    await remove(h, s);
+    await refuses(h, reopen.operation!, 'undo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, reopen.operation!, 'undo', t.id, complete.task);
+
+    await remove(h, s);
+    await refuses(h, reopen.operation!, 'redo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, reopen.operation!, 'redo', t.id, reopen.task);
+  });
+
+  it('a field conflict and an archived section are reported together, field first', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Original');
+    const edit = await h.taskWriteService.update(h.actor, t.id, { title: 'Edited' });
+    await h.taskWriteService.update(B, t.id, { title: 'Other' });
+    await remove(h, s);
+
+    await refuses(h, edit.operation!, 'undo', [await taskConflict(h, t.id, 'field-changed'), await archivedSection(h, s)]);
+    // A Restore repairs only the section half: the field conflict is B's edit, and stays by hand.
+    await restore(h, s);
+    await refuses(h, edit.operation!, 'undo', [await taskConflict(h, t.id, 'field-changed')]);
+  });
+
+  it("a subtask's container is its parent's section", async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const parent = await create(h, s, 'Parent');
+    const child = await create(h, s, 'Child', parent.id);
+    const edit = await h.taskWriteService.update(h.actor, child.id, { title: 'Edited child' });
+
+    await remove(h, s);
+    expect(await stored(h, child.id)).toMatchObject({ archivedWithSectionId: s });
+    await refuses(h, edit.operation!, 'undo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, edit.operation!, 'undo', child.id, child);
+  });
+
+  it('an edit of an independently archived row keys on its container, and recovery never re-marks the row', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Filed');
+    await h.taskWriteService.archive(B, t.id);
+    const edit = await h.taskWriteService.update(h.actor, t.id, { title: 'Filed and renamed' });
+    const archived = await stored(h, t.id);
+
+    await remove(h, s);
+    expect(await stored(h, t.id)).toEqual(archived);
+    await refuses(h, edit.operation!, 'undo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    expect(await stored(h, t.id)).toEqual(archived);
+    await recovers(h, edit.operation!, 'undo', t.id, { ...archived, title: 'Filed' });
+  });
+
+  it('an archived row moved out of a section refuses on its current section for Undo and on its target for Redo', async () => {
+    const h = buildHarness();
+    const x = await list(h);
+    const y = await list(h);
+    const t = await create(h, x, 'Filed');
+    await h.taskWriteService.archive(B, t.id);
+    const inX = await stored(h, t.id);
+    const move = await h.taskWriteService.update(h.actor, t.id, { sectionId: y });
+
+    await remove(h, y);
+    await refuses(h, move.operation!, 'undo', [await archivedSection(h, y)]);
+    await restore(h, y);
+    await recovers(h, move.operation!, 'undo', t.id, inX);
+
+    await remove(h, y);
+    await refuses(h, move.operation!, 'redo', [await archivedSection(h, y)]);
+    await restore(h, y);
+    await recovers(h, move.operation!, 'redo', t.id, move.task);
+  });
+
+  it('an archived row moved into a section refuses on an archived target in both directions', async () => {
+    const h = buildHarness();
+    const x = await list(h);
+    const y = await list(h);
+    const t = await create(h, x, 'Filed');
+    await h.taskWriteService.archive(B, t.id);
+    const inX = await stored(h, t.id);
+    const move = await h.taskWriteService.update(h.actor, t.id, { sectionId: y });
+
+    await remove(h, x);
+    await refuses(h, move.operation!, 'undo', [await archivedSection(h, x)]);
+    await restore(h, x);
+    await recovers(h, move.operation!, 'undo', t.id, inX);
+
+    await remove(h, y);
+    await refuses(h, move.operation!, 'redo', [await archivedSection(h, y)]);
+    await restore(h, y);
+    await recovers(h, move.operation!, 'redo', t.id, move.task);
+  });
+
+  it('reports one conflict per section when the current and target sections are the same', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Child to be');
+    const p = await create(h, s, 'Parent to be');
+    await h.taskWriteService.archive(B, t.id);
+    await h.taskWriteService.archive(B, p.id);
+    const unparented = await stored(h, t.id);
+    const reparent = await h.taskWriteService.update(h.actor, t.id, { parentTaskId: p.id });
+
+    await remove(h, s);
+    await refuses(h, reparent.operation!, 'undo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, reparent.operation!, 'undo', t.id, unparented);
+  });
+
+  it('a cascaded live move lists its structural conflict, then the current section, then the target', async () => {
+    const h = buildHarness();
+    const x = await list(h);
+    const y = await list(h);
+    const t = await create(h, x, 'Moved');
+    const move = await h.taskWriteService.update(h.actor, t.id, { sectionId: y });
+
+    await remove(h, y);
+    await refuses(h, move.operation!, 'undo', [await taskConflict(h, t.id, 'archive-state-changed'), await archivedSection(h, y)]);
+    await remove(h, x);
+    await refuses(h, move.operation!, 'undo', [
+      await taskConflict(h, t.id, 'archive-state-changed'), await archivedSection(h, y), await archivedSection(h, x),
+    ]);
+    // One Restore round — both sections — is the whole repair.
+    await restore(h, y);
+    await restore(h, x);
+    await recovers(h, move.operation!, 'undo', t.id, t);
+  });
+
+  it('refuses the Redo of an archived row following its parent into an archived section (history stricter than the service)', async () => {
+    const h = buildHarness();
+    const x = await list(h);
+    const y = await list(h);
+    const p = await create(h, x, 'Parent');
+    const t = await create(h, y, 'Follower');
+    await h.taskWriteService.archive(B, p.id);
+    await h.taskWriteService.archive(B, t.id);
+    const reparent = await h.taskWriteService.update(h.actor, t.id, { parentTaskId: p.id });
+    expect(reparent.task.sectionId).toBe(x);
+    await step(h, reparent.operation!);
+    expect((await stored(h, t.id)).sectionId).toBe(y);
+
+    await remove(h, x);
+    await refuses(h, reparent.operation!, 'redo', [await archivedSection(h, x)]);
+    await restore(h, x);
+    await recovers(h, reparent.operation!, 'redo', t.id, reparent.task);
+  });
+
+  it('the archived-project blocker still runs first, and the section conflict follows once the project is active', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Original');
+    const edit = await h.taskWriteService.update(h.actor, t.id, { title: 'Edited' });
+    await remove(h, s);
+    await h.projectService.archive(B, MINE);
+
+    const before = h.store.snapshot();
+    const blocked = await refusalOf(step(h, edit.operation!));
+    expect(blocked).toMatchObject({ reason: 'history_blocked', blockingProjectId: MINE });
+    expect(blocked.summary.undo?.actionId).toBe(edit.operation!.actionId);
+    expect(h.store.snapshot()).toEqual(before);
+
+    await h.projectService.update(B, MINE, { status: 'active' });
+    await refuses(h, edit.operation!, 'undo', [await archivedSection(h, s)]);
+    await restore(h, s);
+    await recovers(h, edit.operation!, 'undo', t.id, t);
+  });
+
+  it('an archived section the row is not in does not refuse', async () => {
+    const h = buildHarness();
+    const s1 = await list(h);
+    const s2 = await list(h);
+    const t = await create(h, s1, 'Original');
+    const edit = await h.taskWriteService.update(h.actor, t.id, { title: 'Edited' });
+    await remove(h, s2);
+
+    await recovers(h, edit.operation!, 'undo', t.id, t);
+    await recovers(h, edit.operation!, 'redo', t.id, edit.task);
   });
 });

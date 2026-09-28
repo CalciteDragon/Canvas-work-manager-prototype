@@ -1,4 +1,4 @@
-<!-- plan id="48" status="active" summary="Task Undo/Redo refuses while the row's current or target section is archived, and works again after the section is restored" -->
+<!-- completed-record id="48" closed="2026-09-28" summary="Task Undo/Redo refuses while the row's current or target section is archived, and works again after the section is restored" -->
 # Slice 48 — Task history under archived sections
 
 ## Goal
@@ -311,19 +311,111 @@ or record honestly if one already passed.
   - Tighten the existing target-missing test to an exact list.
 
   The plan is ready for implementation.
+- **Implementation, 2026-09-28:** Baseline first: `row-history.test.ts`,
+  `operation-history-service.test.ts` and `section-restore-history.test.ts` passed (99 tests). All
+  sixteen new domain cases were then written before the repair and run together rather than one at a
+  time; the result is the same evidence. The three preserved cases (Add, Delete, Restore) and the
+  unrelated-section case passed. All twelve "fails today" cases failed for the named reason: ten with
+  "expected the transition to be refused, but it resolved" (edit, completion, reopen, subtask,
+  independently archived edit, archived move out, archived move in, one-per-section, stricter
+  reparent Redo, archived project after reactivation), and two with a conflict list holding only the
+  task conflict (field-changed + section, cascaded live move). The MCP registry test failed with
+  "promise resolved … instead of rejecting" against the unrepaired executor. After the repair all
+  pass. The gated block's live-target `liveContainerConflicts` call was deleted along with the
+  archived-target `missing` branch, not kept: `sectionConflicts` already checks the target whenever
+  the gate can open, so it could never add anything. `pnpm lint` then caught index-signature reads of
+  `details` in the new tests; the helper now parses details with
+  `OperationHistoryRefusalDetailsSchema`.
+- **Review round 1 of the diff (2026-09-28, two cold subagents: correctness/tests; boundaries/docs):**
+  no substantive findings. Both confirmed that deleting the gated checks changes no behavior and that
+  no other test depended on the old order. Minor findings, all accepted: five refusal-only cases now
+  also show their recovery (a Restore leaves only the field conflict in the field-changed case,
+  because that half is a by-hand repair); the test helper reads details through the contract schema
+  instead of a hand-written shape; the decision's list of reproduced failures now names all twelve,
+  and says that a missing current section now reads `missing` too; the `sectionConflicts` comment and
+  the testing `what.md` row say exactly what is checked and tested. Not acted on: the
+  pre-existing no-op line in `liveContainerConflicts` (out of scope).
+- **Review round 2 of the diff (2026-09-28, fresh cold subagent):** no substantive findings. It
+  confirmed that no section conflict retires a step. No chain is newly wedged: a row's current
+  section can never be hard-deleted, and a missing target was already `missing` before. Minor
+  findings, all accepted:
+  - The target-missing test now asserts its conflict list with `toEqual`.
+  - The `history_blocked` step also asserts that the Undo is still next.
+  - The decision no longer wrongly says only archived targets were checked for `missing`.
+  - `liveContainerConflicts`' comment covers archived rows.
+
+  Not acted on: asserting restore wording in the MCP text. That wording does not exist (see
+  Deferred), and the plan asks only for the token and the section.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
 ## Outcome
 
-**Deliverables** — <what now exists and works, with file links>.
+**Deliverables.** A task step's Undo and Redo now refuse while the row's section, or the section the
+step would put it in, is archived, and work again after a Restore. `writeTaskUpdate` in
+[`task-history.ts`](../../../packages/domain/src/task-history.ts) calls a new `sectionConflicts`
+after the row's field and structural checks and before any write. It always checks the row's current
+section, and a recorded structural target when that is a different section, whatever either is. Each
+section is reported once, through the existing `liveContainerConflicts`. The refusal is
+`archived-subject` with `restore-state-and-retry` for an archived section and `missing` for a deleted
+one. It never retires the step. Tests:
+- sixteen cases in the new block of
+  [`row-history.test.ts`](../../../packages/domain/src/row-history.test.ts), covering edit,
+  completion, reopen, field conflict with the section, subtask, independently archived row, archived
+  moves out and in, one conflict per section, cascaded live move, stricter reparent Redo, the
+  archived-project blocker, an unrelated section, and the Add, Delete and Restore inverses;
+- the tightened exact list on the existing target-missing case;
+- one registry test in [`contract.test.ts`](../../../packages/mcp-tools/src/contract.test.ts):
+  `undo_operation` answers `history_conflict:` naming the section, then succeeds after
+  `restore_section`.
 
-**Deliberate choices** — <decisions made and why; options rejected; links to decision entries>.
+**Evidence.** The twelve "fails today" cases and the MCP test failed before the repair for the
+reason named under Revisions. The preserved cases passed before and after. `pnpm test` (2,646
+tests), `pnpm lint` and `pnpm docs:check` pass. Real use ran on an isolated `nested-projects` copy
+(scratch `CWM_DATA_FILE`, `pnpm --filter @cwm/prototype-host start` and `pnpm dev:web`). Actor A was
+`agent-claude` over HTTP MCP. Actor B was the signed-in persona in the browser, using the canvas's
+Remove section and the root Archive's "Restore saved content". The journey:
+1. A renamed `task-kitchen-appliances`, and B removed Kitchen's Task List.
+2. A's `undo_operation` refused with `history_conflict: … archived-subject: section "Task List"
+   [section-project-kitchen-tasks]`. `get_operation_history` kept revision 1 and the same Undo.
+3. B restored the section, and the Undo succeeded (revision 2).
+4. B removed the section again. The Redo refused the same way, then succeeded after B restored it
+   (revision 3).
 
-**Deviations from the plan** — <what changed mid-implementation and what caused it>.
+All steps ran (`note-2026-09-28-001`). The host was started with the non-watch `start` script
+because `tsx watch` did not come up under the preview launcher.
 
-**Deferred** — <what was left out and which slice owns it>.
+**Deliberate choices.** The rule and its reasons are in
+[a task step's Undo and Redo refuse while its section is archived](../../decisions/2026-09-task-history-under-archived-sections.md):
+- The target is checked whatever its state, so one refusal names every section and one Restore round
+  is enough.
+- History is stricter than `TaskService` on the archived-row reparent path.
+- The check lives in the executor, not the project-typed blocker, so the contract is unchanged.
 
-**Open questions** — <what the next phase or the user must answer>.
+The field-changed case shows that a Restore repairs only the section half. The other actor's edit
+stays a by-hand repair, as before.
 
-**Documentation updated** — <the architecture folders, decisions and guides touched>.
+**Deviations from the plan.**
+- The gated block's live-target check was deleted, not kept, because it could no longer add
+  anything.
+- The new cases were written together and run once before the repair, not one at a time.
+- Five refusal-only cases gained recovery steps in review, to match *Done when*.
+- The test helper parses refusal details with `OperationHistoryRefusalDetailsSchema`.
+
+**Deferred.** Two divergences between history and the service go to the Slice 46 umbrella
+(`note-2026-09-28-002`):
+- A completion's Redo, or a reopen's Undo, can write `done` onto a row another actor archived in a
+  live section.
+- `TaskService.update` lets an archived row follow its archived parent into an archived section.
+
+Friction for later work: the MCP text carries the problem token but not `nextStep`. A section named
+only "Task List" doesn't say which one to restore. The summary still offers a step it will refuse
+(a per-entry blocker is a contract change). Slice 46 findings 4–14 are untouched.
+
+**Open questions.** Should MCP refusal text spell out the next step in words? Should section
+conflicts name their project or page? Both are MCP-wide questions, not specific to this rule.
+
+**Documentation updated.** New decision and index row, row-history amendment and status, spec §31
+"*Amended in Slice 48*", `docs/architecture/domain/how.md` and `why.md`,
+`docs/architecture/testing/what.md`, `.prototype/notes.json`, the Slice 46 ledger link,
+`docs/roadmap/goals.md`, and `CURRENT_SLICE = 48`.

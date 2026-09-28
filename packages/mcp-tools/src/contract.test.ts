@@ -13,6 +13,7 @@ import {
   SHORTCUT_SOURCE_PROJECT,
   SHORTCUT_SOURCE_SECTION,
   TASK_CONTAINER,
+  user,
   VIEW_SECTION,
 } from '../test/harness';
 
@@ -609,6 +610,31 @@ describe('undo_operation and redo_operation refusals, as an agent sees them', ()
       expect.objectContaining({ name: 'EntityNotFoundError' }),
     );
     expect(await harness.registry.call('get_operation_history', { projectId: PROJECT }, otherConnection)).toMatchObject({ historyId: null });
+  });
+
+  it('a task edit under an archived section refuses as history_conflict naming it, and succeeds after restore_section', async () => {
+    const harness = buildHarness();
+    const tasker = agent(['projects.read', 'tasks.write']);
+    const edited = (await harness.registry.call('update_task', { taskId: OPEN_TASK, title: 'Renamed by the agent' }, tasker)) as {
+      operation: { historyId: string; actionId: string };
+    };
+    const undo = async () => {
+      const summary = (await harness.registry.call('get_operation_history', { projectId: PROJECT }, tasker)) as { revision: number };
+      return harness.registry.call('undo_operation', {
+        historyId: edited.operation.historyId, actionId: edited.operation.actionId, expectedRevision: summary.revision,
+      }, tasker);
+    };
+    await harness.registry.call('remove_section', { sectionId: TASK_CONTAINER }, user());
+    const before = harness.store.snapshot();
+
+    const refusal = undo();
+    await expect(refusal).rejects.toThrow(/^history_conflict: /);
+    await expect(refusal).rejects.toThrow(new RegExp(`archived-subject: section .*\\[${TASK_CONTAINER}\\]`));
+    expect(harness.store.snapshot()).toEqual(before);
+
+    await harness.registry.call('restore_section', { sectionId: TASK_CONTAINER }, user());
+    await undo();
+    expect(harness.store.snapshot().tasks.find((task) => task.id === OPEN_TASK)).toMatchObject({ title: 'Document the tool input schemas' });
   });
 
   it('rejects the retired undoId input and any unknown field', async () => {

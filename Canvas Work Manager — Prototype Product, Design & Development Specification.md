@@ -1779,6 +1779,14 @@ check a transition runs, so a control knows which single step is still eligible.
 is unchanged: it takes an explicit status and needs no receipt
 ([why](docs/decisions/2026-09-project-update-operation-history.md)).
 
+*Amended in Slice 48.* A task step's Undo and Redo — edit, completion, reopen, move or reparent —
+refuse with `history_conflict` while the row's current section, or the section the step would put it
+in, is archived, whether the row itself is live or archived. The refusal names each section once,
+writes nothing and retires nothing, and the same step works again once the section is restored.
+History is stricter than the ordinary write on one path: a reparent that let an archived row follow
+its parent into an archived section cannot be redone there
+([why](docs/decisions/2026-09-task-history-under-archived-sections.md)).
+
 *Amended in Slice 41.* The browser offers **Undo** and **Redo** in the project header (§26), driven by
 the server's history summary rather than by a receipt the page holds. Every browser write reports
 its receipt to the header's history store; a write the store cannot place in the displayed
