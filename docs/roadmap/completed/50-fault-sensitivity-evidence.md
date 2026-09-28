@@ -1,4 +1,4 @@
-<!-- plan id="50" status="active" summary="Prove the reflection transition grant and task no-op receipt assertions detect deliberate faults" -->
+<!-- completed-record id="50" closed="2026-09-28" summary="Reflection grant and task no-op receipt assertions proven fault-sensitive; faults reverted" -->
 # Slice 50 — Fault sensitivity for reflection grant and task no-op receipt
 
 <!-- The first line is the state marker; scripts/roadmap.mjs owns it. While the plan is in
@@ -101,19 +101,95 @@ No new test is expected: the tests exist and already pass, which is exactly the 
 - **Review round 2 (2026-09-28, fresh cold subagent):** Two substantive findings, both accepted. (1) The Slice 45 note, Slice 46 link and goals sentence must point at the completed record, and `roadmap.mjs` repairs no inbound links; acceptance step 8 now fixes the order (Outcome → `complete` → links → `docs:check`/`lint`). (2) Vitest stops at the first failed `expect`, so F2b proves only the `operationActions` equality; the plan no longer claims the history and Redo-summary assertions and lists them as unproven non-goals. The reviewer traced F2b as constructible in the no-op branch (`captureTaskUpdate` with one real title change passes `TaskUpdateOperationSchema`; `record` runs in `update`'s unit and discards the undone Redo action), reconfirmed F1 and the commands, and found the dated note on Slice 45 permitted by the roadmap READMEs.
 - **Review round 3 (2026-09-28, fresh cold subagent):** One substantive finding, accepted. Step 8 ran the final `lint`/`docs:check` after `complete` froze the Outcome, so their evidence could not be recorded honestly. The pre-`complete` checks are now recorded in the Outcome, *Documentation updated* names the post-`complete` link edits in advance, and the final gate's results go in the closing commit message. Done-when now also requires the `goals.md` link. The reviewer confirmed the F1/F2 sites and harness, the note's placement below Slice 45's marker line, and that the plan's own links resolve from `completed/`.
 - **Review round 4 (2026-09-28, fresh cold subagent):** **No substantive findings.** The reviewer re-traced F1 (the only `assertPermitted` on the transition path), F2a (`toBeNull` fails first) and F2b (the new action fails the `operationActions` equality first), confirmed the commands, the downstream mcp-tools/host runs exercising the domain source, `complete`'s Outcome requirement and `check-docs.mjs`'s link handling for the closing order, and every AGENTS.md Step 1 section. The plan is ready for Step 3, which this planning request does not start.
+- **Implementation review (2026-09-28, two fresh subagents):** **No substantive findings.** One reproduced F1, F2a and F2b in an isolated worktree at `f0857df` and confirmed every failure title, assertion, line, count and clean revert in the Outcome. It also found the host runs the live domain source (`@cwm/domain` exports `./src/index.ts`), so the host's silence under F1 is a real detector gap and not an import artifact. The other audited the diff against the plan and protocol. Its two wording nitpicks were accepted: the flake note now names where `CURRENT_SLICE` is read, and the flake is called presumed rather than diagnosed.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
 ## Outcome
 
-**Deliverables** — <what now exists and works, with file links>.
+**Deliverables** — Evidence, not behavior. All three faults were applied, turned their target test in [`row-history.test.ts`](../../../packages/domain/src/row-history.test.ts) red with the predicted assertion, and were reverted; both production files end byte-identical to `HEAD` and neither test needed strengthening, so acceptance step 5 never ran. The only committed code change is `CURRENT_SLICE = 50` in [`dev-panel-store.ts`](../../../apps/web/src/app/prototype/dev-panel/dev-panel-store.ts). Slice 46 finding 4 is closed. Every command below ran from the repository root on 2026-09-28.
 
-**Deliberate choices** — <decisions made and why; options rejected; links to decision entries>.
+*Step 1 — baseline.* After the `CURRENT_SLICE` bump, `git status --porcelain` listed only ` M apps/web/src/app/prototype/dev-panel/dev-panel-store.ts`; `git diff --exit-code packages/domain/src/operation-history-service.ts packages/domain/src/task-service.ts` exited 0 (and again before F2a and before F2b). `pnpm --filter @cwm/domain exec vitest run src/row-history.test.ts` exited 0: `Tests  39 passed (39)`.
 
-**Deviations from the plan** — <what changed mid-implementation and what caused it>.
+*Step 2 — F1, missing reflection grant check.* Fault diff in `operation-history-service.ts`:
 
-**Deferred** — <what was left out and which slice owns it>.
+```diff
+-      if (action !== null) {
++      if (action !== null && familyOfOperationKind(action.operation.type) !== 'reflection') {
+         assertPermitted(actor, OPERATION_FAMILY_PERMISSION[familyOfOperationKind(action.operation.type)]);
+```
 
-**Open questions** — <what the next phase or the user must answer>.
+`pnpm --filter @cwm/domain exec vitest run src/row-history.test.ts -t "reflection transition needs reflections.write"` exited 1, `Tests  1 failed | 38 skipped (39)`:
 
-**Documentation updated** — <the architecture folders, decisions and guides touched>.
+```text
+ FAIL  src/row-history.test.ts > row history closure evidence (Slice 45; §§31, 34, 36) > a reflection transition needs reflections.write, and tasks.write alone is refused before any change
+AssertionError: promise resolved "{ direction: 'undo', …(3) }" instead of rejecting
+ ❯ src/row-history.test.ts:355:84
+```
+
+The predicted failure: the `tasks.write`-only Undo resolved rather than rejecting for another reason. Additional detectors under F1 (informational): `pnpm --filter @cwm/domain test` exited 1, `Tests  1 failed | 798 passed (799)` — only the target. `pnpm --filter @cwm/mcp-tools test` exited 1, `Tests  2 failed | 171 passed (173)` — `contract.test.ts > undo_operation and redo_operation — one grant per operation family > refuses a reflection action for a connection holding only projects.write` and `… only tasks.write`. `pnpm --filter @cwm/prototype-host test` exited 0, `Tests  267 passed (267)` — no host test detects F1. Reverted with `git checkout -- packages/domain/src/operation-history-service.ts`; `git diff --exit-code` on it exited 0; `pnpm --filter @cwm/domain test` exited 0, `Tests  799 passed (799)`.
+
+*Step 3 — F2a, fake task no-op receipt.* Fault diff in `task-service.ts`:
+
+```diff
+-      if (committed === current) return { task: current, operation: null };
++      if (committed === current) return { task: current, operation: { historyId: 'fault-history', actionId: 'fault-action', operation: 'task.update', revision: 1, label: 'Fault', createdAt: '2026-01-01T00:00:00.000Z', expiresAt: '2026-01-02T00:00:00.000Z' } as OperationReceipt };
+```
+
+`pnpm --filter @cwm/domain exec vitest run src/row-history.test.ts -t "no-op task write answers a null receipt"` exited 1, `Tests  1 failed | 38 skipped (39)`:
+
+```text
+ FAIL  src/row-history.test.ts > row history closure evidence (Slice 45; §§31, 34, 36) > a no-op task write answers a null receipt and leaves the Redo branch standing
+AssertionError: expected { historyId: 'fault-history', …(6) } to be null
+ ❯ src/row-history.test.ts:343:98
+```
+
+Reverted with `git checkout -- packages/domain/src/task-service.ts`; `git diff --exit-code` on it exited 0; the domain suite exited 0, `Tests  799 passed (799)`.
+
+*Step 4 — F2b, silent recording behind a `null` receipt.* Fault diff in `task-service.ts`:
+
+```diff
+-      if (committed === current) return { task: current, operation: null };
++      if (committed === current) {
++        await this.dependencies.history.record(actor, {
++          projectId: current.projectId,
++          label: 'Fault',
++          operation: captureTaskUpdate({ taskId: id, projectId: current.projectId, completion: false, changes: [{ field: 'title', before: 'fault-before', after: 'fault-after' }], rows: [] }),
++        });
++        return { task: current, operation: null };
++      }
+```
+
+The same focused command exited 1, `Tests  1 failed | 38 skipped (39)`, at the predicted assertion — the receipt check passed and the `operationActions` equality failed:
+
+```text
+ FAIL  src/row-history.test.ts > row history closure evidence (Slice 45; §§31, 34, 36) > a no-op task write answers a null receipt and leaves the Redo branch standing
+AssertionError: expected [ { id: 'operation-1', …(7) }, …(1) ] to deeply equal [ { id: 'operation-1', …(7) }, …(1) ]
+-     "id": "operation-2",
+-     "label": "Updated \"Changed\"",
++     "id": "operation-3",
++     "label": "Fault",
+-     "order": 2,
+-     "state": "undone",
++     "order": 3,
++     "state": "applied",
+ ❯ src/row-history.test.ts:344:49
+```
+
+(The diff excerpt omits the unchanged fields and the `changes` lines, which differ as the fault's title values.) The received list shows the fault discarded the undone `operation-2` Redo step and appended an applied `operation-3`, which the unclaimed `operationHistories` and Redo-summary assertions would also have caught. Under F2b `pnpm --filter @cwm/domain test` exited 1, `Tests  1 failed | 798 passed (799)`, and the target is its only failing test. Reverted with `git checkout -- packages/domain/src/task-service.ts`; `git diff --exit-code packages/domain/src/operation-history-service.ts packages/domain/src/task-service.ts` exited 0; the domain suite exited 0, `Tests  799 passed (799)`.
+
+*Step 6 — green.* `git status --porcelain` listed only the dev-panel store; both production files had no diff. `pnpm --filter @cwm/domain test` passed (799). `pnpm test` exited 0: root `node --test` 9, contracts 355, repositories 164, web 792, prototype-data 120, domain 799, mcp-tools 173, prototype-host 267.
+
+*Step 7 — real use.* No runtime behavior changed, so no browser or MCP journey was run and no personal runtime data was touched.
+
+*Step 8a — pre-`complete` checks.* `pnpm lint` exited 0; `pnpm docs:check` exited 0 (`docs: ok — 18 system folders, 236 documents checked`).
+
+**Deliberate choices** — F2b records a synthetic one-field title change rather than deleting the early return, because `TaskUpdateOperationSchema` refuses an empty update before `history.record` (review round 1). No decision entry: the phase answers no product question.
+
+**Deviations from the plan** — One: the first full `pnpm test` exited 1 on an unrelated web spec, `state-inspector-page.spec.ts > StateInspectorPage (§28) > lists projects with independent flow/grid controls, beside §46’s shared panel` (`expected 'Development panelPrototype state The …' to contain 'Website launch'`). `CURRENT_SLICE` is read only in `DevPanelStore.addNote` (`dev-panel-store.ts:109`), which this test never calls. `pnpm --filter web test` then passed twice (`792 passed (792)`), and the rerun of `pnpm test` recorded in step 6 passed. It is a presumed load-dependent flake in the parallel run, noted here rather than fixed.
+
+**Deferred** — The target no-op test's `operationHistories` and Redo-summary assertions remain individually unproven (explicit non-goal). F1 has no detector in `@cwm/prototype-host`; the domain and MCP contract tests carry it. Slice 46 findings 5–14 stay in [Slice 46](../planned/46-slice-34-closeout-follow-up.md).
+
+**Open questions** — Whether the `state-inspector-page.spec.ts` flake deserves a bounded fix; it has not reproduced in `pnpm --filter web test` (2 runs).
+
+**Documentation updated** — No architecture, decision or guide file. After `complete`, three link edits point at `completed/50-fault-sensitivity-evidence.md`: a dated note under the title of [Slice 45's record](../completed/45-undo-redo-archive-integrated-closure.md), a Slice 50 link on finding 4 of [Slice 46](../planned/46-slice-34-closeout-follow-up.md), and a sentence under the 2026-09-27 follow-up in [`goals.md`](../goals.md).

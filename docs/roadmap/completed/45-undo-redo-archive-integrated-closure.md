@@ -1,6 +1,8 @@
 <!-- completed-record id="45" closed="2026-09-27" summary="Integrated Undo/Redo and Archive evidence ledger; header 375 px and stdio concurrency repairs" -->
 # Slice 45 — Undo/Redo and Archive integrated closure
 
+> **Note (2026-09-28):** the two sensitivities listed under *Open gaps* below (the reflection transition grant check and the task no-op receipt) were demonstrated with applied and reverted faults by [Slice 50](50-fault-sensitivity-evidence.md). This record's text is unchanged.
+
 ## Goal
 
 Demonstrate Slice 34's Undo/Redo, removal and Archive direction across the browser, HTTP and both MCP transports, then reconcile its living documentation and record remaining design questions.
