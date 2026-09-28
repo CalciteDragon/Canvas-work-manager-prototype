@@ -681,9 +681,10 @@ const sectionConflicts = async (
 /**
  * Runs one direction of an update: the recorded fields, then the recorded structure.
  *
- * Conflicts are listed row first — recorded fields, then recorded structure — and then the
- * sections, current before target. A structural conflict no longer hides an archived or missing
- * target section: both are reported together.
+ * Conflicts are listed row first — recorded fields, then recorded structure — then an archived
+ * task when the step enters `done`, then the sections, current before target.
+ * A section-cascaded archive needs only its section conflict; an independent task archive
+ * needs its own Restore. A structural conflict does not hide either repair.
  */
 const writeTaskUpdate = async (
   repositories: RowHistoryRepositories,
@@ -701,6 +702,12 @@ const writeTaskUpdate = async (
     conflicts.push(rowConflict('task', operation.taskId, 'field-changed', taskLabel(current, operation.taskId)));
   }
   conflicts.push(...structuralConflicts(tasks, operation.rows, expected));
+  const status = operation.changes.find((change) => change.field === 'status');
+  const targetStatus = status === undefined ? current?.status : status[direction === 'undo' ? 'before' : 'after'];
+  if (current !== null && targetStatus === 'done' && current.status !== 'done' &&
+      current.archivedAt !== undefined && current.archivedWithSectionId === undefined) {
+    conflicts.push(rowConflict('task', operation.taskId, 'archived-subject', taskLabel(current, operation.taskId)));
+  }
   conflicts.push(...(await sectionConflicts(repositories, operation, current, direction)));
 
   if (operation.rows.length > 0 && current !== null && conflicts.length === 0) {

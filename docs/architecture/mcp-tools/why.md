@@ -88,6 +88,8 @@ unknown-tool response.
 
 ## Decisions that shape this system
 
+- [MCP history conflicts explain their repair in words](../../decisions/2026-09-mcp-history-conflict-guidance.md) — the shared formatter serves text-only agents without changing typed browser feedback.
+
 - [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — a read tool exposes the domain's workspace projection without widening Restore grants.
 
 - [What the tool registry knows about MCP](../../decisions/2026-08-tool-registry-is-transport-free.md)

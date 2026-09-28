@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 49 | Slice 49 — Task history, service and MCP refusal repairs | Align archived-section reparent and archived-task completion rules with history; give MCP conflicts plain-language repair steps | [49-task-history-service-and-mcp-repairs.md](active/49-task-history-service-and-mcp-repairs.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -87,4 +85,5 @@ verification follow-ups rather than feature slices.
 | 45 | Slice 45 — Undo/Redo and Archive integrated closure | 2026-09-27 | Integrated Undo/Redo and Archive evidence ledger; header 375 px and stdio concurrency repairs | [45-undo-redo-archive-integrated-closure.md](completed/45-undo-redo-archive-integrated-closure.md) |
 | 47 | Slice 47 — Archive recovery state and focus | 2026-09-28 | Stale root Archive rows stay paused until a current read; Settings Restore/Retry hand focus to a usable control | [47-archive-recovery-state-and-focus.md](completed/47-archive-recovery-state-and-focus.md) |
 | 48 | Slice 48 — Task history under archived sections | 2026-09-28 | Task Undo/Redo refuses while the row's current or target section is archived, and works again after the section is restored | [48-task-history-under-archived-sections.md](completed/48-task-history-under-archived-sections.md) |
+| 49 | Slice 49 — Task history, service and MCP refusal repairs | 2026-09-28 | Task reparent and completion history respect archives; MCP history conflicts explain repairs in words | [49-task-history-service-and-mcp-repairs.md](completed/49-task-history-service-and-mcp-repairs.md) |
 <!-- roadmap:end -->

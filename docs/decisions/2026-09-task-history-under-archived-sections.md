@@ -77,3 +77,5 @@ case is pinned in both directions with its recovery after a Restore.
   entry's "stricter" note can go.
 - The header should disable a step in advance for an archived section. That needs a per-entry
   blocker, which is a summary contract change.
+
+**Amended, 2026-09-28 (Slice 49).** The ordinary reparent gap is closed: an inherited archived destination now refuses in `TaskService.update` ([decision](2026-09-task-reparent-archived-section.md)). History also refuses entering `done` on an independently archived task, with section-cascade deduplication ([decision](2026-09-archived-task-completion-history.md)). The earlier “history stricter” observation remains the Slice 48 finding, not current behavior. The header blocker remains deferred.

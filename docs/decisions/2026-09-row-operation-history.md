@@ -59,3 +59,5 @@ or reparent — now refuses with `history_conflict` while the row's current sect
 recorded target section, is archived, and works again once that section is restored. The Add,
 Archive and Restore executors are unchanged
 ([decision](2026-09-task-history-under-archived-sections.md)).
+
+**Amended, 2026-09-28 (Slice 49).** A completion Redo or reopen Undo that enters `done` now refuses an archived task in a live section, matching the ordinary write. A section-cascaded row gets only its section conflict; an independently archived row gets its task conflict, plus a section conflict if both need Restore ([decision](2026-09-archived-task-completion-history.md)).

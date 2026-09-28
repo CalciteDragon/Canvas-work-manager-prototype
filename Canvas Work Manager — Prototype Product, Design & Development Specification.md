@@ -1783,9 +1783,11 @@ is unchanged: it takes an explicit status and needs no receipt
 refuse with `history_conflict` while the row's current section, or the section the step would put it
 in, is archived, whether the row itself is live or archived. The refusal names each section once,
 writes nothing and retires nothing, and the same step works again once the section is restored.
-History is stricter than the ordinary write on one path: a reparent that let an archived row follow
-its parent into an archived section cannot be redone there
-([why](docs/decisions/2026-09-task-history-under-archived-sections.md)).
+An ordinary reparent also refuses when a subtask would follow its parent into an archived section,
+even when both tasks are archived. A history direction that enters `done` refuses an archived task;
+section-cascaded rows report the section as the single repair, while an independently archived row
+reports the task and, when needed, the section. Leaving `done` remains allowed on an archived task
+in a live section ([why](docs/decisions/2026-09-archived-task-completion-history.md)).
 
 *Amended in Slice 41.* The browser offers **Undo** and **Redo** in the project header (§26), driven by
 the server's history summary rather than by a receipt the page holds. Every browser write reports
@@ -2730,6 +2732,10 @@ Shortcuts (§27) are created and removed through their own tools, and archive/re
 canonical tools on projects, sections, tasks and reflections. An agent undoes and redoes its own
 section, task and reflection operations through its own history with `get_operation_history`, `undo_operation` and
 `redo_operation`; it can never reach a person's history, or another connection's.
+History conflict messages give text-only agents the typed repair in plain words beside each displayed
+problem, title and id. A retiring action describes current blockers and points to the refreshed
+history without promising another try of that action
+([why](docs/decisions/2026-09-mcp-history-conflict-guidance.md)).
 
 **A page is never a permission bypass.** Resolving a shortcut's source content requires the
 read permission for the *content*, not merely permission to see the layout that references it:

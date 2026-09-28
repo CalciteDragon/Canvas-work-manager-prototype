@@ -113,7 +113,9 @@ with its reason token — `section_already_removed:`, `history_not_next:`,
 `history_unavailable:`, `history_retired:` — and the tool descriptions list them with the recovery
 path. A replayed call whose first attempt landed refuses `history_revision_stale:`, and
 `get_operation_history` then shows the revision advanced. Conflict text includes current names with
-ids, capped at five; blocked text names the blocking project. A history belonging to another
+ids and each typed repair in words, capped at five with the remainder counted. A retiring action
+describes current blockers without promising a retry; its refreshed summary points to the next step.
+Blocked text names the blocking project. A history belonging to another
 connection, even of the same person, is not found. `contract.test.ts` pins the minimal grants, the
 ordered chain, receipt recovery and scope; the host's `handler.test.ts` pins the messages, the
 chain and revocation over the real transport.

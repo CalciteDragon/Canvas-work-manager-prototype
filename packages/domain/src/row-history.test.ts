@@ -526,6 +526,80 @@ describe('task history under archived sections (Slice 48; §§31, 34)', () => {
     await recovers(h, reopen.operation!, 'redo', t.id, reopen.task);
   });
 
+  it('completion Redo refuses an independently archived task and recovers after Restore', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Finish later');
+    const completion = await h.taskWriteService.complete(h.actor, t.id);
+    await step(h, completion.operation!);
+    await h.taskWriteService.archive(B, t.id);
+    await refuses(h, completion.operation!, 'redo', [await taskConflict(h, t.id, 'archived-subject')]);
+    await h.taskWriteService.restore(B, t.id);
+    await recovers(h, completion.operation!, 'redo', t.id, completion.task);
+  });
+
+  it('reopen Undo refuses an independently archived task and recovers after Restore', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Reopen later');
+    const completed = await h.taskWriteService.complete(h.actor, t.id);
+    const reopened = await h.taskWriteService.update(h.actor, t.id, { status: 'todo' });
+    await h.taskWriteService.archive(B, t.id);
+    await refuses(h, reopened.operation!, 'undo', [await taskConflict(h, t.id, 'archived-subject')]);
+    await h.taskWriteService.restore(B, t.id);
+    await recovers(h, reopened.operation!, 'undo', t.id, completed.task);
+  });
+
+  it('leaving done remains reversible for an archived task in a live section', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Done');
+    const completed = await h.taskWriteService.complete(h.actor, t.id);
+    await h.taskWriteService.archive(B, t.id);
+    const archived = await stored(h, t.id);
+    await recovers(h, completed.operation!, 'undo', t.id, { ...archived, status: 'todo', completedAt: undefined });
+  });
+
+  it('an independently archived task under an archived section reports both required Restores', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Two repairs');
+    const completion = await h.taskWriteService.complete(h.actor, t.id);
+    await step(h, completion.operation!);
+    await h.taskWriteService.archive(B, t.id);
+    await remove(h, s);
+    await refuses(h, completion.operation!, 'redo', [await taskConflict(h, t.id, 'archived-subject'), await archivedSection(h, s)]);
+    await restore(h, s);
+    await refuses(h, completion.operation!, 'redo', [await taskConflict(h, t.id, 'archived-subject')]);
+    await h.taskWriteService.restore(B, t.id);
+    await recovers(h, completion.operation!, 'redo', t.id, completion.task);
+  });
+
+  it('a parent archive blocks the child completion until the parent is restored', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const parent = await create(h, s, 'Parent');
+    const child = await create(h, s, 'Child', parent.id);
+    const completion = await h.taskWriteService.complete(h.actor, child.id);
+    await step(h, completion.operation!);
+    await h.taskWriteService.archive(B, parent.id);
+    await refuses(h, completion.operation!, 'redo', [await taskConflict(h, child.id, 'archived-subject')]);
+    await expect(h.taskWriteService.restore(B, child.id)).rejects.toBeInstanceOf(DomainRuleError);
+    await h.taskWriteService.restore(B, parent.id);
+    await recovers(h, completion.operation!, 'redo', child.id, completion.task);
+  });
+
+  it('a later status edit precedes the archived task conflict', async () => {
+    const h = buildHarness();
+    const s = await list(h);
+    const t = await create(h, s, 'Changed');
+    const completion = await h.taskWriteService.complete(h.actor, t.id);
+    await step(h, completion.operation!);
+    await h.taskWriteService.update(B, t.id, { status: 'in_progress' });
+    await h.taskWriteService.archive(B, t.id);
+    await refuses(h, completion.operation!, 'redo', [await taskConflict(h, t.id, 'field-changed'), await taskConflict(h, t.id, 'archived-subject')]);
+  });
+
   it('a field conflict and an archived section are reported together, field first', async () => {
     const h = buildHarness();
     const s = await list(h);
@@ -645,7 +719,7 @@ describe('task history under archived sections (Slice 48; §§31, 34)', () => {
     await recovers(h, move.operation!, 'undo', t.id, t);
   });
 
-  it('refuses the Redo of an archived row following its parent into an archived section (history stricter than the service)', async () => {
+  it('refuses the Redo of an archived row following its parent into an archived section', async () => {
     const h = buildHarness();
     const x = await list(h);
     const y = await list(h);

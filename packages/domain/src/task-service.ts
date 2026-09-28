@@ -282,11 +282,14 @@ export class TaskService {
         // This branch runs on **every** update of a task that has a parent, not only on a
         // reparent, so the disabled-page rule is applied to the *change* rather than to the
         // branch: renaming a subtask that already lives on a disabled page is an edit, and
-        // following a parent onto one is a placement (§27).
+        // following a parent onto one is a placement (§27). An archived target section
+        // freezes that placement even when both rows are archived (§31).
         if (parent.sectionId !== current.sectionId) {
-          await this.dependencies.sections.assertWritablePage(
-            await this.dependencies.sections.requireWithin(actor, parent.sectionId),
-          );
+          const target = await this.dependencies.sections.requireWithin(actor, parent.sectionId);
+          if (target.archivedAt !== undefined) {
+            throw new DomainRuleError(`section "${target.id}" is archived; restore it before moving the task there`);
+          }
+          await this.dependencies.sections.assertWritablePage(target);
         }
         next.sectionId = parent.sectionId;
       }

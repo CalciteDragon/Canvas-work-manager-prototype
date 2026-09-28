@@ -630,11 +630,32 @@ describe('undo_operation and redo_operation refusals, as an agent sees them', ()
     const refusal = undo();
     await expect(refusal).rejects.toThrow(/^history_conflict: /);
     await expect(refusal).rejects.toThrow(new RegExp(`archived-subject: section .*\\[${TASK_CONTAINER}\\]`));
+    await expect(refusal).rejects.toThrow('restore its previous state, then retry');
     expect(harness.store.snapshot()).toEqual(before);
 
     await harness.registry.call('restore_section', { sectionId: TASK_CONTAINER }, user());
     await undo();
     expect(harness.store.snapshot().tasks.find((task) => task.id === OPEN_TASK)).toMatchObject({ title: 'Document the tool input schemas' });
+  });
+
+  it('a completed task archived by another actor gives text repair guidance before Redo', async () => {
+    const harness = buildHarness();
+    const tasker = agent(['projects.read', 'tasks.write']);
+    const completed = (await harness.registry.call('complete_task', { taskId: OPEN_TASK }, tasker)) as {
+      operation: { historyId: string; actionId: string; revision: number };
+    };
+    const { historyId, actionId, revision } = completed.operation;
+    await harness.registry.call('undo_operation', { historyId, actionId, expectedRevision: revision }, tasker);
+    await harness.registry.call('archive_task', { taskId: OPEN_TASK }, user());
+    const before = harness.store.snapshot();
+    const summary = (await harness.registry.call('get_operation_history', { projectId: PROJECT }, tasker)) as { revision: number };
+    const redo = () => harness.registry.call('redo_operation', { historyId, actionId, expectedRevision: summary.revision }, tasker);
+    await expect(redo()).rejects.toThrow(/^history_conflict: /);
+    await expect(redo()).rejects.toThrow('restore its previous state, then retry');
+    expect(harness.store.snapshot()).toEqual(before);
+    await harness.registry.call('restore_task', { taskId: OPEN_TASK }, user());
+    await redo();
+    expect(harness.store.snapshot().tasks.find((task) => task.id === OPEN_TASK)).toMatchObject({ status: 'done', completedAt: expect.any(String) });
   });
 
   it('rejects the retired undoId input and any unknown field', async () => {

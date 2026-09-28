@@ -135,13 +135,20 @@ before returning a root's archived items. Each canonical Restore validates again
   archived one is `archived-subject` with restore guidance, listed once after the row's own
   conflicts, current first. A missing or archived target is listed alongside a structural conflict
   rather than hidden by it
-  ([decision](../../decisions/2026-09-task-history-under-archived-sections.md)). Any difference
+  ([decision](../../decisions/2026-09-task-history-under-archived-sections.md)). Entering `done`
+  on an archived task adds a task conflict after field and structural conflicts, before sections;
+  a section-cascaded row gets only the section conflict, while an independently archived row may
+  need both Restores ([decision](../../decisions/2026-09-archived-task-completion-history.md)).
+  Ordinary subtask reparent checks an inherited destination section before its page, including
+  when both rows are archived ([decision](../../decisions/2026-09-task-reparent-archived-section.md)). Any difference
   refuses with `history_conflict` before a write,
   and untouched fields and disjoint edits survive. Only the next action is ever executable, so a
   caller's own later change is `history_not_next`, not a conflict. Redo replays captured values
   verbatim and stamps only `updatedAt`. The permanently unsatisfiable conflicts retire the action
   ([decision](../../decisions/2026-09-operation-history-retired-actions.md)). Every refusal message
   starts with its reason token (`history_conflict: …`), because MCP carries message text only.
+  The shared conflict formatter appends words from each typed `nextStep` and suppresses retry advice
+  for a retiring list ([decision](../../decisions/2026-09-mcp-history-conflict-guidance.md)).
 - **A project step is reversed under today's tree.** `project-history.ts` compares every recorded
   field against the value the other direction left (a parent mismatch reads `reparented`), then
   re-runs `ProjectService.update`'s rules for the resulting change: a destination parent in the

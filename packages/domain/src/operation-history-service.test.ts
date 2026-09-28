@@ -924,6 +924,9 @@ describe('OperationHistoryService — conflicts and retirement', () => {
     const refusal = await refusalOf(transition(harness, harness.actor, operation, 'undo', revision));
 
     expect(refusal.message).toMatch(/^history_retired: /);
+    expect(refusal.message).toContain('already live');
+    expect(refusal.message).toContain('next step is now reachable');
+    expect(refusal.message).not.toContain('then retry');
     expect(refusal.details).toMatchObject({
       reason: 'history_retired', actionId: operation.actionId,
       conflicts: [{ entityType: 'section', id: notes.id, title: 'Notes', problem: 'not-archived', nextStep: 'nothing-to-undo' }],
@@ -983,6 +986,8 @@ describe('OperationHistoryService — conflicts and retirement', () => {
       reason: 'history_retired',
       conflicts: [{ entityType: 'section', id: progress.id, title: 'Replacement', problem: 'already-exists', nextStep: 'nothing-to-restore' }],
     });
+    expect(refusal.message).toContain('recorded id occupied');
+    expect(refusal.message).not.toContain('then retry');
     expect((await harness.sections.find(progress.id))?.title).toBe('Replacement');
   });
 

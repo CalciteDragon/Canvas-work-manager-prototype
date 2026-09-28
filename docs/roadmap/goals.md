@@ -61,6 +61,8 @@ historical Stage E closure below remains its original evidence.
 
 [Slice 47 — Archive recovery state and focus](completed/47-archive-recovery-state-and-focus.md) closed Slice 46 findings 1–2: a stale root Archive row stays paused until a current read, and Settings Restore/Retry hand focus to a usable control. It left recovery-focus friction for the later recovery UX work (focus after a root Archive Restore or successful Retry, and a live frame removing a focused Settings Retry). [Slice 48 — Task history under archived sections](completed/48-task-history-under-archived-sections.md) closed finding 3. A task edit, completion, reopen, move or reparent now refuses Undo and Redo while the row's current or target section is archived, and recovers after the section is restored. The Delete, Restore and Add inverses and the project-only exception are unchanged. It left two history/service divergences for the umbrella to route: archived-row completion, and an archived row's reparent into an archived section. It also left MCP refusal-wording friction.
 
+[Slice 49 — Task history, service and MCP refusal repairs](completed/49-task-history-service-and-mcp-repairs.md) closed those three Slice 48 findings. Ordinary reparent and completion history now agree with archive rules, and text-only MCP clients receive each conflict's repair in words.
+
 **Current direction — Project Undo/Redo and simpler Archive.**
 The user requested [the detailed development plan in Slice 34](planned/34-undo-redo-and-archive.md)
 on 2026-09-16: always-present project Undo/Redo icons, history for committed content and layout

@@ -5,9 +5,9 @@ const REFUSALS =
   'Refusals start with a reason token: "history_not_next:" (that action is not the next step — read get_operation_history), ' +
   '"history_revision_stale:" (the history moved on; a retried call whose first attempt landed also refuses here), ' +
   '"history_expired:" (older than 24 hours), "history_blocked:" (the project or an ancestor is archived; reactivate it first), ' +
-  '"history_conflict:" (a later change to the same entity, its rows or its dependents; nothing was written), ' +
+  '"history_conflict:" (a later change to the same entity, its rows or its dependents; nothing was written; each listed conflict says how to repair it in words), ' +
   '"history_unavailable:" (no page to return the section to) or ' +
-  '"history_retired:" (the action can never succeed again and was retired, so the next call can reach the one below it). ' +
+  '"history_retired:" (the action can never succeed again and was retired; its blockers describe current state, and refreshed history shows the next action). ' +
   'An unknown history or one belonging to another connection is not found.';
 
 /**

@@ -339,10 +339,10 @@ Refusals are MCP errors whose text starts with a reason token:
 | `history_not_next:` | That action is not the next step in this direction | Read `get_operation_history`; undo the newer change first |
 | `history_revision_stale:` | The history moved since you read it (or your earlier identical call landed) | Read the summary again, then retry if still needed |
 | `history_expired:` | Older than 24 hours | For a removal, `restore_section`, which appends |
-| `history_conflict:` | Someone else changed what the action touched; text names titles and ids | Follow the listed repair and retry, or make the change by hand |
+| `history_conflict:` | Someone else changed what the action touched; each displayed problem names titles, ids and its repair in words | Follow the stated repair and retry when the text says to, or make the change by hand |
 | `history_blocked:` | The project or an ancestor is archived | Reactivate the named project, then retry |
 | `history_unavailable:` | No page can take the section back | Make a compatible page available and retry; Archive may contain retained content |
-| `history_retired:` | The action can never succeed again — say **another** connection restored the section from Archive, or it was removed again since — so it was retired | Nothing to repair; the next call reaches the action below it |
+| `history_retired:` | The action can never succeed again; listed blockers describe current state without retry advice | Read the refreshed history for the next action; repair current content separately if needed |
 
 The `agent-heavy` fixture token's connection does not hold `projects.write`; grant it in
 **Settings → AI & Agents** before trying the write tools.

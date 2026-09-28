@@ -86,8 +86,10 @@ Historical reflection subjects may be restored when the subject still exists in 
 without reapplying the stricter eligibility rule for a new assignment
 ([decision](../../decisions/2026-09-row-operation-history.md)). A task update step never edits or
 moves a row in an archived section: its Undo and Redo refuse there with restore guidance, like the
-ordinary write, and are deliberately stricter than the service on reparent
-([decision](../../decisions/2026-09-task-history-under-archived-sections.md)).
+ordinary write. The service also refuses an archived section inherited during reparent, and
+history refuses entering `done` on an independently archived task
+([section decision](../../decisions/2026-09-task-reparent-archived-section.md),
+[completion decision](../../decisions/2026-09-archived-task-completion-history.md)).
 
 **A recorded Restore stays durable, and a placement inverse stays out of its source.** Archive
 Restore still needs no receipt and never expires; recording it only means the same actor can take it
@@ -182,6 +184,9 @@ ISO string so ordering stays lossless without a clock or timezone
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
 - [A task step's Undo and Redo refuse while its section is archived](../../decisions/2026-09-task-history-under-archived-sections.md)
+- [A task cannot follow its parent into an archived section](../../decisions/2026-09-task-reparent-archived-section.md)
+- [Completion history respects an archived task](../../decisions/2026-09-archived-task-completion-history.md)
+- [MCP history conflicts explain their repair in words](../../decisions/2026-09-mcp-history-conflict-guidance.md)
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md)
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md)
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md)
