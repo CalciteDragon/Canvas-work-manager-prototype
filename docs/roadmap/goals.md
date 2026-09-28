@@ -53,13 +53,13 @@ would implement and the scope guards it inherits.
 
 ## Now
 
-**2026-09-27 review follow-up.** The user requested [Slice 46's close-out plan](active/46-slice-34-closeout-follow-up.md)
+**2026-09-27 review follow-up.** The user requested [Slice 46's close-out plan](planned/46-slice-34-closeout-follow-up.md)
 for recovery UI defects, task-history container-policy inconsistency, evidence and one-file
-safety gaps, recorded UX friction, and Slice 34's umbrella status. Slice 46 is active for
-the bounded candidate handoff; implementation follows in separate slices. The
+safety gaps, recorded UX friction, and Slice 34's umbrella status. Slice 46 remains the
+planned final evidence and documentation umbrella; bounded repairs run first. The
 historical Stage E closure below remains its original evidence.
 
-The first implementation candidate is [Slice 47 — Archive recovery state and focus](planned/47-archive-recovery-state-and-focus.md), covering the two browser recovery defects in Slice 46 findings 1–2. It starts after Slice 46 finishes its candidate handoff; the archived-container task-history rule follows in a separate slice.
+The first active implementation phase is [Slice 47 — Archive recovery state and focus](active/47-archive-recovery-state-and-focus.md), covering the two browser recovery defects in Slice 46 findings 1–2. The archived-container task-history rule follows in a separate slice.
 
 **Current direction — Project Undo/Redo and simpler Archive.**
 The user requested [the detailed development plan in Slice 34](planned/34-undo-redo-and-archive.md)
