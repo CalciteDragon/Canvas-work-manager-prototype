@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 49 | Slice 49 — Task history, service and MCP refusal repairs | Align archived-section reparent and archived-task completion rules with history; give MCP conflicts plain-language repair steps | [49-task-history-service-and-mcp-repairs.md](active/49-task-history-service-and-mcp-repairs.md) |
 
 ### Planned
 
