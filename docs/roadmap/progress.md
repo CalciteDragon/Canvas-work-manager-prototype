@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 48 | Slice 48 — Task history under archived sections | Task Undo/Redo refuses while the row's current or target section is archived, and works again after the section is restored | [48-task-history-under-archived-sections.md](active/48-task-history-under-archived-sections.md) |
 
 ### Planned
 

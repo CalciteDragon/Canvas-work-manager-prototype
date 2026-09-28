@@ -59,7 +59,7 @@ safety gaps, recorded UX friction, and Slice 34's umbrella status. Slice 46 rema
 planned final evidence and documentation umbrella; bounded repairs run first. The
 historical Stage E closure below remains its original evidence.
 
-[Slice 47 — Archive recovery state and focus](completed/47-archive-recovery-state-and-focus.md) closed Slice 46 findings 1–2: a stale root Archive row stays paused until a current read, and Settings Restore/Retry hand focus to a usable control. It left recovery-focus friction for the later recovery UX work (focus after a root Archive Restore or successful Retry, and a live frame removing a focused Settings Retry). The archived-container task-history rule follows in a separate slice.
+[Slice 47 — Archive recovery state and focus](completed/47-archive-recovery-state-and-focus.md) closed Slice 46 findings 1–2: a stale root Archive row stays paused until a current read, and Settings Restore/Retry hand focus to a usable control. It left recovery-focus friction for the later recovery UX work (focus after a root Archive Restore or successful Retry, and a live frame removing a focused Settings Retry). [Slice 48 — Task history under archived sections](active/48-task-history-under-archived-sections.md) is active for finding 3. It decides and indexes the container rule first: task edit, completion and move Undo/Redo refuse while the row's current or target section is archived, and they recover after the section is restored. It leaves the Delete/Restore/Add inverses and the project-only exception unchanged.
 
 **Current direction — Project Undo/Redo and simpler Archive.**
 The user requested [the detailed development plan in Slice 34](planned/34-undo-redo-and-archive.md)
