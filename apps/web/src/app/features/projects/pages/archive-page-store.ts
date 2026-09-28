@@ -11,6 +11,8 @@ import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import { isProjectRecordEvent, type LiveEvent } from '@cwm/contracts';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+/** The one error a later failed read must not replace: the write it describes already committed. */
+const COMMITTED_UNREFRESHED = 'Restore succeeded, but Archive could not refresh. Try again.';
 
 /** §31's root-wide Archive read and its canonical restore operations. */
 @Injectable()
@@ -79,10 +81,10 @@ export class ArchivePageStore {
         this.errorState.set(null);
         return true;
       } catch (error) {
-        // A retained error says why the list is paused — often that a write already committed —
-        // so a later failed read keeps it rather than replacing it with a transport message.
+        // A committed write stays reported: a later failed read does not replace that fact with
+        // a transport message. Any other error is replaced, so a failed Retry visibly ran.
         if (this.current(generation, projectId)) {
-          this.errorState.update((retained) => retained ?? messageOf(error));
+          this.errorState.update((retained) => (retained === COMMITTED_UNREFRESHED ? retained : messageOf(error)));
         }
         return false;
       } finally {
@@ -130,11 +132,11 @@ export class ArchivePageStore {
       const refreshGeneration = this.generation;
       const refreshed = await refreshPromise;
       if (!this.current(refreshGeneration, projectId)) return false;
-      if (!refreshed) this.errorState.set('Restore succeeded, but Archive could not refresh. Try again.');
+      if (!refreshed) this.errorState.set(COMMITTED_UNREFRESHED);
       return true;
     } catch (error) {
       if (!this.current(generation, projectId)) return false;
-      this.errorState.set(written ? 'Restore succeeded, but Archive could not refresh. Try again.' : messageOf(error));
+      this.errorState.set(written ? COMMITTED_UNREFRESHED : messageOf(error));
       return written;
     } finally {
       if (!this.destroyed) {
@@ -162,6 +164,9 @@ export class ArchivePageStore {
     if (projectId === null) return;
     if (this.restoring().size > 0) return;
     if (event.type === 'prototype.reloaded') {
+      // A reload replaces the document and perhaps the persona: nothing on screen still holds.
+      this.resultState.set(null);
+      this.errorState.set(null);
       void this.load(projectId);
       return;
     }

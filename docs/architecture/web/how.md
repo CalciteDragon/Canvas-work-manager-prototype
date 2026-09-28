@@ -9,7 +9,7 @@ focus is lost once it settles, the page moves it to Retry while an error blocks 
 after Restore, to the enabled status selector now at the restored row's place (the next row, a
 revealed child, or the previous row) and, after Retry, to the first enabled status selector; else
 to the heading. Focus moved elsewhere during the request stays there. A later failed read keeps
-the retained error, so "Restore succeeded" is not replaced by a transport message.
+a "Restore succeeded" error, so the committed write stays reported; any other error is replaced.
 
 ## Runtime flow
 

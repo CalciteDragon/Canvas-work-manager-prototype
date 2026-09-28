@@ -220,6 +220,29 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
     expect(store.error()).toBeNull();
   });
 
+  it('replaces a refusal with a later read failure, so Retry visibly ran', async () => {
+    const { store, gateway } = setup({ failOn: { 'sections.restore': new GatewayError('conflict', 409, 'changed elsewhere') } });
+    await store.load(PROJECT);
+    expect(await store.restore(archived.items[0]!)).toBe(false);
+    gateway.archive.get = vi.fn().mockRejectedValue(new GatewayError('unreachable', 0, 'host offline'));
+
+    expect(await store.retry()).toBe(false);
+    expect(store.error()).toContain('host offline');
+  });
+
+  it('clears a retained error and list on a prototype reload', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT);
+    gateway.archive.get = vi.fn().mockRejectedValue(new GatewayError('unreachable', 0, 'archive read failed'));
+    expect(await store.restore(archived.items[0]!)).toBe(true);
+    gateway.archive.get = vi.fn().mockRejectedValue(new GatewayError('not_found', 404, 'not readable by this persona'));
+
+    live.emit({ type: 'prototype.reloaded' } as never);
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+    expect(store.items()).toEqual([]);
+    expect(store.error()).toContain('not readable by this persona');
+  });
+
   it('keeps a refused write blocked through a quiet frame until a current read succeeds', async () => {
     const { store, gateway, live } = setup({ failOn: { 'sections.restore': new GatewayError('conflict', 409, 'changed elsewhere') } });
     await store.load(PROJECT);

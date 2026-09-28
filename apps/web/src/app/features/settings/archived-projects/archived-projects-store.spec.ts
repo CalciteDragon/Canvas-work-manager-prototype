@@ -56,6 +56,16 @@ describe('ArchivedProjectsStore (Slice 44)', () => {
     expect(store.error()).toContain('Restore succeeded');
   });
 
+  it('replaces a refusal with a later read failure, so Retry visibly ran', async () => {
+    const { store, gateway } = setup({ archivedProjects: result, failOn: { 'projects.update': new GatewayError('conflict', 409, 'Restore the parent first') } });
+    await store.load();
+    store.chooseStatus(project.id, 'planning');
+    expect(await store.restore(project.id)).toBe(false);
+    gateway.options.failOn = { 'projects.archived': new GatewayError('unreachable', 503, 'Offline') };
+    expect(await store.retry()).toBe(false);
+    expect(store.error()).toContain('Offline');
+  });
+
   it('keeps Restore blocked while a live-frame read is pending after a failed refresh', async () => {
     const { store, gateway, live } = setup();
     await store.load();

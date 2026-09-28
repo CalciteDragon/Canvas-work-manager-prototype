@@ -43,9 +43,10 @@ restore endpoint. Read and write refusals stay distinct.
 Restore, or one whose write committed but whose re-read failed, the retained list offers Restore
 again only after a successful read of that same list. On the root Archive the error persists
 through quiet live re-reads and through Retry, which is itself quiet when a list is on screen, so
-the error and Retry stay visible; a non-quiet read (a persona reload or reconnect) shows loading
-while Restore stays paused. A later failed read keeps the first error, so "Restore succeeded"
-is not replaced by a transport message, and a read superseded by a newer one never repaints. The
+the error and Retry stay visible; a reconnect's non-quiet read shows loading while Restore stays
+paused, and a prototype reload clears the list and error. A later failed read keeps a "Restore
+succeeded" error, so the committed write stays reported, and replaces any other, so a failed Retry
+visibly ran; a read superseded by a newer one never repaints. The
 pause disables Restore without the archived-project "Reactivate" note, and a sub-project's
 "Restore as" select shows the status Restore will send. In Settings, when Restore or Retry owned
 focus and focus is lost once it settles, focus moves to Retry while an error blocks the list;

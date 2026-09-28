@@ -173,13 +173,25 @@ test.describe('narrow touch recovery', () => {
 
       // A failed refresh keeps the row blocked and focuses Retry; a successful Retry moves on.
       await status(child.id).selectOption('on_hold');
-      const failList = (route: Route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"unavailable"}' });
+      // Armed by the child's own write, so a late frame from an earlier step cannot fail a read
+      // (and disable the child's Restore) before the Restore is activated.
+      let armed = false;
+      const armOnWrite = async (route: Route) => {
+        if (route.request().method() === 'PATCH') armed = true;
+        await route.continue();
+      };
+      const failList = (route: Route) => armed
+        ? route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"unavailable"}' })
+        : route.continue();
+      await page.route(`**/api/projects/${child.id}`, armOnWrite);
       await page.route('**/api/archived-projects', failList);
+      await expect(restore(child.id)).toBeEnabled();
       await activate(restore(child.id), theme);
       await expect(page.locator('[data-archived-error]')).toContainText('Restore succeeded');
       await expect(restore(child.id)).toBeDisabled();
       await expect(page.locator('[data-archived-retry]')).toBeFocused();
       await page.unroute('**/api/archived-projects', failList);
+      await page.unroute(`**/api/projects/${child.id}`, armOnWrite);
       await activate(page.locator('[data-archived-retry]'), theme);
       await expect(row(page, child.id)).toHaveCount(0);
       await expect(page.getByRole('heading', { name: 'Archived projects' })).toBeFocused();

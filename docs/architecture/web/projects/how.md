@@ -6,10 +6,10 @@ uses the canonical project, section, task or reflection write and then re-reads;
 archived children become visible only once their owner has returned. A refused write or a failed
 post-write re-read leaves an error that pauses every Restore (`restorePaused`, distinct from the
 archived-project `restoreBlocked` note). The pause holds until a read of the same root succeeds,
-so a stale row is never written twice; a later failed read keeps the first error. A quiet live
-re-read and Retry (quiet when a list is on screen) also keep the error and the Retry control
-visible; a persona reload or reconnect reads non-quietly and shows "Loading archive…" while Restore
-stays paused. A subproject's chosen status is keyed by id and survives the replacement projection;
+so a stale row is never written twice. A later failed read keeps a "Restore succeeded" error and
+replaces any other, so a failed Retry visibly ran. A quiet live re-read and Retry (quiet when a
+list is on screen) keep the error and the Retry control visible; a reconnect reads non-quietly and
+shows "Loading archive…" while Restore stays paused; a prototype reload clears the list and error. A subproject's chosen status is keyed by id and survives the replacement projection;
 each option binds `[selected]`, because a `[value]` on the select runs before its `@for` options exist.
 
 ## Runtime flow

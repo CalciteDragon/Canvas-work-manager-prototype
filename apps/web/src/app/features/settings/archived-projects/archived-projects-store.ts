@@ -6,6 +6,8 @@ import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 
 const messageOf = (error: unknown): string => error instanceof Error ? error.message : String(error);
+/** The one error a later failed read must not replace: the write it describes already committed. */
+const COMMITTED_UNREFRESHED = 'Restore succeeded, but archived projects could not refresh. Retry the list.';
 
 /** Workspace-scoped recovery state. The host decides which projects are currently restorable. */
 @Injectable()
@@ -70,8 +72,8 @@ export class ArchivedProjectsStore {
       this.statusState.update((previous) => new Map([...previous].filter(([id]) => result.items.some(({ project }) => project.id === id))));
       return true;
     }).catch((error: unknown) => {
-      // Keep a retained error — often that a write already committed — over a later read's.
-      if (this.current(generation)) this.errorState.update((retained) => retained ?? messageOf(error));
+      // A committed write stays reported; any other error is replaced, so a failed Retry visibly ran.
+      if (this.current(generation)) this.errorState.update((retained) => retained === COMMITTED_UNREFRESHED ? retained : messageOf(error));
       return false;
     }).finally(() => {
       settled();
@@ -97,7 +99,7 @@ export class ArchivedProjectsStore {
       const refresh = this.load({ quiet: true });
       const refreshGeneration = this.generation;
       const refreshed = await refresh;
-      if (!refreshed && this.current(refreshGeneration)) this.errorState.set('Restore succeeded, but archived projects could not refresh. Retry the list.');
+      if (!refreshed && this.current(refreshGeneration)) this.errorState.set(COMMITTED_UNREFRESHED);
       return true;
     } catch (error) {
       if (this.destroyed || this.generation !== writeGeneration) return false;
