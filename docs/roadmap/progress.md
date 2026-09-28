@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 50 | Slice 50 — Fault sensitivity for reflection grant and task no-op receipt | Prove the reflection transition grant and task no-op receipt assertions detect deliberate faults | [50-fault-sensitivity-evidence.md](active/50-fault-sensitivity-evidence.md) |
 
 ### Planned
 
