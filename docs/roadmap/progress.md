@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 47 | Slice 47 — Archive recovery state and focus | Keep stale Archive restores blocked through refresh and move Settings focus to the next usable control | [47-archive-recovery-state-and-focus.md](active/47-archive-recovery-state-and-focus.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -85,4 +83,5 @@ verification follow-ups rather than feature slices.
 | 43 | Slice 43 — One-step section removal and task Delete (Slice 34 Stage D1) | 2026-09-25 | One-step cascade removal and reversible task Delete | [43-one-step-removal-and-task-delete.md](completed/43-one-step-removal-and-task-delete.md) |
 | 44 | Slice 44 — Actionable Archive and archived-project recovery | 2026-09-27 | Parent-first Archive and workspace Settings recovery for archived projects | [44-actionable-archive-and-archived-projects.md](completed/44-actionable-archive-and-archived-projects.md) |
 | 45 | Slice 45 — Undo/Redo and Archive integrated closure | 2026-09-27 | Integrated Undo/Redo and Archive evidence ledger; header 375 px and stdio concurrency repairs | [45-undo-redo-archive-integrated-closure.md](completed/45-undo-redo-archive-integrated-closure.md) |
+| 47 | Slice 47 — Archive recovery state and focus | 2026-09-28 | Stale root Archive rows stay paused until a current read; Settings Restore/Retry hand focus to a usable control | [47-archive-recovery-state-and-focus.md](completed/47-archive-recovery-state-and-focus.md) |
 <!-- roadmap:end -->

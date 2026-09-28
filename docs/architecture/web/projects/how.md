@@ -9,7 +9,8 @@ archived-project `restoreBlocked` note). The pause holds until a read of the sam
 so a stale row is never written twice. A later failed read keeps a "Restore succeeded" error and
 replaces any other, so a failed Retry visibly ran. A quiet live re-read and Retry (quiet when a
 list is on screen) keep the error and the Retry control visible; a reconnect reads non-quietly and
-shows "Loading archive…" while Restore stays paused; a prototype reload clears the list and error. A subproject's chosen status is keyed by id and survives the replacement projection;
+shows "Loading archive…" while Restore stays paused; a prototype reload clears the list and error, even
+with a Restore pending, and its read supersedes that Restore's refresh. A subproject's chosen status is keyed by id and survives the replacement projection;
 each option binds `[selected]`, because a `[value]` on the select runs before its `@for` options exist.
 
 ## Runtime flow

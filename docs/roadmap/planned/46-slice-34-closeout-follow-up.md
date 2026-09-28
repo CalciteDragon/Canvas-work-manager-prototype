@@ -11,7 +11,7 @@ Close the 2026-09-27 review findings against [Slice 34](34-undo-redo-and-archive
 
 ## Build
 
-The findings below are the follow-up ledger, not one implementation phase. [Slice 47](../active/47-archive-recovery-state-and-focus.md) owns 1–2. Give 3–11 bounded implementing slices, one active at a time; then activate this umbrella only for final evidence and documentation reconciliation. Preserve the delivered history model and use current code and decisions when each candidate is activated.
+The findings below are the follow-up ledger, not one implementation phase. [Slice 47](../completed/47-archive-recovery-state-and-focus.md) closed 1–2 (its recovery-focus friction remains for later recovery UX work). Give 3–11 bounded implementing slices, one active at a time; then activate this umbrella only for final evidence and documentation reconciliation. Preserve the delivered history model and use current code and decisions when each candidate is activated.
 
 1. **Root Archive stale Restore:** keep a failed-refresh error and write block until a current projection read succeeds; cover quiet live refresh, Retry, and stale project status. Slice 47.
 2. **Settings focus:** after a restored row disappears, focus the next enabled status selector or heading; preserve focus moved during the request. Cover remaining rows, revealed child, last row and failed refresh. Slice 47.

@@ -243,6 +243,24 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
     expect(store.error()).toContain('not readable by this persona');
   });
 
+  it('lets a prototype reload during a pending Restore supersede that Restore’s refresh', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT);
+    let release!: (value: SectionWriteResult) => void;
+    gateway.sections.restore = vi.fn(() => new Promise<SectionWriteResult>((resolve) => { release = resolve; }));
+    const restoring = store.restore(archived.items[0]!);
+    const reloaded = { ...archived, items: [] };
+    gateway.archive.get = vi.fn().mockResolvedValue(reloaded);
+
+    live.emit({ type: 'prototype.reloaded' } as never);
+    release({ section, operation: null });
+    expect(await restoring).toBe(false);
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+    expect(store.error()).toBeNull();
+    expect(store.items()).toEqual([]);
+    expect(store.restoring().size).toBe(0);
+  });
+
   it('keeps a refused write blocked through a quiet frame until a current read succeeds', async () => {
     const { store, gateway, live } = setup({ failOn: { 'sections.restore': new GatewayError('conflict', 409, 'changed elsewhere') } });
     await store.load(PROJECT);

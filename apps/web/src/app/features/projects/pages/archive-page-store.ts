@@ -162,14 +162,15 @@ export class ArchivePageStore {
     if (this.destroyed) return;
     const projectId = this.projectIdState();
     if (projectId === null) return;
-    if (this.restoring().size > 0) return;
     if (event.type === 'prototype.reloaded') {
       // A reload replaces the document and perhaps the persona: nothing on screen still holds.
+      // It runs even while a Restore is pending; its read supersedes that Restore's refresh.
       this.resultState.set(null);
       this.errorState.set(null);
       void this.load(projectId);
       return;
     }
+    if (this.restoring().size > 0) return;
     // A project-record frame from another root still re-reads: a cross-root move names only the
     // sub-project's new root (Slice 39).
     if (event.rootProjectId !== projectId && event.projectId !== projectId && !isProjectRecordEvent(event)) return;

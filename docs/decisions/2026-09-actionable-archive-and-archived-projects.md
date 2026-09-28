@@ -44,7 +44,7 @@ Restore, or one whose write committed but whose re-read failed, the retained lis
 again only after a successful read of that same list. On the root Archive the error persists
 through quiet live re-reads and through Retry, which is itself quiet when a list is on screen, so
 the error and Retry stay visible; a reconnect's non-quiet read shows loading while Restore stays
-paused, and a prototype reload clears the list and error. A later failed read keeps a "Restore
+paused, and a prototype reload clears the list and error, even with a Restore pending. A later failed read keeps a "Restore
 succeeded" error, so the committed write stays reported, and replaces any other, so a failed Retry
 visibly ran; a read superseded by a newer one never repaints. The
 pause disables Restore without the archived-project "Reactivate" note, and a sub-project's

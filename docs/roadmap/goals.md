@@ -59,7 +59,7 @@ safety gaps, recorded UX friction, and Slice 34's umbrella status. Slice 46 rema
 planned final evidence and documentation umbrella; bounded repairs run first. The
 historical Stage E closure below remains its original evidence.
 
-The first active implementation phase is [Slice 47 — Archive recovery state and focus](active/47-archive-recovery-state-and-focus.md), covering the two browser recovery defects in Slice 46 findings 1–2. The archived-container task-history rule follows in a separate slice.
+[Slice 47 — Archive recovery state and focus](completed/47-archive-recovery-state-and-focus.md) closed Slice 46 findings 1–2: a stale root Archive row stays paused until a current read, and Settings Restore/Retry hand focus to a usable control. It left recovery-focus friction for the later recovery UX work (focus after a root Archive Restore or successful Retry, and a live frame removing a focused Settings Retry). The archived-container task-history rule follows in a separate slice.
 
 **Current direction — Project Undo/Redo and simpler Archive.**
 The user requested [the detailed development plan in Slice 34](planned/34-undo-redo-and-archive.md)
