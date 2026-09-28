@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Route } from '@playwright/test';
 import type { ProjectId, WorkspaceId } from '@cwm/contracts';
 import { api, createProject, seed, setClock } from './seed';
 
@@ -120,6 +120,93 @@ test.describe('narrow touch recovery', () => {
       await expect(row(page, project.id)).toHaveCount(0);
       await expect(page.getByRole('heading', { name: 'Archived projects' })).toBeFocused();
       await expect(page.locator('[data-archived-empty]')).toBeVisible();
+    }
+  });
+
+  // Slice 47: a later row's Restore is disabled until its status is chosen, so focus moves to
+  // the next enabled status selector — or Retry, or the heading — and never away from where
+  // the person deliberately put it.
+  test('focus lands on the remaining row, a revealed child, Retry, or stays where it was moved, in both themes', async ({ page }) => {
+    await seed('personal-workspace');
+    await setClock(NOW);
+    const { workspace } = await api.get<{ workspace: { id: WorkspaceId } }>('/api/me');
+    await page.goto('/settings/archived-projects');
+    const status = (id: ProjectId) => row(page, id).locator('[data-archived-status]');
+    const restore = (id: ProjectId) => row(page, id).locator('[data-archived-restore]');
+    // Each theme uses both methods, alternating by step. A tap is not pre-focused: the rescue
+    // depends on the tap itself giving the control focus.
+    let step = 0;
+    const activate = async (control: Locator, theme: 'dark' | 'light') => {
+      step += 1;
+      if ((step + (theme === 'dark' ? 0 : 1)) % 2 === 0) {
+        await control.focus();
+        await control.press('Enter');
+      } else {
+        await control.tap();
+      }
+    };
+    for (const theme of ['dark', 'light'] as const) {
+      step = 0;
+      if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('[data-theme-toggle]').click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      const parent = await createProject({ workspaceId: workspace.id, kind: 'root', name: `${theme} parent` });
+      const child = await createProject({ workspaceId: workspace.id, kind: 'subproject', parentProjectId: parent.id, name: `${theme} child` });
+      const sibling = await createProject({ workspaceId: workspace.id, kind: 'root', name: `${theme} sibling` });
+      await api.patch(`/api/projects/${child.id}`, { status: 'archived' });
+      await api.patch(`/api/projects/${parent.id}`, { status: 'archived' });
+      await api.patch(`/api/projects/${sibling.id}`, { status: 'archived' });
+      await expect(row(page, parent.id)).toBeVisible();
+      await expect(row(page, sibling.id)).toBeVisible();
+      await expect(row(page, child.id)).toHaveCount(0);
+
+      // Another row remains: focus its status, not its still-disabled Restore.
+      await status(sibling.id).selectOption('planning');
+      await activate(restore(sibling.id), theme);
+      await expect(row(page, sibling.id)).toHaveCount(0);
+      await expect(status(parent.id)).toBeFocused();
+
+      // Restoring the parent reveals its child, which takes the focus.
+      await status(parent.id).selectOption('active');
+      await activate(restore(parent.id), theme);
+      await expect(row(page, parent.id)).toHaveCount(0);
+      await expect(status(child.id)).toBeFocused();
+
+      // A failed refresh keeps the row blocked and focuses Retry; a successful Retry moves on.
+      await status(child.id).selectOption('on_hold');
+      const failList = (route: Route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"unavailable"}' });
+      await page.route('**/api/archived-projects', failList);
+      await activate(restore(child.id), theme);
+      await expect(page.locator('[data-archived-error]')).toContainText('Restore succeeded');
+      await expect(restore(child.id)).toBeDisabled();
+      await expect(page.locator('[data-archived-retry]')).toBeFocused();
+      await page.unroute('**/api/archived-projects', failList);
+      await activate(page.locator('[data-archived-retry]'), theme);
+      await expect(row(page, child.id)).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Archived projects' })).toBeFocused();
+      expect((await api.get<{ status: string }>(`/api/projects/${child.id}`)).status).toBe('on_hold');
+
+      // Focus the person moved elsewhere while the request was pending stays there.
+      const last = await createProject({ workspaceId: workspace.id, kind: 'root', name: `${theme} last` });
+      await api.patch(`/api/projects/${last.id}`, { status: 'archived' });
+      await expect(row(page, last.id)).toBeVisible();
+      await status(last.id).selectOption('completed');
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => { release = resolve; });
+      const holdWrite = async (route: Route) => {
+        if (route.request().method() === 'PATCH') await released;
+        await route.continue();
+      };
+      await page.route(`**/api/projects/${last.id}`, holdWrite);
+      await activate(restore(last.id), theme);
+      await expect(restore(last.id)).toHaveText('Restoring…');
+      const toggle = page.locator('[data-theme-toggle]');
+      await toggle.focus();
+      release();
+      await expect(row(page, last.id)).toHaveCount(0);
+      await expect(toggle).toBeFocused();
+      await page.unroute(`**/api/projects/${last.id}`, holdWrite);
+      await expect(page.locator('[data-archived-empty]')).toBeVisible();
+      expect((await api.get<{ status: string }>(`/api/projects/${last.id}`)).status).toBe('completed');
     }
   });
 });

@@ -22,7 +22,13 @@ export interface ArchiveRestoreRequest {
 })
 export class ArchivedRegion {
   readonly items = input.required<readonly ProjectArchiveItem[]>();
+  /** The project itself is archived: Restore waits for reactivation, and the list says so. */
   readonly restoreBlocked = input(false);
+  /**
+   * The list on screen may be stale — after a refused write or a failed re-read — so Restore
+   * waits for a current read. The owning page shows why; this list only disables its controls.
+   */
+  readonly restorePaused = input(false);
   readonly restoring = input<ReadonlySet<string>>(new Set());
 
   readonly restoreRequested = output<ArchiveRestoreRequest>();
@@ -160,7 +166,7 @@ export class ArchivedRegion {
   }
 
   canRestore(item: ProjectArchiveItem): boolean {
-    return !this.restoreBlocked() && this.restoring().size === 0 && item.restoration.kind === 'ready';
+    return !this.restoreBlocked() && !this.restorePaused() && this.restoring().size === 0 && item.restoration.kind === 'ready';
   }
 
   isRestoring(item: ProjectArchiveItem): boolean {

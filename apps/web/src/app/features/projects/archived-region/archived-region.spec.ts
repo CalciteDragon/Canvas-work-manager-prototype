@@ -129,6 +129,46 @@ describe('ArchivedRegion', () => {
     expect(restored).toHaveBeenCalledWith({ item: items[1], status: 'on_hold' });
   });
 
+  // Slice 47 real use: the select showed "planning" while Restore would send `active`.
+  it('shows the status a Restore will send before any choice is made', async () => {
+    const fixture = await render();
+    const restored = vi.fn();
+    fixture.componentInstance.restoreRequested.subscribe(restored);
+
+    expect((all(fixture, '[data-archived-project-status]')[0] as HTMLSelectElement).value).toBe('active');
+    (all(fixture, '[data-archived-kind="subproject"] [data-archived-restore]')[0] as HTMLButtonElement).click();
+    expect(restored).toHaveBeenCalledWith({ item: items[1], status: 'active' });
+  });
+
+  // Slice 47: a re-read replaces the projection with new objects for the same rows.
+  it('keeps a chosen project status when the same row arrives in a refreshed projection', async () => {
+    const fixture = await render();
+    const restored = vi.fn();
+    fixture.componentInstance.restoreRequested.subscribe(restored);
+    const select = all(fixture, '[data-archived-project-status]')[0] as HTMLSelectElement;
+    select.value = 'completed';
+    select.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const refreshed = items.map((item) => structuredClone(item));
+    fixture.componentRef.setInput('items', refreshed);
+    fixture.detectChanges();
+
+    expect((all(fixture, '[data-archived-project-status]')[0] as HTMLSelectElement).value).toBe('completed');
+    (all(fixture, '[data-archived-kind="subproject"] [data-archived-restore]')[0] as HTMLButtonElement).click();
+    expect(restored).toHaveBeenCalledWith({ item: refreshed[1], status: 'completed' });
+  });
+
+  it('disables a paused list without calling it an archived project', async () => {
+    const fixture = await render();
+    fixture.componentRef.setInput('restorePaused', true);
+    fixture.detectChanges();
+
+    expect((all(fixture, '[data-archived-restore]') as HTMLButtonElement[]).every(({ disabled }) => disabled)).toBe(true);
+    expect((all(fixture, '[data-archived-project-status]')[0] as HTMLSelectElement).disabled).toBe(true);
+    expect(all(fixture, '[data-archived-blocked]')).toHaveLength(0);
+  });
+
   describe('recovery metadata from the domain (Slice 29)', () => {
     const sectionEntry = (overrides: Record<string, unknown>) =>
       ProjectArchiveItemSchema.parse({

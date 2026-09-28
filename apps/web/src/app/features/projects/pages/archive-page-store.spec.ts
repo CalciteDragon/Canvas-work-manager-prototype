@@ -170,6 +170,74 @@ describe('ArchivePageStore (§31, §62, §63)', () => {
     expect(gateway.calls.filter(({ method }) => method === 'sections.restore')).toHaveLength(1);
   });
 
+  // Slice 47: a pending re-read is not a current projection. Neither a quiet frame nor Retry
+  // may clear the block on a row the committed write has already made stale.
+  it('keeps a stale row blocked through a quiet frame and Retry until a current read succeeds', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT);
+    gateway.archive.get = vi.fn(async () => {
+      throw new GatewayError('unreachable', 0, 'archive read failed');
+    });
+    expect(await store.restore(archived.items[0]!)).toBe(true);
+    const refused = store.error();
+    expect(refused).toContain('Restore succeeded, but Archive could not refresh');
+    // A later failed read does not erase the fact that the write committed.
+    expect(await store.retry()).toBe(false);
+    expect(store.error()).toBe(refused);
+
+    const reads: ((result: ProjectArchiveResult) => void)[] = [];
+    gateway.archive.get = vi.fn(() => new Promise<ProjectArchiveResult>((resolve) => { reads.push(resolve); }));
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await Promise.resolve();
+    expect(reads).toHaveLength(1);
+    expect(store.error()).toBe(refused);
+    expect(await store.restore(archived.items[0]!)).toBe(false);
+
+    const retried = store.retry();
+    expect(reads).toHaveLength(2);
+    expect(store.error()).toBe(refused);
+    expect(await store.restore(archived.items[0]!)).toBe(false);
+
+    reads[1]!({ ...archived, items: [] });
+    expect(await retried).toBe(true);
+    expect(store.error()).toBeNull();
+    expect(store.items()).toEqual([]);
+    // The quiet frame's older answer lands last and must not repaint the restored row.
+    reads[0]!(archived);
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+    expect(store.items()).toEqual([]);
+    expect(gateway.calls.filter(({ method }) => method === 'sections.restore')).toHaveLength(1);
+  });
+
+  it('does not carry one root’s error onto the next root while its read is pending', async () => {
+    const { store, gateway } = setup();
+    gateway.archive.get = vi.fn().mockRejectedValueOnce(new GatewayError('unreachable', 0, 'archive read failed'));
+    expect(await store.load(PROJECT)).toBe(false);
+    expect(store.error()).toContain('archive read failed');
+
+    gateway.archive.get = vi.fn(() => new Promise<ProjectArchiveResult>(() => {}));
+    void store.load('project-next' as ProjectId);
+    expect(store.error()).toBeNull();
+  });
+
+  it('keeps a refused write blocked through a quiet frame until a current read succeeds', async () => {
+    const { store, gateway, live } = setup({ failOn: { 'sections.restore': new GatewayError('conflict', 409, 'changed elsewhere') } });
+    await store.load(PROJECT);
+    expect(await store.restore(archived.items[0]!)).toBe(false);
+
+    let answer!: (result: ProjectArchiveResult) => void;
+    gateway.archive.get = vi.fn(() => new Promise<ProjectArchiveResult>((resolve) => { answer = resolve; }));
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    await Promise.resolve();
+    expect(store.error()).toContain('changed elsewhere');
+    expect(store.loading()).toBe(false);
+
+    answer(archived);
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+    expect(store.error()).toBeNull();
+    expect(store.items()).toHaveLength(1);
+  });
+
   it('serializes restore writes and disables the second stale request', async () => {
     const { store, gateway } = setup();
     await store.load(PROJECT);

@@ -10,6 +10,7 @@ import {
   type ProjectPageId,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
+import { GatewayError } from '../../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
@@ -134,5 +135,36 @@ describe('ArchivePage (§31)', () => {
     expect(gateway.calls.filter(({ method }) => method === 'sections.restore')).toHaveLength(1);
     expect(dataChanged).toHaveBeenCalledTimes(1);
     expect(hierarchyChanged).not.toHaveBeenCalled();
+  });
+
+  // Slice 47: the retained row stays visibly blocked, with its error and Retry, while Retry's
+  // read is pending — and the block is not mistaken for an archived project.
+  it('keeps the stale row blocked with its error and Retry until a current read replaces it', async () => {
+    const { fixture, gateway } = await render();
+    const host = fixture.nativeElement as HTMLElement;
+    gateway.archive.get = vi.fn().mockRejectedValue(new GatewayError('unreachable', 0, 'archive read failed'));
+
+    host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-archive-error]')?.textContent).toContain('Restore succeeded');
+    expect(host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.disabled).toBe(true);
+    expect(host.querySelector('[data-archived-blocked]')).toBeNull();
+
+    let answer!: (result: ProjectArchiveResult) => void;
+    gateway.archive.get = vi.fn(() => new Promise<ProjectArchiveResult>((resolve) => { answer = resolve; }));
+    host.querySelector<HTMLButtonElement>('[data-archive-retry]')!.click();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-archive-error]')?.textContent).toContain('Restore succeeded');
+    expect(host.querySelector('[data-archive-retry]')).not.toBeNull();
+    expect(host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.disabled).toBe(true);
+    host.querySelector<HTMLButtonElement>('[data-archived-restore]')!.click();
+
+    answer({ ...archive, items: [] });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(host.querySelector('[data-archive-error]')).toBeNull();
+    expect(host.querySelector('[data-archived-item]')).toBeNull();
+    expect(gateway.calls.filter(({ method }) => method === 'sections.restore')).toHaveLength(1);
   });
 });

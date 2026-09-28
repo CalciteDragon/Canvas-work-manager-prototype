@@ -52,6 +52,8 @@ describe('ArchivedProjectsStore (Slice 44)', () => {
     expect(gateway.calls.filter((call) => call.method === 'projects.update')).toHaveLength(writes);
     await store.retry();
     expect(gateway.calls.filter((call) => call.method === 'projects.update')).toHaveLength(writes);
+    // Slice 47: a later failed read does not erase the fact that the write committed.
+    expect(store.error()).toContain('Restore succeeded');
   });
 
   it('keeps Restore blocked while a live-frame read is pending after a failed refresh', async () => {

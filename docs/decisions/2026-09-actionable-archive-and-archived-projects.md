@@ -39,6 +39,22 @@ Archive page. Restore requires an explicit non-archived status and calls the exi
 write under `projects.write`; there is no project cascade, new persistent collection or new
 restore endpoint. Read and write refusals stay distinct.
 
+**Amended, 2026-09-27 — Slice 47's stale-list pause and recovery focus.** After a refused
+Restore, or one whose write committed but whose re-read failed, the retained list offers Restore
+again only after a successful read of that same list. On the root Archive the error persists
+through quiet live re-reads and through Retry, which is itself quiet when a list is on screen, so
+the error and Retry stay visible; a non-quiet read (a persona reload or reconnect) shows loading
+while Restore stays paused. A later failed read keeps the first error, so "Restore succeeded"
+is not replaced by a transport message, and a read superseded by a newer one never repaints. The
+pause disables Restore without the archived-project "Reactivate" note, and a sub-project's
+"Restore as" select shows the status Restore will send. In Settings, when Restore or Retry owned
+focus and focus is lost once it settles, focus moves to Retry while an error blocks the list;
+otherwise, after Restore, to the enabled status selector now at the restored row's place (the next
+row, a revealed child or the previous row) and, after a successful Retry, to the first enabled
+status selector; otherwise to the page heading. A later row's Restore is not a target, since it
+stays disabled until a status is chosen. Focus the person moved elsewhere during the request is
+left alone.
+
 ## Confidence
 
 High for the structural eligibility and no-cascade rule because the projection is based on

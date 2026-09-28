@@ -92,7 +92,7 @@ const recoveryItems: ProjectArchiveItem[] = [
 const meta: Meta<ArchivedRegion> = {
   title: 'Projects/ArchivedRegion',
   component: ArchivedRegion,
-  args: { items: archivedItems, restoreBlocked: false, restoring: new Set<string>() },
+  args: { items: archivedItems, restoreBlocked: false, restorePaused: false, restoring: new Set<string>() },
 };
 
 export default meta;
@@ -102,5 +102,7 @@ export const Empty: Story = { args: { items: [] } };
 export const ArchivedOwners: Story = {};
 export const ArchivedProjectWithStatusChoice: Story = { args: { items: archivedItems.slice(1, 2) } };
 export const RootArchived: Story = { args: { restoreBlocked: true } };
+/** Slice 47: a stale list after a refused or unrefreshed write. The page shows why. */
+export const RestorePaused: Story = { args: { restorePaused: true } };
 export const ContentAndUnknownSections: Story = { args: { items: recoveryItems.slice(0, 2) } };
 export const PreArchivedOnlyContainer: Story = { args: { items: recoveryItems.slice(2) } };

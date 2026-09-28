@@ -39,7 +39,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 | Entry | Settled | Status |
 |---|---|---|
-| [Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md) | Ready-only parent-first root Archive; workspace Settings recovers archived roots and live-ancestor subprojects | current (Slice 44) |
+| [Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md) | Ready-only parent-first root Archive; workspace Settings recovers archived roots and live-ancestor subprojects | amended; Slice 47 keeps a stale list paused until a current read and moves Settings focus to a usable control |
 | [Project nesting rules and what archiving a parent does](2026-08-project-nesting-and-archive-rules.md) | Same workspace, no cycles, no depth limit; children archived first | extended |
 | [Task status transitions, `completedAt`, and how a task is archived](2026-08-task-status-transitions-and-archive.md) | Archive is `archivedAt`, not a status; `done` stamps `completedAt` | amended; Slice 36 records task transitions; Slice 43 presents reversible archive as Delete |
 | [Workspace scoping, and why a foreign id is 404 rather than 409](2026-08-workspace-scoping-and-not-found.md) | Every read and write is scoped by the actor's workspace | current |

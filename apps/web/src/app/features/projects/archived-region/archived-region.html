@@ -56,14 +56,15 @@
           @if (item.kind === 'subproject') {
             <label class="archived-region__status">
               Restore as
+              <!-- Options come from @for, which renders after the select's own bindings: a
+                   [value] on the select would find no option and show the first one. -->
               <select
                 data-archived-project-status
-                [value]="projectStatus(item)"
                 [disabled]="!canRestore(item)"
                 (change)="selectProjectStatus(item, $event)"
               >
                 @for (status of projectStatuses; track status) {
-                  <option [value]="status">{{ status.replace('_', ' ') }}</option>
+                  <option [value]="status" [selected]="status === projectStatus(item)">{{ status.replace('_', ' ') }}</option>
                 }
               </select>
             </label>

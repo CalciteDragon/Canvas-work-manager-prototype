@@ -6,7 +6,7 @@
 @if (store.error(); as message) {
   <div class="archived-projects__error" role="alert">
     <p data-archived-error>{{ message }}</p>
-    <button data-archived-retry type="button" [disabled]="store.busy() !== null" (click)="store.retry()">Retry list</button>
+    <button data-archived-retry type="button" [disabled]="store.busy() !== null" (click)="retry()">Retry list</button>
   </div>
 }
 

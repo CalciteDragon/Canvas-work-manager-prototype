@@ -921,6 +921,14 @@
       "projectId": "project-renovation",
       "slice": 45,
       "note": "Slice 45 integrated real use on an isolated nested-projects copy: on Home a task was added, completed and deleted; its row vanished with no feedback line, and the header offered Undo: Archived \"Real use: patch drywall\". Navigating to Todos and reloading kept that label, and three header Undos walked back archive, completion and creation. Removing the Task List took one click with no dialog; Archive listed only the container (\"6 tasks restore with this section… 1 other task stays archived\"), and after Restore the independently archived task became its own entry. Archiving Garden from its header needs a confirm step; Settings then restored it with an explicit on-hold status and its history offered Undo: Reactivated. Friction: at 375 px the header Undo was drawn beneath the unshrinking sidebar and could not be tapped (fixed in this slice by wrapping the header actions); the sidebar itself still leaves the workspace ~135 px (note-2026-09-06-007). Delete's silent disappearance still reads as permanent at the moment of action (note-2026-09-24-001)."
+    },
+    {
+      "id": "note-2026-09-27-003",
+      "createdAt": "2026-09-27T17:45:00.000Z",
+      "route": "/projects/:projectId/pages/archive",
+      "projectId": "project-renovation",
+      "slice": 47,
+      "note": "Slice 47 real use on an isolated nested-projects copy (host on a scratch CWM_DATA_FILE). Settings: with Kitchen (whose Cabinets child was archived first) and Legacy attic listed, choosing Active by keyboard and pressing Enter on Restore removed Kitchen and put focus on the revealed Cabinets row's status selector. Root Archive: a task Restore whose re-read failed (archive reads failed in-page) kept the row with \"Restore succeeded, but Archive could not refresh\", every Restore disabled and no \"Reactivate this project\" note; a root rename's quiet frame and a keyboard Retry, both held open, kept the error, the Retry control and its focus, and only the released current read removed the row and re-enabled the rest, after exactly one write. Found and fixed: the root Archive's sub-project \"Restore as\" select displayed Planning while Restore would send Active, because its [value] bound before its @for options existed. Friction, not fixed here: on the root Archive, focus drops to the page body after a Restore removes its row and after a successful Retry removes itself; in Settings, a live frame (rather than Retry) that clears the error removes a focused Retry the same way. A restored row vanishing still has no spoken confirmation."
     }
   ]
 }

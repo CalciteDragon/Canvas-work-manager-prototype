@@ -36,7 +36,8 @@
   @defer (when !store.loading()) {
     <app-archived-region
       [items]="store.items()"
-      [restoreBlocked]="restoreBlocked() || store.error() !== null"
+      [restoreBlocked]="restoreBlocked()"
+      [restorePaused]="store.error() !== null"
       [restoring]="store.restoring()"
       (restoreRequested)="restore($event)"
     />

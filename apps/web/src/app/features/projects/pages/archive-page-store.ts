@@ -55,25 +55,34 @@ export class ArchivePageStore {
    * Reads the root's projection. `quiet` is the live path: when this root's list is already on
    * screen it stays there during the re-read instead of flashing "Loading archive…", which matters
    * since Slice 39 widened the frames that re-read it to project records from any root.
+   *
+   * An error outlives the read that follows it (Slice 47). It is what blocks Restore after a
+   * refused write or a failed post-write re-read, and a pending quiet frame or Retry is not yet
+   * a current projection: only a successful read of the same root clears it.
    */
   load(projectId: ProjectId, options: { quiet?: boolean } = {}): Promise<boolean> {
     if (this.destroyed) return Promise.resolve(false);
     const generation = ++this.generation;
     const previousProjectId = this.projectIdState();
     this.projectIdState.set(projectId);
-    if (previousProjectId !== projectId) this.resultState.set(null);
+    if (previousProjectId !== projectId) {
+      this.resultState.set(null);
+      this.errorState.set(null);
+    }
     const quiet = options.quiet === true && this.resultState() !== null;
     return this.track(async () => {
       if (!quiet) this.loadingState.set(true);
-      this.errorState.set(null);
       try {
         const result = await this.gateway.archive.get(projectId);
         if (!this.current(generation, projectId)) return false;
         this.resultState.set(result);
+        this.errorState.set(null);
         return true;
       } catch (error) {
+        // A retained error says why the list is paused — often that a write already committed —
+        // so a later failed read keeps it rather than replacing it with a transport message.
         if (this.current(generation, projectId)) {
-          this.errorState.set(messageOf(error));
+          this.errorState.update((retained) => retained ?? messageOf(error));
         }
         return false;
       } finally {
@@ -92,7 +101,6 @@ export class ArchivePageStore {
     const generation = ++this.generation;
     const id = this.idOf(item);
     this.restoringState.update((ids) => new Set([...ids, id]));
-    this.errorState.set(null);
     let written = false;
     try {
       switch (item.kind) {
@@ -139,9 +147,13 @@ export class ArchivePageStore {
     }
   }
 
+  /**
+   * Retry is read-only. It is quiet when a list is on screen, so the retained error and this
+   * control stay put — and keep keyboard focus — until the replacement read answers.
+   */
   retry(): Promise<boolean> {
     const projectId = this.projectIdState();
-    return projectId === null ? Promise.resolve(false) : this.load(projectId);
+    return projectId === null ? Promise.resolve(false) : this.load(projectId, { quiet: true });
   }
 
   private onLiveEvent(event: LiveEvent): void {

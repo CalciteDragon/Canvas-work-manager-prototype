@@ -3,7 +3,14 @@
 `ArchivePageStore` passes the root's ready-only projection to `ArchivedRegion`. The component
 words the supplied origin, cause and recovery counts without determining eligibility. Restore
 uses the canonical project, section, task or reflection write and then re-reads; independent
-archived children become visible only once their owner has returned.
+archived children become visible only once their owner has returned. A refused write or a failed
+post-write re-read leaves an error that pauses every Restore (`restorePaused`, distinct from the
+archived-project `restoreBlocked` note). The pause holds until a read of the same root succeeds,
+so a stale row is never written twice; a later failed read keeps the first error. A quiet live
+re-read and Retry (quiet when a list is on screen) also keep the error and the Retry control
+visible; a persona reload or reconnect reads non-quietly and shows "Loading archive…" while Restore
+stays paused. A subproject's chosen status is keyed by id and survives the replacement projection;
+each option binds `[selected]`, because a `[value]` on the select runs before its `@for` options exist.
 
 ## Runtime flow
 

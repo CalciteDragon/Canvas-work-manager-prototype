@@ -166,7 +166,9 @@ pnpm storybook                                        # :6006
   views, blank prose and independently moved empty sources are absent while prose, cascaded and
   pre-archived-only containers are present with recovery metadata; reload; append after an
   interposed Home shortcut; retry idempotency; the disabled tab reopened from a nested route;
-  and the same projection and canonical restores through a real MCP client.
+  and the same projection and canonical restores through a real MCP client. Slice 47 adds a
+  committed Restore whose re-read fails: a held quiet frame and a keyboard Retry keep the row
+  paused, and only the released current read re-enables it after one write.
 - **Removal Undo acceptance** lives in `removal-undo.spec.ts`: disposable views leave both
   the canvas and Archive and return with their saved config/order; live task and reflection rows
   cascade in one gesture; independently archived rows keep their markers; an independent task

@@ -4,7 +4,12 @@ Settings routes `/settings/archived-projects` to `ArchivedProjectsPage` outside 
 navigation. Its store reads `projects.archived()` via the gateway, keeps an explicit status per
 row, reports the existing project write to history and refreshes after success or refusal. It
 keeps an acknowledged success when only the following read fails and offers a read-only Retry.
-Project frames and reconnects refresh the workspace list.
+Project frames and reconnects refresh the workspace list. When Restore or Retry owned focus and
+focus is lost once it settles, the page moves it to Retry while an error blocks the list; else,
+after Restore, to the enabled status selector now at the restored row's place (the next row, a
+revealed child, or the previous row) and, after Retry, to the first enabled status selector; else
+to the heading. Focus moved elsewhere during the request stays there. A later failed read keeps
+the retained error, so "Restore succeeded" is not replaced by a transport message.
 
 ## Runtime flow
 

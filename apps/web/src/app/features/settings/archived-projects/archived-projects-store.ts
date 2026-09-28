@@ -70,7 +70,8 @@ export class ArchivedProjectsStore {
       this.statusState.update((previous) => new Map([...previous].filter(([id]) => result.items.some(({ project }) => project.id === id))));
       return true;
     }).catch((error: unknown) => {
-      if (this.current(generation)) this.errorState.set(messageOf(error));
+      // Keep a retained error — often that a write already committed — over a later read's.
+      if (this.current(generation)) this.errorState.update((retained) => retained ?? messageOf(error));
       return false;
     }).finally(() => {
       settled();

@@ -1,5 +1,5 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Route } from '@playwright/test';
 import type { WorkspaceId } from '@cwm/contracts';
 import { PROTOTYPE_HOST, createProject, seed, setClock } from './seed';
 import { undoFromHeader } from './history-controls';
@@ -561,4 +561,71 @@ test('an archived sub-project leaves and returns to the open Archive it moved fr
   const restored = await api<{ project: { status: string }; operation: Receipt }>('PATCH', `/api/projects/${shelved.id}`, { status: 'active' });
   expect(restored).toMatchObject({ project: { status: 'active' }, operation: { operation: 'project.reactivate' } });
   await expect(row).toHaveCount(0, { timeout: 15_000 });
+});
+
+// Slice 47: a committed Restore whose re-read fails leaves a stale row. Neither a quiet live
+// frame nor Retry may re-enable it while their reads are pending, and the write is not repeated.
+test('a stale Archive row stays blocked through a quiet frame and Retry until a current read replaces it', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const { workspace } = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+  const root = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Stale shelf' });
+  await api('PATCH', `/api/projects/${root.id}/pages/archive`, { enabled: true });
+  const list = (await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list', title: 'Shelf' })).section;
+  const first = await addTask({ projectId: root.id, sectionId: list.id, title: 'First filed' });
+  const second = await addTask({ projectId: root.id, sectionId: list.id, title: 'Second filed' });
+  for (const task of [first, second]) await api('POST', `/api/tasks/${task.id}/archive`);
+
+  const writes: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && request.url().endsWith('/restore')) writes.push(request.url());
+  });
+  const entry = (id: string) => page.locator(`[data-archived-item][data-archived-id="${id}"]`);
+  const restores = page.locator('[data-archived-restore]');
+  const allDisabled = async () => {
+    for (const button of await restores.all()) await expect(button).toBeDisabled();
+  };
+  await page.goto(`/projects/${root.id}/pages/archive`);
+  await expect(entry(first.id)).toBeVisible();
+  await expect(entry(second.id)).toBeVisible();
+
+  let mode: 'fail' | 'hold' | 'pass' = 'fail';
+  const held: Route[] = [];
+  await page.route(`**/api/projects/${root.id}/archive`, async (route) => {
+    if (mode === 'fail') await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"unavailable"}' });
+    else if (mode === 'hold') held.push(route);
+    else await route.continue();
+  });
+
+  await entry(first.id).locator('[data-archived-restore]').click();
+  const error = page.locator('[data-archive-error]');
+  await expect(error).toContainText('Restore succeeded, but Archive could not refresh');
+  await expect(entry(first.id)).toBeVisible();
+  await allDisabled();
+  // The block is a stale list, not an archived project.
+  await expect(page.locator('[data-archived-blocked]')).toHaveCount(0);
+
+  // A quiet frame: renaming the root re-reads its Archive, and that read is held open.
+  mode = 'hold';
+  await api('PATCH', `/api/projects/${root.id}`, { name: 'Stale shelf, renamed' });
+  await expect.poll(() => held.length, { timeout: 15_000 }).toBeGreaterThanOrEqual(1);
+  await expect(error).toBeVisible();
+  await allDisabled();
+
+  const retry = page.locator('[data-archive-retry]');
+  const readsBeforeRetry = held.length;
+  await retry.focus();
+  await page.keyboard.press('Enter');
+  await expect.poll(() => held.length).toBeGreaterThan(readsBeforeRetry);
+  await expect(error).toBeVisible();
+  await expect(retry).toBeFocused();
+  await allDisabled();
+
+  mode = 'pass';
+  for (const route of held.splice(0)) await route.continue();
+  await expect(error).toHaveCount(0);
+  await expect(entry(first.id)).toHaveCount(0);
+  await expect(entry(second.id).locator('[data-archived-restore]')).toBeEnabled();
+  expect(writes.filter((url) => url.includes(first.id))).toHaveLength(1);
+  expect(await archiveKeys(root.id)).toEqual([`task:${second.id}`]);
 });
