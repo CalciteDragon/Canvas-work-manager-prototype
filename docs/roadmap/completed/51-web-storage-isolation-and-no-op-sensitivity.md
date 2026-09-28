@@ -1,4 +1,4 @@
-<!-- plan id="51" status="active" summary="Clear browser storage before every web spec; prove the no-op test's history and Redo-summary assertions" -->
+<!-- completed-record id="51" closed="2026-09-28" summary="Web specs start from empty browser storage; no-op test's history and Redo-summary assertions proven fault-sensitive" -->
 # Slice 51 — Web spec storage isolation and remaining no-op assertion sensitivity
 
 <!-- The first line is the state marker; scripts/roadmap.mjs owns it. While the plan is in
@@ -107,19 +107,93 @@ All commands from the repository root unless a `cd` is shown. Record each with e
 - **Review round 1 (2026-09-28, cold subagent):** Three substantive findings, each checked and accepted. (1) A plain one-worker run is not deterministic: vitest's results cache runs the last-failed file first, so the reviewer saw the red command pass then fail, and a green after the fix could have been the cache. The reproduction now pins file order with a path-sorting sequencer, runs red and green twice each and records the order. (2) `ThemeService` never touches storage; the root cause now names only the two real leakers. (3) Slice 50's `goals.md` and Slice 46 ledger links need Slice 51 beside them; both joined the change list. Nitpicks taken: the Storybook tsconfig excludes the setup file too, "no production behavior change" replaces "no production code changes", and F2d's claim is "no realistic fault". The reviewer confirmed `setupFiles` re-registers the global `beforeEach` for every spec file under `isolate: false`, that no spec seeds storage outside `it`/`beforeEach`, and that F2c (unwrapped recorder, `histories.update` inside the unit of work) and F2d (`redo` nullable) fail at lines 345 and 346 as predicted.
 - **Review round 2 (2026-09-28, fresh cold subagent):** Two substantive findings, accepted. (1) The whole-suite pinned run is green before the fix too, so it cannot prove "no other spec depends on storage"; it is now informational, run before and after, and the pinned pair is named as the only discriminating evidence. (2) The `shell-store.spec.ts` leak was asserted but never shown; a pinned run with `sidebar.spec.ts` passed 31/31, so it is now worded as a latent leak, not an observed failure. Nitpicks taken: the plan row names its `completed/` move, the setup file's comment will name the overlapping per-spec clears, and F2d's expected text is vitest's exact wording. The reviewer reproduced the red pair, simulated the setup file from the scratchpad (pair 49/49, whole suite 792/792), and reconfirmed the tsconfig count and the F2c/F2d sites.
 - **Review round 3 (2026-09-28, fresh cold subagent):** **No substantive findings.** Nitpicks taken: the whole-suite before-run moved into step 2 so the steps read in order; new docs name Slice 51 in plain text so no link breaks at either `docs:check`; Compodoc's sweep of the setup file is noted as intended. The reviewer confirmed the `setupFiles` path resolves against `apps/web`, the three tsconfig edits, lines 343–346 and 391, the package names, the Done-when-to-step mapping and the closing order.
+- **Implementation review (2026-09-28, two fresh subagents):** **No substantive findings.** One reproduced part A (red twice with `setupFiles` removed, green twice restored, same file order), F2c and F2d in an isolated worktree reset to `a8681d0`. A probe spec, since deleted, confirmed the setup hook runs before a spec's own top-level and nested `beforeEach`. Its one correction was taken: `summary()` also reads the project row, so the Outcome's F2d argument now names it. The other audited the diff, the decision's §78 format and index, the testing docs and the links. Nitpicks taken: the round-3 commit hash, `pnpm test` as the web-suite evidence, and the setup file's comment now says a spec's `beforeAll` storage writes would be cleared.
 
 <!-- ───────────── Written before roadmap.mjs complete ───────────── -->
 
 ## Outcome
 
-**Deliverables** — <what now exists and works, with file links>.
+**Deliverables** — [`apps/web/src/test-setup.ts`](../../../apps/web/src/test-setup.ts), registered under `test.options.setupFiles` in [`angular.json`](../../../apps/web/angular.json), clears `sessionStorage` and `localStorage` before every web test. The spec tsconfig includes it, and the app and Storybook tsconfigs exclude it. The failure Slice 50 recorded as a presumed flake no longer reproduces. F2c and F2d each turned the target no-op test red at its predicted assertion and were reverted, so all four of that test's assertions now have a demonstrated fault. No production behavior changed; the only production edit is `CURRENT_SLICE = 51`. Every command below ran on 2026-09-28.
 
-**Deliberate choices** — <decisions made and why; options rejected; links to decision entries>.
+*Step 1 — baseline.* The plan was committed (`d3d513a`, round-3 edits `c2f1e20`). `git status --porcelain` printed nothing, and `git diff --exit-code packages/domain/src/task-service.ts packages/domain/src/operation-history-service.ts` exited 0. It exited 0 again before F2c and before F2d.
 
-**Deviations from the plan** — <what changed mid-implementation and what caused it>.
+*Step 2 — A, red.* The reproduction config (session scratchpad, never committed), verbatim:
 
-**Deferred** — <what was left out and which slice owns it>.
+```js
+class ByPath {
+  async shard(files) { return files; }
+  async sort(files) { return [...files].sort((a, b) => a.moduleId.localeCompare(b.moduleId)); }
+}
+export default { test: { maxWorkers: 1, fileParallelism: false, sequence: { sequencer: ByPath } } };
+```
 
-**Open questions** — <what the next phase or the user must answer>.
+The command ran from `apps/web`: `npx ng test --no-watch --runner-config <scratchpad>/ordered-one-worker.config.mjs --reporters verbose --include src/app/features/projects/project-canvas.spec.ts --include src/app/prototype/dev-panel/state-inspector-page.spec.ts`. Both runs exited 1. In both, `project-canvas.spec.ts` filled verbose lines 9–53 and `state-inspector-page.spec.ts` lines 54–58. Each run ended `Tests  1 failed | 48 passed (49)` with:
 
-**Documentation updated** — <the architecture folders, decisions and guides touched>.
+```text
+ ×  web  src/app/prototype/dev-panel/state-inspector-page.spec.ts > StateInspectorPage (§28) > lists projects with independent flow/grid controls, beside §46’s shared panel
+AssertionError: expected 'Development panelPrototype state The …' to contain 'Website launch'
+```
+
+The whole-suite before-run (same config, no `--include`) exited 0: `Test Files  71 passed (71)`, `Tests  792 passed (792)`.
+
+*Step 3 — A, green.* After the setup file, the `angular.json` option and the three tsconfig edits, the pair command ran twice. Both exited 0 with `Tests  49 passed (49)`, the same file order (`project-canvas.spec.ts` lines 9–53, then `state-inspector-page.spec.ts`), and `✓ … lists projects with independent flow/grid controls`. The whole-suite after-run exited 0: `71 passed`, `792 passed`. Only the pair discriminates the fix; the whole-suite run is green both ways. Committed as `a8681d0`.
+
+*Step 4 — F2c, a no-op bumps the history revision.* Fault diff in `task-service.ts`:
+
+```diff
+-import type { OperationRecorder } from './operation-recorder';
++import { historyBelongsToActor, type OperationRecorder, type RepositoryOperationRecorderDependencies } from './operation-recorder';
+…
+-      if (committed === current) return { task: current, operation: null };
++      if (committed === current) {
++        const { histories } = (this.dependencies.history as unknown as { dependencies: RepositoryOperationRecorderDependencies }).dependencies;
++        const history = (await histories.list({ workspaceId: actor.workspaceId, projectId: current.projectId })).find((candidate) => historyBelongsToActor(candidate, actor));
++        if (history !== undefined) await histories.update({ ...history, revision: history.revision + 1 });
++        return { task: current, operation: null };
++      }
+```
+
+`pnpm --filter @cwm/domain exec vitest run src/row-history.test.ts -t "no-op task write answers a null receipt"` exited 1 with `Tests  1 failed | 38 skipped (39)`. Assertions (1) and (2) passed:
+
+```text
+ FAIL  src/row-history.test.ts > row history closure evidence (Slice 45; §§31, 34, 36) > a no-op task write answers a null receipt and leaves the Redo branch standing
+AssertionError: expected [ { id: 'history-1', …(7) } ] to deeply equal [ { id: 'history-1', …(7) } ]
+-     "revision": 3,
++     "revision": 4,
+ ❯ src/row-history.test.ts:345:51
+```
+
+The diff excerpt omits the unchanged fields. Under F2c, `pnpm --filter @cwm/domain test` exited 1 with `Tests  1 failed | 798 passed (799)`; the target was the only failure. Reverted with `git checkout -- packages/domain/src/task-service.ts`. `git diff --exit-code` exited 0, and the domain suite passed `799 passed (799)`.
+
+*Step 5 — F2d, the summary hides the Redo branch.* Fault diff in `operation-history-service.ts` (`summaryOf`):
+
+```diff
+-      redo: await entry(nextOperationAction(state, 'redo'), 'redo'),
++      redo: null,
+```
+
+The same focused command exited 1 with `Tests  1 failed | 38 skipped (39)`. Assertions (1)–(3) passed:
+
+```text
+ FAIL  src/row-history.test.ts > row history closure evidence (Slice 45; §§31, 34, 36) > a no-op task write answers a null receipt and leaves the Redo branch standing
+AssertionError: expected undefined to be 'operation-2' // Object.is equality
+ ❯ src/row-history.test.ts:346:85
+```
+
+Under F2d the domain suite exited 1 with `Test Files  7 failed | 33 passed (40)` and `Tests  34 failed | 765 passed (799)`, the target among them. Reverted with `git checkout -- packages/domain/src/operation-history-service.ts`. `git diff --exit-code` on both domain files exited 0, and the domain suite passed `799 passed (799)`.
+
+*Step 6 — green.* `git status --porcelain` was clean after `a8681d0`, and both domain files had no diff. `pnpm test` exited 0, covering `pnpm --filter web test` as its web package: root `node --test` 9, contracts 355, repositories 164, web 792, prototype-data 120, domain 799, mcp-tools 173, prototype-host 267.
+
+*Step 7 — real use.* No runtime behavior changed; the setup file runs only under `ng test`. No browser or MCP journey was run, and no personal runtime data was touched.
+
+*Step 8a — pre-`complete` checks.* `pnpm lint` exited 0. `pnpm docs:check` exited 0 with `docs: ok — 18 system folders, 238 documents checked`.
+
+**Deliberate choices** — One global setup hook, per the [decision](../../decisions/2026-09-web-specs-start-with-empty-storage.md). Per-spec clears were rejected because they fix only today's leakers. `isolate: true` was rejected because the builder chose `false` deliberately, and per-file environments would cost every run to fix shared storage. F2d faults `summaryOf` rather than the no-op path: once (2) and (3) hold, the stored actions and history are unchanged, and `redo` depends on nothing else but the project row (`summary()` refuses a missing or foreign project) and the clock. So no realistic no-op-path fault can fail (4) alone: only deleting or moving the project, or advancing the injected clock past expiry, would. Assertion (4) is implied by (2) and (3) on the no-op path, and its independent value is guarding the summary read.
+
+**Deviations from the plan** — None in substance. A scripted plan edit failed on a line-wrapped match after the plan commit had already run, so the round-3 edits went into a second docs commit.
+
+**Deferred** — The `shell-store.spec.ts` `nestedProjects` leak is latent and now harmless under the setup file; the spec itself was not edited (non-goal). The rest of Slice 46 stays in [Slice 46](../planned/46-slice-34-closeout-follow-up.md).
+
+**Open questions** — None.
+
+**Documentation updated** — `docs/architecture/testing/how.md` (runtime flow step 1), `what.md` (web specs row) and `why.md` (decision link); the new [decision](../../decisions/2026-09-web-specs-start-with-empty-storage.md) and its *Testing* index row. After `complete`, three link edits point at `completed/51-web-storage-isolation-and-no-op-sensitivity.md`: a dated note under the title of [Slice 50's record](../completed/50-fault-sensitivity-evidence.md), `[Slice 51]` beside Slice 50 in the Build paragraph and finding 4 of [Slice 46](../planned/46-slice-34-closeout-follow-up.md), and one sentence after Slice 50's in [`goals.md`](../goals.md).

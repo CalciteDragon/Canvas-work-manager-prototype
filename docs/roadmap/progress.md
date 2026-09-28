@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 51 | Slice 51 — Web spec storage isolation and remaining no-op assertion sensitivity | Clear browser storage before every web spec; prove the no-op test's history and Redo-summary assertions | [51-web-storage-isolation-and-no-op-sensitivity.md](active/51-web-storage-isolation-and-no-op-sensitivity.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -89,4 +87,5 @@ verification follow-ups rather than feature slices.
 | 48 | Slice 48 — Task history under archived sections | 2026-09-28 | Task Undo/Redo refuses while the row's current or target section is archived, and works again after the section is restored | [48-task-history-under-archived-sections.md](completed/48-task-history-under-archived-sections.md) |
 | 49 | Slice 49 — Task history, service and MCP refusal repairs | 2026-09-28 | Task reparent and completion history respect archives; MCP history conflicts explain repairs in words | [49-task-history-service-and-mcp-repairs.md](completed/49-task-history-service-and-mcp-repairs.md) |
 | 50 | Slice 50 — Fault sensitivity for reflection grant and task no-op receipt | 2026-09-28 | Reflection grant and task no-op receipt assertions proven fault-sensitive; faults reverted | [50-fault-sensitivity-evidence.md](completed/50-fault-sensitivity-evidence.md) |
+| 51 | Slice 51 — Web spec storage isolation and remaining no-op assertion sensitivity | 2026-09-28 | Web specs start from empty browser storage; no-op test's history and Redo-summary assertions proven fault-sensitive | [51-web-storage-isolation-and-no-op-sensitivity.md](completed/51-web-storage-isolation-and-no-op-sensitivity.md) |
 <!-- roadmap:end -->

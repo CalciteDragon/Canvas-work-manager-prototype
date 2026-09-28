@@ -10,7 +10,8 @@ import { beforeEach } from 'vitest';
  * (docs/decisions/2026-09-web-specs-start-with-empty-storage.md).
  *
  * Registered through `setupFiles` in `angular.json`, which runs this file ahead of each spec file,
- * so this hook runs before that file's own. The per-spec `sessionStorage.clear()` calls that
+ * so this hook runs before that file's own `beforeEach` hooks — and after its `beforeAll`, so
+ * stored state a spec needs belongs in its `beforeEach` or test. The per-spec `sessionStorage.clear()` calls that
  * predate it now overlap it and are left alone by design.
  */
 beforeEach(() => {

@@ -1,6 +1,8 @@
 <!-- completed-record id="50" closed="2026-09-28" summary="Reflection grant and task no-op receipt assertions proven fault-sensitive; faults reverted" -->
 # Slice 50 — Fault sensitivity for reflection grant and task no-op receipt
 
+> **Note (2026-09-28):** [Slice 51](51-web-storage-isolation-and-no-op-sensitivity.md) traced the web failure recorded below as a presumed load-dependent flake to an order-dependent `sessionStorage` leak between spec files, and fixed it. It also proved, with reverted faults, the target no-op test's `operationHistories` and Redo-summary assertions left unclaimed here. This record's text is unchanged.
+
 <!-- The first line is the state marker; scripts/roadmap.mjs owns it. While the plan is in
      planned/ keep only the first five sections and keep them short. When it starts (roadmap.mjs
      start), write the rest per AGENTS.md step 1, then revise it through review (step 2) and
