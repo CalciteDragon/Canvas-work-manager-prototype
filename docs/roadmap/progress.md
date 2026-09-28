@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 51 | Slice 51 — Web spec storage isolation and remaining no-op assertion sensitivity | Clear browser storage before every web spec; prove the no-op test's history and Redo-summary assertions | [51-web-storage-isolation-and-no-op-sensitivity.md](active/51-web-storage-isolation-and-no-op-sensitivity.md) |
 
 ### Planned
 
