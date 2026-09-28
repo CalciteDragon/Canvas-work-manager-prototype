@@ -12,6 +12,10 @@ a current read, so a race is verified against the canonical write refusal too.
    then `pnpm -r --if-present test`: `vitest run` in each package and the
    host, `ng test --no-watch` in the web app. No browser or external network is needed;
    transport and persistence tests use isolated localhost servers and temporary files.
+   The web app's specs run non-isolated (the builder's default), so files in one worker share
+   jsdom storage; `apps/web/src/test-setup.ts`, registered as `setupFiles` in `angular.json`,
+   clears `sessionStorage` and `localStorage` before every test so no spec inherits another's
+   §47 flags ([decision](../../decisions/2026-09-web-specs-start-with-empty-storage.md)).
    Slice 42's unavailable-route retry after a failed history-summary read is covered by
    `apps/web/src/app/features/projects/project-workspace-shell.spec.ts`.
 2. `pnpm lint` runs each workspace's `lint` — `tsc --noEmit` plus the import, date and

@@ -102,6 +102,7 @@ visually moved after a refused toggle — none of it visible to a unit test.
 
 - [The end-to-end suite starts its own servers and writes its own data file](../../decisions/2026-08-e2e-owns-its-servers-and-its-data.md)
 - [Storybook runs on the Vite framework, not the webpack one](../../decisions/2026-08-storybook-runs-on-the-vite-framework.md)
+- [Web specs start from empty browser storage](../../decisions/2026-09-web-specs-start-with-empty-storage.md) — one setup hook instead of per-spec clears or `isolate: true`
 - [What the tool registry knows about MCP](../../decisions/2026-08-tool-registry-is-transport-free.md)
 - [§4's *Agent Modified* task row has no data behind it](../../decisions/2026-08-agent-modified-has-no-data-behind-it.md) — why the story set has six variants
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — host acceptance covers permanent refusal, same-file restart, same-id Redo and expiry; the component spec covers missing-summary retry; browser acceptance covers creator-only recovery, expiry, and ancestor projections across create/Undo/Redo

@@ -150,3 +150,4 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [The end-to-end suite starts its own servers and writes its own data file](2026-08-e2e-owns-its-servers-and-its-data.md) | Playwright owns both processes and `.prototype/e2e-data.json` | current |
 | [Storybook runs on the Vite framework, not the webpack one](2026-08-storybook-runs-on-the-vite-framework.md) | `@storybook/angular-vite`, zoneless, `@angular/build` | current |
+| [Web specs start from empty browser storage](2026-09-web-specs-start-with-empty-storage.md) | One `setupFiles` hook clears both storages before every web test; `isolate` stays off | current |
