@@ -65,7 +65,9 @@ historical Stage E closure below remains its original evidence.
 
 [Slice 52 — MCP transport failure and lost-response evidence](completed/52-mcp-transport-failure-evidence.md) closed Slice 46 finding 5. Both SDK transports now prove failed task and Undo commits leave the canonical file, history and Activity unchanged; a committed Undo with a lost response remains one transition after a same-file reconnect and stale-revision retry. Streamable HTTP also proves zero frames on failure and one frame after a successful commit.
 
-[Slice 53 — Stdio expiry and durable Archive recovery](completed/53-stdio-expiry-and-durable-recovery.md) closes finding 6 with an injected-clock SDK stdio journey through expired Undo, same-content Archive Restore, ActivityService reads and two same-file restarts. Findings 7–14 remain planned under Slice 46.
+[Slice 53 — Stdio expiry and durable Archive recovery](completed/53-stdio-expiry-and-durable-recovery.md) closes finding 6 with an injected-clock SDK stdio journey through expired Undo, same-content Archive Restore, ActivityService reads and two same-file restarts. Slice 46 finding 7 is now active; findings 8–14 remain planned.
+
+[Slice 54 — One writer per data file](active/54-data-file-ownership.md) is the active next phase for finding 7. It plans an advisory owner file beside each canonical JSON file: the HTTP host holds it for its lifetime, stdio takes it per call, and seed, reset, upgrade and e2e preparation take it while they write, so a concurrent writer waits its turn or is refused instead of losing data. A dead owner's record is reclaimed under a nonce-checked guard; a live one is never stolen. Findings 8–14 remain planned under Slice 46.
 
 **Current direction — Project Undo/Redo and simpler Archive.**
 The user requested [the detailed development plan in Slice 34](planned/34-undo-redo-and-archive.md)

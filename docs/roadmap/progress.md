@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 54 | Slice 54 — One writer per data file | An advisory owner file makes every canonical JSON writer take turns; the host holds it for life, stdio per call | [54-data-file-ownership.md](active/54-data-file-ownership.md) |
 
 ### Planned
 
