@@ -7,7 +7,8 @@ import { createToolRegistry } from '@cwm/mcp-tools';
 import { createRequestHandler, healthRoutes, type RawRouteTable, type RouteTable } from './router.ts';
 import { aiProviderFor, createApi } from './api/services.ts';
 import { createApiRoutes } from './api/routes.ts';
-import { loadPersistence } from './persistence/store.ts';
+import { acquireDataFileOwnership, type DataFileOwnership, type UnitOfWork } from '@cwm/repositories';
+import { dataFilePath, loadPersistence } from './persistence/store.ts';
 import { PrototypeRuntime } from './prototype/runtime.ts';
 import { createPrototypeRoutes } from './prototype/routes.ts';
 import { SwitchableAIProvider } from './prototype/switchable-ai-provider.ts';
@@ -98,6 +99,53 @@ export function stop(server: Server): Promise<void> {
   });
 }
 
+/**
+ * The host's hold on its data file (Slice 54): acquired before the file is loaded and kept for the
+ * host's lifetime. `drained` turns true once shutdown has waited out every queued write, and only
+ * then may the file be handed to another writer.
+ */
+export interface HostOwnership {
+  handle: DataFileOwnership;
+  drained: boolean;
+}
+
+const DRAINED = Symbol('drained');
+
+/**
+ * Stops the host and hands its data file back. `stop()`'s `closeAllConnections()` does not cancel
+ * a unit of work that is mid-persist, so the write queue is drained **before** the release —
+ * otherwise a waiting writer could load the file before the host's rename lands.
+ *
+ * The drain throws a sentinel: `runUnitOfWork` persists after any callback that returns, so a
+ * no-op callback would rewrite the file on every Ctrl+C. A throwing one still waits for the
+ * queue's tail but skips the persist.
+ */
+export async function shutdownHost(parts: {
+  server: Server;
+  mcp: { close(): Promise<void> };
+  unitOfWork: UnitOfWork;
+  ownership: HostOwnership;
+}): Promise<void> {
+  const stopped = await Promise.allSettled([stop(parts.server), parts.mcp.close()]);
+  await parts.unitOfWork.run(() => {
+    throw DRAINED;
+  }).catch((error: unknown) => {
+    if (error !== DRAINED) throw error;
+  });
+  parts.ownership.drained = true;
+  await parts.ownership.handle.release();
+  const failure = stopped.find((result) => result.status === 'rejected');
+  if (failure !== undefined) throw failure.reason;
+}
+
+/**
+ * The `process.on('exit')` release. On the 2 s give-up path the drain has not finished and a
+ * threadpool rename may still be in flight, so the record is left for pid-based reclaim instead.
+ */
+export function releaseOnExit(ownership: HostOwnership): void {
+  if (ownership.drained) ownership.handle.releaseSync();
+}
+
 const isDirectRun =
   process.argv[1] !== undefined &&
   resolvePath(process.argv[1]) === resolvePath(fileURLToPath(import.meta.url));
@@ -107,8 +155,20 @@ if (isDirectRun) {
   // throws on an unusable value, and calling it again from the catch would throw a second
   // time — losing the very message that explains the first.
   let port = DEFAULT_PORT;
+  let ownership: HostOwnership | undefined;
   try {
     port = configuredPort();
+    // One writer per data file: acquired before the load, so first-run seeding happens under it
+    // too. The wait covers a `tsx watch` restart whose old child is still exiting, or a stdio
+    // call's turn. The line goes to stdout, where the harnesses already read the listening line.
+    const handle = await acquireDataFileOwnership(dataFilePath(), {
+      kind: 'http-host',
+      waitMs: 5_000,
+      onWait: (owner) => console.log(`prototype-host waiting for data file owned by ${owner.kind} pid ${owner.pid}`),
+    });
+    const held: HostOwnership = { handle, drained: false };
+    ownership = held;
+    process.on('exit', () => releaseOnExit(held));
     // Loading the data file after the port means a broken or missing document fails the
     // start loudly, rather than surfacing as a 500 on the first request.
     const persistence = await loadPersistence();
@@ -163,7 +223,7 @@ if (isDirectRun) {
         }
         stopping = true;
         const giveUp = setTimeout(() => process.exit(0), 2000).unref();
-        void Promise.all([stop(server), mcp.close()])
+        void shutdownHost({ server, mcp, unitOfWork: persistence.unitOfWork, ownership: held })
           .catch((error: unknown) => {
             const reason = error instanceof Error ? error.message : String(error);
             console.error(`prototype-host did not shut down cleanly — ${reason}`);
@@ -177,6 +237,8 @@ if (isDirectRun) {
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
     console.error(`prototype-host failed to start on ${HOST}:${port} — ${reason}`);
+    // Nothing is queued before the host listens, so the file can be handed back at once.
+    await ownership?.handle.release().catch(() => undefined);
     process.exit(1);
   }
 }

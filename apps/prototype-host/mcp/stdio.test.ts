@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
@@ -267,6 +267,38 @@ describe('MCP stdio entry (§59)', () => {
       const after = (await loadPersistence(path)).store.snapshot();
       expect(after.activityEvents).toHaveLength(eventsBefore + 1);
       expect(after.operationHistories.find(({ id }) => id === historyId)?.revision).toBe(revision + 1);
+    } finally {
+      await client.close();
+    }
+  }, 20_000);
+
+  /** Slice 54: per-call ownership registers one exit listener for the process, not one per call. */
+  it('takes ownership per call without leaking an exit listener per call', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-mcp-stdio-listeners-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
+    await writeSeedFile('agent-heavy', { targetPath: path });
+    const transport = new StdioClientTransport({
+      command: process.execPath,
+      args: ['--import', 'tsx', join(here, 'stdio.ts')],
+      cwd: join(here, '..'),
+      env: { ...getDefaultEnvironment(), CWM_DATA_FILE: path, CWM_MCP_TOKEN: 'prototype-user-a-readwrite' },
+      stderr: 'pipe',
+    });
+    let stderr = '';
+    transport.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+    const client = new Client(
+      { name: 'slice-54-stdio-listeners', version: '0.0.0' },
+      { versionNegotiation: { mode: { pin: '2026-07-28' } } },
+    );
+    await client.connect(transport);
+    try {
+      for (let call = 0; call < 12; call += 1) {
+        const result = await client.callTool({ name: 'list_tasks', arguments: { projectId: 'project-work-manager' } });
+        expect(result.isError).not.toBe(true);
+      }
+      expect(stderr).not.toContain('MaxListenersExceededWarning');
+      expect(await readdir(directory)).not.toContain('data.json.owner');
     } finally {
       await client.close();
     }
