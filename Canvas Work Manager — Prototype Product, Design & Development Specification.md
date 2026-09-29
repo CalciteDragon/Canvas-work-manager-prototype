@@ -1150,6 +1150,11 @@ name keeps its width ([why](docs/decisions/2026-09-project-header-history-contro
 Slice 45:* that row and the Undo/Redo pair wrap, so the controls stay inside the header and can be
 tapped at 375 px even though the global sidebar keeps its width.
 
+*Since Slice 56,* a descendant-owned row on root Todos or Archive offers a separate
+`Open <owner> history` link to these existing header controls. The `#history-controls` route scrolls and focuses
+the group after the owner loads, including on reload. The link offers the current owner's history,
+not a guaranteed Undo of that row; a root-owned row adds no link.
+
 *Since Slice 55,* a newly recorded section update's header label names a lone rename (including
 the resulting default after a title clear), Rich Text prose edit, collapse or expand, or resize to
 its saved column count. Mixed updates and other configuration changes use one general "Updated"
@@ -1751,6 +1756,10 @@ and reflection Restore are ordinary row writes and therefore record new history 
 [retired actions](docs/decisions/2026-09-operation-history-retired-actions.md),
 [removal footprint](docs/decisions/2026-09-section-removal-undo-records.md)).
 
+*Since Slice 56,* the root's Todos and Archive projections link descendant-owned rows to
+their owner's header (§26). The route only discovers that actor's current summary for that
+project; it does not merge project cursors or reveal another actor's steps.
+
 *Landed in Slice 37.* Undoing a recorded Restore is **not** the removal: it re-archives the section
 at the marker, generation and stored position the Restore found, and takes back down exactly the
 rows that Restore revived. It never runs removal policy, never deletes the section, never advances
@@ -2025,6 +2034,8 @@ anything beneath an archived ancestor, are excluded. Every row carries an origin
 and links to its canonical owner; completing one there and completing it here are the same
 operation on the same row. A task row also offers **Delete**, including when finished; this archives
 the canonical task and removes it from the projection until it is restored.
+For a descendant-owned task or unit of work, a separate named link opens that owner's
+existing header history (§26); it does not change the canonical row link or add Undo here.
 
 There is no drag ordering on Todos. The order is the chronology.
 

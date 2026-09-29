@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { nameOf, ownedKindOf, type ProjectArchiveItem, type ProjectRestoreStatus } from '@cwm/contracts';
+import { nameOf, ownedKindOf, type ProjectArchiveItem, type ProjectId, type ProjectRestoreStatus } from '@cwm/contracts';
 
 export interface ArchiveRestoreRequest {
   item: ProjectArchiveItem;
@@ -22,6 +22,7 @@ export interface ArchiveRestoreRequest {
 })
 export class ArchivedRegion {
   readonly items = input.required<readonly ProjectArchiveItem[]>();
+  readonly rootProjectId = input.required<ProjectId>();
   /** The project itself is archived: Restore waits for reactivation, and the list says so. */
   readonly restoreBlocked = input(false);
   /**
@@ -89,6 +90,20 @@ export class ArchivedRegion {
 
   originFragment(item: ProjectArchiveItem): string | undefined {
     return item.origin.sectionId === undefined ? undefined : `section-${item.origin.sectionId}`;
+  }
+
+  /** The breadcrumb carries the owner name even when that project is archived. */
+  historyOwner(item: ProjectArchiveItem): { name: string; route: unknown[] } | null {
+    const id = item.origin.projectId;
+    if (id === this.rootProjectId()) return null;
+    const name = item.kind === 'subproject'
+      ? item.project.name
+      : item.origin.breadcrumb.find((step) => step.projectId === id)?.name;
+    if (name === undefined) return null;
+    const route = item.origin.pageKind === 'home'
+      ? ['/projects', id, 'pages', 'home']
+      : ['/projects', id];
+    return { name, route };
   }
 
   causeLabel(item: ProjectArchiveItem): string {

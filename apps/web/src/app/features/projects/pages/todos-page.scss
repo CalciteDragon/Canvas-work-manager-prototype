@@ -124,6 +124,11 @@
   }
 }
 
+[data-todo-history-link] {
+  grid-column: 1 / -1;
+  font-size: var(--font-size-sm);
+}
+
 @media (max-width: 40rem) {
   .todos__row {
     grid-template-columns: minmax(0, 1fr) auto;

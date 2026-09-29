@@ -125,6 +125,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 | Entry | Settled | Status |
 |---|---|---|
+| [Descendant rows link to their owner's existing header history](2026-09-descendant-history-discovery.md) | Root Todos and Archive offer a named owner route to the existing header; focus and actor scope stay there | current (Slice 56) |
 | [Direct canvas editing is the next development direction](2026-09-direct-canvas-editing-direction.md) | Approved direction, implemented in Slice 27 | implemented in Slice 27 |
 | [Canvas chrome is revealed in place, not gated by an editing mode](2026-09-canvas-chrome-is-revealed-not-moded.md) | Contextual reveal, keyboard and touch behavior, optimistic resize; pending shortcut writes, complete-order movement guards and browser-review reveal and handle fixes, slider handle and script-fitted Rich Text amended | amended |
 | [A recovery route is offered only when it leads somewhere](2026-09-recovery-routes-name-what-is-actually-there.md) | Archive offered on the removal's own verdict, Archive rows state the append | amended (Slice 35 removes `supersededBy`; Slice 41 moves Open Archive to the recovery notice; Slice 44 adds Settings recovery) |

@@ -11,6 +11,11 @@
   align-items: center;
 }
 
+.history-controls:focus {
+  outline: var(--border-focus) solid var(--color-accent);
+  outline-offset: var(--border-focus);
+}
+
 .history-controls__button,
 .history-controls__retry {
   display: inline-grid;

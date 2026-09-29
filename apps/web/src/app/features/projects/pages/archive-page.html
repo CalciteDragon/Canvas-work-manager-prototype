@@ -36,6 +36,7 @@
   @defer (when !store.loading()) {
     <app-archived-region
       [items]="store.items()"
+      [rootProjectId]="projectId()"
       [restoreBlocked]="restoreBlocked()"
       [restorePaused]="store.error() !== null"
       [restoring]="store.restoring()"

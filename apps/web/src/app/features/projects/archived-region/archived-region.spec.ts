@@ -2,7 +2,9 @@ import { TestBed } from '@angular/core/testing';
 import {
   ProjectArchiveItemSchema,
   ProjectSectionSchema,
+  ReflectionSchema,
   SubprojectSchema,
+  TaskSchema,
   type ProjectArchiveItem,
 } from '@cwm/contracts';
 import { provideRouter } from '@angular/router';
@@ -56,7 +58,7 @@ const items: ProjectArchiveItem[] = [
   ProjectArchiveItemSchema.parse({
     kind: 'subproject',
     project: subproject,
-    origin: { ...origin, projectId: subproject.id, breadcrumb: [...origin.breadcrumb, { projectId: subproject.id, name: subproject.name }] },
+    origin: { ...origin, projectId: subproject.id, pageKind: 'work', pageId: 'page-project-subproject', breadcrumb: [...origin.breadcrumb, { projectId: subproject.id, name: subproject.name }] },
     cause: { kind: 'own' },
     restoration: { kind: 'ready', operation: 'restore_project', permission: 'projects.write' },
   }),
@@ -67,6 +69,7 @@ const render = async (archiveItems = items, restoreBlocked = false) => {
   TestBed.configureTestingModule({ providers: [provideRouter([])] });
   const fixture = TestBed.createComponent(ArchivedRegion);
   fixture.componentRef.setInput('items', archiveItems);
+  fixture.componentRef.setInput('rootProjectId', ROOT_ID);
   fixture.componentRef.setInput('restoreBlocked', restoreBlocked);
   fixture.detectChanges();
   await fixture.whenStable();
@@ -92,6 +95,43 @@ describe('ArchivedRegion', () => {
     expect(fixture.nativeElement.querySelector('[data-archived-cascade-count]')?.textContent).toContain('1 task');
     expect(all(fixture, '[data-archived-cause]')[1]?.textContent).toContain('directly');
     expect(all(fixture, '[data-archived-blocker]')).toHaveLength(0);
+  });
+
+  it('links a descendant owner to its history while keeping origin and Restore separate', async () => {
+    const fixture = await render();
+    const root = all(fixture, '[data-archived-kind="section"]')[0]!;
+    const child = all(fixture, '[data-archived-kind="subproject"]')[0]!;
+    expect(root.querySelector('[data-archived-history-link]')).toBeNull();
+    expect(child.querySelector('[data-archived-history-link]')?.textContent?.trim()).toBe('Open Kitchen history');
+    expect(child.querySelector('[data-archived-history-link]')?.getAttribute('href'))
+      .toBe('/projects/project-subproject#history-controls');
+    expect(child.querySelector('[data-archived-origin-link]')).not.toBeNull();
+    expect(child.querySelector('[data-archived-restore]')).not.toBeNull();
+  });
+
+  it('uses the same descendant owner for section, task and reflection rows', async () => {
+    const childOrigin = { ...origin, projectId: subproject.id, pageKind: 'work' as const,
+      pageId: 'page-project-subproject', breadcrumb: [...origin.breadcrumb, { projectId: subproject.id, name: subproject.name }] };
+    const descendants: ProjectArchiveItem[] = [
+      ProjectArchiveItemSchema.parse({ kind: 'section', section: { ...section, projectId: subproject.id,
+        pageId: childOrigin.pageId }, origin: childOrigin, cause: { kind: 'own' },
+        restoration: { kind: 'ready', operation: 'restore_section', permission: 'projects.write' } }),
+      ProjectArchiveItemSchema.parse({ kind: 'task', task: TaskSchema.parse({ id: 'task-child', projectId: subproject.id,
+        sectionId: section.id, title: 'Child task', status: 'todo', priority: 'medium', archivedAt: AT,
+        createdAt: AT, updatedAt: AT }), origin: childOrigin, cause: { kind: 'own' },
+        restoration: { kind: 'ready', operation: 'restore_task', permission: 'tasks.write' } }),
+      ProjectArchiveItemSchema.parse({ kind: 'reflection', reflection: ReflectionSchema.parse({ id: 'reflection-child',
+        projectId: subproject.id, sectionId: section.id, body: 'Keep this note', archivedAt: AT,
+        createdAt: AT, updatedAt: AT }), origin: childOrigin, cause: { kind: 'own' },
+        restoration: { kind: 'ready', operation: 'restore_reflection', permission: 'reflections.write' } }),
+    ];
+    const fixture = await render(descendants);
+    for (const row of all(fixture, '[data-archived-item]')) {
+      expect(row.querySelector('[data-archived-history-link]')?.getAttribute('href'))
+        .toBe('/projects/project-subproject#history-controls');
+      expect(row.querySelector('[data-archived-history-link]')?.textContent?.trim()).toBe('Open Kitchen history');
+      expect(row.querySelector('[data-archived-restore]')).not.toBeNull();
+    }
   });
 
   it('emits a canonical restore request for a ready entry', async () => {

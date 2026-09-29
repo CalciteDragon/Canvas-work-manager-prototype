@@ -2,6 +2,7 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { expect, test } from '@playwright/test';
 import type { WorkspaceId } from '@cwm/contracts';
 import { PROTOTYPE_HOST, createProject, seed, setClock } from './seed';
+import { undoFromHeader, redoFromHeader } from './history-controls';
 
 /**
  * Slice 25.5's acceptance, as one real journey: *a deliberately scrambled seed produces the
@@ -53,6 +54,83 @@ const EXPECTED = [
   'subproject:Cabinets',
   'task:Undated',
 ];
+
+test('root projections lead to descendant history without merging actor or project cursors', async ({ page, browser }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const root = 'project-renovation';
+  const child = 'project-kitchen';
+  await api('PATCH', `/api/projects/${root}/pages/todos`, { enabled: true });
+  await api('PATCH', `/api/projects/${root}/pages/archive`, { enabled: true });
+  await api('PATCH', `/api/projects/${root}`, { description: 'Root action for history isolation' });
+  await addTask({ projectId: child, title: 'History route task', dueAt: '2026-09-18T12:00:00.000Z' });
+  const saved = await api<{ section: { id: string } }>('POST', `/api/projects/${child}/sections`, {
+    type: 'rich-text', title: 'History route notes', config: { text: 'Saved for Archive' },
+  });
+  await api('DELETE', `/api/sections/${saved.section.id}`);
+  const rootBefore = await api<{ revision: number; undo: { label: string } }>('GET', `/api/projects/${root}/history`);
+  const childBefore = await api<{ historyId: string; revision: number; undo: { actionId: string; label: string } }>('GET', `/api/projects/${child}/history`);
+  expect(childBefore.undo.label).toContain('History route notes');
+
+  await page.goto(`/projects/${root}/pages/todos`);
+  const task = page.locator('[data-todo-row]', { hasText: 'History route task' });
+  await expect(task.locator('[data-todo-history-link]')).toHaveAttribute('href', `/projects/${child}#history-controls`);
+  await task.locator('[data-todo-history-link]').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${child}#history-controls$`));
+  const group = page.locator('#history-controls');
+  await expect(group).toBeInViewport();
+  await expect(group).toBeFocused();
+  await expect(page.locator('[data-history-undo]')).toHaveAttribute('aria-label', `Undo: ${childBefore.undo.label}`);
+  await page.reload();
+  await expect(group).toBeFocused();
+  await expect(page.locator('[data-history-undo]')).toHaveAttribute('aria-label', `Undo: ${childBefore.undo.label}`);
+
+  await page.goto(`/projects/${root}/pages/archive`);
+  const archived = page.locator(`[data-archived-item][data-archived-id="${saved.section.id}"]`);
+  await expect(archived.locator('[data-archived-history-link]')).toHaveAttribute('href', `/projects/${child}#history-controls`);
+  await expect(archived.locator('[data-archived-origin-link]')).toBeVisible();
+  await expect(archived.locator('[data-archived-restore]')).toBeVisible();
+  await archived.locator('[data-archived-history-link]').focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`/projects/${child}#history-controls$`));
+  await expect(group).toBeFocused();
+  await undoFromHeader(page, childBefore.undo.label);
+  await redoFromHeader(page, childBefore.undo.label);
+  const rootAfter = await api<{ revision: number; undo: { label: string } }>('GET', `/api/projects/${root}/history`);
+  expect(rootAfter.revision).toBe(rootBefore.revision);
+  expect(rootAfter.undo.label).toBe(rootBefore.undo.label);
+
+  const outsiderContext = await browser.newContext();
+  try {
+    await outsiderContext.addInitScript(() => localStorage.setItem('cwm.prototype.persona', 'user-alex'));
+    const outsider = await outsiderContext.newPage();
+    await outsider.goto(`/projects/${child}#history-controls`);
+    await expect(outsider.getByRole('heading', { name: 'Project unavailable' })).toBeVisible();
+    await expect(outsider.locator('#history-controls')).toHaveCount(0);
+  } finally {
+    await outsiderContext.close();
+  }
+
+  const agent = new Client({ name: 'cwm-descendant-history-e2e', version: '0.0.0' },
+    { versionNegotiation: { mode: { pin: '2026-07-28' } } });
+  await agent.connect(new StreamableHTTPClientTransport(new URL(`${PROTOTYPE_HOST}/mcp`),
+    { authProvider: { token: async () => TOKEN } }));
+  try {
+    const own = await agent.callTool({ name: 'get_operation_history', arguments: { projectId: child } });
+    expect(own.isError).not.toBe(true);
+    const agentSummary = own.structuredContent as {
+      historyId: string | null;
+      undo: { actionId: string } | null;
+      redo: { actionId: string } | null;
+    };
+    expect(agentSummary).toMatchObject({ historyId: null, undo: null, redo: null });
+    expect(agentSummary.historyId).not.toBe(childBefore.historyId);
+    expect(agentSummary.undo?.actionId).not.toBe(childBefore.undo.actionId);
+    expect(agentSummary.redo?.actionId).not.toBe(childBefore.undo.actionId);
+  } finally {
+    await agent.close();
+  }
+});
 
 test('a scrambled tree reads the same through the page, HTTP and MCP — and its links land where the work lives', async ({
   page,

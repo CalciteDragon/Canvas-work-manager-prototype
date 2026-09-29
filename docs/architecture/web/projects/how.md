@@ -107,6 +107,12 @@ each option binds `[selected]`, because a `[value]` on the select runs before it
    answer and reports the receipt to the header's history.
 7. Following a Todos or Archive link to `#section-<id>` scrolls to the loaded frame,
    focuses its heading, and transiently expands a collapsed container.
+8. A descendant row on root Todos or Archive derives the owner route and name from its
+   projection, separate from its content link and Restore. `#history-controls` reaches the
+   existing header group. The shell checks the current route fragment and loaded project after
+   each render until that group exists, then scrolls and focuses it once for that URL. Leaving
+   the fragment resets the arrival guard, so a later `#section-…` cannot regain history focus.
+   `ProjectHistoryStore` still reads only the displayed project's actor-scoped summary.
 
 Creation recovery uses the same project route. A not-found project read clears the record and sets
 `missing`; the caller's history summary shows the recovery section only when its next Redo is

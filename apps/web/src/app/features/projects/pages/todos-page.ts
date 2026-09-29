@@ -127,6 +127,20 @@ export class TodosPage {
       : ['/projects', item.origin.projectId];
   }
 
+  /** History belongs to the row's owner, not to this root-wide projection. */
+  historyOwner(item: ProjectTodoItem): { id: ProjectId; name: string; route: unknown[] } | null {
+    const id = item.kind === 'task' ? item.origin.projectId : item.project.id;
+    if (id === this.projectId()) return null;
+    const name = item.kind === 'subproject'
+      ? item.project.name
+      : item.origin.breadcrumb.find((step) => step.projectId === id)?.name;
+    if (name === undefined) return null;
+    const route = item.kind === 'task' && item.origin.pageKind === 'home'
+      ? ['/projects', id, 'pages', 'home']
+      : ['/projects', id];
+    return { id, name, route };
+  }
+
   /** The container to arrive at. A unit of work is its own destination and needs none. */
   fragmentOf(item: ProjectTodoItem): string | undefined {
     return item.kind === 'task' ? `section-${item.origin.sectionId}` : undefined;

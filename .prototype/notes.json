@@ -969,6 +969,14 @@
       "projectId": null,
       "slice": 54,
       "note": "The data_file_in_use: refusal is correct and actionable but long: two full absolute paths on one line, and the manual-escape clause starts with a lowercase \"if pid\" after a full stop. From pnpm prototype:upgrade it is also followed by several lines of pnpm ELIFECYCLE noise that bury it. Worth a shorter first sentence if operators misread it."
+    },
+    {
+      "id": "note-2026-09-29-003",
+      "createdAt": "2026-09-29T17:28:48.000Z",
+      "route": "/projects/project-kitchen#history-controls",
+      "projectId": "project-kitchen",
+      "slice": 56,
+      "note": "Slice 56 real browser use on isolated nested-projects data: followed Kitchen history from a root Todos task and a root Archive section, reloaded the child URL, activated the Archive link by Enter, then undid and redid the child's section removal. The root revision stayed put; another persona saw Project unavailable and the same-workspace MCP agent had a separate history. Friction found and fixed in this slice: the first browser journey reached the fragment but left focus on the page body because the header had not rendered when the one-shot callback ran. Rechecking after each render focuses the labeled history group and shows a visible outline. No other new friction surfaced in this journey."
     }
   ]
 }

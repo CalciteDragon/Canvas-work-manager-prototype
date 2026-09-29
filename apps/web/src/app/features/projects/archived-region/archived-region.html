@@ -39,6 +39,11 @@
                 <span aria-hidden="true"> / </span><span>{{ sectionName }}</span>
               }
             </span>
+            @if (historyOwner(item); as owner) {
+              <a data-archived-history-link [routerLink]="owner.route" fragment="history-controls">
+                Open {{ owner.name }} history
+              </a>
+            }
             <span data-archived-cause class="archived-region__meta">{{ causeLabel(item) }}</span>
             @if (contentLabel(item); as content) {
               <span data-archived-content class="archived-region__meta">{{ content }}</span>

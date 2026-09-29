@@ -51,6 +51,12 @@
             }
           </ol>
 
+          @if (historyOwner(item); as owner) {
+            <a data-todo-history-link [routerLink]="owner.route" fragment="history-controls">
+              Open {{ owner.name }} history
+            </a>
+          }
+
           @if (!finished(item)) {
             <button
               data-todo-complete

@@ -177,6 +177,11 @@ pnpm storybook                                        # :6006
   and the same projection and canonical restores through a real MCP client. Slice 47 adds a
   committed Restore whose re-read fails: a held quiet frame and a keyboard Retry keep the row
   paused, and only the released current read re-enables it after one write.
+- **Descendant history discovery** lives in `todos.spec.ts`: the `nested-projects` journey
+  follows owner links from root Todos and Archive, checks focus after click, reload and Enter,
+  takes a child Undo/Redo without advancing the root revision, and checks another browser
+  persona's unavailable route and a same-workspace MCP agent's separate summary. The component
+  specs cover task and unit-of-work rows, all four Archive item kinds and root-owned omission.
 - **Removal Undo acceptance** lives in `removal-undo.spec.ts`: disposable views leave both
   the canvas and Archive and return with their saved config/order; live task and reflection rows
   cascade in one gesture; independently archived rows keep their markers; an independent task

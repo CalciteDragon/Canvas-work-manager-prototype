@@ -4,6 +4,7 @@ import {
   ProjectSectionSchema,
   SubprojectSchema,
   type ProjectArchiveItem,
+  type ProjectId,
 } from '@cwm/contracts';
 import { ArchivedRegion } from './archived-region';
 
@@ -55,7 +56,7 @@ const archivedItems: ProjectArchiveItem[] = [
   ProjectArchiveItemSchema.parse({
     kind: 'subproject',
     project: subproject,
-    origin: { ...origin, projectId: subproject.id, breadcrumb: [...origin.breadcrumb, { projectId: subproject.id, name: subproject.name }] },
+    origin: { ...origin, projectId: subproject.id, pageId: 'page-project-kitchen', pageKind: 'work', breadcrumb: [...origin.breadcrumb, { projectId: subproject.id, name: subproject.name }] },
     cause: { kind: 'own' },
     restoration: { kind: 'ready', operation: 'restore_project', permission: 'projects.write' },
   }),
@@ -92,7 +93,7 @@ const recoveryItems: ProjectArchiveItem[] = [
 const meta: Meta<ArchivedRegion> = {
   title: 'Projects/ArchivedRegion',
   component: ArchivedRegion,
-  args: { items: archivedItems, restoreBlocked: false, restorePaused: false, restoring: new Set<string>() },
+  args: { items: archivedItems, rootProjectId: PROJECT as ProjectId, restoreBlocked: false, restorePaused: false, restoring: new Set<string>() },
 };
 
 export default meta;

@@ -3,6 +3,8 @@
 Root Archive now presents only the domain's currently restorable archived items, highest ready
 owner first. Restoring an owner can reveal independently archived children; hidden live content
 and blocked descendants are absent from the list. Archived-root recovery is in workspace Settings.
+Root Todos and Archive rows owned by descendants link to that owner's existing header history;
+the displayed project's controls remain the only browser Undo and Redo surface.
 
 `apps/web/src/app/features/projects` is the project workspace (§23, §26–§32): the shell
 that serves both project routes, the project navigation column with its page toggles,
@@ -44,7 +46,8 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
   Progress, Reflections, Timeline, Recent Activity — each its own folder inside
   `ProjectSectionFrame`.
 - The three root pages: `TodosPage`, `ArchivePage`, `ReflectionsPage`, each with its
-  store over the matching derived read. Todos owns its own task rows and Delete writes.
+  store over the matching derived read. Todos owns its own task rows and Delete writes;
+  Todos and Archive link descendant owners to their header controls.
 - Home shortcuts: `ShortcutFrame` (read-only source content), `ShortcutPicker`,
   `ShortcutStore`.
 - `SectionRecoveryNotice`: the canvas's recovery the header cannot offer — Open Archive after a

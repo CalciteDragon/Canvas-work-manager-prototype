@@ -3,6 +3,9 @@ import { Location } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  Injector,
+  afterEveryRender,
   computed,
   effect,
   inject,
@@ -85,6 +88,9 @@ export class ProjectWorkspaceShell {
   readonly history = inject(ProjectHistoryStore);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+  private focusedHistoryUrl: string | null = null;
 
   private readonly noticeState = signal<string | null>(null);
   private readonly noticeEnableKindState = signal<OptionalProjectPageKind | null>(null);
@@ -180,6 +186,10 @@ export class ProjectWorkspaceShell {
   });
 
   constructor() {
+    // A direct load resolves asynchronously and a fragment-only navigation can reuse the shell.
+    // Inspect the current URL after each render until its matching header exists, then focus once.
+    afterEveryRender(() => this.focusHistoryFragment(), { injector: this.injector });
+
     // Re-loads when the route changes projects, which sidebar navigation does without
     // re-creating this component. Moving between two pages of the same project changes only
     // `pageKind`, and must not re-read the context.
@@ -256,6 +266,21 @@ export class ProjectWorkspaceShell {
       // unremoved listener is a closure over a destroyed shell — once per visit, forever.
       inject(DestroyRef).onDestroy(() => narrow.removeEventListener('change', onNarrowChange));
     }
+  }
+
+  private focusHistoryFragment(): void {
+    const projectId = this.projectId();
+    const url = this.router.url;
+    if (this.router.parseUrl(url).fragment !== 'history-controls') {
+      this.focusedHistoryUrl = null;
+      return;
+    }
+    if (this.focusedHistoryUrl === url || this.store.project()?.id !== projectId) return;
+    const group = this.host.nativeElement.querySelector<HTMLElement>('#history-controls');
+    if (group === null) return;
+    group.scrollIntoView?.({ block: 'nearest' });
+    group.focus();
+    this.focusedHistoryUrl = url;
   }
 
   private noticeFromNavigation(): PageNoticeState | null {

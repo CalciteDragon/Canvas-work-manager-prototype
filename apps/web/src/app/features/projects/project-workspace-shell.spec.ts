@@ -194,6 +194,36 @@ const creationTransition = (
 ): OperationHistoryTransitionResult => ({ direction, actionId: 'operation-created' as never, summary, result } as OperationHistoryTransitionResult);
 
 describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', () => {
+  it('focuses history controls on a direct fragment load without activating Undo', async () => {
+    const { harness, gateway } = await open('/projects/project-kitchen#history-controls');
+    const group = query(harness, '#history-controls');
+    expect(group).not.toBeNull();
+    expect(group?.getAttribute('role')).toBe('group');
+    expect(group?.getAttribute('aria-label')).toBe('Project history');
+    expect(document.activeElement).toBe(group);
+    expect(gateway.calls.filter(({ method }) => method === 'history.transition')).toHaveLength(0);
+  });
+
+  it('does not return focus to history after a same-project section fragment wins', async () => {
+    const { harness, router } = await open('/projects/project-kitchen');
+    await router.navigateByUrl('/projects/project-kitchen#history-controls');
+    await router.navigateByUrl('/projects/project-kitchen#section-section-kitchen');
+    await settle(harness);
+    expect(router.url).toBe('/projects/project-kitchen#section-section-kitchen');
+    expect(document.activeElement).not.toBe(query(harness, '#history-controls'));
+  });
+
+  it('does not focus the prior project history after a different project wins navigation', async () => {
+    const { harness, router } = await open('/projects/project-renovation/pages/home');
+    const historyArrival = router.navigateByUrl('/projects/project-kitchen#history-controls');
+    const nextProject = router.navigateByUrl('/projects/project-garden');
+    await Promise.allSettled([historyArrival, nextProject]);
+    await settle(harness);
+    expect(router.url).toBe('/projects/project-garden');
+    expect(query(harness, '[data-project-name]')?.textContent).toContain('Garden');
+    expect(document.activeElement).not.toBe(query(harness, '#history-controls'));
+  });
+
   it('renders a root’s column beside its canvas, with Home current', async () => {
     const { harness, component } = await open('/projects/project-renovation/pages/home');
 

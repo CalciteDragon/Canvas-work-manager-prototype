@@ -213,6 +213,19 @@ describe('TodosPage (§34)', () => {
     expect(href('project-kitchen')).toBe('/projects/project-kitchen');
   });
 
+  it('links descendant rows to their owner history without adding a second Undo control', async () => {
+    const { fixture } = await render();
+    const history = (id: string) => rowFor(fixture, id).querySelector('[data-todo-history-link]');
+    expect(history('task-early')).toBeNull();
+    expect(history('task-nested')?.textContent?.trim()).toBe('Open Kitchen history');
+    expect(history('task-nested')?.getAttribute('href')).toBe('/projects/project-kitchen#history-controls');
+    expect(history('project-kitchen')?.getAttribute('href')).toBe('/projects/project-kitchen#history-controls');
+    expect(rowFor(fixture, 'task-nested').querySelector('[data-todo-link]')?.getAttribute('href'))
+      .toBe('/projects/project-kitchen#section-section-kitchen');
+    expect(rowFor(fixture, 'task-nested').querySelector('[data-todo-delete]')).not.toBeNull();
+    expect(queryAll(fixture, '[data-history-undo]')).toHaveLength(0);
+  });
+
   it('completes each kind and tells the shell what moved', async () => {
     const { fixture, complete, update, dataChanged, hierarchyChanged } = await render();
 

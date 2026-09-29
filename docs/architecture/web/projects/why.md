@@ -135,6 +135,12 @@ matches `#section-<id>` against the sections it loaded, focuses the frame headin
 opens a collapsed target through a transient input that leaves the record alone
 ([decision](../../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)).
 
+**A root projection names the descendant history owner.** Todos and Archive show work from
+the whole root tree, while the header holds only the displayed project's current actor history.
+A separate owner link reaches that same header and its focus target; it does not offer a second
+Undo action or imply the row is the next action
+([decision](../../../decisions/2026-09-descendant-history-discovery.md)).
+
 ## Consequences
 
 - A new section type is one folder and one line; `registry.spec.ts` makes the line
@@ -147,6 +153,8 @@ opens a collapsed target through a transient input that leaves the record alone
   away with the canvas — §23's "disappearing" by another route.
 
 ## Decisions that shape this system
+
+- [Descendant rows link to their owner's existing header history](../../../decisions/2026-09-descendant-history-discovery.md) — owner route and fragment focus without a merged cursor.
 
 - [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — ready-only root rows and separate workspace Settings recovery.
 
