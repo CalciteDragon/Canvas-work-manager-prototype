@@ -63,6 +63,8 @@ historical Stage E closure below remains its original evidence.
 
 [Slice 49 — Task history, service and MCP refusal repairs](completed/49-task-history-service-and-mcp-repairs.md) closed those three Slice 48 findings. Ordinary reparent and completion history now agree with archive rules, and text-only MCP clients receive each conflict's repair in words. [Slice 50 — Fault sensitivity for reflection grant and task no-op receipt](completed/50-fault-sensitivity-evidence.md) closed finding 4: deliberate, reverted faults turned both of Slice 45's unproven assertions red. [Slice 51 — Web spec storage isolation and remaining no-op assertion sensitivity](completed/51-web-storage-isolation-and-no-op-sensitivity.md) traced Slice 50's presumed web flake to a storage leak between spec files and fixed it, then proved the two no-op assertions Slice 50 left unclaimed.
 
+[Slice 52 — MCP transport failure and lost-response evidence](active/52-mcp-transport-failure-evidence.md) is the active bounded phase for Slice 46 finding 5. Its plan calls for SDK-driven failed-commit and lost-response checks on both transports; no implementation result is claimed yet.
+
 **Current direction — Project Undo/Redo and simpler Archive.**
 The user requested [the detailed development plan in Slice 34](planned/34-undo-redo-and-archive.md)
 on 2026-09-16: always-present project Undo/Redo icons, history for committed content and layout

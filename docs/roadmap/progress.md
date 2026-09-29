@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 52 | Slice 52 — MCP transport failure and lost-response evidence | Both SDK transports prove failed commits and lost-response retries without partial writes or duplicate transitions | [52-mcp-transport-failure-evidence.md](active/52-mcp-transport-failure-evidence.md) |
 
 ### Planned
 
