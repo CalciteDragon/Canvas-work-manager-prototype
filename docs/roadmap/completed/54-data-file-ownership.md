@@ -1,4 +1,4 @@
-<!-- plan id="54" status="active" summary="An advisory owner file makes every canonical JSON writer take turns; the host holds it for life, stdio per call" -->
+<!-- completed-record id="54" closed="2026-09-29" summary="Every canonical JSON writer takes turns through an advisory owner record: the host for life, stdio per call, the CLIs refuse" -->
 # Slice 54 — One writer per data file
 
 ## Goal
@@ -283,3 +283,59 @@ When the recorded pid is dead:
     - `index.ts` exports both errors and the handle type.
     - The host's waiting line goes to stdout; stdio's goes to stderr.
 - **Review round 4 (2026-09-29):** Reviewer confirmed both round-3 findings resolved and reported no substantive findings. The plan is ready to implement.
+- **Implementation (2026-09-29):** Built test-first in the planned order, and each of the four planned fault checks failed for the intended reason before it was reverted: stdio without per-call ownership, reclaim without the nonce re-check, release before the drain (and a persisting drain), and stdio start-up without the post-refusal re-check. One sequencing change: the MCP SDK client probes stdio on a disposable sibling process whose stderr is discarded. The seeding-race test therefore uses a `StdioClientTransport` subclass, which probes in place, so the stdio waiting line is observable.
+- **Diff review round 1 (2026-09-29):** Three independent reviewers covered correctness (with multi-process stress on Windows), spec and boundaries, and living documentation. All findings were checked against the code. Resulting changes:
+  - A zero-wait acquirer whose owner vanishes at the read retries once at once, instead of reporting `data_file_owner_unavailable:`.
+  - `EPERM`/`EBUSY` from *reading* a record pending deletion is treated as a vanished owner. Stress reproduced this at 1–3 of 320 contended acquisitions.
+  - A record naming this process's pid with a nonce it does not hold counts as a reused pid's.
+  - A failed temp-record write is reported as unavailable.
+  - Exit listeners swallow release failures.
+  - Twelve documentation corrections, including the host `why.md` decision link, the e2e preparation, wait-versus-refuse wording, the operator-visible waiting lines and troubleshooting rows.
+- **Diff review round 2 (2026-09-29):** Stress was clean (6×320 contended increments and 96 reclaiming processes, with no errors or overlaps). One latent should-fix, reproduced: a release dropped its nonce before unlinking, so a same-process acquirer could reclaim the still-present record and then lose it to that unlink. The nonce now leaves only after the unlink.
+- **Diff review round 3 (2026-09-29):** The round-2 race is confirmed fixed: a same-process acquirer now waits on the pending release, and a foreign acquirer is refused. The stress runs are clean again. No substantive findings. One vanishingly unlikely, pre-existing overlap between an exit-time `releaseSync` and an in-flight async unlink was accepted without change.
+
+## Outcome
+
+**Deliverables.** Every canonical JSON writer now takes turns through an advisory owner record, `<data file>.owner`.
+- **Primitive.** [`acquireDataFileOwnership`](../../../packages/repositories/src/data-file-ownership.ts) publishes the record atomically by `link` and waits a bounded time for a live owner. It reclaims a dead one only under `<owner>.reclaim` with a nonce re-check, and it refuses with `data_file_in_use:`, naming the owner and the file to delete by hand.
+- **Host.** [The host](../../../apps/prototype-host/main.ts) owns its file from before the load until after a drained shutdown (`shutdownHost`, `releaseOnExit`), and releases on a failed start.
+- **Stdio.** [Stdio](../../../apps/prototype-host/mcp/stdio.ts) owns the file per call. It is refused at once, reads included, while a host owns the file. It starts and lists tools without ownership, and survives a seeding race.
+- **Other writers.** The seed, reset and upgrade CLIs go through `seedDataFileOwned` and `upgradeDataFileOwned`. [`apps/e2e/prepare-data.ts`](../../../apps/e2e/prepare-data.ts) acquires around its copy.
+- **Evidence.** [`apps/prototype-host/data-file-ownership.test.ts`](../../../apps/prototype-host/data-file-ownership.test.ts) proves the acceptance steps across real processes, and the primitive has 27 unit tests with injected liveness and filesystem faults.
+
+**Deliberate choices.**
+- **Stdio owns per call, not for its lifetime.** Lifetime ownership would block `pnpm dev:host` whenever a desktop client is open, and would contend with the SDK's sibling probe process.
+- **Liveness is by pid, with a manual escape.** A reused pid needs the named file deleted by hand. Nothing is ever taken from a live pid, and there is no `--force`.
+- **This process's own records.** A record naming this process's pid counts as alive only while this process holds its nonce. This is how a Windows pid reused after a crash is recovered.
+
+The [decision entry](../../decisions/2026-09-one-writer-per-data-file.md) records the rejected options: the documented rule only, lifetime stdio ownership, OS locks, and unguarded reclaim.
+
+**Deviations.**
+- **Windows hardening.** Review stress on Windows showed that reading a record pending deletion fails with `EPERM`. That case, the zero-wait vanished-owner race, the reused-pid rule and the release ordering were all added after the plan (see the Revisions above).
+- **Seeding-race test.** It needed an in-place probing transport.
+
+**Deferred and residual.**
+- **Drain window (§71).** The shutdown drain covers units already queued. A request handler still between `stop()` and its first `unitOfWork.run` can queue behind it in the last milliseconds; this is documented as a disposable-host residual.
+- **Reader handle.** On Windows, a stdio child's unowned start-up read can make one host `rename` fail with `EPERM` (pre-existing).
+- **Probabilistic test.** The two-stdio test is probabilistic; the deterministic guard is the refusal behind the host.
+- **Normal release on Ctrl+C on Windows** was not exercised in this session. A console Ctrl+C could not be delivered from the tool runner. The drain-then-release path is proven in-process (`main.test.ts`, fault-checked), and the hard-stop path was exercised in real use. The first manual `pnpm dev:host` Ctrl+C should confirm that the owner file disappears.
+- **Other findings.** Slice 46 findings 8–14 remain planned.
+
+**Open questions.** None blocking. Two friction notes were recorded:
+- The refusal is long, and pnpm's error noise buries it.
+- Stopping the `pnpm` wrapper orphaned the `node` host, which kept owning the file. The refusal named its pid, which made it easy to find.
+
+**Documentation updated.**
+- Architecture: `docs/architecture/{why,what}.md`; `repositories/*`; `prototype-host/{overview,how,what,why}.md`; `prototype-host/mcp-transport/*`; `prototype-data/{overview,how,what}.md`; `testing/{how,what}.md`.
+- Guides and README: `docs/guides/mcp-setup.md`, with the anchor kept; `README.md`.
+- Decisions: the new decision entry, dated amendments to the stdio-token and live-updates decisions, and the decisions index.
+- Other: `.gitignore`, `CURRENT_SLICE = 54`, `.prototype/notes.json`.
+
+**Verification.**
+- `pnpm test` passed: root tooling, contracts 355, repositories 191, web, prototype-data 122, domain 799, MCP tools 173, host 284.
+- `pnpm lint` and `pnpm docs:check` passed.
+- All four acceptance scripts passed, and `pnpm e2e` passed 69/69.
+- Real use on isolated `agent-heavy` data behind `pnpm dev:host`:
+  - A real SDK stdio client listed 38 tools. Its `create_task` returned `data_file_in_use: … owned by http-host pid 11848 …; stop the host, or use its HTTP MCP endpoint. …`.
+  - `pnpm prototype:upgrade` printed the same refusal.
+  - After the host was hard-stopped, the same client reclaimed the stale record and created its task.
