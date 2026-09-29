@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 57 | Slice 57 — Task Delete recovery feedback | Task List and Todos Delete explain Archive and the owning project's header Undo | [57-task-delete-recovery-feedback.md](active/57-task-delete-recovery-feedback.md) |
 
 ### Planned
 
