@@ -15,6 +15,16 @@ each option binds `[selected]`, because a `[value]` on the select runs before it
 
 ## Runtime flow
 
+Todos captures the task title and owner before its optimistic Delete removes the row. It
+shows no success while the write is pending; a committed answer paints a polite status
+outside the chronology, even after the final row leaves. The status offers the shell's
+existing guarded `onOpenArchive` callback. For a descendant it names and links the owner
+through the canonical `#history-controls` route; a root task refers to the displayed
+header. A failed write restores the row and keeps the existing error/focus path. A new
+Delete or root change clears the status, and a route generation guard drops a late answer
+from an earlier root. A fresh chronology containing the restored task withdraws the cue.
+The cue holds no receipt and cannot promise the next Undo step.
+
 1. `ProjectWorkspaceShell` reads `projectId` and optional `pageKind` from the route,
    provides `ProjectWorkspaceStore`, and loads the project, its pages, progress and work
    tree. It resolves the page positively; a non-resolvable URL redirects to the canonical

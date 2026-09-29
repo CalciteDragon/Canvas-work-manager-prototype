@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 57 | Slice 57 — Task Delete recovery feedback | Task List and Todos Delete explain Archive and the owning project's header Undo | [57-task-delete-recovery-feedback.md](active/57-task-delete-recovery-feedback.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -95,4 +93,5 @@ verification follow-ups rather than feature slices.
 | 54 | Slice 54 — One writer per data file | 2026-09-29 | Every canonical JSON writer takes turns through an advisory owner record: the host for life, stdio per call, the CLIs refuse | [54-data-file-ownership.md](completed/54-data-file-ownership.md) |
 | 55 | Slice 55 — Section history labels | 2026-09-29 | Section updates name the recorded edit in header Undo and Redo, with browser and domain evidence | [55-section-history-labels.md](completed/55-section-history-labels.md) |
 | 56 | Slice 56 — Descendant history discovery | 2026-09-29 | Root Todos and Archive link descendant owners to their existing header history, with focus, reload and actor-isolation evidence | [56-descendant-history-discovery.md](completed/56-descendant-history-discovery.md) |
+| 57 | Slice 57 — Task Delete recovery feedback | 2026-09-29 | Task List and Todos announce committed Delete recovery through Archive and the owning header | [57-task-delete-recovery-feedback.md](completed/57-task-delete-recovery-feedback.md) |
 <!-- roadmap:end -->

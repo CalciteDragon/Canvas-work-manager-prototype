@@ -371,6 +371,19 @@ test.describe('coarse pointer task Delete', () => {
     await expect(deleteButton).toHaveAttribute('aria-label', 'Delete task Finished then deleted');
     await deleteButton.tap();
     await expect(row).toHaveCount(0);
+    const recovery = page.locator('[data-todo-delete-recovery]');
+    await expect(recovery).toHaveAttribute('role', 'status');
+    await expect(recovery).toContainText('Finished then deleted');
+    await expect(recovery).toContainText(/archived/i);
+    await expect(recovery).toContainText('Archive');
+    await expect(recovery).toContainText(/header Undo/i);
+    await page.setViewportSize({ width: 375, height: 812 });
+    for (const theme of ['dark', 'light'] as const) {
+      if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('[data-theme-toggle]').click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(recovery.locator('[data-todo-open-archive]')).toBeVisible();
+      expect(await recovery.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    }
     expect(await api<{ archivedAt?: string }>('GET', `/api/tasks/${task.id}`)).toMatchObject({ archivedAt: expect.any(String) });
   });
 });
@@ -391,18 +404,151 @@ test('Todos task Delete works by pointer, Enter and Space, and moves focus with 
   await expect(deleteButton(tasks[0]!.id)).toBeVisible();
   await deleteButton(tasks[0]!.id).click();
   await expect(page.locator(`[data-todo-id="${tasks[0]!.id}"]`)).toHaveCount(0);
+  await expect(page.locator('[data-todo-delete-recovery]')).toContainText('Delete 1');
   const secondRowLink = page.locator(`[data-todo-row][data-todo-id="${tasks[1]!.id}"] [data-todo-link]`);
   await expect(secondRowLink).toBeFocused();
 
   await deleteButton(tasks[1]!.id).focus();
   await deleteButton(tasks[1]!.id).press('Enter');
   await expect(page.locator(`[data-todo-id="${tasks[1]!.id}"]`)).toHaveCount(0);
+  await expect(page.locator('[data-todo-delete-recovery]')).toContainText('Delete 2');
   await expect(page.locator(`[data-todo-row][data-todo-id="${tasks[2]!.id}"] [data-todo-link]`)).toBeFocused();
 
   await deleteButton(tasks[2]!.id).focus();
   await deleteButton(tasks[2]!.id).press('Space');
   await expect(page.locator(`[data-todo-id="${tasks[2]!.id}"]`)).toHaveCount(0);
   await expect(page.locator('#todos-heading')).toBeFocused();
+  await expect(page.locator('[data-todo-delete-recovery]')).toContainText('Delete 3');
+  await expect(page.locator('[data-todo-delete-recovery]')).toBeVisible();
   const archived = await Promise.all(tasks.map(({ id }) => api<{ archivedAt?: string }>('GET', `/api/tasks/${id}`)));
   expect(archived.every(({ archivedAt }) => archivedAt !== undefined)).toBe(true);
+});
+
+test('Todos Delete points to the true owner, and existing Undo and Archive recover the task', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const root = 'project-renovation';
+  const child = 'project-kitchen';
+  await api('PATCH', `/api/projects/${root}/pages/todos`, { enabled: true });
+  await api('PATCH', `/api/projects/${root}/pages/archive`, { enabled: true });
+  const rootTask = await addTask({ projectId: root, title: 'Root recovery task' });
+  const childTask = await addTask({ projectId: child, title: 'Kitchen recovery task' });
+  const row = (id: string) => page.locator(`[data-todo-row][data-todo-id="${id}"]`);
+  const recovery = page.locator('[data-todo-delete-recovery]');
+  await page.goto(`/projects/${root}/pages/todos`);
+
+  await row(rootTask.id).locator('[data-todo-delete]').click();
+  await expect(row(rootTask.id)).toHaveCount(0);
+  await expect(recovery).toContainText('Root recovery task');
+  await expect(recovery).toContainText("This project's header Undo");
+  await expect(recovery.locator('[data-todo-recovery-owner]')).toHaveCount(0);
+  const rootUndo = await api<{ undo: { label: string } }>('GET', `/api/projects/${root}/history`);
+  await undoFromHeader(page, rootUndo.undo.label);
+  await expect(row(rootTask.id)).toHaveCount(1);
+  await expect(recovery).toHaveCount(0);
+
+  await row(childTask.id).locator('[data-todo-delete]').click();
+  await expect(row(childTask.id)).toHaveCount(0);
+  await expect(recovery).toContainText('Kitchen recovery task');
+  await expect(recovery).toContainText("Kitchen's header Undo");
+  await expect(recovery.locator('[data-todo-recovery-owner]')).toHaveAttribute('href', `/projects/${child}#history-controls`);
+  await expect(recovery.locator('[data-todo-open-archive]')).toBeVisible();
+  await recovery.locator('[data-todo-recovery-owner]').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${child}#history-controls$`));
+  await expect(page.locator('#history-controls')).toBeFocused();
+  const childUndo = await api<{ undo: { label: string } }>('GET', `/api/projects/${child}/history`);
+  await undoFromHeader(page, childUndo.undo.label);
+  await page.goto(`/projects/${root}/pages/todos`);
+  await expect(row(childTask.id)).toHaveCount(1);
+  await expect(recovery).toHaveCount(0);
+
+  await row(childTask.id).locator('[data-todo-delete]').click();
+  await expect(recovery).toContainText('Kitchen recovery task');
+  await recovery.locator('[data-todo-open-archive]').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${root}/pages/archive$`));
+  const archived = page.locator(`[data-archived-item][data-archived-id="${childTask.id}"]`);
+  await expect(archived).toBeVisible();
+  await archived.locator('[data-archived-restore]').click();
+  await expect(archived).toHaveCount(0);
+  await page.goto(`/projects/${root}/pages/todos`);
+  await expect(row(childTask.id)).toHaveCount(1);
+  await expect(recovery).toHaveCount(0);
+});
+
+test('Todos Delete with a refused or broken write restores its row without success feedback', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const root = 'project-renovation';
+  await api('PATCH', `/api/projects/${root}/pages/todos`, { enabled: true });
+  const task = await addTask({ projectId: root, title: 'Refused recovery task' });
+  const row = page.locator(`[data-todo-row][data-todo-id="${task.id}"]`);
+  const path = `**/api/tasks/${task.id}/archive`;
+  await page.goto(`/projects/${root}/pages/todos`);
+
+  for (const failure of ['permission', 'transport'] as const) {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    await page.route(path, async (route) => {
+      await held;
+      if (failure === 'permission') {
+        await route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"forbidden"}' });
+      } else {
+        await route.abort('failed');
+      }
+    });
+    await row.locator('[data-todo-delete]').click();
+    await expect(row).toHaveCount(0);
+    await expect(page.locator('[data-todo-delete-recovery]')).toHaveCount(0);
+    await page.locator('[data-theme-toggle]').focus();
+    release();
+    await expect(row).toHaveCount(1);
+    await expect(page.locator('[data-theme-toggle]')).toBeFocused();
+    await expect(page.locator('[data-todo-write-error]')).toBeVisible();
+    await expect(page.locator('[data-todo-delete-recovery]')).toHaveCount(0);
+    await page.unroute(path);
+  }
+  expect((await api<{ archivedAt?: string }>('GET', `/api/tasks/${task.id}`)).archivedAt).toBeUndefined();
+});
+
+test('Todos recovery opens disabled Archive only after its enable commits, and Retry re-reads a committed enable', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const root = 'project-renovation';
+  await api('PATCH', `/api/projects/${root}/pages/todos`, { enabled: true });
+  await api('PATCH', `/api/projects/${root}/pages/archive`, { enabled: false });
+  const task = await addTask({ projectId: root, title: 'Disabled Archive recovery' });
+  await page.goto(`/projects/${root}/pages/todos`);
+  await page.locator(`[data-todo-row][data-todo-id="${task.id}"] [data-todo-delete]`).click();
+  const recovery = page.locator('[data-todo-delete-recovery]');
+  await expect(recovery).toContainText('Disabled Archive recovery');
+  const afterDelete = await api<{ revision: number; undo: { label: string } }>('GET', `/api/projects/${root}/history`);
+  const enablePath = `**/api/projects/${root}/pages/archive`;
+  await page.route(enablePath, async (route) => {
+    if (route.request().method() === 'PATCH') {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"unavailable"}' });
+    } else await route.continue();
+  });
+  await recovery.locator('[data-todo-open-archive]').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${root}/pages/todos$`));
+  expect((await api<{ revision: number }>('GET', `/api/projects/${root}/history`)).revision).toBe(afterDelete.revision);
+  await page.unroute(enablePath);
+
+  const pagesPath = `**/api/projects/${root}/pages`;
+  await page.route(pagesPath, async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"unavailable"}' });
+    } else await route.continue();
+  });
+  await recovery.locator('[data-todo-open-archive]').click();
+  await expect(page.locator('[data-archive-open-retry]')).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/projects/${root}/pages/todos$`));
+  const afterEnable = await api<{ revision: number; undo: { label: string } }>('GET', `/api/projects/${root}/history`);
+  expect(afterEnable.revision).toBe(afterDelete.revision + 1);
+  expect(afterEnable.undo.label).not.toBe(afterDelete.undo.label);
+  await page.unroute(pagesPath);
+  await page.locator('[data-archive-open-retry]').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${root}/pages/archive$`));
+  const archived = page.locator(`[data-archived-item][data-archived-id="${task.id}"]`);
+  await expect(archived).toBeVisible();
+  expect((await api<{ revision: number }>('GET', `/api/projects/${root}/history`)).revision).toBe(afterEnable.revision);
 });

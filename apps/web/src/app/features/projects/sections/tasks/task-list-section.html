@@ -13,6 +13,12 @@
     <p data-tasks-error class="task-list-section__error" role="alert">{{ error }}</p>
   }
 
+  @if (deleteRecovery(); as recovery) {
+    <p data-task-delete-recovery class="task-list-section__recovery" role="status" aria-live="polite">
+      {{ recovery.title }} was archived. Recover it in the root Archive when its owner is ready, or use the owning project's header Undo if this is still the latest step.
+    </p>
+  }
+
   <div class="task-workspace" [class.task-workspace--drawer-open]="store.selectedTask() !== null">
     @if (readOnly()) {
       <div class="task-list" [attr.aria-busy]="store.loading()">

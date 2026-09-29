@@ -154,6 +154,7 @@ Undo action or imply the row is the next action
 
 ## Decisions that shape this system
 
+- [Task Delete names its existing recovery routes](../../../decisions/2026-09-task-delete-recovery-feedback.md) — Todos names the owner and points to the existing header and root Archive.
 - [Descendant rows link to their owner's existing header history](../../../decisions/2026-09-descendant-history-discovery.md) — owner route and fragment focus without a merged cursor.
 
 - [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — ready-only root rows and separate workspace Settings recovery.

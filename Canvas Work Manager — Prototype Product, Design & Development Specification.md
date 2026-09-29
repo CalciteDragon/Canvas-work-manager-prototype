@@ -1155,6 +1155,14 @@ tapped at 375 px even though the global sidebar keeps its width.
 the group after the owner loads, including on reload. The link offers the current owner's history,
 not a guaranteed Undo of that row; a root-owned row adds no link.
 
+*Since Slice 57,* a committed task Delete from a Task List or root Todos leaves a polite
+status outside the removed rows. It names the archived task, root Archive as durable
+recovery when the owner is ready, and the owning project's header Undo when that step is
+available. Todos names and links a descendant owner to these existing controls; a root
+task refers to the displayed header. The status is not another Undo action and does not
+promise Delete remains the next step after opening a disabled Archive page, which can
+record its own enable action ([why](docs/decisions/2026-09-task-delete-recovery-feedback.md)).
+
 *Since Slice 55,* a newly recorded section update's header label names a lone rename (including
 the resulting default after a title clear), Rich Text prose edit, collapse or expand, or resize to
 its saved column count. Mixed updates and other configuration changes use one general "Updated"
@@ -2005,6 +2013,10 @@ Archived rows are reached through §31's Archive page.
 
 The task-row action is labelled **Delete** in Task Lists and Todos. It uses this same reversible
 archive operation, including for finished tasks; there is no hard-delete task action.
+After commit, both surfaces announce the archived task and existing recovery routes outside
+the row list, including when its last row disappears. An optimistic Todos removal does not
+announce success before commit; a refused write restores the row and leaves the failure
+visible. New attempts and navigation clear stale success.
 
 Prefer a side drawer over a modal for detailed task editing so workspace context remains visible.
 

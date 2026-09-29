@@ -47,7 +47,9 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
   `ProjectSectionFrame`.
 - The three root pages: `TodosPage`, `ArchivePage`, `ReflectionsPage`, each with its
   store over the matching derived read. Todos owns its own task rows and Delete writes;
-  Todos and Archive link descendant owners to their header controls.
+  Todos and Archive link descendant owners to their header controls. After a committed
+  Delete, Todos keeps a polite recovery status outside the chronology, with root Archive
+  access and the task owner's header guidance.
 - Home shortcuts: `ShortcutFrame` (read-only source content), `ShortcutPicker`,
   `ShortcutStore`.
 - `SectionRecoveryNotice`: the canvas's recovery the header cannot offer — Open Archive after a

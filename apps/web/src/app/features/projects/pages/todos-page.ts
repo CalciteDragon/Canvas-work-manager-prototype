@@ -8,6 +8,7 @@ import {
   effect,
   inject,
   input,
+  signal,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { ProjectId, ProjectLayoutMode, ProjectPageId, ProjectTodoItem } from '@cwm/contracts';
@@ -68,6 +69,15 @@ export class TodosPage {
   readonly store = inject(TodosPageStore);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
+  private recoveryGeneration = 0;
+  private recoverySnapshot: readonly ProjectTodoItem[] | null = null;
+
+  /** A committed archive stays visible after its chronology row (even the last one) leaves. */
+  readonly deleteRecovery = signal<{
+    id: string;
+    title: string;
+    owner: ReturnType<TodosPage['historyOwner']>;
+  } | null>(null);
 
   /** No control at all is offered while the shell is blocking writes, so nothing lies. */
   readonly writesBlocked = computed(() =>
@@ -76,7 +86,19 @@ export class TodosPage {
 
   constructor() {
     // Re-reads when the shell routes to another root without re-creating this component.
-    effect(() => void this.store.load(this.projectId()));
+    effect(() => {
+      this.recoveryGeneration += 1;
+      this.deleteRecovery.set(null);
+      void this.store.load(this.projectId());
+    });
+    effect(() => {
+      const recovery = this.deleteRecovery();
+      const items = this.store.items();
+      if (recovery !== null && items !== this.recoverySnapshot &&
+        items.some((item) => item.kind === 'task' && item.task.id === recovery.id)) {
+        this.deleteRecovery.set(null);
+      }
+    });
   }
 
   idOf(item: ProjectTodoItem): string {
@@ -157,7 +179,11 @@ export class TodosPage {
 
   async delete(item: ProjectTodoItem): Promise<void> {
     if (this.restoreBlocked() || item.kind !== 'task') return;
+    this.deleteRecovery.set(null);
     const projectId = this.projectId();
+    const recoveryGeneration = this.recoveryGeneration;
+    const title = item.task.title;
+    const owner = this.historyOwner(item);
     const id = this.idOf(item);
     const oldIndex = this.store.items().findIndex((candidate) => this.idOf(candidate) === id);
     const focusedRow = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')]
@@ -190,7 +216,11 @@ export class TodosPage {
     };
     scheduleFocus(false);
     const applied = await deletion;
-    if (applied) this.onProjectDataChange()();
+    if (applied && this.projectId() === projectId && this.recoveryGeneration === recoveryGeneration) {
+      this.recoverySnapshot = this.store.items();
+      this.deleteRecovery.set({ id, title, owner });
+      this.onProjectDataChange()();
+    }
     if (!applied) scheduleFocus(true);
   }
 }

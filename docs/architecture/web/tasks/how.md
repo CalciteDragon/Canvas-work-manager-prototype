@@ -12,8 +12,12 @@
    [what](what.md). Title Escape closes editing before the ensuing blur, so it records no write.
 4. Live frames naming a task the store holds trigger a quiet re-read unless a write is in
    flight, in which case the re-read waits; a read whose epoch is stale is discarded.
-5. TaskRow's **Delete** emits the task id to the section, which calls `tasks.archive`; restore comes from the root Archive page
-   through the same gateway, not from here.
+5. TaskRow's **Delete** emits the task id to the section, which calls `tasks.archive`. The
+   section captures the title before the write and announces the committed archive in a polite
+   status outside the rows. It clears the cue on a new attempt or section switch and rejects a
+   late answer for another section. The store returns the committed result even when its quiet
+   follow-up read fails; a failed write announces nothing. A fresh list containing the task
+   after Undo or Restore withdraws the cue. Root Archive restores through the same gateway.
 6. Todos does not render `TaskRow`: `TodosPageStore` serializes its own Complete and Delete
    writes, removes a task subtree optimistically and reports the task's receipt to its project.
 

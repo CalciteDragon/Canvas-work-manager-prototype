@@ -1,6 +1,7 @@
 import type { OperationHistorySummary, OperationHistoryTransitionResult, ReflectionAddResult, TaskAddResult } from '@cwm/contracts';
 import { expect, test } from '@playwright/test';
 import { addSection, api, connectMcp, createRoot, seed, setClock, setPageEnabled } from './seed';
+import { undoFromHeader } from './history-controls';
 
 const history = (projectId: string) => api.get<OperationHistorySummary>(`/api/projects/${projectId}/history`);
 const step = async (projectId: string, direction: 'undo' | 'redo') => {
@@ -58,19 +59,38 @@ test('browser row commits record once and HTTP history updates Home, Todos, Arch
   await deleteTask.press('Enter');
   await expect(page.locator('[data-task-row]')).toHaveCount(0);
   await expect(page.locator('[data-quick-task-title]')).toBeFocused();
+  const recovery = page.locator('[data-task-delete-recovery]');
+  await expect(recovery).toHaveAttribute('role', 'status');
+  await expect(recovery).toContainText('Committed title');
+  await expect(recovery).toContainText(/archived/i);
+  await expect(recovery).toContainText('Archive');
+  await expect(recovery).toContainText(/header Undo/i);
+  await expect(page.locator('[data-task-delete-recovery] [data-history-undo]')).toHaveCount(0);
   const archive = await context.newPage();
   await archive.goto(`/projects/${root.id}/pages/archive`);
   await expect(archive.getByText('Committed title', { exact: true })).toBeVisible();
-  await step(root.id, 'undo');
+  await undoFromHeader(page, (await history(root.id)).undo!.label);
   await expect(page.locator('[data-task-title]')).toHaveText('Committed title');
+  await expect(recovery).toHaveCount(0);
   await expect(archive.getByText('Committed title', { exact: true })).toHaveCount(0);
   await deleteTask.focus();
   await deleteTask.press('Space');
   await expect(page.locator('[data-task-row]')).toHaveCount(0);
   await expect(page.locator('[data-quick-task-title]')).toBeFocused();
+  await expect(recovery).toContainText('Committed title');
   await expect(archive.getByText('Committed title', { exact: true })).toBeVisible();
-  await step(root.id, 'undo');
+  await page.setViewportSize({ width: 375, height: 812 });
+  for (const theme of ['dark', 'light'] as const) {
+    if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('[data-theme-toggle]').click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    await expect(recovery).toBeVisible();
+    expect(await recovery.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  }
+  await page.reload();
+  await expect(recovery).toHaveCount(0);
+  await archive.locator('[data-archived-item]').filter({ hasText: 'Committed title' }).locator('[data-archived-restore]').click();
   await expect(page.locator('[data-task-title]')).toHaveText('Committed title');
+  await expect(recovery).toHaveCount(0);
   await expect(archive.getByText('Committed title', { exact: true })).toHaveCount(0);
 
   const beforeReflection = (await history(root.id)).revision;
@@ -147,4 +167,56 @@ test('agent compound history removes and restores containers in open Home and Re
     await expect(page.locator('[data-task-title]')).toHaveText('Agent task');
     await expect(journal.locator('[data-reflections-entry]')).toContainText('Agent reflection');
   } finally { await client.close(); }
+});
+
+test('Task List Delete refuses permission and transport failures without archive recovery feedback', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock('2026-09-15T12:00:00.000Z');
+  const root = await createRoot('Refused Task List Delete');
+  await addSection(root.id, { type: 'task-list' });
+  await page.goto(`/projects/${root.id}`);
+  await page.locator('[data-quick-task-title]').fill('Keep this task');
+  await page.locator('[data-quick-create] button[type="submit"]').click();
+  await expect(page.locator('[data-task-title]')).toHaveText('Keep this task');
+  const task = (await api.get<{ id: string }[]>(`/api/tasks?projectId=${root.id}`))[0]!;
+  const path = `**/api/tasks/${task.id}/archive`;
+
+  for (const failure of ['permission', 'transport'] as const) {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    await page.route(path, async (route) => {
+      await held;
+      if (failure === 'permission') {
+        await route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"forbidden"}' });
+      } else await route.abort('failed');
+    });
+    await page.locator('[data-task-delete]').click();
+    await expect(page.locator('[data-task-delete-recovery]')).toHaveCount(0);
+    release();
+    await expect(page.locator('[data-tasks-error]')).toBeVisible();
+    await expect(page.locator('[data-task-title]')).toHaveText('Keep this task');
+    await expect(page.locator('[data-task-delete-recovery]')).toHaveCount(0);
+    await page.unroute(path);
+  }
+  expect((await api.get<{ archivedAt?: string }>(`/api/tasks/${task.id}`)).archivedAt).toBeUndefined();
+});
+
+test.describe('coarse pointer Task List Delete', () => {
+  test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
+
+  test('touch Delete leaves its archive recovery cue at phone width', async ({ page }) => {
+    await seed('nested-projects');
+    const root = await createRoot('Touch Task List Delete');
+    await addSection(root.id, { type: 'task-list' });
+    await page.goto(`/projects/${root.id}`);
+    await page.locator('[data-quick-task-title]').fill('Tap recovery task');
+    await page.locator('[data-quick-create] button[type="submit"]').tap();
+    await page.locator('[data-close-drawer]').tap();
+    await page.locator('[data-task-delete]').tap();
+    await expect(page.locator('[data-task-row]')).toHaveCount(0);
+    const recovery = page.locator('[data-task-delete-recovery]');
+    await expect(recovery).toContainText('Tap recovery task');
+    await expect(recovery).toContainText(/archived/i);
+    expect(await recovery.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  });
 });

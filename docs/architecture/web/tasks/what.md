@@ -6,7 +6,7 @@
 flowchart TB
   live["LIVE_UPDATES task.*"] --> store
   subgraph owners["Who provides the store"]
-    tls["TaskListSection<br/>(projects/sections/tasks)"]
+    tls["TaskListSection<br/>(projects/sections/tasks); committed Delete cue"]
     todos["TodosPage<br/>(own row + store; canonical writes)"]
     lab["Design Lab live panels<br/>(fixtures)"]
   end

@@ -24,6 +24,8 @@ projection, completion lock and project-scoped receipts have different state.
   frames deferred behind a write in flight. Every write reports to the header's history through
   core's `OPERATION_HISTORY_REPORTER` with the **task's** own project — a list inside a Home shortcut
   writes rows its source sub-project owns (Slice 41).
+- `TaskListSection`: after a committed Delete, keeps a polite archive/recovery cue outside the
+  rows, including when the last task leaves. A refused write shows only the existing error.
 
 ## Not responsible for
 

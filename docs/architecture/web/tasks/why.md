@@ -60,6 +60,7 @@ the date, not the time — a defect only the browser showed.
 
 ## Decisions that shape this system
 
+- [Task Delete names its existing recovery routes](../../../decisions/2026-09-task-delete-recovery-feedback.md) — a committed archive gets a polite cue outside the rows.
 - [§4's *Agent Modified* task row has no data behind it](../../../decisions/2026-08-agent-modified-has-no-data-behind-it.md)
 - [A date-only task due date is stored at UTC end-of-day](../../../decisions/2026-08-task-date-only-due-time.md)
 - [Task status transitions, `completedAt`, and how a task is archived](../../../decisions/2026-08-task-status-transitions-and-archive.md)

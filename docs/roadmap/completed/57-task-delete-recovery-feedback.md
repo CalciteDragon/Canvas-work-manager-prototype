@@ -1,4 +1,4 @@
-<!-- plan id="57" status="active" summary="Task List and Todos Delete explain Archive and the owning project's header Undo" -->
+<!-- completed-record id="57" closed="2026-09-29" summary="Task List and Todos announce committed Delete recovery through Archive and the owning header" -->
 # Slice 57 — Task Delete recovery feedback
 
 ## Goal
@@ -90,7 +90,42 @@ None blocking. The shell already wires `onOpenArchive` to `openArchive()`, which
 - **Review round 1 (2026-09-29):** Confirmed Todos already reaches guarded root Archive navigation through `onOpenArchive`; the reviewer caught that opening a disabled Archive first records a distinct page action. Added enabled/disabled, enable failure and committed-enable/read-retry cases, and removed any promise that Delete stays the next Undo step.
 - **Review round 2 (2026-09-29):** Added the testing inventory file, explicit `tasks.write` permission denial beside transport failure, and a Task List in-flight section-switch guard and test.
 - **Review round 3 (2026-09-29):** Reworded Archive recovery to respect §31's ready-owner projection: an archived owner can suppress the task row until the owner is restored.
+- **Implementation review round 1 (2026-09-29):** Independent correctness, boundary and documentation reviewers found that a restored task left contradictory archive status on both surfaces, and that Task List touch and browser-controlled recovery were missing from acceptance evidence. Added restoration-aware cue withdrawal, component regressions, touch, real header Undo and Archive Restore journeys.
+- **Implementation review round 2 (2026-09-29):** Reviewers found no remaining substantive implementation or boundary issue. A documentation pass caught an accidental edit to an older feedback note; restored its original fields. The phone touch journey exposed the existing details drawer covering Delete after quick create, so the journey closes that drawer and the friction is recorded for finding 11.
+- **Close-out review (2026-09-29):** A direct diff review questioned moving Todos' `onProjectDataChange` call inside the new same-root guard. A red/green check showed `TodosPageStore.delete` already returns `false` for a stale root, so behaviour is unchanged and the code stayed as written. Restored one Mermaid node's indentation in the tasks `what.md`. Reran `pnpm test`, `pnpm lint` and the focused Playwright files: all green, 12/12.
 
 ## Outcome
 
-To be written after implementation; this planning commit does not claim the feature is delivered.
+**Deliverables.** Task List and root Todos now keep a polite, named archive status outside
+the disappearing rows after a committed Delete. Todos routes descendant work to its true
+owner's existing header history and opens root Archive through the shell's guarded callback;
+Task List names those existing recovery locations without creating another Undo action.
+Both cues clear on a new attempt, refusal, context change or fresh list showing a restored
+task. Focused web specs and Playwright journeys cover commit timing, final rows, failed
+writes, owner routing, focus, keyboard/touch, header Undo, Archive Restore and 375 px themes.
+
+**Choices and deviations.** [The indexed decision](../../decisions/2026-09-task-delete-recovery-feedback.md)
+records why the cue describes a committed archive and conditions Undo on the latest step.
+The store already reports a committed Task List archive truthfully when its quiet follow-up
+read fails, so its return type did not change. Diff review added cue withdrawal after
+Restore; an initial touch test found the existing quick-create drawer over the row at
+375 px, so the journey closes it before tapping Delete. That friction is
+[recorded](../../../.prototype/notes.json) for Slice 46 finding 11. No gateway, contract,
+domain, history or MCP change was needed.
+
+**Verification and limits.** `pnpm --filter web test --include
+src/app/features/projects/sections/tasks/task-list-section.spec.ts --include
+src/app/features/projects/pages/todos-page.spec.ts` passed 39 tests. `pnpm test`,
+`pnpm lint` and `pnpm docs:check` passed after implementation.
+`pnpm --filter @cwm/e2e exec playwright test row-history.spec.ts todos.spec.ts`
+passed 12/12 in Chromium with Playwright's separate web and host servers and isolated
+`nested-projects` seeds. A first phone touch run timed out because quick create opened
+the details drawer over Delete; closing that existing drawer made the final 12/12 run
+green. No new MCP tool was applicable. The details drawer overlap at phone width remains
+for the planned global phone-layout work; the focused browser test uses its existing
+Close control. No other open product question arose.
+
+**Documentation.** Corrected specification §§26 and 34, the tasks/projects/testing
+architecture folders, the indexed decision and the Slice 46 finding ledger. The next
+bounded phase is finding 11's phone navigation/layout; findings 12–14 remain for Slice
+46's final reconciliation.

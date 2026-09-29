@@ -182,6 +182,11 @@ pnpm storybook                                        # :6006
   takes a child Undo/Redo without advancing the root revision, and checks another browser
   persona's unavailable route and a same-workspace MCP agent's separate summary. The component
   specs cover task and unit-of-work rows, all four Archive item kinds and root-owned omission.
+- **Task Delete recovery feedback** lives in `row-history.spec.ts` and `todos.spec.ts`:
+  a Task List and the root chronology retain a polite status after the row leaves; the
+  journeys check header Undo, guarded Archive opening and Restore, keyboard/touch activation,
+  failure and 375 px themes. The focused web component specs drive pending, refusal, final-row
+  and route-generation boundaries before those browser journeys.
 - **Removal Undo acceptance** lives in `removal-undo.spec.ts`: disposable views leave both
   the canvas and Archive and return with their saved config/order; live task and reflection rows
   cascade in one gesture; independently archived rows keep their markers; an independent task

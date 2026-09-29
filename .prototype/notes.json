@@ -977,6 +977,14 @@
       "projectId": "project-kitchen",
       "slice": 56,
       "note": "Slice 56 real browser use on isolated nested-projects data: followed Kitchen history from a root Todos task and a root Archive section, reloaded the child URL, activated the Archive link by Enter, then undid and redid the child's section removal. The root revision stayed put; another persona saw Project unavailable and the same-workspace MCP agent had a separate history. Friction found and fixed in this slice: the first browser journey reached the fragment but left focus on the page body because the header had not rendered when the one-shot callback ran. Rechecking after each render focuses the labeled history group and shows a visible outline. No other new friction surfaced in this journey."
+    },
+    {
+      "id": "note-2026-09-29-004",
+      "createdAt": "2026-09-29T19:51:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 57,
+      "note": "At 375 px, quick-creating a Task List row automatically opens its details drawer. The drawer overlaps that row's Delete button and intercepted a touch tap until I closed it. The close control is available, and Delete then works; consider whether phone layout should place the drawer below the row or close it after creation. Left for the phone layout slice (Slice 46 finding 11)."
     }
   ]
 }

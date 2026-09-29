@@ -139,6 +139,100 @@ describe('TaskListSection (§30, §66)', () => {
     expect(document.activeElement).toBe(query(fixture, '[data-task-row] [data-task-delete]'));
   });
 
+  it('announces a committed Delete outside the rows, including the final completed row', async () => {
+    const completed = { ...task('task-1'), status: 'done' as const, completedAt: AT };
+    const gateway = new FakeWorkManagerGateway({ tasks: [completed] });
+    let release!: () => void;
+    const original = gateway.tasks.archive;
+    gateway.tasks.archive = (id) => new Promise((resolve, reject) => {
+      release = () => {
+        gateway.tasks.list = async () => [];
+        original(id).then(resolve, reject);
+      };
+    });
+    const { fixture } = await render(gateway);
+
+    query(fixture, '[data-task-delete]')!.click();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-task-delete-recovery]')).toBeNull();
+    release();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-task-row]')).toBeNull();
+    const cue = query(fixture, '[data-task-delete-recovery]');
+    expect(cue?.getAttribute('aria-live')).toBe('polite');
+    expect(cue?.textContent).toContain('Task task-1');
+    expect(cue?.textContent).toContain('archived');
+    expect(cue?.textContent).toContain('Archive');
+    expect(cue?.textContent).toContain('header Undo');
+  });
+
+  it('clears committed feedback on another Delete attempt and never announces refusal', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1'), task('task-2')] });
+    const { fixture } = await render(gateway);
+    query(fixture, '[data-task-delete]')!.click();
+    await fixture.whenStable();
+    expect(query(fixture, '[data-task-delete-recovery]')).not.toBeNull();
+
+    gateway.tasks.archive = async () => { throw new GatewayError('permission_denied', 403, 'No task grant'); };
+    query(fixture, '[data-task-delete]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-task-delete-recovery]')).toBeNull();
+    expect(query(fixture, '[data-tasks-error]')?.textContent).toContain('No task grant');
+  });
+
+  it('keeps a committed cue when the follow-up read fails', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    const { fixture } = await render(gateway);
+    gateway.tasks.list = async () => { throw new GatewayError('unreachable', 0, 'Read failed'); };
+
+    query(fixture, '[data-task-delete]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-task-delete-recovery]')?.textContent).toContain('was archived');
+    // Quiet reconciliation leaves the old row until a later live read; the archive verdict
+    // still comes from the committed write, and must not be recast as a failed Delete.
+    expect(query(fixture, '[data-tasks-error]')).toBeNull();
+  });
+
+  it('withdraws the archive cue when a fresh list contains the restored task', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    const { fixture, store } = await render(gateway);
+    gateway.tasks.list = async () => [];
+    query(fixture, '[data-task-delete]')!.click();
+    await fixture.whenStable();
+    expect(query(fixture, '[data-task-delete-recovery]')).not.toBeNull();
+
+    gateway.tasks.list = async () => [task('task-1')];
+    await store.refresh();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-task-delete-recovery]')).toBeNull();
+  });
+
+  it('does not announce a transport refusal or a late commit from another section', async () => {
+    const gateway = new FakeWorkManagerGateway({ tasks: [task('task-1')] });
+    const { fixture } = await render(gateway);
+    gateway.tasks.archive = async () => { throw new GatewayError('unreachable', 0, 'Offline'); };
+    query(fixture, '[data-task-delete]')!.click();
+    await fixture.whenStable();
+    expect(query(fixture, '[data-task-delete-recovery]')).toBeNull();
+
+    let release!: () => void;
+    gateway.tasks.archive = () => new Promise((resolve) => {
+      release = () => resolve({ task: task('task-1'), operation: null });
+    });
+    query(fixture, '[data-task-delete]')!.click();
+    fixture.componentRef.setInput('section', { ...section(), id: 'section-other' });
+    fixture.detectChanges();
+    release();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-task-delete-recovery]')).toBeNull();
+  });
+
   it('tells the page a successful archive happened, so projections can refresh', async () => {
     const { fixture, onProjectDataChange } = await render();
 
