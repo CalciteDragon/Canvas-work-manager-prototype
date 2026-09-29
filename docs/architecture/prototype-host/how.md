@@ -4,8 +4,14 @@
 
 1. `pnpm dev:host` (`tsx watch main.ts`) or `pnpm --filter @cwm/prototype-host start`.
    `main.ts` reads `CWM_HOST_PORT` (default `4310`; an unusable value throws with the
-   message intact), then loads the data file, then wires services and the registry, then
-   listens — in that order, so a broken file fails the start rather than the first request.
+   message intact), then takes ownership of the data file, then loads it, then wires services
+   and the registry, then listens — in that order, so a broken file fails the start rather than
+   the first request, and first-run seeding happens under ownership.
+   The acquisition (`kind: 'http-host'`) waits up to 5 s for another owner — a `tsx watch`
+   restart whose old child is still exiting, or a stdio call's turn — printing
+   `prototype-host waiting for data file owned by <kind> pid <pid>` to stdout, then fails the start
+   with `data_file_in_use:` ([decision](../../decisions/2026-09-one-writer-per-data-file.md)). A start that fails after
+   acquiring, such as on `EADDRINUSE`, releases before exiting 1.
 2. `createRequestHandler` dispatches each request: raw routes first (`/mcp`, the event
    stream), then the table keyed `'METHOD /path/:param'`, then 404 as
    `{"error":"not_found"}`. CORS headers and the preflight are answered here.
@@ -17,13 +23,22 @@
 5. Every committed unit of work releases its held live frames to the hub, which writes
    them to every `GET /prototype/events` subscriber whose persona matches.
 6. `/prototype/*` reads or changes the `PrototypeRuntime`: swap the document, reset,
-   move the clock, switch the AI provider, append a note.
+   move the clock, switch the AI provider, append a note. The swap and reset run inside the
+   owning host's unit of work, so they need no ownership of their own.
+7. SIGINT or SIGTERM calls `shutdownHost`: `stop(server)` and `mcp.close()`, then a drain of the
+   unit-of-work queue, then the release. The drain throws a sentinel through `unitOfWork.run` so it
+   waits for the queue's tail without persisting — a returning no-op would rewrite the file on
+   every Ctrl+C. A `process.on('exit')` listener (`releaseOnExit`) releases only once the drain has
+   completed, so the 2 s give-up path leaves the record for pid-based reclaim rather than handing
+   the file over under an in-flight rename. On Windows `child.kill()` runs no handler at all; the
+   next acquirer reclaims that record.
 
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
 | `start`, `stop` | functions | The server's life; `stop` closes in-flight sockets | [API](../../api/miscellaneous/functions.html#start) |
+| `shutdownHost`, `releaseOnExit`, `HostOwnership` | functions / interface | Drain-before-release shutdown and the exit-time release that waits for it | [API](../../api/miscellaneous/functions.html#shutdownHost) |
 | `configuredPort`, `PORT_VARIABLE`, `HOST` | function / consts | `CWM_HOST_PORT`; `127.0.0.1` | [API](../../api/miscellaneous/variables.html#configuredPort) |
 | `createRequestHandler`, `healthRoutes` | function / const | The router | [API](../../api/miscellaneous/functions.html#createRequestHandler) |
 | `RouteTable`, `RawRouteTable`, `RouteRequest`, `RouteResult` | types / interfaces | What a route receives and returns | [API](../../api/interfaces/RouteRequest.html) |
@@ -60,6 +75,9 @@
   400, not found 404, rule 409, permission 403, unknown token 401.
 - **The persona header is not auth** and the token is not a secret; nothing here should
   grow toward either (§7, §80).
+- **One writer per data file.** The direct-run host owns its file from before the load until
+  after a drained shutdown; `start()` and every in-process test do not acquire.
+  `data-file-ownership.test.ts` proves the refusals and hand-overs across real processes.
 - **Type-check is the build**: `pnpm --filter @cwm/prototype-host build` is `tsc
   --noEmit`, because packages are consumed as source and there is no `outDir`.
 

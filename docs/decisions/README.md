@@ -92,6 +92,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | Entry | Settled | Status |
 |---|---|---|
 | [How repository queries combine and compare values](2026-08-repository-query-semantics.md) | Query filters AND together; empty arrays match nothing | current |
+| [One writer per data file](2026-09-one-writer-per-data-file.md) | An advisory owner record: the host holds it for life, stdio per call, the CLIs refuse; nonce-guarded reclaim | current (Slice 54) |
 
 ## MCP tools
 
@@ -115,8 +116,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | Entry | Settled | Status |
 |---|---|---|
 | [CORS on the host, not a dev-server proxy](2026-08-host-cors-over-dev-proxy.md) | The preflight is load-bearing; the host answers it | current |
-| [Stdio uses an environment token and reloads identity per call](2026-08-stdio-token-and-live-auth.md) | `CWM_MCP_TOKEN`; stdio re-reads the file every call | current |
-| [Live updates reach the browser over HTTP, and not over stdio](2026-08-live-updates-are-http-only.md) | A stdio process owns a separate store | current |
+| [Stdio uses an environment token and reloads identity per call](2026-08-stdio-token-and-live-auth.md) | `CWM_MCP_TOKEN`; stdio re-reads the file every call | amended; Slice 54 enforces the concurrency rule |
+| [Live updates reach the browser over HTTP, and not over stdio](2026-08-live-updates-are-http-only.md) | A stdio process owns a separate store | amended; Slice 54 refuses stdio while the host owns the file |
 | [Latency and failure injection live in the client, not the host](2026-08-latency-and-failure-live-in-the-client.md) | The gateway injects; the host has no delay endpoint | current |
 
 ## Web app

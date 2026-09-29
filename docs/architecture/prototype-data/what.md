@@ -48,10 +48,11 @@ flowchart TB
 | Agent tokens | `src/agent-tokens.ts` | `prototype-user-a-readwrite`, `-readonly`, `-revoked`; the host resolves them |
 | Seed builders | `src/seeds.ts` | One function per seed over a fixed Monday-morning reference instant |
 | `writeSeedFile` | `src/seed-cli.ts` | Atomic write of a seed over the data file; `INIT_CWD`-relative paths |
+| `seedDataFileOwned` | `src/seed-cli.ts` | The seed and reset CLIs' entry: `writeSeedFile` under the data file's owner record, refused while a host owns it |
 | `upgradeProjectPages`, `V3_SCHEMA_VERSION` | `src/upgrade-project-pages.ts` | The bounded v2 → v3 step, frozen at version 3 and returning opaque JSON |
 | `upgradeOperationHistory` | `src/upgrade-operation-history.ts` | The v3 → v4 step: retires Undo receipts, adds history collections and generations; frozen opaque v4 output |
 | `upgradeActivityIdentity` | `src/upgrade-activity-identity.ts` | The v4 → v5 step: validates legacy targets, captures Activity identity, preserves operation history and validates the final document |
-| Upgrade CLI | `src/upgrade-cli.ts` | Sniffs the version, chains the steps, backs up as `.backup-<timestamp>.json`, writes through a temp file |
+| Upgrade CLI | `src/upgrade-cli.ts` | Sniffs the version, chains the steps, backs up as `.backup-<timestamp>.json`, writes through a temp file; `upgradeDataFileOwned` takes the owner record first |
 | v2 corpus | `test/fixtures/nested-projects-v2.json` | What the converter is tested against, kept because the seeds it would read were regenerated |
 | v3 corpus | `test/fixtures/nested-projects-v3.json` | The `nested-projects` snapshot before `undoRecords` existed; the v3 → v4 converter's input, with legacy receipts added in memory by its tests |
 | v4 corpus | `test/fixtures/history-v4.json` | Activity without captured context plus applied/undone version-4 history, proving the final step preserves it |

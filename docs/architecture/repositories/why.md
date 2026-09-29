@@ -15,7 +15,8 @@ get wrong.
   once and validating it whole on every commit is affordable and catches far more than a
   per-row check would.
 - **Two writers can race** — the browser and an MCP client share one host — and a
-  half-applied operation must never persist.
+  half-applied operation must never persist. Separate *processes* can race too: the host, a
+  stdio MCP process and the seed, reset and upgrade commands each hold their own copy of the file.
 - **A crash mid-write must not corrupt the file.** Temp-and-rename is atomic on the
   platforms this runs on.
 - **Nothing may be deleted casually.** Canonical references remain strict. Missing task or
@@ -72,6 +73,15 @@ actor and project" and "an action's order is within its history's high-water mar
 collections, so they live in `validateDocumentIntegrity`; the contract keeps only what one object
 can assert ([decision](../../decisions/2026-09-operation-history-scope.md)).
 
+**One advisory owner record per data file, not a lock service.** Every writing entrypoint
+publishes `<data file>.owner` by `link` before it loads, and a second one waits a bounded time and
+is then refused with the owner named. Rejected: the documented "do not run them together" rule it
+replaces, which failed silently as a lost update; OS file locks, which differ across Windows and
+POSIX and cannot say who holds the file; and reclaiming a dead record by plain unlink, which lets a
+slow reclaimer delete a fast one's fresh record
+([decision](../../decisions/2026-09-one-writer-per-data-file.md)). It is disposable with the JSON
+store (§71), and entrypoints, not the store, decide when to hold it.
+
 **An `InMemoryDataStore` beside the `JsonDataStore`.** Same base, no disk — what every
 domain, tool and host test runs on.
 
@@ -84,10 +94,14 @@ domain, tool and host test runs on.
   way through a session; `pnpm prototype:upgrade` or a reset is the remedy.
 - The whole document is cloned and validated twice per unit of work. Fine on a JSON
   document; it is why rows keep `projectId` beside `sectionId` rather than joining.
-- Two processes cannot share the file: the running host does not see a stdio process's
-  writes and can overwrite them ([guide](../../guides/mcp-setup.md#important-file-store-limitation)).
+- Two processes cannot hold divergent copies of the file at once: a writer is refused with
+  `data_file_in_use:` while another process owns it, so a stdio call is refused while the host
+  runs ([guide](../../guides/mcp-setup.md#important-file-store-limitation)). A hard-killed owner
+  leaves a record that the next acquirer reclaims; a reused pid needs the named file deleted by hand.
 
 ## Decisions that shape this system
+
+- [One writer per data file](../../decisions/2026-09-one-writer-per-data-file.md) — the owner record, its wait, refusal and nonce-guarded reclaim
 
 - [How repository queries combine and compare values](../../decisions/2026-08-repository-query-semantics.md)
 - [What undo means for an archived row](../../decisions/2026-09-what-undo-means-for-an-archived-row.md) — the integrity invariants

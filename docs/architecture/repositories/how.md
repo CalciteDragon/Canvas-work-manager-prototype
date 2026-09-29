@@ -2,6 +2,10 @@
 
 ## Runtime flow
 
+Before any of this, the entrypoint that will write the file takes ownership of it with
+`acquireDataFileOwnership` (see [One writer per data file](#one-writer-per-data-file) below). The
+store itself never does.
+
 1. The host calls `loadPersistence`, which opens the path from `CWM_DATA_FILE` (default
    `.prototype/data.json`, repo-anchored) with `JsonDataStore` and parses it through
    `validateDocumentIntegrity`. A missing file or a wrong `schemaVersion` fails the start.
@@ -33,6 +37,10 @@
 | `OperationActionRepository` | interface | History actions; the one collection that deletes routinely, because actions are pruned and redo branches discarded | [API](../../api/interfaces/OperationActionRepository.html) |
 | `JsonCollectionRepository` | class | Shared helpers the twelve implementations extend | [API](../../api/classes/JsonCollectionRepository.html) |
 | `UnitOfWorkInProgressError` | class | A write outside or after its unit | [API](../../api/classes/UnitOfWorkInProgressError.html) |
+| `acquireDataFileOwnership` | function | Publish, wait for or reclaim a data file's owner record | [API](../../api/miscellaneous/variables.html#acquireDataFileOwnership) |
+| `DataFileOwnership` | interface | The held record; `release()` and `releaseSync()` are nonce-checked and idempotent | [API](../../api/interfaces/DataFileOwnership.html) |
+| `DataFileInUseError` | class | `data_file_in_use:` — a live owner, an unreadable record or a dead reclaimer's file is in the way | [API](../../api/classes/DataFileInUseError.html) |
+| `DataFileOwnerUnavailableError` | class | `data_file_owner_unavailable:` — `link` failed with no owner to name | [API](../../api/classes/DataFileOwnerUnavailableError.html) |
 
 ## Dependencies
 
@@ -49,6 +57,40 @@
 - [prototype-host](../prototype-host/overview.md) — constructs the `JsonDataStore` and
   hands it to `createApi`.
 - Tests in `packages/mcp-tools` and `apps/prototype-host` — `InMemoryDataStore`.
+
+## One writer per data file
+
+`acquireDataFileOwnership(dataPath, { kind, waitMs, onWait, skipWaitForKinds })` in
+`data-file-ownership.ts` ([decision](../../decisions/2026-09-one-writer-per-data-file.md)):
+
+1. Create the directory, then name the owner file `<realpath(dir)>/<basename>.owner`, so two
+   spellings of one path share it and different paths never do.
+2. Write `{ pid, nonce, kind, acquiredAt, dataPath }` whole to `<owner>.<nonce>.tmp` and publish it
+   with `link`. `EEXIST`, `EPERM` and `EBUSY` mean *occupied* — the latter two are how Windows
+   reports a file pending deletion. Any other code throws `data_file_owner_unavailable:` at once.
+3. Occupied: read the record. A dead pid is reclaimed (liveness is checked first, whatever the
+   kind). A live owner of a kind in `skipWaitForKinds` is refused at once. Otherwise `onWait` fires
+   once and the acquirer polls every 50 ms. Every retry, of any cause, counts against the one
+   `waitMs` deadline.
+4. Reclaim: publish `<owner>.reclaim` the same way; holding it, re-read the owner file and unlink it
+   only if it still holds the dead record's nonce, then publish. Any mismatch starts over. The
+   reclaim file is dropped in `finally`.
+
+```mermaid
+flowchart TB
+  link["link tmp → .owner"] -->|published| owned([owned])
+  link -->|occupied| read["read .owner"]
+  read -->|gone or unreadable| retry["wait 50 ms within waitMs"]
+  read -->|live pid, skipped kind| refuse([data_file_in_use:])
+  read -->|live pid| retry
+  read -->|dead pid| reclaim["link .owner.reclaim"]
+  reclaim -->|dead reclaimer| refuse
+  reclaim -->|held| recheck{".owner still has the dead nonce?"}
+  recheck -->|yes| swap["unlink .owner, link ours"] --> owned
+  recheck -->|no| retry
+  retry -->|deadline| refuse
+  retry --> link
+```
 
 ## Invariants and lints
 
@@ -85,6 +127,10 @@
   `archiveGeneration` an action captured — a retained removal's, or a Restore's — which may not
   exceed its section's, because `archiveGeneration` never decreases. A missing section, row or page
   subject is still permitted for redo; a missing project history has the stricter creation anchor.
+- **Nothing is ever taken from a live owner.** Only the holder of a nonce, or a reclaimer holding
+  `<owner>.reclaim` that re-read the dead record's nonce, unlinks an owner file. An unreadable
+  record, an alive but unrelated pid and a reclaim file left by a dead pid are refused, and the
+  refusal names the file an operator may delete. There is no `--force`.
 - **Seeds are committed byte-for-byte** as LF JSON and compared in
   `packages/prototype-data`'s tests, which is why `.gitattributes` normalises line
   endings.
@@ -104,6 +150,9 @@ pnpm --filter @cwm/repositories lint   # tsc --noEmit
 - **A new integrity rule:** a failing `data-store.test.ts` case with a document that
   violates it, then the check. Prefer this over a write-path guard when the rule is about
   the document rather than about one operation.
+- **A new writer of a canonical file** (a CLI, a script) acquires around its write with a new
+  `DataFileOwnerKind` and its remedy. Do not acquire inside a library function a host already
+  calls under its own ownership: the host's own record would refuse it.
 - **The trap:** writing a query filter that treats `[]` as "everything". The semantics
   entry exists because a gateway once did exactly that.
 

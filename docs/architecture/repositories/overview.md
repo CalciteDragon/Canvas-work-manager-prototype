@@ -34,6 +34,9 @@ canonical-page removal is available only to that preflighted domain inverse.
 - Provide the narrow task/reflection removal seams used after row-add Undo has preflighted every
   canonical dependent; Activity is historical evidence and does not block that removal.
 - Persist with temp-file-and-rename so a crash cannot leave a truncated file.
+- Guard each canonical file with one advisory owner record, `<data file>.owner`
+  (`acquireDataFileOwnership`, Slice 54), so separate processes take turns writing it rather
+  than overwriting each other. A dead owner's record is reclaimed only under a nonce check.
 - Swap the whole document from inside a unit of work, which is how the development
   panel loads a seed without a restart.
 
@@ -45,6 +48,9 @@ canonical-page removal is available only to that preflighted domain inverse.
   ([prototype-host](../prototype-host/overview.md)).
 - Seeds: [prototype-data](../prototype-data/overview.md) builds documents; this package
   only holds them.
+- When to take ownership: entrypoints decide — the host for its lifetime, stdio per call, the
+  seed, reset, upgrade and e2e-preparation commands around their write. `JsonDataStore` and the
+  library functions never acquire.
 
 ## Read next
 

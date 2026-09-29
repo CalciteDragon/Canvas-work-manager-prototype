@@ -42,8 +42,10 @@ C4Container
 
 The web app never touches the file. The host loads it once at start and writes it through
 a temp-and-rename at the end of every unit of work (§15). A stdio process is a second
-owner of the same file, which is why the two must not mutate concurrently
-([guide](../guides/mcp-setup.md#important-file-store-limitation)).
+owner of the same file, so the two take turns through the file's owner record: a stdio call is
+refused while the host owns the file
+([guide](../guides/mcp-setup.md#important-file-store-limitation),
+[decision](../decisions/2026-09-one-writer-per-data-file.md)).
 
 ## Packages and apps
 

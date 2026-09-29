@@ -45,3 +45,15 @@ is refused after an external revocation. High that the concurrency limitation is
 
 The prototype needs simultaneous mutation from multiple processes. That is an architecture
 finding, not permission to build production persistence inside this prototype.
+
+---
+
+## Amendment — 2026-09-29, Slice 54: the concurrency rule is enforced
+
+The rule that mutation-capable stdio and HTTP/UI sessions must not share a data file is no
+longer only documented. [One writer per data file](2026-09-one-writer-per-data-file.md) makes
+every writer take turns through an advisory owner record. Each stdio call owns the file from
+before its reload until after its call, and is refused with `data_file_in_use:` while a host
+owns it — reads included, because authentication may write `lastUsedAt`. The per-call reload
+this entry chose is what makes per-call ownership sufficient: every turn reloads under
+ownership, so it sees every earlier write. The lost update is now a refusal.

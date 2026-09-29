@@ -356,9 +356,9 @@ history is simply unreachable — the section, rows and other people's work are 
 are stored in the same `data.json` as the work they change, so they survive a host restart and a
 fresh connection with the same token sees them; Archive, not history, is the durable route for
 retained notes and cascaded rows. A stdio
-child reloads that file on every call: point it at a separate file, or never let it and the HTTP
-host write the same file at the same time (Slice 33's `mcp-acceptance` runs them one after the
-other).
+child reloads that file on every call and owns it only for that call: while the HTTP host runs on
+the same file every stdio call is refused, so use HTTP beside the host, or stop the host first
+(Slice 33's `mcp-acceptance` runs them one after the other).
 
 Task create/update/complete/archive/restore results are `{ task, operation }`; reflection
 add/archive/restore results are `{ reflection, operation }`. A normalized no-op carries
@@ -430,20 +430,33 @@ data but cannot perform writes; the revoked fixture token is refused at authenti
 
 ### Important file-store limitation
 
-Do not run mutation-capable stdio and HTTP/UI sessions concurrently against the same
-`data.json`. The stdio child reloads before each call and therefore sees host-side
-revocations, but the already-running host does not see stdio writes and can overwrite them
-later. Stop `pnpm dev:host` before a stdio mutation session, then restart it afterwards.
+One process writes a data file at a time. The host holds the file's owner record,
+`<data file>.owner`, for as long as it runs; a stdio process holds it only during each tool call.
+While `pnpm dev:host` runs on the same `data.json`, every stdio tool call — reads included,
+because authentication may stamp `lastUsedAt` — returns a tool error like:
 
-Read-only clients can run together as long as authentication's throttled `lastUsedAt` write
-is acceptable. For isolated experiments, point each transport at a separate
+```text
+data_file_in_use: C:\…\.prototype\data.json is owned by http-host pid 12345 since 2026-09-29T10:00:00.000Z; stop the host, or use its HTTP MCP endpoint. if pid 12345 is not a Canvas Work Manager process, delete this file: C:\…\.prototype\data.json.owner
+```
+
+The stdio process stays connected, still lists its tools, and its next call after you stop the
+host succeeds and sees everything the host wrote. Use the HTTP endpoint whenever the host is
+running. Two stdio clients on one file take turns: a call behind another client's call waits up
+to 5 s. `pnpm prototype:reset`, `pnpm prototype:seed` and `pnpm prototype:upgrade` are refused the
+same way while anything owns the file, and a host started while a stdio call is in progress waits
+up to 5 s, then refuses to start. For isolated experiments, point each transport at a separate
 `CWM_DATA_FILE`.
+
+A process that is killed outright leaves its record behind; the next process to start reclaims it
+automatically once the recorded pid is dead. If Windows has reused that pid for an unrelated
+program, the refusal names the owner file — delete it by hand
+([why](../decisions/2026-09-one-writer-per-data-file.md)).
 
 **§62's live updates are a property of the HTTP transport.** The browser and the HTTP MCP
 endpoint share one process, so an agent's write over `/mcp` appears in an open page within a
 second. A stdio process owns a separate store and cannot reach the running host's event
-stream, so its writes leave the UI unchanged — the visible symptom of the same limitation
-above. Use HTTP whenever the UI is open
+stream. With the host running, a stdio call is refused rather than written behind the open UI's
+back. Use HTTP whenever the UI is open
 ([why](../decisions/2026-08-live-updates-are-http-only.md)).
 
 ## Verify and troubleshoot
@@ -469,3 +482,6 @@ pnpm --filter @cwm/prototype-host live-acceptance
 - `403` before protocol negotiation: the Host or browser Origin is not localhost.
 - Stdio exits immediately: `CWM_MCP_TOKEN` is absent, or the configured command/path is
   wrong. Protocol data is stdout-only; diagnostics appear on stderr.
+- Tool result starts `data_file_in_use:`: another process owns the data file. The message names
+  it and what to do — for `http-host`, stop the host or use its HTTP endpoint (see
+  [Important file-store limitation](#important-file-store-limitation)).

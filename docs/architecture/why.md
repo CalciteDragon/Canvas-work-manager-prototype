@@ -37,9 +37,12 @@ does).
 
 **One JSON document, persisted at operation boundaries (§14, §15).** Rejected: SQLite —
 a schema to migrate for no gain; the whole workspace fits in memory and a temp-and-rename
-write is atomic. The cost is that two processes cannot share the file safely, which is why
-[live updates are HTTP-only](../decisions/2026-08-live-updates-are-http-only.md) and
-stdio MCP owns a separate store. Schema version 5 adds captured historical Activity identity;
+write is atomic. The cost is that two processes cannot hold divergent copies of the file, so
+[one writer per data file](../decisions/2026-09-one-writer-per-data-file.md) makes them take turns through an
+advisory owner record — the host for its lifetime, a stdio call for its turn — and refuses the
+rest with `data_file_in_use:`. That is also why
+[live updates are HTTP-only](../decisions/2026-08-live-updates-are-http-only.md): stdio MCP owns a
+separate store. Schema version 5 adds captured historical Activity identity;
 the bounded converter chain preserves version-4 operation histories while making audit rows
 readable after an Add is undone.
 

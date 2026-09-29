@@ -4,10 +4,14 @@
 
 1. `pnpm prototype:seed <name>` runs `seed-cli.ts` with `tsx`. It resolves the target path
    against `INIT_CWD` (the directory the command was run from, not the package), builds
-   the named seed, and writes it atomically over `.prototype/data.json` — the running
-   host does **not** see this; restart it or use the dev panel's Seed control.
+   the named seed, and writes it atomically over `.prototype/data.json`. It first takes the
+   file's owner record (`seedDataFileOwned`, `kind: 'seed'`), so while a host runs it is refused
+   with `data_file_in_use:` naming the host; stop the host or use the dev panel's Seed control
+   ([decision](../../decisions/2026-09-one-writer-per-data-file.md)).
 2. `pnpm prototype:reset` is the same command with `personal-workspace`.
-3. `pnpm prototype:upgrade <file>` runs `upgrade-cli.ts`: parse the file as plain data and
+3. `pnpm prototype:upgrade <file>` runs `upgrade-cli.ts` through `upgradeDataFileOwned`, which
+   takes the owner record (`kind: 'upgrade'`) before the read and is refused while anything else
+   owns the file — no backup and no temp file are written then. It parses the file as plain data and
    **sniff its version first** — the frozen v2 step refuses anything newer, so the "already
    current" answer cannot be delegated to it. Version 2 runs `upgradeProjectPages` (frozen at a
    literal version 3, unvalidated, opaque JSON) and then `upgradeOperationHistory`; version 3 runs
@@ -40,6 +44,7 @@
 | `upgradeOperationHistory` | function | Frozen v3 → v4 step; retires receipts and returns opaque JSON | [API](../../api/miscellaneous/variables.html#upgradeOperationHistory) |
 | `upgradeActivityIdentity` | function | v4 → v5 step; backfills validated Activity context, preserves histories and validates the final document | [API](../../api/miscellaneous/variables.html#upgradeActivityIdentity) |
 | `upgradeDataFile` | function | The CLI's version sniff, chain, backup and atomic write | [API](../../api/miscellaneous/variables.html#upgradeDataFile) |
+| `seedDataFileOwned`, `upgradeDataFileOwned` | functions | The CLIs' entries: the same writes under the data file's owner record. The library functions above stay ownership-free, because `loadPersistence` seeds inside its caller's ownership | [API](../../api/miscellaneous/variables.html#seedDataFileOwned) |
 | `WriteSeedOptions`, `UpgradeDataFileOptions` | interfaces | Injectable file operations for the two CLIs' tests | [API](../../api/interfaces/WriteSeedOptions.html) |
 
 ## Dependencies

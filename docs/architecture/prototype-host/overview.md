@@ -16,6 +16,9 @@ each module (vitest) plus four acceptance scripts in `scripts/` · **Package:**
 
 - Start on `CWM_HOST_PORT` (never `PORT`), bound to localhost only, and fail loudly when
   the port is unusable or the data file is missing or stale.
+- Own the data file for the host's lifetime (Slice 54): take its owner record before loading,
+  refuse to start while another live process holds it past a 5 s wait, and on Ctrl+C release it
+  only after in-flight writes have finished.
 - Turn a request into an `ActorContext`: a persona header for the API, a bearer token
   for MCP. Neither is authentication in any real sense (§18, §51).
 - Map the domain's three errors to HTTP statuses and MCP tool errors.

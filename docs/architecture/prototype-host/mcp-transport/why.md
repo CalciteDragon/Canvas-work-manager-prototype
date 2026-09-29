@@ -41,12 +41,18 @@ and a bad habit to form for tokens that will one day be real.
 **Stdio reloads the document before every call.** A child process cannot see the running
 host's in-memory state, so it re-reads the file and re-authenticates each time — it
 therefore sees host-side revocations, while the host does not see its writes
-([decision](../../../decisions/2026-08-stdio-token-and-live-auth.md)). The documented
-safe workflow is to stop the host for a stdio mutation session, or point each transport
-at its own `CWM_DATA_FILE`. Because every reload is a separate store, the process also takes
-calls one at a time: Slice 45 found two concurrent transitions at one expected revision both
-landing when calls overlapped. That serialization is within one stdio process only; it does not
-make two processes on one file safe.
+([decision](../../../decisions/2026-08-stdio-token-and-live-auth.md)). Because every reload is
+a separate store, the process also takes calls one at a time: Slice 45 found two concurrent
+transitions at one expected revision both landing when calls overlapped. That serialization is
+within one stdio process only.
+
+**Across processes, each stdio call owns the data file for its turn.** The documented "stop the
+host first" rule failed silently as a lost update. Each call now takes the file's owner record
+before its reload and gives it back after its call, so two stdio processes take turns and a call
+behind a running host is refused with `data_file_in_use:`. Rejected: lifetime ownership, which
+would block `pnpm dev:host` whenever a long-lived client is open and break the sequential
+two-process journeys `mcp-acceptance` runs
+([decision](../../../decisions/2026-09-one-writer-per-data-file.md)). HTTP MCP remains the route beside an open UI.
 
 **Permission metadata is namespaced under `_meta`.** Static tools keep the singular key for
 existing clients and a plural key carrying every grant a combined read needs. `undo_operation`
@@ -73,6 +79,7 @@ instead. The domain, not this transport, enforces the selected grant
 ## Decisions that shape this system
 
 - [Stdio uses an environment token and reloads identity per call](../../../decisions/2026-08-stdio-token-and-live-auth.md)
+- [One writer per data file](../../../decisions/2026-09-one-writer-per-data-file.md) — per-call stdio ownership and the refusal behind a host
 - [Live updates reach the browser over HTTP, and not over stdio](../../../decisions/2026-08-live-updates-are-http-only.md)
 - [Where §51's bearer tokens live](../../../decisions/2026-08-agent-tokens-are-fixtures-not-records.md)
 - [How §53's "Last used" is recorded](../../../decisions/2026-08-last-used-is-a-throttled-write.md)

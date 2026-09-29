@@ -11,7 +11,7 @@ flowchart LR
   end
   subgraph stdio["stdio — pnpm mcp:stdio"]
     env["CWM_MCP_TOKEN"]
-    reload["reload data file + authenticate per call"]
+    reload["own the data file for the turn<br/>reload + authenticate per call"]
     sdkstdio["SDK stdio transport<br/>stdout protocol, stderr diagnostics"]
   end
   server["mcp/server.ts<br/>SDK McpServer over the registry<br/>static or operation-family _meta"]
@@ -60,7 +60,7 @@ sequenceDiagram
 | `createAuthenticatedMcpHandler`, `AuthenticatedMcpDependencies` | `mcp/handler.ts` | Guards + authenticator + SDK handler as one raw route |
 | `createMcpNodeHandler` | `mcp/handler.ts` | The SDK's fetch-shaped handler adapted to `node:http` |
 | SDK server factory and permission metadata keys | `mcp/server.ts` | Builds the `McpServer` over the registry; publishes either the static keys or the operation-family key |
-| `startStdio`, `StdioStartupHooks` | `mcp/stdio.ts` | `pnpm mcp:stdio`; reload-and-authenticate per call, one call at a time; optional host-local test composition for a shared clock, load and post-call/pre-reply boundaries |
+| `startStdio`, `StdioStartupHooks` | `mcp/stdio.ts` | `pnpm mcp:stdio`; reload-and-authenticate per call under per-call data-file ownership, one call at a time; optional host-local test composition for a shared clock, load and post-call/pre-reply boundaries |
 | Stdio test child | `mcp/test/fault-stdio.ts` | SDK fixture that fails one persist or exits after a committed Undo, before reply serialization |
 | Stdio clock child | `mcp/test/clock-stdio.ts` | SDK fixture sharing one simulated clock across reloads, advanced from a receipt sidecar for expiry and restart |
 | `PrototypeAgentAuthenticator`, `AgentAuthenticationError`, `AgentAuthenticatorDependencies` | `auth/prototype-agent-authenticator.ts` | Token → live connection → actor; one 401 |

@@ -67,7 +67,8 @@ through the official MCP SDK v2, targeting protocol `2026-07-28`. Streamable HTT
 mounted at `/mcp`; `pnpm mcp:stdio` serves the identical registry for local child-process
 clients. Both use the fake agent credentials and real domain services. See
 [docs/guides/mcp-setup.md](docs/guides/mcp-setup.md) for client configuration and the JSON
-store's cross-process limitation.
+store's one-writer rule: a stdio call is refused with `data_file_in_use:` while the host owns the
+same file, and so are `prototype:seed`, `prototype:reset` and `prototype:upgrade`.
 
 Archived roots and currently restorable subprojects are available at
 `/settings/archived-projects`, independent of a project's optional Archive page. The page uses
@@ -82,7 +83,7 @@ every agent call.) A task an agent completes
 ticks itself off in an open project page in well under a second, with the activity feed
 naming the connection. Frames are held until the write commits, so a refresh triggered by one
 always reads the new value. This is a property of the HTTP transport; a `pnpm mcp:stdio`
-process owns a separate store and leaves the UI unchanged.
+process owns a separate store, and is refused while the host owns the file.
 
 ### The Design Lab
 

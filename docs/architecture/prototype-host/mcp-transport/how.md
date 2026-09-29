@@ -18,6 +18,23 @@ reload is its own store with its own write lock, and two overlapping calls at on
 revision would otherwise both commit (Slice 45's `stdio.test.ts` race case). Protocol bytes go to stdout
 only; diagnostics to stderr.
 
+Other processes take turns through the data file's owner record
+([decision](../../../decisions/2026-09-one-writer-per-data-file.md)). Each turn acquires (`kind: 'stdio'`, up to 5 s)
+after the previous turn and before its reload, and releases after `registry.call` and `afterCall`
+— ownership first, then the turn, or the next call would wait on its own record. A live
+`http-host` owner is not waited on (`skipWaitForKinds`): the call throws `DataFileInUseError`, and
+the SDK returns it as an `isError` result whose text starts `data_file_in_use:`, reads included,
+because authentication may write `lastUsedAt`. The process stays up, and its next call after the
+host stops succeeds. One `process.on('exit')` listener releases whatever the current turn holds,
+which covers a child that exits inside `afterCall`.
+
+Start-up does **not** acquire: definitions come from a plain read, so a stdio child starts and lists
+tools while a host owns the file — and the SDK client probes on a disposable sibling process first,
+which a lifetime hold would have to fight. Only a missing file is seeded under ownership; if that
+acquisition is refused because a host starting at the same moment won and seeded the file,
+start-up loads the file it wrote. Its waiting line,
+`canvas-work-manager stdio waiting for data file owned by <kind> pid <pid>`, goes to stderr.
+
 `startStdio` owns that startup. Direct execution calls it with no hooks. A dedicated test child
 composes the same function with a per-call persistence loader that fails one commit, or a hook
 inside the serialized registry call immediately after a successful commit and before the result
@@ -104,7 +121,7 @@ family read from the stored action only when the call runs. The published map is
 
 ```bash
 pnpm dev:host                                          # then point a client at http://127.0.0.1:4310/mcp
-pnpm mcp:stdio                                         # CWM_MCP_TOKEN=prototype-user-a-readwrite; stop dev:host first for mutations
+pnpm mcp:stdio                                         # CWM_MCP_TOKEN=prototype-user-a-readwrite; refused while dev:host owns the file
 pnpm --filter @cwm/prototype-host mcp-acceptance       # real client, both transports, task lands in the file
 pnpm --filter @cwm/prototype-host live-acceptance      # HTTP MCP write → SSE frame within a second, already readable
 pnpm --filter @cwm/prototype-host test -- mcp          # handler and stdio suites
@@ -119,6 +136,7 @@ and the troubleshooting table are in [the MCP setup guide](../../../guides/mcp-s
   client needs to know how to use it.
 - **Protocol version or SDK upgrade:** `mcp/server.ts` and the two SDK dependencies;
   run `mcp-acceptance` against a real client before believing the tests.
-- **The trap:** running a stdio mutation session while `pnpm dev:host` is up. The host
-  does not see the child's writes and will overwrite them; the guide's
-  *file-store limitation* section is the rule.
+- **The trap:** taking ownership for the stdio process's lifetime, or at start-up. It would block
+  `pnpm dev:host` whenever a client such as Claude Desktop is open, and the SDK's sibling probe
+  would contend with the session child. Per call is the rule; the guide's *file-store limitation*
+  section is what the operator sees.

@@ -233,6 +233,16 @@ pnpm storybook                                        # :6006
   in Archive, reads the old removal through `ActivityService` after closing each child,
   restarts sequentially on the same file, restores once and reopens again to check the
   section, new action and events. The test never exposes clock control as a public tool.
+- **One writer per data file (Slice 54)** has two layers. `packages/repositories/src/
+  data-file-ownership.test.ts` drives the primitive in `mkdtemp` directories with an injected
+  `isAlive`, a counting `sleep` (the deadline is the sum of the sleeps, so no timers) and an
+  injected `fs` that produces Windows codes and holds one reclaimer at a gate while another
+  reclaims. `apps/prototype-host/data-file-ownership.test.ts` spawns the real host, SDK stdio
+  clients and `test/owner-child.ts` — a child that holds a given kind until told to `seed`,
+  `release` or is killed. Sequence on printed lines (`owned`, the waiting lines, `listening`),
+  never on sleeps. On Windows `child.kill()` runs no handler, so assert a dead-pid record there
+  and a removed file on POSIX. The SDK probes stdio on a sibling whose stderr is discarded; a test
+  that must read start-up stderr uses a `StdioClientTransport` subclass, which probes in place.
 - **The trap:** a test that passes before the implementation, or fails on a typo. Watch
   it fail for the right reason first. When a new acceptance assertion passes against code that
   already works, inject a temporary targeted fault, watch it fail, and revert the fault.

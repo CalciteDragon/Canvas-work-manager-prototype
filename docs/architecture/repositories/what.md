@@ -65,3 +65,4 @@ sequenceDiagram
 | `validateDocumentIntegrity` | `src/data-store.ts` | Whole-document parse plus reference, uniqueness, scope and ownership checks, including creator-bound Activity and history anchors for creation Undo |
 | `JsonCollectionRepository`, `Json*Repository` | `src/json-repositories.ts` | The twelve implementations over provisional state, including row, optional-page and project removals used only by their safe history inverses and the two operation-history repositories |
 | `RepositoryConflictError`, `RepositoryNotFoundError`, `UnitOfWorkInProgressError` | `src/errors.ts`, `src/data-store.ts` | Storage-level failures the domain maps or lets through as bugs |
+| `acquireDataFileOwnership`, `DataFileOwnership`, `DataFileInUseError`, `DataFileOwnerUnavailableError` | `src/data-file-ownership.ts` | The advisory `<data file>.owner` record every writing entrypoint takes; not used by the domain or by `JsonDataStore` |

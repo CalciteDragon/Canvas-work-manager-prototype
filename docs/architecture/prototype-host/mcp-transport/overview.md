@@ -24,6 +24,8 @@ every call. The protocol is never hand-implemented (§50).
 - Stdio: read `CWM_MCP_TOKEN`, reload the data file and re-authenticate before each call,
   run one call at a time within the process, keep protocol data on stdout and diagnostics on
   stderr.
+- Stdio: own the data file for each call's turn (Slice 54), so two stdio processes take turns
+  and a call is refused with `data_file_in_use:` while a host owns the file.
 - An SDK stdio test with one injected host clock proves a removal's Undo expires while Archive
   keeps its prose and Activity readable through restart and canonical Restore.
 - SDK clients over both transports prove failed task and Undo commits leave the canonical file,
@@ -38,7 +40,8 @@ every call. The protocol is never hand-implemented (§50).
 - Choosing a transition grant from caller input — the domain derives it from the stored action,
   and discovery only describes that rule.
 - Reaching the browser: a stdio process owns a separate store and cannot publish to the
-  running host's hub ([live-updates](../live-updates/overview.md)).
+  running host's hub ([live-updates](../live-updates/overview.md)). The owner record makes stdio
+  and the host take turns; it does not make stdio writes live.
 
 ## Read next
 
