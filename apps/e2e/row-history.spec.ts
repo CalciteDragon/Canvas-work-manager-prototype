@@ -211,7 +211,6 @@ test.describe('coarse pointer Task List Delete', () => {
     await page.goto(`/projects/${root.id}`);
     await page.locator('[data-quick-task-title]').fill('Tap recovery task');
     await page.locator('[data-quick-create] button[type="submit"]').tap();
-    await page.locator('[data-close-drawer]').tap();
     await page.locator('[data-task-delete]').tap();
     await expect(page.locator('[data-task-row]')).toHaveCount(0);
     const recovery = page.locator('[data-task-delete-recovery]');

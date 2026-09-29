@@ -105,8 +105,7 @@
       'workspace';
   }
 
-  // Out of the grid entirely, so the workspace takes the full width. Closed, it is hidden as
-  // well as `inert`, which takes its links out of the tab order and the accessibility tree.
+  // Out of the grid entirely, so the workspace takes the full width.
   .side {
     position: fixed;
     inset-block: 0;
@@ -114,11 +113,17 @@
     z-index: 31;
     // A strip of backdrop always stays visible to tap.
     width: min(var(--layout-sidebar-width), calc(100vw - var(--size-hit-target)));
-    visibility: hidden;
   }
 
   .side--open {
-    visibility: visible;
     box-shadow: var(--shadow-md);
+  }
+
+  // Closed, it is hidden as well as `inert`, taking its links out of sight and the tab order.
+  // A class bound from the narrow signal rather than a rule of this query alone: the browser
+  // applies the query before the `matchMedia` change reaches `AppShell`, and hiding a focused
+  // link then would drop focus to the document before the shell could see where it was.
+  .side--closed {
+    visibility: hidden;
   }
 }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { Project, ProjectId, ProjectPage, ProjectPageKind } from '@cwm/contracts';
 import type { WorkTreeNode } from './project-workspace-store';
@@ -27,7 +27,6 @@ import { ProjectWorkItem } from './project-work-item';
   imports: [ProjectWorkItem, RouterLink],
   templateUrl: './project-page-navigation.html',
   styleUrl: './project-page-navigation.scss',
-  host: { '(click)': 'onClick($event)' },
 })
 export class ProjectPageNavigation {
   readonly root = input.required<Project>();
@@ -59,7 +58,18 @@ export class ProjectPageNavigation {
    */
   readonly linkSelected = output<string>();
 
-  protected onClick(event: MouseEvent): void {
+  constructor() {
+    // Captured on the host, not a `(click)` host listener: a link to the other project route
+    // makes the router replace the workspace shell — and this column with it — synchronously
+    // inside `RouterLink`'s own click handler, which removes a bubbling listener before the
+    // click reaches it.
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    const onClick = (event: MouseEvent): void => this.reportLink(event);
+    host.addEventListener('click', onClick, { capture: true });
+    inject(DestroyRef).onDestroy(() => host.removeEventListener('click', onClick, { capture: true }));
+  }
+
+  private reportLink(event: MouseEvent): void {
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
     const url = link?.getAttribute('href');

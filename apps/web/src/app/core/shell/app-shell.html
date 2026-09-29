@@ -24,7 +24,7 @@
        expanded group and its create-form draft survive being opened and closed. The dialog
        attributes exist only while it is open; the wrapper keeps the focus trap's anchors out
        of the shell's grid. -->
-  <div class="side" [class.side--open]="drawerOpen()">
+  <div class="side" [class.side--open]="drawerOpen()" [class.side--closed]="narrow() && !drawerOpen()">
     <div
       #drawer
       id="shell-navigation"
