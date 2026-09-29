@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 55 | Slice 55 — Section history labels | Name section edits in Undo and Redo from recorded field changes | [55-section-history-labels.md](active/55-section-history-labels.md) |
 
 ### Planned
 

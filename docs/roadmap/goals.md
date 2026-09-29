@@ -69,6 +69,8 @@ historical Stage E closure below remains its original evidence.
 
 [Slice 54 — One writer per data file](completed/54-data-file-ownership.md) closed finding 7. An advisory owner file sits beside each canonical JSON file. The HTTP host holds it for its lifetime, stdio takes it per call, and seed, reset, upgrade and e2e preparation take it while they write. A concurrent writer therefore waits its turn or is refused with `data_file_in_use:`, instead of losing data. A dead owner's record is reclaimed under a nonce-checked guard; a live one is never stolen. Findings 8–14 remain planned under Slice 46.
 
+[Slice 55 — Section history labels](active/55-section-history-labels.md) is the active next bounded phase for finding 8. It plans domain-generated labels for section rename, prose, collapse and resize actions, with browser evidence for the existing header controls. Findings 9–14 remain in Slice 46.
+
 **Current direction — Project Undo/Redo and simpler Archive.**
 The user requested [the detailed development plan in Slice 34](planned/34-undo-redo-and-archive.md)
 on 2026-09-16: always-present project Undo/Redo icons, history for committed content and layout
