@@ -303,10 +303,39 @@ describe('acquireDataFileOwnership', () => {
 
   it('still refuses a record this process holds under the same pid', async () => {
     const { dataPath } = await scratch();
-    await acquireDataFileOwnership(dataPath, options({ pid: 1171, kind: 'http-host' }));
+    const held = await acquireDataFileOwnership(dataPath, options({ pid: 1171, kind: 'http-host' }));
 
     await expect(acquireDataFileOwnership(dataPath, options({ pid: 1171, isAlive: alive(1171) })))
       .rejects.toThrow(/^data_file_in_use: .*http-host pid 1171/);
+    await held.release();
+  });
+
+  it('keeps holding its nonce until its release has unlinked the record', async () => {
+    const { dataPath, ownerPath } = await scratch();
+    let openGate!: () => void;
+    const gate = new Promise<void>((resolve) => { openGate = resolve; });
+    let reachedGate!: () => void;
+    const atGate = new Promise<void>((resolve) => { reachedGate = resolve; });
+    const gatedFs: OwnershipFileOperations = {
+      ...nodeOperations,
+      unlink: async (path) => {
+        if (path === ownerPath) {
+          reachedGate();
+          await gate;
+        }
+        return nodeOperations.unlink(path);
+      },
+    };
+    const first = await acquireDataFileOwnership(dataPath, options({ pid: 1181, fs: gatedFs }));
+    const releasing = first.release();
+    await atGate;
+
+    const second = acquireDataFileOwnership(dataPath, options({ pid: 1181, isAlive: alive(1181) }));
+    await expect(second).rejects.toThrow(/^data_file_in_use: .*seed pid 1181/);
+    openGate();
+    await releasing;
+
+    await expect(readFile(ownerPath, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });
   });
 
   it('reports a failed temp-file write as data_file_owner_unavailable', async () => {

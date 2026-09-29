@@ -99,6 +99,8 @@ const nodeOperations: OwnershipFileOperations = { mkdir, realpath, writeFile, re
  * so it is treated as dead rather than making this process wait on itself.
  */
 const heldHere = new Set<string>();
+// One module instance per process is assumed: a second copy of this package, or a worker thread,
+// would not see these nonces and would treat this process's records as a reused pid's.
 
 const codeOf = (error: unknown): string =>
   typeof error === 'object' && error !== null && typeof (error as { code?: unknown }).code === 'string'
@@ -215,6 +217,7 @@ export const acquireDataFileOwnership = async (
       return parsed === undefined ? { state: 'unreadable' } : { state: 'record', record: parsed };
     } catch (error) {
       const code = codeOf(error);
+      if (code === 'EPERM' || code === 'EBUSY') lastCode = code;
       if (code === 'ENOENT' || code === 'EPERM' || code === 'EBUSY') return { state: 'absent' };
       throw error;
     }
@@ -222,21 +225,28 @@ export const acquireDataFileOwnership = async (
   const alive = (owner: DataFileOwnerRecord): boolean =>
     owner.pid === record.pid ? heldHere.has(owner.nonce) : isAlive(owner.pid);
 
+  // The nonce stays in `heldHere` until the unlink has finished: dropped earlier, another acquirer
+  // in this process would take the still-present record for a reused pid's and reclaim it, and
+  // this release would then unlink the new owner's record.
   const release = async (): Promise<void> => {
-    heldHere.delete(record.nonce);
-    const current = await read(ownerPath);
-    if (current.state !== 'record' || current.record.nonce !== record.nonce) return;
-    await fs.unlink(ownerPath).catch((error: unknown) => {
-      if (codeOf(error) !== 'ENOENT') throw error;
-    });
+    try {
+      const current = await read(ownerPath);
+      if (current.state !== 'record' || current.record.nonce !== record.nonce) return;
+      await fs.unlink(ownerPath).catch((error: unknown) => {
+        if (codeOf(error) !== 'ENOENT') throw error;
+      });
+    } finally {
+      heldHere.delete(record.nonce);
+    }
   };
   const releaseSync = (): void => {
-    heldHere.delete(record.nonce);
     try {
       if (parseRecord(readFileSync(ownerPath, 'utf8'))?.nonce !== record.nonce) return;
       unlinkSync(ownerPath);
     } catch (error) {
       if (codeOf(error) !== 'ENOENT') throw error;
+    } finally {
+      heldHere.delete(record.nonce);
     }
   };
   const owned: DataFileOwnership = { ownerPath, record, release, releaseSync };

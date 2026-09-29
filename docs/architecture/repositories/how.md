@@ -73,7 +73,8 @@ store itself never does.
    answers `EPERM`/`EBUSY` because it is pending deletion — retry once at once, so a zero-wait
    command is not refused for a race it lost by microseconds. A record naming this process's own
    pid with a nonce this process does not hold was left by an earlier process whose pid Windows
-   reused, and counts as dead. A dead pid is reclaimed (liveness is checked first, whatever the
+   reused, and counts as dead — which assumes one copy of this package per process, and no worker
+   threads acquiring. A release drops its nonce only after the unlink. A dead pid is reclaimed (liveness is checked first, whatever the
    kind). A live owner of a kind in `skipWaitForKinds` is refused at once. Otherwise `onWait` fires
    once and the acquirer polls every 50 ms. Every retry, of any cause, counts against the one
    `waitMs` deadline.
