@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 52 | Slice 52 — MCP transport failure and lost-response evidence | Both SDK transports prove failed commits and lost-response retries without partial writes or duplicate transitions | [52-mcp-transport-failure-evidence.md](active/52-mcp-transport-failure-evidence.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -90,4 +88,5 @@ verification follow-ups rather than feature slices.
 | 49 | Slice 49 — Task history, service and MCP refusal repairs | 2026-09-28 | Task reparent and completion history respect archives; MCP history conflicts explain repairs in words | [49-task-history-service-and-mcp-repairs.md](completed/49-task-history-service-and-mcp-repairs.md) |
 | 50 | Slice 50 — Fault sensitivity for reflection grant and task no-op receipt | 2026-09-28 | Reflection grant and task no-op receipt assertions proven fault-sensitive; faults reverted | [50-fault-sensitivity-evidence.md](completed/50-fault-sensitivity-evidence.md) |
 | 51 | Slice 51 — Web spec storage isolation and remaining no-op assertion sensitivity | 2026-09-28 | Web specs start from empty browser storage; no-op test's history and Redo-summary assertions proven fault-sensitive | [51-web-storage-isolation-and-no-op-sensitivity.md](completed/51-web-storage-isolation-and-no-op-sensitivity.md) |
+| 52 | Slice 52 — MCP transport failure and lost-response evidence | 2026-09-29 | Both SDK transports prove atomic failed commits and one Undo after a lost response | [52-mcp-transport-failure-evidence.md](completed/52-mcp-transport-failure-evidence.md) |
 <!-- roadmap:end -->

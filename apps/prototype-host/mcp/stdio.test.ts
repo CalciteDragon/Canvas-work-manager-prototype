@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
@@ -19,6 +19,126 @@ afterEach(async () => {
 });
 
 describe('MCP stdio entry (§59)', () => {
+  const connect = async (path: string, mode?: string) => {
+    const client = new Client(
+      { name: 'slice-52-stdio', version: '0.0.0' },
+      { versionNegotiation: { mode: { pin: '2026-07-28' } } },
+    );
+    await client.connect(new StdioClientTransport({
+      command: process.execPath,
+      args: ['--import', 'tsx', join(here, mode ? 'test/fault-stdio.ts' : 'stdio.ts'), ...(mode ? [mode] : [])],
+      cwd: join(here, '..'),
+      env: { ...getDefaultEnvironment(), CWM_DATA_FILE: path, CWM_MCP_TOKEN: 'prototype-user-a-readwrite' },
+      stderr: 'pipe',
+    }));
+    return client;
+  };
+
+  const fixture = async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-mcp-stdio-fault-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
+    await writeSeedFile('agent-heavy', { targetPath: path });
+    const document = JSON.parse(await readFile(path, 'utf8')) as { agentConnections: Array<{ id: string; lastUsedAt?: string }> };
+    document.agentConnections.find(({ id }) => id === 'agent-claude')!.lastUsedAt = new Date().toISOString();
+    await writeFile(path, `${JSON.stringify(document, null, 2)}\n`);
+    return path;
+  };
+
+  const receipt = (result: { structuredContent?: unknown }) =>
+    (result.structuredContent as { operation: { historyId: string; actionId: string; revision: number } }).operation;
+
+  it.each(['create_task', 'undo_operation'] as const)('rolls back a failed %s commit and retries once', async (tool) => {
+    const path = await fixture();
+    const normal = await connect(path);
+    let args: Record<string, unknown> = { projectId: 'project-work-manager', title: 'Faulted task' };
+    let createdId: string | undefined;
+    try {
+      const warmed = await normal.callTool({ name: 'list_tasks', arguments: { projectId: 'project-work-manager' } });
+      expect(warmed.isError).not.toBe(true);
+      const warmBytes = await readFile(path, 'utf8');
+      expect((await normal.callTool({ name: 'list_tasks', arguments: { projectId: 'project-work-manager' } })).isError).not.toBe(true);
+      expect(await readFile(path, 'utf8')).toBe(warmBytes);
+      if (tool === 'undo_operation') {
+        const created = await normal.callTool({ name: 'create_task', arguments: args });
+        createdId = (created.structuredContent as { task: { id: string } }).task.id;
+        const { historyId, actionId, revision } = receipt(created);
+        args = { historyId, actionId, expectedRevision: revision };
+      }
+      const before = await readFile(path, 'utf8');
+      const beforeState = JSON.parse(before) as Record<string, unknown>;
+      await normal.close();
+      const faulted = await connect(path, `fail-${tool}`);
+      try {
+        const failed = await faulted.callTool({ name: tool, arguments: args });
+        expect(failed.isError).toBe(true);
+        expect(failed.content).toContainEqual(expect.objectContaining({ type: 'text', text: expect.stringContaining('slice52 persist fault') }));
+      } finally {
+        await faulted.close();
+      }
+      const after = await readFile(path, 'utf8');
+      expect(after).toBe(before);
+      const afterState = JSON.parse(after) as Record<string, unknown>;
+      for (const key of ['tasks', 'sections', 'projects', 'operationHistories', 'operationActions', 'activityEvents']) {
+        expect(afterState[key]).toEqual(beforeState[key]);
+      }
+      const retryClient = await connect(path);
+      let retried: Awaited<ReturnType<typeof retryClient.callTool>>;
+      try {
+        retried = await retryClient.callTool({ name: tool, arguments: args });
+      } finally {
+        await retryClient.close();
+      }
+      expect(retried.isError).not.toBe(true);
+      const committed = JSON.parse(await readFile(path, 'utf8')) as { activityEvents: unknown[]; tasks: Array<{ id: string; title: string }>; operationActions: Array<{ id: string; state: string }>; operationHistories: Array<{ id: string; revision: number }> };
+      expect(committed.activityEvents).toHaveLength((beforeState['activityEvents'] as unknown[]).length + 1);
+      if (tool === 'create_task') {
+        const taskId = (retried.structuredContent as { task: { id: string } }).task.id;
+        expect(committed.tasks.filter(({ id }) => id === taskId)).toEqual([expect.objectContaining({ id: taskId, title: 'Faulted task' })]);
+        expect(committed.operationActions.find(({ id }) => id === receipt(retried).actionId)?.state).toBe('applied');
+      } else {
+        expect(committed.tasks.some(({ id }) => id === createdId)).toBe(false);
+        expect(committed.operationActions.find(({ id }) => id === args['actionId'])?.state).toBe('undone');
+        expect(committed.operationHistories.find(({ id }) => id === args['historyId'])?.revision).toBe((args['expectedRevision'] as number) + 1);
+      }
+    } finally {
+      await normal.close();
+    }
+  }, 20_000);
+
+  it('reconnects after a committed Undo loses its response and rejects the same revision', async () => {
+    const path = await fixture();
+    const initial = await connect(path);
+    const created = await initial.callTool({ name: 'create_task', arguments: { projectId: 'project-work-manager', title: 'Lost response task' } });
+    const { historyId, actionId, revision } = receipt(created);
+    const createdId = (created.structuredContent as { task: { id: string } }).task.id;
+    await initial.close();
+    const before = JSON.parse(await readFile(path, 'utf8')) as { activityEvents: unknown[]; tasks: Array<{ id: string }> };
+    const interrupted = await connect(path, 'drop-undo_operation');
+    await expect(interrupted.callTool({ name: 'undo_operation', arguments: { historyId, actionId, expectedRevision: revision } })).rejects.toThrow();
+    await interrupted.close();
+    const after = JSON.parse(await readFile(path, 'utf8')) as { activityEvents: unknown[]; tasks: Array<{ id: string }>; operationHistories: Array<{ id: string; revision: number }>; operationActions: Array<{ id: string; state: string }> };
+    expect(after.operationHistories.find(({ id }) => id === historyId)?.revision).toBe(revision + 1);
+    expect(after.operationActions.find(({ id }) => id === actionId)?.state).toBe('undone');
+    expect(after.activityEvents).toHaveLength(before.activityEvents.length + 1);
+    expect(after.tasks).toHaveLength(before.tasks.length - 1);
+    expect(after.tasks.some(({ id }) => id === createdId)).toBe(false);
+    const committedBytes = await readFile(path, 'utf8');
+    const reconnect = await connect(path);
+    try {
+      const retry = await reconnect.callTool({ name: 'undo_operation', arguments: { historyId, actionId, expectedRevision: revision } });
+      expect(retry.isError).toBe(true);
+      expect(retry.content).toContainEqual(expect.objectContaining({ type: 'text', text: expect.stringContaining('history_revision_stale:') }));
+      expect(retry.content).toContainEqual(expect.objectContaining({ type: 'text', text: expect.stringContaining(`revision ${revision + 1}`) }));
+      const history = await reconnect.callTool({ name: 'get_operation_history', arguments: { projectId: 'project-work-manager' } });
+      expect(history.structuredContent).toMatchObject({ revision: revision + 1, redo: { actionId } });
+      const final = JSON.parse(await readFile(path, 'utf8')) as { activityEvents: unknown[] };
+      expect(final.activityEvents).toHaveLength(after.activityEvents.length);
+      expect(await readFile(path, 'utf8')).toBe(committedBytes);
+    } finally {
+      await reconnect.close();
+    }
+  }, 20_000);
   it('reloads and refuses the next tool call after an external live revocation', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'cwm-mcp-stdio-'));
     temporaryDirectories.push(directory);

@@ -18,6 +18,12 @@ reload is its own store with its own write lock, and two overlapping calls at on
 revision would otherwise both commit (Slice 45's `stdio.test.ts` race case). Protocol bytes go to stdout
 only; diagnostics to stderr.
 
+`startStdio` owns that startup. Direct execution calls it with no hooks. A dedicated test child
+composes the same function with a per-call persistence loader that fails one commit, or a hook
+inside the serialized registry call immediately after a successful commit and before the result
+returns to SDK serialization. The latter closes the child so the SDK client sees a lost response.
+The serialized turn is released in `finally` on both success and failure.
+
 **Authentication.** `PrototypeAgentAuthenticator` maps the token through the fixture
 table to a connection id, reads the live `AgentConnection`, refuses a missing or revoked
 one, stamps `lastUsedAt` when it has moved far enough to matter, and returns an agent
@@ -43,6 +49,8 @@ family read from the stored action only when the call runs. The published map is
 | `PrototypeAgentAuthenticator` | class | Token → live connection → actor | [API](../../../api/classes/PrototypeAgentAuthenticator.html) |
 | `AgentAuthenticationError` | class | The one 401 | [API](../../../api/classes/AgentAuthenticationError.html) |
 | `AgentAuthenticatorDependencies` | interface | Connections repository, clock, token table | [API](../../../api/interfaces/AgentAuthenticatorDependencies.html) |
+| `startStdio` | function | Direct stdio startup and host-local test composition | [API](../../../api/miscellaneous/variables.html#startStdio) |
+| `StdioStartupHooks` | interface | Per-call load and post-call/pre-reply test seams | [API](../../../api/interfaces/StdioStartupHooks.html) |
 
 ## Dependencies
 
@@ -71,6 +79,13 @@ family read from the stored action only when the call runs. The published map is
   of the singular/plural keys on Undo and Redo; static tools keep both old keys.
 - **Revocation is tested end to end** with a token and a handler in the same test,
   because it is an authenticate-time refusal with nothing for a registry test to observe.
+- **Failed commit and lost response are distinct.** `handler.test.ts` and `stdio.test.ts`
+  use real SDK clients and isolated JSON files. One-shot failed task and Undo commits preserve
+  bytes, business state, history and Activity; a retry lands once. For an Undo committed before
+  its response is lost, the old-revision retry refuses and a separate history read shows Redo.
+  HTTP asserts zero frames on failed commits and one post-commit frame on success; stdio owns no
+  hub. Authentication is warmed before byte baselines so its throttled `lastUsedAt` write is not
+  confused with the tool call.
 - **Localhost only, both ways**: the listener binds `127.0.0.1` and the handler refuses
   foreign `Host`/`Origin`.
 - **One 401**; never a message that distinguishes causes.

@@ -1,7 +1,12 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
+import { readFileSync } from 'node:fs';
+import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { ArchivedProjectsResultSchema, ProjectArchiveResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, PrototypeDocumentSchema, TaskWriteResultSchema } from '@cwm/contracts';
 import { createToolRegistry, toolPermission, SPEC_TOOL_NAMES } from '@cwm/mcp-tools';
-import { buildSeed } from '@cwm/prototype-data';
+import { buildSeed, writeSeedFile } from '@cwm/prototype-data';
+import { SimulatedClock } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
@@ -18,8 +23,10 @@ import {
   JsonUserRepository,
   unitOfWorkFor,
 } from '@cwm/repositories';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApi } from '../api/services.ts';
+import { LiveEventHub } from '../events/hub.ts';
+import { loadPersistence } from '../persistence/store.ts';
 import {
   createAuthenticatedMcpHandler,
   REQUIRED_PERMISSION_META_KEY,
@@ -92,6 +99,167 @@ const build = async (token = 'prototype-user-a-readwrite', projectWrite = false)
 
   await client.connect(transport);
   return { ...server, client };
+};
+
+const failureDirectories: string[] = [];
+afterEach(async () => {
+  await Promise.all(failureDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
+});
+
+describe('SDK HTTP commit and uncertain-response evidence (Slice 52)', () => {
+  const PROJECT = 'project-work-manager';
+  const createArgs = { projectId: PROJECT, title: 'SDK failure row' };
+  const receipt = (result: { structuredContent?: unknown }) =>
+    (result.structuredContent as { operation: { historyId: string; actionId: string; revision: number } }).operation;
+  const errorText = (result: { content?: Array<{ type: string; text?: string }> }) =>
+    result.content?.find((item) => item.type === 'text')?.text ?? '';
+
+  const warm = async (client: Client, bytes: () => Promise<string>) => {
+    await client.callTool({ name: 'list_tasks', arguments: { projectId: PROJECT } });
+    const before = await bytes();
+    await client.callTool({ name: 'list_tasks', arguments: { projectId: PROJECT } });
+    expect(await bytes()).toBe(before);
+  };
+
+  it.each(['create_task', 'undo_operation'] as const)('%s failed persist is atomic, silent, and retryable through the SDK', async (target) => {
+    const host = await diskHarness();
+    const client = await host.connect();
+    try {
+      await warm(client, host.bytes);
+      let args: Record<string, unknown> = createArgs;
+      let createdId: string | undefined;
+      if (target === 'undo_operation') {
+        const created = await client.callTool({ name: 'create_task', arguments: createArgs });
+        expect(created.isError).not.toBe(true);
+        createdId = (created.structuredContent as { task: { id: string } }).task.id;
+        const operation = receipt(created);
+        args = { historyId: operation.historyId, actionId: operation.actionId, expectedRevision: operation.revision };
+      }
+      host.frames.length = 0;
+      const beforeBytes = await host.bytes();
+      const before = await host.document();
+      const persist = host.persistence.store.persist;
+      host.persistence.store.persist = async () => { throw new Error('slice-52 one-shot disk failure'); };
+      const failed = await client.callTool({ name: target, arguments: args });
+      expect(failed.isError).toBe(true);
+      expect(errorText(failed)).toContain('slice-52 one-shot disk failure');
+      expect(await host.bytes()).toBe(beforeBytes);
+      expect(await host.document()).toEqual(before);
+      expect(host.persistence.store.snapshot()).toEqual(before);
+      expect(host.frames).toEqual([]);
+      host.persistence.store.persist = persist;
+
+      const retried = await client.callTool({ name: target, arguments: args });
+      expect(retried.isError).not.toBe(true);
+      const after = await host.document();
+      expect(after.activityEvents).toHaveLength(before.activityEvents.length + 1);
+      expect(host.frames).toHaveLength(1);
+      expect(host.frames[0]!.disk).toEqual(after);
+      if (target === 'create_task') {
+        const task = (retried.structuredContent as { task: { id: string } }).task;
+        expect(after.tasks.filter(({ id }) => id === task.id)).toHaveLength(1);
+        expect(after.operationActions.filter(({ id }) => id === receipt(retried).actionId)).toHaveLength(1);
+      } else {
+        expect(after.tasks.some(({ id }) => id === createdId)).toBe(false);
+        expect(after.operationActions.find(({ id }) => id === args['actionId'])?.state).toBe('undone');
+      }
+    } finally {
+      await client.close();
+      await host.handler.close();
+    }
+  });
+
+  it('drops a committed Undo response, then refuses the same revision after reconnect without another transition', async () => {
+    const host = await diskHarness();
+    let dropUndo = false;
+    let sawCommittedBeforeDrop = false;
+    const client = await host.connect(async (request, response) => {
+      if (dropUndo && request.method === 'POST' && (await request.clone().text()).includes('undo_operation')) {
+        const committed = await host.document();
+        expect(committed.operationActions.at(-1)?.state).toBe('undone');
+        expect(committed.operationHistories.at(-1)?.revision).toBe(2);
+        expect(response.ok).toBe(true);
+        expect(await response.clone().text()).toContain('"direction":"undo"');
+        sawCommittedBeforeDrop = true;
+        throw new Error('slice-52 response lost after commit');
+      }
+      return response;
+    });
+    try {
+      await warm(client, host.bytes);
+      const created = await client.callTool({ name: 'create_task', arguments: createArgs });
+      const action = receipt(created);
+      const taskId = (created.structuredContent as { task: { id: string } }).task.id;
+      host.frames.length = 0;
+      const before = await host.document();
+      dropUndo = true;
+      const args = { historyId: action.historyId, actionId: action.actionId, expectedRevision: action.revision };
+      await expect(client.callTool({ name: 'undo_operation', arguments: args })).rejects.toThrow();
+      expect(sawCommittedBeforeDrop).toBe(true);
+      const committed = await host.document();
+      expect(committed.tasks.some(({ id }) => id === taskId)).toBe(false);
+      expect(committed.operationActions.find(({ id }) => id === action.actionId)?.state).toBe('undone');
+      expect(committed.operationHistories.find(({ id }) => id === action.historyId)?.revision).toBe(action.revision + 1);
+      expect(committed.activityEvents).toHaveLength(before.activityEvents.length + 1);
+      expect(host.frames).toHaveLength(1);
+      expect(host.frames[0]!.disk).toEqual(committed);
+      expect((await loadPersistence(host.persistence.path)).store.snapshot()).toEqual(committed);
+
+      const reconnected = await host.connect();
+      try {
+        const stale = await reconnected.callTool({ name: 'undo_operation', arguments: args });
+        expect(stale.isError).toBe(true);
+        expect(errorText(stale)).toMatch(/^history_revision_stale:/);
+        expect(errorText(stale)).toContain(`revision ${action.revision + 1}`);
+        const summary = await reconnected.callTool({ name: 'get_operation_history', arguments: { projectId: PROJECT } });
+        expect(summary.structuredContent).toMatchObject({ revision: action.revision + 1, redo: { actionId: action.actionId } });
+        expect(await host.document()).toEqual(committed);
+        expect(host.frames).toHaveLength(1);
+      } finally {
+        await reconnected.close();
+      }
+    } finally {
+      await client.close();
+      await host.handler.close();
+    }
+  });
+});
+
+const diskHarness = async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'cwm-mcp-http-failure-'));
+  failureDirectories.push(directory);
+  const path = join(directory, 'data.json');
+  await writeSeedFile('agent-heavy', { targetPath: path });
+  const persistence = await loadPersistence(path);
+  const events = new LiveEventHub();
+  const clock = new SimulatedClock();
+  const api = createApi(persistence, { events, clock });
+  const registry = createToolRegistry({
+    projects: api.projects, pages: api.pages, todos: api.todos, archive: api.archive,
+    archivedProjects: api.archivedProjects, journal: api.journal, tasks: api.tasks,
+    reflections: api.reflections, sections: api.sections, shortcuts: api.shortcuts,
+    dashboard: api.dashboard, workspace: api.workspace, history: api.history,
+  });
+  const handler = createAuthenticatedMcpHandler({ registry, authenticator: api.authenticator! });
+  const bytes = () => readFile(path, 'utf8');
+  const document = async () => PrototypeDocumentSchema.parse(JSON.parse(await bytes()));
+  const frames: Array<{ event: string; disk: Awaited<ReturnType<typeof document>> }> = [];
+  events.subscribe((event) => frames.push({ event: event.type, disk: PrototypeDocumentSchema.parse(JSON.parse(readFileSync(path, 'utf8'))) }));
+  const connect = async (deliver?: (request: Request, response: Response) => Promise<Response>) => {
+    const client = new Client({ name: 'slice-52-http-failure', version: '0.0.0' },
+      { versionNegotiation: { mode: { pin: '2026-07-28' } } });
+    await client.connect(new StreamableHTTPClientTransport(new URL('http://test.local/mcp'), {
+      authProvider: { token: async () => 'prototype-user-a-readwrite' },
+      fetch: async (url, init) => {
+        const request = new Request(url, init);
+        const observation = request.clone();
+        const response = await handler.fetch(request);
+        return deliver === undefined ? response : deliver(observation, response);
+      },
+    }));
+    return client;
+  };
+  return { persistence, handler, bytes, document, frames, connect };
 };
 
 describe('MCP HTTP handler (§49, §50, §60)', () => {

@@ -58,6 +58,7 @@ sequenceDiagram
 | Package suites | `packages/*/src/*.test.ts`, `apps/prototype-host/**/*.test.ts` | vitest, in-process |
 | Root tooling suite | `scripts/roadmap.test.mjs`, `scripts/check-docs.test.mjs` | node:test, roadmap Outcome and built Compodoc anchor validation |
 | Test support | `packages/domain/test/test-support.ts`, `packages/mcp-tools/test/harness.ts` | Store, clock, actor builders; persist counting; foreign-workspace injection |
+| MCP transport fault child | `apps/prototype-host/mcp/test/fault-stdio.ts` | `startStdio` composition for one-shot persist failure and post-commit/pre-reply child exit; driven by the SDK stdio client in `stdio.test.ts` |
 | Web specs and stories | `apps/web/src/**/*.spec.ts`, `*.stories.ts`; `apps/web/src/test-setup.ts` (empty storage before every test) | `ng test` (vitest under `@angular/build:unit-test`, non-isolated); Storybook |
 | Fakes | `apps/web/src/app/core/gateway/testing/`, `core/live/testing/`, `prototype/control/testing/` | What every web spec injects |
 | Import lint | `scripts/check-package-imports.mjs` | AST allowlist; `--allow`, `--label`, `--root` |

@@ -6,6 +6,11 @@ at the host commit boundary, both-transport row, layout and race journeys, a std
 case, and a 375 px containment check. Slice 44's exact-ID parent-first Archive and workspace
 archived-project checks remain, with read grants separate from Restore grants.
 
+Slice 52 adds SDK transport evidence on isolated JSON files: both clients observe atomic failed
+commits for task creation and Undo, then recover a successful Undo whose response never arrived.
+The stale-revision refusal and independent history read show that one committed transition remains
+one transition across reconnection; HTTP also checks frame count and persisted state at delivery.
+
 How the prototype is verified (§69): fast offline unit and contract suites in every
 package, component specs and Storybook in the web app (including the missing-history-summary
 Retry), four acceptance scripts that run a real host (including project-creation same-file restart

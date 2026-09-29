@@ -65,6 +65,10 @@
   pins, for section, task and reflection families, that the forward, Undo and Redo frames arrive only once
   the bytes on disk hold the change and the action's new state, and that an action-insert failure,
   forward-persistence failure or transition-persistence failure delivers nothing;
+  `mcp/handler.test.ts` additionally drives a real SDK client over Streamable HTTP with a
+  JSON-backed store: failed task and Undo commits deliver no frame, a retry delivers one frame
+  after the file contains the change, and losing the response after a committed Undo delivers no
+  second frame on a same-revision retry;
   `section-service.test.ts` pins the retained-removal action at the domain.
 - **Frames carry ids, never entities.** The browser re-reads through the gateway; a
   frame is "go and look", not a state delta (§62).

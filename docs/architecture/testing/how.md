@@ -207,12 +207,22 @@ pnpm storybook                                        # :6006
 - **Integrated Undo/Redo and Archive acceptance (Slice 45)** is likewise a ledger: the
   [Slice 45 record](../../roadmap/completed/45-undo-redo-archive-integrated-closure.md) names a
   domain assertion and browser or MCP evidence for every Slice 34 coverage row. Its known limits:
-  persistence and recorder faults are injected at the host commit boundary the MCP tools share
-  (`live-updates.test.ts`), not inside the stdio or Streamable HTTP transports; history expiry over
+  persistence and recorder faults were originally injected at the host commit boundary the MCP
+  tools share (`live-updates.test.ts`); Slice 52 adds SDK transport faults in both HTTP and stdio.
+  History expiry over
   MCP runs only on Streamable HTTP, whose host exposes `/prototype/clock`; the browser has no
   reflection Delete or section Duplicate control, so those families' browser evidence is HTTP or
   MCP driven. A size check is not a reachability check: at 375 px assert that a control lies inside
   its container and the viewport, then tap it.
+- **MCP transport failure evidence (Slice 52)** lives in `mcp/handler.test.ts` and
+  `mcp/stdio.test.ts`. Each SDK case owns a temporary `agent-heavy` JSON file. Warm the
+  authenticated connection, prove a second authentication leaves bytes unchanged, then fail one
+  persist for task Add or Undo and compare the whole document and bytes. HTTP watches the hub at
+  delivery and reopens the file; stdio has no hub. For a lost Undo response, the HTTP fetch gate
+  withholds an already-produced response and the stdio child exits after registry commit but
+  before serialization. Reconnect to the same file, retry the original expected revision, and
+  read `get_operation_history` separately to see the next Redo action. The client must not retry
+  with a fresh revision just because delivery was uncertain.
 - **The trap:** a test that passes before the implementation, or fails on a typo. Watch
   it fail for the right reason first. When a new acceptance assertion passes against code that
   already works, inject a temporary targeted fault, watch it fail, and revert the fault.
