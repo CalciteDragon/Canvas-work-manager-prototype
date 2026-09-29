@@ -6,7 +6,10 @@ export * from './seeds';
 export { upgradeProjectPages, V3_SCHEMA_VERSION } from './upgrade-project-pages';
 export { upgradeOperationHistory } from './upgrade-operation-history';
 export { captureActivityIdentities, upgradeActivityIdentity } from './upgrade-activity-identity';
-export { upgradeDataFile } from './upgrade-cli';
+export { upgradeDataFile, upgradeDataFileOwned } from './upgrade-cli';
 
-/** The seed writer and its repo-anchored default target, so the host can seed on first run. */
-export { DEFAULT_DATA_PATH, DEFAULT_SEED_NAME, writeSeedFile } from './seed-cli';
+/**
+ * The seed writer and its repo-anchored default target, so the host can seed on first run, and the
+ * owned wrapper the seed and reset CLIs use.
+ */
+export { DEFAULT_DATA_PATH, DEFAULT_SEED_NAME, seedDataFileOwned, writeSeedFile } from './seed-cli';

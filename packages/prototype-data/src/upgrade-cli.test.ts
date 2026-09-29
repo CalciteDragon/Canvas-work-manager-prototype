@@ -1,10 +1,12 @@
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SCHEMA_VERSION } from '@cwm/contracts';
-import { InMemoryDataStore } from '@cwm/repositories';
+import { acquireDataFileOwnership, InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it, vi } from 'vitest';
 import { buildSeed } from './seeds';
-import { type UpgradeFileOperations, upgradeDataFile, upgradeMessage } from './upgrade-cli';
+import { type UpgradeFileOperations, upgradeDataFile, upgradeDataFileOwned, upgradeMessage } from './upgrade-cli';
 
 const fixture = (name: string) => fileURLToPath(new URL(`../test/fixtures/${name}`, import.meta.url));
 const v2FixturePath = fixture('nested-projects-v2.json');
@@ -220,5 +222,29 @@ describe('upgradeDataFile — the chained conversion', () => {
     expect(
       upgradeMessage('data.json', { changed: false, fromVersion: 5, retiredReceipts: 0, backfilledEvents: 0 }),
     ).toBe('"data.json" is already at schema version 5. Nothing was written.\n');
+  });
+});
+
+describe('upgradeDataFileOwned — the upgrade CLI is a writer too', () => {
+  it('refuses while another owner holds the file, with no side effects, and converts after release', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-upgrade-owned-'));
+    try {
+      const path = join(directory, 'data.json');
+      const source = await readFile(v3FixturePath, 'utf8');
+      await writeFile(path, source);
+      const ownership = await acquireDataFileOwnership(path, { kind: 'http-host' });
+      const listing = await readdir(directory);
+
+      await expect(upgradeDataFileOwned(path)).rejects.toThrow(/^data_file_in_use: .*http-host/);
+      expect(await readFile(path, 'utf8')).toBe(source);
+      expect(await readdir(directory)).toEqual(listing);
+
+      await ownership.release();
+      await expect(upgradeDataFileOwned(path)).resolves.toMatchObject({ changed: true, fromVersion: 3 });
+      expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({ schemaVersion: SCHEMA_VERSION });
+      expect((await readdir(directory)).filter((name) => name.endsWith('.owner'))).toEqual([]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });

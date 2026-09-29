@@ -2,6 +2,7 @@ import { readFile, rename, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SCHEMA_VERSION } from '@cwm/contracts';
+import { acquireDataFileOwnership } from '@cwm/repositories';
 import { upgradeActivityIdentity } from './upgrade-activity-identity';
 import { upgradeOperationHistory } from './upgrade-operation-history';
 import { upgradeProjectPages } from './upgrade-project-pages';
@@ -101,6 +102,23 @@ export const upgradeDataFile = async (
 };
 
 /**
+ * `upgradeDataFile` as an owned writer: the CLI's entry. It refuses at once with
+ * `data_file_in_use:` while a host or any other writer owns the file, before the read, so a
+ * refused upgrade leaves no backup and no temp file. The library function stays ownership-free.
+ */
+export const upgradeDataFileOwned = async (
+  path: string,
+  options: UpgradeDataFileOptions = {},
+): Promise<UpgradeDataFileResult> => {
+  const ownership = await acquireDataFileOwnership(path, { kind: 'upgrade' });
+  try {
+    return await upgradeDataFile(path, options);
+  } finally {
+    await ownership.release();
+  }
+};
+
+/**
  * What the CLI prints for one result. Exported so the wording is tested, not only eyeballed.
  *
  * It no longer claims version-4 history starts empty, because from version 4 onward it does not:
@@ -142,7 +160,7 @@ const run = async (): Promise<void> => {
   if (path === undefined || extraArguments.length > 0) {
     throw new RangeError('Expected one path. Usage: pnpm prototype:upgrade <path to data.json>');
   }
-  process.stdout.write(upgradeMessage(path, await upgradeDataFile(resolveFromCaller(path))));
+  process.stdout.write(upgradeMessage(path, await upgradeDataFileOwned(resolveFromCaller(path))));
 };
 
 const invokedPath = process.argv[1] === undefined ? undefined : resolve(process.argv[1]);
