@@ -837,6 +837,22 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
       expectCollapsedWithToggleFocused(harness);
     });
 
+    // A request whose navigation lost to a route with no project shell must not survive to
+    // take focus on a later, unrelated visit to the same URL.
+    it('and forgets a request whose navigation lost to another route', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-renovation');
+
+      query(harness, '[data-work-project-id="project-kitchen"] > a')!.click();
+      await router.navigateByUrl('/settings');
+      await settle(harness);
+      await router.navigateByUrl('/projects/project-kitchen');
+      await settle(harness);
+
+      expect(query(harness, '[data-project-name]')?.textContent).toContain('Kitchen');
+      expect(document.activeElement).not.toBe(query(harness, '[data-project-nav-toggle]'));
+    });
+
     it('only for the navigation that won, not a load it superseded', async () => {
       media = stubMatchMedia(true);
       const { harness, router, gateway, projectGet } = await openNarrow('/projects/project-renovation');
@@ -870,7 +886,7 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
 
       expect(router.url).toBe('/projects/project-renovation/pages/todos');
       expect(query(harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(false);
-      expect(document.activeElement).not.toBe(query(harness, '[data-project-nav-toggle]'));
+      expect(document.activeElement).toBe(query(harness, '[data-project-page-tab][data-page-kind="todos"]'));
     });
   });
 });

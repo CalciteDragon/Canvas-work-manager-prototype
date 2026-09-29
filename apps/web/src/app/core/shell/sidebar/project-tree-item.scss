@@ -30,3 +30,10 @@ a:focus-visible {
   padding-inline-start: var(--space-4);
   list-style: none;
 }
+
+// The drawer's main destinations are touch-sized too (Slice 58), like `sidebar.scss`'s items.
+@media (hover: none), (any-pointer: coarse) {
+  a {
+    min-height: var(--size-hit-target);
+  }
+}

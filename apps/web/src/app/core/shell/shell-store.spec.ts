@@ -1,3 +1,4 @@
+import { effect } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ProjectStatusSchema, type Identity, type Project, type ProjectQuery } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
@@ -355,5 +356,21 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
     expect(created).toBeNull();
     expect(store.createError()).toContain('nowhere to put');
     expect(gateway.calls.some(({ method }) => method === 'projects.create')).toBe(false);
+  });
+
+  // Slice 58: the sidebar reopens its form and takes focus back on each new failure, which it
+  // can only see if a repeated, identical refusal still notifies.
+  it('reports a repeated refusal as a new failure', async () => {
+    const { store } = storeWith({ identity: new GatewayError('unauthorized', 401, 'no persona') });
+    await store.load();
+    const seen: Array<string | null> = [];
+    TestBed.runInInjectionContext(() => effect(() => void seen.push(store.createError())));
+
+    await store.createProject('Prototype review');
+    TestBed.tick();
+    await store.createProject('Prototype review');
+    TestBed.tick();
+
+    expect(seen.filter((message) => message?.includes('nowhere to put'))).toHaveLength(2);
   });
 });

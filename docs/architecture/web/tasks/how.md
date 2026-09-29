@@ -24,7 +24,7 @@
    the drawer cannot cover a row's Delete. A container rather than a media query, because a
    Grid-layout section is narrow at desktop width too; the drawer is not scrolled into view
    ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
-6. Todos does not render `TaskRow`: `TodosPageStore` serializes its own Complete and Delete
+7. Todos does not render `TaskRow`: `TodosPageStore` serializes its own Complete and Delete
    writes, removes a task subtree optimistically and reports the task's receipt to its project.
 
 ## Key symbols

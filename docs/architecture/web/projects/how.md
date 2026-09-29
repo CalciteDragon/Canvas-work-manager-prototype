@@ -36,7 +36,9 @@ The cue holds no receipt and cannot promise the next Undo step.
    `ProjectColumnFocusRequest`. An effect honours it once no navigation is in flight, the store
    is not loading and §68 is not redirecting, and only if `Router.url` still equals it: then the
    toggle — or "Project unavailable" / "Creation undone" — takes focus after the render. A §68
-   fallback redirect moves the request to its target; any other winning navigation drops it
+   fallback redirect moves the request to its target; any other winning navigation drops it,
+   and the request itself drops on any `NavigationEnd` elsewhere, so leaving for a route with no
+   project shell cannot leave it to fire on a later visit
    ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
 3. `ProjectCanvas` provides `ProjectPageStore`, which loads the page's sections and
    shortcut placements as one combined order, renders each section inside

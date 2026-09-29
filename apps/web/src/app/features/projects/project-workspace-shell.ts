@@ -16,7 +16,8 @@ import {
   untracked,
 } from '@angular/core';
 import { DestroyRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router } from '@angular/router';
 import type { ProjectId, ProjectPageKind } from '@cwm/contracts';
 import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
 import { archivedHereFeedback, createdSubjectOf } from './history/history-feedback';
@@ -54,6 +55,19 @@ const NARROW = '(max-width: 60rem)';
 export class ProjectColumnFocusRequest {
   /** The chosen link's URL, as `Router.url` will read once the navigation lands. */
   readonly url = signal<string | null>(null);
+
+  constructor() {
+    // A navigation that lands anywhere else ends the request, including on a route with no
+    // project shell to drop it — otherwise a later visit to the same URL would take focus.
+    // The §68 redirect rewrites the request before it navigates, so it is not dropped here.
+    inject(Router)
+      .events.pipe(takeUntilDestroyed())
+      .subscribe((event) => {
+        if (event instanceof NavigationEnd && this.url() !== null && event.urlAfterRedirects !== this.url()) {
+          this.url.set(null);
+        }
+      });
+  }
 }
 
 /**

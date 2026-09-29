@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { ProjectSchema } from '@cwm/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../gateway/gateway-error';
+import { WORK_MANAGER_GATEWAY } from '../gateway/work-manager-gateway';
 import { shellTestProviders, testIdentity } from '../gateway/testing/shell-test-providers';
 import { AppShell } from './app-shell';
 
@@ -278,6 +279,45 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     expect(q('[data-create-error]')?.textContent).toContain('not running');
     expect(q<HTMLInputElement>('[data-create-project-name]')?.value).toBe('Phone project');
     expect(document.activeElement).toBe(q('[data-create-project-name]'));
+  });
+
+  // A create that fails after the person dismissed the drawer would otherwise report its error,
+  // and reopen its form, inside a hidden, inert drawer where nobody hears or reaches it.
+  it('reopens a dismissed drawer when a create it sent fails', async () => {
+    const { q, stable, openDrawer } = await renderAt(true, { projects: [] });
+    let fail: (error: unknown) => void = () => {};
+    vi.spyOn(TestBed.inject(WORK_MANAGER_GATEWAY).projects, 'create').mockReturnValue(
+      new Promise((_resolve, reject) => (fail = reject)),
+    );
+    await openDrawer();
+    q('[data-new-project]')!.click();
+    await stable();
+    q<HTMLInputElement>('[data-create-project-name]')!.value = 'Phone project';
+    q('[data-create-project-submit]')!.click();
+    q('[data-shell-drawer-backdrop]')!.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(q('#shell-navigation')!.getAttribute('role')).toBeNull();
+
+    fail(new GatewayError('unreachable', 0, 'the prototype host is not running'));
+    await stable();
+
+    expect(q('#shell-navigation')!.getAttribute('role')).toBe('dialog');
+    expect(q('[data-create-error]')?.textContent).toContain('not running');
+    expect(document.activeElement).toBe(q('[data-create-project-name]'));
+  });
+
+  it('does not reopen the drawer for an old failure when the window narrows', async () => {
+    const { q, stable } = await renderAt(false, {
+      projects: [],
+      failOn: { 'projects.create': new GatewayError('unreachable', 0, 'the prototype host is not running') },
+    });
+    await submitCreate(q, stable);
+    expect(q('[data-create-error]')).not.toBeNull();
+
+    media!.flip(true);
+    await stable();
+
+    expect(q('#shell-navigation')!.getAttribute('role')).toBeNull();
   });
 
   it('resets an open drawer on widening and leaves focus on the link it was on', async () => {

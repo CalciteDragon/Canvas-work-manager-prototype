@@ -25,8 +25,12 @@ const expectFocus = async (page: Page, selector: string) =>
 const phoneContext = (browser: Browser, colorScheme: Theme): Promise<BrowserContext> =>
   browser.newContext({ ...PHONE, colorScheme });
 
-/** The persona's preference decides `data-theme`, so the toggle, not `colorScheme`, sets it. */
+/**
+ * The persona's preference decides `data-theme`, so the toggle, not `colorScheme`, sets it —
+ * after the identity has loaded, or its arrival re-seeds the theme and a create finds no workspace.
+ */
 const useTheme = async (page: Page, theme: Theme) => {
+  await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');
   if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('[data-theme-toggle]').tap();
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
 };
@@ -84,10 +88,17 @@ for (const theme of THEMES) {
     // Closed at phone width: the inline sidebar is gone from sight, tab order and grid.
     await expectDrawerClosed(page);
     await expect(sidebarLink(page, 'Home')).toBeHidden();
-    const menuBox = (await menu(page).boundingBox())!;
-    expect(menuBox.height, 'Menu meets the touch target').toBeGreaterThanOrEqual(44);
+    for (const control of ['[data-shell-menu]', '[data-theme-toggle]']) {
+      expect((await page.locator(control).boundingBox())!.height, `${control} touch target`).toBeGreaterThanOrEqual(44);
+    }
+    // Out of sight at phone width, but still who the screen reader user is acting as.
+    await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');
+    expect((await page.locator('[data-identity-name]').boundingBox())!.width).toBeLessThanOrEqual(1);
 
     await openByTap(page);
+    for (const control of ['[data-shell-drawer-close]', 'a[data-nav-item]', '[data-new-project]', 'a[data-project]']) {
+      expect((await page.locator(control).first().boundingBox())!.height, `${control} touch target`).toBeGreaterThanOrEqual(44);
+    }
     for (const key of ['Tab', 'Shift+Tab'] as const) {
       for (let press = 0; press < 12; press += 1) {
         await page.keyboard.press(key);
@@ -129,7 +140,7 @@ for (const theme of THEMES) {
     for (const [label, path, ready] of [
       ['project canvas', '/projects/project-renovation', '[data-section-canvas]'],
       ['Todos', '/projects/project-renovation/pages/todos', '#todos-heading'],
-      ['Archive', '/projects/project-renovation/pages/archive', '[data-project-name]'],
+      ['Archive', '/projects/project-renovation/pages/archive', '[data-archive-count]'],
       ['Settings', '/settings', 'main.workspace h1'],
     ] as const) {
       await page.goto(path);
@@ -141,12 +152,12 @@ for (const theme of THEMES) {
   });
 }
 
-test.describe('at phone width', () => {
-  test.use(PHONE);
+for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
+  test.use({ ...PHONE, colorScheme: theme });
 
   test('choosing a destination closes the drawer, navigates and focuses the workspace', async ({ page }) => {
     await page.goto('/app');
-    await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');
+    await useTheme(page, theme);
 
     // The route already current: the router emits no navigation, and the drawer still closes.
     await openByTap(page);
@@ -171,7 +182,7 @@ test.describe('at phone width', () => {
 
   test('creating a project from the drawer closes it on success and keeps it, the draft and focus on failure', async ({ page }) => {
     await page.goto('/app');
-    await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');
+    await useTheme(page, theme);
 
     // Failure first, from a routed POST, so the host keeps no half-made project.
     await page.route('**/api/projects', (route) =>
@@ -180,7 +191,7 @@ test.describe('at phone width', () => {
     await page.locator('[data-new-project]').tap();
     await page.locator('[data-create-project-name]').fill('Phone field notes');
     await page.locator('[data-create-project-submit]').tap();
-    await expect(page.locator('[data-create-error]')).toBeVisible();
+    await expect(page.locator('[data-create-error]')).toContainText('could not reach');
     await expectDrawerOpen(page);
     await expect(page.locator('[data-create-project-name]')).toHaveValue('Phone field notes');
     await expectFocus(page, '[data-create-project-name]');
@@ -208,6 +219,7 @@ test.describe('at phone width', () => {
     };
 
     await page.goto('/projects/project-renovation/pages/home');
+    await useTheme(page, theme);
     await expect(panel).toBeHidden();
     // Todos on the same root: no project reload.
     await choose('[data-project-page-tab][data-page-kind="todos"]', /\/pages\/todos$/, 'Home renovation');
@@ -221,6 +233,7 @@ test.describe('at phone width', () => {
     const root = await createRoot('Phone Task List');
     await addSection(root.id, { type: 'task-list' });
     await page.goto(`/projects/${root.id}`);
+    await useTheme(page, theme);
     await page.locator('[data-quick-task-title]').fill('Phone delete task');
     await page.locator('[data-quick-create] button[type="submit"]').tap();
     await expect(page.locator('[data-task-drawer]')).toBeVisible();

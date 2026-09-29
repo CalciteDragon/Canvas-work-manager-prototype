@@ -93,6 +93,8 @@ export class ShellStore {
     // `/api/me` rejecting leaves identity `null`, and "create a project in *which*
     // workspace" has no answer then. A message beside the form, not a crash.
     if (workspaceId === undefined) {
+      // Through `null`, as below, so an identical second refusal still reads as a new failure.
+      this.createErrorState.set(null);
       this.createErrorState.set('No workspace is loaded yet, so there is nowhere to put a new project.');
       return null;
     }

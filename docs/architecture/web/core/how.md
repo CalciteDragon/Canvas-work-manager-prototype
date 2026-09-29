@@ -39,7 +39,8 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    (`#shell-navigation`, CDK focus trap, Close, backdrop) and inerts the top bar and `<main>`.
    Escape inside it, Close and the backdrop return focus to Menu; a plain activation of any link
    in it closes it and focuses `<main>` (`tabindex="-1"`), including the route already current.
-   A resize resets it to closed, keeps or rescues focus
+   A create that fails after the drawer was dismissed reopens it, so the error and the restored
+   form are reachable. A resize resets it to closed, keeps or rescues focus
    ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
 7. A writer calls `reportedWrite(reporter, write, report)`: `begin()` before the request returns an
    `OperationWriteHandle` for that one write; `committed(...)` on it with the report built from the

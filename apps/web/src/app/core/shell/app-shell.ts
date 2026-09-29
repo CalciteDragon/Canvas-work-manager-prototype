@@ -10,6 +10,7 @@ import {
   effect,
   inject,
   signal,
+  untracked,
   viewChild,
   type ElementRef,
 } from '@angular/core';
@@ -68,7 +69,7 @@ export class AppShell {
   private readonly document = inject(DOCUMENT);
   private readonly injector = inject(Injector);
 
-  private readonly drawer = viewChild.required<ElementRef<HTMLElement>>('drawer');
+  private readonly drawer = viewChild<ElementRef<HTMLElement>>('drawer');
   private readonly main = viewChild.required<ElementRef<HTMLElement>>('main');
   private readonly topBar = viewChild.required(TopBar);
 
@@ -100,6 +101,16 @@ export class AppShell {
 
     void this.store.load();
 
+    // A create that fails after the drawer was dismissed would report, and reopen its form, inside
+    // a hidden, inert drawer. Reopened without taking focus: the sidebar puts it in the name input.
+    // Keyed on the error alone, so a resize never reopens the drawer for an old failure.
+    effect(() => {
+      if (this.store.createError() === null) return;
+      untracked(() => {
+        if (this.narrow()) this.drawerOpenState.set(true);
+      });
+    });
+
     const query = globalThis.matchMedia?.(SHELL_NARROW_QUERY);
     if (query !== undefined) {
       this.narrow.set(query.matches);
@@ -114,7 +125,7 @@ export class AppShell {
     this.drawerOpenState.set(true);
     // Explicitly, as `DevPanel` does: `cdkTrapFocusAutoCapture` resolves on zone stability and
     // never fires zoneless. The trap still keeps Tab inside once focus is there.
-    this.afterRender(() => this.drawer().nativeElement.focus());
+    this.afterRender(() => this.drawer()?.nativeElement.focus());
   }
 
   /** Escape, Close and the backdrop: the drawer goes and focus returns to the Menu that opened it. */
@@ -130,7 +141,8 @@ export class AppShell {
    * link is about to be hidden, so focus goes to the workspace it opened.
    */
   protected onDrawerClick(event: MouseEvent): void {
-    if (!this.drawerOpen() || !isPlainLinkActivation(event, this.drawer().nativeElement)) return;
+    const drawer = this.drawer()?.nativeElement;
+    if (!this.drawerOpen() || drawer === undefined || !isPlainLinkActivation(event, drawer)) return;
     this.closeDrawerThen(() => this.main().nativeElement.focus());
   }
 
@@ -144,7 +156,12 @@ export class AppShell {
    * belonged to. What needs care is focus: whatever held it may be about to disappear.
    */
   private onNarrowChange(narrow: boolean): void {
-    const drawer = this.drawer().nativeElement;
+    const drawer = this.drawer()?.nativeElement;
+    // Before the first render there is no drawer and no focus to look after.
+    if (drawer === undefined) {
+      this.narrow.set(narrow);
+      return;
+    }
     // Read now, synchronously: after the render the element may already have been removed.
     const active = this.document.activeElement;
     const inDrawer = active !== null && drawer.contains(active);
