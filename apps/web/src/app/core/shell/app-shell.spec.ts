@@ -306,6 +306,23 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     expect(document.activeElement).toBe(q('[data-create-project-name]'));
   });
 
+  // An identical second refusal does not change the sidebar's `createError` input — a template
+  // binding compares by value — yet the form it closed on submit must still come back with focus.
+  it('reopens the form with focus after a second, identical refusal', async () => {
+    const { q, stable, openDrawer } = await renderAt(true, {
+      identity: new GatewayError('unauthorized', 401, 'no persona'),
+    });
+    await openDrawer();
+
+    await submitCreate(q, stable);
+    expect(q('[data-create-error]')?.textContent).toContain('nowhere to put');
+    q('[data-create-project-submit]')!.click();
+    await stable();
+
+    expect(q('[data-create-project-form]')).not.toBeNull();
+    expect(document.activeElement).toBe(q('[data-create-project-name]'));
+  });
+
   it('does not reopen the drawer for an old failure when the window narrows', async () => {
     const { q, stable } = await renderAt(false, {
       projects: [],

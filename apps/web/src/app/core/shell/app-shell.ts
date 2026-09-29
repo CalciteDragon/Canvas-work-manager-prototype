@@ -72,6 +72,7 @@ export class AppShell {
   private readonly drawer = viewChild<ElementRef<HTMLElement>>('drawer');
   private readonly main = viewChild.required<ElementRef<HTMLElement>>('main');
   private readonly topBar = viewChild.required(TopBar);
+  private readonly sidebar = viewChild(Sidebar);
 
   private readonly drawerOpenState = signal(false);
   /** Below `SHELL_NARROW_QUERY`. Stays `false` where there is no `matchMedia` (jsdom). */
@@ -103,11 +104,13 @@ export class AppShell {
 
     // A create that fails after the drawer was dismissed would report, and reopen its form, inside
     // a hidden, inert drawer. Reopened without taking focus: the sidebar puts it in the name input.
-    // Keyed on the error alone, so a resize never reopens the drawer for an old failure.
+    // Keyed on the error alone, so a resize never reopens the drawer for an old failure. It also
+    // reopens the sidebar's form: an identical repeat reaches this effect but not the input.
     effect(() => {
       if (this.store.createError() === null) return;
       untracked(() => {
         if (this.narrow()) this.drawerOpenState.set(true);
+        this.sidebar()?.reopenCreate();
       });
     });
 

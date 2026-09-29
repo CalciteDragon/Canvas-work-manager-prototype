@@ -69,12 +69,18 @@ export class Sidebar {
     // nowhere useful at desktop width either. After the render, because the input the form
     // reopens does not exist until then.
     effect(() => {
-      if (this.createError() === null) return;
-      untracked(() => {
-        this.createOpen.set(true);
-        afterNextRender(() => this.nameInput()?.nativeElement.focus(), { injector: this.injector });
-      });
+      if (this.createError() !== null) untracked(() => this.reopenCreate());
     });
+  }
+
+  /**
+   * Puts the form back, draft and all, with focus in the name. Public because an identical
+   * second failure leaves `createError` unchanged — a template binding compares by value — so
+   * `AppShell`, which sees each failure in the store, calls it too. Idempotent.
+   */
+  reopenCreate(): void {
+    this.createOpen.set(true);
+    afterNextRender(() => this.nameInput()?.nativeElement.focus(), { injector: this.injector });
   }
 
   /**

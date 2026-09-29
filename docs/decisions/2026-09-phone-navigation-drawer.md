@@ -50,7 +50,9 @@ Built in Slice 58 and exercised at 375 × 812 by touch and keyboard, in both the
   field, so it survives the new shell instance.
 - **The failed create lost focus at every width.** The sidebar closes its form optimistically,
   removing the focused Create button. It now reopens the form and puts focus in the name input,
-  which also fixes the same lost focus on desktop.
+  which also fixes the same lost focus on desktop. An identical second failure does not change
+  the sidebar's `createError` input, because a template binding compares by value. So `AppShell`,
+  which sees every failure in the store, also calls the sidebar's `reopenCreate()`.
 - **Menu holds focus after every dismissal.** Real use widened the window right after Escape and
   lost focus to the page, because Menu does not exist at desktop width. Widening now treats Menu
   like Close.

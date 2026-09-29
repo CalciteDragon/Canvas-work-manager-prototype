@@ -108,7 +108,7 @@ the 1050 kB error ceiling, with the 850 kB warning still reported ([decision](20
 **Amended, 2026-09-29 — Slice 58.** The phone navigation drawer is part of the shell, so it loads
 eagerly. Before the slice the initial bundle measured 1043.9 kB; the slice's first build measured
 1052.5 kB and failed the 1050 kB ceiling. `AppShell` and `DevPanel` now import the standalone
-`CdkTrapFocus` directive rather than all of `A11yModule`, and the build measures 1048.4 kB: under
+`CdkTrapFocus` directive rather than all of `A11yModule`, and the build measures 1048.5 kB: under
 the ceiling by about 2 kB, with the 850 kB warning still reported. No budget was raised; the
 headroom is now small enough that the next eager feature needs the structural work above
 ([decision](2026-09-phone-navigation-drawer.md)).

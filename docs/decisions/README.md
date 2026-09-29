@@ -21,7 +21,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [The web app and the host start separately](2026-08-web-and-host-start-separately.md) | `pnpm dev` prints two commands and exits; `concurrently` hung `tsx watch` | current |
 | [The host's port variable is `CWM_HOST_PORT`, not `PORT`](2026-08-host-port-is-not-the-generic-port.md) | The host ignores the generic `PORT` entirely | current |
-| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning and error ceilings, with measured lazy boundaries | amended; Slice 36 set a 1050 kB hard ceiling; Slice 41 adds the eager header controls; Slice 58 fits the phone drawer at 1048.4 kB |
+| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning and error ceilings, with measured lazy boundaries | amended; Slice 36 set a 1050 kB hard ceiling; Slice 41 adds the eager header controls; Slice 58 fits the phone drawer at 1048.5 kB |
 
 ## Contracts
 
