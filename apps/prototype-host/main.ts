@@ -141,9 +141,16 @@ export async function shutdownHost(parts: {
 /**
  * The `process.on('exit')` release. On the 2 s give-up path the drain has not finished and a
  * threadpool rename may still be in flight, so the record is left for pid-based reclaim instead.
+ * A failure here is swallowed: a throw in an exit listener only prints a trace, and the record is
+ * reclaimable by pid anyway.
  */
 export function releaseOnExit(ownership: HostOwnership): void {
-  if (ownership.drained) ownership.handle.releaseSync();
+  if (!ownership.drained) return;
+  try {
+    ownership.handle.releaseSync();
+  } catch {
+    // Left for pid-based reclaim.
+  }
 }
 
 const isDirectRun =

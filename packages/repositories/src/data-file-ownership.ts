@@ -19,7 +19,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 /** Who holds the file. The kind picks the remedy a refusal names. */
 export type DataFileOwnerKind = 'http-host' | 'stdio' | 'seed' | 'upgrade' | 'e2e-prepare';
 
-/** The owner file's content. Internal to this package: no contract, no reader outside it. */
+/** The owner file's content: an internal file format of this package, not a contract. */
 export interface DataFileOwnerRecord {
   pid: number;
   /** Tells this acquisition apart from any other by the same pid; release and reclaim check it. */
@@ -42,7 +42,10 @@ export interface OwnershipFileOperations {
 
 export interface AcquireDataFileOwnershipOptions {
   kind: DataFileOwnerKind;
-  /** How long to wait for a live owner, in total across every retry. Defaults to 0: refuse at once. */
+  /**
+   * How long to wait for a live owner, in total across every retry. Defaults to 0: refuse at once.
+   * Counted in 50 ms sleeps, so filesystem time adds a little to the wall-clock wait.
+   */
   waitMs?: number;
   /** Called once, when the acquirer starts waiting on a live owner. */
   onWait?: (owner: DataFileOwnerRecord) => void;
@@ -89,6 +92,13 @@ const RETRY_MS = 50;
 const OCCUPIED = new Set(['EEXIST', 'EPERM', 'EBUSY']);
 
 const nodeOperations: OwnershipFileOperations = { mkdir, realpath, writeFile, readFile, link, unlink };
+
+/**
+ * Nonces this process holds or is publishing. A record naming this process's own pid with a nonce
+ * not in here was left by an earlier process whose pid was reused — Windows reuses pids quickly —
+ * so it is treated as dead rather than making this process wait on itself.
+ */
+const heldHere = new Set<string>();
 
 const codeOf = (error: unknown): string =>
   typeof error === 'object' && error !== null && typeof (error as { code?: unknown }).code === 'string'
@@ -180,7 +190,11 @@ export const acquireDataFileOwnership = async (
   /** Publish `serialized` at `target` by link; true when published, false when occupied. */
   const publish = async (target: string): Promise<boolean> => {
     const temporary = `${target}.${record.nonce}.tmp`;
-    await fs.writeFile(temporary, serialized, 'utf8');
+    try {
+      await fs.writeFile(temporary, serialized, 'utf8');
+    } catch (error) {
+      throw new DataFileOwnerUnavailableError(codeOf(error), target);
+    }
     try {
       await fs.link(temporary, target);
       return true;
@@ -194,17 +208,22 @@ export const acquireDataFileOwnership = async (
     }
   };
 
+  /** `EPERM` and `EBUSY` on open are Windows' answer for a file pending deletion: it is going. */
   const read = async (path: string): Promise<Read> => {
     try {
       const parsed = parseRecord(await fs.readFile(path, 'utf8'));
       return parsed === undefined ? { state: 'unreadable' } : { state: 'record', record: parsed };
     } catch (error) {
-      if (codeOf(error) === 'ENOENT') return { state: 'absent' };
+      const code = codeOf(error);
+      if (code === 'ENOENT' || code === 'EPERM' || code === 'EBUSY') return { state: 'absent' };
       throw error;
     }
   };
+  const alive = (owner: DataFileOwnerRecord): boolean =>
+    owner.pid === record.pid ? heldHere.has(owner.nonce) : isAlive(owner.pid);
 
   const release = async (): Promise<void> => {
+    heldHere.delete(record.nonce);
     const current = await read(ownerPath);
     if (current.state !== 'record' || current.record.nonce !== record.nonce) return;
     await fs.unlink(ownerPath).catch((error: unknown) => {
@@ -212,6 +231,7 @@ export const acquireDataFileOwnership = async (
     });
   };
   const releaseSync = (): void => {
+    heldHere.delete(record.nonce);
     try {
       if (parseRecord(readFileSync(ownerPath, 'utf8'))?.nonce !== record.nonce) return;
       unlinkSync(ownerPath);
@@ -228,7 +248,7 @@ export const acquireDataFileOwnership = async (
   const reclaim = async (dead: DataFileOwnerRecord): Promise<{ owned: true } | { blocker: Read; path: string }> => {
     if (!(await publish(reclaimPath))) {
       const reclaimer = await read(reclaimPath);
-      if (reclaimer.state === 'record' && !isAlive(reclaimer.record.pid)) {
+      if (reclaimer.state === 'record' && !alive(reclaimer.record)) {
         // Never stolen, not even from a dead reclaimer: the operator removes it by hand.
         throw inUse(canonical, reclaimPath, reclaimer.record);
       }
@@ -262,39 +282,49 @@ export const acquireDataFileOwnership = async (
     waited += RETRY_MS;
   };
 
-  for (;;) {
-    if (await publish(ownerPath)) return owned;
+  heldHere.add(record.nonce);
+  try {
+    return await contend();
+  } catch (error) {
+    heldHere.delete(record.nonce);
+    throw error;
+  }
 
-    const current = await read(ownerPath);
-    if (current.state === 'absent') {
-      // The owner vanished between the link and the read — or `link` refused with no owner at all.
-      // The first time, retry at once: a zero-wait command must not be refused for a race it lost
-      // by microseconds. After that, only within the deadline, so a persistent refusal ends.
-      if (!vanishedOnce) {
-        vanishedOnce = true;
+  async function contend(): Promise<DataFileOwnership> {
+    for (;;) {
+      if (await publish(ownerPath)) return owned;
+
+      const current = await read(ownerPath);
+      if (current.state === 'absent') {
+        // The owner vanished between the link and the read — or `link` refused with no owner at all.
+        // The first time, retry at once: a zero-wait command must not be refused for a race it lost
+        // by microseconds. After that, only within the deadline, so a persistent refusal ends.
+        if (!vanishedOnce) {
+          vanishedOnce = true;
+          continue;
+        }
+        await retry(current, ownerPath);
         continue;
       }
-      await retry(current, ownerPath);
-      continue;
-    }
-    if (current.state === 'unreadable') {
-      await retry(current, ownerPath);
-      continue;
-    }
+      if (current.state === 'unreadable') {
+        await retry(current, ownerPath);
+        continue;
+      }
 
-    const owner = current.record;
-    // Liveness first: a dead owner of any kind is reclaimed, including a skipped kind.
-    if (!isAlive(owner.pid)) {
-      const outcome = await reclaim(owner);
-      if ('owned' in outcome) return owned;
-      await retry(outcome.blocker, outcome.path);
-      continue;
+      const owner = current.record;
+      // Liveness first: a dead owner of any kind is reclaimed, including a skipped kind.
+      if (!alive(owner)) {
+        const outcome = await reclaim(owner);
+        if ('owned' in outcome) return owned;
+        await retry(outcome.blocker, outcome.path);
+        continue;
+      }
+      if (skip.has(owner.kind)) throw inUse(canonical, ownerPath, owner);
+      if (!announced && waitMs >= RETRY_MS) {
+        announced = true;
+        options.onWait?.(owner);
+      }
+      await retry(current, ownerPath);
     }
-    if (skip.has(owner.kind)) throw inUse(canonical, ownerPath, owner);
-    if (!announced && waitMs >= RETRY_MS) {
-      announced = true;
-      options.onWait?.(owner);
-    }
-    await retry(current, ownerPath);
   }
 };

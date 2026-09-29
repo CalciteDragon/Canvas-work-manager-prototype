@@ -34,7 +34,9 @@ Start-up does **not** acquire: definitions come from a plain read, so a stdio ch
 tools while a host owns the file — and the SDK client probes on a disposable sibling process first,
 which a lifetime hold would have to fight. Only a missing file is seeded under ownership; if that
 acquisition is refused because a host starting at the same moment won and seeded the file,
-start-up loads the file it wrote.
+start-up loads the file it wrote. An unowned read is not quite free on Windows: while the child
+holds the file open, the host's `rename` over it fails with `EPERM` and that one unit rolls back
+with an error. This predates the owner record and is now confined to stdio start-up.
 
 `startStdio` owns that startup. Direct execution calls it with no hooks. A dedicated test child
 composes the same function with a per-call persistence loader that fails one commit, or a hook

@@ -273,6 +273,49 @@ describe('acquireDataFileOwnership', () => {
     expect(sleep).not.toHaveBeenCalled();
   });
 
+  it.each(['EPERM', 'EBUSY'])('treats %s from reading an owner file pending deletion as a vanished owner', async (code) => {
+    const { dataPath, ownerPath } = await scratch();
+    await writeRecord(ownerPath, { pid: 1151, nonce: 'leaving' });
+    const fs: OwnershipFileOperations = {
+      ...nodeOperations,
+      readFile: async (path, encoding) => {
+        if (path === ownerPath) {
+          await nodeOperations.unlink(ownerPath);
+          throw errorWithCode(code);
+        }
+        return nodeOperations.readFile(path, encoding);
+      },
+    };
+
+    const ownership = await acquireDataFileOwnership(dataPath, options({ pid: 1152, fs, isAlive: alive(1151) }));
+
+    expect((await readRecord(ownerPath)).nonce).toBe(ownership.record.nonce);
+  });
+
+  it('reclaims a record naming its own pid that this process does not hold, as a reused pid', async () => {
+    const { dataPath, ownerPath } = await scratch();
+    await writeRecord(ownerPath, { pid: 1161, nonce: 'before-the-crash', kind: 'http-host' });
+
+    const ownership = await acquireDataFileOwnership(dataPath, options({ pid: 1161, isAlive: alive(1161) }));
+
+    expect(await readRecord(ownerPath)).toMatchObject({ pid: 1161, nonce: ownership.record.nonce });
+  });
+
+  it('still refuses a record this process holds under the same pid', async () => {
+    const { dataPath } = await scratch();
+    await acquireDataFileOwnership(dataPath, options({ pid: 1171, kind: 'http-host' }));
+
+    await expect(acquireDataFileOwnership(dataPath, options({ pid: 1171, isAlive: alive(1171) })))
+      .rejects.toThrow(/^data_file_in_use: .*http-host pid 1171/);
+  });
+
+  it('reports a failed temp-file write as data_file_owner_unavailable', async () => {
+    const { dataPath } = await scratch();
+    const fs: OwnershipFileOperations = { ...nodeOperations, writeFile: async () => { throw errorWithCode('EACCES'); } };
+
+    await expect(acquireDataFileOwnership(dataPath, options({ fs }))).rejects.toThrow(/^data_file_owner_unavailable: .*EACCES/);
+  });
+
   it('treats an owner file absent at the reclaim re-check as a mismatch', async () => {
     const { dataPath, ownerPath } = await scratch();
     await writeRecord(ownerPath, { pid: 1201, nonce: 'dead' });

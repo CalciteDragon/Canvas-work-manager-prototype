@@ -69,8 +69,11 @@ store itself never does.
 2. Write `{ pid, nonce, kind, acquiredAt, dataPath }` whole to `<owner>.<nonce>.tmp` and publish it
    with `link`. `EEXIST`, `EPERM` and `EBUSY` mean *occupied* — the latter two are how Windows
    reports a file pending deletion. Any other code throws `data_file_owner_unavailable:` at once.
-3. Occupied: read the record. If it has vanished — its owner let go at that instant — retry once
-   at once, so a zero-wait command is not refused for a race it lost by microseconds. A dead pid is reclaimed (liveness is checked first, whatever the
+3. Occupied: read the record. If it has vanished — its owner let go at that instant, or Windows
+   answers `EPERM`/`EBUSY` because it is pending deletion — retry once at once, so a zero-wait
+   command is not refused for a race it lost by microseconds. A record naming this process's own
+   pid with a nonce this process does not hold was left by an earlier process whose pid Windows
+   reused, and counts as dead. A dead pid is reclaimed (liveness is checked first, whatever the
    kind). A live owner of a kind in `skipWaitForKinds` is refused at once. Otherwise `onWait` fires
    once and the acquirer polls every 50 ms. Every retry, of any cause, counts against the one
    `waitMs` deadline.
@@ -132,7 +135,9 @@ flowchart TB
 - **Nothing is ever taken from a live owner.** Only the holder of a nonce, or a reclaimer holding
   `<owner>.reclaim` that re-read the dead record's nonce, unlinks an owner file. An unreadable
   record, an alive but unrelated pid and a reclaim file left by a dead pid are refused, and the
-  refusal names the file an operator may delete. There is no `--force`.
+  refusal names the file an operator may delete. There is no `--force`. A process killed
+  between writing its temp record and linking it leaves a `…owner.<nonce>.tmp` behind; it is
+  inert and git-ignored.
 - **Seeds are committed byte-for-byte** as LF JSON and compared in
   `packages/prototype-data`'s tests, which is why `.gitattributes` normalises line
   endings.

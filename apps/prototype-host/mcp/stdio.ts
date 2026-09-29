@@ -97,7 +97,13 @@ export const startStdio = async (hooks: StdioStartupHooks = {}): Promise<void> =
   }
   const load = hooks.load ?? loadPersistence;
   const path = dataFilePath();
-  process.on('exit', () => held?.releaseSync());
+  process.on('exit', () => {
+    try {
+      held?.releaseSync();
+    } catch {
+      // Left for pid-based reclaim; a throw here would only print a trace at exit.
+    }
+  });
 
   // Definitions are stable for the connection. Calls deliberately reload below: a stdio
   // child is a second process, so its prior JsonDataStore cannot observe a permission edit or

@@ -31,7 +31,9 @@
    every Ctrl+C. A `process.on('exit')` listener (`releaseOnExit`) releases only once the drain has
    completed, so the 2 s give-up path leaves the record for pid-based reclaim rather than handing
    the file over under an in-flight rename. On Windows `child.kill()` runs no handler at all; the
-   next acquirer reclaims that record.
+   next acquirer reclaims that record. The drain covers units queued when it starts; a request
+   handler still between `stop()` and its first `unitOfWork.run` could queue behind it in the last
+   milliseconds before exit — a known residual of this disposable host (§71).
 
 ## Key symbols
 
