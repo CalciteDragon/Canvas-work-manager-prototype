@@ -84,3 +84,12 @@
   margin: 0;
   text-align: end;
 }
+
+// Stacked below the rows in a narrow Task List (Slice 58), a sticky drawer would slide over the
+// rows it follows. The `task-list` container and its `42rem` literal (the list's minimum plus
+// `--layout-drawer-width`) are declared in `task-list-section.scss`; keep the two in step.
+@container task-list (width < 42rem) {
+  .drawer {
+    position: static;
+  }
+}

@@ -1,5 +1,9 @@
 :host {
   display: block;
+  // Slice 58: named so this section's width, not the viewport's, decides whether the details
+  // drawer fits beside the rows. A Grid-layout section can be narrow at desktop width too, and
+  // an element cannot query its own size, so the host is the container.
+  container: task-list / inline-size;
 }
 
 .task-list-section {
@@ -79,4 +83,14 @@
   display: grid;
   gap: var(--space-3);
   min-width: 0;
+}
+
+// Too narrow for the rows plus `--layout-drawer-width` (22rem): stack the drawer below them
+// rather than as a second track that overflows over them. The literal is the list's working
+// minimum plus that token, because a custom property cannot appear in a query condition; the
+// same literal is in `task-detail-drawer.scss`, which unsticks the drawer at the same width.
+@container task-list (width < 42rem) {
+  .task-workspace--drawer-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

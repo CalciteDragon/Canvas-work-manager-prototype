@@ -1,13 +1,60 @@
 <div class="shell">
-  <app-top-bar class="top" [identity]="store.identity()" />
-  <app-sidebar
-    class="side"
-    [projectTree]="store.projectTree()"
-    [error]="store.error()"
-    [createError]="store.createError()"
-    (createRequested)="createProject($event)"
+  <app-top-bar
+    class="top"
+    [identity]="store.identity()"
+    [menuAvailable]="narrow()"
+    [menuOpen]="drawerOpen()"
+    [attr.inert]="drawerOpen() ? '' : null"
+    (menuRequested)="openDrawer()"
   />
-  <main class="workspace">
+
+  @if (drawerOpen()) {
+    <!-- A button rather than a click handler on a div, as the development panel's is:
+         dismissing the drawer is a real action. -->
+    <button
+      type="button"
+      class="backdrop"
+      data-shell-drawer-backdrop
+      aria-label="Close navigation"
+      (click)="dismissDrawer()"
+    ></button>
+  }
+
+  <!-- One sidebar at every width. Below the breakpoint the same instance is the drawer, so its
+       expanded group and its create-form draft survive being opened and closed. The dialog
+       attributes exist only while it is open; the wrapper keeps the focus trap's anchors out
+       of the shell's grid. -->
+  <div class="side" [class.side--open]="drawerOpen()">
+    <div
+      #drawer
+      id="shell-navigation"
+      class="drawer"
+      [attr.role]="drawerOpen() ? 'dialog' : null"
+      [attr.aria-modal]="drawerOpen() ? 'true' : null"
+      [attr.aria-label]="drawerOpen() ? 'Navigation' : null"
+      [attr.tabindex]="drawerOpen() ? -1 : null"
+      [attr.inert]="narrow() && !drawerOpen() ? '' : null"
+      [cdkTrapFocus]="drawerOpen()"
+      (keydown.escape)="dismissDrawer()"
+      (click)="onDrawerClick($event)"
+    >
+      @if (drawerOpen()) {
+        <div class="drawer__header">
+          <button type="button" class="drawer__close" data-shell-drawer-close (click)="dismissDrawer()">Close</button>
+        </div>
+      }
+      <app-sidebar
+        class="drawer__nav"
+        [projectTree]="store.projectTree()"
+        [error]="store.error()"
+        [createError]="store.createError()"
+        (createRequested)="createProject($event)"
+      />
+    </div>
+  </div>
+
+  <!-- Focusable so a drawer that closed behind a chosen link can hand focus to what it opened. -->
+  <main #main class="workspace" tabindex="-1" [attr.inert]="drawerOpen() ? '' : null">
     <router-outlet />
   </main>
 </div>

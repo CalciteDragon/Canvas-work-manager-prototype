@@ -4,8 +4,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  Injectable,
   Injector,
   afterEveryRender,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -41,6 +43,18 @@ interface PageNoticeState {
 }
 
 const NARROW = '(max-width: 60rem)';
+
+/**
+ * Slice 58: the column link a narrow selection chose, until the toggle that re-collapsed it
+ * can take focus. Root-scoped rather than a shell field: `/projects/:projectId` and
+ * `/projects/:projectId/pages/:pageKind` are two route configs, so moving between them makes
+ * the router re-create the shell, and a field would be lost with the toggle it meant to focus.
+ */
+@Injectable({ providedIn: 'root' })
+export class ProjectColumnFocusRequest {
+  /** The chosen link's URL, as `Router.url` will read once the navigation lands. */
+  readonly url = signal<string | null>(null);
+}
 
 /**
  * §23's project workspace, and §68's two project routes: `/projects/:projectId` and
@@ -90,6 +104,7 @@ export class ProjectWorkspaceShell {
   private readonly location = inject(Location);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
+  private readonly columnFocus = inject(ProjectColumnFocusRequest);
   private focusedHistoryUrl: string | null = null;
 
   private readonly noticeState = signal<string | null>(null);
@@ -227,6 +242,13 @@ export class ProjectWorkspaceShell {
       const resolution = this.resolution();
       if (resolution === null) return;
       if (resolution.outcome === 'redirect') {
+        // A column selection the fallback redirects still ends on the toggle: the request
+        // follows the redirect rather than being dropped as a navigation that lost.
+        untracked(() => {
+          if (this.columnFocus.url() === this.router.url) {
+            this.columnFocus.url.set(this.router.serializeUrl(this.router.createUrlTree(resolution.to)));
+          }
+        });
         void this.router.navigate(resolution.to, {
           replaceUrl: true,
           state: {
@@ -260,12 +282,49 @@ export class ProjectWorkspaceShell {
       const onNarrowChange = (event: { matches: boolean }): void => {
         this.narrowState.set(event.matches);
         this.collapsedState.set(event.matches);
+        this.columnFocus.url.set(null);
       };
       narrow.addEventListener('change', onNarrowChange);
       // The `MediaQueryList` is a window singleton and outlives this component, so an
       // unremoved listener is a closure over a destroyed shell — once per visit, forever.
       inject(DestroyRef).onDestroy(() => narrow.removeEventListener('change', onNarrowChange));
     }
+
+    // Slice 58: a narrow column selection's focus request, honoured once the navigation has
+    // landed, any reload it caused has settled and §68 has not redirected it — and only if the
+    // URL is still the one chosen. A browser Back, a global-drawer choice or a history link that
+    // won the navigation meanwhile keeps its own focus. Registered after the load effect, so a
+    // project change has already set `loading` by the time this reads it.
+    effect(() => {
+      const url = this.columnFocus.url();
+      if (url === null || this.router.currentNavigation() !== null || this.store.loading()) return;
+      if (this.resolution()?.outcome === 'redirect') return;
+      untracked(() => {
+        this.columnFocus.url.set(null);
+        if (this.router.url !== url) return;
+        afterNextRender(() => this.focusColumnTarget(), { injector: this.injector });
+      });
+    });
+  }
+
+  /**
+   * While narrow, a chosen link collapses the column again, so the canvas it opened is not
+   * pushed under the list, and asks for focus on the toggle that brings the column back.
+   */
+  onColumnLinkSelected(url: string): void {
+    if (!this.narrowState()) return;
+    this.collapsedState.set(true);
+    this.columnFocus.url.set(url);
+  }
+
+  /** The toggle, or — when the load ended without a column — the heading of what rendered. */
+  private focusColumnTarget(): void {
+    const host = this.host.nativeElement;
+    const target =
+      host.querySelector<HTMLElement>('[data-project-nav-toggle]') ??
+      host.querySelector<HTMLElement>('#project-creation-recovery-heading') ??
+      host.querySelector<HTMLElement>('#project-error-heading');
+    target?.focus();
   }
 
   private focusHistoryFragment(): void {

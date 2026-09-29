@@ -2,7 +2,7 @@
   <p data-project-loading class="project-workspace__muted">Loading project…</p>
 } @else if (creationRecovery(); as creation) {
   <section data-project-creation-recovery class="project-workspace__recovery" aria-labelledby="project-creation-recovery-heading">
-    <h1 id="project-creation-recovery-heading">Creation undone</h1>
+    <h1 id="project-creation-recovery-heading" tabindex="-1">Creation undone</h1>
     <p>Undo removed {{ creationSubject(creation.label) }}. Redo brings it back at this address, as it was.</p>
     <app-project-history-controls
       [undo]="history.undoControl()"
@@ -19,7 +19,7 @@
   </section>
 } @else if (store.error(); as error) {
   <section class="project-workspace__notice" aria-labelledby="project-error-heading">
-    <h1 id="project-error-heading">Project unavailable</h1>
+    <h1 id="project-error-heading" tabindex="-1">Project unavailable</h1>
     <p data-project-error role="alert">{{ error }}</p>
     @if (store.missing() && history.retryAvailable()) {
       <button type="button" data-project-history-retry class="project-workspace__retry" (click)="history.retry()">
@@ -45,6 +45,7 @@
         (toggleRequested)="toggleNavigation()"
         (pageToggleRequested)="setPageEnabled($event.kind, $event.enabled)"
         (retryPageRequested)="retryPageContext()"
+        (linkSelected)="onColumnLinkSelected($event)"
       />
     }
 

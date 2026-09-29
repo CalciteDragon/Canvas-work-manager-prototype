@@ -187,6 +187,29 @@ describe('Sidebar', () => {
     expect(element.querySelector('[data-create-error]')?.textContent).toContain('not running');
   });
 
+  // Slice 58: the optimistic close removed the focused Create button, so without this focus
+  // falls to the document — at every width, and out of the phone drawer entirely.
+  it('moves focus back into the name input when a failed creation reopens the form', async () => {
+    const { fixture, element } = await render();
+    document.body.appendChild(element);
+    try {
+      const name = await openCreateForm(fixture, element);
+      name.value = 'Prototype review';
+      const submit = element.querySelector<HTMLElement>('[data-create-project-submit]')!;
+      submit.focus();
+      submit.click();
+      await fixture.whenStable();
+
+      fixture.componentRef.setInput('createError', 'the prototype host is not running');
+      await fixture.whenStable();
+      await fixture.whenStable();
+
+      expect(document.activeElement).toBe(element.querySelector('[data-create-project-name]'));
+    } finally {
+      element.remove();
+    }
+  });
+
   it('offers New project with the group collapsed', async () => {
     const { fixture, element } = await render({ projectTree: [node('project-1', 'Personal workspace')] });
 

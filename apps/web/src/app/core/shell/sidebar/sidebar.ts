@@ -1,4 +1,17 @@
-import { ChangeDetectionStrategy, Component, effect, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  Injector,
+  afterNextRender,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  untracked,
+  viewChild,
+  type ElementRef,
+} from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { ProjectTreeNode } from '../shell-store';
 import { ProjectTreeItem } from './project-tree-item';
@@ -34,6 +47,9 @@ export class Sidebar {
   /** Survives the form closing, so a failed creation can hand the name back. */
   protected readonly draftName = signal('');
 
+  private readonly nameInput = viewChild<ElementRef<HTMLInputElement>>('newName');
+  private readonly injector = inject(Injector);
+
   protected toggleProjects(): void {
     this.projectsExpanded.update((expanded) => !expanded);
   }
@@ -47,8 +63,17 @@ export class Sidebar {
     // optimistically and learns the outcome from `createError`. When one arrives it puts the
     // form back with the name still in it — otherwise a failed creation costs the user their
     // typing and they have to retype it beside the error explaining why.
+    //
+    // Focus goes back into the name too (Slice 58): the optimistic close removed the Create
+    // button that held it, so it had fallen to the document — out of the phone drawer, and
+    // nowhere useful at desktop width either. After the render, because the input the form
+    // reopens does not exist until then.
     effect(() => {
-      if (this.createError() !== null) this.createOpen.set(true);
+      if (this.createError() === null) return;
+      untracked(() => {
+        this.createOpen.set(true);
+        afterNextRender(() => this.nameInput()?.nativeElement.focus(), { injector: this.injector });
+      });
     });
   }
 

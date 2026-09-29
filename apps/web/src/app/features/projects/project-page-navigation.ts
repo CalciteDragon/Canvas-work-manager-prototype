@@ -27,6 +27,7 @@ import { ProjectWorkItem } from './project-work-item';
   imports: [ProjectWorkItem, RouterLink],
   templateUrl: './project-page-navigation.html',
   styleUrl: './project-page-navigation.scss',
+  host: { '(click)': 'onClick($event)' },
 })
 export class ProjectPageNavigation {
   readonly root = input.required<Project>();
@@ -50,6 +51,20 @@ export class ProjectPageNavigation {
   readonly toggleRequested = output<void>();
   readonly pageToggleRequested = output<{ kind: OptionalProjectPageKind; enabled: boolean }>();
   readonly retryPageRequested = output<void>();
+  /**
+   * A destination in the column was chosen, with the URL it leads to (Slice 58). One delegated
+   * listener on the host covers every link here, `ProjectWorkItem`'s recursive ones included,
+   * and only a plain primary activation counts: a modified or middle click opens elsewhere, and
+   * the toggle, the page manager and its checkboxes are not destinations.
+   */
+  readonly linkSelected = output<string>();
+
+  protected onClick(event: MouseEvent): void {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+    const url = link?.getAttribute('href');
+    if (url) this.linkSelected.emit(url);
+  }
 
   pageEnabled(kind: OptionalProjectPageKind): boolean {
     // A failed native checkbox click leaves the `pages` array referentially unchanged. Read the

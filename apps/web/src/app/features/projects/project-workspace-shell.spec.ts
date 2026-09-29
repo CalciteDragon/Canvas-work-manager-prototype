@@ -19,7 +19,7 @@ import {
   type ProjectSection,
   type Task,
 } from '@cwm/contracts';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
@@ -36,6 +36,7 @@ import { TodosPage } from './pages/todos-page';
 import { ProjectCanvas } from './project-canvas';
 import { TaskListSection } from './sections/tasks/task-list-section';
 import { ShortcutFrame } from './shortcuts/shortcut-frame';
+import { ProjectPageNavigation } from './project-page-navigation';
 import { ProjectWorkspaceShell } from './project-workspace-shell';
 
 const AT = '2026-08-27T16:00:00.000Z';
@@ -613,6 +614,8 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
         addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) =>
           listeners.push(listener),
         removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
       }),
     });
     return {
@@ -669,6 +672,206 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
     } finally {
       media.restore();
     }
+  });
+
+  // Slice 58: while narrow, a chosen column link collapses the column again so the canvas it
+  // opened is not pushed under the list, and focus lands on the toggle that brings it back —
+  // the toggle that exists once any reload the selection caused has rendered.
+  describe('a narrow selection collapses the column and focuses its toggle', () => {
+    const openNarrow = async (url: string, options: Options = {}) => {
+      const opened = await open(url, options);
+      document.body.appendChild(opened.harness.fixture.nativeElement);
+      query(opened.harness, '[data-project-nav-toggle]')!.click();
+      await settle(opened.harness);
+      expect(query(opened.harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(false);
+      return opened;
+    };
+
+    const expectCollapsedWithToggleFocused = (harness: RouterTestingHarness) => {
+      expect(query(harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(true);
+      expect(document.activeElement).toBe(query(harness, '[data-project-nav-toggle]'));
+    };
+
+    /** Fails or holds one project's read; every other read answers as before. */
+    const interceptGet = (
+      gateway: FakeWorkManagerGateway,
+      projectGet: { mockRestore(): void },
+      projectId: string,
+      answer: () => Promise<void>,
+    ) => {
+      projectGet.mockRestore();
+      const real = gateway.projects.get.bind(gateway.projects);
+      vi.spyOn(gateway.projects, 'get').mockImplementation(async (id) => {
+        if (id === projectId) await answer();
+        return real(id);
+      });
+    };
+
+    let media: ReturnType<typeof stubMatchMedia> | null = null;
+    afterEach(() => {
+      media?.restore();
+      media = null;
+      document.body.replaceChildren();
+    });
+
+    it('on the same root, with no reload', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router, projectGet } = await openNarrow('/projects/project-renovation/pages/home', withTodos());
+      const gets = projectGet.mock.calls.length;
+
+      query(harness, '[data-project-page-tab][data-page-kind="todos"]')!.click();
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-renovation/pages/todos');
+      expect(projectGet.mock.calls.length).toBe(gets);
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    // `/projects/:id` and `/projects/:id/pages/:kind` are two route configs, so the router
+    // re-creates the shell between them: the request has to outlive the instance that took it.
+    it('across the two project routes, which re-create the shell', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-renovation');
+
+      query(harness, '[data-project-page-tab][data-page-kind="home"]')!.click();
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-renovation/pages/home');
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    it('on the route already current, where the router emits no navigation', async () => {
+      media = stubMatchMedia(true);
+      const { harness } = await openNarrow('/projects/project-renovation');
+
+      query(harness, '[data-project-nav-root]')!.click();
+      await settle(harness);
+
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    it('on a unit of work, after the reload has rendered a new toggle', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-renovation');
+
+      query(harness, '[data-work-project-id="project-kitchen"] > a')!.click();
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-kitchen');
+      expect(query(harness, '[data-project-name]')?.textContent).toContain('Kitchen');
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    it('on a root page tab chosen from a unit of work, which reloads too', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-kitchen');
+
+      query(harness, '[data-project-page-tab][data-page-kind="home"]')!.click();
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-renovation/pages/home');
+      expect(query(harness, '[data-project-name]')?.textContent).toContain('Home renovation');
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    it('on the heading, when the chosen project turns out to be unavailable', async () => {
+      media = stubMatchMedia(true);
+      const { harness, gateway, projectGet } = await openNarrow('/projects/project-renovation');
+      interceptGet(gateway, projectGet, 'project-garden', () =>
+        Promise.reject(new GatewayError('unreachable', 0, 'host stopped')));
+
+      query(harness, '[data-work-project-id="project-garden"] > a')!.click();
+      await settle(harness);
+
+      expect(query(harness, '[data-project-error]')).not.toBeNull();
+      expect(document.activeElement).toBe(query(harness, '#project-error-heading'));
+    });
+
+    it('on the heading, when the chosen project’s creation was undone', async () => {
+      media = stubMatchMedia(true);
+      const { harness, gateway, projectGet } = await openNarrow('/projects/project-renovation', {
+        historySummaries: [
+          projectAddSummary('project-garden', {
+            undo: null,
+            redo: projectAddEntry('operation-created', 'Created "Garden"'),
+            revision: 2,
+          }),
+        ],
+      });
+      interceptGet(gateway, projectGet, 'project-garden', () =>
+        Promise.reject(new GatewayError('not_found', 404, 'no such project')));
+
+      query(harness, '[data-work-project-id="project-garden"] > a')!.click();
+      await settle(harness);
+
+      expect(query(harness, '[data-project-creation-recovery]')).not.toBeNull();
+      expect(document.activeElement).toBe(query(harness, '#project-creation-recovery-heading'));
+    });
+
+    // `focusHistoryFragment` answers the later navigation; the column's request must not undo it.
+    it('but not after a history link wins the navigation before the load settles', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-renovation');
+
+      query(harness, '[data-work-project-id="project-kitchen"] > a')!.click();
+      await router.navigateByUrl('/projects/project-garden#history-controls');
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-garden#history-controls');
+      expect(document.activeElement).toBe(query(harness, '#history-controls'));
+    });
+
+    it('and follows §68’s fallback redirect to the toggle', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-renovation');
+      const navigation = harness.fixture.debugElement.query(By.directive(ProjectPageNavigation))
+        .componentInstance as ProjectPageNavigation;
+
+      // A tab that went stale under the person: its kind is no longer a page of this root.
+      navigation.linkSelected.emit('/projects/project-renovation/pages/nonsense');
+      await router.navigateByUrl('/projects/project-renovation/pages/nonsense');
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-renovation/pages/home');
+      expect(query(harness, '[data-page-notice]')).not.toBeNull();
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    it('only for the navigation that won, not a load it superseded', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router, gateway, projectGet } = await openNarrow('/projects/project-renovation');
+      let releaseKitchen: () => void = () => {};
+      const kitchenHeld = new Promise<void>((resolve) => (releaseKitchen = resolve));
+      interceptGet(gateway, projectGet, 'project-kitchen', () => kitchenHeld);
+
+      query(harness, '[data-work-project-id="project-kitchen"] > a')!.click();
+      // Not `settle`: the held read is a pending task, and stability would wait for it forever.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      harness.fixture.detectChanges();
+      expect(query(harness, '[data-project-loading]')).not.toBeNull();
+
+      await router.navigateByUrl('/projects/project-garden');
+      releaseKitchen();
+      await settle(harness);
+
+      expect(query(harness, '[data-project-name]')?.textContent).toContain('Garden');
+      expect(document.activeElement).not.toBe(query(harness, '[data-project-nav-toggle]'));
+    });
+
+    it('but a wide selection leaves the column open and focus where it was', async () => {
+      media = stubMatchMedia(false);
+      const { harness, router } = await open('/projects/project-renovation/pages/home', withTodos());
+      document.body.appendChild(harness.fixture.nativeElement);
+      const tab = query(harness, '[data-project-page-tab][data-page-kind="todos"]')!;
+      tab.focus();
+
+      tab.click();
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-renovation/pages/todos');
+      expect(query(harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(false);
+      expect(document.activeElement).not.toBe(query(harness, '[data-project-nav-toggle]'));
+    });
   });
 });
 
