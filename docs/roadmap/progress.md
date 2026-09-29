@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 56 | Slice 56 — Descendant history discovery | Root Todos and Archive link to each descendant owner's existing history controls | [56-descendant-history-discovery.md](active/56-descendant-history-discovery.md) |
 
 ### Planned
 
