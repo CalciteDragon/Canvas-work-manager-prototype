@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 53 | Slice 53 — Stdio expiry and durable Archive recovery | Stdio MCP proves history expiry, retained Archive recovery and Activity across restart | [53-stdio-expiry-and-durable-recovery.md](active/53-stdio-expiry-and-durable-recovery.md) |
 
 ### Planned
 
