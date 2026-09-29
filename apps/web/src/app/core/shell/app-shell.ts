@@ -148,14 +148,18 @@ export class AppShell {
     // Read now, synchronously: after the render the element may already have been removed.
     const active = this.document.activeElement;
     const inDrawer = active !== null && drawer.contains(active);
-    const onDrawerChrome = active === drawer || (active?.hasAttribute('data-shell-drawer-close') ?? false);
+    const onPhoneChrome =
+      active === drawer ||
+      (active?.hasAttribute('data-shell-drawer-close') ?? false) ||
+      (active?.hasAttribute('data-shell-menu') ?? false);
     this.drawerOpenState.set(false);
     this.narrow.set(narrow);
     if (narrow && inDrawer) {
       // The inline sidebar is about to become a hidden, inert drawer.
       this.afterRender(() => this.topBar().focusMenu());
-    } else if (!narrow && onDrawerChrome) {
-      // Close and the dialog container do not exist at desktop width; a sidebar link still does.
+    } else if (!narrow && onPhoneChrome) {
+      // Menu, Close and the dialog container do not exist at desktop width — Menu holds focus
+      // after every dismissal — but the sidebar they stood for does.
       this.afterRender(() => drawer.querySelector<HTMLElement>('[data-nav-item]')?.focus());
     }
   }

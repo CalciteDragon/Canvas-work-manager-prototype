@@ -51,6 +51,9 @@ Built in Slice 58 and exercised at 375 × 812 by touch and keyboard, in both the
 - **The failed create lost focus at every width.** The sidebar closes its form optimistically,
   removing the focused Create button. It now reopens the form and puts focus in the name input,
   which also fixes the same lost focus on desktop.
+- **Menu holds focus after every dismissal.** Real use widened the window right after Escape and
+  lost focus to the page, because Menu does not exist at desktop width. Widening now treats Menu
+  like Close.
 - **A stacked details drawer can sit below the fold.** Stacking fixes the overlap without
   changing §34's quick-create flow, but after quick create on a long list the drawer may be
   off-screen. It is not scrolled into view.
@@ -70,8 +73,8 @@ Built in Slice 58 and exercised at 375 × 812 by touch and keyboard, in both the
   create closes it and focuses `<main>`; a failed create keeps it open with the error, the
   draft and focus in the name input.
 - **Resize.** Any resize resets the drawer to closed. Widening keeps focus on a sidebar link and
-  moves it from Close or the dialog container to the first navigation item. Narrowing moves
-  focus from the sidebar to Menu.
+  moves it from Menu, Close or the dialog container, none of which exist at desktop width, to the
+  first navigation item. Narrowing moves focus from the sidebar to Menu.
 - **Project column.** While ≤60rem, a chosen page tab, root, breadcrumb or work link collapses
   the column again and focuses its toggle once any reload has settled and the URL is still the
   one chosen. If the load ends without a column, focus goes to "Project unavailable" or

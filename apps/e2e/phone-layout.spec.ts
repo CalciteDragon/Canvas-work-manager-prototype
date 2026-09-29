@@ -274,5 +274,10 @@ test.describe('across a resize', () => {
     await page.setViewportSize({ width: 375, height: 812 });
     await expectDrawerClosed(page);
     await expectFocus(page, '[data-shell-menu]');
+
+    // Menu holds focus after every dismissal, and does not exist at desktop width.
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expectInlineSidebar(page);
+    await expectFocus(page, 'a[data-nav-item][href="/app"]');
   });
 });

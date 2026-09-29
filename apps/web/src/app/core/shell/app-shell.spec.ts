@@ -317,6 +317,17 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     expect(document.activeElement).toBe(q('[data-nav-item]'));
   });
 
+  // Found in real use: Escape returns focus to Menu, and Menu does not exist at desktop width.
+  it('moves focus to the first navigation item when widening removes the Menu it was on', async () => {
+    const { q, stable } = await renderAt(true);
+    q('[data-shell-menu]')!.focus();
+
+    media!.flip(false);
+    await stable();
+
+    expect(document.activeElement).toBe(q('[data-nav-item]'));
+  });
+
   it('rescues focus from the sidebar to Menu when narrowing hides it', async () => {
     const { q, stable } = await renderAt(false);
     q('a[data-nav-item]')!.focus();

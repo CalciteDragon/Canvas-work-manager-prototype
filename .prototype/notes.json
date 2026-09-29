@@ -985,6 +985,14 @@
       "projectId": null,
       "slice": 57,
       "note": "At 375 px, quick-creating a Task List row automatically opens its details drawer. The drawer overlaps that row's Delete button and intercepted a touch tap until I closed it. The close control is available, and Delete then works; consider whether phone layout should place the drawer below the row or close it after creation. Left for the phone layout slice (Slice 46 finding 11)."
+    },
+    {
+      "id": "note-2026-09-29-005",
+      "createdAt": "2026-09-29T21:55:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 58,
+      "note": "Slice 58 real browser use on an isolated nested-projects file at 375 px and 1280 px, dark then light theme. Addresses note-2026-09-06-008 and note-2026-09-29-004. The Menu opened the sidebar as a drawer over a dimmed workspace; Tab and Shift+Tab wrapped inside it; Escape returned focus to Menu. Choosing Kitchen closed it and focused the workspace. From Kitchen, choosing the root's Todos tab reloaded, re-collapsed the column and focused its toggle. Quick-creating a Kitchen task opened its details stacked below the rows, and the row's Delete took the tap with the details still open. Friction found and fixed in this slice: widening to desktop right after Escape dropped focus to the page, because focus was on Menu and Menu does not exist at desktop width; widening now moves it to the first sidebar item. Remaining friction: on a list longer than the screen, the stacked details open below the fold after quick create, so nothing visible confirms they opened. No overflow was found on Home, Kitchen or Todos."
     }
   ]
 }
