@@ -87,6 +87,7 @@ get one.
 - [Undo and Redo follow one history per exact actor, per owning project](../../../decisions/2026-09-operation-history-scope.md) — `OperationHistoryGateway` and revision-ordered receipts
 - [The project header offers Undo and Redo of the displayed project's history](../../../decisions/2026-09-project-header-history-controls.md) — why the reporter port is core's and its default is inert
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the gateway validates the create receipt before the shell navigates
+- [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — the phone drawer, its focus rules and why its state is `AppShell`'s, not `ShellStore`'s
 
 ## Spec sections
 

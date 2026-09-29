@@ -1,4 +1,4 @@
-import { A11yModule } from '@angular/cdk/a11y';
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { DOCUMENT } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -56,7 +56,7 @@ const isPlainLinkActivation = (event: MouseEvent, within: HTMLElement): boolean 
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [A11yModule, RouterOutlet, Sidebar, TopBar],
+  imports: [CdkTrapFocus, RouterOutlet, Sidebar, TopBar],
   providers: [ShellStore],
   styleUrl: './app-shell.scss',
   templateUrl: './app-shell.html',

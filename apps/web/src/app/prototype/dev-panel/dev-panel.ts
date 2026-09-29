@@ -1,4 +1,4 @@
-import { A11yModule } from '@angular/cdk/a11y';
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, HostListener, effect, signal, viewChild, type ElementRef } from '@angular/core';
 import { DevPanelControls } from './dev-panel-controls';
 
@@ -17,7 +17,7 @@ import { DevPanelControls } from './dev-panel-controls';
 @Component({
   selector: 'app-dev-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [A11yModule, DevPanelControls],
+  imports: [CdkTrapFocus, DevPanelControls],
   styleUrl: './dev-panel.scss',
   templateUrl: './dev-panel.html',
 })

@@ -187,6 +187,13 @@ pnpm storybook                                        # :6006
   journeys check header Undo, guarded Archive opening and Restore, keyboard/touch activation,
   failure and 375 px themes. The focused web component specs drive pending, refusal, final-row
   and route-generation boundaries before those browser journeys.
+- **Phone layout** lives in `phone-layout.spec.ts`. Isolated `nested-projects` data, 375 × 812
+  with `hasTouch`/`isMobile` in both `colorScheme` values (the persona's `data-theme` is set with
+  the toggle), plus a separate non-mobile context for resize, because `isMobile` emulation does
+  not resize faithfully. Overflow is asserted on the document, on `main.workspace` and on the
+  project main track: the shell's `100vh` `<main>` scrolls internally, so a document check alone
+  misses content that overflows inside it. `row-history.spec.ts` taps Delete with the details
+  drawer open.
 - **Removal Undo acceptance** lives in `removal-undo.spec.ts`: disposable views leave both
   the canvas and Archive and return with their saved config/order; live task and reflection rows
   cascade in one gesture; independently archived rows keep their markers; an independent task

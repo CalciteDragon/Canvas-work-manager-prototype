@@ -24,8 +24,8 @@ flowchart LR
   subgraph shell["Shell"]
     as["AppShell"]
     ss["ShellStore<br/>project tree, createProject"]
-    sb["Sidebar → ProjectTreeItem"]
-    tb["TopBar"]
+    sb["Sidebar → ProjectTreeItem<br/>inline, or the drawer below 48rem"]
+    tb["TopBar<br/>Menu below 48rem"]
   end
   pgw -. implements .-> gw
   pid -. implements .-> id
@@ -92,5 +92,5 @@ sequenceDiagram
 | `PROTOTYPE_API_BASE_URL` | `core/config/prototype-config.ts` | Where the host is |
 | `PrototypeSettings`, `PrototypeFlags`, `StoredSettings` | `core/config/prototype-settings.ts` | §47 flags; delay; failure rate |
 | `ThemeService` | `core/theme/theme-service.ts` | §22 |
-| `AppShell`, `ShellStore`, `ProjectTreeNode` | `core/shell/` | §23 layout and the project tree |
-| `Sidebar`, `ProjectTreeItem`, `TopBar` | `core/shell/sidebar/`, `core/shell/top-bar/` | Presentational |
+| `AppShell`, `ShellStore`, `ProjectTreeNode`, `SHELL_NARROW_QUERY` | `core/shell/` | §23 layout and the project tree; the phone drawer's open state, focus moves and resize reset are `AppShell`'s |
+| `Sidebar`, `ProjectTreeItem`, `TopBar` | `core/shell/sidebar/`, `core/shell/top-bar/` | Presentational; `TopBar` renders the Menu and reports it, `Sidebar` refocuses its name input after a failed create |

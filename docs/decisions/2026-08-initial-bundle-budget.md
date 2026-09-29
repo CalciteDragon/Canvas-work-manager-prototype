@@ -104,3 +104,11 @@ wording load eagerly with the project header, because they are on every project 
 notice stays behind `@defer` under its new name, `SectionRecoveryNotice`, and the Reflections page no
 longer loads a notice at all. The production initial bundle measured 1024.97 kB at Slice 41 — under
 the 1050 kB error ceiling, with the 850 kB warning still reported ([decision](2026-09-project-header-history-controls.md)).
+
+**Amended, 2026-09-29 — Slice 58.** The phone navigation drawer is part of the shell, so it loads
+eagerly. Before the slice the initial bundle measured 1043.9 kB; the slice's first build measured
+1052.5 kB and failed the 1050 kB ceiling. `AppShell` and `DevPanel` now import the standalone
+`CdkTrapFocus` directive rather than all of `A11yModule`, and the build measures 1047.8 kB: under
+the ceiling by about 2 kB, with the 850 kB warning still reported. No budget was raised; the
+headroom is now small enough that the next eager feature needs the structural work above
+([decision](2026-09-phone-navigation-drawer.md)).

@@ -34,7 +34,14 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
    destination query parameters.
 5. `AppShell` provides `ShellStore`, which loads projects, derives the tree
    (`ProjectTreeNode`), and re-reads on `project.*` frames.
-6. A writer calls `reportedWrite(reporter, write, report)`: `begin()` before the request returns an
+6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes
+   `menuAvailable` to `TopBar`. Menu opens the one `app-sidebar` as a modal dialog
+   (`#shell-navigation`, CDK focus trap, Close, backdrop) and inerts the top bar and `<main>`.
+   Escape inside it, Close and the backdrop return focus to Menu; a plain activation of any link
+   in it closes it and focuses `<main>` (`tabindex="-1"`), including the route already current.
+   A resize resets it to closed, keeps or rescues focus
+   ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
+7. A writer calls `reportedWrite(reporter, write, report)`: `begin()` before the request returns an
    `OperationWriteHandle` for that one write; `committed(...)` on it with the report built from the
    response, `end()` in `finally`. Tying the commit to its own write is what lets the history ignore
    a write from before a navigation and know that this write — not another — ended uncommitted. Outside a
@@ -57,7 +64,8 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
 | `PrototypeLiveUpdates` | injectable | `EventSource` client with reconnect | [API](../../../api/injectables/PrototypeLiveUpdates.html) |
 | `PrototypeSettings`, `PrototypeFlags` | injectable / interface | §47 flags, delay, failure | [API](../../../api/injectables/PrototypeSettings.html) |
 | `ThemeService` | injectable | `data-theme` | [API](../../../api/injectables/ThemeService.html) |
-| `AppShell`, `Sidebar`, `ProjectTreeItem`, `TopBar` | components | §23 | [API](../../../api/components/AppShell.html) |
+| `AppShell`, `Sidebar`, `ProjectTreeItem`, `TopBar` | components | §23, and the phone drawer | [API](../../../api/components/AppShell.html) |
+| `SHELL_NARROW_QUERY` | constant | The drawer's breakpoint, mirrored in `app-shell.scss` and `top-bar.scss` | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_QUERY) |
 | `ShellStore`, `ProjectTreeNode` | injectable / interface | The project tree; `createProject` | [API](../../../api/injectables/ShellStore.html) |
 
 ## Dependencies
@@ -87,6 +95,9 @@ returning it. `projects.update(id, { status })` is the existing Restore write us
 - **`status: []` matches nothing**, not everything — the query-semantics rule holds on
   this side too.
 - **Theme is not in `sessionStorage`**; flags, delay and failure rate are.
+- **The drawer's state is `AppShell`'s.** `ShellStore` never learns whether it is open (§20);
+  `app-shell.spec.ts` stubs `matchMedia` and pins semantics, dismissal, route close, create
+  and resize. `inert` blocking and the real focus trap are `apps/e2e/phone-layout.spec.ts`'s.
 - **The reporter token names no feature.** `core/history` imports only contracts; the projects
   feature implements it, and a shell spec asserts the binding reaches every writer.
 
@@ -106,3 +117,9 @@ pnpm --filter web lint            # includes the token lint that covers app-shel
   control appears in `DevPanelControls`; the consumer reads the signal.
 - **The trap:** reading `localStorage` or `sessionStorage` unguarded. Both throw when
   site data is blocked; wrap every access.
+- **The phone drawer's traps:** focus moves run in `afterNextRender`, because zoneless, the
+  Menu and the `inert` attributes exist only after the next render and a synchronous
+  `focus()` does nothing. The closed drawer is hidden by the signal-bound `side--closed` class,
+  not by the media query alone: the browser applies the query before `matchMedia` reports it,
+  and hiding a focused link first drops focus before `AppShell` can rescue it. The `48rem`
+  literal lives in three places; change them together.

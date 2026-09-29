@@ -18,6 +18,12 @@
    late answer for another section. The store returns the committed result even when its quiet
    follow-up read fails; a failed write announces nothing. A fresh list containing the task
    after Undo or Restore withdraws the cue. Root Archive restores through the same gateway.
+6. The Task List section's host is a named size container, `task-list`. Narrower than `42rem`
+   (the list's working minimum plus `--layout-drawer-width`), `task-list-section.scss` stacks
+   `TaskDetailDrawer` below the rows and `task-detail-drawer.scss` drops its sticky position, so
+   the drawer cannot cover a row's Delete. A container rather than a media query, because a
+   Grid-layout section is narrow at desktop width too; the drawer is not scrolled into view
+   ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
 6. Todos does not render `TaskRow`: `TodosPageStore` serializes its own Complete and Delete
    writes, removes a task subtree optimistically and reports the task's receipt to its project.
 
@@ -55,6 +61,9 @@
 - **A stale read never paints** — the write-epoch test.
 - **Six variants, pinned by stories and `task-row.spec.ts`.**
 - **Tokens only** in `task-row.scss` and `task-detail-drawer.scss`.
+- **The `42rem` stacking literal is in two stylesheets** — `task-list-section.scss` and
+  `task-detail-drawer.scss` — and must move together; `phone-layout.spec.ts` taps Delete with
+  the drawer open.
 
 ## Commands
 

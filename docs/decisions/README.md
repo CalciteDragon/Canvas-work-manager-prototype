@@ -125,6 +125,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 | Entry | Settled | Status |
 |---|---|---|
+| [Below 48rem the global sidebar is a modal drawer, and a chosen link hands focus to what it opened](2026-09-phone-navigation-drawer.md) | Phone drawer semantics, focus after route choice and resize, project-column re-collapse, Task List details stacking | current (Slice 58) |
 | [Task Delete names its existing recovery routes](2026-09-task-delete-recovery-feedback.md) | Committed Task List and Todos Delete show archive status and point to root Archive and the owner's header history | current (Slice 57) |
 | [Descendant rows link to their owner's existing header history](2026-09-descendant-history-discovery.md) | Root Todos and Archive offer a named owner route to the existing header; focus and actor scope stay there | current (Slice 56) |
 | [Direct canvas editing is the next development direction](2026-09-direct-canvas-editing-direction.md) | Approved direction, implemented in Slice 27 | implemented in Slice 27 |

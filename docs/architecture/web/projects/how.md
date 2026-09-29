@@ -31,7 +31,13 @@ The cue holds no receipt and cannot promise the next Undo step.
    page carrying a notice in navigation state.
 2. It renders `ProjectHeader` once and `ProjectPageNavigation` in the column, then
    mounts the registry's renderer for the page through `NgComponentOutlet` with a
-   `computed()` inputs record whose callbacks are class-property arrows.
+   `computed()` inputs record whose callbacks are class-property arrows. While narrow, the
+   column's `linkSelected` collapses the column and records the link's URL in the root-scoped
+   `ProjectColumnFocusRequest`. An effect honours it once no navigation is in flight, the store
+   is not loading and §68 is not redirecting, and only if `Router.url` still equals it: then the
+   toggle — or "Project unavailable" / "Creation undone" — takes focus after the render. A §68
+   fallback redirect moves the request to its target; any other winning navigation drops it
+   ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
 3. `ProjectCanvas` provides `ProjectPageStore`, which loads the page's sections and
    shortcut placements as one combined order, renders each section inside
    `ProjectSectionFrame` with the registry's content component, and each shortcut inside
@@ -91,8 +97,9 @@ The cue holds no receipt and cannot promise the next Undo step.
    `ProjectHistoryControls` renders two icon buttons with `aria-disabled` and a guarded click (never
    `disabled`), named by `historyControl`, projected into the header's actions cell — which moves to
    its own row below 40rem so the project name keeps its width, and there both that row and the
-   Undo/Redo pair wrap, so at 375 px — beside the global sidebar, which does not collapse — the
-   controls stay inside the header box instead of overflowing beneath the sidebar (Slice 45).
+   Undo/Redo pair wrap, so at 375 px the controls stay inside the header box instead of
+   overflowing (Slice 45). Since Slice 58 the global sidebar is a drawer there, so the header has
+   the full width.
    The accessible `Undo: …` and `Redo: …` names use the server summary's captured action label;
    section rename, Rich Text prose, collapse and resize now name their edit without a browser mapper.
    `ProjectHistoryFeedback` is the always-present polite
@@ -242,3 +249,8 @@ pnpm e2e                                # project-history (header Undo/Redo), we
   specs cannot prove pointer hit-testing, touch behavior or the absence of layout shift.
 - **The trap:** a page-scoped read that answers project-wide. Every read here names its
   page; the canvas once drew another page's container because one did not.
+- **The column's focus trap:** `/projects/:projectId` and `/projects/:projectId/pages/:pageKind`
+  are two route configs, so a link between them makes the router replace the shell
+  synchronously inside `RouterLink`'s click handler. A bubbling listener on the column is gone
+  before the click reaches it, and a shell field is gone with the old instance. That is why
+  `linkSelected` is reported from a capture-phase listener and the request is root-scoped.

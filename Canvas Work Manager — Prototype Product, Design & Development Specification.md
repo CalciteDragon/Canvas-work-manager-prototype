@@ -1017,6 +1017,16 @@ column remains available on a nested work route, while the work canvas is not pr
 toggleable page. Keyboard navigation and the existing collapsed-column breakpoint were checked
 against the integrated showcase.
 
+*Corrected in Slice 58 (2026-09-29): "desktop-first" is not "desktop-only".* At phone width
+(≤ 48rem) the diagram above does not fit: the sidebar alone took two thirds of a 375 px screen.
+Below that breakpoint the same single sidebar leaves the grid and becomes a modal navigation
+drawer behind a labelled **Menu** in the top bar, with a focus trap, Close, a backdrop and Escape,
+the workspace inert behind it. Choosing a destination closes it and moves focus to the workspace;
+a resize resets it. While the project column is collapsible (≤ 60rem), choosing one of its links
+collapses it again and focuses its toggle, so the chosen canvas is not pushed under an open list.
+A 768 px tablet keeps the inline sidebar
+([why](docs/decisions/2026-09-phone-navigation-drawer.md)).
+
 ---
 
 # 24. Home Dashboard

@@ -22,7 +22,9 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
 
 - `ProjectWorkspaceShell`: both §68 project routes; resolves the page positively (root,
   navigable kind, enabled, renderable) and falls back with a notice that survives the
-  redirect; a subproject opens on its work canvas and keeps its root's column. After project
+  redirect; a subproject opens on its work canvas and keeps its root's column. While the
+  column is collapsible (≤60rem), a chosen column link collapses it again and focuses its toggle
+  once any reload has rendered (Slice 58). After project
   creation Undo it renders creator-only recovery at the original project URL; if the history read
   fails while that project is missing, the unavailable state offers a generic Retry — but not
   for a `not_found` history, which is what everyone but the creator receives.

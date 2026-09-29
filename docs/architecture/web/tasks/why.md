@@ -68,6 +68,7 @@ the date, not the time — a defect only the browser showed.
 - [Container sections own their rows](../../../decisions/2026-09-sections-own-their-data.md)
 - [What undo means for an archived row](../../../decisions/2026-09-what-undo-means-for-an-archived-row.md) — the row's Delete control (a reversible archive) and restore
 - [Task and reflection writes join operation history](../../../decisions/2026-09-row-operation-history.md) — strict task envelopes and commit boundaries
+- [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — a narrow Task List stacks its details drawer below the rows
 
 ## Spec sections
 

@@ -38,8 +38,11 @@ operation-discriminated transition result; feature stores report receipts throug
 - `PrototypeSettings`: §47's six flags, network delay and failure rate, kept in
   `sessionStorage` so the panel's own reload does not wipe them.
 - `ThemeService`: one signal, one `data-theme` attribute, session-only.
-- `AppShell`, `ShellStore`, `Sidebar`, `ProjectTreeItem`, `TopBar`: the desktop-first
-  layout and the project tree; `ShellStore.createProject` is where a root is created.
+- `AppShell`, `ShellStore`, `Sidebar`, `ProjectTreeItem`, `TopBar`: §23's layout and the
+  project tree; `ShellStore.createProject` is where a root is created. Below 48rem the same
+  sidebar instance becomes a modal navigation drawer behind the top bar's **Menu**, whose
+  open state is `AppShell`'s own signal, not the store's (Slice 58,
+  [decision](../../../decisions/2026-09-phone-navigation-drawer.md)).
 
 ## Not responsible for
 

@@ -183,6 +183,7 @@ Undo action or imply the row is the next action
 - [An existing project's writes are one action family](../../../decisions/2026-09-project-update-operation-history.md) — the project envelope every caller unwraps, and root projections re-reading on project-record frames from any root
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the same-URL recovery state and creator-only summary after Undo
 - [The project header offers Undo and Redo of the displayed project's history, and nothing else does](../../../decisions/2026-09-project-header-history-controls.md) — header-only action surface, per-step blockers, write reporting, archive stays on the project
+- [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — a narrow column choice re-collapses the column and focuses its toggle across a reload
 
 ## Spec sections
 

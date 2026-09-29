@@ -82,7 +82,8 @@ sequenceDiagram
 |---|---|---|
 | `ProjectWorkspaceShell` | `project-workspace-shell.ts` | Both routes; header and `#history-controls` focus after render; page resolution and fallback notice; breadcrumbs for a subproject; creator recovery at a missing project's URL, with a generic Retry when the summary read is unavailable for any reason but `not_found` |
 | `ProjectWorkspaceStore`, `WorkTreeNode` | `project-workspace-store.ts` | Project-level state and writes; authoritative `missing` state after a not-found read |
-| `ProjectPageNavigation`, `ProjectWorkItem` | `project-page-navigation.ts`, `project-work-item.ts` | The column and its rows |
+| `ProjectPageNavigation`, `ProjectWorkItem` | `project-page-navigation.ts`, `project-work-item.ts` | The column and its rows; `linkSelected` reports a plain link activation from a capture-phase listener |
+| `ProjectColumnFocusRequest` | `project-workspace-shell.ts` | Root-scoped: the URL of a narrow column choice until its toggle, or the rendered branch heading, can take focus |
 | `ProjectHeader`, `ProjectMoreMenu` | `project-header.ts`, `project-more-menu.ts` | Name, status, progress, target date; projection slots for the history controls and their feedback; rename/status/date/archive (Archive not offered on an archived project) |
 | `ProjectHistoryStore` | `history/project-history-store.ts` | The displayed project's summary, generation and revision guards, coalesced re-reads, per-generation pending with owed reads, one transition at a time; implements `OperationHistoryReporter` |
 | `ProjectHistoryControls`, `ProjectHistoryFeedback` | `history/project-history-controls.ts`, `history/project-history-feedback.ts` | Two `aria-disabled` icon buttons named by their step or reason, Retry when unreadable; one polite feedback line with a cross-owner Open link |
