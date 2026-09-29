@@ -24,6 +24,8 @@ every call. The protocol is never hand-implemented (§50).
 - Stdio: read `CWM_MCP_TOKEN`, reload the data file and re-authenticate before each call,
   run one call at a time within the process, keep protocol data on stdout and diagnostics on
   stderr.
+- An SDK stdio test with one injected host clock proves a removal's Undo expires while Archive
+  keeps its prose and Activity readable through restart and canonical Restore.
 - SDK clients over both transports prove failed task and Undo commits leave the canonical file,
   Activity and history unchanged; a response lost after a committed Undo is recovered by reading
   history and is refused at the old revision. HTTP additionally proves no frame for a failed

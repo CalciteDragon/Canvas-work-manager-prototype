@@ -11,6 +11,11 @@ commits for task creation and Undo, then recover a successful Undo whose respons
 The stale-revision refusal and independent history read show that one committed transition remains
 one transition across reconnection; HTTP also checks frame count and persisted state at delivery.
 
+Slice 53 adds an SDK stdio expiry journey on one isolated `agent-heavy` file. A shared injected
+clock advances beyond the removal receipt's 24-hour expiry; the refused Undo leaves settled bytes,
+history and Activity unchanged. Archive retains the exact rich-text prose through restart, and
+canonical Restore records once and remains readable after another reopen.
+
 How the prototype is verified (§69): fast offline unit and contract suites in every
 package, component specs and Storybook in the web app (including the missing-history-summary
 Retry), four acceptance scripts that run a real host (including project-creation same-file restart

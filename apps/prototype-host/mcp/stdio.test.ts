@@ -271,4 +271,145 @@ describe('MCP stdio entry (§59)', () => {
       await client.close();
     }
   }, 20_000);
+
+  it('expires a removal over SDK stdio but restores retained prose and Activity after restart', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-mcp-stdio-expiry-'));
+    temporaryDirectories.push(directory);
+    const path = join(directory, 'data.json');
+    const sidecar = join(directory, 'expiry.txt');
+    const projectId = 'project-work-manager';
+    const prose = 'The exact retained words outlive the undo window.';
+    await writeSeedFile('agent-heavy', { targetPath: path });
+    const seed = JSON.parse(await readFile(path, 'utf8')) as {
+      agentConnections: Array<{ id: string; permissions: string[]; lastUsedAt?: string }>;
+    };
+    const connection = seed.agentConnections.find(({ id }) => id === 'agent-claude')!;
+    connection.permissions = [...new Set([...connection.permissions, 'projects.write'])];
+    connection.lastUsedAt = new Date().toISOString();
+    await writeFile(path, `${JSON.stringify(seed, null, 2)}\n`);
+
+    const clockClient = async (mode: 'first' | 'reopen') => {
+      const client = new Client(
+        { name: 'slice-53-stdio-expiry', version: '0.0.0' },
+        { versionNegotiation: { mode: { pin: '2026-07-28' } } },
+      );
+      await client.connect(new StdioClientTransport({
+        command: process.execPath,
+        args: ['--import', 'tsx', join(here, 'test/clock-stdio.ts'), sidecar, mode],
+        cwd: join(here, '..'),
+        env: { ...getDefaultEnvironment(), CWM_DATA_FILE: path, CWM_MCP_TOKEN: 'prototype-user-a-readwrite' },
+        stderr: 'pipe',
+      }));
+      return client;
+    };
+    const state = async () => JSON.parse(await readFile(path, 'utf8')) as {
+      sections: Array<{ id: string; archivedAt?: string; config: { text?: string } }>;
+      operationHistories: Array<{ id: string; revision: number }>;
+      operationActions: Array<{ id: string; state: string }>;
+      activityEvents: Array<{ id: string; action: string; entityId: string; actor: string; actorAgentConnectionId?: string }>;
+      agentConnections: Array<{ id: string; lastUsedAt?: string }>;
+    };
+    const archive = async (client: Client, sectionId: string) => {
+      const result = await client.callTool({ name: 'get_project_archive', arguments: { projectId } });
+      expect(result.isError).not.toBe(true);
+      expect((result.structuredContent as { items: Array<{ section?: { id: string; config: { text?: string } } }> }).items)
+        .toContainEqual(expect.objectContaining({ section: expect.objectContaining({ id: sectionId, config: { text: prose } }) }));
+    };
+    const history = async (client: Client) => {
+      const result = await client.callTool({ name: 'get_operation_history', arguments: { projectId } });
+      expect(result.isError).not.toBe(true);
+      return result.structuredContent as { historyId: string; revision: number; undo: { actionId: string } | null };
+    };
+    const activityRead = async (eventId: string) => {
+      const api = createApi(await loadPersistence(path));
+      const events = await api.activity.list({ actor: 'user', workspaceId: 'workspace-demo', userId: 'user-demo' } as never);
+      expect(events).toContainEqual(expect.objectContaining({ id: eventId, entityId: projectId, actor: 'agent', actorAgentConnectionId: 'agent-claude' }));
+    };
+
+    let sectionId!: string;
+    let removal!: { historyId: string; actionId: string; revision: number; createdAt: string; expiresAt: string };
+    let removalEventId!: string;
+    const first = await clockClient('first');
+    try {
+      const created = await first.callTool({ name: 'create_section', arguments: { projectId, type: 'rich-text', title: 'Retained prose', config: { text: prose } } });
+      expect(created.isError).not.toBe(true);
+      sectionId = (created.structuredContent as { section: { id: string; config: { text: string } } }).section.id;
+      expect((created.structuredContent as { section: { config: { text: string } } }).section.config.text).toBe(prose);
+      const removed = await first.callTool({ name: 'remove_section', arguments: { sectionId } });
+      expect(removed.isError).not.toBe(true);
+      expect(removed.structuredContent).toMatchObject({ archiveListed: true, section: { id: sectionId, config: { text: prose } } });
+      removal = (removed.structuredContent as { operation: typeof removal }).operation;
+      expect(removal).toMatchObject({ operation: 'section.remove', expiresAt: expect.any(String) });
+      expect(Date.parse(removal.expiresAt) - Date.parse(removal.createdAt)).toBe(86_400_000);
+      const removedState = await state();
+      expect(removedState.sections.find(({ id }) => id === sectionId)?.archivedAt).toEqual(expect.any(String));
+      removalEventId = removedState.activityEvents.at(-1)!.id;
+      expect(removedState.activityEvents.at(-1)).toMatchObject({ id: removalEventId, action: 'project.section_archived', entityId: projectId, actor: 'agent', actorAgentConnectionId: 'agent-claude' });
+      await writeFile(sidecar, removal.expiresAt);
+      // The child advances only after this call has produced its pre-expiry summary.
+      expect(await history(first)).toMatchObject({ historyId: removal.historyId, revision: removal.revision,
+        undo: { actionId: removal.actionId } });
+      // Warm auth at the advanced clock, then prove another read no longer touches lastUsedAt.
+      await history(first);
+      const settled = await readFile(path, 'utf8');
+      const expired = await history(first);
+      expect(expired.undo).toBeNull();
+      expect(await readFile(path, 'utf8')).toBe(settled);
+      const baseline = await state();
+      const refused = await first.callTool({ name: 'undo_operation', arguments: {
+        historyId: removal.historyId, actionId: removal.actionId, expectedRevision: expired.revision,
+      } });
+      expect(refused.isError).toBe(true);
+      expect(refused.content).toContainEqual(expect.objectContaining({ type: 'text', text: expect.stringMatching(/^history_expired:/) }));
+      expect(refused.content).toContainEqual(expect.objectContaining({ type: 'text', text: expect.stringContaining(removal.expiresAt) }));
+      expect(await readFile(path, 'utf8')).toBe(settled);
+      const after = await state();
+      for (const key of ['sections', 'operationHistories', 'operationActions', 'activityEvents'] as const) expect(after[key]).toEqual(baseline[key]);
+      await archive(first, sectionId);
+    } finally {
+      await first.close();
+    }
+    await activityRead(removalEventId);
+
+    const second = await clockClient('reopen');
+    let restoreEventId!: string;
+    let restoreActionId!: string;
+    try {
+      await history(second); // settle authentication at the advanced clock
+      expect((await history(second)).undo).toBeNull();
+      await archive(second, sectionId);
+      expect((await state()).activityEvents.some(({ id }) => id === removalEventId)).toBe(true);
+      const before = await state();
+      const restored = await second.callTool({ name: 'restore_section', arguments: { sectionId } });
+      expect(restored.isError).not.toBe(true);
+      expect(restored.structuredContent).toMatchObject({ section: { id: sectionId, config: { text: prose } }, operation: { operation: 'section.restore' } });
+      restoreActionId = (restored.structuredContent as { operation: { actionId: string } }).operation.actionId;
+      const after = await state();
+      expect(after.sections.find(({ id }) => id === sectionId)?.archivedAt).toBeUndefined();
+      expect(after.activityEvents).toHaveLength(before.activityEvents.length + 1);
+      expect(after.operationActions.filter(({ id }) => !before.operationActions.some((old) => old.id === id)))
+        .toEqual([expect.objectContaining({ id: restoreActionId, state: 'applied' })]);
+      expect(after.operationHistories.find(({ id }) => id === removal.historyId)?.revision)
+        .toBe(before.operationHistories.find(({ id }) => id === removal.historyId)!.revision + 1);
+      restoreEventId = after.activityEvents.at(-1)!.id;
+      expect(after.activityEvents.at(-1)).toMatchObject({ id: restoreEventId, action: 'project.section_restored', entityId: projectId, actor: 'agent', actorAgentConnectionId: 'agent-claude' });
+      expect(after.operationActions.find(({ id }) => id === restoreActionId)).toMatchObject({ state: 'applied' });
+    } finally {
+      await second.close();
+    }
+    await activityRead(removalEventId);
+    await activityRead(restoreEventId);
+
+    const third = await clockClient('reopen');
+    try {
+      const final = await third.callTool({ name: 'list_sections', arguments: { projectId } });
+      expect((final.structuredContent as Array<{ id: string; config: { text?: string } }>)).toContainEqual(expect.objectContaining({ id: sectionId, config: { text: prose } }));
+      expect((await history(third)).undo?.actionId).toBe(restoreActionId);
+      expect((await state()).activityEvents.map(({ id }) => id)).toEqual(expect.arrayContaining([removalEventId, restoreEventId]));
+    } finally {
+      await third.close();
+    }
+    await activityRead(removalEventId);
+    await activityRead(restoreEventId);
+  }, 30_000);
 });

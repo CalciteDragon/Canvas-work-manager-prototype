@@ -1,4 +1,5 @@
 import { createToolRegistry, type ToolRegistry } from '@cwm/mcp-tools';
+import type { SimulatedClock } from '@cwm/domain';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,13 +25,15 @@ const registryFor = (api: ReturnType<typeof createApi>): ToolRegistry =>
     history: api.history,
   });
 
-/** Host-local composition seams for SDK transport tests; direct execution supplies neither. */
+/** Host-local composition seams for SDK transport tests; direct execution supplies none. */
 export interface StdioStartupHooks {
+  /** A test child's one moving clock, shared by startup and every per-call API. */
+  clock?: SimulatedClock;
   load?: () => Promise<Persistence>;
   afterCall?: (name: string) => void | Promise<void>;
 }
 
-/** Start the ordinary stdio server, optionally composing a test child's persistence and reply gate. */
+/** Start the ordinary stdio server, optionally composing a test child's clock, persistence and reply gate. */
 export const startStdio = async (hooks: StdioStartupHooks = {}): Promise<void> => {
   const token = process.env['CWM_MCP_TOKEN'];
   if (token === undefined || token.trim() === '') {
@@ -42,7 +45,7 @@ export const startStdio = async (hooks: StdioStartupHooks = {}): Promise<void> =
   // Definitions are stable for the connection. Calls deliberately reload below: a stdio
   // child is a second process, so its prior JsonDataStore cannot observe a permission edit or
   // revocation written by the HTTP/UI host (§53).
-  const definitions = registryFor(createApi(await load()));
+  const definitions = registryFor(createApi(await load(), { clock: hooks.clock }));
 
   // That reload gives every call its own store, and so its own write lock: two overlapping calls
   // would each read the same history revision and both commit (Slice 45, defect D2). Calls
@@ -57,7 +60,7 @@ export const startStdio = async (hooks: StdioStartupHooks = {}): Promise<void> =
     });
     await previous;
     try {
-      const api = createApi(await load());
+      const api = createApi(await load(), { clock: hooks.clock });
       const actor = await api.authenticator!.authenticate(`Bearer ${token}`);
       if (actor === null) throw new AgentAuthenticationError();
       const registry = registryFor(api);

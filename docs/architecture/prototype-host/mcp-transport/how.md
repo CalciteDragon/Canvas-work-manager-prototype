@@ -22,6 +22,11 @@ only; diagnostics to stderr.
 composes the same function with a per-call persistence loader that fails one commit, or a hook
 inside the serialized registry call immediately after a successful commit and before the result
 returns to SDK serialization. The latter closes the child so the SDK client sees a lost response.
+Another test child supplies one `SimulatedClock` to startup and each per-call `createApi`. It
+reads the exact removal receipt's expiry from a temporary sidecar after the first history read,
+advances past it, and initializes from that sidecar on reconnect. This control is not an MCP tool
+or ordinary stdio environment switch. The SDK test checks the expired refusal, retained Archive
+and ActivityService reads on the same file after each child closes, then Restore and a second reopen.
 The serialized turn is released in `finally` on both success and failure.
 
 **Authentication.** `PrototypeAgentAuthenticator` maps the token through the fixture
@@ -86,6 +91,11 @@ family read from the stored action only when the call runs. The published map is
   HTTP asserts zero frames on failed commits and one post-commit frame on success; stdio owns no
   hub. Authentication is warmed before byte baselines so its throttled `lastUsedAt` write is not
   confused with the tool call.
+- **Expiry does not erase recovery.** `stdio.test.ts` observes the removal as Undo before
+  the child advances past its receipt expiry, then `history_expired:` without a write. It
+  reopens the same file sequentially: Archive retains the exact prose, Restore records one
+  new action and Activity event, and a final reopen still reads them. Authentication is
+  settled before the refusal's byte comparison.
 - **Localhost only, both ways**: the listener binds `127.0.0.1` and the handler refuses
   foreign `Host`/`Origin`.
 - **One 401**; never a message that distinguishes causes.

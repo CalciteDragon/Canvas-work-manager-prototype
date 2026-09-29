@@ -72,7 +72,9 @@ a current read, so a race is verified against the canonical write refusal too.
     both transports, the task add → complete → rename → Delete chain with exact fields and cascade
     markers, reflection Undo and Add Redo, layout/progress Undo/Redo with a same-value null receipt,
     two transitions at one revision (one lands, one is stale) and a Restore refused under an
-    archived container; on Streamable HTTP only, Archive Restore after a removal's history expired.
+    archived container; the acceptance script's clock-driven Archive Restore after a removal's
+    history expired runs on Streamable HTTP. `mcp/stdio.test.ts` independently proves the stdio
+    expiry, Restore and same-file restart through an SDK client with an injected test clock.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) first copies the current empty seed
    to its disposable scratch file, then starts both processes,
     seeds before each spec, and runs the web, canvas editing, section edit/removal Undo, row history,
@@ -209,8 +211,9 @@ pnpm storybook                                        # :6006
   domain assertion and browser or MCP evidence for every Slice 34 coverage row. Its known limits:
   persistence and recorder faults were originally injected at the host commit boundary the MCP
   tools share (`live-updates.test.ts`); Slice 52 adds SDK transport faults in both HTTP and stdio.
-  History expiry over
-  MCP runs only on Streamable HTTP, whose host exposes `/prototype/clock`; the browser has no
+  The Slice 45 acceptance script's expiry check runs on Streamable HTTP, whose host exposes
+  `/prototype/clock`; Slice 53 covers the same boundary over SDK stdio with a test-child clock.
+  The browser has no
   reflection Delete or section Duplicate control, so those families' browser evidence is HTTP or
   MCP driven. A size check is not a reachability check: at 375 px assert that a control lies inside
   its container and the viewport, then tap it.
@@ -223,6 +226,13 @@ pnpm storybook                                        # :6006
   before serialization. Reconnect to the same file, retry the original expected revision, and
   read `get_operation_history` separately to see the next Redo action. The client must not retry
   with a fresh revision just because delivery was uncertain.
+- **Stdio expiry and durable recovery (Slice 53)** lives in `mcp/stdio.test.ts` with
+  `mcp/test/clock-stdio.ts`. The SDK client writes the exact removal receipt expiry to a
+  sidecar, reads Undo before the child advances, then reads no Undo and a typed expiry
+  refusal without a business or byte change after auth settles. It checks retained prose
+  in Archive, reads the old removal through `ActivityService` after closing each child,
+  restarts sequentially on the same file, restores once and reopens again to check the
+  section, new action and events. The test never exposes clock control as a public tool.
 - **The trap:** a test that passes before the implementation, or fails on a typo. Watch
   it fail for the right reason first. When a new acceptance assertion passes against code that
   already works, inject a temporary targeted fault, watch it fail, and revert the fault.
