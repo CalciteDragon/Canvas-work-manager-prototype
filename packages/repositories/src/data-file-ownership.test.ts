@@ -252,7 +252,7 @@ describe('acquireDataFileOwnership', () => {
       .rejects.toThrow(/^data_file_in_use: .*http-host pid 1001/);
   });
 
-  it('retries when the owner file vanishes between a failed link and the read', async () => {
+  it('retries at once, even with no wait, when the owner file vanishes between a failed link and the read', async () => {
     const { dataPath, ownerPath } = await scratch();
     await writeRecord(ownerPath, { pid: 1101, nonce: 'leaving' });
     const sleep = countingSleep();
@@ -267,10 +267,10 @@ describe('acquireDataFileOwnership', () => {
       },
     };
 
-    const ownership = await acquireDataFileOwnership(dataPath, options({ pid: 1102, waitMs: 200, sleep, fs, isAlive: alive(1101) }));
+    const ownership = await acquireDataFileOwnership(dataPath, options({ pid: 1102, waitMs: 0, sleep, fs, isAlive: alive(1101) }));
 
     expect((await readRecord(ownerPath)).nonce).toBe(ownership.record.nonce);
-    expect(sleep).toHaveBeenCalledOnce();
+    expect(sleep).not.toHaveBeenCalled();
   });
 
   it('treats an owner file absent at the reclaim re-check as a mismatch', async () => {

@@ -20,7 +20,7 @@ nothing in it survives into the MVP.
 - Hold §51's bearer tokens (`prototype-user-a-readwrite`, `-readonly`, `-revoked`) as
   fixtures beside the seeds, not as contract fields.
 - `pnpm prototype:seed <name>` / `pnpm prototype:reset`: write a seed atomically over the
-  data file. `pnpm prototype:upgrade <file>`: sniff the version, convert v2 → v3 → v4 → v5 (or start at v3/v4), validate, back up, write.
+  data file, refused with `data_file_in_use:` while a host or another writer owns it. `pnpm prototype:upgrade <file>`: sniff the version, convert v2 → v3 → v4 → v5 (or start at v3/v4), validate, back up, write.
 
 ## Not responsible for
 

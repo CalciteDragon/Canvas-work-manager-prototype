@@ -251,6 +251,7 @@ export const acquireDataFileOwnership = async (
 
   let waited = 0;
   let announced = false;
+  let vanishedOnce = false;
   /** Every retry, of any cause, sleeps and counts against the one deadline. */
   const retry = async (blocker: Read, path: string): Promise<void> => {
     if (waited + RETRY_MS > waitMs) {
@@ -267,6 +268,12 @@ export const acquireDataFileOwnership = async (
     const current = await read(ownerPath);
     if (current.state === 'absent') {
       // The owner vanished between the link and the read — or `link` refused with no owner at all.
+      // The first time, retry at once: a zero-wait command must not be refused for a race it lost
+      // by microseconds. After that, only within the deadline, so a persistent refusal ends.
+      if (!vanishedOnce) {
+        vanishedOnce = true;
+        continue;
+      }
       await retry(current, ownerPath);
       continue;
     }

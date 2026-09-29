@@ -74,8 +74,9 @@ collections, so they live in `validateDocumentIntegrity`; the contract keeps onl
 can assert ([decision](../../decisions/2026-09-operation-history-scope.md)).
 
 **One advisory owner record per data file, not a lock service.** Every writing entrypoint
-publishes `<data file>.owner` by `link` before it loads, and a second one waits a bounded time and
-is then refused with the owner named. Rejected: the documented "do not run them together" rule it
+publishes `<data file>.owner` by `link` before it loads, and a second one waits at most a bounded
+time — or not at all, for the commands and for a stdio call behind a host — and is then refused
+with the owner named. Rejected: the documented "do not run them together" rule it
 replaces, which failed silently as a lost update; OS file locks, which differ across Windows and
 POSIX and cannot say who holds the file; and reclaiming a dead record by plain unlink, which lets a
 slow reclaimer delete a fast one's fresh record

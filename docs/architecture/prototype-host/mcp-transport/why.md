@@ -40,7 +40,8 @@ and a bad habit to form for tokens that will one day be real.
 
 **Stdio reloads the document before every call.** A child process cannot see the running
 host's in-memory state, so it re-reads the file and re-authenticates each time — it
-therefore sees host-side revocations, while the host does not see its writes
+therefore sees host-side revocations, while a running host would not see its writes — which is
+why a stdio call is refused while a host owns the file (below)
 ([decision](../../../decisions/2026-08-stdio-token-and-live-auth.md)). Because every reload is
 a separate store, the process also takes calls one at a time: Slice 45 found two concurrent
 transitions at one expected revision both landing when calls overlapped. That serialization is

@@ -16,6 +16,9 @@ pnpm install
 pnpm prototype:seed agent-heavy
 ```
 
+Run the seed with the host stopped — it is refused with `data_file_in_use:` while a host owns the
+file — or use the development panel's Seed control instead.
+
 Useful fixture tokens:
 
 | Token | Connection | Grants |
@@ -441,10 +444,14 @@ data_file_in_use: C:\…\.prototype\data.json is owned by http-host pid 12345 si
 
 The stdio process stays connected, still lists its tools, and its next call after you stop the
 host succeeds and sees everything the host wrote. Use the HTTP endpoint whenever the host is
-running. Two stdio clients on one file take turns: a call behind another client's call waits up
-to 5 s. `pnpm prototype:reset`, `pnpm prototype:seed` and `pnpm prototype:upgrade` are refused the
-same way while anything owns the file, and a host started while a stdio call is in progress waits
-up to 5 s, then refuses to start. For isolated experiments, point each transport at a separate
+running. Two stdio clients on one file take turns: a call behind another client's call prints
+`canvas-work-manager stdio waiting for data file owned by stdio pid <pid>` to stderr, waits up to
+5 s, and then returns a `data_file_in_use:` tool error — retry it. `pnpm prototype:reset`,
+`pnpm prototype:seed` and `pnpm prototype:upgrade` are refused the same way while anything owns
+the file. A host started while another process owns the file prints
+`prototype-host waiting for data file owned by <kind> pid <pid>`, starts as soon as that owner lets
+go, and otherwise exits after 5 s with `prototype-host failed to start … — data_file_in_use: …` —
+which is also what a second `dev:host` on the same file does. For isolated experiments, point each transport at a separate
 `CWM_DATA_FILE`.
 
 A process that is killed outright leaves its record behind; the next process to start reclaims it
@@ -482,6 +489,11 @@ pnpm --filter @cwm/prototype-host live-acceptance
 - `403` before protocol negotiation: the Host or browser Origin is not localhost.
 - Stdio exits immediately: `CWM_MCP_TOKEN` is absent, or the configured command/path is
   wrong. Protocol data is stdout-only; diagnostics appear on stderr.
+- `data_file_owner_unavailable:`: the owner file could not be published and no owner was found
+  — a filesystem that refuses hard links, or a Windows file stuck pending deletion. Retry; if it
+  persists, check the directory is on a local NTFS or POSIX filesystem.
+- The host exits with `data_file_in_use:`: another process owns the data file — usually a second
+  host, often an orphaned `node` child of an earlier `dev:host`. Stop the named pid.
 - Tool result starts `data_file_in_use:`: another process owns the data file. The message names
   it and what to do — for `http-host`, stop the host or use its HTTP endpoint (see
   [Important file-store limitation](#important-file-store-limitation)).

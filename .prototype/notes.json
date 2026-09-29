@@ -953,6 +953,22 @@
       "projectId": "project-kitchen",
       "slice": 49,
       "note": "Slice 49 real use on an isolated nested-projects copy over HTTP MCP: agent-claude completed and undid task-kitchen-appliances, user-demo archived it through HTTP, and Redo refused with history_conflict naming the task and saying restore its previous state, then retry. The same Redo and revision remained next; after user-demo restored the task, Redo succeeded with done and completedAt. No new friction surfaced in this journey; the remaining section-label and header-blocker concerns stay in note-2026-09-28-001."
+    },
+    {
+      "id": "note-2026-09-29-001",
+      "createdAt": "2026-09-29T07:52:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 54,
+      "note": "Stopping the pnpm dev:host wrapper from a tool runner left the tsx node child (the real host) running on Windows. With Slice 54 that orphan keeps owning the data file, and stdio calls are refused naming http-host pid N — which is exactly what made the orphan easy to find and Stop-Process. Before this slice the same orphan would have silently overwritten stdio writes."
+    },
+    {
+      "id": "note-2026-09-29-002",
+      "createdAt": "2026-09-29T07:53:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 54,
+      "note": "The data_file_in_use: refusal is correct and actionable but long: two full absolute paths on one line, and the manual-escape clause starts with a lowercase \"if pid\" after a full stop. From pnpm prototype:upgrade it is also followed by several lines of pnpm ELIFECYCLE noise that bury it. Worth a shorter first sentence if operators misread it."
     }
   ]
 }

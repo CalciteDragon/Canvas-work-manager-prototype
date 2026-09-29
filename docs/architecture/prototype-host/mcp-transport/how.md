@@ -25,15 +25,16 @@ after the previous turn and before its reload, and releases after `registry.call
 `http-host` owner is not waited on (`skipWaitForKinds`): the call throws `DataFileInUseError`, and
 the SDK returns it as an `isError` result whose text starts `data_file_in_use:`, reads included,
 because authentication may write `lastUsedAt`. The process stays up, and its next call after the
-host stops succeeds. One `process.on('exit')` listener releases whatever the current turn holds,
+host stops succeeds. Every stdio wait, per-call or at start-up, prints
+`canvas-work-manager stdio waiting for data file owned by <kind> pid <pid>` to stderr. One
+`process.on('exit')` listener releases whatever the current turn holds,
 which covers a child that exits inside `afterCall`.
 
 Start-up does **not** acquire: definitions come from a plain read, so a stdio child starts and lists
 tools while a host owns the file — and the SDK client probes on a disposable sibling process first,
 which a lifetime hold would have to fight. Only a missing file is seeded under ownership; if that
 acquisition is refused because a host starting at the same moment won and seeded the file,
-start-up loads the file it wrote. Its waiting line,
-`canvas-work-manager stdio waiting for data file owned by <kind> pid <pid>`, goes to stderr.
+start-up loads the file it wrote.
 
 `startStdio` owns that startup. Direct execution calls it with no hooks. A dedicated test child
 composes the same function with a per-call persistence loader that fails one commit, or a hook

@@ -177,7 +177,8 @@ plus the todos, archive and reflections journeys the multi-page slices added.
 **Stop `pnpm dev:web` and `pnpm dev:host` first.** The suite starts its own web and host
 processes and refuses a port that is already in use, rather than silently reusing your dev
 server and destroying the workspace you were using. It runs the host against
-`.prototype/e2e-data.json`, never `.prototype/data.json`.
+`.prototype/e2e-data.json`, never `.prototype/data.json`. A leftover e2e host still owning that
+file makes `pree2e` refuse with `data_file_in_use:` naming its pid.
 
 Once, to fetch the browser:
 

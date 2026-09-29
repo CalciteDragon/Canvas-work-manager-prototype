@@ -75,8 +75,10 @@ a current read, so a race is verified against the canonical write refusal too.
     archived container; the acceptance script's clock-driven Archive Restore after a removal's
     history expired runs on Streamable HTTP. `mcp/stdio.test.ts` independently proves the stdio
     expiry, Restore and same-file restart through an SDK client with an injected test clock.
-5. `pnpm e2e` (dev servers stopped, Chromium installed once) first copies the current empty seed
-   to its disposable scratch file, then starts both processes,
+5. `pnpm e2e` (dev servers stopped, Chromium installed once) first takes the scratch file's owner
+   record and copies the current empty seed over it — refused with `data_file_in_use:` if a
+   leftover e2e host still owns `.prototype/e2e-data.json`, reclaimed if a hard-killed one left a
+   record — then starts both processes,
     seeds before each spec, and runs the web, canvas editing, section edit/removal Undo, row history,
    MCP, Todos, Archive and Reflections specs, including keyboard/touch geometry and receipt recovery.
    Slice 39's project history is exercised by `web.spec.ts` (header rename and archive each record a
@@ -238,8 +240,8 @@ pnpm storybook                                        # :6006
   `isAlive`, a counting `sleep` (the deadline is the sum of the sleeps, so no timers) and an
   injected `fs` that produces Windows codes and holds one reclaimer at a gate while another
   reclaims. `apps/prototype-host/data-file-ownership.test.ts` spawns the real host, SDK stdio
-  clients and `test/owner-child.ts` — a child that holds a given kind until told to `seed`,
-  `release` or is killed. Sequence on printed lines (`owned`, the waiting lines, `listening`),
+  clients and `test/owner-child.ts` — a child that holds a given kind, optionally writing a seed
+  under it on `seed`, until told to `release` or killed. Sequence on printed lines (`owned`, the waiting lines, `listening`),
   never on sleeps. On Windows `child.kill()` runs no handler, so assert a dead-pid record there
   and a removed file on POSIX. The SDK probes stdio on a sibling whose stderr is discarded; a test
   that must read start-up stderr uses a `StdioClientTransport` subclass, which probes in place.

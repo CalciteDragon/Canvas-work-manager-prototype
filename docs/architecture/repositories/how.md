@@ -64,11 +64,13 @@ store itself never does.
 `data-file-ownership.ts` ([decision](../../decisions/2026-09-one-writer-per-data-file.md)):
 
 1. Create the directory, then name the owner file `<realpath(dir)>/<basename>.owner`, so two
-   spellings of one path share it and different paths never do.
+   spellings of one directory share it and different paths never do. A symlinked or hard-linked
+   data file is not unified with its target.
 2. Write `{ pid, nonce, kind, acquiredAt, dataPath }` whole to `<owner>.<nonce>.tmp` and publish it
    with `link`. `EEXIST`, `EPERM` and `EBUSY` mean *occupied* — the latter two are how Windows
    reports a file pending deletion. Any other code throws `data_file_owner_unavailable:` at once.
-3. Occupied: read the record. A dead pid is reclaimed (liveness is checked first, whatever the
+3. Occupied: read the record. If it has vanished — its owner let go at that instant — retry once
+   at once, so a zero-wait command is not refused for a race it lost by microseconds. A dead pid is reclaimed (liveness is checked first, whatever the
    kind). A live owner of a kind in `skipWaitForKinds` is refused at once. Otherwise `onWait` fires
    once and the acquirer polls every 50 ms. Every retry, of any cause, counts against the one
    `waitMs` deadline.
