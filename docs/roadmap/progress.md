@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 58 | Slice 58 — Phone navigation layout | Global navigation becomes an accessible drawer at phone width; the project column and task details stay usable at 375 px | [58-phone-navigation-layout.md](active/58-phone-navigation-layout.md) |
 
 ### Planned
 
