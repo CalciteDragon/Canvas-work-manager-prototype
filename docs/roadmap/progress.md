@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 58 | Slice 58 — Phone navigation layout | Global navigation becomes an accessible drawer at phone width; the project column and task details stay usable at 375 px | [58-phone-navigation-layout.md](active/58-phone-navigation-layout.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -96,4 +94,5 @@ verification follow-ups rather than feature slices.
 | 55 | Slice 55 — Section history labels | 2026-09-29 | Section updates name the recorded edit in header Undo and Redo, with browser and domain evidence | [55-section-history-labels.md](completed/55-section-history-labels.md) |
 | 56 | Slice 56 — Descendant history discovery | 2026-09-29 | Root Todos and Archive link descendant owners to their existing header history, with focus, reload and actor-isolation evidence | [56-descendant-history-discovery.md](completed/56-descendant-history-discovery.md) |
 | 57 | Slice 57 — Task Delete recovery feedback | 2026-09-29 | Task List and Todos announce committed Delete recovery through Archive and the owning header | [57-task-delete-recovery-feedback.md](completed/57-task-delete-recovery-feedback.md) |
+| 58 | Slice 58 — Phone navigation layout | 2026-09-29 | Below 48rem the global sidebar is an accessible modal drawer; narrow project-column choices re-collapse the column and focus its toggle; narrow Task Lists stack the details drawer | [58-phone-navigation-layout.md](completed/58-phone-navigation-layout.md) |
 <!-- roadmap:end -->

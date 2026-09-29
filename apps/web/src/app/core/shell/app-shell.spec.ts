@@ -323,6 +323,22 @@ describe('AppShell — the phone navigation drawer (Slice 58)', () => {
     expect(document.activeElement).toBe(q('[data-create-project-name]'));
   });
 
+  it('reopens the form with focus after a second, identical write failure', async () => {
+    const { q, stable, openDrawer } = await renderAt(true, {
+      projects: [],
+      failOn: { 'projects.create': new GatewayError('unreachable', 0, 'the prototype host is not running') },
+    });
+    await openDrawer();
+
+    await submitCreate(q, stable);
+    q('[data-create-project-submit]')!.click();
+    await stable();
+
+    expect(q('[data-create-error]')?.textContent).toContain('not running');
+    expect(q('[data-create-project-form]')).not.toBeNull();
+    expect(document.activeElement).toBe(q('[data-create-project-name]'));
+  });
+
   it('does not reopen the drawer for an old failure when the window narrows', async () => {
     const { q, stable } = await renderAt(false, {
       projects: [],

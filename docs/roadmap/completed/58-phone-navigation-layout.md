@@ -1,4 +1,4 @@
-<!-- plan id="58" status="active" summary="Global navigation becomes an accessible drawer at phone width; the project column and task details stay usable at 375 px" -->
+<!-- completed-record id="58" closed="2026-09-29" summary="Below 48rem the global sidebar is an accessible modal drawer; narrow project-column choices re-collapse the column and focus its toggle; narrow Task Lists stack the details drawer" -->
 # Slice 58 — Phone navigation layout
 
 ## Goal
@@ -182,3 +182,95 @@ None blocking. These are the defaults, and the decision entry will record what r
   - The drawer's stacking now uses a named size container queried from both stylesheets, with no style queries.
   - The decision records that the failed-create focus rule also changes desktop behaviour.
 - **Review round 3 (2026-09-29):** The reviewer confirmed all round-2 fixes. One remaining minor gap: the shell's §68 `replaceUrl` fallback redirect would drop the URL-keyed focus request. The request now follows that redirect, and a spec case covers it. There are no further substantive findings, so the plan is ready for implementation.
+
+## Outcome
+
+**Deliverables.** Below 48rem the one `app-sidebar` is now a modal navigation drawer behind a
+labelled **Menu** ([`app-shell.ts`](../../../apps/web/src/app/core/shell/app-shell.ts),
+[`top-bar.ts`](../../../apps/web/src/app/core/shell/top-bar/top-bar.ts)). It has a dialog role
+and label, a CDK focus trap, Close and a backdrop, and the top bar and `<main>` are inert behind
+it. Escape, Close and the backdrop return focus to Menu. A link choice, including the current
+route, and a successful create close it and focus `<main>`. A failed create keeps or reopens it,
+with the draft and focus in the name input, at every width. A resize resets it and keeps or
+rescues focus.
+
+While ≤60rem, a chosen project-column link re-collapses the column and focuses its toggle once
+any reload has rendered, or the "Project unavailable" / "Creation undone" heading. A §68
+redirect carries the request; a navigation that wins elsewhere drops it
+([`project-workspace-shell.ts`](../../../apps/web/src/app/features/projects/project-workspace-shell.ts),
+[`project-page-navigation.ts`](../../../apps/web/src/app/features/projects/project-page-navigation.ts)).
+
+A Task List narrower than 42rem stacks its details drawer below the rows, unsticky, so Delete
+stays tappable ([`task-list-section.scss`](../../../apps/web/src/app/features/projects/sections/tasks/task-list-section.scss)).
+Controls meet `--size-hit-target` on coarse pointers, and the persona name is visually hidden but
+still read out. [`phone-layout.spec.ts`](../../../apps/e2e/phone-layout.spec.ts) is the browser
+evidence, and `row-history.spec.ts` no longer closes the drawer before Delete.
+
+**Deliberate choices.** The rules are in
+[the phone drawer decision](../../decisions/2026-09-phone-navigation-drawer.md). Three were
+forced by the browser rather than chosen:
+
+- **The column reports links in the capture phase.** A link between `/projects/:id` and
+  `/projects/:id/pages/:kind` makes the router replace the shell synchronously inside
+  `RouterLink`'s click handler, before a bubbling listener runs.
+- **The focus request is a root-scoped `ProjectColumnFocusRequest`, not shell state.** The shell
+  instance it would live in is destroyed by that same replacement. It clears itself on any
+  `NavigationEnd` elsewhere.
+- **The closed drawer is hidden by a signal-bound class.** Chrome applies the media query before
+  `matchMedia` reports it, so a query-only rule blurs the focused link before the shell can
+  rescue it.
+
+The URL match is exact rather than fragment-blind. A column link never has a fragment, so a
+fragment means another navigation won.
+
+**Deviations from the plan.**
+
+- **Files outside the list.** `dev-panel.ts` and `app-shell.ts` import `CdkTrapFocus` instead of
+  `A11yModule`: the slice's first build measured 1052.5 kB against the 1050 kB ceiling. The
+  budget decision is amended with 1048.5 kB, and the ceiling was not raised.
+  `project-tree-item.scss` gained the touch target. `shell-store.ts` passes a repeated
+  no-workspace refusal through `null`.
+- **Planned files unchanged.** `sidebar.html` already had the `#newName` ref, and `app.spec.ts`
+  needed no change.
+- **Real use added one rule.** Widening from a focused Menu now moves focus to the first sidebar
+  item.
+- **Diff review, three rounds, added four fixes:**
+  - The root request clears on navigation elsewhere, so it can no longer fire on a later visit.
+  - A dismissed drawer reopens when its pending create fails.
+  - An identical repeat refusal reopens the form, through `Sidebar.reopenCreate()`, because an
+    unchanged input value is not forwarded.
+  - Every phone journey runs in both themes, with touch-target, hidden-name and Archive-ready
+    assertions.
+
+**Verification.**
+
+| Check | Result |
+|---|---|
+| `pnpm test` | Green: web 856 tests, domain 802, host 284, contracts 355, repositories 191, MCP tools 173, prototype-data 122 |
+| `pnpm lint`, `pnpm docs:check` | Green |
+| `pnpm build` | Initial bundle 1048.5 kB, under the 1050 kB ceiling; the 850 kB warning still shows |
+| `pnpm --filter @cwm/e2e exec playwright test phone-layout.spec.ts row-history.spec.ts --repeat-each 2` | 34/34 |
+| `pnpm e2e` | 84/84 before the review fixes; 88/88 after them |
+
+Real use ran against an isolated `nested-projects` file. The host was started with
+`CWM_DATA_FILE`, the web app separately, and the app was used at 375 px and 1280 px in both
+themes; see `note-2026-09-29-005`. The in-app browser pane was hidden, so it neither painted nor
+dispatched `matchMedia` changes, and resize behaviour in real use rests on the Playwright context.
+No MCP change, so no MCP journey was run.
+
+**Deferred.**
+
+- A stacked details drawer below the fold after quick create is not scrolled into view. The
+  decision records this and `goals.md` lists it as known friction.
+- The persona's stored theme overrides a session toggle whenever the shell re-applies the
+  identity. This predates the slice, is outside it, and is offered as its own task.
+- Slice 46 findings 12–14 remain.
+
+**Open questions.** Whether 48rem and 42rem are the right lines is untested beyond this use.
+
+**Documentation updated.**
+
+- Architecture folders: `web/core`, `web/projects`, `web/tasks` and `testing`.
+- The new decision, plus the bundle-budget amendment, both indexed.
+- The dated §23 correction.
+- `goals.md`, Slice 46's finding 11, and `.prototype/notes.json`.
