@@ -115,7 +115,7 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   await resize.focus();
   await resize.press('ArrowLeft');
   await resize.press('Enter');
-  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Updated the Progress section');
+  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Resized the Progress section to 8 columns');
   await progress.locator('[data-section-drag-handle]').press('ArrowUp');
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Moved the Progress section');
   const brief = page.locator('[data-section-item][data-section-id="section-project-renovation-brief"]');
@@ -184,7 +184,7 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
         await expect.poll(renderedProgressIndex).toBe(originalIndex - 1);
         expect(await progressIndex()).toBe(originalIndex - 1);
       } },
-    { label: 'Updated the Progress section',
+    { label: 'Resized the Progress section to 8 columns',
       undone: async () => {
         await expect(progress).toHaveClass(/section-canvas__item--span-12/);
         expect(await progressSpan()).toBe(12);
@@ -338,14 +338,14 @@ test('6. controls are pending through a write and its re-read, and a stale tab i
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Saving a change…');
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-disabled', 'true');
   releaseRead();
-  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Updated the Progress section');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Collapsed the Progress section');
   await page.unrouteAll({ behavior: 'ignoreErrors' });
 
   // Two tabs on one history.
   const tabB = await page.context().newPage();
   try {
     await tabB.goto(`/projects/${ROOT}`);
-    await expect(historyControl(tabB, 'undo')).toHaveAttribute('aria-label', 'Undo: Updated the Progress section');
+    await expect(historyControl(tabB, 'undo')).toHaveAttribute('aria-label', 'Undo: Collapsed the Progress section');
     let open!: () => void;
     const gate = new Promise<void>((resolve) => { open = resolve; });
     // Holds tab B's summary reads at the pre-Undo revision until released; a read released after
@@ -355,8 +355,8 @@ test('6. controls are pending through a write and its re-read, and a stale tab i
       await route.continue().catch(() => undefined);
     });
 
-    await undoFromHeader(page, 'Updated the Progress section');
-    const refused = await stepFromHeader(tabB, 'undo', 'Updated the Progress section');
+    await undoFromHeader(page, 'Collapsed the Progress section');
+    const refused = await stepFromHeader(tabB, 'undo', 'Collapsed the Progress section');
     expect(refused.response.status()).toBe(409);
     expect((refused.body as unknown as { details: { reason: string } }).details.reason).toBe('history_revision_stale');
     await expect(historyFeedback(tabB)).toContainText('history changed elsewhere');

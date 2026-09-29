@@ -198,6 +198,7 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md)
 - [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md)
 - [Explicit section edits reverse only their operation's changes](../../decisions/2026-09-section-edit-undo-boundaries.md)
+- [A section update's history label names its recorded edit](../../decisions/2026-09-section-update-history-labels.md)
 - [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md)
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)
 - [Root Archive recovery guidance](../../decisions/2026-09-root-archive-recovery-guidance.md)

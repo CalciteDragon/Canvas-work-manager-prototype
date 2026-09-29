@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 55 | Slice 55 — Section history labels | Name section edits in Undo and Redo from recorded field changes | [55-section-history-labels.md](active/55-section-history-labels.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -93,4 +91,5 @@ verification follow-ups rather than feature slices.
 | 52 | Slice 52 — MCP transport failure and lost-response evidence | 2026-09-29 | Both SDK transports prove atomic failed commits and one Undo after a lost response | [52-mcp-transport-failure-evidence.md](completed/52-mcp-transport-failure-evidence.md) |
 | 53 | Slice 53 — Stdio expiry and durable Archive recovery | 2026-09-29 | SDK stdio proves 24-hour removal expiry, durable Archive Restore and Activity across restart | [53-stdio-expiry-and-durable-recovery.md](completed/53-stdio-expiry-and-durable-recovery.md) |
 | 54 | Slice 54 — One writer per data file | 2026-09-29 | Every canonical JSON writer takes turns through an advisory owner record: the host for life, stdio per call, the CLIs refuse | [54-data-file-ownership.md](completed/54-data-file-ownership.md) |
+| 55 | Slice 55 — Section history labels | 2026-09-29 | Section updates name the recorded edit in header Undo and Redo, with browser and domain evidence | [55-section-history-labels.md](completed/55-section-history-labels.md) |
 <!-- roadmap:end -->

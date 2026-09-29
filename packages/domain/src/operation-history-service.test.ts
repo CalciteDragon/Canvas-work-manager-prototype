@@ -160,7 +160,7 @@ describe('OperationHistoryService — the Stage A gate', () => {
     const end = await historyOf(harness, b);
     expect(end).toMatchObject({ cursor: start.cursor, orderHighWaterMark: start.orderHighWaterMark, revision: start.revision + 4 });
     expect(await harness.operationHistoryService.summary(harness.actor, MINE)).toMatchObject({
-      undo: { actionId: b.actionId, operation: 'section.update', label: 'Updated the A section' }, redo: null,
+      undo: { actionId: b.actionId, operation: 'section.update', label: 'Renamed the A section to B' }, redo: null,
     });
   });
 

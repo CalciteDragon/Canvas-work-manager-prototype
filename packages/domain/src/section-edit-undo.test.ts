@@ -5,10 +5,44 @@ import type { ActorContext } from './actor';
 import { actorFor, agentActorFor, buildHarness, MINE } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import { OperationHistoryService } from './operation-history-service';
-import { captureSectionUpdate } from './section-edit-undo';
+import { captureSectionUpdate, sectionUpdateLabel } from './section-edit-undo';
 import { listPlacements } from './page-placements';
 
 type Harness = ReturnType<typeof buildHarness>;
+
+describe('sectionUpdateLabel', () => {
+  const section = { type: 'rich-text', title: 'Notes', config: { text: 'Before' }, collapsed: false, columnSpan: 12 } as const;
+
+  it('names single-field edits and resolves a cleared title against the resulting name', () => {
+    expect(sectionUpdateLabel(section, { ...section, title: 'Draft' }, [{ field: 'title', before: 'Notes', after: 'Draft' }]))
+      .toBe('Renamed the Notes section to Draft');
+    expect(sectionUpdateLabel(section, { ...section, title: undefined }, [{ field: 'title', before: 'Notes', after: null }]))
+      .toBe('Renamed the Notes section to Rich Text');
+    expect(sectionUpdateLabel(section, { ...section, config: { text: 'After' } }, [{ field: 'config', before: { text: 'Before' }, after: { text: 'After' } }]))
+      .toBe('Edited prose in the Notes section');
+    expect(sectionUpdateLabel(section, { ...section, collapsed: true }, [{ field: 'collapsed', before: false, after: true }]))
+      .toBe('Collapsed the Notes section');
+    expect(sectionUpdateLabel({ ...section, collapsed: true }, section, [{ field: 'collapsed', before: true, after: false }]))
+      .toBe('Expanded the Notes section');
+    expect(sectionUpdateLabel(section, { ...section, columnSpan: 8 }, [{ field: 'columnSpan', before: 12, after: 8 }]))
+      .toBe('Resized the Notes section to 8 columns');
+  });
+
+  it('uses general wording for combined, non-prose and non-rich-text config edits', () => {
+    expect(sectionUpdateLabel(section, { ...section, config: { text: 'After', tone: 'loud' } }, [
+      { field: 'config', before: { text: 'Before' }, after: { text: 'After', tone: 'loud' } },
+    ])).toBe('Updated the Notes section');
+    expect(sectionUpdateLabel(section, { ...section, config: { tone: 'loud' } }, [
+      { field: 'config', before: { text: 'Before' }, after: { tone: 'loud' } },
+    ])).toBe('Updated the Notes section');
+    expect(sectionUpdateLabel({ ...section, type: 'progress' }, { ...section, type: 'progress', config: { text: 'After' } }, [
+      { field: 'config', before: { text: 'Before' }, after: { text: 'After' } },
+    ])).toBe('Updated the Notes section');
+    expect(sectionUpdateLabel(section, { ...section, title: 'Draft', collapsed: true }, [
+      { field: 'title', before: 'Notes', after: 'Draft' }, { field: 'collapsed', before: false, after: true },
+    ])).toBe('Updated the Notes section');
+  });
+});
 
 /** Somebody else with write access in the same workspace: their writes never enter the person's history. */
 const someoneElse = agentActorFor(0, ['projects.read', 'projects.write']);

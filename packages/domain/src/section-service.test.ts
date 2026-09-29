@@ -1,4 +1,4 @@
-import { ActivityEventShape, LiveEventSchema, ProjectSectionSchema, type ProjectId, type SectionId } from '@cwm/contracts';
+import { ActivityEventShape, LiveEventSchema, ProjectSectionSchema, type OperationReceipt, type ProjectId, type SectionId } from '@cwm/contracts';
 import { SEED_NOW } from '@cwm/prototype-data';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it } from 'vitest';
@@ -276,6 +276,38 @@ describe('SectionService and Home shortcut ordering (§27)', () => {
 });
 
 describe('SectionService.update', () => {
+  it('stores one matching receipt, action and summary per changed update, retaining labels through Undo and Redo', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'rich-text', { title: 'Notes', config: { text: 'Before' } });
+    const cases = [
+      [{ title: 'Draft' }, 'Renamed the Notes section to Draft'],
+      [{ title: null }, 'Renamed the Draft section to Rich Text'],
+      [{ config: { text: 'After' } }, 'Edited prose in the Rich Text section'],
+      [{ collapsed: true }, 'Collapsed the Rich Text section'],
+      [{ collapsed: false }, 'Expanded the Rich Text section'],
+      [{ columnSpan: 8 }, 'Resized the Rich Text section to 8 columns'],
+      [{ title: 'Plan', collapsed: true }, 'Updated the Rich Text section'],
+      [{ config: { text: 'More', tone: 'loud' } }, 'Updated the Plan section'],
+    ] as const;
+
+    let latest: OperationReceipt | null = null;
+
+    for (const [input, label] of cases) {
+      const before = await harness.operationHistoryService.summary(harness.actor, MINE);
+      const result = await harness.sectionWriteService.update(harness.actor, section.id, input);
+      const summary = await harness.operationHistoryService.summary(harness.actor, MINE);
+      expect(result.operation).toMatchObject({ label, revision: before.revision + 1 });
+      expect(summary).toMatchObject({ revision: before.revision + 1, undo: { label, actionId: result.operation?.actionId } });
+      expect((await harness.operationActions.find(result.operation!.actionId))?.label).toBe(label);
+      latest = result.operation;
+    }
+
+    if (latest === null) throw new Error('expected a section update receipt');
+    await harness.undo(harness.actor, latest);
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).redo?.label).toBe('Updated the Plan section');
+    await harness.redo(harness.actor, latest);
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).undo?.label).toBe('Updated the Plan section');
+  });
   it('changes title, columnSpan, collapsed and config independently', async () => {
     const harness = buildHarness();
     const section = await add(harness, 'rich-text', { title: 'Notes', config: { text: 'one' } });

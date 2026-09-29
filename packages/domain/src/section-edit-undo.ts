@@ -54,6 +54,31 @@ export const captureSectionMove = (input: Omit<SectionMoveUndoOperation, 'versio
 export const captureSectionUpdate = (input: Omit<SectionUpdateUndoOperation, 'version' | 'type'>): SectionUpdateUndoOperation =>
   SectionUpdateUndoOperationSchema.parse({ version: 1, type: 'section.update', ...input });
 
+/** Names a newly recorded section update from its exact normalized footprint; older labels stay stored as written. */
+export const sectionUpdateLabel = (
+  before: Pick<ProjectSection, 'type' | 'title' | 'config' | 'collapsed' | 'columnSpan'>,
+  after: Pick<ProjectSection, 'type' | 'title' | 'config' | 'collapsed' | 'columnSpan'>,
+  changes: readonly SectionFieldChange[],
+): string => {
+  const name = nameOf(before);
+  const general = `Updated the ${name} section`;
+  if (changes.length !== 1) return general;
+  const change = changes[0]!;
+  switch (change.field) {
+    case 'title': return `Renamed the ${name} section to ${nameOf(after)}`;
+    case 'collapsed': return `${change.after ? 'Collapsed' : 'Expanded'} the ${name} section`;
+    case 'columnSpan': return `Resized the ${name} section to ${change.after} columns`;
+    case 'config': {
+      if (before.type !== 'rich-text') return general;
+      const keys = new Set([...Object.keys(change.before), ...Object.keys(change.after)]);
+      const changedKeys = [...keys].filter((key) => !sameValue(change.before[key], change.after[key]));
+      return changedKeys.length === 1 && changedKeys[0] === 'text'
+        ? `Edited prose in the ${name} section`
+        : general;
+    }
+  }
+};
+
 const titleValue = (section: ProjectSection): string | null => section.title ?? null;
 
 /** Stable, editable state for the add operation; position and timestamps are intentionally absent. */

@@ -1150,6 +1150,12 @@ name keeps its width ([why](docs/decisions/2026-09-project-header-history-contro
 Slice 45:* that row and the Undo/Redo pair wrap, so the controls stay inside the header and can be
 tapped at 375 px even though the global sidebar keeps its width.
 
+*Since Slice 55,* a newly recorded section update's header label names a lone rename (including
+the resulting default after a title clear), Rich Text prose edit, collapse or expand, or resize to
+its saved column count. Mixed updates and other configuration changes use one general "Updated"
+label for their one action. Undo and Redo reuse that stored label after reload; older action labels
+are left as recorded ([why](docs/decisions/2026-09-section-update-history-labels.md)).
+
 *Landed in Slice 42.* The same header controls remain available after creation Undo: the creator's
 missing-project URL shows the captured creation action and its Redo. Undo is allowed only before
 content, children, references, field changes or another actor's history depend on the project; the

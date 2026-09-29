@@ -45,7 +45,7 @@ import { assertProjectWritable } from './project-visibility';
 import { rowsOf, writeRow, type OwnedRow } from './owned-rows';
 import { listPlacements, renumberPlacements, snapshotPlacement, type PagePlacement } from './page-placements';
 import { captureSectionRemoval, NOTHING_SETTLED, rowChangeOf, type SettledRows } from './section-removal-undo';
-import { captureSectionAdd, captureSectionMove, captureSectionUpdate, sameValue } from './section-edit-undo';
+import { captureSectionAdd, captureSectionMove, captureSectionUpdate, sameValue, sectionUpdateLabel } from './section-edit-undo';
 import { captureSectionRestore } from './section-restore-history';
 import { sectionRecoveryOf } from './section-recovery-policy';
 import type { OperationRecorder } from './operation-recorder';
@@ -855,7 +855,7 @@ export class SectionService {
     await this.record(actor, updated, 'project.section_updated', 'Updated');
     const operation = await this.dependencies.history.record(actor, {
       projectId: current.projectId,
-      label: `Updated the ${nameOf(current)} section`,
+      label: sectionUpdateLabel(current, updated, changes),
       operation: captureSectionUpdate({
         sectionId: current.id,
         projectId: current.projectId,

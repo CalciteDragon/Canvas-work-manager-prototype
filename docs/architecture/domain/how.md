@@ -39,6 +39,12 @@ before returning a root's archived items. Each canonical Restore validates again
 6. Derived read services skip step 3's writes: they read the repositories, scope by the
    actor's visible projects, drop everything under an archived ancestor, and compute.
 
+`SectionService.update` passes its normalized changed fields and before/after section to
+`sectionUpdateLabel` when it records the action. A lone title, Rich Text prose, collapse or width
+change gets a specific stored label; combined and other config changes keep general wording.
+History summaries reuse the stored label through either transition and after reload. The separate
+Activity summary still uses its existing verb.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
@@ -58,6 +64,7 @@ before returning a root's archived items. Each canonical Restore validates again
 | `OperationRecorder` | interface | Records one history action and recovers a still-outstanding removal receipt inside the caller's unit | [API](../../api/interfaces/OperationRecorder.html) |
 | `RepositoryOperationRecorder` | class | Finds or creates the actor's history, appends, discards the redo branch, prunes, returns the receipt | [API](../../api/classes/RepositoryOperationRecorder.html) |
 | `shortcutWriteLabel`, `projectWriteLabel` | functions | History labels that name the source section and the project edit (Slice 41) | [API](../../api/miscellaneous/variables.html#shortcutWriteLabel) |
+| `sectionUpdateLabel` | function | Captures an update's history wording from its normalized field footprint | [API](../../api/miscellaneous/variables.html#sectionUpdateLabel) |
 | `OperationHistoryService` | class | The caller's summary under `projects.read`; one transition under its stored family’s write grant | [API](../../api/classes/OperationHistoryService.html) |
 | `captureTaskAdd`, `revertTaskAdd`, `reapplyTaskAdd` | functions | Representative task capture and both-direction row executors; update/archive/restore follow the same seam | [API](../../api/miscellaneous/variables.html#captureTaskAdd) |
 | `captureReflectionAdd`, `revertReflectionAdd`, `reapplyReflectionAdd` | functions | Representative reflection capture and both-direction row executors | [API](../../api/miscellaneous/variables.html#captureReflectionAdd) |

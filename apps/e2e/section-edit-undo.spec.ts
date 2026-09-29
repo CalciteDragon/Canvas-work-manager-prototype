@@ -8,7 +8,7 @@ import type {
   SectionWriteResult,
 } from '@cwm/contracts';
 import { expect, test } from '@playwright/test';
-import { historyControl, historyFeedback, undoFromHeader } from './history-controls';
+import { historyControl, historyFeedback, redoFromHeader, undoFromHeader } from './history-controls';
 import { PROTOTYPE_HOST, addSection, api, connectMcp, createRoot, seed, setClock, setLayout } from './seed';
 
 const NOW = '2026-09-15T12:00:00.000Z';
@@ -129,6 +129,10 @@ test('HTTP and MCP section edits return typed receipts and restore only their ow
   expect(await orderOf(projectId, homePageId)).toEqual(originalOrder);
 
   await page.goto(`/projects/${projectId}`);
+  await expect(page.locator('app-project-header [data-history-undo]')).toHaveCount(1);
+  await expect(page.locator('app-project-header [data-history-redo]')).toHaveCount(1);
+  await expect(page.locator('[data-history-undo]')).toHaveCount(1);
+  await expect(page.locator('[data-section-canvas] [data-history-undo]')).toHaveCount(0);
   await expect(page.locator(`[data-section-item][data-section-id="${moved.id}"]`)).toBeVisible();
   await page.reload();
   await expect(page.locator(`[data-section-item][data-section-id="${moved.id}"]`)).toBeVisible();
@@ -166,25 +170,46 @@ test('canvas gestures and the Reflections page are undone from the header, and s
   await notesFrame.locator('[data-section-title-edit]').click();
   await notesFrame.locator('[data-section-name]').fill('Renamed notes');
   await notesFrame.locator('[data-section-name]').press('Enter');
-  await undoFromHeader(page, 'Updated the Undo notes section');
+  await undoFromHeader(page, 'Renamed the Undo notes section to Renamed notes');
   await expect(notesFrame.locator('[data-section-title-edit]')).toContainText('Undo notes');
+  await page.reload();
+  await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Renamed the Undo notes section to Renamed notes');
 
   await notesFrame.locator('[data-rich-text-body]').fill('Changed prose');
   await notesFrame.locator('[data-rich-text-body]').press('Tab');
-  await undoFromHeader(page, 'Updated the Undo notes section');
+  await undoFromHeader(page, 'Edited prose in the Undo notes section');
   expect((await api.get<ProjectSection[]>(`/api/projects/${projectId}/sections?pageId=${homePageId}`)).find(({ id }) => id === notes.id)?.config).toEqual({ text: 'Keep this prose' });
+  await page.reload();
+  await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Edited prose in the Undo notes section');
 
   await notesFrame.locator('[data-section-collapse]').click();
   await expect(notesFrame.locator('[data-section-collapse]')).toHaveAttribute('aria-expanded', 'false');
-  await undoFromHeader(page, 'Updated the Undo notes section');
+  await undoFromHeader(page, 'Collapsed the Undo notes section');
+  await expect(notesFrame.locator('[data-section-collapse]')).toHaveAttribute('aria-expanded', 'true');
+  await page.reload();
+  await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Collapsed the Undo notes section');
+  await notesFrame.locator('[data-section-collapse]').click();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Collapsed the Undo notes section');
+  await notesFrame.locator('[data-section-collapse]').click();
+  await undoFromHeader(page, 'Expanded the Undo notes section');
+  await expect(notesFrame.locator('[data-section-collapse]')).toHaveAttribute('aria-expanded', 'false');
+  await page.reload();
+  await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Expanded the Undo notes section');
+  await undoFromHeader(page, 'Collapsed the Undo notes section');
   await expect(notesFrame.locator('[data-section-collapse]')).toHaveAttribute('aria-expanded', 'true');
 
   const resize = notesFrame.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]');
   await resize.press('ArrowLeft');
   await resize.press('Enter');
   await expect(notesFrame).toHaveClass(/section-canvas__item--span-8/);
-  await undoFromHeader(page, 'Updated the Undo notes section');
+  await undoFromHeader(page, 'Resized the Undo notes section to 8 columns');
   await expect(notesFrame).toHaveClass(/section-canvas__item--span-12/);
+  await page.reload();
+  await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Resized the Undo notes section to 8 columns');
+  await redoFromHeader(page, 'Resized the Undo notes section to 8 columns');
+  await expect(notesFrame).toHaveClass(/section-canvas__item--span-8/);
+  await undoFromHeader(page, 'Resized the Undo notes section to 8 columns');
+  await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', 'Redo: Resized the Undo notes section to 8 columns');
 
   const moveHandle = notesFrame.locator('[data-section-drag-handle]');
   await moveHandle.press('ArrowUp');
@@ -298,7 +323,7 @@ for (const mode of ['flow', 'grid'] as const) {
     await pointerResize(page, brief, 12, 6, mode);
     await expect.poll(() => spanOf(brief)).toBe(6);
     await expect(page.locator(`[data-section-item][data-section-id="${brief}"]`)).toHaveClass(/section-canvas__item--span-6/);
-    await undoFromHeader(page, /^Undo: Updated the .+ section$/);
+    await undoFromHeader(page, 'Resized the Rich Text section to 6 columns');
     await expect.poll(() => spanOf(brief)).toBe(12);
     await page.reload();
     await expect(page.locator(`[data-section-item][data-section-id="${brief}"]`)).toHaveClass(/section-canvas__item--span-12/);
@@ -363,7 +388,7 @@ test('agent overlap refuses Undo without losing newer content', async ({ page })
   await frame.locator('[data-section-title-edit]').click();
   await frame.locator('[data-section-name]').fill('User heading');
   await frame.locator('[data-section-name]').press('Enter');
-  const label = /^Undo: Updated the .+ section$/;
+  const label = /^Undo: Renamed the Rich Text section to User heading$/;
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', label);
 
   const client = await connectMcp('prototype-user-a-readwrite', 'cwm-slice-33-overlap');

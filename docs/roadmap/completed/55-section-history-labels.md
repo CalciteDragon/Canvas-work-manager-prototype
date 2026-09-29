@@ -1,4 +1,4 @@
-<!-- plan id="55" status="active" summary="Name section edits in Undo and Redo from recorded field changes" -->
+<!-- completed-record id="55" closed="2026-09-29" summary="Section updates name the recorded edit in header Undo and Redo, with browser and domain evidence" -->
 # Slice 55 — Section history labels
 
 ## Goal
@@ -85,3 +85,15 @@ None blocking. The wording policy for a cleared title, multi-field edit and non-
 - **Initial plan (2026-09-29):** Bounded Slice 46 finding 8 to a domain label and existing header projection; listed test-first and browser evidence before implementation.
 - **Review round 1 (2026-09-29):** Added the existing domain summary and integrated browser tests that still assert generic labels. Tightened prose wording to require a text-only config change, since `config` is captured as a whole object and the current e2e fixture also changes `tone`.
 - **Review round 2 (2026-09-29):** Re-review found no remaining substantive findings across spec, boundaries, tests, acceptance or living documentation.
+- **Diff review round 1 (2026-09-29):** Three independent reviewers found no behavior or boundary defect, but found browser evidence gaps: expansion was not committed in the journey, Redo text after reload was checked only for resize, and the test did not count the header's Undo control. Added the expansion path, exact Redo assertions after reload for each named edit, and a single-header-control assertion.
+- **Diff review round 2 (2026-09-29):** The same three reviewers checked the revised diff and focused Playwright result; all prior findings were resolved and no substantive new finding remained.
+
+## Outcome
+
+**Deliverables.** `SectionService.update` now captures a label from its normalized `SectionFieldChange[]`: title rename or clear, Rich Text prose, collapse or expand, and target column width have distinct wording. Mixed changes and other configuration changes keep a truthful general label. The existing project header reads it through the server summary on Undo and Redo; older stored labels remain untouched. The domain tests verify receipts, stored actions, summary revisions, no-ops and transitions. The `nested-projects` browser journeys verify exact accessible names, the sole header controls, keyboard and pointer resize in Flow and Grid, Undo, Redo and reload.
+
+**Choices and deviations.** The [section label decision](../../decisions/2026-09-section-update-history-labels.md) keeps the mapping in the domain and calls a config edit prose only when `text` is its sole changed key. Review expanded the browser assertions beyond the initial file list's examples; no operation shape, Activity wording, grant or schema changed. The first sandboxed `pnpm test` and Playwright starts were denied Angular source and SCSS reads; rerunning those gates with filesystem access passed. No new product friction was observed in the isolated browser and HTTP journey, so `.prototype/notes.json` was not given a synthetic note.
+
+**Verification.** `pnpm test` passed across the workspace; `pnpm lint` and `pnpm docs:check` passed; the two focused Playwright files passed 16/16, and the amended section journey passed 6/6 on rerun. The built Compodoc reference was regenerated for the new public helper. No tests were skipped. This slice leaves Slice 46 findings 9–14 and the umbrella closure for their planned phases.
+
+**Documentation updated.** The spec's §26, domain `why.md` and `how.md`, web projects `how.md`, the indexed decision, and the Slice 46 ledger and goals record the current behavior and remaining work.

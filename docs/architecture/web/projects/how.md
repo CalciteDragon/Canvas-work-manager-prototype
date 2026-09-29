@@ -83,6 +83,8 @@ each option binds `[selected]`, because a `[value]` on the select runs before it
    its own row below 40rem so the project name keeps its width, and there both that row and the
    Undo/Redo pair wrap, so at 375 px — beside the global sidebar, which does not collapse — the
    controls stay inside the header box instead of overflowing beneath the sidebar (Slice 45).
+   The accessible `Undo: …` and `Redo: …` names use the server summary's captured action label;
+   section rename, Rich Text prose, collapse and resize now name their edit without a browser mapper.
    `ProjectHistoryFeedback` is the always-present polite
    region under the header's facts. `confirmArchive` stays on the project and `announce`s "X is
    archived. Undo is available here."; the More menu does not offer Archive on an archived project.
