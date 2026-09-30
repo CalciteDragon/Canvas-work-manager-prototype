@@ -29,6 +29,9 @@ importers:
 
   apps/e2e:
     devDependencies:
+      '@cwm/repositories':
+        specifier: workspace:*
+        version: link:../../packages/repositories
       '@modelcontextprotocol/client':
         specifier: ^2.0.0
         version: 2.0.0
@@ -38,6 +41,9 @@ importers:
       '@types/node':
         specifier: ^24.10.1
         version: 24.13.3
+      tsx:
+        specifier: ^4.20.6
+        version: 4.23.13
       typescript:
         specifier: ~6.0.2
         version: 6.0.3

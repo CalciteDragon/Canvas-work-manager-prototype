@@ -46,14 +46,14 @@ decisions and the roadmap — as a browsable site with search and rendered Merma
   CSS custom properties — [web](docs/architecture/web/overview.md)
 - **Host:** `apps/prototype-host` — Node/TypeScript on `127.0.0.1:4310`. Fake API + MCP
   server + fake auth + mock AI — [prototype-host](docs/architecture/prototype-host/overview.md)
-- **Persistence:** one file, `.prototype/data.json`, schema version 3. No SQLite, no
+- **Persistence:** one file, `.prototype/data.json`, schema version 5. No SQLite, no
   Postgres (§14, §80) — [repositories](docs/architecture/repositories/overview.md)
 - **Contracts:** Zod schemas in `packages/contracts`, shared by UI, API, MCP tools, tests
   and seeds (§11) — [contracts](docs/architecture/contracts/overview.md)
 - **Domain:** `packages/domain`, every rule, over repository interfaces and a `Clock` —
   [domain](docs/architecture/domain/overview.md)
 - **MCP:** official TypeScript SDK v2, protocol `2026-07-28`, Streamable HTTP at `/mcp`
-  and stdio, serving the thirty-three tools of the transport-free registry (§50, §54, §59)
+  and stdio, serving the thirty-eight tools of the transport-free registry (§50, §54, §59)
   — [mcp-tools](docs/architecture/mcp-tools/overview.md),
   [mcp-transport](docs/architecture/prototype-host/mcp-transport/overview.md)
 - **Seeds and personas:** `packages/prototype-data`, six seeds, three personas, fixture
@@ -76,7 +76,11 @@ of them is wrong even if it works.
 - Domain services depend on **domain and repository abstractions only** — repository
   interfaces, `Clock`, and where an invariant needs it, another domain service through an
   **acyclic** edge (`TaskService` and `ReflectionService` compose `SectionService` to
-  resolve a container). They must never know about HTTP, MCP, JSON adapters, or any other
+  resolve a container; the section, shortcut, page, project, task and reflection services record
+  their supported writes into the actor's operation history through the `OperationRecorder`
+  interface — `SectionShortcutService`, `ProjectPageService` and `ProjectService` hold it on the same
+  terms as the others and gain no other edge; `OperationHistoryService` composes only
+  `ActivityService`, never a section, shortcut, page, project, task or reflection service). They must never know about HTTP, MCP, JSON adapters, or any other
   infrastructure. This describes the architecture the code already enforces; it does not
   authorize a new edge.
 - MCP tools call **domain services**, never repositories directly.

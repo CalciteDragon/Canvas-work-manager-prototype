@@ -4,12 +4,12 @@
       <p class="archive-page__eyebrow">Project recovery</p>
       <h2 id="archive-page-title">Archive</h2>
       <p class="archive-page__description">
-        Archived work and live work hidden beneath an archived project stay here until you restore
-        the container that owns them.
+        Restore a listed item to reveal any independently archived work inside it. Archived whole
+        projects can be recovered from Settings.
       </p>
       @if (rootArchived()) {
         <p data-archive-root-guidance class="archive-page__description">
-          The root is archived. Use More project actions above to choose a non-archived status.
+          The root is archived. Open Settings → Archived projects to choose a status and restore it.
         </p>
       }
     </div>
@@ -23,19 +23,28 @@
   } @else if (store.error(); as error) {
     <p data-archive-error class="archive-page__error" role="alert">{{ error }}</p>
     <button data-archive-retry type="button" class="archive-page__retry" (click)="store.retry()">
-      Try again
+      Retry archive read
     </button>
   }
 
   @if (!store.loading()) {
     @if (store.items().length === 0 && store.error() === null) {
-      <p data-archive-empty class="archive-page__empty">Nothing is archived in this project.</p>
+      <p data-archive-empty class="archive-page__empty">Nothing is ready to restore in this project.</p>
     }
+  }
+
+  @defer (when !store.loading()) {
     <app-archived-region
       [items]="store.items()"
+      [rootProjectId]="projectId()"
       [restoreBlocked]="restoreBlocked()"
+      [restorePaused]="store.error() !== null"
       [restoring]="store.restoring()"
       (restoreRequested)="restore($event)"
     />
+  } @placeholder {
+    @if (!store.loading()) {
+      <p data-archive-content-loading class="archive-page__muted" role="status">Preparing archived items…</p>
+    }
   }
 </section>

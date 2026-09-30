@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 5,
   "users": [
     {
       "id": "user-demo",
@@ -160,5 +160,7 @@
   "milestones": [],
   "reflections": [],
   "activityEvents": [],
-  "agentConnections": []
+  "agentConnections": [],
+  "operationHistories": [],
+  "operationActions": []
 }

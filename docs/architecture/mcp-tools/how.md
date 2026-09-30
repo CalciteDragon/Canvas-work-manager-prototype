@@ -1,10 +1,16 @@
 # How the tool registry works
 
+`list_archived_projects` delegates to `ArchivedProjectsService.list(actor)` under
+`projects.read` alone and returns the shared workspace result. `get_project_archive` delegates
+to the ready-only root projection under its three read grants. Restoring a listed project uses
+`restore_project` with an explicit non-archived status and `projects.write`; transport handlers
+do not filter either projection.
+
 ## Runtime flow
 
 1. The host calls `createToolRegistry` once with the `WorkManagerServices` that
    `createApi` built — projects, pages, todos, archive, journal, tasks, reflections,
-   sections, shortcuts, dashboard, workspace.
+   sections, shortcuts, dashboard, workspace, undo.
 2. `registry.list()` gives the host what it publishes in `tools/list`: name, description,
    the input schema as JSON Schema, and the permission metadata under
    `_meta["local.canvas-work-manager/…"]`.
@@ -24,6 +30,95 @@ combined section/shortcut order. A position beyond the current end is clamped to
 omitting it appends. Both tools keep their declared `projects.write` permission and call the
 matching domain service, which commits the insert and renumbering together. The contract tests
 exercise each tool at a specified position under exactly that grant.
+
+## Write receipts and the history tools
+
+`create_section` returns `{ section, operation }`; `move_section` and `update_section` return the
+same envelope with `operation: null` for a normalized no-op. `move_section` targets the zero-based
+combined section/shortcut order and records one placement operation. `update_section` records
+only normalized title, config, collapse and span fields that changed. Every successful explicit
+write records one activity event and one action in the connection's own history for the section's
+project, and returns its receipt — `historyId`, `actionId`, `revision`, operation, label and
+lifetime; a container created automatically for a row gets no receipt of its own, because it joins
+that row's one action and receipt. The receipt exposes no payload.
+
+`set_project_page_enabled` returns `{ page, operation }`: a `page.add` receipt when the call created
+the record — §26's first enable — a `page.update` receipt when it moved an existing boolean, and
+`operation: null` when the page was already where the call asked it to go. Undoing a `page.add`
+removes that page again, while it is unchanged and nothing on it references it; undoing a
+`page.update` writes the boolean back and touches nothing else. The action belongs to the owning
+root's history whatever route the toggle came from. A toggle still succeeds while the project is
+archived, so Open archive stays reachable; a page **transition** does not.
+
+`update_project`, `archive_project` and `restore_project` return `{ project, operation }`: a
+`project.archive` receipt when the status entered `archived`, `project.reactivate` when it left it,
+`project.update` for every other change — completion, reparenting, layout and progress settings
+included — and `operation: null` when nothing changed, archiving an archived project included. The
+action belongs to the **subject** project's own history, even when a reparent moves it to another
+root. Its Undo writes back exactly the recorded fields after re-running the parent, cycle,
+archived-ancestry and live-child rules; an archive's Undo, a reactivation's Redo and an edit made
+while archived may run while that project is archived, but an archived ancestor still blocks.
+`create_project` returns `{ project, operation }` and records `project.add` in the created project's
+own history. Undo removes the untouched project and canonical page only after its dependency
+preflight; Redo restores the same ids. While Undo has left the project absent, only the creating
+actor can read the history summary at that id. A permanent other-actor history conflict retires the
+action before Activity is recorded; retirement emits no event or frame
+([decision](../../decisions/2026-09-project-creation-history.md)).
+
+`restore_section` returns `{ section, operation }` too, with `operation: null` for a repeat on a
+live section: Archive Restore still needs no receipt to invoke and still never expires, and
+recording it only means the same connection can take it back. `add_section_shortcut` returns
+`{ shortcut, operation }` and `remove_section_shortcut` returns
+`{ shortcutId, projectId, pageId, operation }` — there is no placement left to return — and both
+record into the **destination** root project's history, never the source's. Section duplication and
+shortcut resize, collapse and move have no tool of their own; they stay HTTP-and-domain operations,
+so the registry holds thirty-eight tools, including the workspace-scoped
+`list_archived_projects` read under `projects.read`.
+
+Task tools return `{ task, operation }` and reflection tools return `{ reflection, operation }`;
+their receipts enter the same history as section writes. Compound row Add owns an implicitly
+created container so Undo/Redo removes and restores both under the row family's one write grant.
+
+`get_operation_history` (`projects.read`) reads that connection's summary for a project: the next
+Undo and Redo actions, or `null`, each with its own step `blockedBy`, the revision and the
+project-level archived blocker; its description tells an agent which one decides a step (Slice 41). `undo_operation` and
+`redo_operation` take `{ historyId, actionId, expectedRevision }` — strict, so the
+retired `{ undoId }` form is rejected — and call `OperationHistoryService.transition` with their
+fixed direction. The result is `{ direction, actionId, result, summary }`. Their permission
+declaration maps the stored action family to `projects.write`, `tasks.write` or
+`reflections.write` — with the fourth, fifth and sixth families, a shortcut placement, an optional
+page and an existing project's own write, all naming `projects.write`; a write-only caller can chain
+from receipts and returned summaries. Four families naming one grant is why the coverage helper behind that declaration de-duplicates:
+`tools/list` must not say a caller needs one grant twice.
+
+## Removal receipts
+
+`remove_section` returns `SectionRemovalResult`: a final archived-shaped section snapshot, an
+operation receipt `undo_operation` accepts, and `archiveListed`. Disposable views and empty
+sections may be deleted; the result snapshot does not claim that the section is still stored.
+Its only input is `{ sectionId }`; it archives each live owned task or reflection with the section
+and leaves independently archived rows untouched. Policy and target fields are rejected. The
+stored history schema and executor still support reassign actions recorded before this input change.
+`archiveListed` is true only when `get_project_archive` will list the section, which is false for
+a deleted one and also for one kept solely because a shortcut or an archived row still names it. If the response is
+lost, repeating `remove_section` for that id on the same connection returns a refusal naming the
+removal's `historyId`, `actionId`, current `expectedRevision` and `expiresAt`, without another
+write — while that removal is still the connection's applied, unexpired action and no later removal
+advanced the section's generation. It does so for a hard-deleted section only after the write grant
+and workspace visibility checks. Other actors see not-found.
+
+The MCP transport carries refusal text rather than typed `details`, so every refusal message starts
+with its reason token — `section_already_removed:`, `history_not_next:`,
+`history_revision_stale:`, `history_expired:`, `history_blocked:`, `history_conflict:`,
+`history_unavailable:`, `history_retired:` — and the tool descriptions list them with the recovery
+path. A replayed call whose first attempt landed refuses `history_revision_stale:`, and
+`get_operation_history` then shows the revision advanced. Conflict text includes current names with
+ids and each typed repair in words, capped at five with the remainder counted. A retiring action
+describes current blockers without promising a retry; its refreshed summary points to the next step.
+Blocked text names the blocking project. A history belonging to another
+connection, even of the same person, is not found. `contract.test.ts` pins the minimal grants, the
+ordered chain, receipt recovery and scope; the host's `handler.test.ts` pins the messages, the
+chain and revocation over the real transport.
 
 ## Key symbols
 
@@ -65,6 +160,10 @@ exercise each tool at a specified position under exactly that grant.
   "still there" assertion having done nothing.
 - **Foreign ids are not found, not forbidden**: the harness injects a foreign-workspace
   project because `agent-heavy` has none, so the branch is really tested.
+- **`get_project_archive` returns the domain projection unchanged.** Its description tells an
+  agent that section entries are content-only, what `contentCount` and `cascadeCount` mean, and
+  that a zero-cascade container is restored before its own archived rows; its contract case
+  seeds a removed view, removed prose and a cascaded container so the metadata is observed.
 - **The list is public**: `list()` is not filtered by grant; a client sees every tool and
   the metadata says what each needs.
 

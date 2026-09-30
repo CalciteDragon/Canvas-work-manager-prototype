@@ -1,3 +1,10 @@
+// Block and full height: inside the shell's drawer wrapper this is no longer a grid item, and
+// `.sidebar`'s own height and scroll depend on a definite height above it (Slice 58).
+:host {
+  display: block;
+  height: 100%;
+}
+
 .sidebar {
   display: flex;
   flex-direction: column;
@@ -130,4 +137,17 @@ hr {
   margin: 0;
   border: 0;
   border-block-start: var(--border-hairline) solid var(--color-border);
+}
+
+// Touch-sized destinations, at every width a coarse pointer is used (Slice 58).
+@media (hover: none), (any-pointer: coarse) {
+  [data-nav-item],
+  .group__new,
+  .create-project__submit {
+    min-height: var(--size-hit-target);
+  }
+
+  .group__new {
+    min-width: var(--size-hit-target);
+  }
 }

@@ -16,7 +16,7 @@ import {
 import { nameOf, type ProjectSection, type SectionConfig, type SectionId } from '@cwm/contracts';
 import type { SectionContentInputs } from '../section-contract';
 import type { SectionDefinition } from '../registry';
-import { CanvasIcon } from '../../canvas-chrome/canvas-icon';
+import { Icon } from '../../../../shared/components/icon/icon';
 import { moveDirectionFor } from '../../canvas-chrome/move-keys';
 
 /**
@@ -26,7 +26,7 @@ import { moveDirectionFor } from '../../canvas-chrome/move-keys';
 @Component({
   selector: 'app-project-section-frame',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CdkDragHandle, NgComponentOutlet, CanvasIcon],
+  imports: [CdkDragHandle, NgComponentOutlet, Icon],
   templateUrl: './project-section-frame.html',
   styleUrl: './project-section-frame.scss',
 })
@@ -35,6 +35,7 @@ export class ProjectSectionFrame {
   readonly definition = input.required<SectionDefinition>();
   readonly movePending = input(false);
   readonly moveAllowed = input(true);
+  readonly removalPending = input(false);
   readonly projectDataRevision = input.required<number>();
   readonly projectHierarchyRevision = input.required<number>();
   /**
@@ -87,6 +88,10 @@ export class ProjectSectionFrame {
 
   toggleCollapsed(): void {
     this.collapseToggled.emit({ id: this.section().id, collapsed: !this.effectiveCollapsed() });
+  }
+
+  requestRemoval(): void {
+    if (!this.removalPending()) this.removeRequested.emit(this.section().id);
   }
 
   toggleConfig(): void {

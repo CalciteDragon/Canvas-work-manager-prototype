@@ -50,3 +50,9 @@ compose, this entry held, and `summary` is kept as the human-readable line in `d
 that §14 says people open by hand. Nothing in `apps/web` reads it, and a domain test now
 pins both facts at once: the frozen summary naming a task's old title while the resolved
 `entityTitle` names its new one.
+
+**Amended, 2026-09-18 — Slice 36.** `summary` remains the frozen, caller-written log line, but the
+event now also captures a structured historical `context` — target kind, id and label, plus owning
+project and root when applicable. That context lets the audit line survive creation Undo after its
+task or reflection is gone; it does not replace `summary` or become executable history data
+([decision](2026-09-historical-activity-identity.md)).

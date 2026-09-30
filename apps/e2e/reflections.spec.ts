@@ -1,6 +1,7 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { expect, test } from '@playwright/test';
-import { PROTOTYPE_HOST, seed, setClock } from './seed';
+import type { WorkspaceId } from '@cwm/contracts';
+import { PROTOTYPE_HOST, createProject, seed, setClock, setPageEnabled } from './seed';
 
 const READWRITE = 'prototype-user-a-readwrite';
 const READONLY = 'prototype-user-a-readonly';
@@ -25,6 +26,12 @@ const apiAs = async <T>(user: string, method: string, path: string, body?: unkno
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 };
 
+const addTask = async (body: Record<string, unknown>): Promise<{ id: string }> =>
+  (await api<{ task: { id: string } }>('POST', '/api/tasks', body)).task;
+
+const addTaskAs = async (user: string, body: Record<string, unknown>): Promise<{ id: string }> =>
+  (await apiAs<{ task: { id: string } }>(user, 'POST', '/api/tasks', body)).task;
+
 const expectStatus = async (user: string, method: string, path: string, status: number, body: unknown) => {
   const response = await rawApi(user, method, path, body);
   expect(response.status).toBe(status);
@@ -42,46 +49,50 @@ test('completed work can receive retained reflections across the root journal, H
   await seed('agent-heavy');
   await setClock('2026-09-15T12:00:00.000Z');
 
-  const workspace = await api<{ workspace: { id: string } }>('GET', '/api/me');
-  const root = await api<{ id: string }>('POST', '/api/projects', {
+  const workspace = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+  const root = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'root',
     name: 'Reflection journey',
   });
-  const reflectionsPage = await api<{ id: string }>('PATCH', `/api/projects/${root.id}/pages/reflections`, { enabled: true });
-  await api('PATCH', `/api/projects/${root.id}/pages/todos`, { enabled: true });
-  const homeContainer = await api<{ id: string }>('POST', `/api/projects/${root.id}/sections`, {
+  const reflectionsPage = await setPageEnabled(root.id, 'reflections', true);
+  await setPageEnabled(root.id, 'todos', true);
+  const homeContainerResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, {
     type: 'reflections',
     title: 'Home journal',
   });
-  const child = await api<{ id: string }>('POST', '/api/projects', {
+  const homeContainer = homeContainerResult.section;
+  const child = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'subproject',
     parentProjectId: root.id,
     name: 'Launch',
   });
-  const grandchild = await api<{ id: string }>('POST', '/api/projects', {
+  const grandchild = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'subproject',
     parentProjectId: child.id,
     name: 'Release',
   });
-  const childTasks = await api<{ id: string }>('POST', `/api/projects/${child.id}/sections`, { type: 'task-list', title: 'Launch tasks' });
-  const grandchildReflections = await api<{ id: string }>('POST', `/api/projects/${grandchild.id}/sections`, {
+  const childTasksResult = await api<{ section: { id: string } }>('POST', `/api/projects/${child.id}/sections`, { type: 'task-list', title: 'Launch tasks' });
+  const childTasks = childTasksResult.section;
+  const grandchildReflectionsResult = await api<{ section: { id: string } }>('POST', `/api/projects/${grandchild.id}/sections`, {
     type: 'reflections',
     title: 'Release journal',
   });
-  const pageContainer = await api<{ id: string }>('POST', `/api/projects/${root.id}/sections`, {
+  const grandchildReflections = grandchildReflectionsResult.section;
+  const pageContainerResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, {
     type: 'reflections',
     pageId: reflectionsPage.id,
     title: 'Page journal',
   });
-  const firstTask = await api<{ id: string }>('POST', '/api/tasks', {
+  const pageContainer = pageContainerResult.section;
+  const firstTask = await addTask({
     projectId: child.id,
     sectionId: childTasks.id,
     title: 'Ship the release',
   });
-  const secondTask = await api<{ id: string }>('POST', '/api/tasks', {
+  const secondTask = await addTask({
     projectId: child.id,
     sectionId: childTasks.id,
     title: 'Write the handoff',
@@ -102,22 +113,22 @@ test('completed work can receive retained reflections across the root journal, H
 
   // A foreign completed task and a completed task under a different root are controls for the
   // picker and subject boundary. They never become candidates for this root.
-  const otherRoot = await api<{ id: string }>('POST', '/api/projects', {
+  const otherRoot = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'root',
     name: 'Other root',
   });
-  const otherTask = await api<{ id: string }>('POST', '/api/tasks', {
+  const otherTask = await addTask({
     projectId: otherRoot.id,
     title: 'Other root task',
     status: 'done',
   });
-  const foreignRoot = await apiAs<{ id: string }>('user-alex', 'POST', '/api/projects', {
-    workspaceId: 'workspace-alex',
+  const foreignRoot = await createProject({
+    workspaceId: 'workspace-alex' as WorkspaceId,
     kind: 'root',
     name: 'Foreign root',
-  });
-  const foreignTask = await apiAs<{ id: string }>('user-alex', 'POST', '/api/tasks', {
+  }, 'user-alex');
+  const foreignTask = await addTaskAs('user-alex', {
     projectId: foreignRoot.id,
     title: 'Foreign completed task',
     status: 'done',
@@ -212,11 +223,11 @@ test('completed work can receive retained reflections across the root journal, H
   });
   expect((await api<{ items: unknown[] }>('GET', `/api/projects/${root.id}/journal`)).items).toHaveLength(journalCountBeforeRefusals);
 
-  await api('PATCH', `/api/projects/${root.id}/pages/reflections`, { enabled: false });
+  await setPageEnabled(root.id, 'reflections', false);
   await page.goto(`/projects/${root.id}/pages/reflections`);
   await expect(page).toHaveURL(new RegExp(`/projects/${root.id}/pages/home$`));
   await expect(page.locator('[data-page-notice]')).toContainText('switched off');
-  await api('PATCH', `/api/projects/${root.id}/pages/reflections`, { enabled: true });
+  await setPageEnabled(root.id, 'reflections', true);
   await page.goto(`/projects/${root.id}/pages/reflections`);
   await expect(page.locator('[data-reflections-entry]')).toHaveCount(4);
 
@@ -230,13 +241,13 @@ test('completed work can receive retained reflections across the root journal, H
   await page.reload();
   await streamOpen;
 
-  const pageOnlyRoot = await api<{ id: string }>('POST', '/api/projects', {
+  const pageOnlyRoot = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'root',
     name: 'Page-only MCP root',
   });
-  const pageOnlyReflections = await api<{ id: string }>('PATCH', `/api/projects/${pageOnlyRoot.id}/pages/reflections`, { enabled: true });
-  const pageOnlyTask = await api<{ id: string }>('POST', '/api/tasks', {
+  const pageOnlyReflections = await setPageEnabled(pageOnlyRoot.id, 'reflections', true);
+  const pageOnlyTask = await addTask({
     projectId: pageOnlyRoot.id,
     title: 'Page-only completed work',
     status: 'done',
@@ -257,7 +268,7 @@ test('completed work can receive retained reflections across the root journal, H
       },
     });
     expect(created.isError).not.toBe(true);
-    const stored = created.structuredContent as { id: string; subject?: { id: string; name?: string } };
+    const stored = (created.structuredContent as { reflection: { id: string; subject?: { id: string; name?: string } } }).reflection;
     expect(stored.subject).toEqual({ kind: 'task', id: secondTask.id });
     expect(stored.subject?.name).toBeUndefined();
 

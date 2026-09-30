@@ -1,5 +1,9 @@
 # Domain
 
+`restoreEligibility` computes current structural readiness for the root Archive and workspace
+archived-project reads. `ArchivedProjectsService` lists archived roots and subprojects with live
+ancestors under `projects.read`; `ProjectArchiveService` lists highest ready owners within one root.
+
 `@cwm/domain` is the product's rules as code (§12): what a project, page, section, task,
 shortcut and reflection may do, who may do it, what each operation records, and what the
 derived pages — dashboard, progress, timeline, todos, archive, journal — compute. Every
@@ -20,13 +24,33 @@ service through an acyclic edge. They never know about HTTP, MCP, JSON or seeds.
 - **Rules.** Project kinds, nesting and archive; page ownership of sections; container
   ownership of rows; the resolution of where a write lands when nobody said (§27); task
   status transitions and `completedAt`; archive cascades and exact restore; the
-  archived-ancestor rule; reflection subjects.
+  archived-ancestor rule; reflection subjects. Removing a section archives its live owned rows
+  in one step; independently archived rows keep their own markers. Ordinary task moves remain
+  separate task writes, and historical reassign actions remain executable.
 - **Activity.** One `ActivityEvent` per state-changing operation, with the actor, through
   `ActivityService.record` — which is also where a live frame is published, after commit.
+- **Undo and Redo.** Section add (duplication included), move, settings, removal and Archive
+  Restore; task and reflection create, update, archive and restore; the four Home shortcut
+  placement writes; the optional-page toggle; project creation; and every changed update, archive
+  or reactivation of an existing project each record one action into the acting actor's
+  per-project operation history through `OperationRecorder`, in their caller-owned unit, and return
+  an operation receipt. A placement's action belongs to the **destination** root project, never the
+  source sub-project; a page's belongs to its owning root, whatever route the toggle came from.
+  Undoing the enable that created an optional page removes that page, after proving nothing on it
+  references it; every later toggle reverses one boolean and touches nothing else. A project's
+  action belongs to that project's **own** history, even when a reparent changes its root; its
+  creation belongs to the created project's own history and its inverse removes only an untouched
+  project with no dependents; update inverses write back exactly the recorded fields after re-running the parent, cycle,
+  archived-ancestry and live-child rules. `OperationHistoryService` reads the
+  caller's summary — each entry carrying its own `blockedBy` from the same `transitionBlocker` a
+  transition runs (Slice 41) — and runs the next action in either direction — applied-state conflict checks,
+  combined-neighbour placement, verbatim reapply, typed refusals and retirement of permanently
+  unsatisfiable actions — never overwriting later writes. `operation-history.ts` is the pure
+  cursor state machine. An implicit container joins its row creation in the same action and event; completion is a task update.
 - **Time.** All timestamps come from the injected `Clock`. `new Date()` is banned here by
   lint.
 - **Derived reads.** The dashboard, progress, timeline, workspace search, upcoming work,
-  the Todos chronology, the Archive projection and the journal feed, each computed from
+  the Todos chronology, the content-oriented Archive projection and the journal feed, each computed from
   canonical records on demand — never stored.
 - **The AI seam.** `AIProvider` is an interface here; the deterministic
   `PrototypeAIProvider` composes text from counts the caller already derived (§43).

@@ -1,8 +1,9 @@
 # MCP setup
 
-Canvas Work Manager serves the same thirty-three tools over Streamable HTTP and stdio (§59) —
-§54's fourteen, the four section tools the canvas needs, §54's three page tools, Slice 25.4's
-three shortcut tools, Slice 25.6's eight archive/recovery tools, and Slice 25.7's journal tool.
+Canvas Work Manager serves the same thirty-eight tools over Streamable HTTP and stdio (§59) —
+§54's fourteen, the five section-edit/removal tools the canvas needs, §54's three page tools, Slice 25.4's
+three shortcut tools, Slice 25.6's eight archive/recovery tools, Slice 25.7's journal tool, and
+Slices 35–36's history tools `get_operation_history`, `undo_operation` and `redo_operation`.
 Both use the fake local credentials from the `agent-heavy` seed; they have no security value
 and the HTTP host binds only to `127.0.0.1`.
 
@@ -14,6 +15,9 @@ From the repository root:
 pnpm install
 pnpm prototype:seed agent-heavy
 ```
+
+Run the seed with the host stopped — it is refused with `data_file_in_use:` while a host owns the
+file — or use the development panel's Seed control instead.
 
 Useful fixture tokens:
 
@@ -140,6 +144,17 @@ section-bearing pages it includes the sections there. Omit `position` to append,
 beyond the current end to insert at the end. For example, `position: 0` inserts before the first
 placement. The insertion and renumbering happen as one `projects.write` operation.
 
+`move_section` uses the same combined order and returns `{ section, operation }`; `update_section`
+returns that envelope for title, config, collapse and span changes. An unchanged update, or a move
+clamped to the section's current position, returns the current section with `operation: null` and
+records nothing to undo. Every other section write records one action in **your connection's own
+history for that project** and returns its receipt `{ historyId, actionId, operation, revision,
+label, createdAt, expiresAt }`; see [Undo and Redo](#undo-and-redo). Add Undo removes only the
+created section, move Undo restores its surviving neighbours, and update Undo restores only the
+fields recorded by that update; Redo reapplies exactly what the write did. Receipts carry ids and a
+revision, not inverse data. Automatic Reflections/Tasks container creation is intentionally
+receipt-free.
+
 ### Say which kind of project, and which page
 
 `create_project` takes a required `kind`. A **root** is a workspace: it starts with a Home page
@@ -148,10 +163,81 @@ one work canvas, requires `parentProjectId`, and has no pages to configure — n
 depth. A root naming a parent, or a subproject without one, is refused rather than reinterpreted,
 so a call that means one of the two cannot quietly produce the other.
 
+Creation returns `{ project, operation }`; the receipt is the first `project.add` action in that
+project's history. For a root, its canonical page is Home; for a subproject, it is Work. Undo removes
+the project and page only while both are unchanged and nothing refers to them, and Redo recreates
+the same ids:
+
+```jsonc
+{ "project": { "id": "project-…", "kind": "root", "name": "Launch plan", "…": "…" },
+  "operation": { "historyId": "history-…", "actionId": "operation-…", "operation": "project.add",
+                 "revision": 1, "label": "Created \"Launch plan\"", "…": "…" } }
+```
+
 `list_project_pages` shows what a project owns, including a page that is switched off; a disabled
 page keeps its sections and everything referring to them and is simply not navigation.
 `set_project_page_enabled` turns one of a root's optional three on or off, and the first enable
 is what creates it. Home cannot be disabled.
+
+It answers `{ page, operation }`. Which receipt you get says which write happened:
+
+```jsonc
+// First enable — the call that created the record.
+{ "page": { "id": "projectPage-4f1c9a2e", "kind": "reflections", "enabled": true, "…": "…" },
+  "operation": { "historyId": "history-b7d30e51", "actionId": "operation-9a6e2c14", "operation": "page.add",
+                 "revision": 1, "label": "Enabled the reflections page", "…": "…" } }
+
+// A later toggle — the record already existed, so only the switch moved.
+{ "page": { "id": "projectPage-4f1c9a2e", "enabled": false, "…": "…" },
+  "operation": { "operation": "page.update", "label": "Disabled the reflections page", "…": "…" } }
+
+// Already where you asked: nothing was written, so there is nothing to undo.
+{ "page": { "id": "projectPage-4f1c9a2e", "enabled": false, "…": "…" }, "operation": null }
+```
+
+Undoing a `page.add` **removes** the page it created — the same id, and only while the record is
+unchanged and nothing on it refers to it; a section on the page, live or archived, or a shortcut
+placement, refuses the whole call and tells you to remove that reference first. Redo brings the same
+page id back. Undoing a `page.update` writes the switch back and touches nothing else, so sections,
+rows and layout survive both directions. A toggle still works while the project is archived, because
+§31 keeps Open archive reachable; undoing one does not — the transition answers
+`history_blocked:` until the project is reactivated.
+
+`update_project`, `archive_project` and `restore_project` answer `{ project, operation }` too. The
+receipt says how the status moved, and it belongs to **that project's** own history — a
+sub-project's, not its root's, even when the call moved it to another root:
+
+```jsonc
+// A rename, a completion, a move or a layout/progress change. The label names the edit:
+// Renamed "Kitchen" to "Kitchen remodel", Completed "Kitchen", Moved "Kitchen" under Garden, or
+// Edited "Kitchen" when one call changed several things.
+{ "project": { "id": "project-kitchen", "name": "Kitchen remodel", "…": "…" },
+  "operation": { "historyId": "history-5d0c2a91", "actionId": "operation-31e8b7f0", "operation": "project.update",
+                 "revision": 1, "label": "Renamed \"Kitchen\" to \"Kitchen remodel\"", "…": "…" } }
+
+// archive_project, or a status that entered archived.
+{ "project": { "status": "archived", "…": "…" }, "operation": { "operation": "project.archive", "…": "…" } }
+
+// restore_project, or any status that left archived.
+{ "project": { "status": "active", "…": "…" }, "operation": { "operation": "project.reactivate", "…": "…" } }
+
+// Nothing changed — archiving an archived project, or setting what is already there.
+{ "project": { "…": "…" }, "operation": null }
+```
+
+Undo writes back exactly the fields that call changed, completion time included, and leaves any other
+field someone changed since alone; a later change to one of the same fields refuses. Reversing a move
+re-checks the destination the way a new move would: it must still exist, must not sit beneath the
+project, and must not be under anything archived. Redoing an archive — or undoing a reactivation —
+refuses while the project has a live sub-project, because archiving never cascades. One narrow
+exception to the archive freeze applies here and nowhere else: a project's **own** archive can be
+undone, its reactivation redone, and an edit made while it was archived undone or redone, while that
+same project is archived — but an archived **ancestor** still answers `history_blocked:`.
+`get_operation_history`'s top-level `blockedBy` still names the archived project; the entry's own
+`blockedBy` is what says whether that one step may run (`null` for the archive's own Undo). `restore_project` itself needs
+no receipt, however long ago the project was archived. `create_project` records and returns its
+`project.add` receipt in `{ project, operation }`; after Undo, only its creator can read the history
+summary at the absent project's id and Redo from that summary.
 
 ### Todos
 
@@ -168,17 +254,119 @@ chronology neither creates the Todos page nor depends on it being switched on.
 
 ### Archive
 
-Slice 25.6 adds `get_project_archive` (`projects.read`, `tasks.read` and `reflections.read`):
-the root-wide recovery projection across archived and effectively hidden subprojects, sections,
-tasks and reflections. Each item carries its owning project/page/container breadcrumb, archive
-cause, and the current blocker or canonical restore operation. It remains queryable when the
-Archive page is disabled and does not create the page.
+`get_project_archive` (`projects.read`, `tasks.read` and `reflections.read`) returns the
+root-wide, **ready-only** recovery projection. It lists archived subprojects, sections, tasks
+and reflections whose Restore is structurally available now, highest owner first. An archived
+project suppresses descendants, an archived section suppresses its rows, and an archived task
+suppresses archived subtasks. Live content hidden solely by an archived project and blocked
+descendants are omitted. Listed items keep their owning breadcrumb, cause, cascade and restore
+metadata. The query works while the optional Archive page is disabled.
+
+Since Slice 29 section entries are **content-only**: removed Progress, Timeline, Recent Activity
+and Sub-Projects views, blank Notes (including one created with no `config`, which stores `{}`),
+and empty containers after their tasks are moved through `update_task` are not listed. Each listed section
+carries `recovery` — `owned-content` (with `ownedData`; `contentCount`, every row still in the
+container; and `separateRestoreCount`, the row restores still needed after the section's own),
+`config` (Notes prose) or `unknown` (a type or config the prototype cannot read as empty) — beside
+`cascadeCount`, exactly the rows that `restore_section` brings back. A listed archived container
+with a `separateRestoreCount` above zero holds rows archived on
+their own: call `restore_section` first, then `restore_task` / `restore_reflection` for each row
+entry that becomes ready (a parent task brings back the subtasks archived with it).
+
+`list_archived_projects` needs only `projects.read` and lists archived roots plus archived
+subprojects whose ancestors are live across the actor's workspace. It is independent of any
+project's Archive page. A root archived with a child appears first; after `restore_project` on
+the root, the independently archived child becomes the next listed project. The same recovery
+is available to a person under **Settings → Archived projects**.
 
 The matching canonical writes are `archive_project` / `restore_project`, `remove_section` /
 `restore_section`, `archive_task` / `restore_task`, and `archive_reflection` /
 `restore_reflection`. Project restoration requires an explicit non-archived status; restoring a
 section or row restores exactly the members marked as taken down by that operation, leaving
 independently archived work archived.
+
+`restore_section` answers `{ section, operation }`. It still needs no receipt to invoke and never
+expires — it remains the way back once Undo no longer is — but a restore that changed something now
+carries a receipt of its own, so you can take the restore back before undoing the removal beneath
+it. A repeat on a live section answers `operation: null` and writes nothing.
+
+### Undo and Redo
+
+Every connection has its own Undo/Redo **history per project**: a stack of its section, shortcut, page, project,
+task and reflection writes there, with a cursor. A person's history and every other connection's are separate — you can
+never undo someone else's change, and nobody can undo yours.
+
+- `get_operation_history` (`projects.read`, input `{ projectId }`) returns
+  `{ projectId, historyId, revision, undo, redo, blockedBy }`. `undo` and `redo` name the next
+  action in each direction — `{ actionId, operation, label, expiresAt, blockedBy }` — or `null` at
+  either end. An entry's `blockedBy` is that step's own blocker (`{ projectId, title }` of the archived
+  project a transition would refuse for, or `null`); the top-level `blockedBy` describes the project.
+  `historyId` is `null` until the connection's first undoable write in that project.
+- `undo_operation` and `redo_operation` (input `{ historyId, actionId, expectedRevision }`) run
+  exactly that action, which must be the next one in that direction. They require only the stored
+  action family's grant: `projects.write` for a section, a Home shortcut placement, an optional
+  page or a project's creation, update, archive or reactivation, `tasks.write` for a task,
+  `reflections.write` for a reflection. Discovery publishes
+  that mapping under `_meta["local.canvas-work-manager/requiredPermissionsByOperationFamily"]`.
+  Pass the history's current `revision`: a receipt's, or `get_operation_history`'s if anything
+  happened since. The result is `{ direction, actionId, result, summary }`.
+
+Only the newest applied action can be undone and only the most recently undone one redone, so
+undo several changes in order. Any new undoable write in the project discards what was waiting to
+be redone. An action is available for 24 hours; each history keeps its newest 50.
+
+`remove_section` (`projects.write`) takes only `{ sectionId }` and returns
+`{ section, operation, archiveListed }`: an archived-shaped final section snapshot and the receipt.
+There is no removal-time policy or destination input; old `policy` and `reassignToSectionId`
+arguments are refused. One request archives every live task or reflection owned by that section
+with it. Independently archived rows keep their existing markers and recovery steps. A disposable
+section may already be absent from storage; the response snapshot is not evidence it remains there.
+Undo returns the section between the neighbours it left (Archive Restore appends instead), with
+exactly the rows this removal cascaded, while later non-structural edits such as renamed tasks are
+kept; Redo re-cascades exactly those rows and refuses rather than sweep in a task added since.
+Previously stored version-1 reassign actions remain readable and executable; new task moves use
+`update_task` and their own Undo/Redo receipts.
+
+If the remove response was lost, repeating `remove_section` for the same id is still a refusal.
+While that removal is still your connection's applied, unexpired action, `section_already_removed:`
+names its `historyId`, `actionId`, `expectedRevision` and `expiresAt`, even after a disposable
+section was deleted. It performs no second write or activity event. Other actors receive no receipt.
+If an `undo_operation` response itself was lost, simply call `get_operation_history`: if the action
+now appears under `redo`, the Undo landed. Retrying the same call refuses `history_revision_stale:`
+and executes nothing twice.
+
+Refusals are MCP errors whose text starts with a reason token:
+
+| Prefix | Meaning | What to do |
+|---|---|---|
+| `history_not_next:` | That action is not the next step in this direction | Read `get_operation_history`; undo the newer change first |
+| `history_revision_stale:` | The history moved since you read it (or your earlier identical call landed) | Read the summary again, then retry if still needed |
+| `history_expired:` | Older than 24 hours | For a removal, `restore_section`, which appends |
+| `history_conflict:` | Someone else changed what the action touched; each displayed problem names titles, ids and its repair in words | Follow the stated repair and retry when the text says to, or make the change by hand |
+| `history_blocked:` | The project or an ancestor is archived | Reactivate the named project, then retry |
+| `history_unavailable:` | No page can take the section back | Make a compatible page available and retry; Archive may contain retained content |
+| `history_retired:` | The action can never succeed again; listed blockers describe current state without retry advice | Read the refreshed history for the next action; repair current content separately if needed |
+
+The `agent-heavy` fixture token's connection does not hold `projects.write`; grant it in
+**Settings → AI & Agents** before trying the write tools.
+
+**Grants are checked when a transition runs, not when the receipt was issued.** Unchecking
+The stored action family's missing write grant refuses `undo_operation` and `redo_operation` with
+text naming that grant and changes none of your work (only the connection's *Last used* time), while
+`get_operation_history` keeps working under `projects.read`; checking it again makes the same
+action usable for the rest of its 24 hours. A revoked connection can no longer call any tool, so its
+history is simply unreachable — the section, rows and other people's work are untouched. Histories
+are stored in the same `data.json` as the work they change, so they survive a host restart and a
+fresh connection with the same token sees them; Archive, not history, is the durable route for
+retained notes and cascaded rows. A stdio
+child reloads that file on every call and owns it only for that call: while the HTTP host runs on
+the same file every stdio call is refused, so use HTTP beside the host, or stop the host first
+(Slice 33's `mcp-acceptance` runs them one after the other).
+
+Task create/update/complete/archive/restore results are `{ task, operation }`; reflection
+add/archive/restore results are `{ reflection, operation }`. A normalized no-op carries
+`operation: null`. A write-only connection can chain transitions from the create receipt and each
+transition's returned `summary` without calling `get_operation_history`.
 
 ### Reflections
 
@@ -198,9 +386,18 @@ Slice 25.4 adds three placement tools:
   section and breadcrumb identity, plus availability; it returns no task or reflection rows.
 - `add_section_shortcut` (`projects.write`) places a read-only reference to a source section in
   the same root tree. It accepts the same optional zero-based `position` in Home's combined
-  section/shortcut order; omission appends.
+  section/shortcut order; omission appends. It answers `{ shortcut, operation }`.
 - `remove_section_shortcut` (`projects.write`) deletes only the placement; the source section and
-  its rows remain.
+  its rows remain. It answers `{ shortcutId, projectId, pageId, operation }` — there is no
+  placement left to return.
+
+Both record in the **destination** root project's history, never the source's, and their Undo and
+Redo write the placement only: the source section, its configuration and its rows are never
+written, so an edit to the source is not a conflict for a placement action. Putting a placement back
+does check the source against §27's rules — same root tree, not the destination page itself — so a
+source that has gone or moved out of the tree refuses. Undoing a removal puts
+the same placement id back between the same neighbours, including when the source has since been
+archived or hidden — it returns as the unavailable placeholder rather than unarchiving anything.
 
 The source content still uses its own grant. For example, discovering a Task List shortcut does
 not grant `tasks.read`; call `list_tasks` with that permission to read the source rows.
@@ -236,20 +433,37 @@ data but cannot perform writes; the revoked fixture token is refused at authenti
 
 ### Important file-store limitation
 
-Do not run mutation-capable stdio and HTTP/UI sessions concurrently against the same
-`data.json`. The stdio child reloads before each call and therefore sees host-side
-revocations, but the already-running host does not see stdio writes and can overwrite them
-later. Stop `pnpm dev:host` before a stdio mutation session, then restart it afterwards.
+One process writes a data file at a time. The host holds the file's owner record,
+`<data file>.owner`, for as long as it runs; a stdio process holds it only during each tool call.
+While `pnpm dev:host` runs on the same `data.json`, every stdio tool call — reads included,
+because authentication may stamp `lastUsedAt` — returns a tool error like:
 
-Read-only clients can run together as long as authentication's throttled `lastUsedAt` write
-is acceptable. For isolated experiments, point each transport at a separate
+```text
+data_file_in_use: C:\…\.prototype\data.json is owned by http-host pid 12345 since 2026-09-29T10:00:00.000Z; stop the host, or use its HTTP MCP endpoint. if pid 12345 is not a Canvas Work Manager process, delete this file: C:\…\.prototype\data.json.owner
+```
+
+The stdio process stays connected, still lists its tools, and its next call after you stop the
+host succeeds and sees everything the host wrote. Use the HTTP endpoint whenever the host is
+running. Two stdio clients on one file take turns: a call behind another client's call prints
+`canvas-work-manager stdio waiting for data file owned by stdio pid <pid>` to stderr, waits up to
+5 s, and then returns a `data_file_in_use:` tool error — retry it. `pnpm prototype:reset`,
+`pnpm prototype:seed` and `pnpm prototype:upgrade` are refused the same way while anything owns
+the file. A host started while another process owns the file prints
+`prototype-host waiting for data file owned by <kind> pid <pid>`, starts as soon as that owner lets
+go, and otherwise exits after 5 s with `prototype-host failed to start … — data_file_in_use: …` —
+which is also what a second `dev:host` on the same file does. For isolated experiments, point each transport at a separate
 `CWM_DATA_FILE`.
+
+A process that is killed outright leaves its record behind; the next process to start reclaims it
+automatically once the recorded pid is dead. If Windows has reused that pid for an unrelated
+program, the refusal names the owner file — delete it by hand
+([why](../decisions/2026-09-one-writer-per-data-file.md)).
 
 **§62's live updates are a property of the HTTP transport.** The browser and the HTTP MCP
 endpoint share one process, so an agent's write over `/mcp` appears in an open page within a
 second. A stdio process owns a separate store and cannot reach the running host's event
-stream, so its writes leave the UI unchanged — the visible symptom of the same limitation
-above. Use HTTP whenever the UI is open
+stream. With the host running, a stdio call is refused rather than written behind the open UI's
+back. Use HTTP whenever the UI is open
 ([why](../decisions/2026-08-live-updates-are-http-only.md)).
 
 ## Verify and troubleshoot
@@ -275,3 +489,11 @@ pnpm --filter @cwm/prototype-host live-acceptance
 - `403` before protocol negotiation: the Host or browser Origin is not localhost.
 - Stdio exits immediately: `CWM_MCP_TOKEN` is absent, or the configured command/path is
   wrong. Protocol data is stdout-only; diagnostics appear on stderr.
+- `data_file_owner_unavailable:`: the owner file could not be published and no owner was found
+  — a filesystem that refuses hard links, or a Windows file stuck pending deletion. Retry; if it
+  persists, check the directory is on a local NTFS or POSIX filesystem.
+- The host exits with `data_file_in_use:`: another process owns the data file — usually a second
+  host, often an orphaned `node` child of an earlier `dev:host`. Stop the named pid.
+- Tool result starts `data_file_in_use:`: another process owns the data file. The message names
+  it and what to do — for `http-host`, stop the host or use its HTTP endpoint (see
+  [Important file-store limitation](#important-file-store-limitation)).

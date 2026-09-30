@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { ProjectPageSchema, ProjectSchema, type Project, type ProjectPage } from '@cwm/contracts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ProjectPageNavigation } from './project-page-navigation';
 import type { WorkTreeNode } from './project-workspace-store';
 
@@ -310,5 +310,49 @@ describe('ProjectPageNavigation (§23)', () => {
     const open = await render({ collapsed: false });
     expect(query(open, '[data-project-nav-toggle]')?.getAttribute('aria-expanded')).toBe('true');
     expect(query(open, '#project-nav-panel')?.hasAttribute('hidden')).toBe(false);
+  });
+
+  // Slice 58: the shell re-collapses the column behind a narrow selection. One delegated
+  // listener reports every link the column renders — `ProjectWorkItem`'s recursive ones
+  // included — with the URL it leads to, and nothing that is not a destination.
+  describe('reports a chosen link', () => {
+    const renderReporting = async (options: Parameters<typeof render>[0] = {}) => {
+      const fixture = await render(options);
+      // The empty test router would reject every navigation; where it lands is not the point.
+      vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+      const selected: string[] = [];
+      fixture.componentInstance.linkSelected.subscribe((url) => selected.push(url));
+      return { fixture, selected };
+    };
+
+    it.each([
+      ['a page tab', '[data-project-page-tab][data-page-kind="todos"]', '/projects/project-renovation/pages/todos'],
+      ['the root', '[data-project-nav-root]', '/projects/project-renovation'],
+      ['a breadcrumb', '[data-project-breadcrumb]', '/projects/project-renovation'],
+      ['a nested unit of work', '[data-work-project-id="project-cabinets"] > a', '/projects/project-cabinets'],
+    ])('reports %s with its target URL', async (_case, selector, url) => {
+      const { fixture, selected } = await renderReporting({
+        breadcrumbs: [ROOT],
+        currentProjectId: KITCHEN.id,
+      });
+
+      query(fixture, selector)!.click();
+
+      expect(selected).toEqual([url]);
+    });
+
+    it('reports neither the toggle, the page manager, nor a modified or middle click', async () => {
+      const { fixture, selected } = await renderReporting();
+
+      query(fixture, '[data-project-nav-toggle]')!.click();
+      query(fixture, '[data-project-page-manager] summary')!.click();
+      query(fixture, '[data-page-toggle-kind="todos"] input')!.click();
+      const tab = query(fixture, '[data-project-page-tab]')!;
+      tab.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true }));
+      tab.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey: true }));
+      tab.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 1 }));
+
+      expect(selected).toEqual([]);
+    });
   });
 });

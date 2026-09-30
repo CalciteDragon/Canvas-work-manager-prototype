@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { ActivityActorSchema, ActivityEntityTypeSchema, ActivityEventSchema, ActivityFeedEntrySchema } from './activity';
+import {
+  ActivityActorSchema,
+  ActivityEntityTypeSchema,
+  ActivityEventSchema,
+  ActivityFeedEntrySchema,
+} from './activity';
 
 const event = {
   id: 'activity-1',
@@ -11,6 +16,13 @@ const event = {
   entityId: 'task-123',
   projectId: 'project-a',
   summary: 'Completed "Configure deployment"',
+  context: {
+    targetKind: 'task',
+    targetId: 'task-123',
+    targetLabel: 'Configure deployment',
+    projectId: 'project-a',
+    rootProjectId: 'project-root',
+  },
   createdAt: '2026-08-26T11:32:00.000Z',
 };
 
@@ -32,6 +44,8 @@ describe('ActivityEventSchema', () => {
       actorUserId: undefined,
       action: 'workspace.seeded',
       entityType: 'project',
+      entityId: 'project-a',
+      context: { ...event.context, targetKind: 'project', targetId: 'project-a', targetLabel: 'Personal' },
     });
     expect(systemEvent.actorUserId).toBeUndefined();
   });
@@ -77,6 +91,13 @@ describe('ActivityFeedEntrySchema', () => {
     entityType: 'task',
     entityId: 'task-1',
     summary: 'Completed "Configure deployment"',
+    context: {
+      targetKind: 'task',
+      targetId: 'task-1',
+      targetLabel: 'Configure deployment',
+      projectId: 'project-work-manager',
+      rootProjectId: 'project-work-manager',
+    },
     createdAt: '2026-08-24T16:00:00.000Z',
   };
 
@@ -107,6 +128,7 @@ describe('ActivityFeedEntrySchema', () => {
       actor: 'user',
       actorUserId: 'user-demo',
       actorName: 'Demo User',
+      context: { targetKind: 'agent_connection', targetId: 'agent-claude', targetLabel: 'Claude' },
     });
 
     expect([entry.projectName, entry.entityTitle]).toEqual([undefined, undefined]);
@@ -115,6 +137,56 @@ describe('ActivityFeedEntrySchema', () => {
   it('applies the same attribution rule the event does', () => {
     expect(
       ActivityFeedEntrySchema.safeParse({ ...base, actor: 'agent', actorName: 'Claude' }).success,
+    ).toBe(false);
+  });
+});
+
+// Slice 36: Undo of a creation deletes the row an event describes, so the event carries the
+// identity it needs to stay readable afterwards (§57).
+describe('ActivityHistoricalContextSchema', () => {
+  it('is required, so no event can be written that its own Undo would orphan', () => {
+    const { context, ...withoutContext } = event;
+    expect(ActivityEventSchema.safeParse(withoutContext).success).toBe(false);
+    expect(ActivityEventSchema.parse(event).context.targetLabel).toBe('Configure deployment');
+  });
+
+  it('must agree with the event’s own kind, id and project', () => {
+    for (const wrong of [
+      { ...event.context, targetKind: 'reflection' },
+      { ...event.context, targetId: 'task-999' },
+      { ...event.context, projectId: 'project-b' },
+    ]) {
+      expect(ActivityEventSchema.safeParse({ ...event, context: wrong }).success).toBe(false);
+    }
+  });
+
+  it('omits project and root together — an agent_connection belongs to no project', () => {
+    const connection = {
+      ...event,
+      action: 'agent_connection.revoked',
+      entityType: 'agent_connection',
+      entityId: 'agent-1',
+      projectId: undefined,
+      context: { targetKind: 'agent_connection', targetId: 'agent-1', targetLabel: 'Claude' },
+    };
+    expect(ActivityEventSchema.parse(connection).context.projectId).toBeUndefined();
+    expect(
+      ActivityEventSchema.safeParse({
+        ...connection,
+        context: { ...connection.context, rootProjectId: 'project-a' },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects a blank label, so a titleless reflection needs a real fallback', () => {
+    expect(
+      ActivityEventSchema.safeParse({ ...event, context: { ...event.context, targetLabel: '' } }).success,
+    ).toBe(false);
+  });
+
+  it('rejects an unknown captured key', () => {
+    expect(
+      ActivityEventSchema.safeParse({ ...event, context: { ...event.context, inverse: 'delete' } }).success,
     ).toBe(false);
   });
 });

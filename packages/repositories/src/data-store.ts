@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   canonicalPageKindFor,
   isCanonicalPageKind,
+  operationProjectOf,
   ownedKindOf,
   pageAcceptsSectionType,
   pageAcceptsSections,
@@ -128,6 +129,51 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   const reflections = uniqueMap('reflections', document.reflections);
   uniqueMap('activityEvents', document.activityEvents);
   const agents = uniqueMap('agentConnections', document.agentConnections);
+  const absentProjectActivityReferences = new Set<string>();
+
+  /** The exact actor identity shared by lifecycle Activity and operation-history records. */
+  const exactActorKey = (actor: {
+    actor: string;
+    actorUserId?: string;
+    actorAgentConnectionId?: string;
+  }): string => JSON.stringify([
+    actor.actor,
+    actor.actor === 'user' ? actor.actorUserId ?? null : null,
+    actor.actor === 'agent' ? actor.actorAgentConnectionId ?? null : null,
+  ]);
+
+  /**
+   * A missing project is historical only after its own creation was undone, by its creator.
+   * Memoized per (project, workspace): every Activity line and history naming an absent project
+   * asks, and each answer would otherwise re-scan all Activity.
+   */
+  const creationUndoActors = new Map<string, string | undefined>();
+  const creationUndoActivityActor = (projectId: string, workspaceId: string): string | undefined => {
+    const key = JSON.stringify([projectId, workspaceId]);
+    if (!creationUndoActors.has(key)) creationUndoActors.set(key, findCreationUndoActivityActor(projectId, workspaceId));
+    return creationUndoActors.get(key);
+  };
+  const findCreationUndoActivityActor = (projectId: string, workspaceId: string): string | undefined => {
+    const lifecycle = document.activityEvents.filter((event) =>
+      event.entityType === 'project' &&
+      event.entityId === projectId &&
+      event.projectId === projectId &&
+      event.context.projectId === projectId &&
+      event.workspaceId === workspaceId &&
+      (event.action === 'project.created' || event.action === 'project.creation_undone' || event.action === 'project.creation_redone'),
+    );
+    const createdIndex = lifecycle.findIndex((event) => event.action === 'project.created');
+    const latest = lifecycle.at(-1);
+    if (createdIndex < 0 || latest?.action !== 'project.creation_undone' || createdIndex >= lifecycle.length - 1) return undefined;
+
+    const creatorKey = exactActorKey(lifecycle[createdIndex]!);
+    // Every transition uses the exact creation history, so a lifecycle sequence attributed to
+    // another user or connection is not a valid absence anchor.
+    return lifecycle.every((event) => exactActorKey(event) === creatorKey) ? creatorKey : undefined;
+  };
+
+  const hasCreationUndoActivityAnchor = (projectId: string, workspaceId: string): boolean =>
+    creationUndoActivityActor(projectId, workspaceId) !== undefined;
 
   for (const workspace of document.workspaces) {
     const owner = users.get(workspace.ownerUserId) ??
@@ -392,10 +438,60 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
     if (!users.has(agent.userId)) fail(`agent connection "${agent.id}" has missing user "${agent.userId}"`);
   }
 
-  type TargetScope = { workspaceId: string; projectId?: string };
-  const targetScope = (entityType: (typeof document.activityEvents)[number]['entityType'], entityId: string): TargetScope => {
+  /**
+   * **Activity identity, canonical or captured** (§57; Slice 36;
+   * docs/decisions/2026-09-historical-activity-identity.md).
+   *
+   * Every event carries `context`: the target's kind, id, label and owning project as they were
+   * when the event was written. Ordinarily the canonical row is still there and the two agree —
+   * which is what this pass checks. The one exception this phase allows is a **missing task or
+   * reflection**, because Undo of a creation deletes exactly that row and the audit line has to
+   * outlive it. Projects, sections, milestones and connections must still exist: nothing removes
+   * them yet, so a missing one is a broken document rather than a reversed creation.
+   *
+   * A captured identity is not laundered. A missing target is accepted only when the context is
+   * complete: it names a stored project in this event's workspace, and a root that is also one.
+   * Anything else fails, so a hand edit cannot invent an audit line for work that never existed.
+   *
+   * What this deliberately does **not** check is that the captured root is still the captured
+   * project's root *today*. Historical context is not rewritten when an entity moves: move a
+   * sub-project under a different root and every event about it keeps saying where the change
+   * happened. Re-deriving the root here would turn an ordinary reparent into an unloadable file.
+   */
+  type TargetScope = { workspaceId: string; projectId?: string } | 'historical';
+
+  /** The captured owning context: both projects must exist, in this event's workspace. */
+  const assertCapturedContext = (activity: (typeof document.activityEvents)[number]): void => {
+    for (const [field, id] of [
+      ['projectId', activity.context.projectId],
+      ['rootProjectId', activity.context.rootProjectId],
+    ] as const) {
+      if (id === undefined) continue;
+      const project = projects.get(id);
+      if (project === undefined) {
+        if (hasCreationUndoActivityAnchor(id, activity.workspaceId)) {
+          absentProjectActivityReferences.add(id);
+          continue;
+        }
+        return fail(`activity "${activity.id}" captures missing ${field} "${id}"`);
+      }
+      if (project.workspaceId !== activity.workspaceId) {
+        fail(`activity "${activity.id}" captures a ${field} from another workspace`);
+      }
+    }
+  };
+
+  const targetScope = (activity: (typeof document.activityEvents)[number]): TargetScope => {
+    const { entityType, entityId } = activity;
     if (entityType === 'project') {
-      const project = projects.get(entityId) ?? fail(`activity target project "${entityId}" does not exist`);
+      const project = projects.get(entityId);
+      if (project === undefined) {
+        if (hasCreationUndoActivityAnchor(entityId, activity.workspaceId)) {
+          absentProjectActivityReferences.add(entityId);
+          return { workspaceId: activity.workspaceId, projectId: entityId };
+        }
+        return fail(`activity target project "${entityId}" does not exist without a latest project.creation_undone event`);
+      }
       return { workspaceId: project.workspaceId, projectId: project.id };
     }
     if (entityType === 'agent_connection') {
@@ -412,25 +508,45 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
           : entityType === 'milestone'
             ? milestones.get(entityId)?.projectId
             : reflections.get(entityId)?.projectId;
-    const targetProjectId = projectId ?? fail(`activity target ${entityType} "${entityId}" does not exist`);
-    const project = projects.get(targetProjectId) ??
+    if (projectId === undefined) {
+      // A safely removed row: allowed for the two kinds Undo of a creation deletes, and only
+      // with a complete captured identity that still resolves inside this workspace.
+      if (entityType !== 'task' && entityType !== 'reflection') {
+        fail(`activity target ${entityType} "${entityId}" does not exist`);
+      }
+      if (activity.context.projectId === undefined) {
+        fail(`activity "${activity.id}" describes a removed ${entityType} without a captured project`);
+      }
+      return 'historical';
+    }
+    const project = projects.get(projectId) ??
       fail(`activity target ${entityType} "${entityId}" has a missing project`);
-    return { workspaceId: project.workspaceId, projectId: targetProjectId };
+    return { workspaceId: project.workspaceId, projectId };
   };
 
   for (const activity of document.activityEvents) {
     if (!workspaces.has(activity.workspaceId)) fail(`activity "${activity.id}" has missing workspace "${activity.workspaceId}"`);
-    const target = targetScope(activity.entityType, activity.entityId);
-    if (target.workspaceId !== activity.workspaceId) fail(`activity "${activity.id}" targets another workspace`);
+    const target = targetScope(activity);
+    if (target !== 'historical' && target.workspaceId !== activity.workspaceId) {
+      fail(`activity "${activity.id}" targets another workspace`);
+    }
 
     if (activity.projectId !== undefined) {
-      const project = projects.get(activity.projectId) ??
-        fail(`activity "${activity.id}" has missing project "${activity.projectId}"`);
-      if (project.workspaceId !== activity.workspaceId) fail(`activity "${activity.id}" names a project from another workspace`);
-      if (target.projectId !== undefined && target.projectId !== activity.projectId) {
+      const project = projects.get(activity.projectId);
+      if (project === undefined) {
+        if (hasCreationUndoActivityAnchor(activity.projectId, activity.workspaceId)) {
+          absentProjectActivityReferences.add(activity.projectId);
+        } else {
+          fail(`activity "${activity.id}" has missing project "${activity.projectId}"`);
+        }
+      } else if (project.workspaceId !== activity.workspaceId) {
+        fail(`activity "${activity.id}" names a project from another workspace`);
+      }
+      if (target !== 'historical' && target.projectId !== undefined && target.projectId !== activity.projectId) {
         fail(`activity "${activity.id}" names a project different from its target`);
       }
     }
+    assertCapturedContext(activity);
 
     if (activity.actor === 'user') {
       const actorId = activity.actorUserId ?? fail(`activity "${activity.id}" has a missing user actor`);
@@ -441,6 +557,131 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
       const connection = agents.get(connectionId) ?? fail(`activity "${activity.id}" has a missing agent actor`);
       const actor = users.get(connection.userId) ?? fail(`agent connection "${connection.id}" has a missing user`);
       if (actor.workspaceId !== activity.workspaceId) fail(`activity "${activity.id}" has an agent actor from another workspace`);
+    }
+  }
+
+  /**
+   * **Operation histories: owner scope and ordering** (docs/decisions/2026-09-operation-history-scope.md).
+   * A history belongs to a workspace, names a stored project in it unless its retained undone
+   * `project.add` action and the project's creation-Undo Activity anchor prove the project is absent,
+   * and is attributable to one actor in that workspace. There is at most one history per
+   * (workspace, project, exact actor), because the cursor is the only order an actor's Undo and Redo
+   * follow.
+   *
+   * An action names a stored history and holds a positive `order` that is unique within it and no
+   * higher than the history's `orderHighWaterMark`, which is what makes an allocated order
+   * unreusable after pruning. Its captured snapshot's section, page, shortcut, task and reflection
+   * ids are deliberately **not** resolved: an add Undo or a disposable removal deletes the section
+   * an action names, and the action must survive that to be redone. The one live check is the
+   * archive generation: neither a retained removal nor a Restore can have captured a generation
+   * its section has not reached, because `archiveGeneration` never decreases.
+   */
+  uniqueMap('operationActions', document.operationActions);
+  const histories = uniqueMap('operationHistories', document.operationHistories);
+  const historyScopes = new Set<string>();
+  const historiesForAbsentProjects = new Set<string>();
+  for (const history of document.operationHistories) {
+    if (!workspaces.has(history.workspaceId)) fail(`operation history "${history.id}" has missing workspace "${history.workspaceId}"`);
+    let actorKey: string;
+    if (history.actor === 'user') {
+      const actor = users.get(history.actorUserId ?? '') ?? fail(`operation history "${history.id}" has a missing user actor`);
+      if (actor.workspaceId !== history.workspaceId) fail(`operation history "${history.id}" has a user actor from another workspace`);
+      actorKey = exactActorKey(history);
+    } else if (history.actor === 'agent') {
+      const connection = agents.get(history.actorAgentConnectionId ?? '') ??
+        fail(`operation history "${history.id}" has a missing agent actor`);
+      const actor = users.get(connection.userId) ?? fail(`agent connection "${connection.id}" has a missing user`);
+      if (actor.workspaceId !== history.workspaceId) fail(`operation history "${history.id}" has an agent actor from another workspace`);
+      actorKey = exactActorKey(history);
+    } else {
+      actorKey = exactActorKey(history);
+    }
+
+    const project = projects.get(history.projectId);
+    if (project === undefined) {
+      const creatorActorKey = creationUndoActivityActor(history.projectId, history.workspaceId);
+      if (creatorActorKey === undefined) {
+        fail(`operation history "${history.id}" has missing project "${history.projectId}" without its creation-Undo Activity anchor`);
+      }
+      if (creatorActorKey !== actorKey) {
+        fail(`operation history "${history.id}" does not belong to the creator of absent project "${history.projectId}"`);
+      }
+      historiesForAbsentProjects.add(history.projectId);
+    } else if (project.workspaceId !== history.workspaceId) {
+      fail(`operation history "${history.id}" names a project from another workspace`);
+    }
+    // Ids accept any non-empty string, spaces included, so a delimiter-joined key could make two
+    // distinct scopes collide; a JSON array cannot.
+    const scope = JSON.stringify([history.workspaceId, history.projectId, actorKey]);
+    if (historyScopes.has(scope)) fail(`operation history "${history.id}" is a duplicate history for its actor and project`);
+    historyScopes.add(scope);
+  }
+
+  /** `archiveGeneration` never decreases, so a stored section cannot be below what an action saw. */
+  const assertGenerationIsReachable = (actionId: string, sectionId: string, generation: number): void => {
+    const section = sections.get(sectionId);
+    if (section !== undefined && generation > section.archiveGeneration) {
+      fail(`operation action "${actionId}" captures archive generation ${generation}, beyond section "${section.id}"`);
+    }
+  };
+
+  const orders = new Set<string>();
+  const retainedUndoneProjectAdds = new Set<string>();
+  for (const action of document.operationActions) {
+    const history = histories.get(action.historyId) ??
+      fail(`operation action "${action.id}" has missing history "${action.historyId}"`);
+    if (action.order > history.orderHighWaterMark) {
+      fail(`operation action "${action.id}" has order ${action.order} above its history's high-water mark ${history.orderHighWaterMark}`);
+    }
+    const orderKey = JSON.stringify([action.historyId, action.order]);
+    if (orders.has(orderKey)) fail(`operation action "${action.id}" has duplicate order ${action.order} in its history`);
+    orders.add(orderKey);
+
+    if (operationProjectOf(action.operation) !== history.projectId) {
+      fail(`operation action "${action.id}" names a project outside its history`);
+    }
+
+    if (action.operation.type === 'project.add') {
+      const projectId = action.operation.project.id;
+      if (action.operation.project.workspaceId !== history.workspaceId) {
+        fail(`operation action "${action.id}" captures a project from another workspace`);
+      }
+      if (projects.has(projectId)) {
+        if (action.state === 'undone') {
+          fail(`operation action "${action.id}" has an undone project.add while project "${projectId}" is present`);
+        }
+      } else if (action.state === 'undone') {
+        retainedUndoneProjectAdds.add(projectId);
+      } else {
+        fail(`absent project "${projectId}" requires a retained undone project.add action`);
+      }
+    }
+
+    if (action.operation.type === 'section.remove' && action.operation.disposition === 'retained') {
+      assertGenerationIsReachable(action.id, action.operation.section.id, action.operation.archiveGeneration);
+    }
+    // A Restore captures the generation the section **had**, which Restore leaves alone, so the
+    // same invariant holds for it: a present section cannot be below a generation some action
+    // says it reached. It is the same rule, not a new requirement that payload ids resolve —
+    // a section a later removal deleted is still deliberately unresolved.
+    if (action.operation.type === 'section.restore') {
+      assertGenerationIsReachable(action.id, action.operation.sectionId, action.operation.archiveGeneration);
+    }
+  }
+
+  for (const projectId of historiesForAbsentProjects) {
+    if (!retainedUndoneProjectAdds.has(projectId)) {
+      fail(`absent project "${projectId}" has no retained undone project.add history anchor`);
+    }
+  }
+  for (const projectId of absentProjectActivityReferences) {
+    if (!retainedUndoneProjectAdds.has(projectId)) {
+      fail(`absent project "${projectId}" has no retained undone project.add history anchor`);
+    }
+  }
+  for (const projectId of retainedUndoneProjectAdds) {
+    if (!absentProjectActivityReferences.has(projectId)) {
+      fail(`absent project "${projectId}" has no creation_undone Activity anchor`);
     }
   }
 

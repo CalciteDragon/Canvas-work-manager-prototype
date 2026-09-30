@@ -30,6 +30,7 @@ export class ReflectionsPage implements ProjectPageRenderer {
   readonly shortcutsAllowed = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});
   readonly onProjectHierarchyChange = input<() => void>(() => {});
+  readonly onOpenArchive = input<() => void>(() => {});
 
   readonly store = inject(ReflectionsPageStore);
   readonly selectedSubject = signal<ReflectionSubjectView | null>(null);

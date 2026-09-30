@@ -48,21 +48,32 @@ pnpm prototype:upgrade .prototype/data.json
 ```
 
 It validates the result before writing anything, leaves the original beside it as a
-`.backup-*.json`, and does nothing to a file already at the current version. `pnpm
-prototype:reset` remains the other option — it discards the file and reseeds.
+`.backup-*.json`, and does nothing to a file already at the current version. It converts a
+version-2, version-3 or version-4 file to version 5. Version-4 histories and actions are preserved
+while Activity gains captured identity. Version-3 Undo receipts are retired rather than translated,
+so history starts empty for those older files, and the command reports the retired count. Run it on an absolute path,
+or on one relative to where you typed the command. `pnpm prototype:reset` remains the other option —
+it discards the file and reseeds. The e2e suite's own `.prototype/e2e-data.json` is disposable:
+delete a stale one and it reseeds itself.
 
 | Process | URL | What it is |
 |---|---|---|
 | `web` | http://localhost:4200 | The Angular application — shell, dashboard, project workspaces, tasks |
 | `host` | http://127.0.0.1:4310 | The prototype host — fake API (§61), Streamable HTTP MCP at `/mcp`, and §62's event stream at `/prototype/events`, over `.prototype/data.json` |
 
-The host serves thirty-three transport-free tool definitions — §54's fourteen plus the
-section, page, shortcut, archive/recovery and journal tools that later slices added —
+The host serves thirty-eight transport-free tool definitions — §54's fourteen plus the
+section, page, shortcut, archive/recovery, journal and Undo/Redo history tools that later slices added —
 through the official MCP SDK v2, targeting protocol `2026-07-28`. Streamable HTTP is
 mounted at `/mcp`; `pnpm mcp:stdio` serves the identical registry for local child-process
 clients. Both use the fake agent credentials and real domain services. See
 [docs/guides/mcp-setup.md](docs/guides/mcp-setup.md) for client configuration and the JSON
-store's cross-process limitation.
+store's one-writer rule: a stdio call is refused with `data_file_in_use:` while the host owns the
+same file, and so are `prototype:seed`, `prototype:reset` and `prototype:upgrade`.
+
+Archived roots and currently restorable subprojects are available at
+`/settings/archived-projects`, independent of a project's optional Archive page. The page uses
+`GET /api/archived-projects`; `list_archived_projects` provides the same workspace read over MCP.
+Restoring one requires an explicit non-archived status through the existing project write.
 
 **Changes appear in the open browser.** Every domain mutation that records activity — from
 the UI, from an HTTP MCP client, or from the development panel — broadcasts one Server-Sent
@@ -72,7 +83,7 @@ every agent call.) A task an agent completes
 ticks itself off in an open project page in well under a second, with the activity feed
 naming the connection. Frames are held until the write commits, so a refresh triggered by one
 always reads the new value. This is a property of the HTTP transport; a `pnpm mcp:stdio`
-process owns a separate store and leaves the UI unchanged.
+process owns a separate store, and is refused while the host owns the file.
 
 ### The Design Lab
 
@@ -166,7 +177,8 @@ plus the todos, archive and reflections journeys the multi-page slices added.
 **Stop `pnpm dev:web` and `pnpm dev:host` first.** The suite starts its own web and host
 processes and refuses a port that is already in use, rather than silently reusing your dev
 server and destroying the workspace you were using. It runs the host against
-`.prototype/e2e-data.json`, never `.prototype/data.json`.
+`.prototype/e2e-data.json`, never `.prototype/data.json`. A leftover e2e host still owning that
+file makes `pree2e` refuse with `data_file_in_use:` naming its pid.
 
 Once, to fetch the browser:
 

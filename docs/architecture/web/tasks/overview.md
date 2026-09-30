@@ -3,8 +3,8 @@
 `apps/web/src/app/features/tasks` is the task user interface (§4, §33–§34, §63):
 `TaskRow` with its six §4 variants, `TaskDetailDrawer` (a side drawer, not a modal), and
 `TaskListStore`, the feature-scoped store for **one Task List section's** tasks. The
-project canvas's Task List section and the root Todos page both build on these; nothing
-here knows which page it is on.
+Task List section builds on these; the root Todos page uses its own row and store because its
+projection, completion lock and project-scoped receipts have different state.
 
 **Code:** `apps/web/src/app/features/tasks` · **Tests:** `task-row.spec.ts`,
 `task-detail-drawer.spec.ts`, `task-list-store.spec.ts`; `task-row.stories.ts` ·
@@ -13,14 +13,19 @@ here knows which page it is on.
 ## Responsibilities
 
 - `TaskRow`: normal, overdue, completed, high priority, selected and compact variants;
-  inline completion; inline title editing; the per-row archive control §34 describes.
+  inline completion; inline title editing; and an icon-only **Delete** control that calls the
+  existing soft-archive behavior.
   The seventh §4 variant, *Agent Modified*, has no data behind it and is deliberately
   absent ([decision](../../../decisions/2026-08-agent-modified-has-no-data-behind-it.md)).
 - `TaskDetailDrawer`: title, status, priority, due date, and the fields a drawer can
   edit without a modal.
 - `TaskListStore`: quick create, complete, update, archive and restore for the rows one
   container owns; optimistic completion with revert on failure; quiet re-reads on live
-  frames deferred behind a write in flight.
+  frames deferred behind a write in flight. Every write reports to the header's history through
+  core's `OPERATION_HISTORY_REPORTER` with the **task's** own project — a list inside a Home shortcut
+  writes rows its source sub-project owns (Slice 41).
+- `TaskListSection`: after a committed Delete, keeps a polite archive/recovery cue outside the
+  rows, including when the last task leaves. A refused write shows only the existing error.
 
 ## Not responsible for
 

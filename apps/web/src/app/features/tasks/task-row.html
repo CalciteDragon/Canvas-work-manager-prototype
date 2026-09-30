@@ -71,14 +71,15 @@
     </button>
 
     <button
-      data-task-archive
-      class="task-row__archive"
+      data-task-delete
+      class="task-row__delete"
       type="button"
       [disabled]="archiving()"
-      [attr.aria-label]="'Archive ' + task().title"
-      (click)="requestArchive()"
+      [attr.aria-label]="'Delete task ' + task().title"
+      [attr.title]="'Delete task ' + task().title"
+      (click)="requestDelete()"
     >
-      {{ archiving() ? 'Archiving…' : 'Archive' }}
+      <app-icon name="remove" />
     </button>
   }
 </article>

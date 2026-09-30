@@ -29,7 +29,7 @@ C4Container
     Container(web, "web", "Angular 22, :4200", "Shell, dashboard, project workspaces, development tooling")
     Container(stdio, "mcp:stdio", "Node child process", "The same tool registry over stdio, with its own store")
     Container(host, "prototype-host", "Node, 127.0.0.1:4310", "Fake API, MCP endpoint, event stream, rig controls")
-    ContainerDb(data, ".prototype/data.json", "JSON document, schema version 3", "The whole workspace")
+    ContainerDb(data, ".prototype/data.json", "JSON document, schema version 5", "The whole workspace")
   }
   UpdateLayoutConfig($c4ShapeInRow="2")
   Rel(person, web, "Uses")
@@ -42,8 +42,10 @@ C4Container
 
 The web app never touches the file. The host loads it once at start and writes it through
 a temp-and-rename at the end of every unit of work (§15). A stdio process is a second
-owner of the same file, which is why the two must not mutate concurrently
-([guide](../guides/mcp-setup.md#important-file-store-limitation)).
+owner of the same file, so the two take turns through the file's owner record: a stdio call is
+refused while the host owns the file
+([guide](../guides/mcp-setup.md#important-file-store-limitation),
+[decision](../decisions/2026-09-one-writer-per-data-file.md)).
 
 ## Packages and apps
 
@@ -93,6 +95,7 @@ sequenceDiagram
   participant H as Host route
   participant S as TaskService
   participant U as Unit of work (DataStore)
+  participant R as OperationRecorder
   participant A as ActivityService
   participant E as LiveEventHub
   B->>B: paint optimistic completion
@@ -100,12 +103,13 @@ sequenceDiagram
   G->>H: POST /api/tasks/:id/complete
   H->>S: complete(actor, id)
   S->>U: runUnitOfWork
+  S->>R: record(task.update)
   S->>A: record(task.completed)
   U-->>S: committed, persisted
-  S-->>H: Task
+  S-->>H: { task, operation }
   U->>E: publish held frame
   E-->>B: SSE task.completed (other tabs and sections re-read)
-  H-->>G: 200 Task
+  H-->>G: 200 { task, operation }
   G-->>B: settle optimistic state
 ```
 

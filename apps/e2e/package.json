@@ -4,13 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "pree2e": "node --import tsx prepare-data.ts",
     "e2e": "playwright test",
     "lint": "tsc --noEmit"
   },
   "devDependencies": {
+    "@cwm/repositories": "workspace:*",
     "@modelcontextprotocol/client": "^2.0.0",
     "@playwright/test": "^1.57.0",
     "@types/node": "^24.10.1",
+    "tsx": "^4.20.6",
     "typescript": "~6.0.2"
   }
 }

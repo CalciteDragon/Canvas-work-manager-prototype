@@ -34,7 +34,7 @@ export const projectPageTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'set_project_page_enabled',
     description:
-      'Turn one of a root project’s optional pages — todos, archive or reflections — on or off. Enabling a page for the first time creates it; disabling one is nondestructive, keeping its sections, their layout and every reference to it, and changes only whether it is navigation. Home cannot be disabled, and a sub-project has no pages to configure.',
+      'Turn one of a root project’s optional pages — todos, archive or reflections — on or off. Enabling a page for the first time creates it; disabling one is nondestructive, keeping its sections, their layout and every reference to it, and changes only whether it is navigation. Home cannot be disabled, and a sub-project has no pages to configure. Pages and project creation share the project’s own history, so undo later page changes before undoing project.add. Answers the confirmed page and an operation receipt: the first enable records page.add, whose Undo removes that page again — only while it is unchanged and nothing on it references it — and whose Redo brings the same page id back; a later change of the switch records page.update, which reverses the switch alone. A call that asks for the state the page is already in changes nothing and answers a null receipt. Reverse either through undo_operation with projects.write; a toggle still works while the project is archived, but reversing one through history does not.',
     permission: 'projects.write',
     inputSchema: SetProjectPageEnabledInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.pages.setEnabled(actor, projectId, input),
@@ -51,7 +51,7 @@ export const projectPageTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'get_project_archive',
     description:
-      'Read every archived row and every live row hidden beneath an archived project in one root project: sub-projects, sections, tasks and reflections, with the page and container each came from, why it is present, and whether the canonical restore operation is ready or blocked. It reads projects, tasks and reflections together and refuses rather than returning a partial answer. It does not depend on the Archive page being enabled.',
+      'Read currently restorable archived entries in one root project: sub-projects, sections, tasks and reflections, with their canonical origin, cause and required restore grant. The list is parent-first: archived descendants and cascade members appear only after their owner is restored, while live content hidden solely by an archived project is omitted. Sections are listed only when they hold recoverable content; recovery and cascade counts explain what a section Restore revives and what remains separately archived. It reads projects, tasks and reflections together and refuses rather than returning a partial answer. It does not depend on the Archive page being enabled.',
     permission: 'projects.read',
     additionalPermissions: ['tasks.read', 'reflections.read'],
     inputSchema: ProjectArchiveQuerySchema,

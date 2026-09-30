@@ -3,9 +3,14 @@ import {
   ProjectPageSchema,
   ProjectSchema,
   ProjectStatusSchema,
+  type OperationActionId,
+  type OperationHistoryId,
+  type OperationKind,
   type Project,
+  type ProjectWriteResult,
   type ProjectId,
   type ProjectPage,
+  type ProjectPageWriteResult,
   type ProjectQuery,
 } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
@@ -15,6 +20,7 @@ import { FakeWorkManagerGateway, type FakeGatewayOptions } from '../../core/gate
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import { FakeLiveUpdates } from '../../core/live/testing/fake-live-updates';
 import { ProjectWorkspaceStore } from './project-workspace-store';
+import { provideRecordingReporter } from '../../core/history/testing/recording-reporter';
 
 const AT = '2026-08-27T16:00:00.000Z';
 
@@ -173,6 +179,22 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
     expect(store.loading()).toBe(false);
   });
 
+  it('marks not-found loads as missing and clears that state after a successful read', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+    const get = gateway.projects.get.bind(gateway.projects);
+    gateway.projects.get = () => Promise.reject(new GatewayError('not_found', 404, 'no such project'));
+
+    await store.load('project-renovation' as ProjectId);
+
+    expect(store.missing()).toBe(true);
+    expect(store.project()).toBeNull();
+    expect(store.error()).toContain('no such project');
+    gateway.projects.get = get;
+    await store.load('project-renovation' as ProjectId);
+    expect(store.missing()).toBe(false);
+    expect(store.project()?.id).toBe('project-renovation');
+  });
+
   it('discards a late response from the project the user has already left', async () => {
     const projects = renovation();
     const slow = deferred<Project>();
@@ -199,6 +221,32 @@ describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
 });
 
 describe('ProjectWorkspaceStore and live updates (§62)', () => {
+  it('treats not-found context refreshes as missing, clears them on recovery, and keeps other refresh failures quiet', async () => {
+    const live = new FakeLiveUpdates();
+    const { store, gateway } = storeWith({ projects: renovation() }, live);
+    await store.load('project-renovation' as ProjectId);
+    const get = gateway.projects.get.bind(gateway.projects);
+    gateway.projects.get = () => Promise.reject(new GatewayError('not_found', 404, 'project was removed'));
+
+    live.emit({ type: 'project.creation_undone', entityType: 'project', entityId: 'project-renovation', projectId: 'project-renovation' } as never);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(store.missing()).toBe(true);
+    expect(store.project()).toBeNull();
+
+    gateway.projects.get = get;
+    live.emit({ type: 'project.creation_redone', entityType: 'project', entityId: 'project-renovation', projectId: 'project-renovation' } as never);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(store.missing()).toBe(false);
+    expect(store.project()?.id).toBe('project-renovation');
+
+    gateway.projects.get = () => Promise.reject(new GatewayError('unreachable', 503, 'host starting'));
+    live.emit({ type: 'project.updated', entityType: 'project', entityId: 'project-renovation', projectId: 'project-renovation' } as never);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(store.missing()).toBe(false);
+    expect(store.project()?.id).toBe('project-renovation');
+    expect(store.error()).toBeNull();
+  });
+
   it('refreshes header progress on a task event for this project', async () => {
     const live = new FakeLiveUpdates();
     const { store, gateway } = storeWith({ projects: renovation() }, live);
@@ -219,6 +267,39 @@ describe('ProjectWorkspaceStore and live updates (§62)', () => {
 
     expect(gateway.calls.filter(({ method }) => method === 'progress.get').length).toBe(before + 1);
     expect(gateway.calls.filter(({ method }) => method === 'projects.get').length).toBe(1);
+  });
+
+  /**
+   * A page Undo or Redo publishes a project-scoped frame (Slice 38), so the context — and with it
+   * the page list the router resolves a tab against — is re-read without the store knowing
+   * anything about the new verbs.
+   */
+  it('re-reads the page context when someone reverses a page toggle', async () => {
+    const live = new FakeLiveUpdates();
+    const { store, gateway } = storeWith(
+      { projects: renovation(), pages: [page('page-project-renovation-home', 'project-renovation', 'home')] },
+      live,
+    );
+    await store.load('project-renovation' as ProjectId);
+    const reads = () => gateway.calls.filter(({ method }) => method === 'pages.list').length;
+
+    for (const type of ['project.page_addition_undone', 'project.page_addition_redone', 'project.page_update_undone', 'project.page_update_redone']) {
+      const before = reads();
+      live.emit({
+        type,
+        entityType: 'project',
+        entityId: 'project-renovation',
+        projectId: 'project-renovation',
+        rootProjectId: 'project-renovation',
+        actor: { kind: 'user', id: 'user-1', name: 'Sam' },
+        at: AT,
+      } as never);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // A macrotask, so this frame's whole context read finishes before the next frame arrives —
+      // otherwise the refresh coalescing would fold them together. Each verb is then proved on
+      // its own, so one refreshing frame cannot cover for another that does not.
+      expect(reads(), type).toBeGreaterThan(before);
+    }
   });
 
   // `rootProjectId` is right for the tree and wrong for the record: a sibling three levels
@@ -242,6 +323,46 @@ describe('ProjectWorkspaceStore and live updates (§62)', () => {
     await Promise.resolve();
 
     expect(gateway.calls.filter(({ method }) => method === 'projects.get').length).toBe(before);
+  });
+
+  /**
+   * Slice 39: a cross-root reparent — forward, Undo or Redo — publishes one frame naming the
+   * sub-project's **current** root. The root it left still has to drop it from its tree, so the
+   * work hierarchy re-reads on a project-record frame from anywhere in the workspace.
+   */
+  it('re-reads the work hierarchy when a sub-project moves to or from another root', async () => {
+    const live = new FakeLiveUpdates();
+    const { store, gateway } = storeWith({ projects: renovation() }, live);
+    await store.load('project-renovation' as ProjectId);
+    const lists = () => gateway.calls.filter(({ method }) => method === 'projects.list').length;
+
+    for (const type of ['project.updated', 'project.update_undone', 'project.update_redone']) {
+      const before = lists();
+      live.emit({
+        type,
+        entityType: 'project',
+        entityId: 'project-kitchen',
+        projectId: 'project-kitchen',
+        rootProjectId: 'project-elsewhere',
+        actor: { kind: 'user', id: 'user-1', name: 'Sam' },
+        at: AT,
+      } as never);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(lists(), type).toBeGreaterThan(before);
+    }
+
+    const before = lists();
+    live.emit({
+      type: 'project.section_added',
+      entityType: 'project',
+      entityId: 'project-elsewhere',
+      projectId: 'project-elsewhere',
+      rootProjectId: 'project-elsewhere',
+      actor: { kind: 'user', id: 'user-1', name: 'Sam' },
+      at: AT,
+    } as never);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(lists()).toBe(before);
   });
 
   it('re-reads the work hierarchy when a project is created anywhere in this root', async () => {
@@ -393,11 +514,31 @@ describe('ProjectWorkspaceStore and live updates (§62)', () => {
   });
 });
 
+/**
+ * The write envelope §31 gives a committed toggle. The store deliberately ignores the receipt —
+ * persistent Undo controls are a later phase — so these specs assert the page reconciliation and
+ * carry the receipt only because parsing it is part of the contract.
+ */
+const pageWrite = (record: ProjectPage, operation: OperationKind | null = 'page.add'): ProjectPageWriteResult => ({
+  page: record,
+  operation: operation === null
+    ? null
+    : {
+        historyId: 'history-1' as OperationHistoryId,
+        actionId: 'operation-1' as OperationActionId,
+        operation,
+        revision: 1,
+        label: `${record.enabled ? 'Enabled' : 'Disabled'} the ${record.kind} page`,
+        createdAt: '2026-09-21T10:00:00.000Z',
+        expiresAt: '2026-09-22T10:00:00.000Z',
+      },
+});
+
 describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)', () => {
   it('keeps the confirmed page state until the write and fresh context both finish', async () => {
     const pages = [page('page-project-renovation-home', 'project-renovation', 'home')];
     const gateway = new FakeWorkManagerGateway({ projects: renovation(), pages });
-    const write = deferred<ProjectPage>();
+    const write = deferred<ProjectPageWriteResult>();
     const read = deferred<ProjectPage[]>();
     gateway.pages.setEnabled = () => write.promise;
     gateway.pages.list = () => read.promise;
@@ -418,7 +559,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
     expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
     expect(store.pageWritePending()).toBe(true);
 
-    write.resolve(page('page-project-renovation-todos', 'project-renovation', 'todos'));
+    write.resolve(pageWrite(page('page-project-renovation-todos', 'project-renovation', 'todos')));
     await Promise.resolve();
     expect(store.pages().map(({ kind }) => kind)).toEqual(['home']);
 
@@ -479,7 +620,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
     const projects = renovation();
     const pages = [page('page-project-renovation-home', 'project-renovation', 'home')];
     const gateway = new FakeWorkManagerGateway({ projects, pages });
-    const write = deferred<ProjectPage>();
+    const write = deferred<ProjectPageWriteResult>();
     gateway.pages.setEnabled = () => write.promise;
     TestBed.configureTestingModule({
       providers: [
@@ -493,7 +634,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
 
     const toggling = store.setPageEnabled('todos', true);
     await store.load('project-garden' as ProjectId);
-    write.resolve(page('page-project-renovation-todos', 'project-renovation', 'todos'));
+    write.resolve(pageWrite(page('page-project-renovation-todos', 'project-renovation', 'todos')));
 
     expect(await toggling).toBe(false);
     expect(store.project()?.id).toBe('project-garden');
@@ -503,7 +644,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
   it('does not apply a late toggle after the store is destroyed', async () => {
     const pages = [page('page-project-renovation-home', 'project-renovation', 'home')];
     const gateway = new FakeWorkManagerGateway({ projects: renovation(), pages });
-    const write = deferred<ProjectPage>();
+    const write = deferred<ProjectPageWriteResult>();
     gateway.pages.setEnabled = () => write.promise;
     TestBed.configureTestingModule({
       providers: [
@@ -517,7 +658,7 @@ describe('ProjectWorkspaceStore — optional page management (§26, §31, §63)'
     const toggling = store.setPageEnabled('todos', true);
 
     TestBed.resetTestingModule();
-    write.resolve(page('page-project-renovation-todos', 'project-renovation', 'todos'));
+    write.resolve(pageWrite(page('page-project-renovation-todos', 'project-renovation', 'todos')));
 
     await expect(toggling).resolves.toBe(false);
   });
@@ -594,7 +735,7 @@ describe('ProjectWorkspaceStore — the project’s own writes (§26, §63, §81
   // in which the page says `active` while the domain would still refuse a restore.
   it('holds the write guard from before the optimistic paint until the response lands', async () => {
     const gateway = new FakeWorkManagerGateway({ projects: renovation() });
-    const slow = deferred<Project>();
+    const slow = deferred<ProjectWriteResult>();
     gateway.projects.update = () => slow.promise;
     TestBed.configureTestingModule({
       providers: [
@@ -609,7 +750,7 @@ describe('ProjectWorkspaceStore — the project’s own writes (§26, §63, §81
     const writing = store.setStatus('active');
     expect(store.projectWritePending()).toBe(true);
 
-    slow.resolve({ ...renovation()[0]!, status: 'active' });
+    slow.resolve({ project: { ...renovation()[0]!, status: 'active' }, operation: null });
     await writing;
 
     expect(store.projectWritePending()).toBe(false);
@@ -629,5 +770,48 @@ describe('ProjectWorkspaceStore — the project’s own writes (§26, §63, §81
     expect(archived).toBe(false);
     expect(store.project()?.status).toBe('active');
     expect(store.writeError()).toContain('archive its live sub-projects first');
+  });
+});
+
+describe('ProjectWorkspaceStore reports to the header’s history (Slice 41)', () => {
+  it('applies the returned archived project, so the header reads archived without a frame', async () => {
+    const reporter = provideRecordingReporter();
+    const { store } = storeWith({ projects: renovation() });
+    await store.load('project-garden' as ProjectId);
+
+    expect(await store.archive()).toBe(true);
+
+    expect(store.project()?.status).toBe('archived');
+    expect(reporter.events).toEqual([
+      'begin',
+      { projectId: 'project-garden', projectName: 'Garden', receipt: expect.objectContaining({ operation: 'project.archive' }) },
+      'end',
+    ]);
+  });
+
+  it('reports a page toggle with the root’s id, even from a sub-project', async () => {
+    const reporter = provideRecordingReporter();
+    const { store } = storeWith({ projects: renovation(), pages: [page('page-renovation-home', 'project-renovation', 'home')] });
+    await store.load('project-kitchen' as ProjectId);
+
+    expect(await store.setPageEnabled('reflections', true)).toBe(true);
+
+    expect(reporter.events).toEqual([
+      'begin',
+      { projectId: 'project-renovation', projectName: 'Home renovation', receipt: expect.objectContaining({ operation: 'page.add' }) },
+      'end',
+    ]);
+  });
+
+  it('reports a rename with the updated project’s own name', async () => {
+    const reporter = provideRecordingReporter();
+    const { store } = storeWith({ projects: renovation() });
+    await store.load('project-kitchen' as ProjectId);
+
+    expect(await store.rename('Galley')).toBe(true);
+
+    expect(reporter.reports()).toEqual([
+      { projectId: 'project-kitchen', projectName: 'Galley', receipt: expect.objectContaining({ operation: 'project.update' }) },
+    ]);
   });
 });

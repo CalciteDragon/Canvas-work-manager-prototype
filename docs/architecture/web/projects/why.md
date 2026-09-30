@@ -60,8 +60,39 @@ prevents a re-render loop in a zoneless app (`project-page-contract.ts`,
 ([decision](../../../decisions/2026-08-flow-vs-grid-layout-experiment.md)). Direct canvas
 controls replace the View/Edit split: users move from a grip, resize in supported column
 steps, rename at the title, and create at a visible insertion point. Settings appear only
-for a type with an inspector; removal retains the archive and cascade/reassign rules
-([canvas chrome](../../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
+for a type with an inspector; removal is one ID-only gesture whose cascade and recovery are
+decided by the domain, and its Undo is the header's
+([canvas chrome](../../../decisions/2026-09-canvas-chrome-is-revealed-not-moded.md),
+[removal and Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+
+**Undo and Redo live in the header, over the server's summary, and nowhere else** (Slice 41).
+Every recorded family — sections, shortcuts, rows, pages, the project — reaches the same two
+controls, which act on the **displayed project's** history; the canvas notice's Undo, which held
+one receipt for a subset of surfaces, would have been a second button for the same step. The
+header decides availability from **each entry's own** `blockedBy`, never the project-level one, or
+an archived project could not undo its own archive
+([decision](../../../decisions/2026-09-project-header-history-controls.md)).
+
+**Ownership is read from `historyId`, not guessed at the write site.** A task list inside a Home
+shortcut writes a row its source sub-project owns, and a restore from root Archive can record in a
+descendant; so a writer reports the response's own project only for wording, and the store compares
+the receipt's history with the one it holds — re-reading when it cannot tell — before saying a step
+was "recorded in Kitchen's history". **Pending lasts until the owed re-read lands**, so the window
+between a write's response and its summary read never offers the pre-write step
+([decision](../../../decisions/2026-09-project-header-history-controls.md)).
+
+**A history refusal is mapped, not parsed.** Every refusal carries the caller's current summary,
+which the store adopts before it words the reason; a transport failure re-reads rather than
+assuming either outcome, which is what makes a lost response safe without a retry cache
+([deferrals](../../../decisions/2026-09-history-stage-a-deferrals.md),
+[retired actions](../../../decisions/2026-09-operation-history-retired-actions.md)).
+
+**A missing project keeps a generic Retry when its history read is unavailable.** The route cannot
+claim creation was undone until the creator's summary confirms it, and an unavailable summary must
+not strand a person who could restore the project as soon as the host responds again. The button
+does not identify the history or reveal whether the project ever existed. A `not_found` summary is
+an answer rather than a failure — another person, another workspace, an id that never existed —
+so it offers no Retry: pressing it could only ever produce the same answer.
 
 **Section stores follow ownership.** A Task List provides its own `TaskListStore`, a
 Reflections section its `ReflectionsStore`, Progress its `ProgressStore` — one per
@@ -70,10 +101,29 @@ section, synced against the page's data revision — because under
 Task Lists must differ. A shortcut never gets a writable store: `ShortcutFrame` mounts
 the source read-only ([decision](../../../decisions/2026-09-a-shortcut-resolves-identity-not-content.md)).
 
-**The removal dialog opens only on the host's typed refusal.** `ProjectPageStore` holds
-no rows, so the count in "It still holds 3 tasks" travels from the domain in
-`DomainRuleError.details`, and the dialog offers containers by name
-([decision](../../../decisions/2026-09-a-section-has-a-name.md)).
+**Section removal is one gesture with a recoverable result.** The canvas sends only the section
+id; the domain archives live owned rows with it and leaves independently archived rows alone.
+An uncertain write keeps an ID-only Retry remove, while a failed follow-up read offers Retry
+refresh. Stored operation history still executes earlier reassign actions
+([decision](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md)).
+
+**The canvas keeps only the recovery the header cannot offer.** `SectionRecoveryNotice` offers
+Open Archive after a removal the server said Archive lists, an explicit Retry remove using the
+saved section id after an uncertain response, and a read-only Retry refresh after a committed write
+whose follow-up read failed; a forward write shows nothing, because the header's changed label is
+its confirmation. It floats at the viewport's end corner rather than in flow, so it never pushes
+the canvas under the pointer
+([decision](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md),
+[header controls](../../../decisions/2026-09-project-header-history-controls.md)).
+
+**A route is offered only when the person can take it.** The notice reads `archiveListed` off the
+removal result rather than inferring Archive from the operation's name, and a conflict's copy in
+the header
+says "Someone else changed it since" — under a per-actor history a conflict is always someone
+else's change, and the person's own later change is a newer step to undo first. `ArchivedRegion`
+says on the row that Archive Restore returns a section
+at the end of its page, because Undo, not Restore, is what returns it between its old neighbours
+([decision](../../../decisions/2026-09-recovery-routes-name-what-is-actually-there.md)).
 
 **Archive is a root-wide page, not a canvas footer.** The page-local Archived region
 became wrong when the canvas became page-scoped; `ArchivePage` owns the whole-tree
@@ -84,6 +134,12 @@ projection and the canonical restores, and `ArchivedRegion` is the presentationa
 matches `#section-<id>` against the sections it loaded, focuses the frame heading, and
 opens a collapsed target through a transient input that leaves the record alone
 ([decision](../../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)).
+
+**A root projection names the descendant history owner.** Todos and Archive show work from
+the whole root tree, while the header holds only the displayed project's current actor history.
+A separate owner link reaches that same header and its focus target; it does not offer a second
+Undo action or imply the row is the next action
+([decision](../../../decisions/2026-09-descendant-history-discovery.md)).
 
 ## Consequences
 
@@ -97,6 +153,11 @@ opens a collapsed target through a transient input that leaves the record alone
   away with the canvas — §23's "disappearing" by another route.
 
 ## Decisions that shape this system
+
+- [Task Delete names its existing recovery routes](../../../decisions/2026-09-task-delete-recovery-feedback.md) — Todos names the owner and points to the existing header and root Archive.
+- [Descendant rows link to their owner's existing header history](../../../decisions/2026-09-descendant-history-discovery.md) — owner route and fragment focus without a merged cursor.
+
+- [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — ready-only root rows and separate workspace Settings recovery.
 
 - [Direct canvas editing direction](../../../decisions/2026-09-direct-canvas-editing-direction.md) (implemented in Slice 27)
 - [Contextual insertion names its position](../../../decisions/2026-09-contextual-insertion-names-its-position.md)
@@ -113,7 +174,16 @@ opens a collapsed target through a transient input that leaves the record alone
 - [Home orders sections and shortcuts together](../../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)
 - [What the Todos page decides for itself](../../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)
 - [Root Archive recovery guidance](../../../decisions/2026-09-root-archive-recovery-guidance.md)
+- [Content-oriented Archive policy](../../../decisions/2026-09-content-oriented-archive-policy.md)
+- [Section removal is one cascade gesture, and task Delete is reversible](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md)
+- [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)
 - [Reflection subjects and the root journal feed](../../../decisions/2026-09-reflection-subjects-and-the-journal-feed.md)
+- [Task and reflection writes join operation history](../../../decisions/2026-09-row-operation-history.md) — row envelopes and compound-container live refresh
+- [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../../decisions/2026-09-optional-page-operation-history.md) — the page envelope the store ignores, and a removed page's Home fallback
+- [An existing project's writes are one action family](../../../decisions/2026-09-project-update-operation-history.md) — the project envelope every caller unwraps, and root projections re-reading on project-record frames from any root
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the same-URL recovery state and creator-only summary after Undo
+- [The project header offers Undo and Redo of the displayed project's history, and nothing else does](../../../decisions/2026-09-project-header-history-controls.md) — header-only action surface, per-step blockers, write reporting, archive stays on the project
+- [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — a narrow column choice re-collapses the column and focuses its toggle across a reload
 
 ## Spec sections
 
@@ -121,3 +191,10 @@ opens a collapsed target through a transient input that leaves the record alone
 shortcuts · §28 layout flag · §29 registry · §30 section types · §31 frame and archive ·
 §32 editing · §34 the Todos page · §36 the Reflections page · §66 section structure ·
 §68 routes.
+
+**Archive copy renders the domain's recovery verdict; it never decides eligibility.**
+`ArchivedRegion` labels the supplied `recovery` metadata — total content apart from the exact
+"restores with this section" count, kept text, or conservative unknown content — and spells out
+the two steps for an archived container whose rows were archived on their own. A live container
+beneath an archived project is omitted until that project returns
+([decision](../../../decisions/2026-09-content-oriented-archive-policy.md)).

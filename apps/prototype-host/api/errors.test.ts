@@ -32,25 +32,21 @@ describe('toErrorResult, on the agent failures (§§51, 53)', () => {
   });
 });
 
-/**
- * A rule error can now carry a payload the *caller* acts on rather than only reads — the
- * non-empty section refusal, whose count the canvas composes its own question from. This is
- * the one place a domain record becomes a wire envelope.
- */
+/** A rule error can carry opaque details the caller may inspect; this is the wire envelope. */
 describe('toErrorResult, on a rule error that carries details (§31)', () => {
-  it('forwards a typed refusal beside the sentence', () => {
+  it('forwards opaque details beside the sentence', () => {
     const result = toErrorResult(
-      new DomainRuleError('section "section-1" still holds 3 tasks', {
-        reason: 'section_not_empty',
-        liveRowCount: 3,
+      new DomainRuleError('the write conflicts with the current record', {
+        reason: 'write_conflict',
+        conflictingRecordCount: 3,
       }),
     );
 
     expect(result.status).toBe(409);
     expect(result.body).toEqual({
       error: 'rule_violation',
-      message: 'section "section-1" still holds 3 tasks',
-      details: { reason: 'section_not_empty', liveRowCount: 3 },
+      message: 'the write conflicts with the current record',
+      details: { reason: 'write_conflict', conflictingRecordCount: 3 },
     });
   });
 

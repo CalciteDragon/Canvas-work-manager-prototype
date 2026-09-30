@@ -1,6 +1,7 @@
 import { DestroyRef, Injectable, PendingTasks, inject, signal } from '@angular/core';
-import type { LiveEvent, ProjectId, ProjectTodoItem } from '@cwm/contracts';
+import { isProjectRecordEvent, type LiveEvent, type ProjectId, type ProjectTodoItem } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -14,6 +15,22 @@ export const isTodoFinished = (item: ProjectTodoItem): boolean =>
   item.kind === 'task'
     ? item.task.status === 'done' || item.task.status === 'cancelled'
     : item.project.status === 'completed' || item.project.status === 'archived';
+
+/** The live task ids a parent-first archive removes from the chronology. */
+const taskSubtreeIds = (items: readonly ProjectTodoItem[], rootId: string): Set<string> => {
+  const ids = new Set([rootId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const item of items) {
+      if (item.kind !== 'task' || item.task.parentTaskId === undefined || !ids.has(item.task.parentTaskId)) continue;
+      if (ids.has(item.task.id)) continue;
+      ids.add(item.task.id);
+      changed = true;
+    }
+  }
+  return ids;
+};
 
 /**
  * §34's Todos page, as one store: **the chronology of one root, and the completion of a row in
@@ -34,6 +51,12 @@ export const isTodoFinished = (item: ProjectTodoItem): boolean =>
 export class TodosPageStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
+  /**
+   * Both completions report to the header's history (Slice 41). A row's owning project is often a
+   * descendant, whose history is not the root's: the report names it, from the response, so the
+   * header can say where the step was recorded.
+   */
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
   private readonly itemsState = signal<readonly ProjectTodoItem[]>([]);
   // Starts true for the reason `ProjectPageStore` states: before the first read resolves the
@@ -43,6 +66,7 @@ export class TodosPageStore {
   private readonly refreshErrorState = signal<string | null>(null);
   private readonly writeErrorState = signal<string | null>(null);
   private readonly completingState = signal<string | null>(null);
+  private readonly deletingState = signal<string | null>(null);
 
   private generation = 0;
   private requestedProjectId: ProjectId | undefined;
@@ -67,6 +91,8 @@ export class TodosPageStore {
   readonly writeError = this.writeErrorState.asReadonly();
   /** The row whose completion is in flight. Non-null freezes every row's control. */
   readonly completing = this.completingState.asReadonly();
+  /** The task whose reversible Delete is in flight. */
+  readonly deleting = this.deletingState.asReadonly();
 
   constructor() {
     const unsubscribe = inject(LIVE_UPDATES).subscribe(
@@ -92,6 +118,7 @@ export class TodosPageStore {
     this.refreshErrorState.set(null);
     this.writeErrorState.set(null);
     this.completingState.set(null);
+    this.deletingState.set(null);
     this.readQueued = false;
     this.writing = false;
     return this.read(generation, projectId, { quiet: false });
@@ -118,7 +145,7 @@ export class TodosPageStore {
     if (projectId === undefined) return false;
     // Serialized, deliberately: a bounded first implementation (§71). A second click on the
     // same row, and a click on another row, are both refused while one write is in flight.
-    if (this.completingState() !== null || isTodoFinished(item)) return false;
+    if (this.completingState() !== null || this.deletingState() !== null || isTodoFinished(item)) return false;
 
     const generation = this.generation;
     const id = todoIdOf(item);
@@ -136,14 +163,22 @@ export class TodosPageStore {
         // Optimistic **status only**. `completedAt` is the clock's (§45) and arrives with the
         // canonical record; inventing one here would print a time nothing recorded.
         this.replace(id, { ...item, task: { ...item.task, status: 'done' } });
-        const record = await this.track(() => this.gateway.tasks.complete(item.task.id));
+        const record = await this.track(() => reportedWrite(
+          this.reporter,
+          () => this.gateway.tasks.complete(item.task.id),
+          ({ task, operation }) => ({ projectId: task.projectId, receipt: operation }),
+        ));
         if (!current()) return false;
-        this.replace(id, { ...item, task: record });
+        this.replace(id, { ...item, task: record.task });
       } else {
         this.replace(id, { ...item, project: { ...item.project, status: 'completed' } });
         // §26's completion of a unit of work is an ordinary status update, so it goes through
         // the same call the header uses — and it does **not** complete anything beneath it.
-        const record = await this.track(() => this.gateway.projects.update(item.project.id, { status: 'completed' }));
+        const { project: record } = await this.track(() => reportedWrite(
+          this.reporter,
+          () => this.gateway.projects.update(item.project.id, { status: 'completed' }),
+          ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }),
+        ));
         if (!current()) return false;
         // A root coming back here would mean the id named something else entirely; keep the
         // optimistic row rather than putting a shape this page cannot render into the list.
@@ -159,11 +194,60 @@ export class TodosPageStore {
       this.writeErrorState.set(messageOf(error));
       return false;
     } finally {
-      this.writing = false;
       if (current()) {
+        this.writing = false;
         this.completingState.set(null);
         // Whatever arrived while the write was in flight — including the write's own §62 echo —
         // is read now, once, against the settled row.
+        if (this.readQueued) {
+          this.readQueued = false;
+          void this.refresh();
+        }
+      }
+    }
+  }
+
+  /**
+   * Reversible Delete for a task shown in Todos. The row remains an archive operation at the
+   * gateway, so the response receipt is reported to the task's own project history. The page
+   * removes the task and its descendants optimistically, then restores its exact snapshot if
+   * the write fails.
+   */
+  async delete(item: ProjectTodoItem): Promise<boolean> {
+    const projectId = this.requestedProjectId;
+    if (projectId === undefined || item.kind !== 'task') return false;
+    // Complete and Delete share one write slot across all rows on this bounded prototype page.
+    if (this.completingState() !== null || this.deletingState() !== null) return false;
+
+    const generation = this.generation;
+    const id = item.task.id;
+    const current = () => this.current(generation, projectId);
+    const before = this.itemsState();
+    const removedIds = taskSubtreeIds(before, id);
+
+    this.writeErrorState.set(null);
+    this.deletingState.set(id);
+    this.writing = true;
+    this.writeEpoch += 1;
+    this.itemsState.set(before.filter((candidate) => candidate.kind !== 'task' || !removedIds.has(candidate.task.id)));
+
+    try {
+      await this.track(() => reportedWrite(
+        this.reporter,
+        () => this.gateway.tasks.archive(id),
+        ({ task, operation }) => ({ projectId: task.projectId, receipt: operation }),
+      ));
+      if (!current()) return false;
+      return true;
+    } catch (error) {
+      if (!current()) return false;
+      this.itemsState.set(before);
+      this.writeErrorState.set(messageOf(error));
+      return false;
+    } finally {
+      if (current()) {
+        this.writing = false;
+        this.deletingState.set(null);
         if (this.readQueued) {
           this.readQueued = false;
           void this.refresh();
@@ -180,7 +264,8 @@ export class TodosPageStore {
    * a project it is not open on. `prototype.reloaded` is the loud exception: the document behind
    * every row may have been replaced, so the content goes immediately even though the root id
    * has not changed. (Choosing a persona reloads the browser through the prototype panel, so it
-   * needs nothing here.)
+   * needs nothing here.) A project-record frame from **any** root also re-reads: a sub-project moved
+   * out of this root is announced under its new one only (`isProjectRecordEvent`).
    */
   private onLiveEvent(event: LiveEvent): void {
     const projectId = this.requestedProjectId;
@@ -189,7 +274,7 @@ export class TodosPageStore {
       void this.load(projectId);
       return;
     }
-    if (event.rootProjectId !== projectId && event.projectId !== projectId) return;
+    if (event.rootProjectId !== projectId && event.projectId !== projectId && !isProjectRecordEvent(event)) return;
     this.invalidate();
   }
 

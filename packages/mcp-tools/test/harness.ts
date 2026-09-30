@@ -13,14 +13,17 @@ import {
 import {
   ActivityService,
   DashboardService,
+  OperationHistoryService,
   ProjectPageService,
   ProjectArchiveService,
+  ArchivedProjectsService,
   ProjectJournalService,
   ProjectService,
   ProjectTodosService,
   PrototypeAIProvider,
   PrototypeClock,
   ReflectionService,
+  RepositoryOperationRecorder,
   SectionService,
   SectionShortcutService,
   TaskService,
@@ -34,6 +37,8 @@ import {
   JsonActivityRepository,
   JsonAgentConnectionRepository,
   JsonMilestoneRepository,
+  JsonOperationActionRepository,
+  JsonOperationHistoryRepository,
   JsonProjectPageRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
@@ -181,6 +186,8 @@ export const buildHarness = () => {
   const agents = new JsonAgentConnectionRepository(store);
   const users = new JsonUserRepository(store);
   const milestones = new JsonMilestoneRepository(store);
+  const operationHistories = new JsonOperationHistoryRepository(store);
+  const operationActions = new JsonOperationActionRepository(store);
   const activity = new ActivityService({
     activities,
     projects,
@@ -193,21 +200,24 @@ export const buildHarness = () => {
     ids,
   });
 
-  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
-  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
+  const history = new RepositoryOperationRecorder({ histories: operationHistories, actions: operationActions, clock, ids });
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, history, clock, ids, unitOfWork });
+  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, history, clock, ids, unitOfWork });
 
   const services = {
     sections: sectionService,
     shortcuts: sectionShortcutService,
-    projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
-    pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
+    projects: new ProjectService({ projects, pages, sections, shortcuts, activity, history, clock, ids, unitOfWork }),
+    pages: new ProjectPageService({ pages, projects, activity, history, clock, ids, unitOfWork }),
     todos: new ProjectTodosService({ projects, tasks, sections, pages }),
     archive: new ProjectArchiveService({ projects, pages, sections, tasks, reflections }),
+    archivedProjects: new ArchivedProjectsService({ projects }),
     journal: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
-    tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
-    reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
+    tasks: new TaskService({ tasks, projects, sections: sectionService, activity, history, clock, ids, unitOfWork }),
+    reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     workspace: new WorkspaceService({ projects, tasks, reflections, clock }),
+    history: new OperationHistoryService({ histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, milestones, reflections, activity, clock, unitOfWork }),
   };
 
   return { store, clock, activity, services, registry: createToolRegistry(services) };

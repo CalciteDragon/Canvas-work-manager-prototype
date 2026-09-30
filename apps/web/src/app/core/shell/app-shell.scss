@@ -1,4 +1,4 @@
-// §23's grid. Desktop-first by design — the prototype is a desktop application.
+// §23's grid. Desktop-first; below 48rem the sidebar leaves the grid and becomes a drawer.
 .shell {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -18,10 +18,29 @@
   min-height: 0;
 }
 
+// The sidebar fills the drawer below its Close row; at desktop width it is the only child.
+.drawer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.drawer__nav {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
 .workspace {
   grid-area: workspace;
   padding: var(--space-5);
   overflow: auto;
+}
+
+// Focused only by a drawer that closed behind a chosen link. Inset, because the region scrolls
+// and would clip an outline drawn outside it.
+.workspace:focus-visible {
+  outline: var(--border-focus) solid var(--color-accent);
+  outline-offset: calc(-1 * var(--border-focus));
 }
 
 // §23 puts the project navigation column *between* the sidebar and the main workspace, which
@@ -31,4 +50,80 @@
 // selector, so a rename cannot silently stop matching.
 .workspace:has(> [data-flush-workspace]) {
   padding: 0;
+}
+
+// Below the development panel's 40/41, which is mounted outside this shell and must stay on top.
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  border: 0;
+  padding: 0;
+  background: var(--color-background);
+  opacity: 60%;
+  cursor: pointer;
+}
+
+.drawer__header {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-3);
+  border-inline-end: var(--border-hairline) solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.drawer__close {
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.drawer__close:hover,
+.drawer__close:focus-visible {
+  border-color: var(--color-accent);
+}
+
+@media (hover: none), (any-pointer: coarse) {
+  .drawer__close {
+    min-width: var(--size-hit-target);
+    min-height: var(--size-hit-target);
+  }
+}
+
+// Slice 58's phone breakpoint. Mirrors `SHELL_NARROW_QUERY` in `app-shell.ts` and the query in
+// `top-bar.scss`; a custom property cannot appear in a query condition.
+@media (max-width: 48rem) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'top'
+      'workspace';
+  }
+
+  // Out of the grid entirely, so the workspace takes the full width.
+  .side {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 31;
+    // A strip of backdrop always stays visible to tap.
+    width: min(var(--layout-sidebar-width), calc(100vw - var(--size-hit-target)));
+  }
+
+  .side--open {
+    box-shadow: var(--shadow-md);
+  }
+
+  // Closed, it is hidden as well as `inert`, taking its links out of sight and the tab order.
+  // A class bound from the narrow signal rather than a rule of this query alone: the browser
+  // applies the query before the `matchMedia` change reaches `AppShell`, and hiding a focused
+  // link then would drop focus to the document before the shell could see where it was.
+  .side--closed {
+    visibility: hidden;
+  }
 }

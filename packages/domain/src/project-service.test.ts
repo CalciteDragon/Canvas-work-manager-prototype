@@ -1,4 +1,4 @@
-import { ProjectSchema, isSubproject, type CreateProjectInput, type CreateSubprojectInput, type ProjectId } from '@cwm/contracts';
+import { ProjectSchema, isSubproject, type CreateProjectInput, type CreateSubprojectInput, type ProjectId, type ProjectPageId } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
@@ -12,8 +12,8 @@ type CreateOverrides = Partial<CreateSubprojectInput>;
  * overrides as the sub-project branch is what lets a caller pass `parentProjectId` — the
  * default `{}` inferred as `{}` and could carry neither.
  */
-const create = (harness: ReturnType<typeof buildHarness>, overrides: CreateOverrides = {}) =>
-  harness.projectService.create(harness.actor, {
+const createWrite = (harness: ReturnType<typeof buildHarness>, overrides: CreateOverrides = {}) =>
+  harness.projectWriteService.create(harness.actor, {
     workspaceId: harness.actor.workspaceId,
     name: 'Work Manager',
     // A parent is what makes something a unit of work rather than a workspace (§26), so the
@@ -21,12 +21,15 @@ const create = (harness: ReturnType<typeof buildHarness>, overrides: CreateOverr
     kind: overrides.parentProjectId === undefined ? 'root' : 'subproject',
     ...overrides,
   } as CreateProjectInput);
+const create = async (harness: ReturnType<typeof buildHarness>, overrides: CreateOverrides = {}) =>
+  (await createWrite(harness, overrides)).project;
 
 describe('ProjectService.create', () => {
   it('creates in the actor’s workspace with clock timestamps', async () => {
     const harness = buildHarness();
 
-    const project = await create(harness);
+    const write = await createWrite(harness);
+    const project = write.project;
 
     expect(() => ProjectSchema.parse(project)).not.toThrow();
     expect(project).toMatchObject({
@@ -35,6 +38,12 @@ describe('ProjectService.create', () => {
       createdAt: NOW,
       updatedAt: NOW,
     });
+    expect(write.operation).toMatchObject({ operation: 'project.add', label: 'Created "Work Manager"' });
+    const action = await harness.operationActions.find(write.operation!.actionId);
+    expect(action).toMatchObject({ order: 1, state: 'applied', operation: {
+      version: 1, type: 'project.add', project,
+      page: { projectId: project.id, kind: 'home', enabled: true },
+    } });
   });
 
   it('rejects a create naming another workspace', async () => {
@@ -49,6 +58,21 @@ describe('ProjectService.create', () => {
     const child = await create(harness, { name: 'Sub', parentProjectId: MINE });
 
     expect(child.parentProjectId).toBe(MINE);
+  });
+
+  it('records a sub-project in its own history rather than its parent’s', async () => {
+    const harness = buildHarness();
+
+    const write = await harness.projectWriteService.create(harness.actor, {
+      workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Own history',
+    });
+    const history = await harness.operationHistories.find(write.operation!.historyId);
+    const [action] = await harness.operationActions.list({ historyId: write.operation!.historyId });
+
+    expect(history).toMatchObject({ projectId: write.project.id, workspaceId: harness.actor.workspaceId });
+    expect(write.operation).toMatchObject({ operation: 'project.add', label: 'Created "Own history"', revision: 1 });
+    expect(action?.operation).toMatchObject({ type: 'project.add', project: { id: write.project.id }, page: { projectId: write.project.id, kind: 'work' } });
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).historyId).toBeNull();
   });
 
   it('rejects a parent that does not exist or belongs to another workspace', async () => {
@@ -373,5 +397,146 @@ describe('ProjectService owner kinds and pages', () => {
     });
 
     expect(await harness.pages.list({ projectId: project.id })).toHaveLength(1);
+  });
+});
+
+describe('ProjectService write results and history (Slices 39 and 42, §31)', () => {
+  it('answers one receipt per changed update and archive, and a null receipt for a no-op', async () => {
+    const harness = buildHarness();
+    const child = await create(harness, { name: 'Child', parentProjectId: MINE });
+
+    const renamed = await harness.projectWriteService.update(harness.actor, child.id, { name: 'Renamed', targetDate: '2026-10-01' });
+    expect(renamed.project).toMatchObject({ id: child.id, name: 'Renamed', targetDate: '2026-10-01' });
+    expect(renamed.operation).toMatchObject({ operation: 'project.update', label: 'Edited "Renamed"', revision: 2 });
+
+    const archived = await harness.projectWriteService.archive(harness.actor, child.id);
+    expect(archived.operation).toMatchObject({ operation: 'project.archive', historyId: renamed.operation!.historyId, revision: 3 });
+
+    expect((await harness.projectWriteService.archive(harness.actor, child.id)).operation).toBeNull();
+    expect((await harness.projectWriteService.update(harness.actor, child.id, { name: 'Renamed' })).operation).toBeNull();
+    expect(await harness.operationActions.list({ historyId: renamed.operation!.historyId })).toHaveLength(3);
+  });
+
+  it('records a PATCH that changes status and other fields as one action and one activity event', async () => {
+    const harness = buildHarness();
+    const before = (await harness.activity.list(harness.actor)).length;
+
+    const result = await harness.projectWriteService.update(harness.actor, MINE, { status: 'completed', name: 'Done' });
+
+    // Two user-facing edits in one PATCH: the label says Edited rather than naming one of them.
+    expect(result.operation).toMatchObject({ operation: 'project.update', label: 'Edited "Done"' });
+    expect(await harness.operationActions.list({ historyId: result.operation!.historyId })).toHaveLength(1);
+    expect(await harness.activity.list(harness.actor)).toHaveLength(before + 1);
+  });
+
+  it('names the new parent in a reparent’s label, and leaves the archive label alone (Slice 41)', async () => {
+    const harness = buildHarness();
+    const other = await harness.projectService.create(harness.actor, { workspaceId: harness.actor.workspaceId, kind: 'root', name: 'Garden' });
+    const child = await create(harness, { name: 'Shed', parentProjectId: MINE });
+
+    const moved = await harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: other.id });
+    expect(moved.operation).toMatchObject({ operation: 'project.update', label: 'Moved "Shed" under Garden' });
+    expect((await harness.projectWriteService.archive(harness.actor, child.id)).operation).toMatchObject({ label: 'Archived "Shed"' });
+  });
+
+  it('records an agent’s write in its own history, never the person’s', async () => {
+    const harness = buildHarness();
+    const agent = agentActorFor(0, ['projects.write']);
+
+    const { operation } = await harness.projectWriteService.update(agent, MINE, { icon: '🤖' });
+
+    expect((await harness.operationHistories.find(operation!.historyId))).toMatchObject({ actor: 'agent', projectId: MINE });
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).historyId).toBeNull();
+  });
+
+  it('leaves no project change, action or activity behind when persistence fails', async () => {
+    const harness = buildHarness();
+    const before = JSON.stringify(harness.store.snapshot());
+    harness.store.persistFailure = new Error('disk full');
+
+    await expect(harness.projectWriteService.update(harness.actor, MINE, { name: 'Lost' })).rejects.toThrow('disk full');
+    harness.store.persistFailure = undefined;
+
+    expect(JSON.stringify(harness.store.snapshot())).toEqual(before);
+  });
+
+  it('rolls back the project, page, Activity and creation action when persistence fails', async () => {
+    const harness = buildHarness();
+    const before = JSON.stringify(harness.store.snapshot());
+    harness.store.persistFailure = new Error('disk full');
+
+    await expect(createWrite(harness)).rejects.toThrow('disk full');
+    harness.store.persistFailure = undefined;
+
+    expect(JSON.stringify(harness.store.snapshot())).toEqual(before);
+  });
+});
+
+/**
+ * A move to another root carries every section in the subtree with it, so an old-root Home shortcut
+ * placing one of them would cross root trees — which commit-time integrity rejects as a defect, not a
+ * refusal. The forward write refuses first, the same rule a reparent reversal applies (§§26, 27, 61).
+ */
+describe('ProjectService.update refuses a reparent that would carry a Home shortcut across roots', () => {
+  const setUp = async () => {
+    const harness = buildHarness();
+    const other = await create(harness, { name: 'Other root' });
+    const child = await create(harness, { name: 'Kitchen', parentProjectId: MINE });
+    const grandchild = await create(harness, { name: 'Cabinets', parentProjectId: child.id });
+    const staying = await create(harness, { name: 'Staying', parentProjectId: MINE });
+    const home = (await harness.pages.list({ projectId: MINE })).find(({ kind }) => kind === 'home')!;
+    return { harness, other, child, grandchild, staying, home };
+  };
+  const place = async (harness: ReturnType<typeof buildHarness>, projectId: ProjectId, pageId: ProjectPageId) => {
+    const { section } = await harness.sectionWriteService.add(harness.actor, projectId, { type: 'rich-text', title: 'Notes' });
+    return (await harness.sectionShortcutWriteService.create(harness.actor, MINE, { pageId, sourceSectionId: section.id })).shortcut;
+  };
+  const written = (harness: ReturnType<typeof buildHarness>) => {
+    const document = harness.store.snapshot();
+    return JSON.stringify([document.projects, document.sectionShortcuts, document.operationActions, document.activityEvents]);
+  };
+
+  it('names the placement of a descendant’s section, writes nothing, then moves once it is removed', async () => {
+    const { harness, other, child, grandchild, home } = await setUp();
+    const shortcut = await place(harness, grandchild.id, home.id);
+    const before = written(harness);
+
+    const refusal = harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: other.id });
+    await expect(refusal).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(refusal).rejects.toThrow(shortcut.id);
+    await expect(refusal).rejects.toThrow(/remove/);
+    expect(written(harness)).toEqual(before);
+
+    await harness.sectionShortcutWriteService.remove(harness.actor, shortcut.id);
+    const moved = await harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: other.id });
+    expect(moved.project.parentProjectId).toBe(other.id);
+  });
+
+  it('names every carried placement, refuses a combined edit whole, and leaves the cycle refusal first', async () => {
+    const { harness, other, child, grandchild, home } = await setUp();
+    const first = await place(harness, child.id, home.id);
+    const second = await place(harness, grandchild.id, home.id);
+    const before = written(harness);
+
+    const refusal = harness.projectWriteService.update(harness.actor, child.id, { name: 'Renamed', parentProjectId: other.id });
+    await expect(refusal).rejects.toThrow(first.id);
+    await expect(refusal).rejects.toThrow(second.id);
+    expect(written(harness)).toEqual(before);
+
+    // A destination inside the subject is a cycle before it is a move to anywhere.
+    await expect(harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: grandchild.id })).rejects.toThrow(/nested inside itself/);
+  });
+
+  it('allows a move within the root, and a cross-root move whose placements source work that stays', async () => {
+    const { harness, other, child, staying, home } = await setUp();
+    await place(harness, child.id, home.id);
+    await place(harness, staying.id, home.id);
+
+    // Same root: the placement stays inside one tree, so nothing crosses.
+    expect((await harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: staying.id })).project.parentProjectId).toBe(staying.id);
+    await harness.projectWriteService.update(harness.actor, child.id, { parentProjectId: MINE });
+
+    const mover = await create(harness, { name: 'Mover', parentProjectId: MINE });
+    expect((await harness.projectWriteService.update(harness.actor, mover.id, { parentProjectId: other.id })).project.parentProjectId).toBe(other.id);
   });
 });

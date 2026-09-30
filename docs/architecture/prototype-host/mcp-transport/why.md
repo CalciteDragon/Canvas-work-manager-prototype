@@ -40,20 +40,37 @@ and a bad habit to form for tokens that will one day be real.
 
 **Stdio reloads the document before every call.** A child process cannot see the running
 host's in-memory state, so it re-reads the file and re-authenticates each time — it
-therefore sees host-side revocations, while the host does not see its writes
-([decision](../../../decisions/2026-08-stdio-token-and-live-auth.md)). The documented
-safe workflow is to stop the host for a stdio mutation session, or point each transport
-at its own `CWM_DATA_FILE`.
+therefore sees host-side revocations, while a running host would not see its writes — which is
+why a stdio call is refused while a host owns the file (below)
+([decision](../../../decisions/2026-08-stdio-token-and-live-auth.md)). Because every reload is
+a separate store, the process also takes calls one at a time: Slice 45 found two concurrent
+transitions at one expected revision both landing when calls overlapped. That serialization is
+within one stdio process only.
 
-**Permission metadata is namespaced under `_meta`**, with the singular key kept for
-existing clients and a plural key carrying every grant a combined read needs
-([decision](../../../decisions/2026-08-mcp-tool-permission-metadata.md)).
+**Across processes, each stdio call owns the data file for its turn.** The documented "stop the
+host first" rule failed silently as a lost update. Each call now takes the file's owner record
+before its reload and gives it back after its call, so two stdio processes take turns and a call
+behind a running host is refused with `data_file_in_use:`. Rejected: lifetime ownership, which
+would block `pnpm dev:host` whenever a long-lived client is open and break the sequential
+two-process journeys `mcp-acceptance` runs
+([decision](../../../decisions/2026-09-one-writer-per-data-file.md)). HTTP MCP remains the route beside an open UI.
+
+**Permission metadata is namespaced under `_meta`.** Static tools keep the singular key for
+existing clients and a plural key carrying every grant a combined read needs. `undo_operation`
+and `redo_operation` publish neither: the one grant a call needs comes from the stored operation's
+family, so they publish a namespaced `{ section, task, reflection, shortcut, page, project }` grant map
+instead. The domain, not this transport, enforces the selected grant
+([decision](../../../decisions/2026-08-mcp-tool-permission-metadata.md),
+[amended](../../../decisions/2026-09-operation-family-permissions.md),
+[the page family](../../../decisions/2026-09-optional-page-operation-history.md)).
 
 ## Consequences
 
 - `pnpm --filter @cwm/prototype-host mcp-acceptance` lists tools, creates a task and
   finds it in the file over both transports with a real client — the slice's *done when*,
-  runnable at any time.
+  runnable at any time. Later slices extended it; [testing / how](../../testing/how.md) lists
+  what it now covers, including Slice 35's A → B → Undo → Undo → Redo → Redo chain over both
+  transports and a fresh connection seeing only its own history.
 - A stdio agent's write does not appear in the browser; the guide says so and says why.
 - The tool list is public and unfiltered by grant; the metadata tells a client what each
   tool needs before it calls.
@@ -63,10 +80,12 @@ existing clients and a plural key carrying every grant a combined read needs
 ## Decisions that shape this system
 
 - [Stdio uses an environment token and reloads identity per call](../../../decisions/2026-08-stdio-token-and-live-auth.md)
+- [One writer per data file](../../../decisions/2026-09-one-writer-per-data-file.md) — per-call stdio ownership and the refusal behind a host
 - [Live updates reach the browser over HTTP, and not over stdio](../../../decisions/2026-08-live-updates-are-http-only.md)
 - [Where §51's bearer tokens live](../../../decisions/2026-08-agent-tokens-are-fixtures-not-records.md)
 - [How §53's "Last used" is recorded](../../../decisions/2026-08-last-used-is-a-throttled-write.md)
 - [MCP tools advertise their required permission in namespaced metadata](../../../decisions/2026-08-mcp-tool-permission-metadata.md)
+- [Undo and Redo advertise and enforce one grant per stored operation family](../../../decisions/2026-09-operation-family-permissions.md)
 - [What the tool registry knows about MCP](../../../decisions/2026-08-tool-registry-is-transport-free.md) — the three obligations this transport inherited
 
 ## Spec sections

@@ -7,7 +7,7 @@ type Harness = ReturnType<typeof buildHarness>;
 
 /** A root with its Home and an enabled Reflections page — the first shape with two canvases. */
 const rootWithReflections = async (harness: Harness): Promise<{ home: ProjectPage; reflections: ProjectPage }> => {
-  const reflections = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+  const { page: reflections } = await harness.projectPageService.setEnabled(harness.actor, MINE, {
     kind: 'reflections',
     enabled: true,
   });
@@ -159,7 +159,9 @@ describe('a page owns its sections (§27, §30)', () => {
 describe('ordering is per page (§27)', () => {
   const stage = async (harness: Harness) => {
     const { home, reflections } = await rootWithReflections(harness);
-    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list', pageId: home.id });
+    const first = await harness.sectionService.add(harness.actor, MINE, {
+      type: 'rich-text', pageId: home.id, config: { text: 'Keep this section for the ordering test' },
+    });
     const second = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', pageId: home.id });
     const journal = await harness.sectionService.add(harness.actor, MINE, {
       type: 'reflections',
@@ -192,7 +194,7 @@ describe('ordering is per page (§27)', () => {
     const { home, reflections, first } = await stage(harness);
     const before = await positionsOn(harness, reflections);
 
-    const archived = await harness.sectionService.remove(harness.actor, first.id);
+    const { section: archived } = await harness.sectionService.remove(harness.actor, first.id);
     expect(await positionsOn(harness, reflections)).toEqual(before);
 
     const restored = await harness.sectionService.restoreSection(harness.actor, archived.id);
@@ -219,7 +221,9 @@ describe('ordering is per page (§27)', () => {
     const sourceProject = await subprojectOf(harness, MINE, 'Kitchen');
     const source = await harness.sectionService.add(harness.actor, sourceProject.id, { type: 'task-list' });
     const { home } = await rootWithReflections(harness);
-    const own = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    const own = await harness.sectionService.add(harness.actor, MINE, {
+      type: 'rich-text', pageId: home.id, config: { text: 'Keep this canvas note' },
+    });
     const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, {
       pageId: home.id,
       sourceSectionId: source.id,
@@ -245,6 +249,7 @@ describe('ordering is per page (§27)', () => {
   it('answers the canonical canvas when no page is named, in both branches', async () => {
     const harness = buildHarness();
     const { home, reflections, first, journal } = await stage(harness);
+    await harness.reflectionService.create(harness.actor, { projectId: MINE, sectionId: journal.id, body: 'Archive content' });
     await harness.sectionService.remove(harness.actor, first.id);
     await harness.sectionService.remove(harness.actor, journal.id);
 
@@ -268,6 +273,7 @@ describe('ordering is per page (§27)', () => {
   it('scopes a list to one page in both branches, and resolves a page it cannot own', async () => {
     const harness = buildHarness();
     const { home, reflections, first, journal } = await stage(harness);
+    await harness.reflectionService.create(harness.actor, { projectId: MINE, sectionId: journal.id, body: 'Keep this container' });
     await harness.sectionService.remove(harness.actor, first.id);
 
     const liveHome = await harness.sectionService.list(harness.actor, MINE, { pageId: home.id });
@@ -311,7 +317,7 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     const harness = buildHarness();
     const { reflections, journal } = await staged(harness);
 
-    // Named by page, named by section, duplicated, and reassigned into.
+    // Named by page, named by section, duplicated, and independently moved into.
     await expect(
       harness.sectionService.add(harness.actor, MINE, { type: 'reflections', pageId: reflections.id }),
     ).rejects.toThrow(/is disabled/);
@@ -321,13 +327,12 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     await expect(harness.sectionService.duplicate(harness.actor, journal.id)).rejects.toThrow(/is disabled/);
 
     const onHome = await harness.sectionService.add(harness.actor, MINE, { type: 'reflections' });
-    await harness.reflectionService.create(harness.actor, { projectId: MINE, sectionId: onHome.id, body: 'Home' });
-    await expect(
-      harness.sectionService.remove(harness.actor, onHome.id, {
-        policy: 'reassign',
-        reassignToSectionId: journal.id,
-      }),
-    ).rejects.toThrow(/is disabled/);
+    const homeRow = await harness.reflectionService.create(harness.actor, { projectId: MINE, sectionId: onHome.id, body: 'Home' });
+    await harness.sectionService.remove(harness.actor, onHome.id);
+    expect(await harness.reflections.find(homeRow.id)).toMatchObject({
+      archivedAt: expect.any(String),
+      archivedWithSectionId: onHome.id,
+    });
   });
 
   /**
@@ -370,7 +375,7 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     await expect(harness.sectionService.move(harness.actor, journal.id, 0)).resolves.toBeDefined();
 
     // Undo is never behind a toggle (§31): removal and restore both work on a disabled page.
-    const archived = await harness.sectionService.remove(harness.actor, journal.id, { policy: 'cascade' });
+    const { section: archived } = await harness.sectionService.remove(harness.actor, journal.id);
     const restored = await harness.sectionService.restoreSection(harness.actor, archived.id);
     expect(restored.pageId).toBe(reflections.id);
     expect((await harness.reflections.list({ sectionId: journal.id }))[0]?.archivedAt).toBeUndefined();
@@ -394,34 +399,6 @@ describe('a disabled page hides navigation, not data (§27)', () => {
     await expect(
       harness.taskService.update(harness.actor, child.id, { title: 'Buy grout and spacers' }),
     ).resolves.toMatchObject({ title: 'Buy grout and spacers', sectionId: parent.sectionId });
-  });
-});
-
-describe('reassigning rows across pages (§31)', () => {
-  it('is allowed within a project — §31 constrains the type, not the page', async () => {
-    const harness = buildHarness();
-    const { home, reflections } = await rootWithReflections(harness);
-    const source = await harness.sectionService.add(harness.actor, MINE, { type: 'reflections', pageId: home.id });
-    const target = await harness.sectionService.add(harness.actor, MINE, {
-      type: 'reflections',
-      pageId: reflections.id,
-    });
-    const row = await harness.reflectionService.create(harness.actor, {
-      projectId: MINE,
-      sectionId: source.id,
-      body: 'Moves with its policy',
-    });
-
-    await harness.sectionService.remove(harness.actor, source.id, {
-      policy: 'reassign',
-      reassignToSectionId: target.id,
-    });
-
-    const moved = (await harness.reflections.list({ sectionId: target.id }))[0];
-    expect(moved?.id).toBe(row.id);
-    // Live, not archived: `reassign` settles the rows under their own policy, so they are not
-    // "archived with" the section that gave them up.
-    expect(moved?.archivedAt).toBeUndefined();
   });
 });
 

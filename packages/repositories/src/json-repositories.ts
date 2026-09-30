@@ -3,13 +3,15 @@ import type {
   MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageQuery, ProjectQuery, ProjectSection,
   PrototypeDocument, Reflection,
   ReflectionId, ReflectionQuery, SectionId, SectionQuery, SectionShortcut, SectionShortcutId,
+  OperationAction, OperationActionId, OperationActionQuery, OperationHistory, OperationHistoryId, OperationHistoryQuery,
   SectionShortcutQuery, Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
 import { assertCanMutateDataStore, type DataStore, getActiveDocument } from './data-store';
 import { RepositoryConflictError, RepositoryNotFoundError } from './errors';
 import type {
   ActivityRepository, AgentConnectionRepository, MilestoneRepository, ProjectPageRepository, ProjectRepository,
-  ReflectionRepository, SectionRepository, SectionShortcutRepository, TaskRepository, UserRepository,
+  OperationActionRepository, OperationHistoryRepository, ReflectionRepository, SectionRepository, SectionShortcutRepository,
+  TaskRepository, UserRepository,
 } from './interfaces';
 
 type StoredCollection = Exclude<keyof PrototypeDocument, 'schemaVersion' | 'workspaces'>;
@@ -50,10 +52,11 @@ abstract class JsonCollectionRepository<T extends StoredEntity> {
   }
 
   /**
-   * Sections and shortcut placements expose this. Section removal is no longer used by the
-   * domain because §31 archives; deleting a shortcut is safe because it owns no content or
-   * activity target. Deleting anything else would fail the next integrity check when the feed
-   * resolves its target.
+   * Sections, shortcut placements, rows and optional pages expose this. Section removal is no
+   * longer used by the domain because §31 archives; deleting a shortcut is safe because it owns
+   * no content or activity target, and deleting an optional page is safe only after its executor
+   * has proved nothing references it — its activity events name the project, not the page.
+   * Deleting anything else would fail the next integrity check when the feed resolves its target.
    */
   protected async delete(id: T['id']): Promise<void> {
     assertCanMutateDataStore(this.store);
@@ -88,6 +91,10 @@ export class JsonProjectRepository extends JsonCollectionRepository<Project> imp
   override find(id: ProjectId): Promise<Project | null> {
     return super.find(id);
   }
+
+  remove(id: ProjectId): Promise<void> {
+    return this.delete(id);
+  }
 }
 
 export class JsonTaskRepository extends JsonCollectionRepository<Task> implements TaskRepository {
@@ -118,6 +125,10 @@ export class JsonTaskRepository extends JsonCollectionRepository<Task> implement
   override find(id: TaskId): Promise<Task | null> {
     return super.find(id);
   }
+
+  remove(id: TaskId): Promise<void> {
+    return this.delete(id);
+  }
 }
 
 export class JsonProjectPageRepository extends JsonCollectionRepository<ProjectPage> implements ProjectPageRepository {
@@ -136,6 +147,9 @@ export class JsonProjectPageRepository extends JsonCollectionRepository<ProjectP
   }
 
   override find(id: ProjectPageId): Promise<ProjectPage | null> { return super.find(id); }
+
+  /** The restricted first-enable inverse only; see `ProjectPageRepository.remove`. */
+  remove(id: ProjectPageId): Promise<void> { return this.delete(id); }
 }
 
 export class JsonSectionRepository extends JsonCollectionRepository<ProjectSection> implements SectionRepository {
@@ -197,6 +211,8 @@ export class JsonReflectionRepository extends JsonCollectionRepository<Reflectio
   }
 
   override find(id: ReflectionId): Promise<Reflection | null> { return super.find(id); }
+
+  remove(id: ReflectionId): Promise<void> { return this.delete(id); }
 }
 
 export class JsonActivityRepository extends JsonCollectionRepository<ActivityEvent> implements ActivityRepository {
@@ -223,4 +239,39 @@ export class JsonAgentConnectionRepository
 export class JsonUserRepository extends JsonCollectionRepository<User> implements UserRepository {
   constructor(store: DataStore) { super(store, 'users'); }
   override find(id: UserId): Promise<User | null> { return super.find(id); }
+}
+
+export class JsonOperationHistoryRepository
+  extends JsonCollectionRepository<OperationHistory>
+  implements OperationHistoryRepository
+{
+  constructor(store: DataStore) { super(store, 'operationHistories'); }
+
+  override async list(query: OperationHistoryQuery = {}): Promise<OperationHistory[]> {
+    const histories = await super.list();
+    return histories.filter(
+      (history) =>
+        (query.workspaceId === undefined || history.workspaceId === query.workspaceId) &&
+        (query.projectId === undefined || history.projectId === query.projectId),
+    );
+  }
+
+  override find(id: OperationHistoryId): Promise<OperationHistory | null> { return super.find(id); }
+}
+
+export class JsonOperationActionRepository
+  extends JsonCollectionRepository<OperationAction>
+  implements OperationActionRepository
+{
+  constructor(store: DataStore) { super(store, 'operationActions'); }
+
+  override async list(query: OperationActionQuery = {}): Promise<OperationAction[]> {
+    const actions = await super.list();
+    return actions.filter((action) => query.historyId === undefined || action.historyId === query.historyId);
+  }
+
+  override find(id: OperationActionId): Promise<OperationAction | null> { return super.find(id); }
+
+  /** Retention pruning — see `OperationActionRepository`. */
+  remove(id: OperationActionId): Promise<void> { return this.delete(id); }
 }

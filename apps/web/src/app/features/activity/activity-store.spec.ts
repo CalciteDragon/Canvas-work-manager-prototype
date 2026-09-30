@@ -16,6 +16,13 @@ const entry = (id: string): ActivityFeedEntry => ActivityFeedEntrySchema.parse({
   entityType: 'task',
   entityId: 'task-a',
   projectId: PROJECT,
+  context: {
+    targetKind: 'task',
+    targetId: 'task-a',
+    targetLabel: 'Task A',
+    projectId: PROJECT,
+    rootProjectId: PROJECT,
+  },
   entityName: 'Task A',
   summary: 'Updated Task A',
   createdAt: '2026-08-30T07:00:00.000Z',

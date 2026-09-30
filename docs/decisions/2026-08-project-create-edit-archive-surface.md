@@ -98,3 +98,24 @@ inline-editing the name would leave More holding only target date and archive, w
 to what a "More" menu should be. Also revisit when project delete, move-to-project or a
 description editor is actually wanted; none of them is on §81, and all three were left out
 deliberately.
+
+
+**Amended, 2026-09-22 — Slice 39.** Rename, status, target date and archive from this menu now each
+record one action in the person's history for that project (`project.update`, or `project.archive`
+for the archive), and PATCH answers `{ project, operation }`. The menu itself is unchanged: it reads
+`project` from the answer and offers no Undo of its own — the receipt is reachable through the history
+route and the MCP tools until persistent header controls exist. Create is still unrecorded
+([decision](2026-09-project-update-operation-history.md)).
+
+**Amended, 2026-09-22 — Slice 41.** A successful archive **no longer navigates to `/app`**. It stays
+on the archived project's page — which §31 keeps rendering — with the header reading "archived",
+an enabled "Undo: Archived "X"" and the feedback "X is archived. Undo is available here." The
+confirmation now reads "It leaves the sidebar; you can undo it from the header.", and the More menu
+does not offer Archive on a project that is already archived. `ProjectWorkspaceStore.archive()`
+applies the returned record, so the status changes without waiting for a frame ([decision](2026-09-project-header-history-controls.md)).
+
+**Amended, 2026-09-23 — Slice 42.** Sidebar creation now reports the `{ project, operation }`
+receipt, so the new project's header immediately offers Undo: Created "…". Creating from a
+Sub-Projects section still announces the action in the parent's header with an Open link to the
+child's own history. Undo leaves the creator at the child's URL in a recovery state where Redo
+restores the same project and page ids ([project creation history](2026-09-project-creation-history.md)).

@@ -8,15 +8,19 @@ import { agent, buildHarness, FOREIGN_PROJECT, OPEN_TASK, PROJECT } from '../tes
 const registry = buildHarness().registry;
 
 describe('the tool registry', () => {
-  it('registers exactly the thirty-three tools the spec and the canvas ask for', () => {
+  it('registers exactly the thirty-eight tools the spec and the canvas ask for, each once', () => {
     const registered = registry.list().map(({ name }) => name);
 
     // Both directions: a missing tool and an extra one are different defects, and a
     // subset assertion would catch only the first.
     expect([...registered].sort()).toEqual([...SPEC_TOOL_NAMES].sort());
     // §54's fourteen, plus the four section tools, five page tools (including the journal),
-    // three shortcut tools, and the eight canonical archive/recovery tools from Slice 25.6.
-    expect(registered).toHaveLength(33);
+    // three shortcut tools, the eight canonical archive/recovery tools from Slice 25.6, Slice 32's
+    // move_section, and Slice 35's history tools: get_operation_history, undo_operation, redo_operation.
+    expect(registered).toHaveLength(38);
+    for (const name of ['get_operation_history', 'undo_operation', 'redo_operation']) {
+      expect(registered.filter((candidate) => candidate === name), name).toHaveLength(1);
+    }
     // The sorted comparison above catches membership; this catches a shortcut tool being
     // spread in a different position from the declared registry order.
     expect(registered).toEqual([...SPEC_TOOL_NAMES]);
@@ -29,6 +33,12 @@ describe('the tool registry', () => {
     for (const tool of registry.list()) {
       expect(tool.description.length, tool.name).toBeGreaterThan(20);
     }
+  });
+
+  it('tells an agent that each history entry carries its own blocker (Slice 41)', () => {
+    const history = registry.list().find(({ name }) => name === 'get_operation_history')!;
+    expect(history.description).toMatch(/Each entry’s blockedBy is that step’s own blocker/);
+    expect(history.description).toMatch(/top-level blockedBy describes the project/);
   });
 
   it('declares only permissions that exist, additional grants included', () => {
@@ -60,11 +70,11 @@ describe('the tool registry', () => {
    */
   it('refuses a task container on a Reflections page, through the tools an agent has', async () => {
     const harness = buildHarness();
-    const page = (await harness.registry.call(
+    const { page } = (await harness.registry.call(
       'set_project_page_enabled',
       { projectId: PROJECT, kind: 'reflections', enabled: true },
       agent(['projects.write']),
-    )) as { id: string };
+    )) as { page: { id: string } };
 
     await expect(
       harness.registry.call(
@@ -81,7 +91,7 @@ describe('the tool registry', () => {
         { projectId: PROJECT, type: 'reflections', pageId: page.id },
         agent(['projects.write']),
       ),
-    ).resolves.toMatchObject({ pageId: page.id, type: 'reflections' });
+    ).resolves.toMatchObject({ section: { pageId: page.id, type: 'reflections' }, operation: { operation: 'section.add' } });
   });
 
   it('answers not found for another workspace’s project and page', async () => {
@@ -107,11 +117,11 @@ describe('the tool registry', () => {
 
   it('refuses a sub-project page toggle, and refuses disabling Home', async () => {
     const harness = buildHarness();
-    const subproject = (await harness.registry.call(
+    const subproject = ((await harness.registry.call(
       'create_project',
       { kind: 'subproject', parentProjectId: PROJECT, name: 'A unit of work' },
       agent(['projects.write']),
-    )) as { id: string };
+    )) as { project: { id: string } }).project;
 
     await expect(
       harness.registry.call(
@@ -140,11 +150,11 @@ describe('completing work an agent found on Todos (§34, §53)', () => {
 
   it('lets a read-only agent see the chronology and refuses both completions', async () => {
     const harness = buildHarness();
-    const unit = (await harness.registry.call(
+    const unit = ((await harness.registry.call(
       'create_project',
       { kind: 'subproject', parentProjectId: PROJECT, name: 'A unit of work' },
       agent(['projects.write']),
-    )) as { id: string; status: string };
+    )) as { project: { id: string; status: string } }).project;
 
     const before = (await harness.registry.call('get_project_todos', { projectId: PROJECT }, agent([...READ_ONLY]))) as {
       items: { kind: string; task?: { id: string; status: string } }[];

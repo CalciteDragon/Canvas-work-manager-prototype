@@ -689,6 +689,310 @@
       "projectId": "project-renovation",
       "slice": 27,
       "note": "Used the realistic nested-projects Home for navigation, indicators, theme and archive flows, plus focused real-app canvases for contextual insertion, resize, rename, keyboard and touch journeys. A real MCP client inserted a section and a shortcut at their requested combined positions; both appeared in the open canvas without a reload and stayed in order after reload. No new product friction surfaced in this acceptance pass."
+    },
+    {
+      "id": "note-2026-09-14-001",
+      "createdAt": "2026-09-14T07:20:29.664Z",
+      "route": "/projects/project-renovation/pages/archive",
+      "projectId": "project-renovation",
+      "slice": 29,
+      "note": "Slice 29 Archive: two removed Notes sections both appear as \"Rich Text / Keeps its text\" with identical origins (Home renovation / Home / Rich Text). Nothing tells them apart without restoring one; an entry needs a short text preview or the frame title to be distinguishable."
+    },
+    {
+      "id": "note-2026-09-14-002",
+      "createdAt": "2026-09-14T07:20:49.699Z",
+      "route": "/projects/project-renovation/pages/archive",
+      "projectId": "project-renovation",
+      "slice": 29,
+      "note": "Slice 29 Archive: after removing Progress, Timeline, Recent Activity and Sub-Projects from Home they are gone from Archive as intended, but the frame control still says \"Archive section Progress\" and there is no immediate Undo, so an accidental removal of a configured view has no visible way back. Confirms Slices 30-31 (removal Undo, disposable wording) are the next need."
+    },
+    {
+      "id": "note-2026-09-14-003",
+      "createdAt": "2026-09-14T07:21:10.058Z",
+      "route": "/projects/project-renovation/pages/archive",
+      "projectId": "project-renovation",
+      "slice": 29,
+      "note": "Slice 29 Archive: the two-step recovery worked through the UI and a real MCP client (an agent-built list with an archived parent and two subtasks showed 3 tasks / 0 restore with the section / restore its archived task separately; one parent Restore brought back both subtasks). Minor copy noise: \"0 tasks restore with this section\" repeats what the two-step guidance already says and could be hidden at zero."
+    },
+    {
+      "id": "note-2026-09-14-004",
+      "createdAt": "2026-09-14T10:23:45.552Z",
+      "route": "C:/Program Files/Git/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 30,
+      "note": "Slice 30 Undo through a real MCP client on nested-projects: removed Home Progress, moved a shortcut to the top of Home, then undo_operation put Progress back between Sub-Projects and Reflections (strategy previous); a cascaded 6-task Home list and a reassigned Garden list both came back exactly, and the open canvas refreshed live on every remove and undo. Placement by neighbours felt right."
+    },
+    {
+      "id": "note-2026-09-14-005",
+      "createdAt": "2026-09-14T10:23:45.656Z",
+      "route": "C:/Program Files/Git/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 30,
+      "note": "Slice 30 Undo friction: a receipt exists only in the remove_section response. I called remove_section twice by mistake; the second call was refused as already archived and nothing lets an agent recover the first undoId (no read tool for records), so Undo was lost and only restore_section (append) remained. Consider returning the existing receipt on that refusal, or a way to find one's own receipts."
+    },
+    {
+      "id": "note-2026-09-14-006",
+      "createdAt": "2026-09-14T10:23:45.765Z",
+      "route": "C:/Program Files/Git/projects/project-garden",
+      "projectId": "project-garden",
+      "slice": 30,
+      "note": "Slice 30 Undo friction: after a subtask was added under a reassigned task, undo_operation answered \"undo_conflict: task task-b5747a22 new-dependent\" - correct and safe, but the text names an id with no title and no next step; the agent has to know to archive or move that subtask (then retry) or fall back to restore_section, which loses the original position."
+    },
+    {
+      "id": "note-2026-09-14-007",
+      "createdAt": "2026-09-14T18:35:20.000Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 31,
+      "note": "Automated real-browser acceptance on the nested-projects seed removed Home Progress, confirmed it disappeared from Archive, and Undo restored the same view and order. The browser journeys also covered blank Rich Text, durable Archive restore and reassignment Undo; HTTP and stdio MCP acceptance recovered a lost receipt and recreated a deleted view. No new product friction surfaced in this pass."
+    },
+    {
+      "id": "note-2026-09-15-001",
+      "createdAt": "2026-09-15T06:01:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 32,
+      "note": "Slice 32 notice size: after rename, blur save, resize or move on the Kitchen canvas the Undo notice now floats at the bottom-right corner, 640x128 px on a 1280x720 viewport. It no longer shifts the canvas (the in-flow version pushed everything down 96 px after an insert), but it covers a large corner, including end-edge resize handles, until dismissed. Worth trying a compact single-line form or auto-dismiss on the next canvas write."
+    },
+    {
+      "id": "note-2026-09-15-002",
+      "createdAt": "2026-09-15T06:02:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 32,
+      "note": "Slice 32 notice copy is vague for edits: \"Section updated\" and \"Undo restored Rich Text.\" do not say which field changed or came back (title, notes, width); after a resize Undo the only confirmation is the width snapping back. The expiry line shows a raw ISO instant."
+    },
+    {
+      "id": "note-2026-09-15-003",
+      "createdAt": "2026-09-15T06:03:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 32,
+      "note": "Slice 32 interleaving: user blur-saved Notes, an agent over real MCP replaced the same config, and browser Undo refused safely with the agent text kept. But the person sees the raw \"undo_conflict: ... [section-id]\" server sentence, the Undo button stays enabled although retrying can never succeed for a superseded receipt, and \"use the later Undo receipt\" points at a receipt only the agent holds."
+    },
+    {
+      "id": "note-2026-09-15-004",
+      "createdAt": "2026-09-15T06:04:00.000Z",
+      "route": "/projects/project-39ba6abf/pages/reflections",
+      "projectId": "project-39ba6abf",
+      "slice": 32,
+      "note": "Slice 32 Reflections page: Add container then Undo returned the empty prompt with focus on the notice. After authoring a reflection, Undo was refused and the reflection kept, but the step reads \"remove the reference or dependent item, then retry Undo\", which invites deleting authored work just to undo an empty-container add. For add Undo the better advice is probably that the container is now in use and there is nothing to undo."
+    },
+    {
+      "id": "note-2026-09-15-005",
+      "createdAt": "2026-09-15T22:58:28.920Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 33,
+      "note": "Slice 33 real use (isolated nested-projects copy, Kitchen canvas, pointer drag via the browser pane): moved Task List above Rich Text, then an HTTP MCP agent (prototype-user-a-readwrite) moved it again with move_section (receipt undo-a599b6fa). Browser Undo on my move was refused for good and kept focus on the aria-disabled button, which is right. But the notice leads with raw 'undo_conflict: Undo for the move operation on Task List was refused: superseded: section \"Task List\" [section-project-kitchen-tasks] — …' and the conflict row says 'Use the later Undo receipt' — that later receipt belongs to the agent connection, so a person cannot use it. Suggest a person-facing message that names who changed it and offers 'move it back by hand'."
+    },
+    {
+      "id": "note-2026-09-15-006",
+      "createdAt": "2026-09-15T22:58:30.924Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 33,
+      "note": "Slice 33 real use: removing Kitchen's empty Reflections container, which a Home shortcut still references, keeps an internal tombstone (Home shortcut shows source_archived) and correctly stays out of Archive — yet the Undo notice still offers Open Archive, which leads to a page with nothing to restore. Undo put it back and the shortcut became available again. The notice could offer Archive only when the removal is actually projected there."
+    },
+    {
+      "id": "note-2026-09-15-007",
+      "createdAt": "2026-09-15T22:58:32.943Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 33,
+      "note": "Slice 33 real use: Archive Restore of Kitchen's prose brief brought the text back but appended it at the bottom of the canvas (after Recent Activity). Correct per the append rule, but the Archive row does not say where the section will land, so the brief silently moves from first to last. A short 'returns at the end of its page' hint, or focusing the restored section, would set expectations."
+    },
+    {
+      "id": "note-2026-09-15-008",
+      "createdAt": "2026-09-15T22:58:34.978Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 33,
+      "note": "Slice 33 real use: with failure injection at 100% the Undo notice read 'could not reach the prototype host — prototype failure injection (§46 Failure Rate)' and kept Undo enabled and focused; after setting 0% the same receipt worked. The message does not say the change is still undoable, so a person may think Undo was lost. Also, the browser removal dialog only offers same-page reassign targets while HTTP/MCP allow cross-page (docs/decisions/2026-09-reassign-may-cross-pages.md), so Home-to-Reflections-page reassignment is only reachable through the API."
+    },
+    {
+      "id": "note-2026-09-16-001",
+      "createdAt": "2026-09-17T00:16:00.000Z",
+      "route": "/projects/project-3b422709",
+      "projectId": "project-3b422709",
+      "slice": 35,
+      "note": "Slice 35 real use: renamed 'tasks 2' to 'tasks A' then 'tasks B'. The history summary labelled the two actions 'Updated the tasks 2 section' and 'Updated the tasks A section' — each label names the title *before* its change, so the Redo entry for the rename to B reads like the rename to A. Fine for one edit, confusing on a chain of renames of one field; Stage C's header tooltip should name the change ('Renamed to tasks B') or the current title."
+    },
+    {
+      "id": "note-2026-09-16-002",
+      "createdAt": "2026-09-17T00:17:00.000Z",
+      "route": "/projects/project-3b422709",
+      "projectId": "project-3b422709",
+      "slice": 35,
+      "note": "Slice 35 real use: after clicking Undo in the canvas notice ('Undo restored tasks A.'), nothing in the browser says the change can be redone, and the older rename's Undo is not offered either — both exist on the server (seen through GET /api/projects/:id/history) and only an API or MCP client can reach them. Expected for Stage A, but it is the first thing a person would look for; Stage C's header controls close it. The converted v3 data file (8 receipts retired) loaded and the chain Undo/Undo/Redo/Redo plus a stale replay behaved as specified, and survived a reload."
+    },
+    {
+      "id": "note-2026-09-18-001",
+      "createdAt": "2026-09-19T03:21:00.000Z",
+      "route": "/projects/project-85496b6d",
+      "projectId": "project-85496b6d",
+      "slice": 36,
+      "note": "Slice 36 real use on the isolated agent-heavy history fixture: Escape discarded an inline title draft, Enter committed exactly the visible replacement, and the dashboard stayed live. The historical agent lines then resolved the task's current title ('Manual Slice 36 check') for its earlier Created / addition-undone / addition-redone events. That is the intended current-name-first policy with captured identity as fallback, but a rename makes old event copy read as though the agent originally created the new title; Stage C's history UI may need to distinguish the action-time label from the current row label. HTTP and both MCP transports had already completed the row Undo/Redo chains in acceptance."
+    },
+    {
+      "id": "note-2026-09-20-001",
+      "createdAt": "2026-09-21T06:29:00.000Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 37,
+      "note": "Slice 37 real use on an isolated nested-projects copy: collapsing a Home shortcut, removing it, removing a Rich Text section and restoring it from Archive each recorded exactly one action, and both open surfaces reconciled without a reload when the transitions ran through the history route. Two pieces of friction, both about naming and affordance rather than behaviour. (1) Placement labels are generic — 'Updated a shortcut', 'Moved a shortcut', 'Removed a shortcut' — while section labels name their subject ('Restored the Rich Text section'). On a Home page holding four placements a header control would say 'Updated a shortcut' and leave the person to guess which; the label should name the source, e.g. 'Collapsed the shortcut to Task List'. (2) Removing a section shows the canvas Undo notice and removing the shortcut directly beneath it shows nothing, so two adjacent frames offer different recovery in the same gesture. That is the deliberate Stage C boundary — the notice is section-only until the header controls exist — but it is visible in the product now, and it is an argument for the header controls landing before any more families are recorded."
+    },
+    {
+      "id": "note-2026-09-22-001",
+      "createdAt": "2026-09-22T07:47:20.751Z",
+      "route": "/projects/project-69aaa75f/pages/reflections",
+      "projectId": "project-69aaa75f",
+      "slice": 38,
+      "note": "Slice 38 real use on a Home-only root created inside the nested-projects seed: enabling Reflections from the page manager recorded one page.add; Undo through the history route removed the record and both the tab and its toggle went away live, without a reload; Redo brought the same page id and createdAt back and did not force navigation; Open archive from a nested work route recorded a page.add in the root's history while the child's history stayed null; and an MCP connection ran its own page.add Undo in its own history, with discovery publishing all five families. One piece of friction, about wording rather than behaviour. A URL for a page whose record an Undo removed falls back to Home saying \"The Reflections page is switched off for this project. Showing Home instead.\", and correctly offers no Enable button, because there is nothing left to switch on. The sentence and the missing affordance disagree: \"switched off\" describes a toggle the person could flip, while what happened is that the page was un-created. A removed page wants its own sentence -- something like \"This project has no Reflections page. Showing Home instead.\" -- which is project-navigation copy rather than history work, and it is the first thing a person undoing their own first enable reads."
+    },
+    {
+      "id": "note-2026-09-22-002",
+      "createdAt": "2026-09-22T20:27:00.000Z",
+      "route": "/projects/project-renovation/pages/todos",
+      "projectId": "project-renovation",
+      "slice": 39,
+      "note": "Slice 39 real use on an isolated nested-projects copy. Renaming Garden from the header's More menu and then reopening it (completed -> active) each recorded one project.update in Garden's own history; Undo through the history route put the status back to Completed with the seed's original completion time, and the open header followed without a reload. Moving Cabinets to a new root dropped its row from Home renovation's open Todos page live, from the one frame that names only the new root, and Undo brought the row back. Two pieces of friction. (1) Labels do not say what happened: the rename and the reopening are both 'Updated \"Garden beds\"', so the summary showed identical Undo and Redo labels for two different steps — a header control would need 'Renamed to…' / 'Reopened…' / 'Moved to <root>' to be usable. (2) Moving Kitchen to another root answered 500 internal_error: a Home shortcut on the old root places a Kitchen section, and commit-time integrity rejects a cross-root placement. That is the ordinary reparent, not history (a history Undo/Redo into the same state now refuses with a typed shortcut-reference conflict), and it is spun out as its own task."
+    },
+    {
+      "id": "note-2026-09-23-001",
+      "createdAt": "2026-09-23T04:58:14.889Z",
+      "route": "C:/Program Files/Git/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 41,
+      "note": "Slice 41 real use (fixed in-slice): after the header undid a section removal, the canvas recovery notice still read 'Removed the Rich Text section. Undo is in the header.' with Open Archive over the restored section. The notice now withdraws itself once the removed section is back on the canvas, whoever put it back."
+    },
+    {
+      "id": "note-2026-09-23-002",
+      "createdAt": "2026-09-23T04:58:15.038Z",
+      "route": "C:/Program Files/Git/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 41,
+      "note": "Slice 41 real use: collapsing, resizing or retitling a section all read 'Undo: Updated the Progress section' in the header. Shortcut and project labels now name the edit (Collapsed/Resized/Renamed); section labels were left generic by the plan's non-goals and are the next obvious gap — the same Updated label twice in a row gives no way to tell which step Undo will take."
+    },
+    {
+      "id": "note-2026-09-23-003",
+      "createdAt": "2026-09-23T04:58:15.174Z",
+      "route": "C:/Program Files/Git/projects/project-renovation/pages/todos",
+      "projectId": "project-renovation",
+      "slice": 41,
+      "note": "Slice 41 real use: completing a Kitchen task from root Todos says it 'was recorded in Kitchen's history' with an Open Kitchen link, which works, but the root header gives no hint of it once the feedback line is dismissed or replaced. If this is common, a root page may want a way to reach descendant steps without leaving (the decision's revisit trigger)."
+    },
+    {
+      "id": "note-2026-09-23-004",
+      "createdAt": "2026-09-23T04:58:15.340Z",
+      "route": "C:/Program Files/Git/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 41,
+      "note": "Slice 41 real use: at 375 px the global sidebar still does not collapse (note-2026-09-06-007), leaving the project workspace ~135 px wide; the header's actions now wrap onto their own row under 40rem, but the page is not usable at phone width until the app shell collapses."
+    },
+    {
+      "id": "note-2026-09-23-005",
+      "createdAt": "2026-09-23T22:03:51.000Z",
+      "route": "/projects/:projectId",
+      "projectId": null,
+      "slice": 42,
+      "note": "Slice 42 real browser use: creating Field study from Research prototype's Sub-Projects frame immediately says the creation was recorded in Field study's history and offers Open; following it makes the child's creation Undo and recovery Redo reachable at the same URL. After that feedback is gone, the parent header has no lasting cue for the child action, so finding it again still depends on knowing which child owns the history. This confirms note-2026-09-23-003's revisit trigger; merged root history remains deferred."
+    },
+    {
+      "id": "note-2026-09-24-001",
+      "createdAt": "2026-09-24T22:40:08.000Z",
+      "route": "/projects/project-renovation/pages/todos",
+      "projectId": "project-renovation",
+      "slice": 43,
+      "note": "Slice 43 real browser/MCP acceptance: on the nested-projects fixture, the canvas removed live-row containers without a policy choice; Archive Restore returned the content, while the HTTP/MCP history checks confirmed Undo/Redo preserve exact IDs and independent archive markers. A connected MCP client also changed the nested showcase while the open browser followed live updates. On Todos, tapping Delete on a finished task removed the row immediately, and the stored task remained archived and recoverable. Friction: the optimistic disappearance itself does not say 'Archived'; the reversible meaning is only clear from the shared history/Archive path, so the Delete label could read as permanent at the moment of action. Revisit the feedback cue if user use confirms that confusion, while keeping the archive semantics."
+    },
+    {
+      "id": "note-2026-09-27-001",
+      "createdAt": "2026-09-27T09:35:00.000Z",
+      "route": "/settings/archived-projects",
+      "projectId": null,
+      "slice": 44,
+      "note": "Slice 44 browser and connected MCP acceptance on isolated nested-projects and personal-workspace data: Settings showed the archived root first, then its independently archived child after root Restore; choosing each status and restoring left the child's independent section and task markers intact. The disabled Archive tab did not block Settings recovery. At 375 px, keyboard and touch Restore remained reachable in dark and light themes and focus returned to the heading after the last row disappeared. Streamable HTTP and stdio MCP returned the same ready-only sequence. No new in-app friction surfaced in these journeys; the previously recorded narrow shell sidebar constraint remains outside this slice."
+    },
+    {
+      "id": "note-2026-09-27-002",
+      "createdAt": "2026-09-27T11:05:00.000Z",
+      "route": "/projects/:projectId",
+      "projectId": "project-renovation",
+      "slice": 45,
+      "note": "Slice 45 integrated real use on an isolated nested-projects copy: on Home a task was added, completed and deleted; its row vanished with no feedback line, and the header offered Undo: Archived \"Real use: patch drywall\". Navigating to Todos and reloading kept that label, and three header Undos walked back archive, completion and creation. Removing the Task List took one click with no dialog; Archive listed only the container (\"6 tasks restore with this section… 1 other task stays archived\"), and after Restore the independently archived task became its own entry. Archiving Garden from its header needs a confirm step; Settings then restored it with an explicit on-hold status and its history offered Undo: Reactivated. Friction: at 375 px the header Undo was drawn beneath the unshrinking sidebar and could not be tapped (fixed in this slice by wrapping the header actions); the sidebar itself still leaves the workspace ~135 px (note-2026-09-06-007). Delete's silent disappearance still reads as permanent at the moment of action (note-2026-09-24-001)."
+    },
+    {
+      "id": "note-2026-09-27-003",
+      "createdAt": "2026-09-27T17:45:00.000Z",
+      "route": "/projects/:projectId/pages/archive",
+      "projectId": "project-renovation",
+      "slice": 47,
+      "note": "Slice 47 real use on an isolated nested-projects copy (host on a scratch CWM_DATA_FILE). Settings: with Kitchen (whose Cabinets child was archived first) and Legacy attic listed, choosing Active by keyboard and pressing Enter on Restore removed Kitchen and put focus on the revealed Cabinets row's status selector. Root Archive: a task Restore whose re-read failed (archive reads failed in-page) kept the row with \"Restore succeeded, but Archive could not refresh\", every Restore disabled and no \"Reactivate this project\" note; a root rename's quiet frame and a keyboard Retry, both held open, kept the error, the Retry control and its focus, and only the released current read removed the row and re-enabled the rest, after exactly one write. Found and fixed: the root Archive's sub-project \"Restore as\" select displayed Planning while Restore would send Active, because its [value] bound before its @for options existed. Friction, not fixed here: on the root Archive, focus drops to the page body after a Restore removes its row and after a successful Retry removes itself; in Settings, a live frame (rather than Retry) that clears the error removes a focused Retry the same way. A restored row vanishing still has no spoken confirmation."
+    },
+    {
+      "id": "note-2026-09-28-001",
+      "createdAt": "2026-09-28T03:00:00.000Z",
+      "route": "/projects/:projectId",
+      "projectId": "project-kitchen",
+      "slice": 48,
+      "note": "Slice 48 real use on an isolated nested-projects copy (host on a scratch CWM_DATA_FILE). Actor A, agent-claude over HTTP MCP, renamed task-kitchen-appliances; the signed-in persona removed Kitchen's Task List on the canvas. A's undo_operation answered \"history_conflict: Undo of the update on Choose appliance finishes (agent edit) was refused: archived-subject: section \\\"Task List\\\" [section-project-kitchen-tasks]\" and get_operation_history kept revision 1 with the same Undo. After Restore saved content on the root Archive, the Undo succeeded; after a second removal the Redo refused the same way, and after a second Restore it succeeded (revision 3). Friction, not fixed here: the MCP text carries the problem token but not the typed nextStep, so an agent must know that archived-subject means restore-then-retry; the section is named only \"Task List\", with no project or page, so an agent in a root with several task lists cannot tell which one to restore without reading the Archive; and the history summary still offers the step as eligible until it is tried (a per-entry blocker is a summary contract change, deferred by the plan). Resolution, 2026-09-28 (Slice 49): the MCP refusal now states the typed repair in words; the section label and per-entry header blocker remain deferred."
+    },
+    {
+      "id": "note-2026-09-28-002",
+      "createdAt": "2026-09-28T03:05:00.000Z",
+      "route": "/projects/:projectId",
+      "projectId": "project-kitchen",
+      "slice": 48,
+      "note": "Slice 48 deferred divergences between task history and TaskService, for the Slice 46 umbrella to route. (1) Archived-row completion: TaskService.update refuses to complete an archived task, but a task.update Redo of a completion, or Undo of a reopen, can still write done onto a row another actor archived in a live section. (2) Reparent into an archived section: TaskService.update lets an independently archived row follow an archived parent into an archived section; history now refuses that step's Redo there, so history is stricter than the service on that path (docs/decisions/2026-09-task-history-under-archived-sections.md). Resolution, 2026-09-28 (Slice 49): ordinary reparent now refuses the archived destination before writing, and completion history refuses entering done on an archived task with section-cascade deduplication."
+    },
+    {
+      "id": "note-2026-09-28-003",
+      "createdAt": "2026-09-28T07:24:12.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 49,
+      "note": "Slice 49 real use on an isolated nested-projects copy over HTTP MCP: agent-claude completed and undid task-kitchen-appliances, user-demo archived it through HTTP, and Redo refused with history_conflict naming the task and saying restore its previous state, then retry. The same Redo and revision remained next; after user-demo restored the task, Redo succeeded with done and completedAt. No new friction surfaced in this journey; the remaining section-label and header-blocker concerns stay in note-2026-09-28-001."
+    },
+    {
+      "id": "note-2026-09-29-001",
+      "createdAt": "2026-09-29T07:52:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 54,
+      "note": "Stopping the pnpm dev:host wrapper from a tool runner left the tsx node child (the real host) running on Windows. With Slice 54 that orphan keeps owning the data file, and stdio calls are refused naming http-host pid N — which is exactly what made the orphan easy to find and Stop-Process. Before this slice the same orphan would have silently overwritten stdio writes."
+    },
+    {
+      "id": "note-2026-09-29-002",
+      "createdAt": "2026-09-29T07:53:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 54,
+      "note": "The data_file_in_use: refusal is correct and actionable but long: two full absolute paths on one line, and the manual-escape clause starts with a lowercase \"if pid\" after a full stop. From pnpm prototype:upgrade it is also followed by several lines of pnpm ELIFECYCLE noise that bury it. Worth a shorter first sentence if operators misread it."
+    },
+    {
+      "id": "note-2026-09-29-003",
+      "createdAt": "2026-09-29T17:28:48.000Z",
+      "route": "/projects/project-kitchen#history-controls",
+      "projectId": "project-kitchen",
+      "slice": 56,
+      "note": "Slice 56 real browser use on isolated nested-projects data: followed Kitchen history from a root Todos task and a root Archive section, reloaded the child URL, activated the Archive link by Enter, then undid and redid the child's section removal. The root revision stayed put; another persona saw Project unavailable and the same-workspace MCP agent had a separate history. Friction found and fixed in this slice: the first browser journey reached the fragment but left focus on the page body because the header had not rendered when the one-shot callback ran. Rechecking after each render focuses the labeled history group and shows a visible outline. No other new friction surfaced in this journey."
+    },
+    {
+      "id": "note-2026-09-29-004",
+      "createdAt": "2026-09-29T19:51:00.000Z",
+      "route": null,
+      "projectId": null,
+      "slice": 57,
+      "note": "At 375 px, quick-creating a Task List row automatically opens its details drawer. The drawer overlaps that row's Delete button and intercepted a touch tap until I closed it. The close control is available, and Delete then works; consider whether phone layout should place the drawer below the row or close it after creation. Left for the phone layout slice (Slice 46 finding 11)."
+    },
+    {
+      "id": "note-2026-09-29-005",
+      "createdAt": "2026-09-29T21:55:00.000Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 58,
+      "note": "Slice 58 real browser use on an isolated nested-projects file at 375 px and 1280 px, dark then light theme. Addresses note-2026-09-06-008 and note-2026-09-29-004. The Menu opened the sidebar as a drawer over a dimmed workspace; Tab and Shift+Tab wrapped inside it; Escape returned focus to Menu. Choosing Kitchen closed it and focused the workspace. From Kitchen, choosing the root's Todos tab reloaded, re-collapsed the column and focused its toggle. Quick-creating a Kitchen task opened its details stacked below the rows, and the row's Delete took the tap with the details still open. Friction found and fixed in this slice: widening to desktop right after Escape dropped focus to the page, because focus was on Menu and Menu does not exist at desktop width; widening now moves it to the first sidebar item. Remaining friction: on a list longer than the screen, the stacked details open below the fold after quick create, so nothing visible confirms they opened. No overflow was found on Home, Kitchen or Todos."
     }
   ]
 }

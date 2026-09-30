@@ -22,6 +22,13 @@ export const projectTools: readonly WorkManagerTool[] = [
     execute: (input, { actor, services }) => services.projects.list(actor, input),
   }),
   defineTool({
+    name: 'list_archived_projects',
+    description: 'List archived root and sub-projects in this workspace whose ancestors are live and which can be restored now. Requires projects.read. Restore with an explicit non-archived status using restore_project; archived descendants appear after their parent returns.',
+    permission: 'projects.read',
+    inputSchema: z.object({}),
+    execute: (_input, { actor, services }) => services.archivedProjects.list(actor),
+  }),
+  defineTool({
     name: 'get_project',
     description:
       'Read one project by id, including its kind — "root" for a workspace, "subproject" for a unit of work — its status, target date, description, completion time and progress settings.',
@@ -32,7 +39,7 @@ export const projectTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'create_project',
     description:
-      'Create a project in the connection owner’s workspace. Two kinds exist: kind "root" is a workspace and takes no parent — it starts with a Home page and can enable Todos, Archive and Reflections through set_project_page_enabled; kind "subproject" is a unit of work with exactly one work canvas and no pages to configure, and requires parentProjectId, which may itself be a sub-project at any depth. Neither kind converts into the other. A root naming a parent, or a sub-project without one, is rejected rather than reinterpreted.',
+      'Create a project in the connection owner’s workspace. Answers { project, operation }; operation is the project.add receipt in the new project’s own history. Two kinds exist: kind "root" is a workspace and takes no parent — it starts with a Home page and can enable Todos, Archive and Reflections through set_project_page_enabled; kind "subproject" is a unit of work with exactly one work canvas and no pages to configure, and requires parentProjectId, which may itself be a sub-project at any depth. Neither kind converts into the other. A root naming a parent, or a sub-project without one, is rejected rather than reinterpreted.',
     permission: 'projects.write',
     // Each branch omits `workspaceId` separately: `.omit()` is an object operation and the
     // union has no single object to take it from. Rebuilding the union here rather than
@@ -50,7 +57,8 @@ export const projectTools: readonly WorkManagerTool[] = [
   }),
   defineTool({
     name: 'update_project',
-    description: 'Change a project’s name, description, icon, status, target date, layout or progress settings. Omitted fields are left alone; null clears one.',
+    description:
+      'Change a project’s name, description, icon, status, target date, parent (a sub-project only), layout or progress settings. Omitted fields are left alone; null clears one. Answers { project, operation }: operation is a receipt for one undoable action in this project’s own history — project.archive when the status entered archived, project.reactivate when it left it, project.update otherwise — or null when nothing changed. Reverse it through undo_operation with projects.write.',
     permission: 'projects.write',
     inputSchema: UpdateProjectInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.projects.update(actor, projectId, input),
@@ -58,7 +66,7 @@ export const projectTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'archive_project',
     description:
-      'Archive a project. This is reversible, hides the project and its descendants from ordinary live reads, and refuses when a live child project would make the operation ambiguous.',
+      'Archive a project. This is reversible, hides the project and its descendants from ordinary live reads, and refuses when a live child project would make the operation ambiguous. Answers { project, operation }: a project.archive receipt, or null when the project was already archived. undo_operation can reverse it while the project is still archived.',
     permission: 'projects.write',
     inputSchema: z.object({ projectId: ProjectIdSchema }),
     execute: ({ projectId }, { actor, services }) => services.projects.archive(actor, projectId),
@@ -66,7 +74,7 @@ export const projectTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'restore_project',
     description:
-      'Restore an archived project with the explicit non-archived status supplied by the caller. Restoration never guesses the project’s prior status and does not cascade into archived descendants.',
+      'Restore an archived project with the explicit non-archived status supplied by the caller. Restoration never guesses the project’s prior status and does not cascade into archived descendants. Answers { project, operation }: a project.reactivate receipt when the project left archived, a project.update receipt if it was not archived and only its status changed, or null when it already had that status. It needs no receipt to call, however long ago the project was archived.',
     permission: 'projects.write',
     inputSchema: RestoreProjectInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, status }, { actor, services }) => services.projects.update(actor, projectId, { status }),

@@ -45,6 +45,28 @@ rather than importing TypeScript, set `CWM_DATA_FILE` and `CWM_HOST_PORT`, and c
 beside a live session. Each stands where the slice's *done when* stands: the Slice 16
 script insists the frame arrives within a second *and* that the write is already
 readable.
+Slice 31 extends those transport checks with repeat-removal receipt recovery over HTTP
+and MCP; its separate Playwright journey verifies the visible Undo action against persisted
+deletion, recreation, Archive projection and reload.
+
+The same evidence covers typed add, move and update receipts: MCP acceptance runs each family
+and an unchanged `undo: null` over both transports, the handler suite pins connection revocation
+after a receipt is issued, and the browser journey checks interleaved MCP edits and — since
+Slice 41 — that every one of them, the Reflections-page container included, is undone from the
+header and survives reload.
+
+**Integrated acceptance puts each guarantee at the lowest layer that can observe it.** Slice 33
+closed the Archive/removal/Undo refactor by tracing every Refactor §26 criterion to one named
+assertion, then joining those through the browser and real SDK clients. Commit-before-publish is
+proven against the bytes on disk at frame delivery (`live-updates.test.ts`), because an in-memory
+snapshot cannot tell a committed write from a pending one. Migration and retention are proven in
+the host, the one package allowed to compose the converter, the services and the JSON store, over
+temp copies of the committed fixtures, so no seed or snapshot changed. Grant removal and
+revocation are proven over both transports, because changing an in-memory actor would not
+exercise the authenticator's live lookup. Where a new assertion passed on first run — this slice
+added tests, not product code — each was checked against a temporary, reverted fault to prove it
+could fail. Rejected: a new shared acceptance seed, which would have meant re-snapshotting six
+seeds to test behaviour none of them lacked.
 
 **The e2e suite owns its servers and its data file.** Playwright's `webServer` takes an
 array — the deciding reason over Cypress — and each entry names the address its server
@@ -76,10 +98,15 @@ visually moved after a refused toggle — none of it visible to a unit test.
 
 ## Decisions that shape this system
 
+- [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — the gate checks both projections, canonical Restore and browser recovery in the same slice.
+
 - [The end-to-end suite starts its own servers and writes its own data file](../../decisions/2026-08-e2e-owns-its-servers-and-its-data.md)
 - [Storybook runs on the Vite framework, not the webpack one](../../decisions/2026-08-storybook-runs-on-the-vite-framework.md)
+- [Web specs start from empty browser storage](../../decisions/2026-09-web-specs-start-with-empty-storage.md) — one setup hook instead of per-spec clears or `isolate: true`
 - [What the tool registry knows about MCP](../../decisions/2026-08-tool-registry-is-transport-free.md)
 - [§4's *Agent Modified* task row has no data behind it](../../decisions/2026-08-agent-modified-has-no-data-behind-it.md) — why the story set has six variants
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — host acceptance covers permanent refusal, same-file restart, same-id Redo and expiry; the component spec covers missing-summary retry; browser acceptance covers creator-only recovery, expiry, and ancestor projections across create/Undo/Redo
+- [Section removal is one cascade gesture, and task Delete is reversible](../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — slice acceptance spans contracts, history, HTTP, MCP, components and the browser
 
 ## Spec sections
 

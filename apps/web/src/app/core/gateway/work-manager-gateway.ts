@@ -16,9 +16,12 @@ import type {
   Project,
   ProjectId,
   ProjectPage,
+  ProjectPageWriteResult,
+  ProjectWriteResult,
   ProjectQuery,
   ProjectSection,
   ProjectArchiveResult,
+  ArchivedProjectsResult,
   ProjectCompletedWorkResult,
   ProjectJournalResult,
   ProjectTodosResult,
@@ -36,15 +39,28 @@ import type {
   ShortcutSourceQuery,
   SetProjectPageEnabledInput,
   Task,
+  TaskAddResult,
+  TaskWriteResult,
   TaskId,
   TaskQuery,
   TimelineResult,
   UpdateReflectionInput,
+  ReflectionAddResult,
+  ReflectionWriteResult,
   UpdateSectionInput,
   UpdateSectionShortcutInput,
   UpdateProjectInput,
   UpdateTaskInput,
-  RemoveSectionInput,
+  SectionRemovalResult,
+  SectionAddResult,
+  SectionShortcutAddResult,
+  SectionShortcutRemovalResult,
+  SectionShortcutWriteResult,
+  SectionWriteResult,
+  OperationHistoryId,
+  OperationHistorySummary,
+  OperationHistoryTransitionInput,
+  OperationHistoryTransitionResult,
 } from '@cwm/contracts';
 
 /**
@@ -55,16 +71,17 @@ import type {
  * has lost. §9 and §34 are updated in the same change
  * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
  *
- * `archive` still answers `Promise<void>`, so a caller that needs the updated row re-reads.
+ * Every committed row write carries its history receipt so a caller can keep the exact action it
+ * created; a normalized no-op carries `operation: null`.
  */
 export interface TaskGateway {
   list(query: TaskQuery): Promise<Task[]>;
   get(id: TaskId): Promise<Task>;
-  create(input: CreateTaskInput): Promise<Task>;
-  update(id: TaskId, input: UpdateTaskInput): Promise<Task>;
-  complete(id: TaskId): Promise<Task>;
-  archive(id: TaskId): Promise<void>;
-  restore(id: TaskId): Promise<Task>;
+  create(input: CreateTaskInput): Promise<TaskAddResult>;
+  update(id: TaskId, input: UpdateTaskInput): Promise<TaskWriteResult>;
+  complete(id: TaskId): Promise<TaskWriteResult>;
+  archive(id: TaskId): Promise<TaskWriteResult>;
+  restore(id: TaskId): Promise<TaskWriteResult>;
 }
 
 /**
@@ -76,12 +93,17 @@ export interface TaskGateway {
  * `status: 'archived'` already runs the domain's whole archive path — the active-children
  * guard and the `project.archived` activity row included — so a second method would be a
  * second way to say the same thing.
+ *
+ * `create` and `update` answer `{ project, operation }`: creation always carries its `project.add`
+ * receipt, while an update carries one receipt for a changed project or `null` when it changed
+ * nothing. Callers reconcile from `project` and report the receipt to the displayed history.
  */
 export interface ProjectGateway {
   list(query: ProjectQuery): Promise<Project[]>;
+  archived(): Promise<ArchivedProjectsResult>;
   get(id: ProjectId): Promise<Project>;
-  create(input: CreateProjectInput): Promise<Project>;
-  update(id: ProjectId, input: UpdateProjectInput): Promise<Project>;
+  create(input: CreateProjectInput): Promise<ProjectWriteResult>;
+  update(id: ProjectId, input: UpdateProjectInput): Promise<ProjectWriteResult>;
 }
 
 /**
@@ -134,10 +156,10 @@ export interface ReflectionGateway {
    * and the root Archive projection can ask for `{ includeArchived: true }` without a placeholder.
    */
   list(projectId: ProjectId, query?: Omit<ReflectionQuery, 'projectId'>): Promise<Reflection[]>;
-  create(input: CreateReflectionInput): Promise<Reflection>;
-  update(id: ReflectionId, input: UpdateReflectionInput): Promise<Reflection>;
-  archive(id: ReflectionId): Promise<Reflection>;
-  restore(id: ReflectionId): Promise<Reflection>;
+  create(input: CreateReflectionInput): Promise<ReflectionAddResult>;
+  update(id: ReflectionId, input: UpdateReflectionInput): Promise<ReflectionWriteResult>;
+  archive(id: ReflectionId): Promise<ReflectionWriteResult>;
+  restore(id: ReflectionId): Promise<ReflectionWriteResult>;
 }
 
 /**
@@ -152,16 +174,17 @@ export interface ReflectionGateway {
 export interface ProjectPageGateway {
   /** Every page the project owns, disabled ones included — this is the toggle list. */
   list(projectId: ProjectId): Promise<ProjectPage[]>;
-  setEnabled(projectId: ProjectId, input: SetProjectPageEnabledInput): Promise<ProjectPage>;
+  /**
+   * The toggle, answering the confirmed page and the receipt it recorded (§31): `page.add` for the
+   * enable that created the record, `page.update` for a later change of the switch, and `null`
+   * when the page was already where the call asked it to go. The page manager reads the page and
+   * ignores the receipt — persistent Undo controls are a later phase — but the envelope is parsed,
+   * so a host that stopped sending it would fail here rather than silently.
+   */
+  setEnabled(projectId: ProjectId, input: SetProjectPageEnabledInput): Promise<ProjectPageWriteResult>;
 }
 
-/**
- * §31's frame affordances, as a gateway. `move` is deliberately absent: nothing in the UI
- * reorders sections until Slice 9 wires Angular CDK drag-drop, and this file's rule is that
- * a method the UI cannot exercise is a claim no test backs. The domain service and
- * `POST /api/sections/:id/move` both exist — the gateway method arrives with the drop
- * handler that calls it.
- */
+/** §27 and §31's canvas section reads and writes, including the typed removal receipt. */
 export interface SectionGateway {
   /**
    * Live-only by default; the root Archive projection is the one caller that asks for the rest.
@@ -171,30 +194,37 @@ export interface SectionGateway {
    * and what the canvas keeps wanting for the root Archive projection after that.
    */
   list(projectId: ProjectId, query?: Omit<SectionQuery, 'projectId'>): Promise<ProjectSection[]>;
-  create(projectId: ProjectId, input: CreateSectionInput): Promise<ProjectSection>;
-  update(id: SectionId, input: UpdateSectionInput): Promise<ProjectSection>;
-  move(id: SectionId, input: MoveSectionInput): Promise<ProjectSection>;
-  duplicate(id: SectionId): Promise<ProjectSection>;
-  /**
-   * Removal **archives**: the section leaves the canvas and `restore` brings it back with
-   * the rows it took down. A container that still holds live rows refuses without a policy,
-   * and the caller surfaces the refusal as a choice rather than swallowing it — see
-   * docs/decisions/2026-09-what-undo-means-for-an-archived-row.md.
-   *
-   * `Promise<void>` deliberately: the host answers 204, and the canvas re-reads.
-   */
-  remove(id: SectionId, input?: RemoveSectionInput): Promise<void>;
-  restore(id: SectionId): Promise<ProjectSection>;
+  create(projectId: ProjectId, input: CreateSectionInput): Promise<SectionAddResult>;
+  update(id: SectionId, input: UpdateSectionInput): Promise<SectionWriteResult>;
+  move(id: SectionId, input: MoveSectionInput): Promise<SectionWriteResult>;
+  /** §31's duplicate. Recorded as the add it is, so it answers the add envelope. */
+  duplicate(id: SectionId): Promise<SectionAddResult>;
+  /** Removes the section and cascades any live owned rows, returning its operation receipt. */
+  remove(id: SectionId): Promise<SectionRemovalResult>;
+  /** Archive Restore. A repeat on a live section answers the section and a `null` receipt. */
+  restore(id: SectionId): Promise<SectionWriteResult>;
+}
+
+/**
+ * §31's per-actor operation history. The history id, the action id and the revision the caller
+ * read are the whole input to a transition; the server owns inverse data, ordering and actor checks.
+ */
+export interface OperationHistoryGateway {
+  summary(projectId: ProjectId): Promise<OperationHistorySummary>;
+  transition(historyId: OperationHistoryId, input: OperationHistoryTransitionInput): Promise<OperationHistoryTransitionResult>;
 }
 
 /** §27's layout-only reference gateway. Sources identify canonical sections; they never carry rows. */
 export interface SectionShortcutGateway {
   list(projectId: ProjectId, query?: SectionShortcutQuery): Promise<ResolvedSectionShortcut[]>;
   sources(projectId: ProjectId, query: ShortcutSourceQuery): Promise<ShortcutSource[]>;
-  create(projectId: ProjectId, input: CreateSectionShortcutInput): Promise<ResolvedSectionShortcut>;
-  update(id: SectionShortcutId, input: UpdateSectionShortcutInput): Promise<ResolvedSectionShortcut>;
-  move(id: SectionShortcutId, input: MoveSectionShortcutInput): Promise<ResolvedSectionShortcut>;
-  remove(id: SectionShortcutId): Promise<void>;
+  create(projectId: ProjectId, input: CreateSectionShortcutInput): Promise<SectionShortcutAddResult>;
+  /** A same-value resize or collapse answers the placement and a `null` receipt. */
+  update(id: SectionShortcutId, input: UpdateSectionShortcutInput): Promise<SectionShortcutWriteResult>;
+  /** A move to the position it already holds answers the placement and a `null` receipt. */
+  move(id: SectionShortcutId, input: MoveSectionShortcutInput): Promise<SectionShortcutWriteResult>;
+  /** No placement is left to return, so the removal names what it deleted and its receipt. */
+  remove(id: SectionShortcutId): Promise<SectionShortcutRemovalResult>;
 }
 
 /**
@@ -246,6 +276,7 @@ export interface WorkManagerGateway {
   reflections: ReflectionGateway;
   agents: AgentGateway;
   activity: ActivityGateway;
+  history: OperationHistoryGateway;
 }
 
 export const WORK_MANAGER_GATEWAY = new InjectionToken<WorkManagerGateway>('WORK_MANAGER_GATEWAY');

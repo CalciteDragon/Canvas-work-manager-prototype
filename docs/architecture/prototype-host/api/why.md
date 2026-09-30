@@ -33,10 +33,37 @@ alternative by accident: the identity provider flattened every status to
 `internal_error` while the gateway read the envelope properly — one rule, two entry
 points, already diverged.
 
-**Typed refusals cross the boundary.** `DomainRuleError.details` (a discriminated
-record such as `{ reason: 'section_not_empty', liveRowCount }`) is forwarded in the 409
-body, so a UI can open the right dialog without parsing prose; the browser preserves it
-untrusted ([decision](../../../decisions/2026-09-a-section-has-a-name.md)).
+**Typed refusals cross the boundary.** `DomainRuleError.details` carries recoverable operation
+receipts and typed Undo conflicts across the 409 boundary; the browser preserves the payload as
+untrusted input rather than parsing prose. The removal flow no longer has a live-row refusal or
+choice dialog: a strict empty query accepts an ID-only cascade request, and retired query fields
+receive 400 ([decision](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md)).
+
+**A lost section-removal response can be recovered without turning a refusal into a
+write.** A repeat stays a 409 and returns only that exact actor's applied, unexpired removal
+receipt. The route forwards typed `section_already_removed` details; payloads never cross the
+boundary. The result of a successful disposable removal remains `{ section, operation,
+archiveListed }`, where `section` is an archived-shaped snapshot even though the stored section is
+absent
+([decision](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+
+**All explicit section edits keep the same receipt-only transport seam.** Add, update and move
+are pass-through domain results, so HTTP does not perform a second read that would require
+`projects.read`. Update and move expose `operation: null` for true no-ops; successful receipts
+carry only ids, the history's revision and the operation. The route does not know which fields an
+inverse may restore ([decision](../../../decisions/2026-09-section-edit-undo-boundaries.md)).
+
+**Task and reflection writes use the same public seam.** Create, update, completion, archive and
+restore return the committed row beside its receipt; only a normalized no-op returns
+`operation: null`. The executable inverse and compound-container snapshot remain private to the
+domain. That lets browser stores paint the returned row, and lets a write-only agent chain Undo
+and Redo from receipts and transition summaries without widening the history read to anything
+below `projects.read`.
+
+**One transition route, with the direction in a strict body.** A single route keeps the revision
+check in one place, and the stale-revision answer is the same 409 envelope as every other refusal,
+carrying the summary a client reconciles from — which is also why no retry cache exists
+([decision](../../../decisions/2026-09-history-stage-a-deferrals.md)).
 
 **`GET /api/me` and CORS came with the shell, not the spec.** §18 cannot be honoured
 without an identity read, and the non-simple `x-prototype-user` header makes the
@@ -58,11 +85,22 @@ returns: `/todos`, `/archive`, `/journal`, `/completed-work` under a project, an
 
 ## Decisions that shape this system
 
+- [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — thin routes expose the two domain reads and leave Restore validation in the canonical write.
+
 - [What an `Identity` is, and where it comes from](../../../decisions/2026-08-identity-contract-and-me-route.md)
 - [CORS on the host, not a dev-server proxy](../../../decisions/2026-08-host-cors-over-dev-proxy.md)
 - [The gateway interface grows with its implementations](../../../decisions/2026-08-gateway-surface-grows-with-implementations.md)
 - [Workspace scoping, and why a foreign id is 404 rather than 409](../../../decisions/2026-08-workspace-scoping-and-not-found.md)
 - [A section has a name](../../../decisions/2026-09-a-section-has-a-name.md) — typed refusal details across the boundary
+- [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md)
+- [One-step section removal and task Delete](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — ID-only cascade route and strict refusal of retired fields
+- [Undo and Redo follow one history per exact actor, per owning project](../../../decisions/2026-09-operation-history-scope.md) — summary and transition scope, 403 versus 404
+- [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../../decisions/2026-09-history-stage-a-deferrals.md) — route shape, 409 for stale revisions
+- [Row writes record one operation, including an implicit container](../../../decisions/2026-09-row-operation-history.md)
+- [Undo and Redo require the stored operation family's grant](../../../decisions/2026-09-operation-family-permissions.md)
+- [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../../decisions/2026-09-optional-page-operation-history.md) — the page PATCH answers `{ page, operation }`
+- [An existing project's writes are one action family](../../../decisions/2026-09-project-update-operation-history.md) — the project update tools' `{ project, operation }` envelopes
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the create receipt and creator-only absent-project history route
 
 ## Spec sections
 

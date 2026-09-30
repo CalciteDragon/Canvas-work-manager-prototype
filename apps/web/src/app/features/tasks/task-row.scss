@@ -113,16 +113,19 @@
   font-size: var(--font-size-sm);
 }
 
-.task-row__archive {
+.task-row__delete {
+  display: grid;
+  place-items: center;
+  min-inline-size: var(--size-hit-target);
+  min-block-size: var(--size-hit-target);
   border: 0;
-  padding: 0;
+  padding: var(--space-1);
   background: transparent;
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
   cursor: pointer;
 }
 
-.task-row__archive:disabled {
+.task-row__delete:disabled {
   cursor: progress;
   opacity: 0.5;
 }

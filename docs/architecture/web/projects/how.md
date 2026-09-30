@@ -1,6 +1,29 @@
 # How the projects feature works
 
+`ArchivePageStore` passes the root's ready-only projection to `ArchivedRegion`. The component
+words the supplied origin, cause and recovery counts without determining eligibility. Restore
+uses the canonical project, section, task or reflection write and then re-reads; independent
+archived children become visible only once their owner has returned. A refused write or a failed
+post-write re-read leaves an error that pauses every Restore (`restorePaused`, distinct from the
+archived-project `restoreBlocked` note). The pause holds until a read of the same root succeeds,
+so a stale row is never written twice. A later failed read keeps a "Restore succeeded" error and
+replaces any other, so a failed Retry visibly ran. A quiet live re-read and Retry (quiet when a
+list is on screen) keep the error and the Retry control visible; a reconnect reads non-quietly and
+shows "Loading archive…" while Restore stays paused; a prototype reload clears the list and error, even
+with a Restore pending, and its read supersedes that Restore's refresh. A subproject's chosen status is keyed by id and survives the replacement projection;
+each option binds `[selected]`, because a `[value]` on the select runs before its `@for` options exist.
+
 ## Runtime flow
+
+Todos captures the task title and owner before its optimistic Delete removes the row. It
+shows no success while the write is pending; a committed answer paints a polite status
+outside the chronology, even after the final row leaves. The status offers the shell's
+existing guarded `onOpenArchive` callback. For a descendant it names and links the owner
+through the canonical `#history-controls` route; a root task refers to the displayed
+header. A failed write restores the row and keeps the existing error/focus path. A new
+Delete or root change clears the status, and a route generation guard drops a late answer
+from an earlier root. A fresh chronology containing the restored task withdraws the cue.
+The cue holds no receipt and cannot promise the next Undo step.
 
 1. `ProjectWorkspaceShell` reads `projectId` and optional `pageKind` from the route,
    provides `ProjectWorkspaceStore`, and loads the project, its pages, progress and work
@@ -8,7 +31,15 @@
    page carrying a notice in navigation state.
 2. It renders `ProjectHeader` once and `ProjectPageNavigation` in the column, then
    mounts the registry's renderer for the page through `NgComponentOutlet` with a
-   `computed()` inputs record whose callbacks are class-property arrows.
+   `computed()` inputs record whose callbacks are class-property arrows. While narrow, the
+   column's `linkSelected` collapses the column and records the link's URL in the root-scoped
+   `ProjectColumnFocusRequest`. An effect honours it once no navigation is in flight, the store
+   is not loading and §68 is not redirecting, and only if `Router.url` still equals it: then the
+   toggle — or "Project unavailable" / "Creation undone" — takes focus after the render. A §68
+   fallback redirect moves the request to its target; any other winning navigation drops it,
+   and the request itself drops on any `NavigationEnd` elsewhere, so leaving for a route with no
+   project shell cannot leave it to fire on a later visit
+   ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
 3. `ProjectCanvas` provides `ProjectPageStore`, which loads the page's sections and
    shortcut placements as one combined order, renders each section inside
    `ProjectSectionFrame` with the registry's content component, and each shortcut inside
@@ -19,14 +50,97 @@
    a placement ID as the insertion anchor and resolves its current position at submit;
    `ProjectPageStore.orderComplete` withholds insertion points and blocks move writes
    when Home's combined section/shortcut order could not be fully read. Writes go through
-   the gateway behind the store's in-flight guards. A refused removal with
-   `section_not_empty` details opens
-   the existing cascade/reassign dialog.
-5. Live frames: progress re-reads on any frame naming the project; the record on
-   `project.*`; sections through `refreshSections()` unless a write is in flight; the
-   tree on `rootProjectId`. Root pages re-read their projection on the same frames.
-6. Following a Todos or Archive link to `#section-<id>` scrolls to the loaded frame,
+   the gateway behind the store's in-flight guards. One remove action sends only the section id;
+   the domain cascades live owned rows and the canvas has no policy dialog. Every canvas write — section add, move,
+   update and removal, and every shortcut placement write — runs through `reportedWrite`, which
+   tells core's `OPERATION_HISTORY_REPORTER` the write began, what it committed (the response's own
+   project and receipt) and that it ended; the canvas holds no receipt. `SectionRecoveryNotice`
+   offers only what the header cannot: after a removal whose `archiveListed` is true, "Removed the
+   Notes section. Undo is in the header." with **Open Archive**; after a repeated removal whose
+   exact-actor receipt came back in `details`, that receipt is reported and the notice keeps Archive
+   (an unknown verdict); after a committed write whose follow-up read failed, a read-only
+   **Retry refresh**. After a successful read, if the notice remains, focus moves to **Open Archive**
+   when offered or **Dismiss** otherwise. If refresh clears the notice (refresh-only or unlisted
+   removal), focus moves to the first surviving section title, or to the canvas when no title remains.
+   Focus stays where the person moved it during the request. A forward write whose read succeeded shows no notice. If a remove response is
+   uncertain and a live frame has already removed the section, the store keeps that id and exposes
+   an explicit **Retry remove**. Leaving the page/project clears the notice. Angular `@defer` loads
+   the create dialog and recovery notice when needed; the
+   Archive page loads `ArchivedRegion` after its read completes. These boundaries keep the
+   eager route graph under the 1050 kB initial-bundle error ceiling.
+5. **Undo and Redo** (Slice 41). The shell provides `ProjectHistoryStore` and binds
+   `OPERATION_HISTORY_REPORTER` to it in `providers` (not `viewProviders`), so the page store, a
+   task list inside a Home shortcut and the Todos, Archive and Reflections stores mounted through
+   `NgComponentOutlet` all report to it; `project-workspace-shell.spec.ts` asserts that binding,
+   because the core token's inert default would hide a wiring mistake. The shell calls
+   `load(projectId)` from its project effect; Home ↔ other root pages cross route shapes and
+   re-create the shell, so every such navigation starts in `loading`. The store:
+   - reads the summary coalesced (one in flight, one queued), drops a read from an earlier
+     generation (navigation, `prototype.reloaded`, destruction) and a lower `revision` of the held
+     history, and moves to `unavailable` when a read fails — with a read-only Retry, except after
+     a `not_found` answer, which a second read cannot change;
+   - re-reads on a frame naming the displayed project, any `isProjectRecordEvent` frame,
+     `prototype.reloaded` (a new generation) and reconnect;
+   - hands each write a handle bound to the generation it began in (a commit or end from before a
+     navigation is ignored); a handle's `committed(report)` with a receipt from the held history, or
+     while nothing is held, **owes a read requested after it** that reaches the receipt's revision
+     (re-reading at most three times for it);
+     a receipt naming another, known history — or a fresh read that still names another — sets
+     "… was recorded in Kitchen's history." with an Open link (the name comes from the report or a
+     `projects.get`); a handle that ends without its own commit owes a read too, because a transport
+     error or 5xx may have committed. A removal notice withdraws itself once its section is back on
+     the canvas. Both controls are unavailable while any write or owed read is
+     pending;
+   - runs one transition at a time with the held entry's `actionId` and the held `revision`,
+     adopts the result's or a refusal's summary, words it through `history-feedback.ts`, and
+     re-reads after a 404, a transport failure or `history_expired`. Content is reconciled by the
+     transition's live frame; a late result after destruction (undoing the displayed page's enable
+     sends the shell to Home) is dropped.
+   `ProjectHistoryControls` renders two icon buttons with `aria-disabled` and a guarded click (never
+   `disabled`), named by `historyControl`, projected into the header's actions cell — which moves to
+   its own row below 40rem so the project name keeps its width, and there both that row and the
+   Undo/Redo pair wrap, so at 375 px the controls stay inside the header box instead of
+   overflowing (Slice 45). Since Slice 58 the global sidebar is a drawer there, so the header has
+   the full width.
+   The accessible `Undo: …` and `Redo: …` names use the server summary's captured action label;
+   section rename, Rich Text prose, collapse and resize now name their edit without a browser mapper.
+   `ProjectHistoryFeedback` is the always-present polite
+   region under the header's facts. `confirmArchive` stays on the project and `announce`s "X is
+   archived. Undo is available here."; the More menu does not offer Archive on an archived project.
+6. Live frames: progress re-reads on any frame naming the project; the record on
+   `project.*`; sections through `refreshSections()` unless a write is in flight. A page action or
+   transition frame is a `project.*` frame, so it reaches project-context refresh and page
+   resolution with no new case: undoing the enable that created the displayed page, or disabling it,
+   returns to Home with the existing explanation — without the re-enable offer, because there is no
+   record left to switch on — while enabling or recreating one restores its tab and forces no
+   navigation. Task/reflection
+   Add and Add Undo/Redo frames also re-resolve section existence because the row operation may
+   own an implicit container; the
+   tree on `rootProjectId`. Root pages re-read their projection on the same frames. Since Slice 39
+   the tree, Todos, Archive and Reflections **also** re-read on a project-record frame
+   (`isProjectRecordEvent` from contracts) from any root: a cross-root reparent, or its Undo or Redo,
+   publishes one frame naming the sub-project's new root, and the root it left would otherwise keep
+   showing it. Archive's live re-read keeps its list on screen rather than flashing "Loading archive…".
+   Every `projects.update` caller — the header's rename, status, date and archive, Todos completion,
+   Archive reactivation, the progress setting — reads `project` from the `{ project, operation }`
+   answer and reports the receipt to the header's history.
+7. Following a Todos or Archive link to `#section-<id>` scrolls to the loaded frame,
    focuses its heading, and transiently expands a collapsed container.
+8. A descendant row on root Todos or Archive derives the owner route and name from its
+   projection, separate from its content link and Restore. `#history-controls` reaches the
+   existing header group. The shell checks the current route fragment and loaded project after
+   each render until that group exists, then scrolls and focuses it once for that URL. Leaving
+   the fragment resets the arrival guard, so a later `#section-…` cannot regain history focus.
+   `ProjectHistoryStore` still reads only the displayed project's actor-scoped summary.
+
+Creation recovery uses the same project route. A not-found project read clears the record and sets
+`missing`; the caller's history summary shows the recovery section only when its next Redo is
+`project.add`. The section uses the normal history controls and feedback. Creation Undo/Redo frames
+reload project context once per history revision, so a root tree updates after the project is
+removed or restored without another history read. An actor without that anchored summary continues
+to see *Project unavailable*. If the history summary itself is unavailable, that state offers a
+generic Retry for the summary read; it does not expose an Undo/Redo entry until the read confirms it
+([decision](../../../decisions/2026-09-project-creation-history.md)).
 
 ## Key symbols
 
@@ -40,19 +154,22 @@
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | interfaces | Renderer contract | [API](../../../api/interfaces/ProjectPageRenderer.html) |
 | `ProjectCanvas` | component | One page's canvas, contextual editing and stable callback inputs | [API](../../../api/components/ProjectCanvas.html) |
 | `ProjectPageStore` | injectable | Sections and placements of one page | [API](../../../api/injectables/ProjectPageStore.html) |
-| `SectionRemovalDialog`, `SectionRemovalPrompt` | component / interface | Cascade or reassign | [API](../../../api/components/SectionRemovalDialog.html) |
+| `ProjectHistoryStore` | injectable | The displayed project's summary, pending state, transitions and feedback; the reporter | [API](../../../api/injectables/ProjectHistoryStore.html) |
+| `ProjectHistoryControls`, `ProjectHistoryFeedback` | components | Header Undo/Redo icons and their feedback line | [API](../../../api/components/ProjectHistoryControls.html) |
+| `historyControl`, `transitionRefusalFeedback` | functions | Control names and refusal wording | [API](../../../api/miscellaneous/variables.html#historyControl) |
+| `SectionRecoveryNotice`, `SectionRecoveryNoticeState` | component / interface | Open Archive, Retry remove and Retry refresh; no Undo | [API](../../../api/components/SectionRecoveryNotice.html) |
 | `SECTION_REGISTRY`, `SectionDefinition` | const / interface | §29 | [API](../../../api/miscellaneous/variables.html#SECTION_REGISTRY) |
 | `SectionContentComponent`, `SectionContentInputs` | interfaces | Content contract | [API](../../../api/interfaces/SectionContentComponent.html) |
 | `ProjectSectionFrame` | component | §31's chrome | [API](../../../api/components/ProjectSectionFrame.html) |
 | `SectionCreateDialog` | component | Section and Home shortcut creation; owns pending/error state | [API](../../../api/components/SectionCreateDialog.html) |
-| `CanvasIcon`, `InsertionPoint`, `SectionResizeHandle` | components | Shared SVG canvas controls | [API](../../../api/components/CanvasIcon.html) |
+| `InsertionPoint`, `SectionResizeHandle` | components | Canvas insertion and resize controls; their marks come from the shared `Icon` | [API](../../../api/components/InsertionPoint.html) |
 | `gridInsertionGaps` | function | Sparse grid gaps that can fit a supported width | [API](../../../api/miscellaneous/variables.html#gridInsertionGaps) |
 | `CanvasWriteResult` | type | Success or displayed canvas-write failure | [API](../../../api/miscellaneous/typealiases.html#CanvasWriteResult) |
 | `TaskListSection`, `RichTextSection`, `SubProjectsSection`, `ProgressSection`, `ReflectionsSection`, `TimelineSection`, `RecentActivitySection` | components | The seven types | [API](../../../api/components/TaskListSection.html) |
 | `ProgressStore`, `ReflectionsStore`, `SubProjectsStore`, `TimelineStore` | injectables | Per-section stores | [API](../../../api/injectables/ProgressStore.html) |
 | `TodosPage`, `ArchivePage`, `ReflectionsPage` | components | Root pages | [API](../../../api/components/TodosPage.html) |
 | `TodosPageStore`, `ArchivePageStore`, `ReflectionsPageStore` | injectables | Their stores | [API](../../../api/injectables/TodosPageStore.html) |
-| `ArchivedRegion` | component | Presentational archive list | [API](../../../api/components/ArchivedRegion.html) |
+| `ArchivedRegion` | component | Presentational archive list; labels domain-supplied recovery metadata, two-step guidance and the placement Restore actually produces | [API](../../../api/components/ArchivedRegion.html) |
 | `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | components / injectable | Home shortcuts | [API](../../../api/components/ShortcutFrame.html) |
 
 ## Dependencies
@@ -60,10 +177,11 @@
 **Depends on**
 
 - [core](../core/overview.md) — `WORK_MANAGER_GATEWAY` (`projects`, `projectPages`,
-  `sections`, `sectionShortcuts`, `progress`, `todos`, `archive`, `journal`,
-  `reflections`, `timeline`), `LIVE_UPDATES`, `PrototypeSettings` for the layout flags.
+  `sections`, `sectionShortcuts`, `history`, `progress`, `todos`, `archive`, `journal`,
+  `reflections`, `timeline`), `LIVE_UPDATES`, `OPERATION_HISTORY_REPORTER` and `reportedWrite`,
+  `PrototypeSettings` for the layout flags.
 - [tasks](../tasks/overview.md) — `TaskListStore`, `TaskRow`, `TaskDetailDrawer` inside
-  the Task List section and on the Todos page.
+  the Task List section. Todos owns its separate task row and store.
 - `features/activity` — `ActivityFeed` and `ActivityStore` in the Recent Activity section.
 - [contracts](../../contracts/overview.md) — `nameOf`, `SECTION_OWNERSHIP` (through the
   registry's `kind`), `NAVIGABLE_PAGE_KINDS`, `isRootProject`, and every shape.
@@ -83,12 +201,22 @@
 
 - **Registry lists are pinned** — `sections/registry.spec.ts` and
   `project-page-registry.spec.ts`; `registry.spec.ts` also fails when a type incurs the
-  display-name cost without a `SECTION_DISPLAY_NAMES` entry.
+  display-name cost without a `SECTION_DISPLAY_NAMES` entry, or when a registered type has no
+  `SECTION_CAPABILITIES` declaration.
+- **Archive lists what the domain projected.** `ArchivePageStore.items` passes the projection
+  through unchanged; `ArchivedRegion` only words its `recovery` metadata, plus the one fact about
+  the *operation* a row's button performs — that Restore appends to the end of the page.
 - **Callback inputs have stable identity** — class-property arrows, `computed()` records.
 - **Stores are guarded** on project, page and generation, and defer re-reads behind
   `pendingWrites`; a stale response after navigation is discarded.
 - **The UI never decides a rule.** Where a write lands, whether a page accepts a kind,
   whether a removal is safe — the host answers; a refusal is shown, never softened.
+- **Undo is the header's alone.** No surface other than `ProjectHistoryControls` offers Undo or
+  Redo; the canvas reports receipts and never holds one. An explicit Retry remove uses the saved id
+  after an uncertain response.
+- **Every browser write reports**, through `reportedWrite` or `begin`/`committed`/end, with the
+  project named by its **response**. A new write site that forgets leaves the header offering a stale
+  step until the next frame.
 - **No `#section-<id>` selector interpolation** — the canvas matches ids it loaded.
 - **Tokens only** in every `.scss` here — the token lint.
 
@@ -96,8 +224,8 @@
 
 ```bash
 pnpm --filter web test -- projects      # the feature's specs
-pnpm storybook                          # ProjectCanvas, SectionCreateDialog, ProjectPageNavigation, frame, pages, shortcuts, archive list
-pnpm e2e                                # web, canvas-editing, MCP, todos, archive, reflections
+pnpm storybook                          # ProjectCanvas, ProjectHistoryControls, SectionRecoveryNotice, SectionCreateDialog, navigation, pages, shortcuts, archive list
+pnpm e2e                                # project-history (header Undo/Redo), web, canvas editing, removal and section edit Undo, MCP, todos, archive, reflections
 ```
 
 ## Changing it
@@ -110,8 +238,9 @@ pnpm e2e                                # web, canvas-editing, MCP, todos, archi
   `ProjectPageRenderer`, one line in `PROJECT_PAGE_REGISTRY`, the host's derived read.
   There is no generic page builder (§80).
 - **A new canvas write:** `ProjectPageStore` method with an optimistic paint inside the
-  `pendingWrites` guard, the gateway member, and a spec that a live frame during the
-  write does not overwrite the paint.
+  `pendingWrites` guard, the gateway member wrapped in `reportedWrite` with the response's own
+  project, and specs that a live frame during the write does not overwrite the paint and that the
+  write reports begin, commit and end.
 - **A popup or frame that must preserve input on failure:** return a `CanvasWriteResult`
   from the store and translate its message at the callback boundary. `ShortcutPicker` reports
   its pending state to `SectionCreateDialog`, which blocks Back, Cancel and Escape until a
@@ -122,3 +251,8 @@ pnpm e2e                                # web, canvas-editing, MCP, todos, archi
   specs cannot prove pointer hit-testing, touch behavior or the absence of layout shift.
 - **The trap:** a page-scoped read that answers project-wide. Every read here names its
   page; the canvas once drew another page's container because one did not.
+- **The column's focus trap:** `/projects/:projectId` and `/projects/:projectId/pages/:pageKind`
+  are two route configs, so a link between them makes the router replace the shell
+  synchronously inside `RouterLink`'s click handler. A bubbling listener on the column is gone
+  before the click reaches it, and a shell field is gone with the old instance. That is why
+  `linkSelected` is reported from a capture-phase listener and the request is root-scoped.

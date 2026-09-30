@@ -170,3 +170,63 @@ restore tools (§54 lists none today) or `includeArchived` on the three list too
 
 Or when restoring a section wants its old position back, which would mean the canvas
 reserving positions it currently reuses.
+
+**Amended, 2026-09-13 (planning only).** The [content-oriented Archive policy](2026-09-content-oriented-archive-policy.md)
+records Slice 29's reviewed direction: separate visible recovery content from retained
+tombstones, while preserving exact cascade membership, append placement and idempotency.
+The implementation plan keeps owner containers visible for pre-archived-only rows. Runtime
+still follows this entry's existing removal/restore rules; the projection change and the
+distinction from future operation-level Undo will be documented as landed only after implementation.
+
+**Amended, 2026-09-13 — landed.** Slice 29 implemented the
+[content-oriented Archive policy](2026-09-content-oriented-archive-policy.md). This entry's rules
+are unchanged and re-tested: every removal branch keeps its tombstone, cascade stamps only live
+rows, reassign with live rows moves archived subtrees whole, `restoreSection` appends to the
+page's current combined order, revives exactly its cascade and is a no-op on retry. What changed
+is only what Archive *lists*: disposable view tombstones are retained but unlisted. The section
+service's comments now call its restore **Archive Restore**, distinct from the operation-level
+Undo that later slices plan.
+
+**Amended, 2026-09-14 — Slice 30.** `restoreSection` is no longer "the canonical undo". It is
+**Archive Restore**: durable, receipt-free, appended to the page's current order, and unchanged in
+every rule above. Reversing one removal *as an operation* — back between the neighbours it left,
+with exactly the rows it changed — is now receipt-based Undo, which a removal records in the same
+unit and `UndoService` executes once for the same actor within 24 hours
+([section removal Undo records](2026-09-section-removal-undo-records.md)). The medium-confidence
+note above ("someone restoring a section they removed a minute ago may expect it back where it
+was") is what Undo answers; Archive Restore keeps appending because it has no placement snapshot.
+
+**Amended, 2026-09-14 — landed in Slice 31.** The earlier statement that every removal keeps a
+section tombstone is narrowed by the [reference-safe disposable-removal decision](2026-09-disposable-removal-and-immediate-undo.md).
+After row settlement, a section excluded from recovery is deleted only when no canonical task,
+reflection or shortcut still references it. Content-bearing or uncertain sections remain
+recoverable through Archive; shortcut-backed sources retain an unlisted integrity tombstone.
+Existing tombstones are not purged. Archive Restore remains durable and append-placed, while
+receipt-based Undo can recreate a safely deleted section at its prior placement. A deletion
+result's archived-shaped `section` is an operation snapshot, not evidence that it remains stored.
+
+**Amended, 2026-09-16 — Slice 35.** Archive Restore is still durable, receipt-free, append-placed
+and outside every history, and it deliberately does not advance a section's `archiveGeneration`:
+restoring is not removing. What changed is the thing it is distinguished from — receipt-based Undo
+became per-actor history Undo and Redo — and one consequence is new: an Undo of a removal that
+Archive Restore already reversed can never succeed, so that action **retires** rather than blocking
+the actions beneath it ([retired actions](2026-09-operation-history-retired-actions.md)).
+
+**Amended, 2026-09-18 — Slice 36.** “Outside every history” is now split by kind. **Section**
+Archive Restore remains outside history until Stage C. A successful **task or reflection** Restore
+is still durable, receipt-free to invoke and available after the archive action expires, but it now
+records its own `task.restore` or `reflection.restore` action and therefore clears the caller's redo
+branch. Its response is `{ task|reflection, operation }`; an already-live row is a no-op with a null
+operation ([decision](2026-09-row-operation-history.md)).
+
+
+**Amended, 2026-09-20 — Slice 37.** The split above closes: **section** Archive Restore now records
+a `section.restore` action too, on the same terms the row families got — durable, receipt-free to
+invoke, available long after every action has expired, and clearing the caller's redo branch when it
+changes something. Its response is `{ section, operation }`, and a repeat on a live section is a
+no-op with a null operation. Undoing a recorded Restore re-archives exactly what that Restore
+revived; it is not the removal beneath it, which remains its own step
+([decision](2026-09-section-restore-and-shortcut-history.md)).
+
+
+**Amended, 2026-09-24 (Slice 43).** New section removal writes the existing cascade markers for live owned rows, so Undo, Redo and Archive Restore keep the exact footprint described here. Independently archived rows remain untouched. New removals no longer create reassign actions, although the history executor still understands persisted version-1 reassign payloads.

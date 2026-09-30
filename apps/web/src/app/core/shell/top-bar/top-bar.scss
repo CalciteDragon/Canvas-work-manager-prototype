@@ -9,13 +9,24 @@
   background: var(--color-surface);
 }
 
+.lead {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+}
+
 .product {
+  overflow: hidden;
   font-size: var(--font-size-md);
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .identity {
   display: flex;
+  flex: none;
   gap: var(--space-3);
   align-items: center;
   color: var(--color-text-muted);
@@ -32,7 +43,9 @@
   background: var(--color-surface-raised);
 }
 
+.menu,
 .theme-toggle {
+  flex: none;
   padding: var(--space-1) var(--space-3);
   border: var(--border-hairline) solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -40,8 +53,46 @@
   cursor: pointer;
 }
 
+.menu {
+  color: var(--color-text);
+  font: inherit;
+}
+
+.menu:hover,
+.menu:focus-visible,
 .theme-toggle:hover,
 .theme-toggle:focus-visible {
   border-color: var(--color-accent);
   color: var(--color-text);
+}
+
+@media (hover: none), (any-pointer: coarse) {
+  .menu,
+  .theme-toggle {
+    min-width: var(--size-hit-target);
+    min-height: var(--size-hit-target);
+  }
+}
+
+// Slice 58's phone breakpoint. Mirrors `SHELL_NARROW_QUERY` in `app-shell.ts` and the query in
+// `app-shell.scss`. The persona's name stays in the accessibility tree; only its width goes.
+@media (max-width: 48rem) {
+  .top-bar {
+    gap: var(--space-2);
+    padding-inline: var(--space-3);
+  }
+
+  .lead,
+  .identity {
+    gap: var(--space-2);
+  }
+
+  .name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }

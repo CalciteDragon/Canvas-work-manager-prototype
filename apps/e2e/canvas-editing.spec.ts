@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { ProjectPage, ProjectSection, SectionShortcut } from '@cwm/contracts';
-import { addSection, api, createRoot, createSubprojects, seed, setClock, setLayout } from './seed';
+import { addSection, addShortcut, api, createRoot, createSubprojects, seed, setClock, setLayout } from './seed';
+import { historyControl } from './history-controls';
 
 const PINNED_NOW = '2026-09-15T12:00:00.000Z';
 const HOME_RENOVATION = 'project-renovation';
@@ -241,7 +242,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   const [child] = await createSubprojects(root.id, 1);
   const source = await addSection(child!.id, { type: 'rich-text', title: 'Shortcut source', columnSpan: 8 });
   await addSection(child!.id, { type: 'task-list', title: 'Shortcut candidate', columnSpan: 6 });
-  const shortcut = await api.post<SectionShortcut>(`/api/projects/${root.id}/shortcuts`, {
+  const shortcut = await addShortcut(root.id, {
     pageId: home,
     sourceSectionId: source.id,
     position: 1,
@@ -535,7 +536,7 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   const [child] = await createSubprojects(root.id, 1);
   const source = await addSection(child!.id, { type: 'rich-text', title: 'Shortcut source', columnSpan: 12 });
   const home = await pageId(root.id);
-  const shortcut = await api.post<SectionShortcut>(`/api/projects/${root.id}/shortcuts`, {
+  const shortcut = await addShortcut(root.id, {
     pageId: home,
     sourceSectionId: source.id,
     position: 2,
@@ -607,6 +608,10 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await orderOf(root.id))[0]?.columnSpan).toBe(4);
 
+  // Slice 41: a committed width shows no notice over the viewport's end corner — the header's Undo
+  // label is its confirmation — so the pointer drag below reaches the shortcut's handle directly.
+  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
+
   const shortcutWrapper = page.locator(`[data-shortcut-item][data-shortcut-id="${shortcut.id}"]`);
   const shortcutHandle = shortcutWrapper.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]');
   await dragResize(page, shortcutHandle, await resizeDelta(canvas, 12, 8));
@@ -632,6 +637,7 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   const nextBefore = await nextWrapper.boundingBox();
   const textBeforeResize = await flowText.boundingBox();
   if (nextBefore === null || textBeforeResize === null) throw new Error('Flow neighbor did not render');
+  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
   await dragResize(
     page,
     flowWrapper.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]'),
@@ -648,7 +654,7 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   expect(resizeObserverErrors).toEqual([]);
 });
 
-test('inline rename, archive choices, shortcut removal and type settings remain available on the canvas', async ({ page }) => {
+test('inline rename, section removal, shortcut removal and type settings remain available on the canvas', async ({ page }) => {
   await seed('empty');
   await setClock(PINNED_NOW);
   const root = await createRoot('Frame actions');
@@ -657,20 +663,20 @@ test('inline rename, archive choices, shortcut removal and type settings remain 
   const firstList = await addSection(root.id, { type: 'task-list', title: 'Move from here', columnSpan: 12 });
   const secondList = await addSection(root.id, { type: 'task-list', title: 'Move to here', columnSpan: 12 });
   const progress = await addSection(root.id, { type: 'progress', title: 'Progress controls', columnSpan: 12 });
-  const firstTask = await api.post<{ id: string }>('/api/tasks', {
+  const firstTask = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: root.id,
     sectionId: firstList.id,
     title: 'Keep this task',
-  });
+  })).task;
   const [child] = await createSubprojects(root.id, 1);
   const source = await addSection(child!.id, { type: 'task-list', title: 'Canonical source', columnSpan: 12 });
-  const sourceTask = await api.post<{ id: string }>('/api/tasks', {
+  const sourceTask = (await api.post<{ task: { id: string } }>('/api/tasks', {
     projectId: child!.id,
     sectionId: source.id,
     title: 'Keep source work',
-  });
+  })).task;
   const home = await pageId(root.id);
-  const shortcut = await api.post<SectionShortcut>(`/api/projects/${root.id}/shortcuts`, {
+  const shortcut = await addShortcut(root.id, {
     pageId: home,
     sourceSectionId: source.id,
     position: 4,
@@ -730,9 +736,8 @@ test('inline rename, archive choices, shortcut removal and type settings remain 
   await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-rich-text-body]`).fill('Body editing is available without a mode.');
   await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-rich-text-body]`).press('Tab');
 
-  // An ordinary view archives without a choice; the section and its typed identity remain
-  // recoverable from the root Archive page.
-  await expect(page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`)).toHaveAttribute('aria-label', 'Archive section Keep draft after failure');
+  // Removal keeps meaningful Rich Text in Archive, while the action describes the operation.
+  await expect(page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`)).toHaveAttribute('aria-label', 'Remove section Keep draft after failure');
   await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`).click();
   await expect(page.locator(`[data-section-item][data-section-id="${view.id}"]`)).toHaveCount(0);
   await page.locator('[data-project-more]').click();
@@ -754,23 +759,31 @@ test('inline rename, archive choices, shortcut removal and type settings remain 
   expect((await api.get<ProjectSection[]>(`/api/projects/${child!.id}/sections?pageId=${await pageId(child!.id, 'work')}`)).some(({ id }) => id === source.id)).toBe(true);
   expect((await api.get<unknown[]>(`/api/tasks?projectId=${child!.id}&includeArchived=true`)).some((task) => JSON.stringify(task).includes(sourceTask.id))).toBe(true);
 
-  // A non-empty container retains both existing choices. Reassignment preserves the row and
-  // archives only the emptied container.
+  // Moving a task remains an independent write. Removing the now-empty source needs no policy.
+  const taskMove = await api.patch<{ operation: { historyId: string; actionId: string; revision: number } }>(
+    `/api/tasks/${firstTask.id}`,
+    { sectionId: secondList.id },
+  );
+  expect((await api.get<{ sectionId: string }>(`/api/tasks/${firstTask.id}`)).sectionId).toBe(secondList.id);
+  const transitionTaskMove = (direction: 'undo' | 'redo', expectedRevision: number) =>
+    api.post(`/api/history/${taskMove.operation.historyId}/transition`, {
+      actionId: taskMove.operation.actionId,
+      direction,
+      expectedRevision,
+    });
+  await transitionTaskMove('undo', taskMove.operation.revision);
+  expect((await api.get<{ sectionId: string }>(`/api/tasks/${firstTask.id}`)).sectionId).toBe(firstList.id);
+  await transitionTaskMove('redo', taskMove.operation.revision + 1);
+  expect((await api.get<{ sectionId: string }>(`/api/tasks/${firstTask.id}`)).sectionId).toBe(secondList.id);
+
   await page.goto(`/projects/${root.id}`);
   await page.locator(`[data-section-item][data-section-id="${firstList.id}"] [data-section-remove]`).click();
-  const removalDialog = page.locator('[data-section-removal-dialog] [role="dialog"]');
-  await expect(removalDialog).toBeVisible();
-  await expect(removalDialog.locator('[data-section-removal-message]')).toContainText('1 task');
-  await expect(removalDialog.locator('[data-section-removal-cascade]')).toBeVisible();
-  await expect(removalDialog.locator('[data-section-removal-reassign]')).toBeVisible();
-  await removalDialog.locator('[data-section-removal-target]').selectOption(secondList.id);
-  await removalDialog.locator('[data-section-removal-reassign]').click();
   await expect(page.locator(`[data-section-item][data-section-id="${firstList.id}"]`)).toHaveCount(0);
   expect((await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?pageId=${home}`)).some(({ id }) => id === firstList.id)).toBe(false);
-  expect((await api.get<unknown[]>(`/api/tasks?projectId=${root.id}&includeArchived=true`)).some((task) => JSON.stringify(task).includes(firstTask.id))).toBe(true);
+  expect(await api.get<{ sectionId: string; archivedAt?: string }>(`/api/tasks/${firstTask.id}`)).toMatchObject({ sectionId: secondList.id });
 });
 
-test('keyboard users can insert, move sections and shortcuts, resize, rename and archive', async ({ page }) => {
+test('keyboard users can insert, move sections and shortcuts, resize, rename and remove', async ({ page }) => {
   await seed('empty');
   await setClock(PINNED_NOW);
   const root = await createRoot('Keyboard journey');
@@ -780,7 +793,7 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   const [child] = await createSubprojects(root.id, 1);
   const source = await addSection(child!.id, { type: 'rich-text', title: 'Keyboard shortcut source', columnSpan: 6 });
   const home = await pageId(root.id);
-  const shortcut = await api.post<SectionShortcut>(`/api/projects/${root.id}/shortcuts`, {
+  const shortcut = await addShortcut(root.id, {
     pageId: home,
     sourceSectionId: source.id,
     position: 2,
@@ -829,8 +842,55 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   await insertedWrapper.locator('[data-section-remove]').press('Enter');
   await expect(insertedWrapper).toHaveCount(0);
   const archived = await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?includeArchived=true&pageId=${home}`);
-  expect(archived.find(({ id }) => id === insertedSection.id)?.archivedAt).toBeTruthy();
+  expect(archived.some(({ id }) => id === insertedSection.id)).toBe(false);
+  // Deleted rather than archived, so there is no notice; the header names the removal it can undo.
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', /^Undo: Removed the Keyboard renamed section/);
+  await expect(page.locator('[data-recovery-notice]')).toHaveCount(0);
   expect((await orderOf(root.id, home)).map(({ id }) => id)).toEqual([first.id, shortcut.id, second.id]);
+});
+
+test('keyboard removal of a live Home Task List archives its live task tree and leaves earlier Archive rows alone', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  const root = await createRoot('Keyboard cascade');
+  const list = await addSection(root.id, { type: 'task-list', title: 'Keyboard cascade tasks' });
+  const parent = (await api.post<{ task: { id: string } }>('/api/tasks', {
+    projectId: root.id,
+    sectionId: list.id,
+    title: 'Live parent',
+  })).task;
+  const child = (await api.post<{ task: { id: string } }>('/api/tasks', {
+    projectId: root.id,
+    sectionId: list.id,
+    parentTaskId: parent.id,
+    title: 'Live child',
+  })).task;
+  const filed = (await api.post<{ task: { id: string } }>('/api/tasks', {
+    projectId: root.id,
+    sectionId: list.id,
+    title: 'Filed before removal',
+  })).task;
+  await api.post(`/api/tasks/${filed.id}/archive`, {});
+
+  await page.goto(`/projects/${root.id}`);
+  const frame = page.locator(`[data-section-item][data-section-id="${list.id}"]`);
+  await expect(frame).toBeVisible();
+  const remove = frame.locator('[data-section-remove]');
+  await remove.focus();
+  await remove.press('Enter');
+  await expect(frame).toHaveCount(0);
+  const task = async (id: string) => api.get<{
+    archivedAt?: string;
+    archivedWithSectionId?: string;
+    archivedWithTaskId?: string;
+  }>(`/api/tasks/${id}`);
+  expect(await task(parent.id)).toMatchObject({ archivedAt: expect.any(String), archivedWithSectionId: list.id });
+  expect(await task(child.id)).toMatchObject({ archivedAt: expect.any(String), archivedWithSectionId: list.id });
+  expect(await task(child.id)).not.toHaveProperty('archivedWithTaskId');
+  expect(await task(filed.id)).toMatchObject({ archivedAt: expect.any(String) });
+  expect(await task(filed.id)).not.toHaveProperty('archivedWithSectionId');
+  await expect(page.locator('[data-open-archive]')).toBeFocused();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', /^Undo: Removed the Keyboard cascade tasks section/);
 });
 
 test.describe('coarse pointer', () => {
@@ -874,7 +934,7 @@ test.describe('coarse pointer', () => {
     if (inserted === undefined) throw new Error('Touch insertion did not create a section');
     const [child] = await createSubprojects(root.id, 1);
     const source = await addSection(child!.id, { type: 'rich-text', title: 'Touch shortcut source' });
-    const shortcut = await api.post<SectionShortcut>(`/api/projects/${root.id}/shortcuts`, {
+    const shortcut = await addShortcut(root.id, {
       pageId: home,
       sourceSectionId: source.id,
       position: 2,
@@ -957,6 +1017,59 @@ test.describe('coarse pointer', () => {
     }
     await expect(item).toHaveCount(0);
     expect((await orderOf(root.id)).map(({ id }) => id)).toEqual(orderBeforeArchive.filter(({ id }) => id !== first.id).map(({ id }) => id));
+
+    const touchTasks = await addSection(root.id, { type: 'task-list', title: 'Touch tasks' });
+    const deletedTask = (await api.post<{ task: { id: string } }>('/api/tasks', {
+      projectId: root.id,
+      sectionId: touchTasks.id,
+      title: 'Delete by touch',
+    })).task;
+    const cascadedTask = (await api.post<{ task: { id: string } }>('/api/tasks', {
+      projectId: root.id,
+      sectionId: touchTasks.id,
+      title: 'Cascade by touch',
+    })).task;
+    await page.reload();
+    const deleteRow = page.locator('[data-task-row]', { hasText: 'Delete by touch' });
+    const touchDelete = deleteRow.locator('[data-task-delete]');
+    await expect(touchDelete).toHaveAttribute('aria-label', 'Delete task Delete by touch');
+    await touchDelete.tap();
+    await expect(deleteRow).toHaveCount(0);
+    const separatelyArchived = await api.get<{ archivedAt?: string; archivedWithSectionId?: string }>(`/api/tasks/${deletedTask.id}`);
+    expect(separatelyArchived.archivedAt).toEqual(expect.any(String));
+    expect(separatelyArchived).not.toHaveProperty('archivedWithSectionId');
+
+    const touchRemove = page.locator(`[data-section-item][data-section-id="${touchTasks.id}"] [data-section-remove]`);
+    await touchRemove.tap();
+    await expect(page.locator(`[data-section-item][data-section-id="${touchTasks.id}"]`)).toHaveCount(0);
+    await expect(page.locator('[data-open-archive]')).toBeFocused();
+    await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Touch tasks section');
+    expect(await api.get<{ archivedAt?: string; archivedWithSectionId?: string }>(`/api/tasks/${cascadedTask.id}`))
+      .toMatchObject({ archivedAt: expect.any(String), archivedWithSectionId: touchTasks.id });
+
+    const touchReflections = await addSection(child!.id, { type: 'reflections', title: 'Touch work reflections' });
+    const touchReflection = (await api.post<{ reflection: { id: string } }>('/api/reflections', {
+      projectId: child!.id,
+      sectionId: touchReflections.id,
+      body: 'A live reflection removed by touch.',
+    })).reflection;
+    await page.goto(`/projects/${child!.id}`);
+    const touchReflectionFrame = page.locator(`[data-section-item][data-section-id="${touchReflections.id}"]`);
+    await expect(touchReflectionFrame).toContainText('A live reflection removed by touch.');
+    await touchReflectionFrame.locator('[data-section-remove]').tap();
+    await expect(touchReflectionFrame).toHaveCount(0);
+    await expect(page.locator('[data-open-archive]')).toBeFocused();
+    await expect(historyControl(page, 'undo')).toHaveAttribute(
+      'aria-label',
+      'Undo: Removed the Touch work reflections section',
+    );
+    expect(await api.get<Array<{ id: string; archivedAt?: string; archivedWithSectionId?: string }>>(
+      `/api/reflections?projectId=${child!.id}&sectionId=${touchReflections.id}&includeArchived=true`,
+    )).toEqual([expect.objectContaining({
+      id: touchReflection.id,
+      archivedAt: expect.any(String),
+      archivedWithSectionId: touchReflections.id,
+    })]);
   });
 });
 

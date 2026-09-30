@@ -15,11 +15,12 @@ get wrong.
   once and validating it whole on every commit is affordable and catches far more than a
   per-row check would.
 - **Two writers can race** — the browser and an MCP client share one host — and a
-  half-applied operation must never persist.
+  half-applied operation must never persist. Separate *processes* can race too: the host, a
+  stdio MCP process and the seed, reset and upgrade commands each hold their own copy of the file.
 - **A crash mid-write must not corrupt the file.** Temp-and-rename is atomic on the
   platforms this runs on.
-- **Nothing may be deleted casually.** The activity feed resolves every event's target
-  at commit, so a hard delete would fail the next integrity check.
+- **Nothing may be deleted casually.** Canonical references remain strict. Missing task or
+  reflection Activity targets require complete matching captured historical identity.
 
 ## The shape, and the alternatives rejected
 
@@ -45,9 +46,42 @@ AND, an empty array matches nothing, `includeArchived` is opt-in, and archived r
 excluded by default ([decision](../../decisions/2026-08-repository-query-semantics.md)).
 The JSON implementation is the reference; a Postgres one would have to match.
 
-**Deletion exists for two things only.** Sections expose `remove` as the seam for a
-future permanent delete, and shortcut placements delete because they own no content and
-no activity target. Everything else archives.
+**Deletion exists only for safe disposable sections, safe add Undo, the Redo of a disposable
+removal, safe task/reflection Add Undo, the inverse of a first page enable, shortcut placements and
+history actions.** A section's `remove` seam is used only after
+`SectionService` settles owned rows, checks whether content needs recovery, and verifies no
+canonical task, reflection or shortcut still refers to the section — or, for add Undo, when the
+added section is unchanged and no row, cascade marker or shortcut references it; Redo of a deleted
+removal re-checks the same references. An optional page is deleted only by `revertPageAdd`, and only once the record is
+still the one its enable created and no section or placement names it — the integrity boundary is
+unchanged, so a removal that left a reference rolls back
+([decision](../../decisions/2026-09-optional-page-operation-history.md)).
+Actions are deleted by pruning and by a new write discarding
+a redo branch; nothing references an action, so nothing can dangle. Histories are never deleted.
+Integrity remains strict, and old tombstones are not purged
+([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md),
+[retention](../../decisions/2026-09-operation-history-retention.md)).
+
+**Activity identity is historical, not a canonical reference.** Undo Add may remove its task or
+reflection only after the domain checks all real dependents. Earlier events remain valid because
+they carry matching captured target and project/root identity; other missing targets and missing
+history owners still fail whole-document validation
+([decision](../../decisions/2026-09-historical-activity-identity.md)).
+
+**A history's integrity is checked across collections, not inside one schema.** "One history per
+actor and project" and "an action's order is within its history's high-water mark" need two
+collections, so they live in `validateDocumentIntegrity`; the contract keeps only what one object
+can assert ([decision](../../decisions/2026-09-operation-history-scope.md)).
+
+**One advisory owner record per data file, not a lock service.** Every writing entrypoint
+publishes `<data file>.owner` by `link` before it loads, and a second one waits at most a bounded
+time — or not at all, for the commands and for a stdio call behind a host — and is then refused
+with the owner named. Rejected: the documented "do not run them together" rule it
+replaces, which failed silently as a lost update; OS file locks, which differ across Windows and
+POSIX and cannot say who holds the file; and reclaiming a dead record by plain unlink, which lets a
+slow reclaimer delete a fast one's fresh record
+([decision](../../decisions/2026-09-one-writer-per-data-file.md)). It is disposable with the JSON
+store (§71), and entrypoints, not the store, decide when to hold it.
 
 **An `InMemoryDataStore` beside the `JsonDataStore`.** Same base, no disk — what every
 domain, tool and host test runs on.
@@ -61,14 +95,30 @@ domain, tool and host test runs on.
   way through a session; `pnpm prototype:upgrade` or a reset is the remedy.
 - The whole document is cloned and validated twice per unit of work. Fine on a JSON
   document; it is why rows keep `projectId` beside `sectionId` rather than joining.
-- Two processes cannot share the file: the running host does not see a stdio process's
-  writes and can overwrite them ([guide](../../guides/mcp-setup.md#important-file-store-limitation)).
+- Two processes cannot hold divergent copies of the file at once: a writer is refused with
+  `data_file_in_use:` while another process owns it, so a stdio call is refused while the host
+  runs ([guide](../../guides/mcp-setup.md#important-file-store-limitation)). A hard-killed owner
+  leaves a record that the next acquirer reclaims; a reused pid needs the named file deleted by hand.
 
 ## Decisions that shape this system
+
+- [One writer per data file](../../decisions/2026-09-one-writer-per-data-file.md) — the owner record, its wait, refusal and nonce-guarded reclaim
 
 - [How repository queries combine and compare values](../../decisions/2026-08-repository-query-semantics.md)
 - [What undo means for an archived row](../../decisions/2026-09-what-undo-means-for-an-archived-row.md) — the integrity invariants
 - [Container sections own their rows; view sections own nothing](../../decisions/2026-09-sections-own-their-data.md) — `sectionId` references
+- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — the payload-not-resolved rule (records became history actions in Slice 35)
+- [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — one history per key, strict project reference
+- [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md) — why actions delete routinely and histories never
+- [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md) — the captured-generation integrity rule
+- [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — the same generation rule now covers `section.restore`
+- [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the canonical-reference gate before section deletion
+- [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md) — task/reflection removal seams used only after Add-Undo preflight
+- [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — the bounded missing-target integrity exception
+- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — why older files are rejected until converted
+- [Optional pages are created on first enable](../../decisions/2026-09-optional-pages-are-created-on-first-enable.md) (amended in Slice 38) — the one page removal seam
+- [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `ProjectPageRepository.remove`, used only after first-enable Undo's preflight
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — `ProjectRepository.remove`, independent anchors bound to the exact creator identity
 
 ## Spec sections
 

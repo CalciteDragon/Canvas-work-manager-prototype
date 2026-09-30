@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   ProjectSectionSchema,
+  SECTION_CAPABILITIES,
+  SECTION_OWNERSHIP,
+  SectionCapabilitySchema,
+  sectionCapabilityOf,
   SectionColumnSpanSchema,
-  SectionRemovalRefusalDetailsSchema,
   containerTypeFor,
   displayNameOf,
   nameOf,
@@ -97,6 +100,46 @@ describe('section ownership', () => {
   });
 });
 
+describe('section capabilities (Refactor §§6–8)', () => {
+  it('declares exactly the seven registered types, each with one recovery capability', () => {
+    expect(Object.keys(SECTION_CAPABILITIES).sort()).toEqual(
+      ['progress', 'recent-activity', 'reflections', 'rich-text', 'sub-projects', 'task-list', 'timeline'],
+    );
+    expect(SECTION_CAPABILITIES).toEqual({
+      'task-list': { ownedData: 'tasks', recovery: 'owned-content' },
+      reflections: { ownedData: 'reflections', recovery: 'owned-content' },
+      'rich-text': { recovery: 'config' },
+      'sub-projects': { recovery: 'none' },
+      progress: { recovery: 'none' },
+      timeline: { recovery: 'none' },
+      'recent-activity': { recovery: 'none' },
+    });
+    for (const capability of Object.values(SECTION_CAPABILITIES)) {
+      expect(SectionCapabilitySchema.parse(capability)).toEqual(capability);
+    }
+  });
+
+  it('refuses a capability whose owned data and recovery disagree', () => {
+    expect(SectionCapabilitySchema.safeParse({ recovery: 'owned-content' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ ownedData: 'tasks', recovery: 'none' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ ownedData: 'tasks' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ recovery: 'deletable' }).success).toBe(false);
+  });
+
+  it('derives the ownership map from the capabilities, so the two cannot drift', () => {
+    expect(SECTION_OWNERSHIP).toEqual({ 'task-list': 'tasks', reflections: 'reflections' });
+  });
+
+  it('answers undefined — unknown, never disposable — for an unregistered or inherited type', () => {
+    expect(sectionCapabilityOf('rich-text')).toEqual({ recovery: 'config' });
+    for (const type of ['something-nobody-registered', 'constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      expect(sectionCapabilityOf(type)).toBeUndefined();
+      expect(ownedKindOf(type)).toBeUndefined();
+      expect(sectionKindOf(type)).toBe('view');
+    }
+  });
+});
+
 describe('what a section is called', () => {
   it('derives every registered display name, and overrides the one it cannot', () => {
     // The seven registered types, against `SECTION_REGISTRY`'s own display names. Six derive
@@ -136,17 +179,6 @@ describe('what a section is called', () => {
     expect(normaliseSectionTitle(null)).toBeUndefined();
   });
 
-  it('discriminates the one refusal the canvas can turn into a question', () => {
-    expect(
-      SectionRemovalRefusalDetailsSchema.parse({ reason: 'section_not_empty', liveRowCount: 2 }),
-    ).toEqual({ reason: 'section_not_empty', liveRowCount: 2 });
-    // A count of zero is not the question this dialog answers, and a different reason is a
-    // different 409 — both stay ordinary errors.
-    expect(SectionRemovalRefusalDetailsSchema.safeParse({ reason: 'section_not_empty', liveRowCount: 0 }).success).toBe(false);
-    expect(SectionRemovalRefusalDetailsSchema.safeParse({ reason: 'section_not_empty', liveRowCount: 1.5 }).success).toBe(false);
-    expect(SectionRemovalRefusalDetailsSchema.safeParse({ reason: 'section_archived', liveRowCount: 2 }).success).toBe(false);
-    expect(SectionRemovalRefusalDetailsSchema.safeParse(undefined).success).toBe(false);
-  });
 });
 
 describe('ProjectSectionSchema archivedAt', () => {

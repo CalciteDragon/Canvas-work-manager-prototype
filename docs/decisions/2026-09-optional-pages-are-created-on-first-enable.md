@@ -68,3 +68,19 @@ A fifth page kind arrives, or a page gains state that a disable would need to se
 merely keep — at which point "disabling writes one boolean" stops being the whole story. Also
 when Slice 25.6 builds **Open archive**: it is the first caller that enables a page as a side
 effect of navigation, and if that reads badly the toggle may want to be two operations after all.
+
+
+**Amended, 2026-09-22 — Slice 38.** "There is no remove" is now true of every caller but one.
+`ProjectPageRepository.remove` exists for the **inverse of a first enable**: undoing the write that
+created an optional page deletes exactly that record, after the executor has proved it is still the
+one the enable created and that no section — live or archived — and no shortcut placement names it.
+Ordinary disabling still writes one boolean and never reaches it, and no route or tool exposes it.
+The reason it is a deletion rather than a disable is this decision's own distinction: "off" and
+"never existed" are different states, so an inverse that left the record behind would leave the
+person a tab they never made.
+
+Every changed toggle now records one action in the owning root's history — `page.add` for the
+creating enable, `page.update` for a later boolean — while the no-op above still records nothing and
+returns a `null` receipt. The archive exemption is unchanged for the toggle and does **not** extend
+to those transitions, which answer `history_blocked` on an archived root in both directions
+([decision](2026-09-optional-page-operation-history.md)).

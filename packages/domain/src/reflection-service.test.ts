@@ -221,13 +221,16 @@ describe('ReflectionService.archive and restore', () => {
   it('refuses to restore a reflection whose section is archived, naming the section', async () => {
     const harness = buildHarness();
     const reflection = await write(harness);
-    await harness.sectionService.remove(harness.actor, reflection.sectionId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, reflection.sectionId);
+    const before = harness.store.snapshot();
 
     const refusal = await harness.reflectionService
       .restore(harness.actor, reflection.id)
       .then(() => null, (error: unknown) => error);
     expect(refusal).toBeInstanceOf(DomainRuleError);
     expect((refusal as DomainRuleError).message).toContain(reflection.sectionId);
+    // Canonical refusal: no row, history step or Activity event (Slice 45).
+    expect(harness.store.snapshot()).toEqual(before);
   });
 
   it('freezes an archived project against create, update and restore, while archive stays allowed', async () => {

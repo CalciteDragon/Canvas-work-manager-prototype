@@ -7,6 +7,23 @@
   </div>
 </section>
 
+<!-- Recovery only: Undo and Redo live in the project header (Slice 41). -->
+@defer (when store.recoveryNotice() !== null || store.failedRemoval() !== null) {
+  @if (store.recoveryNotice() !== null || store.failedRemoval() !== null) {
+    <app-section-recovery-notice
+      [state]="store.recoveryNotice()"
+      [failedRemoval]="store.failedRemoval()"
+      [busy]="store.recoveryBusy()"
+      (retryRemove)="retryFailedRemoval()"
+      (retryRefresh)="retryRefresh()"
+      (openArchive)="openArchiveFromNotice()"
+      (dismissNotice)="dismissRecoveryNotice()"
+      (dismissFailure)="dismissFailedRemoval()"
+      (ready)="focusAfterRemoval()"
+    />
+  }
+}
+
 <div data-canvas-live-region class="visually-hidden" aria-live="polite" aria-atomic="true">
   {{ liveAnnouncement() }}
 </div>
@@ -34,6 +51,7 @@
 } @else if (canvasMounted()) {
   <div
     data-section-canvas
+    tabindex="-1"
     cdkDropList
     [cdkDropListDisabled]="!store.orderComplete()"
     class="section-canvas"
@@ -51,7 +69,7 @@
             type="button"
             (click)="openCreate({ kind: 'end', beforeId: null, columnSpan: 12 })"
           >
-            <app-canvas-icon name="plus" /> Add a section
+            <app-icon name="plus" /> Add a section
           </button>
         }
       </div>
@@ -106,6 +124,7 @@
                 [rename]="renameSection"
                 [movePending]="keyboardMovePending().has(placement.section.id)"
                 [moveAllowed]="store.orderComplete()"
+                [removalPending]="store.removalPending()"
                 [transientlyExpanded]="transientTargetId() === placement.section.id"
                 [projectDataRevision]="store.projectDataRevision()"
                 [projectHierarchyRevision]="store.projectHierarchyRevision()"
@@ -114,7 +133,7 @@
                 (configChanged)="saveConfig($event)"
                 (projectDataChanged)="projectDataChanged()"
                 (projectHierarchyChanged)="projectHierarchyChanged()"
-                (removeRequested)="store.removeSection($event)"
+                (removeRequested)="removeSectionFromCanvas($event)"
               />
             } @else {
               <section data-unknown-section class="unknown-section">
@@ -126,15 +145,16 @@
                     [attr.aria-disabled]="keyboardMovePending().has(placement.section.id) || !store.orderComplete()"
                     [attr.aria-label]="'Move unrecognised section ' + placement.section.type"
                     (keydown)="unknownMoveKeydown($event, placement.section.id)"
-                  ><app-canvas-icon name="grip" /></button>
+                  ><app-icon name="grip" /></button>
                   <h2>Unrecognised section</h2>
                   <button
                     data-unknown-section-remove
                     type="button"
-                    title="Archive section"
-                    [attr.aria-label]="'Archive unrecognised section ' + placement.section.type"
-                    (click)="store.removeSection(placement.section.id)"
-                  ><app-canvas-icon name="archive" /></button>
+                    [attr.aria-disabled]="store.removalPending()"
+                    title="Remove section"
+                    [attr.aria-label]="'Remove unrecognised section ' + placement.section.type"
+                    (click)="removeSectionFromCanvas(placement.section.id)"
+                  ><app-icon name="remove" /></button>
                 </header>
                 <p>Nothing in this build knows how to render a “{{ placement.section.type }}” section.</p>
               </section>
@@ -189,23 +209,16 @@
   </div>
 }
 
-@if (createDialogOpen()) {
-  <app-section-create-dialog
-    [types]="registry"
-    [projectId]="projectId()"
-    [pageId]="pageId()"
-    [shortcutsAllowed]="shortcutsAllowed()"
-    [create]="createSectionFromDialog"
-    [createShortcut]="createShortcutFromDialog"
-    (closed)="closeCreate()"
-  />
-}
-
-@if (store.removalPrompt(); as prompt) {
-  <app-section-removal-dialog
-    [prompt]="prompt"
-    (cancelled)="store.dismissRemovalPrompt()"
-    (cascadeChosen)="cascadeAndRemove(prompt.sectionId)"
-    (reassignChosen)="reassignAndRemove(prompt.sectionId, $event)"
-  />
+@defer (when createDialogOpen()) {
+  @if (createDialogOpen()) {
+    <app-section-create-dialog
+      [types]="registry"
+      [projectId]="projectId()"
+      [pageId]="pageId()"
+      [shortcutsAllowed]="shortcutsAllowed()"
+      [create]="createSectionFromDialog"
+      [createShortcut]="createShortcutFromDialog"
+      (closed)="closeCreate()"
+    />
+  }
 }

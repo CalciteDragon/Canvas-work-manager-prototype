@@ -7,7 +7,8 @@ flowchart LR
   subgraph ports["Interfaces (what the app depends on)"]
     id["IdentityProvider<br/>IDENTITY_PROVIDER"]
     lu["LiveUpdates<br/>LIVE_UPDATES (inert default)"]
-    gw["WorkManagerGateway + 14 sub-interfaces<br/>WORK_MANAGER_GATEWAY"]
+    rep["OperationHistoryReporter<br/>OPERATION_HISTORY_REPORTER (inert default), reportedWrite"]
+    gw["WorkManagerGateway + 15 sub-interfaces<br/>WORK_MANAGER_GATEWAY"]
     err["GatewayError"]
   end
   subgraph adapters["Prototype adapters (the only transport-aware files)"]
@@ -23,8 +24,8 @@ flowchart LR
   subgraph shell["Shell"]
     as["AppShell"]
     ss["ShellStore<br/>project tree, createProject"]
-    sb["Sidebar → ProjectTreeItem"]
-    tb["TopBar"]
+    sb["Sidebar → ProjectTreeItem<br/>inline, or the drawer below 48rem"]
+    tb["TopBar<br/>Menu below 48rem"]
   end
   pgw -. implements .-> gw
   pid -. implements .-> id
@@ -40,9 +41,25 @@ flowchart LR
 ## Sub-interfaces of `WorkManagerGateway`
 
 `tasks`, `projects`, `dashboard`, `progress`, `timeline`, `todos`, `archive`, `journal`,
-`reflections`, `projectPages`, `sections`, `sectionShortcuts`, `agents`, `activity` — each
+`reflections`, `projectPages`, `sections`, `sectionShortcuts`, `agents`, `activity`, `history` — each
 a small interface in `work-manager-gateway.ts`, each with a fake in `gateway/testing`.
 A member exists only when an implementation and a caller exist.
+
+The section gateway returns shared contracts rather than bare entities: create returns
+`SectionAddResult`, update and move return `SectionWriteResult`, `history.summary` returns the
+caller's `OperationHistorySummary`, and `history.transition` returns
+`OperationHistoryTransitionResult`. The adapter validates those envelopes at the HTTP boundary, so
+no component imports a transport type or reconstructs a receipt. The fake gateway keeps a one-history
+stand-in that runs each write's Undo by action id, plus scripted per-project summaries
+(`historySummaries`) and queued transition answers (`transitionAnswers`) for the header's specs;
+ordering and conflicts are the host's rules, proved there.
+
+`ProjectGateway.create` and `ProjectGateway.update` both return the shared `ProjectWriteResult`;
+create always carries the `project.add` receipt, while an existing-project no-op may carry
+`operation: null`. Callers unwrap `project` only after the adapter validates the envelope.
+
+`ProjectGateway.archived()` returns `ArchivedProjectsResult`; the prototype adapter requests
+`GET /api/archived-projects`, and the fake gateway can supply the same result to Settings specs.
 
 ## A store's three connections
 
@@ -71,8 +88,9 @@ sequenceDiagram
 | Fakes | `core/gateway/testing/`, `core/live/testing/` | What every component and store spec injects |
 | `IdentityProvider`, `IDENTITY_PROVIDER`, `PrototypeIdentityProvider` | `core/identity/` | §18 |
 | `LiveUpdates`, `LIVE_UPDATES`, `PrototypeLiveUpdates` | `core/live/` | §62 client side |
+| `OperationHistoryReporter`, `OperationWriteHandle`, `OperationWriteReport`, `OPERATION_HISTORY_REPORTER`, `reportedWrite` | `core/history/operation-history-reporter.ts` | The write-reporting port; `RecordingReporter` in `core/history/testing/` for writer specs |
 | `PROTOTYPE_API_BASE_URL` | `core/config/prototype-config.ts` | Where the host is |
 | `PrototypeSettings`, `PrototypeFlags`, `StoredSettings` | `core/config/prototype-settings.ts` | §47 flags; delay; failure rate |
 | `ThemeService` | `core/theme/theme-service.ts` | §22 |
-| `AppShell`, `ShellStore`, `ProjectTreeNode` | `core/shell/` | §23 layout and the project tree |
-| `Sidebar`, `ProjectTreeItem`, `TopBar` | `core/shell/sidebar/`, `core/shell/top-bar/` | Presentational |
+| `AppShell`, `ShellStore`, `ProjectTreeNode`, `SHELL_NARROW_QUERY` | `core/shell/` | §23 layout and the project tree; the phone drawer's open state, focus moves and resize reset are `AppShell`'s |
+| `Sidebar`, `ProjectTreeItem`, `TopBar` | `core/shell/sidebar/`, `core/shell/top-bar/` | Presentational; `TopBar` renders the Menu and reports it, `Sidebar` refocuses its name input after a failed create |

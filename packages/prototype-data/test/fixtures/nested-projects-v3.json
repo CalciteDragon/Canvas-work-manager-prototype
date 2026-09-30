@@ -1,0 +1,805 @@
+{
+  "schemaVersion": 3,
+  "users": [
+    {
+      "id": "user-demo",
+      "name": "Demo User",
+      "avatar": "🧭",
+      "workspaceId": "workspace-demo",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-demo-today",
+            "type": "today",
+            "position": 0,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-fact",
+            "type": "fun_fact",
+            "position": 1,
+            "size": "medium",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-upcoming",
+            "type": "upcoming",
+            "position": 2,
+            "size": "medium",
+            "config": {
+              "days": 7
+            },
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-digest",
+            "type": "daily_digest",
+            "position": 3,
+            "size": "medium",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-projects",
+            "type": "active_projects",
+            "position": 4,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-recent",
+            "type": "recent_progress",
+            "position": 5,
+            "size": "medium",
+            "config": {
+              "days": 7
+            },
+            "hidden": false
+          },
+          {
+            "id": "widget-demo-agents",
+            "type": "recent_agent_activity",
+            "position": 6,
+            "size": "wide",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-alex",
+      "name": "Alex",
+      "avatar": "🌤️",
+      "workspaceId": "workspace-alex",
+      "preferences": {
+        "theme": "light",
+        "dashboardWidgets": [
+          {
+            "id": "widget-alex-upcoming",
+            "type": "upcoming",
+            "position": 0,
+            "size": "full",
+            "config": {
+              "days": 14
+            },
+            "hidden": false
+          },
+          {
+            "id": "widget-alex-today",
+            "type": "today",
+            "position": 1,
+            "size": "medium",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "user-sam",
+      "name": "Sam",
+      "avatar": "🌱",
+      "workspaceId": "workspace-sam",
+      "preferences": {
+        "theme": "dark",
+        "dashboardWidgets": [
+          {
+            "id": "widget-sam-calendar",
+            "type": "calendar",
+            "position": 0,
+            "size": "medium",
+            "config": {},
+            "hidden": true
+          },
+          {
+            "id": "widget-sam-digest",
+            "type": "daily_digest",
+            "position": 1,
+            "size": "small",
+            "config": {},
+            "hidden": false
+          }
+        ]
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "workspaces": [
+    {
+      "id": "workspace-demo",
+      "name": "Demo User Workspace",
+      "ownerUserId": "user-demo",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-alex",
+      "name": "Alex Workspace",
+      "ownerUserId": "user-alex",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    },
+    {
+      "id": "workspace-sam",
+      "name": "Sam Workspace",
+      "ownerUserId": "user-sam",
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "project-renovation",
+      "workspaceId": "workspace-demo",
+      "name": "Home renovation",
+      "icon": "🏗️",
+      "status": "active",
+      "targetDate": "2026-12-15",
+      "projectLayoutMode": "flow",
+      "progressFormula": "count",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z",
+      "kind": "root"
+    },
+    {
+      "id": "project-kitchen",
+      "workspaceId": "workspace-demo",
+      "name": "Kitchen",
+      "icon": "🍳",
+      "status": "active",
+      "targetDate": "2026-09-04",
+      "projectLayoutMode": "flow",
+      "progressFormula": "count",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z",
+      "kind": "subproject",
+      "parentProjectId": "project-renovation"
+    },
+    {
+      "id": "project-cabinets",
+      "workspaceId": "workspace-demo",
+      "name": "Cabinets",
+      "icon": "🗄️",
+      "status": "active",
+      "targetDate": "2026-10-15",
+      "projectLayoutMode": "flow",
+      "progressFormula": "count",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z",
+      "kind": "subproject",
+      "parentProjectId": "project-kitchen"
+    },
+    {
+      "id": "project-garden",
+      "workspaceId": "workspace-demo",
+      "name": "Garden",
+      "icon": "🌿",
+      "status": "completed",
+      "targetDate": "2026-11-20",
+      "completedAt": "2026-08-22T17:00:00.000Z",
+      "projectLayoutMode": "flow",
+      "progressFormula": "count",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z",
+      "kind": "subproject",
+      "parentProjectId": "project-renovation"
+    },
+    {
+      "id": "project-legacy",
+      "workspaceId": "workspace-demo",
+      "name": "Legacy attic",
+      "icon": "🏚️",
+      "status": "archived",
+      "projectLayoutMode": "flow",
+      "progressFormula": "count",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z",
+      "kind": "subproject",
+      "parentProjectId": "project-renovation"
+    },
+    {
+      "id": "project-legacy-child",
+      "workspaceId": "workspace-demo",
+      "name": "Legacy shelving",
+      "icon": "🪵",
+      "status": "active",
+      "targetDate": "2026-10-01",
+      "projectLayoutMode": "flow",
+      "progressFormula": "count",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z",
+      "kind": "subproject",
+      "parentProjectId": "project-legacy"
+    },
+    {
+      "id": "project-alex-private",
+      "workspaceId": "workspace-alex",
+      "name": "Alex private plan",
+      "icon": "🔒",
+      "status": "active",
+      "projectLayoutMode": "flow",
+      "progressFormula": "count",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z",
+      "kind": "root"
+    }
+  ],
+  "projectPages": [
+    {
+      "id": "page-project-renovation",
+      "projectId": "project-renovation",
+      "kind": "home",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "page-project-renovation-todos",
+      "projectId": "project-renovation",
+      "kind": "todos",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "page-project-renovation-archive",
+      "projectId": "project-renovation",
+      "kind": "archive",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "page-project-renovation-reflections",
+      "projectId": "project-renovation",
+      "kind": "reflections",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "page-project-kitchen",
+      "projectId": "project-kitchen",
+      "kind": "work",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "page-project-cabinets",
+      "projectId": "project-cabinets",
+      "kind": "work",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "page-project-garden",
+      "projectId": "project-garden",
+      "kind": "work",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "page-project-legacy",
+      "projectId": "project-legacy",
+      "kind": "work",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "page-project-legacy-child",
+      "projectId": "project-legacy-child",
+      "kind": "work",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "page-project-alex-private",
+      "projectId": "project-alex-private",
+      "kind": "home",
+      "enabled": true,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "sections": [
+    {
+      "id": "section-project-renovation-brief",
+      "projectId": "project-renovation",
+      "pageId": "page-project-renovation",
+      "type": "rich-text",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "Whole-house plan. Kitchen first, garden in the spring."
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-tasks",
+      "projectId": "project-renovation",
+      "pageId": "page-project-renovation",
+      "type": "task-list",
+      "position": 1,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-sub-projects",
+      "projectId": "project-renovation",
+      "pageId": "page-project-renovation",
+      "type": "sub-projects",
+      "position": 2,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-progress",
+      "projectId": "project-renovation",
+      "pageId": "page-project-renovation",
+      "type": "progress",
+      "position": 3,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-reflections",
+      "projectId": "project-renovation",
+      "pageId": "page-project-renovation",
+      "type": "reflections",
+      "position": 4,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-timeline",
+      "projectId": "project-renovation",
+      "pageId": "page-project-renovation",
+      "type": "timeline",
+      "position": 5,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-recent-activity",
+      "projectId": "project-renovation",
+      "pageId": "page-project-renovation",
+      "type": "recent-activity",
+      "position": 6,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-archived-notes",
+      "projectId": "project-renovation",
+      "pageId": "page-project-renovation",
+      "type": "rich-text",
+      "position": 7,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "Old attic notes"
+      },
+      "archivedAt": "2026-08-20T16:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-kitchen-brief",
+      "projectId": "project-kitchen",
+      "pageId": "page-project-kitchen",
+      "type": "rich-text",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "Appliances and finishes before cabinets are ordered."
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-kitchen-tasks",
+      "projectId": "project-kitchen",
+      "pageId": "page-project-kitchen",
+      "type": "task-list",
+      "position": 1,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-kitchen-sub-projects",
+      "projectId": "project-kitchen",
+      "pageId": "page-project-kitchen",
+      "type": "sub-projects",
+      "position": 2,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-kitchen-progress",
+      "projectId": "project-kitchen",
+      "pageId": "page-project-kitchen",
+      "type": "progress",
+      "position": 3,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-kitchen-reflections",
+      "projectId": "project-kitchen",
+      "pageId": "page-project-kitchen",
+      "type": "reflections",
+      "position": 4,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-kitchen-timeline",
+      "projectId": "project-kitchen",
+      "pageId": "page-project-kitchen",
+      "type": "timeline",
+      "position": 5,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-kitchen-recent-activity",
+      "projectId": "project-kitchen",
+      "pageId": "page-project-kitchen",
+      "type": "recent-activity",
+      "position": 6,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-garden-brief",
+      "projectId": "project-garden",
+      "pageId": "page-project-garden",
+      "type": "rich-text",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {
+        "text": "Autumn planting only. Structural work waits for next year."
+      },
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-garden-tasks",
+      "projectId": "project-garden",
+      "pageId": "page-project-garden",
+      "type": "task-list",
+      "position": 1,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "section-project-renovation-reflections-page",
+      "projectId": "project-renovation",
+      "pageId": "page-project-renovation-reflections",
+      "type": "reflections",
+      "position": 0,
+      "columnSpan": 12,
+      "collapsed": false,
+      "config": {},
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "sectionShortcuts": [
+    {
+      "id": "shortcut-renovation-kitchen-tasks",
+      "pageId": "page-project-renovation",
+      "sourceSectionId": "section-project-kitchen-tasks",
+      "position": 7,
+      "columnSpan": 8,
+      "collapsed": false,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "shortcut-renovation-kitchen-reflections",
+      "pageId": "page-project-renovation",
+      "sourceSectionId": "section-project-kitchen-reflections",
+      "position": 8,
+      "columnSpan": 12,
+      "collapsed": false,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "shortcut-renovation-reflections-page",
+      "pageId": "page-project-renovation",
+      "sourceSectionId": "section-project-renovation-reflections-page",
+      "position": 9,
+      "columnSpan": 8,
+      "collapsed": false,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "shortcut-renovation-garden-brief",
+      "pageId": "page-project-renovation",
+      "sourceSectionId": "section-project-garden-brief",
+      "position": 10,
+      "columnSpan": 12,
+      "collapsed": false,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-renovation-budget",
+      "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-tasks",
+      "title": "Confirm renovation budget",
+      "status": "todo",
+      "priority": "high",
+      "startAt": "2026-08-24T16:00:00.000Z",
+      "dueAt": "2026-09-04T23:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-renovation-equal-z",
+      "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-tasks",
+      "title": "Confirm tile samples",
+      "status": "todo",
+      "priority": "medium",
+      "dueAt": "2026-09-04T23:59:59.999Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-renovation-equal-a",
+      "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-tasks",
+      "title": "Confirm tap samples",
+      "status": "todo",
+      "priority": "medium",
+      "dueAt": "2026-09-04T23:59:59.999Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-renovation-done",
+      "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-tasks",
+      "title": "Approve the lighting plan",
+      "status": "done",
+      "priority": "medium",
+      "dueAt": "2026-09-04T23:59:59.999Z",
+      "completedAt": "2026-08-23T17:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-renovation-cancelled",
+      "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-tasks",
+      "title": "Compare a cancelled quote",
+      "status": "cancelled",
+      "priority": "medium",
+      "dueAt": "2026-09-05T23:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-renovation-undated",
+      "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-tasks",
+      "title": "Call the salvage yard",
+      "status": "todo",
+      "priority": "medium",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-renovation-archived",
+      "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-tasks",
+      "title": "Old permit copy",
+      "status": "todo",
+      "priority": "medium",
+      "archivedAt": "2026-08-20T16:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-kitchen-appliances",
+      "projectId": "project-kitchen",
+      "sectionId": "section-project-kitchen-tasks",
+      "title": "Choose appliance finishes",
+      "status": "todo",
+      "priority": "medium",
+      "startAt": "2026-09-08T16:00:00.000Z",
+      "dueAt": "2026-09-18T23:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-kitchen-completed",
+      "projectId": "project-kitchen",
+      "sectionId": "section-project-kitchen-tasks",
+      "title": "Approve the cabinet measurements",
+      "status": "done",
+      "priority": "medium",
+      "completedAt": "2026-08-22T18:00:00.000Z",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "task-garden-plan",
+      "projectId": "project-garden",
+      "sectionId": "section-project-garden-tasks",
+      "title": "Sketch autumn planting plan",
+      "status": "todo",
+      "priority": "low",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "milestone-renovation-design-lock",
+      "projectId": "project-renovation",
+      "title": "Design locked",
+      "targetDate": "2026-09-25",
+      "status": "upcoming",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    },
+    {
+      "id": "milestone-kitchen-cabinet-order",
+      "projectId": "project-kitchen",
+      "title": "Cabinet order placed",
+      "targetDate": "2026-10-02",
+      "status": "upcoming",
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "updatedAt": "2026-08-21T20:00:00.000Z"
+    }
+  ],
+  "reflections": [
+    {
+      "id": "reflection-renovation-general",
+      "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-reflections-page",
+      "title": "Sequence matters",
+      "body": "Kitchen decisions need to land before garden work begins.",
+      "prompt": "What should happen next?",
+      "createdAt": "2026-08-23T17:00:00.000Z",
+      "updatedAt": "2026-08-23T17:00:00.000Z"
+    },
+    {
+      "id": "reflection-renovation-task",
+      "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-reflections-page",
+      "subject": {
+        "kind": "task",
+        "id": "task-renovation-done"
+      },
+      "title": "A clear decision",
+      "body": "The lighting plan finally feels settled.",
+      "createdAt": "2026-08-24T17:00:00.000Z",
+      "updatedAt": "2026-08-24T17:00:00.000Z"
+    },
+    {
+      "id": "reflection-renovation-project",
+      "projectId": "project-renovation",
+      "sectionId": "section-project-renovation-reflections-page",
+      "subject": {
+        "kind": "subproject",
+        "id": "project-garden"
+      },
+      "title": "Garden handoff",
+      "body": "Garden work is ready for its next season.",
+      "createdAt": "2026-08-22T17:00:00.000Z",
+      "updatedAt": "2026-08-22T17:00:00.000Z"
+    }
+  ],
+  "activityEvents": [],
+  "agentConnections": [
+    {
+      "id": "agent-claude",
+      "userId": "user-demo",
+      "name": "Claude",
+      "permissions": [
+        "projects.read",
+        "projects.write",
+        "tasks.read",
+        "tasks.write",
+        "reflections.read",
+        "reflections.write",
+        "workspace.read"
+      ],
+      "revoked": false,
+      "createdAt": "2026-08-01T16:00:00.000Z",
+      "lastUsedAt": "2026-08-24T15:32:00.000Z"
+    },
+    {
+      "id": "agent-cursor",
+      "userId": "user-demo",
+      "name": "Cursor",
+      "permissions": [
+        "projects.read",
+        "tasks.read"
+      ],
+      "revoked": false,
+      "createdAt": "2026-08-01T16:00:00.000Z"
+    }
+  ]
+}

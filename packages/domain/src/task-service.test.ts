@@ -472,14 +472,18 @@ describe('TaskService archive cascades, and restore undoes exactly that', () => 
     const marked = await create(harness);
     const beforehand = await create(harness, { title: 'Filed first' });
     await harness.taskService.archive(harness.actor, beforehand.id);
-    await harness.sectionService.remove(harness.actor, marked.sectionId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, marked.sectionId);
 
     // Both cases: the row the cascade marked, and the one archived individually beforehand.
+    // The refusal is canonical, not a history transition, so it must write no row, no history
+    // step and no Activity event (Slice 45).
+    const before = harness.store.snapshot();
     for (const id of [marked.id, beforehand.id]) {
       const refusal = await harness.taskService.restore(harness.actor, id).then(() => null, (error: unknown) => error);
       expect(refusal).toBeInstanceOf(DomainRuleError);
       expect((refusal as DomainRuleError).message).toContain(marked.sectionId);
     }
+    expect(harness.store.snapshot()).toEqual(before);
   });
 
   it('refuses to restore a subtask whose parent is archived, naming the parent', async () => {
@@ -489,12 +493,14 @@ describe('TaskService archive cascades, and restore undoes exactly that', () => 
     const { parent, first } = await family(harness);
     await harness.taskService.archive(harness.actor, first.id);
     await harness.taskService.archive(harness.actor, parent.id);
+    const before = harness.store.snapshot();
 
     const refusal = await harness.taskService
       .restore(harness.actor, first.id)
       .then(() => null, (error: unknown) => error);
     expect(refusal).toBeInstanceOf(DomainRuleError);
     expect((refusal as DomainRuleError).message).toContain(parent.id);
+    expect(harness.store.snapshot()).toEqual(before);
   });
 
   it('refuses restore without tasks.write, and answers not-found across workspaces', async () => {
@@ -510,6 +516,39 @@ describe('TaskService archive cascades, and restore undoes exactly that', () => 
 });
 
 describe('TaskService archived-parent and archived-project policy', () => {
+  it('refuses an archived child following an archived parent into an archived section, then recovers', async () => {
+    const h = buildHarness();
+    const child = await create(h, { title: 'Child' });
+    const target = await h.sectionService.add(h.actor, MINE, { type: 'task-list' });
+    const parent = await create(h, { title: 'Parent', sectionId: target.id });
+    await h.taskService.archive(h.actor, child.id);
+    await h.taskService.archive(h.actor, parent.id);
+    await h.sectionService.remove(h.actor, target.id);
+    const before = h.store.snapshot();
+
+    const refusal = await h.taskService.update(h.actor, child.id, { parentTaskId: parent.id })
+      .then(() => null, (error: unknown) => error);
+    expect(refusal).toBeInstanceOf(DomainRuleError);
+    expect((refusal as DomainRuleError).message).toContain(target.id);
+    expect((refusal as DomainRuleError).message).toMatch(/restore/i);
+    expect(h.store.snapshot()).toEqual(before);
+
+    await h.sectionService.restoreSection(h.actor, target.id);
+    const moved = await h.taskService.update(h.actor, child.id, { parentTaskId: parent.id });
+    expect(moved).toMatchObject({ parentTaskId: parent.id, sectionId: target.id });
+  });
+
+  it('allows tasks.write alone to reparent an archived row beneath an archived parent in a live section', async () => {
+    const h = buildHarness();
+    const child = await create(h, { title: 'Child' });
+    const target = await h.sectionService.add(h.actor, MINE, { type: 'task-list' });
+    const parent = await create(h, { title: 'Parent', sectionId: target.id });
+    await h.taskService.archive(h.actor, child.id);
+    await h.taskService.archive(h.actor, parent.id);
+    const moved = await h.taskService.update(agentActorFor(0, ['tasks.write']), child.id, { parentTaskId: parent.id });
+    expect(moved).toMatchObject({ parentTaskId: parent.id, sectionId: target.id });
+  });
+
   it('refuses to create or re-parent beneath an archived task, before any write', async () => {
     const harness = buildHarness();
     const parent = await create(harness, { title: 'Parent' });
@@ -534,7 +573,7 @@ describe('TaskService archived-parent and archived-project policy', () => {
     const harness = buildHarness();
     const marked = await create(harness);
     const target = await harness.sectionService.add(harness.actor, MINE, { type: 'task-list' });
-    await harness.sectionService.remove(harness.actor, marked.sectionId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, marked.sectionId);
 
     const refusal = await harness.taskService
       .update(harness.actor, marked.id, { sectionId: target.id })

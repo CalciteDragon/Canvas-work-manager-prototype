@@ -354,11 +354,23 @@ interface WorkManagerGateway {
   projects: ProjectGateway;
   tasks: TaskGateway;
   sections: SectionGateway;
+  history: OperationHistoryGateway;
   milestones: MilestoneGateway;
   reflections: ReflectionGateway;
   dashboard: DashboardGateway;
   search: SearchGateway;
   activity: ActivityGateway;
+}
+```
+
+```ts
+interface SectionGateway {
+  remove(id: SectionId): Promise<SectionRemovalResult>;
+}
+
+interface OperationHistoryGateway {
+  summary(projectId: ProjectId): Promise<OperationHistorySummary>;
+  transition(historyId: OperationHistoryId, input: OperationHistoryTransitionInput): Promise<OperationHistoryTransitionResult>;
 }
 ```
 
@@ -368,20 +380,36 @@ Individual contracts:
 interface TaskGateway {
   list(query: TaskQuery): Promise<Task[]>;
   get(id: TaskId): Promise<Task>;
-  create(input: CreateTaskInput): Promise<Task>;
-  update(id: TaskId, input: UpdateTaskInput): Promise<Task>;
-  complete(id: TaskId): Promise<Task>;
-  archive(id: TaskId): Promise<void>;
-  restore(id: TaskId): Promise<Task>;
+  create(input: CreateTaskInput): Promise<TaskAddResult>;
+  update(id: TaskId, input: UpdateTaskInput): Promise<TaskWriteResult>;
+  complete(id: TaskId): Promise<TaskWriteResult>;
+  archive(id: TaskId): Promise<TaskWriteResult>;
+  restore(id: TaskId): Promise<TaskWriteResult>;
 }
 ```
 
 `restore` was added once the prototype showed that an archive nothing can reverse is a row a
 person has lost (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md). It restores
-the task and every descendant that came down with it. `archive` keeps its `Promise<void>`, so
-a caller that needs the updated row re-reads.
+the task and every descendant that came down with it.
+
+*Amended in Slice 36.* Task and reflection writes return `{ task|reflection, operation }` so the
+entity and the receipt describe the same committed state. A normalized no-op carries
+`operation: null`; browser stores unwrap the entity and still re-read where their projection
+requires it ([decision](docs/decisions/2026-09-row-operation-history.md)).
+
+*Landed in Slice 31, amended in Slice 35.* `sections.remove` returns `{ section, operation,
+archiveListed }`; `section` is an archived-shaped result snapshot even when the domain deleted the
+disposable section. `history.transition` accepts only a history id, an action id, a direction and
+the revision the caller read; inverse data, ordering and actor checks remain server-side. Removal
+and history are interface members shared by the HTTP gateway and its fake
+([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md),
+[history scope](docs/decisions/2026-09-operation-history-scope.md)).
 
 The frontend depends on these interfaces.
+
+*Landed in Slice 44.* `projects.archived()` reads the current actor's archived projects
+through the same gateway boundary. The adapter validates the shared workspace result from
+`GET /api/archived-projects`; Settings never fetches directly or infers eligibility locally.
 
 ---
 
@@ -542,7 +570,7 @@ Example:
 
 ```json
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "users": [],
   "workspaces": [],
   "projects": [],
@@ -572,13 +600,47 @@ JSON is preferable during this phase because:
 reset. It stops holding the first time a real file is worth keeping. The multi-page cutover is
 that first time, so it gets **one bounded converter with its own explicit CLI entry** —
 validate, back up, write atomically, no-op on an already-converted file, fail loudly on
-anything else. That is a single one-off, deliberately not a migration runner, a version chain
-or a rollback framework; the next cutover writes its own or resets, and either is cheaper than
-a framework nothing else uses. See
+anything else. It is deliberately not a migration runner, a registry or a rollback framework;
+each later cutover writes its own named converter or resets, and either is cheaper than a
+framework nothing else uses. See
 `docs/decisions/2026-09-project-workspaces-and-subproject-work-units.md`.
 
-*Landed in Slice 25.1. `SCHEMA_VERSION` is 3, and `pnpm prototype:upgrade <path>` converts a
-version-2 file in place, keeping a backup beside it.*
+*Amended in Slice 35:* the second cutover wrote its own converter, so the CLI now runs **two named
+steps in a fixed order** — version 2 → 3, frozen at its version-3 output, then version 3 → 4 —
+after sniffing the file's version. That is a chain of two explicit functions called from one place,
+still not a runner or registry; the earlier wording "not … a version chain" described the single
+step that existed then ([decision](docs/decisions/2026-09-schema-version-4-conversion.md)).
+
+*Landed in Slice 25.1: `pnpm prototype:upgrade <path>` converts a version-2 file in place,
+keeping a backup beside it.*
+
+*Slice 30 added `undoRecords` inside version 3 as a defaulted collection
+([why](docs/decisions/2026-09-section-removal-undo-records.md)).*
+
+*Landed in Slice 35: `SCHEMA_VERSION` is 4.* Single-use Undo records gave way to per-actor,
+per-project **operation histories**: the document holds `operationHistories` (a cursor, an order
+high-water mark and a revision per exact actor and project) and `operationActions` (typed, ordered
+actions), and every section carries an `archiveGeneration`. `undoRecords` is gone. `pnpm
+prototype:upgrade` converts a version-2 or version-3 file, retiring any version-3 receipts with a
+notice rather than translating them, and validates the version-4 result before writing a byte.
+Integrity checks a history's scope and ordering and never resolves the ids an action's payload names
+([conversion](docs/decisions/2026-09-schema-version-4-conversion.md),
+[retention](docs/decisions/2026-09-operation-history-retention.md)).
+
+*Amended in Slice 36: `SCHEMA_VERSION` is 5.* A third explicit converter, version 4 → 5,
+preserves histories/actions and backfills Activity with captured project/root scope plus the task
+title or reflection label needed if Undo Add later removes its target. The earlier converters stay
+frozen at their literal output versions
+([decision](docs/decisions/2026-09-schema-version-5-conversion.md)).
+
+*Amended in Slice 42:* project creation Undo adds no collection or schema version. A stored project
+may be absent only when its workspace retains the lifecycle Activity that proves creation Undo and
+the creator's exact-actor history retains the corresponding `undone` `project.add`. The lifecycle
+events and history must name the same actor who created the project; a second actor's history or an
+absent-project history in another workspace is invalid. The Activity anchor and the history anchor
+are checked separately; all other records still require their project to exist.
+Neither anchor depends on a tombstone or a history record retained by Activity
+([decision](docs/decisions/2026-09-project-creation-history.md)).
 
 ---
 
@@ -938,6 +1000,11 @@ Today the column lists Home, any enabled optional page this build can render, an
 hierarchy. Archive and Reflections are both registered renderers; Archive also remains reachable
 through the project controls when its tab is disabled.
 
+Workspace **Settings → Archived projects** is a separate recovery route. It lists archived roots
+and subprojects whose ancestors are live across the actor's workspace, even if a root's optional
+Archive page is disabled. Restore requires a deliberate non-archived status and uses the existing
+project write; Open project goes to the canonical project route.
+
 *Landed in Slice 27.* The column fills the available workspace height below the top bar and
 keeps its own long navigation list scrollable while the canvas scrolls independently. The
 column has no **Open archive** action. The project's **More** menu opens Archive from root
@@ -949,6 +1016,16 @@ Home fixed and lets a person toggle the three optional kinds in View Mode. The s
 column remains available on a nested work route, while the work canvas is not presented as a
 toggleable page. Keyboard navigation and the existing collapsed-column breakpoint were checked
 against the integrated showcase.
+
+*Corrected in Slice 58 (2026-09-29): "desktop-first" is not "desktop-only".* At phone width
+(≤ 48rem) the diagram above does not fit: the sidebar alone took two thirds of a 375 px screen.
+Below that breakpoint the same single sidebar leaves the grid and becomes a modal navigation
+drawer behind a labelled **Menu** in the top bar, with a focus trap, Close, a backdrop and Escape,
+the workspace inert behind it. Choosing a destination closes it and moves focus to the workspace;
+a resize resets it. While the project column is collapsible (≤ 60rem), choosing one of its links
+collapses it again and focuses its toggle, so the chosen canvas is not pushed under an open list.
+A 768 px tablet keeps the inline sidebar
+([why](docs/decisions/2026-09-phone-navigation-drawer.md)).
 
 ---
 
@@ -1051,6 +1128,8 @@ Progress
 
 Target Date  (Due date, on a unit of work)
 
+Undo · Redo
+
 More
 ```
 
@@ -1067,6 +1146,45 @@ The header itself is rendered **once per project** — at the top of the workspa
 §23's full-height navigation column and above whichever page is showing. It describes the
 project, not the page, and a header living inside Home would vanish the moment another page
 rendered.
+
+*Landed in Slice 41.* **Undo** and **Redo** are two always-present icons in the header, before More,
+and they are the only browser surface that offers Undo. They act on the **displayed project's**
+history (§31): a root's on every root page, a sub-project's on its work page. Each is enabled only
+when the server summary offers a step in that direction and that step is not blocked; otherwise it
+stays focusable and says why — "Nothing to undo", "Saving a change…", "Undo unavailable while
+Legacy attic is archived". One polite feedback line under the facts says what a transition did or
+why it was refused, and a write recorded in another project's history names that project with an
+Open link. Archiving from More no longer leaves the page: the archived project stays on screen with
+its Undo enabled. Below 40rem the header's actions move to their own row under the identity, so the
+name keeps its width ([why](docs/decisions/2026-09-project-header-history-controls.md)). *Repaired in
+Slice 45:* that row and the Undo/Redo pair wrap, so the controls stay inside the header and can be
+tapped at 375 px even though the global sidebar keeps its width.
+
+*Since Slice 56,* a descendant-owned row on root Todos or Archive offers a separate
+`Open <owner> history` link to these existing header controls. The `#history-controls` route scrolls and focuses
+the group after the owner loads, including on reload. The link offers the current owner's history,
+not a guaranteed Undo of that row; a root-owned row adds no link.
+
+*Since Slice 57,* a committed task Delete from a Task List or root Todos leaves a polite
+status outside the removed rows. It names the archived task, root Archive as durable
+recovery when the owner is ready, and the owning project's header Undo when that step is
+available. Todos names and links a descendant owner to these existing controls; a root
+task refers to the displayed header. The status is not another Undo action and does not
+promise Delete remains the next step after opening a disabled Archive page, which can
+record its own enable action ([why](docs/decisions/2026-09-task-delete-recovery-feedback.md)).
+
+*Since Slice 55,* a newly recorded section update's header label names a lone rename (including
+the resulting default after a title clear), Rich Text prose edit, collapse or expand, or resize to
+its saved column count. Mixed updates and other configuration changes use one general "Updated"
+label for their one action. Undo and Redo reuse that stored label after reload; older action labels
+are left as recorded ([why](docs/decisions/2026-09-section-update-history-labels.md)).
+
+*Landed in Slice 42.* The same header controls remain available after creation Undo: the creator's
+missing-project URL shows the captured creation action and its Redo. Undo is allowed only before
+content, children, references, field changes or another actor's history depend on the project; the
+project and its canonical page return with their original ids on Redo. The parent header does not
+gain the child action; it names the child's history and links to it
+([why](docs/decisions/2026-09-project-creation-history.md)).
 
 ## Two kinds of project
 
@@ -1090,6 +1208,25 @@ A subproject carries the work metadata the canvas vocabulary needs: a descriptio
 **due date** (the existing date-only `targetDate`, relabelled), a status, and a `completedAt`
 timestamp. Empty descriptions and undated work stay valid — most work units will have both.
 Completion is explicit and does **not** complete descendants; reopening clears `completedAt`.
+
+*Landed in Slice 39: every change to an existing project is an **undoable operation**.* Rename,
+description, icon, due or target date, status, parent, layout mode and progress settings all run
+through one write, and each call that changes something records exactly one action in the acting
+person's or agent's history **for that project** — a sub-project's own history, not its root's, even
+when the write moves it to another root. The status names the step: entering `archived` is an
+**archive**, leaving it a **reactivation**, and everything else — completion and reopening included —
+an **update**. One call that changes a status and a name is one step. A call that changes nothing
+records nothing. Undo writes back exactly the fields that call changed and Redo writes them again, so
+an unrelated edit someone made since survives both, while a later change to the same field refuses.
+A completion time comes back exactly as it was recorded, never re-stamped. Reversing a move re-checks
+the destination as if it were a new move: it must still exist, must not sit beneath the project, and
+must not be under anything archived. *Landed in Slice 42:* creating a root or subproject records one
+`project.add` in the created project's own history and returns `{ project, operation }`. Undo removes
+only an untouched project and its canonical page; Redo restores both with the same ids and original
+`createdAt` values, while stamping each `updatedAt` with the Redo time. A subproject's creation belongs to its own history, so a parent page reports it with an
+Open link. After the creator undoes creation, `/projects/:projectId` keeps that actor's Redo
+reachable in a recovery view; other actors see the ordinary unavailable state
+([decision](docs/decisions/2026-09-project-creation-history.md)).
 
 ## Pages
 
@@ -1151,6 +1288,26 @@ the root's actual page records, updates navigation only after the page write and
 settle, and preserves the confirmed state on refusal. A URL for a disabled optional page falls back
 to Home with an exact re-enable action for that kind; unknown, unbuilt, Home, work and subproject
 page requests do not acquire an enable action.*
+
+*Landed in Slice 38: a page toggle is an **undoable operation**.* Every toggle that changes the
+stored state records exactly one action in the owning **root's** history — whatever route the
+control was on — and answers `{ page, operation }`. The two writes §26 gives a page are two
+operations, not one: the first enable creates the record and records `page.add`, while every later
+change of the switch records `page.update`. A toggle already where it was asked to go is still not a
+write: it answers a `null` receipt and changes no timestamp, event, history revision or Redo branch.
+
+Because the first enable is what *creates* the page, undoing it **removes** that page — the same
+record, and only while it is still the one that enable created and nothing on it refers to it. Any
+canonical section on the page, archived ones included, and any shortcut placement on it refuses the
+whole reversal and asks for that reference to be removed first; nothing is cascaded, emptied or
+cleaned up on its behalf, because a page toggle must never destroy content. Redo brings the same page
+id and `createdAt` back. Undoing a later toggle writes the switch back and nothing else, so sections,
+their layout, their rows and every reference survive both directions.
+
+Enabling a page is still allowed while the project is archived, so §31's Open archive stays
+reachable. Reversing one through history is **not**: a page transition is blocked on an archived
+root in either direction, like every other family, so history is not a way around the freeze
+([why](docs/decisions/2026-09-optional-page-operation-history.md)).
 
 ---
 
@@ -1269,7 +1426,7 @@ write already uses on its own behalf, and acquires no `projects.read`.*
 *The disabled-page rule needed one more sentence than it has above, because §27 also says a
 source on a disabled page is still a valid source. The two are about different verbs: **placing**
 new content on a disabled page is refused — adding or duplicating a section there, creating or
-moving a row into a container there, reassigning rows there — while everything already there
+moving a row into a container there — while everything already there
 stays readable, editable, reorderable, removable and restorable. Undo is never behind a toggle
 ([why](docs/decisions/2026-09-a-disabled-page-hides-navigation-not-data.md)).*
 
@@ -1280,6 +1437,35 @@ resolves its current position when the dialog is submitted; a missing anchor is 
 of silently appending. Grid gaps are insertion targets in the existing wrapping order, not cells.
 The chosen supported width is retained if neighboring placements change while the dialog is open
 ([why](docs/decisions/2026-09-contextual-insertion-names-its-position.md)).
+
+*Landed in Slice 31, amended in Slice 35.* A section removed from the current canvas yields its
+server operation receipt to an accessible, page-local Undo action. The notice keeps only that receipt in memory; it clears
+on leaving the canvas or reloading, and does not depend on Archive being enabled. When the
+remove response is uncertain, the canvas exposes an explicit retry with the original action
+after the section has disappeared from a live refresh. A live refresh never repeats a write
+([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)). *Amended in
+Slice 41:* the removal's receipt goes to the project header's history instead, and its Undo is the
+header's; the canvas keeps only Open Archive and the explicit retries ([why](docs/decisions/2026-09-project-header-history-controls.md)).
+
+*Landed in Slice 32.* Explicit section creation, movement and editable settings writes use the
+same page-local receipt surface. A completed contextual add records `section.add`; a completed
+move records `section.move` against the page's combined section/shortcut order; and title,
+config, collapse and column-span changes record `section.update` with only the changed fields.
+Normalized no-ops, cancelled edits, a move clamped to its current position and implicit
+row-container creation record nothing. *Since Slice 37* duplication records the `section.add` it
+is, capturing the copy that was actually made: Redo replays that copy rather than duplicating a
+source that may have changed or gone since. Duplication still copies configuration and layout and
+**no rows**. Since Slice 35 the receipt names its history and carries
+that history's `revision`, so a page keeps the newest committed operation when concurrent responses
+arrive. *Since Slice 41* none of these writes shows a notice: each reports its receipt to the
+project header, whose Undo and Redo replaced the page-local action (§26). Undo is field-aware for settings,
+placement-aware for moves, and refuses when the recorded footprint is no longer safe to restore
+([decision](docs/decisions/2026-09-section-edit-undo-boundaries.md)).
+
+*Amended in Slice 36.* Implicit row-container creation still records no separate `section.add`.
+Instead the created container is captured inside the single `task.add` or `reflection.add` action,
+so Undo/Redo removes and restores the row and container together with stable ids
+([decision](docs/decisions/2026-09-row-operation-history.md)).
 
 ## Shortcuts on Home
 
@@ -1294,7 +1480,10 @@ sits in the canvas like anything else.
 
 Rules the model enforces rather than the UI suggesting:
 
-- source and destination are in the same root tree, and the same workspace
+- source and destination are in the same root tree, and the same workspace — and they stay so:
+  moving a sub-project to another root is refused while a Home shortcut on its current root places a
+  section from anywhere in its subtree, naming each placement to remove first (*Slice 40*,
+  [why](docs/decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md))
 - no shortcut to a shortcut, and no shortcut to itself
 - removing a placement never archives the source
 - an archived source shows an unavailable placeholder — not its content — and restoring the
@@ -1308,6 +1497,19 @@ editing is worth the ambiguity of two live views of one section is a question fo
 not an assumption to build in now.
 
 The control that creates one is labelled **Add shortcut**.
+
+*Landed in Slice 37.* Every placement write is undoable. Adding, resizing, collapsing, moving and
+removing a shortcut each return an operation receipt and record one action in the **destination**
+root project's history, never the source sub-project's — a placement belongs to the canvas it sits
+on. A same-value resize or collapse, and a move to the position the placement already holds, write
+nothing and carry no receipt. Undo and Redo of any of them **write** the placement only: the source
+section, its configuration and its rows are never written and never returned as content, so an edit
+to the source is never a conflict for a placement action. Recreating a placement does *read* the
+source, because §27's own rules — same root tree, same workspace, not the destination page itself —
+have to hold before a reference may exist again. Recreating a placement returns the same id pointing at the
+same source, including when that source has since been archived or hidden — it comes back as the
+existing unavailable placeholder, which is recovery of the reference rather than a second Add
+([why](docs/decisions/2026-09-section-restore-and-shortcut-history.md)).*
 
 *Landed in Slice 25.4. Home stores sections and shortcut placements in one combined order;
 the resolver returns the source section and project/page identity without rows, and the source
@@ -1373,6 +1575,15 @@ Register definitions:
 SECTION_REGISTRY
 ```
 
+*Landed in Slice 29.* Every registered type also declares one capability in the contracts
+package's `SECTION_CAPABILITIES`: which rows it owns, if any, and what removing it could leave
+worth recovering — owned rows (Task List, Reflections), config prose (Rich Text) or nothing
+(Sub-Projects, Progress, Timeline, Recent Activity). Ownership (`SECTION_OWNERSHIP`) is derived
+from it, and the registry test fails when a registered type has no declaration, so adding a type
+now touches its folder, one registry line and one capability line. A type nothing declares — a
+stale or hand-edited `type` — has *unknown* recovery, never "nothing to recover"
+([why](docs/decisions/2026-09-content-oriented-archive-policy.md)).
+
 ---
 
 # 30. Initial Section Types
@@ -1423,7 +1634,7 @@ domain, not merely hidden by the UI.
 
 *Landed across Slices 25.1, 25.2, 25.4, 25.6 and 25.7. The coarse answer — does this page hold sections at all —
 is `pageAcceptsSections`; the narrow one is `pageAcceptsSectionType`, which reads Reflections'
-capability out of `SECTION_OWNERSHIP` rather than naming section types, so a type registered
+capability out of `SECTION_OWNERSHIP` (derived from `SECTION_CAPABILITIES` since Slice 29) rather than naming section types, so a type registered
 later needs no entry. `SectionService` refuses on the way in and `validateDocumentIntegrity`
 refuses at load, because a hand-edited `data.json` (§14) must fail then rather than at whichever
 request first renders it. Slice 25.4 adds the Home-only shortcut placement beside the registered
@@ -1463,33 +1674,43 @@ restores the type's default. Clicking the title does not drag or collapse the fr
 rename keeps the entered text available to correct or retry
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
-**Remove archives; it does not delete.** It sets `archivedAt` on the section, which leaves the
-canvas and keeps everything it held — a Notes section's prose, a Progress section's milestone
-selection, and the rows a container took down with it. A container still holding *live* rows
-first asks what should happen to them: archive them with the section, or move them to another
-container of the same type. A view, an empty container, and a container holding only archived
-rows need no question and archive silently.
+**Remove preserves what the person can lose and deletes only an unreferenced disposable.**
+One remove gesture archives every live task or reflection still owned by the container with the
+section; removal has no policy or destination input. Tasks can still move through their own
+ordinary update. Independently archived rows are not changed by removal, so their own Archive
+markers and restore steps remain intact. The domain then retains the section when
+recoverable or uncertain content remains, or when any canonical task, reflection or Home
+shortcut still references it. Otherwise it deletes the section: known disposable views,
+empty containers and whitespace-only Rich Text do not need permanent tombstones. Archived
+rows and shortcut source ids count in the reference audit. Existing tombstones are not purged
+by this operation. No row or shortcut is silently deleted.
+
+Creation, movement and settings edits are also explicit writes. The contextual create action
+returns a `section.add` receipt after the combined placement is committed. Drag and keyboard
+movement returns one `section.move` receipt only after the final placement is committed. Inline
+title, inspector configuration, collapse and supported width writes return a `section.update`
+receipt containing only the normalized fields that changed. *Amended in Slice 41:* every one of
+these is undone and redone from the project header (§26), not from the canvas; the canvas-local
+notice offers only recovery the header cannot — Archive after a removal Archive will list, Retry
+remove and Retry refresh ([why](docs/decisions/2026-09-project-header-history-controls.md)).
 
 ## Where archived work is found
 
-Archived work does not appear on ordinary pages, views or read models — that is what archiving
-means. It is not deleted, so it has to be reachable somewhere, and that somewhere becomes the
-root's optional **Archive** page: every archived section, task, reflection and subproject
-across the whole root tree, each with its origin, what caused it to be archived, and whether it
-can be restored.
+Archived work does not appear on ordinary pages, views or read models. Root **Archive** is a
+current recovery projection across its tree: it lists only archived items that can be restored
+now, with the highest ready owner first. An archived subproject suppresses its descendants; an
+archived section suppresses its owned rows; an archived task suppresses its archived subtasks.
+The underlying records and independent archive markers remain intact. Restoring an owner can
+reveal independently archived children as the next steps. A container holding only independently
+archived rows stays listed when that container itself is archived, because it must be restored
+before its rows. The projection keeps origin, cause, cascade and separate-restore information on
+each listed item, and works when the optional Archive page is disabled.
 
-The root-wide **Archive** page is canonical. It lists the rows a canvas-scoped undo surface
-could miss — those an ancestor took down, which cannot be restored on their own, and those whose
-container lives on another page of the same project — with guidance naming the operation or
-ancestor to restore instead. It also identifies each item's owning project, page and container,
-whether the cause was its own archive or a cascade marker, and the canonical restore operation.
-The owning page may be disabled or not yet rendered; the Archive page remains the place to find
-and restore its content.
-
-A project whose own status is `archived` hides its live contents from ordinary reads too. The
-Archive page may still show them under their archived owner, distinguishing *hidden because an
-ancestor is archived* from *archived in its own right*. Reactivating is an explicit status
-choice; the prototype does not guess a prior status.
+Live content merely hidden by an archived project and archived descendants whose current
+structure blocks their own Restore do not appear as rows. Archived roots are recovered from
+workspace **Settings → Archived projects**, not from their own root Archive. That Settings list
+also includes archived subprojects whose ancestors are live. Project reactivation requires an
+explicit non-archived status; the prototype does not guess a prior status.
 
 None of this adds a cascade. Archiving a project with **live child subprojects is still
 refused**, exactly as it is today, and archiving a project never archives anything beneath it —
@@ -1505,10 +1726,122 @@ is offered.
 *Landed in Slice 27.* The secondary navigation column has no Open archive button; the project's
 More menu is the single recovery entry point from root and nested work routes.
 
+*Landed in Slice 29, amended in Slice 43: Archive lists **recoverable content**, not every section tombstone.* A
+removed or hidden section is listed only when something in it remains to recover: a Task List
+or Reflections container with any rows still assigned to it (archived rows included), Rich Text
+whose only config is prose that trims to something (an empty config holds nothing), or a type or config the domain cannot read as
+empty (listed conservatively as unknown content). Removed Progress, Timeline, Recent Activity and
+Sub-Projects views — and a container with no remaining rows, or blank prose — are deleted
+when no canonical row or shortcut references them. Historical tombstones remain unlisted;
+shortcut-backed disposable sections keep an internal tombstone, leaving Home's source
+unavailable placeholder intact. Only currently restorable archived sub-projects, tasks and
+reflections are listed. Each section entry carries the domain's recovery metadata: the total
+rows still in the container, apart from the exact count that restores with it and the number of
+row restores still needed afterwards (a subtask archived with its parent comes back with it). A container
+holding only independently archived rows stays listed on purpose — it is the first step of their
+recovery: restore the section, then restore those rows individually. Removal changes only live
+rows, marking each with its owner's section id so Undo, Redo and Archive Restore recover the exact
+cascade. A live container beneath an archived project is omitted until that project returns.
+Restore itself is unchanged: it appends
+to the page's current combined order, revives exactly its cascade, and a retry changes nothing
+([why](docs/decisions/2026-09-content-oriented-archive-policy.md)).
+
+*Landed in Slice 30, extended in Slice 31 and amended in Slices 35–36: **Undo and Redo** are distinct
+from Archive Restore.* Every supported section, task and reflection write records one typed action
+into the actor's **operation history** for the owning project, in the same unit of work, and returns
+a receipt with its final entity. Undo puts a removed section back on its page
+**between the neighbours it left** — after the surviving previous section or shortcut, else before
+the next, else at its old index — with exactly the rows the removal archived, keeping later edits
+such as a renamed task. New removals cascade live owned rows; a stored version-1 reassign action
+still restores the rows it moved. Redo re-removes exactly what the removal removed, replaying its
+recorded state. The history is **bidirectional and per exact actor**: a person or agent connection
+steps only its own stack, only the next action in either direction, for 24 hours per action and 50
+actions per history. A transition requires the stored action family's one write grant —
+`projects.write` for a section, a Home shortcut placement, an optional page or an existing
+project's own write, `tasks.write` for a
+task, `reflections.write` for a reflection; a new write discards what was waiting to be redone. A
+transition refuses rather than overwrite a later change (a moved row, a new subtask under a moved
+task, a new row in a section being re-removed), while the project or an ancestor is archived, or
+after the action expired. An action that can never succeed again — the section restored from Archive
+by **someone else**, or removed again since — is **retired** so the actions beneath it stay
+reachable. Archive Restore remains the durable path for sections: no receipt is needed to invoke
+it, it never expires, and it appends. *Since Slice 37* a Restore that changes something also
+records an action of its own, so the same actor can take the Restore back before undoing the
+removal beneath it; a repeat on a live section still writes nothing and carries no receipt. Task
+and reflection Restore are ordinary row writes and therefore record new history actions
+([scope](docs/decisions/2026-09-operation-history-scope.md),
+[retention](docs/decisions/2026-09-operation-history-retention.md),
+[retired actions](docs/decisions/2026-09-operation-history-retired-actions.md),
+[removal footprint](docs/decisions/2026-09-section-removal-undo-records.md)).
+
+*Since Slice 56,* the root's Todos and Archive projections link descendant-owned rows to
+their owner's header (§26). The route only discovers that actor's current summary for that
+project; it does not merge project cursors or reveal another actor's steps.
+
+*Landed in Slice 37.* Undoing a recorded Restore is **not** the removal: it re-archives the section
+at the marker, generation and stored position the Restore found, and takes back down exactly the
+rows that Restore revived. It never runs removal policy, never deletes the section, never advances
+`archiveGeneration`, and never touches a row that was archived independently beforehand. It refuses
+rather than hide a live row added since, and Redo refuses rather than absorb a row now marked as
+having come down with the section. The first ordinary Restore appends; a Redo returns the section to
+the placement that Restore committed. An action whose section has moved on to a later generation is
+retired, because nothing can bring that generation back
+([why](docs/decisions/2026-09-section-restore-and-shortcut-history.md)).
+
+*Landed in Slice 38.* §26's optional-page toggle joins the same history as a fifth operation family.
+The enable that created a page is a creation, so its inverse removes that page after proving the
+record is unchanged and that no canonical section — archived ones included — and no shortcut
+placement names it; a dependency refuses the whole transition and asks for the reference to be
+removed, never for it to be archived, because an archived section still names its page. Every later
+toggle reverses one boolean and touches nothing else, so a disabled page's content is as safe under
+Undo as it is under the ordinary disable. No page conflict is permanent: an occupied id, a changed
+record or a live dependency all stay repairable. The ordinary toggle keeps this section's archive
+exemption; the transition does not
+([why](docs/decisions/2026-09-optional-page-operation-history.md)).
+
+*Landed in Slice 39.* An existing project's update, archive and reactivation join the same history as
+a sixth operation family. Archiving still never cascades, and a history step may not acquire a
+cascade: redoing an archive, or undoing a reactivation, refuses while any child is live. The freeze
+keeps one narrow exception, for the project's **own** status only: an archive's Undo, a
+reactivation's Redo and an edit made while the project was already archived may run while that same
+project is archived, because the ordinary write allowed them and refusing would wedge the stack on
+the very project it is about. An archived **ancestor** still blocks every step, and no other family
+gets the exception. The history summary keeps naming the archived project as its project-level
+blocker; *since Slice 41* each summary entry also carries its own `blockedBy`, computed by the same
+check a transition runs, so a control knows which single step is still eligible. Durable restoration
+is unchanged: it takes an explicit status and needs no receipt
+([why](docs/decisions/2026-09-project-update-operation-history.md)).
+
+*Amended in Slice 48.* A task step's Undo and Redo — edit, completion, reopen, move or reparent —
+refuse with `history_conflict` while the row's current section, or the section the step would put it
+in, is archived, whether the row itself is live or archived. The refusal names each section once,
+writes nothing and retires nothing, and the same step works again once the section is restored.
+An ordinary reparent also refuses when a subtask would follow its parent into an archived section,
+even when both tasks are archived. A history direction that enters `done` refuses an archived task;
+section-cascaded rows report the section as the single repair, while an independently archived row
+reports the task and, when needed, the section. Leaving `done` remains allowed on an archived task
+in a live section ([why](docs/decisions/2026-09-archived-task-completion-history.md)).
+
+*Amended in Slice 41.* The browser offers **Undo** and **Redo** in the project header (§26), driven by
+the server's history summary rather than by a receipt the page holds. Every browser write reports
+its receipt to the header's history store; a write the store cannot place in the displayed
+project's history is named with an Open link to the project that owns it. After a removal that
+Archive will list, the canvas shows "Removed the Notes section. Undo is in the header." with **Open
+Archive**; a removal Archive will not list, and every forward write, shows no notice unless its
+follow-up read failed ([why](docs/decisions/2026-09-project-header-history-controls.md)).
+The server action remains independently scoped to the exact actor for 24 hours. If a removal
+response is lost, repeating it remains a refusal; while that removal is still the actor's applied,
+unexpired action, the exact actor receives its receipt in HTTP `details` or MCP error text, without a
+second write or event. The browser also offers an explicit retry of the original removal after a
+live refresh removes its frame. A deleted disposable section's `{ section, operation }` response uses an archived-shaped
+snapshot for compatibility and does not claim the section remains stored. Archive is available
+as a recovery destination for retained content; it does not promise to recreate a deleted view
+([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+
 *Landed in Slice 25.6: the per-canvas Archived region was replaced by the root-wide Archive
-page, which keeps cascade members and effectively hidden live work findable, explains blockers,
-and delegates every restore to the existing canonical domain operation. Disabling the page no
-longer makes undo unreachable.*
+page, delegating every restore to the existing canonical domain operation. Slice 44 limits its
+rows to currently restorable archived items; blocked cascade members and effectively hidden live
+work wait behind their owner. Disabling the page does not block Settings recovery.*
 
 *The same slice made the rest of this section's visibility promise real, and the two halves of
 it are not the same rule. **Archived owners** are excluded by the `status` filter each aggregate
@@ -1544,6 +1877,15 @@ ProjectSectionFrame
 
 ---
 
+*Landed in Slice 42.* The creating actor's first history action is `project.add`. Undo preflights the
+captured project, its canonical page, and every reference before recording `project.creation_undone`
+and removing only that project and page. Later content and children, changed project or page fields,
+references, and any other actor's project history refuse creation Undo without a partial change.
+The last case retires the action without Activity or a live frame. Redo restores the same project
+and canonical page ids under the current hierarchy rules. Nothing is cascaded or retained as a
+tombstone; section content is preserved by refusing while any remains
+([decision](docs/decisions/2026-09-project-creation-history.md)).
+
 # 32. Section Editing
 
 Canvas organization uses contextual controls rather than a separate layout-editing mode.
@@ -1577,11 +1919,16 @@ resize, creation and removal operations. Rename and dialog callbacks return writ
 visible control can preserve input and report an error rather than losing a failed action
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
-The **Archive** page is *not* canvas chrome and stays reachable: it is content,
-and it is the undo for removal. Gating it behind Edit Layout Mode would hide it exactly when
-someone needs it — right after a removal they did not mean. The per-row archive control in §34
-is likewise a row affordance rather than a layout one. The same reasoning carries to the
-project controls that open the page even when its tab is disabled.
+The **Archive** page is *not* canvas chrome and stays reachable: it is content. Archive Restore
+remains the durable recovery path for retained content; the removal's Undo is also available,
+from the project header (§26, *since Slice 41*). *Since Slice 37* a section Restore is itself one of
+the actor's actions, reversible from the same history — durability and reversibility are not in
+tension, because Restore still needs no receipt to invoke and still survives every expiry. The canvas's **Open Archive** action lets a
+person check saved content without promising that a deleted disposable view will appear there.
+Gating recovery behind Edit Layout Mode would hide it exactly when someone needs it — right
+after a removal they did not mean. The per-row **Delete** action in §34 is likewise a row
+affordance that uses the reversible archive operation, rather than a layout one. The same reasoning carries to the project controls that
+open the page even when its tab is disabled.
 
 Shortcut placements (§27) are layout. Adding and removing one uses the same contextual
 insertion and removal controls as sections; the source content a placement renders remains
@@ -1674,6 +2021,13 @@ subtask archived on its own beforehand stays archived. A subtask cannot be resto
 while its parent or its section is archived; restore the one that took it down instead.
 Archived rows are reached through §31's Archive page.
 
+The task-row action is labelled **Delete** in Task Lists and Todos. It uses this same reversible
+archive operation, including for finished tasks; there is no hard-delete task action.
+After commit, both surfaces announce the archived task and existing recovery routes outside
+the row list, including when its last row disappears. An optimistic Todos removal does not
+announce success before commit; a refused write restores the row and leaves the failure
+visible. New attempts and navigation clear stale success.
+
 Prefer a side drawer over a modal for detailed task editing so workspace context remains visible.
 
 ## The Todos page
@@ -1700,7 +2054,10 @@ cancelled, since a task that was dropped is part of the week's record too, and a
 that erases what happened is a worse record than one that shows it. Archived entities, and
 anything beneath an archived ancestor, are excluded. Every row carries an origin breadcrumb
 and links to its canonical owner; completing one there and completing it here are the same
-operation on the same row.
+operation on the same row. A task row also offers **Delete**, including when finished; this archives
+the canonical task and removes it from the projection until it is restored.
+For a descendant-owned task or unit of work, a separate named link opens that owner's
+existing header history (§26); it does not change the canonical row link or add Undo here.
 
 There is no drag ordering on Todos. The order is the chronology.
 
@@ -1817,6 +2174,12 @@ subject. The root feed retained the entry and displayed the subject's current st
 page composer continued writing to its one canonical container. A real HTTP MCP write appeared in
 the open browser surface, confirming the aggregate is a projection rather than a second owner.*
 
+*Amended in Slice 36:* reflection history captures the subject before and after an edit. Undo/Redo
+may restore a historical task or subproject subject that is now reopened or archived, but it still
+refuses a missing or foreign-workspace subject. This preserves history without weakening eligibility
+for a fresh assignment
+([decision](docs/decisions/2026-09-reflection-subjects-and-the-journal-feed.md)).
+
 ---
 
 # 37. Calendar
@@ -1892,6 +2255,11 @@ Task estimates influence progress.
 User enters progress.
 
 This is exactly the kind of decision the prototype should test rather than resolve in the initial specification.
+
+*Amended in Slice 39:* the chosen formula and a manual value are an ordinary project write, so
+changing them records one project action that Undo and Redo reverse exactly. A reversal that would
+leave the manual formula without a value refuses rather than invent one
+([why](docs/decisions/2026-09-project-update-operation-history.md)).
 
 ---
 
@@ -2395,11 +2763,18 @@ get_project_todos
 get_project_archive
 
 get_project_journal
+
+list_archived_projects
 ```
 
-Shortcuts (§27) are created and removed through their own tools, and archive/restore become
-canonical tools on projects, sections, tasks and reflections so an agent has the same undo a
-person does.
+Shortcuts (§27) are created and removed through their own tools, and archive/restore are
+canonical tools on projects, sections, tasks and reflections. An agent undoes and redoes its own
+section, task and reflection operations through its own history with `get_operation_history`, `undo_operation` and
+`redo_operation`; it can never reach a person's history, or another connection's.
+History conflict messages give text-only agents the typed repair in plain words beside each displayed
+problem, title and id. A retiring action describes current blockers and points to the refreshed
+history without promising another try of that action
+([why](docs/decisions/2026-09-mcp-history-conflict-guidance.md)).
 
 **A page is never a permission bypass.** Resolving a shortcut's source content requires the
 read permission for the *content*, not merely permission to see the layout that references it:
@@ -2417,9 +2792,11 @@ answering with the half it was allowed to read. `WorkManagerTool` carries the ex
 optional `additionalPermissions`, and the transports publish the complete list under
 `_meta["local.canvas-work-manager/requiredPermissions"]` beside the unchanged singular key.
 `get_project_archive` and the Archive page landed in Slice 25.6. The query requires
-`projects.read`, `tasks.read` and `reflections.read` together, returns archived and effectively
-hidden work with origin/cause/blocker guidance, and does not depend on the Archive tab being
-enabled. Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
+`projects.read`, `tasks.read` and `reflections.read` together, returns only currently
+restorable archived work with origin and cause metadata, and does not depend on the Archive tab
+being enabled. Since Slice 29 its section entries are the recoverable-content projection of §31, each
+with `recovery` metadata (`owned-content` with `contentCount` and `separateRestoreCount`, `config`, or `unknown`) beside the
+exact `cascadeCount`; the tool's shape is otherwise unchanged. Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
 `add_section_shortcut` / `remove_section_shortcut` under `projects.write`; the list returns
 placement and source identity only, never source rows. Canonical archive/restore tools remain
 the same operations used by the UI: `archive_project` / `restore_project`, `remove_section` /
@@ -2428,6 +2805,82 @@ the same operations used by the UI: `archive_project` / `restore_project`, `remo
 adds `get_project_journal` with the same three read grants: it aggregates live journal entries
 from the root tree, resolves current linked-subject state (including an archived subject), and
 does not depend on the Reflections tab being enabled.*
+
+*Landed in Slice 44.* `list_archived_projects` is a workspace read under `projects.read` alone.
+It lists archived roots and archived subprojects with live ancestors across the actor's workspace.
+The 38-tool registry delegates to the domain projection; `restore_project` remains the write
+with an explicit non-archived status and its existing write grant.
+
+*Amended in Slice 43:* `remove_section` takes only `{ sectionId }` and archives every live task or
+reflection owned by that section in one operation. It rejects the retired `policy` and
+`reassignToSectionId` inputs. Previously stored version-1 reassign actions remain readable and
+executable by operation history; new task moves use `update_task` as their own reversible write.
+
+*Landed in Slices 30–32, amended in Slice 35: `create_section` and `remove_section` return
+`{ section, operation }` (removal adds `archiveListed`), while `move_section` and `update_section`
+return `{ section, operation }` with `operation: null` for a normalized no-op. The receipt names the
+`historyId`, `actionId` and the history's `revision`, typed `section.add`, `section.move`,
+`section.update` or `section.remove`; update actions carry only changed title/config/collapse/span
+fields, move actions carry before/after placement anchors for the page's combined order, and add
+actions carry the placement Redo returns to. A disposable section can be absent from storage even
+though the removal response snapshot carries `archivedAt`. `get_operation_history`
+(`projects.read`, input `{ projectId }`) returns the connection's own summary — the next Undo and
+Redo, the revision and any archived blocker. *Since Slice 41* each of the two entries carries its own
+`blockedBy` — the archived project a transition of **that step** would refuse for, or `null` — while
+the top-level `blockedBy` describes the project; history labels name what changed ("Collapsed the
+Tasks shortcut", `Renamed "Old" to "New"`). `undo_operation` and `redo_operation`
+(`projects.write`, input `{ historyId, actionId, expectedRevision }`) run exactly the next action in
+their direction for the exact actor whose history it is.
+MCP errors carry no structured details, so refusal text starts with its reason. Repeating a
+removal recovers only that actor's applied, unexpired removal receipt in `section_already_removed:`;
+it remains a refusal with no second write. Conflicts include current names and ids plus typed next
+steps, capped at five; blocked refusals name the blocking project. The history refusal prefixes are
+`history_not_next:`, `history_revision_stale:`, `history_expired:`, `history_blocked:`,
+`history_conflict:`, `history_unavailable:` and `history_retired:`. The registry held
+thirty-seven tools at this stage
+([removal footprint](docs/decisions/2026-09-section-removal-undo-records.md),
+[Slice 31 decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md),
+[Slice 32 decision](docs/decisions/2026-09-section-edit-undo-boundaries.md),
+[Slice 35 scope](docs/decisions/2026-09-operation-history-scope.md),
+[Slice 35 route and tool shapes](docs/decisions/2026-09-history-stage-a-deferrals.md)).*
+
+*Amended in Slice 36:* task writes return `{ task, operation }` and reflection writes return
+`{ reflection, operation }`; normalized no-ops carry `operation: null`. Add may own an implicitly
+created container and reverse/replay it with the row and stable ids. `undo_operation` and
+`redo_operation` publish `requiredPermissionsByOperationFamily` and require only the stored
+action family's `projects.write`, `tasks.write` or `reflections.write`. A write-only agent can
+chain from receipts and returned summaries without reading history
+([row history](docs/decisions/2026-09-row-operation-history.md),
+[permission map](docs/decisions/2026-09-operation-family-permissions.md)).*
+
+*Amended in Slice 38:* `set_project_page_enabled` returns `{ page, operation }` — a `page.add`
+receipt when the call created the record, `page.update` when it moved an existing switch, and
+`operation: null` when the page was already where the call asked it to go. Both are reversed through
+`undo_operation` under `projects.write` alone, and the grant map discovery publishes gains a fifth
+family, `page`, for them. The tool's name, input and permission are unchanged.*
+
+*Amended in Slice 39:* `update_project`, `archive_project` and `restore_project` return
+`{ project, operation }` — a `project.archive` receipt when the status entered `archived`,
+`project.reactivate` when it left it, `project.update` otherwise, and `operation: null` when nothing
+changed (archiving an archived project included). All three are reversed through `undo_operation`
+under `projects.write` alone, and the grant map discovery publishes gains a sixth family, `project`.
+Names, inputs and permissions are unchanged
+([why](docs/decisions/2026-09-project-update-operation-history.md)).*
+
+*Amended in Slice 42:* `create_project` now returns `{ project, operation }` with its always-present
+`project.add` receipt. Creation is the first action in the created project's own history; its Undo
+and Redo follow the same project-family grant map. The history tools describe its preflight,
+permanent retirement case and creator-only summary while the project is absent. The registry still
+had thirty-seven tools at this stage ([why](docs/decisions/2026-09-project-creation-history.md)).*
+
+*Amended in Slice 37:* `restore_section` returns `{ section, operation }`, with `operation: null`
+for a repeat on a live section, and `add_section_shortcut` returns `{ shortcut, operation }` while
+`remove_section_shortcut` returns `{ shortcutId, projectId, pageId, operation }` in place of the
+bare placement and `undefined` it answered before. A fourth operation family, `shortcut`, joins the
+family map both history tools publish; it needs `projects.write`, the same grant `section` does,
+and is named separately so a later split is a value change rather than a breaking one. The registry
+held thirty-seven tools at this stage: duplication and shortcut resize, collapse and move remain
+HTTP-and-domain operations with no tool of their own ([why](docs/decisions/2026-09-section-restore-and-shortcut-history.md)).*
 
 *The 25.8 HTTP acceptance exercised the combined Todos, Archive and Journal reads with the declared
 grant matrix, including no-partial-result denials and a read-only connection's write refusal. The
@@ -2475,6 +2928,16 @@ Two corrections the Slice 14 build made to this section:
   parse its input a second time.
 
 See docs/decisions/2026-08-tool-registry-is-transport-free.md.
+
+*Amended in Slice 36:* a third correction. `permission: AgentPermission` is no longer a single
+field. A tool declares **either** a static `permission` **or** `permissionsByFamily: true`, and
+the two are mutually exclusive. `undo_operation` and `redo_operation` take the second shape,
+because the grant a transition needs depends on the family of the action stored in the history —
+`projects.write` for a section, `tasks.write` for a task, `reflections.write` for a reflection —
+and a state-dependent grant cannot be written as a static field without stating something false.
+The one mapping is shared by discovery, the coverage tests and domain enforcement; enforcement
+stays in `OperationHistoryService`, never in the transport
+([decision](docs/decisions/2026-09-operation-family-permissions.md)).
 
 ---
 
@@ -2549,6 +3012,43 @@ agent action
 
 system action
 ```
+
+*Landed in Slices 30–32, extended in Slices 35–36: a history transition records one
+operation-specific event against the project — `project.section_removal_undone`,
+`project.section_addition_undone`, `project.section_move_undone` or
+`project.section_update_undone` for Undo, and the matching `project.section_removal_redone`,
+`project.section_addition_redone`, `project.section_move_redone` or
+`project.section_update_redone` for Redo, with equivalent `task.*` and `reflection.*` transition
+events targeted at the row — attributed like any other write. A retirement executes nothing and
+records no event. The action it ran is stored in its history, never on the event. Activity captures
+the project/root scope and task title or reflection label it displayed, so Undo of a row Add may
+remove the row without erasing the audit entry's identity
+([decision](docs/decisions/2026-09-historical-activity-identity.md)).*
+
+*Extended in Slice 37:* `project.section_restoration_undone` / `_redone` and
+`project.shortcut_addition_undone` / `_redone`, `project.shortcut_update_undone` / `_redone`,
+`project.shortcut_move_undone` / `_redone` and `project.shortcut_removal_undone` / `_redone`. Each
+targets the **destination project**, exactly as the ordinary `project.shortcut_*` events do, so no
+new missing-target case arises and the same projections refresh for a write and for its reversal.*
+
+*Extended in Slice 38:* `project.page_addition_undone` / `_redone` and
+`project.page_update_undone` / `_redone`. Each targets the owning **project**, exactly as the
+ordinary `project.page_enabled` and `project.page_disabled` events do — `ActivityEntityType` gains no
+`page` member, so a removed page does not take its audit history with it — and each successful step
+publishes one event and one root-scoped live frame after commit.*
+
+*Extended in Slice 39:* `project.update_undone` / `_redone`, `project.archive_undone` / `_redone`
+and `project.reactivation_undone` / `_redone`. Each targets the **subject project**, exactly as the
+ordinary `project.updated` and `project.archived` do, and each successful step publishes one event
+and one live frame after commit. A write and its transition both record one event; a refusal records
+none.*
+
+*Extended in Slice 42:* `project.creation_undone` and `project.creation_redone` keep the creation
+audit line readable across project removal and restoration. The Undo event captures the project
+label while its target still resolves. Activity may name an absent project only when its workspace's
+document-order lifecycle ends with `project.creation_undone`; the creator's retained history is a
+separate anchor for the history record. A refusal or permanent retirement records no event
+([decision](docs/decisions/2026-09-project-creation-history.md)).*
 
 ---
 
@@ -2661,6 +3161,8 @@ POST   /api/tasks
 
 PATCH  /api/tasks/:id
 
+DELETE /api/sections/:id
+
 GET    /api/dashboard
 
 GET    /api/search
@@ -2669,6 +3171,56 @@ GET    /api/search
 These do not need to be considered final production routes.
 
 Their main purpose is to exercise the Angular gateway boundary realistically.
+
+*Landed in Slices 30–32: `POST /api/projects/:projectId/sections` answers with a section and
+creation receipt; `PATCH /api/sections/:id` answers with a field-aware update result;
+`POST /api/sections/:id/move` answers with a placement-aware move result; and
+`DELETE /api/sections/:id` answers 200 with the final
+archived-shaped section snapshot and its operation receipt; a disposable section may already be
+absent from storage. *Amended in Slices 35–36:* `GET /api/projects/:id/history` answers the caller's
+own history summary under `projects.read`, and `POST /api/history/:historyId/transition` runs one
+step from a strict `{ actionId, direction, expectedRevision }` body under the stored action family's
+write grant. Task and reflection mutation routes answer strict `{ task|reflection, operation }`
+envelopes rather than bare rows.
+History refusals are 409s whose `details` carry a typed reason — `history_not_next`,
+`history_revision_stale`, `history_expired`, `history_blocked`, `history_conflict`,
+`history_unavailable` or `history_retired` — and the current summary; a stale revision stays a 409,
+another actor's or an unknown history is 404, and a missing write grant is a 403 naming it. The same
+strict inputs and semantics apply over HTTP and MCP. Repeating a removal remains 409 but returns
+`section_already_removed` details with the exact actor's applied, unexpired removal receipt and no
+new write or event. The API still forwards only contracts, never inverse payloads.*
+*Extended in Slice 41:* each summary entry carries its own nullable `blockedBy`
+([why](docs/decisions/2026-09-project-header-history-controls.md)).
+
+*Amended in Slice 37:* `POST /api/sections/:id/duplicate` answers the same `{ section, operation }`
+envelope a create does; `POST /api/sections/:id/restore` answers `{ section, operation }`, with
+`operation: null` for a retry on a live section; `POST /api/projects/:projectId/shortcuts`,
+`PATCH /api/shortcuts/:id` and `POST /api/shortcuts/:id/move` answer `{ shortcut, operation }`,
+the last two with `operation: null` for a no-op; and `DELETE /api/shortcuts/:id` answers **200**
+with `{ shortcutId, projectId, pageId, operation }` rather than 204, because a body-less status
+cannot carry a receipt. Route names and inputs are unchanged, and no route in the API table answers
+204 any more; the router's CORS preflight still does.*
+
+*Amended in Slice 38:* `PATCH /api/projects/:projectId/pages/:kind` answers
+`{ page, operation }` rather than the bare page, with `operation: null` for a toggle that changed
+nothing. The route, its path-wins kind resolution and its statuses are unchanged, and the API still
+forwards only contracts — never a captured page snapshot.*
+
+*Amended in Slice 39:* `PATCH /api/projects/:id` answers `{ project, operation }` rather than the
+bare project, with `operation: null` for a write that changed nothing. `POST /api/projects` still
+answers the bare project. Statuses and inputs are unchanged, and no captured field footprint is ever
+returned.*
+
+*Amended in Slice 42:* `POST /api/projects` answers `{ project, operation }`, where creation always
+records and returns `project.add`. `GET /api/projects/:id/history` remains caller-scoped; at an
+absent id it answers the creator's retained summary only, while other actors receive not-found.
+The host does not return the captured inverse payload
+([decision](docs/decisions/2026-09-project-creation-history.md)).*
+
+*Landed in Slice 44.* `GET /api/archived-projects` forwards the workspace-scoped domain result
+under `projects.read`. A project is restored through the existing `PATCH /api/projects/:id` with
+an explicit non-archived status; the route rechecks current ancestry and refuses a blocker
+without a partial write.
 
 ---
 
@@ -2711,6 +3263,51 @@ The frontend then refreshes relevant state.
 
 Do not build full real-time synchronization infrastructure.
 
+*Slices 30–32 and 35–36: each successful section, task or reflection write, Undo and Redo publishes
+only its one activity frame after commit, and nothing on rollback or retirement. A deleted disposable removal emits `project.section_removed`;
+a retained removal emits `project.section_archived`; add, move and update use the corresponding
+section-added, section-moved and section-updated actions. Row transitions publish `task.*` or
+`reflection.*` frames targeted at the row; compound Add frames also cause open browser surfaces to
+re-resolve implicit container existence. No frame carries history payload data,
+and any normalized no-op or repeated-removal refusal emits no frame.*
+
+*Extended in Slice 37:* a duplication, an Archive Restore and each shortcut placement write publish
+one frame apiece, and so does each of their transitions. Placement frames target the **destination
+project**, which is what makes an open Home canvas — in this tab and in another — re-read both its
+combined order and its shortcuts' source identity after a transition it did not make itself.*
+
+*Extended in Slice 38:* each optional-page toggle that changes something, and each of its Undo
+and Redo steps, publishes one frame targeted at the page's **root project**; a no-op toggle
+publishes none. An open project context re-reads its pages, so a tab removed or disabled by a
+transition leaves the navigation and a viewer of it falls back to Home, while a recreated or
+re-enabled tab reappears without forcing navigation.*
+
+*Extended in Slice 39:* an existing-project write and each of its Undo and Redo steps publish one
+frame targeted at the subject project, whose `rootProjectId` is the root it is under **after** the
+step. A cross-root move therefore names only one of the two roots it touched, so an open root's
+Todos, Archive, Reflections and work tree re-read on any project-record frame in the workspace — a
+project's update or archive, or the Undo or Redo of one — while content frames from other roots still
+leave them alone, and the Archive list stays on screen while it re-reads. No second frame is
+published.*
+
+*Extended in Slice 41:* the header's history store re-reads its summary — coalesced, one read in
+flight and one queued — on a frame naming the displayed project, on any project-record frame (an
+ancestor's archive changes a step's blocker), on `prototype.reloaded` and on reconnect. Content after
+a header Undo or Redo is reconciled by the transition's own frame, which every open surface already
+re-reads on; the header holds no rows.
+
+*Extended in Slice 42:* creation Undo and Redo each publish `project.creation_undone` or
+`project.creation_redone` with one frame addressed to the root the project belonged to before the
+step. Creation lifecycle frames are not project-record events; root work trees refresh from their
+`rootProjectId`, including the former root after a subproject is removed. Refusals and retirement
+publish no frame. A dropped frame is repaired by the current route's history summary and one
+project-context reload ([decision](docs/decisions/2026-09-project-creation-history.md)).*
+
+*Extended in Slice 44:* the Settings archived-project list refreshes on project-record frames
+throughout the workspace, as do open root projections and the shell tree. It reads the current
+projection again after a Restore or refusal, so a moved or newly blocked subproject is shown
+according to its current ancestry.
+
 ---
 
 # 63. Optimistic UI
@@ -2740,6 +3337,62 @@ show error
 ```
 
 The development panel's failure injection should test these flows.
+
+Settings recovery keeps a selected non-archived status and disables repeat Restore while its
+write is pending. A successful project write remains acknowledged even if the following list read
+fails; Retry repeats only the read. A concurrent archive blocker refuses the write and refreshes
+the list without claiming a Restore.
+
+For section removal, the canvas reports success only after it receives the server receipt. It
+reports the receipt to the header's history before refreshing so a failed refresh cannot hide the
+committed mutation; **Retry refresh** repeats only the read. If a remove response is uncertain, **Retry remove** is an explicit
+repeat of the exact original action; it is never triggered by a live refresh. Navigation and
+generation guards prevent stale receipts or responses from affecting another canvas
+([decision](docs/decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+
+The same receipt-before-refresh rule applies to section add, move and update.
+
+*Landed in Slice 41.* **Pending covers the whole write, including the summary read it owes.** Each
+browser writer marks its request in flight and reports the committed receipt; the header's controls
+stay unavailable from that moment until a summary read **requested after** the report has landed at
+the receipt's revision or later — without that, the window between the response and the re-read
+would offer the pre-write step. A write that fails at the transport level or with a 5xx may still
+have committed, so it also owes a read. A transition sends the held entry's action and the held
+revision, one at a time; its result's summary, or a refusal's, replaces the held one, and a transport
+failure re-reads rather than guessing. A slow read of an older revision never rolls the controls back
+([why](docs/decisions/2026-09-project-header-history-controls.md)).
+
+*Landed in Slice 37.* Placement writes carry receipts through the gateway, and the canvas unwraps
+them where it already inserted, replaced or optimistically resized a placement: generation guards,
+pending-write counting, the complete-combined-order guard, resize rollback and the read-only refresh
+retry are all unchanged. Archive Restore still reports success when the write committed and only the
+follow-up projection read failed. *Since Slice 41* these receipts are reported to the header's
+history like every other, and the canvas notice offers no Undo.
+
+*Landed in Slice 38.* The optional-page toggle answers a receipt, and the page manager deliberately
+ignores it: §26's confirmed page is still painted only after the write and a fresh context read both
+settle, and the write/read separation, the project and generation guards and the read-only retry are
+unchanged. A page action or transition frame is an ordinary project frame, so it reaches project
+context and page resolution with no new case — undoing the enable that created the displayed page, or
+disabling it, returns to Home with the existing explanation and, because there is no record left to
+switch on, without the re-enable offer, while enabling or recreating one restores its tab and forces
+no navigation. *Since Slice 41* the toggle reports its receipt to the header's history, which is
+where its Undo lives.
+
+*Landed in Slice 39.* Project writes answer a receipt, and every browser caller — the header's
+rename, status, date and archive, Todos completion, the progress setting and the layout controls —
+reads the confirmed `project` from it and ignores the receipt. Their optimistic paint, rollback,
+write guards and error messages are unchanged, and a committed response is never re-sent. *Since
+Slice 41* every one of them reports its receipt to the header's history, and a header archive applies
+the returned record and stays on the page.
+
+*Landed in Slice 42.* Project creation callers unwrap the same `{ project, operation }` envelope and
+report the receipt with the returned project's id and name. A missing-project read sets explicit
+route state; when the actor's summary offers Redo of `project.add`, the shell keeps the URL and shows
+the creation recovery controls. The route reloads project context once per history revision when a
+creation transition response lands without its live frame, without reloading the summary that proved
+which transition completed. A cold recovery URL does not retry itself, and ordinary not-found
+routes remain unavailable ([decision](docs/decisions/2026-09-project-creation-history.md)).
 
 ---
 
@@ -2949,6 +3602,11 @@ settings
 MCP / agent connections
 
 
+/settings/archived-projects
+
+workspace-scoped recovery of archived roots and ready subprojects
+
+
 /prototype/design
 
 design lab
@@ -2973,6 +3631,13 @@ destroys the component.*
 optional route carries its exact kind to an **Enable …** action, and navigation waits for persisted
 state plus fresh page context. The manager is root-scoped and remains visible from descendant work
 routes; `/pages/work` and subproject page requests carry no enable action.*
+
+*Slice 42 makes creation Undo recoverable at the original `/projects/:projectId` URL. When the
+creator's history says its project is absent and Redo is the next `project.add`, the workspace
+shows a recovery state with the normal Undo/Redo controls and captured project label. That
+creator's history summary may name the absent project; another actor still receives not-found.
+Landing an Undo or Redo live update causes the workspace context to reload once for that history
+revision, so a root tree reflects restored descendants without a page reload.*
 
 ---
 
@@ -3005,7 +3670,7 @@ permission checks
 Test important reusable interactions:
 
 ```text
-TaskRow completion
+TaskRow completion and Delete
 
 ProjectSection collapse
 
@@ -3069,11 +3734,46 @@ open browser aggregate
 → missing-grant, read-only and foreign-root calls are refused without partial results
 ```
 
+*Slice 42 adds a creation-history journey: create a root in the sidebar, Undo it, reload at its
+same URL into creator-only recovery, Redo the same project and Home page ids, then create a child
+from its Sub-Projects section and repeat Undo, cross-owner not-found and recovery. The parent tree
+receives the child's committed Undo/Redo frames. Domain and HTTP/MCP checks also refuse Undo when
+the project gained content, children, references, changed fields or another actor's history, with
+no partial mutation; a retired creation remains absent after reload and history expiry.*
+
+*Slice 44 adds a parent-first recovery journey:* verify exact Archive IDs before and after each
+owner Restore, restore an archived root and then an independently archived subproject from
+Settings with chosen statuses, and repeat while the optional Archive page is disabled. Domain,
+route, gateway and MCP tests pin ready-only projections, workspace isolation, read/write grants
+and race refusals; browser checks cover retry, focus, narrow layout and both themes.
+
+*Slice 45 closed Slice 34's Undo/Redo and Archive direction the same way:* every coverage-matrix row
+has a named domain assertion plus browser or MCP evidence. The additions are a task Delete over
+live and independently archived descendants, and Undo of a task Restore. Canonical Restore refused
+under an archived owner, parent or ancestor leaves business rows, history, Activity, disk bytes and
+live frames unchanged, over HTTP and the MCP tool registry at the host's commit boundary, and over
+both transports for a row under an archived container. Recorder and persist faults are injected at
+that shared boundary, not inside a transport. Both transports cover the task chain, reflection and
+layout/progress history, and a two-transition race. Over Streamable HTTP, whose host has a
+simulated clock, Archive Restore still works after a removal's history expires. The pass found
+two defects. The header Undo was unreachable at 375 px, and §26's narrow header now wraps. Stdio
+MCP let two concurrent transitions at one revision both land, and it now runs one call at a time.
+
 The web and MCP journeys are kept isolated from the offline `pnpm test` suite and use their own
 data file. Focused aggregate journeys remain separate so the integrated pass can prove composition
 without duplicating every fixture. Slice 25.8 ran the integrated browser/MCP checks and the
 workbench states against the nested showcase; the remaining product questions are about sustained
 use, not whether these paths can be exercised.
+
+*Slice 33 closed the Archive, removal and Undo refactor the same way.* Each Refactor §26
+criterion is traced to a named assertion at the lowest layer that can observe it — domain
+preconditions and pruning, commit-before-publish against the bytes on disk, converter and reopen
+over temp copies of the committed fixtures — and then joined through the browser (nested pointer
+move and resize Undo, an injected client failure with retry, an agent's overlapping edit, Archive
+Restore appending where Undo returns between neighbours) and both MCP transports (retired reassign
+inputs refused without writes, independent task update Undo/Redo, exact row ids through cascade, a foreign connection, a removed `projects.write` grant and a revoked
+connection, each refused without changing the file's business data). The shared seeds and their
+snapshots did not change.
 
 ---
 

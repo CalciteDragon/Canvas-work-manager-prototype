@@ -1,5 +1,11 @@
 # How the domain works
 
+[`restoreEligibility`](../../api/miscellaneous/variables.html#restoreEligibility) checks archived
+ancestors and owner containers for the two projections. [`ArchivedProjectsService`](../../api/classes/ArchivedProjectsService.html)
+requires `projects.read`, queries the actor's workspace and returns archived roots or children
+whose ancestors are live. `ProjectArchiveService` applies content recovery and structural readiness
+before returning a root's archived items. Each canonical Restore validates again during its write.
+
 ## Runtime flow
 
 1. A caller — a host route, an MCP tool, or a test — constructs an `ActorContext`
@@ -12,8 +18,32 @@
    `LivePublication` to the `LiveEventPublisher` — held by the store until commit.
 4. On commit the store validates the whole document and persists it; on any throw the
    provisional state is discarded and the caller sees one of the three errors.
-5. Derived read services skip step 3's writes: they read the repositories, scope by the
+5. A supported section, task, reflection, Home shortcut, optional-page or project write applies its normalized change, records one typed
+   action through `OperationRecorder.record`, and returns a receipt from the same unit; automatic
+   container resolution joins the row action instead of recording a separate section action. The recorder finds or creates the actor's history
+   for the subject's project, appends the action (discarding the redo branch), prunes by expiry and
+   the 50-action cap, and returns the receipt at the new revision. Removal archives each live owned
+   row with `archivedWithSectionId`, leaves independently archived rows unchanged, bumps
+   `archiveGeneration` and decides whether recovery or an integrity reference requires
+   retention; Archive Restore renumbers the combined order before capturing its appended placement,
+   so a hand-edited sparse page still appends, and leaves `archiveGeneration` alone. A move — of a
+   section or of a placement — compares the combined index before writing, so a clamped no-op
+   normalizes nothing and records nothing. Receipts never carry payload data. `OperationHistoryService.transition` later runs one
+   step in one unit of its own: find the caller's history (not found otherwise), compare the
+   stored action family grant before disclosing revision or conflicts, select the next action in that direction, check expiry and archived ancestors (for a project archive's Undo, a reactivation's Redo or an archived-throughout edit, ancestors only — the subject's own status is exempt), run the
+   family's revert or reapply function (conflicts collected before any write), flip the action's
+   state, move the cursor, record one `*_undone` or `*_redone` event. A permanent conflict instead
+   commits only a retirement and refuses after the unit resolves. A repeated removal can read back
+   only the exact actor's applied, unexpired removal through `outstandingRemovalFor`, without
+   writing.
+6. Derived read services skip step 3's writes: they read the repositories, scope by the
    actor's visible projects, drop everything under an archived ancestor, and compute.
+
+`SectionService.update` passes its normalized changed fields and before/after section to
+`sectionUpdateLabel` when it records the action. A lone title, Rich Text prose, collapse or width
+change gets a specific stored label; combined and other config changes keep general wording.
+History summaries reuse the stored label through either transition and after reload. The separate
+Activity summary still uses its existing verb.
 
 ## Key symbols
 
@@ -29,8 +59,16 @@
 | `PermissionDeniedError` | class | A missing grant | [API](../../api/classes/PermissionDeniedError.html) |
 | `ActivityService` | class | Records events and publishes live frames | [API](../../api/classes/ActivityService.html) |
 | `ProjectService` | class | Project rules | [API](../../api/classes/ProjectService.html) |
-| `ProjectPageService` | class | Page listing and optional-page toggles | [API](../../api/classes/ProjectPageService.html) |
-| `SectionService` | class | Section lifecycle and container resolution | [API](../../api/classes/SectionService.html) |
+| `ProjectPageService` | class | Page listing and optional-page toggles, each changed toggle recorded in the owning root's history | [API](../../api/classes/ProjectPageService.html) |
+| `SectionService` | class | Section lifecycle and container resolution; explicit add/update/move and removal return typed Undo results | [API](../../api/classes/SectionService.html) |
+| `OperationRecorder` | interface | Records one history action and recovers a still-outstanding removal receipt inside the caller's unit | [API](../../api/interfaces/OperationRecorder.html) |
+| `RepositoryOperationRecorder` | class | Finds or creates the actor's history, appends, discards the redo branch, prunes, returns the receipt | [API](../../api/classes/RepositoryOperationRecorder.html) |
+| `shortcutWriteLabel`, `projectWriteLabel` | functions | History labels that name the source section and the project edit (Slice 41) | [API](../../api/miscellaneous/variables.html#shortcutWriteLabel) |
+| `sectionUpdateLabel` | function | Captures an update's history wording from its normalized field footprint | [API](../../api/miscellaneous/variables.html#sectionUpdateLabel) |
+| `OperationHistoryService` | class | The caller's summary under `projects.read`; one transition under its stored family’s write grant | [API](../../api/classes/OperationHistoryService.html) |
+| `captureTaskAdd`, `revertTaskAdd`, `reapplyTaskAdd` | functions | Representative task capture and both-direction row executors; update/archive/restore follow the same seam | [API](../../api/miscellaneous/variables.html#captureTaskAdd) |
+| `captureReflectionAdd`, `revertReflectionAdd`, `reapplyReflectionAdd` | functions | Representative reflection capture and both-direction row executors | [API](../../api/miscellaneous/variables.html#captureReflectionAdd) |
+| `nextOperationAction`, `recordOperationAction`, `transitionOperationHistory`, `retireOperationAction`, `pruneOperationHistory` | functions | The pure cursor state machine | [API](../../api/miscellaneous/variables.html#nextOperationAction) |
 | `SectionShortcutService` | class | Home shortcut placements | [API](../../api/classes/SectionShortcutService.html) |
 | `TaskService` | class | Task lifecycle | [API](../../api/classes/TaskService.html) |
 | `ReflectionService` | class | Reflection lifecycle | [API](../../api/classes/ReflectionService.html) |
@@ -40,7 +78,9 @@
 | `TimelineService` | class | §38's derived ranges | [API](../../api/classes/TimelineService.html) |
 | `WorkspaceService` | class | Search and upcoming work under one grant | [API](../../api/classes/WorkspaceService.html) |
 | `ProjectTodosService` | class | Root-wide chronology | [API](../../api/classes/ProjectTodosService.html) |
-| `ProjectArchiveService` | class | Root-wide archive projection | [API](../../api/classes/ProjectArchiveService.html) |
+| `ProjectArchiveService` | class | Root-wide archive projection; section entries filtered and annotated by the internal pure `sectionRecoveryOf` | [API](../../api/classes/ProjectArchiveService.html) |
+| `ArchivedProjectsService` | class | Workspace-scoped ready project recovery under `projects.read` | [API](../../api/classes/ArchivedProjectsService.html) |
+| `restoreEligibility` | function | Shared structural readiness for Archive and workspace recovery reads | [API](../../api/miscellaneous/variables.html#restoreEligibility) |
 | `ProjectJournalService` | class | Root-wide reflection feed and completed-work picker | [API](../../api/classes/ProjectJournalService.html) |
 | `AIProvider` | interface | §42's two methods | [API](../../api/interfaces/AIProvider.html) |
 | `PrototypeAIProvider` | class | §43's deterministic composer | [API](../../api/classes/PrototypeAIProvider.html) |
@@ -75,9 +115,94 @@
   `additionalPermissions`, which is what proves a grant sufficient, not only necessary.
 - **The service graph is acyclic**: `TaskService` and `ReflectionService` compose
   `SectionService` for container resolution; writing services compose `ActivityService`
-  for event recording. A new edge is an AGENTS.md boundary change and needs saying so.
+  for event recording; the section, shortcut, task, reflection, page and project services record supported
+  writes through an `OperationRecorder` (an interface over two repositories that never opens a unit).
+  `OperationHistoryService` composes only `ActivityService` — no section, shortcut, task, reflection
+  or page service — and shares the payloads with those writes through function modules
+  (`operation-execution.ts`, `owned-rows.ts`, `section-removal-undo.ts`, `section-edit-undo.ts`,
+  `section-restore-history.ts`, `shortcut-history.ts`, `page-history.ts`, `project-history.ts`, `task-history.ts`,
+  `reflection-history.ts`, `page-placements.ts`, `project-visibility.ts`).
+  `SectionShortcutService`, `ProjectPageService` and `ProjectService` hold an
+  `OperationRecorder` for the same reason `SectionService` does, and `shortcut-history.ts`,
+  `page-history.ts` and `project-history.ts` each declare their own narrower repository type — no task
+  or reflection repository, and for an existing-project inverse only the project repository written.
+  `ProjectAddHistoryRepositories` extends that narrow read shape for `project.add` preflight with
+  task, reflection, milestone and history reads; the creation executor removes only the project and
+  canonical page. A page's dependency preflight stops at the **section** level for that reason: §27's
+  ownership chain runs `project → page → section → row`, so a page with no section has no row. A new edge is an AGENTS.md boundary
+  change and needs saying so.
+- **Neither direction overwrites a later write.** Each executor compares the state the *other*
+  direction left: a removal's section archive state, page and `archiveGeneration`, each recorded
+  row's section, parent and archive markers, and unrecorded dependents; an update's recorded fields
+  (`after` for Undo, `before` for Redo); a move's surviving recorded neighbours, never its index; an
+  add's substance and references; a Restore's archived marker, generation and recorded rows, plus
+  any live row Undo would hide or newly marked row Redo would absorb; a placement's page, source and
+  substantive fields, with a source **content** edit deliberately not a conflict. A task update
+  also checks its row's current section and, when it differs, the recorded target section: an
+  archived one is `archived-subject` with restore guidance, listed once after the row's own
+  conflicts, current first. A missing or archived target is listed alongside a structural conflict
+  rather than hidden by it
+  ([decision](../../decisions/2026-09-task-history-under-archived-sections.md)). Entering `done`
+  on an archived task adds a task conflict after field and structural conflicts, before sections;
+  a section-cascaded row gets only the section conflict, while an independently archived row may
+  need both Restores ([decision](../../decisions/2026-09-archived-task-completion-history.md)).
+  Ordinary subtask reparent checks an inherited destination section before its page, including
+  when both rows are archived ([decision](../../decisions/2026-09-task-reparent-archived-section.md)). Any difference
+  refuses with `history_conflict` before a write,
+  and untouched fields and disjoint edits survive. Only the next action is ever executable, so a
+  caller's own later change is `history_not_next`, not a conflict. Redo replays captured values
+  verbatim and stamps only `updatedAt`. The permanently unsatisfiable conflicts retire the action
+  ([decision](../../decisions/2026-09-operation-history-retired-actions.md)). Every refusal message
+  starts with its reason token (`history_conflict: …`), because MCP carries message text only.
+  The shared conflict formatter appends words from each typed `nextStep` and suppresses retry advice
+  for a retiring list ([decision](../../decisions/2026-09-mcp-history-conflict-guidance.md)).
+- **A project step is reversed under today's tree.** `project-history.ts` compares every recorded
+  field against the value the other direction left (a parent mismatch reads `reparented`), then
+  re-runs `ProjectService.update`'s rules for the resulting change: a destination parent in the
+  workspace, not beneath the subject and with no archived ancestry (`archive-state-changed` names the
+  archived one); no live child when the direction archives (`new-dependent`); no manual formula
+  without its value; and, for a move to another root, no old-root Home shortcut placing a section in
+  the subject's subtree (`shortcut-reference`) — commit-time integrity would reject it otherwise.
+  `ProjectHistoryRepositories` therefore also reads pages, sections and placements, and writes only
+  projects. That last check is one exported function, `shortcutsCarriedAcrossRoots`, which
+  `ProjectService.update` runs too: after the parent is known usable and before `commit` (afterwards
+  both roots read the same and it would pass), a forward move refuses with a `DomainRuleError` naming
+  each placement to remove, so the host answers 409 rather than a 500 from integrity. `ProjectService`
+  reads `SectionRepository` and `SectionShortcutRepository` for it — repositories, not a new service
+  edge ([decision](../../decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md)). `completedAt` is written back verbatim. The archived-subject exception lives
+  only in `OperationHistoryService.transitionBlocker` and only for the three steps
+  `mayRunWhileSubjectArchived` names, and only for the project the history belongs to
+  ([decision](../../decisions/2026-09-project-update-operation-history.md)).
+- **Creation has a distinct absence lifecycle.** `project.add` captures the project and canonical
+  page. Before Undo records Activity, its read-only preflight checks exact state, every project
+  dependency and permanent other-actor histories; then one unit records `project.creation_undone`
+  and removes both records. Redo restores the same ids and `createdAt` values, with `updatedAt`
+  stamped at the new write time. Only the creator can read the summary while
+  the project is absent; its Activity and history anchors are validated independently by the
+  repository ([decision](../../decisions/2026-09-project-creation-history.md)).
+- **A removal refusal does not disclose a deleted id.** For a missing section, `SectionService`
+  consults `outstandingRemovalFor` only after `projects.write` and workspace visibility checks,
+  and only across the exact actor's own histories; it returns a receipt only when that actor's
+  newest action for the section is an applied, unexpired removal whose generation is still the
+  section's.
+- **A history's order is its cursor and orders, never a timestamp.** Timestamps can repeat or go
+  backwards under the settable clock, and ids are random; `revision` advances on every committed
+  history mutation and never on pruning
+  ([decision](../../decisions/2026-09-operation-history-retention.md)).
 - **Every state change records exactly one event** through `ActivityService.record`; a
-  no-op write records nothing and therefore announces nothing.
+  no-op write records nothing and therefore announces nothing. The service captures and validates
+  target label and owning project/root before a row can be removed, then resolves current names
+  when the target remains and captured names when it does not.
+- **New section removals cascade live rows; stored history preserves its old executor.**
+  `SectionService.remove` has no policy or target input: it archives only live owned rows with
+  the section, and preserves independently archived rows and their markers. Ordinary task moves
+  use `TaskService.update` and have their own receipts. `section-removal-undo.ts` retains the
+  reassign branch solely for schema-v5 actions already stored with that policy. After settlement,
+  `sectionRecoveryOf` decides whether
+  content must remain recoverable. Canonical task/reflection references and Home shortcut sources
+  independently prevent deletion. New disposable sections with no such reference are deleted;
+  historical tombstones are never purged. Archive projects retained content only and never
+  decides deletion eligibility by itself.
 - **Section and shortcut creation positions** are optional zero-based indexes in the page's
   combined placement order. Each service resolves and validates its target (and, for a shortcut,
   its source) before insertion, clamps a position past the end, inserts and calls
@@ -85,7 +210,9 @@
   Without a position it appends. Refused writes leave sibling positions untouched.
 - **Renumbering is not editing.** `renumberPlacements` changes `updatedAt` only on the
   placement a move names as its subject; siblings shifted by an insert, move or removal keep
-  the `updatedAt` of their last real edit.
+  the `updatedAt` of their last real edit. Undo's restore uses the same rule: only the restored
+  section's `updatedAt` moves. Its index comes from `resolveRestoreIndex` — after the surviving
+  previous neighbour, else before the next, else the clamped original index.
 - **Reads drop archived ancestry the same way** — through `archivedAncestry` — and each
   query walks its own chain (a shared memo was wrong on cycles).
 

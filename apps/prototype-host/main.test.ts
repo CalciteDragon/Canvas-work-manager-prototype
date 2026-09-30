@@ -1,15 +1,25 @@
+import { existsSync } from 'node:fs';
+import { mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { connect, type AddressInfo } from 'node:net';
 import { request as httpRequest } from 'node:http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SCHEMA_VERSION } from '@cwm/contracts';
 import { DomainRuleError } from '@cwm/domain';
-import { DEFAULT_PORT, configuredPort, start, stop } from './main.ts';
+import { DEFAULT_PORT, configuredPort, releaseOnExit, shutdownHost, start, stop } from './main.ts';
 import { createMcpNodeHandler } from './mcp/handler.ts';
 import { healthRoutes, type RawRouteTable, type RouteTable } from './router.ts';
 import { LiveEventHub } from './events/hub.ts';
 import { createEventStreamHandler } from './events/sse.ts';
-import { InMemoryDataStore } from '@cwm/repositories';
-import { buildSeed } from '@cwm/prototype-data';
+import {
+  acquireDataFileOwnership,
+  InMemoryDataStore,
+  JsonDataStore,
+  unitOfWorkFor,
+  type FileOperations,
+} from '@cwm/repositories';
+import { buildSeed, writeSeedFile } from '@cwm/prototype-data';
 
 const started: Array<Awaited<ReturnType<typeof start>>> = [];
 
@@ -305,5 +315,78 @@ describe('§62 — GET /prototype/events over a real socket', () => {
     // in-flight request, and a stream is a request that never finishes on its own.
     await expect(stop(server)).resolves.toBeUndefined();
     await expect(reader.read().then(({ done }) => done).catch(() => true)).resolves.toBe(true);
+  });
+});
+
+describe('host shutdown and data-file ownership (Slice 54)', () => {
+  const directories: string[] = [];
+  afterEach(async () => {
+    await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
+  });
+
+  const scratch = async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-host-shutdown-'));
+    directories.push(directory);
+    const path = join(directory, 'data.json');
+    await writeSeedFile('agent-heavy', { targetPath: path });
+    return path;
+  };
+
+  it('drains an in-flight write before releasing, and the drain itself writes nothing', async () => {
+    const path = await scratch();
+    const handle = await acquireDataFileOwnership(path, { kind: 'http-host' });
+    let openGate!: () => void;
+    const gate = new Promise<void>((resolve) => { openGate = resolve; });
+    let renames = 0;
+    let writes = 0;
+    let ownerPresentWhenCommitted: boolean | undefined;
+    const fileOperations: FileOperations = {
+      readFile,
+      writeFile: async (target, data, encoding) => {
+        writes += 1;
+        await writeFile(target, data, encoding);
+      },
+      rename: async (from, to) => {
+        renames += 1;
+        if (renames === 1) await gate;
+        await rename(from, to);
+        ownerPresentWhenCommitted = existsSync(handle.ownerPath);
+      },
+    };
+    const store = await JsonDataStore.load(path, fileOperations);
+    const unitOfWork = unitOfWorkFor(store);
+    const renamed = { ...buildSeed('agent-heavy'), workspaces: buildSeed('agent-heavy').workspaces.map((workspace) => ({ ...workspace, name: 'Drained' })) };
+    const write = unitOfWork.run(() => store.replaceActiveDocument(renamed));
+    const server = await start(0);
+    const ownership = { handle, drained: false };
+
+    const shutdown = shutdownHost({ server, mcp: { close: async () => undefined }, unitOfWork, ownership });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(existsSync(handle.ownerPath)).toBe(true);
+    expect(ownership.drained).toBe(false);
+    openGate();
+    await shutdown;
+    await write;
+
+    expect(ownerPresentWhenCommitted).toBe(true);
+    const committed = JSON.parse(await readFile(path, 'utf8')) as { workspaces: Array<{ name: string }> };
+    expect(committed.workspaces.map(({ name }) => name)).toEqual(renamed.workspaces.map(() => 'Drained'));
+    expect(existsSync(handle.ownerPath)).toBe(false);
+    expect(ownership.drained).toBe(true);
+    expect({ writes, renames }).toEqual({ writes: 1, renames: 1 });
+  });
+
+  it('releases on exit only once the drain has completed', async () => {
+    const path = await scratch();
+    const handle = await acquireDataFileOwnership(path, { kind: 'http-host' });
+    const ownership = { handle, drained: false };
+
+    releaseOnExit(ownership);
+    expect(existsSync(handle.ownerPath)).toBe(true);
+
+    ownership.drained = true;
+    releaseOnExit(ownership);
+    expect(existsSync(handle.ownerPath)).toBe(false);
   });
 });

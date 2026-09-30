@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 import type { ProjectLayoutMode, SectionColumnSpan } from '@cwm/contracts';
 import { snapColumnSpan, stepColumnSpan } from './column-span';
-import { CanvasIcon } from './canvas-icon';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /** Canvas geometry needed to translate pointer travel into a supported column span. */
 export interface ResizeMeasurement {
@@ -20,7 +20,7 @@ export interface ResizeMeasurement {
 @Component({
   selector: 'app-section-resize-handle',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CanvasIcon],
+  imports: [Icon],
   template: `
     <div
       data-resize-handle
@@ -41,7 +41,7 @@ export interface ResizeMeasurement {
       (keydown)="keyDown($event)"
       (blur)="commitKeyboardPreview()"
     >
-      <app-canvas-icon name="resize" />
+      <app-icon name="resize" />
     </div>
   `,
   styleUrl: './section-resize-handle.scss',

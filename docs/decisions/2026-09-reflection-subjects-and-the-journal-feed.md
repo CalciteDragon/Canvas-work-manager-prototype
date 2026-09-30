@@ -62,3 +62,11 @@ feed density, neutral marker and picker wording after one realistic showcase pas
 After a multiweek pass with several journal entries, or sooner if using a realistic root tree shows
 that the origin breadcrumbs, current-state labels or single-container composer make a reflection
 hard to find or understand.
+
+**Amended, 2026-09-18 — Slice 36.** Ordinary assignment and editing keep the eligibility rule
+above. History restoration is different: Undo or Redo restores the captured subject link by
+workspace-scoped identity alone, without requiring the subject to still be completed, live,
+visible or in the same root tree, and without the disclosure branch used for a new assignment.
+That is restoration of a previously legal historical association, not a new choice. A truly
+missing or foreign-workspace subject remains a conflict and nothing is written
+([decision](2026-09-row-operation-history.md)).

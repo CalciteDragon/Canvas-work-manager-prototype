@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import type { SectionColumnSpan } from '@cwm/contracts';
-import { CanvasIcon } from './canvas-icon';
+import { Icon } from '../../../shared/components/icon/icon';
 
 /** The insertion affordance's stable meaning, independent of its current canvas index. */
 export type InsertionPointKind = 'before' | 'end' | 'gap';
@@ -16,7 +16,7 @@ export interface InsertionIntent {
 @Component({
   selector: 'app-insertion-point',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CanvasIcon],
+  imports: [Icon],
   template: `
     <button
       type="button"
@@ -24,7 +24,7 @@ export interface InsertionIntent {
       [attr.aria-label]="label()"
       (click)="select()"
     >
-      <app-canvas-icon name="plus" />
+      <app-icon name="plus" />
     </button>
   `,
   styleUrl: './insertion-point.scss',

@@ -42,11 +42,15 @@ The domain applies it as part of creation.
 workspace and a unit of work differ by what the parser enforces rather than by what each
 call site remembers ([decision](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md)).
 
-**Ownership is a map in contracts, not a registry entry in the web app.** Which section
-types own rows is needed by the domain (cascade on removal) and by the UI (registry
-`kind`), so `SECTION_OWNERSHIP` sits below both
-([decision](../../decisions/2026-09-sections-own-their-data.md)). The cost, recorded
-there: adding a *container* type touches two files.
+**Section capabilities are one map in contracts, not a registry entry in the web app.**
+Which section types own rows is needed by the domain (cascade on removal) and by the UI
+(registry `kind`), and what removing a type could leave worth recovering is needed by the
+Archive projection, so `SECTION_CAPABILITIES` sits below all of them and `SECTION_OWNERSHIP`
+is derived from it ([ownership](../../decisions/2026-09-sections-own-their-data.md),
+[recovery](../../decisions/2026-09-content-oriented-archive-policy.md)). The cost: every
+registered type declares a capability, which `registry.spec.ts` enforces. An undeclared type
+is *unknown*, never disposable. The capability is a declaration, not a verdict — the domain
+combines it with the content that actually remains.
 
 **Section names are derived, with an optional stored override.** `nameOf` over the
 `type` string plus a one-entry display-name table; `title` is optional
@@ -55,14 +59,73 @@ there: adding a *container* type touches two files.
 **Section config is an opaque object replaced whole.** Only the section's own folder
 parses it ([decision](../../decisions/2026-08-section-config-ownership.md)).
 
+**Edit Undo records a field footprint, not a whole snapshot.** Title, config, collapse and span
+are the only explicit settings fields; config is still one structural replacement. A move stores
+combined neighbours, and an add stores only the created section needed for a safe non-cascading
+delete, plus the placement Redo returns it to. The public receipt exposes only ids, the operation
+and the history's revision, so transport clients cannot steer an inverse
+([decision](../../decisions/2026-09-section-edit-undo-boundaries.md)).
+
+**A history's cursor is an order value, and every shape a client sees is snapshot-free.** The cursor
+cannot dangle when an action is pruned, the summary is strict all the way down, and a refusal
+always carries the current summary so a stale caller reconciles without a second read
+([scope](../../decisions/2026-09-operation-history-scope.md),
+[retention](../../decisions/2026-09-operation-history-retention.md)).
+
+**Task and reflection history uses typed footprints and transport-light result modules.** Row
+creates capture their complete entity and any implicit container; updates capture only changed
+fields and structural effects; archive and restore capture their exact affected rows. Public write
+envelopes and history cursor shapes are kept in `row-write-result.ts` and
+`operation-history-public.ts`, apart from executable payloads, so a browser type import does not
+drag the inverse graph into its bundle
+([decision](../../decisions/2026-09-row-operation-history.md)).
+
+**A Restore payload is an exact footprint, and a shortcut payload holds no source.** `section.restore`
+captures the markers, generation, old position and committed placement of one Restore plus only the
+rows it revived, so an inverse can never recompute a cascade and absorb someone else's work. Each of the four
+shortcut payloads names the **destination** project, which is both where the action belongs and what
+`operationProjectOf` has to answer without a repository read; add and remove also capture the whole
+placement record their inverses must recreate, while update and move name it by id. Nothing of the
+source appears in any of them, so a source edit is not a placement conflict. `shortcut-write-result.ts` keeps the
+transport envelopes out of that module for the same reason `row-write-result.ts` does
+([decision](../../decisions/2026-09-section-restore-and-shortcut-history.md)).
+
+**An optional-page payload is confined to the three kinds a toggle can name.** `page.add` captures
+the created record whole because its Redo recreates the same id and `createdAt`; `page.update` carries
+two distinct booleans, so a payload cannot describe a toggle that changed nothing. Home and a work
+canvas are refused by both, because `validateDocumentIntegrity` requires them and no service can
+create or disable one — a payload that could name one would describe an inverse that leaves the
+document invalid. `page-write-result.ts` keeps the transport envelope out of that module for the same
+reason `shortcut-write-result.ts` does
+([decision](../../decisions/2026-09-optional-page-operation-history.md)).
+
+**An existing project's payload is its changed fields, owned by the subject.** One service commit
+writes every project field, so one shape covers update, archive and reactivation; the `type` only
+records which way the status crossed the archive boundary, because the label and the history
+executor's archived-subject exception depend on it. `projectId` is the subject and never its root, so
+a reparent that changes the root never moves the action between histories. A payload records only
+what moved — a no-op records nothing — and records `status` and `completedAt` independently:
+the service derives the time from the status but its own normalization does not always move them
+together, and a payload rule that assumed it did threw inside ordinary writes.
+`archivedThroughout` is the single fact the footprint cannot otherwise carry: the status did not
+change, so it is not recorded, yet it decides whether the step may run while the project is archived
+([decision](../../decisions/2026-09-project-update-operation-history.md)).
+
+**Activity owns historical display identity.** A task or reflection Add can be undone safely
+without keeping a canonical tombstone: its earlier events retain a validated target label and
+owning project/root context, but no executable inverse
+([decision](../../decisions/2026-09-historical-activity-identity.md)).
+
 **`ActivityAction` is an open `entity.verb` string**, not an enum: §57 names no action
 list and every slice adds verbs. `LiveEvent.type` reuses it so a frame is the
 announcement of the activity record that was just written, not a parallel type.
 
 **Versioning without a migration runner.** `SCHEMA_VERSION` went 1 → 2 (rows name their
 section) with a reset, and 2 → 3 (kinds and pages) with one bounded converter because a
-real file was by then worth keeping. A chain of converters was rejected as a framework
-for a chain of one (§14, §71).
+real file was by then worth keeping. Version 4 introduced operation histories; version 5 requires
+captured Activity identity. Three bounded, named steps are chained by the CLI without becoming a
+general migration framework
+([decision](../../decisions/2026-09-schema-version-5-conversion.md)).
 
 ## Consequences
 
@@ -75,6 +138,8 @@ for a chain of one (§14, §71).
 
 ## Decisions that shape this system
 
+- [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — parsed read results distinguish current structural readiness from meaningful section content.
+
 - [Persona contract fields](../../decisions/2026-08-persona-contract-fields.md)
 - [Project statuses, milestone statuses, task priorities](../../decisions/2026-08-status-and-priority-value-sets.md)
 - [A date-only task due date is stored at UTC end-of-day](../../decisions/2026-08-task-date-only-due-time.md)
@@ -86,9 +151,38 @@ for a chain of one (§14, §71).
 - [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md) — one combined index space for sections and shortcuts
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md) — accepted contextual insertion
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — `kind`, `ProjectPage`, schema v3
+- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `undo.ts` removal payload (records became history actions in Slice 35)
+- [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — `operation-history.ts`
+- [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md) — cursor, revision and state shapes
+- [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md) — `ProjectSection.archiveGeneration`, `retired`, the conflict vocabulary
+- [Schema version 4 converted explicitly and froze the v3 → v4 step](../../decisions/2026-09-schema-version-4-conversion.md) — retained as the intermediate step before v5
+- [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md) — typed row payloads and `{ task|reflection, operation }` results
+- [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — required captured context
+- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the frozen v4 intermediate and final validating step
+- [Undo and Redo advertise their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md) — the shared static/family declaration
+- [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — compatible removal disposition, exact-owner repeat receipt, typed repair steps
+- [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `section-restore-history.ts`, `shortcut-history.ts`, `shortcut-write-result.ts` and the fourth operation family
+- [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `page-history.ts`, `page-write-result.ts`, the `page` conflict entity kind and the fifth operation family
+- [An existing project's writes are one action family](../../decisions/2026-09-project-update-operation-history.md) — `project-history.ts`, `project-write-result.ts`, the `project` conflict entity kind and the sixth operation family
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — `project.add`, its canonical page and absence anchors
+- [The project header offers Undo and Redo of the displayed project's history](../../decisions/2026-09-project-header-history-controls.md) — each summary entry carries its own `blockedBy`
 
 ## Spec sections
 
 §11 shared contracts · §14 local storage and the document · §25 widget model · §26–§27
 pages and ownership · §33 task model · §35 milestones · §36 reflections · §52 agent
 connections · §57 activity events · §62 the live frame.
+
+**Archive section entries carry recovery metadata, optionally.** `ProjectArchiveSectionItem.recovery`
+is a discriminated union (`owned-content` with a positive `contentCount` and a `separateRestoreCount` no larger than it, `config`, `unknown`),
+beside the unchanged exact `cascadeCount`. Optional so older fixtures parse; the domain emits it
+on every section entry. Stored sections and `SCHEMA_VERSION` are untouched
+([decision](../../decisions/2026-09-content-oriented-archive-policy.md)).
+
+**A removal result can describe a deleted section.** `SectionRemovalResult.section` is the final archived-shaped operation result, not a guarantee that the row remains stored. The removal payload records the disposition so Undo recreates only a section that this operation deleted, and Redo deletes it again.
+
+**A removal also states whether Archive will list it.** `SectionRemovalResult.archiveListed` is the domain's own `sectionRecoveryOf` verdict, required on every result. It is deliberately not `disposition`: a section kept only because a shortcut or an archived row still names it is retained *and* absent from Archive, so a surface offering an Archive route on the disposition sends someone to a page with no entry for their section ([decision](../../decisions/2026-09-recovery-routes-name-what-is-actually-there.md)).
+
+**New removal requests do not choose a row policy.** A strict empty input prevents callers from silently sending retired fields; the stored version-1 union keeps its policy field only to execute already-recorded reassign actions ([decision](../../decisions/2026-09-one-step-section-removal-and-task-delete.md)).
+
+**A conflict only ever describes a change outside the caller's history.** Under a cursor the caller's own later change is reached by undoing it first (`history_not_next`), so Slice 35 removed the `superseded` problem, `supersededBy` and the "use the later receipt" steps; a changed value someone else wrote gets `change-by-hand` or `change-by-hand-or-archive`, and a permanently unsatisfiable action retires ([decision](../../decisions/2026-09-operation-history-retired-actions.md)).

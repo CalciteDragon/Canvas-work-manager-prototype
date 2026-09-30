@@ -10,10 +10,11 @@ flowchart LR
     reg["ToolRegistry<br/>list() · get(name) · call(name, input, context)"]
   end
   subgraph defs["src/tools/"]
-    projects["projects.ts — 6"]
+    projects["projects.ts — 7"]
     tasks["tasks.ts — 7"]
     reflections["reflections.ts — 4"]
-    sections["sections.ts — 5"]
+    sections["sections.ts — 6"]
+    undo["undo.ts — 1"]
     shortcuts["shortcuts.ts — 3"]
     workspace["workspace.ts — 3"]
     pages["project-pages.ts — 5"]
@@ -29,20 +30,28 @@ flowchart LR
 Each file in `src/tools/` exports the definitions for one entity group; the registry
 concatenates them in `SPEC_TOOL_NAMES` order and exposes `list`, `get` and `call`.
 
-## The thirty-three tools
+## The thirty-eight tools
 
 | Group | Tools | Grant(s) |
 |---|---|---|
-| Projects | `list_projects`, `get_project`, `create_project`, `update_project`, `archive_project`, `restore_project` | `projects.read` / `projects.write` |
+| Projects | `list_projects`, `list_archived_projects`, `get_project`, `create_project` (`{ project, operation }`), `update_project`, `archive_project`, `restore_project` | `projects.read` / `projects.write`; the archived-project list is read-only |
 | Tasks | `list_tasks`, `get_task`, `create_task`, `update_task`, `complete_task`, `archive_task`, `restore_task` | `tasks.read` / `tasks.write` |
 | Reflections | `list_reflections`, `add_reflection`, `archive_reflection`, `restore_reflection` | `reflections.read` / `reflections.write` |
-| Sections | `list_sections`, `create_section`, `update_section`, `remove_section`, `restore_section` | `projects.read` / `projects.write` |
+| Sections | `list_sections`, `create_section`, `move_section`, `update_section`, `remove_section` (ID-only cascade), `restore_section` | `projects.read` / `projects.write` |
+| History | `get_operation_history` — the connection's own next Undo and Redo in a project | `projects.read` |
+| | `undo_operation`, `redo_operation` — run the next action of the connection's history in that direction | stored family: `projects.write`, `tasks.write` or `reflections.write` |
 | Shortcuts | `list_section_shortcuts`, `add_section_shortcut`, `remove_section_shortcut` | `projects.read` / `projects.write` |
 | Workspace | `search_workspace`, `get_upcoming_work`, `get_dashboard_context` | `workspace.read` |
-| Pages | `list_project_pages`, `set_project_page_enabled`, `get_project_todos`, `get_project_archive`, `get_project_journal` | `projects.*`; the three derived pages add `tasks.read` and, for Archive and journal, `reflections.read` |
+| Pages | `list_project_pages`, `set_project_page_enabled`, `get_project_todos`, `get_project_archive`, `get_project_journal` | `projects.*`; the toggle answers `{ page, operation }` with a `null` receipt for a no-op; the three derived pages add `tasks.read` and, for Archive and journal, `reflections.read` |
 
 The registry's order is the order `tools/list` returns; §54 names the shortcut tools
 without ordering them, so their position is the slice's choice.
+
+`create_project` records `project.add` in the created project's history. Its Undo removes only an
+unchanged project and canonical page with no dependents; its Redo recreates both with the same ids.
+The tool count is thirty-eight. `list_archived_projects` returns the current workspace's
+archived roots and subprojects with live ancestors; restoring one still calls the existing
+`restore_project` tool with an explicit non-archived status.
 
 ## A call
 

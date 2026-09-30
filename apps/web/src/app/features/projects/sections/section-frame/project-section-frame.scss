@@ -128,6 +128,11 @@
   color: var(--color-danger) !important;
 }
 
+.section-frame__remove[aria-disabled='true'] {
+  cursor: progress;
+  opacity: 0.65;
+}
+
 .section-frame__inspector {
   min-width: 0;
   padding: var(--space-3);

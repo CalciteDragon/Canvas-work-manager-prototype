@@ -331,7 +331,7 @@ describe('ProjectTodosService.derive — scope (§31, §34)', () => {
     await scenario(harness);
     const service = todosServiceFor(harness);
 
-    await harness.sectionService.remove(harness.actor, 'section-mine-a' as SectionId, { policy: 'cascade' });
+    await harness.sectionService.remove(harness.actor, 'section-mine-a' as SectionId);
 
     const sequence = sequenceOf(await service.derive(harness.actor, MINE));
     expect(positionOf(sequence, 'task-a-early')).toBe(-1);
@@ -423,6 +423,7 @@ describe('ProjectTodosService.derive — permission and addressing (§53, §54)'
         find: (id) => harness.tasks.find(id),
         insert: (task) => harness.tasks.insert(task),
         update: (task) => harness.tasks.update(task),
+        remove: (id) => harness.tasks.remove(id),
         list: (query) => {
           taskReads += 1;
           return harness.tasks.list(query);

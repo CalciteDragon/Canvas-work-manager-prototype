@@ -52,3 +52,15 @@ A real client can only speak stdio *and* someone needs the UI open beside it. Th
 honest answer then is not a watcher but a proxy: a stdio entry point that forwards to the
 running HTTP host instead of opening its own store — one process still owns the data, and
 the hub keeps working unchanged.
+
+---
+
+## Amendment — 2026-09-29, Slice 54: the underlying limitation is enforced
+
+The limitation this entry built on — two processes with independently cached documents losing
+each other's writes — is now enforced rather than only described.
+[One writer per data file](2026-09-one-writer-per-data-file.md) refuses a stdio call with
+`data_file_in_use:` while the host owns the file. Stdio beside an open UI therefore produces
+an actionable refusal instead of a silent lost update and a browser that does not update. The
+decision here is unchanged: live updates are HTTP-only, and HTTP MCP is the route for an agent
+working beside the UI.

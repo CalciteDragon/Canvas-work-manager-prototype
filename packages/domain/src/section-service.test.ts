@@ -1,9 +1,11 @@
-import { ProjectSectionSchema, type ProjectId, type SectionId } from '@cwm/contracts';
+import { ActivityEventShape, LiveEventSchema, ProjectSectionSchema, type OperationReceipt, type ProjectId, type SectionId } from '@cwm/contracts';
 import { SEED_NOW } from '@cwm/prototype-data';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it } from 'vitest';
 import { agentActorFor, buildHarness, MINE, seedContainer, THEIRS } from '../test/test-support';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
+import type { LivePublication } from './live-events';
+import { ProjectArchiveService } from './project-archive-service';
 
 const NOW = '2026-08-24T16:00:00.000Z';
 
@@ -189,7 +191,7 @@ describe('SectionService and Home shortcut ordering (§27)', () => {
 
   it('does not renumber sections when a positioned add is refused for a disabled page', async () => {
     const harness = buildHarness();
-    const page = await harness.projectPageService.setEnabled(harness.actor, MINE, {
+    const { page } = await harness.projectPageService.setEnabled(harness.actor, MINE, {
       kind: 'reflections',
       enabled: true,
     });
@@ -274,6 +276,38 @@ describe('SectionService and Home shortcut ordering (§27)', () => {
 });
 
 describe('SectionService.update', () => {
+  it('stores one matching receipt, action and summary per changed update, retaining labels through Undo and Redo', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'rich-text', { title: 'Notes', config: { text: 'Before' } });
+    const cases = [
+      [{ title: 'Draft' }, 'Renamed the Notes section to Draft'],
+      [{ title: null }, 'Renamed the Draft section to Rich Text'],
+      [{ config: { text: 'After' } }, 'Edited prose in the Rich Text section'],
+      [{ collapsed: true }, 'Collapsed the Rich Text section'],
+      [{ collapsed: false }, 'Expanded the Rich Text section'],
+      [{ columnSpan: 8 }, 'Resized the Rich Text section to 8 columns'],
+      [{ title: 'Plan', collapsed: true }, 'Updated the Rich Text section'],
+      [{ config: { text: 'More', tone: 'loud' } }, 'Updated the Plan section'],
+    ] as const;
+
+    let latest: OperationReceipt | null = null;
+
+    for (const [input, label] of cases) {
+      const before = await harness.operationHistoryService.summary(harness.actor, MINE);
+      const result = await harness.sectionWriteService.update(harness.actor, section.id, input);
+      const summary = await harness.operationHistoryService.summary(harness.actor, MINE);
+      expect(result.operation).toMatchObject({ label, revision: before.revision + 1 });
+      expect(summary).toMatchObject({ revision: before.revision + 1, undo: { label, actionId: result.operation?.actionId } });
+      expect((await harness.operationActions.find(result.operation!.actionId))?.label).toBe(label);
+      latest = result.operation;
+    }
+
+    if (latest === null) throw new Error('expected a section update receipt');
+    await harness.undo(harness.actor, latest);
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).redo?.label).toBe('Updated the Plan section');
+    await harness.redo(harness.actor, latest);
+    expect((await harness.operationHistoryService.summary(harness.actor, MINE)).undo?.label).toBe('Updated the Plan section');
+  });
   it('changes title, columnSpan, collapsed and config independently', async () => {
     const harness = buildHarness();
     const section = await add(harness, 'rich-text', { title: 'Notes', config: { text: 'one' } });
@@ -338,6 +372,28 @@ describe('SectionService.move', () => {
 });
 
 describe('SectionService.duplicate', () => {
+  it('records the copy as one add whose Undo removes only the copy and whose Redo recreates it with the same id and place (Slice 45)', async () => {
+    const harness = buildHarness();
+    const [first] = await withThree(harness);
+    await harness.sectionService.update(harness.actor, first.id, { config: { text: 'original' } });
+    const original = await positions(harness);
+    const actions = harness.store.snapshot().operationActions.length;
+    const copy = await harness.sectionWriteService.duplicate(harness.actor, first.id);
+    expect(copy.operation).toMatchObject({ operation: 'section.add' });
+    expect(harness.store.snapshot().operationActions).toHaveLength(actions + 1);
+    const placed = await positions(harness);
+
+    expect(await harness.undo(harness.actor, copy.operation)).toMatchObject({ outcome: 'removed' });
+    expect(await harness.sections.find(copy.section.id)).toBeNull();
+    expect(await positions(harness)).toEqual(original);
+    expect((await harness.sectionService.get(harness.actor, first.id)).config).toEqual({ text: 'original' });
+    await harness.redo(harness.actor, copy.operation);
+    expect(await harness.sectionService.get(harness.actor, copy.section.id)).toMatchObject({
+      id: copy.section.id, createdAt: copy.section.createdAt, position: 1, config: { text: 'original' },
+    });
+    expect(await positions(harness)).toEqual(placed);
+  });
+
   it('copies a section directly below the original, with a new id and a detached config', async () => {
     const harness = buildHarness();
     const [first] = await withThree(harness);
@@ -360,16 +416,17 @@ describe('SectionService.duplicate', () => {
 });
 
 describe('SectionService.remove', () => {
-  it('archives the section, closes the position gap, and returns the archived record', async () => {
+  it('deletes a disposable section, closes the position gap, and returns its removal snapshot', async () => {
     const harness = buildHarness();
     const [, second] = await withThree(harness);
 
-    const archived = await harness.sectionService.remove(harness.actor, second.id);
+    const { section: archived } = await harness.sectionService.remove(harness.actor, second.id);
 
-    // Nothing is deleted, so `get` — which resolves through the unchecked lookup restore
-    // depends on — still answers, and `list` is what stops it reaching the canvas.
+    // The response describes the completed removal, while canonical storage has no disposable
+    // tombstone left behind.
     expect(archived.archivedAt).toBe(SEED_NOW);
-    expect((await harness.sectionService.get(harness.actor, second.id)).archivedAt).toBe(SEED_NOW);
+    expect(await harness.sections.find(second.id)).toBeNull();
+    await expect(harness.sectionService.get(harness.actor, second.id)).rejects.toBeInstanceOf(EntityNotFoundError);
     expect(await positions(harness)).toEqual([
       ['rich-text', 0],
       ['progress', 1],
@@ -395,20 +452,110 @@ describe('SectionService.remove', () => {
     expect(restored.archivedAt).toBeUndefined();
   });
 
-  it('refuses to remove a section that is already archived', async () => {
-    // Reachable: `get` and the root Archive projection both hand out archived ids, so the API and
-    // `remove_section` can be pointed at one. Permanent deletion is what this case wants.
+  it('returns the exact outstanding receipt when the same actor repeats a retained removal', async () => {
     const harness = buildHarness();
-    const section = await add(harness);
-    await harness.sectionService.remove(harness.actor, section.id);
+    const section = await add(harness, 'rich-text', { config: { text: 'Keep me' } });
+    const { operation } = await harness.sectionService.remove(harness.actor, section.id);
+    const before = harness.store.snapshot();
 
     const refusal = await harness.sectionService
       .remove(harness.actor, section.id)
       .then(() => null, (error: unknown) => error);
     expect(refusal).toBeInstanceOf(DomainRuleError);
-    expect((refusal as DomainRuleError).message).toContain(section.id);
-    // No second discriminator: the canvas surfaces this as an ordinary error, not a dialog.
+    expect((refusal as DomainRuleError).message).toMatch(/^section_already_removed: /);
+    expect((refusal as DomainRuleError).message).toContain(operation.historyId);
+    expect((refusal as DomainRuleError).message).toContain(operation.actionId);
+    expect((refusal as DomainRuleError).message).toContain(operation.expiresAt);
+    expect((refusal as DomainRuleError).details).toEqual({ reason: 'section_already_removed', sectionId: 'section-1', operation });
+    expect(harness.store.snapshot()).toEqual(before);
+  });
+
+  it('directs an archived section to Archive after its receipt expires', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'rich-text', { config: { text: 'Keep me' } });
+    const { operation } = await harness.sectionService.remove(harness.actor, section.id);
+    harness.clock.setNow(new Date(operation.expiresAt));
+    const before = harness.store.snapshot();
+
+    const refusal = await harness.sectionService
+      .remove(harness.actor, section.id)
+      .then(() => null, (error: unknown) => error);
+
+    expect(refusal).toBeInstanceOf(DomainRuleError);
+    expect((refusal as DomainRuleError).message).toBe(
+      `section "${section.id}" is already archived; restore it from Archive before removing it again`,
+    );
+    expect(harness.store.snapshot()).toEqual(before);
+  });
+
+  it('recovers an outstanding receipt after a hard-deleted section and writes nothing', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'progress');
+    const { operation } = await harness.sectionService.remove(harness.actor, section.id);
+    expect(await harness.sections.find(section.id)).toBeNull();
+    const before = harness.store.snapshot();
+
+    const refusal = await harness.sectionService
+      .remove(harness.actor, section.id)
+      .then(() => null, (error: unknown) => error);
+
+    expect(refusal).toBeInstanceOf(DomainRuleError);
+    expect((refusal as DomainRuleError).details).toEqual({ reason: 'section_already_removed', sectionId: 'section-1', operation });
+    expect(harness.store.snapshot()).toEqual(before);
+  });
+
+  it('does not recover a removal receipt once the same actor has undone it', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'rich-text', { config: { text: 'Keep me' } });
+    const { operation } = await harness.sectionService.remove(harness.actor, section.id);
+    await harness.undo(harness.actor, operation);
+    await harness.sectionService.remove(agentActorFor(0, ['projects.write']), section.id);
+
+    // The section is archived again, by someone else: this actor's removal is not the one that committed.
+    const refusal = await harness.sectionService.remove(harness.actor, section.id).then(() => null, (error: unknown) => error);
+    expect((refusal as DomainRuleError).message).toMatch(/already archived; restore it from Archive/);
+  });
+
+  it('a later update does not make a repeated removal recover an update receipt', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'rich-text', { config: { text: 'Keep me' } });
+    const removed = await harness.sectionService.remove(harness.actor, section.id);
+    await harness.sectionService.restoreSection(harness.actor, section.id);
+    await harness.sectionWriteService.update(harness.actor, section.id, { title: 'Edited' });
+    await harness.sectionService.remove(agentActorFor(0, ['projects.write']), section.id);
+
+    // This actor's newest action for the section is an update, and the section's generation moved past
+    // their removal: neither is the removal that already committed.
+    const refusal = await harness.sectionService.remove(harness.actor, section.id).then(() => null, (error: unknown) => error);
     expect((refusal as DomainRuleError).details).toBeUndefined();
+    expect(removed.operation.operation).toBe('section.remove');
+  });
+
+  it('does not reveal a hard-deleted section receipt to another workspace', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'progress');
+    await harness.sectionService.remove(harness.actor, section.id);
+
+    await expect(harness.sectionService.remove(harness.other, section.id)).rejects.toBeInstanceOf(EntityNotFoundError);
+  });
+
+  it('retains a disposable shortcut source tombstone and the placement still resolves', async () => {
+    const { harness, shortcut } = await withShortcut();
+    const source = (await harness.sections.find(shortcut.sourceSectionId))!;
+    expect(source.type).toBe('rich-text');
+
+    const { operation } = await harness.sectionService.remove(harness.actor, source.id);
+
+    expect(await harness.sections.find(source.id)).toMatchObject({ id: source.id, archivedAt: SEED_NOW });
+    expect(await harness.shortcuts.find(shortcut.id)).toMatchObject({ sourceSectionId: source.id });
+    expect(harness.store.snapshot().operationActions.at(-1)?.operation).toMatchObject({ disposition: 'retained' });
+    const archive = await new ProjectArchiveService(harness).derive(harness.actor, MINE);
+    expect(archive.items.some((item) => item.kind === 'section' && item.section.id === source.id)).toBe(false);
+
+    await harness.undo(harness.actor, operation);
+    expect(await harness.sectionShortcutService.list(harness.actor, MINE, { pageId: `page-${MINE}` as never })).toMatchObject([
+      expect.objectContaining({ sourceSectionId: source.id, availability: 'available' }),
+    ]);
   });
 
   it('removes a section without orphaning its activity events', async () => {
@@ -426,22 +573,24 @@ describe('SectionService.remove', () => {
     expect(harness.store.snapshot().activityEvents).not.toHaveLength(0);
   });
 
-  it('refuses a non-empty container with a typed reason and a live-only count', async () => {
+  it('cascades live rows on one call and leaves independently archived rows untouched', async () => {
     const harness = buildHarness();
     const live = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Ship it' });
     const archived = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Done with' });
     await harness.taskService.archive(harness.actor, archived.id);
 
-    const refusal = await harness.sectionService
-      .remove(harness.actor, live.sectionId)
-      .then(() => null, (error: unknown) => error);
+    const removed = await harness.sectionService.remove(harness.actor, live.sectionId);
 
-    // The count travels as data rather than inside a sentence, so the canvas can compose its
-    // own question — and it counts what is *live*, since an archived row is already unrendered.
-    expect(refusal).toBeInstanceOf(DomainRuleError);
-    expect((refusal as DomainRuleError).details).toEqual({ reason: 'section_not_empty', liveRowCount: 1 });
-    // The sentence stays, for MCP and `curl` callers with no UI to compose one.
-    expect((refusal as DomainRuleError).message).toContain('holds 1 tasks');
+    expect(removed.section.archivedAt).toBe(SEED_NOW);
+    expect(await harness.tasks.find(live.id)).toMatchObject({
+      archivedAt: SEED_NOW,
+      archivedWithSectionId: live.sectionId,
+    });
+    expect(await harness.tasks.find(archived.id)).toMatchObject({
+      archivedAt: SEED_NOW,
+      sectionId: live.sectionId,
+    });
+    expect(await harness.tasks.find(archived.id)).not.toHaveProperty('archivedWithSectionId');
   });
 
   it('archives a container holding only already-archived rows, with no policy', async () => {
@@ -451,7 +600,7 @@ describe('SectionService.remove', () => {
     const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Done with' });
     await harness.taskService.archive(harness.actor, task.id);
 
-    const archived = await harness.sectionService.remove(harness.actor, task.sectionId);
+    const { section: archived } = await harness.sectionService.remove(harness.actor, task.sectionId);
 
     expect(archived.archivedAt).toBe(SEED_NOW);
     // The row keeps a section, and it carries no marker — it was not archived *with* this.
@@ -465,7 +614,7 @@ describe('SectionService.remove', () => {
 describe('section activity (§57)', () => {
   it('records one event per mutation, against the owning project', async () => {
     const harness = buildHarness();
-    const section = await add(harness, 'rich-text', { title: 'Notes' });
+    const section = await add(harness, 'rich-text', { title: 'Notes', config: { text: 'Keep this prose' } });
     await add(harness, 'task-list');
     await harness.sectionService.update(harness.actor, section.id, { collapsed: true });
     // A real move: with a sibling present, position 1 is somewhere the section is not.
@@ -500,6 +649,7 @@ describe('section activity (§57)', () => {
     // (docs/decisions/2026-08-activity-summary-ownership.md), so this changes no pixel.
     const harness = buildHarness();
     const section = await add(harness, 'task-list');
+    await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: section.id, title: 'Keep this section' });
 
     await harness.sectionService.remove(harness.actor, section.id);
     await harness.sectionService.restoreSection(harness.actor, section.id);
@@ -513,6 +663,7 @@ describe('section activity (§57)', () => {
   it('names archive and restore by the section own title, frozen at write time', async () => {
     const harness = buildHarness();
     const backlog = await add(harness, 'task-list', { title: 'Backlog' });
+    await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: backlog.id, title: 'Keep backlog' });
 
     await harness.sectionService.remove(harness.actor, backlog.id);
     await harness.sectionService.restoreSection(harness.actor, backlog.id);
@@ -529,6 +680,7 @@ describe('section activity (§57)', () => {
     // names phase can hold `"   "`. The activity line must still say what the canvas says.
     const harness = buildHarness();
     const sectionId = await seedContainer(harness, MINE);
+    await harness.taskService.create(harness.actor, { projectId: MINE, sectionId, title: 'Keep this container' });
     const stored = await harness.sectionService.get(harness.actor, sectionId);
     await harness.sections.update({ ...stored, title: '   ' });
 
@@ -618,6 +770,8 @@ describe('SectionService reads are live-only', () => {
   it('defaults to the live canvas and returns both states only when asked', async () => {
     const harness = buildHarness();
     const [first, second, third] = await withThree(harness);
+    const task = await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: second.id, title: 'Filed row' });
+    await harness.taskService.archive(harness.actor, task.id);
     await harness.sectionService.remove(harness.actor, second.id);
 
     // The whole list, spelled out: an assertion built from the result it is checking would
@@ -662,6 +816,8 @@ describe('SectionService reads are live-only', () => {
     const harness = buildHarness();
     const list = await add(harness, 'task-list');
     const keep = await add(harness, 'task-list');
+    const filed = await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: list.id, title: 'Archived container row' });
+    await harness.taskService.archive(harness.actor, filed.id);
     const task = await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: keep.id, title: 'Live' });
     await harness.sectionService.remove(harness.actor, list.id);
 
@@ -698,6 +854,7 @@ describe('SectionService.restoreSection', () => {
   it('appends at the end of the canvas and renumbers nothing else', async () => {
     const harness = buildHarness();
     const [first, second, third] = await withThree(harness);
+    await harness.sectionService.update(harness.actor, first.id, { config: { text: 'Keep this section' } });
     await harness.sectionService.remove(harness.actor, first.id);
 
     // Archiving closed the gap the same way deleting used to.
@@ -716,6 +873,29 @@ describe('SectionService.restoreSection', () => {
       third.id,
       first.id,
     ]);
+  });
+
+  it('appends after a shortcut placed while it was archived, and a retry changes nothing', async () => {
+    const { harness, shortcut } = await withShortcut();
+    const own = await harness.sectionService.add(harness.actor, MINE, {
+      type: 'rich-text', pageId: shortcut.pageId, config: { text: 'Keep this section' },
+    });
+    await harness.sectionService.remove(harness.actor, own.id);
+    // Interposed while the section was away: the combined order now ends at the shortcut.
+    const later = await harness.sectionShortcutService.create(harness.actor, MINE, {
+      pageId: shortcut.pageId,
+      sourceSectionId: (await harness.shortcuts.find(shortcut.id))!.sourceSectionId,
+    });
+
+    const restored = await harness.sectionService.restoreSection(harness.actor, own.id);
+    const events = harness.store.snapshot().activityEvents.length;
+    harness.clock.setNow(new Date('2026-09-30T00:00:00.000Z'));
+    const retried = await harness.sectionService.restoreSection(harness.actor, own.id);
+
+    expect((await harness.shortcuts.find(later.id))?.position).toBe(1);
+    expect(restored.position).toBe(2);
+    expect(retried).toEqual(restored);
+    expect(harness.store.snapshot().activityEvents).toHaveLength(events);
   });
 
   it('is a no-op on a live section, preserving position, timestamps and history', async () => {
@@ -750,13 +930,17 @@ describe('SectionService.restoreSection', () => {
     // stop them tidying one. It is escapable — reactivating the project lifts it.
     const harness = buildHarness();
     const section = await add(harness, 'task-list');
+    await harness.taskService.create(harness.actor, { projectId: MINE, sectionId: section.id, title: 'Keep archived container' });
     const second = await add(harness, 'rich-text');
     await harness.sectionService.remove(harness.actor, section.id);
     await harness.projectService.archive(harness.actor, MINE);
+    const before = harness.store.snapshot();
 
     await expect(harness.sectionService.restoreSection(harness.actor, section.id)).rejects.toBeInstanceOf(
       DomainRuleError,
     );
+    // Canonical refusal: no section, row, history step or Activity event (Slice 45).
+    expect(harness.store.snapshot()).toEqual(before);
     await expect(harness.sectionService.add(harness.actor, MINE, { type: 'task-list' })).rejects.toBeInstanceOf(
       DomainRuleError,
     );
@@ -765,7 +949,7 @@ describe('SectionService.restoreSection', () => {
     );
     await expect(harness.sectionService.duplicate(harness.actor, second.id)).rejects.toBeInstanceOf(DomainRuleError);
     // Tidying is still allowed.
-    await expect(harness.sectionService.remove(harness.actor, second.id)).resolves.toMatchObject({ id: second.id });
+    await expect(harness.sectionService.remove(harness.actor, second.id)).resolves.toMatchObject({ section: { id: second.id } });
 
     await harness.projectService.update(harness.actor, MINE, { status: 'active' });
     expect((await harness.sectionService.restoreSection(harness.actor, section.id)).archivedAt).toBeUndefined();
@@ -862,5 +1046,207 @@ describe('SectionService page ownership', () => {
 
     const container = await harness.sectionService.get(harness.actor, task.sectionId);
     expect(container.pageId).toBe((await canonicalPageOf(harness, MINE)).id);
+  });
+});
+
+/**
+ * Slice 30, reshaped by Slice 35: a removal returns one operation receipt, recorded in the same unit of work as the
+ * canonical writes — docs/decisions/2026-09-section-removal-undo-records.md.
+ */
+describe('SectionService.remove — operation receipt', () => {
+  /** Every collection a removal can write, for "nothing changed" assertions. */
+  const writable = (harness: Harness) => {
+    const { sections, tasks, reflections, activityEvents, operationHistories, operationActions, sectionShortcuts } = harness.store.snapshot();
+    return { sections, tasks, reflections, activityEvents, operationHistories, operationActions, sectionShortcuts };
+  };
+
+  /** A task list holding a parent with two subtasks and one row archived on its own beforehand. */
+  const listWithSubtree = async (harness: Harness) => {
+    const parent = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Parent' });
+    const first = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'One', parentTaskId: parent.id });
+    const second = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Two', parentTaskId: parent.id });
+    const filed = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Filed' });
+    await harness.taskService.archive(harness.actor, filed.id);
+    return { listId: parent.sectionId, parent, first, second, filed };
+  };
+
+  it('writes return an OperationReceipt: one receipt, one action and one activity event for a multirow cascade', async () => {
+    const harness = buildHarness();
+    const { listId, parent, first, second } = await listWithSubtree(harness);
+    const eventsBefore = harness.store.snapshot().activityEvents.length;
+
+    const result = await harness.sectionService.remove(harness.actor, listId);
+
+    expect(result.section).toMatchObject({ id: listId, archivedAt: SEED_NOW });
+    // The five task writes of the arrangement each record an action of their own since Slice 36, so
+    // this removal is the sixth in one mixed history rather than the first. What the receipt must
+    // still be is *this* action at the history's revision after recording it.
+    expect(result.operation).toEqual({
+      historyId: 'history-1',
+      actionId: 'operation-6',
+      operation: 'section.remove',
+      revision: 6,
+      label: 'Removed the Task List section',
+      createdAt: SEED_NOW,
+      expiresAt: '2026-08-25T16:00:00.000Z',
+    });
+    expect(result.operation).not.toHaveProperty('sequence');
+    const sectionActions = harness.store
+      .snapshot()
+      .operationActions.filter((action) => action.operation.type.startsWith('section.'));
+    expect(sectionActions).toHaveLength(1);
+    const events = harness.store.snapshot().activityEvents.slice(eventsBefore);
+    expect(events.map(({ action }) => action)).toEqual(['project.section_archived']);
+    // The three live rows, not the one filed away beforehand.
+    const operation = sectionActions[0]!.operation;
+    if (operation.type !== 'section.remove') throw new Error('expected a section removal record');
+    expect(operation.rows.map(({ id }) => id)).toEqual([parent.id, first.id, second.id]);
+  });
+
+  it.each([
+    ['an empty container', 'task-list'],
+    ['a view', 'progress'],
+  ])('records no settled rows for %s', async (_, type) => {
+    const harness = buildHarness();
+    const section = await add(harness, type);
+
+    await harness.sectionService.remove(harness.actor, section.id);
+
+    const operation = harness.store.snapshot().operationActions.at(-1)!.operation;
+    if (operation.type !== 'section.remove') throw new Error('expected a section removal record');
+    expect(operation).toMatchObject({ appliedPolicy: 'none', rows: [] });
+    expect(operation).not.toHaveProperty('reassignToSectionId');
+  });
+
+  it('returns a receipt for a removal inside an archived project, which Undo blocks until reactivation', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'rich-text', { config: { text: 'Kept' } });
+    await harness.projectService.update(agentActorFor(0, ['projects.write']), MINE, { status: 'archived' });
+
+    const { operation } = await harness.sectionService.remove(harness.actor, section.id);
+
+    const refusal = await harness.undo(harness.actor, operation).then(() => null, (error: unknown) => error);
+    expect((refusal as DomainRuleError).message).toMatch(/^history_blocked: /);
+    expect((refusal as DomainRuleError).details).toMatchObject({
+      reason: 'history_blocked', historyId: operation.historyId, actionId: operation.actionId,
+      blockingProjectId: MINE, blockingProjectTitle: 'Project project-mine',
+    });
+
+    await harness.projectService.update(agentActorFor(0, ['projects.write']), MINE, { status: 'active' });
+    await expect(harness.undo(harness.actor, operation)).resolves.toMatchObject({ outcome: 'restored' });
+  });
+
+  const refusals: Array<[string, (harness: Harness) => Promise<() => Promise<unknown>>]> = [
+    [
+      'an already archived section',
+      async (harness) => {
+        const section = await add(harness);
+        await harness.sectionService.remove(harness.actor, section.id);
+        return () => harness.sectionService.remove(harness.actor, section.id);
+      },
+    ],
+    [
+      'a foreign section',
+      async (harness) => {
+        const theirs = await harness.sectionService.add(harness.other, THEIRS, { type: 'rich-text' });
+        return () => harness.sectionService.remove(harness.actor, theirs.id);
+      },
+    ],
+  ];
+
+  it.each(refusals)('refuses %s and creates no record, event or receipt', async (_, arrange) => {
+    const harness = buildHarness();
+    const act = await arrange(harness);
+    const before = writable(harness);
+
+    await expect(act()).rejects.toThrow();
+
+    expect(writable(harness)).toEqual(before);
+  });
+
+  describe('rolls back every write when recording or committing fails', () => {
+    const arrange = async (harness: Harness) => {
+      const { listId } = await listWithSubtree(harness);
+      return { listId, before: writable(harness), persistCalls: harness.store.persistCalls };
+    };
+
+    /**
+     * The stub misbehaves for **section** operations only. Since Slice 36 the arrangement's task
+     * writes record actions of their own, and a recorder that failed on those would fail the setup
+     * rather than the removal under test.
+     */
+    it('when the recorder throws', async () => {
+      const harness = buildHarness(undefined, {
+        recorder: (real) => ({
+          record: (actor, entry) =>
+            entry.operation.type.startsWith('section.')
+              ? Promise.reject(new Error('recorder unavailable'))
+              : real.record(actor, entry),
+          outstandingRemovalFor: (actor, sectionId, section) => real.outstandingRemovalFor(actor, sectionId, section),
+        }),
+      });
+      const { listId, before, persistCalls } = await arrange(harness);
+
+      await expect(harness.sectionService.remove(harness.actor, listId)).rejects.toThrow(
+        'recorder unavailable',
+      );
+
+      expect(writable(harness)).toEqual(before);
+      expect(harness.store.persistCalls).toBe(persistCalls);
+    });
+
+    it.each([
+      ['names a project from another workspace', { projectId: THEIRS }],
+      ['names a user actor that does not exist', { actorUserId: 'user-gone' }],
+    ])('when the recorder stores a schema-valid history that %s, failing commit-time integrity', async (_, corruption) => {
+      const harness: Harness = buildHarness(undefined, {
+        recorder: (real) => ({
+          outstandingRemovalFor: (actor, sectionId, section) => real.outstandingRemovalFor(actor, sectionId, section),
+          record: async (actor, entry) => {
+            const receipt = await real.record(actor, entry);
+            // Section operations only, for the reason the test above gives.
+            if (!entry.operation.type.startsWith('section.')) return receipt;
+            const stored = (await harness.operationHistories.find(receipt.historyId))!;
+            await harness.operationHistories.update({ ...stored, ...corruption } as typeof stored);
+            return receipt;
+          },
+        }),
+      });
+      const { listId, before, persistCalls } = await arrange(harness);
+
+      await expect(harness.sectionService.remove(harness.actor, listId)).rejects.toThrow(/operation history/);
+
+      expect(writable(harness)).toEqual(before);
+      expect(harness.store.persistCalls).toBe(persistCalls);
+    });
+
+    it('when persistence throws', async () => {
+      const harness = buildHarness();
+      const { listId, before, persistCalls } = await arrange(harness);
+      harness.store.persistFailure = new Error('disk full');
+
+      await expect(harness.sectionService.remove(harness.actor, listId)).rejects.toThrow('disk full');
+
+      harness.store.persistFailure = undefined;
+      expect(writable(harness)).toEqual(before);
+      expect(harness.store.persistCalls).toBe(persistCalls);
+    });
+  });
+
+  it('publishes one frame carrying only the live event, and stores an event with no inverse data', async () => {
+    const frames: LivePublication[] = [];
+    const harness = buildHarness(undefined, { events: { publish: (publication) => void frames.push(publication) } });
+    const { listId } = await listWithSubtree(harness);
+    frames.length = 0;
+    const eventsBefore = harness.store.snapshot().activityEvents.length;
+
+    await harness.sectionService.remove(harness.actor, listId);
+
+    expect(frames).toHaveLength(1);
+    expect(Object.keys(frames[0]!).sort()).toEqual(['event', 'workspaceId']);
+    expect(Object.keys(frames[0]!.event).every((key) => Object.hasOwn(LiveEventSchema.shape, key))).toBe(true);
+    const [event] = harness.store.snapshot().activityEvents.slice(eventsBefore);
+    expect(Object.keys(event!).every((key) => Object.hasOwn(ActivityEventShape.shape, key))).toBe(true);
+    expect(JSON.stringify([frames, event])).not.toMatch(/undo|operation|history|placement|rows|appliedPolicy/);
   });
 });

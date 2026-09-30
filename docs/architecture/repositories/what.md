@@ -7,7 +7,7 @@ flowchart TB
   subgraph interfaces["interfaces.ts — what the domain sees"]
     uow["UnitOfWork"]
     ds["DataStore<br/>unitOfWorkFor(actor)"]
-    repos["ProjectRepository · ProjectPageRepository · TaskRepository<br/>SectionRepository · SectionShortcutRepository · MilestoneRepository<br/>ReflectionRepository · ActivityRepository · AgentConnectionRepository · UserRepository"]
+    repos["ProjectRepository · ProjectPageRepository · TaskRepository<br/>SectionRepository · SectionShortcutRepository · MilestoneRepository<br/>ReflectionRepository · ActivityRepository · AgentConnectionRepository · UserRepository<br/>OperationHistoryRepository · OperationActionRepository"]
   end
   subgraph store["data-store.ts — the implementation"]
     base["BaseDataStore<br/>queue, provisional document, commit, integrity"]
@@ -58,10 +58,11 @@ sequenceDiagram
 | Part | Path | Role |
 |---|---|---|
 | `UnitOfWork`, `DataStore` | `src/interfaces.ts` | §15's operation boundary and the store that provides it |
-| `*Repository` interfaces | `src/interfaces.ts` | One per collection; queries are contract shapes from `@cwm/contracts` |
+| `*Repository` interfaces | `src/interfaces.ts` | One per collection; queries are contract shapes from `@cwm/contracts`; task, reflection, section, shortcut, page, project and action repositories expose bounded removal seams |
 | `BaseDataStore` | `src/data-store.ts` | The queue, provisional state, commit and `replaceActiveDocument` |
 | `InMemoryDataStore` | `src/data-store.ts` | Seeded from a literal; no disk |
 | `JsonDataStore` | `src/data-store.ts` | Loads a path, persists with temp-and-rename |
-| `validateDocumentIntegrity` | `src/data-store.ts` | Whole-document parse plus reference, uniqueness, scope and ownership checks |
-| `JsonCollectionRepository`, `Json*Repository` | `src/json-repositories.ts` | The ten implementations over the provisional document |
+| `validateDocumentIntegrity` | `src/data-store.ts` | Whole-document parse plus reference, uniqueness, scope and ownership checks, including creator-bound Activity and history anchors for creation Undo |
+| `JsonCollectionRepository`, `Json*Repository` | `src/json-repositories.ts` | The twelve implementations over provisional state, including row, optional-page and project removals used only by their safe history inverses and the two operation-history repositories |
 | `RepositoryConflictError`, `RepositoryNotFoundError`, `UnitOfWorkInProgressError` | `src/errors.ts`, `src/data-store.ts` | Storage-level failures the domain maps or lets through as bugs |
+| `acquireDataFileOwnership`, `DataFileOwnership`, `DataFileInUseError`, `DataFileOwnerUnavailableError` | `src/data-file-ownership.ts` | The advisory `<data file>.owner` record every writing entrypoint takes; not used by the domain or by `JsonDataStore` |

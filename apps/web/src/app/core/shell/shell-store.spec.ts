@@ -1,3 +1,4 @@
+import { effect } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ProjectStatusSchema, type Identity, type Project, type ProjectQuery } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
@@ -6,6 +7,8 @@ import { GatewayError } from '../gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../gateway/testing/fake-gateway';
 import { shellTestProviders, testIdentity } from '../gateway/testing/shell-test-providers';
 import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER } from '../history/operation-history-reporter';
+import { RecordingReporter } from '../history/testing/recording-reporter';
 import { IDENTITY_PROVIDER, type IdentityProvider } from '../identity/identity-provider';
 import { LIVE_UPDATES } from '../live/live-updates';
 import { FakeLiveUpdates } from '../live/testing/fake-live-updates';
@@ -26,12 +29,16 @@ const project = (id: string, name: string, parentProjectId?: string): Project =>
     updatedAt: AT,
   }) as unknown as Project;
 
-const storeWith = (options: Parameters<typeof shellTestProviders>[0] = {}) => {
+const storeWith = (
+  options: Parameters<typeof shellTestProviders>[0] = {},
+  reporter = new RecordingReporter(),
+) => {
   const live = options.live ?? new FakeLiveUpdates();
-  TestBed.configureTestingModule({ providers: [ShellStore, ...shellTestProviders({ ...options, live })] });
+  TestBed.configureTestingModule({ providers: [ShellStore, ...shellTestProviders({ ...options, live }), { provide: OPERATION_HISTORY_REPORTER, useValue: reporter }] });
   return {
     store: TestBed.inject(ShellStore),
     gateway: TestBed.inject(WORK_MANAGER_GATEWAY) as FakeWorkManagerGateway,
+    reporter,
     live,
   };
 };
@@ -301,7 +308,7 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
   // sub-projects section, which hard-codes `parentProjectId` — so the assertion that matters
   // is the *absence* of one.
   it('creates a top-level project in the persona’s own workspace', async () => {
-    const { store, gateway } = storeWith({ projects: [] });
+    const { store, gateway, reporter } = storeWith({ projects: [] });
     await store.load();
 
     const created = await store.createProject('Prototype review');
@@ -314,6 +321,11 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
       name: 'Prototype review',
     });
     expect(store.createError()).toBeNull();
+    expect(reporter.reports()).toMatchObject([{
+      projectId: 'project-created',
+      projectName: 'Prototype review',
+      receipt: { operation: 'project.add' },
+    }]);
   });
 
   it('reports a failed creation on its own signal, leaving the tree loaded', async () => {
@@ -344,5 +356,21 @@ describe('ShellStore — recovering from a failed first load (§62)', () => {
     expect(created).toBeNull();
     expect(store.createError()).toContain('nowhere to put');
     expect(gateway.calls.some(({ method }) => method === 'projects.create')).toBe(false);
+  });
+
+  // Slice 58: the sidebar reopens its form and takes focus back on each new failure, which it
+  // can only see if a repeated, identical refusal still notifies.
+  it('reports a repeated refusal as a new failure', async () => {
+    const { store } = storeWith({ identity: new GatewayError('unauthorized', 401, 'no persona') });
+    await store.load();
+    const seen: Array<string | null> = [];
+    TestBed.runInInjectionContext(() => effect(() => void seen.push(store.createError())));
+
+    await store.createProject('Prototype review');
+    TestBed.tick();
+    await store.createProject('Prototype review');
+    TestBed.tick();
+
+    expect(seen.filter((message) => message?.includes('nowhere to put'))).toHaveLength(2);
   });
 });

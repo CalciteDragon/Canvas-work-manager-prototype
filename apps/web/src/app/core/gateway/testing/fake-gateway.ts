@@ -9,6 +9,7 @@ import { ProjectSchema, type
   Identity,
   ProgressResult,
   ProjectArchiveResult,
+  ArchivedProjectsResult,
   ProjectCompletedWorkResult,
   ProjectJournalResult,
   Project,
@@ -21,12 +22,26 @@ import { ProjectSchema, type
   Reflection,
   ReflectionId,
   SectionId,
+  SectionRemovalResult,
+  SectionShortcutAddResult,
+  SectionShortcutRemovalResult,
+  SectionShortcutWriteResult,
+  SectionAddResult,
+  SectionWriteResult,
+  OperationReceipt,
   SectionShortcutId,
   ShortcutSource,
   SetProjectPageEnabledInput,
   Task,
   TaskId,
   TimelineResult,
+  UndoResult,
+  OperationActionId,
+  OperationHistorySummary,
+  ProjectWriteResult,
+  OperationHistoryTransitionResult,
+  OperationHistoryId,
+  OperationHistoryTransitionInput,
   UpdateProjectInput,
   UpdateSectionInput,
   CreateSectionShortcutInput,
@@ -44,6 +59,7 @@ import type {
   SectionGateway,
   SectionShortcutGateway,
   TaskGateway,
+  OperationHistoryGateway,
   WorkManagerGateway,
 } from '../work-manager-gateway';
 
@@ -67,6 +83,7 @@ export interface FakeGatewayOptions {
   todos?: ProjectTodosResult;
   /** §31's whole-tree recovery projection. */
   archive?: ProjectArchiveResult;
+  archivedProjects?: ArchivedProjectsResult;
   /** §36's root-wide journal and completed-work picker. */
   journal?: ProjectJournalResult;
   completedWork?: ProjectCompletedWorkResult;
@@ -74,6 +91,8 @@ export interface FakeGatewayOptions {
   dashboard?: DashboardResult;
   agentConnections?: AgentConnection[];
   activity?: ActivityFeedEntry[];
+  /** Scripted per-project history answers, including the absent-project creation recovery state. */
+  historySummaries?: OperationHistorySummary[];
   /** Rejects every call with this instead of answering — the failure path a shell needs. */
   failWith?: GatewayError;
   /** Reject only named calls after an otherwise successful load (for write failure UI). */
@@ -87,13 +106,42 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
    * Public so a spec can move the world underneath a component — the region re-reads on the
    * page's data revision, and a test of that has to change what the next read answers.
    */
-  constructor(readonly options: FakeGatewayOptions = {}) {}
+  constructor(readonly options: FakeGatewayOptions = {}) {
+    for (const summary of options.historySummaries ?? []) this.historySummaries.set(summary.projectId, summary);
+  }
 
   private createdSectionSequence = 0;
   private createdShortcutSequence = 0;
+  /**
+   * A one-history stand-in for §31's operation history: every section write records an Undo that
+   * the matching transition runs. It checks the action id and nothing else — revision, ordering
+   * and conflicts are the host's rules, proved there — and it has no Redo, which no page offers.
+   */
+  private historyRevision = 0;
+  private readonly undoers = new Map<OperationActionId, () => UndoResult>();
+
+  private receipt(operation: OperationReceipt['operation'], label: string): OperationReceipt {
+    this.historyRevision += 1;
+    return {
+      historyId: 'history-fake' as OperationHistoryId,
+      actionId: `operation-fake-${this.historyRevision}` as OperationActionId,
+      operation,
+      revision: this.historyRevision,
+      label,
+      createdAt: COMPLETED_AT,
+      expiresAt: '2026-08-28T16:00:00.000Z',
+    };
+  }
 
   /** Every call the spec made, in order, so a test can assert the query that was sent. */
   readonly calls: Array<{ method: string; argument: unknown }> = [];
+
+  /**
+   * What the next removal answers for `archiveListed`. The domain decides this from content
+   * that actually remains; here it is a knob, so a spec can play the retained-but-unlisted
+   * removal a shortcut causes without modelling the recovery policy a second time.
+   */
+  archiveListedOnRemoval = true;
 
   /**
    * A project's pages: the seeded ones, or the canonical page every project has from the
@@ -119,6 +167,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
 
   readonly projects: ProjectGateway = {
     list: (query) => this.answer('projects.list', query, this.options.projects ?? []),
+    archived: () => this.answer('projects.archived', undefined, this.options.archivedProjects ?? { items: [] }),
     get: (id: ProjectId) =>
       this.answer('projects.get', id, this.find(this.options.projects, id, 'project')),
     // A sub-project echoes its parent's record; a **root** has no record to echo, so it gets
@@ -128,26 +177,35 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     //
     // Branching on `kind` rather than on whether a parent happened to be supplied: the two
     // agreed before §26 made the distinction explicit, and only one of them is the rule.
-    create: (input) =>
-      this.answer('projects.create', input, ProjectSchema.parse({
+    create: (input) => {
+      const project = ProjectSchema.parse({
         ...(input.kind === 'root'
           ? { status: 'planning', projectLayoutMode: 'flow', createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT }
           : this.find(this.options.projects, input.parentProjectId, 'project')),
         ...input,
         id: 'project-created' as ProjectId,
         targetDate: input.targetDate ?? undefined,
-      })),
+      });
+      const result: ProjectWriteResult = {
+        project,
+        operation: this.receipt('project.add', `Created "${project.name}"`),
+      };
+      return this.answer('projects.create', input, result);
+    },
     update: (id, input) => {
       const answer = this.answer(
         'projects.update',
         { id, input },
-        applyProjectUpdate(this.find(this.options.projects, id, 'project'), input),
+        {
+          project: applyProjectUpdate(this.find(this.options.projects, id, 'project'), input),
+          operation: this.receipt(input.status === 'archived' ? 'project.archive' : 'project.update', `Update ${id}`),
+        },
       );
-      return answer.then((updated) => {
+      return answer.then((result) => {
         if (input.progressFormula !== undefined && this.options.progress !== undefined) {
-          this.options.progress = fakeProgress(updated.id, input.progressFormula, input.manualProgress ?? undefined, this.options.tasks ?? []);
+          this.options.progress = fakeProgress(result.project.id, input.progressFormula, input.manualProgress ?? undefined, this.options.tasks ?? []);
         }
-        return updated;
+        return result;
       });
     },
   };
@@ -182,6 +240,60 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
           (entry) => query.projectId === undefined || entry.projectId === query.projectId,
         ),
       ),
+  };
+
+  /**
+   * Scripted histories for the header's specs (Slice 41): a project named here answers exactly this
+   * summary, entries and step-level `blockedBy` included. A project not named falls back to the
+   * one-history stand-in below.
+   */
+  readonly historySummaries = new Map<ProjectId, OperationHistorySummary>();
+  /**
+   * Scripted transition answers, consumed in order in either direction: a result resolves, a
+   * `GatewayError` rejects (a refusal carries its `details`). Empty, the stand-in's undoers run.
+   */
+  readonly transitionAnswers: Array<OperationHistoryTransitionResult | GatewayError> = [];
+  /** The project the last summary was read for, which the stand-in's transition summary names. */
+  private historyProjectId: ProjectId = 'project-fake' as ProjectId;
+
+  readonly history: OperationHistoryGateway = {
+    summary: (projectId) => {
+      this.historyProjectId = projectId;
+      const scripted = this.historySummaries.get(projectId);
+      if (scripted !== undefined) return this.answer('history.summary', projectId, scripted);
+      const latest = [...this.undoers.keys()].at(-1);
+      const summary: OperationHistorySummary = {
+        projectId,
+        historyId: this.historyRevision === 0 ? null : ('history-fake' as OperationHistoryId),
+        revision: this.historyRevision,
+        undo: latest === undefined ? null : { actionId: latest, operation: 'section.update', label: 'Latest change', expiresAt: '2026-08-28T16:00:00.000Z', blockedBy: null },
+        redo: null,
+        blockedBy: null,
+      };
+      return this.answer('history.summary', projectId, summary);
+    },
+    transition: (historyId: OperationHistoryId, input: OperationHistoryTransitionInput) => {
+      const scripted = this.transitionAnswers.shift();
+      if (scripted instanceof GatewayError) {
+        this.calls.push({ method: 'history.transition', argument: { historyId, input } });
+        return Promise.reject(scripted);
+      }
+      if (scripted !== undefined) return this.answer('history.transition', { historyId, input }, scripted);
+      const undoer = input.direction === 'undo' ? this.undoers.get(input.actionId) : undefined;
+      if (undoer === undefined) throw new GatewayError('not_found', 404, `no such history action "${input.actionId}"`);
+      const result = undoer();
+      this.historyRevision += 1;
+      const transition: OperationHistoryTransitionResult = {
+        direction: 'undo',
+        actionId: input.actionId,
+        result,
+        summary: { projectId: this.historyProjectId, historyId, revision: this.historyRevision, undo: null, redo: null, blockedBy: null },
+      };
+      return this.answer('history.transition', { historyId, input }, transition).then((answered) => {
+        this.undoers.delete(input.actionId);
+        return answered;
+      });
+    },
   };
 
   readonly progress = {
@@ -256,7 +368,8 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     create: (input: Parameters<WorkManagerGateway['reflections']['create']>[0]) => this.answer('reflections.create', input, {
       // The real service resolves a container when the caller names none; the fake stands
       // in for that rather than leaving the row unowned.
-      id: 'reflection-created' as ReflectionId, sectionId: 'section-resolved' as SectionId, ...input, createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT,
+      reflection: { id: 'reflection-created' as ReflectionId, sectionId: 'section-resolved' as SectionId, ...input, createdAt: COMPLETED_AT, updatedAt: COMPLETED_AT },
+      operation: this.receipt('reflection.add', 'Add reflection'),
     }),
     update: (id: ReflectionId, input: Parameters<WorkManagerGateway['reflections']['update']>[1]) => {
       const current = this.find(this.options.reflections, id, 'reflection');
@@ -266,14 +379,11 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       if (input.body !== undefined) updated.body = input.body;
       if (input.subject === null) delete updated.subject;
       else if (input.subject !== undefined) updated.subject = input.subject;
-      return this.answer('reflections.update', { id, input }, updated);
+      return this.answer('reflections.update', { id, input }, { reflection: updated, operation: this.receipt('reflection.update', `Update ${id}`) });
     },
     archive: (id: ReflectionId) =>
-      this.answer('reflections.archive', id, {
-        ...this.find(this.options.reflections, id, 'reflection'),
-        archivedAt: COMPLETED_AT,
-      }),
-    restore: (id: ReflectionId) => this.answer('reflections.restore', id, restored(this.find(this.options.reflections, id, 'reflection'))),
+      this.answer('reflections.archive', id, { reflection: { ...this.find(this.options.reflections, id, 'reflection'), archivedAt: COMPLETED_AT }, operation: this.receipt('reflection.archive', `Archive ${id}`) }),
+    restore: (id: ReflectionId) => this.answer('reflections.restore', id, { reflection: restored(this.find(this.options.reflections, id, 'reflection')), operation: this.receipt('reflection.restore', `Restore ${id}`) }),
   };
 
   readonly pages: ProjectPageGateway = {
@@ -281,10 +391,13 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       this.answer('pages.list', projectId, this.pagesOf(projectId)),
     // The toggle, echoed: enabling a kind the project does not have yet answers with a new
     // record, matching the service's upsert, so a store spec sees the same two shapes it
-    // would over HTTP.
+    // would over HTTP. The envelope mirrors the service too — `page.add` when the record is new,
+    // `page.update` when the switch moved, and a `null` receipt when nothing changed, because a
+    // no-op that looked like a write would let a spec pass on behaviour the host does not have.
     setEnabled: async (projectId: ProjectId, input: SetProjectPageEnabledInput) => {
+      const existing = this.pagesOf(projectId).find(({ kind }) => kind === input.kind);
       const updated = {
-        ...(this.pagesOf(projectId).find(({ kind }) => kind === input.kind) ?? {
+        ...(existing ?? {
           id: `page-${projectId}-${input.kind}` as ProjectPageId,
           projectId,
           kind: input.kind,
@@ -293,7 +406,12 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         }),
         enabled: input.enabled,
       };
-      const answer = await this.answer('pages.setEnabled', { projectId, input }, updated);
+      const operation = existing === undefined
+        ? this.receipt('page.add', `Enabled the ${input.kind} page`)
+        : existing.enabled === input.enabled
+          ? null
+          : this.receipt('page.update', `${input.enabled ? 'Enabled' : 'Disabled'} the ${input.kind} page`);
+      const answer = await this.answer('pages.setEnabled', { projectId, input }, { page: updated, operation });
       // Model persistence only after the gateway answers. A rejected write must not silently
       // change the next read, which is the failure boundary the non-optimistic page manager
       // needs to exercise.
@@ -324,7 +442,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
             (query.includeArchived === true || section.archivedAt === undefined),
         ),
       ),
-    create: (projectId, input) => {
+    create: (projectId, input): Promise<SectionAddResult> => {
       const pageId = input.pageId ?? (`page-${projectId}` as ProjectPageId);
       const position = this.positionForCreate(projectId, pageId, input.position);
       const now = COMPLETED_AT;
@@ -338,46 +456,107 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         collapsed: false,
         config: input.config ?? {},
         title: input.title,
+        archiveGeneration: 0,
         createdAt: now,
         updatedAt: now,
       };
-      return this.answer('sections.create', { projectId, input }, created).then((section) => {
+      const operation = this.receipt('section.add', `Add ${created.type}`);
+      const result: SectionAddResult = { section: created, operation };
+      return this.answer('sections.create', { projectId, input }, result).then(({ section }) => {
         (this.options.sections ??= []).push(section);
         this.placeAt(projectId, pageId, position, { kind: 'section', value: section });
-        return section;
+        this.undoers.set(operation.actionId, () => {
+          this.options.sections = (this.options.sections ?? []).filter((candidate) => candidate.id !== section.id);
+          this.renumberCombined(projectId, pageId);
+          return { operation: 'section.add', outcome: 'removed', sectionId: section.id, projectId, pageId };
+        });
+        return { section, operation };
       });
     },
-    update: (id, input) => {
+    update: (id, input): Promise<SectionWriteResult> => {
       const current = this.sectionFor(id);
-      return this.answer('sections.update', { id, input }, applyUpdate(current, input)).then((updated) => {
+      const before = { ...current, config: structuredClone(current.config) };
+      const updated = applyUpdate(current, input);
+      if (sameValue(current, updated)) return this.answer('sections.update', { id, input }, { section: current, operation: null });
+      const operation = this.receipt('section.update', `Update ${id}`);
+      const result: SectionWriteResult = { section: updated, operation };
+      return this.answer('sections.update', { id, input }, result).then(({ section }) => {
         Object.assign(current, updated);
-        return updated;
+        this.undoers.set(operation.actionId, () => {
+          Object.assign(current, before);
+          return { operation: 'section.update', outcome: 'restored', section: { ...before } };
+        });
+        return { section, operation };
       });
     },
-    move: (id, input) => {
+    move: (id, input): Promise<SectionWriteResult> => {
       const current = this.sectionFor(id);
-      return this.answer('sections.move', { id, input }, { ...current, position: input.position }).then((updated) => {
-        this.placeAt(current.projectId, current.pageId, input.position, { kind: 'section', value: current });
-        return updated;
+      const before = current.position;
+      const count = this.combinedEntries(current.projectId, current.pageId).length;
+      const position = Math.max(0, Math.min(input.position, Math.max(0, count - 1)));
+      if (before === position) return this.answer('sections.move', { id, input }, { section: current, operation: null });
+      const updated = { ...current, position };
+      const operation = this.receipt('section.move', `Move ${id}`);
+      const result: SectionWriteResult = { section: updated, operation };
+      return this.answer('sections.move', { id, input }, result).then(({ section }) => {
+        this.placeAt(current.projectId, current.pageId, position, { kind: 'section', value: current });
+        Object.assign(current, section);
+        this.undoers.set(operation.actionId, () => {
+          this.placeAt(current.projectId, current.pageId, before, { kind: 'section', value: current });
+          return { operation: 'section.move', outcome: 'restored', section: { ...current }, placement: { pageId: current.pageId, index: before, strategy: 'index', pageEnabled: true } };
+        });
+        return { section, operation };
       });
     },
-    duplicate: (id) =>
-      this.answer('sections.duplicate', id, {
-        ...this.sectionFor(id),
-        id: `${id}-copy` as SectionId,
-      }),
-    // The policy is recorded too: a removal that swallowed it would look identical here.
-    remove: (id, input) => {
+    // Duplication is an add, so the fake answers the add envelope with an add receipt — the
+    // copy carries no rows and a detached config, exactly as the domain's does.
+    duplicate: (id) => {
+      const copy = { ...this.sectionFor(id), id: `${id}-copy` as SectionId };
+      return this.answer('sections.duplicate', id, {
+        section: copy,
+        operation: this.receipt('section.add', `Duplicate ${id}`),
+      });
+    },
+    // The public receipt crosses the gateway; no removal policy or inverse snapshot does.
+    remove: (id) => {
       const current = this.sectionFor(id);
-      return this.answer('sections.remove', { id, input: input ?? {} }, undefined).then(() => {
+      const original = { ...current };
+      const operation = this.receipt('section.remove', `Remove ${id}`);
+      const result: SectionRemovalResult = {
+        section: { ...original, archivedAt: COMPLETED_AT },
+        operation,
+        archiveListed: this.archiveListedOnRemoval,
+      };
+      return this.answer('sections.remove', { id }, result).then((removed) => {
         current.archivedAt = COMPLETED_AT;
+        this.undoers.set(operation.actionId, () => {
+          const restored: ProjectSection = { ...original };
+          delete restored.archivedAt;
+          Object.assign(current, restored);
+          delete current.archivedAt;
+          return {
+            operation: 'section.remove',
+            outcome: 'restored',
+            section: restored,
+            placement: { pageId: restored.pageId, index: restored.position, strategy: 'index', pageEnabled: true },
+            restoredRowCount: 0,
+          };
+        });
+        return removed;
       });
     },
+    // A repeat on a live section is the `null`-receipt no-op the domain answers.
     restore: (id) => {
       const current = this.sectionFor(id);
-      return this.answer('sections.restore', id, restored(current)).then((updated) => {
-        Object.assign(current, updated);
-        return updated;
+      const wasArchived = current.archivedAt !== undefined;
+      const result: SectionWriteResult = {
+        section: restored(current),
+        operation: wasArchived ? this.receipt('section.restore', `Restore ${id}`) : null,
+      };
+      return this.answer('sections.restore', id, result).then((answered) => {
+        Object.assign(current, answered.section);
+        delete current.archivedAt;
+        return answered;
       });
     },
   };
@@ -408,35 +587,55 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         position,
         columnSpan: input.columnSpan ?? this.shortcutForCreate(projectId, input).columnSpan,
       };
-      return this.answer('shortcuts.create', { projectId, input }, created).then((shortcut) => {
-        (this.options.shortcuts ??= []).push(shortcut);
-        this.placeAt(projectId, input.pageId, position, { kind: 'shortcut', value: shortcut });
-        return shortcut;
+      const result: SectionShortcutAddResult = { shortcut: created, operation: this.receipt('shortcut.add', `Add shortcut to ${input.sourceSectionId}`) };
+      return this.answer('shortcuts.create', { projectId, input }, result).then((answered) => {
+        (this.options.shortcuts ??= []).push(answered.shortcut);
+        this.placeAt(projectId, input.pageId, position, { kind: 'shortcut', value: answered.shortcut });
+        return answered;
       });
     },
     update: (id: SectionShortcutId, input: UpdateSectionShortcutInput) => {
       const current = this.shortcutFor(id);
-      return this.answer('shortcuts.update', { id, input }, { ...current, ...input }).then((updated) => {
-        Object.assign(current, updated);
-        return updated;
+      const next = { ...current, ...input };
+      const changed = next.columnSpan !== current.columnSpan || next.collapsed !== current.collapsed;
+      const result: SectionShortcutWriteResult = {
+        shortcut: next,
+        operation: changed ? this.receipt('shortcut.update', `Update shortcut ${id}`) : null,
+      };
+      return this.answer('shortcuts.update', { id, input }, result).then((answered) => {
+        Object.assign(current, answered.shortcut);
+        return answered;
       });
     },
     move: (id: SectionShortcutId, input: MoveSectionShortcutInput) => {
       const current = this.shortcutFor(id);
-      return this.answer('shortcuts.move', { id, input }, { ...current, position: input.position }).then((updated) => {
+      const result: SectionShortcutWriteResult = {
+        shortcut: { ...current, position: input.position },
+        operation: current.position === input.position ? null : this.receipt('shortcut.move', `Move shortcut ${id}`),
+      };
+      return this.answer('shortcuts.move', { id, input }, result).then((answered) => {
         this.placeAt(
           this.projectForPage(current.pageId, current.sourceProjectId as ProjectId),
           current.pageId,
           input.position,
           { kind: 'shortcut', value: current },
         );
-        return updated;
+        return answered;
       });
     },
-    remove: (id: SectionShortcutId) =>
-      this.answer('shortcuts.remove', id, undefined).then(() => {
+    remove: (id: SectionShortcutId) => {
+      const current = this.shortcutFor(id);
+      const result: SectionShortcutRemovalResult = {
+        shortcutId: id,
+        projectId: this.projectForPage(current.pageId, current.sourceProjectId as ProjectId),
+        pageId: current.pageId,
+        operation: this.receipt('shortcut.remove', `Remove shortcut ${id}`),
+      };
+      return this.answer('shortcuts.remove', id, result).then((answered) => {
         this.options.shortcuts = (this.options.shortcuts ?? []).filter((shortcut) => shortcut.id !== id);
-      }),
+        return answered;
+      });
+    },
   };
 
   readonly tasks: TaskGateway = {
@@ -457,8 +656,8 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         ),
       ),
     get: (id: TaskId) => this.answer('tasks.get', id, this.find(this.options.tasks, id, 'task')),
-    create: (input) => this.answer('tasks.create', input, this.firstTask()),
-    update: (id, input) => this.answer('tasks.update', { id, input }, this.firstTask()),
+    create: (input) => this.answer('tasks.create', input, { task: this.firstTask(), operation: this.receipt('task.add', 'Create task') }),
+    update: (id, input) => this.answer('tasks.update', { id, input }, { task: this.firstTask(), operation: this.receipt('task.update', `Update ${id}`) }),
     // Answers the task as completed, the way the host does. Echoing it back unchanged would
     // make every optimistic completion appear to revert, which is a different test.
     complete: (id) => {
@@ -467,14 +666,10 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         const completed = this.options.progress.completed + 1;
         this.options.progress = { ...this.options.progress, completed, percentage: Math.round(completed / this.options.progress.total * 100), explanation: `${completed} of ${this.options.progress.total} tasks complete` };
       }
-      return this.answer('tasks.complete', id, {
-        ...this.find(this.options.tasks, id, 'task'),
-        status: 'done',
-        completedAt: COMPLETED_AT,
-      });
+      return this.answer('tasks.complete', id, { task: { ...this.find(this.options.tasks, id, 'task'), status: 'done', completedAt: COMPLETED_AT }, operation: this.receipt('task.update', `Complete ${id}`) });
     },
-    archive: (id) => this.answer('tasks.archive', id, undefined),
-    restore: (id) => this.answer('tasks.restore', id, restored(this.find(this.options.tasks, id, 'task'))),
+    archive: (id) => this.answer('tasks.archive', id, { task: { ...this.find(this.options.tasks, id, 'task'), archivedAt: COMPLETED_AT }, operation: this.receipt('task.archive', `Archive ${id}`) }),
+    restore: (id) => this.answer('tasks.restore', id, { task: restored(this.find(this.options.tasks, id, 'task')), operation: this.receipt('task.restore', `Restore ${id}`) }),
   };
 
   private answer<T>(method: string, argument: unknown, value: T): Promise<T> {
@@ -490,9 +685,25 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
   }
 
   private positionForCreate(projectId: ProjectId, pageId: ProjectPageId, requested?: number): number {
-    const count = (this.options.sections ?? []).filter((section) => section.projectId === projectId && section.pageId === pageId && section.archivedAt === undefined).length +
-      (this.options.shortcuts ?? []).filter((shortcut) => shortcut.pageId === pageId).length;
+    const count = this.combinedEntries(projectId, pageId).length;
     return Math.max(0, Math.min(requested ?? count, count));
+  }
+
+  private combinedEntries(projectId: ProjectId, pageId: ProjectPageId): Array<{ kind: 'section'; value: ProjectSection } | { kind: 'shortcut'; value: ResolvedSectionShortcut }> {
+    return [
+      ...(this.options.sections ?? [])
+        .filter((section) => section.projectId === projectId && section.pageId === pageId && section.archivedAt === undefined)
+        .map((section) => ({ kind: 'section' as const, value: section })),
+      ...(this.options.shortcuts ?? [])
+        .filter((shortcut) => shortcut.pageId === pageId)
+        .map((shortcut) => ({ kind: 'shortcut' as const, value: shortcut })),
+    ];
+  }
+
+  private renumberCombined(projectId: ProjectId, pageId: ProjectPageId): void {
+    const ordered = this.combinedEntries(projectId, pageId)
+      .sort((a, b) => a.value.position - b.value.position || a.value.id.localeCompare(b.value.id));
+    ordered.forEach((entry, index) => entry.value.position = index);
   }
 
   private projectForPage(pageId: ProjectPageId, fallback: ProjectId): ProjectId {
@@ -507,14 +718,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
     position: number,
     inserted: { kind: 'section'; value: ProjectSection } | { kind: 'shortcut'; value: ResolvedSectionShortcut },
   ): void {
-    const ordered = [
-      ...(this.options.sections ?? [])
-        .filter((section) => section.projectId === projectId && section.pageId === pageId && section.archivedAt === undefined)
-        .map((section) => ({ kind: 'section' as const, value: section })),
-      ...(this.options.shortcuts ?? [])
-        .filter((shortcut) => shortcut.pageId === pageId)
-        .map((shortcut) => ({ kind: 'shortcut' as const, value: shortcut })),
-    ].filter((entry) => entry.value.id !== inserted.value.id);
+    const ordered = this.combinedEntries(projectId, pageId).filter((entry) => entry.value.id !== inserted.value.id);
     ordered.sort((a, b) => a.value.position - b.value.position || a.value.id.localeCompare(b.value.id));
     ordered.splice(Math.max(0, Math.min(position, ordered.length)), 0, inserted);
     ordered.forEach((entry, index) => {
@@ -553,6 +757,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
         columnSpan: 12,
         collapsed: false,
         config: {},
+        archiveGeneration: 0,
         createdAt: now,
         updatedAt: now,
       },
@@ -588,6 +793,18 @@ const restored = <T extends { archivedAt?: string; archivedWithSectionId?: strin
   delete next.archivedWithSectionId;
   delete next.archivedWithTaskId;
   return next;
+};
+
+const sameValue = (left: unknown, right: unknown): boolean => {
+  if (Object.is(left, right)) return true;
+  if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null) return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((value, index) => sameValue(value, right[index]));
+  }
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const keys = new Set([...Object.keys(leftRecord), ...Object.keys(rightRecord)]);
+  return [...keys].every((key) => sameValue(leftRecord[key], rightRecord[key]));
 };
 
 /**

@@ -79,9 +79,10 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    action with confirmation; archiving Home renovation while live children remain is refused.
 9. **Recover archived work.** On the showcase's **Archive** page, inspect the independently
    archived permit task and notes section, then the archived **Legacy attic**. Its live
-   **Legacy shelving** descendant is listed as hidden by the archived project and cannot be
-   restored first. Restore the direct rows, then restore Legacy attic with an explicit status;
-   the child returns, while independently archived rows remain archived.
+   **Legacy shelving** descendant is omitted until the owner returns. Restore the ready rows,
+   then restore Legacy attic with an explicit status; the child returns, while independently
+   archived rows remain archived. For an archived root, open **Settings → Archived projects**,
+   choose a non-archived status and Restore. This works with the optional Archive tab disabled.
 
 ---
 
@@ -90,12 +91,22 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 *Seed: `nested-projects`; open Home renovation, then Kitchen.*
 
 10. **Direct canvas controls.** There is no separate editing mode. Hover or keyboard-focus a
-    section to reveal its move grip, resize handles and archive control; the collapse control
-    and title stay available. On a touch screen, the controls remain visible without hover.
-11. **Add, reorder, resize and archive.** Choose an insertion plus between sections, select a
+    section to reveal its move grip, resize handles and **Remove section** action; the collapse
+    control and title stay available. On a touch screen, the controls remain visible without hover.
+11. **Add, reorder, resize and remove.** Choose an insertion plus between sections, select a
     type and optionally name it, then create. Drag from the grip or use its arrow keys to move
-    a placement. Drag a side handle to resize it, or use its keyboard controls. The archive icon
-    removes a section through the existing archive flow; reload to confirm position and width.
+    a placement. Drag a side handle to resize it, or use its keyboard controls. Add a disposable
+    view between two known neighbors, remove it, then choose the **Undo** icon in the project header
+    — its name reads "Undo: Removed the Progress section" — and confirm that it returns with its width
+    and placement; **Redo** beside it takes it away again. Every change you make on a project page is
+    undone the same way, from the header, and the history survives a reload. Disposable views are
+    absent from Archive; retained content such as nonempty notes or cascaded rows can be restored
+    from Archive. To see the two recoveries disagree on purpose, remove a nonempty notes section that
+    sits between two placements — the canvas says "Undo is in the header" and offers **Open
+    Archive** — and choose the header's **Undo**: it returns between them. Remove it again, choose
+    **Open Archive** and **Restore saved content**: it returns at the **end** of the page. That
+    Restore is itself one of your actions now — undoing it puts the section back in Archive rather
+    than re-running the removal, and the removal is still there underneath it.
 12. **Collapse and rename.** Click the collapse control to hide a section's body while leaving
     its heading visible. Click the title to rename it; Enter or blur saves, and Escape restores
     the previous name. Following a Todos owner link can open a collapsed target for that visit,
@@ -109,7 +120,9 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 15. **Shortcuts are placements.** On Home, choose an insertion plus, then **Add shortcut** in
     the creation popup to choose an eligible nested Task List or a section on another root page.
     The frame identifies its source and has **Open source**; its embedded content is read-only.
-    Remove the placement and confirm the source section and its rows remain unchanged.
+    Remove the placement and confirm the source section and its rows remain unchanged. Every
+    placement write — add, resize, collapse, move, remove — is undoable, and each one belongs to
+    this root project's history rather than the sub-project the source lives in.
 
 ---
 
@@ -132,9 +145,11 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
     entries about the completed Garden subproject and lighting task. Complete **Confirm
     renovation budget**, choose it in the completed-work picker, and add a reflection. Reopen the
     task; the reflection stays in the journal and shows its current Todo state.
-21. **Archive.** The root Archive page is the recovery projection for sections, tasks,
+21. **Archive.** The root Archive page lists currently restorable archived sections, tasks,
     reflections and subprojects across the tree, including content whose page is disabled. Each
-    row names its origin and says whether to restore it directly or restore an ancestor first.
+    row names its origin. Restore the highest owner first; independently archived children then
+    appear as their own next steps. Settings lists archived roots and subprojects ready for
+    project Restore throughout the workspace.
 22. **Reflections sections.** A Reflections section on an ordinary canvas shows its own entries;
     the Reflections page owns its dedicated container and composer. The page feed is read-only and
     links back to canonical owners.
@@ -191,7 +206,7 @@ standalone connection matrix. Both processes still running. Full setup in
     `Authorization: Bearer prototype-user-a-readwrite`. Cursor reads `.cursor/mcp.json`; any
     client that takes JSON MCP configuration uses the same entry. The client connects and
     negotiates protocol `2026-07-28`.
-35. **Tool discovery.** Ask the client to list tools. Thirty-three come back, each with a
+35. **Tool discovery.** Ask the client to list tools. Thirty-five come back, each with a
     description and an input schema, and each advertising the permission it needs under
     `_meta["local.canvas-work-manager/requiredPermission"]` — plus the complete list under
     `_meta["local.canvas-work-manager/requiredPermissions"]`, which differs only for a derived
@@ -205,10 +220,23 @@ standalone connection matrix. Both processes still running. Full setup in
     write to *Claude*.
 39. **Cross-page writes.** Ask the agent to add and remove a Home shortcut, create a subject-linked
     reflection and toggle an optional page. Each write is visible through its canonical page/read;
-    removing the shortcut leaves the source section and rows unchanged.
+    removing the shortcut leaves the source section and rows unchanged. Then ask it to remove a
+    Home section: `remove_section` returns an operation receipt, and `undo_operation` with its
+    `historyId`, `actionId` and `expectedRevision` puts the section back between the same
+    neighbours; `get_operation_history` now lists that action under `redo`, `redo_operation`
+    removes it again, and repeating a call with the old revision is refused with a message starting
+    `history_revision_stale:`.
+    Repeat the chain with a task or reflection receipt. `undo_operation` then needs that stored
+    action family's `tasks.write` or `reflections.write` grant, and reuses the original row id on
+    Redo; an implicitly created container disappears and returns with the row.
+    `add_section_shortcut` and `remove_section_shortcut` now answer receipts too, under
+    `projects.write`, and so does `restore_section` — a repeat of which on a live section answers
+    `operation: null` and writes nothing.
 40. **Aggregate pages.** Call `get_project_todos`, `get_project_archive` and
     `get_project_journal`; the responses retain canonical project/page/container origins. Archive
-    remains queryable even when its navigation page is disabled.
+    remains queryable even when its navigation page is disabled. Call `list_archived_projects`
+    under `projects.read`, then `restore_project` with an explicit non-archived status under
+    `projects.write` to recover an archived root or ready subproject.
 41. **Agent permissions.** Go to **Settings → AI & Agents**. Each connection lists its grants as
     checkboxes. Uncheck a write permission for Claude and ask the agent to create another task:
     it is refused, and the refusal **names the missing permission**. For a derived read, the

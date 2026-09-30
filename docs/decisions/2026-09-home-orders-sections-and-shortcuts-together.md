@@ -46,3 +46,10 @@ Medium for the visual density of that combined canvas after the Flow/Grid choice
 The canvas gains a placement type with ordering semantics that are not section-like, or broader use
 shows that a single dense order makes drag targets ambiguous on the grid. The 25.8 pass surfaced
 density as an observation, not a reason to split the order.
+
+**Amended, 2026-09-14 — Slice 30.** Undo of a section removal is a position-changing path in this
+same order. Removal snapshots the section's previous and next placements — of either kind — and its
+index before writing; Undo inserts after the surviving previous neighbour, else before the
+surviving next, else at the clamped index, and renumbers so that only the restored section's
+`updatedAt` moves. A neighbour archived, removed or moved to another page has not survived
+([section removal Undo records](2026-09-section-removal-undo-records.md), rule 7).

@@ -28,9 +28,11 @@ import {
   UpdateReflectionInputSchema,
   UpdateSectionInputSchema,
   UpdateSectionShortcutInputSchema,
+  OperationHistoryIdSchema,
+  OperationHistoryTransitionInputSchema,
   UpdateTaskInputSchema,
 } from '@cwm/contracts';
-import type { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import type { ActivityService, AgentConnectionService, ArchivedProjectsService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectPageService, ProjectService, ProjectTodosService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import type { DataStore } from '@cwm/repositories';
 import { resolveActor, resolveIdentityUser } from './context.ts';
 import type { PrototypeAgentAuthenticator } from '../auth/prototype-agent-authenticator.ts';
@@ -51,11 +53,14 @@ export interface ApiDependencies {
   todos: ProjectTodosService;
   /** §31's whole-tree archive projection; it reads all three content categories. */
   archive: ProjectArchiveService;
+  archivedProjects: ArchivedProjectsService;
   /** §36's root-wide reflection feed and completed-work picker. */
   journal: ProjectJournalService;
   reflections: ReflectionService;
   dashboard: DashboardService;
   agents: AgentConnectionService;
+  /** Per-actor Undo/Redo history; its refusals ride the 409 envelope with `OperationHistoryRefusalDetails`. */
+  history: OperationHistoryService;
   /**
    * §51's bearer tokens. Optional so `createApiRouteTable` and the concurrency tests keep
    * their one-argument form — without it every request is a persona request, which is
@@ -66,12 +71,9 @@ export interface ApiDependencies {
 
 const ok = (body: unknown): RouteResult => ({ status: 200, contentType: 'application/json', body });
 const created = (body: unknown): RouteResult => ({ status: 201, contentType: 'application/json', body });
-/**
- * Removal archives, and the archived record is available through `GET` and the root Archive
- * projection, so the DELETE response still carries no body. The web gateway discards the
- * service's return value; `remove_section` over MCP is the caller that needs it.
- */
-const noContent = (): RouteResult => ({ status: 204, contentType: 'application/json', body: undefined });
+// No route in this table answers 204 any more: every delete now returns what it deleted and the
+// receipt that puts it back, and a body-less status cannot carry one. (The router's CORS preflight
+// still does; that is not an API result.)
 
 /**
  * Query strings are all strings, so the contract schemas need the shapes they expect:
@@ -112,7 +114,7 @@ const shortcutPageQuery = (query: URLSearchParams): Record<string, unknown> => (
  * gateway boundary realistically.
  */
 export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
-  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, archive, journal, reflections, dashboard, agents, authenticator } =
+  const { store, projects, pages, tasks, sections, shortcuts, activity, progress, timeline, todos, archive, archivedProjects, journal, reflections, dashboard, agents, history, authenticator } =
     dependencies;
   // Async now: an agent request has to resolve its token against the live connection
   // before the handler runs, because that read is what carries the permission set (§51).
@@ -124,6 +126,7 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
   const sectionProjectId = (request: RouteRequest) => ProjectIdSchema.parse(request.params['projectId']);
   const reflectionId = (request: RouteRequest) => ReflectionIdSchema.parse(request.params['id']);
   const connectionId = (request: RouteRequest) => AgentConnectionIdSchema.parse(request.params['id']);
+  const historyId = (request: RouteRequest) => OperationHistoryIdSchema.parse(request.params['historyId']);
 
   return {
     // §18's identity, composed rather than stored: there is no workspace repository, and
@@ -148,10 +151,19 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
         ),
       ),
 
+    'GET /api/archived-projects': async (request) =>
+      ok(await archivedProjects.list(await actorFor(request))),
+
     'POST /api/projects': async (request) =>
       created(await projects.create(await actorFor(request), CreateProjectInputSchema.parse(request.body))),
 
     'GET /api/projects/:id': async (request) => ok(await projects.get(await actorFor(request), projectId(request))),
+
+    // The caller's own Undo/Redo cursor in one project, under `projects.read`. Before their first
+    // recorded write it is an empty summary with `historyId: null`; another actor's history is
+    // never visible, and an unknown or foreign project is a 404.
+    'GET /api/projects/:id/history': async (request) =>
+      ok(await history.summary(await actorFor(request), projectId(request))),
 
     'PATCH /api/projects/:id': async (request) =>
       ok(
@@ -290,25 +302,42 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
     'POST /api/sections/:id/duplicate': async (request) =>
       created(await sections.duplicate(await actorFor(request), sectionId(request))),
 
-    // The undo for the DELETE below, and the only way an archived section or a row that
-    // came down with one returns. Idempotent, so a retry cannot move the canvas.
+    // Archive Restore for the DELETE below: durable, needing no receipt to invoke, and appended.
+    // Since Slice 37 it answers `SectionWriteResult` and records an action of its own, so a caller
+    // can take the Restore back; a retry on a live section answers `operation: null`. History Undo,
+    // which returns a section between its old neighbours, is `POST /api/history/:historyId/transition`. A row that
+    // came down with a section returns through either. Idempotent, so a retry cannot move the canvas.
     'POST /api/sections/:id/restore': async (request) =>
       ok(await sections.restoreSection(await actorFor(request), sectionId(request))),
 
-    // The policy rides on the query string, not a body: a DELETE with a body is awkward
-    // through `fetch` and every client here already builds query strings. Removing a
-    // container that still holds **live** rows without one answers 409 naming the count,
-    // which is what lets the canvas offer cascade or reassign rather than guess. Removing
-    // a section that is already archived answers 409 too — the record still exists, so
-    // this is a rule error rather than the 404 a hard delete used to give.
+    // Removal has no policy input: every owned container takes its live rows with it as one
+    // recoverable operation. Parse the strict empty query so clients still sending the retired
+    // policy or target fields get a 400 before any domain write. A repeat from the exact actor
+    // may recover its outstanding receipt in the 409 details, even when removal deleted the
+    // section. Other callers still get the ordinary 404.
+    //
+    // A successful removal answers 200 with `SectionRemovalResult`: the final archived-shaped
+    // section, the operation receipt for it, and `archiveListed` — whether Archive will actually list
+    // it. The section itself may have been deleted.
     'DELETE /api/sections/:id': async (request) => {
-      await sections.remove(
-        await actorFor(request),
-        sectionId(request),
-        RemoveSectionInputSchema.parse(queryObject(request.query, [])),
-      );
-      return noContent();
+      const actor = await actorFor(request);
+      RemoveSectionInputSchema.parse(queryObject(request.query, []));
+      return ok(await sections.remove(actor, sectionId(request)));
     },
+
+    // One Undo or Redo step. The path names the history; the strict body names the action and the
+    // revision the caller read, so a stale caller is refused rather than running a different step.
+    // Only the owning actor finds the history (404 otherwise, unknown ids included); a connection
+    // without the stored action family's write grant is a 403 naming it; every refusal — not next, stale revision,
+    // expired, blocked, conflict, unavailable, retired — is a 409 whose `details` parse as
+    // `OperationHistoryRefusalDetails` and carry the current summary. A stale revision stays a 409
+    // rather than a 412: it is the same "read, then try again" answer as every other refusal.
+    'POST /api/history/:historyId/transition': async (request) =>
+      ok(await history.transition(
+        await actorFor(request),
+        historyId(request),
+        OperationHistoryTransitionInputSchema.parse(request.body),
+      )),
 
     // §27's layout-only references. The domain resolves source identity and availability;
     // these routes never read or return the source's row collection.
@@ -357,10 +386,10 @@ export const createApiRoutes = (dependencies: ApiDependencies): RouteTable => {
         ),
       ),
 
-    'DELETE /api/shortcuts/:id': async (request) => {
-      await shortcuts.remove(await actorFor(request), shortcutId(request));
-      return noContent();
-    },
+    // 200 with `SectionShortcutRemovalResult`, not 204: the delete now answers a receipt, and a
+    // body-less status could not carry one. The route name and input are unchanged.
+    'DELETE /api/shortcuts/:id': async (request) =>
+      ok(await shortcuts.remove(await actorFor(request), shortcutId(request))),
 
     'GET /api/tasks': async (request) =>
       ok(

@@ -1,10 +1,8 @@
-import { DestroyRef, Injectable, PendingTasks, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
 import {
   SectionConfigSchema,
-  SectionRemovalRefusalDetailsSchema,
+  SectionAlreadyRemovedDetailsSchema,
   nameOf,
-  ownedKindOf,
-  type OwnedDataKind,
   type CreateSectionInput,
   type ProjectId,
   type ProjectPageId,
@@ -12,7 +10,6 @@ import {
   type ResolvedSectionShortcut,
   type CreateSectionShortcutInput,
   type UpdateSectionShortcutInput,
-  type RemoveSectionInput,
   type SectionColumnSpan,
   type SectionConfig,
   type SectionId,
@@ -20,6 +17,7 @@ import {
 } from '@cwm/contracts';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, reportedWrite, type OperationWriteReport } from '../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
 import type { LiveEvent } from '@cwm/contracts';
 import type { SectionDefinition } from './sections/registry';
@@ -27,7 +25,17 @@ import type { SectionDefinition } from './sections/registry';
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
+const FAILED_REMOVAL_GUARD_MESSAGE =
+  'Retry or dismiss the unresolved removal above before removing another section.';
+
 const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position - b.position;
+
+/** A section write's report names the section's own project, from the response (Slice 41). */
+const sectionReport = ({ section, operation }: { section: ProjectSection; operation: OperationWriteReport['receipt'] }): OperationWriteReport =>
+  ({ projectId: section.projectId, receipt: operation });
+
+/** The notice sentence after a committed write whose follow-up read failed. */
+const SAVED_REFRESH_FAILED = 'Saved. Undo is in the header.';
 
 export type ProjectCanvasPlacement =
   | { kind: 'section'; section: ProjectSection }
@@ -45,20 +53,25 @@ const byPlacementPosition = (a: ProjectCanvasPlacement, b: ProjectCanvasPlacemen
 };
 
 /**
- * A container that refused removal, and what the canvas can offer instead.
- *
- * Not the domain's sentence: that one answers an **agent**, so it names an id, says
- * "1 tasks", and explains the policy vocabulary rather than the choice
- * (`.prototype/notes.json`, `note-2026-09-01-001`). These are the parts the UI writes its
- * own question from; the count still travels from the domain, so the dialog and the rule
- * cannot disagree.
+ * What the canvas-local recovery notice offers (Slice 41). **Undo is not here**: the project
+ * header's Undo/Redo controls are the one action surface for history, so the notice keeps only what
+ * the header cannot do — Open Archive after a removal Archive will list, and a read-only Retry
+ * refresh after a committed write whose follow-up read failed. Retry remove is `FailedSectionRemoval`.
  */
-export interface SectionRemovalPrompt {
+export interface SectionRecoveryNoticeState {
+  message: string;
+  /**
+   * Set for a removal this canvas made or recovered; Archive is offered unless `archiveListed` is
+   * `false`. The notice withdraws itself once `sectionId` is back on the canvas — a header Undo.
+   */
+  removal?: { sectionId?: SectionId; archiveListed?: boolean };
+  refreshFailed?: boolean;
+}
+
+/** An explicit Retry remove repeats the exact canvas action after an uncertain failure. */
+export interface FailedSectionRemoval {
   sectionId: SectionId;
-  sectionName: string;
-  rowCount: number;
-  ownedKind: OwnedDataKind;
-  targets: ProjectSection[];
+  message: string;
 }
 
 /** A canvas creation result belongs to its popup, so failures are returned instead of stored. */
@@ -92,6 +105,11 @@ interface ColumnSpanWriteState {
 export class ProjectPageStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
+  /**
+   * The header's history hears about every canvas write (Slice 41). Shortcut writes record in the
+   * destination root — this canvas's project — so their reports name it.
+   */
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
   private readonly sectionsState = signal<ProjectSection[]>([]);
   private readonly shortcutsState = signal<ResolvedSectionShortcut[]>([]);
@@ -112,11 +130,14 @@ export class ProjectPageStore {
    */
   private loaded = false;
   private activeLoad: Promise<void> | null = null;
+  private destroyed = false;
   private fullRecoveryQueued = false;
   private readonly errorState = signal<string | null>(null);
   private readonly sectionErrorState = signal<string | null>(null);
-  /** Set when a container refuses removal because it still holds rows — see `removeSection`. */
-  private readonly removalPromptState = signal<SectionRemovalPrompt | null>(null);
+  private readonly recoveryNoticeState = signal<SectionRecoveryNoticeState | null>(null);
+  private readonly failedRemovalState = signal<FailedSectionRemoval | null>(null);
+  private readonly removalPendingState = signal(false);
+  private readonly pendingSectionWriteCountState = signal(0);
   private readonly canvasRevisionState = signal(0);
   private readonly projectDataRevisionState = signal(0);
   private readonly projectHierarchyRevisionState = signal(0);
@@ -131,6 +152,7 @@ export class ProjectPageStore {
    * be lost until a reload.
    */
   private pendingSectionWrites = 0;
+  private readonly sectionWriteWaiters: Array<{ threshold: number; resolve: () => void }> = [];
   /**
    * Bumped as each section write begins. `pendingSectionWrites` only stops a re-read from
    * *starting* during a write; a re-read already in flight when a write begins can answer after
@@ -152,7 +174,10 @@ export class ProjectPageStore {
   readonly sectionError = this.sectionErrorState.asReadonly();
   readonly canvasRevision = this.canvasRevisionState.asReadonly();
   readonly projectDataRevision = this.projectDataRevisionState.asReadonly();
-  readonly removalPrompt = this.removalPromptState.asReadonly();
+  readonly recoveryNotice = this.recoveryNoticeState.asReadonly();
+  readonly failedRemoval = this.failedRemovalState.asReadonly();
+  readonly removalPending = this.removalPendingState.asReadonly();
+  readonly recoveryBusy = computed(() => this.removalPendingState() || this.pendingSectionWriteCountState() > 0);
   readonly projectHierarchyRevision = this.projectHierarchyRevisionState.asReadonly();
 
   constructor() {
@@ -163,7 +188,11 @@ export class ProjectPageStore {
       (event) => this.onLiveEvent(event),
       () => this.onLiveConnected(),
     );
-    inject(DestroyRef).onDestroy(unsubscribe);
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.loadGeneration += 1;
+      unsubscribe();
+    });
   }
 
   /**
@@ -193,6 +222,10 @@ export class ProjectPageStore {
     const projectId = this.requestedProjectId;
     if (projectId === undefined) return;
 
+    const changesSectionExistence =
+      event.type === 'task.created' || event.type === 'reflection.added' ||
+      event.type === 'task.task_addition_undone' || event.type === 'task.task_addition_redone' ||
+      event.type === 'reflection.reflection_addition_undone' || event.type === 'reflection.reflection_addition_redone';
     const aboutThisProject =
       event.projectId === projectId || (event.type.startsWith('project.') && event.entityId === projectId);
     const hasShortcuts = this.shortcutsState().length > 0;
@@ -200,14 +233,14 @@ export class ProjectPageStore {
     if (event.type.startsWith('project.')) this.notifyProjectHierarchyChanged();
     if (!aboutThisProject && !(hasShortcuts && isInRootTree)) return;
 
-    // The containers re-read themselves off the revision; only a change to the canvas's own
-    // section list needs a `sections.list`, which is what `project.*` frames carry.
+    // The containers re-read themselves off the revision. Project frames change the canvas
+    // directly; reversing or replaying a row Add can also remove/restore its implicit container.
     this.notifyProjectDataChanged();
     if (this.activeLoad !== null) {
       this.fullRecoveryQueued = true;
       return;
     }
-    if (!event.type.startsWith('project.')) return;
+    if (!event.type.startsWith('project.') && !changesSectionExistence) return;
     if (this.pendingSectionWrites > 0) {
       this.sectionRefreshQueued = true;
       return;
@@ -357,6 +390,8 @@ export class ProjectPageStore {
     this.requestedProjectId = projectId;
     this.requestedPageId = pageId;
     this.requestedShortcutsAllowed = shortcutsAllowed;
+    this.recoveryNoticeState.set(null);
+    this.failedRemovalState.set(null);
     this.orderCompleteState.set(false);
     if (!shortcutsAllowed) this.setCanvas(this.composePlacements(this.sectionsState(), []));
     this.loaded = false;
@@ -407,6 +442,7 @@ export class ProjectPageStore {
    */
   private current(generation: number, projectId: ProjectId, pageId: ProjectPageId): boolean {
     return (
+      !this.destroyed &&
       generation === this.loadGeneration &&
       this.requestedProjectId === projectId &&
       this.requestedPageId === pageId
@@ -430,6 +466,12 @@ export class ProjectPageStore {
   private setCanvas(placements: readonly ProjectCanvasPlacement[]): void {
     const next = [...placements];
     this.placementsState.set(next);
+    // A removal notice that says "Removed … Open Archive" is wrong once the section is back (the
+    // header's Undo, or anyone's): withdraw it rather than leave a stale route on screen.
+    const removed = this.recoveryNoticeState()?.removal?.sectionId;
+    if (removed !== undefined && next.some((placement) => placement.kind === 'section' && placement.section.id === removed)) {
+      this.recoveryNoticeState.set(null);
+    }
     this.sectionsState.set(
       next.filter((placement): placement is Extract<ProjectCanvasPlacement, { kind: 'section' }> => placement.kind === 'section')
         .map((placement) => placement.section),
@@ -477,15 +519,15 @@ export class ProjectPageStore {
       // Parsed, not cast: §29 types `createDefaultConfig` as `unknown`, and a definition
       // that returns a non-object should fail here rather than at the host.
       const config = SectionConfigSchema.parse(definition.createDefaultConfig());
-      const created = await this.gateway.sections.create(projectId, {
+      const result = await reportedWrite(this.reporter, () => this.gateway.sections.create(projectId, {
         type: definition.type,
         pageId,
         config,
         ...options,
-      });
+      }), sectionReport);
       if (!current()) return;
-      this.insertPlacement({ kind: 'section', section: created }, created.position);
-      await this.reconcileSections(projectId, pageId, generation);
+      this.insertPlacement({ kind: 'section', section: result.section }, result.section.position);
+      if (!(await this.reconcileSections(projectId, pageId, generation))) this.markRefreshFailed(current);
     });
   }
 
@@ -493,9 +535,10 @@ export class ProjectPageStore {
   addShortcut(input: CreateSectionShortcutInput): Promise<CanvasWriteResult> {
     return this.mutateWithResult(async ({ current, projectId, pageId, generation }) => {
       if (input.pageId !== pageId) throw new Error('The shortcut destination does not match this canvas');
-      const created = await this.gateway.shortcuts.create(projectId, input);
+      const { shortcut } = await reportedWrite(this.reporter, () => this.gateway.shortcuts.create(projectId, input),
+        ({ operation }) => ({ projectId, receipt: operation }));
       if (!current()) return;
-      this.insertPlacement({ kind: 'shortcut', shortcut: created }, created.position);
+      this.insertPlacement({ kind: 'shortcut', shortcut }, shortcut.position);
       await this.reconcileSections(projectId, pageId, generation);
     });
   }
@@ -545,12 +588,12 @@ export class ProjectPageStore {
       this.whileWriting(async () => {
       if (current()) this.sectionErrorState.set(null);
       try {
-        await this.gateway.sections.move(id, { position });
+        await reportedWrite(this.reporter, () => this.gateway.sections.move(id, { position }), sectionReport);
         if (!current()) return true;
 
         // The preview remains visibly successful if the follow-up read fails. It is a
         // rendering order, not a second implementation of domain validation.
-        await this.reconcileSections(projectId, pageId, generation);
+        if (!(await this.reconcileSections(projectId, pageId, generation))) this.markRefreshFailed(current);
         return true;
       } catch (error) {
         if (current()) {
@@ -573,9 +616,9 @@ export class ProjectPageStore {
       columnSpan,
       () => this.sectionsState().find((section) => section.id === id)?.columnSpan,
       (span) => this.patchSectionColumnSpan(id, span),
-      async () => this.gateway.sections.update(id, { columnSpan }),
-      (section) => section.columnSpan,
-      (section) => this.replaceSection(section),
+      () => reportedWrite(this.reporter, () => this.gateway.sections.update(id, { columnSpan }), sectionReport),
+      (result) => result.section.columnSpan,
+      (result) => this.replaceSection(result.section),
     );
   }
 
@@ -590,17 +633,17 @@ export class ProjectPageStore {
       columnSpan,
       () => this.shortcutsState().find((shortcut) => shortcut.id === id)?.columnSpan,
       (span) => this.patchShortcutColumnSpan(id, span),
-      async () => this.gateway.shortcuts.update(id, { columnSpan }),
-      (shortcut) => shortcut.columnSpan,
-      (shortcut) => this.replaceShortcut(shortcut),
+      () => this.reportedShortcutWrite(() => this.gateway.shortcuts.update(id, { columnSpan })),
+      (result) => result.shortcut.columnSpan,
+      (result) => this.replaceShortcut(result.shortcut),
     );
   }
 
   updateShortcut(id: SectionShortcutId, input: UpdateSectionShortcutInput): Promise<boolean> {
     return this.mutate(async ({ current }) => {
-      const updated = await this.gateway.shortcuts.update(id, input);
+      const { shortcut } = await this.reportedShortcutWrite(() => this.gateway.shortcuts.update(id, input));
       if (!current()) return;
-      this.replaceShortcut(updated);
+      this.replaceShortcut(shortcut);
     });
   }
 
@@ -628,7 +671,7 @@ export class ProjectPageStore {
       this.whileWriting(async () => {
         if (current()) this.sectionErrorState.set(null);
         try {
-          await this.gateway.shortcuts.move(id, { position });
+          await this.reportedShortcutWrite(() => this.gateway.shortcuts.move(id, { position }));
           if (!current()) return true;
           await this.reconcileSections(projectId, pageId, generation);
           return true;
@@ -646,7 +689,8 @@ export class ProjectPageStore {
 
   removeShortcut(id: SectionShortcutId): Promise<boolean> {
     return this.mutate(async ({ current, projectId, pageId, generation }) => {
-      await this.gateway.shortcuts.remove(id);
+      await reportedWrite(this.reporter, () => this.gateway.shortcuts.remove(id),
+        (removed) => ({ projectId: removed.projectId, receipt: removed.operation }));
       if (!current()) return;
       this.setCanvas(
         this.placementsState().filter((placement) => !(placement.kind === 'shortcut' && placement.shortcut.id === id)),
@@ -675,72 +719,140 @@ export class ProjectPageStore {
   }
 
   /**
-   * Removal **archives**. A view, an empty container, and a container holding only archived
-   * rows go without ceremony — this sends no policy and the domain archives them, and the
-   * root Archive page is what makes that safe. A container still holding
-   * *live* rows answers 409 `rule_violation` carrying a discriminated `section_not_empty`
-   * payload; that is not an error to render, it is a **question to ask**, so it opens
-   * `removalPrompt` instead of `sectionError`.
-   *
-   * **Only that payload opens the dialog.** A 409 with missing, malformed, zero-valued or
-   * differently discriminated details is not safely identifiable as the question this dialog
-   * can answer, so it surfaces as an ordinary error. The count still comes from the domain
-   * rather than from a client-side row count, so the dialog and the rule cannot disagree.
+   * Removes or retains one section. Its receipt goes to the header's history, which is where the
+   * removal's Undo lives (Slice 41); the canvas keeps only the recovery the header cannot offer —
+   * Open Archive when Archive will list the section, and Retry refresh when the follow-up read
+   * fails. One request always cascades live owned rows with the section.
    */
-  removeSection(id: SectionId, input: RemoveSectionInput = {}): Promise<boolean> {
-    return this.mutate(async ({ current, projectId, pageId, generation }) => {
+  removeSection(id: SectionId): Promise<boolean> {
+    if (this.removalPendingState()) return Promise.resolve(false);
+    const unresolved = this.failedRemovalState();
+    if (unresolved !== null && !this.isSameFailedRemoval(unresolved, id)) {
+      this.sectionErrorState.set(FAILED_REMOVAL_GUARD_MESSAGE);
+      return Promise.resolve(false);
+    }
+    const name = this.sectionsState().find((section) => section.id === id);
+    const removedName = name === undefined ? 'the section' : `the ${nameOf(name)} section`;
+    this.removalPendingState.set(true);
+    let failed = false;
+    const operation = this.mutate(async ({ current, projectId, pageId, generation }) => {
+      let result: Awaited<ReturnType<typeof this.gateway.sections.remove>>;
       try {
-        await this.gateway.sections.remove(id, input);
+        result = await reportedWrite(this.reporter, () => this.gateway.sections.remove(id), sectionReport);
       } catch (error) {
-        if (current() && error instanceof GatewayError && error.code === 'rule_violation') {
-          const refusal = SectionRemovalRefusalDetailsSchema.safeParse(error.details);
-          if (refusal.success) {
-            this.removalPromptState.set(this.removalPromptFor(id, refusal.data.liveRowCount));
-            // Swallowed on purpose: `mutate` would otherwise park the domain's sentence in
-            // `sectionError`, beside a dialog already asking the question properly.
+        if (!current()) return;
+        if (error instanceof GatewayError && error.code === 'rule_violation') {
+          const available = SectionAlreadyRemovedDetailsSchema.safeParse(error.details);
+          if (available.success && available.data.sectionId === id) {
+            // The exact actor's earlier removal: its receipt goes to the header, not to a button here.
+            const recovered = this.reporter.begin();
+            recovered.committed({ projectId, receipt: available.data.operation });
+            recovered.end();
+            this.clearFailedRemovalFor(id);
+            this.recoveryNoticeState.set({ message: 'This section was already removed. Undo is in the header.', removal: { sectionId: id } });
+            this.removePlacement(id);
+            this.notifyProjectDataChanged();
+            await this.waitForOtherSectionWrites();
+            const refreshed = await this.reconcileSections(projectId, pageId, generation);
+            if (!refreshed) this.markRefreshFailed(current);
             return;
           }
         }
-        throw error;
+        this.failedRemovalState.set({ sectionId: id, message: messageOf(error) });
+        failed = true;
+        return;
       }
       if (!current()) return;
-      this.removalPromptState.set(null);
-      // Removing the render item is safe; filling the persisted position gap belongs to
-      // SectionService and arrives through the authoritative re-read below.
-      this.setCanvas(
-        this.placementsState().filter((placement) => !(placement.kind === 'section' && placement.section.id === id)),
-      );
-      await this.reconcileSections(projectId, pageId, generation);
-      // A cascade or a reassign moved rows, so every container has to re-read.
-      if (input.policy !== undefined) this.notifyProjectDataChanged();
+      this.clearFailedRemovalFor(id);
+      // Archive is offered only when the removal says Archive will list the section
+      // (`note-2026-09-15-006`); otherwise the header's changed label is the confirmation.
+      this.recoveryNoticeState.set(result.archiveListed
+        ? { message: `Removed ${removedName}. Undo is in the header.`, removal: { sectionId: id, archiveListed: true } }
+        : null);
+      // Paint the committed removal immediately. Neighbor positions still come from the
+      // authoritative read.
+      this.removePlacement(id);
+      this.notifyProjectDataChanged();
+      await this.waitForOtherSectionWrites();
+      const refreshed = await this.reconcileSections(projectId, pageId, generation);
+      if (!refreshed) this.markRefreshFailed(current);
     });
+    return operation
+      .then((succeeded) => succeeded && !failed)
+      .finally(() => this.removalPendingState.set(false));
   }
 
-  /**
-   * The parts the dialog composes its question from. `ownedKindOf` is narrowed rather than
-   * cast: only a container can refuse this way, so a `undefined` here is a bug — and an
-   * early throw lands it in `mutate`'s catch and the section error line, which is where a
-   * bug belongs.
-   */
-  private removalPromptFor(id: SectionId, rowCount: number): SectionRemovalPrompt {
-    const section = this.sectionsState().find((candidate) => candidate.id === id);
-    if (section === undefined) throw new Error(`section "${id}" refused removal but is not on the canvas`);
-    const ownedKind = ownedKindOf(section.type);
-    if (ownedKind === undefined) throw new TypeError(`section "${id}" refused removal as non-empty but owns no rows`);
-    return { sectionId: id, sectionName: nameOf(section), rowCount, ownedKind, targets: this.reassignTargets(id) };
+  /** Retry repeats only the ID-only removal after an uncertain response; it is never automatic. */
+  retryFailedRemoval(): Promise<boolean> {
+    const failed = this.failedRemovalState();
+    return failed === null ? Promise.resolve(false) : this.removeSection(failed.sectionId);
   }
 
-  /** The containers a refused removal could hand its rows to: same type, same page. */
-  private reassignTargets(id: SectionId): ProjectSection[] {
-    const section = this.sectionsState().find((candidate) => candidate.id === id);
-    if (section === undefined) return [];
-    return this.sectionsState().filter(
-      (candidate) => candidate.id !== id && candidate.type === section.type,
+  /** Retries only the read after a committed mutation, never the write itself. */
+  retryRefresh(): Promise<boolean> {
+    const notice = this.recoveryNoticeState();
+    const projectId = this.requestedProjectId;
+    const pageId = this.requestedPageId;
+    if (!notice?.refreshFailed || projectId === undefined || pageId === undefined || this.removalPendingState()) {
+      return Promise.resolve(false);
+    }
+    const generation = this.loadGeneration;
+    const current = () => this.current(generation, projectId, pageId);
+    this.removalPendingState.set(true);
+    return this.track(async () => {
+      await this.waitForOtherSectionWrites(0);
+      if (!current()) return false;
+      const refreshed = await this.reconcileSections(projectId, pageId, generation);
+      if (current() && refreshed) {
+        // A refresh-only notice has nothing left to say; a removal keeps its Open Archive.
+        this.recoveryNoticeState.update((state) =>
+          state === null || state.removal === undefined ? null : { ...state, refreshFailed: false });
+      }
+      return current() && refreshed;
+    }).finally(() => this.removalPendingState.set(false));
+  }
+
+  dismissRecoveryNotice(): void {
+    this.recoveryNoticeState.set(null);
+  }
+
+  /** Dismisses only the failed remove message; any recovery notice stays. */
+  dismissFailedRemoval(): void {
+    this.failedRemovalState.set(null);
+    if (this.sectionErrorState() === FAILED_REMOVAL_GUARD_MESSAGE) this.sectionErrorState.set(null);
+  }
+
+  private clearFailedRemovalFor(id: SectionId): void {
+    if (this.failedRemovalState()?.sectionId === id) this.failedRemovalState.set(null);
+  }
+
+  private isSameFailedRemoval(failed: FailedSectionRemoval, id: SectionId): boolean {
+    return failed.sectionId === id;
+  }
+
+  private removePlacement(id: SectionId): void {
+    this.setCanvas(
+      this.placementsState().filter((placement) => !(placement.kind === 'section' && placement.section.id === id)),
     );
   }
 
-  dismissRemovalPrompt(): void {
-    this.removalPromptState.set(null);
+  /** A committed write whose follow-up read failed offers read-only Retry refresh. */
+  private markRefreshFailed(current: () => boolean): void {
+    if (!current()) return;
+    this.recoveryNoticeState.update((state) => state === null
+      ? { message: SAVED_REFRESH_FAILED, refreshFailed: true }
+      : { ...state, refreshFailed: true });
+  }
+
+  /** A shortcut write records in the destination root: this canvas's project. */
+  private reportedShortcutWrite<T extends { operation: OperationWriteReport['receipt'] }>(write: () => Promise<T>): Promise<T> {
+    const projectId = this.requestedProjectId;
+    return reportedWrite(this.reporter, write, ({ operation }) => ({ projectId: projectId!, receipt: operation }));
+  }
+
+  private async waitForOtherSectionWrites(threshold = 1): Promise<void> {
+    if (this.pendingSectionWrites <= threshold) return;
+    await new Promise<void>((resolve) => this.sectionWriteWaiters.push({ threshold, resolve }));
   }
 
   private updateSection(
@@ -748,9 +860,9 @@ export class ProjectPageStore {
     input: Parameters<typeof this.gateway.sections.update>[1],
   ): Promise<boolean> {
     return this.mutate(async ({ current }) => {
-      const updated = await this.gateway.sections.update(id, input);
+      const updated = await reportedWrite(this.reporter, () => this.gateway.sections.update(id, input), sectionReport);
       if (!current()) return;
-      this.replaceSection(updated);
+      this.replaceSection(updated.section);
     });
   }
 
@@ -773,6 +885,7 @@ export class ProjectPageStore {
     write: () => Promise<T>,
     readSavedSpan: (record: T) => SectionColumnSpan,
     applySaved: (record: T) => void,
+    onSaved: (record: T) => void = () => {},
   ): Promise<boolean> {
     const projectId = this.requestedProjectId;
     const pageId = this.requestedPageId;
@@ -815,6 +928,7 @@ export class ProjectPageStore {
             state!.confirmedSpan = savedSpan;
           }
           if (latest()) applySaved(saved);
+          onSaved(saved);
           this.paintColumnSpanWrite(state!, paint);
           this.cleanupColumnSpanWrite(stateKey, state!);
           return true;
@@ -926,34 +1040,32 @@ export class ProjectPageStore {
   /**
    * Re-reads the canvas after a successful write, and **swallows its own failure**. The
    * write already landed; reporting a failed re-read as a failed write would tell the user
-   * their remove did not happen and invite them to click it again — which now answers the
-   * already-archived 409, because removal archives and the record is still there. The
-   * render-only update above is close enough to live with until the next load. Persisted
+   * their remove did not happen. The receipt has already gone to the header's history. Persisted
    * sibling positions remain untouched unless they came from the host.
    */
   private async reconcileSections(
     projectId = this.requestedProjectId,
     pageId = this.requestedPageId,
     generation = this.loadGeneration,
-  ): Promise<void> {
-    if (projectId === undefined || pageId === undefined) return;
+  ): Promise<boolean> {
+    if (projectId === undefined || pageId === undefined) return false;
     const [sectionsResult, shortcutsResult] = await Promise.allSettled([
       this.gateway.sections.list(projectId, { pageId }),
       this.readShortcuts(projectId, pageId),
     ]);
-    if (!this.current(generation, projectId, pageId)) return;
+    if (!this.current(generation, projectId, pageId)) return false;
     this.orderCompleteState.set(
       !this.requestedShortcutsAllowed || shortcutsResult.status === 'fulfilled',
     );
     if (shortcutsResult.status === 'rejected') {
       this.sectionErrorState.set(messageOf(shortcutsResult.reason));
     }
-    if (sectionsResult.status === 'fulfilled') {
-      const shortcuts = shortcutsResult.status === 'fulfilled' ? shortcutsResult.value : this.shortcutsState();
-      this.setCanvas(this.composePlacements([...sectionsResult.value].sort(byPosition), shortcuts));
-      this.loaded = true;
-      if (shortcutsResult.status === 'fulfilled') this.sectionErrorState.set(null);
-    }
+    if (sectionsResult.status === 'rejected') return false;
+    const shortcuts = shortcutsResult.status === 'fulfilled' ? shortcutsResult.value : this.shortcutsState();
+    this.setCanvas(this.composePlacements([...sectionsResult.value].sort(byPosition), shortcuts));
+    this.loaded = true;
+    if (shortcutsResult.status === 'fulfilled') this.sectionErrorState.set(null);
+    return shortcutsResult.status === 'fulfilled';
   }
 
   private track<T>(operation: () => Promise<T>): Promise<T> {
@@ -968,9 +1080,17 @@ export class ProjectPageStore {
    */
   private whileWriting<T>(operation: () => Promise<T>): Promise<T> {
     this.pendingSectionWrites += 1;
+    this.pendingSectionWriteCountState.set(this.pendingSectionWrites);
     this.sectionWriteEpoch += 1;
     return operation().finally(() => {
       this.pendingSectionWrites -= 1;
+      this.pendingSectionWriteCountState.set(this.pendingSectionWrites);
+      const waiting: typeof this.sectionWriteWaiters = [];
+      for (const waiter of this.sectionWriteWaiters) {
+        if (this.pendingSectionWrites <= waiter.threshold) waiter.resolve();
+        else waiting.push(waiter);
+      }
+      this.sectionWriteWaiters.splice(0, this.sectionWriteWaiters.length, ...waiting);
       if (this.pendingSectionWrites === 0 && this.sectionRefreshQueued) {
         this.sectionRefreshQueued = false;
         void this.refreshSections();

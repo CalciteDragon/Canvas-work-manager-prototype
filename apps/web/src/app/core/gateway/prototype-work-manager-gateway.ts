@@ -4,17 +4,32 @@ import {
   AgentConnectionSchema,
   DashboardResultSchema,
   ProjectPageSchema,
+  ProjectPageWriteResultSchema,
   ProjectArchiveResultSchema,
+  ArchivedProjectsResultSchema,
   ProjectCompletedWorkResultSchema,
   ProjectJournalResultSchema,
   ProjectSchema,
+  ProjectWriteResultSchema,
   ProjectSectionSchema,
   ResolvedSectionShortcutSchema,
   ProgressResultSchema,
   ProjectTodosResultSchema,
   ReflectionSchema,
+  SectionRemovalResultSchema,
+  SectionAddResultSchema,
+  SectionShortcutAddResultSchema,
+  SectionShortcutRemovalResultSchema,
+  SectionShortcutWriteResultSchema,
+  SectionWriteResultSchema,
   TaskSchema,
   TimelineResultSchema,
+  OperationHistorySummarySchema,
+  OperationHistoryTransitionResultSchema,
+  ReflectionAddResultSchema,
+  ReflectionWriteResultSchema,
+  TaskAddResultSchema,
+  TaskWriteResultSchema,
   ShortcutSourceSchema,
   type ActivityQuery,
   type AgentConnectionId,
@@ -28,7 +43,6 @@ import {
   type ProjectQuery,
   type ReflectionId,
   type ReflectionQuery,
-  type RemoveSectionInput,
   type CreateSectionShortcutInput,
   type UpdateProjectInput,
   type UpdateReflectionInput,
@@ -45,13 +59,15 @@ import {
   type TaskQuery,
   type UpdateSectionInput,
   type UpdateTaskInput,
+  type OperationHistoryId,
+  type OperationHistoryTransitionInput,
 } from '@cwm/contracts';
 import { z } from 'zod';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
 import { PrototypeSettings } from '../config/prototype-settings';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider';
 import { GatewayError, toGatewayError, toUnreachableError } from './gateway-error';
-import type { ActivityGateway, AgentGateway, ArchiveGateway, DashboardGateway, JournalGateway, ProgressGateway, ProjectGateway, ProjectPageGateway, ReflectionGateway, SectionGateway, SectionShortcutGateway, TaskGateway, TimelineGateway, TodosGateway, WorkManagerGateway } from './work-manager-gateway';
+import type { ActivityGateway, AgentGateway, ArchiveGateway, DashboardGateway, JournalGateway, OperationHistoryGateway, ProgressGateway, ProjectGateway, ProjectPageGateway, ReflectionGateway, SectionGateway, SectionShortcutGateway, TaskGateway, TimelineGateway, TodosGateway, WorkManagerGateway } from './work-manager-gateway';
 
 /**
  * The §10 adapter: Angular → `localhost:4310`. Everything transport-shaped lives here —
@@ -69,11 +85,12 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
     list: (query) =>
       matchesNothing(query)
         ? Promise.resolve([])
-        : this.send('GET', `/api/projects${queryString(projectQueryParams(query))}`, ProjectSchema.array()),
+          : this.send('GET', `/api/projects${queryString(projectQueryParams(query))}`, ProjectSchema.array()),
+    archived: () => this.send('GET', '/api/archived-projects', ArchivedProjectsResultSchema),
     get: (id: ProjectId) => this.send('GET', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema),
-    create: (input: CreateProjectInput) => this.send('POST', '/api/projects', ProjectSchema, input),
+    create: (input: CreateProjectInput) => this.send('POST', '/api/projects', ProjectWriteResultSchema, input),
     update: (id: ProjectId, input: UpdateProjectInput) =>
-      this.send('PATCH', `/api/projects/${encodeURIComponent(id)}`, ProjectSchema, input),
+      this.send('PATCH', `/api/projects/${encodeURIComponent(id)}`, ProjectWriteResultSchema, input),
   };
 
   readonly dashboard: DashboardGateway = {
@@ -110,12 +127,12 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         `/api/reflections${queryString(reflectionQueryParams({ ...query, projectId }))}`,
         ReflectionSchema.array(),
       ),
-    create: (input: CreateReflectionInput) => this.send('POST', '/api/reflections', ReflectionSchema, input),
-    update: (id: ReflectionId, input: UpdateReflectionInput) => this.send('PATCH', `/api/reflections/${encodeURIComponent(id)}`, ReflectionSchema, input),
+    create: (input: CreateReflectionInput) => this.send('POST', '/api/reflections', ReflectionAddResultSchema, input),
+    update: (id: ReflectionId, input: UpdateReflectionInput) => this.send('PATCH', `/api/reflections/${encodeURIComponent(id)}`, ReflectionWriteResultSchema, input),
     archive: (id: ReflectionId) =>
-      this.send('POST', `/api/reflections/${encodeURIComponent(id)}/archive`, ReflectionSchema),
+      this.send('POST', `/api/reflections/${encodeURIComponent(id)}/archive`, ReflectionWriteResultSchema),
     restore: (id: ReflectionId) =>
-      this.send('POST', `/api/reflections/${encodeURIComponent(id)}/restore`, ReflectionSchema),
+      this.send('POST', `/api/reflections/${encodeURIComponent(id)}/restore`, ReflectionWriteResultSchema),
   };
 
   readonly pages: ProjectPageGateway = {
@@ -127,7 +144,7 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       this.send(
         'PATCH',
         `/api/projects/${encodeURIComponent(projectId)}/pages/${encodeURIComponent(input.kind)}`,
-        ProjectPageSchema,
+        ProjectPageWriteResultSchema,
         { enabled: input.enabled },
       ),
   };
@@ -140,23 +157,18 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         ProjectSectionSchema.array(),
       ),
     create: (projectId: ProjectId, input: CreateSectionInput) =>
-      this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/sections`, ProjectSectionSchema, input),
+      this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/sections`, SectionAddResultSchema, input),
     update: (id: SectionId, input: UpdateSectionInput) =>
-      this.send('PATCH', `/api/sections/${encodeURIComponent(id)}`, ProjectSectionSchema, input),
+      this.send('PATCH', `/api/sections/${encodeURIComponent(id)}`, SectionWriteResultSchema, input),
     move: (id: SectionId, input: MoveSectionInput) =>
-      this.send('POST', `/api/sections/${encodeURIComponent(id)}/move`, ProjectSectionSchema, input),
+      this.send('POST', `/api/sections/${encodeURIComponent(id)}/move`, SectionWriteResultSchema, input),
     duplicate: (id: SectionId) =>
-      this.send('POST', `/api/sections/${encodeURIComponent(id)}/duplicate`, ProjectSectionSchema),
-    // The host answers 204 with no body, so there is nothing to validate — unlike
-    // `tasks.archive`, which discards a body it still checks.
-    // The policy rides on the query string, matching the host route.
-    remove: (id: SectionId, input: RemoveSectionInput = {}) =>
-      this.sendWithoutBody(
-        'DELETE',
-        `/api/sections/${encodeURIComponent(id)}${queryString(removeSectionParams(input))}`,
-      ),
+      this.send('POST', `/api/sections/${encodeURIComponent(id)}/duplicate`, SectionAddResultSchema),
+    // No removal policy travels across the gateway; live owned rows cascade with the section.
+    remove: (id: SectionId) =>
+      this.send('DELETE', `/api/sections/${encodeURIComponent(id)}`, SectionRemovalResultSchema),
     restore: (id: SectionId) =>
-      this.send('POST', `/api/sections/${encodeURIComponent(id)}/restore`, ProjectSectionSchema),
+      this.send('POST', `/api/sections/${encodeURIComponent(id)}/restore`, SectionWriteResultSchema),
   };
 
   readonly shortcuts: SectionShortcutGateway = {
@@ -173,13 +185,14 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         ShortcutSourceSchema.array(),
       ),
     create: (projectId: ProjectId, input: CreateSectionShortcutInput) =>
-      this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/shortcuts`, ResolvedSectionShortcutSchema, input),
+      this.send('POST', `/api/projects/${encodeURIComponent(projectId)}/shortcuts`, SectionShortcutAddResultSchema, input),
     update: (id: SectionShortcutId, input: UpdateSectionShortcutInput) =>
-      this.send('PATCH', `/api/shortcuts/${encodeURIComponent(id)}`, ResolvedSectionShortcutSchema, input),
+      this.send('PATCH', `/api/shortcuts/${encodeURIComponent(id)}`, SectionShortcutWriteResultSchema, input),
     move: (id: SectionShortcutId, input: MoveSectionShortcutInput) =>
-      this.send('POST', `/api/shortcuts/${encodeURIComponent(id)}/move`, ResolvedSectionShortcutSchema, input),
+      this.send('POST', `/api/shortcuts/${encodeURIComponent(id)}/move`, SectionShortcutWriteResultSchema, input),
+    // 200 with a body since Slice 37: the delete carries the receipt that puts the placement back.
     remove: (id: SectionShortcutId) =>
-      this.sendWithoutBody('DELETE', `/api/shortcuts/${encodeURIComponent(id)}`),
+      this.send('DELETE', `/api/shortcuts/${encodeURIComponent(id)}`, SectionShortcutRemovalResultSchema),
   };
 
   readonly tasks: TaskGateway = {
@@ -188,16 +201,12 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
         ? Promise.resolve([])
         : this.send('GET', `/api/tasks${queryString(taskQueryParams(query))}`, TaskSchema.array()),
     get: (id: TaskId) => this.send('GET', `/api/tasks/${encodeURIComponent(id)}`, TaskSchema),
-    create: (input: CreateTaskInput) => this.send('POST', '/api/tasks', TaskSchema, input),
+    create: (input: CreateTaskInput) => this.send('POST', '/api/tasks', TaskAddResultSchema, input),
     update: (id: TaskId, input: UpdateTaskInput) =>
-      this.send('PATCH', `/api/tasks/${encodeURIComponent(id)}`, TaskSchema, input),
-    complete: (id: TaskId) => this.send('POST', `/api/tasks/${encodeURIComponent(id)}/complete`, TaskSchema),
-    // §9 says `Promise<void>`; the host returns the archived task. Validate it anyway —
-    // an unchecked body is not something this adapter passes on, even to discard.
-    archive: async (id: TaskId) => {
-      await this.send('POST', `/api/tasks/${encodeURIComponent(id)}/archive`, TaskSchema);
-    },
-    restore: (id: TaskId) => this.send('POST', `/api/tasks/${encodeURIComponent(id)}/restore`, TaskSchema),
+      this.send('PATCH', `/api/tasks/${encodeURIComponent(id)}`, TaskWriteResultSchema, input),
+    complete: (id: TaskId) => this.send('POST', `/api/tasks/${encodeURIComponent(id)}/complete`, TaskWriteResultSchema),
+    archive: (id: TaskId) => this.send('POST', `/api/tasks/${encodeURIComponent(id)}/archive`, TaskWriteResultSchema),
+    restore: (id: TaskId) => this.send('POST', `/api/tasks/${encodeURIComponent(id)}/restore`, TaskWriteResultSchema),
   };
 
   readonly agents: AgentGateway = {
@@ -211,6 +220,13 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
   readonly activity: ActivityGateway = {
     list: (query: ActivityQuery) =>
       this.send('GET', `/api/activity${queryString(activityQueryParams(query))}`, ActivityFeedEntrySchema.array()),
+  };
+
+  readonly history: OperationHistoryGateway = {
+    summary: (projectId) =>
+      this.send('GET', `/api/projects/${encodeURIComponent(projectId)}/history`, OperationHistorySummarySchema),
+    transition: (historyId: OperationHistoryId, input: OperationHistoryTransitionInput) =>
+      this.send('POST', `/api/history/${encodeURIComponent(historyId)}/transition`, OperationHistoryTransitionResultSchema, input),
   };
 
   private async send<T>(method: string, path: string, schema: z.ZodType<T>, body?: unknown): Promise<T> {
@@ -227,11 +243,6 @@ export class PrototypeWorkManagerGateway implements WorkManagerGateway {
       throw new GatewayError('invalid_response', 0, `${method} ${path} answered a body that is not its contract`);
     }
     return parsed.data;
-  }
-
-  /** For the one route that answers 204: reading `.json()` off an empty body would throw. */
-  private async sendWithoutBody(method: string, path: string): Promise<void> {
-    await this.request(method, path);
   }
 
   private async request(method: string, path: string, body?: unknown): Promise<Response> {
@@ -350,13 +361,6 @@ const shortcutQueryParams = (query: SectionShortcutQuery): URLSearchParams => {
 const shortcutSourceQueryParams = (query: ShortcutSourceQuery): URLSearchParams => {
   const params = new URLSearchParams();
   append(params, 'pageId', query.pageId);
-  return params;
-};
-
-const removeSectionParams = (input: RemoveSectionInput): URLSearchParams => {
-  const params = new URLSearchParams();
-  append(params, 'policy', input.policy);
-  append(params, 'reassignToSectionId', input.reassignToSectionId);
   return params;
 };
 

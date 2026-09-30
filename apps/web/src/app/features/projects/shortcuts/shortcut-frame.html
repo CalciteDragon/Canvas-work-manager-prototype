@@ -15,7 +15,7 @@
       [attr.aria-disabled]="movePending() || !moveAllowed()"
       (keydown)="moveKeydown($event)"
     >
-      <app-canvas-icon name="grip" />
+      <app-icon name="grip" />
     </button>
 
     <button
@@ -27,7 +27,7 @@
       (click)="toggleCollapsed()"
     >
       <span [class.shortcut-frame__chevron--collapsed]="shortcut().collapsed">
-        <app-canvas-icon name="chevron" />
+        <app-icon name="chevron" />
       </span>
     </button>
 
@@ -50,7 +50,7 @@
         [attr.aria-label]="'Remove shortcut to ' + sourceName()"
         (click)="removeRequested.emit(shortcut().id)"
       >
-        <app-canvas-icon name="remove" />
+        <app-icon name="remove" />
       </button>
     </div>
   </header>

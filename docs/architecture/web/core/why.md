@@ -72,6 +72,8 @@ get one.
 
 ## Decisions that shape this system
 
+- [Actionable Archive and archived-project recovery](../../../decisions/2026-09-actionable-archive-and-archived-projects.md) — the shared gateway keeps workspace Settings off HTTP details.
+
 - [The gateway interface grows with its implementations](../../../decisions/2026-08-gateway-surface-grows-with-implementations.md)
 - [What an `Identity` is, and where it comes from](../../../decisions/2026-08-identity-contract-and-me-route.md)
 - [Latency and failure injection live in the client, not the host](../../../decisions/2026-08-latency-and-failure-live-in-the-client.md)
@@ -79,6 +81,13 @@ get one.
 - [A theme change lasts the session, not the persona](../../../decisions/2026-08-theme-selection-is-session-only.md)
 - [Where the project navigation column lives](../../../decisions/2026-09-where-the-project-navigation-column-lives.md) — why it is *not* here
 - [CORS on the host, not a dev-server proxy](../../../decisions/2026-08-host-cors-over-dev-proxy.md) — why the adapter talks to `:4310` directly
+- [Disposable removal and immediate canvas Undo](../../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — the receipt-driven Undo seam beside section removal
+- [Section removal is one cascade gesture, and task Delete is reversible](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — the gateway sends the section id alone
+- [Explicit section edits reverse only their operation's changes](../../../decisions/2026-09-section-edit-undo-boundaries.md) — typed add/move/update envelopes
+- [Undo and Redo follow one history per exact actor, per owning project](../../../decisions/2026-09-operation-history-scope.md) — `OperationHistoryGateway` and revision-ordered receipts
+- [The project header offers Undo and Redo of the displayed project's history](../../../decisions/2026-09-project-header-history-controls.md) — why the reporter port is core's and its default is inert
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../../decisions/2026-09-project-creation-history.md) — the gateway validates the create receipt before the shell navigates
+- [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — the phone drawer, its focus rules and why its state is `AppShell`'s, not `ShellStore`'s
 
 ## Spec sections
 

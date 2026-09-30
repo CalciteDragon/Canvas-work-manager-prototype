@@ -1,8 +1,31 @@
 # Testing
 
+Slice 45 closes Slice 34 with a ledger: every Undo/Redo and Archive coverage row has a named
+domain assertion plus browser or MCP evidence. It adds canonical Restore races and MCP-path faults
+at the host commit boundary, both-transport row, layout and race journeys, a stdio concurrency
+case, and a 375 px containment check. Slice 44's exact-ID parent-first Archive and workspace
+archived-project checks remain, with read grants separate from Restore grants.
+
+Slice 58 adds `phone-layout.spec.ts`: the global drawer by tap, Enter and Space with a real focus
+trap and `inert` workspace, route and create closing, project-column re-collapse across reloads,
+Task List Delete beside an open details drawer, no horizontal overflow on five pages in both
+themes, and a non-mobile resize context for focus across the breakpoint.
+
+Slice 52 adds SDK transport evidence on isolated JSON files: both clients observe atomic failed
+commits for task creation and Undo, then recover a successful Undo whose response never arrived.
+The stale-revision refusal and independent history read show that one committed transition remains
+one transition across reconnection; HTTP also checks frame count and persisted state at delivery.
+
+Slice 53 adds an SDK stdio expiry journey on one isolated `agent-heavy` file. A shared injected
+clock advances beyond the removal receipt's 24-hour expiry; the refused Undo leaves settled bytes,
+history and Activity unchanged. Archive retains the exact rich-text prose through restart, and
+canonical Restore records once and remains readable after another reopen.
+
 How the prototype is verified (§69): fast offline unit and contract suites in every
-package, component specs and Storybook in the web app, four acceptance scripts that run a
-real host, a Playwright suite that starts both processes on its own data file, and the
+package, component specs and Storybook in the web app (including the missing-history-summary
+Retry), four acceptance scripts that run a real host (including project-creation same-file restart
+and expiry), a Playwright suite that starts both processes on its own data file (including project
+creation Undo/Redo, same-URL recovery, expiry fallback and ancestor projection refresh), and the
 lints that hold the architectural boundaries mechanically. `pnpm test` is offline and
 browser-free by design; the browser-driven checks are separate commands, run
 deliberately.
@@ -18,13 +41,18 @@ unit-test builder, `@playwright/test`, `@modelcontextprotocol/client`, `storyboo
 - **Domain unit tests** (§69): every rule, over `InMemoryDataStore` and a frozen clock.
 - **Contract tests** for schemas (accept/reject) and for every MCP tool (success under
   minimal grants, denial per grant, store assertion) with no socket.
-- **Host tests**: routes, errors, auth, hub, SSE, MCP handler and stdio, all in-process.
+- **Host tests**: routes, errors, auth, hub, SSE, MCP handler and stdio, all in-process; plus
+  integrated recovery acceptance that composes the converter, services and JSON
+  store over temp files, and the compound row Add fault matrix.
 - **Component tests** for stores and components with fake gateways; **Storybook** for
   the variant sets §4 names, with a theme toolbar.
 - **Acceptance scripts** for four slices' *done when*, against a second host on a temp
   file.
-- **End-to-end**: the web path, direct canvas editing, MCP, and the todos, archive and
-  reflections journeys, each seeding the host itself.
+- **End-to-end**: the web path, direct canvas editing, section and row Undo/Redo, MCP, and the
+  todos, archive and reflections journeys, each seeding the host itself from a freshly prepared
+  version-5 scratch document. Slice 43 covers one-gesture cascade removal, old-input rejection,
+  independent task moves, and task Delete on Task List and Todos. Slice 57 checks the committed
+  recovery cue, owner route and root Archive path after those Deletes.
 - **Root tooling tests**: roadmap Outcome and built Compodoc anchor guards, using Node's built-in test runner.
 - **Lints**: package imports, no direct `Date`, design tokens, and the documentation
   structure.

@@ -1,7 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { TaskSchema, type LiveEvent, type TaskId } from '@cwm/contracts';
+import { ProjectWriteResultSchema, TaskWriteResultSchema, type LiveEvent, type TaskId } from '@cwm/contracts';
 import type { ActorContext } from '@cwm/domain';
 import { createToolRegistry } from '@cwm/mcp-tools';
 import { buildSeed } from '@cwm/prototype-data';
@@ -70,7 +71,7 @@ describe('live updates through the host (§62)', () => {
     const result = await persona(routes, 'POST', `/api/tasks/${OPEN_TASK}/complete`);
 
     expect(result.status).toBe(200);
-    expect(TaskSchema.parse(result.body).status).toBe('done');
+    expect(TaskWriteResultSchema.parse(result.body).task.status).toBe('done');
     expect(frames).toHaveLength(1);
     expect(frames[0]?.event).toEqual({
       type: 'task.completed',
@@ -94,18 +95,18 @@ describe('live updates through the host (§62)', () => {
     const { api, routes, frames } = await harness();
     const actor = { actor: 'user' as const, workspaceId: 'workspace-demo' as never, userId: 'user-demo' as never };
 
-    const middle = await api.projects.create(actor, {
+    const middle = (await api.projects.create(actor, {
       kind: 'subproject',
       parentProjectId: 'project-work-manager' as never,
       workspaceId: 'workspace-demo' as never,
       name: 'Middle',
-    });
-    const leaf = await api.projects.create(actor, {
+    })).project;
+    const leaf = (await api.projects.create(actor, {
       kind: 'subproject',
       parentProjectId: middle.id,
       workspaceId: 'workspace-demo' as never,
       name: 'Leaf',
-    });
+    })).project;
     frames.length = 0;
 
     const created = await persona(routes, 'POST', '/api/tasks', { projectId: leaf.id, title: 'Deep work' });
@@ -145,6 +146,7 @@ describe('live updates through the host (§62)', () => {
       pages: api.pages,
       todos: api.todos,
       archive: api.archive,
+      archivedProjects: api.archivedProjects,
       journal: api.journal,
       tasks: api.tasks,
       reflections: api.reflections,
@@ -152,6 +154,7 @@ describe('live updates through the host (§62)', () => {
       shortcuts: api.shortcuts,
       dashboard: api.dashboard,
       workspace: api.workspace,
+      history: api.history,
     });
 
     await registry.call('complete_task', { taskId: OPEN_TASK }, AGENT);
@@ -160,5 +163,586 @@ describe('live updates through the host (§62)', () => {
     expect(frames[0]?.event.type).toBe('task.completed');
     expect(frames[0]?.event.entityId).toBe(OPEN_TASK);
     expect(frames[0]?.statusAtDelivery).toBe('done');
+  });
+
+  /** The receipt a section write answered with, and the transition route that steps it. */
+  const receiptOf = (body: unknown) => (body as { operation: { historyId: string; actionId: string; revision: number; operation: string } | null }).operation;
+  const step = (routes: RouteTable, receipt: { historyId: string; actionId: string }, direction: 'undo' | 'redo', expectedRevision: number) =>
+    persona(routes, 'POST', `/api/history/${receipt.historyId}/transition`, { actionId: receipt.actionId, direction, expectedRevision });
+
+  /** Slices 30 and 35: removal, its Undo and its Redo each publish only their one activity frame, after commit. */
+  describe('section removal, Undo and Redo', () => {
+    const SECTION = 'section-project-work-manager-activity';
+
+    const watchSection = (persistence: Awaited<ReturnType<typeof harness>>['persistence'], events: LiveEventHub) => {
+      const delivered: Array<{ event: LiveEvent; archivedAtDelivery: string | undefined; actions: number }> = [];
+      events.subscribe((event) => {
+        const document = persistence.store.snapshot();
+        delivered.push({
+          event,
+          archivedAtDelivery: document.sections.find(({ id }) => id === SECTION)?.archivedAt,
+          actions: document.operationActions.length,
+        });
+      });
+      return delivered;
+    };
+
+    it('publishes no frame and changes no state when HTTP and MCP reject retired removal fields', async () => {
+      const { api, routes, persistence, events } = await harness();
+      const delivered: LiveEvent[] = [];
+      events.subscribe((event) => delivered.push(event));
+      const before = JSON.stringify(persistence.store.snapshot());
+
+      const http = await resolveRoute(routes, 'DELETE', `/api/sections/${SECTION}`, {
+        query: new URLSearchParams('policy=reassign&reassignToSectionId=section-target'),
+        headers: { 'x-prototype-user': 'user-demo' },
+        body: undefined,
+      });
+      expect(http.status).toBe(400);
+
+      const registry = createToolRegistry({
+        projects: api.projects,
+        pages: api.pages,
+        todos: api.todos,
+        archive: api.archive,
+        archivedProjects: api.archivedProjects,
+        journal: api.journal,
+        tasks: api.tasks,
+        reflections: api.reflections,
+        sections: api.sections,
+        shortcuts: api.shortcuts,
+        dashboard: api.dashboard,
+        workspace: api.workspace,
+        history: api.history,
+      });
+      await expect(registry.call('remove_section', {
+        sectionId: SECTION,
+        policy: 'reassign',
+        reassignToSectionId: 'section-target',
+      }, AGENT)).rejects.toThrow(expect.objectContaining({
+        name: 'ZodError',
+        issues: [expect.objectContaining({ code: 'unrecognized_keys', keys: ['policy', 'reassignToSectionId'] })],
+      }));
+
+      expect(delivered).toEqual([]);
+      expect(JSON.stringify(persistence.store.snapshot())).toBe(before);
+    });
+
+    it('delivers one committed frame per transition, per direction, with no inverse data', async () => {
+      const { routes, persistence, events } = await harness();
+      const delivered = watchSection(persistence, events);
+
+      const removed = await persona(routes, 'DELETE', `/api/sections/${SECTION}`);
+      expect(removed.status).toBe(200);
+      expect(delivered).toHaveLength(1);
+      expect(delivered[0]).toMatchObject({ event: { type: 'project.section_removed' }, actions: 1 });
+      expect(delivered[0]?.archivedAtDelivery).toBeUndefined();
+
+      const receipt = receiptOf(removed.body)!;
+      const undone = await step(routes, receipt, 'undo', receipt.revision);
+      expect(undone.status).toBe(200);
+      expect(delivered).toHaveLength(2);
+      expect(delivered[1]?.event.type).toBe('project.section_removal_undone');
+
+      const redone = await step(routes, receipt, 'redo', receipt.revision + 1);
+      expect(redone.status).toBe(200);
+      expect(delivered).toHaveLength(3);
+      expect(delivered[2]).toMatchObject({ event: { type: 'project.section_removal_redone' }, actions: 1 });
+      expect(JSON.stringify(delivered.map(({ event }) => event))).not.toMatch(/history-|operation-|placement|rows/);
+    });
+
+    it('delivers nothing and keeps no action when persisting the removal fails', async () => {
+      const { routes, persistence, events } = await harness();
+      const delivered = watchSection(persistence, events);
+      persistence.store.persist = async () => {
+        throw new Error('disk full');
+      };
+
+      const removed = await persona(routes, 'DELETE', `/api/sections/${SECTION}`);
+
+      expect(removed.status).toBe(500);
+      expect(delivered).toEqual([]);
+      expect(persistence.store.snapshot().operationActions).toEqual([]);
+      expect(persistence.store.snapshot().operationHistories).toEqual([]);
+      expect(persistence.store.snapshot().sections.find(({ id }) => id === SECTION)?.archivedAt).toBeUndefined();
+    });
+  });
+
+  /**
+   * Slice 39: an existing project's write, its Undo and its Redo each publish one project-targeted
+   * frame, after commit. A cross-root reparent still publishes exactly one — naming the root the
+   * subject is under **now** — which is why browser root aggregates re-read on any project-targeted
+   * `project.*` frame in the workspace rather than only on their own root's.
+   */
+  describe('existing-project writes: forward, Undo and Redo', () => {
+    const actor = { actor: 'user' as const, workspaceId: 'workspace-demo' as never, userId: 'user-demo' as never };
+
+    const tree = async (api: Awaited<ReturnType<typeof harness>>['api']) => {
+      const other = (await api.projects.create(actor, { kind: 'root', workspaceId: 'workspace-demo' as never, name: 'Other root' })).project;
+      const child = (await api.projects.create(actor, {
+        kind: 'subproject', parentProjectId: 'project-work-manager' as never, workspaceId: 'workspace-demo' as never, name: 'Mover',
+      })).project;
+      return { other, child };
+    };
+
+    it('delivers one committed frame per direction for a sub-project creation, routed by its former root', async () => {
+      const { api, routes, persistence, events, frames } = await harness();
+      const created = ProjectWriteResultSchema.parse(await api.projects.create(actor, {
+        kind: 'subproject',
+        parentProjectId: 'project-work-manager' as never,
+        workspaceId: 'workspace-demo' as never,
+        name: 'Created under the root',
+      }));
+      const project = created.project;
+      const receipt = created.operation!;
+      const expected = (type: string) => ({
+        type,
+        entityType: 'project',
+        entityId: project.id,
+        projectId: project.id,
+        rootProjectId: 'project-work-manager',
+      });
+      const observedAtDelivery: Array<{ event: LiveEvent; projectExists: boolean; pageExists: boolean }> = [];
+      events.subscribe((event) => {
+        const snapshot = persistence.store.snapshot();
+        observedAtDelivery.push({
+          event,
+          projectExists: snapshot.projects.some(({ id }) => id === project.id),
+          pageExists: snapshot.projectPages.some(({ projectId }) => projectId === project.id),
+        });
+      });
+
+      expect(frames.map(({ event }) => event)).toEqual([expected('project.created')]);
+      frames.length = 0;
+      expect((await step(routes, receipt, 'undo', receipt.revision)).status).toBe(200);
+      expect(frames.map(({ event }) => event)).toEqual([expected('project.creation_undone')]);
+      expect(observedAtDelivery[0]).toMatchObject({ event: expected('project.creation_undone'), projectExists: false, pageExists: false });
+      frames.length = 0;
+      expect((await step(routes, receipt, 'redo', receipt.revision + 1)).status).toBe(200);
+      expect(frames.map(({ event }) => event)).toEqual([expected('project.creation_redone')]);
+      expect(observedAtDelivery[1]).toMatchObject({ event: expected('project.creation_redone'), projectExists: true, pageExists: true });
+    });
+
+    it('delivers one committed frame per direction for a cross-root reparent, naming the current root', async () => {
+      const { api, routes, persistence, events } = await harness();
+      const { other, child } = await tree(api);
+      const delivered: Array<{ event: LiveEvent; parentAtDelivery: string | undefined }> = [];
+      events.subscribe((event) =>
+        delivered.push({ event, parentAtDelivery: persistence.store.snapshot().projects.find(({ id }) => id === child.id)?.parentProjectId }),
+      );
+
+      const moved = await persona(routes, 'PATCH', `/api/projects/${child.id}`, { parentProjectId: other.id });
+      expect(moved.status).toBe(200);
+      const receipt = receiptOf(moved.body)!;
+      expect(receipt.operation).toBe('project.update');
+      expect(delivered).toHaveLength(1);
+      expect(delivered[0]).toMatchObject({
+        event: { type: 'project.updated', entityType: 'project', entityId: child.id, projectId: child.id, rootProjectId: other.id },
+        parentAtDelivery: other.id,
+      });
+
+      expect((await step(routes, receipt, 'undo', receipt.revision)).status).toBe(200);
+      expect(delivered).toHaveLength(2);
+      expect(delivered[1]).toMatchObject({
+        event: { type: 'project.update_undone', entityId: child.id, rootProjectId: 'project-work-manager' },
+        parentAtDelivery: 'project-work-manager',
+      });
+
+      expect((await step(routes, receipt, 'redo', receipt.revision + 1)).status).toBe(200);
+      expect(delivered).toHaveLength(3);
+      expect(delivered[2]).toMatchObject({ event: { type: 'project.update_redone', rootProjectId: other.id }, parentAtDelivery: other.id });
+      expect(JSON.stringify(delivered.map(({ event }) => event))).not.toMatch(/history-|operation-|changes|before/);
+    });
+
+    it('delivers nothing, writes nothing to disk and keeps no action when persisting fails', async () => {
+      const { api, routes, persistence, frames } = await harness();
+      const { other, child } = await tree(api);
+      frames.length = 0;
+      const actionsBefore = persistence.store.snapshot().operationActions;
+      const disk = readFileSync(persistence.path, 'utf8');
+      persistence.store.persist = async () => {
+        throw new Error('disk full');
+      };
+
+      const moved = await persona(routes, 'PATCH', `/api/projects/${child.id}`, { parentProjectId: other.id });
+
+      expect(moved.status).toBe(500);
+      expect(frames).toEqual([]);
+      expect(readFileSync(persistence.path, 'utf8')).toBe(disk);
+      expect(persistence.store.snapshot().operationActions).toEqual(actionsBefore);
+      expect(persistence.store.snapshot().projects.find(({ id }) => id === child.id)?.parentProjectId).toBe('project-work-manager');
+    });
+  });
+
+  /**
+   * Slices 33 and 35 (Refactor §26.7–8): for every history family, the mutation, its history action
+   * and the frame move together, in both directions. "Committed" is checked against the bytes on
+   * disk at delivery, not only the in-memory snapshot.
+   */
+  describe('section edit families: forward, Undo and Redo commit before publication', () => {
+    const SECTION = 'section-project-work-manager-activity';
+    const PROJECT = 'project-work-manager';
+    type Harness = Awaited<ReturnType<typeof harness>>;
+
+    const families = {
+      add: (routes: RouteTable) => persona(routes, 'POST', `/api/projects/${PROJECT}/sections`, { type: 'progress', title: 'Acceptance' }),
+      update: (routes: RouteTable) => persona(routes, 'PATCH', `/api/sections/${SECTION}`, { title: 'Renamed activity', columnSpan: 6 }),
+      move: (routes: RouteTable) => persona(routes, 'POST', `/api/sections/${SECTION}/move`, { position: 0 }),
+      remove: (routes: RouteTable) => persona(routes, 'DELETE', `/api/sections/${SECTION}`),
+    } as const;
+    const familyNames = Object.keys(families) as Array<keyof typeof families>;
+
+    /** Everything a section write or a transition may change, in memory and on disk. */
+    const canonical = (document: ReturnType<Harness['persistence']['store']['snapshot']>) => ({
+      sections: document.sections,
+      sectionShortcuts: document.sectionShortcuts,
+      tasks: document.tasks,
+      reflections: document.reflections,
+      activityEvents: document.activityEvents,
+      operationHistories: document.operationHistories,
+      operationActions: document.operationActions,
+    });
+    const onDisk = (path: string) => canonical(JSON.parse(readFileSync(path, 'utf8')) as never);
+
+    const watchCommits = ({ persistence, events }: Harness) => {
+      const delivered: Array<{ type: string; durableMatchesMemory: boolean; actions: number; stateOnDisk: string | undefined; events: number }> = [];
+      events.subscribe((event) => {
+        const memory = canonical(persistence.store.snapshot());
+        delivered.push({
+          type: event.type,
+          durableMatchesMemory: JSON.stringify(onDisk(persistence.path)) === JSON.stringify(memory),
+          actions: memory.operationActions.length,
+          // A transition adds no action, so only the state on disk tells a pre-commit frame from a post-commit one.
+          stateOnDisk: onDisk(persistence.path).operationActions[0]?.state,
+          events: memory.activityEvents.length,
+        });
+      });
+      return delivered;
+    };
+
+    it.each(familyNames)('%s publishes only after the forward write, its Undo and its Redo each commit', async (family) => {
+      const host = await harness();
+      const delivered = watchCommits(host);
+      const eventsBefore = host.persistence.store.snapshot().activityEvents.length;
+
+      const forward = await families[family](host.routes);
+      expect([200, 201]).toContain(forward.status);
+      const receipt = receiptOf(forward.body)!;
+      expect(receipt.operation).toBe(`section.${family}`);
+      expect(delivered).toEqual([expect.objectContaining({ durableMatchesMemory: true, actions: 1, stateOnDisk: 'applied', events: eventsBefore + 1 })]);
+
+      const undone = await step(host.routes, receipt, 'undo', receipt.revision);
+      expect(undone.status).toBe(200);
+      expect(delivered).toHaveLength(2);
+      expect(delivered[1]).toMatchObject({ type: expect.stringMatching(/_undone$/), durableMatchesMemory: true, actions: 1, stateOnDisk: 'undone', events: eventsBefore + 2 });
+
+      const redone = await step(host.routes, receipt, 'redo', receipt.revision + 1);
+      expect(redone.status).toBe(200);
+      expect(delivered).toHaveLength(3);
+      expect(delivered[2]).toMatchObject({ type: expect.stringMatching(/_redone$/), durableMatchesMemory: true, actions: 1, stateOnDisk: 'applied', events: eventsBefore + 3 });
+    });
+
+    it.each(familyNames)('%s: failed transition persistence preserves canonical state and history, and publishes nothing', async (family) => {
+      const host = await harness();
+      const forward = await families[family](host.routes);
+      const receipt = receiptOf(forward.body)!;
+      const delivered = watchCommits(host);
+      const before = canonical(host.persistence.store.snapshot());
+      const bytes = readFileSync(host.persistence.path, 'utf8');
+      const persist = host.persistence.store.persist;
+      host.persistence.store.persist = async () => {
+        throw new Error('disk full');
+      };
+
+      const failed = await step(host.routes, receipt, 'undo', receipt.revision);
+
+      expect(failed.status).toBe(500);
+      expect(delivered).toEqual([]);
+      expect(canonical(host.persistence.store.snapshot())).toEqual(before);
+      expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
+
+      host.persistence.store.persist = persist;
+      const retried = await step(host.routes, receipt, 'undo', receipt.revision);
+      expect(retried.status).toBe(200);
+      expect(delivered).toEqual([expect.objectContaining({ type: expect.stringMatching(/_undone$/), durableMatchesMemory: true, actions: 1, stateOnDisk: 'undone' })]);
+    });
+
+    it.each(familyNames.flatMap((family) => [[family, 'action insert'], [family, 'persistence']] as const))(
+      '%s: a failed %s commits neither the mutation nor its action, and publishes no frame',
+      async (family, fault) => {
+        const host = await harness();
+        const delivered = watchCommits(host);
+        const before = canonical(host.persistence.store.snapshot());
+        const bytes = readFileSync(host.persistence.path, 'utf8');
+        const { store, operationActions } = host.persistence;
+        const persist = store.persist;
+        const insert = operationActions.insert;
+        if (fault === 'action insert') {
+          operationActions.insert = async () => {
+            throw new Error('recorder unavailable');
+          };
+        } else {
+          store.persist = async () => {
+            throw new Error('disk full');
+          };
+        }
+
+        const failed = await families[family](host.routes);
+
+        expect(failed.status).toBe(500);
+        expect(delivered).toEqual([]);
+        expect(canonical(store.snapshot())).toEqual(before);
+        expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
+
+        store.persist = persist;
+        operationActions.insert = insert;
+        const retried = await families[family](host.routes);
+        expect([200, 201]).toContain(retried.status);
+        expect(delivered).toEqual([expect.objectContaining({ durableMatchesMemory: true, actions: 1 })]);
+      },
+    );
+  });
+
+  /** Slice 36: compound row writes have the same unit-of-work and post-commit frame guarantees. */
+  describe('compound row Add: forward, Undo and Redo are atomic', () => {
+    type RowFamily = 'task' | 'reflection';
+    type Harness = Awaited<ReturnType<typeof harness>>;
+    const rowFamilies: readonly RowFamily[] = ['task', 'reflection'];
+    const canonical = (document: ReturnType<Harness['persistence']['store']['snapshot']>) => ({
+      sections: document.sections,
+      tasks: document.tasks,
+      reflections: document.reflections,
+      activityEvents: document.activityEvents,
+      operationHistories: document.operationHistories,
+      operationActions: document.operationActions,
+    });
+    const prepare = async (family: RowFamily) => {
+      const host = await harness();
+      const projectResponse = await persona(host.routes, 'POST', '/api/projects', {
+        workspaceId: 'workspace-demo', kind: 'root', name: `Atomic ${family}`,
+      });
+      expect(projectResponse.status).toBe(201);
+      const projectId = (projectResponse.body as { project: { id: string } }).project.id;
+      const delivered: string[] = [];
+      host.events.subscribe((event) => delivered.push(event.type));
+      const forward = () => family === 'task'
+        ? persona(host.routes, 'POST', '/api/tasks', { projectId, title: 'Atomic task' })
+        : persona(host.routes, 'POST', '/api/reflections', { projectId, body: 'Atomic reflection' });
+      return { host, delivered, forward };
+    };
+
+    it.each(rowFamilies)('%s Add publishes only after forward, Undo and Redo commit', async (family) => {
+      const { host, delivered, forward } = await prepare(family);
+      const result = await forward();
+      expect(result.status).toBe(201);
+      const receipt = receiptOf(result.body)!;
+      expect(delivered).toHaveLength(1);
+      expect(readFileSync(host.persistence.path, 'utf8')).toContain(receipt.actionId);
+
+      expect((await step(host.routes, receipt, 'undo', receipt.revision)).status).toBe(200);
+      expect(delivered).toHaveLength(2);
+      expect(host.persistence.store.snapshot().operationActions.at(-1)?.state).toBe('undone');
+
+      expect((await step(host.routes, receipt, 'redo', receipt.revision + 1)).status).toBe(200);
+      expect(delivered).toHaveLength(3);
+      expect(host.persistence.store.snapshot().operationActions.at(-1)?.state).toBe('applied');
+    });
+
+    it.each(rowFamilies.flatMap((family) => [
+      [family, 'action insert'], [family, 'activity insert'], [family, 'persistence'],
+    ] as const))('%s Add rolls back a failed %s with no frame', async (family, fault) => {
+      const { host, delivered, forward } = await prepare(family);
+      const before = canonical(host.persistence.store.snapshot());
+      const bytes = readFileSync(host.persistence.path, 'utf8');
+      const insertAction = host.persistence.operationActions.insert;
+      const insertActivity = host.persistence.activities.insert;
+      const persist = host.persistence.store.persist;
+      if (fault === 'action insert') host.persistence.operationActions.insert = async () => { throw new Error('action insert failed'); };
+      if (fault === 'activity insert') host.persistence.activities.insert = async () => { throw new Error('activity insert failed'); };
+      if (fault === 'persistence') host.persistence.store.persist = async () => { throw new Error('disk full'); };
+
+      expect((await forward()).status).toBe(500);
+      expect(delivered).toEqual([]);
+      expect(canonical(host.persistence.store.snapshot())).toEqual(before);
+      expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
+
+      host.persistence.operationActions.insert = insertAction;
+      host.persistence.activities.insert = insertActivity;
+      host.persistence.store.persist = persist;
+    });
+
+    it.each(rowFamilies.flatMap((family) => [
+      [family, 'undo', 'activity insert'], [family, 'undo', 'action update'], [family, 'undo', 'persistence'],
+      [family, 'redo', 'activity insert'], [family, 'redo', 'action update'], [family, 'redo', 'persistence'],
+    ] as const))('%s %s rolls back a failed %s with no frame', async (family, direction, fault) => {
+      const { host, delivered, forward } = await prepare(family);
+      const result = await forward();
+      const receipt = receiptOf(result.body)!;
+      let revision = receipt.revision;
+      if (direction === 'redo') {
+        expect((await step(host.routes, receipt, 'undo', revision)).status).toBe(200);
+        revision += 1;
+      }
+      delivered.length = 0;
+      const before = canonical(host.persistence.store.snapshot());
+      const bytes = readFileSync(host.persistence.path, 'utf8');
+      const insertActivity = host.persistence.activities.insert;
+      const updateAction = host.persistence.operationActions.update;
+      const persist = host.persistence.store.persist;
+      if (fault === 'activity insert') host.persistence.activities.insert = async () => { throw new Error('activity insert failed'); };
+      else if (fault === 'action update') host.persistence.operationActions.update = async () => { throw new Error('action update failed'); };
+      else host.persistence.store.persist = async () => { throw new Error('disk full'); };
+
+      expect((await step(host.routes, receipt, direction, revision)).status).toBe(500);
+      expect(delivered).toEqual([]);
+      expect(canonical(host.persistence.store.snapshot())).toEqual(before);
+      expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
+
+      host.persistence.activities.insert = insertActivity;
+      host.persistence.operationActions.update = updateAction;
+      host.persistence.store.persist = persist;
+    });
+  });
+
+  /**
+   * Slice 45: a canonical Archive Restore is not a history transition, so an owner, ancestor or
+   * parent archived after the entry was listed must refuse it at the commit boundary without a
+   * business, history or Activity change and without a frame. A new dependent refusing an unsafe
+   * Redo has the same obligation. HTTP and the MCP registry reach the same persistence.
+   */
+  describe('canonical Restore races and unsafe Redo refusals', () => {
+    type Harness = Awaited<ReturnType<typeof harness>>;
+    const WRITER: ActorContext = {
+      ...AGENT,
+      permissions: ['projects.read', 'projects.write', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write'] as const,
+    };
+    const canonical = (document: ReturnType<Harness['persistence']['store']['snapshot']>) => ({
+      projects: document.projects,
+      sections: document.sections,
+      tasks: document.tasks,
+      reflections: document.reflections,
+      activityEvents: document.activityEvents,
+      operationHistories: document.operationHistories,
+      operationActions: document.operationActions,
+    });
+    const registryOf = (api: Harness['api']) => createToolRegistry({
+      projects: api.projects, pages: api.pages, todos: api.todos, archive: api.archive, archivedProjects: api.archivedProjects,
+      journal: api.journal, tasks: api.tasks, reflections: api.reflections, sections: api.sections, shortcuts: api.shortcuts,
+      dashboard: api.dashboard, workspace: api.workspace, history: api.history,
+    });
+    const created = async (routes: RouteTable, path: string, body: unknown) => {
+      const result = await persona(routes, 'POST', path, body);
+      expect(result.status).toBe(201);
+      type Row = { id: string; sectionId: string };
+      return result.body as { project?: Row; section?: Row; task?: Row; reflection?: Row };
+    };
+    /** Runs one refusal and proves it left memory, disk and the hub exactly as they were. */
+    const refusesAtomically = async (host: Harness, attempt: () => Promise<unknown>) => {
+      const delivered: string[] = [];
+      host.events.subscribe((event) => delivered.push(event.type));
+      const before = canonical(host.persistence.store.snapshot());
+      const bytes = readFileSync(host.persistence.path, 'utf8');
+      await attempt();
+      expect(delivered).toEqual([]);
+      expect(canonical(host.persistence.store.snapshot())).toEqual(before);
+      expect(readFileSync(host.persistence.path, 'utf8')).toBe(bytes);
+    };
+
+    it('refuses a Restore under an archived section, parent task, owner project or ancestor over HTTP and MCP with nothing written or published', async () => {
+      const host = await harness();
+      const registry = registryOf(host.api);
+      const root = (await created(host.routes, '/api/projects', { workspaceId: 'workspace-demo', kind: 'root', name: 'Race root' })).project!.id;
+      const child = (await created(host.routes, '/api/projects', { workspaceId: 'workspace-demo', kind: 'subproject', parentProjectId: root, name: 'Race child' })).project!.id;
+      const container = (await created(host.routes, `/api/projects/${root}/sections`, { type: 'task-list', title: 'Container' })).section!.id;
+      const cascaded = (await created(host.routes, '/api/tasks', { projectId: root, sectionId: container, title: 'Cascaded' })).task!.id;
+      const holder = (await created(host.routes, `/api/projects/${root}/sections`, { type: 'task-list', title: 'Holder' })).section!.id;
+      const parent = (await created(host.routes, '/api/tasks', { projectId: root, sectionId: holder, title: 'Parent' })).task!.id;
+      const subtask = (await created(host.routes, '/api/tasks', { projectId: root, sectionId: holder, parentTaskId: parent, title: 'Filed subtask' })).task!.id;
+      const reflection = (await created(host.routes, '/api/reflections', { projectId: root, body: 'Race note' })).reflection!;
+      expect((await persona(host.routes, 'POST', `/api/tasks/${subtask}/archive`)).status).toBe(200);
+      expect((await persona(host.routes, 'POST', `/api/tasks/${parent}/archive`)).status).toBe(200);
+      expect((await persona(host.routes, 'DELETE', `/api/sections/${container}`)).status).toBe(200);
+      expect((await persona(host.routes, 'DELETE', `/api/sections/${reflection.sectionId}`)).status).toBe(200);
+
+      const rows = [
+        [`/api/tasks/${cascaded}/restore`, 'restore_task', { taskId: cascaded }],
+        [`/api/tasks/${subtask}/restore`, 'restore_task', { taskId: subtask }],
+        [`/api/reflections/${reflection.id}/restore`, 'restore_reflection', { reflectionId: reflection.id }],
+      ] as const;
+      for (const [path, tool, input] of rows) {
+        await refusesAtomically(host, async () => expect((await persona(host.routes, 'POST', path)).status).toBe(409));
+        await refusesAtomically(host, () => expect(registry.call(tool, input, WRITER)).rejects.toThrow(/archived/));
+      }
+
+      // Now the owners go: the child first, because a live child blocks its root's archive.
+      expect((await persona(host.routes, 'PATCH', `/api/projects/${child}`, { status: 'archived' })).status).toBe(200);
+      expect((await persona(host.routes, 'PATCH', `/api/projects/${root}`, { status: 'archived' })).status).toBe(200);
+      await refusesAtomically(host, async () => expect((await persona(host.routes, 'POST', `/api/sections/${container}/restore`)).status).toBe(409));
+      await refusesAtomically(host, () => expect(registry.call('restore_section', { sectionId: container }, WRITER)).rejects.toThrow(/archived/));
+      await refusesAtomically(host, async () => expect((await persona(host.routes, 'PATCH', `/api/projects/${child}`, { status: 'active' })).status).toBe(409));
+      await refusesAtomically(host, () => expect(registry.call('restore_project', { projectId: child, status: 'active' }, WRITER)).rejects.toThrow(/archived/));
+    });
+
+    it('refuses a removal Redo once a new row joined the restored container, with nothing written or published', async () => {
+      const host = await harness();
+      const root = (await created(host.routes, '/api/projects', { workspaceId: 'workspace-demo', kind: 'root', name: 'Redo root' })).project!.id;
+      const container = (await created(host.routes, `/api/projects/${root}/sections`, { type: 'task-list', title: 'Container' })).section!.id;
+      await created(host.routes, '/api/tasks', { projectId: root, sectionId: container, title: 'Captured' });
+      const receipt = receiptOf((await persona(host.routes, 'DELETE', `/api/sections/${container}`)).body)!;
+      expect((await step(host.routes, receipt, 'undo', receipt.revision)).status).toBe(200);
+      // Another connection adds the dependent, so it lands in its own history and the person's
+      // removal is still their next Redo.
+      const newcomer = (await registryOf(host.api).call('create_task', { projectId: root, sectionId: container, title: 'Newcomer' }, WRITER)) as { task: { id: string } };
+      const revision = host.persistence.store.snapshot().operationHistories.find(({ id }) => id === receipt.historyId)!.revision;
+
+      await refusesAtomically(host, async () => {
+        const refused = await step(host.routes, receipt, 'redo', revision);
+        expect(refused.status).toBe(409);
+        // The refusal names the newcomer as the new dependent, not a stale or out-of-order step.
+        expect(JSON.stringify(refused.body)).toContain('history_conflict');
+        expect(JSON.stringify(refused.body)).toContain(newcomer.task.id);
+      });
+      expect(host.persistence.store.snapshot().tasks.find(({ id }) => id === newcomer.task.id)?.archivedAt).toBeUndefined();
+    });
+
+    it.each(['recorder', 'persistence'] as const)('an MCP task write rolls back a failed %s with no frame and a retry lands once; a failed persist does the same for its undo_operation', async (fault) => {
+      const host = await harness();
+      const registry = registryOf(host.api);
+      const root = (await created(host.routes, '/api/projects', { workspaceId: 'workspace-demo', kind: 'root', name: `Fault ${fault}` })).project!.id;
+      const insertAction = host.persistence.operationActions.insert;
+      const persist = host.persistence.store.persist;
+      const inject = () => {
+        if (fault === 'recorder') host.persistence.operationActions.insert = async () => { throw new Error('action insert failed'); };
+        else host.persistence.store.persist = async () => { throw new Error('disk full'); };
+      };
+      const heal = () => {
+        host.persistence.operationActions.insert = insertAction;
+        host.persistence.store.persist = persist;
+      };
+      const write = () => registry.call('create_task', { projectId: root, title: 'Agent row' }, WRITER) as Promise<{ task: { id: string }; operation: { historyId: string; actionId: string; revision: number } }>;
+
+      inject();
+      await refusesAtomically(host, () => expect(write()).rejects.toThrow());
+      heal();
+      const frames: string[] = [];
+      host.events.subscribe((event) => frames.push(event.type));
+      const added = await write();
+      expect(frames).toEqual(['task.created']);
+      expect(host.persistence.store.snapshot().tasks.filter(({ title }) => title === 'Agent row')).toHaveLength(1);
+
+      const undo = () => registry.call('undo_operation', { historyId: added.operation.historyId, actionId: added.operation.actionId, expectedRevision: added.operation.revision }, WRITER);
+      // A transition records no action, so only the persistence fault applies to it.
+      if (fault === 'persistence') {
+        inject();
+        await refusesAtomically(host, () => expect(undo()).rejects.toThrow('disk full'));
+        heal();
+      }
+      await undo();
+      expect(frames).toEqual(['task.created', 'task.task_addition_undone']);
+      expect(host.persistence.store.snapshot().tasks.some(({ id }) => id === added.task.id)).toBe(false);
+      // Activity keeps the row's captured identity by design; the task collection on disk does not.
+      const onDisk = JSON.parse(readFileSync(host.persistence.path, 'utf8')) as { tasks: Array<{ id: string }> };
+      expect(onDisk.tasks.some(({ id }) => id === added.task.id)).toBe(false);
+    });
   });
 });

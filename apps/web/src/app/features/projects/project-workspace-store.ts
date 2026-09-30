@@ -1,6 +1,7 @@
 import { DestroyRef, Injectable, PendingTasks, computed, inject, signal } from '@angular/core';
 import {
   ProjectStatusSchema,
+  isProjectRecordEvent,
   isRootProject,
   type LiveEvent,
   type ProgressResult,
@@ -12,7 +13,9 @@ import {
   type UpdateProjectInput,
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../core/live/live-updates';
+import { GatewayError } from '../../core/gateway/gateway-error';
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -48,6 +51,8 @@ export interface WorkTreeNode {
 export class ProjectWorkspaceStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
+  /** The header's history hears about every page toggle and project write (Slice 41). */
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
   private requestedProjectId: ProjectId | undefined;
   private loadGeneration = 0;
@@ -66,6 +71,7 @@ export class ProjectWorkspaceStore {
   private readonly descendantsState = signal<Project[]>([]);
   private readonly progressState = signal<ProgressResult | null>(null);
   private readonly loadingState = signal(true);
+  private readonly missingState = signal(false);
   private readonly errorState = signal<string | null>(null);
   private readonly writeErrorState = signal<string | null>(null);
   private readonly pageWritePendingState = signal(false);
@@ -82,6 +88,7 @@ export class ProjectWorkspaceStore {
   /** The routed project's own pages, which on a sub-project is its sole `work` canvas. */
   readonly ownPages = this.ownPagesState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
+  readonly missing = this.missingState.asReadonly();
   readonly error = this.errorState.asReadonly();
   readonly writeError = this.writeErrorState.asReadonly();
   readonly pageWritePending = this.pageWritePendingState.asReadonly();
@@ -120,7 +127,9 @@ export class ProjectWorkspaceStore {
    * **record** re-reads only when a `project.*` frame names this project, so a sibling
    * sub-project's writes do not put a request behind every frame they produce. The **tree**
    * follows `rootProjectId`, because a unit of work created three levels down belongs in this
-   * column and its `projectId` is not this project.
+   * column and its `projectId` is not this project — and also any project-record frame in the
+   * workspace, because a sub-project reparented out of this root (or its Undo/Redo) is announced
+   * under its new root only (Slice 39, `isProjectRecordEvent`).
    */
   private onLiveEvent(event: LiveEvent): void {
     const projectId = this.requestedProjectId;
@@ -136,7 +145,7 @@ export class ProjectWorkspaceStore {
     if (aboutThisProject) void this.refreshProgress();
 
     if (!event.type.startsWith('project.')) return;
-    if (aboutThisProject || event.rootProjectId === this.root()?.id) this.refreshContext();
+    if (aboutThisProject || event.rootProjectId === this.root()?.id || isProjectRecordEvent(event)) this.refreshContext();
   }
 
   private onLiveConnected(): void {
@@ -182,8 +191,18 @@ export class ProjectWorkspaceStore {
             this.applyContext(context);
             this.errorState.set(null);
           }
-        } catch {
-          // Quiet — see above.
+        } catch (error) {
+          // Other failures are quiet, but not-found is an authoritative change: after creation
+          // Undo, keeping the old project mounted would expose a canvas whose owner is gone.
+          if (
+            error instanceof GatewayError && error.code === 'not_found' &&
+            !this.destroyed &&
+            epoch === this.contextWriteEpoch &&
+            generation === this.loadGeneration &&
+            this.requestedProjectId === projectId
+          ) {
+            this.markMissing(error);
+          }
         }
       } while (
         this.projectRefreshQueued &&
@@ -222,6 +241,7 @@ export class ProjectWorkspaceStore {
 
     return this.track(async () => {
       this.loadingState.set(true);
+      this.missingState.set(false);
       this.errorState.set(null);
       // A failed write belongs to the project it was made on; one component instance serves
       // every project, so without this a failed rename follows the user to the next one.
@@ -236,12 +256,12 @@ export class ProjectWorkspaceStore {
         this.applyContext(context);
       } catch (error) {
         if (!current()) return;
-        this.projectState.set(null);
-        this.ancestorsState.set([]);
-        this.pagesState.set([]);
-        this.ownPagesState.set([]);
-        this.descendantsState.set([]);
-        this.errorState.set(messageOf(error));
+        if (error instanceof GatewayError && error.code === 'not_found') this.markMissing(error);
+        else {
+          this.clearContext();
+          this.missingState.set(false);
+          this.errorState.set(messageOf(error));
+        }
       } finally {
         if (current()) {
           // Only when there is a project to measure: a second guaranteed-failing request adds
@@ -268,11 +288,27 @@ export class ProjectWorkspaceStore {
   }
 
   private applyContext(context: LoadedContext): void {
+    this.missingState.set(false);
     this.projectState.set(context.project);
     this.ancestorsState.set(context.ancestors);
     this.pagesState.set(context.pages);
     this.ownPagesState.set(context.ownPages);
     this.descendantsState.set(context.projects);
+  }
+
+  private markMissing(error: unknown): void {
+    this.clearContext();
+    this.missingState.set(true);
+    this.errorState.set(messageOf(error));
+  }
+
+  private clearContext(): void {
+    this.projectState.set(null);
+    this.ancestorsState.set([]);
+    this.pagesState.set([]);
+    this.ownPagesState.set([]);
+    this.descendantsState.set([]);
+    this.progressState.set(null);
   }
 
   /**
@@ -330,7 +366,9 @@ export class ProjectWorkspaceStore {
       this.clearPageFeedback(surface);
       try {
         try {
-          await this.gateway.pages.setEnabled(root.id, { kind, enabled });
+          // The page's own project — the root — names the history, never the routed sub-project.
+          await reportedWrite(this.reporter, () => this.gateway.pages.setEnabled(root.id, { kind, enabled }),
+            (written) => ({ projectId: written.page.projectId, projectName: root.name, receipt: written.operation }));
         } catch (error) {
           if (this.pageOperationCurrent(generation, epoch, routedProjectId)) {
             this.setPageOperationError(surface, messageOf(error));
@@ -511,17 +549,20 @@ export class ProjectWorkspaceStore {
 
   /**
    * §81's archive. `PATCH` with `status: 'archived'` *is* the domain's archive path, so there
-   * is no gateway method to add. Awaited rather than optimistic, because the page it runs from
-   * disappears when it succeeds — and it answers an outcome instead of navigating, because
-   * §19's stores decide and pages navigate.
+   * is no gateway method to add. Awaited rather than optimistic, because the shell words its
+   * outcome — the page stays on the archived project, whose header offers its Undo (Slice 41) —
+   * and it answers that outcome instead of deciding anything, because §19's stores decide and
+   * pages navigate. On success the returned record is applied, so the header reads `archived`
+   * without waiting for a frame.
    */
   archive(): Promise<boolean> {
     return this.writeProject({ status: 'archived' }, null);
   }
 
   /**
-   * One optimistic project write. `paint` is `null` for the write whose result the user never
-   * sees on this page, which is archive alone.
+   * One project write, optimistic unless `paint` is `null` (archive alone, which is awaited). The
+   * server's record is applied on success either way, and the write is reported to the header's
+   * history with the updated project's own id and name.
    */
   private writeProject(
     input: UpdateProjectInput,
@@ -544,9 +585,10 @@ export class ProjectWorkspaceStore {
     return this.track(() =>
       this.whileWriting(async () => {
         try {
-          const updated = await this.gateway.projects.update(projectId, input);
+          const { project: updated } = await reportedWrite(this.reporter, () => this.gateway.projects.update(projectId, input),
+            ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }));
           // The server's record, not the paint: the host may have normalised something.
-          if (current() && paint !== null) this.projectState.set(updated);
+          if (current()) this.projectState.set(updated);
           return true;
         } catch (error) {
           if (current()) {

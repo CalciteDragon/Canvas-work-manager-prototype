@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import {
   ProjectSchema,
+  OperationReceiptSchema,
   TaskSchema,
   type LiveEvent,
   type ProjectId,
@@ -9,11 +10,14 @@ import {
   type SectionId,
   type Task,
   type TaskId,
+  type TaskWriteResult,
+  type OperationReceipt,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY, type WorkManagerGateway } from '../../../core/gateway/work-manager-gateway';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
+import { provideRecordingReporter } from '../../../core/history/testing/recording-reporter';
 import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
 import { TodosPageStore } from './todos-page-store';
 
@@ -43,6 +47,17 @@ const task = (id: string, overrides: Record<string, unknown> = {}): Task =>
     updatedAt: AT,
     ...overrides,
   });
+
+const taskWrite = (value: Task): TaskWriteResult => ({ task: value, operation: null });
+const receipt = (): OperationReceipt => OperationReceiptSchema.parse({
+  historyId: 'history-kitchen',
+  actionId: 'operation-delete-parent',
+  operation: 'task.archive',
+  revision: 1,
+  label: 'Archived "Task task-parent"',
+  createdAt: AT,
+  expiresAt: '2026-08-28T16:00:00.000Z',
+});
 
 const taskItem = (id: string, overrides: Record<string, unknown> = {}): ProjectTodoItem => ({
   kind: 'task',
@@ -85,7 +100,8 @@ const subprojectItem = (id: string, overrides: Record<string, unknown> = {}): Pr
 interface SetupOptions {
   items?: ProjectTodoItem[];
   todosGet?: (projectId: ProjectId) => Promise<{ projectId: ProjectId; items: ProjectTodoItem[] }>;
-  completeTask?: (id: TaskId) => Promise<Task>;
+  completeTask?: (id: TaskId) => Promise<TaskWriteResult>;
+  archiveTask?: (id: TaskId) => Promise<TaskWriteResult>;
   updateProject?: (id: ProjectId, input: Record<string, unknown>) => Promise<unknown>;
 }
 
@@ -94,19 +110,26 @@ const setup = (options: SetupOptions = {}) => {
   const todosGet = vi.fn(options.todosGet ?? (async (projectId: ProjectId) => ({ projectId, items })));
   const completeTask = vi.fn(
     options.completeTask ??
-      (async (id: TaskId) => task(id, { status: 'done', completedAt: '2026-08-28T09:00:00.000Z' })),
+      (async (id: TaskId) => taskWrite(task(id, { status: 'done', completedAt: '2026-08-28T09:00:00.000Z' }))),
+  );
+  const archiveTask = vi.fn(
+    options.archiveTask ?? (async (id: TaskId) => taskWrite(task(id, { archivedAt: AT }))),
   );
   const updateProject = vi.fn(
     options.updateProject ??
+      // The Slice 39 write envelope: the store reconciles from `project` and ignores the receipt.
       (async (id: ProjectId, input: Record<string, unknown>) => ({
-        ...(subprojectItem(id) as Extract<ProjectTodoItem, { kind: 'subproject' }>).project,
-        ...input,
-        completedAt: '2026-08-28T09:00:00.000Z',
+        project: {
+          ...(subprojectItem(id) as Extract<ProjectTodoItem, { kind: 'subproject' }>).project,
+          ...input,
+          completedAt: '2026-08-28T09:00:00.000Z',
+        },
+        operation: null,
       })),
   );
   const gateway = {
     todos: { get: todosGet },
-    tasks: { complete: completeTask },
+    tasks: { complete: completeTask, archive: archiveTask },
     projects: { update: updateProject },
   } as unknown as WorkManagerGateway;
   const live = new FakeLiveUpdates();
@@ -119,7 +142,7 @@ const setup = (options: SetupOptions = {}) => {
     ],
   });
 
-  return { store: TestBed.inject(TodosPageStore), live, todosGet, completeTask, updateProject };
+  return { store: TestBed.inject(TodosPageStore), live, todosGet, completeTask, archiveTask, updateProject };
 };
 
 /** The store's own microtask chain, drained the way every other live-refresh spec drains it. */
@@ -199,7 +222,7 @@ describe('TodosPageStore — completing (§34, §63)', () => {
   });
 
   it('paints the pending status immediately and rolls back exactly on rejection', async () => {
-    const gate = deferred<Task>();
+    const gate = deferred<TaskWriteResult>();
     const { store } = setup({ items: [taskItem('task-1', { status: 'in_progress' })], completeTask: () => gate.promise });
     await store.load(ROOT);
 
@@ -217,7 +240,7 @@ describe('TodosPageStore — completing (§34, §63)', () => {
   });
 
   it('gates a second click on the same row and a click on another while one is in flight', async () => {
-    const gate = deferred<Task>();
+    const gate = deferred<TaskWriteResult>();
     const { store, completeTask } = setup({ completeTask: () => gate.promise });
     await store.load(ROOT);
 
@@ -227,7 +250,7 @@ describe('TodosPageStore — completing (§34, §63)', () => {
 
     expect(await again).toBe(false);
     expect(await other).toBe(false);
-    gate.resolve(task('task-1', { status: 'done' }));
+    gate.resolve(taskWrite(task('task-1', { status: 'done' })));
     expect(await first).toBe(true);
     expect(completeTask).toHaveBeenCalledTimes(1);
   });
@@ -241,9 +264,114 @@ describe('TodosPageStore — completing (§34, §63)', () => {
   });
 });
 
+describe('TodosPageStore — deleting tasks (§34)', () => {
+  it('soft archives a descendant subtree, serializes against Complete, and reports its owning-project receipt', async () => {
+    const reporter = provideRecordingReporter();
+    const write = deferred<TaskWriteResult>();
+    const parent = taskItem('task-parent', { projectId: 'project-kitchen' as ProjectId });
+    const child = taskItem('task-child', { projectId: 'project-kitchen' as ProjectId, parentTaskId: 'task-parent' });
+    const grandchild = taskItem('task-grandchild', { projectId: 'project-kitchen' as ProjectId, parentTaskId: 'task-child' });
+    const unrelated = taskItem('task-unrelated');
+    const project = subprojectItem('project-kitchen');
+    const { store, archiveTask, completeTask } = setup({
+      items: [parent, child, grandchild, unrelated, project],
+      archiveTask: () => write.promise,
+    });
+    await store.load(ROOT);
+
+    const deleting = store.delete(parent);
+    expect(store.deleting()).toBe('task-parent');
+    expect(store.items().map((item) => item.kind === 'task' ? item.task.id : item.project.id)).toEqual([
+      'task-unrelated',
+      'project-kitchen',
+    ]);
+    expect(await store.complete(unrelated)).toBe(false);
+    expect(completeTask).not.toHaveBeenCalled();
+    expect(archiveTask).toHaveBeenCalledWith('task-parent');
+
+    const action = receipt();
+    write.resolve({ task: task('task-parent', { projectId: 'project-kitchen', archivedAt: AT }), operation: action });
+    expect(await deleting).toBe(true);
+    expect(store.deleting()).toBeNull();
+    expect(reporter.events).toEqual(['begin', { projectId: 'project-kitchen', receipt: action }, 'end']);
+  });
+
+  it('rejects Delete while Complete is pending', async () => {
+    const completion = deferred<TaskWriteResult>();
+    const completeHarness = setup({ completeTask: () => completion.promise });
+    await completeHarness.store.load(ROOT);
+    const completeWrite = completeHarness.store.complete(completeHarness.store.items()[0]!);
+    expect(await completeHarness.store.delete(completeHarness.store.items()[1]!)).toBe(false);
+    expect(completeHarness.archiveTask).not.toHaveBeenCalled();
+    completion.resolve(taskWrite(task('task-1', { status: 'done', completedAt: AT })));
+    await completeWrite;
+  });
+
+  it('restores the exact subtree after an archive failure', async () => {
+    const parent = taskItem('task-parent');
+    const child = taskItem('task-child', { parentTaskId: 'task-parent' });
+    const original = [parent, child];
+    const failed = setup({
+      items: original,
+      archiveTask: async () => { throw new GatewayError('conflict', 409, 'the task cannot be archived'); },
+    });
+    await failed.store.load(ROOT);
+
+    expect(await failed.store.delete(parent)).toBe(false);
+    expect(failed.store.items()).toEqual(original);
+    expect(failed.store.deleting()).toBeNull();
+    expect(failed.store.writeError()).toContain('cannot be archived');
+  });
+});
+
 describe('TodosPageStore — races and lifetime (§62, §63)', () => {
+  it('does not let a stale write release the current root write slot', async () => {
+    const staleCompletion = deferred<TaskWriteResult>();
+    const currentDeletion = deferred<TaskWriteResult>();
+    const staleDeletion = deferred<TaskWriteResult>();
+    const currentCompletion = deferred<TaskWriteResult>();
+    const { store, live, todosGet } = setup({
+      todosGet: async (projectId) => ({
+        projectId,
+        items: [taskItem(projectId === ROOT ? 'task-root' : 'task-other-root', { projectId })],
+      }),
+      completeTask: (id) => id === 'task-root' ? staleCompletion.promise : currentCompletion.promise,
+      archiveTask: (id) => id === 'task-root' ? staleDeletion.promise : currentDeletion.promise,
+    });
+
+    await store.load(ROOT);
+    const oldCompletion = store.complete(store.items()[0]!);
+    await store.load(OTHER_ROOT);
+    const currentDelete = store.delete(store.items()[0]!);
+    staleCompletion.resolve(taskWrite(task('task-root', { status: 'done', completedAt: AT })));
+    await oldCompletion;
+
+    live.emit({ type: 'task.updated', entityId: 'task-other-root', projectId: OTHER_ROOT, rootProjectId: OTHER_ROOT });
+    await settleLive();
+    expect(todosGet).toHaveBeenCalledTimes(2);
+    currentDeletion.resolve(taskWrite(task('task-other-root', { projectId: OTHER_ROOT, archivedAt: AT })));
+    await currentDelete;
+    await settleLive();
+    expect(todosGet).toHaveBeenCalledTimes(3);
+
+    await store.load(ROOT);
+    const oldDeletion = store.delete(store.items()[0]!);
+    await store.load(OTHER_ROOT);
+    const currentComplete = store.complete(store.items()[0]!);
+    staleDeletion.resolve(taskWrite(task('task-root', { archivedAt: AT })));
+    await oldDeletion;
+
+    live.emit({ type: 'task.updated', entityId: 'task-other-root', projectId: OTHER_ROOT, rootProjectId: OTHER_ROOT });
+    await settleLive();
+    expect(todosGet).toHaveBeenCalledTimes(5);
+    currentCompletion.resolve(taskWrite(task('task-other-root', { projectId: OTHER_ROOT, status: 'done', completedAt: AT })));
+    await currentComplete;
+    await settleLive();
+    expect(todosGet).toHaveBeenCalledTimes(6);
+  });
+
   it('lets a pending write finish before applying a queued read, so nothing clobbers optimism', async () => {
-    const write = deferred<Task>();
+    const write = deferred<TaskWriteResult>();
     let reads = 0;
     const { store, live } = setup({
       completeTask: () => write.promise,
@@ -262,7 +390,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     await settleLive();
     expect(statusOf(store, 'task-1')).toBe('done');
 
-    write.resolve(task('task-1', { status: 'done', completedAt: AT }));
+    write.resolve(taskWrite(task('task-1', { status: 'done', completedAt: AT })));
     await completion;
     await settleLive();
 
@@ -276,7 +404,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
    */
   it('discards a read that started before the completion and re-reads instead', async () => {
     const inFlight = deferred<{ projectId: ProjectId; items: ProjectTodoItem[] }>();
-    const write = deferred<Task>();
+    const write = deferred<TaskWriteResult>();
     let reads = 0;
     const { store, live, todosGet } = setup({
       completeTask: () => write.promise,
@@ -293,7 +421,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     live.emit({ type: 'task.updated', entityId: 'task-1', projectId: ROOT, rootProjectId: ROOT });
     await settleLive();
     const completion = store.complete(store.items()[0]!);
-    write.resolve(task('task-1', { status: 'done', completedAt: AT }));
+    write.resolve(taskWrite(task('task-1', { status: 'done', completedAt: AT })));
     await completion;
     inFlight.resolve({ projectId: ROOT, items: [taskItem('task-1')] });
     await settleLive();
@@ -337,6 +465,28 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     expect(todosGet).toHaveBeenCalledTimes(2);
   });
 
+  /**
+   * Slice 39: a cross-root reparent publishes one frame naming the **new** root, yet it removes a
+   * sub-project from the old one. A project-record frame anywhere in the workspace therefore
+   * re-reads an open root projection; a content frame from another root still does not.
+   */
+  it('re-reads on a project-record frame from another root, for a cross-root reparent and its reversal', async () => {
+    const { store, live, todosGet } = setup();
+    await store.load(ROOT);
+
+    for (const type of ['project.updated', 'project.update_undone', 'project.update_redone', 'project.archive_undone', 'project.reactivation_redone']) {
+      const before = todosGet.mock.calls.length;
+      live.emit({ type, entityType: 'project', entityId: 'project-moved', projectId: 'project-moved', rootProjectId: OTHER_ROOT } as LiveEvent);
+      await settleLive();
+      expect(todosGet.mock.calls.length, type).toBe(before + 1);
+    }
+
+    const before = todosGet.mock.calls.length;
+    live.emit({ type: 'project.section_added', entityType: 'project', entityId: OTHER_ROOT, projectId: OTHER_ROOT, rootProjectId: OTHER_ROOT } as LiveEvent);
+    await settleLive();
+    expect(todosGet.mock.calls.length).toBe(before);
+  });
+
   it('replays an invalidation that arrived while a read was running', async () => {
     const gate = deferred<{ projectId: ProjectId; items: ProjectTodoItem[] }>();
     let reads = 0;
@@ -369,7 +519,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
 
   it('clears and reloads on prototype.reloaded, and rejects the continuations it interrupted', async () => {
     const stale = deferred<{ projectId: ProjectId; items: ProjectTodoItem[] }>();
-    const staleWrite = deferred<Task>();
+    const staleWrite = deferred<TaskWriteResult>();
     let reads = 0;
     const { store, live } = setup({
       completeTask: () => staleWrite.promise,
@@ -391,7 +541,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     // Content is gone at once: the document behind it may have been replaced entirely.
     expect(store.items()).toEqual([]);
     stale.resolve({ projectId: ROOT, items: [taskItem('task-1')] });
-    staleWrite.resolve(task('task-1', { status: 'done' }));
+    staleWrite.resolve(taskWrite(task('task-1', { status: 'done' })));
     // Neither continuation may write to the view, or the reseeded page shows the old document.
     expect(await staleCompletion).toBe(false);
     await settleLive();
@@ -417,14 +567,14 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
   });
 
   it('makes a write started on one root inert once another is showing', async () => {
-    const gate = deferred<Task>();
+    const gate = deferred<TaskWriteResult>();
     const { store } = setup({ completeTask: () => gate.promise });
     await store.load(ROOT);
     const row = store.items()[0]!;
 
     const write = store.complete(row);
     await store.load(OTHER_ROOT);
-    gate.resolve(task('task-1', { status: 'done' }));
+    gate.resolve(taskWrite(task('task-1', { status: 'done' })));
 
     // The canonical mutation still finished; this view simply no longer owns the answer.
     expect(await write).toBe(false);
@@ -433,7 +583,7 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
   });
 
   it('unsubscribes on destroy and suppresses the continuations still in flight', async () => {
-    const write = deferred<Task>();
+    const write = deferred<TaskWriteResult>();
     const { store, live, todosGet } = setup({ completeTask: () => write.promise });
     await store.load(ROOT);
     expect(live.listenerCount).toBe(1);
@@ -442,11 +592,30 @@ describe('TodosPageStore — races and lifetime (§62, §63)', () => {
     TestBed.resetTestingModule();
 
     expect(live.listenerCount).toBe(0);
-    write.resolve(task('task-1', { status: 'done' }));
+    write.resolve(taskWrite(task('task-1', { status: 'done' })));
     // `false`, so the destroyed page cannot tell the shell that project data moved.
     expect(await completion).toBe(false);
     live.emit({ type: 'task.updated', entityId: 'task-1', projectId: ROOT, rootProjectId: ROOT } as LiveEvent);
     await settleLive();
     expect(todosGet).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('TodosPageStore reports completions to the header’s history (Slice 41)', () => {
+  it('names each row’s own project, so a descendant’s step can be found in its history', async () => {
+    const reporter = provideRecordingReporter();
+    const { store } = setup({
+      items: [taskItem('task-kitchen', { projectId: 'project-kitchen' }), subprojectItem('project-kitchen')],
+      completeTask: async (id: TaskId) => taskWrite(task(id, { projectId: 'project-kitchen', status: 'done', completedAt: '2026-08-28T09:00:00.000Z' })),
+    });
+    await store.load(ROOT);
+
+    await store.complete(store.items()[0]!);
+    await store.complete(store.items()[1]!);
+
+    expect(reporter.events).toEqual([
+      'begin', { projectId: 'project-kitchen', receipt: null }, 'end',
+      'begin', expect.objectContaining({ projectId: 'project-kitchen', projectName: expect.any(String), receipt: null }), 'end',
+    ]);
   });
 });

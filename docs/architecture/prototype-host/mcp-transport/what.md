@@ -11,10 +11,10 @@ flowchart LR
   end
   subgraph stdio["stdio — pnpm mcp:stdio"]
     env["CWM_MCP_TOKEN"]
-    reload["reload data file + authenticate per call"]
+    reload["own the data file for the turn<br/>reload + authenticate per call"]
     sdkstdio["SDK stdio transport<br/>stdout protocol, stderr diagnostics"]
   end
-  server["mcp/server.ts<br/>SDK McpServer over the registry<br/>_meta local.canvas-work-manager/*"]
+  server["mcp/server.ts<br/>SDK McpServer over the registry<br/>static or operation-family _meta"]
   registry["@cwm/mcp-tools ToolRegistry"]
   guard --> auth --> node --> server
   env --> reload --> sdkstdio --> server
@@ -23,6 +23,15 @@ flowchart LR
 
 Both transports build the same server from the same registry; they differ only in how a
 request arrives and how the actor is resolved.
+
+For static tools, discovery publishes
+`local.canvas-work-manager/requiredPermission` and `requiredPermissions`. For
+`undo_operation` and `redo_operation`, it publishes only
+`requiredPermissionsByOperationFamily`, mapping section, task, reflection, Home shortcut,
+optional page and existing project to the one grant each of the six families needs — four of which
+are `projects.write`, because a placement is part of the destination canvas, a page is a property of
+its root and a project write (including `project.add`) reverses only that project's own lifecycle
+and fields. The two shapes are mutually exclusive.
 
 ## A tool call over HTTP
 
@@ -50,8 +59,10 @@ sequenceDiagram
 |---|---|---|
 | `createAuthenticatedMcpHandler`, `AuthenticatedMcpDependencies` | `mcp/handler.ts` | Guards + authenticator + SDK handler as one raw route |
 | `createMcpNodeHandler` | `mcp/handler.ts` | The SDK's fetch-shaped handler adapted to `node:http` |
-| SDK server factory | `mcp/server.ts` | Builds the `McpServer` over the registry; vendor `_meta` keys |
-| Stdio entry | `mcp/stdio.ts` | `pnpm mcp:stdio`; reload-and-authenticate per call |
+| SDK server factory and permission metadata keys | `mcp/server.ts` | Builds the `McpServer` over the registry; publishes either the static keys or the operation-family key |
+| `startStdio`, `StdioStartupHooks` | `mcp/stdio.ts` | `pnpm mcp:stdio`; reload-and-authenticate per call under per-call data-file ownership, one call at a time; optional host-local test composition for a shared clock, load and post-call/pre-reply boundaries |
+| Stdio test child | `mcp/test/fault-stdio.ts` | SDK fixture that fails one persist or exits after a committed Undo, before reply serialization |
+| Stdio clock child | `mcp/test/clock-stdio.ts` | SDK fixture sharing one simulated clock across reloads, advanced from a receipt sidecar for expiry and restart |
 | `PrototypeAgentAuthenticator`, `AgentAuthenticationError`, `AgentAuthenticatorDependencies` | `auth/prototype-agent-authenticator.ts` | Token → live connection → actor; one 401 |
 | Fixture tokens | `packages/prototype-data/src/agent-tokens.ts` | The table the authenticator reads |
 | Acceptance | `scripts/mcp-acceptance.mjs` | Real client over both transports; `scripts/live-acceptance.mjs` for the HTTP + SSE path |

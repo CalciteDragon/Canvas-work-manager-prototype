@@ -1,10 +1,12 @@
-import { DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, ShortcutSourceSchema, TaskSchema, TimelineResultSchema } from '@cwm/contracts';
-import { ActivityService, AgentConnectionService, DashboardService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
+import { ArchivedProjectsResultSchema, DashboardResultSchema, IdentitySchema, ProgressResultSchema, ProjectArchiveResultSchema, ProjectCompletedWorkResultSchema, ProjectJournalResultSchema, ProjectPageWriteResultSchema, ProjectWriteResultSchema, ProjectTodosResultSchema, ProjectSectionSchema, PrototypeDocumentSchema, ReflectionSchema, ReflectionWriteResultSchema, ResolvedSectionShortcutSchema, SCHEMA_VERSION, ProjectSchema, SectionAddResultSchema, SectionAlreadyRemovedDetailsSchema, SectionRemovalResultSchema, SectionShortcutAddResultSchema, SectionShortcutRemovalResultSchema, SectionShortcutWriteResultSchema, SectionWriteResultSchema, ShortcutSourceSchema, TaskSchema, TaskWriteResultSchema, TimelineResultSchema, OperationHistoryRefusalDetailsSchema, OperationHistorySummarySchema, OperationHistoryTransitionResultSchema } from '@cwm/contracts';
+import { ActivityService, AgentConnectionService, ArchivedProjectsService, DashboardService, OperationHistoryService, ProgressService, ProjectArchiveService, ProjectJournalService, ProjectTodosService, PrototypeAIProvider, PrototypeClock, PrototypeIdGenerator, ProjectPageService, ProjectService, ReflectionService, RepositoryOperationRecorder, SectionService, SectionShortcutService, TaskService, TimelineService } from '@cwm/domain';
 import {
   InMemoryDataStore,
   JsonActivityRepository,
   JsonAgentConnectionRepository,
   JsonMilestoneRepository,
+  JsonOperationActionRepository,
+  JsonOperationHistoryRepository,
   JsonProjectPageRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
@@ -134,8 +136,7 @@ const buildRoutes = (withProjects = true, seeded?: ReturnType<typeof document>):
  * persistence case below can point two successive stores at one file — a restart, without a
  * process to restart.
  */
-const routesFor = (store: DataStore): RouteTable => {
-  const clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'));
+const routesFor = (store: DataStore, clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'))): RouteTable => {
   const ids = new PrototypeIdGenerator();
   const projects = new JsonProjectRepository(store);
   const pages = new JsonProjectPageRepository(store);
@@ -147,28 +148,33 @@ const routesFor = (store: DataStore): RouteTable => {
   const reflections = new JsonReflectionRepository(store);
   const agents = new JsonAgentConnectionRepository(store);
   const users = new JsonUserRepository(store);
+  const operationHistories = new JsonOperationHistoryRepository(store);
+  const operationActions = new JsonOperationActionRepository(store);
   const activity = new ActivityService({ activities, projects, agents, users, tasks, milestones, reflections, clock, ids });
   const unitOfWork = unitOfWorkFor(store);
   const connections = new AgentConnectionService({ agents, activity, clock, unitOfWork });
-  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, clock, ids, unitOfWork });
-  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, clock, ids, unitOfWork });
+  const history = new RepositoryOperationRecorder({ histories: operationHistories, actions: operationActions, clock, ids });
+  const sectionService = new SectionService({ sections, shortcuts, pages, projects, tasks, reflections, activity, history, clock, ids, unitOfWork });
+  const sectionShortcutService = new SectionShortcutService({ shortcuts, sections, pages, projects, activity, history, clock, ids, unitOfWork });
 
   return createApiRoutes({
     store,
     activity,
-    projects: new ProjectService({ projects, pages, activity, clock, ids, unitOfWork }),
-    pages: new ProjectPageService({ pages, projects, activity, clock, ids, unitOfWork }),
-    tasks: new TaskService({ tasks, projects, sections: sectionService, activity, clock, ids, unitOfWork }),
+    projects: new ProjectService({ projects, pages, sections, shortcuts, activity, history, clock, ids, unitOfWork }),
+    pages: new ProjectPageService({ pages, projects, activity, history, clock, ids, unitOfWork }),
+    tasks: new TaskService({ tasks, projects, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     sections: sectionService,
     shortcuts: sectionShortcutService,
     progress: new ProgressService({ projects, tasks }),
     timeline: new TimelineService({ projects, tasks, milestones }),
     todos: new ProjectTodosService({ projects, tasks, sections, pages }),
     archive: new ProjectArchiveService({ projects, pages, sections, tasks, reflections }),
+    archivedProjects: new ArchivedProjectsService({ projects }),
     journal: new ProjectJournalService({ projects, pages, sections, tasks, reflections }),
-    reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, clock, ids, unitOfWork }),
+    reflections: new ReflectionService({ reflections, projects, tasks, sections: sectionService, activity, history, clock, ids, unitOfWork }),
     dashboard: new DashboardService({ projects, tasks, activity, clock, ai: new PrototypeAIProvider() }),
     agents: connections,
+    history: new OperationHistoryService({ histories: operationHistories, actions: operationActions, sections, shortcuts, pages, projects, tasks, milestones, reflections, activity, clock, unitOfWork }),
     authenticator: new PrototypeAgentAuthenticator({ agents, users, connections }),
   });
 };
@@ -193,12 +199,15 @@ const call = (
 const MINE = 'project-mine';
 const THEIRS = 'project-theirs';
 const ALEX = PERSONAS[1]!.user.id as unknown as string;
+const taskFrom = (body: unknown) => TaskWriteResultSchema.parse(body).task;
+const reflectionFrom = (body: unknown) => ReflectionWriteResultSchema.parse(body).reflection;
+const projectFromCreate = (body: unknown) => ProjectWriteResultSchema.parse(body).project;
 
 const newTask = async (routes: RouteTable, overrides = {}) => {
   const result = await call(routes, 'POST', '/api/tasks', {
     body: { projectId: MINE, title: 'Configure deployment', ...overrides },
   });
-  return TaskSchema.parse(result.body);
+  return taskFrom(result.body);
 };
 
 describe('project routes', () => {
@@ -210,7 +219,28 @@ describe('project routes', () => {
     });
 
     expect(result.status).toBe(201);
-    expect(() => ProjectSchema.parse(result.body)).not.toThrow();
+    const created = ProjectWriteResultSchema.parse(result.body);
+    expect(created.project).toMatchObject({ kind: 'root', name: 'Work Manager' });
+    expect(created.operation).toMatchObject({ operation: 'project.add', revision: 1, label: 'Created "Work Manager"' });
+  });
+
+  it('keeps the creator’s history readable at the project id after creation Undo', async () => {
+    const routes = buildRoutes();
+    const created = ProjectWriteResultSchema.parse((await call(routes, 'POST', '/api/projects', {
+      body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'root', name: 'Recover me' },
+    })).body);
+    const receipt = created.operation!;
+    const undone = await call(routes, 'POST', `/api/history/${receipt.historyId}/transition`, {
+      body: { actionId: receipt.actionId, direction: 'undo', expectedRevision: receipt.revision },
+    });
+
+    expect(undone.status).toBe(200);
+    expect((await call(routes, 'GET', `/api/projects/${created.project.id}`)).status).toBe(404);
+    expect((await call(routes, 'GET', `/api/projects/${created.project.id}/history`)).body).toMatchObject({
+      projectId: created.project.id,
+      redo: { operation: 'project.add', actionId: receipt.actionId },
+    });
+    expect((await call(routes, 'GET', `/api/projects/${created.project.id}/history`, { user: ALEX })).status).toBe(404);
   });
 
   it('rejects a schema-invalid body with 400 and issues', async () => {
@@ -250,7 +280,41 @@ describe('project routes', () => {
     const result = await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { name: 'Renamed' } });
 
     expect(result.status).toBe(200);
-    expect(result.body).toMatchObject({ name: 'Renamed' });
+    const body = ProjectWriteResultSchema.parse(result.body);
+    expect(body.project).toMatchObject({ id: MINE, name: 'Renamed' });
+    expect(body.operation).toMatchObject({ operation: 'project.update', label: 'Renamed "Project project-mine" to "Renamed"' });
+
+    // A PATCH that sets what is already there changes nothing and answers a null receipt.
+    const again = await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { name: 'Renamed' } });
+    expect(ProjectWriteResultSchema.parse(again.body).operation).toBeNull();
+
+    // The receipt reverses through the ordinary history route, and create returns the same write envelope.
+    const undone = await call(routes, 'POST', `/api/history/${body.operation!.historyId}/transition`, {
+      body: { actionId: body.operation!.actionId, direction: 'undo', expectedRevision: body.operation!.revision },
+    });
+    expect(undone.status).toBe(200);
+    expect(undone.body).toMatchObject({ result: { operation: 'project.update', outcome: 'restored', project: { id: MINE } } });
+    const workspaceId = ProjectSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}`)).body).workspaceId;
+    const created = await call(routes, 'POST', '/api/projects', { body: { workspaceId, kind: 'root', name: 'Fresh' } });
+    expect(created.status).toBe(201);
+    expect(ProjectWriteResultSchema.parse(created.body).operation).toMatchObject({ operation: 'project.add' });
+  });
+
+  it('archives and reactivates through PATCH with typed receipts, and refuses a live-child archive without writing', async () => {
+    const routes = buildRoutes();
+    const workspaceId = ProjectSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}`)).body).workspaceId;
+    const child = projectFromCreate((await call(routes, 'POST', '/api/projects', {
+      body: { workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Child' },
+    })).body);
+
+    const refused = await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { status: 'archived' } });
+    expect(refused.status).toBe(409);
+    expect((await call(routes, 'GET', `/api/projects/${MINE}/history`)).body).toMatchObject({ historyId: null });
+
+    const archived = ProjectWriteResultSchema.parse((await call(routes, 'PATCH', `/api/projects/${child.id}`, { body: { status: 'archived' } })).body);
+    expect(archived.operation).toMatchObject({ operation: 'project.archive' });
+    const reactivated = ProjectWriteResultSchema.parse((await call(routes, 'PATCH', `/api/projects/${child.id}`, { body: { status: 'active' } })).body);
+    expect(reactivated.operation).toMatchObject({ operation: 'project.reactivate', historyId: archived.operation!.historyId });
   });
 });
 
@@ -269,9 +333,9 @@ describe('Slice 10 derived and reflection routes', () => {
     const routes = buildRoutes();
     const created = await call(routes, 'POST', '/api/reflections', { body: { projectId: MINE, body: 'First', prompt: 'What changed?' } });
     expect(created.status).toBe(201);
-    const reflection = ReflectionSchema.parse(created.body);
+    const reflection = reflectionFrom(created.body);
     expect(ReflectionSchema.array().parse((await call(routes, 'GET', `/api/reflections?projectId=${MINE}`)).body)).toHaveLength(1);
-    expect(ReflectionSchema.parse((await call(routes, 'PATCH', `/api/reflections/${reflection.id}`, { body: { title: 'Checkpoint' } })).body).title).toBe('Checkpoint');
+    expect(reflectionFrom((await call(routes, 'PATCH', `/api/reflections/${reflection.id}`, { body: { title: 'Checkpoint' } })).body).title).toBe('Checkpoint');
     expect((await call(routes, 'POST', '/api/reflections', { body: { projectId: MINE, body: '' } })).status).toBe(400);
     expect((await call(routes, 'GET', `/api/reflections?projectId=${THEIRS}`)).status).toBe(404);
   });
@@ -285,15 +349,15 @@ describe('task routes', () => {
     expect((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).toMatchObject({ id: task.id });
 
     const patched = await call(routes, 'PATCH', `/api/tasks/${task.id}`, { body: { priority: 'high' } });
-    expect(patched.body).toMatchObject({ priority: 'high' });
+    expect(taskFrom(patched.body)).toMatchObject({ priority: 'high' });
 
     const completed = await call(routes, 'POST', `/api/tasks/${task.id}/complete`);
     expect(completed.status).toBe(200);
-    expect(completed.body).toMatchObject({ status: 'done' });
-    expect((completed.body as { completedAt?: string }).completedAt).toBeDefined();
+    expect(taskFrom(completed.body)).toMatchObject({ status: 'done' });
+    expect(taskFrom(completed.body).completedAt).toBeDefined();
 
     const archived = await call(routes, 'POST', `/api/tasks/${task.id}/archive`);
-    expect((archived.body as { archivedAt?: string }).archivedAt).toBeDefined();
+    expect(taskFrom(archived.body).archivedAt).toBeDefined();
   });
 
   it('returns 404 on every :id route for an unknown id', async () => {
@@ -349,18 +413,18 @@ describe('task routes', () => {
 
   it('creates a task into a named container, moves it with PATCH, and lists by section', async () => {
     const routes = buildRoutes();
-    const first = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'One' } })).body);
-    const second = ProjectSectionSchema.parse(
+    const first = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'One' } })).body);
+    const second = SectionAddResultSchema.parse(
       (await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'task-list' } })).body,
-    );
+    ).section;
 
     const named = await call(routes, 'POST', '/api/tasks', {
       body: { projectId: MINE, title: 'Two', sectionId: second.id },
     });
-    expect(TaskSchema.parse(named.body).sectionId).toBe(second.id);
+    expect(taskFrom(named.body).sectionId).toBe(second.id);
 
     const moved = await call(routes, 'PATCH', `/api/tasks/${first.id}`, { body: { sectionId: second.id } });
-    expect(TaskSchema.parse(moved.body).sectionId).toBe(second.id);
+    expect(taskFrom(moved.body).sectionId).toBe(second.id);
 
     const scoped = await call(routes, 'GET', `/api/tasks?sectionId=${second.id}`);
     expect(TaskSchema.array().parse(scoped.body).map(({ title }) => title).sort()).toEqual(['One', 'Two']);
@@ -375,7 +439,7 @@ describe('task routes', () => {
     const task = await newTask(routes);
 
     const result = await call(routes, 'PATCH', `/api/tasks/${task.id}`, {
-      body: { projectId: (destination.body as { id: string }).id },
+      body: { projectId: projectFromCreate(destination.body).id },
     });
 
     expect(result.status).toBe(409);
@@ -455,7 +519,7 @@ describe('identity route', () => {
 
 describe('section routes', () => {
   const newSection = async (routes: RouteTable, body: unknown = { type: 'rich-text' }, projectId = MINE) =>
-    ProjectSectionSchema.parse((await call(routes, 'POST', `/api/projects/${projectId}/sections`, { body })).body);
+    SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${projectId}/sections`, { body })).body).section;
 
   it('lists, creates, updates, moves, duplicates and removes a section', async () => {
     const routes = buildRoutes();
@@ -467,22 +531,27 @@ describe('section routes', () => {
       body: { type: 'rich-text', config: { text: 'Kickoff' } },
     });
     expect(created.status).toBe(201);
-    const section = ProjectSectionSchema.parse(created.body);
+    const section = SectionAddResultSchema.parse(created.body).section;
     expect(section).toMatchObject({ projectId: MINE, type: 'rich-text', position: 0, config: { text: 'Kickoff' } });
 
     const collapsed = await call(routes, 'PATCH', `/api/sections/${section.id}`, { body: { collapsed: true } });
-    expect(ProjectSectionSchema.parse(collapsed.body).collapsed).toBe(true);
+    expect(SectionWriteResultSchema.parse(collapsed.body).section.collapsed).toBe(true);
 
     const sibling = await newSection(routes, { type: 'task-list' });
     const moved = await call(routes, 'POST', `/api/sections/${section.id}/move`, { body: { position: 1 } });
-    expect(ProjectSectionSchema.parse(moved.body).position).toBe(1);
+    expect(SectionWriteResultSchema.parse(moved.body).section.position).toBe(1);
 
     const duplicated = await call(routes, 'POST', `/api/sections/${section.id}/duplicate`, {});
     expect(duplicated.status).toBe(201);
-    expect(ProjectSectionSchema.parse(duplicated.body)).toMatchObject({ type: 'rich-text', position: 2 });
+    const copy = SectionAddResultSchema.parse(duplicated.body);
+    // Duplication is an add, so it answers the same envelope with the same kind of receipt, and
+    // the copy sits directly below its original with a detached config and no rows.
+    expect(copy.section).toMatchObject({ type: 'rich-text', position: 2, config: { text: 'Kickoff' } });
+    expect(copy.section.id).not.toBe(section.id);
+    expect(copy.operation.operation).toBe('section.add');
 
     const removed = await call(routes, 'DELETE', `/api/sections/${sibling.id}`);
-    expect(removed.status).toBe(204);
+    expect(removed.status).toBe(200);
     const remaining = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
     expect(ProjectSectionSchema.array().parse(remaining.body).map((item) => item.position)).toEqual([0, 1]);
   });
@@ -501,17 +570,20 @@ describe('section routes', () => {
     ]);
   });
 
-  it('refuses a container that still holds rows, and takes a policy on the query string', async () => {
+  it('cascades from an ID-only request and rejects retired policy query fields without writing', async () => {
     const routes = buildRoutes();
-    const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
+    const task = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
 
-    // No policy: 409 naming the count, which is what lets the canvas offer a choice.
-    const refused = await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
-    expect(refused).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
-    expect(String((refused.body as { message: string }).message)).toContain('holds 1 tasks');
+    const cascadeField = await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
+    expect(cascadeField.status).toBe(400);
+    expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).archivedAt).toBeUndefined();
 
-    const cascaded = await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
-    expect(cascaded.status).toBe(204);
+    const reassignField = await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=reassign&reassignToSectionId=section-target`);
+    expect(reassignField.status).toBe(400);
+    expect(ProjectSectionSchema.array().parse((await call(routes, 'GET', `/api/projects/${MINE}/sections`)).body).map(({ id }) => id)).toContain(task.sectionId);
+
+    const removed = await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
+    expect(removed.status).toBe(200);
     // Archived, not deleted — the removal is undoable, and the section comes down too, so
     // the row's container still exists to come back to.
     const archived = await call(routes, 'GET', `/api/tasks/${task.id}`);
@@ -519,21 +591,6 @@ describe('section routes', () => {
     expect(TaskSchema.parse(archived.body).archivedWithSectionId).toBe(task.sectionId);
     const canvas = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
     expect(ProjectSectionSchema.array().parse(canvas.body).map((item) => item.id)).not.toContain(task.sectionId);
-  });
-
-  it('reassigns rows to another container named on the query string', async () => {
-    const routes = buildRoutes();
-    const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
-    const target = await newSection(routes, { type: 'task-list' });
-
-    const removed = await call(
-      routes,
-      'DELETE',
-      `/api/sections/${task.sectionId}?policy=reassign&reassignToSectionId=${target.id}`,
-    );
-
-    expect(removed.status).toBe(204);
-    expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).sectionId).toBe(target.id);
   });
 
   it('answers 404 for the sections of a project in another workspace', async () => {
@@ -559,35 +616,44 @@ describe('section routes', () => {
     expect((await call(routes, method, path('section-nope'), { body })).status).toBe(404);
   });
 
-  it('answers 409 for a section that was already removed — the record still exists', async () => {
+  it('returns the exact actor’s receipt when a retained section is removed again', async () => {
     const routes = buildRoutes();
     const section = await newSection(routes);
 
-    expect((await call(routes, 'DELETE', `/api/sections/${section.id}`)).status).toBe(204);
-    // Removal archives, so the second call is not a 404: the section is there, and removing
-    // something already removed is a rule error rather than a second archive.
+    const first = await call(routes, 'DELETE', `/api/sections/${section.id}`);
+    expect(first.status).toBe(200);
+    const result = SectionRemovalResultSchema.parse(first.body);
     const again = await call(routes, 'DELETE', `/api/sections/${section.id}`);
     expect(again).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
+    expect(SectionAlreadyRemovedDetailsSchema.parse((again.body as { details: unknown }).details)).toEqual({
+      reason: 'section_already_removed',
+      sectionId: section.id,
+      operation: result.operation,
+    });
   });
 
   it('restores an archived section and the rows it took down, and retries idempotently', async () => {
     const routes = buildRoutes();
-    const task = TaskSchema.parse((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
-    await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
+    const task = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Ship it' } })).body);
+    await call(routes, 'DELETE', `/api/sections/${task.sectionId}`);
 
     const restored = await call(routes, 'POST', `/api/sections/${task.sectionId}/restore`);
 
     expect(restored.status).toBe(200);
-    expect(ProjectSectionSchema.parse(restored.body).archivedAt).toBeUndefined();
+    const result = SectionWriteResultSchema.parse(restored.body);
+    expect(result.section.archivedAt).toBeUndefined();
+    expect(result.operation?.operation).toBe('section.restore');
     expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).archivedAt).toBeUndefined();
-    // A retry must not reorder the canvas or invent history.
-    expect((await call(routes, 'POST', `/api/sections/${task.sectionId}/restore`)).status).toBe(200);
+    // A retry must not reorder the canvas or invent history, so it answers a null receipt.
+    const retry = await call(routes, 'POST', `/api/sections/${task.sectionId}/restore`);
+    expect(retry.status).toBe(200);
+    expect(SectionWriteResultSchema.parse(retry.body).operation).toBeNull();
     expect((await call(routes, 'POST', '/api/sections/section-nope/restore')).status).toBe(404);
   });
 
   it('answers archived sections only when the query string asks, parsing the boolean', async () => {
     const routes = buildRoutes();
-    const section = await newSection(routes);
+    const section = await newSection(routes, { type: 'rich-text', config: { text: 'Keep this in Archive' } });
     await call(routes, 'DELETE', `/api/sections/${section.id}`);
 
     const live = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
@@ -664,23 +730,42 @@ describe('shortcut routes (§27, §68)', () => {
       body: { pageId: home, sourceSectionId: source },
     });
     expect(created.status).toBe(201);
-    const shortcut = ResolvedSectionShortcutSchema.parse(created.body);
+    const addResult = SectionShortcutAddResultSchema.parse(created.body);
+    const shortcut = addResult.shortcut;
     expect(shortcut).toMatchObject({ sourceSectionId: source, sourceProjectId: 'project-kitchen' });
+    expect(addResult.operation.operation).toBe('shortcut.add');
 
     const patched = await call(routes, 'PATCH', `/api/shortcuts/${shortcut.id}`, {
       body: { collapsed: true },
     });
     expect(patched.status).toBe(200);
-    expect(ResolvedSectionShortcutSchema.parse(patched.body).collapsed).toBe(true);
+    const patchResult = SectionShortcutWriteResultSchema.parse(patched.body);
+    expect(patchResult.shortcut.collapsed).toBe(true);
+    expect(patchResult.operation?.operation).toBe('shortcut.update');
+    // The same value again is a no-op: it answers the placement and a null receipt.
+    const unchanged = await call(routes, 'PATCH', `/api/shortcuts/${shortcut.id}`, { body: { collapsed: true } });
+    expect(SectionShortcutWriteResultSchema.parse(unchanged.body).operation).toBeNull();
 
     const moved = await call(routes, 'POST', `/api/shortcuts/${shortcut.id}/move`, {
       body: { position: 0 },
     });
     expect(moved.status).toBe(200);
-    expect(ResolvedSectionShortcutSchema.parse(moved.body).position).toBe(0);
+    const moveResult = SectionShortcutWriteResultSchema.parse(moved.body);
+    expect(moveResult.shortcut.position).toBe(0);
+    expect(moveResult.operation?.operation).toBe('shortcut.move');
+    // Asking for the position it already holds writes nothing.
+    const stayed = await call(routes, 'POST', `/api/shortcuts/${shortcut.id}/move`, { body: { position: 0 } });
+    expect(SectionShortcutWriteResultSchema.parse(stayed.body).operation).toBeNull();
 
+    // 200 rather than 204: the delete now carries the receipt that puts the placement back.
     const removed = await call(routes, 'DELETE', `/api/shortcuts/${shortcut.id}`);
-    expect(removed.status).toBe(204);
+    expect(removed.status).toBe(200);
+    expect(SectionShortcutRemovalResultSchema.parse(removed.body)).toMatchObject({
+      shortcutId: shortcut.id,
+      projectId: root,
+      pageId: home,
+      operation: { operation: 'shortcut.remove' },
+    });
     const shortcutsAfter = ResolvedSectionShortcutSchema.array().parse(
       (await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).body,
     );
@@ -700,6 +785,26 @@ describe('shortcut routes (§27, §68)', () => {
 
     expect(refused).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
     expect(await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).toEqual(before);
+  });
+
+  // Once answered 500: the move reached commit-time integrity as a crossed placement (§§26, 27, 61).
+  it('answers 409 and changes nothing when a reparent would carry a Home shortcut across roots', async () => {
+    const routes = nestedRoutes();
+    const renovation = ProjectSchema.parse((await call(routes, 'GET', `/api/projects/${root}`)).body);
+    const other = projectFromCreate(
+      (await call(routes, 'POST', '/api/projects', { body: { workspaceId: renovation.workspaceId, kind: 'root', name: 'Other root' } })).body,
+    );
+    const kitchenBefore = await call(routes, 'GET', '/api/projects/project-kitchen');
+    const placementsBefore = await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`);
+
+    const refused = await call(routes, 'PATCH', '/api/projects/project-kitchen', { body: { parentProjectId: other.id } });
+
+    expect(refused).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
+    // Both seeded Kitchen placements: its task list and its reflections.
+    expect(JSON.stringify(refused.body)).toContain('shortcut-renovation-kitchen-tasks');
+    expect(JSON.stringify(refused.body)).toContain('shortcut-renovation-kitchen-reflections');
+    expect(await call(routes, 'GET', '/api/projects/project-kitchen')).toEqual(kitchenBefore);
+    expect(await call(routes, 'GET', `/api/projects/${root}/shortcuts?pageId=${home}`)).toEqual(placementsBefore);
   });
 });
 
@@ -788,6 +893,21 @@ describe('agent connections, permissions and activity (§§51, 52, 53, 57)', () 
     const after = await call(routes, 'GET', '/api/tasks', { token: READWRITE });
     expect(after.status).toBe(401);
     expect(after.body).toMatchObject({ error: 'unauthorized' });
+
+    const malformedRemoval = await call(routes, 'DELETE', '/api/sections/section-nope?policy=reassign', { token: READWRITE });
+    expect(malformedRemoval.status).toBe(401);
+    expect(malformedRemoval.body).toMatchObject({ error: 'unauthorized' });
+  });
+
+  it('lists archived projects across the workspace and restores a chosen status through PATCH', async () => {
+    const routes = buildRoutes();
+    await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { status: 'archived' } });
+    const own = ArchivedProjectsResultSchema.parse((await call(routes, 'GET', '/api/archived-projects')).body);
+    expect(own.items.map(({ project }) => project.id)).toEqual([MINE]);
+    expect(ArchivedProjectsResultSchema.parse((await call(routes, 'GET', '/api/archived-projects', { user: ALEX })).body).items).toEqual([]);
+    const restored = await call(routes, 'PATCH', `/api/projects/${MINE}`, { body: { status: 'planning' } });
+    expect(ProjectWriteResultSchema.parse(restored.body).project.status).toBe('planning');
+    expect(ArchivedProjectsResultSchema.parse((await call(routes, 'GET', '/api/archived-projects')).body).items).toEqual([]);
   });
 
   it('answers 401 for a token nothing issued, and 401 for a scheme it does not implement', async () => {
@@ -885,10 +1005,10 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
   const workspaceId = PERSONAS[0]!.workspace.id;
 
   const journey = async (routes: RouteTable) => {
-    const root = ProjectSchema.parse(
+    const root = projectFromCreate(
       (await call(routes, 'POST', '/api/projects', { body: { workspaceId, kind: 'root', name: 'Renovation' } })).body,
     );
-    const unit = ProjectSchema.parse(
+    const unit = projectFromCreate(
       (
         await call(routes, 'POST', '/api/projects', {
           body: { workspaceId, kind: 'subproject', parentProjectId: root.id, name: 'Kitchen' },
@@ -900,16 +1020,19 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
     const enabled = await call(routes, 'PATCH', `/api/projects/${root.id}/pages/reflections`, {
       body: { enabled: true },
     });
-    const reflectionsPage = enabled.body as { id: string; kind: string; enabled: boolean };
+    // Since Slice 38 the PATCH answers the write envelope, so the page is unwrapped here and the
+    // receipt is asserted where the journey's claims are made.
+    const enabledResult = ProjectPageWriteResultSchema.parse(enabled.body);
+    const reflectionsPage = enabledResult.page;
 
     // No page named, so the canonical canvas takes it: the root's Home.
-    const task = TaskSchema.parse(
+    const task = taskFrom(
       (await call(routes, 'POST', '/api/tasks', { body: { projectId: root.id, title: 'Choose the tiles' } })).body,
     );
-    const unitTask = TaskSchema.parse(
+    const unitTask = taskFrom(
       (await call(routes, 'POST', '/api/tasks', { body: { projectId: unit.id, title: 'Measure the wall' } })).body,
     );
-    const reflection = ReflectionSchema.parse(
+    const reflection = reflectionFrom(
       (
         await call(routes, 'POST', '/api/reflections', {
           body: { projectId: root.id, pageId: reflectionsPage.id, body: 'The first week went well.' },
@@ -917,7 +1040,7 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
       ).body,
     );
 
-    return { root, unit, pagesBefore, reflectionsPage, task, unitTask, reflection };
+    return { root, unit, pagesBefore, enabledResult, reflectionsPage, task, unitTask, reflection };
   };
 
   /**
@@ -939,10 +1062,12 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
   it('creates a root, a nested unit of work and page-owned rows, and lists the same ownership', async () => {
     const routes = buildRoutes(false);
 
-    const { root, unit, pagesBefore, reflectionsPage, task, unitTask, reflection } = await journey(routes);
+    const { root, unit, pagesBefore, enabledResult, reflectionsPage, task, unitTask, reflection } = await journey(routes);
 
     expect((pagesBefore.body as Array<{ kind: string }>).map(({ kind }) => kind)).toEqual(['home']);
     expect(reflectionsPage).toMatchObject({ kind: 'reflections', enabled: true });
+    // The first enable is the write that created the record, so it carries a `page.add` receipt.
+    expect(enabledResult.operation).toMatchObject({ operation: 'page.add', label: 'Enabled the reflections page' });
 
     const homeId = (await pagesOf(routes, root.id)).find(({ kind }) => kind === 'home')!.id;
     expect(await pageOfSection(routes, root.id, task.sectionId)).toBe(homeId);
@@ -1032,7 +1157,7 @@ describe('page-aware ownership over HTTP (26, 27, 30)', () => {
  */
 describe('Todos projection route (§34, §54)', () => {
   const scenario = async (routes: RouteTable) => {
-    const unit = ProjectSchema.parse(
+    const unit = projectFromCreate(
       (await call(routes, 'POST', '/api/projects', { body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'subproject', parentProjectId: MINE, name: 'Kitchen', targetDate: '2026-09-01' } })).body,
     );
     // Deliberately out of chronological order, so the answer cannot be insertion order.
@@ -1146,10 +1271,31 @@ describe('Archive projection route (§31, §32, §54)', () => {
     expect(result.items).toContainEqual(expect.objectContaining({ kind: 'task', task: expect.objectContaining({ id: task.id }) }));
   });
 
+  it('forwards the content projection and its recovery metadata without filtering of its own', async () => {
+    const routes = buildRoutes();
+    const add = async (body: unknown) =>
+      SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body })).body).section;
+    const progress = await add({ type: 'progress' });
+    const notes = await add({ type: 'rich-text', config: { text: 'Measure twice' } });
+    const blank = await add({ type: 'rich-text', config: { text: '   ' } });
+    for (const { id } of [progress, notes, blank]) {
+      expect((await call(routes, 'DELETE', `/api/sections/${id}`)).status).toBe(200);
+    }
+    const eventsBefore = ((await call(routes, 'GET', '/api/activity')).body as unknown[]).length;
+
+    const result = ProjectArchiveResultSchema.parse((await call(routes, 'GET', `/api/projects/${MINE}/archive`)).body);
+
+    const sections = result.items.filter((item) => item.kind === 'section');
+    expect(sections.map((item) => item.section.id)).toEqual([notes.id]);
+    expect(sections[0]).toMatchObject({ recovery: { kind: 'config' }, section: { config: { text: 'Measure twice' } } });
+    // A read: no projection writes and no activity.
+    expect(((await call(routes, 'GET', '/api/activity')).body as unknown[]).length).toBe(eventsBefore);
+  });
+
   it('requires all three read grants and refuses a unit of work', async () => {
     const routes = buildRoutes();
     expect((await call(routes, 'GET', `/api/projects/${THEIRS}/archive`)).status).toBe(404);
-    const unit = ProjectSchema.parse(
+    const unit = projectFromCreate(
       (await call(routes, 'POST', '/api/projects', { body: { workspaceId: PERSONAS[0]!.workspace.id, kind: 'subproject', parentProjectId: MINE, name: 'Unit' } })).body,
     );
     expect((await call(routes, 'GET', `/api/projects/${unit.id}/archive`)).status).toBe(409);
@@ -1172,7 +1318,7 @@ describe('Journal projection routes (§36, §54)', () => {
     const journal = await call(routes, 'GET', `/api/projects/${MINE}/journal`);
     expect(journal.status).toBe(200);
     expect(ProjectJournalResultSchema.parse(journal.body).items).toContainEqual(
-      expect.objectContaining({ reflection: expect.objectContaining({ id: (created.body as { id: string }).id }) }),
+      expect.objectContaining({ reflection: expect.objectContaining({ id: reflectionFrom(created.body).id }) }),
     );
 
     const picker = await call(routes, 'GET', `/api/projects/${MINE}/completed-work`);
@@ -1199,8 +1345,8 @@ describe('Journal projection routes (§36, §54)', () => {
       },
     });
     expect(created.status).toBe(201);
-    expect(created.body).toMatchObject({ subject: { kind: 'task', id: 'task-agent-deployment' } });
-    expect(created.body).not.toHaveProperty('subject.name');
+    expect(reflectionFrom(created.body)).toMatchObject({ subject: { kind: 'task', id: 'task-agent-deployment' } });
+    expect(reflectionFrom(created.body)).not.toHaveProperty('subject.name');
 
     const missing = await call(routes, 'POST', '/api/reflections', {
       token,
@@ -1244,5 +1390,278 @@ describe('Journal projection routes (§36, §54)', () => {
     const picker = await call(routes, 'GET', '/api/projects/project-mine/completed-work');
     expect(picker.status).toBe(200);
     expect(ProjectCompletedWorkResultSchema.parse(picker.body).candidates).toEqual([]);
+  });
+});
+
+describe('section receipts and operation history routes (Slices 30, 35)', () => {
+  const READWRITE = 'prototype-user-a-readwrite';
+  const AGENT_PROJECT = 'project-work-manager';
+
+  const withStore = (seeded = document(true), clock?: PrototypeClock) => {
+    const store = new InMemoryDataStore(seeded);
+    return { store, routes: routesFor(store, clock) };
+  };
+
+  const removeNotes = async (routes: RouteTable) => {
+    const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', config: { text: 'Kept' } } });
+    const section = SectionAddResultSchema.parse(created.body).section;
+    const removed = await call(routes, 'DELETE', `/api/sections/${section.id}`);
+    return { section, removed, result: SectionRemovalResultSchema.parse(removed.body) };
+  };
+
+  const summaryOf = async (routes: RouteTable, options: Parameters<typeof call>[3] = {}, projectId = MINE) => {
+    const response = await call(routes, 'GET', `/api/projects/${projectId}/history`, options);
+    expect(response.status).toBe(200);
+    return OperationHistorySummarySchema.parse(response.body);
+  };
+
+  const transition = (
+    routes: RouteTable,
+    receipt: { historyId: string; actionId: string },
+    direction: 'undo' | 'redo',
+    expectedRevision: number,
+    options: Parameters<typeof call>[3] = {},
+  ) =>
+    call(routes, 'POST', `/api/history/${receipt.historyId}/transition`, {
+      ...options,
+      body: { actionId: receipt.actionId, direction, expectedRevision },
+    });
+
+  const detailsOf = (response: { body: unknown }) => OperationHistoryRefusalDetailsSchema.parse((response.body as { details: unknown }).details);
+
+  it('answers a removal with 200, the archived section and a receipt carrying no inverse data', async () => {
+    const { routes } = withStore();
+
+    const { section, removed, result } = await removeNotes(routes);
+
+    expect(removed.status).toBe(200);
+    expect(result.section).toMatchObject({ id: section.id, archivedAt: '2026-08-24T16:00:00.000Z' });
+    expect(Object.keys(result.operation).sort()).toEqual(['actionId', 'createdAt', 'expiresAt', 'historyId', 'label', 'operation', 'revision']);
+  });
+
+  it('issues no receipt and records no action when a retired removal query is rejected', async () => {
+    const { store, routes } = withStore();
+    const task = taskFrom((await call(routes, 'POST', '/api/tasks', { body: { projectId: MINE, title: 'Live' } })).body);
+    const before = store.snapshot().operationActions;
+
+    const refused = await call(routes, 'DELETE', `/api/sections/${task.sectionId}?policy=cascade`);
+
+    expect(refused.status).toBe(400);
+    expect(refused.body).not.toHaveProperty('operation');
+    expect(store.snapshot().operationActions).toEqual(before);
+    expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body).archivedAt).toBeUndefined();
+  });
+
+  it('recovers a hard-deleted section receipt only for its exact actor, then executes it', async () => {
+    const { store, routes } = withStore();
+    const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'progress' } });
+    const section = SectionAddResultSchema.parse(created.body).section;
+    const removed = await call(routes, 'DELETE', `/api/sections/${section.id}`);
+    const result = SectionRemovalResultSchema.parse(removed.body);
+    const afterRemoval = store.snapshot();
+    expect(afterRemoval.sections.some(({ id }) => id === section.id)).toBe(false);
+
+    const repeated = await call(routes, 'DELETE', `/api/sections/${section.id}`);
+
+    expect(repeated.status).toBe(409);
+    expect(SectionAlreadyRemovedDetailsSchema.parse((repeated.body as { details: unknown }).details)).toEqual({
+      reason: 'section_already_removed',
+      sectionId: section.id,
+      operation: result.operation,
+    });
+    expect(store.snapshot()).toEqual(afterRemoval);
+    expect((await call(routes, 'DELETE', `/api/sections/${section.id}`, { user: ALEX })).status).toBe(404);
+
+    const undone = await transition(routes, result.operation, 'undo', result.operation.revision);
+    expect(undone.status).toBe(200);
+    const restored = store.snapshot().sections.find(({ id }) => id === section.id);
+    expect(restored).toBeDefined();
+    expect(restored).not.toHaveProperty('archivedAt');
+  });
+
+  it('the sequential A → B → Undo → Undo → Redo → Redo chain, observed through the summary route', async () => {
+    const { routes } = withStore();
+    const created = SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', title: 'Start' } })).body);
+    const write = async (title: string) =>
+      SectionWriteResultSchema.parse((await call(routes, 'PATCH', `/api/sections/${created.section.id}`, { body: { title } })).body).operation!;
+    const a = await write('A');
+    const b = await write('B');
+    const title = async () =>
+      ProjectSectionSchema.array().parse((await call(routes, 'GET', `/api/projects/${MINE}/sections`)).body).find(({ id }) => id === created.section.id)?.title;
+
+    expect(await summaryOf(routes)).toMatchObject({ historyId: b.historyId, revision: b.revision, undo: { actionId: b.actionId }, redo: null });
+    const steps: Array<[typeof a, 'undo' | 'redo', string, string | null, string | null]> = [
+      [b, 'undo', 'A', a.actionId, b.actionId],
+      [a, 'undo', 'Start', created.operation.actionId, a.actionId],
+      [a, 'redo', 'A', a.actionId, b.actionId],
+      [b, 'redo', 'B', b.actionId, null],
+    ];
+    for (const [receipt, direction, expectedTitle, undo, redo] of steps) {
+      const before = await summaryOf(routes);
+      const response = await transition(routes, receipt, direction, before.revision);
+      expect(response.status).toBe(200);
+      expect(OperationHistoryTransitionResultSchema.parse(response.body)).toMatchObject({ direction, actionId: receipt.actionId, summary: { revision: before.revision + 1 } });
+      expect(await title()).toBe(expectedTitle);
+      const after = await summaryOf(routes);
+      expect(after.undo?.actionId ?? null).toBe(undo);
+      expect(after.redo?.actionId ?? null).toBe(redo);
+    }
+  });
+
+  it('branch invalidation over the wire: a new write discards redo; a no-op and a refusal leave it', async () => {
+    const { routes } = withStore();
+    const created = SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', title: 'Start' } })).body);
+    const patch = (body: object) => call(routes, 'PATCH', `/api/sections/${created.section.id}`, { body });
+    const a = SectionWriteResultSchema.parse((await patch({ title: 'A' })).body).operation!;
+    await transition(routes, a, 'undo', a.revision);
+
+    expect(SectionWriteResultSchema.parse((await patch({ title: 'Start' })).body).operation).toBeNull();
+    expect((await transition(routes, a, 'redo', 0)).status).toBe(409);
+    expect((await summaryOf(routes)).redo?.actionId).toBe(a.actionId);
+
+    const c = SectionWriteResultSchema.parse((await patch({ collapsed: true })).body).operation!;
+    const summary = await summaryOf(routes);
+    expect(summary).toMatchObject({ redo: null, undo: { actionId: c.actionId } });
+    expect((await transition(routes, c, 'undo', summary.revision)).status).toBe(200);
+    expect((await summaryOf(routes)).undo?.actionId).toBe(created.operation.actionId);
+  });
+
+  it('a replayed transition answers 409 history_revision_stale with the summary that shows it landed', async () => {
+    const { routes } = withStore();
+    const { section, result } = await removeNotes(routes);
+
+    const undone = await transition(routes, result.operation, 'undo', result.operation.revision);
+    expect(undone.status).toBe(200);
+    expect(OperationHistoryTransitionResultSchema.parse(undone.body)).toMatchObject({ result: { outcome: 'restored', section: { id: section.id } } });
+
+    const again = await transition(routes, result.operation, 'undo', result.operation.revision);
+    expect(again).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
+    expect(detailsOf(again)).toMatchObject({
+      reason: 'history_revision_stale', historyId: result.operation.historyId,
+      summary: { revision: result.operation.revision + 1, redo: { actionId: result.operation.actionId } },
+    });
+    expect((again.body as { message: string }).message).toMatch(/^history_revision_stale: /);
+  });
+
+  it('answers 409 history_expired and — once pruned — history_not_next, with typed details', async () => {
+    const clock = new PrototypeClock(new Date('2026-08-24T16:00:00.000Z'));
+    const { routes } = withStore(document(true), clock);
+    const expiring = (await removeNotes(routes)).result;
+    clock.setNow(new Date(expiring.operation.expiresAt));
+    const summary = await summaryOf(routes);
+    // An expired action is not offered, and refuses while it is still stored.
+    expect(summary.undo).toBeNull();
+    const expired = await transition(routes, expiring.operation, 'undo', summary.revision);
+    expect(expired.status).toBe(409);
+    expect(detailsOf(expired)).toMatchObject({ reason: 'history_expired', expiresAt: expiring.operation.expiresAt });
+
+    // A later write prunes it; naming it now answers that it is not the next step.
+    const fresh = SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'progress' } })).body);
+    const pruned = await transition(routes, expiring.operation, 'undo', fresh.operation.revision);
+    expect(pruned.status).toBe(409);
+    expect(detailsOf(pruned)).toMatchObject({ reason: 'history_not_next', summary: { undo: { actionId: fresh.operation.actionId } } });
+  });
+
+  it('answers 404 for another persona’s history, an unknown history and a foreign project’s summary', async () => {
+    const { routes } = withStore();
+    const { result } = await removeNotes(routes);
+
+    expect((await transition(routes, result.operation, 'undo', result.operation.revision, { user: ALEX })).status).toBe(404);
+    expect((await transition(routes, { historyId: 'history-nope', actionId: result.operation.actionId }, 'undo', 1)).status).toBe(404);
+    expect((await call(routes, 'GET', `/api/projects/${MINE}/history`, { user: ALEX })).status).toBe(404);
+    expect((await call(routes, 'GET', '/api/projects/project-nope/history')).status).toBe(404);
+  });
+
+  it('transition rejects unknown fields and a missing revision with 400', async () => {
+    const { routes } = withStore();
+    const { result } = await removeNotes(routes);
+    const post = (body: unknown) => call(routes, 'POST', `/api/history/${result.operation.historyId}/transition`, { body });
+
+    expect((await post({ actionId: result.operation.actionId, direction: 'undo', expectedRevision: result.operation.revision, force: true })).status).toBe(400);
+    expect((await post({ actionId: result.operation.actionId, direction: 'undo' })).status).toBe(400);
+    expect((await post({ undoId: 'undo-1' })).status).toBe(400);
+    expect((await call(routes, 'POST', `/api/undo/${result.operation.actionId}`)).status).toBe(404);
+  });
+
+  describe('an agent whose access changes after the receipt was issued', () => {
+    /** agent-heavy's read/write connection, granted `projects.write` so it can remove and undo. */
+    const agentReceipt = async () => {
+      const { store, routes } = withStore(PrototypeDocumentSchema.parse(buildSeed('agent-heavy')));
+      await call(routes, 'PATCH', '/api/agent-connections/agent-claude', {
+        user: 'user-demo',
+        body: { permissions: ['projects.read', 'projects.write', 'tasks.read', 'tasks.write'] },
+      });
+      const created = await call(routes, 'POST', `/api/projects/${AGENT_PROJECT}/sections`, { token: READWRITE, body: { type: 'progress' } });
+      const removed = await call(routes, 'DELETE', `/api/sections/${SectionAddResultSchema.parse(created.body).section.id}`, { token: READWRITE });
+      expect(removed.status).toBe(200);
+      const { operation } = SectionRemovalResultSchema.parse(removed.body);
+      const applied = () => store.snapshot().operationActions.find(({ id }) => id === operation.actionId)?.state === 'applied';
+      return { routes, operation, applied };
+    };
+
+    it('answers 401 once the connection is revoked, leaving the action applied', async () => {
+      const { routes, operation, applied } = await agentReceipt();
+      await call(routes, 'POST', '/api/agent-connections/agent-claude/revoke', { user: 'user-demo' });
+
+      expect((await transition(routes, operation, 'undo', operation.revision, { token: READWRITE })).status).toBe(401);
+      expect(applied()).toBe(true);
+    });
+
+    it('a projects.read-only connection reads the summary and is refused a transition with 403 naming projects.write', async () => {
+      const { routes, operation, applied } = await agentReceipt();
+      await call(routes, 'PATCH', '/api/agent-connections/agent-claude', {
+        user: 'user-demo',
+        body: { permissions: ['projects.read', 'tasks.read', 'tasks.write'] },
+      });
+
+      expect(await summaryOf(routes, { token: READWRITE }, AGENT_PROJECT)).toMatchObject({ historyId: operation.historyId, undo: { actionId: operation.actionId } });
+      const denied = await transition(routes, operation, 'undo', operation.revision, { token: READWRITE });
+      expect(denied).toMatchObject({ status: 403, body: { error: 'permission_denied' } });
+      expect(JSON.stringify(denied.body)).toContain('projects.write');
+      expect(applied()).toBe(true);
+    });
+
+    it('undoes for the same connection while it still holds projects.write, and hides it from the person', async () => {
+      const { routes, operation } = await agentReceipt();
+
+      expect((await transition(routes, operation, 'undo', operation.revision, { user: 'user-demo' })).status).toBe(404);
+      expect(await summaryOf(routes, { user: 'user-demo' }, AGENT_PROJECT)).toMatchObject({ historyId: null });
+      expect((await transition(routes, operation, 'undo', operation.revision, { token: READWRITE })).status).toBe(200);
+    });
+
+    /**
+     * Recording Restore did not switch off the retirement rule: it only moved the case. A Restore
+     * the *same* actor made sits above their removal, so undoing it first is the ordinary route.
+     * A Restore by **someone else** never enters that stack, so the removal Undo is still next and
+     * still faces a live section — which it can never re-remove at the captured generation.
+     */
+    it('retires a removal Undo once another actor restored the section out of band', async () => {
+      const { store, routes } = withStore(PrototypeDocumentSchema.parse(buildSeed('agent-heavy')));
+      await call(routes, 'PATCH', '/api/agent-connections/agent-claude', {
+        user: 'user-demo',
+        body: { permissions: ['projects.read', 'projects.write', 'tasks.read', 'tasks.write'] },
+      });
+      // Prose with content, so the removal retains a tombstone there is something to restore.
+      const created = await call(routes, 'POST', `/api/projects/${AGENT_PROJECT}/sections`, {
+        token: READWRITE,
+        body: { type: 'rich-text', config: { text: 'Kept' } },
+      });
+      const section = SectionAddResultSchema.parse(created.body).section;
+      const { operation } = SectionRemovalResultSchema.parse(
+        (await call(routes, 'DELETE', `/api/sections/${section.id}`, { token: READWRITE })).body,
+      );
+
+      const restored = await call(routes, 'POST', `/api/sections/${section.id}/restore`, { user: 'user-demo' });
+      expect(SectionWriteResultSchema.parse(restored.body).operation?.operation).toBe('section.restore');
+
+      const retired = await transition(routes, operation, 'undo', operation.revision, { token: READWRITE });
+      expect(retired.status).toBe(409);
+      expect(detailsOf(retired)).toMatchObject({
+        reason: 'history_retired',
+        conflicts: [{ entityType: 'section', id: section.id, problem: 'not-archived', nextStep: 'nothing-to-undo' }],
+        summary: { revision: operation.revision + 1 },
+      });
+      expect(store.snapshot().operationActions.find(({ id }) => id === operation.actionId)?.state).toBe('retired');
+    });
   });
 });

@@ -1,5 +1,9 @@
 # API
 
+`GET /api/archived-projects` forwards the actor's workspace recovery list from
+`ArchivedProjectsService`. Root `GET /api/projects/:id/archive` forwards its ready-only
+projection. Project Restore remains the existing `PATCH /api/projects/:id` write.
+
 The host's REST surface (§61): the `/api/*` route table the browser's gateway calls,
 the persona-header context that turns a request into an `ActorContext`, the error mapping
 that turns a thrown domain error into a status, and `createApi` — the composition root
@@ -23,6 +27,14 @@ contract inputs and answer contract shapes; they hold no rules.
 - Map errors: validation → 400, `EntityNotFoundError` → 404, `DomainRuleError` → 409
   (with its typed `details` forwarded), `PermissionDeniedError` → 403, anything else →
   500 `internal_error` with the explanation on the console.
+- Forward write results without reshaping them. Section writes carry `{ section, operation }`;
+  task writes carry `{ task, operation }`; reflection writes carry
+  `{ reflection, operation }`; the page toggle carries `{ page, operation }`; and project create
+  and PATCH carry `{ project, operation }` (Slice 42 adds the creation receipt). Creates always carry a receipt and normalized no-op updates carry
+  `operation: null`. A deleted disposable section's `section` is a response snapshot. A repeated
+  section removal remains a 409 and may carry only the exact actor's newest outstanding receipt
+  in typed `details`. New `DELETE /api/sections/:id` requests accept no query fields: live owned
+  rows cascade with the section, and old policy or target parameters receive 400.
 
 ## Not responsible for
 

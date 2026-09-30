@@ -2,9 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 /**
- * §68's `/settings`. There is exactly one thing to configure so far — §53's agent
- * permissions — so this is a way in rather than a settings surface. It grows when a slice
- * gives it something else to hold.
+ * §68's `/settings`: entry to agent permissions and workspace-wide archived projects.
  */
 @Component({
   selector: 'app-settings-page',
@@ -16,6 +14,10 @@ import { RouterLink } from '@angular/router';
       <li>
         <a data-settings-agents routerLink="/settings/agents">AI &amp; Agents</a>
         <p>What each connected agent is allowed to do, and when it last called.</p>
+      </li>
+      <li>
+        <a data-settings-archived-projects routerLink="/settings/archived-projects">Archived projects</a>
+        <p>Find and restore archived projects across this workspace.</p>
       </li>
     </ul>
   `,
@@ -32,6 +34,8 @@ import { RouterLink } from '@angular/router';
       color: var(--color-text-muted);
       font-size: var(--font-size-sm);
     }
+
+    .settings__sections li + li { margin-top: var(--space-4); }
   `,
 })
 export class SettingsPage {}

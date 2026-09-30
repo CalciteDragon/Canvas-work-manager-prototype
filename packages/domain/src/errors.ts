@@ -1,3 +1,5 @@
+import type { OperationHistoryRefusalDetails } from '@cwm/contracts';
+
 /**
  * Three failures a caller can cause, so a transport can answer them differently (§61).
  * Anything else reaching a route is a bug, not a caller mistake.
@@ -55,3 +57,12 @@ export class PermissionDeniedError extends Error {
     this.name = 'PermissionDeniedError';
   }
 }
+
+/**
+ * A history refusal: a `DomainRuleError` whose details are an `OperationHistoryRefusalDetails` and
+ * whose message **starts with the reason token** — `history_not_next: …`. MCP clients receive the
+ * message text only, so the token is how an agent tells the refusals apart; HTTP clients also get
+ * the typed details, current summary included, in the 409 envelope.
+ */
+export const historyRefusal = (details: OperationHistoryRefusalDetails, sentence: string): DomainRuleError =>
+  new DomainRuleError(`${details.reason}: ${sentence}`, details);

@@ -8,6 +8,8 @@ flowchart TB
   wstore["ProjectWorkspaceStore<br/>record, progress, writes, work tree"]
   nav["ProjectPageNavigation<br/>pages, toggles, work tree (ProjectWorkItem)"]
   header["ProjectHeader → ProjectMoreMenu"]
+  hist["ProjectHistoryStore<br/>summary, pending, transitions; OPERATION_HISTORY_REPORTER"]
+  controls["ProjectHistoryControls · ProjectHistoryFeedback<br/>projected into the header"]
   reg["PROJECT_PAGE_REGISTRY<br/>home · todos · archive · reflections → renderer"]
   subgraph renderers["Page renderers (ProjectPageRenderer, callback inputs)"]
     canvas["ProjectCanvas<br/>Home and work pages"]
@@ -19,7 +21,7 @@ flowchart TB
   tstore["TodosPageStore"]
   astore["ArchivePageStore"]
   rstore["ReflectionsPageStore"]
-  frame["ProjectSectionFrame<br/>chrome: drag, inline title, collapse, settings, archive"]
+  frame["ProjectSectionFrame<br/>chrome: drag, inline title, collapse, settings, remove"]
   sreg["SECTION_REGISTRY"]
   subgraph sections["Section contents (SectionContentComponent)"]
     rt["RichTextSection"]
@@ -31,11 +33,18 @@ flowchart TB
     ra["RecentActivitySection → ActivityStore (activity)"]
   end
   sc["ShortcutFrame (read-only source) · ShortcutPicker · ShortcutStore"]
-  dialog["SectionRemovalDialog"]
+  notice["SectionRecoveryNotice<br/>Archive when listed, Retry remove, Retry refresh — no Undo"]
   create["SectionCreateDialog · InsertionPoint · SectionResizeHandle"]
   shell --> wstore
   shell --> nav
   shell --> header
+  shell --> hist
+  header --> controls --> hist
+  pstore -. "begin / committed / end" .-> hist
+  tstore -. reports .-> hist
+  astore -. reports .-> hist
+  rstore -. reports .-> hist
+  wstore -. reports .-> hist
   shell --> reg --> renderers
   canvas --> pstore
   todos --> tstore
@@ -43,7 +52,7 @@ flowchart TB
   refl --> rstore
   canvas --> frame --> sreg --> sections
   canvas --> sc
-  canvas --> dialog
+  canvas --> notice
   canvas --> create
 ```
 
@@ -71,22 +80,27 @@ sequenceDiagram
 
 | Part | Path | Role |
 |---|---|---|
-| `ProjectWorkspaceShell` | `project-workspace-shell.ts` | Both routes; header; page resolution and fallback notice; breadcrumbs for a subproject |
-| `ProjectWorkspaceStore`, `WorkTreeNode` | `project-workspace-store.ts` | Project-level state and writes |
-| `ProjectPageNavigation`, `ProjectWorkItem` | `project-page-navigation.ts`, `project-work-item.ts` | The column and its rows |
-| `ProjectHeader`, `ProjectMoreMenu` | `project-header.ts`, `project-more-menu.ts` | Name, status, progress, target date; rename/status/date/archive |
+| `ProjectWorkspaceShell` | `project-workspace-shell.ts` | Both routes; header and `#history-controls` focus after render; page resolution and fallback notice; breadcrumbs for a subproject; creator recovery at a missing project's URL, with a generic Retry when the summary read is unavailable for any reason but `not_found` |
+| `ProjectWorkspaceStore`, `WorkTreeNode` | `project-workspace-store.ts` | Project-level state and writes; authoritative `missing` state after a not-found read |
+| `ProjectPageNavigation`, `ProjectWorkItem` | `project-page-navigation.ts`, `project-work-item.ts` | The column and its rows; `linkSelected` reports a plain link activation from a capture-phase listener |
+| `ProjectColumnFocusRequest` | `project-workspace-shell.ts` | Root-scoped: the URL of a narrow column choice until its toggle, or the rendered branch heading, can take focus |
+| `ProjectHeader`, `ProjectMoreMenu` | `project-header.ts`, `project-more-menu.ts` | Name, status, progress, target date; projection slots for the history controls and their feedback; rename/status/date/archive (Archive not offered on an archived project) |
+| `ProjectHistoryStore` | `history/project-history-store.ts` | The displayed project's summary, generation and revision guards, coalesced re-reads, per-generation pending with owed reads, one transition at a time; implements `OperationHistoryReporter` |
+| `ProjectHistoryControls`, `ProjectHistoryFeedback` | `history/project-history-controls.ts`, `history/project-history-feedback.ts` | Two `aria-disabled` icon buttons named by their step or reason, Retry when unreadable; one polite feedback line with a cross-owner Open link |
+| `ProjectCreationRecovery` | `project-creation-recovery.stories.ts` | Storybook coverage for available Redo, pending and archived-parent blocked recovery states |
+| `historyControl`, `transitionResultFeedback`, `transitionRefusalFeedback`, `crossOwnerFeedback`, `archivedHereFeedback`, `nextStepCopy` | `history/history-feedback.ts` | Every sentence the controls say, exhaustive over the contract unions |
 | `PROJECT_PAGE_REGISTRY`, `ProjectPageDefinition` | `project-page-registry.ts` | Navigable kinds → renderer and label |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | `project-page-contract.ts` | What every renderer receives |
-| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, removal dialog and arrival at `#section-<id>` |
-| `ProjectPageStore`, `CanvasWriteResult`, `SectionRemovalPrompt` | `project-page-store.ts` | Sections and placements of one page; positioned creation, optimistic width writes and typed removal refusal |
-| `SectionRemovalDialog` | `section-removal-dialog.ts` | Cascade or reassign, containers by name |
+| `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, explicit edit receipts, one-gesture cascade removal and arrival at `#section-<id>` |
+| `ProjectPageStore`, `CanvasWriteResult`, `SectionRecoveryNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation, ID-only removal/retry, write reporting and recovery-notice state |
+| `SectionRecoveryNotice` | `section-recovery-notice.ts` | Archive for a removal the server listed there, explicit retry after an uncertain removal, read-only refresh retry; no Undo |
 | `SectionCreateDialog` | `section-create-dialog.ts` | Section or Home shortcut creation at the selected canvas position |
-| `CanvasIcon`, `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor` | `canvas-chrome/` | Shared SVG canvas controls, insertion overlays, snapped resize, sparse-grid gap targets and grip move keys |
-| `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with inline completion and canonical links |
-| `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's root-wide projection and restores |
-| `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal |
+| `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor` | `canvas-chrome/` | Insertion overlays, snapped resize, sparse-grid gap targets and grip move keys |
+| `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with its own task row, inline completion and Delete writes, canonical content links, descendant owner-history links and committed Delete recovery status |
+| `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's ready-only root projection, owner-first recovery copy, restores and descendant owner-history links |
+| `ReflectionsPage`, `ReflectionsPageStore` | `pages/reflections-page*.ts` | §36's page, the completed-work picker, the journal; the explicit Add container and reflection writes report to the header's history |
 | `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29 |
 | `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |
-| `ProjectSectionFrame` | `sections/section-frame/` | §31's always-available drag, collapse, inline title, optional inspector and archive controls |
+| `ProjectSectionFrame` | `sections/section-frame/` | §31's always-available drag, collapse, inline title, optional inspector and remove controls |
 | Seven section types | `sections/{rich-text,tasks,sub-projects,progress,reflections,timeline,activity}/` | Content components and their stores |
 | `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's Home shortcuts |

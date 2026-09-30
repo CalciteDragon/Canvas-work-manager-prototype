@@ -9,11 +9,16 @@ import {
   type Reflection,
   type ProjectId,
   type ProjectPageId,
+  type OperationActionId,
+  type OperationHistoryId,
+  type OperationReceipt,
 } from '@cwm/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway } from '../../../core/gateway/testing/fake-gateway';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
+import type { OperationWriteReport } from '../../../core/history/operation-history-reporter';
+import { provideRecordingReporter } from '../../../core/history/testing/recording-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 import { FakeLiveUpdates } from '../../../core/live/testing/fake-live-updates';
 import { ReflectionsPageStore } from './reflections-page-store';
@@ -84,6 +89,15 @@ const completedWork = ProjectCompletedWorkResultSchema.parse({
   projectId: PROJECT,
   candidates: [journal.items[0]!.subject!],
 });
+const addReceipt: OperationReceipt = {
+  historyId: 'history-journal' as OperationHistoryId,
+  actionId: 'operation-reflections-add' as OperationActionId,
+  operation: 'section.add',
+  revision: 1,
+  label: 'Add reflections',
+  createdAt: AT,
+  expiresAt: '2026-09-06T10:00:00.000Z',
+};
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -216,7 +230,10 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
   it('creates the missing page container with pageId only', async () => {
     const { store, gateway } = setup();
     gateway.sections.list = async () => [];
-    gateway.sections.create = vi.fn(async (_projectId, input) => ({ ...container, ...input, projectId: PROJECT, pageId: PAGE }));
+    gateway.sections.create = vi.fn(async (_projectId, input) => ({
+      section: { ...container, ...input, projectId: PROJECT, pageId: PAGE },
+      operation: addReceipt,
+    }));
     await store.load(PROJECT, PAGE);
 
     expect(await store.ensureContainer()).toBe(true);
@@ -265,6 +282,26 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     expect(gateway.calls.length).toBeGreaterThan(before);
   });
 
+  // Slice 39: a completed sub-project moved to another root leaves this root's Completed Work, and
+  // the one frame announcing it names only the root it moved to.
+  it('refreshes on a project-record frame from another root, but not on another root’s content', async () => {
+    const { store, gateway, live } = setup();
+    await store.load(PROJECT, PAGE);
+    const settle = async () => {
+      for (let index = 0; index < 8; index += 1) await Promise.resolve();
+    };
+
+    const before = gateway.calls.length;
+    live.emit({ type: 'project.update_undone', entityType: 'project', entityId: 'project-moved', projectId: 'project-moved', rootProjectId: 'project-elsewhere' } as never);
+    await settle();
+    const afterRecord = gateway.calls.length;
+    expect(afterRecord).toBeGreaterThan(before);
+
+    live.emit({ type: 'reflection.added', entityType: 'reflection', entityId: 'reflection-far', projectId: 'project-elsewhere', rootProjectId: 'project-elsewhere' } as never);
+    await settle();
+    expect(gateway.calls.length).toBe(afterRecord);
+  });
+
   it('discards a late journal answer after the page changes projects', async () => {
     const { store, gateway } = setup();
     const stale = deferred<ProjectJournalResult>();
@@ -287,7 +324,7 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     const { store, gateway, live } = setup();
     await store.load(PROJECT, PAGE);
     const write = deferred<Reflection>();
-    gateway.reflections.create = () => write.promise;
+    gateway.reflections.create = async () => ({ reflection: await write.promise, operation: { ...addReceipt, operation: 'reflection.add' } });
     const creation = store.create('A note');
 
     TestBed.resetTestingModule();
@@ -295,5 +332,52 @@ describe('ReflectionsPageStore (§36, §62, §63)', () => {
     expect(live.listenerCount).toBe(0);
     write.resolve(journal.items[0]!.reflection);
     expect(await creation).toBe(false);
+  });
+});
+
+describe('ReflectionsPageStore — writes report to the header’s history (Slice 41)', () => {
+  const setupReported = () => {
+    const reporter = provideRecordingReporter();
+    return { ...setup(), reporter };
+  };
+
+  it('reports the explicit container add with the section’s project, and holds no receipt of its own', async () => {
+    const { store, gateway, reporter } = setupReported();
+    gateway.sections.list = async () => [];
+    gateway.sections.create = vi.fn(async (_projectId, input) => ({
+      section: { ...container, ...input, projectId: PROJECT, pageId: PAGE }, operation: addReceipt,
+    }));
+    await store.load(PROJECT, PAGE);
+
+    expect(await store.ensureContainer()).toBe(true);
+
+    expect(reporter.events).toEqual(['begin', { projectId: PROJECT, receipt: addReceipt }, 'end']);
+    expect(Object.keys(store)).not.toContain('undoNoticeState');
+  });
+
+  it('returns to the empty-container prompt when a header Undo’s frame arrives', async () => {
+    const { store, gateway, live } = setupReported();
+    let listed = [container];
+    gateway.sections.list = async () => [...listed];
+    await store.load(PROJECT, PAGE);
+    expect(store.container()?.id).toBe(container.id);
+
+    listed = [];
+    live.emit({ type: 'project.section_addition_undone', entityType: 'project', entityId: PROJECT, projectId: PROJECT });
+    for (let index = 0; index < 8; index += 1) await Promise.resolve();
+
+    expect(store.container()).toBeNull();
+    expect(store.containerCount()).toBe(0);
+  });
+
+  it('reports a reflection write with the reflection’s own project', async () => {
+    const { store, reporter } = setupReported();
+    await store.load(PROJECT, PAGE);
+
+    expect(await store.create('A note')).toBe(true);
+
+    const report = reporter.events.find((event): event is OperationWriteReport => typeof event === 'object');
+    expect(report).toMatchObject({ projectId: PROJECT, receipt: { operation: 'reflection.add' } });
+    expect(reporter.events.at(-1)).toBe('end');
   });
 });

@@ -1,5 +1,16 @@
 # How the web app works
 
+Settings routes `/settings/archived-projects` to `ArchivedProjectsPage` outside project
+navigation. Its store reads `projects.archived()` via the gateway, keeps an explicit status per
+row, reports the existing project write to history and refreshes after success or refusal. It
+keeps an acknowledged success when only the following read fails and offers a read-only Retry.
+Project frames and reconnects refresh the workspace list. When Restore or Retry owned focus and
+focus is lost once it settles, the page moves it to Retry while an error blocks the list; else,
+after Restore, to the enabled status selector now at the restored row's place (the next row, a
+revealed child, or the previous row) and, after Retry, to the first enabled status selector; else
+to the heading. Focus moved elsewhere during the request stays there. A later failed read keeps
+a "Restore succeeded" error, so the committed write stays reported; any other error is replaced.
+
 ## Runtime flow
 
 1. `pnpm dev:web` runs `ng serve` (`@angular/build:dev-server`) on `:4200`.
@@ -13,9 +24,12 @@
    scoped to the persona.
 4. A route activates a page component, which provides its store; the store reads through
    `WORK_MANAGER_GATEWAY` and subscribes to `LIVE_UPDATES`. Writes paint optimistically
-   where §63 asks, guarded by an in-flight counter so a live frame cannot overwrite them.
+   where §63 asks, guarded by an in-flight counter so a live frame cannot overwrite them. Task
+   and reflection stores receive strict `{ task|reflection, operation }` write envelopes and
+   unwrap the row they render.
 5. A frame arrives; each store routes on `type`, `projectId` and `rootProjectId` and
-   re-reads quietly; a `prototype.reloaded` frame reloads the tab.
+   re-reads quietly. Compound task/reflection Add transitions also refresh section existence on
+   open project surfaces. A `prototype.reloaded` frame reloads the tab.
 
 ## Key symbols
 
@@ -26,7 +40,10 @@
 | `routes` | const | §68's map | [API](../../api/miscellaneous/variables.html#routes) |
 | `AppShell` | component | §23's layout; owns `ShellStore` | [API](../../api/components/AppShell.html) |
 | `WorkManagerGateway` | interface | The one dependency every store has | [API](../../api/interfaces/WorkManagerGateway.html) |
+| `ArchivedProjectsPage` | component | Settings recovery route | [API](../../api/components/ArchivedProjectsPage.html) |
+| `ArchivedProjectsStore` | injectable | Workspace-scoped recovery state, retry and live refresh | [API](../../api/injectables/ArchivedProjectsStore.html) |
 | `SECTION_REGISTRY`, `DASHBOARD_WIDGET_REGISTRY`, `PROJECT_PAGE_REGISTRY` | consts | The three open-ended lists | [API](../../api/miscellaneous/variables.html#SECTION_REGISTRY) |
+| `Icon` | component | Shared decorative SVG marks (`shared/components/icon`) | [API](../../api/components/Icon.html) |
 
 Each subsystem's `how.md` lists its own.
 
@@ -70,7 +87,7 @@ Each subsystem's `how.md` lists its own.
 pnpm dev:web                      # ng serve on :4200
 pnpm --filter web test            # ng test --no-watch (vitest under @angular/build)
 pnpm --filter web lint            # tsc on app, spec and storybook configs; the token lint and its self-test
-pnpm build                        # ng build with the 850 kB warning / 1 MB error budgets
+pnpm build                        # ng build with the 850 kB warning / 1050 kB error budgets
 pnpm storybook                    # :6006
 pnpm storybook:build              # apps/web/storybook-static (git-ignored)
 ```

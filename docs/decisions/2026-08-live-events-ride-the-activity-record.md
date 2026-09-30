@@ -88,3 +88,33 @@ Something needs a live frame without a feed line, or the reverse. `touch` becomi
 §53's UI would be the first sign; so would an event volume high enough that "one frame per
 feed line" is too chatty for a busy agent, at which point the hub — not the domain — is where
 coalescing belongs.
+
+**Amended, 2026-09-14 — Slice 30.** Undo keeps this rule rather than adding a channel. A section
+removal still publishes its one `project.section_archived` frame, and an Undo publishes one
+`project.section_removal_undone` frame through `ActivityService.record`, both held until commit and
+dropped on rollback. The Undo record — snapshot, placement, rows — is stored beside the activity
+event, never inside it or the frame; `live-updates.test.ts` pins both frames and that a removal whose
+persistence fails delivers nothing
+([section removal Undo records](2026-09-section-removal-undo-records.md), rule 2).
+
+**Amended, 2026-09-14 — Slice 31 disposable deletion.** The one-frame, post-commit rule is
+unchanged. A retained section removal publishes `project.section_archived`; a disposable section
+that passes recovery classification and the canonical reference audit publishes
+`project.section_removed`. Undo still publishes one `project.section_removal_undone` frame.
+`live-updates.test.ts` verifies the deleted-removal frame, Undo, and the absence of a frame on
+rollback; `section-service.test.ts` asserts that retained removals record `project.section_archived`.
+
+**Amended, 2026-09-16 — Slice 35 adds Redo frames.** Each committed history transition publishes
+exactly one frame, and its type says which direction ran: the four `project.section_*_undone`
+actions gained `project.section_*_redone` twins (`removal`, `addition`, `move`, `update`).
+`LiveEventSchema.type` reuses `ActivityActionSchema`, a pattern rather than an enum, so the contract
+needed no change. A retirement commits but executes nothing and records no activity, so it publishes
+no frame; a failed transition — at the action insert, the activity record or persistence — publishes
+nothing. `live-updates.test.ts` asserts all three per family against the bytes on disk.
+
+**Amended, 2026-09-18 — Slice 36 row transitions.** Task and reflection Undo/Redo use the same
+one-activity, one-post-commit-frame rule. Their actions identify both family and original operation,
+for example `task.task_addition_undone`, `task.task_update_redone` and
+`reflection.reflection_restore_undone`; the event targets the row rather than the project. Creation
+Undo captures the event context before deleting the target, so the feed remains readable after the
+frame causes a re-fetch. A refusal or rolled-back transition still publishes nothing.

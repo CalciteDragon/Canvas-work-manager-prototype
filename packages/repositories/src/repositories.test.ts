@@ -1,5 +1,7 @@
 import {
   PrototypeDocumentSchema,
+  OperationActionSchema,
+  OperationHistorySchema,
   type ActivityEvent,
   type AgentConnection,
   type Milestone,
@@ -17,6 +19,9 @@ import {
   JsonActivityRepository,
   JsonAgentConnectionRepository,
   JsonMilestoneRepository,
+  JsonOperationActionRepository,
+  JsonOperationHistoryRepository,
+  JsonProjectPageRepository,
   JsonProjectRepository,
   JsonReflectionRepository,
   JsonSectionRepository,
@@ -168,6 +173,13 @@ const activity: ActivityEvent = PrototypeDocumentSchema.shape.activityEvents.ele
   entityId: 'project-1',
   projectId: 'project-1',
   summary: 'Updated Alpha Launch',
+  context: {
+    targetKind: 'project',
+    targetId: 'project-1',
+    targetLabel: 'Alpha Launch',
+    projectId: 'project-1',
+    rootProjectId: 'project-1',
+  },
   createdAt: at,
 });
 
@@ -299,6 +311,22 @@ describe('JsonProjectRepository.list', () => {
   });
 });
 
+describe('JsonProjectRepository.remove', () => {
+  it('deletes inside a unit of work and rolls back with it', async () => {
+    const store = new InMemoryDataStore(baseDocument());
+    const repository = new JsonProjectRepository(store);
+    const projectId = project('project-1').id;
+
+    await expect(unitOfWorkFor(store).run(async () => {
+      await repository.remove(projectId);
+      expect(await repository.find(projectId)).toBeNull();
+      throw new Error('roll back the project removal');
+    })).rejects.toThrow('roll back the project removal');
+
+    expect(await repository.find(projectId)).not.toBeNull();
+  });
+});
+
 describe('JsonTaskRepository.list', () => {
   it('applies every query field, exclusive due bounds, missing-date exclusion, and AND composition', async () => {
     const repository = new JsonTaskRepository(new InMemoryDataStore(baseDocument()));
@@ -411,6 +439,7 @@ describe('JsonActivityRepository.list', () => {
       entityId: projectId,
       projectId,
       summary: `Created ${id}`,
+      context: { targetKind: 'project', targetId: projectId, targetLabel: projectId, projectId, rootProjectId: projectId },
       createdAt: at,
     });
 
@@ -574,5 +603,138 @@ describe('JsonSectionShortcutRepository', () => {
     await repository.remove(shortcut.id);
 
     expect(await repository.find(shortcut.id)).toBeNull();
+  });
+});
+
+const operationHistory = (id = 'history-1', projectId = 'project-1') =>
+  OperationHistorySchema.parse({
+    id,
+    workspaceId: 'workspace-1',
+    projectId,
+    actor: 'user',
+    actorUserId: 'user-1',
+    cursor: 1,
+    orderHighWaterMark: 1,
+    revision: 1,
+  });
+
+const operationAction = (id = 'operation-1', historyId = 'history-1') =>
+  OperationActionSchema.parse({
+    id,
+    historyId,
+    order: 1,
+    state: 'applied',
+    label: 'Updated the Backlog section',
+    createdAt: at,
+    expiresAt: '2026-08-27T10:00:00.000Z',
+    operation: {
+      version: 1,
+      type: 'section.update',
+      sectionId: 'section-1',
+      projectId: 'project-1',
+      pageId: 'page-1',
+      changes: [{ field: 'collapsed', before: false, after: true }],
+    },
+  });
+
+describe('JsonProjectPageRepository', () => {
+  const optional = PrototypeDocumentSchema.shape.projectPages.element.parse({
+    id: 'page-reflections',
+    projectId: 'project-1',
+    kind: 'reflections',
+    enabled: true,
+    createdAt: at,
+    updatedAt: at,
+  });
+
+  const populated = async (store = new InMemoryDataStore(baseDocument())) => {
+    const repository = new JsonProjectPageRepository(store);
+    await repository.insert(optional);
+    return repository;
+  };
+
+  /**
+   * The restricted first-enable inverse (Slice 38). Ordinary disabling never reaches it: a page
+   * that is off still holds its sections, and `update` is what writes that boolean.
+   */
+  it('deletes exactly the optional page the creation inverse names', async () => {
+    const repository = await populated();
+
+    await repository.remove(optional.id);
+
+    expect(await repository.find(optional.id)).toBeNull();
+    // Home is untouched, which is what keeps the project a place a section can go.
+    expect((await repository.list({ projectId: optional.projectId })).map(({ kind }) => kind)).toEqual(['home']);
+  });
+
+  it('raises not-found removing the same page twice', async () => {
+    const repository = await populated();
+    await repository.remove(optional.id);
+
+    await expect(repository.remove(optional.id)).rejects.toBeInstanceOf(RepositoryNotFoundError);
+  });
+
+  it('refuses to remove from outside the unit of work that is open', async () => {
+    const store = new InMemoryDataStore(baseDocument());
+    const repository = await populated(store);
+
+    let entered!: () => void;
+    let release!: () => void;
+    const hasEntered = new Promise<void>((resolve) => (entered = resolve));
+    const blocker = new Promise<void>((resolve) => (release = resolve));
+    const operation = unitOfWorkFor(store).run(async () => {
+      entered();
+      await blocker;
+    });
+    await hasEntered;
+
+    await expect(repository.remove(optional.id)).rejects.toBeInstanceOf(UnitOfWorkInProgressError);
+
+    release();
+    await operation;
+    expect(await repository.find(optional.id)).not.toBeNull();
+  });
+});
+
+describe('operation history JSON repositories', () => {
+  it('lists histories by scope and actions by their owning history, and prunes actions only', async () => {
+    const store = new InMemoryDataStore(baseDocument());
+    const histories = new JsonOperationHistoryRepository(store);
+    const actions = new JsonOperationActionRepository(store);
+    const history = operationHistory();
+    const elsewhere = operationHistory('history-2', 'project-other');
+    await histories.insert(history);
+    await histories.insert(elsewhere);
+    await actions.insert(operationAction());
+    await actions.insert(operationAction('operation-2', 'history-2'));
+
+    expect(await histories.find(history.id)).toEqual(history);
+    expect(await histories.list({ projectId: 'project-1' as never })).toEqual([history]);
+    expect(await histories.list({ workspaceId: 'workspace-1' as never })).toEqual([history, elsewhere]);
+    expect((await actions.list({ historyId: history.id })).map(({ id }) => id)).toEqual(['operation-1']);
+
+    const advanced = { ...history, revision: 2, cursor: 0 };
+    await histories.update(advanced);
+    expect(await histories.find(history.id)).toEqual(advanced);
+    const undone = { ...operationAction(), state: 'undone' as const };
+    await actions.update(undone);
+    expect(await actions.find(undone.id)).toEqual(undone);
+
+    await actions.remove(undone.id);
+    expect(await actions.find(undone.id)).toBeNull();
+    await expect(actions.remove(undone.id)).rejects.toBeInstanceOf(RepositoryNotFoundError);
+    expect(histories).not.toHaveProperty('remove');
+  });
+
+  it('refuses a write from outside the unit of work that is open', async () => {
+    const store = new InMemoryDataStore(baseDocument());
+    const actions = new JsonOperationActionRepository(store);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const unit = store.runUnitOfWork(() => held);
+
+    await expect(actions.insert(operationAction())).rejects.toBeInstanceOf(UnitOfWorkInProgressError);
+    release();
+    await unit;
   });
 });

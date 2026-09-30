@@ -53,9 +53,153 @@ would implement and the scope guards it inherits.
 
 ## Now
 
-**No slice is active.** [Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md)
-closed 2026-09-13. Its implementation establishes direct canvas editing, contextual
-positioned creation, width resizing, and the navigation changes. The
+**2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
+[Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed
+the review findings after Stage E; Slice 46 links each finding to current tests, browser and
+MCP journeys, records all required green gates, and corrects the six-family and bundle-budget
+documentation. No implementation slice is active. The historical Stage E notes below remain
+the evidence and limits recorded on 2026-09-27; later repairs and proofs are linked from
+Slice 46. Recovery-focus friction remains a candidate for a later UX phase.
+
+[Slice 47 — Archive recovery state and focus](completed/47-archive-recovery-state-and-focus.md) closed Slice 46 findings 1–2: a stale root Archive row stays paused until a current read, and Settings Restore/Retry hand focus to a usable control. It left recovery-focus friction for the later recovery UX work (focus after a root Archive Restore or successful Retry, and a live frame removing a focused Settings Retry). [Slice 48 — Task history under archived sections](completed/48-task-history-under-archived-sections.md) closed finding 3. A task edit, completion, reopen, move or reparent now refuses Undo and Redo while the row's current or target section is archived, and recovers after the section is restored. The Delete, Restore and Add inverses and the project-only exception are unchanged. It left two history/service divergences for the umbrella to route: archived-row completion, and an archived row's reparent into an archived section. It also left MCP refusal-wording friction.
+
+[Slice 49 — Task history, service and MCP refusal repairs](completed/49-task-history-service-and-mcp-repairs.md) closed those three Slice 48 findings. Ordinary reparent and completion history now agree with archive rules, and text-only MCP clients receive each conflict's repair in words. [Slice 50 — Fault sensitivity for reflection grant and task no-op receipt](completed/50-fault-sensitivity-evidence.md) closed finding 4: deliberate, reverted faults turned both of Slice 45's unproven assertions red. [Slice 51 — Web spec storage isolation and remaining no-op assertion sensitivity](completed/51-web-storage-isolation-and-no-op-sensitivity.md) traced Slice 50's presumed web flake to a storage leak between spec files and fixed it, then proved the two no-op assertions Slice 50 left unclaimed.
+
+[Slice 52 — MCP transport failure and lost-response evidence](completed/52-mcp-transport-failure-evidence.md) closed Slice 46 finding 5. Both SDK transports now prove failed task and Undo commits leave the canonical file, history and Activity unchanged; a committed Undo with a lost response remains one transition after a same-file reconnect and stale-revision retry. Streamable HTTP also proves zero frames on failure and one frame after a successful commit.
+
+[Slice 53 — Stdio expiry and durable Archive recovery](completed/53-stdio-expiry-and-durable-recovery.md) closes finding 6 with an injected-clock SDK stdio journey through expired Undo, same-content Archive Restore, ActivityService reads and two same-file restarts.
+
+[Slice 54 — One writer per data file](completed/54-data-file-ownership.md) closed finding 7. An advisory owner file sits beside each canonical JSON file. The HTTP host holds it for its lifetime, stdio takes it per call, and seed, reset, upgrade and e2e preparation take it while they write. A concurrent writer therefore waits its turn or is refused with `data_file_in_use:`, instead of losing data. A dead owner's record is reclaimed under a nonce-checked guard; a live one is never stolen.
+
+[Slice 55 — Section history labels](completed/55-section-history-labels.md) closed finding 8. Newly recorded section rename, Rich Text prose, collapse/expand and resize actions now carry domain-generated labels into the header; browser evidence covers Undo, Redo and reload. [Slice 56 — Descendant history discovery](completed/56-descendant-history-discovery.md) closed finding 9: root Todos and Archive now route descendant rows to their owner's existing header history, with click, keyboard, reload, separate-cursor and actor-isolation evidence. [Slice 57 — Task Delete recovery feedback](completed/57-task-delete-recovery-feedback.md) closed finding 10: a committed Delete leaves an archive/recovery cue on Task Lists and Todos, with owner guidance and existing header/Archive routes. [Slice 58 — Phone navigation layout](completed/58-phone-navigation-layout.md) closed finding 11: below 48rem the global sidebar is an accessible modal drawer behind a Menu, a narrow project-column choice re-collapses the column and focuses its toggle across reloads, and a narrow Task List stacks its details drawer below the rows; browser evidence covers touch, keyboard, both themes, overflow and resize. [Slice 46](completed/46-slice-34-closeout-follow-up.md) closed findings 12–14.
+
+**Delivered direction — Project Undo/Redo and simpler Archive (historical stage notes).**
+The user requested [the detailed development plan in Slice 34](completed/34-undo-redo-and-archive.md)
+on 2026-09-16: always-present project Undo/Redo icons, history for committed content and layout
+changes, task delete icons, immediate container cascade removal, Settings access to archived
+projects, and Archive entries limited to structurally restorable content. The user confirmed
+that only removal-time reassignment goes away; independent task moves remain supported.
+The plan proposes five dependency-ordered implementation stages, architecture/contract changes,
+decision gates and acceptance evidence. **Stage A shipped as
+[Slice 35](completed/35-operation-history-foundation.md)**, and **Stage B shipped as Slice 36**:
+section, task and reflection writes now undo *and redo* through a per-actor, per-project operation
+history over HTTP and both MCP transports. Task/reflection writes return their row plus a receipt;
+transitions require the stored action family's one write grant. Activity keeps captured row identity
+after Undo Add, and the document is schema version 5 with an explicit v4 conversion. **Stage C's first
+bounded phase shipped as [Slice 37](completed/37-section-and-shortcut-history.md)**: section
+duplication records the add its copy is, Archive Restore records a `section.restore` of its own
+while staying durable — no receipt to invoke, no expiry — and the four Home shortcut placement
+writes record a fourth `shortcut` family in the **destination** root's history. The browser
+still offers only its transient section Undo notice, which deliberately does not carry shortcut
+or Restore receipts. **[Slice 38 — optional-page history](completed/38-optional-page-history.md) shipped
+Stage C2**: a first enable records `page.add`, whose Undo removes the created page only when
+nothing refers to it and whose Redo recreates the same id; later toggles record `page.update`,
+which moves one boolean and never touches content. `page` is a fifth family on `projects.write`.
+**[Slice 39 — project update and lifecycle history](completed/39-project-update-history.md) shipped
+Stage C3**: every changed update, archive or reactivation of an existing project — edits,
+completion, reparenting, layout and progress settings — records one action in that project's **own**
+history, and PATCH plus the three project-update tools answer `{ project, operation }`. `project` is
+a sixth family on `projects.write`. An archive's Undo, a reactivation's Redo and an edit made while
+archived may run while their own subject is archived; an archived ancestor still blocks. Open root
+projections re-read on project-record frames from any root, so a cross-root move refreshes the root it
+left. **[Slice 41 — project header Undo/Redo controls](completed/41-header-history-controls.md)
+shipped Stage C4**: every project page's header offers always-present Undo and Redo of the displayed
+project's history, driven by the server summary with per-step `blockedBy`, and they are the only
+browser Undo surface. Every browser writer reports its receipt through a core reporter token. Shortcut
+and project labels name the edit, and a header archive stays on its project with Undo enabled. The
+canvas keeps only recovery (Open Archive, Retry remove, Retry refresh). **[Slice 42 — project creation
+history and recovery state](completed/42-project-creation-history.md) closed Stage C on 2026-09-23**:
+creation records a `project.add` in the created project's history, and Undo removes an untouched
+project while the same URL offers creator-only recovery and same-id Redo. Its durable absence anchor
+is Activity, bound to the exact actor that created the project; no tombstone or schema bump is needed.
+The transition retry cache was retired by dated amendment instead of being built. Real use leaves two
+follow-up questions: whether section labels should name the edit too, and whether root pages need a way
+to reach a descendant's steps. **[Slice 43 — one-step removal and task Delete](completed/43-one-step-removal-and-task-delete.md)
+shipped Stage D1 on 2026-09-25**: removing a task or reflection container archives its live rows in
+one gesture with no policy dialog, HTTP and MCP refuse the retired `policy`/`reassignToSectionId`
+inputs, stored version-1 reassign actions stay executable, and Task List and Todos rows offer a
+reversible **Delete** icon over the existing task archive. Real use asks whether the optimistic row
+disappearance needs an "Archived" cue so Delete does not read as permanent. **[Slice 44 — actionable
+Archive and archived-project recovery](completed/44-actionable-archive-and-archived-projects.md)
+shipped Stage D2 on 2026-09-27**: root Archive now lists ready owners first, and workspace
+Settings restores archived roots and ready subprojects with an explicit status. **[Slice 45 —
+Undo/Redo and Archive integrated closure](completed/45-undo-redo-archive-integrated-closure.md)
+closed Stage E, and with it this direction, on 2026-09-27**: every coverage row and acceptance step
+has a named domain assertion plus browser or MCP evidence. The pass repaired two defects. The
+header Undo was unreachable at 375 px, and stdio MCP let two concurrent transitions at one revision
+both land. Its recorded limits are that faults are injected at the host commit boundary rather than
+inside a transport, and that stdio has no simulated clock for expiry. The open questions for a
+friction-chosen next phase are whether section labels should name the edit, whether root pages need
+a way to reach a descendant's steps, and whether Delete needs an "Archived" cue. The global sidebar
+still does not collapse at phone width. The paragraphs below describe the earlier shipped system
+and its choices.
+
+**Shipped direction — Archive, removal and Undo.** The user requested a branch, an imported
+[proposed specification](../specifications/README.md), and a development plan on 2026-09-13.
+Slice 28 records that planning work; Slices 29–33 then implemented and closed the direction,
+so the behavior below is current rather than proposed. The proposal's remaining open product
+choices — Redo, a standalone `ArchiveItem` aggregate — were deliberately not taken. The
+dependency order it ran in was:
+
+1. [29 — Recovery policy and Archive](completed/29-recovery-policy-and-archive.md) (done): one
+   capability source and meaningful-content projection over retained state.
+2. [30 — Atomic removal Undo](completed/30-atomic-section-removal-undo.md) (done): typed
+   inverse storage, scoped execution and neighbor-aware placement, before hard deletion.
+3. [31 — Disposable removal and Undo UI](completed/31-disposable-removal-and-undo-ui.md) (done):
+   safe deletion plus a receipt-driven browser recovery action.
+4. [32 — Other section operations](completed/32-section-edit-undo.md): add, movement and
+   settings Undo, without a generic command framework.
+5. [33 — Integrated acceptance](completed/33-recovery-undo-integrated-acceptance.md) (done):
+   the Refactor §26 browser/MCP evidence and documentation reconciliation.
+
+Each candidate stays in the template's five-section form until started. At activation,
+read the current code and both specs, expand the concrete file list and tests, settle its
+decision gates, then run iterative plan review and TDD under AGENTS.md §3. Re-review later
+candidates against preceding outcomes. Preserve one active slice and small green commits.
+
+The order deliberately moves Refactor §23's Undo and placement work ahead of hard deletion,
+following Refactor §27.8. Redo and a standalone ArchiveItem aggregate remain optional future
+work (Refactor §23 phases 6–7), with no implementation commitment. Each slice makes its adopted
+behavior current through a §78 decision, dated amendments to conflicting decisions, and updates
+to the main spec and affected architecture folders. Slices 29–33 now record those shipped rules;
+planned candidates remain proposals only. No production infrastructure, event sourcing or global
+store.
+
+**Slice 29 closed on 2026-09-14.** [Slice 29 — Recovery policy and Archive](completed/29-recovery-policy-and-archive.md)
+makes Archive project recoverable content through one contracts capability source and a pure
+domain policy, with browser, MCP and real-use evidence. Its friction notes (indistinguishable
+Notes entries, no way back for a removed view until Undo) point to Slice 30 as the next start.
+**Slice 30 closed on 2026-09-14.** [Slice 30 — Atomic removal Undo](completed/30-atomic-section-removal-undo.md)
+makes every section removal return a receipt that undoes it once, for the same actor, within 24
+hours, back between its old neighbours — over HTTP and MCP, not yet in the browser
+([decision](../decisions/2026-09-section-removal-undo-records.md)). Its real-use notes
+(`note-2026-09-14-005`, `-006`: a lost receipt cannot be recovered; conflict text names ids
+without a next step) fed Slice 31, the next start. [Slice 28 — Archive, removal and Undo planning](completed/28-archive-removal-undo-planning.md)
+closed the documentation-only planning work on 2026-09-13. **Slice 31 closed on 2026-09-14.**
+[Disposable removal and Undo UI](completed/31-disposable-removal-and-undo-ui.md) now safely
+deletes unreferenced disposable views and restores them through a canvas-local receipt action;
+retained content, exact-owner receipt recovery, browser journeys and both MCP transports are
+verified. **Slice 32 closed on 2026-09-15.** [Section edit Undo](completed/32-section-edit-undo.md)
+extends the same receipt to explicit add, move and settings writes, adds `move_section`, and
+shares the floating notice with the Reflections page; its deferred test cases and the notice's
+size and copy remain recorded friction. **Slice 33 closed on 2026-09-15.**
+[Integrated acceptance](completed/33-recovery-undo-integrated-acceptance.md) records passing
+evidence for all twelve Refactor §26 criteria across the domain, host, browser and both MCP
+transports without a production change, which closes the Archive, removal and Undo direction.
+Redo and an `ArchiveItem` aggregate stay optional. Three of its real-use notes are now answered in
+place: `note-2026-09-15-005`, `-006` and `-007` — person-facing conflict copy when an agent
+superseded the change, Open Archive offered with nothing to restore, and Restore landing at the
+page end without warning — are closed by
+[a recovery route is offered only when it leads somewhere](../decisions/2026-09-recovery-routes-name-what-is-actually-there.md).
+`note-2026-09-15-008` (the same-page-only reassign dialog, and failure-injection copy that does not
+say the change is still undoable) joins Slice 32's notice friction as a candidate for the next
+friction-chosen phase.
+The latest runtime change is [Slice 32 — Section edit Undo](completed/32-section-edit-undo.md),
+closed 2026-09-15; Slice 33 closed the direction on acceptance evidence alone and changed no
+production code. The canvas interaction model it builds on comes from
+[Slice 27 — Direct canvas editing and navigation cleanup](completed/27-direct-canvas-editing.md),
+closed 2026-09-13, which establishes direct canvas editing, contextual positioned creation,
+width resizing, and the navigation changes; its
 [direction decision](../decisions/2026-09-direct-canvas-editing-direction.md) records the
 adopted behavior and when to revisit it.
 
@@ -80,7 +224,8 @@ Known friction not yet promoted to a slice, carried in `.prototype/notes.json`:
 - The header shows project status as a fact you cannot click, and the More menu is three
   forms; inline editing is the obvious shape
   ([entry](../decisions/2026-08-project-create-edit-archive-surface.md)).
-- The shell's columns do not collapse at 375 px (`note-2026-09-06-007`).
+- At 375 px a stacked Task List details drawer opens below the fold after quick create, so
+  nothing visible confirms it opened (`note-2026-09-29-005`).
 - §46's failure-rate injection applies to reads as well as writes (`note-2026-09-06-009`).
 - Storybook is limited to a handful of story sets; the Design Lab's *primitive* panels are
   the evidence for a shared component library that has not been extracted.

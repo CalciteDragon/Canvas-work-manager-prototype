@@ -1,5 +1,22 @@
 <header class="top-bar">
-  <span class="product">Canvas Work Manager</span>
+  <div class="lead">
+    <!-- Slice 58: only below the shell's phone breakpoint, where the sidebar becomes a drawer.
+         `AppShell` owns whether it is open; this button only reports that it was pressed. -->
+    @if (menuAvailable()) {
+      <button
+        #menu
+        type="button"
+        class="menu"
+        data-shell-menu
+        aria-controls="shell-navigation"
+        [attr.aria-expanded]="menuOpen()"
+        (click)="menuRequested.emit()"
+      >
+        Menu
+      </button>
+    }
+    <span class="product">Canvas Work Manager</span>
+  </div>
 
   <div class="identity">
     <button
@@ -14,7 +31,7 @@
 
     @if (identity(); as current) {
       <span class="avatar" data-identity-avatar aria-hidden="true">{{ avatar() }}</span>
-      <span data-identity-name>{{ current.user.name }}</span>
+      <span class="name" data-identity-name>{{ current.user.name }}</span>
     }
   </div>
 </header>

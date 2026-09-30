@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { PROTOTYPE_HOST, api as requestApi, seed, setClock } from './seed';
+import type { ProjectId, WorkspaceId } from '@cwm/contracts';
+import { PROTOTYPE_HOST, api as requestApi, createProject, createRoot, seed, setClock } from './seed';
 
 /**
  * §69's web path: load a seed, create a project, create a task, see it on the dashboard —
@@ -85,8 +86,6 @@ test('create a project, add a task list, add a task, and see it on Today', async
   await expect(page.locator('[data-task-row]')).toHaveCount(1);
 
   await page.locator('[data-section-remove]').click();
-  // A container still holding live rows asks what should happen to them.
-  await page.locator('[data-section-removal-cascade]').click();
   await expect(page.locator('[data-section-frame][data-section-type="task-list"]')).toHaveCount(0);
 
   // Archive is root-wide. The project menu can enable and open it even though this fixture
@@ -96,7 +95,7 @@ test('create a project, add a task list, add a task, and see it on Today', async
   await expect(page).toHaveURL(/\/projects\/[^/]+\/pages\/archive$/);
   await expect(page.locator('[data-archive-page]')).toBeVisible();
   await expect(page.locator('[data-archived-item][data-archived-kind="section"]')).toContainText('Task List');
-  await expect(page.locator('[data-archived-cascade-count]')).toHaveText('1 task with it');
+  await expect(page.locator('[data-archived-cascade-count]')).toHaveText('1 task restores with this section');
 
   await page.locator('[data-archived-item][data-archived-kind="section"] [data-archived-restore]').click();
 
@@ -197,13 +196,13 @@ test('nested-projects is a coherent multi-page showcase across chronology, short
   await page.goto(`/projects/${SHOWCASE_ROOT}/pages/reflections`);
   await expect(page.locator('[data-reflections-entry]')).toHaveCount(3);
   await requestApi.post(`/api/tasks/task-renovation-budget/complete`, undefined);
-  const newReflection = await requestApi.post<{ id: string }>(`/api/reflections`, {
+  const newReflection = (await requestApi.post<{ reflection: { id: string } }>(`/api/reflections`, {
     projectId: SHOWCASE_ROOT,
     sectionId: 'section-project-renovation-reflections-page',
     subject: { kind: 'task', id: 'task-renovation-budget' },
     title: 'Budget checkpoint',
     body: 'The budget is ready for review.',
-  });
+  })).reflection;
   await expect(page.locator(`[data-reflections-entry][data-reflection-id="${newReflection.id}"]`)).toContainText('Budget checkpoint');
   await requestApi.patch(`/api/tasks/task-renovation-budget`, { status: 'todo' });
   await expect(page.locator(`[data-reflections-entry][data-reflection-id="${newReflection.id}"] [data-reflections-subject]`)).toContainText('Todo');
@@ -213,7 +212,7 @@ test('nested-projects is a coherent multi-page showcase across chronology, short
   await page.goto(`/projects/${SHOWCASE_ROOT}/pages/archive`);
   await expect(page.locator('[data-archived-item][data-archived-id="task-renovation-archived"]')).toBeVisible();
   await expect(page.locator(`[data-archived-item][data-archived-id="${SHOWCASE_LEGACY}"]`)).toBeVisible();
-  await expect(page.locator(`[data-archived-item][data-archived-id="${SHOWCASE_LEGACY_CHILD}"]`)).toContainText('Hidden by an archived project');
+  await expect(page.locator(`[data-archived-item][data-archived-id="${SHOWCASE_LEGACY_CHILD}"]`)).toHaveCount(0);
   await page.locator('[data-archived-item][data-archived-id="task-renovation-archived"] [data-archived-restore]').click();
   await expect(page.locator('[data-archived-item][data-archived-id="task-renovation-archived"]')).toHaveCount(0);
   await page.locator('[data-archived-item][data-archived-id="section-project-renovation-archived-notes"] [data-archived-restore]').click();
@@ -284,14 +283,14 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
   await expect(page).toHaveURL(new RegExp(`/projects/${projectId}/pages/reflections$`));
   await expect(page.locator('[data-reflections-page]')).toBeVisible();
 
-  const workspace = await requestApi.get<{ workspace: { id: string } }>('/api/me');
-  const child = await requestApi.post<{ id: string }>('/api/projects', {
+  const workspace = await requestApi.get<{ workspace: { id: WorkspaceId } }>('/api/me');
+  const child = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'subproject',
-    parentProjectId: projectId,
+    parentProjectId: projectId as ProjectId,
     name: 'Child unit',
   });
-  const grandchild = await requestApi.post<{ id: string }>('/api/projects', {
+  const grandchild = await createProject({
     workspaceId: workspace.workspace.id,
     kind: 'subproject',
     parentProjectId: child.id,
@@ -359,4 +358,46 @@ test('injected gateway failures roll back a task but preserve confirmed optional
   await page.locator('[data-panel-persona][data-persona-id="user-demo"]').click();
   await expect(page.locator('[data-identity-name]')).toHaveText('Demo User');
   await expect(page.locator('[data-project-name]')).toHaveText('Home renovation');
+});
+
+/**
+ * Slice 39: the header's existing writes keep working on the `{ project, operation }` envelope, and
+ * each one lands in the person's own history for that project. A transition made through the route
+ * by another client is followed by the open page from its frame (the header's own controls are
+ * `project-history.spec.ts`); since Slice 41 the archive leaves the person on the project.
+ */
+test('header rename and archive still write, and each records one project action the history can reverse', async ({ page }) => {
+  await seed('personal-workspace');
+  const root = await createRoot('Header history');
+  const history = () => requestApi.get<{ historyId: string | null; revision: number; undo: { actionId: string; operation: string; label: string } | null }>(
+    `/api/projects/${root.id}/history`,
+  );
+
+  await page.goto(`/projects/${root.id}`);
+  await expect(page.locator('[data-project-name]')).toHaveText('Header history');
+  await page.locator('[data-project-more]').click();
+  const patched = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().endsWith(`/api/projects/${root.id}`));
+  await page.locator('[data-project-rename-input]').fill('Renamed in the header');
+  await page.locator('[data-project-rename-submit]').click();
+  const body = (await (await patched).json()) as { project: { name: string }; operation: { operation: string } | null };
+  expect(body).toMatchObject({ project: { name: 'Renamed in the header' }, operation: { operation: 'project.update' } });
+  await expect(page.locator('[data-project-name]')).toHaveText('Renamed in the header');
+  expect((await history()).undo).toMatchObject({ operation: 'project.update', label: 'Renamed "Header history" to "Renamed in the header"' });
+
+  // Undo through the route; the open header re-reads from the one committed frame.
+  const summary = await history();
+  await requestApi.post(`/api/history/${summary.historyId}/transition`, { actionId: summary.undo!.actionId, direction: 'undo', expectedRevision: summary.revision });
+  await expect(page.locator('[data-project-name]')).toHaveText('Header history', { timeout: 15_000 });
+  const redo = await requestApi.get<{ historyId: string; revision: number; redo: { actionId: string } }>(`/api/projects/${root.id}/history`);
+  await requestApi.post(`/api/history/${redo.historyId}/transition`, { actionId: redo.redo.actionId, direction: 'redo', expectedRevision: redo.revision });
+  await expect(page.locator('[data-project-name]')).toHaveText('Renamed in the header', { timeout: 15_000 });
+
+  // Archive through the header's confirmation: one project.archive step on top.
+  if (!(await page.locator('[data-project-more-menu]').isVisible())) await page.locator('[data-project-more]').click();
+  await page.locator('[data-project-archive]').click();
+  const archived = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().endsWith(`/api/projects/${root.id}`));
+  await page.locator('[data-project-archive-confirm-yes]').click();
+  expect(((await (await archived).json()) as { operation: { operation: string } }).operation.operation).toBe('project.archive');
+  await expect.poll(async () => (await history()).undo?.operation).toBe('project.archive');
+  await expect(page).toHaveURL(new RegExp(`/projects/${root.id}$`));
 });

@@ -1,6 +1,8 @@
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { expect, test } from '@playwright/test';
-import { PROTOTYPE_HOST, seed, setClock } from './seed';
+import type { WorkspaceId } from '@cwm/contracts';
+import { PROTOTYPE_HOST, createProject, seed, setClock } from './seed';
+import { undoFromHeader, redoFromHeader } from './history-controls';
 
 /**
  * Slice 25.5's acceptance, as one real journey: *a deliberately scrambled seed produces the
@@ -30,6 +32,9 @@ const api = async <T>(method: string, path: string, body?: unknown): Promise<T> 
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 };
 
+const addTask = async (body: Record<string, unknown>): Promise<{ id: string }> =>
+  (await api<{ task: { id: string } }>('POST', '/api/tasks', body)).task;
+
 interface Row {
   kind: 'task' | 'subproject';
   task?: { id: string; title: string; status: string; dueAt?: string };
@@ -50,6 +55,83 @@ const EXPECTED = [
   'task:Undated',
 ];
 
+test('root projections lead to descendant history without merging actor or project cursors', async ({ page, browser }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const root = 'project-renovation';
+  const child = 'project-kitchen';
+  await api('PATCH', `/api/projects/${root}/pages/todos`, { enabled: true });
+  await api('PATCH', `/api/projects/${root}/pages/archive`, { enabled: true });
+  await api('PATCH', `/api/projects/${root}`, { description: 'Root action for history isolation' });
+  await addTask({ projectId: child, title: 'History route task', dueAt: '2026-09-18T12:00:00.000Z' });
+  const saved = await api<{ section: { id: string } }>('POST', `/api/projects/${child}/sections`, {
+    type: 'rich-text', title: 'History route notes', config: { text: 'Saved for Archive' },
+  });
+  await api('DELETE', `/api/sections/${saved.section.id}`);
+  const rootBefore = await api<{ revision: number; undo: { label: string } }>('GET', `/api/projects/${root}/history`);
+  const childBefore = await api<{ historyId: string; revision: number; undo: { actionId: string; label: string } }>('GET', `/api/projects/${child}/history`);
+  expect(childBefore.undo.label).toContain('History route notes');
+
+  await page.goto(`/projects/${root}/pages/todos`);
+  const task = page.locator('[data-todo-row]', { hasText: 'History route task' });
+  await expect(task.locator('[data-todo-history-link]')).toHaveAttribute('href', `/projects/${child}#history-controls`);
+  await task.locator('[data-todo-history-link]').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${child}#history-controls$`));
+  const group = page.locator('#history-controls');
+  await expect(group).toBeInViewport();
+  await expect(group).toBeFocused();
+  await expect(page.locator('[data-history-undo]')).toHaveAttribute('aria-label', `Undo: ${childBefore.undo.label}`);
+  await page.reload();
+  await expect(group).toBeFocused();
+  await expect(page.locator('[data-history-undo]')).toHaveAttribute('aria-label', `Undo: ${childBefore.undo.label}`);
+
+  await page.goto(`/projects/${root}/pages/archive`);
+  const archived = page.locator(`[data-archived-item][data-archived-id="${saved.section.id}"]`);
+  await expect(archived.locator('[data-archived-history-link]')).toHaveAttribute('href', `/projects/${child}#history-controls`);
+  await expect(archived.locator('[data-archived-origin-link]')).toBeVisible();
+  await expect(archived.locator('[data-archived-restore]')).toBeVisible();
+  await archived.locator('[data-archived-history-link]').focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`/projects/${child}#history-controls$`));
+  await expect(group).toBeFocused();
+  await undoFromHeader(page, childBefore.undo.label);
+  await redoFromHeader(page, childBefore.undo.label);
+  const rootAfter = await api<{ revision: number; undo: { label: string } }>('GET', `/api/projects/${root}/history`);
+  expect(rootAfter.revision).toBe(rootBefore.revision);
+  expect(rootAfter.undo.label).toBe(rootBefore.undo.label);
+
+  const outsiderContext = await browser.newContext();
+  try {
+    await outsiderContext.addInitScript(() => localStorage.setItem('cwm.prototype.persona', 'user-alex'));
+    const outsider = await outsiderContext.newPage();
+    await outsider.goto(`/projects/${child}#history-controls`);
+    await expect(outsider.getByRole('heading', { name: 'Project unavailable' })).toBeVisible();
+    await expect(outsider.locator('#history-controls')).toHaveCount(0);
+  } finally {
+    await outsiderContext.close();
+  }
+
+  const agent = new Client({ name: 'cwm-descendant-history-e2e', version: '0.0.0' },
+    { versionNegotiation: { mode: { pin: '2026-07-28' } } });
+  await agent.connect(new StreamableHTTPClientTransport(new URL(`${PROTOTYPE_HOST}/mcp`),
+    { authProvider: { token: async () => TOKEN } }));
+  try {
+    const own = await agent.callTool({ name: 'get_operation_history', arguments: { projectId: child } });
+    expect(own.isError).not.toBe(true);
+    const agentSummary = own.structuredContent as {
+      historyId: string | null;
+      undo: { actionId: string } | null;
+      redo: { actionId: string } | null;
+    };
+    expect(agentSummary).toMatchObject({ historyId: null, undo: null, redo: null });
+    expect(agentSummary.historyId).not.toBe(childBefore.historyId);
+    expect(agentSummary.undo?.actionId).not.toBe(childBefore.undo.actionId);
+    expect(agentSummary.redo?.actionId).not.toBe(childBefore.undo.actionId);
+  } finally {
+    await agent.close();
+  }
+});
+
 test('a scrambled tree reads the same through the page, HTTP and MCP — and its links land where the work lives', async ({
   page,
 }) => {
@@ -57,22 +139,24 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
   await setClock(PINNED_NOW);
 
   // ─── the scenario, deliberately out of chronological order ───────────────────────────────
-  const workspaceId = (await api<{ workspace: { id: string } }>('GET', '/api/me')).workspace.id;
-  const root = await api<{ id: string }>('POST', '/api/projects', {
+  const workspaceId = (await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me')).workspace.id;
+  const root = await createProject({
     workspaceId,
     kind: 'root',
     name: 'Todos journey',
   });
-  const containerA = await api<{ id: string }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' });
-  const containerB = await api<{ id: string }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' });
-  const kitchen = await api<{ id: string }>('POST', '/api/projects', {
+  const containerAResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' });
+  const containerA = containerAResult.section;
+  const containerBResult = await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' });
+  const containerB = containerBResult.section;
+  const kitchen = await createProject({
     workspaceId,
     kind: 'subproject',
     parentProjectId: root.id,
     name: 'Kitchen',
     targetDate: '2026-09-18',
   });
-  const cabinets = await api<{ id: string }>('POST', '/api/projects', {
+  const cabinets = await createProject({
     workspaceId,
     kind: 'subproject',
     parentProjectId: kitchen.id,
@@ -80,11 +164,11 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
     targetDate: '2026-09-25',
   });
 
-  await api('POST', '/api/tasks', { projectId: root.id, sectionId: containerA.id, title: 'Later', dueAt: '2026-09-20T09:00:00.000Z' });
-  const undated = await api<{ id: string }>('POST', '/api/tasks', { projectId: root.id, sectionId: containerB.id, title: 'Undated' });
-  await api('POST', '/api/tasks', { projectId: root.id, sectionId: containerA.id, title: 'Earliest', dueAt: '2026-09-16T09:00:00.000Z' });
+  await addTask({ projectId: root.id, sectionId: containerA.id, title: 'Later', dueAt: '2026-09-20T09:00:00.000Z' });
+  const undated = await addTask({ projectId: root.id, sectionId: containerB.id, title: 'Undated' });
+  await addTask({ projectId: root.id, sectionId: containerA.id, title: 'Earliest', dueAt: '2026-09-16T09:00:00.000Z' });
   // The same instant as Kitchen's date-only due date, so the kind tie-break is exercised.
-  await api('POST', '/api/tasks', { projectId: kitchen.id, title: 'Nested at end of day', dueAt: '2026-09-18T23:59:59.999Z' });
+  await addTask({ projectId: kitchen.id, title: 'Nested at end of day', dueAt: '2026-09-18T23:59:59.999Z' });
   const kitchenSection = (await api<{ id: string }[]>('GET', `/api/projects/${kitchen.id}/sections`))[0]!;
 
   // Collapsed on purpose: a link has to be able to open the container it points at.
@@ -220,4 +304,251 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
   const finalRows = await api<{ items: Row[] }>('GET', `/api/projects/${root.id}/todos`);
   expect(finalRows.items.filter(({ kind }) => kind === 'task').every(({ origin }) => origin.sectionId !== undefined)).toBe(true);
   expect(new Set(namesOf(finalRows.items)).size).toBe(finalRows.items.length);
+});
+
+/**
+ * Slice 39: a cross-root reparent publishes **one** frame, naming the sub-project's new root. The
+ * Todos page open on the root it left must still drop the row — and bring it back on Undo — which
+ * is what the project-record refresh rule is for. The history action lives in the sub-project's
+ * own history, and the page never offers Undo itself; the receipt comes back from PATCH.
+ */
+test('a cross-root reparent, its Undo and its Redo move a unit of work out of and back into the open chronology it left', async ({ page }) => {
+  await seed('agent-heavy');
+  await setClock(PINNED_NOW);
+  const { workspace } = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+  const left = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Left root' });
+  const right = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Right root' });
+  for (const root of [left, right]) await api('PATCH', `/api/projects/${root.id}/pages/todos`, { enabled: true });
+  const traveller = await createProject({
+    workspaceId: workspace.id, kind: 'subproject', parentProjectId: left.id, name: 'Traveller',
+  });
+  const todoNames = async (rootId: string) => namesOf((await api<{ items: Row[] }>('GET', `/api/projects/${rootId}/todos`)).items);
+  const row = page.locator('[data-todo-row]', { has: page.locator('[data-todo-link]', { hasText: 'Traveller' }) });
+
+  await page.goto(`/projects/${left.id}/pages/todos`);
+  await expect(row).toHaveCount(1);
+
+  const moved = await api<{ project: { parentProjectId: string }; operation: { historyId: string; actionId: string; revision: number; operation: string } }>(
+    'PATCH', `/api/projects/${traveller.id}`, { parentProjectId: right.id },
+  );
+  expect(moved.project.parentProjectId).toBe(right.id);
+  expect(moved.operation.operation).toBe('project.update');
+  // No reload: the one committed frame names the right root, and the left page still re-reads.
+  await expect(row).toHaveCount(0, { timeout: 15_000 });
+  expect(await todoNames(right.id)).toContain('subproject:Traveller');
+
+  const step = (direction: 'undo' | 'redo', expectedRevision: number) =>
+    api('POST', `/api/history/${moved.operation.historyId}/transition`, { actionId: moved.operation.actionId, direction, expectedRevision });
+  await step('undo', moved.operation.revision);
+  await expect(row).toHaveCount(1, { timeout: 15_000 });
+  expect(await todoNames(right.id)).not.toContain('subproject:Traveller');
+
+  await step('redo', moved.operation.revision + 1);
+  await expect(row).toHaveCount(0, { timeout: 15_000 });
+  await page.reload();
+  await expect(row).toHaveCount(0);
+  expect(await todoNames(right.id)).toContain('subproject:Traveller');
+});
+
+test.describe('coarse pointer task Delete', () => {
+  test.use({ viewport: { width: 1024, height: 1366 }, hasTouch: true, isMobile: true });
+
+  test('Todos keeps Delete available on a finished task and accepts a touch tap', async ({ page }) => {
+    await seed('empty');
+    await setClock(PINNED_NOW);
+    const { workspace } = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+    const root = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Touch Todos Delete' });
+    const section = (await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' })).section;
+    const task = await addTask({ projectId: root.id, sectionId: section.id, title: 'Finished then deleted' });
+    await api('PATCH', `/api/projects/${root.id}/pages/todos`, { enabled: true });
+
+    await page.goto(`/projects/${root.id}/pages/todos`);
+    const row = page.locator(`[data-todo-row][data-todo-id="${task.id}"]`);
+    const complete = row.locator('[data-todo-complete]');
+    await expect(complete).toBeVisible();
+    await complete.tap();
+    const deleteButton = row.locator('[data-todo-delete]');
+    await expect(deleteButton).toHaveAttribute('aria-label', 'Delete task Finished then deleted');
+    await deleteButton.tap();
+    await expect(row).toHaveCount(0);
+    const recovery = page.locator('[data-todo-delete-recovery]');
+    await expect(recovery).toHaveAttribute('role', 'status');
+    await expect(recovery).toContainText('Finished then deleted');
+    await expect(recovery).toContainText(/archived/i);
+    await expect(recovery).toContainText('Archive');
+    await expect(recovery).toContainText(/header Undo/i);
+    await page.setViewportSize({ width: 375, height: 812 });
+    for (const theme of ['dark', 'light'] as const) {
+      if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('[data-theme-toggle]').click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(recovery.locator('[data-todo-open-archive]')).toBeVisible();
+      expect(await recovery.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    }
+    expect(await api<{ archivedAt?: string }>('GET', `/api/tasks/${task.id}`)).toMatchObject({ archivedAt: expect.any(String) });
+  });
+});
+
+test('Todos task Delete works by pointer, Enter and Space, and moves focus with the rows', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  const { workspace } = await api<{ workspace: { id: WorkspaceId } }>('GET', '/api/me');
+  const root = await createProject({ workspaceId: workspace.id, kind: 'root', name: 'Keyboard Todos Delete' });
+  const section = (await api<{ section: { id: string } }>('POST', `/api/projects/${root.id}/sections`, { type: 'task-list' })).section;
+  const tasks = await Promise.all(['2026-09-16', '2026-09-17', '2026-09-18'].map((day, index) =>
+    addTask({ projectId: root.id, sectionId: section.id, title: `Delete ${index + 1}`, dueAt: `${day}T09:00:00.000Z` }),
+  ));
+  await api('PATCH', `/api/projects/${root.id}/pages/todos`, { enabled: true });
+  await page.goto(`/projects/${root.id}/pages/todos`);
+
+  const deleteButton = (id: string) => page.locator(`[data-todo-row][data-todo-id="${id}"] [data-todo-delete]`);
+  await expect(deleteButton(tasks[0]!.id)).toBeVisible();
+  await deleteButton(tasks[0]!.id).click();
+  await expect(page.locator(`[data-todo-id="${tasks[0]!.id}"]`)).toHaveCount(0);
+  await expect(page.locator('[data-todo-delete-recovery]')).toContainText('Delete 1');
+  const secondRowLink = page.locator(`[data-todo-row][data-todo-id="${tasks[1]!.id}"] [data-todo-link]`);
+  await expect(secondRowLink).toBeFocused();
+
+  await deleteButton(tasks[1]!.id).focus();
+  await deleteButton(tasks[1]!.id).press('Enter');
+  await expect(page.locator(`[data-todo-id="${tasks[1]!.id}"]`)).toHaveCount(0);
+  await expect(page.locator('[data-todo-delete-recovery]')).toContainText('Delete 2');
+  await expect(page.locator(`[data-todo-row][data-todo-id="${tasks[2]!.id}"] [data-todo-link]`)).toBeFocused();
+
+  await deleteButton(tasks[2]!.id).focus();
+  await deleteButton(tasks[2]!.id).press('Space');
+  await expect(page.locator(`[data-todo-id="${tasks[2]!.id}"]`)).toHaveCount(0);
+  await expect(page.locator('#todos-heading')).toBeFocused();
+  await expect(page.locator('[data-todo-delete-recovery]')).toContainText('Delete 3');
+  await expect(page.locator('[data-todo-delete-recovery]')).toBeVisible();
+  const archived = await Promise.all(tasks.map(({ id }) => api<{ archivedAt?: string }>('GET', `/api/tasks/${id}`)));
+  expect(archived.every(({ archivedAt }) => archivedAt !== undefined)).toBe(true);
+});
+
+test('Todos Delete points to the true owner, and existing Undo and Archive recover the task', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const root = 'project-renovation';
+  const child = 'project-kitchen';
+  await api('PATCH', `/api/projects/${root}/pages/todos`, { enabled: true });
+  await api('PATCH', `/api/projects/${root}/pages/archive`, { enabled: true });
+  const rootTask = await addTask({ projectId: root, title: 'Root recovery task' });
+  const childTask = await addTask({ projectId: child, title: 'Kitchen recovery task' });
+  const row = (id: string) => page.locator(`[data-todo-row][data-todo-id="${id}"]`);
+  const recovery = page.locator('[data-todo-delete-recovery]');
+  await page.goto(`/projects/${root}/pages/todos`);
+
+  await row(rootTask.id).locator('[data-todo-delete]').click();
+  await expect(row(rootTask.id)).toHaveCount(0);
+  await expect(recovery).toContainText('Root recovery task');
+  await expect(recovery).toContainText("This project's header Undo");
+  await expect(recovery.locator('[data-todo-recovery-owner]')).toHaveCount(0);
+  const rootUndo = await api<{ undo: { label: string } }>('GET', `/api/projects/${root}/history`);
+  await undoFromHeader(page, rootUndo.undo.label);
+  await expect(row(rootTask.id)).toHaveCount(1);
+  await expect(recovery).toHaveCount(0);
+
+  await row(childTask.id).locator('[data-todo-delete]').click();
+  await expect(row(childTask.id)).toHaveCount(0);
+  await expect(recovery).toContainText('Kitchen recovery task');
+  await expect(recovery).toContainText("Kitchen's header Undo");
+  await expect(recovery.locator('[data-todo-recovery-owner]')).toHaveAttribute('href', `/projects/${child}#history-controls`);
+  await expect(recovery.locator('[data-todo-open-archive]')).toBeVisible();
+  await recovery.locator('[data-todo-recovery-owner]').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${child}#history-controls$`));
+  await expect(page.locator('#history-controls')).toBeFocused();
+  const childUndo = await api<{ undo: { label: string } }>('GET', `/api/projects/${child}/history`);
+  await undoFromHeader(page, childUndo.undo.label);
+  await page.goto(`/projects/${root}/pages/todos`);
+  await expect(row(childTask.id)).toHaveCount(1);
+  await expect(recovery).toHaveCount(0);
+
+  await row(childTask.id).locator('[data-todo-delete]').click();
+  await expect(recovery).toContainText('Kitchen recovery task');
+  await recovery.locator('[data-todo-open-archive]').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${root}/pages/archive$`));
+  const archived = page.locator(`[data-archived-item][data-archived-id="${childTask.id}"]`);
+  await expect(archived).toBeVisible();
+  await archived.locator('[data-archived-restore]').click();
+  await expect(archived).toHaveCount(0);
+  await page.goto(`/projects/${root}/pages/todos`);
+  await expect(row(childTask.id)).toHaveCount(1);
+  await expect(recovery).toHaveCount(0);
+});
+
+test('Todos Delete with a refused or broken write restores its row without success feedback', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const root = 'project-renovation';
+  await api('PATCH', `/api/projects/${root}/pages/todos`, { enabled: true });
+  const task = await addTask({ projectId: root, title: 'Refused recovery task' });
+  const row = page.locator(`[data-todo-row][data-todo-id="${task.id}"]`);
+  const path = `**/api/tasks/${task.id}/archive`;
+  await page.goto(`/projects/${root}/pages/todos`);
+
+  for (const failure of ['permission', 'transport'] as const) {
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    await page.route(path, async (route) => {
+      await held;
+      if (failure === 'permission') {
+        await route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"forbidden"}' });
+      } else {
+        await route.abort('failed');
+      }
+    });
+    await row.locator('[data-todo-delete]').click();
+    await expect(row).toHaveCount(0);
+    await expect(page.locator('[data-todo-delete-recovery]')).toHaveCount(0);
+    await page.locator('[data-theme-toggle]').focus();
+    release();
+    await expect(row).toHaveCount(1);
+    await expect(page.locator('[data-theme-toggle]')).toBeFocused();
+    await expect(page.locator('[data-todo-write-error]')).toBeVisible();
+    await expect(page.locator('[data-todo-delete-recovery]')).toHaveCount(0);
+    await page.unroute(path);
+  }
+  expect((await api<{ archivedAt?: string }>('GET', `/api/tasks/${task.id}`)).archivedAt).toBeUndefined();
+});
+
+test('Todos recovery opens disabled Archive only after its enable commits, and Retry re-reads a committed enable', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const root = 'project-renovation';
+  await api('PATCH', `/api/projects/${root}/pages/todos`, { enabled: true });
+  await api('PATCH', `/api/projects/${root}/pages/archive`, { enabled: false });
+  const task = await addTask({ projectId: root, title: 'Disabled Archive recovery' });
+  await page.goto(`/projects/${root}/pages/todos`);
+  await page.locator(`[data-todo-row][data-todo-id="${task.id}"] [data-todo-delete]`).click();
+  const recovery = page.locator('[data-todo-delete-recovery]');
+  await expect(recovery).toContainText('Disabled Archive recovery');
+  const afterDelete = await api<{ revision: number; undo: { label: string } }>('GET', `/api/projects/${root}/history`);
+  const enablePath = `**/api/projects/${root}/pages/archive`;
+  await page.route(enablePath, async (route) => {
+    if (route.request().method() === 'PATCH') {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"unavailable"}' });
+    } else await route.continue();
+  });
+  await recovery.locator('[data-todo-open-archive]').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${root}/pages/todos$`));
+  expect((await api<{ revision: number }>('GET', `/api/projects/${root}/history`)).revision).toBe(afterDelete.revision);
+  await page.unroute(enablePath);
+
+  const pagesPath = `**/api/projects/${root}/pages`;
+  await page.route(pagesPath, async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"unavailable"}' });
+    } else await route.continue();
+  });
+  await recovery.locator('[data-todo-open-archive]').click();
+  await expect(page.locator('[data-archive-open-retry]')).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/projects/${root}/pages/todos$`));
+  const afterEnable = await api<{ revision: number; undo: { label: string } }>('GET', `/api/projects/${root}/history`);
+  expect(afterEnable.revision).toBe(afterDelete.revision + 1);
+  expect(afterEnable.undo.label).not.toBe(afterDelete.undo.label);
+  await page.unroute(pagesPath);
+  await page.locator('[data-archive-open-retry]').click();
+  await expect(page).toHaveURL(new RegExp(`/projects/${root}/pages/archive$`));
+  const archived = page.locator(`[data-archived-item][data-archived-id="${task.id}"]`);
+  await expect(archived).toBeVisible();
+  expect((await api<{ revision: number }>('GET', `/api/projects/${root}/history`)).revision).toBe(afterEnable.revision);
 });

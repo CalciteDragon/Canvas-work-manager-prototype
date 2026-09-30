@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { nameOf, type ProjectArchiveItem, type ProjectRestoreStatus } from '@cwm/contracts';
+import { nameOf, ownedKindOf, type ProjectArchiveItem, type ProjectId, type ProjectRestoreStatus } from '@cwm/contracts';
 
 export interface ArchiveRestoreRequest {
   item: ProjectArchiveItem;
@@ -22,7 +22,14 @@ export interface ArchiveRestoreRequest {
 })
 export class ArchivedRegion {
   readonly items = input.required<readonly ProjectArchiveItem[]>();
+  readonly rootProjectId = input.required<ProjectId>();
+  /** The project itself is archived: Restore waits for reactivation, and the list says so. */
   readonly restoreBlocked = input(false);
+  /**
+   * The list on screen may be stale — after a refused write or a failed re-read — so Restore
+   * waits for a current read. The owning page shows why; this list only disables its controls.
+   */
+  readonly restorePaused = input(false);
   readonly restoring = input<ReadonlySet<string>>(new Set());
 
   readonly restoreRequested = output<ArchiveRestoreRequest>();
@@ -85,6 +92,20 @@ export class ArchivedRegion {
     return item.origin.sectionId === undefined ? undefined : `section-${item.origin.sectionId}`;
   }
 
+  /** The breadcrumb carries the owner name even when that project is archived. */
+  historyOwner(item: ProjectArchiveItem): { name: string; route: unknown[] } | null {
+    const id = item.origin.projectId;
+    if (id === this.rootProjectId()) return null;
+    const name = item.kind === 'subproject'
+      ? item.project.name
+      : item.origin.breadcrumb.find((step) => step.projectId === id)?.name;
+    if (name === undefined) return null;
+    const route = item.origin.pageKind === 'home'
+      ? ['/projects', id, 'pages', 'home']
+      : ['/projects', id];
+    return { name, route };
+  }
+
   causeLabel(item: ProjectArchiveItem): string {
     switch (item.cause.kind) {
       case 'own':
@@ -98,17 +119,84 @@ export class ArchivedRegion {
     }
   }
 
-  blockerLabel(item: ProjectArchiveItem): string | null {
-    if (item.restoration.kind === 'ready') return null;
-    return `Restore “${item.restoration.blocker.name}” first`;
+  /**
+   * Copy for the domain's `recovery` verdict. Presentational only: whether a section is listed,
+   * and what it holds, was decided by `sectionRecoveryOf` — nothing here re-derives it.
+   */
+  contentLabel(item: ProjectArchiveItem): string | null {
+    if (item.kind !== 'section' || item.recovery === undefined) return null;
+    switch (item.recovery.kind) {
+      case 'owned-content':
+        return `${this.rows(item.recovery.ownedData, item.recovery.contentCount)} in this section`;
+      case 'config':
+        return 'Keeps its text';
+      case 'unknown':
+        return 'Content this version cannot read — kept to be safe';
+    }
+  }
+
+  /** The exact `archivedWithSectionId` count for an archived container. */
+  cascadeLabel(item: ProjectArchiveItem): string | null {
+    if (item.kind !== 'section' || item.cascadeCount === undefined) return null;
+    const ownedData = item.recovery?.kind === 'owned-content' ? item.recovery.ownedData : ownedKindOf(item.section.type);
+    if (ownedData === undefined) return null;
+    const verb = item.cascadeCount === 1 ? 'restores' : 'restore';
+    return `${this.rows(ownedData, item.cascadeCount)} ${verb} with this section`;
+  }
+
+  /**
+   * What recovering the rows a section Restore will *not* bring back takes. An archived
+   * container's other rows were archived on their own, so they need their own Restore after
+   * it. The projection includes only the highest currently restorable owner, so this guidance
+   * prepares the person for rows that will appear after the section has been restored.
+   */
+  recoveryGuidance(item: ProjectArchiveItem): string | null {
+    if (item.kind !== 'section' || item.recovery?.kind !== 'owned-content') return null;
+    // Restore calls, not rows: the domain already excludes cascade members and subtasks that
+    // return with an archived parent.
+    const separate = item.recovery.separateRestoreCount;
+    if (separate === 0) return null;
+    const rows = this.noun(item.recovery.ownedData, separate);
+    if ((item.cascadeCount ?? 0) > 0) {
+      return separate === 1
+        ? `1 other ${rows} stays archived; restore it separately afterwards.`
+        : `${separate} other ${rows} stay archived; restore them separately afterwards.`;
+    }
+    const which = separate === 1 ? `its archived ${rows}` : `its ${separate} archived ${rows}`;
+    return `Restore this section first, then restore ${which} separately.`;
+  }
+
+  /**
+   * Where an archived section lands, said before the click. Archive Restore appends the section
+   * at the end of its page — its old index needs positions the canvas has since reused — so a
+   * section that sat first comes back last, which surprised a real use (`note-2026-09-15-007`).
+   * Undo is the operation that returns a section between its old neighbours; this one does not,
+   * and the row should not let a person assume otherwise.
+   *
+   * Only archived sections reach this list.
+   */
+  placementHint(item: ProjectArchiveItem): string | null {
+    if (item.kind !== 'section') return null;
+    return 'Returns at the end of its page, not its old position.';
   }
 
   canRestore(item: ProjectArchiveItem): boolean {
-    return !this.restoreBlocked() && this.restoring().size === 0 && item.restoration.kind === 'ready';
+    return !this.restoreBlocked() && !this.restorePaused() && this.restoring().size === 0 && item.restoration.kind === 'ready';
   }
 
   isRestoring(item: ProjectArchiveItem): boolean {
     return this.restoring().has(this.idOf(item));
+  }
+
+  restoreActionLabel(item: ProjectArchiveItem): string {
+    if (this.isRestoring(item)) return 'Restoring…';
+    return item.kind === 'section' ? 'Restore saved content' : 'Restore';
+  }
+
+  restoreActionAriaLabel(item: ProjectArchiveItem): string {
+    return item.kind === 'section'
+      ? `Restore saved content for ${this.label(item)}`
+      : `Restore ${this.label(item)}`;
   }
 
   projectStatus(item: ProjectArchiveItem): ProjectRestoreStatus {
@@ -125,6 +213,15 @@ export class ArchivedRegion {
   restore(item: ProjectArchiveItem): void {
     if (!this.canRestore(item)) return;
     this.restoreRequested.emit({ item, status: this.projectStatus(item) });
+  }
+
+  private rows(ownedData: 'tasks' | 'reflections', count: number): string {
+    return `${count} ${this.noun(ownedData, count)}`;
+  }
+
+  private noun(ownedData: 'tasks' | 'reflections', count: number): string {
+    const singular = ownedData === 'tasks' ? 'task' : 'reflection';
+    return count === 1 ? singular : `${singular}s`;
   }
 
   idOf(item: ProjectArchiveItem): string {

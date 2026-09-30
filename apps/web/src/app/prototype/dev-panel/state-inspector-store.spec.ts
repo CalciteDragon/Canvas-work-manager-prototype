@@ -40,6 +40,7 @@ describe('StateInspectorStore (§28)', () => {
     const projects = {
       list: vi.fn(async () => [project('project-a'), project('project-b', 'grid')]),
       get: vi.fn(),
+      archived: vi.fn(async () => ({ items: [] })),
       create: vi.fn(),
       update: vi.fn(),
     } as WorkManagerGateway['projects'];
@@ -58,10 +59,13 @@ describe('StateInspectorStore (§28)', () => {
     const projects = {
       list: vi.fn(async () => [project('project-a')]),
       get: vi.fn(),
+      archived: vi.fn(async () => ({ items: [] })),
       create: vi.fn(),
-      update: vi.fn(async (id: ProjectId, input: { projectLayoutMode?: ProjectLayoutMode }) =>
-        project(id, input.projectLayoutMode),
-      ),
+      // The write envelope (Slice 39): the inspector keeps the returned `project`, not the receipt.
+      update: vi.fn(async (id: ProjectId, input: { projectLayoutMode?: ProjectLayoutMode }) => ({
+        project: project(id, input.projectLayoutMode),
+        operation: null,
+      })),
     } as WorkManagerGateway['projects'];
     const { store } = setup(projects);
     await store.load();
@@ -77,6 +81,7 @@ describe('StateInspectorStore (§28)', () => {
     const projects = {
       list: vi.fn(async () => [project('project-a')]),
       get: vi.fn(),
+      archived: vi.fn(async () => ({ items: [] })),
       create: vi.fn(),
       update: vi.fn(async () => {
         throw new GatewayError('unreachable', 0, 'could not reach the prototype host');
@@ -96,10 +101,11 @@ describe('StateInspectorStore (§28)', () => {
     const projects = {
       list: vi.fn(async () => [project('project-a'), project('project-b')]),
       get: vi.fn(),
+      archived: vi.fn(async () => ({ items: [] })),
       create: vi.fn(),
       update: vi.fn(async (id: ProjectId, input: { projectLayoutMode?: ProjectLayoutMode }) => {
         await new Promise<void>((resolve) => releases.set(id, resolve));
-        return project(id, input.projectLayoutMode);
+        return { project: project(id, input.projectLayoutMode), operation: null };
       }),
     } as WorkManagerGateway['projects'];
     const { store } = setup(projects);

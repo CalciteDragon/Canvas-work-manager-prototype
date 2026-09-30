@@ -4,6 +4,7 @@ import { DashboardPage } from './features/dashboard/dashboard-page';
 import { ProjectWorkspaceShell } from './features/projects/project-workspace-shell';
 import { SearchPage } from './features/search/search-page';
 import { AgentConnectionsPage } from './features/settings/agents/agent-connections-page';
+import { ArchivedProjectsPage } from './features/settings/archived-projects/archived-projects-page';
 import { SettingsPage } from './features/settings/settings-page';
 import { NotFoundPage } from './shared/components/placeholder-page/not-found-page';
 
@@ -36,6 +37,7 @@ export const routes: Routes = [
   { path: 'search', component: SearchPage },
   { path: 'settings', component: SettingsPage },
   { path: 'settings/agents', component: AgentConnectionsPage },
+  { path: 'settings/archived-projects', component: ArchivedProjectsPage },
   {
     path: 'prototype/design',
     loadComponent: () => import('./prototype/design-lab/design-lab-page').then((m) => m.DesignLabPage),

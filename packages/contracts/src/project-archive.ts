@@ -3,7 +3,7 @@ import { AgentPermissionSchema } from './agent';
 import { ProjectIdSchema, ProjectPageIdSchema, SectionIdSchema, TaskIdSchema } from './ids';
 import { ProjectPageKindSchema } from './project-page';
 import { ProjectStatusSchema, RootProjectSchema, SubprojectSchema } from './project';
-import { ProjectSectionSchema } from './section';
+import { OwnedDataKindSchema, ProjectSectionSchema } from './section';
 import { ReflectionSchema } from './reflection';
 import { TaskSchema } from './task';
 
@@ -79,11 +79,42 @@ export const ProjectArchiveSubprojectItemSchema = z.object({
 });
 export type ProjectArchiveSubprojectItem = z.infer<typeof ProjectArchiveSubprojectItemSchema>;
 
+/**
+ * What a section entry is in Archive *for*, from the domain's recovery policy. `contentCount`
+ * is every row still assigned to the container, archived or not, counted once; it is not a
+ * promise that restoring the section revives them — `cascadeCount` is that, exactly.
+ * `separateRestoreCount` is how many Restore calls the archived rows need beyond the section's
+ * own: independently archived rows, not counting cascade members or subtasks that come back
+ * with an archived parent in the same container.
+ * `unknown` is a conservative keep: a type or config the policy cannot read as empty.
+ * See docs/decisions/2026-09-content-oriented-archive-policy.md.
+ */
+export const ProjectArchiveSectionRecoverySchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('owned-content'),
+      ownedData: OwnedDataKindSchema,
+      contentCount: z.number().int().positive(),
+      separateRestoreCount: z.number().int().nonnegative(),
+    })
+    .refine(({ contentCount, separateRestoreCount }) => separateRestoreCount <= contentCount, {
+      message: 'separateRestoreCount cannot exceed contentCount',
+    }),
+  z.object({ kind: z.literal('config') }),
+  z.object({ kind: z.literal('unknown') }),
+]);
+export type ProjectArchiveSectionRecovery = z.infer<typeof ProjectArchiveSectionRecoverySchema>;
+
 export const ProjectArchiveSectionItemSchema = z.object({
   kind: z.literal('section'),
   section: ProjectSectionSchema,
-  /** Present only for a container; views do not claim an owned-row count. */
+  /** Present only for a container: the rows whose `archivedWithSectionId` names this section. */
   cascadeCount: z.number().int().nonnegative().optional(),
+  /**
+   * Optional so older fixtures still parse; `ProjectArchiveService` emits it on every section
+   * entry it projects, and projects only sections with something to recover.
+   */
+  recovery: ProjectArchiveSectionRecoverySchema.optional(),
   ...archiveItemFields,
 });
 export type ProjectArchiveSectionItem = z.infer<typeof ProjectArchiveSectionItemSchema>;
@@ -115,6 +146,14 @@ export const ProjectArchiveResultSchema = z.object({
   projectId: ProjectIdSchema,
   root: RootProjectSchema,
   items: z.array(ProjectArchiveItemSchema),
+}).refine(({ items }) => items.every((item) =>
+  item.restoration.kind === 'ready' &&
+  (item.kind === 'subproject' ? item.project.status === 'archived' :
+    item.kind === 'section' ? item.section.archivedAt !== undefined :
+      item.kind === 'task' ? item.task.archivedAt !== undefined : item.reflection.archivedAt !== undefined),
+), {
+  message: 'Archive results contain only archived, currently restorable entries',
+  path: ['items'],
 });
 export type ProjectArchiveResult = z.infer<typeof ProjectArchiveResultSchema>;
 

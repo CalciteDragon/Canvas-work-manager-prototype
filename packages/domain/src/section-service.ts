@@ -3,25 +3,28 @@ import {
   pageAcceptsSectionType,
   pageAcceptsSections,
   ProjectSectionSchema,
-  ReflectionSchema,
   SectionIdSchema,
-  TaskSchema,
+  SectionAlreadyRemovedDetailsSchema,
   containerTypeFor,
   nameOf,
   normaliseSectionTitle,
   ownedKindOf,
+  type CreatedContainer,
   type CreateSectionInput,
   type OwnedDataKind,
   type ProjectId,
   type ProjectSection,
-  type Reflection,
-  type RemoveSectionInput,
   type SectionId,
   type SectionQuery,
-  type SectionRemovalRefusalDetails,
-  type Task,
+  type SectionRemovalDisposition,
+  type SectionRemovalResult,
+  type SectionAddResult,
+  type SectionWriteResult,
+  type SectionFieldChange,
+  type OperationReceipt,
   type ProjectPage,
   type ProjectPageId,
+  type UndoRowChange,
   type UpdateSectionInput,
 } from '@cwm/contracts';
 import type {
@@ -39,7 +42,29 @@ import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
 import { assertProjectWritable } from './project-visibility';
-import { listPlacements, renumberPlacements, type PagePlacement } from './page-placements';
+import { rowsOf, writeRow, type OwnedRow } from './owned-rows';
+import { listPlacements, renumberPlacements, snapshotPlacement, type PagePlacement } from './page-placements';
+import { captureSectionRemoval, NOTHING_SETTLED, rowChangeOf, type SettledRows } from './section-removal-undo';
+import { captureSectionAdd, captureSectionMove, captureSectionUpdate, sameValue, sectionUpdateLabel } from './section-edit-undo';
+import { captureSectionRestore } from './section-restore-history';
+import { sectionRecoveryOf } from './section-recovery-policy';
+import type { OperationRecorder } from './operation-recorder';
+
+/**
+ * **What `resolveContainer` answers.** The container a row write lands in, and — only when this
+ * resolution had to create it — the snapshot and placement its owner's history needs to reverse and
+ * reapply the creation.
+ *
+ * It is returned rather than recorded here on purpose. The container is not an operation of its own:
+ * it is part of the row write that needed it, so the **row's** action carries it and one Undo
+ * removes both (docs/decisions/2026-09-row-operation-history.md). Making this an explicit result
+ * rather than a hidden side effect is also what lets `resolveContainer` stay a plain call with no
+ * transaction or event framework behind it.
+ */
+export interface ResolvedContainer {
+  section: ProjectSection;
+  created?: CreatedContainer;
+}
 
 export interface SectionServiceDependencies {
   sections: SectionRepository;
@@ -52,13 +77,17 @@ export interface SectionServiceDependencies {
   tasks: TaskRepository;
   reflections: ReflectionRepository;
   activity: ActivityService;
+  /**
+   * Makes each explicit add, move, settings update and removal undoable. An interface over two
+   * repositories that never opens a unit, used the way `activity.record` is — the one kind of edge
+   * history adds, and acyclic: the recorder depends on nothing here, and `OperationHistoryService`
+   * composes no section service.
+   */
+  history: OperationRecorder;
   clock: Clock;
   ids: IdGenerator;
   unitOfWork: UnitOfWork;
 }
-
-/** A row of an owned kind: everything this service needs to archive or repoint one. */
-type OwnedRow = Task | Reflection;
 
 /** `null` clears and `undefined` leaves alone — §11's `dueAt` example is the pattern. */
 const apply = <T extends object>(section: T, key: keyof T, value: unknown): void => {
@@ -75,8 +104,8 @@ type SectionAction =
   | 'project.section_added'
   | 'project.section_updated'
   | 'project.section_moved'
-  // Removal archives, so nothing produces this any more. It stays in the union for the
-  // events already written into `data.json` (§14) — history is not rewritten.
+  // Disposable removals emit `project.section_removed`; retained content uses
+  // `project.section_archived`. Both verbs remain meaningful in activity history.
   | 'project.section_removed'
   | 'project.section_archived'
   | 'project.section_restored';
@@ -90,6 +119,25 @@ const byPosition = (a: ProjectSection, b: ProjectSection): number => a.position 
  */
 const byPositionThenId = (a: ProjectSection, b: ProjectSection): number =>
   a.position === b.position ? a.id.localeCompare(b.id) : a.position - b.position;
+
+const sectionChangesFor = (current: ProjectSection, input: UpdateSectionInput): SectionFieldChange[] => {
+  const changes: SectionFieldChange[] = [];
+  if (input.title !== undefined) {
+    const before = current.title ?? null;
+    const after = normaliseSectionTitle(input.title) ?? null;
+    if (!sameValue(before, after)) changes.push({ field: 'title', before, after });
+  }
+  if (input.config !== undefined && !sameValue(current.config, input.config)) {
+    changes.push({ field: 'config', before: structuredClone(current.config), after: structuredClone(input.config) });
+  }
+  if (input.collapsed !== undefined && input.collapsed !== current.collapsed) {
+    changes.push({ field: 'collapsed', before: current.collapsed, after: input.collapsed });
+  }
+  if (input.columnSpan !== undefined && input.columnSpan !== current.columnSpan) {
+    changes.push({ field: 'columnSpan', before: current.columnSpan, after: input.columnSpan });
+  }
+  return changes;
+};
 
 /**
  * An archived section is off the canvas, and there is no edit to make on one that restoring
@@ -164,11 +212,21 @@ export class SectionService {
     );
   }
 
-  async add(actor: ActorContext, projectId: ProjectId, input: CreateSectionInput): Promise<ProjectSection> {
+  async add(actor: ActorContext, projectId: ProjectId, input: CreateSectionInput): Promise<SectionAddResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
-    return this.dependencies.unitOfWork.run(() => this.addWithin(actor, projectId, input));
+    return this.dependencies.unitOfWork.run(async () => {
+      const created = await this.addWithin(actor, projectId, input, { announce: true });
+      const section = await this.require(actor, created.id);
+      const placement = snapshotPlacement(await this.placementsOnPage(section.pageId), { kind: 'section', id: section.id });
+      const operation = await this.dependencies.history.record(actor, {
+        projectId,
+        label: `Added the ${nameOf(section)} section`,
+        operation: captureSectionAdd(section, placement),
+      });
+      return { section, operation };
+    });
   }
 
   /**
@@ -187,6 +245,7 @@ export class SectionService {
     actor: ActorContext,
     projectId: ProjectId,
     input: CreateSectionInput,
+    options: { announce: boolean },
   ): Promise<ProjectSection> {
     await this.assertProjectVisible(actor, projectId);
     // Ordered before the page resolution below, so an archived project still refuses with
@@ -222,7 +281,11 @@ export class SectionService {
     const ordered = [...siblings];
     ordered.splice(position, 0, { kind: 'section', value: section });
     await renumberPlacements(this.dependencies, this.dependencies.clock, ordered);
-    await this.record(actor, section, 'project.section_added', 'Added');
+    // `announce: false` is the implicit-container path. A row create that had to make its own
+    // container commits **one** row event, one action and one frame; a second `project.section_added`
+    // beside it would make one write look like two, and would be a frame no reader asked for.
+    // The explicit Add Section button still announces, unchanged.
+    if (options.announce) await this.record(actor, section, 'project.section_added', 'Added');
     return section;
   }
 
@@ -312,8 +375,12 @@ export class SectionService {
   /**
    * The container a row goes to when the caller names none: the first container of the matching
    * type **on the resolved page**, and otherwise a new one added there through the same
-   * operation the Add Section button calls, at the end of that page with an ordinary activity
-   * event behind it.
+   * operation the Add Section button calls, at the end of that page.
+   *
+   * Since Slice 36 it answers a `ResolvedContainer` rather than a bare section, and the implicit
+   * add records **no** activity event of its own: the row write that needed the container owns the
+   * event, the action and the frame, and hands the snapshot back here so the row's own history
+   * entry can reverse both together.
    *
    * The page is resolved **once** and passed into `addWithin`. Searching one page and creating
    * on another would be two independent answers to the question this slice exists to make
@@ -331,14 +398,24 @@ export class SectionService {
     projectId: ProjectId,
     owned: OwnedDataKind,
     pageId?: ProjectPageId,
-  ): Promise<ProjectSection> {
+  ): Promise<ResolvedContainer> {
     const type = containerTypeFor(owned);
     const page = await this.resolvePage(projectId, pageId, type);
     // `orderedOnPage` is live-only, so an archived container is skipped and a new one is added
     // rather than revived: a removed section comes back through restore, never through a
     // row write that happened to need somewhere to go.
     const existing = (await this.orderedOnPage(page.id)).find((section) => ownedKindOf(section.type) === owned);
-    return existing ?? this.addWithin(actor, projectId, { type, pageId: page.id });
+    if (existing !== undefined) return { section: existing };
+    const section = await this.addWithin(actor, projectId, { type, pageId: page.id }, { announce: false });
+    // The placement is snapshotted **after** the insert, so it describes where the section actually
+    // landed in the page's combined order — which is what a Redo has to put it back between.
+    return {
+      section,
+      created: {
+        section,
+        placement: snapshotPlacement(await this.placementsOnPage(section.pageId), { kind: 'section', id: section.id }),
+      },
+    };
   }
 
   /**
@@ -371,7 +448,7 @@ export class SectionService {
     return section;
   }
 
-  async update(actor: ActorContext, id: SectionId, input: UpdateSectionInput): Promise<ProjectSection> {
+  async update(actor: ActorContext, id: SectionId, input: UpdateSectionInput): Promise<SectionWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
@@ -379,6 +456,7 @@ export class SectionService {
       const current = await this.require(actor, id);
       assertLive(current);
       await this.assertProjectWritable(current.projectId);
+      const changes = sectionChangesFor(current, input);
       const next = { ...current };
       // A blank name means the same thing `null` does — fall back to the derived default —
       // so the two do not have to be told apart by every caller upstream.
@@ -389,7 +467,7 @@ export class SectionService {
       // nothing here can decide which of them a partial write meant to keep.
       apply(next, 'config', input.config);
 
-      return this.commit(actor, current, next, 'project.section_updated', 'Updated');
+      return this.commit(actor, current, next, changes);
     });
   }
 
@@ -398,7 +476,7 @@ export class SectionService {
    * operation rather than a `position` field on `update`: one section's new position is
    * every other section's new position too.
    */
-  async move(actor: ActorContext, id: SectionId, position: number): Promise<ProjectSection> {
+  async move(actor: ActorContext, id: SectionId, position: number): Promise<SectionWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
@@ -408,21 +486,49 @@ export class SectionService {
       await this.assertProjectWritable(current.projectId);
       // Within the section's **page**: reordering one page must not renumber another (§27).
       const siblings = await this.placementsOnPage(current.pageId);
+      const beforePlacement = snapshotPlacement(siblings, { kind: 'section', id });
       const without = siblings.filter((placement) => !(placement.kind === 'section' && placement.value.id === id));
       // Clamped, not rejected: a caller that asks for "last" by overshooting means last.
       const target = Math.min(Math.max(position, 0), without.length);
       without.splice(target, 0, { kind: 'section', value: current });
 
+      // Compare the combined order before writing. In particular, a sparse or hand-edited
+      // page must not be silently normalized by a clamped no-op.
+      const from = siblings.findIndex((placement) => placement.kind === 'section' && placement.value.id === id);
+      if (from === target) return { section: current, operation: null };
+      const afterPlacement = snapshotPlacement(without, { kind: 'section', id });
+
       await renumberPlacements(this.dependencies, this.dependencies.clock, without, { kind: 'section', id });
       const moved = await this.require(actor, id);
-      if (moved.position === current.position) return current;
       await this.record(actor, moved, 'project.section_moved', 'Moved');
-      return moved;
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: current.projectId,
+        label: `Moved the ${nameOf(current)} section`,
+        operation: captureSectionMove({
+          sectionId: current.id,
+          projectId: current.projectId,
+          pageId: current.pageId,
+          placementBefore: beforePlacement,
+          placementAfter: afterPlacement,
+        }),
+      });
+      return { section: moved, operation };
     });
   }
 
-  /** §31's duplicate: the same type and a copy of the config, directly below the original. */
-  async duplicate(actor: ActorContext, id: SectionId): Promise<ProjectSection> {
+  /**
+   * §31's duplicate: the same type and a copy of the config, directly below the original.
+   *
+   * It copies **no rows**. A duplicated Task List is an empty Task List configured the same way,
+   * which is what the operation is for; copying a container's work would create a second owner of
+   * the same items. That is deliberate behaviour, not an omission to fill in later.
+   *
+   * Recorded as a `section.add`, because that is what it is: a section that did not exist now does.
+   * A `section.duplicate` kind would need its own inverse to do exactly what the add inverse
+   * already does, and Redo would then be tempted to re-run duplication against a source that may
+   * since have changed or gone — whereas an add Redo replays the **copy** that was actually made.
+   */
+  async duplicate(actor: ActorContext, id: SectionId): Promise<SectionAddResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
@@ -459,71 +565,134 @@ export class SectionService {
       await renumberPlacements(this.dependencies, this.dependencies.clock, reordered);
 
       await this.record(actor, copy, 'project.section_added', 'Duplicated');
-      return this.require(actor, copy.id);
+      // Captured after the renumber, so the placement is the one the canvas actually shows —
+      // directly below the original — rather than the `current.position + 1` guessed above.
+      const created = await this.require(actor, copy.id);
+      const placement = snapshotPlacement(await this.placementsOnPage(created.pageId), { kind: 'section', id: created.id });
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: created.projectId,
+        label: `Duplicated the ${nameOf(current)} section`,
+        operation: captureSectionAdd(created, placement),
+      });
+      return { section: created, operation };
     });
   }
 
   /**
-   * §31's remove: **it archives, on every branch, and nothing is deleted.** A view archives
-   * with its `config` — a Notes section's prose lives nowhere else — and so does an empty
-   * container, and so does one holding only already-archived rows, which is the case the
-   * old hard delete left dangling with no policy able to reach it.
+   * §31's remove: settle owned rows, then retain content-bearing or reference-bearing sections
+   * and hard-delete only disposable sections that nothing canonically references. The returned
+   * section is the removal snapshot in either case; a deleted one exists only in the receipt.
    *
-   * A container holding **live** rows still needs a policy, because the question is what
-   * should happen to the *rows*: `cascade` archives them with the section and stamps each
-   * with `archivedWithSectionId`; `reassign` moves them to another live container of the
-   * same type and archives the emptied section, marking nothing — the rows left under their
-   * own policy, so they are not "archived with" anything.
+   * A container holding live rows is removed in one step: each live row archives with the
+   * section and is stamped with `archivedWithSectionId`. Rows archived independently stay
+   * where they are with their original markers. Task movement remains a separate task write.
    *
-   * Deliberately **not** idempotent: an already-archived section is refused rather than
-   * archived twice. Removing something already removed is not a second archive, and a silent
-   * success would write a second activity event. Permanent deletion is the operation that
-   * case really wants, and it is deferred
-   * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md).
+   * Archive inclusion and deletion safety are separate checks. `sectionRecoveryOf` keeps
+   * meaningful or uncertain content recoverable; a second canonical-reference check keeps rows
+   * and Home shortcuts from dangling. Old tombstones are never purged by this operation.
+   *
+   * Deliberately **not** idempotent: a repeated removal is still a refusal, but the exact actor
+   * may recover its removal receipt while that removal is still their applied, unexpired action and
+   * no later removal advanced the section's generation. A missing hard-deleted id remains not-found to
+   * everyone else.
    *
    * Allowed inside an archived project, unlike every other section write: the freeze stops
-   * work coming *back* into a project someone has put away, not someone tidying one.
+   * work coming *back* into a project someone has put away, not someone tidying one. It still
+   * returns a receipt, which a transition answers `history_blocked` until the project is reactivated.
+   *
+   * **Every successful removal returns one operation receipt**, recorded in this unit beside the
+   * canonical writes: the pre-removal section, its placement between neighbours, and exactly the
+   * rows `settleRows` wrote. A refusal records nothing. The receipt is real only once the unit
+   * commits, which is when `unitOfWork.run` resolves **for a top-level call** — `unitOfWorkFor`
+   * joins a nested call, so a composer that nests this inside its own unit must not hand the
+   * receipt on before that unit commits (nothing nests it today).
+   *
+   * The result also carries `archiveListed`: whether this removal put something in Archive, so a
+   * surface can offer an Archive route on the answer rather than on the operation's name. See
+   * `removalOutcome` for why that is not the same as the section being retained.
    */
-  async remove(actor: ActorContext, id: SectionId, input: RemoveSectionInput = {}): Promise<ProjectSection> {
+  async remove(actor: ActorContext, id: SectionId): Promise<SectionRemovalResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
-      const current = await this.require(actor, id);
+      const current = await this.dependencies.sections.find(id);
+      if (current === null) {
+        const receipt = await this.dependencies.history.outstandingRemovalFor(actor, id, null);
+        if (receipt !== null) throw this.repeatRemoval(id, receipt);
+        throw new EntityNotFoundError('section', id);
+      }
+      // Do not use a receipt lookup to turn a foreign section into an existence oracle.
+      if (!(await this.isProjectVisible(actor, current.projectId))) throw new EntityNotFoundError('section', id);
       if (current.archivedAt !== undefined) {
-        throw new DomainRuleError(`section "${id}" is already archived`);
+        const receipt = await this.dependencies.history.outstandingRemovalFor(actor, id, current);
+        if (receipt !== null) throw this.repeatRemoval(id, receipt);
+        throw new DomainRuleError(`section "${id}" is already archived; restore it from Archive before removing it again`);
       }
       const owned = ownedKindOf(current.type);
       const archivedAt = this.dependencies.clock.now().toISOString();
-      if (owned !== undefined) await this.settleRows(actor, current, owned, input, archivedAt);
+      // `settleRows` archives only live owned rows and writes no placement.
+      const settled =
+        owned === undefined ? NOTHING_SETTLED : await this.settleRows(current, owned, archivedAt);
+      // Before the section archives or the page renumbers: the placement Undo returns to is the one
+      // the canvas showed.
+      const placement = snapshotPlacement(await this.placementsOnPage(current.pageId), { kind: 'section', id });
+      // Recovery is judged after the cascade has actually settled. It answers whether meaningful
+      // or uncertain content remains; canonical references are checked separately.
+      const { disposition, archiveListed } = await this.removalOutcome(current);
 
       const archived = ProjectSectionSchema.parse({
         ...current,
         archivedAt,
+        archiveGeneration: current.archiveGeneration + 1,
         updatedAt: this.dependencies.clock.now().toISOString(),
       });
-      await this.dependencies.sections.update(archived);
-      // Archived first, then renumber: `orderedOnPage` is live-only, so the surviving siblings
-      // close to the same dense sequence deleting produced. The archived section keeps its
-      // now-stale position — uniqueness is a property of the live page, and
-      // `restoreSection` overwrites the value when it appends.
+      if (disposition === 'retained') await this.dependencies.sections.update(archived);
+      else await this.dependencies.sections.remove(id);
+      // Retain/delete first, then renumber: `orderedOnPage` is live-only, so surviving siblings
+      // close to the same dense sequence. A retained tombstone keeps its stale position.
       await renumberPlacements(
         this.dependencies,
         this.dependencies.clock,
         await this.placementsOnPage(current.pageId),
       );
-      await this.record(actor, archived, 'project.section_archived', 'Archived');
-      return archived;
+      await this.record(
+        actor,
+        archived,
+        disposition === 'deleted' ? 'project.section_removed' : 'project.section_archived',
+        disposition === 'deleted' ? 'Removed' : 'Archived',
+      );
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: current.projectId,
+        label: `Removed the ${nameOf(current)} section`,
+        operation: captureSectionRemoval({
+          section: current,
+          placement,
+          settled,
+          disposition,
+          postSectionArchivedAt: archivedAt,
+          archiveGeneration: archived.archiveGeneration,
+        }),
+      });
+      return { section: archived, operation, archiveListed };
     });
   }
 
   /**
-   * The undo for `remove`, and the **only** way an archived section — or a row that came
-   * down with one — comes back. Under `projects.write`, like every other section write.
+   * **Archive Restore** for `remove`, and the **only** way an archived section — or a row that
+   * came down with one — comes back. Under `projects.write`, like every other section write.
+   *
+   * It is not history Undo (`OperationHistoryService`): it needs no receipt and never expires, and
+   * it reverses the archive rather than the removal's placement — the section returns at the end of
+   * its page, not between its old neighbours. Since Slice 37 a Restore that actually changes
+   * something **also records its own action**, so the same actor can take the Restore back before
+   * undoing the removal beneath it; a retry on a live section still records nothing. It
+   * deliberately leaves `archiveGeneration` alone — restoring is not removing, so bumping it here
+   * would make an innocent removal Undo refuse.
    *
    * It restores exactly what the removal took: the section, and the rows whose
    * `archivedWithSectionId` names it. A row archived on its own beforehand carries no marker
-   * and stays archived, which is what makes this a canonical undo rather than a bulk
+   * and stays archived, which is what makes this an exact restore rather than a bulk
    * unarchive.
    *
    * The section returns at the **end** of the canvas, where `addWithin` puts a new one: its
@@ -533,19 +702,22 @@ export class SectionService {
    * HTTP, MCP and stale clients. It is escapable rather than a trap: `ProjectService.update`
    * still accepts a status change away from `archived`.
    */
-  async restoreSection(actor: ActorContext, id: SectionId): Promise<ProjectSection> {
+  async restoreSection(actor: ActorContext, id: SectionId): Promise<SectionWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
       // Idempotent, so the public restore route cannot turn a retry into a canvas move: no
-      // reposition, no timestamps, no row writes, no activity.
-      if (current.archivedAt === undefined) return current;
+      // reposition, no timestamps, no row writes, no activity — and no history action, so a
+      // retried request cannot bury the caller's real Redo branch under a step that did nothing.
+      if (current.archivedAt === undefined) return { section: current, operation: null };
       await this.assertProjectWritable(current.projectId);
+      const archivedAt = current.archivedAt;
+      const oldPosition = current.position;
 
-      // Back onto its own page, at that page's end. Undo, so no disabled-page refusal: the
-      // section is returning to where it already lived (§31 — undo is never behind a toggle).
+      // Back onto its own page, at that page's end. Recovery, so no disabled-page refusal: the
+      // section is returning to where it already lived (§31 — recovery is never behind a toggle).
       const live = await this.placementsOnPage(current.pageId);
       const restored = ProjectSectionSchema.parse({
         ...current,
@@ -555,119 +727,143 @@ export class SectionService {
       });
       delete (restored as { archivedAt?: string }).archivedAt;
       await this.dependencies.sections.update(restored);
+      // `live.length` is the right **order** — last — but not necessarily the right position on a
+      // hand-edited sparse page (§14), where siblings numbered 0, 5, 7 would sort the returning
+      // section second. Renumbering the combined list makes "appended" true of the order as well
+      // as of the intent, and it is what the captured placement then describes.
+      await renumberPlacements(
+        this.dependencies,
+        this.dependencies.clock,
+        [...live, { kind: 'section', value: restored }],
+        { kind: 'section', id },
+      );
 
       const owned = ownedKindOf(current.type);
+      const rows: UndoRowChange[] = [];
       if (owned !== undefined) {
-        for (const row of await this.rowsOf(current.id, owned)) {
+        for (const row of await rowsOf(this.dependencies, current.id, owned)) {
+          // Exactly the rows this section took down with it. A row archived on its own carries no
+          // marker and stays archived, which is what makes this an exact restore — and what makes
+          // the captured footprint the exact set Undo puts back.
           if (row.archivedWithSectionId !== current.id) continue;
           const next = { ...row };
           delete next.archivedAt;
           delete next.archivedWithSectionId;
+          rows.push(rowChangeOf(owned, row, next));
           await this.writeRow(owned, next);
         }
       }
 
-      await this.record(actor, restored, 'project.section_restored', 'Restored');
-      return restored;
+      const final = await this.require(actor, id);
+      await this.record(actor, final, 'project.section_restored', 'Restored');
+      const operation = await this.dependencies.history.record(actor, {
+        projectId: final.projectId,
+        label: `Restored the ${nameOf(final)} section`,
+        operation: captureSectionRestore({
+          section: final,
+          archivedAt,
+          oldPosition,
+          placement: snapshotPlacement(await this.placementsOnPage(final.pageId), { kind: 'section', id }),
+          rows,
+        }),
+      });
+      return { section: final, operation };
     });
   }
 
+  private repeatRemoval(sectionId: SectionId, receipt: OperationReceipt): DomainRuleError {
+    const details = SectionAlreadyRemovedDetailsSchema.parse({ reason: 'section_already_removed', sectionId, operation: receipt });
+    return new DomainRuleError(
+      `section_already_removed: this removal already committed; use undo_operation with historyId "${receipt.historyId}", ` +
+        `actionId "${receipt.actionId}" and expectedRevision ${receipt.revision} before ${receipt.expiresAt}`,
+      details,
+    );
+  }
+
+  /** Content policy decides retention for recovery; references independently protect integrity. */
   /**
-   * Cascade or reassign, decided against the rows that are still *live*: an archived row is
-   * already unrendered, so it neither forces a policy nor needs archiving twice. Reassign
-   * still repoints the archived ones — they keep a live container to come back to, and
-   * their `archivedWithTaskId` groups move whole, because a subtask shares its parent's
-   * section.
+   * The two verdicts one removal needs, from one read of the rows and shortcuts.
    *
-   * No live rows means no question to ask, so the section archives with no policy. That is
-   * the second dangle the hard delete produced and no policy ever reached: a container
-   * holding only archived rows was deleted out from under them.
+   * They are **not** the same question. `archiveListed` is the Archive projection —
+   * `sectionRecoveryOf`, judged on what actually remains — and it is what a surface offers an
+   * Archive route on. `disposition` also keeps a section that only a canonical reference names:
+   * a shortcut pointing at it, or a row still assigned to it, needs the record to survive even
+   * though there is nothing in it for a person to recover. That gap is the real case behind
+   * `note-2026-09-15-006`: retained, correctly absent from Archive.
+   */
+  private async removalOutcome(
+    section: ProjectSection,
+  ): Promise<{ disposition: SectionRemovalDisposition; archiveListed: boolean }> {
+    const [tasks, reflections, shortcuts] = await Promise.all([
+      this.dependencies.tasks.list({ projectId: section.projectId, includeArchived: true }),
+      this.dependencies.reflections.list({ projectId: section.projectId, includeArchived: true }),
+      this.dependencies.shortcuts.list(),
+    ]);
+    const hasRowReference =
+      tasks.some((row) => row.sectionId === section.id || row.archivedWithSectionId === section.id) ||
+      reflections.some((row) => row.sectionId === section.id || row.archivedWithSectionId === section.id);
+    const hasShortcutReference = shortcuts.some((shortcut) => shortcut.sourceSectionId === section.id);
+    const archiveListed = sectionRecoveryOf(section, { tasks, reflections }).include;
+    return {
+      disposition: archiveListed || hasRowReference || hasShortcutReference ? 'retained' : 'deleted',
+      archiveListed,
+    };
+  }
+
+  /**
+   * A removal archives only the live rows it owns. Rows archived independently stay with their
+   * container and retain their own markers for the existing Archive recovery path.
+   *
+   * Returns the exact rows it changed for the history action.
    */
   private async settleRows(
-    actor: ActorContext,
     section: ProjectSection,
     owned: OwnedDataKind,
-    input: RemoveSectionInput,
     archivedAt: string,
-  ): Promise<void> {
-    const rows = await this.rowsOf(section.id, owned);
+  ): Promise<SettledRows> {
+    const rows = await rowsOf(this.dependencies, section.id, owned);
     const live = rows.filter((row) => row.archivedAt === undefined);
-    if (live.length === 0) return;
-
-    if (input.policy === undefined) {
-      // The sentence stays for MCP and `curl` callers, who have no UI to compose one. The
-      // details are what let a UI ask its own question — see `SectionRemovalRefusalDetails`.
-      throw new DomainRuleError(
-        `section "${section.id}" still holds ${live.length} ${owned}; removing it needs a policy of "cascade" or "reassign"`,
-        { reason: 'section_not_empty', liveRowCount: live.length } satisfies SectionRemovalRefusalDetails,
-      );
+    if (live.length === 0) return NOTHING_SETTLED;
+    const changes = [];
+    for (const row of live) {
+      // The marker makes the cascade reversible: `restoreSection` brings back exactly the rows
+      // naming this section, and nothing else it happened to hold.
+      const next = { ...row, archivedAt, archivedWithSectionId: section.id };
+      changes.push(rowChangeOf(owned, row, next));
+      await this.writeRow(owned, next);
     }
-
-    if (input.policy === 'cascade') {
-      // The marker is what makes the cascade reversible: `restoreSection` brings back
-      // exactly the rows naming this section, and nothing else it happened to hold.
-      for (const row of live) {
-        await this.writeRow(owned, { ...row, archivedAt, archivedWithSectionId: section.id });
-      }
-      return;
-    }
-
-    if (input.reassignToSectionId === undefined) {
-      throw new DomainRuleError('reassigning rows needs a reassignToSectionId');
-    }
-    if (input.reassignToSectionId === section.id) {
-      throw new DomainRuleError('a section cannot take over its own rows');
-    }
-    const target = await this.require(actor, input.reassignToSectionId);
-    // `require` is the unchecked lookup, so it finds archived sections deliberately —
-    // without this, reassign would move live rows into a container that has left the canvas.
-    assertLive(target);
-    if (target.projectId !== section.projectId) {
-      throw new DomainRuleError('rows can only be reassigned within their own project');
-    }
-    if (target.type !== section.type) {
-      throw new DomainRuleError(`rows can only be reassigned to another ${section.type} section`);
-    }
-    // Deliberately **no** page-equality rule: §31 says "another container of the same type" and
-    // states no page constraint, and both containers render what they hold — see
-    // docs/decisions/2026-09-reassign-may-cross-pages.md. The destination still has to be
-    // somewhere a write may land, which is the one page rule that applies.
-    await this.assertWritablePage(target);
-    for (const row of rows) await this.writeRow(owned, { ...row, sectionId: target.id });
+    return { appliedPolicy: 'cascade', rows: changes };
   }
 
-  private async rowsOf(sectionId: SectionId, owned: OwnedDataKind): Promise<OwnedRow[]> {
-    return owned === 'tasks'
-      ? this.dependencies.tasks.list({ sectionId, includeArchived: true })
-      : this.dependencies.reflections.list({ sectionId, includeArchived: true });
-  }
-
-  /**
-   * Rows are written through the schema rather than through the owning service: this is one
-   * step of a removal the caller has already been permitted for, and routing it back through
-   * `TaskService` would make `SectionService` depend on the services that depend on it.
-   * `updatedAt` moves, so a live client sees the row change.
-   */
+  /** See `owned-rows.ts` for why rows are written through the schema, not their service. */
   private async writeRow(owned: OwnedDataKind, row: OwnedRow): Promise<void> {
-    const updatedAt = this.dependencies.clock.now().toISOString();
-    if (owned === 'tasks') await this.dependencies.tasks.update(TaskSchema.parse({ ...row, updatedAt }));
-    else await this.dependencies.reflections.update(ReflectionSchema.parse({ ...row, updatedAt }));
+    await writeRow(this.dependencies, this.dependencies.clock, owned, row);
   }
 
   private async commit(
     actor: ActorContext,
     current: ProjectSection,
     next: ProjectSection,
-    action: SectionAction,
-    verb: string,
-  ): Promise<ProjectSection> {
-    // A no-op write records nothing, matching `TaskService` and `ProjectService`.
-    if (JSON.stringify({ ...next, updatedAt: current.updatedAt }) === JSON.stringify(current)) return current;
+    changes: SectionFieldChange[],
+  ): Promise<SectionWriteResult> {
+    // A no-op write records nothing and returns no receipt, even when config object keys arrived
+    // in a different order.
+    if (changes.length === 0) return { section: current, operation: null };
 
     const updated = ProjectSectionSchema.parse({ ...next, updatedAt: this.dependencies.clock.now().toISOString() });
     await this.dependencies.sections.update(updated);
-    await this.record(actor, updated, action, verb);
-    return updated;
+    await this.record(actor, updated, 'project.section_updated', 'Updated');
+    const operation = await this.dependencies.history.record(actor, {
+      projectId: current.projectId,
+      label: sectionUpdateLabel(current, updated, changes),
+      operation: captureSectionUpdate({
+        sectionId: current.id,
+        projectId: current.projectId,
+        pageId: current.pageId,
+        changes,
+      }),
+    });
+    return { section: updated, operation };
   }
 
   /**

@@ -249,6 +249,31 @@ describe('DashboardService.load', () => {
 });
 
 describe('DashboardService: §24’s Recent Agent Activity', () => {
+  it('keeps a removed project’s creation name and leaves the old task event without a project name', async () => {
+    const harness = buildHarness();
+    const agent = agentActorFor(0, ['projects.write', 'tasks.write']);
+    const created = await harness.projectWriteService.create(agent, {
+      workspaceId: agent.workspaceId, kind: 'root', name: 'Removed dashboard project',
+    });
+    const task = await harness.taskWriteService.create(agent, { projectId: created.project.id, title: 'Old agent task' });
+    const undo = async (receipt: { historyId: string; actionId: string }) => {
+      const history = (await harness.operationHistories.find(receipt.historyId as never))!;
+      return harness.operationHistoryService.transition(agent, history.id, {
+        actionId: receipt.actionId as never, direction: 'undo', expectedRevision: history.revision,
+      });
+    };
+    await undo(task.operation);
+    await undo(created.operation!);
+
+    const { recentAgentActivity } = await harness.dashboardService.load(harness.actor, {});
+    const creationUndo = recentAgentActivity.find(({ action }) => action === 'project.creation_undone');
+    const taskCreation = recentAgentActivity.find(({ action }) => action === 'task.created');
+
+    expect(creationUndo).toMatchObject({ projectName: 'Removed dashboard project', entityTitle: 'Removed dashboard project' });
+    expect(taskCreation).toMatchObject({ entityTitle: 'Old agent task' });
+    expect(taskCreation).not.toHaveProperty('projectName');
+  });
+
   it('carries only agent events, newest first', async () => {
     const harness = buildHarness();
     await harness.taskService.create(harness.actor, { projectId: MINE, title: 'A person did this' });

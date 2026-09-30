@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { CdkDrag } from '@angular/cdk/drag-drop';
 import { By } from '@angular/platform-browser';
@@ -10,6 +10,7 @@ import {
   TaskSchema,
   type Project,
   type ProjectSection,
+  type SectionWriteResult,
   type ResolvedSectionShortcut,
   type SectionId,
   type ShortcutSource,
@@ -188,6 +189,12 @@ const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector:
 const queryAll = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector: string) =>
   [...fixture.nativeElement.querySelectorAll(selector)] as HTMLElement[];
 
+const completeDeferredBlocks = async (fixture: Awaited<ReturnType<typeof render>>['fixture']): Promise<void> => {
+  const blocks = await fixture.getDeferBlocks();
+  await Promise.all(blocks.map((block) => block.render(DeferBlockState.Complete)));
+  fixture.detectChanges();
+};
+
 describe('ProjectCanvas (§27, §31, §32)', () => {
   it('reloads for page inputs without tracking signals read inside the store load', async () => {
     const internalState = signal(0);
@@ -289,6 +296,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     const { fixture, gateway } = await render({ sections: [] });
     query(fixture, '[data-empty-canvas-add]')!.click();
     fixture.detectChanges();
+    await completeDeferredBlocks(fixture);
     const submit = query(fixture, '[data-create-section-submit]') as HTMLButtonElement;
     submit.click();
     submit.click();
@@ -465,6 +473,100 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(document.activeElement).toBe(query(fixture, '[data-section-item][data-section-id="section-text"] [data-section-drag-handle]'));
   });
 
+  it('moves focus from the removed section to the recovery notice’s Open Archive, and offers no Undo here', async () => {
+    const { fixture } = await render();
+    const remove = query(fixture, '[data-section-id="section-text"] [data-section-remove]') as HTMLButtonElement;
+    remove.focus();
+    remove.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await completeDeferredBlocks(fixture);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // Slice 41: Undo is the header's; the notice keeps only recovery the header cannot offer.
+    expect(query(fixture, '[data-undo-action]')).toBeNull();
+    expect(query(fixture, '[data-recovery-message]')?.textContent).toBe('Removed the Rich Text section. Undo is in the header.');
+    const archive = query(fixture, '[data-open-archive]') as HTMLButtonElement;
+    expect(archive).not.toBeNull();
+    expect(document.activeElement).toBe(archive);
+  });
+
+  it('does not steal focus when a removal was started outside its section frame', async () => {
+    const { fixture } = await render();
+
+    query(fixture, '[data-section-id="section-text"] [data-section-remove]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-recovery-notice]')).not.toBeNull();
+    expect(document.activeElement).not.toBe(query(fixture, '[data-open-archive]'));
+  });
+
+  it('returns focus to surviving canvas content when the recovery notice is dismissed', async () => {
+    const { fixture } = await render();
+    const remove = query(fixture, '[data-section-id="section-text"] [data-section-remove]') as HTMLButtonElement;
+    remove.focus();
+    remove.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    query(fixture, '[data-dismiss-recovery-notice]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(query(fixture, '[data-recovery-notice]')).toBeNull();
+    expect(document.activeElement).toBe(query(fixture, '[data-section-title]'));
+  });
+
+  it('dismisses the recovery notice and remove failures independently and focuses the remaining action', async () => {
+    const { fixture, gateway } = await render();
+    const removeSection = gateway.sections.remove.bind(gateway.sections);
+    gateway.sections.remove = async (id) => {
+      if (id === 'section-tasks') throw new GatewayError('unreachable', 0, 'Task removal response was lost');
+      return removeSection(id);
+    };
+    query(fixture, '[data-section-id="section-text"] [data-section-remove]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    query(fixture, '[data-section-id="section-tasks"] [data-section-remove]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-open-archive]')).not.toBeNull();
+    expect(query(fixture, '[data-retry-remove]')).not.toBeNull();
+
+    query(fixture, '[data-dismiss-removal-error]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-open-archive]')).not.toBeNull();
+    expect(document.activeElement).toBe(query(fixture, '[data-open-archive]'));
+
+    query(fixture, '[data-section-id="section-tasks"] [data-section-remove]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    query(fixture, '[data-dismiss-recovery-notice]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(query(fixture, '[data-recovery-notice]')).toBeNull();
+    expect(query(fixture, '[data-retry-remove]')).not.toBeNull();
+    expect(document.activeElement).toBe(query(fixture, '[data-retry-remove]'));
+  });
+
+  it('shows no notice after a forward write whose read succeeded: the header label is its confirmation', async () => {
+    const { fixture } = await render();
+    const grip = query(fixture, '[data-section-id="section-text"] [data-section-drag-handle]')!;
+    grip.focus();
+    grip.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    await completeDeferredBlocks(fixture);
+    fixture.detectChanges();
+
+    expect(queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId'])).toEqual(['section-tasks', 'section-text']);
+    expect(query(fixture, '[data-recovery-notice]')).toBeNull();
+    expect(query(fixture, '[data-undo-action]')).toBeNull();
+  });
+
   it('renders a removable fallback for a section type nothing registers', async () => {
     // `data.json` is hand-editable and outlives any one registry, so this is a real state.
     const { fixture, gateway } = await render({
@@ -477,7 +579,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     await fixture.whenStable();
 
     // No policy: an unknown type reads as a view, so removing it can never touch data.
-    expect(gateway.argumentTo('sections.remove')).toEqual({ id: 'section-unknown', input: {} });
+    expect(gateway.argumentTo('sections.remove')).toEqual({ id: 'section-unknown' });
   });
 
   it('inserts a named section before the selected anchor from the contextual dialog', async () => {
@@ -600,50 +702,22 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     expect(query(fixture, '[data-section-error]')?.textContent).toContain('could not reach');
   });
 
-  it('asks how to remove a container that still holds rows, and removes a view outright', async () => {
+  it('removes a live-row container in one request without a policy dialog', async () => {
     const { fixture, gateway } = await render({
       sections: [
         section('section-tasks', 'task-list', 0),
-        section('section-tasks-copy', 'task-list', 1),
-        section('section-progress', 'progress', 2),
       ],
-      failOn: {
-        'sections.remove': new GatewayError(
-          'rule_violation',
-          409,
-          'section "section-tasks" still holds 2 tasks; removing it needs a policy of "cascade" or "reassign"',
-          // The discriminator is what opens the dialog at all; without it the store would
-          // rethrow and this would render the page's error line instead.
-          { reason: 'section_not_empty', liveRowCount: 2 },
-        ),
-      },
     });
-    const frames = queryAll(fixture, '[data-section-frame]');
-    frames[0]!.querySelector<HTMLElement>('[data-section-remove]')!.click();
+    const remove = query(fixture, '[data-section-remove]') as HTMLButtonElement;
+    remove.focus();
+    remove.click();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    // The count is the domain's, so it cannot drift from the rule; the sentence is the UI's,
-    // so it says "2 tasks" rather than naming a section id and a policy vocabulary.
-    const dialog = query(fixture, '[data-section-removal-dialog]');
-    expect(dialog).not.toBeNull();
-    expect(query(fixture, '[data-section-removal-message]')?.textContent).toContain(
-      'It still holds 2 tasks.',
-    );
-    expect(dialog?.textContent).toContain('Remove “Task List”?');
-    expect(dialog?.textContent).not.toContain('section-tasks');
-    // A refusal is a question, not an error to park in the page's error line.
-    expect(query(fixture, '[data-section-error]')).toBeNull();
-    // Reassign is offered only because a second task-list exists to take the rows.
-    expect(query(fixture, '[data-section-removal-reassign]')).not.toBeNull();
-
-    query(fixture, '[data-section-removal-cascade]')!.click();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    expect(gateway.calls.filter(({ method }) => method === 'sections.remove').at(-1)?.argument).toMatchObject({
-      input: { policy: 'cascade' },
-    });
+    expect(gateway.calls.filter(({ method }) => method === 'sections.remove').at(-1)?.argument).toEqual({ id: 'section-tasks' });
+    expect(query(fixture, '[data-section-removal-dialog]')).toBeNull();
+    expect(query(fixture, '[data-section-frame]')).toBeNull();
+    expect(document.activeElement).toBe(query(fixture, '[data-open-archive]'));
   });
 
   it('reloads every duplicated Progress view after one changes the canonical formula', async () => {
@@ -799,7 +873,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   });
 
   it('does not remount the new canvas when the page left behind rejects a move', async () => {
-    const gate = deferred<ProjectSection>();
+    const gate = deferred<SectionWriteResult>();
     const { fixture, gateway } = await render({
       sections: [
         section('section-text', 'rich-text', 0),

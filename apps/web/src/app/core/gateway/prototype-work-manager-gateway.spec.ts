@@ -3,14 +3,20 @@ import {
   ProjectArchiveResultSchema,
   ProjectCompletedWorkResultSchema,
   ProjectJournalResultSchema,
+  ProjectWriteResultSchema,
   ResolvedSectionShortcutSchema,
+  SectionRemovalResultSchema,
   ShortcutSourceSchema,
+  OperationHistorySummarySchema,
+  OperationHistoryTransitionResultSchema,
   type CreateTaskInput,
   type Identity,
   type ProjectId,
   type ReflectionId,
   type SectionId,
   type TaskId,
+  type OperationActionId,
+  type OperationHistoryId,
 } from '@cwm/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PROTOTYPE_API_BASE_URL } from '../config/prototype-config';
@@ -55,6 +61,32 @@ const projectSection = {
   createdAt: at,
   updatedAt: at,
 };
+
+const removalResult = SectionRemovalResultSchema.parse({
+  section: { ...projectSection, archivedAt: at },
+  operation: {
+    historyId: 'history-1', actionId: 'operation-1', operation: 'section.remove', revision: 1, label: 'Removed Kickoff', createdAt: at,
+    expiresAt: '2026-08-02T16:00:00.000Z',
+  },
+  archiveListed: true,
+});
+const historySummary = OperationHistorySummarySchema.parse({
+  projectId: 'project-1', historyId: 'history-1', revision: 2, undo: null,
+  redo: { actionId: 'operation-1', operation: 'section.remove', label: 'Removed Kickoff', expiresAt: '2026-08-02T16:00:00.000Z', blockedBy: null },
+  blockedBy: null,
+});
+const transitionResult = OperationHistoryTransitionResultSchema.parse({
+  direction: 'undo',
+  actionId: 'operation-1',
+  result: {
+    operation: 'section.remove', outcome: 'restored', section: projectSection,
+    placement: { pageId: 'page-project-1', index: 0, strategy: 'index', pageEnabled: true }, restoredRowCount: 0,
+  },
+  summary: historySummary,
+});
+const receiptOf = (operation: string, revision: number) => ({
+  historyId: 'history-1', actionId: `operation-${revision}`, operation, revision, label: operation, createdAt: at, expiresAt: '2026-08-02T16:00:00.000Z',
+});
 
 const task = {
   id: 'task-1',
@@ -179,9 +211,25 @@ afterEach(() => {
 });
 
 describe('PrototypeWorkManagerGateway — projects', () => {
+  it('reads and validates workspace archived projects under the current persona', async () => {
+    const subject = gateway();
+    fetchMock.mockImplementation(jsonResponse({ items: [{ project: { ...project, status: 'archived' }, breadcrumb: [{ projectId: project.id, name: project.name }] }] }));
+    const result = await subject.projects.archived();
+    expect(result.items[0]?.project.id).toBe(project.id);
+    expect(lastCall().url).toBe('http://host.test/api/archived-projects');
+    expect((lastCall().init.headers as Record<string, string>)['x-prototype-user']).toBe('user-demo');
+    fetchMock.mockImplementation(jsonResponse({ items: [{ project, breadcrumb: [] }] }));
+    await expect(subject.projects.archived()).rejects.toMatchObject({ code: 'invalid_response' });
+  });
   it('creates a direct child project through the project gateway', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...project, id: 'project-child', kind: 'subproject', parentProjectId: 'project-1' }, 201));
-    await gateway().projects.create({ workspaceId: 'workspace-demo' as never, kind: 'subproject', parentProjectId: 'project-1' as ProjectId, name: 'Child' });
+    const response = ProjectWriteResultSchema.parse({
+      project: { ...project, id: 'project-child', kind: 'subproject', parentProjectId: 'project-1' },
+      operation: { ...receiptOf('project.add', 1), label: 'Created "Child"' },
+    });
+    fetchMock.mockImplementation(jsonResponse(response, 201));
+    const created = await gateway().projects.create({ workspaceId: 'workspace-demo' as never, kind: 'subproject', parentProjectId: 'project-1' as ProjectId, name: 'Child' });
+    expect(created.project.id).toBe('project-child');
+    expect(created.operation?.operation).toBe('project.add');
     expect(lastCall().url).toBe('http://host.test/api/projects');
     expect(lastCall().init.method).toBe('POST');
   });
@@ -218,22 +266,40 @@ describe('PrototypeWorkManagerGateway — projects', () => {
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1');
   });
 
-  it('updates a project layout through PATCH and validates the answer (§28)', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...project, projectLayoutMode: 'grid' }));
+  it('updates a project layout through PATCH and validates the { project, operation } answer (§28, Slice 39)', async () => {
+    const receipt = {
+      historyId: 'history-1', actionId: 'operation-1', operation: 'project.update', revision: 1,
+      label: 'Updated "Project"', createdAt: '2026-08-28T09:00:00.000Z', expiresAt: '2026-08-29T09:00:00.000Z',
+    };
+    fetchMock.mockImplementation(jsonResponse({ project: { ...project, projectLayoutMode: 'grid' }, operation: receipt }));
 
     const updated = await gateway().projects.update('project-1' as ProjectId, { projectLayoutMode: 'grid' });
 
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1');
     expect(lastCall().init.method).toBe('PATCH');
     expect(JSON.parse(lastCall().init.body as string)).toEqual({ projectLayoutMode: 'grid' });
-    expect(updated.projectLayoutMode).toBe('grid');
+    expect(updated.project.projectLayoutMode).toBe('grid');
+    expect(updated.operation).toEqual(receipt);
+    // Exactly one request: a committed response is never re-sent.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects an updated project body outside the shared contract', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...project, projectLayoutMode: 'canvas' }));
+  it('accepts a null receipt for a no-op PATCH', async () => {
+    fetchMock.mockImplementation(jsonResponse({ project, operation: null }));
 
+    expect((await gateway().projects.update('project-1' as ProjectId, { name: project.name })).operation).toBeNull();
+  });
+
+  it('rejects an updated project body outside the shared contract, including the old bare project', async () => {
+    const subject = gateway();
+    fetchMock.mockImplementation(jsonResponse({ project: { ...project, projectLayoutMode: 'canvas' }, operation: null }));
     await expect(
-      gateway().projects.update('project-1' as ProjectId, { projectLayoutMode: 'grid' }),
+      subject.projects.update('project-1' as ProjectId, { projectLayoutMode: 'grid' }),
+    ).rejects.toBeInstanceOf(GatewayError);
+
+    fetchMock.mockImplementation(jsonResponse({ ...project, projectLayoutMode: 'grid' }));
+    await expect(
+      subject.projects.update('project-1' as ProjectId, { projectLayoutMode: 'grid' }),
     ).rejects.toBeInstanceOf(GatewayError);
   });
 });
@@ -249,7 +315,7 @@ describe('PrototypeWorkManagerGateway — Slice 10 reads and reflections', () =>
   });
 
   it('lists, creates, and updates reflections with encoded paths and bodies', async () => {
-    fetchMock.mockImplementationOnce(jsonResponse([reflection])).mockImplementationOnce(jsonResponse(reflection, 201)).mockImplementationOnce(jsonResponse({ ...reflection, title: 'Edited' }));
+    fetchMock.mockImplementationOnce(jsonResponse([reflection])).mockImplementationOnce(jsonResponse({ reflection, operation: receiptOf('reflection.add', 1) }, 201)).mockImplementationOnce(jsonResponse({ reflection: { ...reflection, title: 'Edited' }, operation: receiptOf('reflection.update', 2) }));
     const subject = gateway();
     await subject.reflections.list('project-1' as ProjectId);
     expect(lastCall().url).toBe('http://host.test/api/reflections?projectId=project-1');
@@ -279,22 +345,21 @@ describe('PrototypeWorkManagerGateway — Slice 10 reads and reflections', () =>
   });
 
   it('archives and restores a reflection through matching routes, parsing each answer', async () => {
-    // Unlike `tasks.archive`, both answers are the caller's: the list is repainted from the
-    // row that comes back rather than from a re-read.
+    // Both lifecycle writes preserve the entity and history receipt.
     fetchMock
-      .mockImplementationOnce(jsonResponse({ ...reflection, archivedAt: at }))
-      .mockImplementationOnce(jsonResponse(reflection));
+      .mockImplementationOnce(jsonResponse({ reflection: { ...reflection, archivedAt: at }, operation: receiptOf('reflection.archive', 3) }))
+      .mockImplementationOnce(jsonResponse({ reflection, operation: receiptOf('reflection.restore', 4) }));
     const subject = gateway();
 
     const archived = await subject.reflections.archive('reflection-1' as ReflectionId);
     expect(lastCall().url).toBe('http://host.test/api/reflections/reflection-1/archive');
     expect(lastCall().init.method).toBe('POST');
-    expect(archived.archivedAt).toBe(at);
+    expect(archived.reflection.archivedAt).toBe(at);
 
     const restored = await subject.reflections.restore('reflection-1' as ReflectionId);
     expect(lastCall().url).toBe('http://host.test/api/reflections/reflection-1/restore');
     expect(lastCall().init.method).toBe('POST');
-    expect(restored.archivedAt).toBeUndefined();
+    expect(restored.reflection.archivedAt).toBeUndefined();
   });
 
   it('reads §34’s chronology under its root, with the persona header', async () => {
@@ -374,19 +439,23 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
     );
   });
 
-  it('restores through the dedicated route and parses the section it answers', async () => {
-    fetchMock.mockImplementation(jsonResponse(projectSection));
+  it('restores through the dedicated route and parses the section and receipt it answers', async () => {
+    fetchMock.mockImplementation(jsonResponse({ section: projectSection, operation: receiptOf('section.restore', 1) }));
 
     const restored = await gateway().sections.restore('section-1' as SectionId);
 
     expect(lastCall().url).toBe('http://host.test/api/sections/section-1/restore');
     expect(lastCall().init.method).toBe('POST');
     expect(lastCall().init.body).toBeUndefined();
-    expect(restored.id).toBe('section-1');
+    expect(restored.section.id).toBe('section-1');
+    expect(restored.operation?.operation).toBe('section.restore');
   });
 
   it('creates with a JSON body and accepts 201', async () => {
-    fetchMock.mockImplementation(jsonResponse(projectSection, 201));
+    fetchMock.mockImplementation(jsonResponse({
+      section: projectSection,
+      operation: receiptOf('section.add', 2),
+    }, 201));
 
     await gateway().sections.create('project-1' as ProjectId, { type: 'rich-text', config: { text: '' } });
 
@@ -396,28 +465,37 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
   });
 
   it('updates through PATCH, addressing the section directly', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...projectSection, collapsed: true }));
+    fetchMock.mockImplementation(jsonResponse({
+      section: { ...projectSection, collapsed: true },
+      operation: receiptOf('section.update', 3),
+    }));
 
     const updated = await gateway().sections.update('section-1' as SectionId, { collapsed: true });
 
     expect(lastCall().url).toBe('http://host.test/api/sections/section-1');
     expect(lastCall().init.method).toBe('PATCH');
-    expect(updated.collapsed).toBe(true);
+    expect(updated.section.collapsed).toBe(true);
   });
 
   it('moves through the dedicated route and validates the authoritative section (§32)', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...projectSection, position: 2 }));
+    fetchMock.mockImplementation(jsonResponse({
+      section: { ...projectSection, position: 2 },
+      operation: receiptOf('section.move', 4),
+    }));
 
     const moved = await gateway().sections.move('section-1' as SectionId, { position: 2 });
 
     expect(lastCall().url).toBe('http://host.test/api/sections/section-1/move');
     expect(lastCall().init.method).toBe('POST');
     expect(JSON.parse(lastCall().init.body as string)).toEqual({ position: 2 });
-    expect(moved.position).toBe(2);
+    expect(moved.section.position).toBe(2);
   });
 
   it('rejects a moved section body outside the shared contract', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...projectSection, position: -1 }));
+    fetchMock.mockImplementation(jsonResponse({
+      section: { ...projectSection, position: -1 },
+      operation: null,
+    }));
 
     await expect(gateway().sections.move('section-1' as SectionId, { position: 1 })).rejects.toBeInstanceOf(
       GatewayError,
@@ -425,27 +503,113 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
   });
 
   it('duplicates with no body and accepts 201', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...projectSection, id: 'section-2', position: 1 }, 201));
+    fetchMock.mockImplementation(jsonResponse({
+      section: { ...projectSection, id: 'section-2', position: 1 },
+      operation: receiptOf('section.add', 1),
+    }, 201));
 
     const copy = await gateway().sections.duplicate('section-1' as SectionId);
 
     expect(lastCall().url).toBe('http://host.test/api/sections/section-1/duplicate');
     expect(lastCall().init.body).toBeUndefined();
-    expect(copy.id).toBe('section-2');
+    expect(copy.section.id).toBe('section-2');
+    expect(copy.operation.operation).toBe('section.add');
   });
 
-  it('removes through DELETE and tolerates the host’s empty 204', async () => {
-    // Reading `.json()` off a 204 throws; the remove path must not go looking for a body.
-    fetchMock.mockImplementation(() => new Response(null, { status: 204 }));
+  it('removes through DELETE and validates the returned receipt contract', async () => {
+    fetchMock.mockImplementation(jsonResponse(removalResult));
 
-    await expect(gateway().sections.remove('section-1' as SectionId)).resolves.toBeUndefined();
+    await expect(gateway().sections.remove('section-1' as SectionId)).resolves.toEqual(removalResult);
 
     expect(lastCall().url).toBe('http://host.test/api/sections/section-1');
     expect(lastCall().init.method).toBe('DELETE');
   });
 
+  it('summary and transition hit their routes and validate the committed result', async () => {
+    const adapter = gateway();
+    fetchMock.mockImplementation(jsonResponse(historySummary));
+    await expect(adapter.history.summary('project-1' as ProjectId)).resolves.toEqual(historySummary);
+    expect(lastCall().url).toBe('http://host.test/api/projects/project-1/history');
+    expect(lastCall().init.method).toBe('GET');
+
+    fetchMock.mockImplementation(jsonResponse(transitionResult));
+    const input = { actionId: 'operation-1' as OperationActionId, direction: 'undo' as const, expectedRevision: 1 };
+    await expect(adapter.history.transition('history-1' as OperationHistoryId, input)).resolves.toEqual(transitionResult);
+
+    expect(lastCall().url).toBe('http://host.test/api/history/history-1/transition');
+    expect(lastCall().init.method).toBe('POST');
+    expect(JSON.parse(lastCall().init.body as string)).toEqual(input);
+  });
+
+  /** Slice 33 (Refactor §26.9): edit refusals cross the adapter whole, and never become recovery. */
+  it('preserves history refusal details and never invents Archive recovery', async () => {
+    const base = { historyId: 'history-1', actionId: 'operation-3', summary: historySummary };
+    const refusals = [
+      {
+        status: 409,
+        message: 'history_conflict: Undo of the update on Notes was refused: field-changed: section "Notes" [section-1]',
+        details: {
+          reason: 'history_conflict', ...base,
+          conflicts: [{ entityType: 'section', id: 'section-1', title: 'Notes', problem: 'field-changed', nextStep: 'change-by-hand' }],
+        },
+      },
+      {
+        status: 409,
+        message: 'history_blocked: project "Kitchen" [project-kitchen] is archived; reactivate it before undoing this operation',
+        details: { reason: 'history_blocked', ...base, blockingProjectId: 'project-kitchen', blockingProjectTitle: 'Kitchen' },
+      },
+      {
+        status: 409,
+        message: 'history_expired: this action expired at 2026-08-02T16:00:00.000Z; make the change again by hand instead',
+        details: { reason: 'history_expired', ...base, expiresAt: '2026-08-02T16:00:00.000Z' },
+      },
+      {
+        status: 409,
+        message: 'history_revision_stale: this history is at revision 2, not 1; read the summary and try again',
+        details: { reason: 'history_revision_stale', ...base },
+      },
+      { status: 404, message: 'operationHistory "history-foreign" was not found', details: undefined },
+    ] as const;
+
+    const adapter = gateway();
+    for (const refusal of refusals) {
+      fetchMock.mockImplementation(jsonResponse({
+        error: refusal.status === 404 ? 'not_found' : 'rule_violation',
+        message: refusal.message,
+        ...(refusal.details === undefined ? {} : { details: refusal.details }),
+        // A stray success-shaped field on an error must not turn it into a result.
+        section: projectSection,
+      }, refusal.status));
+
+      const historyId = (refusal.details?.historyId ?? 'history-foreign') as OperationHistoryId;
+      const error = await adapter.history.transition(historyId, { actionId: 'operation-3' as OperationActionId, direction: 'undo', expectedRevision: 1 })
+        .then(() => null, (thrown: unknown) => thrown);
+
+      expect(error).toBeInstanceOf(GatewayError);
+      expect(error).toMatchObject({ code: refusal.status === 404 ? 'not_found' : 'rule_violation', status: refusal.status, message: refusal.message });
+      expect((error as GatewayError).details).toEqual(refusal.details);
+      expect(JSON.stringify((error as GatewayError).details ?? {})).not.toMatch(/archive|restore_section/i);
+    }
+
+    // A 200 whose body is not a transition result is an adapter failure, never a silent success.
+    fetchMock.mockImplementation(jsonResponse({ undoId: 'undo-update', operation: 'section.update', outcome: 'restored' }));
+    await expect(adapter.history.transition('history-1' as OperationHistoryId, { actionId: 'operation-3' as OperationActionId, direction: 'undo', expectedRevision: 1 }))
+      .rejects.toMatchObject({ code: 'invalid_response' });
+  });
+
+  it('rejects a removal receipt body outside the shared contract', async () => {
+    fetchMock.mockImplementation(jsonResponse({ section: projectSection, undo: { undoId: 'undo-1' }, archiveListed: true }));
+
+    await expect(gateway().sections.remove('section-1' as SectionId)).rejects.toMatchObject({
+      code: 'invalid_response', status: 0,
+    });
+  });
+
   it('rejects a section body that is not its contract (§11)', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...projectSection, columnSpan: 7 }));
+    fetchMock.mockImplementation(jsonResponse({
+      section: { ...projectSection, columnSpan: 7 },
+      operation: null,
+    }));
 
     await expect(gateway().sections.update('section-1' as SectionId, { columnSpan: 6 })).rejects.toBeInstanceOf(
       GatewayError,
@@ -458,10 +622,15 @@ describe('PrototypeWorkManagerGateway — shortcuts (§27)', () => {
     fetchMock
       .mockImplementationOnce(jsonResponse([shortcut]))
       .mockImplementationOnce(jsonResponse([shortcutSource]))
-      .mockImplementationOnce(jsonResponse(shortcut, 201))
-      .mockImplementationOnce(jsonResponse({ ...shortcut, collapsed: true }))
-      .mockImplementationOnce(jsonResponse({ ...shortcut, position: 2 }))
-      .mockImplementationOnce(() => new Response(null, { status: 204 }));
+      .mockImplementationOnce(jsonResponse({ shortcut, operation: receiptOf('shortcut.add', 1) }, 201))
+      .mockImplementationOnce(jsonResponse({ shortcut: { ...shortcut, collapsed: true }, operation: receiptOf('shortcut.update', 2) }))
+      .mockImplementationOnce(jsonResponse({ shortcut: { ...shortcut, position: 2 }, operation: null }))
+      .mockImplementationOnce(jsonResponse({
+        shortcutId: shortcut.id,
+        projectId: 'project-1',
+        pageId: shortcut.pageId,
+        operation: receiptOf('shortcut.remove', 3),
+      }));
     const subject = gateway();
 
     expect(await subject.shortcuts.list('project-1' as ProjectId, { pageId: 'page-project-1' as never })).toEqual([
@@ -489,9 +658,11 @@ describe('PrototypeWorkManagerGateway — shortcuts (§27)', () => {
     expect(lastCall().url).toBe('http://host.test/api/shortcuts/shortcut-1/move');
     expect(JSON.parse(lastCall().init.body as string)).toEqual({ position: 2 });
 
-    await subject.shortcuts.remove('shortcut-1' as never);
+    // A move that changed nothing answers the placement and a null receipt rather than a 204.
+    const removed = await subject.shortcuts.remove('shortcut-1' as never);
     expect(lastCall().url).toBe('http://host.test/api/shortcuts/shortcut-1');
     expect(lastCall().init.method).toBe('DELETE');
+    expect(removed).toMatchObject({ shortcutId: shortcut.id, operation: { operation: 'shortcut.remove' } });
   });
 });
 
@@ -516,7 +687,7 @@ describe('PrototypeWorkManagerGateway — tasks (§9, verbatim)', () => {
 
   // The host answers 201 here, not 200 — a `status !== 200` check would break on create.
   it('creates with a JSON body and accepts 201', async () => {
-    fetchMock.mockImplementation(jsonResponse(task, 201));
+    fetchMock.mockImplementation(jsonResponse({ task, operation: receiptOf('task.add', 1) }, 201));
     const input = { projectId: 'project-1', title: 'Water the plants' } as CreateTaskInput;
 
     const created = await gateway().tasks.create(input);
@@ -524,11 +695,11 @@ describe('PrototypeWorkManagerGateway — tasks (§9, verbatim)', () => {
     expect(lastCall().init.method).toBe('POST');
     expect(lastCall().init.body).toBe(JSON.stringify(input));
     expect((lastCall().init.headers as Record<string, string>)['content-type']).toBe('application/json');
-    expect(created.id).toBe('task-1');
+    expect(created.task.id).toBe('task-1');
   });
 
   it('updates through PATCH', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...task, title: 'Water the ferns' }));
+    fetchMock.mockImplementation(jsonResponse({ task: { ...task, title: 'Water the ferns' }, operation: receiptOf('task.update', 2) }));
 
     await gateway().tasks.update('task-1' as TaskId, { title: 'Water the ferns' });
 
@@ -537,35 +708,34 @@ describe('PrototypeWorkManagerGateway — tasks (§9, verbatim)', () => {
   });
 
   it('completes with no body — the host route carries none', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...task, status: 'done', completedAt: at }));
+    fetchMock.mockImplementation(jsonResponse({ task: { ...task, status: 'done', completedAt: at }, operation: receiptOf('task.update', 3) }));
 
     const completed = await gateway().tasks.complete('task-1' as TaskId);
 
     expect(lastCall().url).toBe('http://host.test/api/tasks/task-1/complete');
     expect(lastCall().init.method).toBe('POST');
     expect(lastCall().init.body).toBeUndefined();
-    expect(completed.status).toBe('done');
+    expect(completed.task.status).toBe('done');
   });
 
-  // §9 pins `Promise<void>`, but the host returns the task. Validate, then discard —
-  // the adapter never passes an unchecked body on, even one it throws away.
-  it('archives and resolves void', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...task, archivedAt: at }));
+  // Archive preserves the shared write envelope, including its operation receipt.
+  it('archives and preserves the row and operation receipt', async () => {
+    fetchMock.mockImplementation(jsonResponse({ task: { ...task, archivedAt: at }, operation: receiptOf('task.archive', 4) }));
 
-    await expect(gateway().tasks.archive('task-1' as TaskId)).resolves.toBeUndefined();
+    await expect(gateway().tasks.archive('task-1' as TaskId)).resolves.toEqual({ task: { ...task, archivedAt: at }, operation: receiptOf('task.archive', 4) });
   });
 
   // Restore is the undo archive lacks, and it does hand the row back: the caller that
   // reverses an archive needs the restored task, not a second read to find it.
   it('restores through the dedicated route and answers the task', async () => {
-    fetchMock.mockImplementation(jsonResponse(task));
+    fetchMock.mockImplementation(jsonResponse({ task, operation: receiptOf('task.restore', 5) }));
 
     const restored = await gateway().tasks.restore('task-1' as TaskId);
 
     expect(lastCall().url).toBe('http://host.test/api/tasks/task-1/restore');
     expect(lastCall().init.method).toBe('POST');
     expect(lastCall().init.body).toBeUndefined();
-    expect(restored.id).toBe('task-1');
+    expect(restored.task.id).toBe('task-1');
   });
 });
 
@@ -591,19 +761,17 @@ describe('PrototypeWorkManagerGateway — failures the UI has to see', () => {
   });
 
   it('preserves the untrusted details a 409 carries, and preserves their absence', async () => {
-    // The adapter keeps wire data as it found it; the feature that branches on it owns the
-    // validation. Without this the host and store tests both pass while the real removal
-    // dialog never sees the discriminator it opens on.
+    // The adapter forwards opaque wire data; any feature that branches on it owns validation.
     const adapter = gateway();
     fetchMock.mockImplementation(
       jsonResponse(
-        { error: 'rule_violation', message: 'still holds 3 tasks', details: { reason: 'section_not_empty', liveRowCount: 3 } },
+        { error: 'rule_violation', message: 'the write conflicts', details: { reason: 'write_conflict', conflictingRecordCount: 3 } },
         409,
       ),
     );
     await expect(adapter.sections.remove('section-1' as SectionId)).rejects.toMatchObject({
       code: 'rule_violation',
-      details: { reason: 'section_not_empty', liveRowCount: 3 },
+      details: { reason: 'write_conflict', conflictingRecordCount: 3 },
     });
 
     fetchMock.mockImplementation(jsonResponse({ error: 'rule_violation', message: 'nope' }, 409));
@@ -767,14 +935,36 @@ describe('PrototypeWorkManagerGateway — project pages (§26)', () => {
    * the record, so there is no id to name yet. Only `enabled` travels in the body.
    */
   it('toggles an optional page by kind, sending only the new state', async () => {
-    fetchMock.mockImplementation(jsonResponse({ ...homePage, id: 'page-todos', kind: 'todos', enabled: true }));
+    const todos = { ...homePage, id: 'page-todos', kind: 'todos', enabled: true };
+    fetchMock.mockImplementation(jsonResponse({ page: todos, operation: receiptOf('page.add', 1) }));
 
-    const page = await gateway().pages.setEnabled('project-1' as ProjectId, { kind: 'todos', enabled: true });
+    const result = await gateway().pages.setEnabled('project-1' as ProjectId, { kind: 'todos', enabled: true });
 
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1/pages/todos');
     expect(lastCall().init.method).toBe('PATCH');
     expect(JSON.parse(lastCall().init.body as string)).toEqual({ enabled: true });
-    expect(page).toMatchObject({ kind: 'todos', enabled: true });
+    expect(result.page).toMatchObject({ kind: 'todos', enabled: true });
+    expect(result.operation).toMatchObject({ operation: 'page.add', revision: 1 });
+  });
+
+  /** A toggle already where it was asked to go answers the page and no receipt (§31). */
+  it('parses the null receipt a no-op toggle answers', async () => {
+    fetchMock.mockImplementation(jsonResponse({ page: { ...homePage, id: 'page-todos', kind: 'todos' }, operation: null }));
+
+    const result = await gateway().pages.setEnabled('project-1' as ProjectId, { kind: 'todos', enabled: true });
+
+    expect(result.operation).toBeNull();
+    expect(result.page.kind).toBe('todos');
+  });
+
+  /**
+   * The envelope is validated, not trusted: a host answering the bare page it used to send is a
+   * contract break the browser has to notice rather than paint.
+   */
+  it('rejects a malformed toggle response', async () => {
+    fetchMock.mockImplementation(jsonResponse({ ...homePage, id: 'page-todos', kind: 'todos' }));
+
+    await expect(gateway().pages.setEnabled('project-1' as ProjectId, { kind: 'todos', enabled: true })).rejects.toBeTruthy();
   });
 
   it('surfaces a refused toggle as a GatewayError the UI can show', async () => {

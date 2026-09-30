@@ -96,7 +96,7 @@ test('MCP mutates the nested showcase and the open browser follows every aggrega
       arguments: { projectId: SHOWCASE_KITCHEN, title: 'MCP nested task', dueAt: '2026-09-19T12:00:00.000Z' },
     });
     expect(created.isError).not.toBe(true);
-    createdTaskId = (created.structuredContent as { id: string }).id;
+    createdTaskId = (created.structuredContent as { task: { id: string } }).task.id;
     expect((await requestApi.get<{ title: string }>(`/api/tasks/${createdTaskId}`)).title).toBe('MCP nested task');
 
     const nestedShortcut = page.locator('[data-shortcut-frame]', { hasText: 'MCP nested task' });
@@ -118,7 +118,7 @@ test('MCP mutates the nested showcase and the open browser follows every aggrega
       },
     });
     expect(addedShortcut.isError).not.toBe(true);
-    const shortcutId = (addedShortcut.structuredContent as { id: string }).id;
+    const shortcutId = (addedShortcut.structuredContent as { shortcut: { id: string } }).shortcut.id;
     await expect(page.locator('[data-shortcut-frame]')).toHaveCount(5, { timeout: 15_000 });
     expect((await requestApi.get<unknown[]>(`/api/projects/${SHOWCASE_ROOT}/shortcuts?pageId=${SHOWCASE_HOME}`)).length).toBe(5);
 
@@ -147,7 +147,7 @@ test('MCP mutates the nested showcase and the open browser follows every aggrega
       },
     });
     expect(reflection.isError).not.toBe(true);
-    const reflectionId = (reflection.structuredContent as { id: string }).id;
+    const reflectionId = (reflection.structuredContent as { reflection: { id: string } }).reflection.id;
     await expect(page.locator(`[data-reflections-entry][data-reflection-id="${reflectionId}"]`)).toContainText('MCP task checkpoint');
     expect((await requestApi.get<{ items: Array<{ reflection: { id: string } }> }>(`/api/projects/${SHOWCASE_ROOT}/journal`)).items.map(({ reflection: item }) => item.id)).toContain(reflectionId);
 
@@ -217,7 +217,7 @@ test('MCP inserts a section and shortcut at their combined canvas positions and 
       },
     });
     expect(section.isError).not.toBe(true);
-    createdSectionId = (section.structuredContent as { id: string }).id;
+    createdSectionId = (section.structuredContent as { section: { id: string } }).section.id;
     await expect(page.locator('#section-' + createdSectionId)).toBeVisible({ timeout: 15_000 });
 
     const shortcut = await client.callTool({
@@ -231,7 +231,7 @@ test('MCP inserts a section and shortcut at their combined canvas positions and 
       },
     });
     expect(shortcut.isError).not.toBe(true);
-    createdShortcutId = (shortcut.structuredContent as { id: string }).id;
+    createdShortcutId = (shortcut.structuredContent as { shortcut: { id: string } }).shortcut.id;
     await expect(page.locator(`[data-shortcut-id="${createdShortcutId}"]`)).toBeVisible({ timeout: 15_000 });
 
     const readCombinedOrder = async (): Promise<string[]> => {

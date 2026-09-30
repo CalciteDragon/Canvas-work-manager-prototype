@@ -19,6 +19,9 @@ cited as §N · **Entry point for agents:** [`AGENTS.md`](../../AGENTS.md)
   domain services; contracts are defined once.
 - Let a real MCP client and a person work on the same workspace and see each other's
   changes without a refresh (§48, §62).
+- Keep each actor's reversible section, shortcut, optional-page, project-creation and existing-project,
+  task and reflection writes in a scoped project history while Activity remains durable audit
+  evidence even after an Add is undone.
 
 ## Not responsible for
 
@@ -37,9 +40,9 @@ system. Dependencies flow downward on this list; the [what](what.md) page draws 
 - [repositories](repositories/overview.md) — `@cwm/repositories`: repository interfaces,
   the unit of work, and the JSON document store that implements them.
 - [mcp-tools](mcp-tools/overview.md) — `@cwm/mcp-tools`: the transport-free registry of
-  thirty-three tool definitions over the domain services.
+  thirty-eight tool definitions over the domain services.
 - [prototype-data](prototype-data/overview.md) — `@cwm/prototype-data`: seeds, personas,
-  agent tokens, the seed CLI and the one-off schema converter.
+  agent tokens, the seed CLI and the explicit schema converters.
 - [prototype-host](prototype-host/overview.md) — `apps/prototype-host`: the Node process
   on `:4310` that serves the fake API, the MCP endpoint, the event stream and the rig
   controls over one data file.

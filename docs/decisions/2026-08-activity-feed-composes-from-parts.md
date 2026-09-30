@@ -67,3 +67,16 @@ rendering, so nothing about this entry's composition rule changed.
 Revisit if the feed ever needs to render an event the host cannot resolve on re-read, or if
 the re-fetch per frame becomes too chatty for a busy agent — at which point the answer is
 coalescing in the store, not a fatter frame.
+
+**Amended, 2026-09-18 — Slice 36.** The first revisit condition is now real: Undo of a task or
+reflection creation deletes the event's canonical target. `ActivityFeedEntry` therefore carries
+the event's required historical context. The domain still prefers current entity and project names
+when available, but falls back to the captured labels when they are gone; the UI composition rule
+and the live-frame re-fetch rule stay unchanged
+([decision](2026-09-historical-activity-identity.md)).
+
+**Amended, 2026-09-23 — Slice 42.** A project-targeted event about an absent project uses its
+captured target label as `projectName` only when the event's own `projectId` is that same id. A
+task event that happened inside an absent project does not borrow that label. The Activity
+lifecycle anchor establishes when the project may be absent; composition still uses structured
+context rather than `summary` ([project creation history](2026-09-project-creation-history.md)).

@@ -1,0 +1,43 @@
+:host {
+  display: block;
+}
+
+.history-controls {
+  display: flex;
+  // Slice 45: at 375 px the header's actions cell is narrower than the pair, so it wraps rather
+  // than overflowing beneath the global sidebar.
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.history-controls:focus {
+  outline: var(--border-focus) solid var(--color-accent);
+  outline-offset: var(--border-focus);
+}
+
+.history-controls__button,
+.history-controls__retry {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: var(--size-hit-target);
+  min-block-size: var(--size-hit-target);
+  padding: var(--space-2);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.history-controls__button[aria-disabled='true'] {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.history-controls__button:focus-visible,
+.history-controls__retry:focus-visible {
+  outline: var(--border-focus) solid var(--color-accent);
+  outline-offset: var(--border-focus);
+}

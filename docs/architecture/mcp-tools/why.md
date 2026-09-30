@@ -52,6 +52,13 @@ Sections and Home shortcuts still share one ordering rule
 `requiredPermissions` beside it, so a client can show what a tool needs before calling it
 ([decision](../../decisions/2026-08-mcp-tool-permission-metadata.md)).
 
+**History transitions advertise one grant per stored family.** `undo_operation` and
+`redo_operation` cannot truthfully publish one static grant: a section action needs
+`projects.write`, a task action `tasks.write`, and a reflection action `reflections.write`.
+They therefore publish the family map and omit the singular/conjunctive keys; the domain reads the
+stored action before enforcing the mapped grant
+([decision](../../decisions/2026-09-operation-family-permissions.md)).
+
 **`execute` receives domain services and nothing else.** No unit of work, no clock, no
 seed, no repository — a tool that could read storage directly would be a second place
 where scoping and grants have to be remembered. `check-package-imports.mjs` with
@@ -69,8 +76,8 @@ unknown-tool response.
 
 - Adding a tool is one file in `src/tools/`, one registry line, and one contract case —
   and the suite fails until the case exists.
-- The tool count grew from §54's fourteen to thirty-three as the section, page,
-  shortcut, archive and journal tools arrived; each arrived with its slice, and the list
+- The tool count grew from §54's fourteen to thirty-eight as the section, page,
+  shortcut, archive, journal and history tools arrived; each arrived with its slice, and the list
   in `SPEC_TOOL_NAMES` is what the host's `tools/list` test asserts against.
 - Tool experiments (§56 — `complete_task` versus `update_task(status)`, combined versus
   separate search) can be run by adding a variant here and comparing real clients, without
@@ -81,6 +88,10 @@ unknown-tool response.
 
 ## Decisions that shape this system
 
+- [MCP history conflicts explain their repair in words](../../decisions/2026-09-mcp-history-conflict-guidance.md) — the shared formatter serves text-only agents without changing typed browser feedback.
+
+- [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — a read tool exposes the domain's workspace projection without widening Restore grants.
+
 - [What the tool registry knows about MCP](../../decisions/2026-08-tool-registry-is-transport-free.md)
 - [MCP tools advertise their required permission in namespaced metadata](../../decisions/2026-08-mcp-tool-permission-metadata.md)
 - [Why `workspace.read` needed a service of its own](../../decisions/2026-08-workspace-tools-need-their-own-service.md)
@@ -88,6 +99,19 @@ unknown-tool response.
 - [A section has a name](../../decisions/2026-09-a-section-has-a-name.md) — `list_sections` returns the stored `title`, deliberately not a resolved name
 - [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md) — one combined index space for sections and shortcuts
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md) — accepted contextual insertion
+- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `remove_section` receipts, reason-token refusal messages
+- [One-step section removal and task Delete](../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — strict ID-only `remove_section`; old stored reassign actions remain executable
+- [Explicit section edits reverse only their operation's changes](../../decisions/2026-09-section-edit-undo-boundaries.md) — `move_section`, add/update/move receipts, `operation: null` no-ops
+- [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md) — `get_operation_history` reads, the transitions write, per connection
+- [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../decisions/2026-09-history-stage-a-deferrals.md) — `undo_operation`/`redo_operation` inputs, one transition route; their grants became family-derived in Slice 36
+- [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md)
+- [Undo and Redo require their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md)
+- [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `restore_section` and the shortcut tools' envelopes, and the fourth family in both history tools' map
+- [An existing project's writes are one action family](../../decisions/2026-09-project-update-operation-history.md) — the three project-update tools' envelopes and the sixth family in both history tools' map
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — `create_project` receipt, guarded Undo and creator-only absent-project summary
+- [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `set_project_page_enabled`'s envelope and the fifth family in both history tools' map
+- [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — safe deletion and exact-actor recovery after a lost response
+- [The project header offers Undo and Redo of the displayed project's history](../../decisions/2026-09-project-header-history-controls.md) — each summary entry carries its own `blockedBy`
 
 ## Spec sections
 

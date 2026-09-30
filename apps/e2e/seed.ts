@@ -9,7 +9,23 @@
  * `PROTOTYPE_API_BASE_URL` string.
  */
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import type { CreateSectionInput, Project, ProjectLayoutMode, ProjectSection } from '@cwm/contracts';
+import type {
+  CreateProjectInput,
+  CreateSectionInput,
+  CreateSectionShortcutInput,
+  Project,
+  ProjectId,
+  ProjectLayoutMode,
+  OptionalProjectPageKind,
+  ProjectPage,
+  ProjectPageWriteResult,
+  ProjectWriteResult,
+  WorkspaceId,
+  ProjectSection,
+  ResolvedSectionShortcut,
+  SectionAddResult,
+  SectionShortcutAddResult,
+} from '@cwm/contracts';
 
 const HOST = 'http://127.0.0.1:4310';
 
@@ -67,22 +83,22 @@ export const seed = (name: string): Promise<void> => post('/prototype/seed', { s
 export const setClock = (now: string | null): Promise<void> => post('/prototype/clock', { now });
 
 /** Create a root project in the current Demo workspace for focused canvas journeys. */
+/** Create a project and unwrap the `{ project, operation }` receipt returned by Slice 42. */
+export const createProject = async (input: CreateProjectInput, persona: Persona = 'user-demo'): Promise<Project> =>
+  (await api.post<ProjectWriteResult>('/api/projects', input, persona)).project;
+
 export const createRoot = async (name: string): Promise<Project> => {
-  const { workspace } = await api.get<{ workspace: { id: string } }>('/api/me');
-  return api.post<Project>('/api/projects', {
-    workspaceId: workspace.id,
-    kind: 'root',
-    name,
-  });
+  const { workspace } = await api.get<{ workspace: { id: WorkspaceId } }>('/api/me');
+  return createProject({ workspaceId: workspace.id, kind: 'root', name });
 };
 
 /** Add a predictable work tree under a root, retaining the returned ids in display order. */
-export const createSubprojects = async (rootId: string, count: number): Promise<Project[]> => {
-  const { workspace } = await api.get<{ workspace: { id: string } }>('/api/me');
+export const createSubprojects = async (rootId: ProjectId, count: number): Promise<Project[]> => {
+  const { workspace } = await api.get<{ workspace: { id: WorkspaceId } }>('/api/me');
   const projects: Project[] = [];
   for (let index = 0; index < count; index += 1) {
     projects.push(
-      await api.post<Project>('/api/projects', {
+      await createProject({
         workspaceId: workspace.id,
         kind: 'subproject',
         parentProjectId: rootId,
@@ -94,12 +110,38 @@ export const createSubprojects = async (rootId: string, count: number): Promise<
 };
 
 /** Create a section on the project's canonical canvas, optionally at a combined-order index. */
-export const addSection = (projectId: string, input: CreateSectionInput): Promise<ProjectSection> =>
-  api.post(`/api/projects/${projectId}/sections`, input);
+export const addSection = async (projectId: string, input: CreateSectionInput): Promise<ProjectSection> =>
+  (await api.post<SectionAddResult>(`/api/projects/${projectId}/sections`, input)).section;
 
-/** Persist the project layout flag through the same host API used by the development panel. */
-export const setLayout = (projectId: string, projectLayoutMode: ProjectLayoutMode): Promise<Project> =>
-  api.patch<Project>(`/api/projects/${projectId}`, { projectLayoutMode });
+/**
+ * Place a shortcut on a root's Home page, unwrapping the `{ shortcut, operation }` envelope the
+ * write has answered since Slice 37. Journeys about placement care about the placement.
+ */
+export const addShortcut = async (
+  projectId: string,
+  input: Omit<CreateSectionShortcutInput, 'pageId' | 'sourceSectionId'> & { pageId: string; sourceSectionId: string },
+): Promise<ResolvedSectionShortcut> =>
+  (await api.post<SectionShortcutAddResult>(`/api/projects/${projectId}/shortcuts`, input)).shortcut;
+
+/**
+ * Toggle one of a root's optional pages, unwrapping the `{ page, operation }` envelope the write
+ * has answered since Slice 38. Journeys that only need the tab on care about the page; the ones
+ * about history read the receipt from the response themselves.
+ */
+export const setPageEnabled = async (
+  projectId: string,
+  kind: OptionalProjectPageKind,
+  enabled: boolean,
+  persona: Persona = 'user-demo',
+): Promise<ProjectPage> =>
+  (await api.patch<ProjectPageWriteResult>(`/api/projects/${projectId}/pages/${kind}`, { enabled }, persona)).page;
+
+/**
+ * Persist the project layout flag through the same host API used by the development panel,
+ * unwrapping the `{ project, operation }` envelope the write has answered since Slice 39.
+ */
+export const setLayout = async (projectId: string, projectLayoutMode: ProjectLayoutMode): Promise<Project> =>
+  (await api.patch<ProjectWriteResult>(`/api/projects/${projectId}`, { projectLayoutMode })).project;
 
 /** A real MCP client for the live HTTP journey, not a fetch-shaped protocol imitation. */
 export const connectMcp = async (token: string, name = 'cwm-e2e'): Promise<Client> => {

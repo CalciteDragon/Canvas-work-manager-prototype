@@ -4,18 +4,22 @@ import {
   ProjectPageIdSchema,
   ProjectPageSchema,
   ProjectSchema,
+  ProjectWriteResultSchema,
   type CreateProjectInput,
   type Project,
   type ProjectId,
   type ProjectQuery,
+  type ProjectWriteResult,
   type UpdateProjectInput,
 } from '@cwm/contracts';
-import type { ProjectPageRepository, ProjectRepository, UnitOfWork } from '@cwm/repositories';
+import type { ProjectPageRepository, ProjectRepository, SectionRepository, SectionShortcutRepository, UnitOfWork } from '@cwm/repositories';
 import { assertPermitted, assertValidActor, type ActorContext } from './actor';
 import type { ActivityService } from './activity-service';
 import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
+import type { OperationRecorder } from './operation-recorder';
+import { captureProjectAdd, captureProjectWrite, projectAddLabel, projectWriteLabel, shortcutsCarriedAcrossRoots } from './project-history';
 import { archivedAncestry } from './project-visibility';
 
 /**
@@ -30,7 +34,20 @@ export interface ProjectServiceDependencies {
    * graph for no invariant that needs one.
    */
   pages: ProjectPageRepository;
+  /**
+   * Read, never written, to refuse a reparent that would carry a Home shortcut's source out of its
+   * root (§27) — the check `project-history.ts` shares with a reparent's Undo and Redo. Repositories
+   * for the same reason `pages` is one: a placement service here would be a new edge for a read.
+   */
+  sections: SectionRepository;
+  shortcuts: SectionShortcutRepository;
   activity: ActivityService;
+  /**
+   * Makes creation and every changed update or archive undoable in the **subject's own** history
+   * (Slices 39 and 42, §31) — never its root's, so a sub-project creation and a reparent that
+   * changes the root move nothing between histories.
+   */
+  history: OperationRecorder;
   clock: Clock;
   ids: IdGenerator;
   unitOfWork: UnitOfWork;
@@ -90,7 +107,7 @@ export class ProjectService {
     return matching.filter((project) => !ancestry.isHidden(project.id));
   }
 
-  async create(actor: ActorContext, input: CreateProjectInput): Promise<Project> {
+  async create(actor: ActorContext, input: CreateProjectInput): Promise<ProjectWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
     if (input.workspaceId !== actor.workspaceId) {
@@ -135,16 +152,15 @@ export class ProjectService {
       // In the same unit as the owner: a project with no canonical page has nowhere to put a
       // section, which `validateDocumentIntegrity` rejects — so the pair commits or neither
       // does. No separate "ensure page" path exists to drift from this one.
-      await this.dependencies.pages.insert(
-        ProjectPageSchema.parse({
+      const page = ProjectPageSchema.parse({
           id: ProjectPageIdSchema.parse(this.dependencies.ids.next('projectPage')),
           projectId: project.id,
           kind: canonicalPageKindFor(project.kind),
           enabled: true,
           createdAt: now,
           updatedAt: now,
-        }),
-      );
+        });
+      await this.dependencies.pages.insert(page);
       await this.dependencies.activity.record(actor, {
         action: 'project.created',
         entityType: 'project',
@@ -152,11 +168,23 @@ export class ProjectService {
         projectId: project.id,
         summary: `Created "${project.name}"`,
       });
-      return project;
+      const operation = captureProjectAdd(project, page);
+      const receipt = await this.dependencies.history.record(actor, {
+        projectId: project.id,
+        label: projectAddLabel(project),
+        operation,
+      });
+      return ProjectWriteResultSchema.parse({ project, operation: receipt });
     });
   }
 
-  async update(actor: ActorContext, id: ProjectId, input: UpdateProjectInput): Promise<Project> {
+  /**
+   * Every change §26 allows an existing project, as one write: one Activity event, and one history
+   * action whose kind follows the status — `project.archive` into `archived`, `project.reactivate`
+   * out of it, `project.update` otherwise. A normalized no-op answers `operation: null` and records
+   * nothing, so it leaves timestamps, Activity and the actor's Redo branch alone.
+   */
+  async update(actor: ActorContext, id: ProjectId, input: UpdateProjectInput): Promise<ProjectWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
@@ -202,6 +230,9 @@ export class ProjectService {
       if ((reparenting || reactivating) && next.parentProjectId !== undefined) {
         await this.assertAncestryActive(actor, await this.require(actor, next.parentProjectId));
       }
+      // After the parent is known to be usable, so a missing or cyclic destination is refused as
+      // that, not misread as a move to another root.
+      if (reparenting) await this.assertNoShortcutCarriedAcrossRoots(current, next.parentProjectId!);
 
       // §26: completion is explicit and recorded. Derived from the status rather than
       // accepted as an input, so the two cannot disagree, and cleared on reopening so a
@@ -216,26 +247,40 @@ export class ProjectService {
       // The exposed route is PATCH, so a rule only `archive()` enforced would be decorative.
       if (archiving) await this.assertNoActiveChildren(actor, id);
 
-      return this.commit(actor, current, next, archiving);
+      // The label names the new parent; `assertParentIsUsable` does not keep it, so it is read once
+      // more inside the same unit, and only for a move.
+      const parentName = reparenting ? (await this.dependencies.projects.find(next.parentProjectId!))?.name : undefined;
+      return this.commit(actor, current, next, archiving, parentName);
     });
   }
 
   /** Sets `status: 'archived'`. Idempotent: archiving an archived project records nothing. */
-  async archive(actor: ActorContext, id: ProjectId): Promise<Project> {
+  async archive(actor: ActorContext, id: ProjectId): Promise<ProjectWriteResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
 
     return this.dependencies.unitOfWork.run(async () => {
       const current = await this.require(actor, id);
-      if (current.status === 'archived') return current;
+      if (current.status === 'archived') return ProjectWriteResultSchema.parse({ project: current, operation: null });
       await this.assertNoActiveChildren(actor, id);
       return this.commit(actor, current, { ...current, status: 'archived' }, true);
     });
   }
 
-  private async commit(actor: ActorContext, current: Project, next: Project, archiving: boolean): Promise<Project> {
+  /**
+   * The one write both entry points share, and so the one place history is captured: from the
+   * normalized change this method is about to apply, not from the caller's input, so an omitted
+   * field, a `null` on an absent one and a status that did not move all record nothing.
+   */
+  private async commit(
+    actor: ActorContext,
+    current: Project,
+    next: Project,
+    archiving: boolean,
+    parentName?: string,
+  ): Promise<ProjectWriteResult> {
     const changed = { ...next, updatedAt: current.updatedAt };
-    if (JSON.stringify(changed) === JSON.stringify(current)) return current;
+    if (JSON.stringify(changed) === JSON.stringify(current)) return ProjectWriteResultSchema.parse({ project: current, operation: null });
 
     const updated = ProjectSchema.parse({ ...next, updatedAt: this.dependencies.clock.now().toISOString() });
     await this.dependencies.projects.update(updated);
@@ -246,7 +291,29 @@ export class ProjectService {
       projectId: updated.id,
       summary: `${archiving ? 'Archived' : 'Updated'} "${updated.name}"`,
     });
-    return updated;
+    // Recorded inside this same unit, after the write and its activity, so the project, the event
+    // and the action commit or roll back together.
+    const operation = captureProjectWrite(current, updated);
+    const receipt = await this.dependencies.history.record(actor, {
+      projectId: updated.id,
+      label: projectWriteLabel(operation, updated, parentName),
+      operation,
+    });
+    return ProjectWriteResultSchema.parse({ project: updated, operation: receipt });
+  }
+
+  /**
+   * A move to another root must not take a section an old-root Home shortcut places: that
+   * placement would cross root trees, which commit-time integrity rejects as a defect rather than
+   * a refusal. Naming each placement lets the caller remove it and retry (§§26, 27, 61).
+   */
+  private async assertNoShortcutCarriedAcrossRoots(subject: Project, parentId: ProjectId): Promise<void> {
+    const carried = await shortcutsCarriedAcrossRoots(this.dependencies, subject, parentId);
+    if (carried.length === 0) return;
+    const named = carried.map(({ id }) => `"${id}"`).join(', ');
+    throw new DomainRuleError(
+      `project "${subject.id}" cannot move to another root while Home shortcut ${named} on its current root places a section from it; remove that placement first`,
+    );
   }
 
   /** An implicit cascade would archive work the caller never named (§58 flags archive). */

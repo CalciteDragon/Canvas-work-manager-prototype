@@ -1,6 +1,6 @@
 <section class="todos" aria-labelledby="todos-heading">
   <header class="todos__header">
-    <h2 id="todos-heading" class="todos__heading">What is coming up</h2>
+    <h2 id="todos-heading" class="todos__heading" tabindex="-1">What is coming up</h2>
     <p class="todos__hint">
       Everything under this project, in due-date order. Open a row to work on it where it lives.
     </p>
@@ -8,6 +8,23 @@
 
   @if (store.writeError(); as writeError) {
     <p data-todo-write-error class="todos__error" role="alert">{{ writeError }}</p>
+  }
+  @if (deleteRecovery(); as recovery) {
+    <div data-todo-delete-recovery class="todos__recovery" role="status" aria-live="polite">
+      <span>{{ recovery.title }} was archived.</span>
+      <span>
+        Open root <button data-todo-open-archive type="button" class="todos__recovery-link" (click)="onOpenArchive()()">Archive</button>
+        to recover it when its owner is ready.
+      </span>
+      @if (recovery.owner; as owner) {
+        <span>
+          <a data-todo-recovery-owner [routerLink]="owner.route" fragment="history-controls">{{ owner.name }}'s header Undo</a>
+          may reverse the latest step when available.
+        </span>
+      } @else {
+        <span>This project's header Undo may reverse the latest step when available.</span>
+      }
+    </div>
   }
   @if (store.refreshError(); as refreshError) {
     <!-- The list on screen is still the better answer than a blank page, so this says the
@@ -51,6 +68,12 @@
             }
           </ol>
 
+          @if (historyOwner(item); as owner) {
+            <a data-todo-history-link [routerLink]="owner.route" fragment="history-controls">
+              Open {{ owner.name }} history
+            </a>
+          }
+
           @if (!finished(item)) {
             <button
               data-todo-complete
@@ -61,6 +84,20 @@
               (click)="complete(item)"
             >
               {{ store.completing() === idOf(item) ? 'Completing…' : 'Complete' }}
+            </button>
+          }
+
+          @if (item.kind === 'task') {
+            <button
+              data-todo-delete
+              type="button"
+              class="todos__delete"
+              [disabled]="writesBlocked()"
+              [attr.aria-label]="'Delete task ' + item.task.title"
+              [attr.title]="'Delete task ' + item.task.title"
+              (click)="delete(item)"
+            >
+              <app-icon name="remove" />
             </button>
           }
         </li>

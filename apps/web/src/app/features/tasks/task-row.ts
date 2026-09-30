@@ -10,9 +10,11 @@ import {
   viewChild,
 } from '@angular/core';
 import type { Task, TaskId } from '@cwm/contracts';
+import { Icon } from '../../shared/components/icon/icon';
 
 @Component({
   selector: 'app-task-row',
+  imports: [Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './task-row.html',
   styleUrl: './task-row.scss',
@@ -35,11 +37,8 @@ export class TaskRow {
   readonly completionRequested = output<TaskId>();
   readonly titleEdited = output<{ id: TaskId; title: string }>();
   readonly selectedRequested = output<TaskId>();
-  /**
-   * §34's per-row archive. A row affordance like complete, not layout chrome — so unlike
-   * §31's remove control it is **not** behind Edit Layout Mode (§32).
-   */
-  readonly archiveRequested = output<TaskId>();
+  /** §34's reversible Delete, not layout chrome and not behind Edit Layout Mode (§32). */
+  readonly deleteRequested = output<TaskId>();
 
   readonly editing = signal(false);
   readonly draftTitle = signal('');
@@ -78,9 +77,9 @@ export class TaskRow {
     if (!this.completed() && !this.pending()) this.completionRequested.emit(this.task().id);
   }
 
-  requestArchive(): void {
+  requestDelete(): void {
     if (this.readOnly()) return;
-    if (!this.archiving()) this.archiveRequested.emit(this.task().id);
+    if (!this.archiving()) this.deleteRequested.emit(this.task().id);
   }
 
   beginEditing(): void {
@@ -96,6 +95,7 @@ export class TaskRow {
   }
 
   commitTitle(): void {
+    if (!this.editing()) return;
     const title = this.draftTitle().trim();
     if (title === '') {
       this.titleError.set('A task title is required.');

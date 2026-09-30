@@ -8,21 +8,35 @@ import {
   ProjectPageSchema,
   ProjectSchema,
   ProjectSectionSchema,
+  ResolvedSectionShortcutSchema,
   TaskSchema,
+  type OperationHistoryEntry,
+  type OperationHistorySummary,
+  type OperationHistoryTransitionResult,
   type Project,
   type ProjectPage,
   type ProjectTodosResult,
   type ProjectSection,
   type Task,
 } from '@cwm/contracts';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GatewayError } from '../../core/gateway/gateway-error';
 import { FakeWorkManagerGateway, fakeIdentityProvider } from '../../core/gateway/testing/fake-gateway';
 import { testIdentity } from '../../core/gateway/testing/shell-test-providers';
 import { IDENTITY_PROVIDER } from '../../core/identity/identity-provider';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { routes } from '../../app.routes';
+import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
+import { LIVE_UPDATES } from '../../core/live/live-updates';
+import { FakeLiveUpdates } from '../../core/live/testing/fake-live-updates';
+import { ProjectHistoryStore } from './history/project-history-store';
+import { ArchivePage } from './pages/archive-page';
+import { ReflectionsPage } from './pages/reflections-page';
+import { TodosPage } from './pages/todos-page';
 import { ProjectCanvas } from './project-canvas';
+import { TaskListSection } from './sections/tasks/task-list-section';
+import { ShortcutFrame } from './shortcuts/shortcut-frame';
+import { ProjectPageNavigation } from './project-page-navigation';
 import { ProjectWorkspaceShell } from './project-workspace-shell';
 
 const AT = '2026-08-27T16:00:00.000Z';
@@ -100,10 +114,13 @@ type Options = Partial<ReturnType<typeof defaults>> & {
   failOn?: Record<string, GatewayError>;
   /** §34's chronology, as the query would answer it. The shell only routes to it. */
   todos?: ProjectTodosResult;
+  historySummaries?: OperationHistorySummary[];
 };
 
 const open = async (url: string, options: Options = {}) => {
   const gateway = new FakeWorkManagerGateway({ ...defaults(), ...options });
+  const projectGet = vi.spyOn(gateway.projects, 'get');
+  const live = new FakeLiveUpdates();
   // Reset first, so a case that opens two workspaces — a refusal and an acceptance — gets two
   // independent routers rather than "the test module has already been instantiated".
   TestBed.resetTestingModule();
@@ -115,7 +132,8 @@ const open = async (url: string, options: Options = {}) => {
       // history, and the fallback notice cannot be read back at all.
       provideLocationMocks(),
       { provide: WORK_MANAGER_GATEWAY, useValue: gateway },
-      // A successful archive navigates to `/app`, and the dashboard there reads the persona.
+      { provide: LIVE_UPDATES, useValue: live },
+      // A test that leaves the workspace lands on the dashboard, which reads the persona.
       { provide: IDENTITY_PROVIDER, useValue: fakeIdentityProvider(testIdentity()) },
     ],
   });
@@ -128,7 +146,7 @@ const open = async (url: string, options: Options = {}) => {
   harness.fixture.detectChanges();
   await harness.fixture.whenStable();
   harness.fixture.detectChanges();
-  return { harness, component, gateway, router: TestBed.inject(Router), location: TestBed.inject(Location) };
+  return { harness, component, gateway, projectGet, live, router: TestBed.inject(Router), location: TestBed.inject(Location) };
 };
 
 const settle = async (harness: RouterTestingHarness) => {
@@ -149,7 +167,64 @@ const query = (harness: RouterTestingHarness, selector: string) =>
 const queryAll = (harness: RouterTestingHarness, selector: string) =>
   [...harness.fixture.nativeElement.querySelectorAll(selector)] as HTMLElement[];
 
+const projectAddEntry = (actionId: string, label: string): OperationHistoryEntry => ({
+  actionId: actionId as OperationHistoryEntry['actionId'],
+  operation: 'project.add',
+  label,
+  expiresAt: '2026-08-28T16:00:00.000Z',
+  blockedBy: null,
+});
+
+const projectAddSummary = (
+  projectId: string,
+  overrides: Partial<OperationHistorySummary> = {},
+): OperationHistorySummary => ({
+  projectId: projectId as OperationHistorySummary['projectId'],
+  historyId: 'history-created' as OperationHistorySummary['historyId'],
+  revision: 1,
+  undo: projectAddEntry('operation-created', 'Created "Recoverable project"'),
+  redo: null,
+  blockedBy: null,
+  ...overrides,
+});
+
+const creationTransition = (
+  direction: 'undo' | 'redo',
+  summary: OperationHistorySummary,
+  result: unknown,
+): OperationHistoryTransitionResult => ({ direction, actionId: 'operation-created' as never, summary, result } as OperationHistoryTransitionResult);
+
 describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', () => {
+  it('focuses history controls on a direct fragment load without activating Undo', async () => {
+    const { harness, gateway } = await open('/projects/project-kitchen#history-controls');
+    const group = query(harness, '#history-controls');
+    expect(group).not.toBeNull();
+    expect(group?.getAttribute('role')).toBe('group');
+    expect(group?.getAttribute('aria-label')).toBe('Project history');
+    expect(document.activeElement).toBe(group);
+    expect(gateway.calls.filter(({ method }) => method === 'history.transition')).toHaveLength(0);
+  });
+
+  it('does not return focus to history after a same-project section fragment wins', async () => {
+    const { harness, router } = await open('/projects/project-kitchen');
+    await router.navigateByUrl('/projects/project-kitchen#history-controls');
+    await router.navigateByUrl('/projects/project-kitchen#section-section-kitchen');
+    await settle(harness);
+    expect(router.url).toBe('/projects/project-kitchen#section-section-kitchen');
+    expect(document.activeElement).not.toBe(query(harness, '#history-controls'));
+  });
+
+  it('does not focus the prior project history after a different project wins navigation', async () => {
+    const { harness, router } = await open('/projects/project-renovation/pages/home');
+    const historyArrival = router.navigateByUrl('/projects/project-kitchen#history-controls');
+    const nextProject = router.navigateByUrl('/projects/project-garden');
+    await Promise.allSettled([historyArrival, nextProject]);
+    await settle(harness);
+    expect(router.url).toBe('/projects/project-garden');
+    expect(query(harness, '[data-project-name]')?.textContent).toContain('Garden');
+    expect(document.activeElement).not.toBe(query(harness, '#history-controls'));
+  });
+
   it('renders a root’s column beside its canvas, with Home current', async () => {
     const { harness, component } = await open('/projects/project-renovation/pages/home');
 
@@ -219,6 +294,152 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
     expect(query(harness, '#project-nav-panel')).toBeNull();
     expect(query(harness, '[data-section-canvas]')).toBeNull();
+  });
+});
+
+describe('ProjectWorkspaceShell — creation recovery (§68)', () => {
+  const createdProject = project('project-created', 'Recoverable project');
+  const creationRedo = projectAddSummary(createdProject.id, {
+    undo: null,
+    redo: projectAddEntry('operation-created', 'Created "Recoverable project"'),
+    revision: 2,
+  });
+
+  it('shows the creator’s Redo controls at the missing project URL without an extra cold-load retry', async () => {
+    const { harness, gateway, projectGet } = await open(`/projects/${createdProject.id}`, {
+      projects: [],
+      pages: [],
+      historySummaries: [creationRedo],
+    });
+    await settle(harness);
+
+    const recovery = query(harness, '[data-project-creation-recovery]');
+    expect(recovery).not.toBeNull();
+    expect(recovery?.textContent).toContain('Creation undone');
+    expect(recovery?.textContent).toContain('Undo removed "Recoverable project".');
+    expect(query(harness, '[data-history-redo]')?.getAttribute('aria-label')).toBe('Redo: Created "Recoverable project"');
+    expect(query(harness, '[data-history-redo]')?.getAttribute('aria-disabled')).toBeNull();
+    expect(query(harness, '[data-history-feedback]')).not.toBeNull();
+    expect(projectGet).toHaveBeenCalledTimes(1);
+    expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(1);
+  });
+
+  it('keeps Project unavailable when the missing id has no creation Redo', async () => {
+    const { harness } = await open('/projects/project-missing', {
+      projects: [],
+      pages: [],
+      historySummaries: [projectAddSummary('project-missing', { historyId: null, revision: 0, undo: null, redo: null })],
+    });
+
+    expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
+    expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
+  });
+
+  // What the host actually answers another person, a foreign workspace or an id that never
+  // existed: a not-found history, which no Retry can turn into a Redo.
+  it('offers no Retry when the missing project’s history is itself not found', async () => {
+    const { harness } = await open('/projects/project-missing', {
+      projects: [],
+      pages: [],
+      failOn: { 'history.summary': new GatewayError('not_found', 404, 'project "project-missing" was not found') },
+    });
+    await settle(harness);
+
+    expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
+    expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
+    expect(query(harness, '[data-project-history-retry]')).toBeNull();
+  });
+
+  it('can retry an unavailable history read from the missing-project route', async () => {
+    const { harness, gateway } = await open(`/projects/${createdProject.id}`, {
+      projects: [],
+      pages: [],
+      historySummaries: [creationRedo],
+      failOn: { 'history.summary': new GatewayError('unreachable', 0, 'host stopped') },
+    });
+    await settle(harness);
+
+    expect(query(harness, '[data-project-error]')?.textContent).toContain('no such project');
+    expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
+    const retry = query(harness, '[data-project-history-retry]') as HTMLButtonElement | null;
+    expect(retry).not.toBeNull();
+    expect(retry?.textContent).toContain('Retry');
+
+    gateway.options.failOn = undefined;
+    retry?.click();
+    await settle(harness);
+
+    expect(query(harness, '[data-project-creation-recovery]')).not.toBeNull();
+    expect(query(harness, '[data-history-redo]')?.getAttribute('aria-label')).toBe('Redo: Created "Recoverable project"');
+    expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(2);
+  });
+
+  it('reloads project context once when a creation Undo response lands without its live frame', async () => {
+    const beforeUndo = projectAddSummary(createdProject.id);
+    const afterUndo = projectAddSummary(createdProject.id, {
+      revision: 2,
+      undo: null,
+      redo: projectAddEntry('operation-created', 'Created "Recoverable project"'),
+    });
+    const { harness, gateway, projectGet } = await open(`/projects/${createdProject.id}`, {
+      projects: [createdProject],
+      pages: [page(`page-${createdProject.id}`, createdProject.id, 'home')],
+      historySummaries: [beforeUndo],
+    });
+    await settle(harness);
+    gateway.options.projects = [];
+    gateway.options.pages = [];
+    gateway.transitionAnswers.push(creationTransition('undo', afterUndo, {
+      operation: 'project.add', outcome: 'removed', projectId: createdProject.id,
+    }));
+
+    (query(harness, '[data-history-undo]') as HTMLButtonElement).click();
+    await settle(harness);
+
+    expect(query(harness, '[data-project-creation-recovery]')).not.toBeNull();
+    expect(projectGet).toHaveBeenCalledTimes(2);
+    expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(1);
+  });
+
+  it('reloads a missing project once when a creation Redo response lands without its live frame', async () => {
+    const afterRedo = projectAddSummary(createdProject.id, {
+      revision: 3,
+      undo: projectAddEntry('operation-created', 'Created "Recoverable project"'),
+      redo: null,
+    });
+    const { harness, gateway, projectGet } = await open(`/projects/${createdProject.id}`, {
+      projects: [],
+      pages: [],
+      historySummaries: [creationRedo],
+    });
+    await settle(harness);
+    gateway.options.projects = [createdProject];
+    gateway.options.pages = [page(`page-${createdProject.id}`, createdProject.id, 'home')];
+    gateway.transitionAnswers.push(creationTransition('redo', afterRedo, {
+      operation: 'project.add', outcome: 'reapplied', project: createdProject,
+      page: page(`page-${createdProject.id}`, createdProject.id, 'home'),
+    }));
+
+    (query(harness, '[data-history-redo]') as HTMLButtonElement).click();
+    await settle(harness);
+
+    expect(query(harness, '[data-project-creation-recovery]')).toBeNull();
+    expect(query(harness, '[data-project-name]')?.textContent).toContain('Recoverable project');
+    expect(projectGet).toHaveBeenCalledTimes(2);
+    expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(1);
+  });
+
+  it('retries a stale Redo summary only once while the project is already present', async () => {
+    const { harness, gateway, projectGet } = await open(`/projects/${createdProject.id}`, {
+      projects: [createdProject],
+      pages: [page(`page-${createdProject.id}`, createdProject.id, 'home')],
+      historySummaries: [creationRedo],
+    });
+    await settle(harness);
+
+    expect(query(harness, '[data-project-name]')?.textContent).toContain('Recoverable project');
+    expect(projectGet).toHaveBeenCalledTimes(2);
+    expect(gateway.calls.filter(({ method }) => method === 'history.summary')).toHaveLength(1);
   });
 });
 
@@ -351,6 +572,20 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
     expect(query(harness, '[data-page-notice]')).toBeNull();
   });
 
+  /**
+   * Undo of a first enable removes the record (Slice 38), which is not the same as switching it
+   * off: there is nothing to re-enable, so the fallback shows Home and offers no Enable button.
+   */
+  it('falls back to Home without a re-enable offer when the page record is absent', async () => {
+    const { harness } = await open('/projects/project-renovation/pages/todos', {
+      pages: [page('page-renovation-home', 'project-renovation', 'home')],
+    });
+
+    expect(query(harness, '[data-page-notice]')).not.toBeNull();
+    expect(query(harness, '[data-page-notice-enable]')).toBeNull();
+    expect(query(harness, '[data-section-canvas]')).not.toBeNull();
+  });
+
   it('keeps the root-scoped page manager on a subproject without offering a work toggle', async () => {
     const { harness } = await open('/projects/project-kitchen');
 
@@ -379,6 +614,8 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
         addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) =>
           listeners.push(listener),
         removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
       }),
     });
     return {
@@ -436,10 +673,226 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
       media.restore();
     }
   });
+
+  // Slice 58: while narrow, a chosen column link collapses the column again so the canvas it
+  // opened is not pushed under the list, and focus lands on the toggle that brings it back —
+  // the toggle that exists once any reload the selection caused has rendered.
+  describe('a narrow selection collapses the column and focuses its toggle', () => {
+    const openNarrow = async (url: string, options: Options = {}) => {
+      const opened = await open(url, options);
+      document.body.appendChild(opened.harness.fixture.nativeElement);
+      query(opened.harness, '[data-project-nav-toggle]')!.click();
+      await settle(opened.harness);
+      expect(query(opened.harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(false);
+      return opened;
+    };
+
+    const expectCollapsedWithToggleFocused = (harness: RouterTestingHarness) => {
+      expect(query(harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(true);
+      expect(document.activeElement).toBe(query(harness, '[data-project-nav-toggle]'));
+    };
+
+    /** Fails or holds one project's read; every other read answers as before. */
+    const interceptGet = (
+      gateway: FakeWorkManagerGateway,
+      projectGet: { mockRestore(): void },
+      projectId: string,
+      answer: () => Promise<void>,
+    ) => {
+      projectGet.mockRestore();
+      const real = gateway.projects.get.bind(gateway.projects);
+      vi.spyOn(gateway.projects, 'get').mockImplementation(async (id) => {
+        if (id === projectId) await answer();
+        return real(id);
+      });
+    };
+
+    let media: ReturnType<typeof stubMatchMedia> | null = null;
+    afterEach(() => {
+      media?.restore();
+      media = null;
+      document.body.replaceChildren();
+    });
+
+    it('on the same root, with no reload', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router, projectGet } = await openNarrow('/projects/project-renovation/pages/home', withTodos());
+      const gets = projectGet.mock.calls.length;
+
+      query(harness, '[data-project-page-tab][data-page-kind="todos"]')!.click();
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-renovation/pages/todos');
+      expect(projectGet.mock.calls.length).toBe(gets);
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    // `/projects/:id` and `/projects/:id/pages/:kind` are two route configs, so the router
+    // re-creates the shell between them: the request has to outlive the instance that took it.
+    it('across the two project routes, which re-create the shell', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-renovation');
+
+      query(harness, '[data-project-page-tab][data-page-kind="home"]')!.click();
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-renovation/pages/home');
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    it('on the route already current, where the router emits no navigation', async () => {
+      media = stubMatchMedia(true);
+      const { harness } = await openNarrow('/projects/project-renovation');
+
+      query(harness, '[data-project-nav-root]')!.click();
+      await settle(harness);
+
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    it('on a unit of work, after the reload has rendered a new toggle', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-renovation');
+
+      query(harness, '[data-work-project-id="project-kitchen"] > a')!.click();
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-kitchen');
+      expect(query(harness, '[data-project-name]')?.textContent).toContain('Kitchen');
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    it('on a root page tab chosen from a unit of work, which reloads too', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-kitchen');
+
+      query(harness, '[data-project-page-tab][data-page-kind="home"]')!.click();
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-renovation/pages/home');
+      expect(query(harness, '[data-project-name]')?.textContent).toContain('Home renovation');
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    it('on the heading, when the chosen project turns out to be unavailable', async () => {
+      media = stubMatchMedia(true);
+      const { harness, gateway, projectGet } = await openNarrow('/projects/project-renovation');
+      interceptGet(gateway, projectGet, 'project-garden', () =>
+        Promise.reject(new GatewayError('unreachable', 0, 'host stopped')));
+
+      query(harness, '[data-work-project-id="project-garden"] > a')!.click();
+      await settle(harness);
+
+      expect(query(harness, '[data-project-error]')).not.toBeNull();
+      expect(document.activeElement).toBe(query(harness, '#project-error-heading'));
+    });
+
+    it('on the heading, when the chosen project’s creation was undone', async () => {
+      media = stubMatchMedia(true);
+      const { harness, gateway, projectGet } = await openNarrow('/projects/project-renovation', {
+        historySummaries: [
+          projectAddSummary('project-garden', {
+            undo: null,
+            redo: projectAddEntry('operation-created', 'Created "Garden"'),
+            revision: 2,
+          }),
+        ],
+      });
+      interceptGet(gateway, projectGet, 'project-garden', () =>
+        Promise.reject(new GatewayError('not_found', 404, 'no such project')));
+
+      query(harness, '[data-work-project-id="project-garden"] > a')!.click();
+      await settle(harness);
+
+      expect(query(harness, '[data-project-creation-recovery]')).not.toBeNull();
+      expect(document.activeElement).toBe(query(harness, '#project-creation-recovery-heading'));
+    });
+
+    // `focusHistoryFragment` answers the later navigation; the column's request must not undo it.
+    it('but not after a history link wins the navigation before the load settles', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-renovation');
+
+      query(harness, '[data-work-project-id="project-kitchen"] > a')!.click();
+      await router.navigateByUrl('/projects/project-garden#history-controls');
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-garden#history-controls');
+      expect(document.activeElement).toBe(query(harness, '#history-controls'));
+    });
+
+    it('and follows §68’s fallback redirect to the toggle', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-renovation');
+      const navigation = harness.fixture.debugElement.query(By.directive(ProjectPageNavigation))
+        .componentInstance as ProjectPageNavigation;
+
+      // A tab that went stale under the person: its kind is no longer a page of this root.
+      navigation.linkSelected.emit('/projects/project-renovation/pages/nonsense');
+      await router.navigateByUrl('/projects/project-renovation/pages/nonsense');
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-renovation/pages/home');
+      expect(query(harness, '[data-page-notice]')).not.toBeNull();
+      expectCollapsedWithToggleFocused(harness);
+    });
+
+    // A request whose navigation lost to a route with no project shell must not survive to
+    // take focus on a later, unrelated visit to the same URL.
+    it('and forgets a request whose navigation lost to another route', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router } = await openNarrow('/projects/project-renovation');
+
+      query(harness, '[data-work-project-id="project-kitchen"] > a')!.click();
+      await router.navigateByUrl('/settings');
+      await settle(harness);
+      await router.navigateByUrl('/projects/project-kitchen');
+      await settle(harness);
+
+      expect(query(harness, '[data-project-name]')?.textContent).toContain('Kitchen');
+      expect(document.activeElement).not.toBe(query(harness, '[data-project-nav-toggle]'));
+    });
+
+    it('only for the navigation that won, not a load it superseded', async () => {
+      media = stubMatchMedia(true);
+      const { harness, router, gateway, projectGet } = await openNarrow('/projects/project-renovation');
+      let releaseKitchen: () => void = () => {};
+      const kitchenHeld = new Promise<void>((resolve) => (releaseKitchen = resolve));
+      interceptGet(gateway, projectGet, 'project-kitchen', () => kitchenHeld);
+
+      query(harness, '[data-work-project-id="project-kitchen"] > a')!.click();
+      // Not `settle`: the held read is a pending task, and stability would wait for it forever.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      harness.fixture.detectChanges();
+      expect(query(harness, '[data-project-loading]')).not.toBeNull();
+
+      await router.navigateByUrl('/projects/project-garden');
+      releaseKitchen();
+      await settle(harness);
+
+      expect(query(harness, '[data-project-name]')?.textContent).toContain('Garden');
+      expect(document.activeElement).not.toBe(query(harness, '[data-project-nav-toggle]'));
+    });
+
+    it('but a wide selection leaves the column open and focus where it was', async () => {
+      media = stubMatchMedia(false);
+      const { harness, router } = await open('/projects/project-renovation/pages/home', withTodos());
+      document.body.appendChild(harness.fixture.nativeElement);
+      const tab = query(harness, '[data-project-page-tab][data-page-kind="todos"]')!;
+      tab.focus();
+
+      tab.click();
+      await settle(harness);
+
+      expect(router.url).toBe('/projects/project-renovation/pages/todos');
+      expect(query(harness, '#project-nav-panel')?.hasAttribute('hidden')).toBe(false);
+      expect(document.activeElement).toBe(query(harness, '[data-project-page-tab][data-page-kind="todos"]'));
+    });
+  });
 });
 
 describe('ProjectWorkspaceShell — the header, the canvas and what crosses between them', () => {
-  it('leaves the workspace only after an archive resolves, and stays put when the domain refuses', async () => {
+  it('stays on the archived project with its Undo, and stays put with the reason when the domain refuses', async () => {
     const refused = await open('/projects/project-renovation', {
       failOn: { 'projects.update': new GatewayError('conflict', 409, 'archive its live sub-projects first') },
     });
@@ -453,7 +906,9 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     expect(refused.router.url).toBe('/projects/project-renovation');
     expect(query(refused.harness, '[data-project-write-error]')?.textContent).toContain('live sub-projects');
 
-    const accepted = await open('/projects/project-renovation');
+    // Slice 41: a successful archive no longer navigates to `/app`, where no header could offer
+    // the one step the per-step blocker exists for.
+    const accepted = await open('/projects/project-garden');
     query(accepted.harness, '[data-project-more]')!.click();
     accepted.harness.fixture.detectChanges();
     query(accepted.harness, '[data-project-archive]')!.click();
@@ -461,7 +916,10 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
     query(accepted.harness, '[data-project-archive-confirm-yes]')!.click();
     await settle(accepted.harness);
 
-    expect(accepted.router.url).toBe('/app');
+    expect(accepted.router.url).toBe('/projects/project-garden');
+    expect(query(accepted.harness, '[data-project-status]')?.textContent?.trim()).toBe('archived');
+    expect(query(accepted.harness, '[data-history-message]')?.textContent).toBe('Garden is archived. Undo is available here.');
+    expect(query(accepted.harness, '[data-history-undo]')).not.toBeNull();
   });
 
   it('opens the root Archive from More after enabling its disabled page', async () => {
@@ -474,6 +932,22 @@ describe('ProjectWorkspaceShell — the header, the canvas and what crosses betw
 
     expect(router.url).toBe('/projects/project-renovation/pages/archive');
     expect(query(harness, '[data-archive-page]')).not.toBeNull();
+    expect(gateway.calls).toContainEqual({
+      method: 'pages.setEnabled',
+      argument: { projectId: RENOVATION.id, input: { kind: 'archive', enabled: true } },
+    });
+  });
+
+  it('passes a stable Archive callback through the page outlet', async () => {
+    const { harness, gateway, router } = await open('/projects/project-renovation');
+    const shell = harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell)).componentInstance as ProjectWorkspaceShell;
+    const callback = shell.rendererInputs()!.onOpenArchive;
+
+    expect(shell.rendererInputs()!.onOpenArchive).toBe(callback);
+    callback();
+    await settle(harness);
+
+    expect(router.url).toBe('/projects/project-renovation/pages/archive');
     expect(gateway.calls).toContainEqual({
       method: 'pages.setEnabled',
       argument: { projectId: RENOVATION.id, input: { kind: 'archive', enabled: true } },
@@ -603,5 +1077,75 @@ describe('ProjectWorkspaceShell — the Todos page (§34, §68)', () => {
 
     expect(gateway.calls.some(({ method }) => method === 'tasks.complete')).toBe(true);
     expect(gateway.calls.filter(({ method }) => method === 'progress.get').length).toBeGreaterThan(progressReads);
+  });
+});
+
+describe('ProjectWorkspaceShell — the header’s Undo/Redo (Slice 41)', () => {
+  const HISTORY_PAGES = [
+    page('page-renovation-home', 'project-renovation', 'home'),
+    page('page-renovation-todos', 'project-renovation', 'todos'),
+    page('page-renovation-archive', 'project-renovation', 'archive'),
+    page('page-renovation-reflections', 'project-renovation', 'reflections'),
+    page('page-kitchen-work', 'project-kitchen', 'work'),
+    page('page-cabinets-work', 'project-cabinets', 'work'),
+    page('page-garden-work', 'project-garden', 'work'),
+  ];
+
+  it('renders both controls on every root page, a sub-project, and an unavailable page', async () => {
+    for (const url of [
+      '/projects/project-renovation',
+      '/projects/project-renovation/pages/todos',
+      '/projects/project-renovation/pages/archive',
+      '/projects/project-renovation/pages/reflections',
+      '/projects/project-kitchen',
+    ]) {
+      const { harness } = await open(url, { pages: HISTORY_PAGES });
+      await settle(harness);
+      expect(query(harness, '[data-history-undo]')?.getAttribute('aria-label'), url).toBe('Nothing to undo');
+      expect(query(harness, '[data-history-redo]')?.getAttribute('aria-label'), url).toBe('Nothing to redo');
+      expect(query(harness, '[data-history-undo]')?.getAttribute('aria-disabled'), url).toBe('true');
+    }
+    const unavailable = await open('/projects/project-renovation/pages/unbuilt-kind', { pages: HISTORY_PAGES });
+    await settle(unavailable.harness);
+    expect(query(unavailable.harness, '[data-history-undo]')).not.toBeNull();
+  });
+
+  it('loads the history of the routed project, again on a project change', async () => {
+    const { harness, gateway } = await open('/projects/project-renovation', { pages: HISTORY_PAGES });
+    await harness.navigateByUrl('/projects/project-garden');
+    await settle(harness);
+    const reads = gateway.calls.filter(({ method }) => method === 'history.summary').map(({ argument }) => argument);
+    expect(reads).toContain('project-renovation');
+    expect(reads.at(-1)).toBe('project-garden');
+  });
+
+  it('binds every writer store inside the shell to the header’s history, outlet pages and shortcut lists included', async () => {
+    const shortcut = ResolvedSectionShortcutSchema.parse({
+      id: 'shortcut-1', pageId: 'page-renovation-home', sourceSectionId: 'section-kitchen-tasks', position: 1,
+      columnSpan: 12, collapsed: false, createdAt: AT, updatedAt: AT,
+      source: section('section-kitchen-tasks', 'project-kitchen', 'page-kitchen-work', 'task-list'),
+      sourceProjectId: 'project-kitchen', sourceProjectName: 'Kitchen', sourcePageKind: 'work',
+      breadcrumb: ['Home renovation', 'Kitchen'], availability: 'available',
+    });
+    const home = await open('/projects/project-renovation', { pages: HISTORY_PAGES, shortcuts: [shortcut] } as Options);
+    await settle(home.harness);
+    const shell = home.harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell));
+    const history = shell.injector.get(ProjectHistoryStore);
+    expect(home.harness.fixture.debugElement.query(By.directive(ProjectCanvas)).injector.get(OPERATION_HISTORY_REPORTER)).toBe(history);
+    const shortcutList = home.harness.fixture.debugElement.query(By.directive(ShortcutFrame)).query(By.directive(TaskListSection));
+    expect(shortcutList.injector.get(OPERATION_HISTORY_REPORTER)).toBe(history);
+
+    const outlets: Array<[string, unknown]> = [
+      ['/projects/project-renovation/pages/todos', TodosPage],
+      ['/projects/project-renovation/pages/archive', ArchivePage],
+      ['/projects/project-renovation/pages/reflections', ReflectionsPage],
+    ];
+    for (const [url, component] of outlets) {
+      const opened = await open(url, { pages: HISTORY_PAGES });
+      await settle(opened.harness);
+      const outletPage = opened.harness.fixture.debugElement.query(By.directive(component as never));
+      const shellHistory = opened.harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell)).injector.get(ProjectHistoryStore);
+      expect(outletPage.injector.get(OPERATION_HISTORY_REPORTER), url).toBe(shellHistory);
+    }
   });
 });

@@ -13,6 +13,7 @@ import { DashboardPage } from './features/dashboard/dashboard-page';
 import { ProjectWorkspaceShell } from './features/projects/project-workspace-shell';
 import { SearchPage } from './features/search/search-page';
 import { AgentConnectionsPage } from './features/settings/agents/agent-connections-page';
+import { ArchivedProjectsPage } from './features/settings/archived-projects/archived-projects-page';
 import { SettingsPage } from './features/settings/settings-page';
 import { DesignLabPage } from './prototype/design-lab/design-lab-page';
 import { StateInspectorPage } from './prototype/dev-panel/state-inspector-page';
@@ -50,6 +51,7 @@ describe('the §68 route map', () => {
     ['/search', SearchPage],
     ['/settings', SettingsPage],
     ['/settings/agents', AgentConnectionsPage],
+    ['/settings/archived-projects', ArchivedProjectsPage],
     ['/prototype/design', DesignLabPage],
     ['/prototype/state', StateInspectorPage],
   ])('resolves %s', async (path, expected) => {

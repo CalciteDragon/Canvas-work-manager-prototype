@@ -49,11 +49,100 @@ unchecked lookup for its own write paths, so a `tasks.write`-only grant is usabl
 cannot confirm that someone else's project exists
 ([decision](../../decisions/2026-08-workspace-scoping-and-not-found.md)).
 
-**Archive is a field, not a status; removal archives, restore is exact.** `archivedAt` on
+**Archive is a field, not a status; retained removal archives, restore is exact.** `archivedAt` on
 tasks, reflections and sections, with `archivedWithSectionId` / `archivedWithTaskId`
 marking what one operation took down so that restore brings back exactly that and nothing
 independently archived ([decision](../../decisions/2026-09-what-undo-means-for-an-archived-row.md)).
-Nothing hard-deletes except a shortcut placement.
+New section removal archives live owned rows in one step, leaving independently archived rows
+unchanged; its public request has no policy or target. The history executor still accepts older
+stored `reassign` actions. Removal deletes only after the content policy says nothing needs recovery and an
+independent audit proves no task, reflection or shortcut still references the section. Required
+references retain an integrity tombstone; existing tombstones are never purged
+([decision](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+
+**Undo and Redo walk a per-actor history of typed actions, not a replay and not the activity
+log.** Supported section, task and reflection writes record in the same caller-owned unit, put one
+action into the exact actor's history for the subject's project, and return a receipt.
+Each versioned payload contains only the created snapshot and placement, combined neighbours,
+changed-field footprint or removal footprint that its executor may safely touch.
+`OperationHistoryService` runs only the next action in a direction, within 24 hours, checking the
+state the other direction left rather than which record is newer, and refusing with a typed reason
+rather than overwriting a later write; an action that can never succeed again retires instead of
+wedging the stack. The cursor and `revision` — not timestamps — order everything. Archive Restore
+stays durable — no receipt is needed to invoke it and it never expires — and since Slice 37 every
+Restore, row **and** section, also records an action of its own. Rejected: inverse data on
+`ActivityEvent` (activity is audit), a generic command bus or event sourcing, and routing history
+through `SectionService` or the row services (a cycle) — the payloads live in package-internal
+function modules both sides share ([scope](../../decisions/2026-09-operation-history-scope.md),
+[retention](../../decisions/2026-09-operation-history-retention.md),
+[retired actions](../../decisions/2026-09-operation-history-retired-actions.md),
+[removal footprint](../../decisions/2026-09-section-removal-undo-records.md),
+[section edit boundaries](../../decisions/2026-09-section-edit-undo-boundaries.md)).
+
+Task and reflection executors preflight the entire captured footprint before writing. Field Undo
+compares only fields the action changed; structural Undo checks exact rows, ancestry, dependents
+and archive markers; an implicit container is removed/restored with its created row as one action.
+Historical reflection subjects may be restored when the subject still exists in the workspace,
+without reapplying the stricter eligibility rule for a new assignment
+([decision](../../decisions/2026-09-row-operation-history.md)). A task update step never edits or
+moves a row in an archived section: its Undo and Redo refuse there with restore guidance, like the
+ordinary write. The service also refuses an archived section inherited during reparent, and
+history refuses entering `done` on an independently archived task
+([section decision](../../decisions/2026-09-task-reparent-archived-section.md),
+[completion decision](../../decisions/2026-09-archived-task-completion-history.md)).
+
+**A recorded Restore stays durable, and a placement inverse stays out of its source.** Archive
+Restore still needs no receipt and never expires; recording it only means the same actor can take it
+back before undoing the removal beneath it, and a Restore by *someone else* still retires that
+removal. Its inverse writes the captured markers and nothing else, so an independently archived row
+is untouched and `archiveGeneration` never moves. Because retention prunes per history, a surviving
+`section.restore` can be the only record that a section reached a generation, so `generationFloor`
+counts it. A shortcut executor takes a repository type with no rows in it and records into the
+**destination** project, which is where the write happened
+([decision](../../decisions/2026-09-section-restore-and-shortcut-history.md)).
+
+**A page toggle's inverse deletes only what the toggle created.** The enable that created an optional
+page records `page.add`, whose Undo removes that record — the exact id, only while it is still
+unchanged, and only after checking every canonical section (archived ones included) and every
+placement that names the page. Any dependency refuses the whole transition; nothing is cascaded or
+cleaned up, because a page toggle must never delete content. `updatedAt` is deliberately left out of
+that identity check: the actor's own later toggles move it, and comparing it would make a correct Undo
+chain refuse its own last step. Every later toggle records `page.update` and writes one boolean, so
+content on the page survives both directions. The ordinary toggle keeps §26's archive exemption; the
+transitions do not, so history is not a way around §31's freeze
+([decision](../../decisions/2026-09-optional-page-operation-history.md)).
+
+**An existing project's write is reversible without becoming a way around its rules.** One commit
+writes every project field, so one action per changed call covers edits, completion, reparenting,
+layout and progress settings, and the status crossing decides whether it is an archive, a
+reactivation or an update. The subject's own history owns it, so a reparent that changes its root
+never moves an action between histories. Reversal re-runs the forward hierarchy and archive rules
+against the tree as it is now — archiving never cascades, and a history step does not acquire a
+cascade. The history blocker gets one narrow exception, for the subject's **own** archived status and
+only for an archive's Undo, a reactivation's Redo and an edit made while archived, because the service
+allowed those writes and refusing would wedge the cursor on the project they are about; an archived
+ancestor still blocks ([decision](../../decisions/2026-09-project-update-operation-history.md)).
+
+**A summary entry says whether that one step may run.** The summary's top-level `blockedBy`
+describes the project, but an archive's own Undo, a reactivation's Redo and an archived-throughout
+edit may run while their subject is archived; a header reading only the project-level blocker could
+never undo an archive. `summaryOf` therefore computes each entry's `blockedBy` with the very
+`transitionBlocker` a transition of that step runs, so availability and execution cannot drift.
+Labels are captured at record time and name the change: shortcut labels read the source section's
+name with a plain `find` (never the scope checks, so a label adds no refusal), and project labels
+name the one edit and its result, or say `Edited` for several
+([decision](../../decisions/2026-09-project-header-history-controls.md)).
+
+**Activity audit outlives safely removed rows.** `ActivityService` captures trusted target label
+and owning project/root while the entity is readable in the caller's unit. Feeds prefer current
+names while a target exists and fall back to captured identity afterward; no inverse data lives in
+Activity ([decision](../../decisions/2026-09-historical-activity-identity.md)).
+
+**A history transition's grant comes from its stored action.** Section actions need
+`projects.write`, task actions `tasks.write`, and reflection actions `reflections.write`.
+`OperationHistoryService` looks up the exact-owned action, asserts that family grant before
+revision/conflict detail, and only then executes it; caller input never chooses the grant
+([decision](../../decisions/2026-09-operation-family-permissions.md)).
 
 **Archiving a project reaches down without cascading.** A project with a live child
 refuses to archive; live work beneath an archived ancestor is hidden from ordinary reads
@@ -90,9 +179,30 @@ ISO string so ordering stays lossless without a clock or timezone
 
 ## Decisions that shape this system
 
+- [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — pure read eligibility is shared by two projections while canonical Restore writes recheck blockers.
+
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
 
+- [A task step's Undo and Redo refuse while its section is archived](../../decisions/2026-09-task-history-under-archived-sections.md)
+- [A task cannot follow its parent into an archived section](../../decisions/2026-09-task-reparent-archived-section.md)
+- [Completion history respects an archived task](../../decisions/2026-09-archived-task-completion-history.md)
+- [MCP history conflicts explain their repair in words](../../decisions/2026-09-mcp-history-conflict-guidance.md)
+- [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md)
+- [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md)
+- [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md)
+- [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md)
+- [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md)
+- [Undo and Redo require their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md)
+- [Stage A defers historical activity identity and the retry cache, and uses one transition route](../../decisions/2026-09-history-stage-a-deferrals.md)
+- [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](../../decisions/2026-09-operation-history-retired-actions.md)
+- [One explicit write is one history action, kept for 24 hours and at most 50 per history](../../decisions/2026-09-operation-history-retention.md)
+- [Undo and Redo follow one history per exact actor, per owning project](../../decisions/2026-09-operation-history-scope.md)
+- [Explicit section edits reverse only their operation's changes](../../decisions/2026-09-section-edit-undo-boundaries.md)
+- [A section update's history label names its recorded edit](../../decisions/2026-09-section-update-history-labels.md)
+- [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md)
+- [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)
 - [Root Archive recovery guidance](../../decisions/2026-09-root-archive-recovery-guidance.md)
+- [Content-oriented Archive policy](../../decisions/2026-09-content-oriented-archive-policy.md)
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md)
 - [Reflection subjects and the root journal feed](../../decisions/2026-09-reflection-subjects-and-the-journal-feed.md)
 - [What the Todos page decides for itself](../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)
@@ -100,6 +210,7 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [A shortcut resolves source identity, not source content](../../decisions/2026-09-a-shortcut-resolves-identity-not-content.md)
 - [Live work under an archived ancestor is hidden, and cannot be newly created](../../decisions/2026-09-reactivating-under-an-archived-ancestor.md)
 - [Reassigning a container's rows may cross pages within a project](../../decisions/2026-09-reassign-may-cross-pages.md)
+- [One-step section removal and task Delete](../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — new removals cascade live rows; stored reassign history remains executable
 - [A disabled page refuses new content and keeps everything already on it](../../decisions/2026-09-a-disabled-page-hides-navigation-not-data.md)
 - [A root's optional pages are created on first enable](../../decisions/2026-09-optional-pages-are-created-on-first-enable.md)
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md)
@@ -118,6 +229,9 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [Workspace scoping, and why a foreign id is 404 rather than 409](../../decisions/2026-08-workspace-scoping-and-not-found.md)
 - [Task status transitions, `completedAt`, and how a task is archived](../../decisions/2026-08-task-status-transitions-and-archive.md)
 - [Project nesting rules and what archiving a parent does](../../decisions/2026-08-project-nesting-and-archive-rules.md)
+- [An existing project's writes are one action family, and its own archive can be undone while archived](../../decisions/2026-09-project-update-operation-history.md)
+- [A forward reparent refuses a Home shortcut it would carry across roots](../../decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md)
+- [The project header offers Undo and Redo of the displayed project's history](../../decisions/2026-09-project-header-history-controls.md) — each summary entry carries its own `blockedBy`
 
 ## Spec sections
 
@@ -125,3 +239,13 @@ Newest first. The full list with status is in the [decision index](../../decisio
 tasks and the Todos page · §36 reflections and the journal · §38–§39 timeline and
 progress · §40 search · §42–§43 AI · §45 time · §53 permissions · §57 activity · §62
 live-update emission.
+
+**Archive projects recoverable content, judged on current state.** `sectionRecoveryOf`
+(`section-recovery-policy.ts`, package-internal) is a pure function: contracts capability plus the
+rows still assigned to the section. `ProjectArchiveService` applies it to section entries only;
+retained disposable view tombstones stay stored but unlisted, uncertain rich-text config and
+unknown types are kept, and a container holding only independently archived rows stays listed as
+the first step of their recovery. New removal consults this policy after settling rows, then makes
+a separate canonical-reference check before deleting. Archive remains a projection, not the
+deletion gate ([content policy](../../decisions/2026-09-content-oriented-archive-policy.md),
+[disposable removal](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).

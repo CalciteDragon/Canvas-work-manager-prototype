@@ -21,7 +21,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [The web app and the host start separately](2026-08-web-and-host-start-separately.md) | `pnpm dev` prints two commands and exits; `concurrently` hung `tsx watch` | current |
 | [The host's port variable is `CWM_HOST_PORT`, not `PORT`](2026-08-host-port-is-not-the-generic-port.md) | The host ignores the generic `PORT` entirely | current |
-| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning budget with the measurement behind it; 25.x builds exceed it warning-only | current |
+| [The initial bundle budget is set deliberately at 850 kB](2026-08-initial-bundle-budget.md) | Warning and error ceilings, with measured lazy boundaries | amended; Slice 36 set a 1050 kB hard ceiling; Slice 41 adds the eager header controls; Slice 58 fits the phone drawer at 1048.5 kB |
 
 ## Contracts
 
@@ -30,16 +30,18 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Persona contract fields](2026-08-persona-contract-fields.md) | `id`/`workspaceId` spelling and the preference shape | current |
 | [Project statuses, milestone statuses, task priorities](2026-08-status-and-priority-value-sets.md) | The starting value sets, flagged as guesses (§83) | current |
 | [A date-only task due date is stored at UTC end-of-day](2026-08-task-date-only-due-time.md) | How a date-only due date becomes an instant | current |
-| [A section config is an object at rest, replaced whole on write](2026-08-section-config-ownership.md) | Config keys belong to the section definition; no partial writes | current |
+| [A section config is an object at rest, replaced whole on write](2026-08-section-config-ownership.md) | Config keys belong to the section definition; no partial writes | amended; recovery inspection landed in Slice 29 |
 | [What an `Identity` is, and where it comes from](2026-08-identity-contract-and-me-route.md) | The `Identity` contract and `GET /api/me` | current |
-| [What `ActivityEvent.summary` is for, and what it is not](2026-08-activity-summary-ownership.md) | `summary` is a log line the domain writes; the UI composes its own | current |
+| [What `ActivityEvent.summary` is for, and what it is not](2026-08-activity-summary-ownership.md) | `summary` is a log line the domain writes; the UI composes its own | amended; Slice 36 adds captured historical context |
+| [Activity captures target identity so an audit line outlives its row](2026-09-historical-activity-identity.md) | Required event context survives creation Undo without row tombstones | amended; Slice 42 adds the project lifecycle anchor |
 
 ## Domain
 
 | Entry | Settled | Status |
 |---|---|---|
+| [Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md) | Ready-only parent-first root Archive; workspace Settings recovers archived roots and live-ancestor subprojects | amended; Slice 47 keeps a stale list paused until a current read and moves Settings focus to a usable control |
 | [Project nesting rules and what archiving a parent does](2026-08-project-nesting-and-archive-rules.md) | Same workspace, no cycles, no depth limit; children archived first | extended |
-| [Task status transitions, `completedAt`, and how a task is archived](2026-08-task-status-transitions-and-archive.md) | Archive is `archivedAt`, not a status; `done` stamps `completedAt` | amended |
+| [Task status transitions, `completedAt`, and how a task is archived](2026-08-task-status-transitions-and-archive.md) | Archive is `archivedAt`, not a status; `done` stamps `completedAt` | amended; Slice 49 applies the archived-completion rule to history |
 | [Workspace scoping, and why a foreign id is 404 rather than 409](2026-08-workspace-scoping-and-not-found.md) | Every read and write is scoped by the actor's workspace | current |
 | [Where the agent permission model is enforced](2026-08-permissions-live-on-the-actor.md) | The domain asserts capability on the actor; no `agents.*` permission | current |
 | [How §53's "Last used" is recorded](2026-08-last-used-is-a-throttled-write.md) | A throttled write on distance, not elapsed time | current |
@@ -49,35 +51,57 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Timeline derives ranges without inventing a project start date](2026-08-timeline-range-semantics.md) | How timeline ranges are derived | current |
 | [Reflections use reverse chronology and optional prompts](2026-08-reflection-chronology-and-prompts.md) | Body required; prompts are suggestions | current |
 | [What counts as AI in the prototype](2026-08-prototype-ai-scope-and-fun-fact.md) | Fun Fact is a fixture rotation, not `AIProvider` | current |
-| [A section's activity event names its project, not the section](2026-08-section-activity-targets-the-project.md) | `project.section_*` events target the project | amended |
-| [Where a live event is emitted, and when it is delivered](2026-08-live-events-ride-the-activity-record.md) | At most one frame per operation, on `ActivityService.record`, after commit | current |
-| [Container sections own their rows; view sections own nothing](2026-09-sections-own-their-data.md) | `sectionId` on rows; cascade or reassign on removal | amended |
-| [A section has a name, and the default is derived rather than stored](2026-09-a-section-has-a-name.md) | `nameOf` over `type`, optional `title` override | amended |
-| [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Removal archives; restore is exact; nothing hard-deletes | current |
+| [A section's activity event names its project, not the section](2026-08-section-activity-targets-the-project.md) | Section removal targets the project; disposable deletion emits `project.section_removed` | amended (Slice 35 transitions keep it) |
+| [Where a live event is emitted, and when it is delivered](2026-08-live-events-ride-the-activity-record.md) | One post-commit frame per operation; removal action reflects retained or deleted disposition | amended (Slices 30–31, 35–36) |
+| [Container sections own their rows; view sections own nothing](2026-09-sections-own-their-data.md) | Every row keeps a live section reference; Slice 31 adds reference-checked deletion for disposable sections | amended; Slice 43 cascades live owned rows |
+| [A section has a name, and the default is derived rather than stored](2026-09-a-section-has-a-name.md) | `nameOf` over `type`, optional `title` override | amended; Slice 43 retires the live-row refusal dialog |
+| [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Archive Restore remains durable; safe disposable removal can delete after a reference audit | amended; content projection in Slice 29; operation Undo in Slices 30–31; history retirement in Slice 35; section Restore records in Slice 37; Slice 43 cascades live owned rows |
+| [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | amended; projection in Slice 29, deletion boundary in Slice 31; Slice 43 changes new removal settlement; Slice 44 adds structural readiness |
 | [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | current |
-| [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | current |
-| [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | current |
-| [Reassigning a container's rows may cross pages within a project](2026-09-reassign-may-cross-pages.md) | §31 constrains the type, not the page | current |
+| [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | amended; Slice 38 gives the creation a restricted inverse |
+| [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | amended; Slice 36 history may restore captured content; Slice 43 removes removal-time reassign |
+| [Reassigning a container's rows may cross pages within a project](2026-09-reassign-may-cross-pages.md) | §31 constrains the type, not the page | amended; exercised with Undo in Slice 33; new reassign requests retired in Slice 43 |
+| [Section removal is one cascade gesture, and task Delete is reversible](2026-09-one-step-section-removal-and-task-delete.md) | ID-only cascade for live owned rows; keep legacy reassign history; expose soft archive as task Delete | current |
 | [Live work under an archived ancestor is hidden, and cannot be newly created](2026-09-reactivating-under-an-archived-ancestor.md) | The archived-ancestor rule and its transition check | current |
-| [A shortcut resolves source identity, not source content](2026-09-a-shortcut-resolves-identity-not-content.md) | `SectionShortcutService` never reads rows | current |
-| [Home orders sections and shortcuts together](2026-09-home-orders-sections-and-shortcuts-together.md) | One combined placement sequence per page | current |
+| [A shortcut resolves source identity, not source content](2026-09-a-shortcut-resolves-identity-not-content.md) | `SectionShortcutService` never reads rows | amended; Slice 37 extends the rule to placement inverses |
+| [Home orders sections and shortcuts together](2026-09-home-orders-sections-and-shortcuts-together.md) | One combined placement sequence per page | amended (Undo restores by neighbours, Slice 30) |
 | [Contextual insertion remembers its target and creates in one positioned write](2026-09-contextual-insertion-names-its-position.md) | Optional domain `position`; UI resolves stable anchors; Grid gaps are transient targets; renumbering leaves shifted siblings' `updatedAt` amended | amended |
 | [What the Todos page decides for itself](2026-09-todos-chronology-and-canonical-navigation.md) | Instants compared as text; no tab required; completion one-way | current |
-| [Reflection subjects and the root journal feed](2026-09-reflection-subjects-and-the-journal-feed.md) | Optional subject id; journal resolves current state | current |
-| [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | What the Archive projection says about each item's restore path | amended |
+| [Reflection subjects and the root journal feed](2026-09-reflection-subjects-and-the-journal-feed.md) | Optional subject id; journal resolves current state | amended; Slice 36 restores historical links by identity |
+| [Root Archive recovery guidance](2026-09-root-archive-recovery-guidance.md) | Root Archive and its More-menu entry | amended; Slice 44 makes rows ready-only and adds Settings recovery |
+| [A section removal commits one scoped, expiring Undo record](2026-09-section-removal-undo-records.md) | Removal footprint, exact-actor scope, structural conflicts, neighbor placement | amended; Slice 31 deletion disposition and repeat-receipt recovery; Slice 32 operation union; Slice 35 records become history actions; Slice 43 captures only new cascades |
+| [Disposable removal and immediate canvas Undo](2026-09-disposable-removal-and-immediate-undo.md) | Reference-safe deletion, own-receipt recovery and actionable refusals; the canvas Undo is retired for the header | amended (Slice 32: notice serves every explicit operation; Slice 35: history transitions; Slice 41: header controls; Slice 43: ID-only one-step removal) |
+| [Explicit section edits reverse only their operation's changes](2026-09-section-edit-undo-boundaries.md) | Explicit action boundaries, safe add, changed-field inverses | amended (Slice 35: cursor order and applied-state checks; Slice 37: duplication is an add; Slice 41: no forward-write notice) |
+| [A section update's history label names its recorded edit](2026-09-section-update-history-labels.md) | Single-field title, Rich Text prose, collapse and width labels; combined updates keep general wording | current |
+| [Undo and Redo follow one history per exact actor, per owning project](2026-09-operation-history-scope.md) | History key, caller-only summaries, family-dependent write grants, acyclic service | amended; Slice 36 adds row families; Slice 41 presents the displayed project's history; Slice 42 records creation and permits only its creator's anchored absent-project summary |
+| [One explicit write is one history action, kept for 24 hours and at most 50 per history](2026-09-operation-history-retention.md) | Cursor movement, branch clearing, revision rule, contiguous lazy pruning | amended; Slice 36 adds row actions; Slice 42 confirms there is no retention exception and an absent project's history cannot be pruned by writes elsewhere |
+| [Applied-state checks and an archive generation replace supersession; unrepairable actions retire](2026-09-operation-history-retired-actions.md) | Per-family checks, `archiveGeneration`, verbatim reapply, the permanent-conflict list | amended; Slice 37 narrows the Restore retirement and widens the generation floor; Slice 42 adds other-actor project history as a permanent creation conflict |
+| [Stage A defers historical activity identity and the retry cache, and uses one transition route](2026-09-history-stage-a-deferrals.md) | Route shape and retry-cache deferral remain; Activity and grants advanced in Stage B | amended; Slice 36 captures Activity identity and adds family grants; Slice 42 retires the transition retry cache after creator-only summaries provide recovery |
+| [Task and reflection writes record one reversible row action](2026-09-row-operation-history.md) | Row footprints, compound containers, envelopes and durable row Restore history | amended; Slice 49 adds the archived-completion rule |
+| [A task step's Undo and Redo refuse while its section is archived](2026-09-task-history-under-archived-sections.md) | `task.update` transitions check the row's current section and a differing target | amended; Slice 49 closes the service gap and archived-completion divergence |
+| [A task cannot follow its parent into an archived section](2026-09-task-reparent-archived-section.md) | Inherited destination section must be live before reparent | current (Slice 49) |
+| [Completion history respects an archived task](2026-09-archived-task-completion-history.md) | Entering `done` reports the archived task, except when section Restore is the single repair | current (Slice 49) |
+| [MCP history conflicts explain their repair in words](2026-09-mcp-history-conflict-guidance.md) | Shared refusal text states the typed repair and avoids retry advice for retired actions | current (Slice 49) |
+| [A recorded Restore is a new action, and a shortcut action owns only its placement](2026-09-section-restore-and-shortcut-history.md) | Duplication as an add, exact Restore footprints, destination-owned placement history | amended (Slice 41: labels name the source) |
+| [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](2026-09-optional-page-operation-history.md) | Exact creation inverse after a dependency preflight, nondestructive toggle history, and the freeze distinction | amended (Slice 41: offered in the header) |
+| [An existing project's writes are one action family, and its own archive can be undone while archived](2026-09-project-update-operation-history.md) | Subject-owned project history, changed-field footprints, hierarchy rechecks and the narrow archived-subject exception | amended (Slice 41: per-step `blockedBy`, edit-naming labels; Slice 42: create result and first history action) |
+| [Project creation belongs to the created project's history and can be recovered at its URL](2026-09-project-creation-history.md) | `project.add`, durable absence anchors, preflight and creator-only recovery | current (Slice 42) |
+| [A forward reparent refuses a Home shortcut it would carry across roots](2026-09-forward-reparent-refuses-cross-root-shortcut.md) | `ProjectService.update` shares the history executor's cross-root placement check; 409 naming each placement | current (Slice 40) |
 
 ## Repositories
 
 | Entry | Settled | Status |
 |---|---|---|
 | [How repository queries combine and compare values](2026-08-repository-query-semantics.md) | Query filters AND together; empty arrays match nothing | current |
+| [One writer per data file](2026-09-one-writer-per-data-file.md) | An advisory owner record: the host holds it for life, stdio per call, the CLIs refuse; nonce-guarded reclaim | current (Slice 54) |
 
 ## MCP tools
 
 | Entry | Settled | Status |
 |---|---|---|
 | [What the tool registry knows about MCP](2026-08-tool-registry-is-transport-free.md) | Nothing: the registry is transport-free; the host mounts it | current |
-| [MCP tools advertise their required permission in namespaced metadata](2026-08-mcp-tool-permission-metadata.md) | `_meta["local.canvas-work-manager/requiredPermission(s)"]` | current |
+| [MCP tools advertise their required permission in namespaced metadata](2026-08-mcp-tool-permission-metadata.md) | Static tools use singular/plural metadata; history transitions use a family map | amended; Slice 36 adds conditional grants |
+| [A history transition requires the stored operation family's write grant](2026-09-operation-family-permissions.md) | One family grant per action, declared as a family metadata map | amended; Slices 37–39 add the `shortcut`, `page` and `project` families |
 
 ## Prototype data
 
@@ -85,32 +109,39 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [Persona workspace topology in seeds](2026-08-persona-workspace-topology.md) | Three personas with separately owned workspaces in every seed | current |
 | [Where §51's bearer tokens live](2026-08-agent-tokens-are-fixtures-not-records.md) | Tokens are fixtures beside the seeds, not a contract field | current |
+| [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](2026-09-schema-version-4-conversion.md) | Frozen v2 → v3 and v3 → v4 steps; only v3 receipts retire | amended; Slice 36 chains version 5 |
+| [Schema version 5 backfills durable Activity identity without changing history](2026-09-schema-version-5-conversion.md) | Validated v4 → v5 Activity-context backfill preserves operation history | current (Slice 36) |
 
 ## Prototype host
 
 | Entry | Settled | Status |
 |---|---|---|
 | [CORS on the host, not a dev-server proxy](2026-08-host-cors-over-dev-proxy.md) | The preflight is load-bearing; the host answers it | current |
-| [Stdio uses an environment token and reloads identity per call](2026-08-stdio-token-and-live-auth.md) | `CWM_MCP_TOKEN`; stdio re-reads the file every call | current |
-| [Live updates reach the browser over HTTP, and not over stdio](2026-08-live-updates-are-http-only.md) | A stdio process owns a separate store | current |
+| [Stdio uses an environment token and reloads identity per call](2026-08-stdio-token-and-live-auth.md) | `CWM_MCP_TOKEN`; stdio re-reads the file every call | amended; Slice 54 enforces the concurrency rule |
+| [Live updates reach the browser over HTTP, and not over stdio](2026-08-live-updates-are-http-only.md) | A stdio process owns a separate store | amended; Slice 54 refuses stdio while the host owns the file |
 | [Latency and failure injection live in the client, not the host](2026-08-latency-and-failure-live-in-the-client.md) | The gateway injects; the host has no delay endpoint | current |
 
 ## Web app
 
 | Entry | Settled | Status |
 |---|---|---|
+| [Below 48rem the global sidebar is a modal drawer, and a chosen link hands focus to what it opened](2026-09-phone-navigation-drawer.md) | Phone drawer semantics, focus after route choice and resize, project-column re-collapse, Task List details stacking | current (Slice 58) |
+| [Task Delete names its existing recovery routes](2026-09-task-delete-recovery-feedback.md) | Committed Task List and Todos Delete show archive status and point to root Archive and the owner's header history | current (Slice 57) |
+| [Descendant rows link to their owner's existing header history](2026-09-descendant-history-discovery.md) | Root Todos and Archive offer a named owner route to the existing header; focus and actor scope stay there | current (Slice 56) |
 | [Direct canvas editing is the next development direction](2026-09-direct-canvas-editing-direction.md) | Approved direction, implemented in Slice 27 | implemented in Slice 27 |
 | [Canvas chrome is revealed in place, not gated by an editing mode](2026-09-canvas-chrome-is-revealed-not-moded.md) | Contextual reveal, keyboard and touch behavior, optimistic resize; pending shortcut writes, complete-order movement guards and browser-review reveal and handle fixes, slider handle and script-fitted Rich Text amended | amended |
+| [A recovery route is offered only when it leads somewhere](2026-09-recovery-routes-name-what-is-actually-there.md) | Archive offered on the removal's own verdict, Archive rows state the append | amended (Slice 35 removes `supersededBy`; Slice 41 moves Open Archive to the recovery notice; Slice 44 adds Settings recovery) |
+| [The project header offers Undo and Redo of the displayed project's history, and nothing else does](2026-09-project-header-history-controls.md) | Displayed-project scope, per-step `blockedBy`, header-only action surface, cross-owner guidance, frames reconcile content, archive stays on the project | amended; Slice 42 adds creator recovery at an absent project's URL |
 | [The gateway interface grows with its implementations](2026-08-gateway-surface-grows-with-implementations.md) | No stubbed gateway members | current |
 | [A theme change lasts the session, not the persona](2026-08-theme-selection-is-session-only.md) | `ThemeService` owns `data-theme`; nothing persists it | current |
 | [How live reconnects recover derived project views](2026-08-live-recovery-invalidates-derived-views.md) | Reconnect invalidates derived reads quietly | current |
-| [The activity feed composes its line; `summary` stays a log line](2026-08-activity-feed-composes-from-parts.md) | The feed renders from structured parts with a live title | current |
+| [The activity feed composes its line; `summary` stays a log line](2026-08-activity-feed-composes-from-parts.md) | The feed renders live names or captured historical fallback labels | amended; Slice 36 handles removed targets; Slice 42 uses a captured project-target label only for that absent project |
 | [The dashboard splits layout from content](2026-08-dashboard-layout-and-content-split.md) | Widgets from `IdentityProvider`, content from one read | current |
 | [Where dashboard widgets live](2026-08-dashboard-widget-ownership.md) | One folder per widget, one registry line | current |
 | [Flow and grid both remain prototype layout candidates](2026-08-flow-vs-grid-layout-experiment.md) | Both modes persist per project; no freeform canvas | open experiment |
 | [View Mode shows work; Edit Layout Mode shows canvas chrome](2026-08-view-mode-section-chrome.md) | Earlier mode-based visibility rules | superseded |
 | [The project header's Quick Add adds a section](2026-08-project-header-quick-add.md) | Quick Add's former meaning and placement | amended |
-| [The smallest surface that makes §81's project verbs demonstrable](2026-08-project-create-edit-archive-surface.md) | Sidebar create; More menu for rename, status, date, archive | current |
+| [The smallest surface that makes §81's project verbs demonstrable](2026-08-project-create-edit-archive-surface.md) | Sidebar create; More menu for rename, status, date, archive | amended; Slice 39 records each edit in history; Slice 41 keeps the archived project on screen; Slice 42 records create and keeps its recovery at the project URL |
 | [§4's *Agent Modified* task row has no data behind it](2026-08-agent-modified-has-no-data-behind-it.md) | Six of seven `TaskRow` variants; the seventh is a §58 question | current |
 | [Where the project navigation column lives, and what moved with it](2026-09-where-the-project-navigation-column-lives.md) | In the projects feature; height and recovery entry amended in Slice 27 | amended |
 | [Optional page management lives in project navigation](2026-09-optional-page-management-lives-in-project-navigation.md) | The page toggles sit in the navigation column | current |
@@ -124,3 +155,4 @@ corrects part of it. *extended* — later entries add rules on top without contr
 |---|---|---|
 | [The end-to-end suite starts its own servers and writes its own data file](2026-08-e2e-owns-its-servers-and-its-data.md) | Playwright owns both processes and `.prototype/e2e-data.json` | current |
 | [Storybook runs on the Vite framework, not the webpack one](2026-08-storybook-runs-on-the-vite-framework.md) | `@storybook/angular-vite`, zoneless, `@angular/build` | current |
+| [Web specs start from empty browser storage](2026-09-web-specs-start-with-empty-storage.md) | One `setupFiles` hook clears both storages before every web test; `isolate` stays off | current |

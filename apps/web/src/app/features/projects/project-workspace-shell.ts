@@ -3,6 +3,11 @@ import { Location } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  Injectable,
+  Injector,
+  afterEveryRender,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -11,8 +16,14 @@ import {
   untracked,
 } from '@angular/core';
 import { DestroyRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router } from '@angular/router';
 import type { ProjectId, ProjectPageKind } from '@cwm/contracts';
+import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
+import { archivedHereFeedback, createdSubjectOf } from './history/history-feedback';
+import { ProjectHistoryControls } from './history/project-history-controls';
+import { ProjectHistoryFeedback } from './history/project-history-feedback';
+import { ProjectHistoryStore } from './history/project-history-store';
 import { ProjectHeader } from './project-header';
 import { ProjectPageNavigation } from './project-page-navigation';
 import type { ProjectPageRendererInputs } from './project-page-contract';
@@ -35,6 +46,31 @@ interface PageNoticeState {
 const NARROW = '(max-width: 60rem)';
 
 /**
+ * Slice 58: the column link a narrow selection chose, until the toggle that re-collapsed it
+ * can take focus. Root-scoped rather than a shell field: `/projects/:projectId` and
+ * `/projects/:projectId/pages/:pageKind` are two route configs, so moving between them makes
+ * the router re-create the shell, and a field would be lost with the toggle it meant to focus.
+ */
+@Injectable({ providedIn: 'root' })
+export class ProjectColumnFocusRequest {
+  /** The chosen link's URL, as `Router.url` will read once the navigation lands. */
+  readonly url = signal<string | null>(null);
+
+  constructor() {
+    // A navigation that lands anywhere else ends the request, including on a route with no
+    // project shell to drop it — otherwise a later visit to the same URL would take focus.
+    // The §68 redirect rewrites the request before it navigates, so it is not dropped here.
+    inject(Router)
+      .events.pipe(takeUntilDestroyed())
+      .subscribe((event) => {
+        if (event instanceof NavigationEnd && this.url() !== null && event.urlAfterRedirects !== this.url()) {
+          this.url.set(null);
+        }
+      });
+  }
+}
+
+/**
  * §23's project workspace, and §68's two project routes: `/projects/:projectId` and
  * `/projects/:projectId/pages/:pageKind` both resolve here.
  *
@@ -53,8 +89,15 @@ const NARROW = '(max-width: 60rem)';
 @Component({
   selector: 'app-project-workspace-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet, ProjectHeader, ProjectPageNavigation],
-  providers: [ProjectWorkspaceStore],
+  imports: [NgComponentOutlet, ProjectHeader, ProjectHistoryControls, ProjectHistoryFeedback, ProjectPageNavigation],
+  // `providers`, not `viewProviders`: the page renderers are mounted through `NgComponentOutlet`,
+  // and every writer store inside them must resolve the header's history as its reporter
+  // (Slice 41). The inert root default would otherwise hide a wiring mistake.
+  providers: [
+    ProjectWorkspaceStore,
+    ProjectHistoryStore,
+    { provide: OPERATION_HISTORY_REPORTER, useExisting: ProjectHistoryStore },
+  ],
   templateUrl: './project-workspace-shell.html',
   styleUrl: './project-workspace-shell.scss',
   // The shell owns the workspace region's gutters, so `AppShell` gives it the full bleed and
@@ -69,8 +112,14 @@ export class ProjectWorkspaceShell {
   readonly pageKind = input<string | undefined>(undefined);
 
   readonly store = inject(ProjectWorkspaceStore);
+  /** §26's Undo/Redo: the displayed project's history (Slice 41). */
+  readonly history = inject(ProjectHistoryStore);
   private readonly router = inject(Router);
   private readonly location = inject(Location);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+  private readonly columnFocus = inject(ProjectColumnFocusRequest);
+  private focusedHistoryUrl: string | null = null;
 
   private readonly noticeState = signal<string | null>(null);
   private readonly noticeEnableKindState = signal<OptionalProjectPageKind | null>(null);
@@ -79,6 +128,8 @@ export class ProjectWorkspaceShell {
   private readonly narrowState = signal(false);
   private readonly collapsedState = signal(false);
   private readonly archiveNavigationPendingState = signal(false);
+  /** A single reconciliation key prevents a held summary from reloading forever. */
+  private creationReconciliationKey: string | null = null;
 
   readonly notice = this.noticeState.asReadonly();
   readonly noticeEnableKind = this.noticeEnableKindState.asReadonly();
@@ -86,6 +137,14 @@ export class ProjectWorkspaceShell {
   readonly collapsed = computed(() => this.narrowState() && this.collapsedState());
   readonly archiveNavigationPending = this.archiveNavigationPendingState.asReadonly();
   readonly archiveRetryNeeded = computed(() => this.store.writeError()?.startsWith('Archive was enabled') ?? false);
+  /** Only the creating actor's held project.add Redo can recover a missing route. */
+  readonly creationRecovery = computed(() => {
+    const summary = this.history.summary();
+    const redo = this.history.creationRedo();
+    return this.store.missing() && summary?.projectId === this.projectId() ? redo : null;
+  });
+  /** The removed project's quoted name, read from its creation label. */
+  readonly creationSubject = createdSubjectOf;
 
   /**
    * §68's rule, run over what the store loaded. `null` until there is a project to decide
@@ -132,6 +191,7 @@ export class ProjectWorkspaceShell {
    */
   private readonly onProjectDataChange = (): void => void this.store.refreshProgress();
   private readonly onProjectHierarchyChange = (): void => this.store.notifyHierarchyChanged();
+  private readonly onOpenArchive = (): void => void this.openArchive();
 
   readonly rendererInputs = computed<ProjectPageRendererInputs | null>(() => {
     const rendered = this.rendered();
@@ -150,15 +210,42 @@ export class ProjectWorkspaceShell {
       shortcutsAllowed: project.kind === 'root' && rendered.kind === 'home',
       onProjectDataChange: this.onProjectDataChange,
       onProjectHierarchyChange: this.onProjectHierarchyChange,
+      onOpenArchive: this.onOpenArchive,
     };
   });
 
   constructor() {
+    // A direct load resolves asynchronously and a fragment-only navigation can reuse the shell.
+    // Inspect the current URL after each render until its matching header exists, then focus once.
+    afterEveryRender(() => this.focusHistoryFragment(), { injector: this.injector });
+
     // Re-loads when the route changes projects, which sidebar navigation does without
     // re-creating this component. Moving between two pages of the same project changes only
     // `pageKind`, and must not re-read the context.
     effect(() => {
       const projectId = this.projectId();
+      untracked(() => {
+        void this.store.load(projectId);
+        this.history.load(projectId);
+      });
+    });
+
+    // A transition result includes the refreshed summary even if its live frame was dropped.
+    // Re-read only the project context, keyed by the held history revision; history.load here
+    // would discard the very summary that tells us which direction just landed.
+    effect(() => {
+      const projectId = this.projectId();
+      const loading = this.store.loading();
+      const missing = this.store.missing();
+      const project = this.store.project();
+      const summary = this.history.summary();
+      if (loading || summary?.projectId !== projectId || summary.historyId === null) return;
+      const creationUndoLanded = project?.id === projectId && summary.redo?.operation === 'project.add';
+      const creationRedoLanded = missing && summary.undo?.operation === 'project.add';
+      if (!creationUndoLanded && !creationRedoLanded) return;
+      const key = `${summary.historyId}:${summary.revision}`;
+      if (this.creationReconciliationKey === key) return;
+      this.creationReconciliationKey = key;
       untracked(() => void this.store.load(projectId));
     });
 
@@ -169,6 +256,13 @@ export class ProjectWorkspaceShell {
       const resolution = this.resolution();
       if (resolution === null) return;
       if (resolution.outcome === 'redirect') {
+        // A column selection the fallback redirects still ends on the toggle: the request
+        // follows the redirect rather than being dropped as a navigation that lost.
+        untracked(() => {
+          if (this.columnFocus.url() === this.router.url) {
+            this.columnFocus.url.set(this.router.serializeUrl(this.router.createUrlTree(resolution.to)));
+          }
+        });
         void this.router.navigate(resolution.to, {
           replaceUrl: true,
           state: {
@@ -202,12 +296,64 @@ export class ProjectWorkspaceShell {
       const onNarrowChange = (event: { matches: boolean }): void => {
         this.narrowState.set(event.matches);
         this.collapsedState.set(event.matches);
+        this.columnFocus.url.set(null);
       };
       narrow.addEventListener('change', onNarrowChange);
       // The `MediaQueryList` is a window singleton and outlives this component, so an
       // unremoved listener is a closure over a destroyed shell — once per visit, forever.
       inject(DestroyRef).onDestroy(() => narrow.removeEventListener('change', onNarrowChange));
     }
+
+    // Slice 58: a narrow column selection's focus request, honoured once the navigation has
+    // landed, any reload it caused has settled and §68 has not redirected it — and only if the
+    // URL is still the one chosen. A browser Back, a global-drawer choice or a history link that
+    // won the navigation meanwhile keeps its own focus. Registered after the load effect, so a
+    // project change has already set `loading` by the time this reads it.
+    effect(() => {
+      const url = this.columnFocus.url();
+      if (url === null || this.router.currentNavigation() !== null || this.store.loading()) return;
+      if (this.resolution()?.outcome === 'redirect') return;
+      untracked(() => {
+        this.columnFocus.url.set(null);
+        if (this.router.url !== url) return;
+        afterNextRender(() => this.focusColumnTarget(), { injector: this.injector });
+      });
+    });
+  }
+
+  /**
+   * While narrow, a chosen link collapses the column again, so the canvas it opened is not
+   * pushed under the list, and asks for focus on the toggle that brings the column back.
+   */
+  onColumnLinkSelected(url: string): void {
+    if (!this.narrowState()) return;
+    this.collapsedState.set(true);
+    this.columnFocus.url.set(url);
+  }
+
+  /** The toggle, or — when the load ended without a column — the heading of what rendered. */
+  private focusColumnTarget(): void {
+    const host = this.host.nativeElement;
+    const target =
+      host.querySelector<HTMLElement>('[data-project-nav-toggle]') ??
+      host.querySelector<HTMLElement>('#project-creation-recovery-heading') ??
+      host.querySelector<HTMLElement>('#project-error-heading');
+    target?.focus();
+  }
+
+  private focusHistoryFragment(): void {
+    const projectId = this.projectId();
+    const url = this.router.url;
+    if (this.router.parseUrl(url).fragment !== 'history-controls') {
+      this.focusedHistoryUrl = null;
+      return;
+    }
+    if (this.focusedHistoryUrl === url || this.store.project()?.id !== projectId) return;
+    const group = this.host.nativeElement.querySelector<HTMLElement>('#history-controls');
+    if (group === null) return;
+    group.scrollIntoView?.({ block: 'nearest' });
+    group.focus();
+    this.focusedHistoryUrl = url;
   }
 
   private noticeFromNavigation(): PageNoticeState | null {
@@ -304,12 +450,21 @@ export class ProjectWorkspaceShell {
   }
 
   /**
-   * §19: the store decided, the page navigates. A refusal leaves the user where they are,
-   * with the domain's own reason in the header.
+   * §19: the store decided, the shell words it. A successful archive **stays on the archived
+   * project's page** (Slice 41), which §31 keeps rendering, so the header's enabled Undo is the one
+   * place the archive can be reversed — the dashboard has no header to offer it. A refusal leaves
+   * the domain's own reason in the header.
    */
   async confirmArchive(): Promise<void> {
-    const archived = await this.store.archive();
-    if (!archived) return;
-    await this.router.navigate(['/app']);
+    const project = this.store.project();
+    if (project === null) return;
+    if (!await this.store.archive()) return;
+    // Only if the person is still on it: after a sidebar move during the awaited PATCH, this header
+    // belongs to another project, whose history holds no such step.
+    if (this.projectId() !== project.id) return;
+    this.history.announce(archivedHereFeedback(project.name));
   }
+
+  readonly undo = (): void => void this.history.undo();
+  readonly redo = (): void => void this.history.redo();
 }

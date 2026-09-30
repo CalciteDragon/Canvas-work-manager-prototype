@@ -1,7 +1,13 @@
 import { mkdtemp, readFile, rename as renameFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { PrototypeDocumentSchema, type PrototypeDocument, SCHEMA_VERSION } from '@cwm/contracts';
+import {
+  OperationActionSchema,
+  OperationHistorySchema,
+  PrototypeDocumentSchema,
+  type PrototypeDocument,
+  SCHEMA_VERSION,
+} from '@cwm/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type DataStore, type FileOperations, InMemoryDataStore, JsonDataStore, unitOfWorkFor } from './data-store';
 import { DocumentIntegrityError, UnitOfWorkInProgressError } from './errors';
@@ -107,6 +113,13 @@ const validDocument = () =>
         entityId: 'task-1',
         projectId: 'project-1',
         summary: 'Updated Task',
+        context: {
+          targetKind: 'task',
+          targetId: 'task-1',
+          targetLabel: 'Task',
+          projectId: 'project-1',
+          rootProjectId: 'project-1',
+        },
         createdAt: at,
       },
     ],
@@ -262,8 +275,17 @@ describe('document validation', () => {
     ['workspace owner', (document: ReturnType<typeof withSecondWorkspace>) => (document.workspaces[0]!.ownerUserId = secondWorkspace.user.id as never)],
     ['project parent', (document: ReturnType<typeof withSecondWorkspace>) => (document.projects[0]!.parentProjectId = secondWorkspace.project.id as never)],
     ['task parent', (document: ReturnType<typeof withSecondWorkspace>) => (document.tasks[0]!.parentTaskId = secondWorkspace.task.id as never)],
-    ['activity target', (document: ReturnType<typeof withSecondWorkspace>) => (document.activityEvents[0]!.entityId = secondWorkspace.task.id)],
-    ['activity project', (document: ReturnType<typeof withSecondWorkspace>) => (document.activityEvents[0]!.projectId = secondWorkspace.project.id as never)],
+    // A foreign target, named in the event **and** in its captured context: the captured half
+    // must not launder an id from another workspace.
+    ['activity target', (document: ReturnType<typeof withSecondWorkspace>) => {
+      document.activityEvents[0]!.entityId = secondWorkspace.task.id;
+      document.activityEvents[0]!.context.targetId = secondWorkspace.task.id;
+    }],
+    ['activity project', (document: ReturnType<typeof withSecondWorkspace>) => {
+      document.activityEvents[0]!.projectId = secondWorkspace.project.id as never;
+      document.activityEvents[0]!.context.projectId = secondWorkspace.project.id as never;
+      document.activityEvents[0]!.context.rootProjectId = secondWorkspace.project.id as never;
+    }],
     ['activity agent actor', (document: ReturnType<typeof withSecondWorkspace>) => (document.activityEvents[0]!.actorAgentConnectionId = secondWorkspace.agent.id as never)],
   ])('rejects a cross-scope %s reference', (_name, mutate) => {
     const document = withSecondWorkspace();
@@ -287,9 +309,133 @@ describe('document validation', () => {
       entityType,
       entityId,
       projectId: entityType === 'agent_connection' ? undefined : document.projects[0]!.id,
+      // Version 5: the captured identity travels with the event and must agree with it.
+      context: {
+        targetKind: entityType,
+        targetId: entityId,
+        targetLabel: entityId,
+        ...(entityType === 'agent_connection'
+          ? {}
+          : { projectId: document.projects[0]!.id, rootProjectId: document.projects[0]!.id }),
+      },
     }));
 
     expect(() => new InMemoryDataStore(document)).not.toThrow();
+  });
+
+  /**
+   * Slice 36: Undo of a creation deletes the row its activity line describes, so the line has to
+   * outlive the row — but only for the two kinds that can be removed, and only with an identity
+   * that still resolves (docs/decisions/2026-09-historical-activity-identity.md).
+   */
+  describe('historical activity identity', () => {
+    const withMissingTarget = (entityType: 'task' | 'reflection' | 'section' | 'milestone') => {
+      const document = validDocument();
+      const event = document.activityEvents[0]!;
+      document.activityEvents = [
+        {
+          ...event,
+          entityType,
+          entityId: `${entityType}-gone`,
+          action: `${entityType === 'section' ? 'project' : entityType}.added`,
+          context: {
+            targetKind: entityType,
+            targetId: `${entityType}-gone`,
+            targetLabel: 'What it was called',
+            projectId: 'project-1',
+            rootProjectId: 'project-1',
+          },
+        } as (typeof document.activityEvents)[number],
+      ];
+      return document;
+    };
+
+    it('allows a missing task or reflection whose captured identity is complete', () => {
+      expect(() => new InMemoryDataStore(withMissingTarget('task'))).not.toThrow();
+      expect(() => new InMemoryDataStore(withMissingTarget('reflection'))).not.toThrow();
+    });
+
+    it('still requires a section or milestone target to exist — nothing removes those yet', () => {
+      expect(() => new InMemoryDataStore(withMissingTarget('section'))).toThrow(DocumentIntegrityError);
+      expect(() => new InMemoryDataStore(withMissingTarget('milestone'))).toThrow(DocumentIntegrityError);
+    });
+
+    it('refuses a removed row whose captured project is missing, foreign or inconsistent', () => {
+      const withoutProject = withMissingTarget('task');
+      withoutProject.activityEvents[0]!.projectId = undefined;
+      withoutProject.activityEvents[0]!.context.projectId = undefined;
+      withoutProject.activityEvents[0]!.context.rootProjectId = undefined;
+      expect(() => new InMemoryDataStore(withoutProject)).toThrow(DocumentIntegrityError);
+
+      const unknownProject = withMissingTarget('task');
+      unknownProject.activityEvents[0]!.projectId = 'project-gone' as never;
+      unknownProject.activityEvents[0]!.context.projectId = 'project-gone' as never;
+      unknownProject.activityEvents[0]!.context.rootProjectId = 'project-gone' as never;
+      expect(() => new InMemoryDataStore(unknownProject)).toThrow(DocumentIntegrityError);
+
+      const foreign = withMissingTarget('task');
+      foreign.workspaces = [...foreign.workspaces, secondWorkspace.workspace as never];
+      foreign.users = [...foreign.users, secondWorkspace.user as never];
+      foreign.projects = [...foreign.projects, secondWorkspace.project as never];
+      foreign.activityEvents[0]!.projectId = secondWorkspace.project.id as never;
+      foreign.activityEvents[0]!.context.projectId = secondWorkspace.project.id as never;
+      foreign.activityEvents[0]!.context.rootProjectId = secondWorkspace.project.id as never;
+      expect(() => new InMemoryDataStore(foreign)).toThrow(DocumentIntegrityError);
+    });
+
+    it('refuses a captured root that is not a project in this workspace', () => {
+      const unknownRoot = validDocument();
+      unknownRoot.activityEvents[0]!.context.rootProjectId = 'project-nowhere' as never;
+      expect(() => new InMemoryDataStore(unknownRoot)).toThrow(DocumentIntegrityError);
+
+      const foreignRoot = withSecondWorkspace();
+      foreignRoot.activityEvents[0]!.context.rootProjectId = secondWorkspace.project.id as never;
+      expect(() => new InMemoryDataStore(foreignRoot)).toThrow(DocumentIntegrityError);
+    });
+
+    /**
+     * Historical context is **not** rewritten when an entity moves: it says where the change
+     * happened, not where the entity lives now. So a captured root the tree has since moved away
+     * from is ordinary, and re-deriving it here would turn a reparent into an unloadable file.
+     */
+    it('accepts a captured root the tree has since moved away from', () => {
+      const document = validDocument();
+      // A sub-project that used to be a root of its own, with an event that captured it as one.
+      document.projects = [
+        ...document.projects,
+        { ...document.projects[0]!, id: 'project-2' as never, kind: 'subproject', parentProjectId: 'project-1' as never },
+      ];
+      document.projectPages = [
+        ...document.projectPages,
+        { ...document.projectPages[0]!, id: 'page-2' as never, projectId: 'project-2' as never, kind: 'work' },
+      ];
+      document.sections = [
+        ...document.sections,
+        { ...document.sections[0]!, id: 'section-9' as never, projectId: 'project-2' as never, pageId: 'page-2' as never },
+      ];
+      document.tasks = [
+        ...document.tasks,
+        { ...document.tasks[0]!, id: 'task-9' as never, projectId: 'project-2' as never, sectionId: 'section-9' as never },
+      ];
+      document.activityEvents = [
+        {
+          ...document.activityEvents[0]!,
+          id: 'activity-2' as never,
+          entityId: 'task-9' as never,
+          projectId: 'project-2' as never,
+          context: {
+            targetKind: 'task',
+            targetId: 'task-9',
+            targetLabel: 'Task',
+            projectId: 'project-2' as never,
+            // Stale on purpose: back then this project was its own root.
+            rootProjectId: 'project-2' as never,
+          },
+        },
+      ];
+
+      expect(() => new InMemoryDataStore(document)).not.toThrow();
+    });
   });
 });
 
@@ -1210,6 +1356,45 @@ describe('page ownership integrity', () => {
     expect(() => new InMemoryDataStore(document)).toThrow(/missing project "project-gone"/);
   });
 
+  /**
+   * The integrity boundary the restricted page removal runs inside (Slice 38): a page may be
+   * deleted only once nothing names it, so a document missing one its sections still point at is
+   * rejected at load and a removal that left such a reference rolls its whole unit back.
+   */
+  it('rejects a section whose optional page has been deleted', () => {
+    const document = validDocument();
+    document.projectPages.push(page({ id: 'page-reflections', kind: 'reflections' }));
+    document.sections.push(
+      PrototypeDocumentSchema.shape.sections.element.parse({
+        id: 'section-on-reflections',
+        projectId: 'project-1',
+        pageId: 'page-reflections',
+        type: 'reflections',
+        position: 0,
+        columnSpan: 12,
+        collapsed: false,
+        config: {},
+        archiveGeneration: 0,
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
+
+    document.projectPages = document.projectPages.filter(({ id }) => id !== 'page-reflections');
+    expect(() => new InMemoryDataStore(document)).toThrow(/page/);
+  });
+
+  it('rejects deleting a canonical page, which no operation may ever do', () => {
+    const document = validDocument();
+    document.projectPages = document.projectPages.filter(({ kind }) => kind !== 'home');
+    document.sections = [];
+    document.tasks = [];
+    document.reflections = [];
+    document.activityEvents = [];
+    expect(() => new InMemoryDataStore(document)).toThrow(/has no home page/);
+  });
+
   it('rejects a root with two Home pages', () => {
     const document = validDocument();
     document.projectPages.push(page({ id: 'page-1b', kind: 'home' }));
@@ -1416,5 +1601,425 @@ describe('reflection subject integrity (§36)', () => {
     const root = validDocument();
     root.reflections[0]!.subject = { kind: 'subproject', id: 'project-1' as never };
     expect(() => new InMemoryDataStore(root)).toThrow(/cannot be about root project/);
+  });
+});
+
+describe('operation history integrity', () => {
+  const history = (overrides: Record<string, unknown> = {}) =>
+    OperationHistorySchema.parse({
+      id: 'history-1',
+      workspaceId: 'workspace-1',
+      projectId: 'project-1',
+      actor: 'user',
+      actorUserId: 'user-1',
+      cursor: 1,
+      orderHighWaterMark: 1,
+      revision: 1,
+      ...overrides,
+    });
+
+  const action = (overrides: Record<string, unknown> = {}) =>
+    OperationActionSchema.parse({
+      id: 'operation-1',
+      historyId: 'history-1',
+      order: 1,
+      state: 'applied',
+      label: 'Removed the Backlog section',
+      createdAt: at,
+      expiresAt: '2026-08-27T10:00:00.000Z',
+      operation: {
+        version: 1,
+        type: 'section.add',
+        // Every id below names something the document does not hold.
+        section: {
+          id: 'section-gone',
+          projectId: 'project-1',
+          pageId: 'page-gone',
+          type: 'task-list',
+          position: 0,
+          columnSpan: 12,
+          collapsed: false,
+          config: {},
+          archiveGeneration: 0,
+          createdAt: at,
+          updatedAt: at,
+        },
+        placement: { pageId: 'page-gone', previous: { kind: 'shortcut', id: 'shortcut-gone' }, index: 1 },
+      },
+      ...overrides,
+    });
+
+  const withHistory = (histories: ReturnType<typeof history>[], actions: ReturnType<typeof action>[] = []) => {
+    const document = withSecondWorkspace();
+    document.operationHistories.push(...histories);
+    document.operationActions.push(...actions);
+    return document;
+  };
+
+  it('accepts an action whose snapshot names a missing section, page and shortcut', () => {
+    // An add Undo deletes the section its action names, and the action must survive to be redone.
+    expect(() => new InMemoryDataStore(withHistory([history()], [action()]))).not.toThrow();
+  });
+
+  it('a cursor no higher than the order high-water mark, with 0 valid', () => {
+    expect(() => new InMemoryDataStore(withHistory([history({ cursor: 0, orderHighWaterMark: 0, revision: 0 })]))).not.toThrow();
+    // Pruning removed every action; the cursor and high-water mark stay.
+    expect(() => new InMemoryDataStore(withHistory([history({ cursor: 7, orderHighWaterMark: 9, revision: 12 })]))).not.toThrow();
+    const document = withHistory([]);
+    document.operationHistories.push({ ...history(), cursor: 2 });
+    expect(() => new InMemoryDataStore(document)).toThrow();
+  });
+
+  it('one history per actor, project and workspace', () => {
+    const agent = history({ id: 'history-2', actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-1' });
+    const system = history({ id: 'history-3', actor: 'system', actorUserId: undefined });
+    const otherWorkspace = history({ id: 'history-4', workspaceId: 'workspace-2', projectId: 'project-2', actorUserId: 'user-2' });
+    expect(() => new InMemoryDataStore(withHistory([history(), agent, system, otherWorkspace]))).not.toThrow();
+    expect(() => new InMemoryDataStore(withHistory([history(), history({ id: 'history-5' })]))).toThrow(/duplicate history for its actor and project/);
+    expect(() => new InMemoryDataStore(withHistory([system, history({ id: 'history-6', actor: 'system', actorUserId: undefined })]))).toThrow(/duplicate history/);
+  });
+
+  it('does not collide distinct scopes whose ids contain delimiters', () => {
+    const document = withHistory([]);
+    const project = document.projects[0]!;
+    const page = document.projectPages[0]!;
+    document.projects.push({ ...project, id: 'project 1' as never }, { ...project, id: 'project' as never });
+    document.projectPages.push({ ...page, id: 'page-a' as never, projectId: 'project 1' as never }, { ...page, id: 'page-b' as never, projectId: 'project' as never });
+    document.operationHistories.push(history({ id: 'history-a', projectId: 'project 1' }), history({ id: 'history-b', projectId: 'project' }));
+    expect(() => new InMemoryDataStore(document)).not.toThrow();
+  });
+
+  it('a history must name a stored project', () => {
+    expect(() => new InMemoryDataStore(withHistory([history({ projectId: 'project-gone' })]))).toThrow(/missing project/);
+  });
+
+  const withUndoneProjectCreation = () => {
+    const document = validDocument();
+    const project = document.projects[0]!;
+    const page = document.projectPages[0]!;
+    const event = document.activityEvents[0]!;
+    const lifecycle = (id: string, action: string) => ({
+      ...event,
+      id: id as typeof event.id,
+      actor: 'user' as const,
+      actorUserId: 'user-1' as never,
+      actorAgentConnectionId: undefined,
+      action,
+      entityType: 'project' as const,
+      entityId: project.id,
+      projectId: project.id,
+      summary: action === 'project.created' ? `Created "${project.name}"` : `Undid creating "${project.name}"`,
+      context: {
+        targetKind: 'project' as const,
+        targetId: project.id,
+        targetLabel: project.name,
+        projectId: project.id,
+        rootProjectId: project.id,
+      },
+      createdAt: at,
+    });
+    document.projects = [];
+    document.projectPages = [];
+    document.sections = [];
+    document.tasks = [];
+    document.milestones = [];
+    document.reflections = [];
+    document.activityEvents = [
+      lifecycle('activity-created', 'project.created') as (typeof document.activityEvents)[number],
+      lifecycle('activity-creation-undone', 'project.creation_undone') as (typeof document.activityEvents)[number],
+    ];
+    document.operationHistories.push(history({ cursor: 0, revision: 2 }));
+    document.operationActions.push(action({
+      state: 'undone',
+      label: `Created "${project.name}"`,
+      operation: { version: 1, type: 'project.add', project, page },
+    }));
+    return document;
+  };
+
+  it('accepts an absent project only with its creation activity anchor and retained undone project.add', () => {
+    expect(() => new InMemoryDataStore(withUndoneProjectCreation())).not.toThrow();
+  });
+
+  it('binds an absent project history to the actor who created it', () => {
+    const document = withUndoneProjectCreation();
+    document.users.push({ ...document.users[0]!, id: 'user-2' as never, name: 'Another user' });
+    const foreignHistory = history({ id: 'history-2', actorUserId: 'user-2', cursor: 0, revision: 2 });
+    document.operationHistories.push(foreignHistory);
+    const creatorAction = document.operationActions[0]!;
+    document.operationActions.push({
+      ...creatorAction,
+      id: 'operation-2' as never,
+      historyId: foreignHistory.id,
+    });
+
+    expect(() => new InMemoryDataStore(document)).toThrow(/does not belong to the creator/);
+  });
+
+  it('rejects an absent-project history in another workspace', () => {
+    const document = withUndoneProjectCreation();
+    document.users.push({
+      ...document.users[0]!,
+      id: 'user-2' as never,
+      name: 'Other workspace owner',
+      workspaceId: 'workspace-2' as never,
+    });
+    document.workspaces.push({
+      ...document.workspaces[0]!,
+      id: 'workspace-2' as never,
+      name: 'Other workspace',
+      ownerUserId: 'user-2' as never,
+    });
+    document.operationHistories.push(history({
+      id: 'history-2',
+      workspaceId: 'workspace-2',
+      actorUserId: 'user-2',
+      cursor: 0,
+      orderHighWaterMark: 0,
+      revision: 0,
+    }));
+
+    expect(() => new InMemoryDataStore(document)).toThrow(/missing project|creation.*anchor/i);
+  });
+
+  it('uses only the project creation lifecycle sequence as the durable Activity anchor', () => {
+    const missingCreation = withUndoneProjectCreation();
+    missingCreation.activityEvents = missingCreation.activityEvents.filter(({ action }) => action !== 'project.created');
+    expect(() => new InMemoryDataStore(missingCreation)).toThrow(/latest project\.creation_undone event/);
+
+    const foreignLifecycleActor = withUndoneProjectCreation();
+    foreignLifecycleActor.users.push({ ...foreignLifecycleActor.users[0]!, id: 'user-2' as never, name: 'Another user' });
+    foreignLifecycleActor.activityEvents[1]!.actorUserId = 'user-2' as never;
+    expect(() => new InMemoryDataStore(foreignLifecycleActor)).toThrow(/latest project\.creation_undone event/);
+
+    const unrelatedTargetEvent = withUndoneProjectCreation();
+    const undone = unrelatedTargetEvent.activityEvents[1]!;
+    unrelatedTargetEvent.activityEvents.push({
+      ...undone,
+      id: 'activity-other-project-event' as never,
+      action: 'project.section_addition_undone',
+    });
+    expect(() => new InMemoryDataStore(unrelatedTargetEvent)).not.toThrow();
+  });
+
+  it('rejects a hand-deleted project whose lifecycle ends at project.created', () => {
+    const document = withUndoneProjectCreation();
+    document.activityEvents = document.activityEvents.filter(({ action }) => action === 'project.created');
+    document.operationActions = [];
+    document.operationHistories = [];
+    expect(() => new InMemoryDataStore(document)).toThrow(/latest project\.creation_undone event/);
+  });
+
+  it('lets nothing but Activity and the creator’s history name an absent project', () => {
+    const original = validDocument();
+    const withPage = withUndoneProjectCreation();
+    withPage.projectPages = [original.projectPages[0]!];
+    expect(() => new InMemoryDataStore(withPage)).toThrow(/page "page-1".*project-1|project-1.*page-1|missing project "project-1"/);
+
+    const withSection = withUndoneProjectCreation();
+    withSection.sections = [original.sections[0]!];
+    expect(() => new InMemoryDataStore(withSection)).toThrow(/section-1/);
+
+    const withTask = withUndoneProjectCreation();
+    withTask.tasks = [original.tasks[0]!];
+    expect(() => new InMemoryDataStore(withTask)).toThrow(/task-1/);
+
+    const withChild = withUndoneProjectCreation();
+    withChild.projects = [{
+      ...original.projects[0]!, id: 'project-child' as never, kind: 'subproject', parentProjectId: 'project-1' as never, name: 'Child',
+    } as (typeof withChild.projects)[number]];
+    withChild.projectPages = [{ ...original.projectPages[0]!, id: 'page-child' as never, projectId: 'project-child' as never, kind: 'work' }];
+    expect(() => new InMemoryDataStore(withChild)).toThrow(/project-child/);
+
+    const withSubject = withUndoneProjectCreation();
+    withSubject.projects = [{ ...original.projects[0]!, id: 'project-2' as never, name: 'Other root' }];
+    withSubject.projectPages = [{ ...original.projectPages[0]!, id: 'page-2' as never, projectId: 'project-2' as never }];
+    withSubject.sections = [{ ...original.sections[1]!, projectId: 'project-2' as never, pageId: 'page-2' as never }];
+    withSubject.reflections = [{
+      ...original.reflections[0]!, projectId: 'project-2' as never, subject: { kind: 'subproject', id: 'project-1' as never },
+    }];
+    expect(() => new InMemoryDataStore(withSubject)).toThrow(/missing subject project "project-1"/);
+  });
+
+  it('requires both anchors and the undone state to agree with project presence', () => {
+    const withoutHistory = withUndoneProjectCreation();
+    withoutHistory.operationActions = [];
+    withoutHistory.operationHistories = [];
+    expect(() => new InMemoryDataStore(withoutHistory)).toThrow(/missing project|project.add history anchor/);
+
+    const applied = withUndoneProjectCreation();
+    applied.operationActions[0]!.state = 'applied';
+    expect(() => new InMemoryDataStore(applied)).toThrow(/undone project.add/);
+
+    const staleLifecycle = withUndoneProjectCreation();
+    staleLifecycle.activityEvents[1]!.action = 'project.creation_redone';
+    expect(() => new InMemoryDataStore(staleLifecycle)).toThrow(/creation_undone/);
+
+    const present = validDocument();
+    present.operationHistories.push(history({ cursor: 0, revision: 2 }));
+    present.operationActions.push(action({
+      state: 'undone',
+      operation: {
+        version: 1,
+        type: 'project.add',
+        project: present.projects[0],
+        page: present.projectPages[0],
+      },
+    }));
+    expect(() => new InMemoryDataStore(present)).toThrow(/undone project.add.*present|project.add.*absent/);
+  });
+
+  it.each([
+    ['a duplicate id', [history(), history({ projectId: 'project-2', workspaceId: 'workspace-2', actorUserId: 'user-2' })], /operationHistories contains duplicate id/],
+    ['a missing workspace', [history({ workspaceId: 'workspace-gone' })], /missing workspace/],
+    ['a project from another workspace', [history({ projectId: 'project-2' })], /project from another workspace/],
+    ['a missing user actor', [history({ actorUserId: 'user-gone' })], /missing user actor/],
+    ['a user actor from another workspace', [history({ actorUserId: 'user-2' })], /user actor from another workspace/],
+    ['a missing agent actor', [history({ actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-gone' })], /missing agent actor/],
+    ['an agent actor from another workspace', [history({ actor: 'agent', actorUserId: undefined, actorAgentConnectionId: 'agent-2' })], /agent actor from another workspace/],
+  ])('rejects a history with %s', (_, histories, message) => {
+    expect(() => new InMemoryDataStore(withHistory(histories))).toThrow(message);
+  });
+
+  it('an action names a stored history and a unique order within its high-water mark', () => {
+    const twoDeep = history({ cursor: 2, orderHighWaterMark: 2 });
+    expect(() => new InMemoryDataStore(withHistory([twoDeep], [action(), action({ id: 'operation-2', order: 2 })]))).not.toThrow();
+    expect(() => new InMemoryDataStore(withHistory([history()], [action({ historyId: 'history-gone' })]))).toThrow(/missing history/);
+    expect(() => new InMemoryDataStore(withHistory([twoDeep], [action(), action({ id: 'operation-2' })]))).toThrow(/duplicate order 1/);
+    expect(() => new InMemoryDataStore(withHistory([history()], [action({ order: 2 })]))).toThrow(/above its history's high-water mark/);
+    expect(() => new InMemoryDataStore(withHistory([twoDeep], [action(), action()]))).toThrow(/operationActions contains duplicate id/);
+  });
+
+  it('an action’s operation belongs to its history’s project', () => {
+    const foreign = action({
+      operation: { ...action().operation, section: { ...(action().operation as { section: object }).section, projectId: 'project-2' } },
+    });
+    expect(() => new InMemoryDataStore(withHistory([history()], [foreign]))).toThrow(/names a project outside its history/);
+  });
+
+  /**
+   * Schema version 5 is unchanged by Slice 38: the operation union expanded additively, so an
+   * existing document needs no backfill and a stored page action loads like any other — including
+   * one whose `page.add` snapshot names a page its Undo has already deleted.
+   */
+  it('accepts stored optional-page actions, applied and undone, and scopes them to their project', () => {
+    const storedPage = (projectId: string) => ({
+      id: 'page-reflections',
+      projectId,
+      kind: 'reflections',
+      enabled: true,
+      createdAt: at,
+      updatedAt: at,
+    });
+    const added = action({ id: 'operation-page-add', operation: { version: 1, type: 'page.add', page: storedPage('project-1') } });
+    const toggled = action({
+      id: 'operation-page-update',
+      order: 2,
+      state: 'undone',
+      operation: { version: 1, type: 'page.update', projectId: 'project-1', pageId: 'page-reflections', kind: 'reflections', before: true, after: false },
+    });
+    const twoDeep = history({ cursor: 1, orderHighWaterMark: 2 });
+    expect(() => new InMemoryDataStore(withHistory([twoDeep], [added, toggled]))).not.toThrow();
+
+    // The owning root decides which history may hold it, exactly as for a section action.
+    const foreign = action({ id: 'operation-page-foreign', operation: { version: 1, type: 'page.add', page: storedPage('project-2') } });
+    expect(() => new InMemoryDataStore(withHistory([history()], [foreign]))).toThrow(/names a project outside its history/);
+  });
+
+  it('rejects a retained removal action whose captured archive generation is ahead of its section', () => {
+    const document = withHistory([history()]);
+    const section = document.sections[0]!;
+    const removal = (archiveGeneration: number, disposition: 'retained' | 'deleted' = 'retained') =>
+      action({
+        operation: {
+          version: 1,
+          type: 'section.remove',
+          section: { ...section, archiveGeneration: archiveGeneration - 1 },
+          placement: { pageId: section.pageId, index: section.position },
+          appliedPolicy: 'none',
+          rows: [],
+          disposition,
+          postSectionArchivedAt: at,
+          archiveGeneration,
+        },
+      });
+    document.sections[0] = { ...section, archiveGeneration: 1 };
+    document.operationActions.push(removal(1));
+    expect(() => new InMemoryDataStore(structuredClone(document))).not.toThrow();
+
+    document.operationActions[0] = removal(2);
+    expect(() => new InMemoryDataStore(structuredClone(document))).toThrow(/captures archive generation 2, beyond section "section-1"/);
+
+    // A deleted section has no row to compare against; the existence checks guard it instead.
+    document.operationActions[0] = removal(2, 'deleted');
+    expect(() => new InMemoryDataStore(structuredClone(document))).not.toThrow();
+  });
+
+  it('rejects a restore action whose captured archive generation is ahead of its section', () => {
+    const document = withHistory([history()]);
+    const section = document.sections[0]!;
+    const restore = (archiveGeneration: number) =>
+      action({
+        operation: {
+          version: 1,
+          type: 'section.restore',
+          sectionId: section.id,
+          projectId: section.projectId,
+          pageId: section.pageId,
+          archivedAt: at,
+          archiveGeneration,
+          oldPosition: section.position,
+          placement: { pageId: section.pageId, index: section.position },
+          rows: [],
+        },
+      });
+    document.sections[0] = { ...section, archiveGeneration: 1 };
+    document.operationActions.push(restore(1));
+    expect(() => new InMemoryDataStore(structuredClone(document))).not.toThrow();
+
+    document.operationActions[0] = restore(2);
+    expect(() => new InMemoryDataStore(structuredClone(document))).toThrow(/captures archive generation 2, beyond section "section-1"/);
+
+    // A section a later removal deleted stays deliberately unresolved: the action has to survive
+    // that to be redone, so an absent subject is not an integrity failure at any generation.
+    document.operationActions[0] = action({
+      operation: { ...restore(9).operation, sectionId: 'section-deleted' },
+    });
+    expect(() => new InMemoryDataStore(structuredClone(document))).not.toThrow();
+  });
+
+  it('opens a pre-Slice-37 document unchanged and round-trips each new operation kind', () => {
+    const shortcut = {
+      id: 'shortcut-history-1',
+      pageId: 'page-1',
+      sourceSectionId: 'section-1',
+      position: 0,
+      columnSpan: 12,
+      collapsed: false,
+      createdAt: at,
+      updatedAt: at,
+    };
+    const placement = { pageId: 'page-1', index: 0 };
+    const kinds = [
+      { version: 1, type: 'section.restore', sectionId: 'section-1', projectId: 'project-1', pageId: 'page-1', archivedAt: at, archiveGeneration: 0, oldPosition: 0, placement, rows: [] },
+      { version: 1, type: 'shortcut.add', projectId: 'project-1', shortcut, placement },
+      { version: 1, type: 'shortcut.update', shortcutId: shortcut.id, projectId: 'project-1', pageId: 'page-1', changes: [{ field: 'collapsed', before: false, after: true }] },
+      { version: 1, type: 'shortcut.move', shortcutId: shortcut.id, projectId: 'project-1', pageId: 'page-1', placementBefore: placement, placementAfter: { pageId: 'page-1', index: 1 } },
+      { version: 1, type: 'shortcut.remove', projectId: 'project-1', shortcut, placement },
+    ];
+
+    // Every Slice 35/36 kind still parses from a document written before these members existed.
+    const before = withHistory([history()]);
+    expect(() => new InMemoryDataStore(structuredClone(before))).not.toThrow();
+    expect(new InMemoryDataStore(structuredClone(before)).snapshot().schemaVersion).toBe(SCHEMA_VERSION);
+
+    for (const [index, operation] of kinds.entries()) {
+      const document = withHistory([history()]);
+      document.operationActions = [action({ id: `operation-${index + 1}`, order: 1, operation })];
+      const store = new InMemoryDataStore(structuredClone(document));
+      // Through JSON and back, which is the only persistence §14 has.
+      const reopened = new InMemoryDataStore(JSON.parse(JSON.stringify(store.snapshot())));
+      expect(reopened.snapshot().operationActions[0]?.operation).toEqual(operation);
+    }
   });
 });

@@ -60,8 +60,10 @@ and the host hung silently; `pnpm dev` now prints the two commands and exits
 ## Consequences
 
 - One process to start, one file to inspect, `curl` for everything.
-- A stdio MCP process is a second owner of the file and cannot reach the running host's
-  hub; the [setup guide](../../guides/mcp-setup.md) documents the safe workflow.
+- A stdio MCP process keeps its own store and cannot reach the running host's hub. The host
+  owns the data file for its lifetime and releases it only after a drained shutdown, so a stdio
+  call is refused with `data_file_in_use:` while it runs
+  ([decision](../../decisions/2026-09-one-writer-per-data-file.md), [setup guide](../../guides/mcp-setup.md)).
 - Every route is a few lines; every route is also untested for the things a framework
   would give for free (content negotiation, streaming bodies). That is the accepted cost.
 - The acceptance scripts run a second host on a temp file (`CWM_DATA_FILE`,
@@ -70,6 +72,7 @@ and the host hung silently; `pnpm dev` now prints the two commands and exits
 ## Decisions that shape this system
 
 - [The web app and the host start separately](../../decisions/2026-08-web-and-host-start-separately.md)
+- [One writer per data file](../../decisions/2026-09-one-writer-per-data-file.md) — lifetime ownership and drain-before-release
 - [The host's port variable is `CWM_HOST_PORT`, not `PORT`](../../decisions/2026-08-host-port-is-not-the-generic-port.md)
 - [CORS on the host, not a dev-server proxy](../../decisions/2026-08-host-cors-over-dev-proxy.md)
 - [Latency and failure injection live in the client, not the host](../../decisions/2026-08-latency-and-failure-live-in-the-client.md)

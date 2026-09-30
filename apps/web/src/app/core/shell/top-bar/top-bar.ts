@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, viewChild, type ElementRef } from '@angular/core';
 import type { Identity } from '@cwm/contracts';
 import { ThemeService } from '../../theme/theme-service';
 
@@ -19,6 +19,13 @@ import { ThemeService } from '../../theme/theme-service';
 })
 export class TopBar {
   readonly identity = input.required<Identity | null>();
+  /** Slice 58: `AppShell` offers the Menu only below its phone breakpoint. */
+  readonly menuAvailable = input(false);
+  /** Whether the drawer the Menu controls is open, for `aria-expanded`. */
+  readonly menuOpen = input(false);
+  readonly menuRequested = output<void>();
+
+  private readonly menu = viewChild<ElementRef<HTMLButtonElement>>('menu');
 
   private readonly themeService = inject(ThemeService);
   protected readonly theme = this.themeService.theme;
@@ -28,6 +35,14 @@ export class TopBar {
     const user = this.identity()?.user;
     return user?.avatar ?? user?.name.charAt(0).toUpperCase() ?? '';
   });
+
+  /**
+   * Where a dismissed drawer hands focus back. A no-op while the Menu is not rendered, so the
+   * shell calls it after the render that creates the button — never synchronously.
+   */
+  focusMenu(): void {
+    this.menu()?.nativeElement.focus();
+  }
 
   protected toggleTheme(): void {
     this.themeService.toggle();

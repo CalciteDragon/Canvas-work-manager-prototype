@@ -1,6 +1,17 @@
 import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input } from '@angular/core';
-import type { ProjectSection, SectionConfig, SectionId, TaskId, TaskPriority } from '@cwm/contracts';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
+import type { ProjectSection, SectionConfig, SectionId, Task, TaskId, TaskPriority } from '@cwm/contracts';
 import { TaskDetailDrawer } from '../../../tasks/task-detail-drawer';
 import { TaskListStore } from '../../../tasks/task-list-store';
 import { TaskRow } from '../../../tasks/task-row';
@@ -39,6 +50,12 @@ export class TaskListSection {
   readonly readOnly = input(false);
 
   readonly store = inject(TaskListStore);
+  readonly deleteRecovery = signal<{ id: TaskId; title: string } | null>(null);
+  private recoverySnapshot: readonly Task[] | null = null;
+  private deleteGeneration = 0;
+  private currentSectionId: SectionId | null = null;
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   /**
    * Optional on purpose. The section needs the *canvas* to know which other lists exist,
    * but §66 asks that a section stay removable and renderable on its own — a hard
@@ -63,6 +80,21 @@ export class TaskListSection {
   );
 
   constructor() {
+    effect(() => {
+      const sectionId = this.section().id;
+      if (this.currentSectionId !== sectionId) {
+        this.currentSectionId = sectionId;
+        this.deleteGeneration += 1;
+        this.deleteRecovery.set(null);
+      }
+    });
+    effect(() => {
+      const recovery = this.deleteRecovery();
+      const tasks = this.store.tasks();
+      if (recovery !== null && tasks !== this.recoverySnapshot && tasks.some(({ id }) => id === recovery.id)) {
+        this.deleteRecovery.set(null);
+      }
+    });
     // The same rule `ReflectionsSection` follows: load on mount, quietly re-read whenever
     // the page says the project's data moved underneath it.
     effect(() => {
@@ -118,7 +150,33 @@ export class TaskListSection {
    */
   async archive(id: TaskId): Promise<void> {
     if (this.readOnly()) return;
-    if (await this.store.archive(id)) this.onProjectDataChange()();
+    const sectionId = this.section().id;
+    const title = this.store.tasks().find((task) => task.id === id)?.title;
+    const generation = ++this.deleteGeneration;
+    this.deleteRecovery.set(null);
+    const deleteButtons = [...this.host.nativeElement.querySelectorAll<HTMLButtonElement>('[data-task-delete]')];
+    const focusIndex = deleteButtons.findIndex((button) => button === document.activeElement);
+    const focusedDelete = focusIndex >= 0 ? deleteButtons[focusIndex] : null;
+    if (!(await this.store.archive(id))) return;
+    this.onProjectDataChange()();
+    if (this.section().id !== sectionId || generation !== this.deleteGeneration) return;
+    if (title !== undefined) {
+      this.recoverySnapshot = this.store.tasks();
+      this.deleteRecovery.set({ id, title });
+    }
+    if (focusedDelete === null) return;
+
+    const active = document.activeElement;
+    if (active !== document.body && active !== null && active !== focusedDelete) return;
+    afterNextRender(() => {
+      if (this.section().id !== sectionId) return;
+      const activeAfterRender = document.activeElement;
+      if (activeAfterRender !== document.body && activeAfterRender !== null && activeAfterRender !== focusedDelete) return;
+      const buttons = [...this.host.nativeElement.querySelectorAll<HTMLButtonElement>('[data-task-delete]')];
+      const next = buttons[focusIndex] ?? buttons[focusIndex - 1] ??
+        this.host.nativeElement.querySelector<HTMLInputElement>('[data-quick-task-title]');
+      next?.focus();
+    }, { injector: this.injector });
   }
 
   async changeEstimate(event: { id: TaskId; estimate: number | null }): Promise<void> {

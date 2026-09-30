@@ -6,16 +6,25 @@ import type {
   ProjectRestoreStatus,
 } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
-import type { LiveEvent } from '@cwm/contracts';
+import { isProjectRecordEvent, type LiveEvent } from '@cwm/contracts';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+/** The one error a later failed read must not replace: the write it describes already committed. */
+const COMMITTED_UNREFRESHED = 'Restore succeeded, but Archive could not refresh. Try again.';
 
 /** §31's root-wide Archive read and its canonical restore operations. */
 @Injectable()
 export class ArchivePageStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
+  /**
+   * Every Restore reports to the header's history (Slice 41), naming the restored row's or
+   * section's own project — often a descendant of the root this page shows — or the reactivated
+   * project itself.
+   */
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
   private readonly resultState = signal<ProjectArchiveResult | null>(null);
   private readonly loadingState = signal(true);
@@ -44,23 +53,38 @@ export class ArchivePageStore {
     });
   }
 
-  load(projectId: ProjectId): Promise<boolean> {
+  /**
+   * Reads the root's projection. `quiet` is the live path: when this root's list is already on
+   * screen it stays there during the re-read instead of flashing "Loading archive…", which matters
+   * since Slice 39 widened the frames that re-read it to project records from any root.
+   *
+   * An error outlives the read that follows it (Slice 47). It is what blocks Restore after a
+   * refused write or a failed post-write re-read, and a pending quiet frame or Retry is not yet
+   * a current projection: only a successful read of the same root clears it.
+   */
+  load(projectId: ProjectId, options: { quiet?: boolean } = {}): Promise<boolean> {
     if (this.destroyed) return Promise.resolve(false);
     const generation = ++this.generation;
     const previousProjectId = this.projectIdState();
     this.projectIdState.set(projectId);
-    if (previousProjectId !== projectId) this.resultState.set(null);
-    return this.track(async () => {
-      this.loadingState.set(true);
+    if (previousProjectId !== projectId) {
+      this.resultState.set(null);
       this.errorState.set(null);
+    }
+    const quiet = options.quiet === true && this.resultState() !== null;
+    return this.track(async () => {
+      if (!quiet) this.loadingState.set(true);
       try {
         const result = await this.gateway.archive.get(projectId);
         if (!this.current(generation, projectId)) return false;
         this.resultState.set(result);
+        this.errorState.set(null);
         return true;
       } catch (error) {
+        // A committed write stays reported: a later failed read does not replace that fact with
+        // a transport message. Any other error is replaced, so a failed Retry visibly ran.
         if (this.current(generation, projectId)) {
-          this.errorState.set(messageOf(error));
+          this.errorState.update((retained) => (retained === COMMITTED_UNREFRESHED ? retained : messageOf(error)));
         }
         return false;
       } finally {
@@ -71,27 +95,32 @@ export class ArchivePageStore {
 
   async restore(item: ProjectArchiveItem, status: ProjectRestoreStatus = 'active'): Promise<boolean> {
     if (item.restoration.kind !== 'ready') return false;
-    if (this.destroyed || this.restoringState().size > 0) return false;
+    // After a refused write or failed re-read, the displayed item may already be stale. Retry
+    // the projection before offering another write against it.
+    if (this.destroyed || this.restoringState().size > 0 || this.errorState() !== null) return false;
     const projectId = this.projectIdState();
     if (projectId === null) return false;
     const generation = ++this.generation;
     const id = this.idOf(item);
     this.restoringState.update((ids) => new Set([...ids, id]));
-    this.errorState.set(null);
     let written = false;
     try {
       switch (item.kind) {
         case 'subproject':
-          await this.gateway.projects.update(item.project.id, { status });
+          await reportedWrite(this.reporter, () => this.gateway.projects.update(item.project.id, { status }),
+            ({ project, operation }) => ({ projectId: project.id, projectName: project.name, receipt: operation }));
           break;
         case 'section':
-          await this.gateway.sections.restore(item.section.id);
+          await reportedWrite(this.reporter, () => this.gateway.sections.restore(item.section.id),
+            ({ section, operation }) => ({ projectId: section.projectId, receipt: operation }));
           break;
         case 'task':
-          await this.gateway.tasks.restore(item.task.id);
+          await reportedWrite(this.reporter, () => this.gateway.tasks.restore(item.task.id),
+            ({ task, operation }) => ({ projectId: task.projectId, receipt: operation }));
           break;
         case 'reflection':
-          await this.gateway.reflections.restore(item.reflection.id);
+          await reportedWrite(this.reporter, () => this.gateway.reflections.restore(item.reflection.id),
+            ({ reflection, operation }) => ({ projectId: reflection.projectId, receipt: operation }));
           break;
       }
       written = true;
@@ -103,11 +132,11 @@ export class ArchivePageStore {
       const refreshGeneration = this.generation;
       const refreshed = await refreshPromise;
       if (!this.current(refreshGeneration, projectId)) return false;
-      if (!refreshed) this.errorState.set('Restore succeeded, but Archive could not refresh. Try again.');
+      if (!refreshed) this.errorState.set(COMMITTED_UNREFRESHED);
       return true;
     } catch (error) {
       if (!this.current(generation, projectId)) return false;
-      this.errorState.set(written ? 'Restore succeeded, but Archive could not refresh. Try again.' : messageOf(error));
+      this.errorState.set(written ? COMMITTED_UNREFRESHED : messageOf(error));
       return written;
     } finally {
       if (!this.destroyed) {
@@ -120,22 +149,32 @@ export class ArchivePageStore {
     }
   }
 
+  /**
+   * Retry is read-only. It is quiet when a list is on screen, so the retained error and this
+   * control stay put — and keep keyboard focus — until the replacement read answers.
+   */
   retry(): Promise<boolean> {
     const projectId = this.projectIdState();
-    return projectId === null ? Promise.resolve(false) : this.load(projectId);
+    return projectId === null ? Promise.resolve(false) : this.load(projectId, { quiet: true });
   }
 
   private onLiveEvent(event: LiveEvent): void {
     if (this.destroyed) return;
     const projectId = this.projectIdState();
     if (projectId === null) return;
-    if (this.restoring().size > 0) return;
     if (event.type === 'prototype.reloaded') {
+      // A reload replaces the document and perhaps the persona: nothing on screen still holds.
+      // It runs even while a Restore is pending; its read supersedes that Restore's refresh.
+      this.resultState.set(null);
+      this.errorState.set(null);
       void this.load(projectId);
       return;
     }
-    if (event.rootProjectId !== projectId && event.projectId !== projectId) return;
-    void this.load(projectId);
+    if (this.restoring().size > 0) return;
+    // A project-record frame from another root still re-reads: a cross-root move names only the
+    // sub-project's new root (Slice 39).
+    if (event.rootProjectId !== projectId && event.projectId !== projectId && !isProjectRecordEvent(event)) return;
+    void this.load(projectId, { quiet: true });
   }
 
   private onLiveConnected(): void {

@@ -1,5 +1,9 @@
 # How core works
 
+`ProjectGateway.archived()` reads the workspace-scoped result through the only concrete adapter,
+`PrototypeWorkManagerGateway`; the adapter validates `ArchivedProjectsResultSchema` before
+returning it. `projects.update(id, { status })` is the existing Restore write used by Settings.
+
 ## Runtime flow
 
 1. `appConfig` provides `PrototypeIdentityProvider` as `IDENTITY_PROVIDER`,
@@ -15,24 +19,54 @@
 4. A gateway call builds the URL from `PROTOTYPE_API_BASE_URL`, adds the persona header,
    waits the configured delay, fails with the configured probability, then `fetch`es;
    a non-2xx envelope becomes a `GatewayError` with the host's code, message and details.
+   Section responses and strict task/reflection/shortcut/page/project `{ entity, operation }` envelopes are
+   parsed at this boundary; normalized no-ops preserve `operation: null` — which for a page toggle
+   means the tab was already where the call asked it to go — a shortcut delete parses
+   its 200 `{ shortcutId, projectId, pageId, operation }` body, and transition results remain
+   discriminated by direction and operation. `ProjectPageGateway.setEnabled` answers
+   `{ page, operation }`, validated so a host that stopped sending it fails here rather than
+   silently; `ProjectGateway.update` answers `{ project, operation }` the same way since Slice 39.
+   Every browser caller reports the receipt through `OPERATION_HISTORY_REPORTER` (Slice 41) —
+   `ProjectGateway.create` answers the same validated `ProjectWriteResult` as update, with a
+   required creation receipt. Root creation is initiated outside a project shell, so its inert
+   reporter leaves the new project's header to read the history on navigation. No API route answers 204 any more, so the adapter has
+   no body-less send path. `SectionGateway.remove` sends only the section id, with no policy or
+   destination query parameters.
 5. `AppShell` provides `ShellStore`, which loads projects, derives the tree
    (`ProjectTreeNode`), and re-reads on `project.*` frames.
+6. Below `SHELL_NARROW_QUERY` (`48rem`) `AppShell` drops the sidebar track and passes
+   `menuAvailable` to `TopBar`. Menu opens the one `app-sidebar` as a modal dialog
+   (`#shell-navigation`, CDK focus trap, Close, backdrop) and inerts the top bar and `<main>`.
+   Escape inside it, Close and the backdrop return focus to Menu; a plain activation of any link
+   in it closes it and focuses `<main>` (`tabindex="-1"`), including the route already current.
+   A create that fails after the drawer was dismissed reopens it, so the error and the restored
+   form are reachable. A resize resets it to closed, keeps or rescues focus
+   ([why](../../../decisions/2026-09-phone-navigation-drawer.md)).
+7. A writer calls `reportedWrite(reporter, write, report)`: `begin()` before the request returns an
+   `OperationWriteHandle` for that one write; `committed(...)` on it with the report built from the
+   response, `end()` in `finally`. Tying the commit to its own write is what lets the history ignore
+   a write from before a navigation and know that this write — not another — ended uncommitted. Outside a
+   project workspace the inert default swallows all three; inside one the shell's binding makes
+   them reach `ProjectHistoryStore` ([why](../../../decisions/2026-09-project-header-history-controls.md)).
 
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
 | `WorkManagerGateway` | interface | The composite gateway | [API](../../../api/interfaces/WorkManagerGateway.html) |
-| `TaskGateway`, `ProjectGateway`, `SectionGateway`, `ProjectPageGateway`, `SectionShortcutGateway`, `ReflectionGateway`, `TodosGateway`, `ArchiveGateway`, `JournalGateway`, `DashboardGateway`, `ProgressGateway`, `TimelineGateway`, `AgentGateway`, `ActivityGateway` | interfaces | The fourteen members | [API](../../../api/interfaces/TaskGateway.html) |
+| `TaskGateway`, `ProjectGateway`, `SectionGateway`, `OperationHistoryGateway`, `ProjectPageGateway`, `SectionShortcutGateway`, `ReflectionGateway`, `TodosGateway`, `ArchiveGateway`, `JournalGateway`, `DashboardGateway`, `ProgressGateway`, `TimelineGateway`, `AgentGateway`, `ActivityGateway` | interfaces | The fifteen members, including the history summary and transition | [API](../../../api/interfaces/TaskGateway.html) |
 | `GatewayError` | class | The one failure type | [API](../../../api/classes/GatewayError.html) |
 | `PrototypeWorkManagerGateway` | injectable | The adapter | [API](../../../api/injectables/PrototypeWorkManagerGateway.html) |
 | `IdentityProvider` | interface | §18's contract | [API](../../../api/interfaces/IdentityProvider.html) |
 | `PrototypeIdentityProvider` | injectable | `GET /api/me` | [API](../../../api/injectables/PrototypeIdentityProvider.html) |
 | `LiveUpdates` | interface | Subscribe to "go and look" | [API](../../../api/interfaces/LiveUpdates.html) |
+| `OperationHistoryReporter`, `OperationWriteHandle`, `OperationWriteReport` | interfaces | `begin()` hands out a per-write handle with `committed` and `end` | [API](../../../api/interfaces/OperationHistoryReporter.html) |
+| `reportedWrite` | function | Runs one write under a reporter | [API](../../../api/miscellaneous/variables.html#reportedWrite) |
 | `PrototypeLiveUpdates` | injectable | `EventSource` client with reconnect | [API](../../../api/injectables/PrototypeLiveUpdates.html) |
 | `PrototypeSettings`, `PrototypeFlags` | injectable / interface | §47 flags, delay, failure | [API](../../../api/injectables/PrototypeSettings.html) |
 | `ThemeService` | injectable | `data-theme` | [API](../../../api/injectables/ThemeService.html) |
-| `AppShell`, `Sidebar`, `ProjectTreeItem`, `TopBar` | components | §23 | [API](../../../api/components/AppShell.html) |
+| `AppShell`, `Sidebar`, `ProjectTreeItem`, `TopBar` | components | §23, and the phone drawer | [API](../../../api/components/AppShell.html) |
+| `SHELL_NARROW_QUERY` | constant | The drawer's breakpoint, mirrored in `app-shell.scss` and `top-bar.scss` | [API](../../../api/miscellaneous/variables.html#SHELL_NARROW_QUERY) |
 | `ShellStore`, `ProjectTreeNode` | injectable / interface | The project tree; `createProject` | [API](../../../api/injectables/ShellStore.html) |
 
 ## Dependencies
@@ -62,6 +96,11 @@
 - **`status: []` matches nothing**, not everything — the query-semantics rule holds on
   this side too.
 - **Theme is not in `sessionStorage`**; flags, delay and failure rate are.
+- **The drawer's state is `AppShell`'s.** `ShellStore` never learns whether it is open (§20);
+  `app-shell.spec.ts` stubs `matchMedia` and pins semantics, dismissal, route close, create
+  and resize. `inert` blocking and the real focus trap are `apps/e2e/phone-layout.spec.ts`'s.
+- **The reporter token names no feature.** `core/history` imports only contracts; the projects
+  feature implements it, and a shell spec asserts the binding reaches every writer.
 
 ## Commands
 
@@ -79,3 +118,9 @@ pnpm --filter web lint            # includes the token lint that covers app-shel
   control appears in `DevPanelControls`; the consumer reads the signal.
 - **The trap:** reading `localStorage` or `sessionStorage` unguarded. Both throw when
   site data is blocked; wrap every access.
+- **The phone drawer's traps:** focus moves run in `afterNextRender`, because zoneless, the
+  Menu and the `inert` attributes exist only after the next render and a synchronous
+  `focus()` does nothing. The closed drawer is hidden by the signal-bound `side--closed` class,
+  not by the media query alone: the browser applies the query before `matchMedia` reports it,
+  and hiding a focused link first drops focus before `AppShell` can rescue it. The `48rem`
+  literal lives in three places; change them together.

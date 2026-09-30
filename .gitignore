@@ -16,6 +16,10 @@ apps/web/storybook-static/
 # worth keeping locally; it is nobody else's to review.
 .prototype/*.backup-*.json
 
+# The owner record of whichever process writes a data file right now (Slice 54), with its
+# transient link and reclaim files. Machine-local by nature.
+.prototype/*.owner*
+
 # The end-to-end suite's own data file and Playwright's output. The suite runs the host
 # against this file, never against the developer's workspace.
 .prototype/e2e-data.json

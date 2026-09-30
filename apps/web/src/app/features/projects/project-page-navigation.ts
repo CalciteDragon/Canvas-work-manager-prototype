@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { Project, ProjectId, ProjectPage, ProjectPageKind } from '@cwm/contracts';
 import type { WorkTreeNode } from './project-workspace-store';
@@ -50,6 +50,31 @@ export class ProjectPageNavigation {
   readonly toggleRequested = output<void>();
   readonly pageToggleRequested = output<{ kind: OptionalProjectPageKind; enabled: boolean }>();
   readonly retryPageRequested = output<void>();
+  /**
+   * A destination in the column was chosen, with the URL it leads to (Slice 58). One delegated
+   * listener on the host covers every link here, `ProjectWorkItem`'s recursive ones included,
+   * and only a plain primary activation counts: a modified or middle click opens elsewhere, and
+   * the toggle, the page manager and its checkboxes are not destinations.
+   */
+  readonly linkSelected = output<string>();
+
+  constructor() {
+    // Captured on the host, not a `(click)` host listener: a link to the other project route
+    // makes the router replace the workspace shell — and this column with it — synchronously
+    // inside `RouterLink`'s own click handler, which removes a bubbling listener before the
+    // click reaches it.
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    const onClick = (event: MouseEvent): void => this.reportLink(event);
+    host.addEventListener('click', onClick, { capture: true });
+    inject(DestroyRef).onDestroy(() => host.removeEventListener('click', onClick, { capture: true }));
+  }
+
+  private reportLink(event: MouseEvent): void {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+    const url = link?.getAttribute('href');
+    if (url) this.linkSelected.emit(url);
+  }
 
   pageEnabled(kind: OptionalProjectPageKind): boolean {
     // A failed native checkbox click leaves the `pages` array referentially unchanged. Read the

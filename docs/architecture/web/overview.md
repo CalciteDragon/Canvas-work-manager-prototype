@@ -1,5 +1,10 @@
 # Web
 
+Workspace Settings now links to `/settings/archived-projects`. Its page reads the actor's
+archived roots and currently restorable subprojects through `projects.archived()` and restores
+with an explicit status through the existing project gateway write. Root Archive shows the
+domain's ready-only, parent-first list.
+
 `apps/web` is the Angular 22 application on `http://localhost:4200` (§4, §19): the shell
 with its sidebar and top bar, the dashboard, the project workspaces with their pages and
 section canvases, the agent settings page, and the development tooling. It is
@@ -20,6 +25,9 @@ properties, and it depends on the host **only** through gateway interfaces and o
 - Hold feature state in feature-scoped signal stores (§19, §20): `Page → Store →
   Gateway`, never a global store.
 - Paint optimistic writes and revert them visibly on failure (§63).
+- Validate write envelopes at the gateway boundary; feature stores unwrap the returned entity and
+  report the operation receipt to the project header's history, whose Undo and Redo are the one
+  browser surface for history (Slice 41).
 - Re-read the affected stores when the host announces a change (§62), quietly.
 - Use design tokens for every colour, spacing and radius (§21); switch themes by one
   attribute (§22).
@@ -47,11 +55,14 @@ Smaller features that do not earn a folder of their own:
 
 - `features/activity` — `ActivityFeed` and `ActivityStore` (§57), used by the Recent
   Activity section and the Recent Agent Activity widget; the feed composes its line from
-  structured parts ([decision](../../decisions/2026-08-activity-feed-composes-from-parts.md)).
+  structured parts, including the host's captured label when a task or reflection has since been
+  removed ([decision](../../decisions/2026-08-activity-feed-composes-from-parts.md)).
 - `features/settings` — `SettingsPage` is a way in; `settings/agents` is §53's
   permission grid and revoke (`AgentConnectionsPage`, `AgentConnectionsStore`).
 - `features/calendar`, `features/search` — placeholders until Slices 18 and 21.
 - `shared/components/placeholder-page` — `PlaceholderPage`, `NotFoundPage`.
+- `shared/components/icon` — `Icon`, the decorative SVG marks used by canvas chrome, history
+  controls and the task Delete buttons in `TaskRow` and Todos.
 
 ## Read next
 

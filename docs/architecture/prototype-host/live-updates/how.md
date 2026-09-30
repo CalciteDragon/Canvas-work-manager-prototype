@@ -48,8 +48,36 @@
   drives a real service through a real store and asserts both.
 - **No workspace id on the wire**; scoping happens in the hub.
 - **A no-op announces nothing**, because it records nothing.
+- **A history transition adds no extra frame.** A retained section removal publishes
+  `project.section_archived`, a safely deleted disposable publishes `project.section_removed`,
+  explicit add, move and settings writes publish their usual one frame (a no-op publishes none), and
+  each section transition publishes one
+  `project.section_{removal,addition,move,update,restoration}_{undone,redone}` frame, and each Home
+  shortcut transition one `project.shortcut_{addition,update,move,removal}_{undone,redone}` frame
+  targeted at the **destination** project — the same target the ordinary `project.shortcut_*` events
+  use, so no new missing-target case arises. Task and reflection
+  transitions publish the equivalent `task.*_{undone,redone}` and
+  `reflection.*_{undone,redone}` action, and each optional-page transition one
+  `project.page_{addition,update}_{undone,redone}` frame targeted at the page's root project. A compound Add still publishes only that one row frame;
+  its project context also invalidates section existence in the browser. The direction is in the
+  type. A retirement commits but records no activity, so it
+  publishes nothing. The history action and its payload never reach a frame. `live-updates.test.ts`
+  pins, for section, task and reflection families, that the forward, Undo and Redo frames arrive only once
+  the bytes on disk hold the change and the action's new state, and that an action-insert failure,
+  forward-persistence failure or transition-persistence failure delivers nothing;
+  `mcp/handler.test.ts` additionally drives a real SDK client over Streamable HTTP with a
+  JSON-backed store: failed task and Undo commits deliver no frame, a retry delivers one frame
+  after the file contains the change, and losing the response after a committed Undo delivers no
+  second frame on a same-revision retry;
+  `section-service.test.ts` pins the retained-removal action at the domain.
 - **Frames carry ids, never entities.** The browser re-reads through the gateway; a
   frame is "go and look", not a state delta (§62).
+
+Creation Undo/Redo frames use their captured `projectId` and `rootProjectId` to route even after
+the project record is removed. The workspace history re-read decides whether its creator has a
+Redo recovery state; root projections refresh from the same frame. These frames are not
+project-record events because creation never changes the project's root
+([decision](../../../decisions/2026-09-project-creation-history.md)).
 
 ## Commands
 

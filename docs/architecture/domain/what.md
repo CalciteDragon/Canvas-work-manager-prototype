@@ -1,5 +1,10 @@
 # What the domain is made of
 
+`src/restore-eligibility.ts` is a pure structural predicate over current projects, sections and
+tasks. `src/project-archive-service.ts` applies it inside one root; `src/archived-projects-service.ts`
+uses the project predicate for a workspace list. These are derived reads over canonical records,
+not a stored Archive collection.
+
 ## Structure
 
 ```mermaid
@@ -21,7 +26,13 @@ flowchart TB
     task[TaskService]
     reflection[ReflectionService]
     agent[AgentConnectionService]
+    history[OperationHistoryService]
     activity[ActivityService]
+  end
+  subgraph undoable["History seam"]
+    recorder["operation-recorder.ts<br/>OperationRecorder, RepositoryOperationRecorder"]
+    machine["operation-history.ts<br/>pure cursor state machine"]
+    inverse["section-removal-undo.ts, section-edit-undo.ts, section-restore-history.ts, shortcut-history.ts, page-history.ts, project-history.ts, task-history.ts, reflection-history.ts, owned-rows.ts<br/>capture, revert and reapply functions"]
   end
   subgraph readers["Derived read services"]
     dashboard[DashboardService]
@@ -38,7 +49,12 @@ flowchart TB
   end
   task --> section
   reflection --> section
-  project & page & section & shortcut & task & reflection & agent --> activity
+  project & page & section & shortcut & task & reflection & agent & history --> activity
+  section & shortcut & page & project & task & reflection --> recorder
+  recorder --> machine
+  history --> machine
+  section -. captures through .-> inverse
+  history -. executes through .-> inverse
   activity --> live
   dashboard --> aiport
   mock -. implements .-> aiport
@@ -48,7 +64,11 @@ flowchart TB
 
 Writing services own one entity each and record activity; the two arrows into
 `SectionService` resolve which container a row lands in. Writing services also compose
-`ActivityService` to record events; these service edges are acyclic. Derived read services
+`ActivityService` to record events; these service edges are acyclic. Section, shortcut, page, project, task and reflection services record
+each supported operation through the `OperationRecorder` interface, and
+`OperationHistoryService` reverts or reapplies it through the same package-internal function
+modules — neither composes the other, and `OperationHistoryService` composes no section, task or
+reflection service. Derived read services
 compose no other services: each reads
 repositories directly, asserts every grant its result needs, and computes from canonical
 records. `project-visibility.ts` is pure functions shared by both groups so that every
@@ -62,18 +82,20 @@ sequenceDiagram
   participant T as TaskService
   participant S as SectionService
   participant R as Repositories (unit of work)
+  participant O as OperationRecorder
   participant A as ActivityService
   C->>T: create(actor, input)
   T->>T: assertPermitted(actor, 'tasks.write')
   T->>R: runUnitOfWork
   T->>T: assert project visible for actor.workspaceId
   T->>S: resolveContainer(project, page?, section?, 'task')
-  S-->>T: sectionId (or DomainRuleError)
+  S-->>T: section plus optional created-container footprint
   T->>R: tasks.insert({ …, createdAt: clock.now() })
+  T->>O: record(task.add payload)
   T->>A: record('task.created', actor, target)
   A->>R: activity.insert
   R-->>T: commit (integrity validated, persisted, frame released)
-  T-->>C: Task
+  T-->>C: { task, operation }
 ```
 
 ## Inventory
@@ -88,16 +110,28 @@ sequenceDiagram
 | `archivedAncestry` | `src/project-visibility.ts` | Archiving reaches down without cascading |
 | `Instant` | `src/instants.ts` | Lossless ordering of ISO instants as text |
 | `calendar.ts`, `task-windows.ts`, `page-placements.ts` | `src/` | UTC date arithmetic; the open/overdue/upcoming questions; the combined section+shortcut order |
-| `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard |
-| `ProjectPageService` | `src/project-page-service.ts` | A project's pages; enable/disable a root's optional three |
-| `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, remove (cascade/reassign), restore; container resolution |
-| `SectionShortcutService` | `src/section-shortcut-service.ts` | Home placements; identity and availability, never content |
+| `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard, no reparent that carries an old-root Home shortcut's source to another root; `create` records `project.add` in the created project's history and, like `update`/`archive`, answers `{ project, operation }` |
+| `ProjectPageService` | `src/project-page-service.ts` | A project's pages; enable/disable a root's optional three, recording one action per changed toggle |
+| `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, settle and remove by content/reference policy, Archive Restore; container resolution |
+| `OperationRecorder`, `RepositoryOperationRecorder`, `OPERATION_ACTION_LIFETIME_MS` | `src/operation-recorder.ts` | Records into the exact actor's per-project history; 24-hour lifetime; recovers an outstanding removal receipt |
+| Cursor state machine, `OPERATION_HISTORY_LIMIT` | `src/operation-history.ts` | Pure next-action selection, record, transition, retire and contiguous pruning; 50 actions per history |
+| `OperationHistoryService` | `src/operation-history-service.ts` | Caller-scoped summary and one transition per call, with typed refusals and retirement |
+| Execution seam | `src/operation-execution.ts` | `OperationExecutionRefused`, the permanent flag, `generationFloor` |
+| Section capture, revert and reapply | `src/section-removal-undo.ts`, `src/section-edit-undo.ts`, `src/section-restore-history.ts`, `src/owned-rows.ts` | Package-internal section footprints, applied-state conflict collection and both directions |
+| Placement capture, revert and reapply | `src/shortcut-history.ts` | The four Home shortcut inverses, over a repository type with no row access in it |
+| Page capture, revert and reapply | `src/page-history.ts` | The two optional-page inverses: exact removal of a created page after a section/placement preflight, and the boolean written back |
+| Project capture, revert and reapply | `src/project-history.ts` | `project.add` captures project plus canonical page and preflights deletion/recreation; Redo preserves ids and `createdAt` while stamping `updatedAt` at the new write time; existing-project writes capture changed fields under the forward hierarchy and archive rules, with `mayRunWhileSubjectArchived` |
+| Task capture, revert and reapply | `src/task-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including subtree and implicit-container effects |
+| Reflection capture, revert and reapply | `src/reflection-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including historical subjects and implicit containers |
+| `snapshotPlacement`, `resolveRestoreIndex`, `findHighestWriteBlocker` | `src/page-placements.ts`, `src/project-visibility.ts` | Neighbour snapshot and restore index; the highest archived project blocking a write |
+| `SectionShortcutService` | `src/section-shortcut-service.ts` | Home placements; identity and availability, never content; records each placement write in the destination project |
 | `TaskService` | `src/task-service.ts` | Create, update, complete, archive (cascading to subtasks), restore, move within a project |
 | `ReflectionService` | `src/reflection-service.ts` | Write, edit, archive, restore; optional subject |
 | `AgentConnectionService` | `src/agent-connection-service.ts` | Permissions and revocation — user actors only; throttled `lastUsedAt` |
-| `ActivityService` | `src/activity-service.ts` | The one place events are recorded and live frames published |
+| `ActivityService` | `src/activity-service.ts` | Captures durable target identity, records events and publishes one post-commit frame |
 | `DashboardService` | `src/dashboard-service.ts` | §24's one derived read, including the digest and Fun Fact |
 | `ProgressService`, `TimelineService` | `src/progress-service.ts`, `src/timeline-service.ts` | §39 formulas; §38 derived ranges |
 | `WorkspaceService` | `src/workspace-service.ts` | `search_workspace`, `get_upcoming_work` under `workspace.read` |
 | `ProjectTodosService`, `ProjectArchiveService`, `ProjectJournalService` | `src/project-*-service.ts` | The three root-wide projections (§34, §31, §36) |
+| `sectionRecoveryOf` | `src/section-recovery-policy.ts` | Package-internal pure policy: which section entries Archive lists, with recovery metadata |
 | `AIProvider`, `PrototypeAIProvider` | `src/ai-provider.ts`, `src/prototype-ai-provider.ts` | §42's interface; §43's deterministic implementation |

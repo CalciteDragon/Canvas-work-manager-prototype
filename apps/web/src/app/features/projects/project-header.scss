@@ -81,8 +81,29 @@
   grid-column: 1 / -1;
 }
 
+.project-header__history-feedback {
+  grid-column: 1 / -1;
+}
+
+.project-header__history-feedback:empty {
+  display: none;
+}
+
 .project-header__error {
   grid-column: 1 / -1;
   margin: 0;
   color: var(--color-danger);
+}
+
+// Slice 41: the actions cell holds Undo, Redo and More. At narrow widths it moves to its own row
+// under the identity, so the project name keeps the width it needs. Slice 45: it also wraps. At
+// 375 px the global sidebar keeps its width and leaves the header ~115 px, and an unwrapped
+// flex-end row overflowed leftwards beneath the sidebar, where Undo could not be tapped.
+@media (max-width: 40rem) {
+  .project-header__actions {
+    flex-wrap: wrap;
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-content: flex-end;
+  }
 }

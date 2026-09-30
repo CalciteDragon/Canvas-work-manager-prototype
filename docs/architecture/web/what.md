@@ -40,7 +40,7 @@ C4Component
     Component(dashboard, "features/dashboard", "/app", "widget registry over one read")
     Component(tasks, "features/tasks", "task UI", "TaskRow, drawer, per-section store")
     Component(activity, "features/activity", "feed", "ActivityFeed, ActivityStore")
-    Component(settings, "features/settings", "agents", "permission grid, revoke")
+    Component(settings, "features/settings", "workspace settings", "agent grants, archived-project recovery")
   }
   UpdateLayoutConfig($c4ShapeInRow="3")
   Rel(projects, core, "gateway, live, identity")
@@ -64,6 +64,7 @@ C4Component
 | `/projects/:projectId` | `ProjectWorkspaceShell` | A root opens on Home; a subproject on its work canvas |
 | `/calendar`, `/search` | placeholders | Slices 18 and 21 |
 | `/settings`, `/settings/agents` | `SettingsPage`, `AgentConnectionsPage` | §53 |
+| `/settings/archived-projects` | `ArchivedProjectsPage` | Workspace recovery, independent of optional Archive pages |
 | `/prototype/design` | `DesignLabPage` (lazy) | §67 |
 | `/prototype/state` | `StateInspectorPage` (lazy) | §46, §68 |
 | `**` | `NotFoundPage` | |
@@ -80,6 +81,11 @@ flowchart LR
   store -->|signals| page
 ```
 
+Writes cross the same seam as strict shared envelopes. For example,
+`tasks.complete(id)` returns `{ task, operation }`; the adapter validates both fields and the
+store paints `task` and reports the receipt through `OPERATION_HISTORY_REPORTER` to the project
+header's history (Slice 41).
+
 ## Inventory
 
 | Part | Path | Role |
@@ -90,9 +96,10 @@ flowchart LR
 | Dashboard | `src/app/features/dashboard/` | [dashboard](dashboard/overview.md) |
 | Tasks | `src/app/features/tasks/` | [tasks](tasks/overview.md) |
 | Prototype tooling | `src/app/prototype/` | [prototype-tooling](prototype-tooling/overview.md) |
-| Activity | `src/app/features/activity/` | `ActivityFeed`, `ActivityStore` |
-| Settings | `src/app/features/settings/` | `SettingsPage`; `agents/AgentConnectionsPage`, `AgentConnectionsStore` |
+| Activity | `src/app/features/activity/` | `ActivityFeed`, `ActivityStore`; current-name display with captured-label fallback supplied by the host |
+| Settings | `src/app/features/settings/` | `SettingsPage`; `agents/AgentConnectionsPage`, `AgentConnectionsStore`; `archived-projects/ArchivedProjectsPage`, `ArchivedProjectsStore` |
 | Placeholders | `src/app/features/calendar/`, `features/search/`, `shared/components/placeholder-page/` | `CalendarPage`, `SearchPage`, `PlaceholderPage`, `NotFoundPage` |
+| Icons | `src/app/shared/components/icon/` | `Icon`: decorative SVG marks shared by features; the owning button carries the accessible name |
 | Tokens and base styles | `src/styles/_tokens.scss`, `_base.scss` | §21's custom properties, both themes, the knob layer |
 | Storybook | `.storybook/` | `@storybook/angular-vite`; stories beside components |
 | Lints | `scripts/check-design-tokens.mjs`, `scripts/expect-failure.mjs` | The token lint and its self-test |

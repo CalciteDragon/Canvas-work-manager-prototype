@@ -3,6 +3,7 @@ import type {
   MilestoneQuery, Project, ProjectId, ProjectPage, ProjectPageId, ProjectPageQuery, ProjectQuery, ProjectSection,
   Reflection, ReflectionId, ReflectionQuery, SectionShortcut, SectionShortcutId, SectionShortcutQuery,
   SectionId, SectionQuery,
+  OperationAction, OperationActionId, OperationActionQuery, OperationHistory, OperationHistoryId, OperationHistoryQuery,
   Task, TaskId, TaskQuery, User, UserId,
 } from '@cwm/contracts';
 
@@ -19,18 +20,40 @@ export interface ProjectRepository {
   list(query?: ProjectQuery): Promise<Project[]>;
   insert(project: Project): Promise<void>;
   update(project: Project): Promise<void>;
+  /**
+   * **Restricted removal, for one caller only** (Slice 42): Undo of `project.add` removes exactly
+   * the untouched project after its executor has removed the canonical page and proved there are
+   * no children, rows, optional pages or shortcuts that still depend on it. There is no cascade,
+   * HTTP route or MCP tool for this method. The retained project history and lifecycle Activity
+   * anchor explain the absence; commit-time integrity rejects a removal without both anchors.
+   */
+  remove(id: ProjectId): Promise<void>;
 }
 
 /**
- * §26's pages. No `remove`: a page is never deleted — an optional one is disabled, which keeps
- * its sections and their layout, and a canonical one cannot go away while its project exists.
- * The seam permanent deletion would need is `SectionRepository.remove`, not this.
+ * §26's pages. Ordinary use has no deletion: an optional page is **disabled**, which keeps its
+ * sections, their layout and every reference to it, and a canonical one cannot go away while its
+ * project exists.
  */
 export interface ProjectPageRepository {
   find(id: ProjectPageId): Promise<ProjectPage | null>;
   list(query?: ProjectPageQuery): Promise<ProjectPage[]>;
   insert(page: ProjectPage): Promise<void>;
   update(page: ProjectPage): Promise<void>;
+  /**
+   * **Restricted removal, for one caller only** (Slice 38): Undo of `page.add` deletes exactly the
+   * record a first enable created, after the executor has proved the page is unchanged and that no
+   * canonical section — live or archived — and no shortcut placement still names it. Ordinary
+   * disabling never reaches this, and no HTTP route or MCP tool exposes it: §26's nondestructive
+   * disable is unchanged, and reversing the creation of an empty tab is not deletion of content
+   * anyone kept.
+   *
+   * The project-targeted audit line survives it, because a page event names its **project**, never
+   * the page (docs/decisions/2026-09-historical-activity-identity.md). Commit-time integrity
+   * continues to reject a deleted canonical page and a dangling section or shortcut reference, so
+   * a removal that left one still rolls the whole unit back.
+   */
+  remove(id: ProjectPageId): Promise<void>;
 }
 
 export interface TaskRepository {
@@ -38,6 +61,18 @@ export interface TaskRepository {
   list(query?: TaskQuery): Promise<Task[]>;
   insert(task: Task): Promise<void>;
   update(task: Task): Promise<void>;
+  /**
+   * **Restricted removal, for one caller only** (Slice 36): Undo of `task.add` deletes exactly the
+   * row that create made, after the executor has proved nothing came to depend on it — no child,
+   * no reflection subject, no cascade marker. Ordinary archiving never reaches this, and no HTTP
+   * route or MCP tool exposes it: §31's rule that content is archived rather than deleted is
+   * unchanged, and reversing a creation is not deletion of content the person kept.
+   *
+   * The audit line survives it, because a version-5 activity event captures its target's identity
+   * (docs/decisions/2026-09-historical-activity-identity.md). Commit-time integrity continues to
+   * reject a dangling reference, so a removal that left one still rolls the whole unit back.
+   */
+  remove(id: TaskId): Promise<void>;
 }
 
 export interface SectionRepository {
@@ -46,17 +81,11 @@ export interface SectionRepository {
   insert(section: ProjectSection): Promise<void>;
   update(section: ProjectSection): Promise<void>;
   /**
-   * The one repository that deletes — and, since removal became an archive, deliberately
-   * **unreferenced by `SectionService`**. The premise it was written on is what the
-   * prototype disproved: a container is not view configuration with no independent
-   * history, because since the ownership phase it holds rows, and rows are history. §31's
-   * remove control now sets `archivedAt`, and §30's "adding a *type* touches one place"
-   * was never an argument against adding a *field*.
-   *
-   * Kept rather than deleted because it is the seam permanent deletion will use — the
-   * operation deliberately deferred out of the archive phase
-   * (docs/decisions/2026-09-what-undo-means-for-an-archived-row.md). If that phase does not
-   * arrive next, delete this then.
+   * Deletes only the canonical section row. `SectionService` calls this after it settles
+   * owned rows, decides the recovery policy, and confirms that no row or shortcut still
+   * references the section. It records the original section in the same unit of work, so
+   * receipt-based Undo can recreate it. The repository does not cascade; commit-time
+   * document integrity continues to reject dangling row and shortcut references.
    */
   remove(id: SectionId): Promise<void>;
 }
@@ -82,6 +111,8 @@ export interface ReflectionRepository {
   list(query?: ReflectionQuery): Promise<Reflection[]>;
   insert(reflection: Reflection): Promise<void>;
   update(reflection: Reflection): Promise<void>;
+  /** Undo of `reflection.add`, under exactly the restrictions `TaskRepository.remove` describes. */
+  remove(id: ReflectionId): Promise<void>;
 }
 
 export interface ActivityRepository {
@@ -103,4 +134,37 @@ export interface UserRepository {
   list(): Promise<User[]>;
   insert(user: User): Promise<void>;
   update(user: User): Promise<void>;
+}
+
+/**
+ * One actor's operation history per project (docs/decisions/2026-09-operation-history-scope.md).
+ *
+ * There is no `remove`: a history outlives every action it held, so its order high-water mark and
+ * revision never restart. Its project reference is strict except after creation Undo (Slice 42),
+ * the one operation that deletes a project: the creator's history then outlives the project,
+ * anchored by its retained undone `project.add` and the project's `project.creation_undone`
+ * Activity (docs/decisions/2026-09-project-creation-history.md).
+ */
+export interface OperationHistoryRepository {
+  find(id: OperationHistoryId): Promise<OperationHistory | null>;
+  list(query?: OperationHistoryQuery): Promise<OperationHistory[]>;
+  insert(history: OperationHistory): Promise<void>;
+  update(history: OperationHistory): Promise<void>;
+}
+
+/**
+ * The typed actions a history steps through.
+ *
+ * `remove` exists because actions are **pruned** — by expiry and by the per-history cap — and
+ * because recording a new action discards the redo branch, both inside the unit that records.
+ * That is safe where deleting other entities is not: nothing references an action. Activity
+ * events name the project, never an action, and a receipt holds only ids, which answer
+ * `history_not_next` or not-found once the action is gone.
+ */
+export interface OperationActionRepository {
+  find(id: OperationActionId): Promise<OperationAction | null>;
+  list(query?: OperationActionQuery): Promise<OperationAction[]>;
+  insert(action: OperationAction): Promise<void>;
+  update(action: OperationAction): Promise<void>;
+  remove(id: OperationActionId): Promise<void>;
 }

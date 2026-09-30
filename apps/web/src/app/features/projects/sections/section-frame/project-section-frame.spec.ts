@@ -146,6 +146,20 @@ describe('ProjectSectionFrame (§31)', () => {
     ]);
   });
 
+  it('keeps the remove control focusable and blocks duplicate removal while pending', () => {
+    const fixture = render();
+    const remove = query(fixture, '[data-section-remove]') as HTMLButtonElement;
+    const requested = vi.fn();
+    fixture.componentInstance.removeRequested.subscribe(requested);
+    fixture.componentRef.setInput('removalPending', true);
+    fixture.detectChanges();
+
+    expect(remove.disabled).toBe(false);
+    expect(remove.getAttribute('aria-disabled')).toBe('true');
+    remove.click();
+    expect(requested).not.toHaveBeenCalled();
+  });
+
   it('hides the content when the section is collapsed', () => {
     const fixture = render({ collapsed: true });
 
@@ -306,6 +320,51 @@ describe('ProjectSectionFrame (§31)', () => {
       expect(document.activeElement).toBe(query(fixture, '[data-section-title-edit]'));
     } finally {
       fixture.nativeElement.remove();
+    }
+  });
+
+  /** Slice 33 (Refactor §26.8): a rename's outcome decides focus, never the rename having started. */
+  it('keeps focus on a failed rename input, returns Enter to the title, and leaves a blur commit where the user went', async () => {
+    let answer = false;
+    const rename = vi.fn(async () => answer);
+    const fixture = render({ title: 'Backlog' }, {}, rename);
+    const elsewhere = document.createElement('button');
+    document.body.append(fixture.nativeElement, elsewhere);
+    const edit = async (value: string) => {
+      query(fixture, '[data-section-title-edit]')!.click();
+      fixture.detectChanges();
+      const input = query(fixture, '[data-section-name]') as HTMLInputElement;
+      input.focus();
+      input.value = value;
+      return input;
+    };
+    try {
+      const failed = await edit('Rejected draft');
+      failed.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await fixture.whenStable();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect((query(fixture, '[data-section-name]') as HTMLInputElement).value).toBe('Rejected draft');
+      expect(document.activeElement).toBe(query(fixture, '[data-section-name]'));
+
+      answer = true;
+      (query(fixture, '[data-section-name]') as HTMLInputElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await fixture.whenStable();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(query(fixture, '[data-section-name]')).toBeNull();
+      expect(document.activeElement).toBe(query(fixture, '[data-section-title-edit]'));
+
+      await edit('Chosen by blur');
+      elsewhere.focus();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(rename).toHaveBeenLastCalledWith('section-a', 'Chosen by blur');
+      expect(document.activeElement).toBe(elsewhere);
+    } finally {
+      fixture.nativeElement.remove();
+      elsewhere.remove();
     }
   });
 

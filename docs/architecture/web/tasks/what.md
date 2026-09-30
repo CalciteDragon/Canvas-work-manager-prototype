@@ -6,19 +6,18 @@
 flowchart TB
   live["LIVE_UPDATES task.*"] --> store
   subgraph owners["Who provides the store"]
-    tls["TaskListSection<br/>(projects/sections/tasks)"]
-    todos["TodosPage<br/>(own store; canonical completes)"]
+    tls["TaskListSection<br/>(projects/sections/tasks); committed Delete cue"]
+    todos["TodosPage<br/>(own row + store; canonical writes)"]
     lab["Design Lab live panels<br/>(fixtures)"]
   end
   store["TaskListStore<br/>one container's rows; optimistic writes; pendingWrites; write epoch"]
-  row["TaskRow<br/>six variants; complete, rename, archive"]
+  row["TaskRow<br/>six variants; complete, rename, Delete → archive"]
   drawer["TaskDetailDrawer<br/>status, priority, due date"]
   gw["TaskGateway<br/>list · get · create · update · complete · archive · restore"]
   tls --> store
   store --> gw
   tls --> row
   tls --> drawer
-  todos --> row
   lab --> row
   row -->|intent| store
   drawer -->|intent| store
@@ -37,7 +36,7 @@ sequenceDiagram
   S->>G: tasks.complete(id)
   L-->>S: task.completed frame (host flushed at commit)
   S->>S: deferred — a write is in flight
-  G-->>S: Task (or GatewayError)
+  G-->>S: { task, operation } (or GatewayError)
   alt success
     S->>S: settle, pendingWrites--, re-read
   else failure
@@ -49,6 +48,6 @@ sequenceDiagram
 
 | Part | Path | Role |
 |---|---|---|
-| `TaskRow` | `task-row.ts`, `.html`, `.scss`, `.stories.ts` | The row and its six §4 variants; `pending` and `archiving` are separate |
+| `TaskRow` | `task-row.ts`, `.html`, `.scss`, `.stories.ts` | The Task List row and six §4 variants; Delete emits intent and shows the archive write pending state |
 | `TaskDetailDrawer` | `task-detail-drawer.ts` | Side drawer editing |
 | `TaskListStore` | `task-list-store.ts` | One container's rows; optimistic writes; quiet live re-reads |

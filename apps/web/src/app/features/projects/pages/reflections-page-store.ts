@@ -8,7 +8,9 @@ import type {
   ProjectSection,
   ReflectionSubjectView,
 } from '@cwm/contracts';
+import { isProjectRecordEvent } from '@cwm/contracts';
 import { WORK_MANAGER_GATEWAY } from '../../../core/gateway/work-manager-gateway';
+import { OPERATION_HISTORY_REPORTER, reportedWrite } from '../../../core/history/operation-history-reporter';
 import { LIVE_UPDATES } from '../../../core/live/live-updates';
 
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -20,11 +22,16 @@ interface ActiveRead {
   next?: Promise<boolean>;
 }
 
-/** §36's page-local reads, picker and write coordination. */
+/**
+ * §36's page-local reads, picker and write coordination. Its two writes — the explicit container
+ * add and a reflection — report to the header's history (Slice 41), which is where their Undo lives;
+ * this page holds no receipt.
+ */
 @Injectable()
 export class ReflectionsPageStore {
   private readonly gateway = inject(WORK_MANAGER_GATEWAY);
   private readonly pendingTasks = inject(PendingTasks);
+  private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
   private readonly journalState = signal<ProjectJournalResult | null>(null);
   private readonly candidatesState = signal<readonly ReflectionSubjectView[]>([]);
@@ -39,6 +46,7 @@ export class ReflectionsPageStore {
   private readonly refreshErrorState = signal<string | null>(null);
   private readonly writeErrorState = signal<string | null>(null);
   private readonly creatingContainerState = signal(false);
+  private readonly writingState = signal(false);
 
   private projectIdState = signal<ProjectId | null>(null);
   private pageIdState = signal<ProjectPageId | null>(null);
@@ -132,9 +140,8 @@ export class ReflectionsPageStore {
   retryContainer(): Promise<boolean> {
     const projectId = this.projectIdState();
     const pageId = this.pageIdState();
-    return projectId === null || pageId === null
-      ? Promise.resolve(false)
-      : this.readContainer(this.generation, projectId, pageId, false);
+    if (projectId === null || pageId === null) return Promise.resolve(false);
+    return this.readContainer(this.generation, projectId, pageId, false);
   }
 
   async ensureContainer(): Promise<boolean> {
@@ -148,11 +155,13 @@ export class ReflectionsPageStore {
     this.containerErrorState.set(null);
     this.beginWrite(generation);
     try {
-      const section = await this.track(() =>
-        this.gateway.sections.create(projectId, { type: 'reflections', pageId }),
-      );
+      const result = await this.track(() => reportedWrite(
+        this.reporter,
+        () => this.gateway.sections.create(projectId, { type: 'reflections', pageId }),
+        ({ section, operation }) => ({ projectId: section.projectId, receipt: operation }),
+      ));
       if (!this.current(generation, projectId, pageId)) return false;
-      this.containerState.set(section);
+      this.containerState.set(result.section);
       this.containerCountState.set(1);
       return true;
     } catch (error) {
@@ -197,7 +206,11 @@ export class ReflectionsPageStore {
       };
       if (subject?.kind === 'task') input.subject = { kind: 'task', id: subject.id };
       if (subject?.kind === 'subproject') input.subject = { kind: 'subproject', id: subject.id };
-      await this.track(() => this.gateway.reflections.create(input));
+      await this.track(() => reportedWrite(
+        this.reporter,
+        () => this.gateway.reflections.create(input),
+        ({ reflection, operation }) => ({ projectId: reflection.projectId, receipt: operation }),
+      ));
       committed = true;
     } catch (error) {
       if (this.current(generation, projectId, this.pageIdState())) this.writeErrorState.set(messageOf(error));
@@ -385,7 +398,9 @@ export class ReflectionsPageStore {
       void this.load(projectId, pageId);
       return;
     }
-    if (event.rootProjectId !== projectId && event.projectId !== projectId) return;
+    // A completed sub-project moved out of this root is announced under its new root only
+    // (Slice 39), so a project-record frame from anywhere refreshes Completed Work too.
+    if (event.rootProjectId !== projectId && event.projectId !== projectId && !isProjectRecordEvent(event)) return;
     void this.refresh(projectId, pageId);
   }
 
@@ -406,11 +421,15 @@ export class ReflectionsPageStore {
 
   private beginWrite(generation: number): void {
     this.writingGeneration = generation;
+    this.writingState.set(true);
     this.writeEpoch += 1;
   }
 
   private endWrite(generation: number, projectId: ProjectId, pageId: ProjectPageId | null): void {
-    if (this.writingGeneration === generation) this.writingGeneration = null;
+    if (this.writingGeneration === generation) {
+      this.writingGeneration = null;
+      this.writingState.set(false);
+    }
     if (pageId !== null && this.current(generation, projectId, pageId)) {
       this.flushQueued(generation, projectId, pageId);
     }

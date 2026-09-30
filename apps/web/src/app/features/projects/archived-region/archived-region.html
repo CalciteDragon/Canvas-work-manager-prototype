@@ -39,31 +39,37 @@
                 <span aria-hidden="true"> / </span><span>{{ sectionName }}</span>
               }
             </span>
-            <span data-archived-cause class="archived-region__meta">{{ causeLabel(item) }}</span>
-            @if (item.kind === 'section' && item.cascadeCount !== undefined) {
-              <span data-archived-cascade-count class="archived-region__meta">
-                {{ item.cascadeCount }}
-                {{ item.section.type === 'reflections'
-                  ? (item.cascadeCount === 1 ? 'reflection' : 'reflections')
-                  : (item.cascadeCount === 1 ? 'task' : 'tasks') }}
-                with it
-              </span>
+            @if (historyOwner(item); as owner) {
+              <a data-archived-history-link [routerLink]="owner.route" fragment="history-controls">
+                Open {{ owner.name }} history
+              </a>
             }
-            @if (blockerLabel(item); as blocker) {
-              <span data-archived-blocker class="archived-region__meta">{{ blocker }}</span>
+            <span data-archived-cause class="archived-region__meta">{{ causeLabel(item) }}</span>
+            @if (contentLabel(item); as content) {
+              <span data-archived-content class="archived-region__meta">{{ content }}</span>
+            }
+            @if (cascadeLabel(item); as cascade) {
+              <span data-archived-cascade-count class="archived-region__meta">{{ cascade }}</span>
+            }
+            @if (placementHint(item); as placement) {
+              <span data-archived-placement class="archived-region__meta">{{ placement }}</span>
+            }
+            @if (recoveryGuidance(item); as guidance) {
+              <span data-archived-recovery-guidance class="archived-region__meta">{{ guidance }}</span>
             }
           </div>
-          @if (item.kind === 'subproject' && item.restoration.kind === 'ready') {
+          @if (item.kind === 'subproject') {
             <label class="archived-region__status">
               Restore as
+              <!-- Options come from @for, which renders after the select's own bindings: a
+                   [value] on the select would find no option and show the first one. -->
               <select
                 data-archived-project-status
-                [value]="projectStatus(item)"
                 [disabled]="!canRestore(item)"
                 (change)="selectProjectStatus(item, $event)"
               >
                 @for (status of projectStatuses; track status) {
-                  <option [value]="status">{{ status.replace('_', ' ') }}</option>
+                  <option [value]="status" [selected]="status === projectStatus(item)">{{ status.replace('_', ' ') }}</option>
                 }
               </select>
             </label>
@@ -72,10 +78,10 @@
             data-archived-restore
             type="button"
             [disabled]="!canRestore(item)"
-            [attr.aria-label]="'Restore ' + label(item)"
+            [attr.aria-label]="restoreActionAriaLabel(item)"
             (click)="restore(item)"
           >
-            {{ isRestoring(item) ? 'Restoring…' : 'Restore' }}
+            {{ restoreActionLabel(item) }}
           </button>
         </li>
       }

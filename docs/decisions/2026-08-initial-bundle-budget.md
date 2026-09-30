@@ -70,3 +70,45 @@ with it and needs a decision rather than a number bump.
 Our own next lever is lazy-loading the development panel, which needs a decision about how
 §46's chord reaches a route whose panel is not loaded; raising the number a third time without
 pulling that lever would be the failure Slice 12's note warned about.
+
+**Amended, 2026-09-14 — Slice 31 kept the error ceiling.** Adding the receipt notice and removal
+flow first measured a 1.03 MB initial bundle, above the existing 1 MB error. The budget remains
+unchanged, and project routes remain eager. `ProjectCanvas` now defers its conditional section
+creation dialog, removal dialog and Undo notice until their controls are used; `ArchivePage`
+defers the archive list until its read completes. The production build then measured a 993.82 kB
+initial bundle, under the error ceiling, while retaining the existing 850 kB warning. The browser
+suite covers the resulting interactions. This keeps the prototype route map simple while using
+the existing lazy-boundary mechanism for UI that is not initially visible.
+
+**Final Slice 31 verification, 2026-09-14.** After review-driven retry-state and documentation
+corrections, the production build measured a 995.34 kB initial bundle, still under the unchanged
+1 MB error ceiling. The 850 kB warning remains visible; no budget was raised.
+
+**Amended, 2026-09-15 — Slice 32 kept the error ceiling.** The edit-Undo contracts and the
+Reflections page's notice first measured 1.01 MB. Deferring that page's notice like the canvas's
+brought it to 1.003 MB. The rest came from `@cwm/contracts` having no `sideEffects` declaration,
+so the bundler kept every schema module the web app never uses (the stored inverse schemas among
+them). The package only declares Zod schemas and pure helpers, so it now declares
+`"sideEffects": false`; the final Slice 32 build measured 994.14 kB, with no budget changed.
+
+**Amended, 2026-09-18 — Slice 36 raised only the hard ceiling.** Stage B's row-history contracts
+and browser consumers measured 1.01 MB after the existing route and conditional-component splits.
+The warning remains 850 kB and therefore stays visible; `maximumError` moves from 1 MB to 1050 kB,
+about 43 kB above the measured bundle. This is a deliberate exception to the earlier “dev-panel
+lever first” direction: lazy-loading the global panel changes §46's every-route chord and is outside
+this history slice, while moving both thresholds would hide the growth. The next increase still
+requires structural work and a new decision rather than another number bump.
+
+**Amended, 2026-09-22 — Slice 41.** The header's history controls, their store and the feedback
+wording load eagerly with the project header, because they are on every project page. The canvas
+notice stays behind `@defer` under its new name, `SectionRecoveryNotice`, and the Reflections page no
+longer loads a notice at all. The production initial bundle measured 1024.97 kB at Slice 41 — under
+the 1050 kB error ceiling, with the 850 kB warning still reported ([decision](2026-09-project-header-history-controls.md)).
+
+**Amended, 2026-09-29 — Slice 58.** The phone navigation drawer is part of the shell, so it loads
+eagerly. Before the slice the initial bundle measured 1043.9 kB; the slice's first build measured
+1052.5 kB and failed the 1050 kB ceiling. `AppShell` and `DevPanel` now import the standalone
+`CdkTrapFocus` directive rather than all of `A11yModule`, and the build measures 1048.5 kB: under
+the ceiling by about 2 kB, with the 850 kB warning still reported. No budget was raised; the
+headroom is now small enough that the next eager feature needs the structural work above
+([decision](2026-09-phone-navigation-drawer.md)).

@@ -44,3 +44,14 @@ read-only and remove-placement behavior.
 Agents need a bulk read model that combines layout and content intentionally, or use shows that
 read-only source frames create more navigation than value; either change must name each content
 grant rather than widening shortcut discovery.
+
+
+**Amended, 2026-09-20 — Slice 37.** The rule now reaches the inverses. Each of the four placement
+writes records an action in the **destination** root project's history, never the source
+sub-project's, and its payload captures the placement record and nothing of the source. Undo and
+Redo write `sectionShortcuts` and the combined page order only — the executor's repository type
+deliberately has no task or reflection repository in it — so an edit to the source is never a
+conflict for a placement action, while a source that has gone, left the root tree or moved onto the
+destination page is, because integrity would no longer allow the placement. Recreating a reference
+onto an archived or hidden source is allowed and produces the existing unavailable placeholder; it
+never unarchives the source ([decision](2026-09-section-restore-and-shortcut-history.md)).

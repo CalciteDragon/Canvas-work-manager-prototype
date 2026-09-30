@@ -52,3 +52,15 @@ type with more than one setting.
 
 A section type has several independent settings and a partial write becomes worth wanting —
 Timeline or Progress (§30) are the likely first.
+
+**Amended, 2026-09-13 (planning only).** The [content-oriented Archive policy](2026-09-content-oriented-archive-policy.md)
+plans a narrow domain inspection of Rich Text's recovery-relevant keys. The editor schema
+stays in its section folder; the stored object shape and whole-config replacement do not
+change. Unknown or malformed content is retained conservatively. This exception is pending
+implementation and does not yet change the current parsing boundary.
+
+**Amended, 2026-09-13 — landed.** The exception planned above is implemented narrowly:
+`sectionRecoveryOf` in domain reads only whether a Rich Text config is exactly one string `text`
+key and whether it trims to something, to decide an Archive projection. It does not parse the
+editor schema, coerce or rewrite config, or affect the editor, whose `readRichTextConfig` comment
+now says its empty fallback is not evidence of emptiness. Section folders still own config shape.

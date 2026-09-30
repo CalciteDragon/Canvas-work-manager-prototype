@@ -60,11 +60,15 @@ the date, not the time — a defect only the browser showed.
 
 ## Decisions that shape this system
 
+- [Task Delete names its existing recovery routes](../../../decisions/2026-09-task-delete-recovery-feedback.md) — a committed archive gets a polite cue outside the rows.
 - [§4's *Agent Modified* task row has no data behind it](../../../decisions/2026-08-agent-modified-has-no-data-behind-it.md)
 - [A date-only task due date is stored at UTC end-of-day](../../../decisions/2026-08-task-date-only-due-time.md)
 - [Task status transitions, `completedAt`, and how a task is archived](../../../decisions/2026-08-task-status-transitions-and-archive.md)
+- [One-step section removal and task Delete](../../../decisions/2026-09-one-step-section-removal-and-task-delete.md) — task Delete keeps the reversible archive semantics
 - [Container sections own their rows](../../../decisions/2026-09-sections-own-their-data.md)
-- [What undo means for an archived row](../../../decisions/2026-09-what-undo-means-for-an-archived-row.md) — the row's Archive control and restore
+- [What undo means for an archived row](../../../decisions/2026-09-what-undo-means-for-an-archived-row.md) — the row's Delete control (a reversible archive) and restore
+- [Task and reflection writes join operation history](../../../decisions/2026-09-row-operation-history.md) — strict task envelopes and commit boundaries
+- [Below 48rem the global sidebar is a modal drawer](../../../decisions/2026-09-phone-navigation-drawer.md) — a narrow Task List stacks its details drawer below the rows
 
 ## Spec sections
 

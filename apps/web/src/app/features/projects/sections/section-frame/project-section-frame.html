@@ -16,7 +16,7 @@
       [attr.aria-disabled]="movePending() || !moveAllowed()"
       (keydown)="moveKeydown($event)"
     >
-      <app-canvas-icon name="grip" />
+      <app-icon name="grip" />
     </button>
 
     <button
@@ -28,7 +28,7 @@
       (click)="toggleCollapsed()"
     >
       <span [class.section-frame__chevron--collapsed]="effectiveCollapsed()">
-        <app-canvas-icon name="chevron" />
+        <app-icon name="chevron" />
       </span>
     </button>
 
@@ -77,18 +77,19 @@
           [attr.aria-label]="'Settings for ' + name()"
           (click)="toggleConfig()"
         >
-          <app-canvas-icon name="settings" />
+          <app-icon name="settings" />
         </button>
       }
       <button
         data-section-remove
         class="section-frame__remove"
         type="button"
-        title="Archive section"
-        [attr.aria-label]="'Archive section ' + name()"
-        (click)="removeRequested.emit(section().id)"
+        [attr.aria-disabled]="removalPending()"
+        title="Remove section"
+        [attr.aria-label]="'Remove section ' + name()"
+        (click)="requestRemoval()"
       >
-        <app-canvas-icon name="archive" />
+        <app-icon name="remove" />
       </button>
     </div>
   </header>

@@ -69,17 +69,21 @@
     </button>
   </div>
 
-  <div class="more-menu__row">
-    <button type="button" data-project-archive class="more-menu__danger" (click)="confirming.set(true)">
-      Archive project
-    </button>
-  </div>
+  <!-- Not offered on a project that is already archived: that PATCH is a no-op, and it would
+       still earn the "is archived. Undo is available here." feedback (Slice 41). -->
+  @if (project().status !== 'archived') {
+    <div class="more-menu__row">
+      <button type="button" data-project-archive class="more-menu__danger" (click)="confirming.set(true)">
+        Archive project
+      </button>
+    </div>
+  }
 
-  <!-- The one destructive control on the page, and it removes the surface you are standing
-       on. Cancelling writes nothing and navigates nowhere. -->
-  @if (confirming()) {
+  <!-- The one destructive control on the page. The page stays, and the header's Undo reverses
+       it (Slice 41). Cancelling writes nothing and navigates nowhere. -->
+  @if (confirming() && project().status !== 'archived') {
     <div data-project-archive-confirm class="more-menu__confirm" role="group">
-      <p>Archive “{{ project().name }}”? It leaves the sidebar and this page closes.</p>
+      <p>Archive “{{ project().name }}”? It leaves the sidebar; you can undo it from the header.</p>
       <button type="button" data-project-archive-confirm-yes (click)="archiveRequested.emit()">
         Archive it
       </button>

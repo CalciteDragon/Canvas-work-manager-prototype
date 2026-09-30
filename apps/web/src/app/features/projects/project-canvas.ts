@@ -29,8 +29,8 @@ import { nameOf } from '@cwm/contracts';
 import { PrototypeSettings } from '../../core/config/prototype-settings';
 import { ProjectPageStore, type ProjectCanvasPlacement } from './project-page-store';
 import { SectionCreateDialog } from './section-create-dialog';
-import { SectionRemovalDialog } from './section-removal-dialog';
-import { CanvasIcon } from './canvas-chrome/canvas-icon';
+import { SectionRecoveryNotice } from './section-recovery-notice';
+import { Icon } from '../../shared/components/icon/icon';
 import { gridInsertionGaps } from './canvas-chrome/grid-insertion-gaps';
 import { InsertionPoint, type InsertionIntent } from './canvas-chrome/insertion-point';
 import { moveDirectionFor } from './canvas-chrome/move-keys';
@@ -57,11 +57,11 @@ interface GridInsertionTarget {
     CdkDrag,
     CdkDragHandle,
     CdkDropList,
-    CanvasIcon,
+    Icon,
     InsertionPoint,
     ProjectSectionFrame,
     SectionCreateDialog,
-    SectionRemovalDialog,
+    SectionRecoveryNotice,
     SectionResizeHandle,
     ShortcutFrame,
   ],
@@ -77,6 +77,7 @@ export class ProjectCanvas {
   readonly restoreBlocked = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});
   readonly onProjectHierarchyChange = input<() => void>(() => {});
+  readonly onOpenArchive = input<() => void>(() => {});
 
   readonly store = inject(ProjectPageStore);
   readonly registry = SECTION_REGISTRY;
@@ -94,6 +95,12 @@ export class ProjectCanvas {
   private readonly fragment = toSignal(inject(ActivatedRoute).fragment, { initialValue: null });
   private readonly releasedTarget = signal<SectionId | null>(null);
   private lastTargetKey: string | null = null;
+  /** Focus that started inside a removed section, waiting for the (deferred) recovery notice. */
+  private pendingRemovalFocus: {
+    projectId: ProjectId;
+    pageId: ProjectPageId;
+    originalTarget: HTMLElement | null;
+  } | null = null;
 
   readonly targetSectionId = computed<SectionId | null>(() => {
     const requested = requestedSectionId(this.fragment());
@@ -329,12 +336,126 @@ export class ProjectCanvas {
     void this.store.removeShortcut(id);
   }
 
-  cascadeAndRemove(id: SectionId): void {
-    void this.store.removeSection(id, { policy: 'cascade' });
+  async removeSectionFromCanvas(id: SectionId): Promise<boolean> {
+    const projectId = this.projectId();
+    const pageId = this.pageId();
+    this.pendingRemovalFocus = null;
+    const focusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusStartedInRemoval = this.focusIsInSection(id) || this.focusIsInRecoveryNotice();
+    const removed = await this.store.removeSection(id);
+    if (this.projectId() !== projectId || this.pageId() !== pageId) return removed;
+
+    if (!removed) return false;
+    // The section that held focus is gone. Undo is in the header (Slice 41); here focus goes to the
+    // recovery notice's Open Archive when one is offered, else to the canvas.
+    const active = document.activeElement;
+    const focusWasNotMovedElsewhere = active === document.body || active === null || active === focusedElement;
+    if (focusStartedInRemoval && focusWasNotMovedElsewhere) {
+      this.pendingRemovalFocus = { projectId, pageId, originalTarget: focusedElement };
+      afterNextRender(() => this.focusAfterRemoval(), { injector: this.injector });
+    }
+    return true;
   }
 
-  reassignAndRemove(id: SectionId, reassignToSectionId: SectionId): void {
-    void this.store.removeSection(id, { policy: 'reassign', reassignToSectionId });
+  /** Called after render and by the deferred notice once it renders, so slow chunk loading cannot lose focus. */
+  focusAfterRemoval(): void {
+    const pending = this.pendingRemovalFocus;
+    if (pending === null) return;
+    if (this.projectId() !== pending.projectId || this.pageId() !== pending.pageId) {
+      this.pendingRemovalFocus = null;
+      return;
+    }
+    const active = document.activeElement;
+    if (active !== null && active !== document.body && active !== pending.originalTarget) {
+      this.pendingRemovalFocus = null;
+      return;
+    }
+    const target = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]') ??
+      this.host.nativeElement.querySelector<HTMLElement>('[data-recovery-notice]');
+    // The notice is deferred; its `ready` calls back here once it has rendered.
+    if (target === null && this.store.recoveryNotice() !== null) return;
+    this.pendingRemovalFocus = null;
+    (target ?? this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]') ??
+      this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]'))?.focus();
+  }
+
+  dismissRecoveryNotice(): void {
+    this.pendingRemovalFocus = null;
+    const projectId = this.projectId();
+    const pageId = this.pageId();
+    this.store.dismissRecoveryNotice();
+    afterNextRender(() => {
+      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.recoveryNotice() !== null) return;
+      const retry = this.store.failedRemoval() === null
+        ? null
+        : this.host.nativeElement.querySelector<HTMLElement>('[data-retry-remove]');
+      const firstTitle = this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]');
+      (retry ?? firstTitle ?? this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]'))?.focus();
+    }, { injector: this.injector });
+  }
+
+  dismissFailedRemoval(): void {
+    const projectId = this.projectId();
+    const pageId = this.pageId();
+    const failedSectionId = this.store.failedRemoval()?.sectionId;
+    this.store.dismissFailedRemoval();
+    afterNextRender(() => {
+      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.failedRemoval() !== null) return;
+      if (this.store.recoveryNotice() !== null) {
+        const archiveAction = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]');
+        const notice = this.host.nativeElement.querySelector<HTMLElement>('[data-recovery-notice]');
+        (archiveAction ?? notice)?.focus();
+        return;
+      }
+      const dismissedSectionTitle = failedSectionId === undefined
+        ? null
+        : this.findSectionElement(failedSectionId)?.querySelector<HTMLElement>('[data-section-title]');
+      const firstTitle = this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]');
+      (dismissedSectionTitle ?? firstTitle ?? this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]'))?.focus();
+    }, { injector: this.injector });
+  }
+
+  openArchiveFromNotice(): void {
+    this.onOpenArchive()();
+  }
+
+  retryFailedRemoval(): void {
+    const failed = this.store.failedRemoval();
+    if (failed !== null) void this.removeSectionFromCanvas(failed.sectionId);
+  }
+
+  async retryRefresh(): Promise<void> {
+    const projectId = this.projectId();
+    const pageId = this.pageId();
+    const retry = this.host.nativeElement.querySelector<HTMLElement>('[data-retry-refresh]');
+    const focusedRetry = document.activeElement === retry;
+    const refreshed = await this.store.retryRefresh();
+    if (!refreshed || !focusedRetry || this.projectId() !== projectId || this.pageId() !== pageId) return;
+    afterNextRender(() => {
+      if (this.projectId() !== projectId || this.pageId() !== pageId || this.store.recoveryNotice()?.refreshFailed) return;
+      const active = document.activeElement;
+      if (active !== null && active !== document.body && active !== retry) return;
+      const target = this.host.nativeElement.querySelector<HTMLElement>('[data-open-archive]') ??
+        this.host.nativeElement.querySelector<HTMLElement>('[data-dismiss-recovery-notice]') ??
+        this.host.nativeElement.querySelector<HTMLElement>('[data-section-title]') ??
+        this.host.nativeElement.querySelector<HTMLElement>('[data-section-canvas]');
+      target?.focus();
+    }, { injector: this.injector });
+  }
+
+  private focusIsInSection(id: SectionId): boolean {
+    const active = document.activeElement;
+    return active instanceof HTMLElement && this.findSectionElement(id)?.contains(active) === true;
+  }
+
+  private focusIsInRecoveryNotice(): boolean {
+    const active = document.activeElement;
+    return active instanceof HTMLElement && active.closest('app-section-recovery-notice') !== null;
+  }
+
+  private findSectionElement(id: SectionId): HTMLElement | undefined {
+    return [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-section-id]')]
+      .find((element) => element.getAttribute('data-section-id') === id);
   }
 
   collapse(event: { id: SectionId; collapsed: boolean }): void {
@@ -359,6 +480,7 @@ export class ProjectCanvas {
 
 const placementId = (placement: ProjectCanvasPlacement): string =>
   placement.kind === 'section' ? placement.section.id : placement.shortcut.id;
+
 
 const placementSpan = (placement: ProjectCanvasPlacement): SectionColumnSpan =>
   placement.kind === 'section' ? placement.section.columnSpan : placement.shortcut.columnSpan;

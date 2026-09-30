@@ -1,8 +1,5 @@
-import { SCHEMA_VERSION, type PrototypeDocument } from '@cwm/contracts';
-import { validateDocumentIntegrity } from '@cwm/repositories';
-
 /**
- * The one-off version-2 → version-3 converter (§14, §26–27).
+ * The version-2 → version-3 converter (§14, §26–27), **frozen at its version-3 output**.
  *
  * Version 3 splits projects into roots and sub-projects and gives every project a page that
  * owns its sections. Version 2 had neither, so a real `.prototype/data.json` cannot simply be
@@ -10,13 +7,16 @@ import { validateDocumentIntegrity } from '@cwm/repositories';
  * exists rather than a reset.
  *
  * **It is a converter, not a migration runner.** One version to one version, called
- * explicitly, registered nowhere. The next cutover writes its own or resets; a framework for
- * a chain of one is not a thing this prototype should own (§71, §80).
+ * explicitly, registered nowhere. `upgrade-cli.ts` runs it and then `upgradeOperationHistory` in a
+ * fixed order; that is a chain of two named steps, not a registry
+ * (docs/decisions/2026-09-schema-version-4-conversion.md).
  *
- * The v2 shape is read as plain data rather than re-declared as a Zod schema. Re-declaring it
- * would put a second definition of every entity in the repository (§11) to describe a shape
- * nothing writes any more. Only the *output* is validated — which is the direction that
- * matters, because the output is what gets written to disk.
+ * Both shapes are read and returned as plain data rather than declared as Zod schemas: a
+ * hand-written version-2 or version-3 schema would be a second definition of every entity (§11)
+ * describing shapes nothing writes any more. The output is therefore **not** validated here —
+ * `validateDocumentIntegrity` checks the *current* schema, which a version-3 document no longer
+ * matches — and the version-3 → version-4 step validates the final document before the CLI writes
+ * a byte, which is where the guarantee this step used to give now lives.
  */
 
 /** What version 2 called a project. Only the fields the conversion reads are named. */
@@ -43,6 +43,12 @@ interface LegacyDocument {
 const SOURCE_VERSION = 2;
 
 /**
+ * The version this converter writes — a literal, not `SCHEMA_VERSION`, so a later schema bump
+ * cannot silently change what a version-2 file becomes.
+ */
+export const V3_SCHEMA_VERSION = 3;
+
+/**
  * Derived from the project id rather than generated, so running the converter twice over the
  * same input produces the same document — which is what makes a re-run safe to attempt after
  * a half-finished one.
@@ -63,24 +69,26 @@ const asLegacyDocument = (input: unknown): LegacyDocument => {
   return candidate as LegacyDocument;
 };
 
-export interface UpgradeResult {
-  document: PrototypeDocument;
-  /** False when the input was already at the current version — the no-op case. */
+/** An opaque version-3 document: plain JSON, deliberately untyped (see above). */
+export type Version3Document = Record<string, unknown> & { schemaVersion: typeof V3_SCHEMA_VERSION };
+
+export interface UpgradeProjectPagesResult {
+  document: Version3Document;
+  /** False when the input was already at version 3 — the no-op case. */
   changed: boolean;
 }
 
-export const upgradeProjectPages = (input: unknown): UpgradeResult => {
+export const upgradeProjectPages = (input: unknown): UpgradeProjectPagesResult => {
   const legacy = asLegacyDocument(input);
 
-  // Already converted: validated rather than trusted, so a corrupt v3 file is still caught,
-  // but returned untouched. Re-running the converter is a safe thing to do.
-  if (legacy.schemaVersion === SCHEMA_VERSION) {
-    return { document: validateDocumentIntegrity(legacy), changed: false };
+  // Already at version 3: returned untouched, so re-running this step is safe.
+  if (legacy.schemaVersion === V3_SCHEMA_VERSION) {
+    return { document: legacy as unknown as Version3Document, changed: false };
   }
 
   if (legacy.schemaVersion !== SOURCE_VERSION) {
     throw new RangeError(
-      `cannot convert schema version ${legacy.schemaVersion}: this converter reads version ${SOURCE_VERSION} and writes version ${SCHEMA_VERSION}`,
+      `cannot convert schema version ${legacy.schemaVersion}: this converter reads version ${SOURCE_VERSION} and writes version ${V3_SCHEMA_VERSION}`,
     );
   }
 
@@ -108,7 +116,7 @@ export const upgradeProjectPages = (input: unknown): UpgradeResult => {
 
   const converted = {
     ...legacy,
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: V3_SCHEMA_VERSION,
     projects,
     projectPages,
     sections,
@@ -117,7 +125,5 @@ export const upgradeProjectPages = (input: unknown): UpgradeResult => {
     sectionShortcuts: [],
   };
 
-  // **Before anything is written.** A conversion that produced an unloadable document and
-  // saved it anyway would have destroyed the file it was asked to preserve.
-  return { document: validateDocumentIntegrity(converted), changed: true };
+  return { document: converted as Version3Document, changed: true };
 };

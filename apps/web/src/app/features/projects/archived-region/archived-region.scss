@@ -26,6 +26,10 @@
   overflow-wrap: anywhere;
 }
 
+[data-archived-history-link] {
+  font-size: var(--font-size-sm);
+}
+
 .archived-region__error {
   margin: 0;
   color: var(--color-danger);
