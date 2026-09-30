@@ -53,6 +53,16 @@ would implement and the scope guards it inherits.
 
 ## Now
 
+**Requested direction — Markdown and simpler work interaction (2026-09-30).**
+The user requested a new branch and an
+[umbrella implementation plan in Slice 59](planned/59-markdown-and-work-navigation.md):
+Markdown source/rendering in place of Rich Text, task checkbox reopening and click selection,
+project-name page-settings gear, Work creation plus, clearer nested-work terminology and
+section shortcuts on work canvases, replacing the Sub-Projects section view. This is planning
+only; current product behavior remains unchanged. The umbrella orders six bounded stages and
+records proposed defaults, explicit migration/history work and integrated acceptance. No child
+implementation phase has started.
+
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed
 the review findings after Stage E; Slice 46 links each finding to current tests, browser and

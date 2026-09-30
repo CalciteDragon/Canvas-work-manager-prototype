@@ -26,6 +26,7 @@ _Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/
 | 22 | Slice 22 — Agent confirmations | Confirmation before an agent archives or bulk-edits, using MCP's input-required pattern, behind the agentConfirmations flag | [22-agent-confirmations.md](planned/22-agent-confirmations.md) |
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
+| 59 | Slice 59 — Markdown, reversible task completion and work navigation | Umbrella proposal for Markdown sections, task selection and reopening, sidebar controls and work-canvas shortcuts | [59-markdown-and-work-navigation.md](planned/59-markdown-and-work-navigation.md) |
 
 ### Completed
 
