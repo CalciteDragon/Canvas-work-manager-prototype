@@ -192,8 +192,8 @@ Under F2d the domain suite exited 1 with `Test Files  7 failed | 33 passed (40)`
 
 **Deviations from the plan** — None in substance. A scripted plan edit failed on a line-wrapped match after the plan commit had already run, so the round-3 edits went into a second docs commit.
 
-**Deferred** — The `shell-store.spec.ts` `nestedProjects` leak is latent and now harmless under the setup file; the spec itself was not edited (non-goal). The rest of Slice 46 stays in [Slice 46](../planned/46-slice-34-closeout-follow-up.md).
+**Deferred** — The `shell-store.spec.ts` `nestedProjects` leak is latent and now harmless under the setup file; the spec itself was not edited (non-goal). The rest of Slice 46 stays in [Slice 46](../active/46-slice-34-closeout-follow-up.md).
 
 **Open questions** — None.
 
-**Documentation updated** — `docs/architecture/testing/how.md` (runtime flow step 1), `what.md` (web specs row) and `why.md` (decision link); the new [decision](../../decisions/2026-09-web-specs-start-with-empty-storage.md) and its *Testing* index row. After `complete`, three link edits point at `completed/51-web-storage-isolation-and-no-op-sensitivity.md`: a dated note under the title of [Slice 50's record](../completed/50-fault-sensitivity-evidence.md), `[Slice 51]` beside Slice 50 in the Build paragraph and finding 4 of [Slice 46](../planned/46-slice-34-closeout-follow-up.md), and one sentence after Slice 50's in [`goals.md`](../goals.md).
+**Documentation updated** — `docs/architecture/testing/how.md` (runtime flow step 1), `what.md` (web specs row) and `why.md` (decision link); the new [decision](../../decisions/2026-09-web-specs-start-with-empty-storage.md) and its *Testing* index row. After `complete`, three link edits point at `completed/51-web-storage-isolation-and-no-op-sensitivity.md`: a dated note under the title of [Slice 50's record](../completed/50-fault-sensitivity-evidence.md), `[Slice 51]` beside Slice 50 in the Build paragraph and finding 4 of [Slice 46](../active/46-slice-34-closeout-follow-up.md), and one sentence after Slice 50's in [`goals.md`](../goals.md).

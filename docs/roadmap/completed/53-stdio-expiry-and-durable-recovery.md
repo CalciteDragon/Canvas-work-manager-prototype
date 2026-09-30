@@ -3,7 +3,7 @@
 
 ## Goal
 
-Close [Slice 46 finding 6](../planned/46-slice-34-closeout-follow-up.md#build) with an isolated real stdio MCP client journey proving that a removal action expires while its retained content and Activity remain recoverable across process restart.
+Close [Slice 46 finding 6](../active/46-slice-34-closeout-follow-up.md#build) with an isolated real stdio MCP client journey proving that a removal action expires while its retained content and Activity remain recoverable across process restart.
 
 ## Spec sections
 

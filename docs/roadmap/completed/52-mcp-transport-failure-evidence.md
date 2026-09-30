@@ -3,7 +3,7 @@
 
 ## Goal
 
-Close [Slice 46 finding 5](../planned/46-slice-34-closeout-follow-up.md#build) with deterministic SDK evidence that failed MCP commits leave no partial state and uncertain responses cannot duplicate a history transition.
+Close [Slice 46 finding 5](../active/46-slice-34-closeout-follow-up.md#build) with deterministic SDK evidence that failed MCP commits leave no partial state and uncertain responses cannot duplicate a history transition.
 
 ## Spec sections
 

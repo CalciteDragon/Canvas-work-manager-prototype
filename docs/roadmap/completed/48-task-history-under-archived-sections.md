@@ -17,7 +17,7 @@ the tests protect the intended behavior).
 
 ## Build
 
-This implements [Slice 46](../planned/46-slice-34-closeout-follow-up.md) finding 3 only.
+This implements [Slice 46](../active/46-slice-34-closeout-follow-up.md) finding 3 only.
 
 - **Decide first.** Add a §78 decision entry covering task history under archived sections, index
   it and link it from the domain `why.md`. Rule: every `task.update` transition refuses with

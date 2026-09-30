@@ -46,7 +46,7 @@ Three kinds of document, three rules of change:
 | Kind | Examples | How it changes |
 |---|---|---|
 | **Living** | `AGENTS.md`, `README.md`, `docs/architecture/**`, `docs/roadmap/goals.md`, `docs/guides/**`, the spec | Edited in the same change as the code. Always describes *now*. |
-| **Append-only** | `docs/decisions/*`, `docs/roadmap/completed/*` | Never rewritten. Corrected by an appended, dated **Amended** note or a **Superseded by** banner. |
+| **Append-only** | `docs/decisions/*`, `docs/roadmap/completed/*` | Historical prose is never rewritten. Correct it with an appended, dated **Amended** note or a **Superseded by** banner. A relative link target may be retargeted mechanically when its roadmap file moves, without changing the linked claim. |
 | **Generated** | `docs/api/`, the board in `docs/roadmap/progress.md` | Never hand-edited. Rebuilt by a script. |
 
 ---
@@ -64,7 +64,9 @@ Three kinds of document, three rules of change:
    proposed and linked to the roadmap; they do not replace current architecture or authorize
    implementation. Their illustrative migration outlines are source material, not active plans.
 4. **Frozen means frozen.** A completed record or a decision entry is evidence. If it is
-   wrong now, say so *beside* it with a date; do not edit it into agreement.
+   wrong now, say so *beside* it with a date; do not edit it into agreement. Retargeting
+   a relative link after its roadmap file moves is link maintenance, not a correction to
+   the historical claim; leave its label and surrounding prose intact.
 5. **Link, do not restate.** One fact, one home, everything else links to it. The spec owns
    product intent; a decision entry owns why; a `how.md` owns mechanism; Compodoc owns
    signatures.

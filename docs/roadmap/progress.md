@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 46 | Slice 46 — Slice 34 close-out follow-up | Integrate follow-up evidence and close the Slice 34 umbrella after bounded repair slices | [46-slice-34-closeout-follow-up.md](active/46-slice-34-closeout-follow-up.md) |
 
 ### Planned
 
@@ -27,7 +29,6 @@ _Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
 | 34 | Slice 34 — Project Undo/Redo and simpler Archive | Development plan for persistent project history, recoverable deletion and restorable-only archives | [34-undo-redo-and-archive.md](planned/34-undo-redo-and-archive.md) |
-| 46 | Slice 46 — Slice 34 close-out follow-up | Integrate follow-up evidence and close the Slice 34 umbrella after bounded repair slices | [46-slice-34-closeout-follow-up.md](planned/46-slice-34-closeout-follow-up.md) |
 
 ### Completed
 

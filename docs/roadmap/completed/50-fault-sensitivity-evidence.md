@@ -10,7 +10,7 @@
 
 ## Goal
 
-Close [Slice 46](../planned/46-slice-34-closeout-follow-up.md) finding 4 by showing that the two existing assertions whose sensitivity Slice 45 could not demonstrate fail against deliberate, reverted faults.
+Close [Slice 46](../active/46-slice-34-closeout-follow-up.md) finding 4 by showing that the two existing assertions whose sensitivity Slice 45 could not demonstrate fail against deliberate, reverted faults.
 
 ## Spec sections
 
@@ -190,8 +190,8 @@ AssertionError: expected [ { id: 'operation-1', …(7) }, …(1) ] to deeply equ
 
 **Deviations from the plan** — One: the first full `pnpm test` exited 1 on an unrelated web spec, `state-inspector-page.spec.ts > StateInspectorPage (§28) > lists projects with independent flow/grid controls, beside §46’s shared panel` (`expected 'Development panelPrototype state The …' to contain 'Website launch'`). `CURRENT_SLICE` is read only in `DevPanelStore.addNote` (`dev-panel-store.ts:109`), which this test never calls. `pnpm --filter web test` then passed twice (`792 passed (792)`), and the rerun of `pnpm test` recorded in step 6 passed. It is a presumed load-dependent flake in the parallel run, noted here rather than fixed.
 
-**Deferred** — The target no-op test's `operationHistories` and Redo-summary assertions remain individually unproven (explicit non-goal). F1 has no detector in `@cwm/prototype-host`; the domain and MCP contract tests carry it. Slice 46 findings 5–14 stay in [Slice 46](../planned/46-slice-34-closeout-follow-up.md).
+**Deferred** — The target no-op test's `operationHistories` and Redo-summary assertions remain individually unproven (explicit non-goal). F1 has no detector in `@cwm/prototype-host`; the domain and MCP contract tests carry it. Slice 46 findings 5–14 stay in [Slice 46](../active/46-slice-34-closeout-follow-up.md).
 
 **Open questions** — Whether the `state-inspector-page.spec.ts` flake deserves a bounded fix; it has not reproduced in `pnpm --filter web test` (2 runs).
 
-**Documentation updated** — No architecture, decision or guide file. After `complete`, three link edits point at `completed/50-fault-sensitivity-evidence.md`: a dated note under the title of [Slice 45's record](../completed/45-undo-redo-archive-integrated-closure.md), a Slice 50 link on finding 4 of [Slice 46](../planned/46-slice-34-closeout-follow-up.md), and a sentence under the 2026-09-27 follow-up in [`goals.md`](../goals.md).
+**Documentation updated** — No architecture, decision or guide file. After `complete`, three link edits point at `completed/50-fault-sensitivity-evidence.md`: a dated note under the title of [Slice 45's record](../completed/45-undo-redo-archive-integrated-closure.md), a Slice 50 link on finding 4 of [Slice 46](../active/46-slice-34-closeout-follow-up.md), and a sentence under the 2026-09-27 follow-up in [`goals.md`](../goals.md).
