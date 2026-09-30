@@ -53,11 +53,13 @@ would implement and the scope guards it inherits.
 
 ## Now
 
-**2026-09-27 review follow-up.** The user requested [Slice 46's close-out plan](active/46-slice-34-closeout-follow-up.md)
-for recovery UI defects, task-history container-policy inconsistency, evidence and one-file
-safety gaps, recorded UX friction, and Slice 34's umbrella status. Slice 46 is now the
-active final evidence and documentation umbrella; bounded repairs have closed. The
-historical Stage E closure below remains its original evidence.
+**2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
+[Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed
+the review findings after Stage E; Slice 46 links each finding to current tests, browser and
+MCP journeys, records all required green gates, and corrects the six-family and bundle-budget
+documentation. No implementation slice is active. The historical Stage E notes below remain
+the evidence and limits recorded on 2026-09-27; later repairs and proofs are linked from
+Slice 46. Recovery-focus friction remains a candidate for a later UX phase.
 
 [Slice 47 — Archive recovery state and focus](completed/47-archive-recovery-state-and-focus.md) closed Slice 46 findings 1–2: a stale root Archive row stays paused until a current read, and Settings Restore/Retry hand focus to a usable control. It left recovery-focus friction for the later recovery UX work (focus after a root Archive Restore or successful Retry, and a live frame removing a focused Settings Retry). [Slice 48 — Task history under archived sections](completed/48-task-history-under-archived-sections.md) closed finding 3. A task edit, completion, reopen, move or reparent now refuses Undo and Redo while the row's current or target section is archived, and recovers after the section is restored. The Delete, Restore and Add inverses and the project-only exception are unchanged. It left two history/service divergences for the umbrella to route: archived-row completion, and an archived row's reparent into an archived section. It also left MCP refusal-wording friction.
 
@@ -69,10 +71,10 @@ historical Stage E closure below remains its original evidence.
 
 [Slice 54 — One writer per data file](completed/54-data-file-ownership.md) closed finding 7. An advisory owner file sits beside each canonical JSON file. The HTTP host holds it for its lifetime, stdio takes it per call, and seed, reset, upgrade and e2e preparation take it while they write. A concurrent writer therefore waits its turn or is refused with `data_file_in_use:`, instead of losing data. A dead owner's record is reclaimed under a nonce-checked guard; a live one is never stolen.
 
-[Slice 55 — Section history labels](completed/55-section-history-labels.md) closed finding 8. Newly recorded section rename, Rich Text prose, collapse/expand and resize actions now carry domain-generated labels into the header; browser evidence covers Undo, Redo and reload. [Slice 56 — Descendant history discovery](completed/56-descendant-history-discovery.md) closed finding 9: root Todos and Archive now route descendant rows to their owner's existing header history, with click, keyboard, reload, separate-cursor and actor-isolation evidence. [Slice 57 — Task Delete recovery feedback](completed/57-task-delete-recovery-feedback.md) closed finding 10: a committed Delete leaves an archive/recovery cue on Task Lists and Todos, with owner guidance and existing header/Archive routes. [Slice 58 — Phone navigation layout](completed/58-phone-navigation-layout.md) closed finding 11: below 48rem the global sidebar is an accessible modal drawer behind a Menu, a narrow project-column choice re-collapses the column and focuses its toggle across reloads, and a narrow Task List stacks its details drawer below the rows; browser evidence covers touch, keyboard, both themes, overflow and resize. Findings 12–14 are the active Slice 46 close-out phase.
+[Slice 55 — Section history labels](completed/55-section-history-labels.md) closed finding 8. Newly recorded section rename, Rich Text prose, collapse/expand and resize actions now carry domain-generated labels into the header; browser evidence covers Undo, Redo and reload. [Slice 56 — Descendant history discovery](completed/56-descendant-history-discovery.md) closed finding 9: root Todos and Archive now route descendant rows to their owner's existing header history, with click, keyboard, reload, separate-cursor and actor-isolation evidence. [Slice 57 — Task Delete recovery feedback](completed/57-task-delete-recovery-feedback.md) closed finding 10: a committed Delete leaves an archive/recovery cue on Task Lists and Todos, with owner guidance and existing header/Archive routes. [Slice 58 — Phone navigation layout](completed/58-phone-navigation-layout.md) closed finding 11: below 48rem the global sidebar is an accessible modal drawer behind a Menu, a narrow project-column choice re-collapses the column and focuses its toggle across reloads, and a narrow Task List stacks its details drawer below the rows; browser evidence covers touch, keyboard, both themes, overflow and resize. [Slice 46](completed/46-slice-34-closeout-follow-up.md) closed findings 12–14.
 
-**Current direction — Project Undo/Redo and simpler Archive.**
-The user requested [the detailed development plan in Slice 34](planned/34-undo-redo-and-archive.md)
+**Delivered direction — Project Undo/Redo and simpler Archive (historical stage notes).**
+The user requested [the detailed development plan in Slice 34](completed/34-undo-redo-and-archive.md)
 on 2026-09-16: always-present project Undo/Redo icons, history for committed content and layout
 changes, task delete icons, immediate container cascade removal, Settings access to archived
 projects, and Archive entries limited to structurally restorable content. The user confirmed

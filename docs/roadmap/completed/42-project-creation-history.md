@@ -59,7 +59,7 @@ partial change. The document reloads valid after Undo, Redo, reload and history 
 
 ## Phase boundary and repository findings
 
-Read for this plan: [Slice 34](../planned/34-undo-redo-and-archive.md), the Outcomes of
+Read for this plan: [Slice 34](../completed/34-undo-redo-and-archive.md), the Outcomes of
 [Slice 39](../completed/39-project-update-history.md) and
 [Slice 41](../completed/41-header-history-controls.md), and the code named below.
 

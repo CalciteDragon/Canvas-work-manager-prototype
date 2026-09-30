@@ -3,7 +3,7 @@
 
 ## Goal
 
-Close [Slice 46 finding 7](../active/46-slice-34-closeout-follow-up.md#build). No two processes may hold divergent copies of one canonical JSON file at once: a concurrent writer is refused or waits its turn, and no committed write is lost.
+Close [Slice 46 finding 7](../completed/46-slice-34-closeout-follow-up.md#build). No two processes may hold divergent copies of one canonical JSON file at once: a concurrent writer is refused or waits its turn, and no committed write is lost.
 
 ## Spec sections
 
@@ -16,7 +16,7 @@ Close [Slice 46 finding 7](../active/46-slice-34-closeout-follow-up.md#build). N
 - **§78:** decision entry.
 - **§80:** no production storage, queue or coordination service.
 
-This slice also answers [Slice 46](../active/46-slice-34-closeout-follow-up.md) finding 7. It replaces the documented-only rule in the [stdio token decision](../../decisions/2026-08-stdio-token-and-live-auth.md) and the [HTTP-only live updates decision](../../decisions/2026-08-live-updates-are-http-only.md) with an enforced one.
+This slice also answers [Slice 46](../completed/46-slice-34-closeout-follow-up.md) finding 7. It replaces the documented-only rule in the [stdio token decision](../../decisions/2026-08-stdio-token-and-live-auth.md) and the [HTTP-only live updates decision](../../decisions/2026-08-live-updates-are-http-only.md) with an enforced one.
 
 ## Build
 

@@ -2,7 +2,7 @@
 # Slice 35 — Operation history foundation (Slice 34 Stage A)
 
 This is **Stage A** of the direction planned in
-[Slice 34 — Project Undo/Redo and simpler Archive](../planned/34-undo-redo-and-archive.md).
+[Slice 34 — Project Undo/Redo and simpler Archive](../completed/34-undo-redo-and-archive.md).
 Stage A builds the history machinery and proves it on the four section operations that are
 already undoable today. Task, reflection, project, page and shortcut coverage (Stages B–C),
 the always-present header controls (Stage C), cascade-only removal and the Archive/Settings

@@ -3,7 +3,7 @@
 
 ## Goal
 
-Close [Slice 46 finding 10](../active/46-slice-34-closeout-follow-up.md#build) by making a committed task Delete explain where its reversible recovery lives on Task Lists and root Todos.
+Close [Slice 46 finding 10](../completed/46-slice-34-closeout-follow-up.md#build) by making a committed task Delete explain where its reversible recovery lives on Task Lists and root Todos.
 
 ## Spec sections
 

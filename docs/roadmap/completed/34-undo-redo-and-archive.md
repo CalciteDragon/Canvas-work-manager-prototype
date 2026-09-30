@@ -1,4 +1,9 @@
-<!-- plan id="34" status="planned" summary="Development plan for persistent project history, recoverable deletion and restorable-only archives" -->
+<!-- completed-record id="34" closed="2026-09-30" summary="Project Undo/Redo and simpler Archive delivered, verified and follow-up findings closed" -->
+> **Evidence clarification, 2026-09-30:** The Outcome's combined “MCP and HTTP” sentence
+> refers to the two distinct paths: reflection Delete is exercised through MCP, while
+> section Duplicate uses HTTP acceptance and the HTTP-driven browser journey. There is no
+> MCP Duplicate tool. [Slice 46's coverage row](46-slice-34-closeout-follow-up.md#slice-34-coverage-crosswalk)
+> names the separate assertions.
 # Slice 34 — Project Undo/Redo and simpler Archive
 
 **Development proposal — 2026-09-16. No runtime implementation.**
@@ -8,6 +13,13 @@ detail than the usual five-section template. This direction spans several implem
 Before implementation, create separate numbered candidates for the stages below using
 `scripts/roadmap.mjs`, activate one at a time, and refresh its concrete file/test list.
 Do not execute the whole direction as one oversized phase.
+
+**Final status amendment — 2026-09-29.** The opening paragraph preserves this document's
+2026-09-16 planning status. Stages A–E were delivered by Slices 35–45. The review findings
+after Stage E were repaired and evidenced in Slices 47–58, then reconciled in the completed
+[Slice 46 close-out](../completed/46-slice-34-closeout-follow-up.md). Its finding ledger,
+one-to-one coverage crosswalk, seven-step gate and final command results supply the later
+closure evidence; the historical Stage E claim below remains the claim made on 2026-09-27.
 
 ## Goal
 
@@ -325,6 +337,12 @@ limits. It repaired two defects the integrated pass found: the header controls a
 concurrent stdio transitions. All five stages have now closed. This file stays in `planned/` as the
 direction's umbrella record.
 
+**Umbrella closure amendment — 2026-09-29.** The [Slice 46 close-out](../completed/46-slice-34-closeout-follow-up.md)
+links each review finding to a bounded repair, rechecks this plan's full matrix and seven steps
+against named current assertions, and records green workspace, browser, SDK and documentation
+gates. It replaces the earlier “stays in `planned/`” lifecycle statement above; no historical
+stage claim has been rewritten.
+
 | Stage | Deliverable | Gate before proceeding |
 |---|---|---|
 | A — history foundation | Versioned state/converter, summary, grants, atomic Undo/Redo for existing section actions | A → B → Undo B → Undo A → Redo A → Redo B; branch invalidation, expiry/pruning, concurrent revision and reload tests through domain/API/MCP. |
@@ -437,7 +455,8 @@ Run `pnpm test`, `pnpm lint`, `pnpm docs:check`, `pnpm build`; targeted E2E via
 `pnpm --filter @cwm/e2e e2e -- project-history archived-projects archive section-edit-undo removal-undo`,
 adding Todos/reflections suites when their surfaces change; and
 `pnpm --filter @cwm/prototype-host mcp-acceptance` covering HTTP and stdio. Build affected
-Storybook stories. Preserve the 1 MB initial bundle ceiling; measure new permanent header
+Storybook stories. Preserve the current 850 kB warning and 1050 kB initial bundle error ceiling
+([budget decision](../../decisions/2026-08-initial-bundle-budget.md)); measure new permanent header
 dependencies and use focused lazy boundaries if needed.
 
 Start `pnpm dev:web` and `pnpm dev:host` separately for real-use evaluation; record friction
@@ -512,3 +531,28 @@ This document describes the remaining proposed work and acceptance obligations. 
 architecture and decision amendments happen with the implementing stages. Its original planning
 delivery was documentation-only on 2026-09-16; the planning checks passed and no behavior changed
 then. As amended above, Stages A–E have closed; Stage E closed as Slice 45.
+
+## Outcome
+
+**Deliverables.** The direction's six requested behaviors were implemented in Slices 35–44,
+then checked in Slice 45. Slice 46 and Slices 47–58 close its later review findings. The
+[final Slice 46 evidence ledger](../completed/46-slice-34-closeout-follow-up.md#final-evidence-ledger)
+maps all eleven action families and seven acceptance steps to current domain and browser or MCP
+assertions, exact returned IDs, refusal paths and the final command run. The two umbrella records
+are now completed through the roadmap's supported lifecycle.
+
+**Choices and deviations.** The stage records and indexed decisions own the behavior; this
+umbrella adds no application implementation. The original planning-only and Stage E text stays
+as historical evidence, with dated amendments distinguishing later repairs and final close-out.
+The initial bundle instruction now follows the indexed 850 kB warning/1050 kB error decision;
+Slice 46 measured 1047.83 kB. No new product decision was needed for link maintenance.
+
+**Deferred and open questions.** Reflection Delete and section Duplicate still lack browser
+controls; their behavior is evidenced through MCP and HTTP. Slice 47's remaining recovery-focus
+friction belongs to a later UX phase. No accepted Slice 46 finding remains open. The final use
+was a scripted real-browser and SDK journey on isolated seeds rather than a separate manual
+exploratory session, as its record states.
+
+**Documentation updated.** The main spec, architecture tree, decisions and guides were
+reconciled in the implementing phases; this final phase corrected the MCP transport and guide's
+six-family prose, the budget line, roadmap goals and links, and the generated status board.

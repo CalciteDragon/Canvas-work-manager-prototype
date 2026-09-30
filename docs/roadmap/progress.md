@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 46 | Slice 46 — Slice 34 close-out follow-up | Integrate follow-up evidence and close the Slice 34 umbrella after bounded repair slices | [46-slice-34-closeout-follow-up.md](active/46-slice-34-closeout-follow-up.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -28,7 +26,6 @@ verification follow-ups rather than feature slices.
 | 22 | Slice 22 — Agent confirmations | Confirmation before an agent archives or bulk-edits, using MCP's input-required pattern, behind the agentConfirmations flag | [22-agent-confirmations.md](planned/22-agent-confirmations.md) |
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
-| 34 | Slice 34 — Project Undo/Redo and simpler Archive | Development plan for persistent project history, recoverable deletion and restorable-only archives | [34-undo-redo-and-archive.md](planned/34-undo-redo-and-archive.md) |
 
 ### Completed
 
@@ -96,4 +93,6 @@ verification follow-ups rather than feature slices.
 | 56 | Slice 56 — Descendant history discovery | 2026-09-29 | Root Todos and Archive link descendant owners to their existing header history, with focus, reload and actor-isolation evidence | [56-descendant-history-discovery.md](completed/56-descendant-history-discovery.md) |
 | 57 | Slice 57 — Task Delete recovery feedback | 2026-09-29 | Task List and Todos announce committed Delete recovery through Archive and the owning header | [57-task-delete-recovery-feedback.md](completed/57-task-delete-recovery-feedback.md) |
 | 58 | Slice 58 — Phone navigation layout | 2026-09-29 | Below 48rem the global sidebar is an accessible modal drawer; narrow project-column choices re-collapse the column and focus its toggle; narrow Task Lists stack the details drawer | [58-phone-navigation-layout.md](completed/58-phone-navigation-layout.md) |
+| 34 | Slice 34 — Project Undo/Redo and simpler Archive | 2026-09-30 | Project Undo/Redo and simpler Archive delivered, verified and follow-up findings closed | [34-undo-redo-and-archive.md](completed/34-undo-redo-and-archive.md) |
+| 46 | Slice 46 — Slice 34 close-out follow-up | 2026-09-30 | Follow-up evidence, documentation reconciliation and Slice 34 closure gate verified | [46-slice-34-closeout-follow-up.md](completed/46-slice-34-closeout-follow-up.md) |
 <!-- roadmap:end -->

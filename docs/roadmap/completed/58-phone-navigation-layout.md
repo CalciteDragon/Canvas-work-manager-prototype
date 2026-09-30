@@ -3,7 +3,7 @@
 
 ## Goal
 
-Close [Slice 46 finding 11](../active/46-slice-34-closeout-follow-up.md#build): at 375 px the global sidebar becomes an accessible navigation drawer. The project column and the Task List details drawer stay usable, with correct focus, Escape and route behaviour, on desktop resize and in both themes.
+Close [Slice 46 finding 11](../completed/46-slice-34-closeout-follow-up.md#build): at 375 px the global sidebar becomes an accessible navigation drawer. The project column and the Task List details drawer stay usable, with correct focus, Escape and route behaviour, on desktop resize and in both themes.
 
 ## Spec sections
 

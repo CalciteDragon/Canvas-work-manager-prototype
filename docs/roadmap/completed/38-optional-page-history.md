@@ -4,7 +4,7 @@
 **Implemented and closed — 2026-09-22.** Planned on 2026-09-21 and built against that plan;
 the **Outcome** at the end of this file is the record of what shipped.
 
-[Slice 34](../planned/34-undo-redo-and-archive.md) is the parent direction.
+[Slice 34](../completed/34-undo-redo-and-archive.md) is the parent direction.
 [Slice 37](../completed/37-section-and-shortcut-history.md) completed Stage C1.
 This phase implements only the optional-page row of that direction's coverage matrix.
 

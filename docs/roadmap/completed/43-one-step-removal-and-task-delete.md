@@ -7,7 +7,7 @@ Make one remove gesture archive a section and its live owned rows, and present t
 
 ## Spec sections
 
-Main §§8–9, 11–14, 27, 31–34, 53–54, 61–63, 69, 77–79; [Slice 34](../planned/34-undo-redo-and-archive.md) Stage D and its removal, task and compatibility rules. Main §§9, 27 and 31 still describe the old removal input, disabled-page reassign case and policy-driven removal: amend them when this change lands, not in this planning commit. §34's task archive remains the underlying reversible operation.
+Main §§8–9, 11–14, 27, 31–34, 53–54, 61–63, 69, 77–79; [Slice 34](../completed/34-undo-redo-and-archive.md) Stage D and its removal, task and compatibility rules. Main §§9, 27 and 31 still describe the old removal input, disabled-page reassign case and policy-driven removal: amend them when this change lands, not in this planning commit. §34's task archive remains the underlying reversible operation.
 
 ## Build
 

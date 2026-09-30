@@ -124,7 +124,7 @@ receipt (`historyId`, `actionId`, `revision`) and runs Undo through
 `POST /api/history/:historyId/transition`. A deleted disposable removal is redone by deleting the
 section again, and undone by recreating it at a generation no lower than any stored removal
 captured. The notice remains Undo-only in Stage A; persistent Undo/Redo controls are Stage C's
-([Slice 34](../roadmap/planned/34-undo-redo-and-archive.md)).
+([Slice 34](../roadmap/completed/34-undo-redo-and-archive.md)).
 
 **Amended, 2026-09-22 — Slice 41.** The canvas-local Undo is retired: Undo and Redo of a removal
 (and of every other recorded write) now live in the project header's persistent controls, driven by

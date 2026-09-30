@@ -3,7 +3,7 @@
 
 ## Goal
 
-Close [Slice 46 finding 8](../active/46-slice-34-closeout-follow-up.md#build) by making a section update's stored history label name the edit that committed.
+Close [Slice 46 finding 8](../completed/46-slice-34-closeout-follow-up.md#build) by making a section update's stored history label name the edit that committed.
 
 ## Spec sections
 

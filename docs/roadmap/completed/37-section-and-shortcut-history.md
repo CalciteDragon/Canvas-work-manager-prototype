@@ -3,7 +3,7 @@
 
 **Implemented and closed — 2026-09-21.** Planned on 2026-09-20 and built against that plan;
 the **Outcome** at the end of this file is the record of what shipped.
-[Slice 34](../planned/34-undo-redo-and-archive.md) is the parent direction, not a phase to
+[Slice 34](../completed/34-undo-redo-and-archive.md) is the parent direction, not a phase to
 implement wholesale. [Stage A](../completed/35-operation-history-foundation.md) and
 [Stage B](../completed/36-task-and-reflection-history.md) shipped before it; Stage C's remaining
 obligations are named under **Phase boundary** below and are *not* closed by this slice.

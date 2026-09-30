@@ -2,7 +2,7 @@
 # Slice 36 — Task and reflection operation history (Slice 34 Stage B)
 
 **Implemented 2026-09-18; final verification and closure recorded below.** This is the next phase of
-[Slice 34](../planned/34-undo-redo-and-archive.md), following
+[Slice 34](../completed/34-undo-redo-and-archive.md), following
 [Slice 35's Stage A and coverage audit](../completed/35-operation-history-foundation.md#coverage-matrix-audit).
 The active location follows AGENTS.md steps 1–2; this request stops after reviewed planning.
 

@@ -7,7 +7,7 @@ Show only currently restorable, highest-owner entries in root Archive and make a
 
 ## Spec sections
 
-Main §§9, 11–12 (gateway, contracts, domain), §§20–23 (scoped UI state and Settings), §§26–27 and 31 (project hierarchy, pages and Archive), §§53–54 (grants/MCP), §§61–63 (API, live refresh and refusals), §§68–70 (routes and verification), §§77–79 (real use and decisions). [Main spec](../../../Canvas%20Work%20Manager%20%E2%80%94%20Prototype%20Product,%20Design%20&%20Development%20Specification.md) §31 still describes blocked rows; correct it when this behavior ships. [Slice 34 Stage D2](../planned/34-undo-redo-and-archive.md#archive-and-settings) supplies the changed intent; [Slice 43](../completed/43-one-step-removal-and-task-delete.md) supplies one-step removal.
+Main §§9, 11–12 (gateway, contracts, domain), §§20–23 (scoped UI state and Settings), §§26–27 and 31 (project hierarchy, pages and Archive), §§53–54 (grants/MCP), §§61–63 (API, live refresh and refusals), §§68–70 (routes and verification), §§77–79 (real use and decisions). [Main spec](../../../Canvas%20Work%20Manager%20%E2%80%94%20Prototype%20Product,%20Design%20&%20Development%20Specification.md) §31 still describes blocked rows; correct it when this behavior ships. [Slice 34 Stage D2](../completed/34-undo-redo-and-archive.md#archive-and-settings) supplies the changed intent; [Slice 43](../completed/43-one-step-removal-and-task-delete.md) supplies one-step removal.
 
 ## Build
 

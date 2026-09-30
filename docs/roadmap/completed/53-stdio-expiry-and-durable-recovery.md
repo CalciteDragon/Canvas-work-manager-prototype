@@ -3,11 +3,11 @@
 
 ## Goal
 
-Close [Slice 46 finding 6](../active/46-slice-34-closeout-follow-up.md#build) with an isolated real stdio MCP client journey proving that a removal action expires while its retained content and Activity remain recoverable across process restart.
+Close [Slice 46 finding 6](../completed/46-slice-34-closeout-follow-up.md#build) with an isolated real stdio MCP client journey proving that a removal action expires while its retained content and Activity remain recoverable across process restart.
 
 ## Spec sections
 
-Main specification §§14–15 (valid atomic JSON document), §27 (section content), §31 (24-hour per-action history and durable Archive Restore), §45 (injected Clock), §§53–54 and 59–60 (agent grants and SDK stdio tools), §§57 and 61–62 (retained Activity and typed history refusal), §§69–70 and 77 (executable evidence and real use). [Slice 34 acceptance step 7](../planned/34-undo-redo-and-archive.md#acceptance-check) and [Slice 45's stdio limit](../completed/45-undo-redo-archive-integrated-closure.md) identify the gap.
+Main specification §§14–15 (valid atomic JSON document), §27 (section content), §31 (24-hour per-action history and durable Archive Restore), §45 (injected Clock), §§53–54 and 59–60 (agent grants and SDK stdio tools), §§57 and 61–62 (retained Activity and typed history refusal), §§69–70 and 77 (executable evidence and real use). [Slice 34 acceptance step 7](../completed/34-undo-redo-and-archive.md#acceptance-check) and [Slice 45's stdio limit](../completed/45-undo-redo-archive-integrated-closure.md) identify the gap.
 
 ## Build
 

@@ -9,7 +9,7 @@ Demonstrate Slice 34's Undo/Redo, removal and Archive direction across the brows
 
 ## Spec sections
 
-[Main specification](../../../Canvas%20Work%20Manager%20%E2%80%94%20Prototype%20Product,%20Design%20&%20Development%20Specification.md) §§8–14 (boundaries and persistence), 19–23 (UI state), 26–34 and 36 (project, page, section, task and reflection behavior), 53–54 (grants and MCP), 57 (Activity), 61–63 (API, frames and failure), 68–70 (routes and verification), 77–79 (real use, decisions and notes). [Slice 34 Stage E](../planned/34-undo-redo-and-archive.md#delivery-stages) and its [acceptance check](../planned/34-undo-redo-and-archive.md#acceptance-check) are the completion contract. Its 2026-09-23 amendment retires the retry cache; a lost response retried at the old revision must yield a stale-summary refusal.
+[Main specification](../../../Canvas%20Work%20Manager%20%E2%80%94%20Prototype%20Product,%20Design%20&%20Development%20Specification.md) §§8–14 (boundaries and persistence), 19–23 (UI state), 26–34 and 36 (project, page, section, task and reflection behavior), 53–54 (grants and MCP), 57 (Activity), 61–63 (API, frames and failure), 68–70 (routes and verification), 77–79 (real use, decisions and notes). [Slice 34 Stage E](../completed/34-undo-redo-and-archive.md#delivery-stages) and its [acceptance check](../completed/34-undo-redo-and-archive.md#acceptance-check) are the completion contract. Its 2026-09-23 amendment retires the retry cache; a lost response retried at the old revision must yield a stale-summary refusal.
 
 ## Build
 

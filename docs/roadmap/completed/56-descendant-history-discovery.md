@@ -3,7 +3,7 @@
 
 ## Goal
 
-Close [Slice 46 finding 9](../active/46-slice-34-closeout-follow-up.md#build) by giving root Todos and Archive rows a durable route to their descendant owner's existing history controls.
+Close [Slice 46 finding 9](../completed/46-slice-34-closeout-follow-up.md#build) by giving root Todos and Archive rows a durable route to their descendant owner's existing history controls.
 
 ## Spec sections
 

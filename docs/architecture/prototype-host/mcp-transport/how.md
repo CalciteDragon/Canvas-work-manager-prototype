@@ -58,9 +58,9 @@ one, stamps `lastUsedAt` when it has moved far enough to matter, and returns an 
 `mcp/server.ts` publishes the singular/plural `_meta` pair for a static declaration, or the
 operation-family map for Undo and Redo. Those history tools deliberately omit the static keys:
 section actions require `projects.write`, task actions `tasks.write`, reflection actions
-`reflections.write`, and both shortcut placements and optional pages `projects.write`, with the
-family read from the stored action only when the call runs. The published map is five entries —
-`section`, `task`, `reflection`, `shortcut`, `page` — and both transports assert it exactly.
+`reflections.write`, and shortcut, page and project actions `projects.write`, with the
+family read from the stored action only when the call runs. The published map is six entries —
+`section`, `task`, `reflection`, `shortcut`, `page`, `project` — and both transports assert it exactly.
 
 ## Key symbols
 
@@ -99,7 +99,7 @@ family read from the stored action only when the call runs. The published map is
 - **`tools/list` equals `SPEC_TOOL_NAMES`** — asserted by the host's test, so the
   registry and the wire agree.
 - **Discovery is truthful for history transitions.** `handler.test.ts` and `stdio.test.ts` assert
-  the full five-family map — written out rather than derived from the declaration, so a family the
+  the full six-family map — written out rather than derived from the declaration, so a family the
   domain gains and discovery forgets fails a test instead of agreeing with itself — and the absence
   of the singular/plural keys on Undo and Redo; static tools keep both old keys.
 - **Revocation is tested end to end** with a token and a handler in the same test,

@@ -2,7 +2,7 @@
 
 **Question**
 
-[Slice 34](../roadmap/planned/34-undo-redo-and-archive.md) assigns two pieces of work to Stage A that
+[Slice 34](../roadmap/completed/34-undo-redo-and-archive.md) assigns two pieces of work to Stage A that
 [Slice 35](../roadmap/completed/35-operation-history-foundation.md)'s review argued belong later —
 activity events that may name an absent target, and a persisted request-id cache that returns an
 uncertain transition's original result. The plan also left two shape questions open: one transition

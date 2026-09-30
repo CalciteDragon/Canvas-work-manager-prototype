@@ -292,8 +292,8 @@ it. A repeat on a live section answers `operation: null` and writes nothing.
 
 ### Undo and Redo
 
-Every connection has its own Undo/Redo **history per project**: a stack of its section, shortcut, page, task and
-reflection writes there, with a cursor. A person's history and every other connection's are separate — you can
+Every connection has its own Undo/Redo **history per project**: a stack of its section, shortcut, page, project,
+task and reflection writes there, with a cursor. A person's history and every other connection's are separate — you can
 never undo someone else's change, and nobody can undo yours.
 
 - `get_operation_history` (`projects.read`, input `{ projectId }`) returns

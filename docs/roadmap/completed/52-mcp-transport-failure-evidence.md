@@ -3,11 +3,11 @@
 
 ## Goal
 
-Close [Slice 46 finding 5](../active/46-slice-34-closeout-follow-up.md#build) with deterministic SDK evidence that failed MCP commits leave no partial state and uncertain responses cannot duplicate a history transition.
+Close [Slice 46 finding 5](../completed/46-slice-34-closeout-follow-up.md#build) with deterministic SDK evidence that failed MCP commits leave no partial state and uncertain responses cannot duplicate a history transition.
 
 ## Spec sections
 
-Main specification §§11–15 (atomic file unit), §§50, 54, 59–60 (SDK tools over both transports), §57 (Activity), §§61–62 (stale-revision refusal and commit-before-frame), §§69–70 and 77 (verification and real use). [Slice 34's acceptance step 7](../planned/34-undo-redo-and-archive.md#acceptance-check) and [Slice 45's explicit limit](../completed/45-undo-redo-archive-integrated-closure.md) define the missing evidence.
+Main specification §§11–15 (atomic file unit), §§50, 54, 59–60 (SDK tools over both transports), §57 (Activity), §§61–62 (stale-revision refusal and commit-before-frame), §§69–70 and 77 (verification and real use). [Slice 34's acceptance step 7](../completed/34-undo-redo-and-archive.md#acceptance-check) and [Slice 45's explicit limit](../completed/45-undo-redo-archive-integrated-closure.md) define the missing evidence.
 
 ## Build
 
