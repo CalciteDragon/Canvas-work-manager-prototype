@@ -145,8 +145,9 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
     its canonical Kitchen Task List; the link opens the owning container rather than copying it.
 20. **Reflections.** Open the root's Reflections tab. The journal combines general entries with
     entries about the completed Garden workstream and lighting task. Complete **Confirm
-    renovation budget**, choose it in the completed-work picker, and add a reflection. Reopen the
-    task; the reflection stays in the journal and shows its current Todo state.
+    renovation budget**, choose it in the completed-work picker, and add a reflection. Uncheck
+    the task on Todos or its Task List; it leaves the picker, while the reflection stays in the
+    journal and shows its current Todo state.
 21. **Archive.** The root Archive page lists currently restorable archived sections, tasks,
     reflections and workstreams across the tree, including content whose page is disabled. Each
     row names its origin. Restore the highest owner first; independently archived children then
@@ -165,9 +166,13 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 23. **Create.** Type a title in a Task List quick-add field and press **Add task**. The row
     appears in its owning section.
 24. **Complete.** Click a task's checkbox. It ticks and strikes through immediately, and the
-    owning project's progress moves. Completing a workstream does not complete its children.
-25. **Edit.** Open a task's title or **Details**, change the text, and press Enter. The new title
-    survives reload; an empty title is refused with a message.
+    owning project's progress moves. Uncheck it to reopen to Todo, including on Todos; progress
+    drops again. Space works in both directions while focus stays on the checkbox. Completing a
+    workstream does not complete its children, and its Todos Complete remains one-way.
+25. **Edit.** Click a Task List title or row background to open the drawer. Edit its **Title**
+    field and press Enter or blur. The new title survives reload; an empty title is refused with a
+    message. Escape discards a dirty draft; Close or another Escape closes and returns focus to
+    the row title. Enter and Space on the title also select the task.
 26. **Due date and priority.** In the drawer set **Due date** and then **Priority** to *high*.
     The row shows the date and priority; a past due date reads overdue.
 27. **Failure path.** Set the development panel's failure rate to 100%, try a completion, and

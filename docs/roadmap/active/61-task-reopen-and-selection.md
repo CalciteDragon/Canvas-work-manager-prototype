@@ -426,6 +426,7 @@ On isolated data, in a browser, at desktop width and at 375 px with touch:
 | `apps/web/src/app/features/projects/pages/todos-page.ts`, `.html`, `.scss`, `.spec.ts`, `.stories.ts` | modify | Task checkbox and its `aria-disabled` style, `toggle(item, event)`, cancelled task without a control, workstream button kept. |
 | `apps/web/src/app/features/projects/pages/todos-page-store.ts`, `.spec.ts` | modify | `reopen`, serialized on the same slot, generation-guarded. |
 | `apps/web/src/app/prototype/design-lab/panels/live-panels.html`, `.ts` | modify only if a binding breaks | The gallery still renders six variants and the drawer; nothing about the editor remains there. |
+| `apps/web/src/app/features/projects/project-workspace-shell.spec.ts` | modify | Update its Todos completion integration path to the task checkbox selector. |
 | `apps/web/src/app/prototype/dev-panel/dev-panel-store.ts` | modify | `CURRENT_SLICE = 61` when implementation starts. |
 | `apps/prototype-host/api/routes.test.ts` | modify | Reopen evidence over HTTP. |
 | `packages/mcp-tools/src/contract.test.ts` | modify | Reopen evidence over MCP. |
@@ -588,6 +589,16 @@ real use:
     - tap slop is proved in the unit test, because Playwright's `tap()` cannot move.
   - With these applied, the reviewer reported nothing substantive remaining. The plan is ready to
     implement.
+
+- **Execution and diff review round 1 (2026-10-01):** Independent agents implemented the presentational components, the two stores, and transport/browser evidence. Component behavioral red was 14 failures with 9 regressions passing; the initial implementation passed 23 component cases and the final full suite covered the two added regressions. Store behavioral red was 13 failures with 58 passing; 72 final store cases passed. Root Todos component red was four failures for absent toggles; section integration first exposed missing APIs. HTTP and MCP evidence each failed on the exact retained `completedAt` assertion under a temporary domain fault, restored immediately, then passed. Angular compiler parent-directory traversal required elevated test/build access; no dependency or runtime changes were needed.
+  - A synchronous Todos refusal can settle before Angular paints the optimistic status. The immediate native reset alone then leaves the box out of sync because Angular's previous binding already equals the reverted model. A second reset reads the **current** store row after settlement, guarded by route generation, rather than the captured stale item. The regression is `resets a refused reopen and exposes the error without refreshing progress`.
+  - The full web suite exposed the shell's old Todos task-button selector; its integration test now clicks the task checkbox. This adds one bounded test file to the list above.
+  - No opacity token exists in the current token set. Pending toggles keep the already-used disabled opacity of 0.5 and existing cursor treatment; colors, sizes, spacing and radii use existing tokens.
+  - The first browser run exposed that Playwright's `check()/uncheck()` assumes the native box remains moved synchronously. These model-owned toggles deliberately reset first, so journeys use native `click()` with eventual checked-state and persisted-field assertions. The target journeys then passed 22/22. A pre-existing phone resize case timed out in that first run and passed in the settled repeat without a production change.
+  - Independent review verified and corrected stale tasks architecture references to a write epoch and `pendingWrites`; this store uses `pendingMutations`, `loadGeneration` and per-field revisions, while Todos owns the write epoch. Restore belongs to root Archive, not TaskListStore.
+  - Review strengthened progress evidence to a numeric P1 > P0, waited for identity before asserting both real theme values, and used Tab from the checkbox to prove title reachability.
+  - A proposed drawer optimistic-title rollback defect was checked and rejected: `updateFields` patches only after the response. A held-refusal/Enter-retry integration regression passes, proving draft retention without changing production code.
+- **Independent diff review round 2 (2026-10-01):** The correctness/spec reviewer and separate boundaries/documentation reviewer re-read the actual diff after repairs. The remaining erroneous Restore attribution was removed from tasks overview; no production boundary violation was found. Documentation checks passed after the root negative-test fixtures had finished. Final review and complete browser/real-use evidence are recorded below before closure.
 
 ## Outcome
 

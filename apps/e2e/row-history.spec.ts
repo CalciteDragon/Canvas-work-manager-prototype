@@ -28,13 +28,13 @@ test('browser row commits record once and HTTP history updates Home, Todos, Arch
   expect((await history(root.id)).revision).toBe(baseline + 1);
 
   await page.locator('[data-task-title]').click();
-  await page.locator('[data-task-title-editor]').fill('Discarded draft');
-  await page.locator('[data-task-title-editor]').press('Escape');
+  await page.locator('[data-task-drawer-title]').fill('Discarded draft');
+  await page.locator('[data-task-drawer-title]').press('Escape');
   await expect(page.locator('[data-task-title]')).toHaveText('First title');
   expect((await history(root.id)).revision).toBe(baseline + 1);
   await page.locator('[data-task-title]').click();
-  await page.locator('[data-task-title-editor]').fill('Committed title');
-  await page.locator('[data-task-title-editor]').press('Enter');
+  await page.locator('[data-task-drawer-title]').fill('Committed title');
+  await page.locator('[data-task-drawer-title]').press('Enter');
   await page.locator('[data-project-name]').click();
   await expect(page.locator('[data-task-title]')).toHaveText('Committed title');
   expect((await history(root.id)).revision).toBe(baseline + 2);
@@ -45,12 +45,13 @@ test('browser row commits record once and HTTP history updates Home, Todos, Arch
 
   const todos = await context.newPage();
   await todos.goto(`/projects/${root.id}/pages/todos`);
-  await todos.locator('[data-todo-complete]').click();
+  await todos.locator('[data-todo-toggle]').click();
   await expect(page.locator('[data-task-row]')).toHaveClass(/task-row--completed/);
   expect((await history(root.id)).revision).toBe(baseline + 5);
   await step(root.id, 'undo');
   await expect(page.locator('[data-task-row]')).not.toHaveClass(/task-row--completed/);
-  await expect(todos.locator('[data-todo-complete]')).toBeEnabled();
+  await expect(todos.locator('[data-todo-toggle]')).toBeEnabled();
+  await expect(todos.locator('[data-todo-toggle]')).not.toBeChecked();
   await step(root.id, 'redo');
   await expect(todos.locator('[data-todo-status]')).toHaveText('Done');
 

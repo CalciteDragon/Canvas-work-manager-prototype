@@ -63,7 +63,7 @@ test('create a project, add a task list, add a task, and see it on Today', async
   await page.locator('[data-quick-create] button[type="submit"]').click();
   await expect(page.locator('[data-task-row]')).toHaveCount(1);
 
-  await page.locator('[data-task-details]').first().click();
+  await page.locator('[data-task-title]').first().click();
   await expect(page.locator('[data-task-drawer]')).toBeVisible();
   await page.locator('[data-task-due-date]').fill(DUE_DATE);
 
@@ -333,9 +333,10 @@ test('injected gateway failures roll back a task but preserve confirmed optional
   await closeDevPanel();
   try {
     const task = page.locator('[data-todo-id="task-renovation-budget"]');
-    await task.locator('[data-todo-complete]').click();
+    await task.locator('[data-todo-toggle]').click();
     await expect(task).not.toHaveClass(/todos__row--finished/);
     await expect(page.locator('[data-todo-write-error]')).toContainText('prototype failure injection');
+    await expect(task.locator('[data-todo-toggle]')).not.toBeChecked();
 
     await page.locator('[data-project-settings-toggle]').click();
     const todosToggle = page.locator('[data-page-toggle-kind="todos"] input');

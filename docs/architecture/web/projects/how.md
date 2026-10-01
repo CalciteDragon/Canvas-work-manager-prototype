@@ -31,6 +31,14 @@ the loaded context triggers it immediately. Loading reserves the navigation grid
 chunk keeps that track and offers Reload page at the current URL. This keeps the initial graph
 under the unchanged 1050 kB error ceiling (the final measurement is in the Slice 60 record).
 
+Todos task checkboxes complete or reopen to `todo` through the canonical task gateway. Reopen
+clears `completedAt` optimistically and failure restores the exact item; generation/disposal
+guards discard late responses, and a queued live read runs after the shared write slot settles.
+Pending toggles use `aria-disabled` and the handler resets native checked state from the store
+before its first await, then reconciles again from the current row after settlement so an immediate
+refusal cannot leave the browser's own state changed. Cancelled tasks have no toggle, and
+workstreams retain one-way Complete.
+
 Todos captures the task title and owner before its optimistic Delete removes the row. It
 shows no success while the write is pending; a committed answer paints a polite status
 outside the chronology, even after the final row leaves. The status offers the shell's

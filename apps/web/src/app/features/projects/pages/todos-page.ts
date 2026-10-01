@@ -79,7 +79,7 @@ export class TodosPage {
     owner: ReturnType<TodosPage['historyOwner']>;
   } | null>(null);
 
-  /** No control at all is offered while the shell is blocking writes, so nothing lies. */
+  /** Task toggles remain focusable, but every write is refused while this is true. */
   readonly writesBlocked = computed(() =>
     this.restoreBlocked() || this.store.completing() !== null || this.store.deleting() !== null,
   );
@@ -175,6 +175,36 @@ export class TodosPage {
     // §39's progress may have moved, and a completed unit of work moves the work tree too.
     this.onProjectDataChange()();
     if (item.kind === 'subproject') this.onProjectHierarchyChange()();
+  }
+
+  /** Reset native checkbox state from the synchronous optimistic patch, before awaiting it. */
+  async toggle(item: ProjectTodoItem, event: Event): Promise<void> {
+    if (item.kind !== 'task') return;
+    const id = item.task.id;
+    const projectId = this.projectId();
+    const generation = this.recoveryGeneration;
+    const box = event.target as HTMLInputElement;
+    const focused = document.activeElement === box;
+    const write = this.writesBlocked()
+      ? Promise.resolve(false)
+      : item.task.status === 'done' ? this.store.reopen(item) : this.store.complete(item);
+    const current = this.store.items().find((candidate) => candidate.kind === 'task' && candidate.task.id === id);
+    box.checked = current?.kind === 'task' && current.task.status === 'done';
+    const applied = await write;
+    if (this.projectId() !== projectId || this.recoveryGeneration !== generation) return;
+    // A synchronous refusal can settle before Angular renders the optimistic value. Its
+    // binding then sees the same prior value and skips the native box; use the current row,
+    // never the captured item, so a newer toggle or live answer cannot be overwritten.
+    const settled = this.store.items().find((candidate) => candidate.kind === 'task' && candidate.task.id === id);
+    box.checked = settled?.kind === 'task' && settled.task.status === 'done';
+    if (applied) this.onProjectDataChange()();
+    if (!focused || document.activeElement !== document.body) return;
+    afterNextRender(() => {
+      if (this.projectId() !== projectId || this.recoveryGeneration !== generation || document.activeElement !== document.body) return;
+      const row = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-todo-row]')]
+        .find((candidate) => candidate.getAttribute('data-todo-id') === id);
+      row?.querySelector<HTMLInputElement>('[data-todo-toggle]')?.focus();
+    }, { injector: this.injector });
   }
 
   async delete(item: ProjectTodoItem): Promise<void> {

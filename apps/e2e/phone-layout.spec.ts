@@ -293,6 +293,35 @@ for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
     await expect(page.locator('[data-task-row]')).toHaveCount(0);
     await expect(page.locator('[data-task-delete-recovery]')).toContainText('Phone delete task');
   });
+
+  test('a title tap opens the stacked task drawer, Close returns focus, and a done checkbox reopens by touch', async ({ page }) => {
+    await page.goto('/projects/project-kitchen');
+    await useTheme(page, theme);
+    const row = page.locator('[data-task-row][data-task-id="task-kitchen-completed"]');
+    const title = row.locator('button[data-task-title]');
+    await title.tap();
+    const details = page.locator('[data-task-drawer]');
+    await expect(details).toBeVisible();
+    await expect(title).toHaveAttribute('aria-current', 'true');
+    const rowBox = (await row.boundingBox())!;
+    const drawerBox = (await details.boundingBox())!;
+    expect(drawerBox.y).toBeGreaterThanOrEqual(rowBox.y + rowBox.height);
+    await details.getByRole('button', { name: 'Close task details' }).tap();
+    await expect(details).toHaveCount(0);
+    await expect(title).toBeFocused();
+    await expectNoHorizontalOverflow(page, 'Task drawer closed');
+
+    const toggle = row.locator('[data-task-complete]');
+    await expect(toggle).toBeChecked();
+    await toggle.tap();
+    await expect(toggle).not.toBeChecked();
+    await expect.poll(async () => api.get<{ status: string; completedAt?: string }>('/api/tasks/task-kitchen-completed'))
+      .toMatchObject({ status: 'todo' });
+    expect(await api.get('/api/tasks/task-kitchen-completed')).not.toHaveProperty('completedAt');
+    await page.reload();
+    await expect(toggle).not.toBeChecked();
+    await expectNoHorizontalOverflow(page, 'Task reopened');
+  });
 });
 
 // A separate, non-mobile context: `isMobile` emulation does not resize faithfully.

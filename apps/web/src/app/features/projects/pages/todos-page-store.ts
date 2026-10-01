@@ -89,7 +89,7 @@ export class TodosPageStore {
   /** A **re-read** that failed: what is on screen is still the better answer than a blank page. */
   readonly refreshError = this.refreshErrorState.asReadonly();
   readonly writeError = this.writeErrorState.asReadonly();
-  /** The row whose completion is in flight. Non-null freezes every row's control. */
+  /** The row whose completion toggle is in flight. Non-null freezes every row's control. */
   readonly completing = this.completingState.asReadonly();
   /** The task whose reversible Delete is in flight. */
   readonly deleting = this.deletingState.asReadonly();
@@ -199,6 +199,54 @@ export class TodosPageStore {
         this.completingState.set(null);
         // Whatever arrived while the write was in flight — including the write's own §62 echo —
         // is read now, once, against the settled row.
+        if (this.readQueued) {
+          this.readQueued = false;
+          void this.refresh();
+        }
+      }
+    }
+  }
+
+  /**
+   * Optimistically reopens a done task to todo through its canonical update operation. Like
+   * complete, it occupies the page's single write slot and reports only a result this view
+   * still owns; failure restores the exact item, including its domain completion timestamp.
+   */
+  async reopen(item: ProjectTodoItem): Promise<boolean> {
+    const projectId = this.requestedProjectId;
+    if (projectId === undefined || item.kind !== 'task' || item.task.status !== 'done') return false;
+    if (this.completingState() !== null || this.deletingState() !== null) return false;
+
+    const generation = this.generation;
+    const id = item.task.id;
+    const current = () => this.current(generation, projectId);
+
+    this.writeErrorState.set(null);
+    this.completingState.set(id);
+    this.writing = true;
+    this.writeEpoch += 1;
+    const optimistic = { ...item.task, status: 'todo' as const };
+    delete optimistic.completedAt;
+    this.replace(id, { ...item, task: optimistic });
+
+    try {
+      const { task } = await this.track(() => reportedWrite(
+        this.reporter,
+        () => this.gateway.tasks.update(id, { status: 'todo' }),
+        ({ task, operation }) => ({ projectId: task.projectId, receipt: operation }),
+      ));
+      if (!current()) return false;
+      this.replace(id, { ...item, task });
+      return true;
+    } catch (error) {
+      if (!current()) return false;
+      this.replace(id, item);
+      this.writeErrorState.set(messageOf(error));
+      return false;
+    } finally {
+      if (current()) {
+        this.writing = false;
+        this.completingState.set(null);
         if (this.readQueued) {
           this.readQueued = false;
           void this.refresh();

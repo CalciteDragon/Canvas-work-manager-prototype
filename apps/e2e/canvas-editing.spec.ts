@@ -1114,6 +1114,11 @@ test('revealing controls does not shift the canvas or turn text and edge interac
   expect(await textarea.evaluate((element) => (element as HTMLTextAreaElement).selectionEnd)).toBeGreaterThan(0);
 
   const taskTitle = page.locator(`[data-section-item][data-section-id="${list.id}"] [data-task-title]`);
+  let taskPatchRequests = 0;
+  const observeTaskPatches = (request: import('@playwright/test').Request): void => {
+    if (request.method() === 'PATCH' && /^\/api\/tasks\/[^/]+$/.test(new URL(request.url()).pathname)) taskPatchRequests += 1;
+  };
+  page.on('request', observeTaskPatches);
   const taskBox = await taskTitle.boundingBox();
   if (taskBox === null) throw new Error('Task title has no browser geometry');
   await page.mouse.move(taskBox.x + 2, taskBox.y + taskBox.height / 2);
@@ -1121,7 +1126,10 @@ test('revealing controls does not shift the canvas or turn text and edge interac
   await page.mouse.move(taskBox.x + Math.min(taskBox.width - 1, 110), taskBox.y + taskBox.height / 2, { steps: 4 });
   await page.mouse.up();
   await expect(page.locator(`[data-section-item][data-section-id="${list.id}"] [data-task-row]`)).toBeVisible();
-  await expect(page.locator(`[data-section-item][data-section-id="${list.id}"] [data-task-title-editor]`)).toHaveCount(0);
+  await expect(page.locator(`[data-section-item][data-section-id="${list.id}"]`)).not.toHaveClass(/cdk-drag-dragging/);
+  await expect(page.locator('[data-task-drawer]')).toHaveCount(0);
+  expect(taskPatchRequests).toBe(0);
+  page.off('request', observeTaskPatches);
 
   for (const inset of [4, 8]) {
     const frameBox = await firstWrapper.locator('[data-section-frame]').boundingBox();

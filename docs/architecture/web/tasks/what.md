@@ -10,9 +10,9 @@ flowchart TB
     todos["TodosPage<br/>(own row + store; canonical writes)"]
     lab["Design Lab live panels<br/>(fixtures)"]
   end
-  store["TaskListStore<br/>one container's rows; optimistic writes; pendingWrites; write epoch"]
-  row["TaskRow<br/>six variants; complete, rename, Delete → archive"]
-  drawer["TaskDetailDrawer<br/>status, priority, due date"]
+  store["TaskListStore<br/>one container's rows; pendingMutations; loadGeneration; fieldRevisions"]
+  row["TaskRow<br/>six variants; complete/reopen, select, Delete → archive"]
+  drawer["TaskDetailDrawer<br/>title draft, priority, due date, estimate"]
   gw["TaskGateway<br/>list · get · create · update · complete · archive · restore"]
   tls --> store
   store --> gw
@@ -23,7 +23,7 @@ flowchart TB
   drawer -->|intent| store
 ```
 
-## Optimistic completion
+## Optimistic completion toggles
 
 ```mermaid
 sequenceDiagram
@@ -31,16 +31,16 @@ sequenceDiagram
   participant S as TaskListStore
   participant G as TaskGateway
   participant L as LIVE_UPDATES
-  R->>S: complete(id)
-  S->>S: paint done, pendingWrites++, epoch++
-  S->>G: tasks.complete(id)
-  L-->>S: task.completed frame (host flushed at commit)
+  R->>S: complete(id) or reopen(id), reset native checkbox
+  S->>S: claim field revisions, paint done or todo, clear reopen time, pendingMutations++
+  S->>G: tasks.complete(id) or tasks.update(id, status todo)
+  L-->>S: task.completed or task.updated frame (host flushed at commit)
   S->>S: deferred — a write is in flight
   G-->>S: { task, operation } (or GatewayError)
   alt success
-    S->>S: settle, pendingWrites--, re-read
+    S->>S: reconcile current field claims and load generation, pendingMutations--, re-read
   else failure
-    S->>S: revert to prior status, show error, pendingWrites--
+    S->>S: revert current field claims and exact completion time, show error, pendingMutations--
   end
 ```
 

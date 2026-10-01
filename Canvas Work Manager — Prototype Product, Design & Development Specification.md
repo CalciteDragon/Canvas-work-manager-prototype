@@ -198,6 +198,9 @@ ProjectSection
 
 Storybook's Angular integration supports controls, actions, interaction testing, viewport testing, and related design-development workflows.
 
+*Amended 2026-10-01, Slice 61:* TaskRow component tests cover completion, reopen, selection
+and Delete; the six implemented variants remain unchanged.
+
 ---
 
 # 5. Prototype Runtime Architecture
@@ -2008,7 +2011,7 @@ quick create
 
 inline completion
 
-inline title editing
+title editing in the detail drawer
 
 detail drawer
 
@@ -2042,6 +2045,14 @@ announce success before commit; a refused write restores the row and leaves the 
 visible. New attempts and navigation clear stale success.
 
 Prefer a side drawer over a modal for detailed task editing so workspace context remains visible.
+
+*Amended 2026-10-01, Slice 61:* Clicking a Task List row background or its title selects the task
+and opens the drawer; the title button supports Enter and Space. Selection is idempotent and the
+separate Details button is removed. A mouse/pen drag or a background text-selection gesture does
+not select. Checkbox and Delete retain their own intents. A done task's checkbox reopens it to
+`todo`, and the domain clears `completedAt`; completion time is never invented in the browser.
+Title editing lives in the drawer, where a blank draft is refused and Escape discards a dirty draft
+before it closes the drawer. Close and closing Escape return focus to the selected row title.
 
 ## The Todos page
 
@@ -2081,9 +2092,11 @@ Two instants are compared as **text** — a fixed-width whole-second prefix plus
 fractional digits — because §11's `IsoDateTimeSchema` admits omitted seconds and arbitrary
 fractional precision that `Date.parse` would collapse; ties then use kind (a unit of work before a
 task) and the ordinal id. Reading the chronology does not require the Todos tab to be switched on:
-enabling a page is navigation state, not a content permission. Completion is one-way — finished
-rows stay on the list with no control, and reopening uses the canonical canvas the row lives on,
-which is also where a row's link lands, at its own container
+enabling a page is navigation state, not a content permission. *Amended 2026-10-01, Slice 61:*
+task completion is reversible through a checkbox on Todos as well as the Task List. Done tasks
+can be unchecked to reopen to `todo`; cancelled tasks have no toggle. Workstream completion
+remains one-way on Todos and reopening uses its header. Rows still link to their canonical canvas,
+at the owning container for a task
 ([entry](docs/decisions/2026-09-todos-chronology-and-canonical-navigation.md)).
 
 *The 25.8 showcase deliberately inserted a dated work/task tie, completed and cancelled rows, and
@@ -3687,7 +3700,7 @@ permission checks
 Test important reusable interactions:
 
 ```text
-TaskRow completion and Delete
+TaskRow completion, reopen, selection and Delete
 
 ProjectSection collapse
 

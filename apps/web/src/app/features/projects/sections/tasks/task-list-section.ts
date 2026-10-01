@@ -141,7 +141,36 @@ export class TaskListSection {
 
   async complete(id: TaskId): Promise<void> {
     if (this.readOnly()) return;
-    if (await this.store.complete(id)) this.onProjectDataChange()();
+    const sectionId = this.section().id;
+    if (await this.store.complete(id) && this.section().id === sectionId) this.onProjectDataChange()();
+  }
+
+  /** Reverse completion through the same container-bound store and refresh progress. */
+  async reopen(id: TaskId): Promise<void> {
+    if (this.readOnly()) return;
+    const sectionId = this.section().id;
+    if (await this.store.reopen(id) && this.section().id === sectionId) this.onProjectDataChange()();
+  }
+
+  /** Close the non-modal drawer, returning its focus to the selected row when appropriate. */
+  closeDrawer(): void {
+    const id = this.store.selectedTaskId();
+    const sectionId = this.section().id;
+    const drawer = this.host.nativeElement.querySelector<HTMLElement>('[data-task-drawer]');
+    const active = document.activeElement;
+    const returnFocus = active === document.body || active === null || (drawer?.contains(active) ?? false);
+    this.store.selectTask(null);
+    if (!returnFocus) return;
+    afterNextRender(() => {
+      if (this.section().id !== sectionId || this.store.selectedTaskId() !== null) return;
+      const current = document.activeElement;
+      if (current !== document.body && current !== null && !(drawer?.contains(current) ?? false)) return;
+      const row = [...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-task-row]')]
+        .find((candidate) => candidate.getAttribute('data-task-id') === id);
+      const target = row?.querySelector<HTMLElement>('[data-task-title]') ??
+        this.host.nativeElement.querySelector<HTMLInputElement>('[data-quick-task-title]');
+      target?.focus();
+    }, { injector: this.injector });
   }
 
   /**

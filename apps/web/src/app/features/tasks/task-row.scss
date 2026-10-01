@@ -55,11 +55,13 @@
   min-width: 0;
 }
 
-.task-row__title,
-.task-row__details {
+.task-row__title {
   border: 0;
   padding: 0;
   background: transparent;
+}
+
+button.task-row__title {
   cursor: pointer;
 }
 
@@ -72,16 +74,6 @@
   text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.task-row__title-editor {
-  width: 100%;
-  padding: var(--space-1) var(--space-2);
-  border: var(--border-hairline) solid var(--color-accent);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  font: inherit;
 }
 
 .task-row__metadata {
@@ -97,20 +89,8 @@
   text-transform: capitalize;
 }
 
-.task-row__overdue-label,
-.task-row__error {
+.task-row__overdue-label {
   color: var(--color-danger);
-}
-
-.task-row__error {
-  display: block;
-  margin-top: var(--space-1);
-  font-size: var(--font-size-sm);
-}
-
-.task-row__details {
-  color: var(--color-accent);
-  font-size: var(--font-size-sm);
 }
 
 .task-row__delete {
@@ -125,7 +105,8 @@
   cursor: pointer;
 }
 
-.task-row__delete:disabled {
+.task-row__delete:disabled,
+.task-row__checkbox[aria-disabled='true'] {
   cursor: progress;
   opacity: 0.5;
 }
@@ -133,4 +114,18 @@
 /* The row stays legible while the write is in flight — it has not gone anywhere yet. */
 .task-row--archiving {
   opacity: 0.5;
+}
+
+@media (pointer: fine) {
+  .task-row:not(.task-row--read-only) {
+    cursor: pointer;
+  }
+}
+
+@media (pointer: coarse) {
+  .task-row__checkbox,
+  button.task-row__title {
+    min-inline-size: var(--size-hit-target);
+    min-block-size: var(--size-hit-target);
+  }
 }

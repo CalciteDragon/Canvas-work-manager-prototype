@@ -99,9 +99,9 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   await list.locator('[data-quick-create] button[type="submit"]').click();
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Created "Order grout"');
   await list.locator('[data-task-row]', { hasText: 'Order grout' }).locator('button[data-task-title]').click();
-  // The row's text leaves with its title once the editor opens, so find the editor itself.
-  await list.locator('[data-task-title-editor]').fill('Order tile grout');
-  await list.locator('[data-task-title-editor]').press('Enter');
+  // Selection opens the drawer, where the title is committed once.
+  await list.locator('[data-task-drawer-title]').fill('Order tile grout');
+  await list.locator('[data-task-drawer-title]').press('Enter');
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Updated "Order tile grout"');
   const renamedRow = list.locator('[data-task-row]', { hasText: 'Order tile grout' });
   await renamedRow.locator('[data-task-complete]').click();
@@ -269,7 +269,7 @@ test('4. a write recorded in another project’s history says so, and its link l
   await page.goto(`/projects/${ROOT}/pages/todos`);
   await expectEmptyControls(page, 'Todos');
   const row = page.locator('[data-todo-row][data-todo-id="task-kitchen-appliances"]');
-  await row.locator('[data-todo-complete]').click();
+  await row.locator('[data-todo-toggle]').click();
   await expect(historyFeedback(page)).toHaveText('Completed "Choose appliance finishes" was recorded in Kitchen’s history.');
   await expectEmptyControls(page, 'Todos after a cross-owner write');
 
@@ -387,8 +387,8 @@ test('7. a conflicting later edit refuses with its subject and next step, and ex
   await page.goto(`/projects/${ROOT}`);
   const list = page.locator('[data-section-item][data-section-id="section-project-renovation-tasks"]');
   await list.locator('[data-task-row]', { hasText: 'Call the salvage yard' }).locator('button[data-task-title]').click();
-  await list.locator('[data-task-title-editor]').fill('Call the reclamation yard');
-  await list.locator('[data-task-title-editor]').press('Enter');
+  await list.locator('[data-task-drawer-title]').fill('Call the reclamation yard');
+  await list.locator('[data-task-drawer-title]').press('Enter');
   const label = 'Updated "Call the reclamation yard"';
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', `Undo: ${label}`);
 
@@ -546,8 +546,8 @@ test('Slice 45 · 2. add → complete → rename → Delete undo and redo with t
   expect(inMinute(states[2]!.completedAt, 1), 'completedAt comes from the Clock').toBe(true);
   await setClock(at(2));
   await list.locator('[data-task-row]', { hasText: 'Seal the tub' }).locator('button[data-task-title]').click();
-  await list.locator('[data-task-title-editor]').fill('Seal the bathtub');
-  await list.locator('[data-task-title-editor]').press('Enter');
+  await list.locator('[data-task-drawer-title]').fill('Seal the bathtub');
+  await list.locator('[data-task-drawer-title]').press('Enter');
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Updated "Seal the bathtub"');
   states.push(businessOf(await taskOrNull(id)));
   await setClock(at(3));

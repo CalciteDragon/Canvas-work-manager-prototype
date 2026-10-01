@@ -5,8 +5,8 @@
 Tasks were the first real feature through every layer (Slice 7) and the place §63's
 optimistic UI had to be proven: a checkbox completes the task instantly, persists, and
 reverts visibly if the host is stopped mid-action. The row and the drawer are also the
-prototype's most reused components — every Task List section, the Todos page and the
-Design Lab render them — so they must be presentational and the state must live in a
+prototype's most reused components — Task List sections and the Design Lab render them;
+Todos owns a separate row — so they must be presentational and the state must live in a
 store that can be provided wherever a list of tasks is owned.
 
 ## Forces
@@ -31,10 +31,11 @@ and wrong under ownership.
 `/tasks`, and the store became the Task List section's.
 
 **Optimistic completion with an in-flight guard.** The row paints complete, the store
-increments `pendingWrites`, and a live frame naming the row is deferred until the
+increments `pendingMutations`, and a live frame naming the row is deferred until the
 response settles; on failure the row reverts with a visible error and no `completedAt`
-in the file. A write epoch discards a read that started before the click and would
-otherwise paint its stale snapshot over the settled row
+in the file. A read crossed by a mutation queues a fresh read rather than painting its
+stale snapshot; `loadGeneration` rejects answers from another container. The separate Todos
+store uses a write epoch to reject a chronology read that started before a click
 ([Slice 25.5's review found this](../../../roadmap/completed/25.5-chronological-todos.md)).
 
 **`pending` and `archiving` are separate flags** on the row, because they disable
@@ -60,6 +61,7 @@ the date, not the time — a defect only the browser showed.
 
 ## Decisions that shape this system
 
+- [Task checkboxes reopen and task titles select](../../../decisions/2026-09-task-checkbox-reopen-and-selection.md) — reversible completion, drawer title editing and focus-preserving pending controls.
 - [Task Delete names its existing recovery routes](../../../decisions/2026-09-task-delete-recovery-feedback.md) — a committed archive gets a polite cue outside the rows.
 - [§4's *Agent Modified* task row has no data behind it](../../../decisions/2026-08-agent-modified-has-no-data-behind-it.md)
 - [A date-only task due date is stored at UTC end-of-day](../../../decisions/2026-08-task-date-only-due-time.md)

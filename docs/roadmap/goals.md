@@ -66,7 +66,8 @@ records proposed defaults, explicit migration/history work and integrated accept
 explicit parent. Three independent reviewers' diff findings are resolved, all 95 integrated
 browser tests passed, and the final 40 targeted checks passed after review repairs. [Slice 61](active/61-task-reopen-and-selection.md) is
 active as Stage B: a reversible task checkbox in Task Lists and Todos, title or row click
-selection, and title editing in the task drawer. Its plan is reviewed; implementation has not started.
+selection, and title editing in the task drawer. Implementation is in place; phase verification
+and independent diff review determine closure.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed

@@ -1,4 +1,4 @@
-import { AgentPermissionSchema, type AgentPermission } from '@cwm/contracts';
+import { AgentPermissionSchema, OperationHistorySummarySchema, TaskWriteResultSchema, type AgentPermission } from '@cwm/contracts';
 import { PermissionDeniedError } from '@cwm/domain';
 import { requiredPermissions, toolPermission } from './tool';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -571,6 +571,29 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
  * MCP carries a refusal's message and nothing else, so an agent tells history refusals apart by
  * the reason token each message starts with (docs/decisions/2026-09-operation-history-scope.md).
  */
+describe('task reopening over MCP', () => {
+  it('update_task reopens a done task with tasks.write and records it in the owner’s history', async () => {
+    const harness = buildHarness();
+    const tasker = agent(['tasks.write']);
+    const completed = TaskWriteResultSchema.parse(await harness.registry.call('complete_task', { taskId: OPEN_TASK }, tasker));
+    expect(completed.task.completedAt).toBeDefined();
+    const before = harness.store.persistCalls;
+
+    const reopened = TaskWriteResultSchema.parse(await harness.registry.call('update_task', { taskId: OPEN_TASK, status: 'todo' }, tasker));
+
+    expect(reopened.task).toMatchObject({ id: OPEN_TASK, projectId: PROJECT, status: 'todo' });
+    expect(reopened.task).not.toHaveProperty('completedAt');
+    expect(reopened.operation).toMatchObject({ operation: 'task.update', label: `Updated "${completed.task.title}"` });
+    expect(harness.store.persistCalls).toBe(before + 1);
+    expect(harness.store.snapshot().tasks.find(({ id }) => id === OPEN_TASK)).toEqual(reopened.task);
+    expect(harness.store.snapshot().activityEvents.at(-1)).toMatchObject({ action: 'task.updated', entityId: OPEN_TASK, actor: 'agent' });
+    const history = OperationHistorySummarySchema.parse(await harness.registry.call('get_operation_history', { projectId: PROJECT }, agent(['projects.read'])));
+    expect(history.undo).toMatchObject({ actionId: reopened.operation!.actionId, operation: 'task.update' });
+    expect(history.historyId).toBe(reopened.operation!.historyId);
+    // The generic update_task grant loop above already proves missing tasks.write refuses without persistence.
+  });
+});
+
 describe('undo_operation and redo_operation refusals, as an agent sees them', () => {
   const writer = () => agent(['projects.read', 'projects.write']);
   const removed = async (harness: ReturnType<typeof buildHarness>) =>

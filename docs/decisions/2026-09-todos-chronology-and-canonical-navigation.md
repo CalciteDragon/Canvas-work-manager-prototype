@@ -87,3 +87,10 @@ After a multiweek pass with a full week of work. Slice 25.6's Archive page and 2
 walkthrough have now exercised the projection; keep watching for rows people expect to reorder, a
 wish to reopen from the list, and whether the origin breadcrumb or the container name is what
 people actually navigate by.
+
+**Amended, 2026-10-01 — Slice 61.** Todos now exposes a reversible checkbox for tasks:
+unchecked completes, checked reopens to `todo` and clears `completedAt`. Cancelled tasks have
+no toggle, while workstreams keep their one-way Complete and reopen from the header. Canonical
+links, chronology, grants and ownership stay as recorded above. The earlier claim that reopening
+requires guessing a previous status is replaced by the explicit `todo` target
+([decision](2026-09-task-checkbox-reopen-and-selection.md)).

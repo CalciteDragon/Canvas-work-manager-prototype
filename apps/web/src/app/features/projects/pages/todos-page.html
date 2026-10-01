@@ -74,7 +74,17 @@
             </a>
           }
 
-          @if (!finished(item)) {
+          @if (item.kind === 'task' && item.task.status !== 'cancelled') {
+            <input
+              data-todo-toggle
+              type="checkbox"
+              class="todos__toggle"
+              [checked]="item.task.status === 'done'"
+              [attr.aria-disabled]="writesBlocked() ? 'true' : null"
+              [attr.aria-label]="(item.task.status === 'done' ? 'Reopen task ' : 'Complete ') + item.task.title"
+              (change)="toggle(item, $event)"
+            />
+          } @else if (item.kind === 'subproject' && !finished(item)) {
             <button
               data-todo-complete
               type="button"

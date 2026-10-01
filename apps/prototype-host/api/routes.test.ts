@@ -342,6 +342,32 @@ describe('Slice 10 derived and reflection routes', () => {
 });
 
 describe('task routes', () => {
+  it('PATCH status todo reopens a done task, clears completedAt and returns its receipt; a foreign id writes nothing', async () => {
+    const store = new InMemoryDataStore(document());
+    const routes = routesFor(store);
+    const task = await newTask(routes);
+    const completed = taskFrom((await call(routes, 'POST', `/api/tasks/${task.id}/complete`)).body);
+    expect(completed.completedAt).toBeDefined();
+
+    const result = await call(routes, 'PATCH', `/api/tasks/${task.id}`, { body: { status: 'todo' } });
+
+    expect(result.status).toBe(200);
+    const reopened = TaskWriteResultSchema.parse(result.body);
+    expect(reopened.task).toMatchObject({ id: task.id, status: 'todo' });
+    expect(reopened.task).not.toHaveProperty('completedAt');
+    expect(reopened.operation).toMatchObject({ operation: 'task.update', label: `Updated "${task.title}"` });
+    expect(TaskSchema.parse((await call(routes, 'GET', `/api/tasks/${task.id}`)).body)).toEqual(reopened.task);
+    expect(store.snapshot().activityEvents.at(-1)).toMatchObject({ action: 'task.updated', entityId: task.id });
+
+    const foreign = taskFrom((await call(routes, 'POST', '/api/tasks', {
+      user: ALEX, body: { projectId: THEIRS, title: 'Their finished task' },
+    })).body);
+    await call(routes, 'POST', `/api/tasks/${foreign.id}/complete`, { user: ALEX });
+    const before = store.snapshot();
+    expect((await call(routes, 'PATCH', `/api/tasks/${foreign.id}`, { body: { status: 'todo' } })).status).toBe(404);
+    expect(store.snapshot()).toEqual(before);
+  });
+
   it('creates, reads, updates, completes and archives a task', async () => {
     const routes = buildRoutes();
     const task = await newTask(routes);

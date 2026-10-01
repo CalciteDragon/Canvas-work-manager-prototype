@@ -6,7 +6,6 @@ import {
   effect,
   input,
   output,
-  signal,
   viewChild,
 } from '@angular/core';
 import type { Task, TaskId } from '@cwm/contracts';
@@ -26,7 +25,7 @@ export class TaskRow {
   readonly compact = input(false);
   readonly pending = input(false);
   /**
-   * Separate from `pending`, which means "a completion is in flight". A row can be waiting
+   * Separate from `pending`, which means "a completion toggle is in flight". A row can be waiting
    * on an archive while nothing about its completion is happening, and the two disable
    * different controls.
    */
@@ -35,15 +34,21 @@ export class TaskRow {
   readonly readOnly = input(false);
 
   readonly completionRequested = output<TaskId>();
-  readonly titleEdited = output<{ id: TaskId; title: string }>();
+  readonly reopenRequested = output<TaskId>();
   readonly selectedRequested = output<TaskId>();
   /** §34's reversible Delete, not layout chrome and not behind Edit Layout Mode (§32). */
   readonly deleteRequested = output<TaskId>();
 
-  readonly editing = signal(false);
-  readonly draftTitle = signal('');
-  readonly titleError = signal<string | null>(null);
-  private readonly titleEditor = viewChild<ElementRef<HTMLInputElement>>('titleEditor');
+  private readonly row = viewChild.required<ElementRef<HTMLElement>>('row');
+  private gesture: {
+    pointerType: string;
+    x: number;
+    y: number;
+    anchor: Node | null;
+    anchorOffset: number;
+    focus: Node | null;
+    focusOffset: number;
+  } | null = null;
 
   readonly completed = computed(() => this.task().status === 'done');
   readonly overdue = computed(() => {
@@ -65,16 +70,33 @@ export class TaskRow {
   );
 
   constructor() {
-    // Editing swaps a button for an input. Moving focus with that swap makes the same
-    // interaction work for keyboard and assistive-technology users, not only a mouse.
-    effect(() => {
-      if (this.editing()) this.titleEditor()?.nativeElement.focus();
+    // Capture before nested controls or a drag host consume the pointer gesture.
+    effect((cleanup) => {
+      const row = this.row().nativeElement;
+      const record = (event: PointerEvent) => {
+        const selection = row.ownerDocument.getSelection();
+        this.gesture = {
+          pointerType: event.pointerType,
+          x: event.clientX,
+          y: event.clientY,
+          anchor: selection?.anchorNode ?? null,
+          anchorOffset: selection?.anchorOffset ?? 0,
+          focus: selection?.focusNode ?? null,
+          focusOffset: selection?.focusOffset ?? 0,
+        };
+      };
+      row.addEventListener('pointerdown', record, true);
+      cleanup(() => row.removeEventListener('pointerdown', record, true));
     });
   }
 
-  requestCompletion(): void {
-    if (this.readOnly()) return;
-    if (!this.completed() && !this.pending()) this.completionRequested.emit(this.task().id);
+  /** Emit a reversible completion intent, then restore the native checkbox to the model. */
+  toggleCompletion(event: Event): void {
+    if (!this.readOnly() && !this.pending()) {
+      if (this.completed()) this.reopenRequested.emit(this.task().id);
+      else this.completionRequested.emit(this.task().id);
+    }
+    (event.target as HTMLInputElement).checked = this.completed();
   }
 
   requestDelete(): void {
@@ -82,31 +104,34 @@ export class TaskRow {
     if (!this.archiving()) this.deleteRequested.emit(this.task().id);
   }
 
-  beginEditing(): void {
+  /** Native title-button activation is the keyboard path into this non-modal drawer. */
+  selectTitle(event: MouseEvent): void {
+    if (!this.readOnly() && !this.pointerMoved(event)) this.selectedRequested.emit(this.task().id);
+  }
+
+  /** A row background selects once, unless this pointer gesture dragged or selected text. */
+  selectBackground(event: MouseEvent): void {
     if (this.readOnly()) return;
-    this.draftTitle.set(this.task().title);
-    this.titleError.set(null);
-    this.editing.set(true);
-  }
-
-  updateDraft(value: string): void {
-    this.draftTitle.set(value);
-    this.titleError.set(null);
-  }
-
-  commitTitle(): void {
-    if (!this.editing()) return;
-    const title = this.draftTitle().trim();
-    if (title === '') {
-      this.titleError.set('A task title is required.');
+    const row = this.row().nativeElement;
+    if (event.target instanceof Element && event.target.closest('button, input, a, select, textarea, label')) {
       return;
     }
-    if (title !== this.task().title) this.titleEdited.emit({ id: this.task().id, title });
-    this.editing.set(false);
+    if (this.pointerMoved(event)) return;
+    const selection = row.ownerDocument.getSelection();
+    const gesture = this.gesture;
+    if (
+      event.detail !== 0 && gesture && selection && !selection.isCollapsed &&
+      (row.contains(selection.anchorNode) || row.contains(selection.focusNode)) &&
+      (selection.anchorNode !== gesture.anchor || selection.anchorOffset !== gesture.anchorOffset ||
+       selection.focusNode !== gesture.focus || selection.focusOffset !== gesture.focusOffset)
+    ) return;
+    this.selectedRequested.emit(this.task().id);
   }
 
-  cancelEditing(): void {
-    this.titleError.set(null);
-    this.editing.set(false);
+  private pointerMoved(event: MouseEvent): boolean {
+    const gesture = this.gesture;
+    return event.detail !== 0 && gesture !== null &&
+      (gesture.pointerType === 'mouse' || gesture.pointerType === 'pen') &&
+      Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) > 4;
   }
 }

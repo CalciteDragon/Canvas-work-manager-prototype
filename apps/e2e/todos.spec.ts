@@ -250,7 +250,7 @@ test('a scrambled tree reads the same through the page, HTTP and MCP — and its
     // ─── completing both kinds, read back canonically ──────────────────────────────────────
     const completeRow = async (title: string) => {
       const row = page.locator('[data-todo-row]', { has: page.locator('[data-todo-link]', { hasText: title }) });
-      await row.locator('[data-todo-complete]').click();
+      await row.locator(title === 'Cabinets' ? '[data-todo-complete]' : '[data-todo-toggle]').click();
       await expect(row.locator('[data-todo-status]')).toHaveText(title === 'Cabinets' ? 'Completed' : 'Done');
     };
     await completeRow('Later');
@@ -364,7 +364,7 @@ test.describe('coarse pointer task Delete', () => {
 
     await page.goto(`/projects/${root.id}/pages/todos`);
     const row = page.locator(`[data-todo-row][data-todo-id="${task.id}"]`);
-    const complete = row.locator('[data-todo-complete]');
+    const complete = row.locator('[data-todo-toggle]');
     await expect(complete).toBeVisible();
     await complete.tap();
     const deleteButton = row.locator('[data-todo-delete]');

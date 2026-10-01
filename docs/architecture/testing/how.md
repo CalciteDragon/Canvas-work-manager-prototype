@@ -190,6 +190,14 @@ pnpm storybook                                        # :6006
   journeys check header Undo, guarded Archive opening and Restore, keyboard/touch activation,
   failure and 375 px themes. The focused web component specs drive pending, refusal, final-row
   and route-generation boundaries before those browser journeys.
+- **Task interaction** lives in `task-interaction.spec.ts`: isolated `nested-projects` scratch
+  roots exercise both task checkbox surfaces, reload, progress and reflection projections, exact
+  owner Undo/Redo timestamps, routed/injected refusals, repeated Space with retained focus,
+  title/background selection and drawer title validation/commit/Escape. Shortcut rows remain
+  read-only. `canvas-editing.spec.ts` proves a title drag opens no drawer, sends no task PATCH
+  and does not move a section. HTTP and MCP reopen cases in `api/routes.test.ts` and
+  `contract.test.ts` were proved sensitive by temporarily preserving `completedAt`, then
+  immediately restoring the domain line and rerunning green.
 - **Phone layout** lives in `phone-layout.spec.ts`. Isolated `nested-projects` data, 375 × 812
   with `hasTouch`/`isMobile` in both `colorScheme` values (the persona's `data-theme` is set with
   the toggle), plus a separate non-mobile context for resize, because `isMobile` emulation does
@@ -197,7 +205,10 @@ pnpm storybook                                        # :6006
   project main track: the shell's `100vh` `<main>` scrolls internally, so a document check alone
   misses content that overflows inside it. Every journey waits for the persona before toggling
   the theme: the identity's arrival re-seeds `data-theme`, and a create sent before it finds no
-  workspace. `row-history.spec.ts` taps Delete with the details drawer open.
+  workspace. `row-history.spec.ts` taps Delete with the details drawer open. Title taps open
+  the stacked Task List drawer, Close returns focus to that title, and a done task reopens by
+  touch with API and reload evidence. Tap slop is proved in TaskRow's unit test, because
+  Playwright's `tap()` has no movement. Opening intentionally does not scroll the drawer into view.
 - **Removal Undo acceptance** lives in `removal-undo.spec.ts`: disposable views leave both
   the canvas and Archive and return with their saved config/order; live task and reflection rows
   cascade in one gesture; independently archived rows keep their markers; an independent task

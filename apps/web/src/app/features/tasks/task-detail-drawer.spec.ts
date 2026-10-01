@@ -26,6 +26,130 @@ const render = async () => {
 };
 
 describe('TaskDetailDrawer', () => {
+  const titleInput = (element: HTMLElement) => element.querySelector<HTMLInputElement>('[data-task-drawer-title]')!;
+  const typeTitle = (element: HTMLElement, title: string) => {
+    const control = titleInput(element);
+    control.value = title;
+    control.dispatchEvent(new Event('input', { bubbles: true }));
+    return control;
+  };
+  const enter = (control: HTMLElement) => control.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  const blur = (control: HTMLElement) => control.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+  const escape = (control: HTMLElement) => control.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+
+  it('commits trimmed title on Enter or blur and ignores unchanged text', async () => {
+    const { component, element } = await render();
+    const emitted = vi.fn();
+    component.titleChanged.subscribe(emitted);
+    enter(titleInput(element));
+    expect(emitted).not.toHaveBeenCalled();
+    enter(typeTitle(element, '  Revised title  '));
+    blur(typeTitle(element, '  Another title  '));
+    expect(emitted.mock.calls).toEqual([[{ id: value.id, title: 'Revised title' }], [{ id: value.id, title: 'Another title' }]]);
+  });
+
+  it('refuses blank titles and Escape clears the alert and prevents blur or close', async () => {
+    const { fixture, component, element } = await render();
+    const emitted = vi.fn();
+    const closed = vi.fn();
+    component.titleChanged.subscribe(emitted);
+    component.closed.subscribe(closed);
+    const control = typeTitle(element, '   ');
+    enter(control);
+    await fixture.whenStable();
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain('A task title is required.');
+    expect(emitted).not.toHaveBeenCalled();
+    escape(control);
+    blur(control);
+    await fixture.whenStable();
+    expect(control.value).toBe(value.title);
+    expect(element.querySelector('[role="alert"]')).toBeNull();
+    expect(emitted).not.toHaveBeenCalled();
+    expect(closed).not.toHaveBeenCalled();
+  });
+
+  it('suppresses blur after Enter but a second Enter explicitly retries', async () => {
+    const { component, element } = await render();
+    const emitted = vi.fn();
+    component.titleChanged.subscribe(emitted);
+    const control = typeTitle(element, 'Revised title');
+    enter(control);
+    blur(control);
+    expect(emitted).toHaveBeenCalledOnce();
+    enter(control);
+    expect(emitted).toHaveBeenCalledTimes(2);
+  });
+
+  it('follows an agent rename on a clean field without a stale blur write', async () => {
+    const { fixture, component, element } = await render();
+    const emitted = vi.fn();
+    component.titleChanged.subscribe(emitted);
+    fixture.componentRef.setInput('task', { ...value, title: 'Agent title' });
+    await fixture.whenStable();
+    expect(titleInput(element).value).toBe('Agent title');
+    blur(titleInput(element));
+    expect(emitted).not.toHaveBeenCalled();
+  });
+
+  it('shows the pending response after Escape and the following blur emits nothing', async () => {
+    const { fixture, component, element } = await render();
+    const emitted = vi.fn();
+    component.titleChanged.subscribe(emitted);
+    const control = typeTitle(element, 'Committed title');
+    enter(control);
+    escape(control);
+    fixture.componentRef.setInput('task', { ...value, title: 'Committed title' });
+    await fixture.whenStable();
+    expect(control.value).toBe('Committed title');
+    blur(control);
+    expect(emitted).toHaveBeenCalledOnce();
+  });
+
+  it('cleans an acknowledged commit then follows a subsequent agent rename', async () => {
+    const { fixture, component, element } = await render();
+    const emitted = vi.fn();
+    component.titleChanged.subscribe(emitted);
+    const control = typeTitle(element, 'Committed title');
+    control.focus();
+    enter(control);
+    fixture.componentRef.setInput('task', { ...value, title: 'Committed title' });
+    await fixture.whenStable();
+    fixture.componentRef.setInput('task', { ...value, title: 'Agent title' });
+    await fixture.whenStable();
+    expect(control.value).toBe('Agent title');
+    enter(control);
+    expect(emitted).toHaveBeenCalledOnce();
+  });
+
+  it('preserves a dirty same-id draft and resets draft, error and last emission for a new id', async () => {
+    const { fixture, component, element } = await render();
+    const emitted = vi.fn();
+    component.titleChanged.subscribe(emitted);
+    const control = typeTitle(element, 'Draft');
+    enter(control);
+    fixture.componentRef.setInput('task', { ...value, title: 'Agent title' });
+    await fixture.whenStable();
+    expect(control.value).toBe('Draft');
+    enter(typeTitle(element, ' '));
+    await fixture.whenStable();
+    expect(element.querySelector('[role="alert"]')).not.toBeNull();
+    fixture.componentRef.setInput('task', TaskSchema.parse({ ...value, id: 'task-b' }));
+    await fixture.whenStable();
+    expect(control.value).toBe(value.title);
+    expect(element.querySelector('[role="alert"]')).toBeNull();
+    blur(typeTitle(element, 'Draft'));
+    expect(emitted.mock.calls).toEqual([[{ id: value.id, title: 'Draft' }], [{ id: 'task-b', title: 'Draft' }]]);
+  });
+
+  it('closes on Escape outside the title or in a clean title', async () => {
+    const { component, element } = await render();
+    const closed = vi.fn();
+    component.closed.subscribe(closed);
+    escape(element.querySelector<HTMLElement>('[data-task-priority]')!);
+    escape(titleInput(element));
+    expect(closed).toHaveBeenCalledTimes(2);
+  });
+
   it('renders as a labelled side drawer with the selected task context', async () => {
     const { element } = await render();
     const drawer = element.querySelector('[data-task-drawer]');

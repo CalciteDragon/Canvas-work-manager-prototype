@@ -93,3 +93,9 @@ and markers they changed. Idempotent completion, archive, restore and normalized
 **Amended, 2026-09-24 (Slice 43).** Task List and Todos rows now present the existing reversible task archive action as **Delete**, including on finished tasks. It still archives the task and descendants with their markers for Undo and Archive Restore; it does not hard-delete task data.
 
 **Amended, 2026-09-28 (Slice 49).** The archived-completion refusal now applies to a `task.update` history direction that enters `done`, not only ordinary `complete()` and `update()` calls. Leaving `done` on an archived task in a live section remains allowed ([decision](2026-09-archived-task-completion-history.md)).
+
+**Amended, 2026-10-01 — Slice 61.** The existing transition rule is now exposed by the task
+checkbox on Task Lists and Todos: unchecking a done task calls `update({ status: 'todo' })`,
+clears `completedAt` and records `task.updated` with the existing `task.update` receipt.
+It does not remember a previous status or add a reopen operation
+([decision](2026-09-task-checkbox-reopen-and-selection.md)).

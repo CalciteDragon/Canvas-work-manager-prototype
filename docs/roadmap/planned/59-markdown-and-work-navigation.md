@@ -124,13 +124,14 @@ same-ID recovery without a Sub-Projects section. Focus and overflow work on phon
 
 **Stage B is active as [Slice 61](../active/61-task-reopen-and-selection.md)** (2026-09-30),
 which builds the drawer title field the umbrella assumed existed and adds late-answer guards.
+Implementation is in place; verification and independent diff review remain the closure gate.
 
 Read §§33–34, 36, 39, 57, 63 and web/tasks, web/projects, web/core and domain. Extend the
 TaskListStore mutation guard for bidirectional intent, optimistic status/timestamp, field-scoped
 rollback, pending state, receipts and stale reads. Domain owns canonical completion timestamps.
 Implement task checkboxes separately in Todos' serialized store; keep canonical links, Delete
 and workstream completion. TaskRow selection applies to Task Lists; Todos retains navigation.
-Title click selects; the drawer's existing title field edits. Update stories/gallery/selectors.
+Title click selects; the drawer's title field edits. Update stories/gallery/selectors.
 
 Complete → uncheck → reload must show `todo`, no `completedAt`, lower progress and a refreshed
 completed-work picker. An existing linked reflection survives. Header Undo/Redo restores exact

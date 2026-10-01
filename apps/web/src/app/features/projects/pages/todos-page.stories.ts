@@ -105,7 +105,14 @@ const gatewayFor = (
           ? new Promise(() => undefined)
           : completion === 'failed'
             ? Promise.reject(new GatewayError('unreachable', 0, 'Completion was refused.'))
-            : Promise.resolve(TaskSchema.parse({ ...taskRowTask(id), status: 'done', completedAt: AT })),
+            : Promise.resolve({ task: TaskSchema.parse({ ...taskRowTask(id), status: 'done', completedAt: AT }), operation: null }),
+      update: (id: string) => {
+        const task = { ...taskRowTask(id), status: 'todo' as const };
+        delete task.completedAt;
+        return completion === 'pending' ? new Promise(() => undefined)
+          : completion === 'failed' ? Promise.reject(new GatewayError('unreachable', 0, 'Reopen was refused.'))
+          : Promise.resolve({ task, operation: null });
+      },
     },
     // The Slice 39 write envelope; the store reads `project` and ignores the receipt.
     projects: { update: () => Promise.resolve({ project: unit('completed'), operation: null }) },
@@ -167,8 +174,8 @@ export const CompletionPending: Story = {
   ],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Complete Chase the plumber’s quote' }));
-    await expect(canvas.getByText('Completing…')).toBeVisible();
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Complete Chase the plumber’s quote' }));
+    await expect(canvas.getByRole('checkbox', { name: 'Reopen task Chase the plumber’s quote' })).toHaveAttribute('aria-disabled', 'true');
   },
 };
 
@@ -178,8 +185,8 @@ export const CompletionRefused: Story = {
   ],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Complete Chase the plumber’s quote' }));
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Complete Chase the plumber’s quote' }));
     await expect(canvas.getByRole('alert').textContent).toContain('Completion was refused.');
-    await expect(canvas.getByRole('button', { name: 'Complete Chase the plumber’s quote' })).toBeVisible();
+    await expect(canvas.getByRole('checkbox', { name: 'Complete Chase the plumber’s quote' })).toBeVisible();
   },
 };

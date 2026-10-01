@@ -1179,7 +1179,7 @@ describe('ProjectWorkspaceShell — the Todos page (§34, §68)', () => {
     const { harness, gateway } = await open('/projects/project-renovation/pages/todos', withTodos());
     const progressReads = gateway.calls.filter(({ method }) => method === 'progress.get').length;
 
-    (query(harness, '[data-todo-complete]') as HTMLButtonElement).click();
+    (query(harness, '[data-todo-toggle]') as HTMLInputElement).click();
     await settle(harness);
 
     expect(gateway.calls.some(({ method }) => method === 'tasks.complete')).toBe(true);

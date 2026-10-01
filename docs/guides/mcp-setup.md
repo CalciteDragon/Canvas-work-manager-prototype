@@ -241,6 +241,8 @@ summary at the absent project's id and Redo from that summary.
 
 ### Todos
 
+To reopen a done task, call `update_task` with `{ taskId, status: "todo" }` under `tasks.write`; it clears `completedAt` and returns the owning history receipt.
+
 Slice 25.5 adds `get_project_todos` (`projects.read` **and** `tasks.read`): the whole chronology
 under one root project — its own tasks plus every descendant workstream and every descendant
 task — ordered by due date, undated last, ties broken by kind then id. A workstream's date-only
