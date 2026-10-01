@@ -63,3 +63,13 @@ Real use shows accidental selection, a need to scroll the stacked drawer into vi
 between an `Updated` history label and a reopened checkbox. Record that evidence in §79 notes.
 
 **Dated 2026-10-01 — Slice 61.** The filename follows the active plan's existing link target.
+
+**Amended, 2026-10-01 (real-use evidence).** On isolated nested-projects data, Space completed
+and reopened from both surfaces while retaining focus. Title selection, drawer rename and
+focus return worked; moving a task between lists and selecting text did not open details.
+Keep idempotent selection as the current default. A real HTTP MCP client reopened through
+`update_task`, and the live browser reflected its cleared completion time. At a measured
+375 px the drawer's lower fields remained below the fold; Close worked with no document
+overflow. This retains the known phone discoverability question and the possible `Updated`
+label wording question for sustained use, recorded in [§79 notes](../../.prototype/notes.json)
+as `note-2026-10-01-002`.

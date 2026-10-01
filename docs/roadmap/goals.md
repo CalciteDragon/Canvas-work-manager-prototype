@@ -58,16 +58,18 @@ The user requested a new branch and an
 [umbrella implementation plan in Slice 59](planned/59-markdown-and-work-navigation.md):
 Markdown source/rendering in place of Rich Text, task checkbox reopening and click selection,
 project-name page-settings gear, Work creation plus, clearer nested-work terminology and
-section shortcuts on work canvases, replacing the Sub-Projects section view. Stage A is delivered;
+section shortcuts on work canvases, replacing the Sub-Projects section view. Stages A and B are delivered;
 the remaining work is planned. The umbrella orders six bounded stages and
 records proposed defaults, explicit migration/history work and integrated acceptance.
 [Slice 60](completed/60-workstream-navigation-controls.md) completed Stage A: the
 **workstream** vocabulary, the page-settings gear beside the root name and the Work plus with an
 explicit parent. Three independent reviewers' diff findings are resolved, all 95 integrated
-browser tests passed, and the final 40 targeted checks passed after review repairs. [Slice 61](active/61-task-reopen-and-selection.md) is
-active as Stage B: a reversible task checkbox in Task Lists and Todos, title or row click
-selection, and title editing in the task drawer. Implementation is in place; phase verification
-and independent diff review determine closure.
+browser tests passed, and the final 40 targeted checks passed after review repairs.
+[Slice 61](completed/61-task-reopen-and-selection.md) completed Stage B: reversible task
+checkboxes in Task Lists and Todos, title or row click selection, and title editing in the
+task drawer. Independent correctness/spec and boundaries/documentation review findings are
+resolved; 2,870 offline tests and all 102 browser tests passed, with real browser and MCP use
+recorded. Stage C (Markdown) is next in the umbrella; no slice is currently active.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed

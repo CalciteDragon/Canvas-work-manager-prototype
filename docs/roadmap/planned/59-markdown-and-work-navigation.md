@@ -122,9 +122,10 @@ same-ID recovery without a Sub-Projects section. Focus and overflow work on phon
 
 ### B — Task reopening and selection
 
-**Stage B is active as [Slice 61](../active/61-task-reopen-and-selection.md)** (2026-09-30),
-which builds the drawer title field the umbrella assumed existed and adds late-answer guards.
-Implementation is in place; verification and independent diff review remain the closure gate.
+**Stage B is delivered as [Slice 61](../completed/61-task-reopen-and-selection.md)** (2026-10-01),
+including the drawer title field the umbrella assumed existed and late-answer guards.
+Independent diff review findings are resolved; all 102 browser tests and 2,870 offline tests
+passed, with actual application and HTTP MCP use recorded in the outcome.
 
 Read §§33–34, 36, 39, 57, 63 and web/tasks, web/projects, web/core and domain. Extend the
 TaskListStore mutation guard for bidirectional intent, optimistic status/timestamp, field-scoped

@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 61 | Slice 61 — Reversible task checkbox and click selection (Slice 59 Stage B) | Task checkboxes reopen done tasks in Task Lists and Todos; title or row click selects a task and its title is edited in the drawer | [61-task-reopen-and-selection.md](active/61-task-reopen-and-selection.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -99,4 +97,5 @@ verification follow-ups rather than feature slices.
 | 34 | Slice 34 — Project Undo/Redo and simpler Archive | 2026-09-30 | Project Undo/Redo and simpler Archive delivered, verified and follow-up findings closed | [34-undo-redo-and-archive.md](completed/34-undo-redo-and-archive.md) |
 | 46 | Slice 46 — Slice 34 close-out follow-up | 2026-09-30 | Follow-up evidence, documentation reconciliation and Slice 34 closure gate verified | [46-slice-34-closeout-follow-up.md](completed/46-slice-34-closeout-follow-up.md) |
 | 60 | Slice 60 — Workstream vocabulary and project-column controls (Slice 59 Stage A) | 2026-09-30 | Workstream vocabulary, root-name page settings and explicit-parent Work creation delivered with reviewed desktop, touch, live and MCP evidence | [60-workstream-navigation-controls.md](completed/60-workstream-navigation-controls.md) |
+| 61 | Slice 61 — Reversible task checkbox and click selection (Slice 59 Stage B) | 2026-10-01 | Task checkboxes complete and reopen in Task Lists and Todos; titles select, drawer titles edit, and keyboard focus survives toggles and closing | [61-task-reopen-and-selection.md](completed/61-task-reopen-and-selection.md) |
 <!-- roadmap:end -->

@@ -1001,6 +1001,14 @@
       "projectId": "project-renovation",
       "slice": 60,
       "note": "Slice 60 real use on isolated nested-projects and personal-workspace data: created Paint samples at root and Color cards inside it, completed and archived Color cards, then read Todos/Archive/Reflections/Timeline. Workstream reads consistently and root settings are easy to reach by the gear. Root-default Parent remained explicit; on a descendant canvas it still took an intentional selection to nest work there. The existing header Open link reached the new child history. A real HTTP MCP client read the workstream/subproject mapping and created Agent workstream. Empty Work said No workstreams yet. Wording verdict: keep workstream for this prototype; sustained use must still validate the root default."
+    },
+    {
+      "id": "note-2026-10-01-002",
+      "createdAt": "2026-10-01T08:57:45.939Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 61,
+      "note": "Slice 61 real use on isolated nested-projects data: completed and reopened Choose appliance finishes with Space in Kitchen and root Todos; both kept checkbox focus and progress returned from 100% to 50%. Renamed it to Choose brushed steel appliance finishes in the drawer, then Escape returned focus to its title. Created Finishes follow-up and dragged the task into it without opening details; text selection also left details closed. A real protocol 2026-07-28 HTTP MCP client reopened Approve the cabinet measurements with update_task status todo, removed completedAt, and the live browser showed an unchecked box and 0% progress. Selection verdict: keep idempotent title/background selection and reversible toggles. At a measured 375 CSS px the stacked drawer opened below the row and its lower fields remained below the fold; Close worked and returned title focus with no document overflow. Keep this known phone discoverability friction for a later layout slice. The generic Updated history label is accurate but less explicit than Reopened; defer wording until sustained use. Desktop was also checked at a measured 1280 CSS px. Browser viewport overrides initially reflected the app zoom; geometry inspection corrected both evaluation widths."
     }
   ]
 }
