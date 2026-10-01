@@ -74,7 +74,7 @@
   @if (project().status !== 'archived') {
     <div class="more-menu__row">
       <button type="button" data-project-archive class="more-menu__danger" (click)="confirming.set(true)">
-        Archive project
+        {{ isWorkUnit() ? 'Archive workstream' : 'Archive project' }}
       </button>
     </div>
   }

@@ -20,7 +20,7 @@ export const shortcutTools: readonly WorkManagerTool[] = [
   defineTool({
     name: 'add_section_shortcut',
     description:
-      'Place a read-only reference to a canonical section on a root project’s Home page at the optional zero-based position in the combined section and shortcut order. Clamp positions past the end; if omitted, append. The source must be another page in the same root tree or a sub-project at any depth, and the placement stores only source identity and local layout. No task or reflection rows are copied, and the source’s grants are not widened. The result is { shortcut, operation }, where operation is the receipt undo_operation accepts for 24 hours; it is recorded in the destination root project’s history, never the source project’s.',
+      'Place a read-only reference to a canonical section on a root project’s Home page at the optional zero-based position in the combined section and shortcut order. Clamp positions past the end; if omitted, append. The source must be another page in the same root tree or a workstream at any depth, and the placement stores only source identity and local layout. No task or reflection rows are copied, and the source’s grants are not widened. The result is { shortcut, operation }, where operation is the receipt undo_operation accepts for 24 hours; it is recorded in the destination root project’s history, never the source project’s.',
     permission: 'projects.write',
     inputSchema: CreateSectionShortcutInputSchema.extend({ projectId: ProjectIdSchema }),
     execute: ({ projectId, ...input }, { actor, services }) => services.shortcuts.create(actor, projectId, input),

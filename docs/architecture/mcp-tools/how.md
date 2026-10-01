@@ -149,6 +149,11 @@ chain and revocation over the real transport.
 
 ## Invariants and lints
 
+- **Agent prose names the `subproject` kind a workstream.** `create_project` and
+  `get_project` define `kind "subproject" is a workstream`. The vocabulary case in
+  `contract.test.ts` pins both definitions and rejects "sub-project" and "unit of work"
+  prose in every description, except the unchanged `sub-projects` section-type identifier
+  in `list_sections`. Tool names, schemas and grants retain their existing identifiers.
 - **Imports:** only contracts, domain and zod — `check-package-imports.mjs --allow
   @cwm/contracts,@cwm/domain,zod` in `pnpm --filter @cwm/mcp-tools lint`.
 - **Every tool has a contract case** — `contract.test.ts` iterates `registry.list()` and

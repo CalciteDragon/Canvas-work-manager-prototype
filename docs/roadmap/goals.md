@@ -63,13 +63,13 @@ only; current product behavior remains unchanged. The umbrella orders six bounde
 records proposed defaults, explicit migration/history work and integrated acceptance.
 [Slice 60](active/60-workstream-navigation-controls.md) is active as Stage A: the
 **workstream** vocabulary, the page-settings gear beside the root name and the Work plus with an
-explicit parent. Its plan is reviewed; implementation has not started.
+explicit parent. Implementation is under final verification and independent diff review.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed
 the review findings after Stage E; Slice 46 links each finding to current tests, browser and
 MCP journeys, records all required green gates, and corrects the six-family and bundle-budget
-documentation. No implementation slice is active. The historical Stage E notes below remain
+documentation. No Slice 34 follow-up remains active. The historical Stage E notes below remain
 the evidence and limits recorded on 2026-09-27; later repairs and proofs are linked from
 Slice 46. Recovery-focus friction remains a candidate for a later UX phase.
 

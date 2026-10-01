@@ -99,12 +99,12 @@ export const resolveProjectPage = (input: {
       return {
         outcome: 'redirect',
         to: ['/projects', project.id],
-        reason: `“${project.name}” is a unit of work with a single canvas, so it has no pages.`,
+        reason: `“${project.name}” is a workstream with a single canvas, so it has no pages.`,
       };
     }
     const work = ownPages.find((page) => page.kind === 'work');
     return work === undefined
-      ? { outcome: 'unavailable', reason: 'This unit of work has no canvas to show.' }
+      ? { outcome: 'unavailable', reason: 'This workstream has no canvas to show.' }
       : { outcome: 'render', kind: 'work', pageId: work.id, component: ProjectCanvas };
   }
 

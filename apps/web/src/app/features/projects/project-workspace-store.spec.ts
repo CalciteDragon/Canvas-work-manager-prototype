@@ -91,6 +91,61 @@ const deferred = <T>() => {
 };
 
 describe('ProjectWorkspaceStore — the project context (§23, §26)', () => {
+  it('creates a workstream under the chosen parent and reports the child receipt, then refreshes without live frames', async () => {
+    const reporter = provideRecordingReporter();
+    const { store, gateway } = storeWith({ projects: renovation() });
+    await store.load('project-renovation' as ProjectId);
+    const create = gateway.projects.create;
+    gateway.projects.create = async (input) => {
+      const result = await create(input);
+      const written = { ...result, operation: result.operation === null ? null : { ...result.operation, projectId: result.project.id } };
+      const list = gateway.projects.list;
+      gateway.projects.list = async (query) => [...await list(query), written.project];
+      return written;
+    };
+    expect(await store.createWorkstream('project-kitchen' as ProjectId, '  Paint samples  ')).toBeNull();
+    expect(gateway.argumentTo('projects.create')).toEqual({ workspaceId: 'workspace-demo', kind: 'subproject', parentProjectId: 'project-kitchen', name: 'Paint samples' });
+    for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
+    const created = (await gateway.projects.list({})).find((item) => item.name === 'Paint samples')!;
+    expect(reporter.reports()).toEqual([{ projectId: created.id, projectName: created.name, receipt: expect.objectContaining({ projectId: created.id }) }]);
+    expect(store.subprojectTree()[0]?.children.map((node) => node.project.name)).toContain('Paint samples');
+  });
+
+  it('refuses empty names, unloaded context and unknown parents without requests', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+    expect(await store.createWorkstream('project-renovation' as ProjectId, 'Draft')).toBeTruthy();
+    await store.load('project-renovation' as ProjectId);
+    expect(await store.createWorkstream('project-renovation' as ProjectId, '  ')).toBe('A workstream name is required.');
+    expect(await store.createWorkstream('project-unknown' as ProjectId, 'Draft')).toBeTruthy();
+    expect(gateway.calls.filter((call) => call.method === 'projects.create')).toHaveLength(0);
+  });
+
+  it('guards a same-generation pending create but a new load releases it and a late answer starts no read', async () => {
+    const { store, gateway } = storeWith({ projects: renovation() });
+    await store.load('project-renovation' as ProjectId);
+    const original = gateway.projects.create;
+    const held = deferred<ProjectWriteResult>();
+    gateway.projects.create = () => held.promise;
+    const first = store.createWorkstream('project-renovation' as ProjectId, 'First');
+    expect(await store.createWorkstream('project-renovation' as ProjectId, 'Duplicate')).toBeTruthy();
+    await store.load('project-kitchen' as ProjectId);
+    gateway.projects.create = original;
+    expect(await store.createWorkstream('project-kitchen' as ProjectId, 'Second')).toBeNull();
+    for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
+    const reads = gateway.calls.filter(({ method }) => method === 'projects.get' || method === 'pages.list').length;
+    held.resolve(await original({ workspaceId: 'workspace-demo' as Project['workspaceId'], kind: 'subproject', parentProjectId: 'project-renovation' as ProjectId, name: 'First' }));
+    expect(await first).toBeNull();
+    expect(gateway.calls.filter(({ method }) => method === 'projects.get' || method === 'pages.list')).toHaveLength(reads);
+  });
+
+  it('returns a refused create message and leaves the tree unchanged', async () => {
+    const { store, gateway } = storeWith({ projects: renovation(), failOn: { 'projects.create': new GatewayError('conflict', 409, 'The parent is archived.') } });
+    await store.load('project-renovation' as ProjectId);
+    const before = store.subprojectTree();
+    expect(await store.createWorkstream('project-kitchen' as ProjectId, 'Draft')).toBe('The parent is archived.');
+    expect(store.subprojectTree()).toBe(before);
+    expect(gateway.calls.filter(({ method }) => method === 'projects.create')).toHaveLength(1);
+  });
   it('loads a root, its pages and the work hierarchy beneath it', async () => {
     const { store } = storeWith({ projects: renovation() });
 

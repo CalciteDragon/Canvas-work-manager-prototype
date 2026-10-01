@@ -65,7 +65,7 @@ describe('TimelineSection (§38)', () => {
     expect(gateway.argumentTo('timeline.get')).toBe('project-a');
     expect(fixture.nativeElement.querySelectorAll('[data-timeline-row]')).toHaveLength(4);
     expect(fixture.nativeElement.textContent).toContain('Project');
-    expect(fixture.nativeElement.textContent).toContain('Sub-project');
+    expect(fixture.nativeElement.textContent).toContain('Workstream');
     expect(fixture.nativeElement.textContent).toContain('Task');
     expect(fixture.nativeElement.textContent).toContain('Milestone');
     expect(fixture.nativeElement.querySelectorAll('[data-timeline-range]')).toHaveLength(2);

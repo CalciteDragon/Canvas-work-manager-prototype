@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
+import { EntityNotFoundError, PermissionDeniedError } from './errors';
 import { agentActorFor, buildHarness, MINE, seedContainer } from '../test/test-support';
 
 describe('ProjectJournalService (§36)', () => {
@@ -148,7 +148,7 @@ describe('ProjectJournalService (§36)', () => {
     expect((await harness.projectJournalService.journal(harness.actor, MINE)).items).toEqual([]);
     expect((await harness.projectJournalService.completedWork(harness.actor, MINE)).candidates).toEqual([]);
     await expect(harness.projectJournalService.journal(harness.actor, 'project-missing' as never)).rejects.toBeInstanceOf(EntityNotFoundError);
-    await expect(harness.projectJournalService.completedWork(harness.actor, child.id)).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.projectJournalService.completedWork(harness.actor, child.id)).rejects.toThrow(`project "${child.id}" is a workstream; only a root project has a Reflections page`);
     await expect(harness.projectJournalService.completedWork(harness.actor, 'project-theirs' as never)).rejects.toBeInstanceOf(EntityNotFoundError);
   });
 

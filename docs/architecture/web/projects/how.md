@@ -15,6 +15,22 @@ each option binds `[selected]`, because a `[value]` on the select runs before it
 
 ## Runtime flow
 
+The root-name gear opens a hidden, root-scoped page-settings disclosure. Its local state survives
+page-kind changes while the column stays mounted; Escape closes and focuses the gear, and a live
+root change closes it. The Work plus requests the shell's deferred `WorkCreateDialog`, with an
+inner `@if` so closing destroys its draft. Parent options flatten the live tree, root first;
+completed parents are marked. A disappearing parent resets to the root with a named polite note,
+deferred until a pending submit settles. The shell closes on `store.loading()` or a root change;
+chosen closes focus the visible plus or the narrow column toggle after rendering.
+`ProjectWorkspaceStore.createWorkstream` trims and validates the draft, guards a single flight per
+load generation, reports the child's creation receipt and requests a quiet context read only in
+the generation that started it. Creation keeps the URL and uses the header's existing cross-owner
+history feedback. The user-facing `subproject` noun is Workstream; stored identifiers stay intact.
+The column itself is deferred inside the loaded-root branch, alongside the deferred create dialog;
+the loaded context triggers it immediately. Loading reserves the navigation grid track; a failed
+chunk keeps that track and offers Reload page at the current URL. This keeps the initial graph
+under the unchanged 1050 kB error ceiling (the final measurement is in the Slice 60 record).
+
 Todos captures the task title and owner before its optimistic Delete removes the row. It
 shows no success while the write is pending; a committed answer paints a polite status
 outside the chronology, even after the final row leaves. The status offers the shell's
@@ -149,6 +165,8 @@ generic Retry for the summary read; it does not expose an Undo/Redo entry until 
 | `ProjectWorkspaceShell` | component | Both routes, header, page resolution | [API](../../../api/components/ProjectWorkspaceShell.html) |
 | `ProjectWorkspaceStore` | injectable | Project-level state and writes | [API](../../../api/injectables/ProjectWorkspaceStore.html) |
 | `ProjectPageNavigation` | component | The column; page toggles | [API](../../../api/components/ProjectPageNavigation.html) |
+| `WorkCreateDialog` | component | Workstream draft, explicit parent, pending/refusal and modal focus | [API](../../../api/components/WorkCreateDialog.html) |
+| `WorkCreateParent` | interface | Live parent option view state | [API](../../../api/interfaces/WorkCreateParent.html) |
 | `ProjectHeader`, `ProjectMoreMenu` | components | Header and its menu | [API](../../../api/components/ProjectHeader.html) |
 | `PROJECT_PAGE_REGISTRY` | const | Navigable kinds → renderers | [API](../../../api/miscellaneous/variables.html#PROJECT_PAGE_REGISTRY) |
 | `ProjectPageRenderer`, `ProjectPageRendererInputs` | interfaces | Renderer contract | [API](../../../api/interfaces/ProjectPageRenderer.html) |

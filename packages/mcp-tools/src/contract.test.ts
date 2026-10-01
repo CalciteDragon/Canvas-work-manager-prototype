@@ -463,6 +463,20 @@ const CASES: Record<string, ToolCase> = {
   },
 };
 
+describe('agent-facing workstream vocabulary (§26, §54)', () => {
+  it('defines workstream with the unchanged subproject kind and avoids retired prose', () => {
+    const { registry } = buildHarness();
+    for (const name of ['create_project', 'get_project']) {
+      expect(registry.list().find((tool) => tool.name === name)?.description).toContain('kind "subproject" is a workstream');
+    }
+    for (const tool of registry.list()) {
+      // `sub-projects` is the existing section-type identifier, deliberately unchanged.
+      const prose = tool.name === 'list_sections' ? tool.description.replaceAll('sub-projects', '') : tool.description;
+      expect(prose).not.toMatch(/sub-project|units? of work/i);
+    }
+  });
+});
+
 describe('every §54 tool, on its success and permission-denied paths', () => {
   let harness: ReturnType<typeof buildHarness>;
 

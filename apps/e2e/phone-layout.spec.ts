@@ -5,7 +5,7 @@
  * blocking the workspace, container-query stacking, horizontal overflow and `matchMedia`.
  */
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { addSection, createRoot, seed, setClock } from './seed';
+import { addSection, api, createRoot, seed, setClock } from './seed';
 
 const PHONE = { viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true } as const;
 const THEMES = ['dark', 'light'] as const;
@@ -154,6 +154,52 @@ for (const theme of THEMES) {
 
 for (const theme of THEMES) test.describe(`at phone width, ${theme}`, () => {
   test.use({ ...PHONE, colorScheme: theme });
+
+  test('gear page settings and Work creation stay tappable and fit the viewport', async ({ page }) => {
+    await page.goto('/projects/project-renovation');
+    await useTheme(page, theme);
+    await page.locator('[data-project-nav-toggle]').tap();
+    const gear = page.locator('[data-project-settings-toggle]');
+    await gear.tap();
+    await expect(page.locator('[data-project-page-manager]')).toBeVisible();
+    const toggle = page.locator('[data-page-toggle-kind="reflections"] input');
+    await toggle.tap();
+    await expect(toggle).not.toBeChecked();
+    await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toHaveCount(0);
+    await toggle.press('Escape');
+    await expect(gear).toBeFocused();
+    await expect(page.locator('[data-project-page-manager]')).toBeHidden();
+    const plus = page.locator('[data-work-create]');
+    for (const control of [gear, plus]) {
+      const box = (await control.boundingBox())!;
+      expect(box.height, 'coarse-pointer target height').toBeGreaterThanOrEqual(44);
+      expect(box.width, 'coarse-pointer target width').toBeGreaterThanOrEqual(44);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(375);
+    }
+    await plus.tap();
+    const dialog = page.getByRole('dialog', { name: 'Add workstream' });
+    await expect(dialog).toBeVisible();
+    const box = (await dialog.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(375);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(812);
+    await expectNoHorizontalOverflow(page, 'Work creation dialog');
+    const name = `Phone workstream ${theme}`;
+    await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
+    await expect(dialog.getByRole('combobox', { name: 'Parent', exact: true })).toHaveValue('project-renovation');
+    await expect(dialog).toContainText('Inside Home renovation');
+    const url = page.url();
+    await dialog.getByRole('button', { name: 'Create', exact: true }).tap();
+    await expect(dialog).toHaveCount(0);
+    expect(page.url()).toBe(url);
+    await expect(plus).toBeFocused();
+    const child = (await api.get<Array<{ id: string; name: string; parentProjectId?: string }>>('/api/projects')).find((project) => project.name === name)!;
+    expect(child.parentProjectId).toBe('project-renovation');
+    await expect(page.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
+    await expectNoHorizontalOverflow(page, 'Created workstream');
+  });
 
   test('choosing a destination closes the drawer, navigates and focuses the workspace', async ({ page }) => {
     await page.goto('/app');

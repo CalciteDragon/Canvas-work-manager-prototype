@@ -1,6 +1,6 @@
 import { provideLocationMocks } from '@angular/common/testing';
 import { By } from '@angular/platform-browser';
-import { TestBed } from '@angular/core/testing';
+import { DeferBlockBehavior, DeferBlockState, TestBed } from '@angular/core/testing';
 import { Location } from '@angular/common';
 import { Router, provideRouter, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -117,7 +117,7 @@ type Options = Partial<ReturnType<typeof defaults>> & {
   historySummaries?: OperationHistorySummary[];
 };
 
-const open = async (url: string, options: Options = {}) => {
+const open = async (url: string, options: Options = {}, deferBlockBehavior = DeferBlockBehavior.Playthrough) => {
   const gateway = new FakeWorkManagerGateway({ ...defaults(), ...options });
   const projectGet = vi.spyOn(gateway.projects, 'get');
   const live = new FakeLiveUpdates();
@@ -125,6 +125,7 @@ const open = async (url: string, options: Options = {}) => {
   // independent routers rather than "the test module has already been instantiated".
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
+    deferBlockBehavior,
     providers: [
       provideRouter(routes, withComponentInputBinding()),
       // Not optional: `SpyLocation` makes `replaceState`, `back()`, `forward()` and
@@ -195,6 +196,98 @@ const creationTransition = (
 ): OperationHistoryTransitionResult => ({ direction, actionId: 'operation-created' as never, summary, result } as OperationHistoryTransitionResult);
 
 describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', () => {
+  it('reserves the navigation grid track while its deferred dependency is pending', async () => {
+    const { harness } = await open('/projects/project-renovation', {}, DeferBlockBehavior.Manual);
+    const blocks = await harness.fixture.getDeferBlocks();
+    await blocks[0]!.render(DeferBlockState.Loading);
+    expect(query(harness, 'app-project-page-navigation')).toBeNull();
+    const slot = query(harness, '[data-project-nav-placeholder]');
+    expect(slot).not.toBeNull();
+    expect(slot?.classList.contains('project-workspace__nav')).toBe(true);
+    expect(slot?.nextElementSibling?.classList.contains('project-workspace__main')).toBe(true);
+  });
+
+  it('a deferred navigation failure preserves the slot and offers a reload at the current URL', async () => {
+    const { harness } = await open('/projects/project-kitchen', {}, DeferBlockBehavior.Manual);
+    const blocks = await harness.fixture.getDeferBlocks();
+    await blocks[0]!.render(DeferBlockState.Error);
+    const slot = query(harness, '[data-project-nav-error]');
+    expect(slot?.classList.contains('project-workspace__nav')).toBe(true);
+    expect(slot?.textContent).toContain('Project navigation could not load.');
+    expect(slot?.querySelector('a')?.getAttribute('href')).toBe('/projects/project-kitchen');
+  });
+
+  it('same-root project navigation closes the work dialog', async () => {
+    const { harness, router } = await open('/projects/project-renovation');
+    query(harness, '[data-work-create]')?.click(); await settle(harness);
+    expect(query(harness, '[role="dialog"]')).not.toBeNull();
+    await router.navigateByUrl('/projects/project-kitchen'); await settle(harness);
+    expect(query(harness, '[role="dialog"]')).toBeNull();
+  });
+
+  it('a quiet live reparent to another root closes the work dialog', async () => {
+    const other = project('project-other', 'Other');
+    const { harness, gateway, live } = await open('/projects/project-kitchen', { projects: [...defaults().projects, other] });
+    query(harness, '[data-work-create]')?.click(); await settle(harness);
+    expect(query(harness, '[role="dialog"]')).not.toBeNull();
+    const read = gateway.projects.get;
+    gateway.projects.get = async (id) => id === KITCHEN.id ? { ...KITCHEN, parentProjectId: other.id } as Project : read(id);
+    live.emit({ type: 'project.updated', projectId: KITCHEN.id, entityId: KITCHEN.id, rootProjectId: other.id } as never);
+    await settle(harness);
+    expect(query(harness, '[data-project-nav-root]')?.textContent).toContain('Other');
+    expect(query(harness, '[role="dialog"]')).toBeNull();
+  });
+  it('opens work creation with root-first parents, closes on success and returns focus to the plus', async () => {
+    const { harness, gateway, router } = await open('/projects/project-cabinets');
+    query(harness, '[data-work-create]')?.click();
+    await settle(harness);
+    expect(query(harness, '[role="dialog"]')).not.toBeNull();
+    const select = query(harness, 'select') as HTMLSelectElement;
+    expect([...select.options].map((option) => option.textContent?.trim())).toEqual(['Home renovation', 'Kitchen', 'Cabinets', 'Garden']);
+    expect(select.value).toBe('project-renovation');
+    const name = query(harness, '[role="dialog"] input') as HTMLInputElement;
+    name.value = 'Paint'; name.dispatchEvent(new Event('input'));
+    select.value = 'project-kitchen'; select.dispatchEvent(new Event('change'));
+    query(harness, '[role="dialog"] form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await settle(harness);
+    expect(gateway.argumentTo('projects.create')).toEqual(expect.objectContaining({ parentProjectId: 'project-kitchen', name: 'Paint' }));
+    expect(query(harness, '[role="dialog"]')).toBeNull();
+    expect(document.activeElement).toBe(query(harness, '[data-work-create]'));
+    expect(router.url).toBe('/projects/project-cabinets');
+  });
+
+  it('closes work creation when navigating to another root', async () => {
+    const other = project('project-other', 'Other');
+    const { harness, router } = await open('/projects/project-renovation', { projects: [...defaults().projects, other] });
+    query(harness, '[data-work-create]')?.click(); await settle(harness);
+    expect(query(harness, '[role="dialog"]')).not.toBeNull();
+    await router.navigateByUrl('/projects/project-other'); await settle(harness);
+    expect(query(harness, '[role="dialog"]')).toBeNull();
+  });
+
+  it('a store-initiated prototype reload destroys the dialog without reopening it after the read', async () => {
+    const { harness, gateway, live } = await open('/projects/project-renovation');
+    query(harness, '[data-work-create]')?.click(); await settle(harness);
+    expect(query(harness, '[role="dialog"]')).not.toBeNull();
+    let release!: (value: Project) => void;
+    const held = new Promise<Project>((resolve) => { release = resolve; });
+    const read = gateway.projects.get;
+    gateway.projects.get = () => held;
+    live.emit({ type: 'prototype.reloaded', workspaceId: RENOVATION.workspaceId, at: AT } as never);
+    harness.fixture.detectChanges();
+    expect(query(harness, '[role="dialog"]')).toBeNull();
+    gateway.projects.get = read; release(RENOVATION); await settle(harness);
+    expect(query(harness, '[role="dialog"]')).toBeNull();
+  });
+
+  it('blocks work creation on an archived root with the reason in its accessible name', async () => {
+    const { harness } = await open('/projects/project-renovation', { projects: [project('project-renovation', 'Home renovation', undefined, { status: 'archived' })] });
+    const plus = query(harness, '[data-work-create]');
+    expect(plus?.getAttribute('aria-disabled')).toBe('true');
+    expect(plus?.getAttribute('aria-label')).toContain('Home renovation is archived');
+    plus?.click(); await settle(harness);
+    expect(query(harness, '[role="dialog"]')).toBeNull();
+  });
   it('focuses history controls on a direct fragment load without activating Undo', async () => {
     const { harness, gateway } = await open('/projects/project-kitchen#history-controls');
     const group = query(harness, '#history-controls');
@@ -477,7 +570,7 @@ describe('ProjectWorkspaceShell — §68’s fallbacks', () => {
     const { harness, router } = await open('/projects/project-kitchen/pages/home');
 
     expect(router.url).toBe('/projects/project-kitchen');
-    expect(query(harness, '[data-page-notice]')?.textContent).toContain('unit of work');
+    expect(query(harness, '[data-page-notice]')?.textContent).toContain('workstream');
     expect(query(harness, '[data-project-name]')?.textContent).toContain('Kitchen');
   });
 
@@ -638,6 +731,20 @@ describe('ProjectWorkspaceShell — §23’s narrow widths', () => {
     } finally {
       media.restore();
     }
+  });
+
+  it('returns focus to the toggle when a chosen dialog close finds the narrow column collapsed', async () => {
+    const media = stubMatchMedia(true);
+    try {
+      const { harness } = await open('/projects/project-renovation');
+      query(harness, '[data-project-nav-toggle]')?.click(); await settle(harness);
+      query(harness, '[data-work-create]')?.click(); await settle(harness);
+      expect(query(harness, '[role="dialog"]')).not.toBeNull();
+      query(harness, '[data-project-nav-toggle]')?.click(); await settle(harness);
+      query(harness, '[data-create-work-cancel]')?.click(); await settle(harness);
+      expect(query(harness, '[role="dialog"]')).toBeNull();
+      expect(document.activeElement).toBe(query(harness, '[data-project-nav-toggle]'));
+    } finally { media.restore(); }
   });
 
   it('collapses when the window becomes narrow, and restores when it widens again', async () => {
@@ -1063,7 +1170,7 @@ describe('ProjectWorkspaceShell — the Todos page (§34, §68)', () => {
     const { harness, router } = await open('/projects/project-kitchen/pages/todos', withTodos());
 
     expect(router.url).toBe('/projects/project-kitchen');
-    expect(query(harness, '[data-page-notice]')?.textContent).toContain('unit of work');
+    expect(query(harness, '[data-page-notice]')?.textContent).toContain('workstream');
     expect(query(harness, '[data-section-canvas]')).not.toBeNull();
     expect(query(harness, '[data-todos-list]')).toBeNull();
   });

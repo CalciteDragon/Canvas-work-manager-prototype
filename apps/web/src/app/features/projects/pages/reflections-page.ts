@@ -57,7 +57,7 @@ export class ReflectionsPage implements ProjectPageRenderer {
   }
 
   subjectLabel(subject: ReflectionSubjectView): string {
-    return `${subject.name} · ${subject.kind === 'task' ? 'Task' : 'Unit of work'}`;
+    return `${subject.name} · ${subject.kind === 'task' ? 'Task' : 'Workstream'}`;
   }
 
   removeSubject(): void {

@@ -45,6 +45,18 @@ describe('ReflectionService permissions (§51, §53)', () => {
 });
 
 describe('ReflectionService completed-work subjects (§36)', () => {
+  it.each(['active', 'archived'] as const)('names an ineligible %s workstream in its subject refusal', async (status) => {
+    const harness = buildHarness();
+    const child = await harness.projectService.create(harness.actor, {
+      kind: 'subproject', workspaceId: harness.actor.workspaceId, parentProjectId: MINE, name: 'Launch',
+    });
+    if (status === 'archived') await harness.projectService.archive(harness.actor, child.id);
+
+    await expect(harness.reflectionService.create(harness.actor, {
+      projectId: MINE, body: 'No', subject: { kind: 'subproject', id: child.id },
+    })).rejects.toThrow(`workstream "${child.id}" is ${status === 'archived' ? 'archived' : 'not completed'} and cannot be reflected on`);
+  });
+
   const completedTask = async (harness: ReturnType<typeof buildHarness>) => {
     const sectionId = await seedContainer(harness, MINE);
     return harness.taskService.create(harness.actor, {

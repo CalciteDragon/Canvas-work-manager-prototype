@@ -437,6 +437,22 @@ by real use:
 
 ## Revisions
 
+- **Implementation (2026-09-30):** Independent component, vocabulary and browser work was
+  delegated with bounded file ownership. Store and shell behavior tests failed first (4 each);
+  navigation/dialog tests failed for missing controls and forms, and vocabulary assertions
+  failed on old prose. All passed after implementation. The first build measured 1054.11 kB,
+  above the existing 1050 kB ceiling. Deferring the context-ready column reduced it to 1039.43 kB;
+  the ceiling is unchanged. Added the budget decision amendment to the file list as a measured
+  implementation deviation. Generated Compodoc was rebuilt for the new dialog symbol.
+- **Independent diff review rounds 1–2 (2026-09-30):** Three reviewers independently checked
+  correctness, boundaries, acceptance and living documentation against the actual diff.
+  No boundary violations were found. Fixed decision-index amendment status and the exported
+  parent interface API link. Added narrow collapsed-close focus, same-root navigation close
+  and quiet live-reparent close regressions. The deferred-column review found a missing grid
+  slot; round 2 verified Angular's immediate trigger enters Loading rather than Placeholder.
+  Loading now reserves the slot, and Error retains the slot with a current-URL Reload page link.
+  Both assertions failed first for missing behavior, then all 63 shell tests passed.
+
 - **Initial plan (2026-09-30):** Derived from the umbrella's Stage A after reading the column,
   the shell, the workspace store, `SubProjectsStore`, `SectionCreateDialog`, history feedback,
   the domain's create rules, the MCP descriptions and the e2e journeys that use **Manage pages**

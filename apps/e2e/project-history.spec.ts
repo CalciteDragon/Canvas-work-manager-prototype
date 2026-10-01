@@ -252,7 +252,7 @@ test('2. an optional page toggle is undone and redone from the header', async ({
   const pages = await api.get<ProjectPage[]>('/api/projects/project-personal/pages');
   expect(pages.map(({ kind }) => kind)).toEqual(['home']);
   await page.goto('/projects/project-personal');
-  await page.locator('[data-project-page-manager] summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   await page.locator('[data-page-toggle-kind="reflections"] input').click();
   const tab = page.locator('[data-project-page-tab][data-page-kind="reflections"]');
   await expect(tab).toBeVisible();

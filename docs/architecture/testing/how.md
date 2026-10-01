@@ -91,10 +91,13 @@ a current read, so a race is verified against the canonical write refusal too.
    archive that stays on its project, pending state through a held write, a gated second tab refused
    `history_revision_stale`, an agent's conflicting edit, and expiry after a clock move. The older
    journeys that clicked the notice's Undo now go through `history-controls.ts`.
-   Slice 42's `project-creation-history.spec.ts` creates from the sidebar and a Sub-Projects section,
+   `work-navigation.spec.ts` checks gear and plus behavior in both themes, live parent loss,
+   create refusal, archived-root blocking and a second tab's Work/Todos refresh. The touch
+   path and dialog containment are in `phone-layout.spec.ts`.
+   Slice 42's `project-creation-history.spec.ts` creates from the sidebar and Work plus,
    Undoes and Redoes the same ids, reloads the creator's recovery route, and confirms another actor
    sees *Project unavailable*. A nested-project journey checks the root Work tree, Todos, Archive
-   and the parent's Sub-Projects section after create, Undo and Redo, then verifies the expired
+   and the parent's Work column after create, Undo and Redo, then verifies the expired
    creation route has no stale recovery offer.
 6. `pnpm storybook` serves the story sets with the theme toolbar; `pnpm storybook:build`
    produces a static build the 25.x closeouts used as a check.

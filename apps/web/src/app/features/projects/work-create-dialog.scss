@@ -1,0 +1,81 @@
+:host { display: contents; }
+
+.work-create-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  overflow-y: auto;
+  place-items: center;
+  padding: var(--space-4);
+  isolation: isolate;
+}
+
+.work-create-backdrop::before {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  background: var(--color-background);
+  opacity: 72%;
+  pointer-events: none;
+  content: '';
+}
+
+.work-create-dialog {
+  display: grid;
+  gap: var(--space-4);
+  inline-size: min(100%, var(--layout-reading-width));
+  max-block-size: calc(100dvh - var(--space-6));
+  overflow-y: auto;
+  padding: var(--space-5);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-md);
+}
+
+.work-create-dialog h2 { margin: 0; font-size: var(--font-size-lg); }
+
+.work-create-dialog__form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.work-create-dialog__form label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.work-create-dialog input,
+.work-create-dialog select,
+.work-create-dialog button {
+  min-inline-size: 0;
+  min-block-size: var(--size-hit-target);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.work-create-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.work-create-dialog__note { margin: 0; color: var(--color-text-muted); }
+.work-create-dialog__error { margin: 0; color: var(--color-danger); }
+.work-create-dialog button { cursor: pointer; }
+.work-create-dialog button:disabled { cursor: progress; opacity: 0.65; }
+
+.work-create-dialog button:focus-visible,
+.work-create-dialog input:focus-visible,
+.work-create-dialog select:focus-visible {
+  outline: var(--border-focus) solid var(--color-accent);
+  outline-offset: var(--space-1);
+}

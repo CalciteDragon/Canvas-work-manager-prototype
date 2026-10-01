@@ -196,6 +196,7 @@ describe('TodosPage (§34)', () => {
     // UTC, as stored: the calendar day of the instant, with no local conversion.
     expect(rowFor(fixture, 'task-early').querySelector('[data-todo-due]')?.textContent?.trim()).toBe('2026-09-01');
     expect(rowFor(fixture, 'project-kitchen').querySelector('[data-todo-due]')?.textContent?.trim()).toBe('2026-09-01');
+    expect(rowFor(fixture, 'project-kitchen').querySelector('.todos__kind')?.textContent?.trim()).toBe('Workstream');
     expect(rowFor(fixture, 'task-undated').querySelector('[data-todo-due]')?.textContent?.trim()).toBe('No due date');
     expect(rowFor(fixture, 'task-cancelled').querySelector('[data-todo-status]')?.textContent?.trim()).toBe('Cancelled');
     expect(rowFor(fixture, 'task-nested').querySelector('[data-todo-origin]')?.textContent).toContain('Kitchen');
@@ -465,6 +466,7 @@ describe('TodosPage (§34)', () => {
 
     const empty = await render({ items: [] });
     expect(query(empty.fixture, '[data-todos-empty]')).not.toBeNull();
+    expect(query(empty.fixture, '[data-todos-empty]')?.textContent).toContain('no tasks, and no workstreams.');
     expect(query(empty.fixture, '[data-todos-list]')).toBeNull();
     expect(query(empty.fixture, '[data-todos-error]')).toBeNull();
   });

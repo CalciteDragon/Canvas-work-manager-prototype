@@ -89,6 +89,7 @@ describe('ArchivedRegion', () => {
   it('renders only ready owner entries and the exact cascade count', async () => {
     const fixture = await render();
     expect(all(fixture, '[data-archived-item]')).toHaveLength(2);
+    expect(all(fixture, '[data-archived-kind="subproject"] [data-archived-type]')[0]?.textContent?.trim()).toBe('Workstream');
     expect(all(fixture, '[data-archived-kind="section"] [data-archived-name]')[0]?.textContent).toContain('Backlog');
     expect(all(fixture, '[data-archived-origin]')[0]?.textContent).toContain('Website launch');
     expect(all(fixture, '[data-archived-origin-link]')[0]?.textContent).toContain('Home');

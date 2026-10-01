@@ -110,7 +110,7 @@ export class TodosPage {
   }
 
   kindLabel(item: ProjectTodoItem): string {
-    return item.kind === 'task' ? 'Task' : 'Unit of work';
+    return item.kind === 'task' ? 'Task' : 'Workstream';
   }
 
   statusOf(item: ProjectTodoItem): string {

@@ -43,3 +43,8 @@ and whether three optional pages are the right set still needs broader use.
 After a multiweek pass with several roots, especially if people disable pages after enabling them,
 look for page controls in Settings, or cannot find **Open archive** and disabled-page recovery from
 nested work routes.
+
+**Amended, 2026-09-30 (Slice 60):** The same root-owned controls now open through the gear
+beside the root name. It is a disclosure: Escape closes and focuses the gear, outside clicks
+leave it open, and Home/Work scope and confirmed-state writes are unchanged. See
+[navigation controls](2026-09-project-navigation-gear-and-work-create.md).

@@ -158,13 +158,13 @@ receipt-free.
 ### Say which kind of project, and which page
 
 `create_project` takes a required `kind`. A **root** is a workspace: it starts with a Home page
-and can turn on Todos, Archive and Reflections. A **subproject** is a unit of work with exactly
+and can turn on Todos, Archive and Reflections. A **workstream**, stored as `kind: "subproject"`, has exactly
 one work canvas, requires `parentProjectId`, and has no pages to configure — nesting goes to any
-depth. A root naming a parent, or a subproject without one, is refused rather than reinterpreted,
+depth. A root naming a parent, or a workstream without one, is refused rather than reinterpreted,
 so a call that means one of the two cannot quietly produce the other.
 
 Creation returns `{ project, operation }`; the receipt is the first `project.add` action in that
-project's history. For a root, its canonical page is Home; for a subproject, it is Work. Undo removes
+project's history. For a root, its canonical page is Home; for a workstream, it is Work. Undo removes
 the project and page only while both are unchanged and nothing refers to them, and Redo recreates
 the same ids:
 
@@ -205,7 +205,7 @@ rows and layout survive both directions. A toggle still works while the project 
 
 `update_project`, `archive_project` and `restore_project` answer `{ project, operation }` too. The
 receipt says how the status moved, and it belongs to **that project's** own history — a
-sub-project's, not its root's, even when the call moved it to another root:
+workstream's, not its root's, even when the call moved it to another root:
 
 ```jsonc
 // A rename, a completion, a move or a layout/progress change. The label names the edit:
@@ -229,7 +229,7 @@ Undo writes back exactly the fields that call changed, completion time included,
 field someone changed since alone; a later change to one of the same fields refuses. Reversing a move
 re-checks the destination the way a new move would: it must still exist, must not sit beneath the
 project, and must not be under anything archived. Redoing an archive — or undoing a reactivation —
-refuses while the project has a live sub-project, because archiving never cascades. One narrow
+refuses while the project has a live workstream, because archiving never cascades. One narrow
 exception to the archive freeze applies here and nowhere else: a project's **own** archive can be
 undone, its reactivation redone, and an edit made while it was archived undone or redone, while that
 same project is archived — but an archived **ancestor** still answers `history_blocked:`.
@@ -242,8 +242,8 @@ summary at the absent project's id and Redo from that summary.
 ### Todos
 
 Slice 25.5 adds `get_project_todos` (`projects.read` **and** `tasks.read`): the whole chronology
-under one root project — its own tasks plus every descendant unit of work and every descendant
-task — ordered by due date, undated last, ties broken by kind then id. A unit of work's date-only
+under one root project — its own tasks plus every descendant workstream and every descendant
+task — ordered by due date, undated last, ties broken by kind then id. A workstream's date-only
 due date sorts at the end of that UTC day.
 
 Rows keep their status and stay on the list once finished, done and cancelled alike; archived rows,
@@ -255,7 +255,7 @@ chronology neither creates the Todos page nor depends on it being switched on.
 ### Archive
 
 `get_project_archive` (`projects.read`, `tasks.read` and `reflections.read`) returns the
-root-wide, **ready-only** recovery projection. It lists archived subprojects, sections, tasks
+root-wide, **ready-only** recovery projection. It lists archived workstreams, sections, tasks
 and reflections whose Restore is structurally available now, highest owner first. An archived
 project suppresses descendants, an archived section suppresses its rows, and an archived task
 suppresses archived subtasks. Live content hidden solely by an archived project and blocked
@@ -274,7 +274,7 @@ their own: call `restore_section` first, then `restore_task` / `restore_reflecti
 entry that becomes ready (a parent task brings back the subtasks archived with it).
 
 `list_archived_projects` needs only `projects.read` and lists archived roots plus archived
-subprojects whose ancestors are live across the actor's workspace. It is independent of any
+workstreams whose ancestors are live across the actor's workspace. It is independent of any
 project's Archive page. A root archived with a child appears first; after `restore_project` on
 the root, the independently archived child becomes the next listed project. The same recovery
 is available to a person under **Settings → Archived projects**.
@@ -373,7 +373,7 @@ transition's returned `summary` without calling `get_operation_history`.
 Slice 25.7 adds `get_project_journal` (`projects.read`, `tasks.read` and `reflections.read`). It
 returns the root-wide newest-first reflection feed across Home, the Reflections page and nested
 work canvases, with each entry's canonical origin. A subject-linked entry retains only its task or
-subproject ID in the write; the journal resolves the current name, status, archive state and
+workstream ID in the write; the journal resolves the current name, status, archive state and
 breadcrumb when the caller has the declared read grants. A subject can therefore remain visible
 after its work is reopened or archived. The separate completed-work picker is a page/API read,
 not another MCP tool, and the journal does not require the Reflections tab to be enabled.
@@ -405,7 +405,7 @@ not grant `tasks.read`; call `list_tasks` with that permission to read the sourc
 Once a root has more than one canvas, **where a write lands** stops being a single answer, so
 say it:
 
-- Nothing named — the project's canonical canvas takes it: a root's Home, a subproject's work
+- Nothing named — the project's canonical canvas takes it: a root's Home, a workstream's work
   canvas.
 - `pageId` named — it lands there, provided that page holds that kind of section. A Reflections
   page holds only a reflections container; Todos and Archive hold none, because they project rows

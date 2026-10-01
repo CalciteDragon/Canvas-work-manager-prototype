@@ -112,3 +112,11 @@ eagerly. Before the slice the initial bundle measured 1043.9 kB; the slice's fir
 the ceiling by about 2 kB, with the 850 kB warning still reported. No budget was raised; the
 headroom is now small enough that the next eager feature needs the structural work above
 ([decision](2026-09-phone-navigation-drawer.md)).
+
+**Amended, 2026-09-30 — Slice 60.** The gear, Work plus and shell creation wiring initially
+measured 1054.11 kB despite deferring WorkCreateDialog. The project column now loads through
+`@defer` inside the loaded-root branch, immediately triggered by its available context.
+The build measures 1039.43 kB; the 1050 kB ceiling and 850 kB warning remain unchanged.
+See [navigation controls](2026-09-project-navigation-gear-and-work-create.md).
+Final Slice 60 verification includes a reserved Loading slot and a visible Error reload path:
+1040.05 kB, still below the unchanged ceiling. The 1039.43 kB above was the first deferral build.

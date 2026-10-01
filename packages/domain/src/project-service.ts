@@ -325,7 +325,7 @@ export class ProjectService {
       parentProjectId: id,
     });
     if (children.some((child) => child.status !== 'archived')) {
-      throw new DomainRuleError(`project "${id}" still has active sub-projects`);
+      throw new DomainRuleError(`project "${id}" still has active workstreams`);
     }
   }
 

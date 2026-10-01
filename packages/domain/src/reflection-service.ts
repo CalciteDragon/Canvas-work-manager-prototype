@@ -320,11 +320,11 @@ export class ReflectionService {
       }
       if (subjectProject.status === 'archived') {
         if (!canReadSubject) inaccessible();
-        throw new DomainRuleError(`sub-project "${subject.id}" is archived and cannot be reflected on`);
+        throw new DomainRuleError(`workstream "${subject.id}" is archived and cannot be reflected on`);
       }
       if (subjectProject.status !== 'completed') {
         if (!canReadSubject) inaccessible();
-        throw new DomainRuleError(`sub-project "${subject.id}" is not completed and cannot be reflected on`);
+        throw new DomainRuleError(`workstream "${subject.id}" is not completed and cannot be reflected on`);
       }
     }
 

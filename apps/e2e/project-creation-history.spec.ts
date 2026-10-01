@@ -11,7 +11,7 @@ const rawGet = (persona: string, projectId: string): Promise<Response> =>
     headers: { 'x-prototype-user': persona },
   });
 
-test('project creation Undo and Redo recover roots and sub-projects at the same URL', async ({ page, browser }) => {
+test('project creation Undo and Redo recover roots and workstreams at the same URL', async ({ page, browser }) => {
   test.setTimeout(180_000);
   const browserErrors: string[] = [];
   const expectedMissingProjectIds = new Set<string>();
@@ -78,35 +78,28 @@ test('project creation Undo and Redo recover roots and sub-projects at the same 
   await expect(page.locator('[data-projects-empty]')).toHaveCount(0);
   expect((await api.get<ProjectPage[]>(`/api/projects/${root.id}/pages`)).map(({ id }) => id)).toEqual([rootPage!.id]);
 
-  // Build the child through the root's visible Sub-Projects section. A second open browser page
-  // proves the frame uses the root id and refreshes a tree that is already mounted.
-  await page.locator('[data-empty-canvas-add]').click();
-  await page.locator('[data-create-section-type]').selectOption('sub-projects');
-  await page.locator('[data-create-section-submit]').click();
-  const subProjectsFrame = page.locator('[data-section-frame][data-section-type="sub-projects"]');
-  await expect(subProjectsFrame).toBeVisible();
-
+  // Create from Work while another mounted column watches the root's live frames.
   const watcher = await page.context().newPage();
   observeBrowser(watcher);
   const watcherStream = watcher.waitForResponse((response) => response.url().includes('/prototype/events') && response.status() === 200);
   await watcher.goto(`/projects/${root.id}`);
   await watcherStream;
-  const watcherFrame = watcher.locator('[data-section-frame][data-section-type="sub-projects"]');
-
   const childCreatedResponse = page.waitForResponse((response) =>
     response.request().method() === 'POST' && response.url().endsWith('/api/projects'));
-  await subProjectsFrame.locator('input').fill('Field study');
-  await subProjectsFrame.getByRole('button', { name: 'Create child' }).click();
+  await page.locator('[data-work-create]').click();
+  const dialog = page.getByRole('dialog', { name: 'Add workstream' });
+  await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Field study');
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   const childResult = await (await childCreatedResponse).json() as ProjectWriteResult;
   const child = childResult.project;
   expectedMissingProjectIds.add(child.id);
   const childOperation = childResult.operation;
-  if (childOperation === null) throw new Error('Sub-project creation did not return its operation receipt');
+  if (childOperation === null) throw new Error('Workstream creation did not return its operation receipt');
   expect(child.kind).toBe('subproject');
   expect(child.parentProjectId).toBe(root.id);
   expect(childOperation).toMatchObject({ operation: 'project.add', label: 'Created "Field study"' });
   await expect(page.locator('[data-history-feedback]')).toContainText('recorded in Field study’s history');
-  await expect(watcherFrame.getByRole('link', { name: /Field study/ })).toBeVisible();
+  await expect(watcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
   await page.locator('[data-history-open]').click();
   await expect(page).toHaveURL(new RegExp(`/projects/${child.id}$`));
   await expect(page.locator('[data-project-name]')).toHaveText('Field study');
@@ -120,7 +113,7 @@ test('project creation Undo and Redo recover roots and sub-projects at the same 
   expect((await rawGet('user-demo', child.id)).status).toBe(404);
   const childUndoSummary = await api.get<OperationHistorySummary>(`/api/projects/${child.id}/history`);
   expect(childUndoSummary.redo).toMatchObject({ operation: 'project.add', actionId: childOperation.actionId });
-  await expect(watcherFrame.getByRole('link', { name: /Field study/ })).toHaveCount(0);
+  await expect(watcher.locator(`[data-work-project-id="${child.id}"]`)).toHaveCount(0);
 
   const outsiderContext = await browser.newContext();
   await outsiderContext.addInitScript((key: string) => localStorage.setItem(key, 'user-alex'), PERSONA_STORAGE_KEY);
@@ -138,7 +131,7 @@ test('project creation Undo and Redo recover roots and sub-projects at the same 
   await redoFromHeader(page, 'Created "Field study"');
   await expect(page.locator('[data-project-name]')).toHaveText('Field study');
   expect((await api.get<ProjectPage[]>(`/api/projects/${child.id}/pages`)).map(({ id }) => id)).toEqual([childPage!.id]);
-  await expect(watcherFrame.getByRole('link', { name: /Field study/ })).toBeVisible();
+  await expect(watcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
 
   await undoFromHeader(page, 'Created "Field study"');
   await expect(page.locator('[data-project-creation-recovery]')).toContainText('Creation undone');
@@ -152,17 +145,12 @@ test('project creation Undo and Redo recover roots and sub-projects at the same 
   await watcher.close();
 });
 
-test('creation under a live sub-project refreshes the ancestor work, Todos and Archive projections', async ({ page }) => {
+test('creation under a live workstream refreshes the ancestor work, Todos and Archive projections', async ({ page }) => {
   test.setTimeout(180_000);
   const rootId = 'project-renovation';
   const parentId = 'project-kitchen';
   await seed('nested-projects');
   await setClock(NOW);
-
-  const parentSections = await api.get<Array<{ type: string }>>(`/api/projects/${parentId}/sections`);
-  if (!parentSections.some(({ type }) => type === 'sub-projects')) {
-    await api.post(`/api/projects/${parentId}/sections`, { type: 'sub-projects' });
-  }
 
   const watch = async (path: string): Promise<Page> => {
     const observed = await page.context().newPage();
@@ -178,29 +166,30 @@ test('creation under a live sub-project refreshes the ancestor work, Todos and A
 
   await page.goto(`/projects/${parentId}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Kitchen');
-  const parentFrame = page.locator('[data-section-frame][data-section-type="sub-projects"]');
-  await expect(parentFrame).toBeVisible();
-
   const todosBefore = await api.get<ProjectTodosResult>(`/api/projects/${rootId}/todos`);
   const archiveBefore = await api.get(`/api/projects/${rootId}/archive`);
   const childCreatedResponse = page.waitForResponse((response) =>
     response.request().method() === 'POST' && response.url().endsWith('/api/projects'));
-  await parentFrame.locator('input').fill('Field study follow-up');
-  await parentFrame.getByRole('button', { name: 'Create child' }).click();
+  await page.locator('[data-work-create]').click();
+  const dialog = page.getByRole('dialog', { name: 'Add workstream' });
+  await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Field study follow-up');
+  await dialog.getByRole('combobox', { name: 'Parent', exact: true }).selectOption(parentId);
+  await expect(dialog).toContainText('Inside Kitchen');
+  await dialog.getByRole('button', { name: 'Create', exact: true }).click();
   const childResult = await (await childCreatedResponse).json() as ProjectWriteResult;
   const child = childResult.project;
   expect(child.parentProjectId).toBe(parentId);
   expect(childResult.operation).toMatchObject({ operation: 'project.add', label: 'Created "Field study follow-up"' });
 
   await expect(rootWatcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
-  const parentWatcherFrame = parentWatcher.locator('[data-section-frame][data-section-type="sub-projects"]');
-  await expect(parentWatcherFrame.getByRole('link', { name: /Field study follow-up/ })).toBeVisible();
+  await expect(parentWatcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
   expect((await api.get<Array<{ id: string; parentProjectId?: string }>>('/api/projects'))
     .find(({ id }) => id === child.id)?.parentProjectId).toBe(parentId);
   const todosWithChild = await api.get<ProjectTodosResult>(`/api/projects/${rootId}/todos`);
   expect(todosWithChild.items.some((item) => item.kind === 'subproject' && item.project.id === child.id)).toBe(true);
   expect(await api.get(`/api/projects/${rootId}/archive`)).toEqual(archiveBefore);
   await expect(todosWatcher.locator('section.todos')).toBeVisible();
+  await expect(todosWatcher.locator(`[data-todo-id="${child.id}"]`)).toContainText('Workstream');
   await expect(archiveWatcher.locator('[data-archive-page]')).toBeVisible();
 
   await page.locator('[data-history-open]').click();
@@ -208,7 +197,8 @@ test('creation under a live sub-project refreshes the ancestor work, Todos and A
   await undoFromHeader(page, 'Created "Field study follow-up"');
   await expect(page.locator('[data-project-creation-recovery]')).toContainText('Creation undone');
   await expect(rootWatcher.locator(`[data-work-project-id="${child.id}"]`)).toHaveCount(0);
-  await expect(parentWatcherFrame.getByRole('link', { name: /Field study follow-up/ })).toHaveCount(0);
+  await expect(parentWatcher.locator(`[data-work-project-id="${child.id}"]`)).toHaveCount(0);
+  await expect(todosWatcher.locator(`[data-todo-id="${child.id}"]`)).toHaveCount(0);
   expect((await api.get<Array<{ id: string }>>('/api/projects')).some(({ id }) => id === child.id)).toBe(false);
   expect(await api.get<ProjectTodosResult>(`/api/projects/${rootId}/todos`)).toEqual(todosBefore);
   expect(await api.get(`/api/projects/${rootId}/archive`)).toEqual(archiveBefore);
@@ -216,7 +206,8 @@ test('creation under a live sub-project refreshes the ancestor work, Todos and A
   await redoFromHeader(page, 'Created "Field study follow-up"');
   await expect(page.locator('[data-project-name]')).toHaveText('Field study follow-up');
   await expect(rootWatcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
-  await expect(parentWatcherFrame.getByRole('link', { name: /Field study follow-up/ })).toBeVisible();
+  await expect(parentWatcher.locator(`[data-work-project-id="${child.id}"]`)).toBeVisible();
+  await expect(todosWatcher.locator(`[data-todo-id="${child.id}"]`)).toContainText('Workstream');
   expect((await api.get<Array<{ id: string; parentProjectId?: string }>>('/api/projects'))
     .find(({ id }) => id === child.id)?.parentProjectId).toBe(parentId);
   const todosAfterRedo = await api.get<ProjectTodosResult>(`/api/projects/${rootId}/todos`);

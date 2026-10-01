@@ -37,8 +37,10 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
   inside the workspace reports its receipts to it; it holds the server summary, the pending
   state that covers each write's owed re-read, transitions and one feedback line, and words
   all of it through the pure `history-feedback.ts`.
-- `ProjectPageNavigation`: the column — pages, optional-page toggles, the work tree —
+- `ProjectPageNavigation`: the column — pages, the root-name page-settings gear, the Work plus and work tree —
   placed beside the sidebar by one `:has()` rule.
+- `WorkCreateDialog`: Name and an explicit live Parent for a new workstream, with draft retention
+  on refusal. The shell supplies the callback; the workspace store uses the existing project create.
 - `ProjectCanvas` + `ProjectPageStore`: one page's sections and shortcut placements in
   flow or grid, direct drag, contextual insertion, snapped resizing, inline naming and
   one-gesture removal (live rows cascade with their owner), plus canonical navigation to

@@ -91,13 +91,13 @@ const addReceipt: OperationReceipt = {
   expiresAt: '2026-09-06T10:00:00.000Z',
 };
 
-const render = async (options: { withSection?: boolean; onData?: () => void } = {}) => {
+const render = async (options: { withSection?: boolean; onData?: () => void; completedWork?: typeof completedWork } = {}) => {
   const gateway = new FakeWorkManagerGateway({
     projects: [root],
     pages: [page],
     sections: options.withSection === false ? [] : [section],
     journal,
-    completedWork,
+    completedWork: options.completedWork ?? completedWork,
   });
   const live = new FakeLiveUpdates();
   const onData = options.onData ?? vi.fn();
@@ -124,6 +124,15 @@ const query = (fixture: Awaited<ReturnType<typeof render>>['fixture'], selector:
   fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
 describe('ReflectionsPage (§36)', () => {
+  it('calls a completed subproject a workstream in the subject picker', async () => {
+    const { fixture } = await render({ completedWork: ProjectCompletedWorkResultSchema.parse({
+      projectId: PROJECT,
+      candidates: [{ ...subject, kind: 'subproject', id: 'project-kitchen', name: 'Kitchen', status: 'completed' }],
+    }) });
+
+    expect(query(fixture, '[data-subject-id="project-kitchen"]')?.textContent?.trim()).toBe('Kitchen · Workstream');
+  });
+
   it('renders the page container, picker, linked subject and canonical owner link', async () => {
     const { fixture } = await render();
 

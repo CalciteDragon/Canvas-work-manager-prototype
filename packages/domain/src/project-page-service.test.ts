@@ -200,7 +200,7 @@ describe('ProjectPageService.setEnabled (§26, §31)', () => {
     for (const kind of ['home', 'work', 'todos', 'archive', 'reflections'] as const) {
       await expect(
         harness.projectPageService.setEnabled(harness.actor, subproject.id, { kind, enabled: true }),
-      ).rejects.toThrow(/one work canvas and no pages to configure/);
+      ).rejects.toThrow('a workstream has one work canvas and no pages to configure');
     }
   });
 

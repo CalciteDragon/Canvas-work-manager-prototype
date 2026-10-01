@@ -37,6 +37,9 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 ## Domain
 
+- [Nested project work is called a workstream](2026-09-workstream-user-terminology.md) — current; prose changes, identifiers stay intact.
+- [Page settings and work creation live beside their navigation](2026-09-project-navigation-gear-and-work-create.md) — current; root-name gear and explicit-parent Work plus.
+
 | Entry | Settled | Status |
 |---|---|---|
 | [Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md) | Ready-only parent-first root Archive; workspace Settings recovers archived roots and live-ancestor subprojects | amended; Slice 47 keeps a stale list paused until a current read and moves Settings focus to a usable control |
@@ -57,7 +60,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [A section has a name, and the default is derived rather than stored](2026-09-a-section-has-a-name.md) | `nameOf` over `type`, optional `title` override | amended; Slice 43 retires the live-row refusal dialog |
 | [What undo means for an archived row](2026-09-what-undo-means-for-an-archived-row.md) | Archive Restore remains durable; safe disposable removal can delete after a reference audit | amended; content projection in Slice 29; operation Undo in Slices 30–31; history retirement in Slice 35; section Restore records in Slice 37; Slice 43 cascades live owned rows |
 | [Content-oriented Archive policy](2026-09-content-oriented-archive-policy.md) | Meaningful content, conservative unknowns and owner-container recovery | amended; projection in Slice 29, deletion boundary in Slice 31; Slice 43 changes new removal settlement; Slice 44 adds structural readiness |
-| [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | current |
+| [A root project is a workspace with pages; a subproject is a unit of work](2026-09-project-workspaces-and-subproject-work-units.md) | The 25.x model: kinds, pages, v3 converter, Archive and Todos semantics | amended; Slice 60 adds the gear and workstream terminology |
 | [A root's optional pages are created on first enable](2026-09-optional-pages-are-created-on-first-enable.md) | First enable creates the page; enabling escapes the archive freeze | amended; Slice 38 gives the creation a restricted inverse |
 | [A disabled page refuses new content and keeps everything already on it](2026-09-a-disabled-page-hides-navigation-not-data.md) | Disabled is navigation state, not data loss | amended; Slice 36 history may restore captured content; Slice 43 removes removal-time reassign |
 | [Reassigning a container's rows may cross pages within a project](2026-09-reassign-may-cross-pages.md) | §31 constrains the type, not the page | amended; exercised with Undo in Slice 33; new reassign requests retired in Slice 43 |
@@ -144,7 +147,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [The smallest surface that makes §81's project verbs demonstrable](2026-08-project-create-edit-archive-surface.md) | Sidebar create; More menu for rename, status, date, archive | amended; Slice 39 records each edit in history; Slice 41 keeps the archived project on screen; Slice 42 records create and keeps its recovery at the project URL |
 | [§4's *Agent Modified* task row has no data behind it](2026-08-agent-modified-has-no-data-behind-it.md) | Six of seven `TaskRow` variants; the seventh is a §58 question | current |
 | [Where the project navigation column lives, and what moved with it](2026-09-where-the-project-navigation-column-lives.md) | In the projects feature; height and recovery entry amended in Slice 27 | amended |
-| [Optional page management lives in project navigation](2026-09-optional-page-management-lives-in-project-navigation.md) | The page toggles sit in the navigation column | current |
+| [Optional page management lives in project navigation](2026-09-optional-page-management-lives-in-project-navigation.md) | The page toggles sit in the navigation column | amended; Slice 60 adds the gear and workstream terminology |
 | [The development panel is an overlay and a route, sharing one control set](2026-08-development-panel-surface.md) | `DevPanelControls` is the one implementation of every control | current |
 | [What §46's Agent Connection control is](2026-08-agent-connection-panel-control-is-a-roster.md) | A read-only roster with copyable tokens | current |
 | [The Design Lab is a route with live knobs, not a third theme](2026-08-design-lab-tokens-are-session-knobs.md) | Seven inline custom properties, session-only | current |

@@ -20,13 +20,24 @@
   [attr.aria-label]="'Project navigation for ' + root().name"
   [hidden]="collapsed()"
 >
-  <a data-project-nav-root class="project-nav__root" [routerLink]="['/projects', root().id]">
-    <span aria-hidden="true">{{ root().icon ?? '📁' }}</span>
-    <span class="project-nav__root-name">{{ root().name }}</span>
-  </a>
+  <div class="project-nav__root-row">
+    <a data-project-nav-root class="project-nav__root" [routerLink]="['/projects', root().id]">
+      <span aria-hidden="true">{{ root().icon ?? '📁' }}</span>
+      <span class="project-nav__root-name">{{ root().name }}</span>
+    </a>
+    <button
+      type="button"
+      data-project-settings-toggle
+      class="project-nav__icon-button"
+      [attr.aria-label]="'Project page settings for ' + root().name"
+      [attr.aria-expanded]="settingsOpen()"
+      aria-controls="project-page-settings"
+      (click)="toggleSettings()"
+    ><app-icon name="settings" /></button>
+  </div>
 
   @if (breadcrumbs().length > 0) {
-    <nav class="project-nav__breadcrumbs" aria-label="Parent projects">
+    <nav class="project-nav__breadcrumbs" aria-label="Path to this workstream">
       <ol>
         @for (ancestor of breadcrumbs(); track ancestor.id) {
           <li>
@@ -52,8 +63,9 @@
     }
   </ul>
 
-  <details data-project-page-manager class="project-nav__manager">
-    <summary>Manage pages</summary>
+  <div id="project-page-settings" data-project-page-manager class="project-nav__manager"
+    [hidden]="!settingsOpen()" aria-labelledby="project-page-settings-title" (keydown)="settingsKeydown($event)">
+    <h2 id="project-page-settings-title">Pages</h2>
     <p class="project-nav__manager-help">Choose which optional views appear in this project.</p>
     <div class="project-nav__page-controls">
       <label data-page-toggle-kind="home" class="project-nav__page-control">
@@ -92,15 +104,21 @@
         }
       </div>
     }
-  </details>
+  </div>
 
   <hr />
 
   <!-- §23: "beneath them the root's subprojects as the work hierarchy — a subproject is a
        unit of work, not a page." -->
-  <h2 class="project-nav__heading">Work</h2>
+  <div class="project-nav__work-row">
+    <h2 class="project-nav__heading">Work</h2>
+    <button type="button" data-work-create class="project-nav__icon-button"
+      [attr.aria-label]="workCreateBlocked() ? 'Add workstream — ' + workCreateBlocked() : 'Add workstream'"
+      [attr.aria-disabled]="workCreateBlocked() !== null"
+      (click)="requestWorkCreate()"><app-icon name="plus" /></button>
+  </div>
   @if (workTree().length === 0) {
-    <p data-work-empty class="project-nav__empty">No sub-projects yet</p>
+    <p data-work-empty class="project-nav__empty">No workstreams yet</p>
   } @else {
     <ul class="project-nav__work">
       @for (node of workTree(); track node.project.id) {

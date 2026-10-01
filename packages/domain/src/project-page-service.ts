@@ -111,7 +111,7 @@ export class ProjectPageService {
       // §26: "a subproject cannot acquire pages". Its work canvas is not a tab — it cannot be
       // added, disabled or chosen — so every kind is refused here, including `work` itself.
       if (project.kind !== 'root') {
-        throw new DomainRuleError('a sub-project has one work canvas and no pages to configure');
+        throw new DomainRuleError('a workstream has one work canvas and no pages to configure');
       }
       if (!isNavigablePageKind(input.kind)) {
         throw new DomainRuleError(`a ${input.kind} page is not one a root can configure`);

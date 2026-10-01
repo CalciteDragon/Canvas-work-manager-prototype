@@ -7,6 +7,11 @@ pin the structural eligibility and read result shapes.
 
 ## The layers
 
+`apps/e2e/work-navigation.spec.ts` covers the root-name gear, explicit-parent Work plus,
+stale parents, real create refusal, transport failure, archived-root blocking and two-tab
+tree/Todos refresh. Creation-history journeys create through the Work plus and inspect the
+navigation column; phone-layout also covers these controls at 375 px with touch.
+
 ```mermaid
 flowchart TB
   subgraph offline["pnpm test — offline, browser-free; isolated localhost ports and temp files"]

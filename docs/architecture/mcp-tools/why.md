@@ -88,6 +88,7 @@ unknown-tool response.
 
 ## Decisions that shape this system
 
+- [The nested project kind is called a workstream in user and agent prose](../../decisions/2026-09-workstream-user-terminology.md) — descriptions teach the unchanged `subproject` identifier through the same noun the browser uses.
 - [MCP history conflicts explain their repair in words](../../decisions/2026-09-mcp-history-conflict-guidance.md) — the shared formatter serves text-only agents without changing typed browser feedback.
 
 - [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — a read tool exposes the domain's workspace projection without widening Restore grants.
@@ -115,6 +116,6 @@ unknown-tool response.
 
 ## Spec sections
 
-§48 goals · §49 architecture · §54 initial tools (and the roots/work-units/pages
+§48 goals · §49 architecture · §54 initial tools (and the roots/workstreams/pages
 additions) · §55 experimental tool registry · §56 tool experiments · §60 tests without a
 server.

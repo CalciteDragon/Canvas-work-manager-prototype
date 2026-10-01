@@ -30,6 +30,7 @@
 } @else if (store.project(); as project) {
   <div class="project-workspace">
     @if (store.root(); as root) {
+      @defer (when true) {
       <app-project-page-navigation
         class="project-workspace__nav"
         [root]="root"
@@ -42,11 +43,24 @@
         [pageWritePending]="store.pageWritePending()"
         [pageWriteError]="store.pageWriteError()"
         [pageWriteRetryKind]="store.pageWriteRetryKind()"
+        [workCreateBlocked]="workCreateBlocked()"
+        (workCreateRequested)="openWorkCreate()"
         (toggleRequested)="toggleNavigation()"
         (pageToggleRequested)="setPageEnabled($event.kind, $event.enabled)"
         (retryPageRequested)="retryPageContext()"
         (linkSelected)="onColumnLinkSelected($event)"
       />
+      } @placeholder {
+        <div data-project-nav-placeholder class="project-workspace__nav" aria-hidden="true"></div>
+      } @loading {
+        <div data-project-nav-placeholder class="project-workspace__nav" aria-hidden="true"></div>
+      } @error {
+        <div data-project-nav-error class="project-workspace__nav">
+          <p class="project-workspace__muted" role="alert">
+            Project navigation could not load. <a [href]="navigationReloadUrl()">Reload page</a> to try again.
+          </p>
+        </div>
+      }
     }
 
     <div class="project-workspace__main">
@@ -109,4 +123,9 @@
       }
     </div>
   </div>
+  @defer (when workCreateOpen()) {
+    @if (workCreateOpen()) {
+      <app-work-create-dialog [parents]="workCreateParents()" [create]="createWorkstream" (closed)="closeWorkCreate()" />
+    }
+  }
 }

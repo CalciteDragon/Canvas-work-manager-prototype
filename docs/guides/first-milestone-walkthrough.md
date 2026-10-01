@@ -66,15 +66,17 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    column shows Home, Todos, Archive and Reflections, followed by a three-level work tree:
    **Kitchen → Cabinets**, plus **Garden**. Home contains the seven registered section kinds and
    four seeded shortcut frames, so this is the useful starting point for the rest of the pass.
-6. **Manage pages.** Open **Manage pages** in the project column. Home is checked and disabled;
+6. **Page settings and work creation.** Open the gear beside the root name in the project column. Home is checked and disabled;
    Todos, Archive and Reflections are ordinary persisted toggles. Disable Todos, visit its old
    URL, and use **Enable Todos** in the Home fallback; the tab and route return only after the
    setting has been saved and fresh page context has arrived. Reload to confirm the setting.
-7. **Root context on a work unit.** Open **Kitchen**, then **Cabinets**. The root's project
+   Use the plus beside **Work** to add a workstream; choose Parent and check the "Inside …"
+   line before Create. The route stays put, and the header's Open link reaches its own history.
+7. **Root context on a workstream.** Open **Kitchen**, then **Cabinets**. The root's project
    column and manager remain visible, but there is no Work toggle and no `/pages/work` tab. The
-   main area is the work unit's one canvas, and its breadcrumbs lead back through Home renovation
+   main area is the workstream's one canvas, and its breadcrumbs lead back through Home renovation
    and Kitchen.
-8. **Edit work metadata.** Open **⋯** in a root or work-unit header. Set a name, description,
+8. **Edit work metadata.** Open **⋯** in a root or workstream header. Set a name, description,
    status or target/due date, reload, and confirm the stored value. Archive is a deliberate
    action with confirmation; archiving Home renovation while live children remain is refused.
 9. **Recover archived work.** On the showcase's **Archive** page, inspect the independently
@@ -122,7 +124,7 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
     The frame identifies its source and has **Open source**; its embedded content is read-only.
     Remove the placement and confirm the source section and its rows remain unchanged. Every
     placement write — add, resize, collapse, move, remove — is undoable, and each one belongs to
-    this root project's history rather than the sub-project the source lives in.
+    this root project's history rather than the workstream the source lives in.
 
 ---
 
@@ -138,17 +140,17 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 18. **Sub-projects and timeline.** The Sub-Projects frame mirrors the work hierarchy and links
     into it. Timeline shows the project's dated records in order.
 19. **Todos.** Open the root's Todos tab. It is one chronological projection across root tasks,
-    nested work units and their tasks: due dates first, equal instants by kind then ID, completed
+    nested workstreams and their tasks: due dates first, equal instants by kind then ID, completed
     and cancelled rows retained, and undated work last. Follow **Choose appliance finishes** to
     its canonical Kitchen Task List; the link opens the owning container rather than copying it.
 20. **Reflections.** Open the root's Reflections tab. The journal combines general entries with
-    entries about the completed Garden subproject and lighting task. Complete **Confirm
+    entries about the completed Garden workstream and lighting task. Complete **Confirm
     renovation budget**, choose it in the completed-work picker, and add a reflection. Reopen the
     task; the reflection stays in the journal and shows its current Todo state.
 21. **Archive.** The root Archive page lists currently restorable archived sections, tasks,
-    reflections and subprojects across the tree, including content whose page is disabled. Each
+    reflections and workstreams across the tree, including content whose page is disabled. Each
     row names its origin. Restore the highest owner first; independently archived children then
-    appear as their own next steps. Settings lists archived roots and subprojects ready for
+    appear as their own next steps. Settings lists archived roots and workstreams ready for
     project Restore throughout the workspace.
 22. **Reflections sections.** A Reflections section on an ordinary canvas shows its own entries;
     the Reflections page owns its dedicated container and composer. The page feed is read-only and
@@ -163,7 +165,7 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 23. **Create.** Type a title in a Task List quick-add field and press **Add task**. The row
     appears in its owning section.
 24. **Complete.** Click a task's checkbox. It ticks and strikes through immediately, and the
-    owning project's progress moves. Completing a subproject does not complete its children.
+    owning project's progress moves. Completing a workstream does not complete its children.
 25. **Edit.** Open a task's title or **Details**, change the text, and press Enter. The new title
     survives reload; an empty title is refused with a message.
 26. **Due date and priority.** In the drawer set **Due date** and then **Priority** to *high*.
@@ -236,7 +238,7 @@ standalone connection matrix. Both processes still running. Full setup in
     `get_project_journal`; the responses retain canonical project/page/container origins. Archive
     remains queryable even when its navigation page is disabled. Call `list_archived_projects`
     under `projects.read`, then `restore_project` with an explicit non-archived status under
-    `projects.write` to recover an archived root or ready subproject.
+    `projects.write` to recover an archived root or ready workstream.
 41. **Agent permissions.** Go to **Settings → AI & Agents**. Each connection lists its grants as
     checkboxes. Uncheck a write permission for Claude and ask the agent to create another task:
     it is refused, and the refusal **names the missing permission**. For a derived read, the

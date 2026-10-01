@@ -963,6 +963,14 @@ Project hierarchy should optionally expand inline.
 
 ## The project navigation column
 
+*Corrected in Slice 60 (2026-09-30).* The gear beside the root name opens the same root-scoped
+page settings from every route. It is a disclosure with fixed Home, optional Todos/Archive/
+Reflections, pending/refusal/retry states and Escape focus return. The plus beside **Work** opens
+**Add workstream**, with Name and explicit Parent, root by default. Completed parents are marked;
+archived ancestry is unavailable. Creation is awaited, keeps the current route, refreshes the
+tree and uses the header's existing child's-history feedback and Open link. An archived root's
+plus stays focusable with its reason. No Work page toggle is added.
+
 A root project is a workspace with pages (§26), so opening one adds a **second navigation
 column** between the sidebar and the main workspace:
 
@@ -1187,6 +1195,11 @@ gain the child action; it names the child's history and links to it
 ([why](docs/decisions/2026-09-project-creation-history.md)).
 
 ## Two kinds of project
+
+*Terminology correction, Slice 60 (2026-09-30).* People and agents call the nested
+`kind: 'subproject'` a **workstream**. Roots remain projects. The identifier, ids, routes, tool
+names, recorded history labels and Sub-Projects section remain unchanged; this is a prose change
+([decision](docs/decisions/2026-09-workstream-user-terminology.md)).
 
 A project is one of two things, and the difference is structural rather than cosmetic:
 
@@ -2744,6 +2757,10 @@ get_dashboard_context
 ```
 
 ## Roots, work units and pages
+
+*Terminology correction, Slice 60 (2026-09-30).* Agent descriptions call `kind "subproject"`
+a **workstream**; `create_project` and `get_project` define the mapping explicitly. Tool and
+field names are unchanged, including the legacy `sub-projects` section identifier.
 
 Once projects split into roots and subprojects (§26), an agent must be able to say which it
 means. Creating a root and creating a unit of work are **distinct, discoverable operations**,

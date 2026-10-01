@@ -34,7 +34,8 @@ import {
   type OptionalProjectPageKind,
   type ProjectPageResolution,
 } from './project-page-registry';
-import { ProjectWorkspaceStore } from './project-workspace-store';
+import { ProjectWorkspaceStore, type WorkTreeNode } from './project-workspace-store';
+import { WorkCreateDialog, type WorkCreateParent } from './work-create-dialog';
 import type { SettableProjectStatus } from './project-more-menu';
 
 /** How a fallback's reason travels a redirect. See `noticeFromNavigation`. */
@@ -89,7 +90,7 @@ export class ProjectColumnFocusRequest {
 @Component({
   selector: 'app-project-workspace-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgComponentOutlet, ProjectHeader, ProjectHistoryControls, ProjectHistoryFeedback, ProjectPageNavigation],
+  imports: [NgComponentOutlet, ProjectHeader, ProjectHistoryControls, ProjectHistoryFeedback, ProjectPageNavigation, WorkCreateDialog],
   // `providers`, not `viewProviders`: the page renderers are mounted through `NgComponentOutlet`,
   // and every writer store inside them must resolve the header's history as its reporter
   // (Slice 41). The inert root default would otherwise hide a wiring mistake.
@@ -130,6 +131,26 @@ export class ProjectWorkspaceShell {
   private readonly archiveNavigationPendingState = signal(false);
   /** A single reconciliation key prevents a held summary from reloading forever. */
   private creationReconciliationKey: string | null = null;
+  readonly workCreateOpen = signal(false);
+  private workCreateRootId: ProjectId | null = null;
+  readonly workCreateBlocked = computed(() => {
+    const root = this.store.root();
+    return root?.status === 'archived' ? `unavailable while ${root.name} is archived` : null;
+  });
+  readonly workCreateParents = computed<WorkCreateParent[]>(() => {
+    const root = this.store.root();
+    if (root === null) return [];
+    const result: WorkCreateParent[] = [{ id: root.id, name: root.name, depth: 0, completed: root.status === 'completed' }];
+    const visit = (nodes: WorkTreeNode[], depth: number): void => {
+      for (const node of nodes) {
+        result.push({ id: node.project.id, name: node.project.name, depth, completed: node.project.status === 'completed' });
+        visit(node.children, depth + 1);
+      }
+    };
+    visit(this.store.subprojectTree(), 1);
+    return result;
+  });
+  readonly createWorkstream = (parentId: ProjectId, name: string): Promise<string | null> => this.store.createWorkstream(parentId, name);
 
   readonly notice = this.noticeState.asReadonly();
   readonly noticeEnableKind = this.noticeEnableKindState.asReadonly();
@@ -215,6 +236,12 @@ export class ProjectWorkspaceShell {
   });
 
   constructor() {
+    effect(() => {
+      const loading = this.store.loading();
+      const rootId = this.store.root()?.id ?? null;
+      if (loading || rootId !== this.workCreateRootId) this.workCreateOpen.set(false);
+      this.workCreateRootId = rootId;
+    });
     // A direct load resolves asynchronously and a fragment-only navigation can reuse the shell.
     // Inspect the current URL after each render until its matching header exists, then focus once.
     afterEveryRender(() => this.focusHistoryFragment(), { injector: this.injector });
@@ -378,6 +405,24 @@ export class ProjectWorkspaceShell {
 
   toggleNavigation(): void {
     this.collapsedState.update((collapsed) => !collapsed);
+  }
+
+  /** A full reload retries a failed deferred dependency while preserving the current route. */
+  navigationReloadUrl(): string { return this.router.url; }
+
+  /** The column requests the dialog; the loaded root determines whether creation is available. */
+  openWorkCreate(): void {
+    if (!this.store.loading() && this.workCreateBlocked() === null) this.workCreateOpen.set(true);
+  }
+
+  /** A chosen close restores focus after the deferred dialog leaves the view. Loads move no focus. */
+  closeWorkCreate(): void {
+    this.workCreateOpen.set(false);
+    afterNextRender(() => {
+      const host = this.host.nativeElement;
+      const plus = this.collapsed() ? null : host.querySelector<HTMLElement>('[data-work-create]');
+      (plus ?? host.querySelector<HTMLElement>('[data-project-nav-toggle]'))?.focus();
+    }, { injector: this.injector });
   }
 
   /**

@@ -84,7 +84,16 @@ describe('project page registry (§26, §68)', () => {
       requestedKind: 'todos',
     });
 
-    expect(resolution).toMatchObject({ outcome: 'redirect', to: ['/projects', CHILD.id] });
+    expect(resolution).toMatchObject({
+      outcome: 'redirect', to: ['/projects', CHILD.id],
+      reason: '“Child” is a workstream with a single canvas, so it has no pages.',
+    });
     expect('enableKind' in resolution).toBe(false);
+  });
+
+  it('names a workstream when its canonical canvas is unavailable', () => {
+    expect(resolveProjectPage({ project: CHILD, ownPages: [], requestedKind: null })).toEqual({
+      outcome: 'unavailable', reason: 'This workstream has no canvas to show.',
+    });
   });
 });

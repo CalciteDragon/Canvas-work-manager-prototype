@@ -2,6 +2,12 @@
 
 ## The problem it solves
 
+The root-name gear and Work plus put settings and creation beside the navigation they affect,
+with an explicit root-default parent and the child's existing history feedback
+([navigation controls](../../../decisions/2026-09-project-navigation-gear-and-work-create.md)).
+Nested `subproject` work is called a workstream in user prose
+([terminology](../../../decisions/2026-09-workstream-user-terminology.md)).
+
 The project page is the central product experience and where most learning happens
 (§26). It has to let a person try answers to §2's page questions — Notion-like or
 widget-like, columns or not, resizable or not, which section types deserve to exist —

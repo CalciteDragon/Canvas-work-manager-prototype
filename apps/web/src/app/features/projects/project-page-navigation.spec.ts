@@ -98,6 +98,59 @@ const queryAll = (fixture: Awaited<ReturnType<typeof render>>, selector: string)
   [...fixture.nativeElement.querySelectorAll(selector)] as HTMLElement[];
 
 describe('ProjectPageNavigation (§23)', () => {
+  it('gear toggles a rendered hidden panel with the right accessible name and controls; Escape closes and focuses it', async () => {
+    const fixture = await render();
+    const gear = query(fixture, '[data-project-settings-toggle]')!;
+    const panel = query(fixture, '[data-project-page-manager]')!;
+    expect(gear).not.toBeNull();
+    expect(gear.getAttribute('aria-label')).toBe('Project page settings for Home renovation');
+    expect(gear.getAttribute('aria-controls')).toBe(panel.id);
+    expect(panel.hidden).toBe(true);
+    gear.click();
+    fixture.detectChanges();
+    expect(gear.getAttribute('aria-expanded')).toBe('true');
+    expect(panel.hidden).toBe(false);
+    panel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(panel.hidden).toBe(true);
+    expect(document.activeElement).toBe(gear);
+  });
+
+  it('keeps settings open on same-root page and pending changes; closes on root change', async () => {
+    const fixture = await render();
+    query(fixture, '[data-project-settings-toggle]')!.click();
+    fixture.componentRef.setInput('activeKind', 'todos');
+    fixture.componentRef.setInput('pageWritePending', true);
+    fixture.componentRef.setInput('root', { ...ROOT, name: 'Renamed' });
+    fixture.detectChanges();
+    expect(query(fixture, '[data-project-page-manager]')!.hidden).toBe(false);
+    fixture.componentRef.setInput('root', project('project-other', 'Other'));
+    fixture.detectChanges();
+    expect(query(fixture, '[data-project-page-manager]')!.hidden).toBe(true);
+  });
+
+  it('plus requests work creation; a blocked plus remains focusable and names its reason', async () => {
+    const fixture = await render();
+    const plus = query(fixture, '[data-work-create]') as HTMLButtonElement;
+    expect(plus).not.toBeNull();
+    const create = vi.fn();
+    fixture.componentInstance.workCreateRequested.subscribe(create);
+    plus.click();
+    expect(create).toHaveBeenCalledTimes(1);
+    fixture.componentRef.setInput('workCreateBlocked', 'unavailable while Home renovation is archived');
+    fixture.detectChanges();
+    expect(plus.disabled).toBe(false);
+    expect(plus.getAttribute('aria-disabled')).toBe('true');
+    expect(plus.getAttribute('aria-label')).toBe('Add workstream — unavailable while Home renovation is archived');
+    plus.click();
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('breadcrumbs are labelled Path to this workstream', async () => {
+    const fixture = await render({ breadcrumbs: [ROOT, KITCHEN], currentProjectId: CABINETS.id });
+    expect(query(fixture, '.project-nav__breadcrumbs')?.getAttribute('aria-label')).toBe('Path to this workstream');
+  });
+
   it('keeps Archive out of the navigation column actions', async () => {
     const fixture = await render();
 
@@ -286,7 +339,7 @@ describe('ProjectPageNavigation (§23)', () => {
   it('says so rather than rendering an empty list when a root has no work yet', async () => {
     const fixture = await render({ workTree: [] });
 
-    expect(query(fixture, '[data-work-empty]')?.textContent).toContain('No sub-projects yet');
+    expect(query(fixture, '[data-work-empty]')?.textContent).toContain('No workstreams yet');
   });
 
   // §23: at narrow widths the column "collapses behind a labelled control rather than
@@ -345,7 +398,7 @@ describe('ProjectPageNavigation (§23)', () => {
       const { fixture, selected } = await renderReporting();
 
       query(fixture, '[data-project-nav-toggle]')!.click();
-      query(fixture, '[data-project-page-manager] summary')!.click();
+      query(fixture, '[data-project-settings-toggle]')!.click();
       query(fixture, '[data-page-toggle-kind="todos"] input')!.click();
       const tab = query(fixture, '[data-project-page-tab]')!;
       tab.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true }));

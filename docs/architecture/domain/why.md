@@ -214,6 +214,7 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [A disabled page refuses new content and keeps everything already on it](../../decisions/2026-09-a-disabled-page-hides-navigation-not-data.md)
 - [A root's optional pages are created on first enable](../../decisions/2026-09-optional-pages-are-created-on-first-enable.md)
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md)
+- [The nested project kind is called a workstream in user and agent prose](../../decisions/2026-09-workstream-user-terminology.md) — domain refusals use the product noun while the stored kind and rules stay unchanged.
 - [What undo means for an archived row](../../decisions/2026-09-what-undo-means-for-an-archived-row.md)
 - [A section has a name, and the default is derived rather than stored](../../decisions/2026-09-a-section-has-a-name.md)
 - [Container sections own their rows; view sections own nothing](../../decisions/2026-09-sections-own-their-data.md)

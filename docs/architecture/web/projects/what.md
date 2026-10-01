@@ -7,6 +7,7 @@ flowchart TB
   shell["ProjectWorkspaceShell<br/>both project routes; header once; page resolution"]
   wstore["ProjectWorkspaceStore<br/>record, progress, writes, work tree"]
   nav["ProjectPageNavigation<br/>pages, toggles, work tree (ProjectWorkItem)"]
+  workcreate["WorkCreateDialog<br/>Name, live Parent, awaited create"]
   header["ProjectHeader → ProjectMoreMenu"]
   hist["ProjectHistoryStore<br/>summary, pending, transitions; OPERATION_HISTORY_REPORTER"]
   controls["ProjectHistoryControls · ProjectHistoryFeedback<br/>projected into the header"]
@@ -37,6 +38,8 @@ flowchart TB
   create["SectionCreateDialog · InsertionPoint · SectionResizeHandle"]
   shell --> wstore
   shell --> nav
+  shell --> workcreate
+  workcreate -. "create callback" .-> wstore
   shell --> header
   shell --> hist
   header --> controls --> hist

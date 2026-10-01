@@ -136,7 +136,7 @@ describe('ProjectService.archive', () => {
     const harness = buildHarness();
     const child = await create(harness, { name: 'Child', parentProjectId: MINE });
 
-    await expect(harness.projectService.archive(harness.actor, MINE)).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.projectService.archive(harness.actor, MINE)).rejects.toThrow(`project "${MINE}" still has active workstreams`);
 
     await harness.projectService.archive(harness.actor, child.id);
     expect((await harness.projectService.archive(harness.actor, MINE)).status).toBe('archived');

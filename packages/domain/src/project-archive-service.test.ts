@@ -128,7 +128,7 @@ describe('ProjectArchiveService (§31)', () => {
     });
 
     await expect(archive.derive(harness.actor, ROOT)).resolves.toMatchObject({ root: { status: 'archived' } });
-    await expect(archive.derive(harness.actor, KITCHEN)).rejects.toThrow(/only a root project/);
+    await expect(archive.derive(harness.actor, KITCHEN)).rejects.toThrow(`project "${KITCHEN}" is a workstream; only a root project has an Archive page`);
   });
 
   it('keeps ready content visible when the optional Archive page is disabled', async () => {

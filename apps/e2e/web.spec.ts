@@ -252,8 +252,7 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
     return pages.find((candidate) => candidate.kind === kind);
   };
 
-  const manager = page.locator('[data-project-page-manager]');
-  await manager.locator('summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   for (const kind of ['todos', 'archive', 'reflections'] as const) {
     await pageToggle(kind).click();
     await expect(pageToggle(kind)).toBeChecked();
@@ -267,13 +266,13 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
   await expect.poll(async () => (await pageRecord('todos'))?.enabled).toBe(false);
   await page.reload();
   await expect(pageToggle('todos')).not.toBeChecked();
-  await manager.locator('summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   await pageToggle('todos').click();
   await expect(pageToggle('todos')).toBeChecked();
   await page.reload();
   await expect(page.locator('[data-project-page-tab][data-page-kind="todos"]')).toBeVisible();
 
-  await manager.locator('summary').click();
+  await page.locator('[data-project-settings-toggle]').click();
   await pageToggle('reflections').click();
   await expect(page.locator('[data-project-page-tab][data-page-kind="reflections"]')).toHaveCount(0);
   await page.goto(`/projects/${projectId}/pages/reflections`);
@@ -299,6 +298,7 @@ test('a person can manage optional pages, re-enable a disabled route, and keep t
   await page.goto(`/projects/${grandchild.id}`);
   await expect(page.locator('[data-project-name]')).toHaveText('Nested unit');
   await expect(page.locator('[data-project-nav-root]')).toContainText('Page management journey');
+  await page.locator('[data-project-settings-toggle]').click();
   await expect(page.locator('[data-project-page-manager]')).toBeVisible();
   await expect(page.locator('[data-page-toggle-kind="work"]')).toHaveCount(0);
   await expect(page.locator('[data-page-toggle-kind="home"] input')).toBeDisabled();
@@ -337,7 +337,7 @@ test('injected gateway failures roll back a task but preserve confirmed optional
     await expect(task).not.toHaveClass(/todos__row--finished/);
     await expect(page.locator('[data-todo-write-error]')).toContainText('prototype failure injection');
 
-    await page.locator('[data-project-page-manager] summary').click();
+    await page.locator('[data-project-settings-toggle]').click();
     const todosToggle = page.locator('[data-page-toggle-kind="todos"] input');
     await todosToggle.click();
     await expect(todosToggle).toBeChecked();

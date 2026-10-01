@@ -189,3 +189,10 @@ and §27's chain has no "unless its owner is a subproject" clause in every reade
 page in the product: it cannot be added, disabled, chosen or navigated to as a tab. The
 tripwire is about a growing menu of things a person can turn on, and this adds nothing to that
 menu.
+
+**Amended, 2026-09-30 (Slice 60).** The nested kind is now called a **workstream** in
+user-visible and agent-visible prose, including domain refusals. Its stored `subproject`
+kind, ownership, nesting rules, routes and tool names retain the shape recorded here.
+The Sub-Projects section keeps its existing name until its retirement in Slice 59 Stage E;
+transactional "unit of work" remains the persistence pattern. The noun and rejected
+alternatives are recorded in [workstream user terminology](2026-09-workstream-user-terminology.md).
