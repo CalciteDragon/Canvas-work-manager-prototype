@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 61 | Slice 61 — Reversible task checkbox and click selection (Slice 59 Stage B) | Task checkboxes reopen done tasks in Task Lists and Todos; title or row click selects a task and its title is edited in the drawer | [61-task-reopen-and-selection.md](active/61-task-reopen-and-selection.md) |
 
 ### Planned
 
