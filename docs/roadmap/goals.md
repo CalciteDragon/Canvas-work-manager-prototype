@@ -58,12 +58,14 @@ The user requested a new branch and an
 [umbrella implementation plan in Slice 59](planned/59-markdown-and-work-navigation.md):
 Markdown source/rendering in place of Rich Text, task checkbox reopening and click selection,
 project-name page-settings gear, Work creation plus, clearer nested-work terminology and
-section shortcuts on work canvases, replacing the Sub-Projects section view. This is planning
-only; current product behavior remains unchanged. The umbrella orders six bounded stages and
+section shortcuts on work canvases, replacing the Sub-Projects section view. Stage A is delivered;
+the remaining work is planned. The umbrella orders six bounded stages and
 records proposed defaults, explicit migration/history work and integrated acceptance.
-[Slice 60](active/60-workstream-navigation-controls.md) is active as Stage A: the
+[Slice 60](completed/60-workstream-navigation-controls.md) completed Stage A: the
 **workstream** vocabulary, the page-settings gear beside the root name and the Work plus with an
-explicit parent. Implementation is under final verification and independent diff review.
+explicit parent. Three independent reviewers' diff findings are resolved, all 95 integrated
+browser tests passed, and the final 40 targeted checks passed after review repairs. No implementation
+slice is active; Stage B task interaction remains the next bounded stage in the umbrella.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed

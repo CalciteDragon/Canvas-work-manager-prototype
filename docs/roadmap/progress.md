@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 60 | Slice 60 — Workstream vocabulary and project-column controls (Slice 59 Stage A) | Workstream user vocabulary; a gear beside the root name opens page settings; a plus beside Work creates nested work with an explicit parent | [60-workstream-navigation-controls.md](active/60-workstream-navigation-controls.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -98,4 +96,5 @@ verification follow-ups rather than feature slices.
 | 58 | Slice 58 — Phone navigation layout | 2026-09-29 | Below 48rem the global sidebar is an accessible modal drawer; narrow project-column choices re-collapse the column and focus its toggle; narrow Task Lists stack the details drawer | [58-phone-navigation-layout.md](completed/58-phone-navigation-layout.md) |
 | 34 | Slice 34 — Project Undo/Redo and simpler Archive | 2026-09-30 | Project Undo/Redo and simpler Archive delivered, verified and follow-up findings closed | [34-undo-redo-and-archive.md](completed/34-undo-redo-and-archive.md) |
 | 46 | Slice 46 — Slice 34 close-out follow-up | 2026-09-30 | Follow-up evidence, documentation reconciliation and Slice 34 closure gate verified | [46-slice-34-closeout-follow-up.md](completed/46-slice-34-closeout-follow-up.md) |
+| 60 | Slice 60 — Workstream vocabulary and project-column controls (Slice 59 Stage A) | 2026-09-30 | Workstream vocabulary, root-name page settings and explicit-parent Work creation delivered with reviewed desktop, touch, live and MCP evidence | [60-workstream-navigation-controls.md](completed/60-workstream-navigation-controls.md) |
 <!-- roadmap:end -->

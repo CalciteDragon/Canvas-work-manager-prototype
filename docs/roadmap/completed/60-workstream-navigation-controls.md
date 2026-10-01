@@ -1,4 +1,10 @@
-<!-- plan id="60" status="active" summary="Workstream user vocabulary; a gear beside the root name opens page settings; a plus beside Work creates nested work with an explicit parent" -->
+<!-- completed-record id="60" closed="2026-09-30" summary="Workstream vocabulary, root-name page settings and explicit-parent Work creation delivered with reviewed desktop, touch, live and MCP evidence" -->
+
+> **Documentation amendment, 2026-09-30:** The verification total is **2,824 tests** (including
+> nine root-script tests), rather than a count of individual assertions. The original Initial
+> plan and plan-review bullets following Outcome are preserved continuations of Revisions;
+> Outcome ends at **Documentation updated**. This note corrects that grouping without rewriting
+> the frozen record's historical text.
 # Slice 60 — Workstream vocabulary and project-column controls (Slice 59 Stage A)
 
 ## Goal
@@ -452,6 +458,65 @@ by real use:
   slot; round 2 verified Angular's immediate trigger enters Loading rather than Placeholder.
   Loading now reserves the slot, and Error retains the slot with a current-URL Reload page link.
   Both assertions failed first for missing behavior, then all 63 shell tests passed.
+- **Independent diff review round 3 (2026-09-30):** Correctness and boundary reviewers verified
+  the Loading slot and visible current-URL reload recovery against the final diff. No substantive
+  code, boundary or acceptance findings remain. The final budget amendment records 1040.05 kB.
+  Final offline tests and all 40 targeted browser checks passed after these repairs.
+
+## Outcome
+
+**Deliverables.** Stage A is implemented: workstream vocabulary in the specified UI, domain
+refusals and MCP descriptions; the root-name gear's page settings; and the Work plus's
+explicit-parent creation dialog. [ProjectWorkspaceStore](../../../apps/web/src/app/features/projects/project-workspace-store.ts)
+uses the existing project create and reports the child's history receipt without changing the
+route. [WorkCreateDialog](../../../apps/web/src/app/features/projects/work-create-dialog.ts)
+retains refused drafts, handles disappearing parents and prevents duplicate pending submissions.
+[Browser journeys](../../../apps/e2e/work-navigation.spec.ts) cover desktop themes, root and
+nested creation, live second-tab updates, stale parents, actual archived-ancestry refusal and
+transport failure; creation-history journeys use the plus and keep same-id recovery evidence.
+
+**Deliberate choices.** Keep "workstream", the explicit root-default Parent and the existing
+header Open feedback, as recorded in the [terminology](../../decisions/2026-09-workstream-user-terminology.md)
+and [navigation-control](../../decisions/2026-09-project-navigation-gear-and-work-create.md)
+decisions. Identifiers and recorded labels remain unchanged. The original build exceeded the
+existing ceiling, so the column is deferred until root context exists; Loading reserves its grid
+track, and dependency failure offers Reload page at the current URL. Final initial size is
+1040.05 kB against the unchanged 1050 kB error ceiling (850 kB warning remains).
+
+**Verification.** `pnpm test` passed 2,824 assertions including the nine root-script tests;
+`pnpm lint`, `pnpm docs:check`, `pnpm build`, `pnpm storybook:build` and `pnpm docs:api` passed.
+`pnpm --filter @cwm/prototype-host mcp-acceptance` passed both HTTP and stdio. The full
+`pnpm e2e` passed 95 tests. After the deferred-column review fixes,
+`pnpm --filter @cwm/e2e e2e work-navigation.spec.ts project-creation-history.spec.ts web.spec.ts page-history.spec.ts project-history.spec.ts phone-layout.spec.ts`
+passed all 40 cases. The earlier targeted run had an existing response-body read race while
+frontend compilation was changing; it passed on rerun, and the full run plus final targeted
+run passed without changing the helper. New unit behavior and wording tests were witnessed
+red first; the initial browser gear run compiled after implementation landed, so no separate
+browser red result is claimed. No required test was skipped.
+
+**Real use and limits.** Started `pnpm dev:host` with `CWM_DATA_FILE` pointing at the temporary
+`.prototype/slice60-use-data.json`, and `pnpm dev:web` separately. An exploratory Playwright
+session created Paint samples at the root and Color cards inside it, completed and archived
+Color cards, read Todos/Archive/Reflections/Timeline wording, and inspected desktop settings and
+empty-workspace dialog screenshots. A real SDK HTTP MCP client inspected `tools/list` and
+created Agent workstream through `create_project kind:"subproject"`. Then switched that isolated
+file to `personal-workspace` and exercised its empty Work and root-only Parent. The embedded
+browser tool failed to initialize, so this was automated exploratory use, not a human hands-on
+pass. The in-app note endpoint recorded the wording verdict and root-default friction in
+[notes.json](../../../.prototype/notes.json), note `note-2026-10-01-001`, Slice 60. Dev processes
+were stopped and temporary data, script and screenshot files removed.
+
+**Deviations and deferred work.** The measured navigation lazy boundary, Loading/Error tests,
+budget amendment and extra dialog lifetime/focus regressions were added in response to build
+and independent review evidence. Real use switched seeds within one isolated data file rather
+than keeping two files. Three independent reviewers ran iterative diff rounds; their confirmed
+issues were resolved. Task interaction, Markdown, shortcuts and retiring Sub-Projects remain
+Slice 59 Stages B–E. Sustained use must still evaluate the workstream noun and root-default
+parent; no implementation question blocks this stage.
+
+**Documentation updated.** The projects four-file architecture, domain and MCP terminology
+rationale, MCP vocabulary contract, testing inventory, both guides, §23/§26/§54 spec notes,
+decision index and dated amendments, Slice 59 Stage A link, goals and generated status board.
 
 - **Initial plan (2026-09-30):** Derived from the umbrella's Stage A after reading the column,
   the shell, the workspace store, `SubProjectsStore`, `SectionCreateDialog`, history feedback,
