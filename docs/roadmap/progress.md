@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 60 | Slice 60 — Workstream vocabulary and project-column controls (Slice 59 Stage A) | Workstream user vocabulary; a gear beside the root name opens page settings; a plus beside Work creates nested work with an explicit parent | [60-workstream-navigation-controls.md](active/60-workstream-navigation-controls.md) |
 
 ### Planned
 

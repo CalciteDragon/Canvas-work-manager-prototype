@@ -107,6 +107,9 @@ diff review and real-use requirements; then closes its own record.
 
 ### A — Vocabulary and sidebar controls
 
+**Stage A is active as [Slice 60](../active/60-workstream-navigation-controls.md)** (2026-09-30),
+which resolves its terminology, gear and parent questions in its own plan.
+
 Read §§19–23, 26, 31, 68 and web/projects and web/core. Evaluate the proposed noun in personal,
 renovation and deep nested trees for creation, breadcrumbs, completion, empty and archive states.
 Record terminology, gear and parent rules in §78 entries. Apply current UI/agent wording using

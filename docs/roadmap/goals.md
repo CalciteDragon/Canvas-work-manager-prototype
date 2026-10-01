@@ -60,8 +60,10 @@ Markdown source/rendering in place of Rich Text, task checkbox reopening and cli
 project-name page-settings gear, Work creation plus, clearer nested-work terminology and
 section shortcuts on work canvases, replacing the Sub-Projects section view. This is planning
 only; current product behavior remains unchanged. The umbrella orders six bounded stages and
-records proposed defaults, explicit migration/history work and integrated acceptance. No child
-implementation phase has started.
+records proposed defaults, explicit migration/history work and integrated acceptance.
+[Slice 60](active/60-workstream-navigation-controls.md) is active as Stage A: the
+**workstream** vocabulary, the page-settings gear beside the root name and the Work plus with an
+explicit parent. Its plan is reviewed; implementation has not started.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed
