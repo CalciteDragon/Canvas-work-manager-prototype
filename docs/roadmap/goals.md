@@ -69,7 +69,10 @@ browser tests passed, and the final 40 targeted checks passed after review repai
 checkboxes in Task Lists and Todos, title or row click selection, and title editing in the
 task drawer. Independent correctness/spec and boundaries/documentation review findings are
 resolved; 2,870 offline tests and all 102 browser tests passed, with real browser and MCP use
-recorded. Stage C (Markdown) is next in the umbrella; no slice is currently active.
+recorded. Stage C (Markdown) is split in two:
+[Slice 62](active/62-markdown-section.md) (C1, active) adds the Markdown section type, its safe
+lazily loaded renderer and its source editor beside Rich Text. C2 will convert stored Rich Text
+to schema v6 and retire the old type.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed

@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 62 | Slice 62 — Markdown section, safe renderer and source editor (Slice 59 Stage C1) | A Markdown section type with a lazily loaded safe renderer and Save/Cancel source editor, beside Rich Text until C2 converts it | [62-markdown-section.md](active/62-markdown-section.md) |
 
 ### Planned
 

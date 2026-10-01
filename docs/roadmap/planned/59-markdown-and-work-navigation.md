@@ -142,6 +142,15 @@ delayed writes/live frames/navigation never repaint a different container or dis
 
 ### C — Markdown source, renderer and conversion
 
+**Stage C is split in two (2026-10-01).** **C1 is [Slice 62](../active/62-markdown-section.md)**:
+a registered `markdown` type with the safe lazy renderer and Save/Cancel source editor, beside an
+unchanged Rich Text, with no schema change. **C2** is everything below about conversion and
+retirement: the v5→v6 converter and history payloads, seeds, the domain refusal of new `rich-text`
+creates, and removing the Rich Text registration. C2 is created with `roadmap.mjs new` once C1
+closes. The reason for the split is the working set: about 500 `rich-text` references in fixtures
+and tests, plus the full history-payload conversion. The split also lets the editor and dialect
+get real use before every stored note is converted to them.
+
 Read §§11, 14, 27, 29–32, 54, 66 and contracts, domain, repositories, prototype-data and
 web/projects. Generic `SectionConfigSchema` stays opaque; Markdown's folder owns its config
 schema. Domain recovery narrowly inspects the prose key without importing web code. Rendering
