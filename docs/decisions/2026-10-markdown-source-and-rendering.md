@@ -16,7 +16,7 @@ The renderer escapes raw HTML, disables images and keeps unsafe-link validation,
 
 Source lives in config.markdown. The folder distinguishes empty, exact string source and unreadable config; unknown content stays recoverable. ViewEncapsulation.None is scoped under .markdown-renderer rather than using ::ng-deep. Rich Text remains registered and schema version 5 remains. Markdown-only history updates say Edited Markdown; existing Rich Text wording stays.
 
-Implementation is paused at the bundle gate; Save/Cancel/Preview authoring and its draft/focus guarantees are still requirements in [Slice 62](../roadmap/active/62-markdown-section.md), not delivered behavior. No ceiling increase is approved. The shell’s escaped source placeholder accepts a small loading layout shift.
+Implementation is paused at the bundle gate; Save/Cancel/Preview authoring and its draft/focus guarantees are still requirements in [Slice 62](../roadmap/completed/62-markdown-section.md), not delivered behavior. No ceiling increase is approved. The shell’s escaped source placeholder accepts a small loading layout shift.
 
 ## Confidence
 

@@ -1,4 +1,4 @@
-<!-- plan id="62" status="active" summary="A Markdown section type with a lazily loaded safe renderer and Save/Cancel source editor, beside Rich Text until C2 converts it" -->
+<!-- completed-record id="62" closed="2026-10-02" summary="Safe Markdown authoring beside Rich Text; deferred panel controls keep the initial bundle at 1,032,388 bytes; all 104 browser tests pass" -->
 # Slice 62 — Markdown section, safe renderer and source editor (Slice 59 Stage C1)
 
 ## Goal
@@ -689,3 +689,62 @@ All have defaults here, and none changes the user's scope.
   reviewer found one inventory omission in projects/overview; Markdown is now named there.
   No code defects found. Full offline suite passes 2,904 workspace plus 9 script tests,
   lint and Compodoc pass, and Storybook builds with the new stories.
+
+
+- **Integrated acceptance and actual use (2026-10-02).** All 104 Playwright tests passed,
+  including the two new Markdown journeys. Unchanged HTTP host acceptance and both-transport
+  MCP acceptance passed on isolated files. Separate dev:web/dev:host terminals used a scratch
+  copy of nested-projects. Real Home/workstream notes were typed, previewed and saved at
+  1366 px and 375 px, in both themes, Flow and Grid span 4; exact source, focus restoration
+  and page containment passed, with rendered screenshots inspected. Archive Restore retained
+  exact source. A real HTTP MCP client created/updated Markdown while the tab stayed open;
+  an active editor kept its draft and announced the external replacement. The first harness
+  wrongly expected initial focus on Close (the shell focuses the dialog), and one capture
+  raced the identity-seeded theme; corrected setup verified Tab to Close and settled identity
+  before asserting the theme at capture. No application code repair was needed. Preview-label
+  friction was recorded through the panel in .prototype/notes.json under Slice 62; both servers
+  were stopped. Green implementation checkpoint: f9d11fc.
+
+## Outcome
+
+**Deliverables.** [MarkdownSection](../../../apps/web/src/app/features/projects/sections/markdown/markdown-section.ts)
+now appears second in the eight-type picker beside Rich Text. Its lazy body and fresh source
+editor provide Edit, Preview, Save and Cancel, conservative unreadable handling, retained drafts
+on refused writes and section.updated, and focus restoration. The shared safe renderer preserves
+source while escaping HTML, rejecting unsafe links and disabling images. Contracts declare
+proseKey; domain recovery and history labels support Markdown without parsing it. HTTP and MCP
+preserve exact source and whole-config replacement, and shortcuts render read-only.
+
+**Deliberate choices.** The [Markdown decision](../../decisions/2026-10-markdown-source-and-rendering.md)
+records source ownership, parser/dialect, sanitizer, scoped styles and explicit replacement rather
+than merging drafts. A loading placeholder accepts a brief layout shift. The user-approved
+[panel amendment](../../decisions/2026-08-development-panel-surface.md) defers controls while keeping
+modal chrome and keyboard handling eager. The final production build is 1,032,388 initial bytes,
+17,612 below the unchanged 1,050,000-byte ceiling; editor/parser/renderer and controls/store/layout
+are only in lazy outputs. The existing 850,000-byte warning remains.
+
+**Deviations.** The required early bundle gate failed at 1,052.60 kB, so editor implementation
+paused until the user approved the bounded panel remedy. A picker test fixture was repaired to
+include all eight types, five design-lab frame mounts received the awaited callback, and live
+foreign/read-only config gained explicit Save blocking while retaining the draft. Independent
+plan and diff reviews ran iteratively; their concrete documentation findings were resolved and
+final rounds returned no substantive findings. The implementation checkpoint commit followed the
+integrated green gates rather than separate commits for each test while the bundle remedy remained
+unsettled; the closure is a separate documentation commit.
+
+**Validation and learning.** 2,904 workspace tests plus nine script tests, lint/docs checks,
+Compodoc, production stats build, Storybook, all 104 browser tests, HTTP host acceptance and both
+MCP transports passed. Actual use on nested-projects exercised Home and Kitchen workstream notes
+in both themes and desktop/375 px, Flow/narrow Grid, Archive Restore and HTTP MCP live drafts.
+Screenshots were inspected. The [friction log](../../../.prototype/notes.json) records that the
+pressed Preview button keeps its label, making the return to source less discoverable. No check
+was skipped. Development servers stopped; the developer's data.json was not changed.
+
+**Deferred and open questions.** Stage C2 owns schema v6, Rich Text conversion including every
+history snapshot, seed regeneration, retirement/refusal of new Rich Text creates and final removal
+of that registration. The Preview-label friction is available for a later UX decision; it does not
+block C1 acceptance. No unresolved implementation or review finding remains in this slice.
+
+**Documentation updated.** The spec §§26, 29–31, 46 and 66; contracts/domain and web/project/tooling
+architecture; testing/how; MCP setup and milestone walkthrough; the new decision plus config,
+Archive, labels, bundle and panel amendments; and the Slice 59 umbrella/goals/board agree with C1.

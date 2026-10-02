@@ -58,7 +58,7 @@ The user requested a new branch and an
 [umbrella implementation plan in Slice 59](planned/59-markdown-and-work-navigation.md):
 Markdown source/rendering in place of Rich Text, task checkbox reopening and click selection,
 project-name page-settings gear, Work creation plus, clearer nested-work terminology and
-section shortcuts on work canvases, replacing the Sub-Projects section view. Stages A and B are delivered;
+section shortcuts on work canvases, replacing the Sub-Projects section view. Stages A, B and C1 are delivered;
 the remaining work is planned. The umbrella orders six bounded stages and
 records proposed defaults, explicit migration/history work and integrated acceptance.
 [Slice 60](completed/60-workstream-navigation-controls.md) completed Stage A: the
@@ -70,9 +70,12 @@ checkboxes in Task Lists and Todos, title or row click selection, and title edit
 task drawer. Independent correctness/spec and boundaries/documentation review findings are
 resolved; 2,870 offline tests and all 102 browser tests passed, with real browser and MCP use
 recorded. Stage C (Markdown) is split in two:
-[Slice 62](active/62-markdown-section.md) (C1, active) adds the Markdown section type, its safe
-lazily loaded renderer and its source editor beside Rich Text. C2 will convert stored Rich Text
-to schema v6 and retire the old type.
+[Slice 62](completed/62-markdown-section.md) completed C1: Markdown source authoring and safe lazy
+rendering beside Rich Text. Independent review findings are resolved; 2,913 offline tests, all
+104 browser tests and actual browser/HTTP MCP use passed. The approved panel-control deferral
+keeps the initial bundle at 1,032,388 bytes under the unchanged ceiling.
+[Slice 63](planned/63-rich-text-to-markdown-conversion.md) (C2) will convert stored Rich Text and
+history to schema v6 and retire the old type.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed

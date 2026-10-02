@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 62 | Slice 62 — Markdown section, safe renderer and source editor (Slice 59 Stage C1) | A Markdown section type with a lazily loaded safe renderer and Save/Cancel source editor, beside Rich Text until C2 converts it | [62-markdown-section.md](active/62-markdown-section.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -29,6 +27,7 @@ verification follow-ups rather than feature slices.
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
 | 59 | Slice 59 — Markdown, reversible task completion and work navigation | Umbrella proposal for Markdown sections, task selection and reopening, sidebar controls and work-canvas shortcuts | [59-markdown-and-work-navigation.md](planned/59-markdown-and-work-navigation.md) |
+| 63 | Slice 63 — Rich Text to Markdown conversion and retirement (Slice 59 Stage C2) | Preserve current and historical prose through schema v6, regenerate seeds and retire Rich Text | [63-rich-text-to-markdown-conversion.md](planned/63-rich-text-to-markdown-conversion.md) |
 
 ### Completed
 
@@ -100,4 +99,5 @@ verification follow-ups rather than feature slices.
 | 46 | Slice 46 — Slice 34 close-out follow-up | 2026-09-30 | Follow-up evidence, documentation reconciliation and Slice 34 closure gate verified | [46-slice-34-closeout-follow-up.md](completed/46-slice-34-closeout-follow-up.md) |
 | 60 | Slice 60 — Workstream vocabulary and project-column controls (Slice 59 Stage A) | 2026-09-30 | Workstream vocabulary, root-name page settings and explicit-parent Work creation delivered with reviewed desktop, touch, live and MCP evidence | [60-workstream-navigation-controls.md](completed/60-workstream-navigation-controls.md) |
 | 61 | Slice 61 — Reversible task checkbox and click selection (Slice 59 Stage B) | 2026-10-01 | Task checkboxes complete and reopen in Task Lists and Todos; titles select, drawer titles edit, and keyboard focus survives toggles and closing | [61-task-reopen-and-selection.md](completed/61-task-reopen-and-selection.md) |
+| 62 | Slice 62 — Markdown section, safe renderer and source editor (Slice 59 Stage C1) | 2026-10-02 | Safe Markdown authoring beside Rich Text; deferred panel controls keep the initial bundle at 1,032,388 bytes; all 104 browser tests pass | [62-markdown-section.md](completed/62-markdown-section.md) |
 <!-- roadmap:end -->
