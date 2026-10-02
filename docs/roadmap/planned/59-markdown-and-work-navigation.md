@@ -146,7 +146,7 @@ delayed writes/live frames/navigation never repaint a different container or dis
 a registered `markdown` type with the safe lazy renderer and Save/Cancel source editor, beside an
 unchanged Rich Text, with no schema change. **C2** is everything below about conversion and
 retirement: the v5→v6 converter and history payloads, seeds, the domain refusal of new `rich-text`
-creates, and removing the Rich Text registration. [Slice 63](63-rich-text-to-markdown-conversion.md)
+creates, and removing the Rich Text registration. [Slice 63](../active/63-rich-text-to-markdown-conversion.md)
 is the C2 candidate created after C1 closed. The reason for the split is the working set: about 500 `rich-text` references in fixtures
 and tests, plus the full history-payload conversion. The split also lets the editor and dialect
 get real use before every stored note is converted to them. C1 passed 2,913 offline tests, all

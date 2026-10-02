@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 63 | Slice 63 — Rich Text to Markdown conversion and retirement (Slice 59 Stage C2) | Preserve current and historical prose through schema v6, regenerate seeds and retire Rich Text | [63-rich-text-to-markdown-conversion.md](active/63-rich-text-to-markdown-conversion.md) |
 
 ### Planned
 
@@ -27,7 +29,6 @@ _Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/
 | 23 | Slice 23 — Dashboard configuration | Add, remove, reorder, hide and resize dashboard widgets from the UI, persisted per persona | [23-dashboard-configuration.md](planned/23-dashboard-configuration.md) |
 | 24 | Slice 24 — AI project summaries and tool experiments | AI Summary section behind aiSummarySections, and the §56 tool-shape experiments run against real clients | [24-ai-project-summaries-and-tool-experiments.md](planned/24-ai-project-summaries-and-tool-experiments.md) |
 | 59 | Slice 59 — Markdown, reversible task completion and work navigation | Umbrella proposal for Markdown sections, task selection and reopening, sidebar controls and work-canvas shortcuts | [59-markdown-and-work-navigation.md](planned/59-markdown-and-work-navigation.md) |
-| 63 | Slice 63 — Rich Text to Markdown conversion and retirement (Slice 59 Stage C2) | Preserve current and historical prose through schema v6, regenerate seeds and retire Rich Text | [63-rich-text-to-markdown-conversion.md](planned/63-rich-text-to-markdown-conversion.md) |
 
 ### Completed
 
