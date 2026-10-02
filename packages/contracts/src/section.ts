@@ -52,11 +52,14 @@ export type OwnedDataKind = z.infer<typeof OwnedDataKindSchema>;
 export const SectionRecoveryCapabilitySchema = z.enum(['owned-content', 'config', 'none']);
 export type SectionRecoveryCapability = z.infer<typeof SectionRecoveryCapabilitySchema>;
 
-/** A type owns rows exactly when its recovery is `owned-content`; the refinement holds that. */
+/** A type owns rows exactly for `owned-content`, and declares its prose key exactly for `config` recovery. */
 export const SectionCapabilitySchema = z
-  .object({ ownedData: OwnedDataKindSchema.optional(), recovery: SectionRecoveryCapabilitySchema })
+  .object({ ownedData: OwnedDataKindSchema.optional(), recovery: SectionRecoveryCapabilitySchema, proseKey: z.string().min(1).optional() })
   .refine(({ ownedData, recovery }) => (ownedData !== undefined) === (recovery === 'owned-content'), {
     message: 'a section owns rows exactly when its recovery capability is owned-content',
+  })
+  .refine(({ proseKey, recovery }) => (proseKey !== undefined) === (recovery === 'config'), {
+    message: 'a section declares a prose key exactly when its recovery capability is config',
   });
 export type SectionCapability = z.infer<typeof SectionCapabilitySchema>;
 
@@ -67,15 +70,17 @@ export type SectionCapability = z.infer<typeof SectionCapabilitySchema>;
  * fails when a registered type has no entry — so a new type has to declare its recovery.
  * Keyed by the same open `type` strings the registry uses.
  *
- * `rich-text` owns its data through `config.text` rather than through rows: it has nothing
- * to cascade, and archiving the section keeps its text — `config` rides along on the record,
+ * `rich-text` keeps prose in `config.text`, and `markdown` in `config.markdown`, rather than
+ * through rows. `proseKey` declares that key's name, never its shape; their section folders
+ * own the schemas. Neither has rows to cascade, and archiving keeps the source — config rides along on the record,
  * so restoring returns the prose intact. That survival is why a view can be worth archiving
  * too, and why removal asks this table rather than `kind` before it decides.
  */
 export const SECTION_CAPABILITIES: Readonly<Record<string, SectionCapability>> = {
   'task-list': { ownedData: 'tasks', recovery: 'owned-content' },
   reflections: { ownedData: 'reflections', recovery: 'owned-content' },
-  'rich-text': { recovery: 'config' },
+  'rich-text': { recovery: 'config', proseKey: 'text' },
+  markdown: { recovery: 'config', proseKey: 'markdown' },
   'sub-projects': { recovery: 'none' },
   progress: { recovery: 'none' },
   timeline: { recovery: 'none' },

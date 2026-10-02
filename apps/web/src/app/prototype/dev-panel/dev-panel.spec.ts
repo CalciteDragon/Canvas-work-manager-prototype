@@ -1,14 +1,15 @@
-import { TestBed, type ComponentFixture } from '@angular/core/testing';
+import { DeferBlockBehavior, DeferBlockState, TestBed, type ComponentFixture } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
 import { PROTOTYPE_CONTROL } from '../control/prototype-control';
 import { FakePrototypeControl } from '../control/testing/fake-prototype-control';
 import { DevPanel } from './dev-panel';
 
-const render = async () => {
+const render = async (deferBlockBehavior = DeferBlockBehavior.Playthrough) => {
   TestBed.configureTestingModule({
+    deferBlockBehavior,
     imports: [DevPanel],
     providers: [
       provideRouter([]),
@@ -106,4 +107,68 @@ describe('DevPanel (§46)', () => {
 
     expect(panel(fixture)).toBeNull();
   });
+});
+
+const renderDeferred = async () => {
+  return render(DeferBlockBehavior.Manual);
+};
+
+it('opens and focuses the eager modal before deferred controls, preserving Close focus on completion', async () => {
+  const fixture = await renderDeferred();
+  document.dispatchEvent(chord());
+  await fixture.whenStable();
+  const host = fixture.nativeElement as HTMLElement;
+  expect(panel(fixture)).toBe(document.activeElement);
+  expect(host.querySelector('[data-dev-panel-loading]')?.getAttribute('role')).toBe('status');
+  expect(host.querySelector('app-dev-panel-controls')).toBeNull();
+  const close = host.querySelector<HTMLButtonElement>('[data-dev-panel-close]')!;
+  close.focus();
+  const [block] = await fixture.getDeferBlocks();
+  expect(block).toBeDefined();
+  await block!.render(DeferBlockState.Complete);
+  await fixture.whenStable();
+  expect(host.querySelector('app-dev-panel-controls')).not.toBeNull();
+  expect(document.activeElement).toBe(close);
+});
+
+it('closing before completion and reopening creates a fresh controls block', async () => {
+  const fixture = await renderDeferred();
+  document.dispatchEvent(chord());
+  await fixture.whenStable();
+  const [first] = await fixture.getDeferBlocks();
+  expect(first).toBeDefined();
+  (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('[data-dev-panel-close]')!.click();
+  await fixture.whenStable();
+  expect(panel(fixture)).toBeNull();
+  document.dispatchEvent(chord());
+  await fixture.whenStable();
+  const [second] = await fixture.getDeferBlocks();
+  expect(second).toBeDefined();
+  expect(second).not.toBe(first);
+  expect((fixture.nativeElement as HTMLElement).querySelector('app-dev-panel-controls')).toBeNull();
+  await second!.render(DeferBlockState.Complete);
+  await fixture.whenStable();
+  expect((fixture.nativeElement as HTMLElement).querySelectorAll('app-dev-panel-controls')).toHaveLength(1);
+});
+
+it('load failure keeps Close and chord usable and exposes a deliberate reload', async () => {
+  const fixture = await renderDeferred();
+  const reload = vi.spyOn(fixture.componentInstance as unknown as { reloadPage(): void }, 'reloadPage').mockImplementation(() => {});
+  document.dispatchEvent(chord());
+  await fixture.whenStable();
+  const [block] = await fixture.getDeferBlocks();
+  await block!.render(DeferBlockState.Error);
+  const host = fixture.nativeElement as HTMLElement;
+  expect(host.querySelector('[data-dev-panel-load-error]')?.textContent).toContain('Controls could not load');
+  expect(host.querySelector('app-dev-panel-controls')).toBeNull();
+  host.querySelector<HTMLButtonElement>('[data-dev-panel-reload]')!.click();
+  expect(reload).toHaveBeenCalledOnce();
+  host.querySelector<HTMLButtonElement>('[data-dev-panel-close]')!.click();
+  await fixture.whenStable();
+  expect(panel(fixture)).toBeNull();
+  document.dispatchEvent(chord());
+  await fixture.whenStable();
+  document.dispatchEvent(chord());
+  await fixture.whenStable();
+  expect(panel(fixture)).toBeNull();
 });

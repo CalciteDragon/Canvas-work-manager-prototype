@@ -160,6 +160,8 @@ Undo action or imply the row is the next action
 
 ## Decisions that shape this system
 
+- [Markdown source and rendering](../../../decisions/2026-10-markdown-source-and-rendering.md) — source ownership, safe lazy rendering and explicit draft handling.
+
 - [Task Delete names its existing recovery routes](../../../decisions/2026-09-task-delete-recovery-feedback.md) — Todos names the owner and points to the existing header and root Archive.
 - [Descendant rows link to their owner's existing header history](../../../decisions/2026-09-descendant-history-discovery.md) — owner route and fragment focus without a merged cursor.
 

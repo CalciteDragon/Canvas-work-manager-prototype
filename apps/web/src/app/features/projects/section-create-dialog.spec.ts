@@ -36,7 +36,7 @@ const render = (options: {
     ],
   });
   const fixture = TestBed.createComponent(SectionCreateDialog);
-  fixture.componentRef.setInput('types', SECTION_REGISTRY.slice(0, 2));
+  fixture.componentRef.setInput('types', SECTION_REGISTRY);
   fixture.componentRef.setInput('projectId', PROJECT);
   fixture.componentRef.setInput('pageId', PAGE);
   fixture.componentRef.setInput('shortcutsAllowed', options.shortcutsAllowed ?? false);
@@ -62,7 +62,7 @@ describe('SectionCreateDialog (§27)', () => {
     query(fixture, '[data-create-section-submit]')!.click();
     await fixture.whenStable();
 
-    expect([...type.options].map((option) => option.value)).toEqual(['rich-text', 'task-list']);
+    expect([...type.options].map((option) => option.value)).toEqual(['rich-text', 'markdown', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
     expect(create).toHaveBeenCalledWith('task-list', null);
     expect(closed).toHaveBeenCalledTimes(1);
   });

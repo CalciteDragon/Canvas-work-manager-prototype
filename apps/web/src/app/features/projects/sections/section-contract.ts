@@ -20,7 +20,7 @@ import type { ProjectSection, SectionConfig } from '@cwm/contracts';
  */
 export interface SectionContentInputs extends Record<string, unknown> {
   section: ProjectSection;
-  onConfigChange: (config: SectionConfig) => void;
+  onConfigChange: (config: SectionConfig) => Promise<boolean>;
   onProjectDataChange: () => void;
   onProjectHierarchyChange: () => void;
   projectDataRevision: number;

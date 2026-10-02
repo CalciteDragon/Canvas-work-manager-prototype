@@ -93,7 +93,8 @@ still parse and can be stepped.
 | `PositionSchema` | const | Non-negative zero-based position for list, canvas or dashboard order | [API](../../api/miscellaneous/variables.html#PositionSchema) |
 | `isRootProject` | function | Type guard on `Project.kind` | [API](../../api/miscellaneous/variables.html#isRootProject) |
 | `NAVIGABLE_PAGE_KINDS` | const | `home`, `todos`, `archive`, `reflections` — `work` is a page but not a tab | [API](../../api/miscellaneous/variables.html#NAVIGABLE_PAGE_KINDS) |
-| `SECTION_CAPABILITIES` | const | The one per-type declaration: owned rows and recovery capability (`owned-content`, `config`, `none`) | [API](../../api/miscellaneous/variables.html#SECTION_CAPABILITIES) |
+| `SECTION_CAPABILITIES` | const | The one per-type declaration: owned rows, recovery capability (`owned-content`, `config`, `none`), and the prose key for `config` | [API](../../api/miscellaneous/variables.html#SECTION_CAPABILITIES) |
+| `SectionCapabilitySchema` | const | Owns rows exactly for `owned-content`; declares a non-empty `proseKey` exactly for `config` | [API](../../api/miscellaneous/variables.html#SectionCapabilitySchema) |
 | `sectionCapabilityOf` | function | Own-property lookup; `undefined` means unknown, never disposable | [API](../../api/miscellaneous/variables.html#sectionCapabilityOf) |
 | `SECTION_OWNERSHIP` | const | Container type → owned row kind, derived from the capabilities; absence makes a type a view | [API](../../api/miscellaneous/variables.html#SECTION_OWNERSHIP) |
 | `ownedKindOf` | function | Lookup over that map | [API](../../api/miscellaneous/variables.html#ownedKindOf) |
@@ -163,8 +164,9 @@ pnpm --filter @cwm/contracts lint   # tsc --noEmit
   the tool. Decide whether an existing `data.json` becomes wrong; if so, bump
   `SCHEMA_VERSION` and either reset or write a bounded converter (§14).
 - **Adding a section type:** one line in the web registry and one entry in
-  `SECTION_CAPABILITIES` declaring its owned rows (if any) and recovery capability —
-  `registry.spec.ts` fails without it; if its display name is not derivable from its `type`, one
+  `SECTION_CAPABILITIES` declaring its owned rows (if any), recovery capability, and `proseKey`
+  exactly when recovery is `config` — `registry.spec.ts` fails without it and checks that a config
+  type's default has its declared key. Config shapes stay in the section's folder. If its display name is not derivable from its `type`, one
   entry in `SECTION_DISPLAY_NAMES` — `registry.spec.ts` fails at the moment a type incurs
   that cost.
 - **Adding a derived read model:** its own file, exported from `index.ts`, with the rule

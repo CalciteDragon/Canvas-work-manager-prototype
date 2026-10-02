@@ -127,7 +127,7 @@ The cue holds no receipt and cannot promise the next Undo step.
    overflowing (Slice 45). Since Slice 58 the global sidebar is a drawer there, so the header has
    the full width.
    The accessible `Undo: …` and `Redo: …` names use the server summary's captured action label;
-   section rename, Rich Text prose, collapse and resize now name their edit without a browser mapper.
+   section rename, Rich Text prose, Markdown source, collapse and resize now name their edit without a browser mapper.
    `ProjectHistoryFeedback` is the always-present polite
    region under the header's facts. `confirmArchive` stays on the project and `announce`s "X is
    archived. Undo is available here."; the More menu does not offer Archive on an archived project.
@@ -166,6 +166,15 @@ to see *Project unavailable*. If the history summary itself is unavailable, that
 generic Retry for the summary read; it does not expose an Undo/Redo entry until the read confirms it
 ([decision](../../../decisions/2026-09-project-creation-history.md)).
 
+MarkdownSection is an eager shell with a deferred body and escaped source placeholder.
+The frame supplies a stable `saveConfig(id, config): Promise<boolean>` callback through
+`SectionContentInputs`; the canvas delegates to `ProjectPageStore.updateConfig`. Shortcuts
+pass a false-returning no-op. The body mounts a fresh `MarkdownSourceEditor` for each Edit;
+Save replaces the whole config after an awaited result, while Cancel and unchanged Save write
+nothing. A failed Save keeps the draft, and pending protects it from further edits or dismissal.
+A live source update keeps the draft and announces replacement; unreadable config blocks Save.
+Successful Save and Cancel restore focus to Edit. Preview renders only the local draft.
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
@@ -191,7 +200,9 @@ generic Retry for the summary read; it does not expose an Undo/Redo entry until 
 | `InsertionPoint`, `SectionResizeHandle` | components | Canvas insertion and resize controls; their marks come from the shared `Icon` | [API](../../../api/components/InsertionPoint.html) |
 | `gridInsertionGaps` | function | Sparse grid gaps that can fit a supported width | [API](../../../api/miscellaneous/variables.html#gridInsertionGaps) |
 | `CanvasWriteResult` | type | Success or displayed canvas-write failure | [API](../../../api/miscellaneous/typealiases.html#CanvasWriteResult) |
-| `TaskListSection`, `RichTextSection`, `SubProjectsSection`, `ProgressSection`, `ReflectionsSection`, `TimelineSection`, `RecentActivitySection` | components | The seven types | [API](../../../api/components/TaskListSection.html) |
+| `TaskListSection`, `RichTextSection`, `SubProjectsSection`, `ProgressSection`, `ReflectionsSection`, `TimelineSection`, `RecentActivitySection` | components | Seven original types beside Markdown | [API](../../../api/components/TaskListSection.html) |
+| `MarkdownSection`, `MarkdownSectionBody` | components | Eager shell, deferred source rendering and awaited authoring | [API](../../../api/components/MarkdownSection.html) |
+| `MarkdownSourceEditor` | component | Presentational draft, Preview and Save/Cancel requests | [API](../../../api/components/MarkdownSourceEditor.html) |
 | `ProgressStore`, `ReflectionsStore`, `SubProjectsStore`, `TimelineStore` | injectables | Per-section stores | [API](../../../api/injectables/ProgressStore.html) |
 | `TodosPage`, `ArchivePage`, `ReflectionsPage` | components | Root pages | [API](../../../api/components/TodosPage.html) |
 | `TodosPageStore`, `ArchivePageStore`, `ReflectionsPageStore` | injectables | Their stores | [API](../../../api/injectables/TodosPageStore.html) |
@@ -258,7 +269,7 @@ pnpm e2e                                # project-history (header Undo/Redo), we
 
 - **A new section type:** copy `sections/rich-text/` (a view) or `sections/tasks/` (a
   container). Implement `SectionContentComponent`; add one line to `SECTION_REGISTRY`;
-  if it owns rows, the contracts map; a spec and, if it renders states worth seeing, a
+  declare its recovery capability in contracts (and `proseKey` for config prose); a spec and, if it renders states worth seeing, a
   story. A view that needs data provides its own store at the content boundary.
 - **A new root page kind:** the contract's `ProjectPage` kinds, a renderer implementing
   `ProjectPageRenderer`, one line in `PROJECT_PAGE_REGISTRY`, the host's derived read.

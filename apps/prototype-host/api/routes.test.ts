@@ -547,6 +547,29 @@ describe('section routes', () => {
   const newSection = async (routes: RouteTable, body: unknown = { type: 'rich-text' }, projectId = MINE) =>
     SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${projectId}/sections`, { body })).body).section;
 
+  it('a markdown section round-trips its source over HTTP', async () => {
+    const routes = buildRoutes();
+    const original = '# Kickoff\n\nKeep **Markdown** as source.\n';
+    const source = '# Plan\n\n- One\n- Two\n\n[docs](https://example.com)\n\n```ts\nconst answer = 42;\n```\n\n<script>window.__x=1</script>\n';
+    const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, {
+      body: { type: 'markdown', config: { markdown: original, extra: 'replaced whole' } },
+    });
+    expect(created.status).toBe(201);
+    const section = SectionAddResultSchema.parse(created.body).section;
+    expect(section.type).toBe('markdown');
+    expect(section.config).toEqual({ markdown: original, extra: 'replaced whole' });
+
+    const updated = await call(routes, 'PATCH', `/api/sections/${section.id}`, {
+      body: { config: { markdown: source } },
+    });
+    expect(updated.status).toBe(200);
+    expect(SectionWriteResultSchema.parse(updated.body).section.config).toEqual({ markdown: source });
+    const read = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
+    expect(read.status).toBe(200);
+    expect(ProjectSectionSchema.array().parse(read.body).find(({ id }) => id === section.id)?.config)
+      .toEqual({ markdown: source });
+  });
+
   it('lists, creates, updates, moves, duplicates and removes a section', async () => {
     const routes = buildRoutes();
 

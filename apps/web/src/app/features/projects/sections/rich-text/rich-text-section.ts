@@ -29,7 +29,7 @@ import { readRichTextConfig } from './rich-text-config';
 })
 export class RichTextSection {
   readonly section = input.required<ProjectSection>();
-  readonly onConfigChange = input.required<(config: SectionConfig) => void>();
+  readonly onConfigChange = input.required<(config: SectionConfig) => Promise<boolean>>();
   readonly onProjectDataChange = input.required<() => void>();
   readonly onProjectHierarchyChange = input.required<() => void>();
   readonly projectDataRevision = input.required<number>();
@@ -87,6 +87,6 @@ export class RichTextSection {
   save(value: string): void {
     if (this.readOnly()) return;
     if (value === this.text()) return;
-    this.onConfigChange()({ text: value });
+    void this.onConfigChange()({ text: value });
   }
 }

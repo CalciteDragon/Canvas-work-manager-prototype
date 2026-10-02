@@ -263,7 +263,8 @@ So everything except a minimal shell is lazy:
 
     The decision entry lists them. Only the `section.updated` path is claimed to be safe.
 - **`MarkdownSourceEditor`** (`markdown-source-editor.ts`, `.html`, `.scss`) is lazy and presentational.
-  - **Inputs:** `initialSource`, `name`, `pending`, `failed`, `changedElsewhere`.
+  - **Inputs:** `initialSource`, `name`, `pending`, `failed`, `changedElsewhere`, and optional `saveBlocked` (false by default).
+  - If a live section update makes config unreadable during editing, keep the editor/draft and show the unreadable notice, but set Save to focusable `aria-disabled` with guards in both editor and body. Cancel remains available. This preserves the draft without silently overwriting foreign config. Test this explicitly.
   - **Outputs:** `saveRequested(draft)`, `cancelRequested`, `ready`.
   - It owns `draft`, seeded once from `initialSource`.
   - **Controls:**
@@ -351,6 +352,38 @@ It is indexed in `docs/decisions/README.md` and linked from the `why.md` files o
 - [section update history labels](../../decisions/2026-09-section-update-history-labels.md): labels are keyed by the prose key, and Markdown gets its noun.
 
 **Roadmap.** Stage C of the umbrella is annotated with the C1/C2 split and a link to this plan. `goals.md` says Slice 62 is active, and the board is regenerated.
+
+### 8. Approved bundle remedy — defer development-panel controls (§46)
+
+The user approved this bounded structural change on 2026-10-02. The 1,050,000-byte ceiling
+stays unchanged. In DevPanel's existing open branch, wrap only DevPanelControls in
+`@defer (on immediate)`. Keep the global chord handler, dialog, Close, backdrop and CdkTrapFocus
+eager. Until the chunk arrives, show a polite Loading prototype controls… line; on chunk
+failure, show Controls could not load. Reload the page to try again. plus a Reload page
+button. Close and the chord remain usable in both states. A protected reloadPage method
+invokes location.reload() only on that deliberate click.
+
+The block is inside `@if (open())`: closing removes its view; reopening gets a fresh block
+and controls instance, retaining the existing root-provided DevPanelStore. Keep the controls
+reference only in imports/template so Angular can defer it. Do not alter routes, duplicate
+controls, add feature flags, or move prototype code into core.
+
+Tests first in dev-panel.spec.ts, with manual defer behavior: (1) opening focuses the eager
+modal and shows the placeholder without controls, completion mounts controls while focus
+stays in the dialog; (2) close before completion and reopen yields a fresh block and controls
+without resurrecting the prior view; (3) Error keeps Close/chord usable and exposes explicit
+reload, verified by spying on reloadPage without navigating jsdom. Existing control/inspector
+specs and the browser development-panel journey remain required. Check actual build bytes
+and stats: DevPanelControls, DevPanelStore and ProjectLayoutControl must be absent from
+initial outputs. Rebuild immediately after this remedy before continuing editor work. If it
+still exceeds the ceiling, raise the measured finding without further structural scope.
+
+Added files: apps/web/src/app/prototype/dev-panel/dev-panel.{ts,html,spec.ts};
+apps/web/src/app/app.routes.ts (comment only); docs/architecture/web/prototype-tooling/
+{overview,what,how,why}.md; docs/decisions/2026-08-development-panel-surface.md (dated
+amendment). Existing web architecture and initial-bundle-budget amendment/index now describe
+the deferred controls. Spec §46 states the eager modal and lazy controls. No new service edge
+or gateway dependency is introduced. This does not change the source-authoring requirements.
 
 ## Done when
 
@@ -593,3 +626,66 @@ All have defaults here, and none changes the user's scope.
 - **Review round 3 (2026-10-01).** The reviewer confirmed all round-2 findings closed and traced `changedElsewhere` through success, failure, an update while editing, and an update while pending. Verdict: no substantive findings. Two minor notes were folded in:
   - on success, `editing` and `pending` clear together, with an immediate no-flash assertion;
   - a test now covers an update during a pending Save that then fails.
+
+- **Execution gate (2026-10-01).** The mandatory early production build after registration
+  measured 1,052.60 kB and failed the unchanged 1,050 kB ceiling by 2.60 kB.
+  Markdown's parser/body remained in a 117.80 kB lazy chunk. Per Build 4, implementation
+  is stopped at this gate pending the user's decision about bounded structural work or
+  a documented budget amendment. Contracts/domain tests and callback tests are green;
+  the full editor is not delivered. Independent read-only reviews cover the implemented
+  portions while this decision is pending.
+
+- **Checkpoint regression repair (2026-10-01).** The offline suite exposed two failures in
+  `section-create-dialog.spec.ts`: its two-item registry slice no longer included Task List
+  after Markdown was inserted second. The fixture now supplies the full registry and pins
+  all eight options; existing Task List selection/failure assertions remain unchanged.
+  This adds that spec to the file-level change list.
+
+- **Independent checkpoint reviews (2026-10-01).** One reviewer checked the contracts/domain
+  diff, and another checked the UI/callback diff. Neither found a substantive code or boundary
+  defect in the implemented portion. They found missing decision links and premature editing
+  claims; the decision, dated amendments and index now exist, and the living docs explicitly
+  state that authoring is pending. The structural candidate is a deferred DevPanelControls
+  inside the existing dialog, retaining eager chord handling, Close and focus trap. Its bounded
+  scope would add loading/error handling, deferred lifecycle/focus tests and tooling docs;
+  this candidate has not been implemented or measured.
+
+- **Checkpoint review round 2 (2026-10-01).** The independent reviewer confirmed the
+  missing links and premature delivered-behavior prose are resolved, and validated the
+  picker fixture repair. Two component doc comments still implied editing exists; both
+  now say source rendering only. No substantive findings remain in the checkpoint.
+  Offline verification is green: 2,884 workspace tests plus 9 script tests. API generation,
+  lint and docs checks pass. Production build remains red at the documented budget gate;
+  the editor browser journey remains intentionally red until authoring is implemented.
+  Full browser acceptance, Storybook and real-use evidence have not been run. No phase
+  completion or closing commit is claimed.
+
+- **Approved remedy (2026-10-02).** User approved deferring only development-panel controls, keeping the shortcut/dialog/Close/focus trap eager and the ceiling unchanged. Build 8 defines concrete scope, failure/focus lifecycle tests and measured acceptance before remaining Markdown authoring resumes.
+
+- **Bundle-remedy plan review (2026-10-02).** Independent reviewer found no substantive omissions or boundary violations in Build 8. Tests will compare block identities across reopen and preserve focus on the exact eager Close button through completion, rather than merely checking focus somewhere inside the modal.
+
+- **Unreadable live-update refinement (2026-10-02).** The existing no-write-path requirement also applies if foreign config arrives while editing. The body preserves the draft and blocks Save via a presentational saveBlocked input plus its own guard; Cancel remains available. This adds a test rather than allowing the browser to repair opaque config silently.
+
+- **Early remedy gate green (2026-10-02).** Unique initial files total 1,032,388 bytes, below the unchanged ceiling. Stats prove controls/store/layout and Markdown parser/body/renderer lazy while shell stays initial. Editor implementation resumes. The first lifecycle run exposed a test setup issue: its second configureTestingModule call reset Manual behavior. The helper now supplies Manual in one call, preserving real placeholder/completion assertions.
+
+
+- **Independent final review round 1, documentation (2026-10-02).** Reviewer confirmed
+  panel lifecycle, gateway boundaries and restored renderer safety. Two findings held:
+  the MCP guide conflated browser-owned history with connection-owned history, now corrected;
+  §30’s initial type list omitted Markdown despite its eight-type paragraph, now added.
+
+
+- **Final production bundle (2026-10-02).** Completed editor leaves the initial payload at
+  1,032,388 bytes (17,612 bytes under the ceiling). Stats show the eager Markdown shell in
+  main; parser/renderer/body/editor in the 125.81 kB lazy output, and panel controls/store/layout
+  in a 20.90 kB lazy output. No ceiling change. Renderer fault checks failed as intended when
+  images, unsafe links or emulated styles were introduced, then restored; 107 focused UI tests
+  and web lint pass. The independent non-owned contracts/domain/transport/callback review
+  found no substantive issue, including the settled no-write browser assertions.
+
+
+- **Independent final review round 2 (2026-10-02).** Boundary/documentation reviewer
+  verified the two corrections and returned no substantive findings. A separate correctness
+  reviewer found one inventory omission in projects/overview; Markdown is now named there.
+  No code defects found. Full offline suite passes 2,904 workspace plus 9 script tests,
+  lint and Compodoc pass, and Storybook builds with the new stories.

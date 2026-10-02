@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { ProjectPage, ProjectSection, SectionShortcut } from '@cwm/contracts';
 import { addSection, addShortcut, api, createRoot, createSubprojects, seed, setClock, setLayout } from './seed';
-import { historyControl } from './history-controls';
+import { historyControl, redoFromHeader, undoFromHeader } from './history-controls';
 
 const PINNED_NOW = '2026-09-15T12:00:00.000Z';
 const HOME_RENOVATION = 'project-renovation';
@@ -90,6 +90,96 @@ const expectOnlyCanvasChrome = async (page: Page): Promise<void> => {
     await expect(page.locator(selector)).toHaveCount(0);
   }
 };
+
+test('markdown section saves source, renders safely and undoes', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  const root = await createRoot('Markdown journey');
+  await page.goto(`/projects/${root.id}`);
+  await page.locator('[data-empty-canvas-add]').click();
+  await page.locator('[data-create-section-type]').selectOption('markdown');
+  await page.locator('[data-create-section-submit]').click();
+  const frame = page.locator('[data-section-frame]');
+  await expect(frame.locator('[data-markdown-edit]')).toBeVisible();
+  const sections = await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections`);
+  const section = sections.find(({ type }) => type === 'markdown');
+  if (section === undefined) throw new Error('The picker did not create a Markdown section');
+  const source = '# Plan\n\n- One\n- Two\n\n[docs](https://example.com)\n\n```ts\nconst answer = 42;\n```\n\n<script>window.__x=1</script>\n';
+  const savedConfig = async () => (await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections`))
+    .find(({ id }) => id === section.id)?.config;
+  const patchResponse = () => page.waitForResponse((response) =>
+    response.request().method() === 'PATCH' && new URL(response.url()).pathname === `/api/sections/${section.id}`,
+  );
+
+  await frame.locator('[data-markdown-edit]').click();
+  await frame.locator('[data-markdown-source]').fill(source);
+  await frame.locator('[data-markdown-preview]').click();
+  await expect(frame.locator('h3')).toHaveText('Plan');
+  await expect(frame.locator('ul li')).toHaveCount(2);
+  const initialSave = patchResponse();
+  await frame.locator('[data-markdown-save]').click();
+  expect((await initialSave).status()).toBe(200);
+  await expect(frame.locator('[data-markdown-source]')).toHaveCount(0);
+  expect(await savedConfig()).toEqual({ markdown: source });
+
+  await page.reload();
+  await expect(frame.locator('h3')).toHaveText('Plan');
+  await expect(frame.locator('ul li')).toHaveCount(2);
+  await expect(frame.locator('a[target="_blank"][rel~="noopener"][rel~="noreferrer"]')).toHaveText('docs');
+  await expect(frame.locator('pre code')).toContainText('const answer = 42;');
+  await expect(frame).toContainText('<script>window.__x=1</script>');
+  await expect(frame.locator('script')).toHaveCount(0);
+  expect(await page.evaluate(() => '__x' in window)).toBe(false);
+
+  const patches: import('@playwright/test').Request[] = [];
+  const observePatches = (request: import('@playwright/test').Request): void => {
+    if (request.method() === 'PATCH' && new URL(request.url()).pathname === `/api/sections/${section.id}`) patches.push(request);
+  };
+  page.on('request', observePatches);
+  await frame.locator('[data-markdown-edit]').click();
+  await frame.locator('[data-markdown-source]').fill('A draft that must be discarded.');
+  await frame.locator('[data-markdown-cancel]').click();
+  await expect(frame.locator('[data-markdown-edit]')).toBeFocused();
+  expect(await savedConfig()).toEqual({ markdown: source });
+
+  await frame.locator('[data-markdown-edit]').click();
+  await expect(frame.locator('[data-markdown-source]')).toHaveValue(source);
+  await frame.locator('[data-markdown-save]').click();
+  await expect(frame.locator('[data-markdown-edit]')).toBeFocused();
+  expect(await savedConfig()).toEqual({ markdown: source });
+
+  // A real changed Save settles the earlier gestures before asserting the absent writes.
+  const changedSource = `${source}\nA saved change.\n`;
+  await frame.locator('[data-markdown-edit]').click();
+  await frame.locator('[data-markdown-source]').fill(changedSource);
+  const changedSave = patchResponse();
+  await frame.locator('[data-markdown-save]').click();
+  expect((await changedSave).status()).toBe(200);
+  await expect(frame.locator('[data-markdown-edit]')).toBeFocused();
+  expect(await savedConfig()).toEqual({ markdown: changedSource });
+  expect(patches).toHaveLength(1);
+  expect(patches[0]!.postDataJSON()).toEqual({ config: { markdown: changedSource } });
+  page.off('request', observePatches);
+
+  expect((await undoFromHeader(page, 'Edited Markdown in the Markdown section')).response.status()).toBe(200);
+  await expect.poll(savedConfig).toEqual({ markdown: source });
+  expect((await redoFromHeader(page, 'Edited Markdown in the Markdown section')).response.status()).toBe(200);
+  await expect.poll(savedConfig).toEqual({ markdown: changedSource });
+});
+
+test('markdown shortcut renders read-only', async ({ page }) => {
+  await seed('empty');
+  await setClock(PINNED_NOW);
+  const root = await createRoot('Markdown shortcut journey');
+  const [child] = await createSubprojects(root.id, 1);
+  const source = await addSection(child!.id, { type: 'markdown', config: { markdown: '# Shared notes\n\nRead-only source.' } });
+  const shortcut = await addShortcut(root.id, { pageId: await pageId(root.id), sourceSectionId: source.id });
+  await page.goto(`/projects/${root.id}`);
+  const frame = page.locator(`[data-shortcut-item][data-shortcut-id="${shortcut.id}"]`);
+  await expect(frame.locator('h3')).toHaveText('Shared notes');
+  await expect(frame).toContainText('Read-only source.');
+  await expect(frame.locator('[data-markdown-edit]')).toHaveCount(0);
+});
 
 test('the navigation column follows the viewport and keeps long and narrow navigation reachable', async ({ page }) => {
   await seed('empty');

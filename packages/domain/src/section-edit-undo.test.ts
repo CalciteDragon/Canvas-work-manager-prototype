@@ -28,7 +28,26 @@ describe('sectionUpdateLabel', () => {
       .toBe('Resized the Notes section to 8 columns');
   });
 
-  it('uses general wording for combined, non-prose and non-rich-text config edits', () => {
+  it('a markdown-only source change says Markdown', () => {
+    const markdown = { ...section, type: 'markdown', title: undefined, config: { markdown: '# Before' } };
+    const after = { ...markdown, config: { markdown: '# After' } };
+    const sourceChange = { field: 'config', before: markdown.config, after: after.config } as const;
+    expect(sectionUpdateLabel(markdown, after, [sourceChange]))
+      .toBe('Edited Markdown in the Markdown section');
+    expect(sectionUpdateLabel({ ...markdown, title: 'Plan' }, { ...after, title: 'Plan' }, [sourceChange]))
+      .toBe('Edited Markdown in the Plan section');
+    expect(sectionUpdateLabel(markdown, { ...after, title: 'Plan' }, [
+      sourceChange, { field: 'title', before: null, after: 'Plan' },
+    ])).toBe('Updated the Markdown section');
+    expect(sectionUpdateLabel(markdown, { ...after, config: { markdown: '# After', extra: true } }, [
+      { field: 'config', before: markdown.config, after: { markdown: '# After', extra: true } },
+    ])).toBe('Updated the Markdown section');
+    expect(sectionUpdateLabel(markdown, { ...after, config: { text: 'After' } }, [
+      { field: 'config', before: { text: 'Before' }, after: { text: 'After' } },
+    ])).toBe('Updated the Markdown section');
+  });
+
+  it('uses general wording for combined, non-prose and non-prose-type config edits', () => {
     expect(sectionUpdateLabel(section, { ...section, config: { text: 'After', tone: 'loud' } }, [
       { field: 'config', before: { text: 'Before' }, after: { text: 'After', tone: 'loud' } },
     ])).toBe('Updated the Notes section');

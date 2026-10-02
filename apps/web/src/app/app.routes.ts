@@ -15,12 +15,10 @@ import { NotFoundPage } from './shared/components/placeholder-page/not-found-pag
  *
  * **The two `prototype/*` routes are the exception**, because they are development tooling
  * that most sessions never open and the Design Lab's catalogue is the largest thing this
- * slice adds. The honest limit: it moves less than it looks like. `App` mounts
- * `<app-dev-panel />` globally so §46's chord reaches every route, and `DevPanel` imports
- * the same `DevPanelControls` that `StateInspectorPage` does — so the panel, its controls,
- * its store and the layout control stay eager whatever these routes do, and the Design
- * Lab's live panels reuse components already eager through the feature routes. Lazy-loading
- * the development panel itself is the next lever, and it would reopen a Slice 12 decision.
+ * slice adds. `App` mounts the development-panel shell globally so §46's chord reaches
+ * every route; only its controls load on opening, through a deferred block inside the
+ * dialog. The same controls are shared with the lazy state inspector. The Design Lab
+ * still reuses components eager through the feature routes.
  */
 export const routes: Routes = [
   // `pathMatch: 'full'` is not decoration — without it this redirect swallows every URL.

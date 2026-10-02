@@ -25,3 +25,6 @@ Medium. Domain tests cover the footprint and summary, and the nested-projects br
 **Revisit when**
 
 Real use shows a label is ambiguous for an inspector setting, or localization becomes a product requirement.
+
+
+**Amended, 2026-10-01 — Slice 62 partial checkpoint.** Prose labels now use the capability’s declared key. A markdown-only source edit says Edited Markdown in the named section; text keeps Edited prose. Unknown noun keys fall back to prose. Mixed changes and older labels remain unchanged.

@@ -1,5 +1,6 @@
 import {
   nameOf,
+  sectionCapabilityOf,
   ProjectSectionSchema,
   SectionAddUndoOperationSchema,
   SectionMoveUndoOperationSchema,
@@ -54,7 +55,9 @@ export const captureSectionMove = (input: Omit<SectionMoveUndoOperation, 'versio
 export const captureSectionUpdate = (input: Omit<SectionUpdateUndoOperation, 'version' | 'type'>): SectionUpdateUndoOperation =>
   SectionUpdateUndoOperationSchema.parse({ version: 1, type: 'section.update', ...input });
 
-/** Names a newly recorded section update from its exact normalized footprint; older labels stay stored as written. */
+const PROSE_NOUN: Record<string, string> = { markdown: 'Markdown', text: 'prose' };
+
+/** Names a newly recorded section update from its exact footprint and declared prose key; older labels stay stored as written. */
 export const sectionUpdateLabel = (
   before: Pick<ProjectSection, 'type' | 'title' | 'config' | 'collapsed' | 'columnSpan'>,
   after: Pick<ProjectSection, 'type' | 'title' | 'config' | 'collapsed' | 'columnSpan'>,
@@ -69,11 +72,14 @@ export const sectionUpdateLabel = (
     case 'collapsed': return `${change.after ? 'Collapsed' : 'Expanded'} the ${name} section`;
     case 'columnSpan': return `Resized the ${name} section to ${change.after} columns`;
     case 'config': {
-      if (before.type !== 'rich-text') return general;
+      const capability = sectionCapabilityOf(before.type);
+      if (capability?.recovery !== 'config') return general;
+      const proseKey = capability.proseKey!;
       const keys = new Set([...Object.keys(change.before), ...Object.keys(change.after)]);
       const changedKeys = [...keys].filter((key) => !sameValue(change.before[key], change.after[key]));
-      return changedKeys.length === 1 && changedKeys[0] === 'text'
-        ? `Edited prose in the ${name} section`
+      const noun = Object.hasOwn(PROSE_NOUN, proseKey) ? PROSE_NOUN[proseKey] : 'prose';
+      return changedKeys.length === 1 && changedKeys[0] === proseKey
+        ? `Edited ${noun} in the ${name} section`
         : general;
     }
   }

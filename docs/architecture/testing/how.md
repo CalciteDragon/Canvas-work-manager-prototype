@@ -218,6 +218,17 @@ pnpm storybook                                        # :6006
   add/update/move Undo, disjoint and overlapping agent edits over MCP, canvas contextual add,
   rename, Rich Text blur save, collapse, keyboard resize and keyboard move Undo with reload, and
   the Reflections-page container add, Undo and refusal once a reflection is authored.
+- **Markdown acceptance** lives in `canvas-editing.spec.ts`: `markdown section saves source,
+  renders safely and undoes` creates from the picker, previews a heading and list, saves exact
+  source, then reloads to check links, fenced code and escaped script text without a script
+  element. Cancel after typing and unchanged Save send no PATCH; an awaited changed Save
+  settles both gestures before the recorded PATCH list is asserted to contain only that write.
+  Header Undo/Redo are checked against exact API source. `markdown shortcut renders read-only`
+  projects a child canvas's source onto Home with no Edit control. The HTTP round-trip case in
+  `api/routes.test.ts` and the `create_section` / `update_section` cases in `contract.test.ts`
+  preserve source and replace config whole; `get_project_archive` checks non-blank Markdown's
+  `config` recovery. Temporary source-dropping faults in tool and PATCH forwarding were
+  reverted after those source assertions failed.
 - **Optional-page history** lives in `page-history.spec.ts`: a first enable through the page
   manager, undone to an absent record and redone to the same page id with a second tab watching the
   live frames and a reload proving persistence; Open archive from More recording one action while

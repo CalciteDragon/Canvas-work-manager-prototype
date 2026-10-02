@@ -90,7 +90,23 @@ describe('sectionRecoveryOf — containers, by the rows still assigned', () => {
   });
 });
 
-describe('sectionRecoveryOf — rich text is meaningful plain prose', () => {
+describe('sectionRecoveryOf — Markdown source', () => {
+  it('markdown source with content is recoverable config', () => {
+    expect(sectionRecoveryOf(section('markdown', { markdown: '# x' }), none))
+      .toEqual({ include: true, recovery: { kind: 'config' } });
+    expect(sectionRecoveryOf(section('markdown', { markdown: ' \n' }), none)).toEqual({ include: false });
+    expect(sectionRecoveryOf(section('markdown'), none)).toEqual({ include: false });
+  });
+
+  it('markdown with a foreign or non-string key is unknown', () => {
+    for (const config of [{ text: 'x' }, { markdown: 1 }, { markdown: 'x', extra: 1 }]) {
+      expect(sectionRecoveryOf(section('markdown', config), none))
+        .toEqual({ include: true, recovery: { kind: 'unknown' } });
+    }
+  });
+});
+
+describe('sectionRecoveryOf — rich-text rules are unchanged through the declared key', () => {
   it.each([
     ['plain prose', 'Measure the hallway shelf'],
     ['literal markup, read as prose', '<p></p>'],

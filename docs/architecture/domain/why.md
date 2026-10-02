@@ -179,6 +179,8 @@ ISO string so ordering stays lossless without a clock or timezone
 
 ## Decisions that shape this system
 
+- [Markdown stores source and declares its prose key](../../decisions/2026-10-markdown-source-and-rendering.md) — pure recovery and history label functions read capability metadata, without parsing source or adding a service edge.
+
 - [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — pure read eligibility is shared by two projections while canonical Restore writes recheck blockers.
 
 Newest first. The full list with status is in the [decision index](../../decisions/README.md#domain).
@@ -244,9 +246,14 @@ live-update emission.
 **Archive projects recoverable content, judged on current state.** `sectionRecoveryOf`
 (`section-recovery-policy.ts`, package-internal) is a pure function: contracts capability plus the
 rows still assigned to the section. `ProjectArchiveService` applies it to section entries only;
-retained disposable view tombstones stay stored but unlisted, uncertain rich-text config and
+retained disposable view tombstones stay stored but unlisted, uncertain Rich Text or Markdown config and
 unknown types are kept, and a container holding only independently archived rows stays listed as
 the first step of their recovery. New removal consults this policy after settling rows, then makes
 a separate canonical-reference check before deleting. Archive remains a projection, not the
 deletion gate ([content policy](../../decisions/2026-09-content-oriented-archive-policy.md),
 [disposable removal](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
+
+Config prose uses the key declared by contracts: `text` for Rich Text, `markdown` for Markdown.
+The domain trims source directly, so literal markup remains content and no renderer is part of
+recovery. A prose-only history update uses that same key and a small noun table, preserving Rich
+Text's stored wording while new Markdown edits say `Edited Markdown`.

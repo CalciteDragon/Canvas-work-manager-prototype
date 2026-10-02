@@ -43,7 +43,7 @@ export class ShortcutFrame {
   });
   readonly pageLabel = computed(() => pageLabel(this.shortcut().sourcePageKind));
 
-  private readonly noopConfig = (_config: SectionConfig): void => {};
+  private readonly noopConfig = async (_config: SectionConfig): Promise<boolean> => false;
   private readonly noopProjectData = (): void => {};
   private readonly noopProjectHierarchy = (): void => {};
 

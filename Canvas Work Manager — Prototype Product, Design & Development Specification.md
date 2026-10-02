@@ -1185,7 +1185,7 @@ promise Delete remains the next step after opening a disabled Archive page, whic
 record its own enable action ([why](docs/decisions/2026-09-task-delete-recovery-feedback.md)).
 
 *Since Slice 55,* a newly recorded section update's header label names a lone rename (including
-the resulting default after a title clear), Rich Text prose edit, collapse or expand, or resize to
+the resulting default after a title clear), Rich Text prose edit, Markdown edit (`Edited Markdown in …`), collapse or expand, or resize to
 its saved column count. Mixed updates and other configuration changes use one general "Updated"
 label for their one action. Undo and Redo reuse that stored label after reload; older action labels
 are left as recorded ([why](docs/decisions/2026-09-section-update-history-labels.md)).
@@ -1593,7 +1593,7 @@ SECTION_REGISTRY
 
 *Landed in Slice 29.* Every registered type also declares one capability in the contracts
 package's `SECTION_CAPABILITIES`: which rows it owns, if any, and what removing it could leave
-worth recovering — owned rows (Task List, Reflections), config prose (Rich Text) or nothing
+worth recovering — owned rows (Task List, Reflections), config prose (Rich Text and Markdown, with a declared `proseKey`) or nothing
 (Sub-Projects, Progress, Timeline, Recent Activity). Ownership (`SECTION_OWNERSHIP`) is derived
 from it, and the registry test fails when a registered type has no declaration, so adding a type
 now touches its folder, one registry line and one capability line. A type nothing declares — a
@@ -1608,6 +1608,8 @@ Prototype:
 
 ```text
 Rich Text
+
+Markdown
 
 Task List
 
@@ -1632,8 +1634,11 @@ Adding a new section type should require minimal changes outside its own feature
 
 ## Which pages accept sections
 
-Seven of the types above are registered today: Rich Text, Task List, Sub-Projects, Progress,
-Reflections, Timeline and Recent Activity.
+Eight types are registered today: Rich Text, Markdown, Task List, Sub-Projects, Progress,
+Reflections, Timeline and Recent Activity. Markdown stores exact source in `config.markdown`;
+its deferred body offers Edit, Source/Preview and explicit Save/Cancel. Unchanged Save and
+Cancel write nothing, refusal keeps the draft, and live updates retain it with a replacement
+notice. Unreadable config cannot be overwritten here. Rich Text remains until Stage C2.
 
 | Page | Sections |
 |---|---|
@@ -1697,7 +1702,7 @@ ordinary update. Independently archived rows are not changed by removal, so thei
 markers and restore steps remain intact. The domain then retains the section when
 recoverable or uncertain content remains, or when any canonical task, reflection or Home
 shortcut still references it. Otherwise it deletes the section: known disposable views,
-empty containers and whitespace-only Rich Text do not need permanent tombstones. Archived
+empty containers and whitespace-only Rich Text or Markdown do not need permanent tombstones. Archived
 rows and shortcut source ids count in the reference audit. Existing tombstones are not purged
 by this operation. No row or shortcut is silently deleted.
 
@@ -1744,8 +1749,8 @@ More menu is the single recovery entry point from root and nested work routes.
 
 *Landed in Slice 29, amended in Slice 43: Archive lists **recoverable content**, not every section tombstone.* A
 removed or hidden section is listed only when something in it remains to recover: a Task List
-or Reflections container with any rows still assigned to it (archived rows included), Rich Text
-whose only config is prose that trims to something (an empty config holds nothing), or a type or config the domain cannot read as
+or Reflections container with any rows still assigned to it (archived rows included), Rich Text or Markdown
+whose only config is its declared string prose key that trims to something (an empty config holds nothing), or a type or config the domain cannot read as
 empty (listed conservatively as unknown content). Removed Progress, Timeline, Recent Activity and
 Sub-Projects views — and a container with no remaining rows, or blank prose — are deleted
 when no canonical row or shortcut references them. Historical tombstones remain unlisted;
@@ -2483,6 +2488,10 @@ This makes dashboard and calendar testing dramatically easier.
 # 46. Prototype Development Panel
 
 Create a development-only panel.
+
+Since Slice 62, its keyboard handler and modal chrome load eagerly; shared controls load
+when the panel opens. Close and the focus trap remain immediately available. A loading
+line and an explicit page reload after chunk failure keep the panel usable.
 
 Suggested shortcut:
 
@@ -3524,6 +3533,8 @@ features/projects/sections/
 ├── section-frame/
 │
 ├── rich-text/
+│
+├── markdown/
 │
 ├── tasks/
 │

@@ -93,6 +93,7 @@ const render = (
   fixture.componentRef.setInput('section', section(overrides));
   fixture.componentRef.setInput('definition', definition(definitionOverrides));
   fixture.componentRef.setInput('rename', rename);
+  fixture.componentRef.setInput('saveConfig', async () => true);
   fixture.componentRef.setInput('projectDataRevision', 0);
   fixture.componentRef.setInput('projectHierarchyRevision', 0);
   fixture.detectChanges();
@@ -129,7 +130,10 @@ describe('ProjectSectionFrame (§31)', () => {
     const seen: unknown[] = [];
     frame.collapseToggled.subscribe((event) => seen.push(['collapse', event]));
     frame.removeRequested.subscribe((event) => seen.push(['remove', event]));
-    frame.configChanged.subscribe((event) => seen.push(['config', event]));
+    fixture.componentRef.setInput('saveConfig', async (id: string, config: SectionConfig) => {
+      seen.push(['config', { id, config }]);
+      return true;
+    });
     frame.projectHierarchyChanged.subscribe(() => seen.push(['hierarchy']));
 
     query(fixture, '[data-section-collapse]')!.click();
@@ -409,4 +413,12 @@ describe('ProjectSectionFrame (§31)', () => {
     // Focusable programmatically, and out of the tab order: only a canvas arrival focuses it.
     expect(query(fixture, '[data-section-title]')!.getAttribute('tabindex')).toBe('-1');
   });
+});
+
+it('content config writes return the saveConfig result', async () => {
+  const fixture = render();
+  const save = vi.fn(async () => false);
+  fixture.componentRef.setInput('saveConfig', save);
+  expect(await fixture.componentInstance.contentInputs().onConfigChange({ text: 'draft' })).toBe(false);
+  expect(save).toHaveBeenCalledWith('section-a', { text: 'draft' });
 });

@@ -120,3 +120,15 @@ The build measures 1039.43 kB; the 1050 kB ceiling and 850 kB warning remain unc
 See [navigation controls](2026-09-project-navigation-gear-and-work-create.md).
 Final Slice 60 verification includes a reserved Loading slot and a visible Error reload path:
 1040.05 kB, still below the unchanged ceiling. The 1039.43 kB above was the first deferral build.
+
+
+**Amended, 2026-10-01 — Slice 62 partial checkpoint.** The mandatory Slice 62 early build measured 1,052.60 kB and failed the unchanged 1,050 kB ceiling by 2.60 kB; the Markdown parser/body was lazy (117.80 kB). Implementation stopped as required by the active plan. A bounded DevPanelControls deferral is a candidate under review, not implemented; no budget increase is approved.
+
+
+**Amended, 2026-10-02 — approved structural remedy.** The user approved deferring development-panel controls while retaining the eager modal shell. The first remedy build measures **1,032,388 bytes** (unique initial files referenced by index.html), below the unchanged 1,050,000-byte ceiling. Stats place DevPanelControls, DevPanelStore and ProjectLayoutControl outside initial outputs. Markdown parser/body/renderer are also lazy, with only its shell eager. This is an intermediate measurement before the source editor is completed.
+
+
+**Amended, 2026-10-02 — final Slice 62 editor measurement.** The completed source editor
+keeps unique initial files at 1,032,388 bytes. Parser, renderer, body and editor are solely
+in a 125.81 kB lazy output; panel controls/store/layout remain in a 20.90 kB lazy output.
+The hard ceiling is unchanged at 1,050,000 bytes; the 850,000-byte warning still applies.

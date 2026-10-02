@@ -3,6 +3,8 @@ import { sectionKindOf, type SectionKind } from '@cwm/contracts';
 import type { SectionContentComponent } from './section-contract';
 import { RichTextSection } from './rich-text/rich-text-section';
 import { richTextDefaultConfig } from './rich-text/rich-text-config';
+import { MarkdownSection } from './markdown/markdown-section';
+import { markdownDefaultConfig } from './markdown/markdown-config';
 import { TaskListSection } from './tasks/task-list-section';
 import { ProgressSection } from './progress/progress-section';
 import { ReflectionsSection } from './reflections/reflections-section';
@@ -44,7 +46,8 @@ export interface SectionDefinition {
  * §30's list. **Adding a section type is one line here plus the type's own folder** — that
  * claim is what §30 asks the prototype to prove, so nothing type-specific belongs anywhere
  * else. Two conditional costs in `packages/contracts/src/section.ts` have since been
- * measured and are recorded rather than argued away: a *container* needs an entry in
+ * measured and are recorded rather than argued away: recovery prose needs a `proseKey` in
+ * `SECTION_CAPABILITIES`; a *container* needs an entry in
  * `SECTION_OWNERSHIP`, and a type whose display name the derivation cannot produce needs one
  * in `SECTION_DISPLAY_NAMES` (`sub-projects` is the only one today). `registry.spec.ts`
  * fails when this file and that derivation disagree, so the second cost is paid at the
@@ -61,6 +64,14 @@ export const SECTION_REGISTRY: readonly SectionDefinition[] = [
     kind: sectionKindOf('rich-text'),
     createDefaultConfig: richTextDefaultConfig,
     component: RichTextSection,
+  },
+  {
+    type: 'markdown',
+    displayName: 'Markdown',
+    icon: '📄',
+    kind: sectionKindOf('markdown'),
+    createDefaultConfig: markdownDefaultConfig,
+    component: MarkdownSection,
   },
   {
     type: 'task-list',

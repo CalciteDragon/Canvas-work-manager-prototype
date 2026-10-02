@@ -10,7 +10,7 @@ import { SECTION_REGISTRY, definitionFor } from './registry';
  */
 describe('SECTION_REGISTRY (§29)', () => {
   it('ships the §30 section types that exist', () => {
-    expect(SECTION_REGISTRY.map((definition) => definition.type)).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
+    expect(SECTION_REGISTRY.map((definition) => definition.type)).toEqual(['rich-text', 'markdown', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
   });
 
   it('gives every definition the members §29 pins', () => {
@@ -54,4 +54,13 @@ describe('SECTION_REGISTRY (§29)', () => {
     expect(definitionFor('timeline')?.displayName).toBe('Timeline');
     expect(definitionFor('rich-text')?.displayName).toBe('Rich Text');
   });
+});
+
+it('config types declare a prose key their default holds', () => {
+  for (const definition of SECTION_REGISTRY) {
+    const capability = sectionCapabilityOf(definition.type)!;
+    if (capability.recovery === 'config') {
+      expect(Object.keys(definition.createDefaultConfig() as object)).toContain(capability.proseKey);
+    }
+  }
 });

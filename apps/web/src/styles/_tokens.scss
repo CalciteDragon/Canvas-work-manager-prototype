@@ -85,6 +85,7 @@
   --shadow-md: 0 calc(16px * var(--knob-elevation)) calc(48px * var(--knob-elevation)) var(--shadow-color-md);
 
   --font-body: system-ui, -apple-system, 'Segoe UI', roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Segoe UI Mono', consolas, monospace;
   --font-size-sm: calc(0.8125rem * var(--knob-font-scale));
   --font-size-md: calc(0.9375rem * var(--knob-font-scale));
   --font-size-lg: calc(1.125rem * var(--knob-font-scale));

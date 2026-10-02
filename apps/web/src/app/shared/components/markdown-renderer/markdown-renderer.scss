@@ -1,0 +1,62 @@
+// innerHTML has no emulated Angular attribute; every global rule stays inside this root.
+.markdown-renderer {
+  display: block;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+
+  p, ul, ol, blockquote, pre, table, hr {
+    margin-block: var(--space-3);
+  }
+  h3, h4, h5, h6 {
+    margin-block: var(--space-4) var(--space-2);
+    font-size: var(--font-size-lg);
+  }
+  h3 { font-size: var(--font-size-xl); }
+  h5, h6 { font-size: var(--font-size-md); }
+  ul, ol { padding-inline-start: var(--space-6); }
+  li + li { margin-block-start: var(--space-1); }
+  blockquote {
+    margin-inline: 0;
+    padding-inline-start: var(--space-4);
+    border-left-width: var(--border-focus);
+    border-left-style: solid;
+    border-left-color: var(--color-border);
+    color: var(--color-text-muted);
+  }
+  code {
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+  }
+  pre {
+    overflow-x: auto;
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-sunken);
+  }
+  pre code { padding: 0; border-radius: 0; }
+  hr { border: 0; border-block-start: var(--border-hairline) solid var(--color-border); }
+  a { color: var(--color-accent); }
+  a:focus-visible { outline: var(--border-focus) solid var(--color-accent); }
+  table {
+    display: block;
+    max-inline-size: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+  }
+  th, td {
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-hairline) solid var(--color-border);
+    text-align: start;
+  }
+  th { background: var(--color-surface-raised); }
+  .markdown-align-left { text-align: left; }
+  .markdown-align-center { text-align: center; }
+  .markdown-align-right { text-align: right; }
+  .markdown-renderer__empty { color: var(--color-text-muted); }
+  div > :first-child { margin-block-start: 0; }
+  div > :last-child { margin-block-end: 0; }
+}

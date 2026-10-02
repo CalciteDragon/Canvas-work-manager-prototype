@@ -23,6 +23,7 @@ import { GatewayError } from '../../core/gateway/gateway-error';
 import { WORK_MANAGER_GATEWAY } from '../../core/gateway/work-manager-gateway';
 import { FakeWorkManagerGateway } from '../../core/gateway/testing/fake-gateway';
 import { ProjectCanvas } from './project-canvas';
+import { ProjectSectionFrame } from './sections/section-frame/project-section-frame';
 import { ProjectPageStore } from './project-page-store';
 import { SECTION_REGISTRY } from './sections/registry';
 
@@ -1022,4 +1023,16 @@ describe('ProjectCanvas — arriving at a container (§27, §34)', () => {
       expect(query(fixture, '[data-section-target-missing]') === null).toBe(!fragment.startsWith('section-'));
     }
   });
+});
+
+it('section config save resolves false and shows the error on refusal', async () => {
+  const { fixture } = await render({
+    sections: [section('section-text', 'rich-text', 0)],
+    failOn: { 'sections.update': new GatewayError('unreachable', 0, 'source could not be saved') },
+  });
+  const frame = fixture.debugElement.query(By.directive(ProjectSectionFrame)).componentInstance as ProjectSectionFrame;
+  expect(await frame.contentInputs().onConfigChange({ text: 'kept draft' })).toBe(false);
+  await fixture.whenStable();
+  fixture.detectChanges();
+  expect(query(fixture, '[data-section-error]')?.textContent).toContain('source could not be saved');
 });

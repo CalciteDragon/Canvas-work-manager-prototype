@@ -101,14 +101,15 @@ describe('section ownership', () => {
 });
 
 describe('section capabilities (Refactor §§6–8)', () => {
-  it('declares exactly the seven registered types, each with one recovery capability', () => {
+  it('declares exactly the eight registered types, each with one recovery capability', () => {
     expect(Object.keys(SECTION_CAPABILITIES).sort()).toEqual(
-      ['progress', 'recent-activity', 'reflections', 'rich-text', 'sub-projects', 'task-list', 'timeline'],
+      ['markdown', 'progress', 'recent-activity', 'reflections', 'rich-text', 'sub-projects', 'task-list', 'timeline'],
     );
     expect(SECTION_CAPABILITIES).toEqual({
       'task-list': { ownedData: 'tasks', recovery: 'owned-content' },
       reflections: { ownedData: 'reflections', recovery: 'owned-content' },
-      'rich-text': { recovery: 'config' },
+      'rich-text': { recovery: 'config', proseKey: 'text' },
+      markdown: { recovery: 'config', proseKey: 'markdown' },
       'sub-projects': { recovery: 'none' },
       progress: { recovery: 'none' },
       timeline: { recovery: 'none' },
@@ -117,6 +118,22 @@ describe('section capabilities (Refactor §§6–8)', () => {
     for (const capability of Object.values(SECTION_CAPABILITIES)) {
       expect(SectionCapabilitySchema.parse(capability)).toEqual(capability);
     }
+  });
+
+  it('markdown is config prose keyed by markdown', () => {
+    expect(sectionCapabilityOf('markdown')).toEqual({ recovery: 'config', proseKey: 'markdown' });
+    expect(sectionKindOf('markdown')).toBe('view');
+    expect(ownedKindOf('markdown')).toBeUndefined();
+    expect(displayNameOf('markdown')).toBe('Markdown');
+  });
+
+  it('proseKey is present exactly for config recovery', () => {
+    expect(SectionCapabilitySchema.parse({ recovery: 'config', proseKey: 'markdown' }))
+      .toEqual({ recovery: 'config', proseKey: 'markdown' });
+    expect(SectionCapabilitySchema.safeParse({ recovery: 'config' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ recovery: 'config', proseKey: '' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ recovery: 'none', proseKey: 'markdown' }).success).toBe(false);
+    expect(SectionCapabilitySchema.safeParse({ ownedData: 'tasks', recovery: 'owned-content', proseKey: 'markdown' }).success).toBe(false);
   });
 
   it('refuses a capability whose owned data and recovery disagree', () => {
@@ -131,7 +148,7 @@ describe('section capabilities (Refactor §§6–8)', () => {
   });
 
   it('answers undefined — unknown, never disposable — for an unregistered or inherited type', () => {
-    expect(sectionCapabilityOf('rich-text')).toEqual({ recovery: 'config' });
+    expect(sectionCapabilityOf('rich-text')).toEqual({ recovery: 'config', proseKey: 'text' });
     for (const type of ['something-nobody-registered', 'constructor', 'toString', '__proto__', 'hasOwnProperty']) {
       expect(sectionCapabilityOf(type)).toBeUndefined();
       expect(ownedKindOf(type)).toBeUndefined();
@@ -142,10 +159,11 @@ describe('section capabilities (Refactor §§6–8)', () => {
 
 describe('what a section is called', () => {
   it('derives every registered display name, and overrides the one it cannot', () => {
-    // The seven registered types, against `SECTION_REGISTRY`'s own display names. Six derive
+    // The eight registered types, against `SECTION_REGISTRY`'s own display names. Seven derive
     // from the kebab type; `sub-projects` is the entry the overrides table exists for, and
     // the spec (line 1109) spells it with the hyphen.
     expect(displayNameOf('rich-text')).toBe('Rich Text');
+    expect(displayNameOf('markdown')).toBe('Markdown');
     expect(displayNameOf('task-list')).toBe('Task List');
     expect(displayNameOf('progress')).toBe('Progress');
     expect(displayNameOf('reflections')).toBe('Reflections');

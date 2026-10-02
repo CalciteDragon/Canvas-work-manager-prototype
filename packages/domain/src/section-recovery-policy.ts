@@ -26,11 +26,11 @@ const UNKNOWN: SectionRecoveryDecision = { include: true, recovery: { kind: 'unk
  *
  * The contracts capability says what a type *could* hold; this reads the current state: a
  * container is content while any row is still assigned to it (archived rows included, since
- * the section is the dependency their own Restore needs), and rich text is content while its
+ * the section is the dependency their own Restore needs), and config prose is content while its
  * prose trims to something. It evaluates state after removal settlement, never intent.
  *
- * Uncertainty is kept, not dropped: an unregistered type, or rich-text config with a non-string
- * `text` or any other key, is `unknown`. An empty rich-text config (`{}`) holds nothing and is
+ * Uncertainty is kept, not dropped: an unregistered type, or prose config with a non-string
+ * value at its declared `proseKey` or any other key, is `unknown`. An empty prose config (`{}`) holds nothing and is
  * excluded like blank prose. Nothing here decides deletion; it only
  * decides a projection. No repositories, clock or mutation.
  */
@@ -45,7 +45,7 @@ export const sectionRecoveryOf = (
     case 'none':
       return EXCLUDE;
     case 'config':
-      return richTextRecovery(section.config);
+      return proseRecovery(section.config, capability.proseKey!);
     case 'owned-content': {
       const ownedData = capability.ownedData!;
       const rows =
@@ -91,15 +91,15 @@ const separateRestores = (sectionId: ProjectSection['id'], rows: readonly Archiv
 
 /**
  * Inspects only the recovery-relevant keys; the section folder keeps its editor schema
- * (`rich-text-config.ts`), whose fallback to empty text is a display choice, not evidence.
- * JavaScript `trim`, with no HTML parsing: the editor is a plain textarea.
+ * (`rich-text-config.ts` or `markdown-config.ts`). The capability declares only the key name.
+ * JavaScript `trim`, with no Markdown or HTML parsing: both editors store plain source.
  */
-const richTextRecovery = (config: ProjectSection['config']): SectionRecoveryDecision => {
+const proseRecovery = (config: ProjectSection['config'], proseKey: string): SectionRecoveryDecision => {
   const keys = Object.keys(config);
   // `create_section` without a config stores `{}`: no keys, so nothing to lose.
   if (keys.length === 0) return EXCLUDE;
-  if (keys.length !== 1 || keys[0] !== 'text') return UNKNOWN;
-  const text: unknown = config['text'];
+  if (keys.length !== 1 || keys[0] !== proseKey) return UNKNOWN;
+  const text: unknown = config[proseKey];
   if (typeof text !== 'string') return UNKNOWN;
   return text.trim().length > 0 ? { include: true, recovery: { kind: 'config' } } : EXCLUDE;
 };

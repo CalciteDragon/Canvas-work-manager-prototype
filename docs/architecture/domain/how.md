@@ -40,10 +40,13 @@ before returning a root's archived items. Each canonical Restore validates again
    actor's visible projects, drop everything under an archived ancestor, and compute.
 
 `SectionService.update` passes its normalized changed fields and before/after section to
-`sectionUpdateLabel` when it records the action. A lone title, Rich Text prose, collapse or width
+`sectionUpdateLabel` when it records the action. A lone title, config prose, collapse or width
 change gets a specific stored label; combined and other config changes keep general wording.
 History summaries reuse the stored label through either transition and after reload. The separate
-Activity summary still uses its existing verb.
+Activity summary still uses its existing verb. A config edit is prose only when the type declares
+`config` recovery and its `proseKey` is the sole changed config key. The key chooses the noun:
+`markdown` says `Markdown`, `text` says `prose`, and an unfamiliar prose key falls back to `prose`.
+The domain reads no Markdown or HTML syntax.
 
 ## Key symbols
 
@@ -202,7 +205,9 @@ Activity summary still uses its existing verb.
   content must remain recoverable. Canonical task/reflection references and Home shortcut sources
   independently prevent deletion. New disposable sections with no such reference are deleted;
   historical tombstones are never purged. Archive projects retained content only and never
-  decides deletion eligibility by itself.
+  decides deletion eligibility by itself. For `config` recovery it reads the capability's
+  declared `proseKey`: an empty config or blank string holds nothing; a sole non-blank string
+  is recoverable config; any extra, foreign or non-string value is kept as unknown content.
 - **Section and shortcut creation positions** are optional zero-based indexes in the page's
   combined placement order. Each service resolves and validates its target (and, for a shortcut,
   its source) before insertion, clamps a position past the end, inserts and calls

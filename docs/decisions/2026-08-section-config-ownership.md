@@ -64,3 +64,6 @@ implementation and does not yet change the current parsing boundary.
 key and whether it trims to something, to decide an Archive projection. It does not parse the
 editor schema, coerce or rewrite config, or affect the editor, whose `readRichTextConfig` comment
 now says its empty fallback is not evidence of emptiness. Section folders still own config shape.
+
+
+**Amended, 2026-10-01 — Slice 62 partial checkpoint.** SECTION_CAPABILITIES now declares proseKey exactly for config recovery (text for Rich Text, markdown for Markdown). This names the recovery/history-relevant key without owning its schema or validating configs in domain; whole-config replacement remains.

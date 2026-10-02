@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ProjectSectionSchema, ResolvedSectionShortcutSchema } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
@@ -97,4 +97,16 @@ describe('ShortcutFrame (§27)', () => {
     expect(first.readOnly).toBe(true);
     expect(first.onConfigChange).toBe(fixture.componentInstance.contentInputs().onConfigChange);
   });
+});
+
+it('markdown shortcut is read-only', async () => {
+  TestBed.configureTestingModule({ providers: [provideRouter([])] });
+  const value = shortcut();
+  const fixture = render(shortcut({ source: { ...value.source, type: 'markdown', config: { markdown: '# Canonical source' } } }));
+  for (const block of await fixture.getDeferBlocks()) await block.render(DeferBlockState.Complete);
+  await fixture.whenStable();
+  fixture.detectChanges();
+  expect(query(fixture, 'h3')?.textContent).toBe('Canonical source');
+  expect(query(fixture, '[data-markdown-edit]')).toBeNull();
+  expect(await fixture.componentInstance.contentInputs().onConfigChange({ markdown: 'ignored' })).toBe(false);
 });

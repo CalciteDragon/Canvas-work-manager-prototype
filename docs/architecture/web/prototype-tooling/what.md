@@ -6,7 +6,7 @@
 flowchart TB
   app["App (composition root)"] --> panel["DevPanel<br/>Ctrl/Cmd+Shift+D overlay"]
   route["/prototype/state"] --> inspector["StateInspectorPage<br/>+ ProjectLayoutControl list"]
-  panel --> controls["DevPanelControls<br/>the one implementation of every control"]
+  panel -. "deferred on opening" .-> controls["DevPanelControls<br/>the one implementation of every control"]
   inspector --> controls
   controls --> dstore["DevPanelStore<br/>sessionStorage; notes; CURRENT_SLICE; reload"]
   inspector --> istore["StateInspectorStore"]
@@ -45,7 +45,7 @@ flowchart TB
 | `PrototypeControlPort`, `PROTOTYPE_CONTROL` | `control/prototype-control.ts` | The interface and token |
 | `PrototypeHttpControl` | `control/prototype-http-control.ts` | The adapter over `/prototype/*` |
 | Fake | `control/testing/` | What specs inject |
-| `DevPanel`, `DevPanelControls` | `dev-panel/dev-panel.ts`, `dev-panel-controls.ts` | Overlay and the shared controls |
+| `DevPanel`, `DevPanelControls` | `dev-panel/dev-panel.ts`, `dev-panel-controls.ts` | Eager modal shell and deferred shared controls |
 | `DevPanelStore`, `CURRENT_SLICE`, `StoredSettings` | `dev-panel/dev-panel-store.ts` | Panel state, notes, reload rule |
 | `StateInspectorPage`, `StateInspectorStore`, `ProjectLayoutControl` | `dev-panel/state-inspector-page.ts`, `state-inspector-store.ts`, `project-layout-control.ts` | §68's inspector and §28's list |
 | `DesignLabPage`, `DesignLabStore`, `DesignLabToken`, `DesignLabExport` | `design-lab/` | §67 |

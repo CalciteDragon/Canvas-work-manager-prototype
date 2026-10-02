@@ -69,8 +69,8 @@ been earned.
 - Friction notes carry route, project, real timestamp and slice, so
   `.prototype/notes.json` reads as a history; `CURRENT_SLICE` must be bumped when a
   slice starts.
-- The panel and its controls stay in the initial bundle whatever the routes do, because
-  `App` mounts the overlay globally; lazy-loading it would reopen the surface decision.
+- The panel shell stays eager so its chord and modal focus work immediately; controls,
+  their store and layout control load on opening, preserving the shared overlay/route surface.
 - Ctrl+Shift+D may be Chrome's; `/prototype/state` is always there.
 
 ## Decisions that shape this system
@@ -80,7 +80,7 @@ been earned.
 - [A theme change lasts the session, not the persona](../../../decisions/2026-08-theme-selection-is-session-only.md)
 - [What §46's Agent Connection control is](../../../decisions/2026-08-agent-connection-panel-control-is-a-roster.md)
 - [The Design Lab is a route with live knobs, not a third theme](../../../decisions/2026-08-design-lab-tokens-are-session-knobs.md)
-- [The initial bundle budget is set deliberately at 850 kB](../../../decisions/2026-08-initial-bundle-budget.md) — why the panel stays eager
+- [The initial bundle budget is set deliberately at 850 kB](../../../decisions/2026-08-initial-bundle-budget.md) — why the shell stays eager while controls defer
 
 ## Spec sections
 

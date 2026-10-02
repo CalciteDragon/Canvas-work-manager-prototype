@@ -130,7 +130,7 @@
                 [projectHierarchyRevision]="store.projectHierarchyRevision()"
                 (collapseToggled)="collapse($event)"
                 (moveRequested)="moveWithKeyboard(placement.section.id, $event)"
-                (configChanged)="saveConfig($event)"
+                [saveConfig]="saveSectionConfig"
                 (projectDataChanged)="projectDataChanged()"
                 (projectHierarchyChanged)="projectHierarchyChanged()"
                 (removeRequested)="removeSectionFromCanvas($event)"

@@ -19,6 +19,7 @@ import {
 
 const ALL_PERMISSIONS = AgentPermissionSchema.options;
 const CONTENT_SECTION = 'section-project-work-manager-brief';
+const MARKDOWN_SOURCE = '# Agent notes\n\n- Preserve source\n- Keep **formatting**\n\n<script>opaque source</script>\n';
 
 /**
  * One case per tool. `mutates` says which half of the store assertion applies; `verify` is
@@ -149,6 +150,8 @@ const CASES: Record<string, ToolCase> = {
       await harness.services.sections.remove(writer, VIEW_SECTION);
       const notes = await harness.services.sections.add(writer, PROJECT, { type: 'rich-text', config: { text: 'Keep me' } });
       await harness.services.sections.remove(writer, notes.section.id);
+      const markdown = await harness.services.sections.add(writer, PROJECT, { type: 'markdown', config: { markdown: MARKDOWN_SOURCE } });
+      await harness.services.sections.remove(writer, markdown.section.id);
       await harness.services.sections.remove(writer, TASK_CONTAINER);
     },
     verify: (result) => {
@@ -157,6 +160,10 @@ const CASES: Record<string, ToolCase> = {
       const sections = result.items.filter((item: { kind: string }) => item.kind === 'section');
       expect(sections.map((item: { section: { id: string } }) => item.section.id)).not.toContain(VIEW_SECTION);
       expect(sections).toContainEqual(expect.objectContaining({ section: expect.objectContaining({ type: 'rich-text' }), recovery: { kind: 'config' } }));
+      expect(sections).toContainEqual(expect.objectContaining({
+        section: expect.objectContaining({ type: 'markdown', config: { markdown: MARKDOWN_SOURCE } }),
+        recovery: { kind: 'config' },
+      }));
       expect(sections).toContainEqual(
         expect.objectContaining({
           section: expect.objectContaining({ id: TASK_CONTAINER }),
@@ -278,12 +285,13 @@ const CASES: Record<string, ToolCase> = {
     },
   },
   create_section: {
-    input: { projectId: PROJECT, type: 'progress', position: 1 },
+    input: { projectId: PROJECT, type: 'markdown', config: { markdown: MARKDOWN_SOURCE }, position: 1 },
     mutates: true,
     verify: async (result, harness) => {
-      expect(result).toMatchObject({ section: { projectId: PROJECT, type: 'progress', position: 1 }, operation: { operation: 'section.add' } });
+      expect(result).toMatchObject({ section: { projectId: PROJECT, type: 'markdown', position: 1, config: { markdown: MARKDOWN_SOURCE } }, operation: { operation: 'section.add' } });
       const listed = await harness.services.sections.list(agent(['projects.read']), PROJECT);
       expect(listed.find(({ id }) => id === result.section.id)?.position).toBe(1);
+      expect(listed.find(({ id }) => id === result.section.id)?.config).toEqual({ markdown: MARKDOWN_SOURCE });
       expect(await harness.services.shortcuts.list(agent(['projects.read']), PROJECT, { pageId: SHORTCUT_DESTINATION_PAGE })).toMatchObject([
         { id: SEEDED_SHORTCUT, position: 4 },
       ]);
@@ -298,11 +306,19 @@ const CASES: Record<string, ToolCase> = {
     },
   },
   update_section: {
-    input: { sectionId: TASK_CONTAINER, title: 'This week' },
+    input: { sectionId: 'section-1', title: 'This week', config: { markdown: MARKDOWN_SOURCE } },
     mutates: true,
+    prepare: async (harness) => {
+      await harness.services.sections.add(agent(['projects.write']), PROJECT, {
+        type: 'markdown', config: { markdown: 'Old source', extra: 'replaced whole' },
+      });
+    },
     verify: async (result, harness) => {
       expect(result.section.title).toBe('This week');
-      expect((await harness.services.sections.get(agent(['projects.read']), TASK_CONTAINER)).title).toBe('This week');
+      expect(result.section.config).toEqual({ markdown: MARKDOWN_SOURCE });
+      const stored = await harness.services.sections.get(agent(['projects.read']), result.section.id);
+      expect(stored.title).toBe('This week');
+      expect(stored.config).toEqual({ markdown: MARKDOWN_SOURCE });
     },
   },
   remove_section: {

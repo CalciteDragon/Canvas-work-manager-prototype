@@ -155,6 +155,43 @@ fields recorded by that update; Redo reapplies exactly what the write did. Recei
 revision, not inverse data. Automatic Reflections/Tasks container creation is intentionally
 receipt-free.
 
+### Write Markdown source
+
+Enable Claude's `projects.write` grant in **Settings → AI & Agents** before these calls;
+the seeded Claude token does not hold it initially. On the `agent-heavy` seed, call
+`create_section` with:
+
+```json
+{
+  "projectId": "project-work-manager",
+  "type": "markdown",
+  "title": "Plan notes",
+  "config": { "markdown": "# Plan\n\n- Confirm the scope\n- Review the result\n" }
+}
+```
+
+Use the returned `section.id` in `update_section`:
+
+```json
+{
+  "sectionId": "section-…",
+  "config": { "markdown": "# Plan\n\nScope confirmed. [Docs](https://example.com)\n" }
+}
+```
+
+Config is replaced whole, so supply the complete `{ markdown: source }` object. Both write
+results and `list_sections` return the exact source in `config.markdown`, never generated HTML.
+Home and work canvases accept Markdown; a Home shortcut renders its source read-only.
+In Stage C1 the picker has eight types, with Markdown second after Rich Text; the six seeds
+still contain the seven original kinds and no Markdown sections.
+
+In the browser, **Edit** opens source, **Preview** renders the draft, and **Save** commits one
+config write. **Cancel** and an unchanged Save write nothing. Reload retains saved source;
+the history label says `Edited Markdown in the Plan notes section`, and the project header’s
+Undo/Redo restores exact source for that person. For agent writes, the same connection uses
+`undo_operation`/`redo_operation` with its own receipts to restore exact source. After removal, non-blank Markdown appears in
+`get_project_archive` with recovery `{ "kind": "config" }`; `restore_section` preserves it.
+
 ### Say which kind of project, and which page
 
 `create_project` takes a required `kind`. A **root** is a workspace: it starts with a Home page

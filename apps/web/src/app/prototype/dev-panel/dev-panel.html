@@ -21,6 +21,13 @@
       <button data-dev-panel-close type="button" (click)="close()">Close</button>
     </header>
 
-    <app-dev-panel-controls />
+    @defer (on immediate) {
+      <app-dev-panel-controls />
+    } @placeholder {
+      <p data-dev-panel-loading role="status">Loading prototype controls…</p>
+    } @error {
+      <p data-dev-panel-load-error role="alert">Controls could not load. Reload the page to try again.</p>
+      <button data-dev-panel-reload type="button" (click)="reloadPage()">Reload page</button>
+    }
   </aside>
 }

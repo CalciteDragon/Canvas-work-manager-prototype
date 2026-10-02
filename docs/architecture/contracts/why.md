@@ -50,7 +50,10 @@ is derived from it ([ownership](../../decisions/2026-09-sections-own-their-data.
 [recovery](../../decisions/2026-09-content-oriented-archive-policy.md)). The cost: every
 registered type declares a capability, which `registry.spec.ts` enforces. An undeclared type
 is *unknown*, never disposable. The capability is a declaration, not a verdict — the domain
-combines it with the content that actually remains.
+combines it with the content that actually remains. Config recovery declares a non-empty
+`proseKey`: `text` for Rich Text and `markdown` for Markdown. Recovery and history labels need
+that name, and the registry checks it against the folder's default config; contracts own no
+config schema ([Markdown decision](../../decisions/2026-10-markdown-source-and-rendering.md)).
 
 **Section names are derived, with an optional stored override.** `nameOf` over the
 `type` string plus a one-entry display-name table; `title` is optional
@@ -137,6 +140,8 @@ general migration framework
   everything else: zod is its only dependency, and it stays that way.
 
 ## Decisions that shape this system
+
+- [Markdown stores source and declares its prose key](../../decisions/2026-10-markdown-source-and-rendering.md) — capability metadata names the source key while its shape stays in the section folder.
 
 - [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — parsed read results distinguish current structural readiness from meaningful section content.
 

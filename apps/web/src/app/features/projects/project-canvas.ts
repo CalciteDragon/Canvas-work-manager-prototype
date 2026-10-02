@@ -463,9 +463,9 @@ export class ProjectCanvas {
     void this.store.setCollapsed(event.id, event.collapsed);
   }
 
-  saveConfig(event: { id: SectionId; config: SectionConfig }): void {
-    void this.store.updateConfig(event.id, event.config);
-  }
+  /** Stable, awaited callback shared by all content frames. */
+  readonly saveSectionConfig = (id: SectionId, config: SectionConfig): Promise<boolean> =>
+    this.store.updateConfig(id, config);
 
   projectDataChanged(): void {
     this.store.notifyProjectDataChanged();

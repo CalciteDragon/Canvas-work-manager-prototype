@@ -26,6 +26,7 @@ flowchart TB
   sreg["SECTION_REGISTRY"]
   subgraph sections["Section contents (SectionContentComponent)"]
     rt["RichTextSection"]
+    md["MarkdownSection → deferred MarkdownSectionBody<br/>MarkdownSourceEditor + shared MarkdownRenderer"]
     tl["TaskListSection → TaskListStore (tasks)"]
     sp["SubProjectsSection → SubProjectsStore"]
     pg["ProgressSection → ProgressStore"]
@@ -105,5 +106,5 @@ sequenceDiagram
 | `SECTION_REGISTRY`, `SectionDefinition` | `sections/registry.ts` | §29 |
 | `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |
 | `ProjectSectionFrame` | `sections/section-frame/` | §31's always-available drag, collapse, inline title, optional inspector and remove controls |
-| Seven section types | `sections/{rich-text,tasks,sub-projects,progress,reflections,timeline,activity}/` | Content components and their stores |
+| Eight section types | `sections/{rich-text,markdown,tasks,sub-projects,progress,reflections,timeline,activity}/` | Content components and their stores |
 | `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's Home shortcuts |

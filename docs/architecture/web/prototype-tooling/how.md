@@ -3,7 +3,11 @@
 ## Runtime flow
 
 1. `App` mounts `<app-dev-panel />` once; `DevPanel` listens for Ctrl/Cmd+Shift+D and
-   toggles the overlay, which renders `DevPanelControls`. `/prototype/state` lazily loads
+   toggles the eager modal shell. Inside its open branch, `@defer (on immediate)` loads
+   `DevPanelControls`; a polite placeholder appears while loading. Close, backdrop, chord
+   and focus trap remain available. A chunk error exposes an explicit Reload page control.
+   Closing destroys the block; reopening creates a fresh controls view over the existing
+   root-provided store. `/prototype/state` lazily loads
    `StateInspectorPage`, which renders the same controls plus the layout list.
 2. `DevPanelStore` loads `/prototype/state` through `PROTOTYPE_CONTROL` and reads the
    client-side settings from `PrototypeSettings` (hydrated from `sessionStorage`).

@@ -134,3 +134,6 @@ content, including the independently archived-only container. Root Archive now a
 structural eligibility test and lists that section only when its own Restore is currently ready.
 Blocked descendants wait behind their highest archived owner without losing canonical records or
 independent markers. See [Actionable Archive and archived-project recovery](2026-09-actionable-archive-and-archived-projects.md).
+
+
+**Amended, 2026-10-01 — Slice 62 partial checkpoint.** Markdown is config prose under its declared markdown key. Non-blank source is recoverable; empty or whitespace-only source is excluded; foreign, extra or non-string keys remain unknown. The domain inspects source as text and never renders it.

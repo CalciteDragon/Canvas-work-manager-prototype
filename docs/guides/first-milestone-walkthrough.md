@@ -64,7 +64,7 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
    empty tabs — they have not been enabled yet.
 5. **Open the showcase.** Switch to `nested-projects` and open **Home renovation**. Its project
    column shows Home, Todos, Archive and Reflections, followed by a three-level work tree:
-   **Kitchen → Cabinets**, plus **Garden**. Home contains the seven registered section kinds and
+   **Kitchen → Cabinets**, plus **Garden**. Home contains the seven seeded section kinds and
    four seeded shortcut frames, so this is the useful starting point for the rest of the pass.
 6. **Page settings and work creation.** Open the gear beside the root name in the project column. Home is checked and disabled;
    Todos, Archive and Reflections are ordinary persisted toggles. Disable Todos, visit its old
@@ -116,15 +116,24 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 13. **Switch Flow/Grid mode.** Use the development panel's **project layout** control, or
     `/prototype/state`. The choice is per project: Home renovation and Kitchen can be inspected
     independently in Flow and Grid. In Grid, a half-width section sits beside its neighbour.
-14. **Seven section kinds.** On both the root Home and Kitchen's work canvas, inspect Rich Text,
+14. **Seven seeded kinds, plus Markdown.** On both the root Home and Kitchen's work canvas, inspect Rich Text,
     Task List, Sub-Projects, Progress, Reflections, Timeline and Recent Activity. Home may also
     contain shortcuts; Todos and Archive are derived pages and hold no sections.
+    The picker has eight types: **Markdown** is second after Rich Text, and no seed contains it.
+    Add a Markdown section, choose **Edit**, and type a heading, a list, a link and fenced code.
+    Choose **Preview**, then **Save**; reload and confirm the rendered notes survive. Edit a
+    second draft and **Cancel**: the saved source stays. Edit and Save without a change: nothing
+    is written. Save a real change, then use the header's **Undo: Edited Markdown in the Markdown
+    section** and **Redo** to restore and reapply it. Non-blank Markdown removed from the canvas
+    appears in Archive; Restore returns the same source.
 15. **Shortcuts are placements.** On Home, choose an insertion plus, then **Add shortcut** in
     the creation popup to choose an eligible nested Task List or a section on another root page.
     The frame identifies its source and has **Open source**; its embedded content is read-only.
     Remove the placement and confirm the source section and its rows remain unchanged. Every
     placement write — add, resize, collapse, move, remove — is undoable, and each one belongs to
     this root project's history rather than the workstream the source lives in.
+    Add Markdown notes on Kitchen's work canvas, then place a shortcut to them on Home. It
+    renders the notes with no **Edit** control; **Open source** reaches the editable original.
 
 ---
 
