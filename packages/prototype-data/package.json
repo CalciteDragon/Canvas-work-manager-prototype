@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
+    "markdown-it": "^15.0.2",
     "tsx": "^4.23.13",
     "typescript": "~6.0.3",
     "vitest": "^4.1.11"
