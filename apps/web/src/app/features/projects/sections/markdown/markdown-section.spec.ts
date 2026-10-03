@@ -37,6 +37,13 @@ describe('MarkdownSection lazy shell', () => {
     await block!.render(DeferBlockState.Complete);
     expect(fixture.debugElement.query(By.directive(MarkdownSectionBody)).componentInstance.save()).toBe(save);
   });
+  it('the placeholder strips converted prose escapes and space, tab and CR references (Slice 63)', () => {
+    const { fixture } = render({ markdown: '&#32;&#32;Keep this light\\. 50\\% \\*done\\*&#9;\\\nnext&#13;\\\n\\\\ &amp; &#33;' });
+    // Display-only: escapes and backslash breaks go, and so do the three references the conversion
+    // writes. Any other entity stays visible for the brief placeholder moment; the body renders it.
+    expect(fixture.nativeElement.querySelector('.markdown-placeholder')?.textContent)
+      .toBe('  Keep this light. 50% *done*\t\nnext\r\n\\ &amp; &#33;');
+  });
   it('empty and unreadable configs have an empty placeholder', () => {
     const { fixture } = render({ text: 'keep this' });
     expect(fixture.nativeElement.querySelector('.markdown-placeholder')?.textContent).toBe('');

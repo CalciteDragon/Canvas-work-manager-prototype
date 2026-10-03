@@ -62,7 +62,7 @@ describe('SectionCreateDialog (§27)', () => {
     query(fixture, '[data-create-section-submit]')!.click();
     await fixture.whenStable();
 
-    expect([...type.options].map((option) => option.value)).toEqual(['rich-text', 'markdown', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
+    expect([...type.options].map((option) => option.value)).toEqual(['markdown', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
     expect(create).toHaveBeenCalledWith('task-list', null);
     expect(closed).toHaveBeenCalledTimes(1);
   });
@@ -120,7 +120,7 @@ describe('SectionCreateDialog (§27)', () => {
     let finish!: (message: string | null) => void;
     const source: ShortcutSource = {
       sourceSectionId: 'section-source' as SectionId,
-      type: 'rich-text',
+      type: 'markdown',
       name: 'Source notes',
       projectId: PROJECT,
       projectName: 'Website launch',

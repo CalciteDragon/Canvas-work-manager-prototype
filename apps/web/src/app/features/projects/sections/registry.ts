@@ -1,8 +1,6 @@
 import type { Type } from '@angular/core';
 import { sectionKindOf, type SectionKind } from '@cwm/contracts';
 import type { SectionContentComponent } from './section-contract';
-import { RichTextSection } from './rich-text/rich-text-section';
-import { richTextDefaultConfig } from './rich-text/rich-text-config';
 import { MarkdownSection } from './markdown/markdown-section';
 import { markdownDefaultConfig } from './markdown/markdown-config';
 import { TaskListSection } from './tasks/task-list-section';
@@ -54,17 +52,11 @@ export interface SectionDefinition {
  * moment it is incurred rather than discovered later in a dialog.
  *
  * `type` values match what the seeds and `data.json` already write, so a registry rename is
- * a data migration and not a free choice.
+ * a data migration and not a free choice. Rich Text was exactly that: retired at schema
+ * version 6, its sections converted to Markdown by `pnpm prototype:upgrade`
+ * (docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
  */
 export const SECTION_REGISTRY: readonly SectionDefinition[] = [
-  {
-    type: 'rich-text',
-    displayName: 'Rich Text',
-    icon: '📝',
-    kind: sectionKindOf('rich-text'),
-    createDefaultConfig: richTextDefaultConfig,
-    component: RichTextSection,
-  },
   {
     type: 'markdown',
     displayName: 'Markdown',

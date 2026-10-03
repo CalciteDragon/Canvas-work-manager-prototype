@@ -573,7 +573,7 @@ Example:
 
 ```json
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "users": [],
   "workspaces": [],
   "projects": [],
@@ -635,6 +635,16 @@ preserves histories/actions and backfills Activity with captured project/root sc
 title or reflection label needed if Undo Add later removes its target. The earlier converters stay
 frozen at their literal output versions
 ([decision](docs/decisions/2026-09-schema-version-5-conversion.md)).
+
+*Amended in Slice 63: `SCHEMA_VERSION` is 6.* A fourth explicit converter, version 5 → 6, retires
+Rich Text: every Rich Text section — live, archived, and every `section.add`/`section.remove`
+snapshot and `section.update` config edit history keeps — becomes Markdown whose source is the old
+prose escaped by one fixed, reversible rule, so it renders as the same prose and never as structure.
+Whitespace-only prose is stored raw; a config with extra keys keeps them and shows its prose
+read-only; an edit to a section no record holds is left as recorded. The version 4 → 5 step is now
+frozen at literal 5 as well, and only the last step validates. Re-running the upgrade on a version-6
+file that still holds Rich Text converts it; a clean file is a byte-identical no-op
+([decision](docs/decisions/2026-10-schema-version-6-markdown-conversion.md)).
 
 *Amended in Slice 42:* project creation Undo adds no collection or schema version. A stored project
 may be absent only when its workspace retains the lifecycle Activity that proves creation Undo and
@@ -1185,7 +1195,7 @@ promise Delete remains the next step after opening a disabled Archive page, whic
 record its own enable action ([why](docs/decisions/2026-09-task-delete-recovery-feedback.md)).
 
 *Since Slice 55,* a newly recorded section update's header label names a lone rename (including
-the resulting default after a title clear), Rich Text prose edit, Markdown edit (`Edited Markdown in …`), collapse or expand, or resize to
+the resulting default after a title clear), Markdown edit (`Edited Markdown in …`), collapse or expand, or resize to
 its saved column count. Mixed updates and other configuration changes use one general "Updated"
 label for their one action. Undo and Redo reuse that stored label after reload; older action labels
 are left as recorded ([why](docs/decisions/2026-09-section-update-history-labels.md)).
@@ -1593,7 +1603,7 @@ SECTION_REGISTRY
 
 *Landed in Slice 29.* Every registered type also declares one capability in the contracts
 package's `SECTION_CAPABILITIES`: which rows it owns, if any, and what removing it could leave
-worth recovering — owned rows (Task List, Reflections), config prose (Rich Text and Markdown, with a declared `proseKey`) or nothing
+worth recovering — owned rows (Task List, Reflections), config prose (Markdown, with a declared `proseKey`) or nothing
 (Sub-Projects, Progress, Timeline, Recent Activity). Ownership (`SECTION_OWNERSHIP`) is derived
 from it, and the registry test fails when a registered type has no declaration, so adding a type
 now touches its folder, one registry line and one capability line. A type nothing declares — a
@@ -1607,8 +1617,6 @@ stale or hand-edited `type` — has *unknown* recovery, never "nothing to recove
 Prototype:
 
 ```text
-Rich Text
-
 Markdown
 
 Task List
@@ -1634,11 +1642,15 @@ Adding a new section type should require minimal changes outside its own feature
 
 ## Which pages accept sections
 
-Eight types are registered today: Rich Text, Markdown, Task List, Sub-Projects, Progress,
-Reflections, Timeline and Recent Activity. Markdown stores exact source in `config.markdown`;
+Seven types are registered today: Markdown, Task List, Sub-Projects, Progress, Reflections,
+Timeline and Recent Activity. Markdown stores exact source in `config.markdown`;
 its deferred body offers Edit, Source/Preview and explicit Save/Cancel. Unchanged Save and
 Cancel write nothing, refusal keeps the draft, and live updates retain it with a replacement
-notice. Unreadable config cannot be overwritten here. Rich Text remains until Stage C2.
+notice. Unreadable config cannot be overwritten here; prose it still holds under `markdown` is
+shown read-only above the guidance note. *Amended in Slice 63:* Rich Text is retired — converted to
+Markdown at schema version 6, refused on create through every surface, and refused on load
+([decision](docs/decisions/2026-10-schema-version-6-markdown-conversion.md)). The type stays an open
+string; retired types are the narrow exception.
 
 | Page | Sections |
 |---|---|
@@ -1702,7 +1714,7 @@ ordinary update. Independently archived rows are not changed by removal, so thei
 markers and restore steps remain intact. The domain then retains the section when
 recoverable or uncertain content remains, or when any canonical task, reflection or Home
 shortcut still references it. Otherwise it deletes the section: known disposable views,
-empty containers and whitespace-only Rich Text or Markdown do not need permanent tombstones. Archived
+empty containers and whitespace-only Markdown do not need permanent tombstones. Archived
 rows and shortcut source ids count in the reference audit. Existing tombstones are not purged
 by this operation. No row or shortcut is silently deleted.
 
@@ -1749,7 +1761,7 @@ More menu is the single recovery entry point from root and nested work routes.
 
 *Landed in Slice 29, amended in Slice 43: Archive lists **recoverable content**, not every section tombstone.* A
 removed or hidden section is listed only when something in it remains to recover: a Task List
-or Reflections container with any rows still assigned to it (archived rows included), Rich Text or Markdown
+or Reflections container with any rows still assigned to it (archived rows included), Markdown
 whose only config is its declared string prose key that trims to something (an empty config holds nothing), or a type or config the domain cannot read as
 empty (listed conservatively as unknown content). Removed Progress, Timeline, Recent Activity and
 Sub-Projects views — and a container with no remaining rows, or blank prose — are deleted
@@ -3532,8 +3544,6 @@ features/projects/sections/
 │
 ├── section-frame/
 │
-├── rich-text/
-│
 ├── markdown/
 │
 ├── tasks/
@@ -4273,7 +4283,7 @@ The first genuinely useful prototype should support:
 ### Sections
 
 - tasks
-- rich text
+- markdown
 - sub-projects
 - progress
 - reflections

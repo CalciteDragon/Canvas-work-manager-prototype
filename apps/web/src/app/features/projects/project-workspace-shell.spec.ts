@@ -62,7 +62,7 @@ const project = (
 const page = (id: string, projectId: string, kind: string, enabled = true): ProjectPage =>
   ProjectPageSchema.parse({ id, projectId, kind, enabled, createdAt: AT, updatedAt: AT });
 
-const section = (id: string, projectId: string, pageId: string, type = 'rich-text'): ProjectSection =>
+const section = (id: string, projectId: string, pageId: string, type = 'markdown'): ProjectSection =>
   ProjectSectionSchema.parse({
     id,
     projectId,
@@ -71,7 +71,7 @@ const section = (id: string, projectId: string, pageId: string, type = 'rich-tex
     position: 0,
     columnSpan: 12,
     collapsed: false,
-    config: type === 'rich-text' ? { text: 'Notes' } : {},
+    config: type === 'markdown' ? { markdown: 'Notes' } : {},
     createdAt: AT,
     updatedAt: AT,
   });

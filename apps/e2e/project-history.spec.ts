@@ -109,7 +109,7 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   await renamedRow.locator('[data-task-delete]').click();
   await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Archived "Order tile grout"');
 
-  // Sections: resize, move, and remove a Rich Text section with prose.
+  // Sections: resize, move, and remove a Markdown section with prose.
   const progress = page.locator('[data-section-item][data-section-id="section-project-renovation-progress"]');
   const resize = progress.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]');
   await resize.focus();
@@ -121,9 +121,9 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
   const brief = page.locator('[data-section-item][data-section-id="section-project-renovation-brief"]');
   await brief.locator('[data-section-remove]').click();
   await expect(brief).toHaveCount(0);
-  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Removed the Rich Text section');
+  await expect(undoLabel).toHaveAttribute('aria-label', 'Undo: Removed the Markdown section');
   // 8. The recovery notice keeps Archive and says where Undo lives; it has no Undo of its own.
-  await expect(page.locator('[data-recovery-message]')).toHaveText('Removed the Rich Text section. Undo is in the header.');
+  await expect(page.locator('[data-recovery-message]')).toHaveText('Removed the Markdown section. Undo is in the header.');
   await expect(page.locator('[data-recovery-notice] [data-open-archive]')).toBeVisible();
   await page.locator('[data-dismiss-recovery-notice]').click();
 
@@ -172,7 +172,7 @@ test('2–3, 8. every family is undone and redone from the header, survives relo
     { label: 'Added the Progress shortcut',
       undone: () => expect(shortcut).toHaveCount(0),
       redone: () => expect(shortcut).toBeVisible() },
-    { label: 'Removed the Rich Text section',
+    { label: 'Removed the Markdown section',
       undone: () => expect(brief).toBeVisible(),
       redone: () => expect(brief).toHaveCount(0) },
     { label: 'Moved the Progress section',
@@ -373,12 +373,12 @@ test('6. controls are pending through a write and its re-read, and a stale tab i
   const before = { undo: await historyControl(page, 'undo').getAttribute('aria-label'), redo: await historyControl(page, 'redo').getAttribute('aria-label') };
   const client = await connectMcp('prototype-user-a-readwrite', 'cwm-slice-41-agent');
   try {
-    const written = await client.callTool({ name: 'update_section', arguments: { sectionId: 'section-project-renovation-brief', config: { text: 'An agent’s plan.' } } });
+    const written = await client.callTool({ name: 'update_section', arguments: { sectionId: 'section-project-renovation-brief', config: { markdown: 'An agent’s plan.' } } });
     expect(written.isError).not.toBe(true);
   } finally {
     await client.close();
   }
-  await expect(page.locator('[data-section-item][data-section-id="section-project-renovation-brief"] [data-rich-text-body]')).toHaveValue('An agent’s plan.');
+  await expect(page.locator('[data-section-item][data-section-id="section-project-renovation-brief"] app-markdown-renderer')).toHaveText('An agent’s plan.');
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', before.undo!);
   await expect(historyControl(page, 'redo')).toHaveAttribute('aria-label', before.redo!);
 });
@@ -637,15 +637,15 @@ test('Slice 45 · 3. layout, progress and shortcut moves undo and redo from the 
   // Remove retained prose, let its history expire, then recover it through Archive.
   const brief = page.locator('[data-section-item][data-section-id="section-project-renovation-brief"]');
   await brief.locator('[data-section-remove]').click();
-  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Rich Text section');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Markdown section');
   await setClock(at(25 * 60 + 5));
   await page.reload();
-  await expect(historyControl(page, 'undo')).not.toHaveAttribute('aria-label', 'Undo: Removed the Rich Text section');
+  await expect(historyControl(page, 'undo')).not.toHaveAttribute('aria-label', 'Undo: Removed the Markdown section');
   await expect(historyControl(page, 'undo')).toHaveAttribute('aria-disabled', 'true');
   await page.goto(`/projects/${ROOT}/pages/archive`);
   const entry = page.locator('[data-archived-item][data-archived-id="section-project-renovation-brief"]');
   await entry.locator('[data-archived-restore]').click();
   await expect(entry).toHaveCount(0);
   expect((await sectionsOf(ROOT, HOME)).some(({ id }) => id === 'section-project-renovation-brief')).toBe(true);
-  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Restored the Rich Text section');
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Restored the Markdown section');
 });

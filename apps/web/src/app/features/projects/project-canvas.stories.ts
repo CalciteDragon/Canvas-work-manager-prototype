@@ -26,7 +26,7 @@ const section = (id: string, type: string, position: number, columnSpan = 12): P
     position,
     columnSpan,
     collapsed: false,
-    config: type === 'rich-text' ? { text: 'Kitchen first, garden in the spring.' } : {},
+    config: type === 'markdown' ? { markdown: 'Kitchen first, garden in the spring.' } : {},
     createdAt: AT,
     updatedAt: AT,
   });
@@ -61,11 +61,11 @@ const canvas = (sections: ProjectSection[]) => [
   }),
 ];
 
-const FLOW = [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)];
+const FLOW = [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)];
 const GRID = [
   section('section-tasks', 'task-list', 0, 8),
   section('section-progress', 'progress', 1, 4),
-  section('section-text', 'rich-text', 2, 12),
+  section('section-text', 'markdown', 2, 12),
 ];
 
 /**

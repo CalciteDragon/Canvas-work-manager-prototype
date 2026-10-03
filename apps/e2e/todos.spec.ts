@@ -65,7 +65,7 @@ test('root projections lead to descendant history without merging actor or proje
   await api('PATCH', `/api/projects/${root}`, { description: 'Root action for history isolation' });
   await addTask({ projectId: child, title: 'History route task', dueAt: '2026-09-18T12:00:00.000Z' });
   const saved = await api<{ section: { id: string } }>('POST', `/api/projects/${child}/sections`, {
-    type: 'rich-text', title: 'History route notes', config: { text: 'Saved for Archive' },
+    type: 'markdown', title: 'History route notes', config: { markdown: 'Saved for Archive' },
   });
   await api('DELETE', `/api/sections/${saved.section.id}`);
   const rootBefore = await api<{ revision: number; undo: { label: string } }>('GET', `/api/projects/${root}/history`);

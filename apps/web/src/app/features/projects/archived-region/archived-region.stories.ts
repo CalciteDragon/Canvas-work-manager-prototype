@@ -65,7 +65,7 @@ const archivedItems: ProjectArchiveItem[] = [
 const recoveryItems: ProjectArchiveItem[] = [
   ProjectArchiveItemSchema.parse({
     kind: 'section',
-    section: { ...section, id: 'section-notes', type: 'rich-text', title: 'Site notes', config: { text: 'Keep the old hosting login steps.' } },
+    section: { ...section, id: 'section-notes', type: 'markdown', title: 'Site notes', config: { markdown: 'Keep the old hosting login steps.' } },
     origin,
     cause: { kind: 'own' },
     recovery: { kind: 'config' },

@@ -43,3 +43,5 @@ store; corrupt v4 events prove the no-write failure paths.
 
 Another required persisted field needs a fourth named conversion, or retained real-world files
 show a legacy event target that version 4 legitimately allowed to be absent.
+
+**Amended, 2026-10-02 — Slice 63 freezes this step.** `upgradeActivityIdentity` now writes the literal version 5 and returns opaque JSON without validating, like the two steps before it; version 5 and later pass through. The chain continues to version 6 and validates there ([Schema version 6](2026-10-schema-version-6-markdown-conversion.md)).

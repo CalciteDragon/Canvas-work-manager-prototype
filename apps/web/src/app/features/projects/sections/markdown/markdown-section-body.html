@@ -1,4 +1,7 @@
 <div class="markdown-section-body">
+  @if (unreadableProse(); as prose) {
+    <app-markdown-renderer data-markdown-unreadable-prose [source]="prose" />
+  }
   @if (content().state === 'unreadable') {
     <p data-markdown-unreadable class="markdown-section-body__note">
       This section's stored content isn't Markdown source, so it can't be edited here.

@@ -10,6 +10,26 @@ describe('renderMarkdown', () => {
     expect(html).toContain('<h6>Six</h6>');
     expect(html).not.toContain('<h1');
   });
+  /**
+   * Frozen outputs of `encodeLegacyProse` (packages/prototype-data, Slice 63), rendered through
+   * the real renderer: converted Rich Text reads as its prose, never as structure.
+   */
+  it.each([
+    [
+      '\\# Whole\\-house plan\\\n1\\. Kitchen first\\\n\\- garden in the spring\n\n\\| a \\| b \\|\\\n\\<b\\>bold\\<\\/b\\> \\&amp\\; \\[x\\]\\(https\\:\\/\\/e\\.com\\) 50\\% \\*done\\*\\\\',
+      ['# Whole-house plan', '1. Kitchen first', '- garden in the spring', '| a | b |', '<b>bold</b> &amp; [x](https://e.com) 50% *done*\\'],
+      3,
+    ],
+    ['&#32;&#32;&#32;&#32;indented\\\n\\`\\`\\`js\\\n\\> quote\\\n\\=\\=\\=', ['indented', '```js', '> quote', '==='], 3],
+    ['test\\\naaa', ['test', 'aaa'], 1],
+  ])('renders converted legacy prose %# as prose with hard breaks', (source, lines, breaks) => {
+    const host = document.createElement('div');
+    host.innerHTML = renderMarkdown(source);
+    expect(host.querySelectorAll('h1, h2, h3, h4, h5, h6, ul, ol, li, table, blockquote, pre, code, a, b, hr').length).toBe(0);
+    expect(host.querySelectorAll('br').length).toBe(breaks);
+    expect([...host.querySelectorAll('p')].map((paragraph) => paragraph.textContent!.replace(/\s+/g, ' ').trim()).join(' '))
+      .toBe(lines.join(' ').replace(/\s+/g, ' ').trim());
+  });
   it('escapes raw HTML', () => {
     const html = renderMarkdown('<script>x</script>\n\n<img src=x onerror=y>');
     expect(html).toContain('&lt;script&gt;');

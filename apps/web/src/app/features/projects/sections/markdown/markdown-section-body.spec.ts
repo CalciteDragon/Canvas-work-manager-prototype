@@ -132,6 +132,22 @@ describe('MarkdownSectionBody', () => {
     expect(fixture.nativeElement.textContent).toContain("This section's stored content isn't Markdown source, so it can't be edited here.");
     expect(query('[data-markdown-edit]')).toBeNull(); expect(save).not.toHaveBeenCalled();
   });
+  it.each([false, true])('unreadable config with Markdown prose renders it read-only above the note (read-only: %s)', (readOnly) => {
+    const { fixture, query, save } = render({ markdown: 'Autumn planting only\\.\\\nStructural work waits\\.', extra: 'kept' }, readOnly);
+    const prose = query('[data-markdown-unreadable-prose]');
+    expect(prose.textContent).toContain('Autumn planting only.');
+    expect(prose.querySelector('br')).not.toBeNull();
+    const note = query('[data-markdown-unreadable]');
+    expect(prose.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain("can't be edited here.");
+    expect(query('[data-markdown-edit]')).toBeNull(); expect(query('app-markdown-source-editor')).toBeNull();
+    expect(save).not.toHaveBeenCalled();
+  });
+  it('unreadable config without Markdown prose shows only the note', () => {
+    const { query } = render({ text: 5 });
+    expect(query('[data-markdown-unreadable-prose]')).toBeNull();
+    expect(query('[data-markdown-unreadable]')).not.toBeNull();
+  });
   it('a foreign config arriving mid-draft is preserved and Save is blocked', async () => {
     const { fixture, query, save, click, type, update } = render();
     await click('[data-markdown-edit]'); type('# My draft'); update({ markdown: '# Changed', extra: 'keep this' });

@@ -205,8 +205,8 @@ test('Archive lists recoverable content only, and independently archived rows ke
   const views = ['sub-projects', 'progress', 'timeline', 'recent-activity'].map((type) => `section-${ROOT}-${type}`);
   for (const id of views) await api('DELETE', `/api/sections/${id}`);
 
-  const notes = await addSection({ type: 'rich-text', title: 'Kept notes', config: { text: 'Measure the hallway shelf' } });
-  const blank = await addSection({ type: 'rich-text', title: 'Blank notes', config: { text: '  \n ' } });
+  const notes = await addSection({ type: 'markdown', title: 'Kept notes', config: { markdown: 'Measure the hallway shelf' } });
+  const blank = await addSection({ type: 'markdown', title: 'Blank notes', config: { markdown: '  \n ' } });
   await api('DELETE', `/api/sections/${notes.id}`);
   await api('DELETE', `/api/sections/${blank.id}`);
 
@@ -248,7 +248,7 @@ test('Archive lists recoverable content only, and independently archived rows ke
     const keys = items.map(keyOf);
     const entry = (id: string) => items.find((item) => item.kind === 'section' && item.section?.id === id);
     for (const id of [...views, blank.id, movedSource.id]) expect(keys).not.toContain(`section:${id}`);
-    expect(entry(notes.id)).toMatchObject({ recovery: { kind: 'config' }, section: { config: { text: 'Measure the hallway shelf' } } });
+    expect(entry(notes.id)).toMatchObject({ recovery: { kind: 'config' }, section: { config: { markdown: 'Measure the hallway shelf' } } });
     expect(entry(cascaded.id)).toMatchObject({
       cascadeCount: 1,
       recovery: { kind: 'owned-content', ownedData: 'tasks', contentCount: 2, separateRestoreCount: 1 },
@@ -349,7 +349,7 @@ test('Archive lists recoverable content only, and independently archived rows ke
 
     // An agent's Notes section created without config stores `{}`; removed untouched, it holds
     // nothing and stays out of Archive.
-    const agentNotes = await client.callTool({ name: 'create_section', arguments: { projectId: ROOT, type: 'rich-text' } });
+    const agentNotes = await client.callTool({ name: 'create_section', arguments: { projectId: ROOT, type: 'markdown' } });
     expect(agentNotes.isError).not.toBe(true);
     const agentNotesId = (agentNotes.structuredContent as { section: { id: string; config: Record<string, unknown> } }).section.id;
     expect((agentNotes.structuredContent as { section: { config: Record<string, unknown> } }).section.config).toEqual({});
@@ -386,10 +386,10 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
   const home = (await api<{ id: string; kind: string }[]>('GET', `/api/projects/${root.id}/pages`)).find(({ kind }) => kind === 'home')!;
   const add = async (projectId: string, body: Record<string, unknown>) =>
     (await api<{ section: { id: string } }>('POST', `/api/projects/${projectId}/sections`, body)).section;
-  const source = await add(child.id, { type: 'rich-text', title: 'Shortcut source', config: { text: 'Source prose' } });
-  const first = await add(root.id, { type: 'rich-text', title: 'First notes', config: { text: 'First' } });
+  const source = await add(child.id, { type: 'markdown', title: 'Shortcut source', config: { markdown: 'Source prose' } });
+  const first = await add(root.id, { type: 'markdown', title: 'First notes', config: { markdown: 'First' } });
   const shortcut = (await api<{ shortcut: { id: string } }>('POST', `/api/projects/${root.id}/shortcuts`, { pageId: home.id, sourceSectionId: source.id })).shortcut;
-  const middle = await add(root.id, { type: 'rich-text', title: 'Middle notes', config: { text: 'Keep the middle prose' } });
+  const middle = await add(root.id, { type: 'markdown', title: 'Middle notes', config: { markdown: 'Keep the middle prose' } });
   const last = await add(root.id, { type: 'progress', title: 'Last view' });
   const combined = async () => {
     const sections = await api<{ id: string; position: number }[]>('GET', `/api/projects/${root.id}/sections?pageId=${home.id}`);
@@ -441,8 +441,8 @@ test('Archive Restore appends while Undo returns between surviving shortcut neig
     await page.goto(`/projects/${root.id}`);
     await expect.poll(rendered).toEqual(appended);
     expect(await sdkSectionOrder()).toEqual([first.id, last.id, middle.id]);
-    expect((await api<{ config: { text: string } }[]>('GET', `/api/projects/${root.id}/sections?pageId=${home.id}`)).find((section) => (section as unknown as { id: string }).id === middle.id))
-      .toMatchObject({ config: { text: 'Keep the middle prose' } });
+    expect((await api<{ config: { markdown: string } }[]>('GET', `/api/projects/${root.id}/sections?pageId=${home.id}`)).find((section) => (section as unknown as { id: string }).id === middle.id))
+      .toMatchObject({ config: { markdown: 'Keep the middle prose' } });
 
     // Neither removal receipt can move the section right now, and for the same reason in both
     // cases: a newer step of this person's is next in their stack. The first receipt was undone and

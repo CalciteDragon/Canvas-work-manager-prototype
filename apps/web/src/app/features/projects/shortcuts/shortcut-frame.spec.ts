@@ -20,11 +20,11 @@ const shortcut = (overrides: Record<string, unknown> = {}) =>
       id: 'section-source',
       projectId: 'project-a',
       pageId: 'page-project-a-work',
-      type: 'rich-text',
+      type: 'markdown',
       position: 0,
       columnSpan: 12,
       collapsed: false,
-      config: { text: 'Canonical source' },
+      config: { markdown: 'Canonical source' },
       createdAt: AT,
       updatedAt: AT,
     }),
@@ -49,15 +49,18 @@ const query = (fixture: ReturnType<typeof render>, selector: string) =>
   fixture.nativeElement.querySelector(selector) as HTMLElement | null;
 
 describe('ShortcutFrame (§27)', () => {
-  it('renders source identity and content read-only, without section writes', () => {
+  it('renders source identity and content read-only, without section writes', async () => {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
     const fixture = render();
+    for (const block of await fixture.getDeferBlocks()) await block.render(DeferBlockState.Complete);
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(query(fixture, '[data-shortcut-source]')?.textContent).toContain('Website launch / Kitchen');
-    expect(query(fixture, '[data-rich-text-body]')).not.toBeNull();
-    expect(query(fixture, '[data-rich-text-body]')?.hasAttribute('readonly')).toBe(true);
+    expect(query(fixture, 'app-markdown-renderer')?.textContent).toContain('Canonical source');
+    expect(query(fixture, '[data-markdown-edit]')).toBeNull();
     expect(query(fixture, '[data-shortcut-open-source]')).not.toBeNull();
-    expect(query(fixture, '[data-shortcut-remove]')?.getAttribute('aria-label')).toBe('Remove shortcut to Rich Text');
+    expect(query(fixture, '[data-shortcut-remove]')?.getAttribute('aria-label')).toBe('Remove shortcut to Markdown');
   });
 
   it('keeps layout controls available without exposing source editing or sizing controls', () => {

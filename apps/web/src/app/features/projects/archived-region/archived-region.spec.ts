@@ -282,9 +282,9 @@ describe('ArchivedRegion', () => {
       expect(fixture.nativeElement.querySelector('[data-archived-recovery-guidance]')).toBeNull();
     });
 
-    it('labels rich-text and unknown content without counts', async () => {
+    it('labels markdown and unknown content without counts', async () => {
       const fixture = await render([
-        sectionEntry({ section: { ...section, id: 'section-notes', type: 'rich-text', title: undefined }, cascadeCount: undefined, recovery: { kind: 'config' } }),
+        sectionEntry({ section: { ...section, id: 'section-notes', type: 'markdown', title: undefined }, cascadeCount: undefined, recovery: { kind: 'config' } }),
         sectionEntry({ section: { ...section, id: 'section-calendar', type: 'calendar', title: undefined }, cascadeCount: undefined, recovery: { kind: 'unknown' } }),
       ]);
 

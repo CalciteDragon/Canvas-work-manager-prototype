@@ -3,6 +3,20 @@ import type { ProjectSection, SectionConfig } from '@cwm/contracts';
 import { MarkdownSectionBody } from './markdown-section-body';
 import { readMarkdownConfig } from './markdown-config';
 
+/**
+ * **The placeholder's text, simplified for converted prose** (Slice 63). Converted Rich Text is
+ * escaped source (`Keep this light\.`), and the eager placeholder prints source as text, so it
+ * would flash the escapes until the body renders. This drops a backslash before ASCII punctuation
+ * or a line break, and the three references the conversion writes — `&#32;`, `&#9;`, `&#13;`.
+ *
+ * Display-only and deliberately narrow: not a Markdown-to-text converter and not the legacy
+ * decoder. Any other entity or syntax stays visible for the brief placeholder moment.
+ */
+export const placeholderTextOf = (source: string): string =>
+  source
+    .replace(/\\([!-/:-@[-`{-~\n])/g, '$1')
+    .replace(/&#(32|9|13);/g, (_reference, code: string) => String.fromCharCode(Number(code)));
+
 /** Eager section shell; source rendering and editing are deferred into one lazy body. */
 @Component({
   selector: 'app-markdown-section',
@@ -24,6 +38,6 @@ export class MarkdownSection {
   readonly readOnly = input(false);
   readonly placeholderText = computed(() => {
     const content = readMarkdownConfig(this.section().config);
-    return content.state === 'ok' ? content.markdown : '';
+    return content.state === 'ok' ? placeholderTextOf(content.markdown) : '';
   });
 }

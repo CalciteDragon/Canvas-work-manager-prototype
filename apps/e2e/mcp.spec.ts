@@ -210,7 +210,7 @@ test('MCP inserts a section and shortcut at their combined canvas positions and 
       arguments: {
         projectId: SHOWCASE_ROOT,
         pageId: SHOWCASE_HOME,
-        type: 'rich-text',
+        type: 'markdown',
         title: 'MCP positioned note',
         columnSpan: 4,
         position: 1,

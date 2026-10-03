@@ -58,7 +58,7 @@ const section = (
     position,
     columnSpan: 12,
     collapsed: false,
-    config: type === 'rich-text' ? { text: 'Launch week notes' } : {},
+    config: type === 'markdown' ? { markdown: 'Launch week notes' } : {},
     createdAt: AT,
     updatedAt: AT,
     ...overrides,
@@ -140,7 +140,7 @@ const render = async (
   const gateway = new FakeWorkManagerGateway({
     projects: [renderedProject],
     sections: options.sections ?? [
-      section('section-text', 'rich-text', 0),
+      section('section-text', 'markdown', 0),
       section('section-tasks', 'task-list', 1),
     ],
     tasks: renderedTasks,
@@ -222,14 +222,15 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
   it('renders every registered section inside one frame, in position order', async () => {
     const { fixture } = await render();
+    await completeDeferredBlocks(fixture);
 
     const frames = queryAll(fixture, '[data-section-frame]');
     expect(frames.map((frame) => frame.getAttribute('data-section-type'))).toEqual([
-      'rich-text',
+      'markdown',
       'task-list',
     ]);
     // The two content components, each inside the shared §31 chrome.
-    expect(query(fixture, '[data-rich-text-body]')).not.toBeNull();
+    expect(query(fixture, '[data-markdown-edit]')).not.toBeNull();
     expect(query(fixture, '[data-quick-create]')).not.toBeNull();
   });
 
@@ -271,7 +272,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   // so the collapse toggle is it.
   it('rolls a failed collapse back onto the canvas and names the reason', async () => {
     const { fixture } = await render({
-      sections: [section('section-text', 'rich-text', 0)],
+      sections: [section('section-text', 'markdown', 0)],
       failOn: { 'sections.update': new GatewayError('unreachable', 0, 'the host is not running') },
     });
     const collapse = query(fixture, '[data-section-collapse]')!;
@@ -306,7 +307,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     fixture.detectChanges();
 
     expect(gateway.argumentTo('sections.create')).toMatchObject({
-      input: { type: 'rich-text', pageId: 'page-project-a', position: 0, columnSpan: 12 },
+      input: { type: 'markdown', pageId: 'page-project-a', position: 0, columnSpan: 12 },
     });
     expect(queryAll(fixture, '[data-section-item]')).toHaveLength(1);
     expect(query(fixture, '[data-section-create-dialog]')).toBeNull();
@@ -333,7 +334,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     const { fixture, gateway } = await render({
       project: project({ projectLayoutMode: 'grid' }),
       sections: [
-        section('section-wide', 'rich-text', 0, { columnSpan: 8 }),
+        section('section-wide', 'markdown', 0, { columnSpan: 8 }),
         section('section-next-row', 'task-list', 1, { columnSpan: 6 }),
       ],
     });
@@ -351,7 +352,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
   it('resolves the remembered anchor after a live placement is added', async () => {
     const { fixture, gateway } = await render({
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)],
     });
     fixture.nativeElement.querySelector(
       'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
@@ -371,13 +372,13 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
   it('keeps the dialog open and reports when its remembered anchor disappeared', async () => {
     const { fixture, gateway } = await render({
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)],
     });
     fixture.nativeElement.querySelector(
       'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
     ).click();
     fixture.detectChanges();
-    gateway.options.sections = [section('section-text', 'rich-text', 0)];
+    gateway.options.sections = [section('section-text', 'markdown', 0)];
     await fixture.componentInstance.store.load('project-a' as Project['id'], 'page-project-a' as ProjectSection['pageId'], false);
     fixture.detectChanges();
 
@@ -470,7 +471,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       'section-tasks',
       'section-text',
     ]);
-    expect(query(fixture, '[data-canvas-live-region]')?.textContent).toContain('Moved Rich Text to position 2 of 2');
+    expect(query(fixture, '[data-canvas-live-region]')?.textContent).toContain('Moved Markdown to position 2 of 2');
     expect(document.activeElement).toBe(query(fixture, '[data-section-item][data-section-id="section-text"] [data-section-drag-handle]'));
   });
 
@@ -487,7 +488,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
     // Slice 41: Undo is the header's; the notice keeps only recovery the header cannot offer.
     expect(query(fixture, '[data-undo-action]')).toBeNull();
-    expect(query(fixture, '[data-recovery-message]')?.textContent).toBe('Removed the Rich Text section. Undo is in the header.');
+    expect(query(fixture, '[data-recovery-message]')?.textContent).toBe('Removed the Markdown section. Undo is in the header.');
     const archive = query(fixture, '[data-open-archive]') as HTMLButtonElement;
     expect(archive).not.toBeNull();
     expect(document.activeElement).toBe(archive);
@@ -585,7 +586,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
   it('inserts a named section before the selected anchor from the contextual dialog', async () => {
     const { fixture, gateway } = await render({
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1)],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1)],
     });
     const beforeTasks = fixture.nativeElement.querySelector(
       'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
@@ -593,7 +594,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     beforeTasks.click();
     fixture.detectChanges();
     const type = query(fixture, '[data-create-section-type]') as HTMLSelectElement;
-    type.value = 'rich-text';
+    type.value = 'markdown';
     type.dispatchEvent(new Event('change'));
     const name = query(fixture, '[data-create-section-name]') as HTMLInputElement;
     name.value = 'Release notes';
@@ -604,7 +605,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
 
     expect(gateway.argumentTo('sections.create')).toMatchObject({
       projectId: 'project-a',
-      input: { type: 'rich-text', pageId: 'page-project-a', position: 1, columnSpan: 12, title: 'Release notes' },
+      input: { type: 'markdown', pageId: 'page-project-a', position: 1, columnSpan: 12, title: 'Release notes' },
     });
     expect(queryAll(fixture, '[data-section-item]').map((item) => item.dataset['sectionId'])).toEqual([
       'section-text',
@@ -618,7 +619,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   it('creates on a sub-project’s work page and does not offer shortcut mode', async () => {
     const { fixture, gateway } = await render({
       pageId: 'page-work',
-      sections: [section('section-work', 'rich-text', 0, { pageId: 'page-work' })],
+      sections: [section('section-work', 'markdown', 0, { pageId: 'page-work' })],
     });
 
     query(fixture, '[data-insertion-point-button]')!.click();
@@ -761,7 +762,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   it('keeps every section, including an unknown type, in the same draggable order', async () => {
     const { fixture } = await render({
       sections: [
-        section('section-text', 'rich-text', 0),
+        section('section-text', 'markdown', 0),
         section('section-unknown', 'unknown-future-type', 1),
         section('section-tasks', 'task-list', 2),
       ],
@@ -806,7 +807,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   it('sends section and shortcut drops as positions in the same combined sequence', async () => {
     const { fixture, gateway } = await render({
       shortcutsAllowed: true,
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 2)],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 2)],
       shortcuts: [shortcut('shortcut-a', 1)],
       tasks: [task('task-source', 'todo', 'section-source')],
     });
@@ -834,7 +835,7 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
   it('dispatches a drop by the dragged section id and complete-list index', async () => {
     const { fixture, gateway } = await render({
       sections: [
-        section('section-text', 'rich-text', 0),
+        section('section-text', 'markdown', 0),
         section('section-unknown', 'unknown-future-type', 1),
         section('section-tasks', 'task-list', 2),
       ],
@@ -877,9 +878,9 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     const gate = deferred<SectionWriteResult>();
     const { fixture, gateway } = await render({
       sections: [
-        section('section-text', 'rich-text', 0),
+        section('section-text', 'markdown', 0),
         section('section-tasks', 'task-list', 1),
-        section('section-b', 'rich-text', 0, { pageId: 'page-b' }),
+        section('section-b', 'markdown', 0, { pageId: 'page-b' }),
       ],
     });
     gateway.sections.move = vi.fn(() => gate.promise);
@@ -943,7 +944,7 @@ describe('ProjectCanvas — the gridProjectLayout flag (§47)', () => {
 describe('ProjectCanvas — Archive boundary (§31, §32)', () => {
   it('does not render a page-local archive region, even when an archived section is returned', async () => {
     const { fixture } = await render({
-      sections: [section('section-text', 'rich-text', 0), section('section-backlog', 'task-list', 2, { archivedAt: AT })],
+      sections: [section('section-text', 'markdown', 0), section('section-backlog', 'task-list', 2, { archivedAt: AT })],
     });
 
     expect(query(fixture, '[data-archived-region]')).toBeNull();
@@ -976,7 +977,7 @@ describe('ProjectCanvas — arriving at a container (§27, §34)', () => {
 
   it('opens a collapsed target for the visit, and writes nothing to get there', async () => {
     const { fixture, gateway } = await render({
-      sections: [section('section-text', 'rich-text', 0), section('section-tasks', 'task-list', 1, { collapsed: true })],
+      sections: [section('section-text', 'markdown', 0), section('section-tasks', 'task-list', 1, { collapsed: true })],
       fragment: new BehaviorSubject<string | null>('section-section-tasks'),
     });
 
@@ -1027,11 +1028,11 @@ describe('ProjectCanvas — arriving at a container (§27, §34)', () => {
 
 it('section config save resolves false and shows the error on refusal', async () => {
   const { fixture } = await render({
-    sections: [section('section-text', 'rich-text', 0)],
+    sections: [section('section-text', 'markdown', 0)],
     failOn: { 'sections.update': new GatewayError('unreachable', 0, 'source could not be saved') },
   });
   const frame = fixture.debugElement.query(By.directive(ProjectSectionFrame)).componentInstance as ProjectSectionFrame;
-  expect(await frame.contentInputs().onConfigChange({ text: 'kept draft' })).toBe(false);
+  expect(await frame.contentInputs().onConfigChange({ markdown: 'kept draft' })).toBe(false);
   await fixture.whenStable();
   fixture.detectChanges();
   expect(query(fixture, '[data-section-error]')?.textContent).toContain('source could not be saved');

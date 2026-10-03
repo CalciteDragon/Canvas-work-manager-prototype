@@ -28,3 +28,5 @@ Real use shows a label is ambiguous for an inspector setting, or localization be
 
 
 **Amended, 2026-10-01 — Slice 62 partial checkpoint.** Prose labels now use the capability’s declared key. A markdown-only source edit says Edited Markdown in the named section; text keeps Edited prose. Unknown noun keys fall back to prose. Mixed changes and older labels remain unchanged.
+
+**Amended, 2026-10-02 — Slice 63.** Rich Text is retired, so the `text` prose noun is gone: Markdown is the only type with a prose label. Stored labels are never recomputed, so history recorded on Rich Text keeps saying "Edited prose in the … section" and "Rich Text" after conversion ([Schema version 6](2026-10-schema-version-6-markdown-conversion.md)).

@@ -137,3 +137,5 @@ independent markers. See [Actionable Archive and archived-project recovery](2026
 
 
 **Amended, 2026-10-01 — Slice 62 partial checkpoint.** Markdown is config prose under its declared markdown key. Non-blank source is recoverable; empty or whitespace-only source is excluded; foreign, extra or non-string keys remain unknown. The domain inspects source as text and never renders it.
+
+**Amended, 2026-10-02 — Slice 63.** Rich Text's `proseKey: text` capability is retired with the type; a `rich-text` section now has no capability and reads as unknown, though no loadable document holds one. Converted Rich Text keeps its recovery verdict because whitespace-only prose is stored raw rather than encoded ([Schema version 6](2026-10-schema-version-6-markdown-conversion.md)).

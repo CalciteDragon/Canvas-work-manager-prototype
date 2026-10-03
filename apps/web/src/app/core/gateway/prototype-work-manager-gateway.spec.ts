@@ -53,11 +53,11 @@ const projectSection = {
   id: 'section-1',
   projectId: 'project-1',
   pageId: 'page-project-1',
-  type: 'rich-text',
+  type: 'markdown',
   position: 0,
   columnSpan: 12,
   collapsed: false,
-  config: { text: 'Kickoff' },
+  config: { markdown: 'Kickoff' },
   createdAt: at,
   updatedAt: at,
 };
@@ -167,8 +167,8 @@ const shortcut = ResolvedSectionShortcutSchema.parse({
 });
 const shortcutSource = ShortcutSourceSchema.parse({
   sourceSectionId: 'section-source',
-  type: 'rich-text',
-  name: 'Rich Text',
+  type: 'markdown',
+  name: 'Markdown',
   projectId: 'project-2',
   projectName: 'Kitchen',
   pageId: 'page-project-2',
@@ -402,7 +402,7 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
     const sections = await gateway().sections.list('project-1' as ProjectId);
 
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1/sections');
-    expect(sections[0]?.type).toBe('rich-text');
+    expect(sections[0]?.type).toBe('markdown');
   });
 
   it('lists live sections by default and asks for the archived ones only when told', async () => {
@@ -457,11 +457,11 @@ describe('PrototypeWorkManagerGateway — sections (§31)', () => {
       operation: receiptOf('section.add', 2),
     }, 201));
 
-    await gateway().sections.create('project-1' as ProjectId, { type: 'rich-text', config: { text: '' } });
+    await gateway().sections.create('project-1' as ProjectId, { type: 'markdown', config: { markdown: '' } });
 
     expect(lastCall().url).toBe('http://host.test/api/projects/project-1/sections');
     expect(lastCall().init.method).toBe('POST');
-    expect(JSON.parse(lastCall().init.body as string)).toEqual({ type: 'rich-text', config: { text: '' } });
+    expect(JSON.parse(lastCall().init.body as string)).toEqual({ type: 'markdown', config: { markdown: '' } });
   });
 
   it('updates through PATCH, addressing the section directly', async () => {

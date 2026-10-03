@@ -34,7 +34,7 @@ const section = ProjectSectionSchema.parse({
   id: 'section-archive',
   projectId: PROJECT,
   pageId: 'page-project-a',
-  type: 'rich-text',
+  type: 'markdown',
   position: 0,
   columnSpan: 12,
   collapsed: false,

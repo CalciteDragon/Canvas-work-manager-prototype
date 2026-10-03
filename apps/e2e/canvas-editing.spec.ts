@@ -203,7 +203,7 @@ test('the navigation column follows the viewport and keeps long and narrow navig
   };
 
   await checkViewportHeight();
-  await addSection(empty.id, { type: 'rich-text', columnSpan: 12 });
+  await addSection(empty.id, { type: 'markdown', columnSpan: 12 });
   await page.reload();
   await expect(page.locator('[data-section-frame]')).toHaveCount(1);
   await checkViewportHeight();
@@ -326,11 +326,11 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   const root = await createRoot('Insertion journey');
   await setLayout(root.id, 'flow');
   const home = await pageId(root.id);
-  const first = await addSection(root.id, { type: 'rich-text', title: 'First notes', columnSpan: 12 });
-  const second = await addSection(root.id, { type: 'rich-text', title: 'Second notes', columnSpan: 6 });
+  const first = await addSection(root.id, { type: 'markdown', title: 'First notes', columnSpan: 12 });
+  const second = await addSection(root.id, { type: 'markdown', title: 'Second notes', columnSpan: 6 });
   const third = await addSection(root.id, { type: 'task-list', title: 'Third list', columnSpan: 6 });
   const [child] = await createSubprojects(root.id, 1);
-  const source = await addSection(child!.id, { type: 'rich-text', title: 'Shortcut source', columnSpan: 8 });
+  const source = await addSection(child!.id, { type: 'markdown', title: 'Shortcut source', columnSpan: 8 });
   await addSection(child!.id, { type: 'task-list', title: 'Shortcut candidate', columnSpan: 6 });
   const shortcut = await addShortcut(root.id, {
     pageId: home,
@@ -352,7 +352,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   expect(await orderOf(root.id, home)).toEqual(initialOrder);
 
   await beforeThird.click();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Inserted notes');
   await page.locator('[data-create-section-submit]').click();
   const inserted = page.locator('[data-section-frame]', { hasText: 'Inserted notes' });
@@ -366,7 +366,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   expect((await orderOf(root.id, home)).map(({ id }) => id)).toEqual([first.id, shortcut.id, second.id, insertedId, third.id]);
 
   await page.locator(`app-insertion-point[data-insertion-point="before"][data-before-id="${first.id}"] button`).click();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('First placement');
   await page.locator('[data-create-section-submit]').click();
   await expect(page.locator('[data-section-frame]', { hasText: 'First placement' })).toBeVisible();
@@ -374,7 +374,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   expect(firstPlacement.position).toBe(0);
 
   await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Last placement');
   await page.locator('[data-create-section-submit]').click();
   await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
@@ -402,9 +402,9 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   const anchoredOrder = await orderOf(root.id, home);
   const anchor = anchoredOrder[2]!;
   await page.locator(`app-insertion-point[data-insertion-point="before"][data-before-id="${anchor.id}"] button`).click();
-  const live = await addSection(root.id, { type: 'rich-text', title: 'Live insertion', position: 0 });
+  const live = await addSection(root.id, { type: 'markdown', title: 'Live insertion', position: 0 });
   await expect(page.locator(`[data-section-item][data-section-id="${live.id}"]`)).toBeVisible();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('After live insertion');
   await page.locator('[data-create-section-submit]').click();
   // The dialog closes only once the create resolved; reading before that races the write.
@@ -420,14 +420,14 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   // A failed create keeps the form state for correction. The host failure panel is client-side,
   // so it is enabled only after the page and popup have loaded and always reset in finally.
   await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Retry after failure');
   try {
     await openFailurePanel(page, '1');
     await page.locator('[data-create-section-submit]').click();
     await expect(page.locator('[data-create-section-error]')).toContainText('prototype failure injection');
     await expect(page.locator('[data-create-section-name]')).toHaveValue('Retry after failure');
-    await expect(page.locator('[data-create-section-type]')).toHaveValue('rich-text');
+    await expect(page.locator('[data-create-section-type]')).toHaveValue('markdown');
   } finally {
     await openFailurePanel(page, '0');
   }
@@ -444,7 +444,7 @@ test('contextual insertion preserves a combined order, remembers anchors and rep
   });
   try {
     await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
-    await page.locator('[data-create-section-type]').selectOption('rich-text');
+    await page.locator('[data-create-section-type]').selectOption('markdown');
     await page.locator('[data-create-section-name]').fill('One click only');
     const submit = page.locator('[data-create-section-submit]');
     await submit.click();
@@ -463,8 +463,8 @@ test('grid insertion fills only supported gaps and insertion overlays stay inert
   await page.setViewportSize({ width: 1440, height: 900 });
   const root = await createRoot('Grid insertion');
   await setLayout(root.id, 'grid');
-  const wide = await addSection(root.id, { type: 'rich-text', title: 'Eight columns', columnSpan: 8 });
-  const narrow = await addSection(root.id, { type: 'rich-text', title: 'Six columns', columnSpan: 6 });
+  const wide = await addSection(root.id, { type: 'markdown', title: 'Eight columns', columnSpan: 8 });
+  const narrow = await addSection(root.id, { type: 'markdown', title: 'Six columns', columnSpan: 6 });
   await page.goto(`/projects/${root.id}`);
   const firstFrame = page.locator(`[data-section-item][data-section-id="${wide.id}"]`);
   const beforeBox = await firstFrame.boundingBox();
@@ -473,7 +473,7 @@ test('grid insertion fills only supported gaps and insertion overlays stay inert
   await expect(gap).toHaveCount(1);
   const gapButton = gap.locator('[data-insertion-point-button]');
   await gapButton.click();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Fills the gap');
   await page.locator('[data-create-section-submit]').click();
   await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
@@ -489,17 +489,17 @@ test('grid insertion fills only supported gaps and insertion overlays stay inert
 
   const noGap = await createRoot('No grid gap');
   await setLayout(noGap.id, 'grid');
-  await addSection(noGap.id, { type: 'rich-text', title: 'Four columns', columnSpan: 4 });
-  await addSection(noGap.id, { type: 'rich-text', title: 'Six columns', columnSpan: 6 });
-  await addSection(noGap.id, { type: 'rich-text', title: 'Full row', columnSpan: 12 });
+  await addSection(noGap.id, { type: 'markdown', title: 'Four columns', columnSpan: 4 });
+  await addSection(noGap.id, { type: 'markdown', title: 'Six columns', columnSpan: 6 });
+  await addSection(noGap.id, { type: 'markdown', title: 'Full row', columnSpan: 12 });
   await page.goto(`/projects/${noGap.id}`);
   await expect(page.locator('app-insertion-point[data-insertion-point="gap"]')).toHaveCount(0);
 
   const sorting = await createRoot('Sorting over gap');
   await setLayout(sorting.id, 'grid');
-  const eight = await addSection(sorting.id, { type: 'rich-text', title: 'Anchor eight', columnSpan: 8 });
-  const six = await addSection(sorting.id, { type: 'rich-text', title: 'Next six', columnSpan: 6 });
-  const twelve = await addSection(sorting.id, { type: 'rich-text', title: 'Dragged twelve', columnSpan: 12 });
+  const eight = await addSection(sorting.id, { type: 'markdown', title: 'Anchor eight', columnSpan: 8 });
+  const six = await addSection(sorting.id, { type: 'markdown', title: 'Next six', columnSpan: 6 });
+  const twelve = await addSection(sorting.id, { type: 'markdown', title: 'Dragged twelve', columnSpan: 12 });
   await page.goto(`/projects/${sorting.id}`);
   const anchorItem = page.locator(`[data-section-item][data-section-id="${eight.id}"]`);
   const canvas = page.locator('[data-section-canvas]');
@@ -621,10 +621,10 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   });
   const root = await createRoot('Resize journey');
   await setLayout(root.id, 'grid');
-  const wide = await addSection(root.id, { type: 'rich-text', title: 'Resizable notes', columnSpan: 12 });
-  const neighbor = await addSection(root.id, { type: 'rich-text', title: 'Neighbor notes', columnSpan: 4 });
+  const wide = await addSection(root.id, { type: 'markdown', title: 'Resizable notes', columnSpan: 12 });
+  const neighbor = await addSection(root.id, { type: 'markdown', title: 'Neighbor notes', columnSpan: 4 });
   const [child] = await createSubprojects(root.id, 1);
-  const source = await addSection(child!.id, { type: 'rich-text', title: 'Shortcut source', columnSpan: 12 });
+  const source = await addSection(child!.id, { type: 'markdown', title: 'Shortcut source', columnSpan: 12 });
   const home = await pageId(root.id);
   const shortcut = await addShortcut(root.id, {
     pageId: home,
@@ -712,17 +712,20 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   await expect(shortcutHandle).toBeHidden();
   expect((await orderOf(root.id))[2]?.columnSpan).toBe(8);
 
-  // Flow height remains content-driven: the narrower editor wraps a realistic body and pushes
+  // Flow height remains content-driven: the narrower section rewraps a realistic body and pushes
   // the next item down, while the canonical ordered position stays fixed.
   await api.patch(`/api/sections/${wide.id}`, { columnSpan: 12 });
   await setLayout(root.id, 'flow');
   await page.reload();
   await page.setViewportSize({ width: 1440, height: 900 });
-  const flowText = page.locator(`[data-section-item][data-section-id="${wide.id}"] [data-rich-text-body]`);
   const flowWrapper = page.locator(`[data-section-item][data-section-id="${wide.id}"]`);
+  const flowText = flowWrapper.locator('app-markdown-renderer');
   const nextWrapper = page.locator(`[data-section-item][data-section-id="${neighbor.id}"]`);
-  await flowText.fill('The canvas keeps the content height. '.repeat(90));
-  await flowText.press('Tab');
+  await flowWrapper.locator('[data-markdown-edit]').click();
+  await flowWrapper.locator('[data-markdown-source]').fill('The canvas keeps the content height. '.repeat(90));
+  await flowWrapper.locator('[data-markdown-save]').click();
+  await expect(flowWrapper.locator('[data-markdown-source]')).toHaveCount(0);
+  await expect(flowText).toContainText('The canvas keeps the content height.');
   await expect.poll(async () => (await orderOf(root.id)).map(({ id }) => id).indexOf(neighbor.id)).toBe(1);
   const nextBefore = await nextWrapper.boundingBox();
   const textBeforeResize = await flowText.boundingBox();
@@ -736,8 +739,8 @@ test('resize previews, snapping, Escape, failure rollback, keyboard resizing and
   const textAfterResize = await flowText.boundingBox();
   const nextAfter = await nextWrapper.boundingBox();
   if (textAfterResize === null || nextAfter === null) throw new Error('Flow resize geometry did not render');
-  // The editor itself grows to the rewrapped text in any engine, not only where CSS
-  // `field-sizing` exists, and that growth is what moves the neighbour down.
+  // The rendered body itself grows to the rewrapped text, and that growth is what moves the
+  // neighbour down.
   expect(textAfterResize.height).toBeGreaterThan(textBeforeResize.height);
   expect(nextAfter.y).toBeGreaterThan(nextBefore.y);
   expect((await orderOf(root.id)).map(({ id }) => id).indexOf(neighbor.id)).toBe(1);
@@ -749,7 +752,7 @@ test('inline rename, section removal, shortcut removal and type settings remain 
   await setClock(PINNED_NOW);
   const root = await createRoot('Frame actions');
   await setLayout(root.id, 'flow');
-  const view = await addSection(root.id, { type: 'rich-text', title: 'Rename me', columnSpan: 12 });
+  const view = await addSection(root.id, { type: 'markdown', title: 'Rename me', columnSpan: 12 });
   const firstList = await addSection(root.id, { type: 'task-list', title: 'Move from here', columnSpan: 12 });
   const secondList = await addSection(root.id, { type: 'task-list', title: 'Move to here', columnSpan: 12 });
   const progress = await addSection(root.id, { type: 'progress', title: 'Progress controls', columnSpan: 12 });
@@ -793,7 +796,7 @@ test('inline rename, section removal, shortcut removal and type settings remain 
   await namedFrame.locator('[data-section-title-edit]').click();
   await namedFrame.locator('[data-section-name]').fill('');
   await namedFrame.locator('[data-section-name]').press('Enter');
-  await expect(namedFrame.locator('[data-section-title-edit]')).toContainText('Rich Text');
+  await expect(namedFrame.locator('[data-section-title-edit]')).toContainText('Markdown');
   expect((await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections?pageId=${home}`)).find(({ id }) => id === view.id)?.title).toBeUndefined();
 
   try {
@@ -823,10 +826,13 @@ test('inline rename, section removal, shortcut removal and type settings remain 
   const progressFrame = page.locator(`[data-section-item][data-section-id="${progress.id}"]`);
   await progressFrame.getByRole('button', { name: 'Weighted' }).click();
   await expect(progressFrame.getByRole('button', { name: 'Weighted' })).toHaveAttribute('aria-pressed', 'true');
-  await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-rich-text-body]`).fill('Body editing is available without a mode.');
-  await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-rich-text-body]`).press('Tab');
+  const viewFrame = page.locator(`[data-section-item][data-section-id="${view.id}"]`);
+  await viewFrame.locator('[data-markdown-edit]').click();
+  await viewFrame.locator('[data-markdown-source]').fill('Body editing is available without a mode.');
+  await viewFrame.locator('[data-markdown-save]').click();
+  await expect(viewFrame.locator('[data-markdown-source]')).toHaveCount(0);
 
-  // Removal keeps meaningful Rich Text in Archive, while the action describes the operation.
+  // Removal keeps meaningful Markdown in Archive, while the action describes the operation.
   await expect(page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`)).toHaveAttribute('aria-label', 'Remove section Keep draft after failure');
   await page.locator(`[data-section-item][data-section-id="${view.id}"] [data-section-remove]`).click();
   await expect(page.locator(`[data-section-item][data-section-id="${view.id}"]`)).toHaveCount(0);
@@ -878,10 +884,10 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   await setClock(PINNED_NOW);
   const root = await createRoot('Keyboard journey');
   await setLayout(root.id, 'grid');
-  const first = await addSection(root.id, { type: 'rich-text', title: 'First keyboard section', columnSpan: 12 });
-  const second = await addSection(root.id, { type: 'rich-text', title: 'Second keyboard section', columnSpan: 8 });
+  const first = await addSection(root.id, { type: 'markdown', title: 'First keyboard section', columnSpan: 12 });
+  const second = await addSection(root.id, { type: 'markdown', title: 'Second keyboard section', columnSpan: 8 });
   const [child] = await createSubprojects(root.id, 1);
-  const source = await addSection(child!.id, { type: 'rich-text', title: 'Keyboard shortcut source', columnSpan: 6 });
+  const source = await addSection(child!.id, { type: 'markdown', title: 'Keyboard shortcut source', columnSpan: 6 });
   const home = await pageId(root.id);
   const shortcut = await addShortcut(root.id, {
     pageId: home,
@@ -894,7 +900,7 @@ test('keyboard users can insert, move sections and shortcuts, resize, rename and
   const secondInsert = page.locator(`app-insertion-point[data-insertion-point="before"][data-before-id="${second.id}"] [data-insertion-point-button]`);
   await secondInsert.press('Enter');
   await expect(page.locator('[data-section-create-dialog]')).toBeVisible();
-  await page.locator('[data-create-section-type]').selectOption('rich-text');
+  await page.locator('[data-create-section-type]').selectOption('markdown');
   await page.locator('[data-create-section-name]').fill('Keyboard inserted section');
   await page.locator('[data-create-section-submit]').press('Enter');
   await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
@@ -991,8 +997,8 @@ test.describe('coarse pointer', () => {
     await setClock(PINNED_NOW);
     const root = await createRoot('Touch journey');
     await setLayout(root.id, 'grid');
-    const first = await addSection(root.id, { type: 'rich-text', title: 'Touch notes', columnSpan: 12 });
-    const neighbor = await addSection(root.id, { type: 'rich-text', title: 'Touch neighbor', columnSpan: 6 });
+    const first = await addSection(root.id, { type: 'markdown', title: 'Touch notes', columnSpan: 12 });
+    const neighbor = await addSection(root.id, { type: 'markdown', title: 'Touch neighbor', columnSpan: 6 });
     await page.goto(`/projects/${root.id}`);
     expect(await page.evaluate(() => matchMedia('(hover: none), (any-pointer: coarse)').matches)).toBe(true);
 
@@ -1014,7 +1020,7 @@ test.describe('coarse pointer', () => {
     expect(touchTargetsHit).toEqual([true, true, true, true]);
 
     await insertion.tap();
-    await page.locator('[data-create-section-type]').selectOption('rich-text');
+    await page.locator('[data-create-section-type]').selectOption('markdown');
     await page.locator('[data-create-section-name]').fill('Touch-created notes');
     await page.locator('[data-create-section-submit]').tap();
     await expect(page.locator('[data-section-frame]', { hasText: 'Touch-created notes' })).toBeVisible();
@@ -1023,7 +1029,7 @@ test.describe('coarse pointer', () => {
       .find(({ title }) => title === 'Touch-created notes');
     if (inserted === undefined) throw new Error('Touch insertion did not create a section');
     const [child] = await createSubprojects(root.id, 1);
-    const source = await addSection(child!.id, { type: 'rich-text', title: 'Touch shortcut source' });
+    const source = await addSection(child!.id, { type: 'markdown', title: 'Touch shortcut source' });
     const shortcut = await addShortcut(root.id, {
       pageId: home,
       sourceSectionId: source.id,
@@ -1169,7 +1175,7 @@ test('revealing controls does not shift the canvas or turn text and edge interac
   await page.setViewportSize({ width: 1440, height: 900 });
   const root = await createRoot('No layout shift');
   await setLayout(root.id, 'grid');
-  const notes = await addSection(root.id, { type: 'rich-text', title: 'Selectable notes', columnSpan: 8 });
+  const notes = await addSection(root.id, { type: 'markdown', title: 'Selectable notes', columnSpan: 8 });
   const list = await addSection(root.id, { type: 'task-list', title: 'Task selection', columnSpan: 4 });
   await api.post('/api/tasks', { projectId: root.id, sectionId: list.id, title: 'Select this row title with a pointer drag' });
   await page.goto(`/projects/${root.id}`);
@@ -1193,10 +1199,11 @@ test('revealing controls does not shift the canvas or turn text and edge interac
     if (request.method() === 'POST' && /\/api\/(sections|shortcuts)\/[^/]+\/move$/.test(new URL(request.url()).pathname)) moveRequests += 1;
   };
   page.on('request', observeMoves);
-  const textarea = firstWrapper.locator('[data-rich-text-body]');
+  await firstWrapper.locator('[data-markdown-edit]').click();
+  const textarea = firstWrapper.locator('[data-markdown-source]');
   await textarea.fill('Drag across this text selection without moving the section.');
   const textareaBox = await textarea.boundingBox();
-  if (textareaBox === null) throw new Error('Rich Text editor has no browser geometry');
+  if (textareaBox === null) throw new Error('Markdown source editor has no browser geometry');
   await page.mouse.move(textareaBox.x + 18, textareaBox.y + 14);
   await page.mouse.down();
   await page.mouse.move(textareaBox.x + 110, textareaBox.y + 14, { steps: 4 });
@@ -1241,9 +1248,9 @@ test('hover and focus actually reveal chrome, neighbouring handles resize their 
   await page.setViewportSize({ width: 1440, height: 900 });
   const root = await createRoot('Revealed chrome');
   await setLayout(root.id, 'grid');
-  const left = await addSection(root.id, { type: 'rich-text', title: 'Left half', columnSpan: 6 });
-  const right = await addSection(root.id, { type: 'rich-text', title: 'Right half', columnSpan: 6 });
-  await addSection(root.id, { type: 'rich-text', title: 'Below', columnSpan: 12 });
+  const left = await addSection(root.id, { type: 'markdown', title: 'Left half', columnSpan: 6 });
+  const right = await addSection(root.id, { type: 'markdown', title: 'Right half', columnSpan: 6 });
+  await addSection(root.id, { type: 'markdown', title: 'Below', columnSpan: 12 });
   await page.goto(`/projects/${root.id}`);
   const leftItem = page.locator(`[data-section-item][data-section-id="${left.id}"]`);
   const rightItem = page.locator(`[data-section-item][data-section-id="${right.id}"]`);

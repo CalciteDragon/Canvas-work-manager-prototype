@@ -43,3 +43,5 @@ Save replaces the latest source rather than merging concurrent edits. There is n
 or Escape dismissal. Navigation, reload, frame collapse and removal destroy an unsaved
 session; section.updated keeps it. A mid-session read-only change also blocks Save and
 keeps the draft available to copy or Cancel.
+
+**Amended, 2026-10-02 — Slice 63 delivers C2.** Rich Text content and history are converted to Markdown at schema version 6 and Rich Text is retired; see [Schema version 6 converts Rich Text to Markdown and retires it](2026-10-schema-version-6-markdown-conversion.md). Converted prose is escaped source, so the shell placeholder strips backslash escapes and the space, tab and CR references before the body renders, and an unreadable config that still holds a `markdown` string renders it read-only above the guidance note.
