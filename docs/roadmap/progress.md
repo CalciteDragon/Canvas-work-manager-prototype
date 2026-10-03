@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 64 | Slice 64 — Section configs validated by type | Each section type's config shape lives in contracts; the domain refuses a config that does not match it, and the v6 converter writes only clean Markdown configs | [64-section-config-validation.md](active/64-section-config-validation.md) |
 
 ### Planned
 

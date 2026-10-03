@@ -98,6 +98,41 @@ export const RETIRED_SECTION_TYPES: readonly string[] = ['rich-text'];
 /** Whether `type` is retired — exact match only, never for an inherited `Object` key. */
 export const isRetiredSectionType = (type: string): boolean => RETIRED_SECTION_TYPES.includes(type);
 
+/** Markdown's whole config: its exact source, and no other key (§29; Slice 64). */
+export const MarkdownConfigSchema = z.strictObject({ markdown: z.string() });
+export type MarkdownConfig = z.infer<typeof MarkdownConfigSchema>;
+
+/**
+ * **The config shapes the domain enforces on write**, for the types that declare one (Slice 64).
+ * A type is listed once it owns config whose shape matters to more than its own folder — today only
+ * Markdown, whose source every writer, agents included, must send as exactly `{ markdown }`. The
+ * other types are absent, not empty: they read no config, and nothing is gained by refusing one yet
+ * (docs/decisions/2026-10-section-config-validated-on-write.md).
+ */
+export const SECTION_CONFIG_SCHEMAS: Readonly<Record<string, z.ZodObject>> = {
+  markdown: MarkdownConfigSchema,
+};
+
+/**
+ * Why `config` cannot be written to a section of `type`, as a sentence for the caller — or
+ * `undefined` when it can. An empty config is always writable: it is what every section starts as,
+ * and an absent config and an empty one are not different states. A type that declares no schema,
+ * including an unregistered one, is not checked.
+ */
+export const sectionConfigRefusal = (type: string, config: SectionConfig): string | undefined => {
+  if (!Object.hasOwn(SECTION_CONFIG_SCHEMAS, type) || Object.keys(config).length === 0) return undefined;
+  const schema = SECTION_CONFIG_SCHEMAS[type]!;
+  const parsed = schema.safeParse(config);
+  if (parsed.success) return undefined;
+  const quoted = (keys: readonly PropertyKey[]) => keys.map((key) => `"${String(key)}"`).join(', ');
+  const reasons = parsed.error.issues.map((issue) =>
+    issue.code === 'unrecognized_keys'
+      ? `it does not take ${quoted(issue.keys)}`
+      : `${quoted(issue.path)} must be ${issue.code === 'invalid_type' ? `a ${issue.expected}` : 'valid'}`,
+  );
+  return `A ${displayNameOf(type)} section’s config takes only ${quoted(Object.keys(schema.shape))}, or nothing; ${reasons.join('; ')}.`;
+};
+
 // `Object.hasOwn`, not `in`: `'toString' in SECTION_CAPABILITIES` is true, and a section type
 // that happens to name an `Object.prototype` member must not read as a registered type.
 /** The declared capability, or `undefined` for a type nothing declares — unknown, not disposable. */

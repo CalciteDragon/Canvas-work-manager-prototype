@@ -9,7 +9,10 @@ import {
   containerTypeFor,
   displayNameOf,
   isRetiredSectionType,
+  MarkdownConfigSchema,
   nameOf,
+  SECTION_CONFIG_SCHEMAS,
+  sectionConfigRefusal,
   RETIRED_SECTION_TYPES,
   normaliseSectionTitle,
   ownedKindOf,
@@ -153,6 +156,41 @@ describe('section capabilities (Refactor §§6–8)', () => {
       expect(sectionCapabilityOf(type)).toBeUndefined();
       expect(ownedKindOf(type)).toBeUndefined();
       expect(sectionKindOf(type)).toBe('view');
+    }
+  });
+});
+
+describe('section configs validated by type (Slice 64)', () => {
+  it('declares a schema for markdown only, a capability-declared type', () => {
+    expect(Object.keys(SECTION_CONFIG_SCHEMAS)).toEqual(['markdown']);
+    expect(Object.hasOwn(SECTION_CAPABILITIES, 'markdown')).toBe(true);
+  });
+
+  it('accepts an empty config and exactly { markdown: string } for markdown', () => {
+    expect(sectionConfigRefusal('markdown', {})).toBeUndefined();
+    expect(sectionConfigRefusal('markdown', { markdown: '' })).toBeUndefined();
+    expect(sectionConfigRefusal('markdown', { markdown: '# Notes' })).toBeUndefined();
+    expect(MarkdownConfigSchema.parse({ markdown: 'x' })).toEqual({ markdown: 'x' });
+  });
+
+  it('names every key markdown does not take', () => {
+    expect(sectionConfigRefusal('markdown', { markdown: 'x', summary: 'y', tone: 'calm' })).toBe(
+      'A Markdown section’s config takes only "markdown", or nothing; it does not take "summary", "tone".',
+    );
+  });
+
+  it('names a markdown value that is not a string, and one that is missing', () => {
+    expect(sectionConfigRefusal('markdown', { markdown: 5 })).toBe(
+      'A Markdown section’s config takes only "markdown", or nothing; "markdown" must be a string.',
+    );
+    expect(sectionConfigRefusal('markdown', { text: 'x' })).toBe(
+      'A Markdown section’s config takes only "markdown", or nothing; "markdown" must be a string; it does not take "text".',
+    );
+  });
+
+  it('checks nothing for a type that declares no schema, unregistered or inherited', () => {
+    for (const type of ['progress', 'task-list', 'calendar', 'toString', 'constructor', '__proto__']) {
+      expect(sectionConfigRefusal(type, { anything: ['goes'] })).toBeUndefined();
     }
   });
 });
