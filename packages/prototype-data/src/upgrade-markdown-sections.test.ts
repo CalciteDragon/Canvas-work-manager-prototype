@@ -33,8 +33,17 @@ const actionOn = (document: Row, type: string, sectionId: string): Row =>
     return operation['type'] === type && ((operation['section'] as Row | undefined)?.['id'] ?? operation['sectionId']) === sectionId;
   })!;
 
-/** Every stored config the rule applies to, by a readable path, with the type that governs it. */
+/**
+ * Every stored config the rule applies to, by a readable path, with the type that governs it. A
+ * `section.update` names no type, so its changes take the type the document records for that id —
+ * `undefined` for the orphan.
+ */
 const proseLocations = (document: Row): { path: string; type: unknown; config: unknown }[] => {
+  const types = new Map<unknown, unknown>(sectionsOf(document).map((section) => [section['id'], section['type']]));
+  for (const action of actionsOf(document)) {
+    const snapshot = operationOf(action)['section'] as Row | undefined;
+    if (snapshot !== undefined) types.set(snapshot['id'], snapshot['type']);
+  }
   const locations: { path: string; type: unknown; config: unknown }[] = [];
   for (const section of sectionsOf(document)) {
     locations.push({ path: `sections/${String(section['id'])}`, type: section['type'], config: section['config'] });
@@ -45,6 +54,14 @@ const proseLocations = (document: Row): { path: string; type: unknown; config: u
     if (operation['type'] === 'section.add' || operation['type'] === 'section.remove') {
       const snapshot = operation['section'] as Row;
       locations.push({ path: `${path}/section`, type: snapshot['type'], config: snapshot['config'] });
+    }
+    if (operation['type'] === 'section.update') {
+      for (const [index, change] of (operation['changes'] as Row[]).entries()) {
+        if (change['field'] !== 'config') continue;
+        const type = types.get(operation['sectionId']);
+        locations.push({ path: `${path}/changes/${index}/before`, type, config: change['before'] });
+        locations.push({ path: `${path}/changes/${index}/after`, type, config: change['after'] });
+      }
     }
   }
   return locations;
@@ -136,15 +153,32 @@ describe('upgradeMarkdownSections', () => {
     const before = proseLocations(input);
     const after = proseLocations(document as unknown as Row);
 
-    let checked = 0;
+    const checked: string[] = [];
     for (const [index, { path, config }] of before.entries()) {
       const text = (config as Row)['text'];
       if (before[index]!.type !== 'rich-text' || typeof text !== 'string') continue;
       expect(after[index]!.path).toBe(path);
       expect(decodeLegacyProse((after[index]!.config as Row)['markdown'] as string), path).toBe(text);
-      checked += 1;
+      checked.push(path);
     }
-    expect(checked).toBeGreaterThan(10);
+    // Sections, add/remove snapshots and both sides of the three typed config edits.
+    expect(checked.length).toBeGreaterThan(15);
+    expect(checked.filter((path) => path.includes('/changes/'))).toHaveLength(6);
+  });
+
+  it('leaves every location that is not Rich Text exactly as it was, the orphan included', () => {
+    const input = v5();
+    const { document } = upgradeMarkdownSections(input);
+    const before = proseLocations(input);
+    const after = proseLocations(document as unknown as Row);
+
+    expect(after.map(({ path }) => path)).toEqual(before.map(({ path }) => path));
+    const untouched = before.flatMap((location, index) => (location.type === 'rich-text' ? [] : [[location, after[index]!]]));
+    expect(untouched.some(([location]) => location!.type === undefined)).toBe(true);
+    expect(untouched.some(([location]) => location!.type === 'task-list')).toBe(true);
+    for (const [location, converted] of untouched) {
+      expect(converted, location!.path).toEqual(location);
+    }
   });
 
   it('applies each row of the conversion table', () => {

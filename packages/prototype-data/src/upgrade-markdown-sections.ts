@@ -58,7 +58,7 @@ export interface MarkdownSectionsConversion {
   convertedSections: number;
   /** History payloads whose snapshot or config change was rewritten. */
   convertedPayloads: number;
-  /** Converted sections whose config Markdown cannot read: their prose is shown with guidance. */
+  /** Converted sections whose config Markdown cannot read: kept as stored, any prose shown with guidance. */
   unreadableConfigs: number;
   /** `section.update` actions whose section no source records, left as they are. */
   unreachableUpdates: number;

@@ -53,7 +53,7 @@ export interface UpgradeDataFileResult {
   convertedSections: number;
   /** History records whose Rich Text snapshot or prose edit became Markdown (version 6). */
   convertedPayloads: number;
-  /** Converted sections whose content Markdown cannot read, shown read-only with guidance. */
+  /** Converted sections whose content Markdown cannot read: kept, any prose shown read-only with guidance. */
   unreadableConfigs: number;
   /** Prose edits to a section no record holds any more, left as they were recorded. */
   unreachableUpdates: number;
@@ -179,7 +179,7 @@ export const upgradeMessage = (path: string, result: UpgradeDataFileResult): str
   }
   if (result.unreadableConfigs > 0) {
     sentences.push(
-      `${plural(result.unreadableConfigs, 'converted section holds', 'converted sections hold')} content Markdown cannot edit; it is shown read-only with guidance.`,
+      `${plural(result.unreadableConfigs, 'converted section holds', 'converted sections hold')} content Markdown cannot edit; it is kept, and any prose in it is shown read-only with guidance.`,
     );
   }
   if (result.unreachableUpdates > 0) {

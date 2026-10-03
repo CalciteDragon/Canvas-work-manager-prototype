@@ -329,7 +329,7 @@ describe('upgradeDataFile — the chained conversion', () => {
     ).toBe(
       'Converted "data.json" from schema version 5 to 6. Every Undo and Redo action was preserved. ' +
         '8 Rich Text sections and 11 history records became Markdown, with the prose escaped so it reads as it did. ' +
-        '2 converted sections hold content Markdown cannot edit; it is shown read-only with guidance. ' +
+        '2 converted sections hold content Markdown cannot edit; it is kept, and any prose in it is shown read-only with guidance. ' +
         '3 edits to sections no record holds were left as recorded. ' +
         'The original is beside it as a .backup-*.json file.\n',
     );
