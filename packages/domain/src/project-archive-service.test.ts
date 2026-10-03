@@ -192,7 +192,9 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     const { harness, archive } = buildArchive();
     const empty = await harness.sectionService.add(harness.actor, ROOT, { type: 'markdown', config: { markdown: ' \n\t ' } });
     const unconfigured = await harness.sectionService.add(harness.actor, ROOT, { type: 'markdown' });
-    const malformed = await harness.sectionService.add(harness.actor, ROOT, { type: 'markdown', config: { markdown: 7 } });
+    // No write takes this config any more (Slice 64); a hand edit can still leave one stored.
+    const malformed = await harness.sectionService.add(harness.actor, ROOT, { type: 'markdown' });
+    await harness.sections.update({ ...malformed, config: { markdown: 7 } });
     const unknown = await harness.sectionService.add(harness.actor, ROOT, { type: 'calendar', config: { view: 'month' } });
     for (const { id } of [empty, unconfigured, malformed, unknown]) await harness.sectionService.remove(harness.actor, id);
 

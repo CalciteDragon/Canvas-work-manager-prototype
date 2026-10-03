@@ -138,6 +138,110 @@ describe('SectionService.add refuses a retired type', () => {
   });
 });
 
+/**
+ * **A Markdown config is exactly `{ markdown }`, or empty** (Slice 64,
+ * docs/decisions/2026-10-section-config-validated-on-write.md). Checked in the shared `add` and
+ * `update`, so browser, HTTP and MCP all get the refusal; types that declare no schema are open.
+ */
+describe('SectionService refuses a config its type does not take', () => {
+  const writable = (harness: Harness) => {
+    const { sections, activityEvents, operationHistories, operationActions } = harness.store.snapshot();
+    return { sections, activityEvents, operationHistories, operationActions };
+  };
+
+  const configRefusal = async (promise: Promise<unknown>, pattern: RegExp = /Markdown.*"markdown"/): Promise<void> => {
+    const refusal = await promise.then(() => undefined, (failure: unknown) => failure);
+    expect(refusal).toBeInstanceOf(DomainRuleError);
+    expect((refusal as DomainRuleError).message).toMatch(pattern);
+  };
+
+  /** A section whose stored config no write could produce now — hand-edited or converted by the old rule. */
+  const storedNonconforming = async (harness: Harness) => {
+    const section = await add(harness, 'markdown', { config: { markdown: 'kept' } });
+    const stored = { ...section, config: { markdown: 'kept', extra: 'legacy' } };
+    await harness.sections.update(stored);
+    return stored;
+  };
+
+  it('add refuses an extra key, a non-string source and a foreign key, writing nothing', async () => {
+    const harness = buildHarness();
+    const before = writable(harness);
+
+    await configRefusal(add(harness, 'markdown', { config: { markdown: 'x', summary: 'y' } }), /does not take "summary"/);
+    await configRefusal(add(harness, 'markdown', { config: { markdown: 5 } }), /"markdown" must be a string/);
+    await configRefusal(add(harness, 'markdown', { config: { text: 'x' } }), /does not take "text"/);
+
+    expect(writable(harness)).toEqual(before);
+  });
+
+  it('add answers permission first, then the config, ahead of any project lookup', async () => {
+    const harness = buildHarness();
+    const bad = { type: 'markdown', config: { markdown: 'x', summary: 'y' } };
+
+    await expect(harness.sectionWriteService.add(agentActorFor(0), MINE, bad)).rejects.toBeInstanceOf(PermissionDeniedError);
+    await configRefusal(harness.sectionWriteService.add(agentActorFor(0, ['projects.read', 'projects.write']), MINE, bad));
+    await configRefusal(harness.sectionWriteService.add(harness.actor, 'project-nowhere' as ProjectId, bad));
+    await configRefusal(harness.sectionWriteService.add(harness.actor, THEIRS, bad));
+  });
+
+  it('update refuses a malformed config, writing nothing', async () => {
+    const harness = buildHarness();
+    const section = await add(harness, 'markdown', { config: { markdown: 'one' } });
+    const before = writable(harness);
+
+    await configRefusal(harness.sectionWriteService.update(harness.actor, section.id, { config: { markdown: 'two', tone: 'loud' } }));
+    await configRefusal(harness.sectionWriteService.update(harness.actor, section.id, { title: 'Renamed', config: { markdown: 2 } }));
+
+    expect(writable(harness)).toEqual(before);
+  });
+
+  it('update keeps its existing refusals first: permission, missing, archived section, archived project', async () => {
+    const harness = buildHarness();
+    const bad = { config: { markdown: 'x', summary: 'y' } };
+    const section = await add(harness, 'markdown');
+
+    await expect(harness.sectionWriteService.update(agentActorFor(0), section.id, bad)).rejects.toBeInstanceOf(PermissionDeniedError);
+    await expect(harness.sectionWriteService.update(harness.actor, 'section-nowhere' as SectionId, bad)).rejects.toBeInstanceOf(EntityNotFoundError);
+
+    const removed = await add(harness, 'markdown', { config: { markdown: 'kept' } });
+    await harness.sectionService.remove(harness.actor, removed.id);
+    await configRefusal(harness.sectionWriteService.update(harness.actor, removed.id, bad), /archived|removed|restore/i);
+
+    await harness.projectService.archive(harness.actor, MINE);
+    await configRefusal(harness.sectionWriteService.update(harness.actor, section.id, bad), /reactivate it first/);
+  });
+
+  it('update refuses re-sending a stored nonconforming config, but leaves a write without config alone', async () => {
+    const harness = buildHarness();
+    const stored = await storedNonconforming(harness);
+
+    await configRefusal(harness.sectionWriteService.update(harness.actor, stored.id, { config: stored.config }), /does not take "extra"/);
+
+    const renamed = await harness.sectionWriteService.update(harness.actor, stored.id, { title: 'Renamed' });
+    expect(renamed.section).toMatchObject({ title: 'Renamed', config: { markdown: 'kept', extra: 'legacy' } });
+  });
+
+  it('duplicate copies a stored nonconforming config unchecked — it reproduces state, not new input', async () => {
+    const harness = buildHarness();
+    const stored = await storedNonconforming(harness);
+
+    const copy = await harness.sectionService.duplicate(harness.actor, stored.id);
+
+    expect(copy.config).toEqual({ markdown: 'kept', extra: 'legacy' });
+  });
+
+  it('accepts an empty and an exact Markdown config, and any config for a type that declares no schema', async () => {
+    const harness = buildHarness();
+
+    expect((await add(harness, 'markdown', { config: {} })).config).toEqual({});
+    const markdown = await add(harness, 'markdown', { config: { markdown: '# Notes' } });
+    expect((await harness.sectionService.update(harness.actor, markdown.id, { config: {} })).config).toEqual({});
+    const progress = await add(harness, 'progress', { config: { milestoneIds: ['m-1'] } });
+    expect((await harness.sectionService.update(harness.actor, progress.id, { config: { range: 'quarter' } })).config).toEqual({ range: 'quarter' });
+    expect((await add(harness, 'calendar', { config: { view: 'month' } })).config).toEqual({ view: 'month' });
+  });
+});
+
 describe('SectionService.list', () => {
   it('answers one project’s sections in position order, whatever order they were written', async () => {
     const harness = buildHarness();
@@ -341,7 +445,7 @@ describe('SectionService.update', () => {
       [{ collapsed: false }, 'Expanded the Markdown section'],
       [{ columnSpan: 8 }, 'Resized the Markdown section to 8 columns'],
       [{ title: 'Plan', collapsed: true }, 'Updated the Markdown section'],
-      [{ config: { markdown: 'More', tone: 'loud' } }, 'Updated the Plan section'],
+      [{ collapsed: false, config: { markdown: 'More' } }, 'Updated the Plan section'],
     ] as const;
 
     let latest: OperationReceipt | null = null;

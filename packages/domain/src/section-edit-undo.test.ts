@@ -311,10 +311,10 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
   it('treats a config with reordered keys as a no-op', async () => {
     const harness = buildHarness();
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', config: { markdown: 'a', tone: 'calm' } });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'progress', config: { range: 'a', tone: 'calm' } });
     const before = writable(harness);
 
-    const result = await harness.sectionWriteService.update(harness.actor, added.section.id, { config: { tone: 'calm', markdown: 'a' } });
+    const result = await harness.sectionWriteService.update(harness.actor, added.section.id, { config: { tone: 'calm', range: 'a' } });
 
     expect(result.operation).toBeNull();
     expect(writable(harness)).toEqual(before);
@@ -610,16 +610,16 @@ describe('SectionService edit receipts, Undo and Redo', () => {
 
   it('restores a cleared title and a replaced config exactly, and reapplies them', async () => {
     const harness = buildHarness();
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', title: 'Named', config: { markdown: 'one', nested: { a: [1, 2] } } });
-    const update = await harness.sectionWriteService.update(harness.actor, added.section.id, { title: null, config: { markdown: 'two' } });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'progress', title: 'Named', config: { range: 'one', nested: { a: [1, 2] } } });
+    const update = await harness.sectionWriteService.update(harness.actor, added.section.id, { title: null, config: { range: 'two' } });
 
     await harness.undo(harness.actor, update.operation!);
-    expect(await harness.sections.find(added.section.id)).toMatchObject({ title: 'Named', config: { markdown: 'one', nested: { a: [1, 2] } } });
+    expect(await harness.sections.find(added.section.id)).toMatchObject({ title: 'Named', config: { range: 'one', nested: { a: [1, 2] } } });
 
     await harness.redo(harness.actor, update.operation!);
     const redone = await harness.sections.find(added.section.id);
     expect(redone).not.toHaveProperty('title');
-    expect(redone?.config).toEqual({ markdown: 'two' });
+    expect(redone?.config).toEqual({ range: 'two' });
   });
 });
 
