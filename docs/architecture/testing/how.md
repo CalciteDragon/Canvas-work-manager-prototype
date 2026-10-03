@@ -216,7 +216,7 @@ pnpm storybook                                        # :6006
   preserves Archive and section state.
 - **Section edit Undo acceptance** lives in `section-edit-undo.spec.ts`: explicit HTTP
   add/update/move Undo, disjoint and overlapping agent edits over MCP, canvas contextual add,
-  rename, Rich Text blur save, collapse, keyboard resize and keyboard move Undo with reload, and
+  rename, a Markdown Edit → Save, collapse, keyboard resize and keyboard move Undo with reload, and
   the Reflections-page container add, Undo and refusal once a reflection is authored.
 - **Markdown acceptance** lives in `canvas-editing.spec.ts`: `markdown section saves source,
   renders safely and undoes` creates from the picker, previews a heading and list, saves exact

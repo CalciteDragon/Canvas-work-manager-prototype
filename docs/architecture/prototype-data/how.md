@@ -15,19 +15,32 @@
    **sniff its version first** — the frozen v2 step refuses anything newer, so the "already
    current" answer cannot be delegated to it. Version 2 runs `upgradeProjectPages` (frozen at a
    literal version 3, unvalidated, opaque JSON) and then `upgradeOperationHistory`; version 3 runs
-   the latter and then the v4 step. The v3 step drops `undoRecords` (counting them), writes `archiveGeneration: 0` on every
+   the latter and then the v4 step, and every version continues to the v5 step. The v3 step drops `undoRecords` (counting them), writes `archiveGeneration: 0` on every
    section and empty history collections, and returns opaque version-4 JSON. `upgradeActivityIdentity` then validates legacy Activity
-   references, backfills historical context and validates the version-5 result, preserving all
-   version-4 histories and actions. Only then is the
+   references and backfills historical context, preserving all version-4 histories and actions, and
+   returns opaque version-5 JSON (frozen at literal 5; a version-5-or-later input passes through).
+   `upgradeMarkdownSections` then converts every Rich Text section — live, archived, and in the
+   `section.add`/`section.remove` snapshots and the `before`/`after` of a `section.update` config
+   edit — to Markdown, storing the prose through `encodeLegacyProse` so nothing in it can become
+   structure, and validates the version-6 result. It refuses conflicting types for one section id,
+   a `markdown` key in a Rich Text config, a Rich Text created container, and an encoding that does
+   not round-trip; an edit to a section no record holds any more is left as recorded and counted
+   ([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)). Only then is the
    original written beside the file as `.backup-<timestamp>.json` and the new document written
-   through a temp file. A version-4 file runs just the Activity step; a version-5 file is validated and left alone. The message names the version
-   converted from and, when any were retired, how many version-3 Undo receipts were dropped.
+   through a temp file. A version-4 file runs the Activity and Markdown steps; a version-5 file runs just the Markdown
+   step; a version-6 file re-runs it, so a clean one is a byte-identical no-op and a hand-edited one
+   still holding Rich Text is converted. The message names the version converted from and, when
+   non-zero, how many version-3 Undo receipts were dropped, Activity events backfilled, Rich Text
+   sections and history records converted, unreadable configs kept and orphaned edits left.
 4. Tests: `seeds.test.ts` parses every builder's output with `PrototypeDocumentSchema`,
    and compares it byte-for-byte to `prototype/seeds/<name>.json` serialised with LF;
    `upgrade-project-pages.test.ts` covers the frozen v2 step alone;
    `version-3-undo-compatibility.test.ts` is the v3 → v4 suite over
    `test/fixtures/nested-projects-v3.json` plus legacy receipts added as plain JSON (a pre-Slice-31
-   reassign, consumed and outstanding records); `upgrade-cli.test.ts` covers the chain, the version
+   reassign, consumed and outstanding records); `legacy-prose.test.ts` proves the encoding inert
+   under markdown-it with the app's options and exactly invertible; `upgrade-markdown-sections.test.ts`
+   converts the frozen `test/fixtures/history-v5-rich-text.json` and its refusal cases;
+   `upgrade-cli.test.ts` covers the chain, the version
    sniff, repeat runs, backup-before-write and a failed conversion writing nothing. The host's
    `recovery-undo-acceptance.test.ts` runs the real CLI as a subprocess.
 5. Other packages import the builders directly: the MCP harness and the host tests seed
@@ -42,7 +55,9 @@
 | `writeSeedFile` | function | Write a named seed atomically | [API](../../api/miscellaneous/variables.html#writeSeedFile) |
 | `upgradeProjectPages` | function | Frozen v2 → v3 step; pure, unvalidated, opaque output | [API](../../api/miscellaneous/variables.html#upgradeProjectPages) |
 | `upgradeOperationHistory` | function | Frozen v3 → v4 step; retires receipts and returns opaque JSON | [API](../../api/miscellaneous/variables.html#upgradeOperationHistory) |
-| `upgradeActivityIdentity` | function | v4 → v5 step; backfills validated Activity context, preserves histories and validates the final document | [API](../../api/miscellaneous/variables.html#upgradeActivityIdentity) |
+| `upgradeActivityIdentity` | function | Frozen v4 → v5 step; backfills validated Activity context, preserves histories, returns opaque JSON | [API](../../api/miscellaneous/variables.html#upgradeActivityIdentity) |
+| `upgradeMarkdownSections` | function | v5 → v6 step, re-run on v6; converts Rich Text everywhere it is stored, counts, and validates the final document | [API](../../api/miscellaneous/variables.html#upgradeMarkdownSections) |
+| `encodeLegacyProse`, `decodeLegacyProse` | functions | Fixed reversible escaping of legacy prose into inert Markdown, and its exact inverse | [API](../../api/miscellaneous/variables.html#encodeLegacyProse) |
 | `upgradeDataFile` | function | The CLI's version sniff, chain, backup and atomic write | [API](../../api/miscellaneous/variables.html#upgradeDataFile) |
 | `seedDataFileOwned`, `upgradeDataFileOwned` | functions | The CLIs' entries: the same writes under the data file's owner record. The library functions above stay ownership-free, because `loadPersistence` seeds inside its caller's ownership | [API](../../api/miscellaneous/variables.html#seedDataFileOwned) |
 | `WriteSeedOptions`, `UpgradeDataFileOptions` | interfaces | Injectable file operations for the two CLIs' tests | [API](../../api/interfaces/WriteSeedOptions.html) |
@@ -72,10 +87,10 @@
   reference instant.
 - **Tokens are not in the contracts.** `AgentConnectionSchema` has no token field; the
   token table lives here and is asserted absent from `GET /api/agent-connections`.
-- **No migration runner.** Three named converters, called in a fixed order by the one CLI,
-  registered nowhere. The v2 and v3 steps are frozen at their literal version-3 and version-4
-  outputs; only the v4 → v5 step validates the final document, so the chain never writes an
-  unloadable file.
+- **No migration runner.** Four named converters, called in a fixed order by the one CLI,
+  registered nowhere. The v2, v3 and v4 steps are frozen at their literal version-3, version-4 and
+  version-5 outputs; only the v5 → v6 step validates the final document, so the chain never writes
+  an unloadable file.
 - **Seeds hold no Undo history.** Every snapshot carries `"operationHistories": []` and
   `"operationActions": []` and `archiveGeneration: 0` on every section; loading a seed replaces
   the document — so it discards every history.

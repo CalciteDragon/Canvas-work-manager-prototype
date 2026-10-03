@@ -161,6 +161,7 @@ Undo action or imply the row is the next action
 ## Decisions that shape this system
 
 - [Markdown source and rendering](../../../decisions/2026-10-markdown-source-and-rendering.md) — source ownership, safe lazy rendering and explicit draft handling.
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../../decisions/2026-10-schema-version-6-markdown-conversion.md) — the registry drops Rich Text; converted prose shows read-only when Markdown cannot edit it, and the placeholder hides the escapes.
 
 - [Task Delete names its existing recovery routes](../../../decisions/2026-09-task-delete-recovery-feedback.md) — Todos names the owner and points to the existing header and root Archive.
 - [Descendant rows link to their owner's existing header history](../../../decisions/2026-09-descendant-history-discovery.md) — owner route and fragment focus without a merged cursor.

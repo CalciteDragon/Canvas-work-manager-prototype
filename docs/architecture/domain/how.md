@@ -45,8 +45,13 @@ change gets a specific stored label; combined and other config changes keep gene
 History summaries reuse the stored label through either transition and after reload. The separate
 Activity summary still uses its existing verb. A config edit is prose only when the type declares
 `config` recovery and its `proseKey` is the sole changed config key. The key chooses the noun:
-`markdown` says `Markdown`, `text` says `prose`, and an unfamiliar prose key falls back to `prose`.
-The domain reads no Markdown or HTML syntax.
+`markdown` says `Markdown`, and any other prose key falls back to `prose`. Labels stored before
+version 6 keep their Rich Text wording. The domain reads no Markdown or HTML syntax.
+
+`SectionService.add` refuses a retired type (`isRetiredSectionType` from contracts — today only
+`rich-text`) with a `DomainRuleError` after the actor and grant checks and before any lookup, so
+browser, HTTP and MCP get the same refusal and it confirms nothing about the project
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
 
 ## Key symbols
 
@@ -200,7 +205,7 @@ The domain reads no Markdown or HTML syntax.
   `SectionService.remove` has no policy or target input: it archives only live owned rows with
   the section, and preserves independently archived rows and their markers. Ordinary task moves
   use `TaskService.update` and have their own receipts. `section-removal-undo.ts` retains the
-  reassign branch solely for schema-v5 actions already stored with that policy. After settlement,
+  reassign branch solely for historical actions already stored with that policy. After settlement,
   `sectionRecoveryOf` decides whether
   content must remain recoverable. Canonical task/reflection references and Home shortcut sources
   independently prevent deletion. New disposable sections with no such reference are deleted;

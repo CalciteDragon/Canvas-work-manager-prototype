@@ -180,6 +180,7 @@ ISO string so ordering stays lossless without a clock or timezone
 ## Decisions that shape this system
 
 - [Markdown stores source and declares its prose key](../../decisions/2026-10-markdown-source-and-rendering.md) — pure recovery and history label functions read capability metadata, without parsing source or adding a service edge.
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — `SectionService.add` refuses retired types; converted history Undoes and Redoes into Markdown.
 
 - [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — pure read eligibility is shared by two projections while canonical Restore writes recheck blockers.
 
@@ -246,14 +247,17 @@ live-update emission.
 **Archive projects recoverable content, judged on current state.** `sectionRecoveryOf`
 (`section-recovery-policy.ts`, package-internal) is a pure function: contracts capability plus the
 rows still assigned to the section. `ProjectArchiveService` applies it to section entries only;
-retained disposable view tombstones stay stored but unlisted, uncertain Rich Text or Markdown config and
+retained disposable view tombstones stay stored but unlisted, uncertain Markdown config and
 unknown types are kept, and a container holding only independently archived rows stays listed as
 the first step of their recovery. New removal consults this policy after settling rows, then makes
 a separate canonical-reference check before deleting. Archive remains a projection, not the
 deletion gate ([content policy](../../decisions/2026-09-content-oriented-archive-policy.md),
 [disposable removal](../../decisions/2026-09-disposable-removal-and-immediate-undo.md)).
 
-Config prose uses the key declared by contracts: `text` for Rich Text, `markdown` for Markdown.
+Config prose uses the key declared by contracts: `markdown` for Markdown.
 The domain trims source directly, so literal markup remains content and no renderer is part of
-recovery. A prose-only history update uses that same key and a small noun table, preserving Rich
-Text's stored wording while new Markdown edits say `Edited Markdown`.
+recovery. A prose-only history update uses that same key and a small noun table: new Markdown edits
+say `Edited Markdown`, while labels stored before version 6 keep their Rich Text wording. Version 6
+converted Rich Text to Markdown and retired it; `SectionService.add` refuses a retired type itself,
+so every transport gets one answer
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).

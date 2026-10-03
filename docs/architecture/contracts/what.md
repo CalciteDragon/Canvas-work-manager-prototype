@@ -80,10 +80,10 @@ placements on a root's Home that reference a section elsewhere in the same tree.
 
 | Part | Path | Role |
 |---|---|---|
-| `SCHEMA_VERSION`, `PrototypeDocumentSchema` | `src/document.ts` | The `data.json` shape and its version (`5`) |
+| `SCHEMA_VERSION`, `PrototypeDocumentSchema` | `src/document.ts` | The `data.json` shape and its version (`6`) |
 | `ProjectSchema`, `isRootProject` | `src/project.ts` | Discriminated union on `kind`; status and `progressFormula` |
 | `ProjectPageSchema`, `NAVIGABLE_PAGE_KINDS` | `src/project-page.ts` | Four root kinds plus `work`; which are tabs |
-| `ProjectSectionSchema`, `SECTION_CAPABILITIES`, `SECTION_OWNERSHIP`, `ownedKindOf`, `nameOf` | `src/section.ts` | Sections, per-type capabilities with the declared prose key for config recovery, the container/view split, display names, grid presets |
+| `ProjectSectionSchema`, `SECTION_CAPABILITIES`, `RETIRED_SECTION_TYPES`, `isRetiredSectionType`, `SECTION_OWNERSHIP`, `ownedKindOf`, `nameOf` | `src/section.ts` | Sections, per-type capabilities with the declared prose key for config recovery, the retired types, the container/view split, display names, grid presets |
 | `SectionShortcutSchema` | `src/section-shortcut.ts` | Home placements referencing a source section |
 | `TaskSchema` | `src/task.ts` | §33's task; `archivedAt`, `archivedWithSectionId`, `archivedWithTaskId` |
 | `ReflectionSchema` | `src/reflection.ts` | Body, optional title/prompt, optional subject, archive markers |

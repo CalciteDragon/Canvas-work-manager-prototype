@@ -46,14 +46,25 @@ shipped `upgradeProjectPages`; version 3 → 4 shipped `upgradeOperationHistory`
 input shape as plain data (re-declaring it as a schema would put a second definition of every
 entity in the repository). When version 4 arrived, the v2 step was **frozen** at a literal version
 3 and stopped validating — it had imported `SCHEMA_VERSION` and would otherwise have stamped a
-version-3 shape as version 4 and rejected every version-3 input — and the v3 step subsequently froze at literal 4. The v4 → v5 Activity step now
+version-3 shape as version 4 and rejected every version-3 input — and the v3 step subsequently froze at literal 4, and the v4 → v5 Activity step at literal 5. The v5 → v6 Markdown step now
 validates the final document before a byte is written. The CLI sniffs the version and runs the
-steps in order: three named functions, still registered nowhere (§14, §71). Version-3 Undo receipts
+steps in order: four named functions, still registered nowhere (§14, §71). Version-3 Undo receipts
 are retired rather than translated, because they hold no cursor, placement or generation to
 translate. The version-5 step preserves every version-4 history/action field and backfills only
 validated Activity identity
 ([version 4](../../decisions/2026-09-schema-version-4-conversion.md),
 [version 5](../../decisions/2026-09-schema-version-5-conversion.md)).
+
+**Old prose is escaped by one fixed, reversible rule.** Version 6 turns Rich Text into Markdown.
+Storing the old text unchanged would let a line typed as `# x` or `1. x` become a heading or a
+list; escaping only what is significant in context is hard to prove complete. So
+`encodeLegacyProse` escapes every ASCII punctuation character and edge whitespace, keeping line
+breaks as hard or paragraph breaks — noisier source, but nothing in old prose can become structure,
+and `decodeLegacyProse` inverts it exactly. Rendering loses only collapsed whitespace runs and blank
+lines; the source keeps every byte. Config lives in exactly four stored places, walked by name, and
+an edit to a section no record holds any more is left as recorded rather than refused. Seeds now
+write hand-authored Markdown
+([version 6](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
 
 **Paths resolve from where the command was run.** `pnpm --filter` runs a script with the
 package as its cwd, so the CLIs resolve a path argument against `INIT_CWD` — a trap
@@ -76,7 +87,8 @@ every path-taking passthrough shares.
 
 - [Persona workspace topology in seeds](../../decisions/2026-08-persona-workspace-topology.md)
 - [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](../../decisions/2026-09-schema-version-4-conversion.md) — the frozen v2 step, the validating v3 step, the chained CLI
-- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the frozen v4 intermediate, preserved histories and final validation
+- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the frozen v4 intermediate and preserved histories; the v4 → v5 step is now frozen too
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — `upgradeMarkdownSections`, `legacy-prose.ts`, the v5 Rich Text fixture and Markdown seeds
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — what the final converter captures and validates
 - [Where §51's bearer tokens live](../../decisions/2026-08-agent-tokens-are-fixtures-not-records.md)
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — the v2 → v3 converter

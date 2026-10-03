@@ -68,6 +68,12 @@ they carry matching captured target and project/root identity; other missing tar
 history owners still fail whole-document validation
 ([decision](../../decisions/2026-09-historical-activity-identity.md)).
 
+**A retired section type is refused at load, not coerced.** Rich Text became Markdown at version
+6; a document still holding it in `sections` or in a snapshot Undo or Redo could recreate a section
+from would bring the type back, so the store refuses it and names the upgrade, which converts
+consistent hand edits on a version-6 file
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
+
 **A history's integrity is checked across collections, not inside one schema.** "One history per
 actor and project" and "an action's order is within its history's high-water mark" need two
 collections, so they live in `validateDocumentIntegrity`; the contract keeps only what one object
@@ -116,6 +122,7 @@ domain, tool and host test runs on.
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md) — task/reflection removal seams used only after Add-Undo preflight
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — the bounded missing-target integrity exception
 - [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — why older files are rejected until converted
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — integrity refuses a retired section type in sections and recreating snapshots
 - [Optional pages are created on first enable](../../decisions/2026-09-optional-pages-are-created-on-first-enable.md) (amended in Slice 38) — the one page removal seam
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `ProjectPageRepository.remove`, used only after first-enable Undo's preflight
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md) — `ProjectRepository.remove`, independent anchors bound to the exact creator identity

@@ -76,25 +76,31 @@ MCP carries only the message, which starts with the same `reason`.
 
 `RemoveSectionInputSchema` is deliberately `z.strictObject({})`: transports need only the section
 id, and old `policy` or `reassignToSectionId` fields fail parsing rather than being silently
-stripped. The stored removal union stays unchanged so schema-v5 histories that captured a reassign
-still parse and can be stepped.
+stripped. The stored removal union stays unchanged so histories that captured a reassign still
+parse and can be stepped.
 
 `PrototypeDocumentSchema` has `operationHistories` and `operationActions`, defaulted to `[]`, and no
-`undoRecords` — a leftover key is stripped. `SCHEMA_VERSION` is 5; an older file needs
-`pnpm prototype:upgrade` ([decision](../../decisions/2026-09-schema-version-5-conversion.md)).
+`undoRecords` — a leftover key is stripped. `SCHEMA_VERSION` is 6; an older file needs
+`pnpm prototype:upgrade` ([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
+
+`RETIRED_SECTION_TYPES` names the types that may no longer be created or stored — only
+`rich-text`, which version 6 converted to Markdown. The section `type` stays an open string (§30);
+the list is the narrow exception the domain's `add` and the store's integrity check both consult
+through `isRetiredSectionType`.
 
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
 |---|---|---|---|
 | `PrototypeDocumentSchema` | const | The whole `data.json` | [API](../../api/miscellaneous/variables.html#PrototypeDocumentSchema) |
-| `SCHEMA_VERSION` | const | `5`; bump when an existing file would be wrong | [API](../../api/miscellaneous/variables.html#SCHEMA_VERSION) |
+| `SCHEMA_VERSION` | const | `6`; bump when an existing file would be wrong | [API](../../api/miscellaneous/variables.html#SCHEMA_VERSION) |
 | `IsoDateTimeSchema` | const | `z.iso.datetime()`; seconds may be omitted, fractions any length — see `Instant` in domain | [API](../../api/miscellaneous/variables.html#IsoDateTimeSchema) |
 | `PositionSchema` | const | Non-negative zero-based position for list, canvas or dashboard order | [API](../../api/miscellaneous/variables.html#PositionSchema) |
 | `isRootProject` | function | Type guard on `Project.kind` | [API](../../api/miscellaneous/variables.html#isRootProject) |
 | `NAVIGABLE_PAGE_KINDS` | const | `home`, `todos`, `archive`, `reflections` — `work` is a page but not a tab | [API](../../api/miscellaneous/variables.html#NAVIGABLE_PAGE_KINDS) |
 | `SECTION_CAPABILITIES` | const | The one per-type declaration: owned rows, recovery capability (`owned-content`, `config`, `none`), and the prose key for `config` | [API](../../api/miscellaneous/variables.html#SECTION_CAPABILITIES) |
 | `SectionCapabilitySchema` | const | Owns rows exactly for `owned-content`; declares a non-empty `proseKey` exactly for `config` | [API](../../api/miscellaneous/variables.html#SectionCapabilitySchema) |
+| `RETIRED_SECTION_TYPES`, `isRetiredSectionType` | const, function | Types that may no longer be created or stored (`rich-text`); exact own-match only | [API](../../api/miscellaneous/variables.html#RETIRED_SECTION_TYPES) |
 | `sectionCapabilityOf` | function | Own-property lookup; `undefined` means unknown, never disposable | [API](../../api/miscellaneous/variables.html#sectionCapabilityOf) |
 | `SECTION_OWNERSHIP` | const | Container type → owned row kind, derived from the capabilities; absence makes a type a view | [API](../../api/miscellaneous/variables.html#SECTION_OWNERSHIP) |
 | `ownedKindOf` | function | Lookup over that map | [API](../../api/miscellaneous/variables.html#ownedKindOf) |

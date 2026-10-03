@@ -116,11 +116,13 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 13. **Switch Flow/Grid mode.** Use the development panel's **project layout** control, or
     `/prototype/state`. The choice is per project: Home renovation and Kitchen can be inspected
     independently in Flow and Grid. In Grid, a half-width section sits beside its neighbour.
-14. **Seven seeded kinds, plus Markdown.** On both the root Home and Kitchen's work canvas, inspect Rich Text,
+14. **Seven section kinds.** On both the root Home and Kitchen's work canvas, inspect Markdown,
     Task List, Sub-Projects, Progress, Reflections, Timeline and Recent Activity. Home may also
     contain shortcuts; Todos and Archive are derived pages and hold no sections.
-    The picker has eight types: **Markdown** is second after Rich Text, and no seed contains it.
-    Add a Markdown section, choose **Edit**, and type a heading, a list, a link and fenced code.
+    The picker has seven types with **Markdown** first; Rich Text no longer exists. Each seeded
+    project's brief is a Markdown section that shows its prose rendered. Choose **Edit** on a brief
+    to see its source, then **Cancel**. Add a Markdown section, choose **Edit**, and type a heading,
+    a list, a link and fenced code.
     Choose **Preview**, then **Save**; reload and confirm the rendered notes survive. Edit a
     second draft and **Cancel**: the saved source stays. Edit and Save without a change: nothing
     is written. Save a real change, then use the header's **Undo: Edited Markdown in the Markdown
@@ -143,8 +145,8 @@ Seeds used below: `empty`, `personal-workspace`, `nested-projects`, `busy-week`,
 
 16. **Tasks.** A **Task List** owns the task rows and quick-add field. The root Home and Kitchen
     work canvas each have their own canonical list; a shortcut never copies either list.
-17. **Rich text and progress.** Rich Text shows stored prose and grows with its wrapped content.
-    Progress shows the percentage and its formula explanation; its settings control exposes
+17. **Markdown and progress.** The Markdown brief shows its prose rendered and grows with its
+    wrapped content; **Edit** opens the source and **Save** writes it. Progress shows the percentage and its formula explanation; its settings control exposes
     count, weighted and manual settings without changing modes.
 18. **Sub-projects and timeline.** The Sub-Projects frame mirrors the work hierarchy and links
     into it. Timeline shows the project's dated records in order.

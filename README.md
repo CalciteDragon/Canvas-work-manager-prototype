@@ -48,9 +48,12 @@ pnpm prototype:upgrade .prototype/data.json
 ```
 
 It validates the result before writing anything, leaves the original beside it as a
-`.backup-*.json`, and does nothing to a file already at the current version. It converts a
-version-2, version-3 or version-4 file to version 5. Version-4 histories and actions are preserved
-while Activity gains captured identity. Version-3 Undo receipts are retired rather than translated,
+`.backup-*.json`, and does nothing to a clean file already at the current version. It converts a
+version-2 to version-5 file to version 6, and re-runs on a version-6 file that still holds Rich
+Text. Version-4 and later histories and actions are preserved while Activity gains captured
+identity, and every Rich Text section — live, archived or in history — becomes Markdown with its
+prose escaped so it reads as it did; the command reports how many sections and history records it
+converted. Version-3 Undo receipts are retired rather than translated,
 so history starts empty for those older files, and the command reports the retired count. Run it on an absolute path,
 or on one relative to where you typed the command. `pnpm prototype:reset` remains the other option —
 it discards the file and reseeds. The e2e suite's own `.prototype/e2e-data.json` is disposable:

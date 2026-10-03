@@ -182,8 +182,9 @@ Use the returned `section.id` in `update_section`:
 Config is replaced whole, so supply the complete `{ markdown: source }` object. Both write
 results and `list_sections` return the exact source in `config.markdown`, never generated HTML.
 Home and work canvases accept Markdown; a Home shortcut renders its source read-only.
-In Stage C1 the picker has eight types, with Markdown second after Rich Text; the six seeds
-still contain the seven original kinds and no Markdown sections.
+The picker has seven types, with Markdown first, and every seeded project's brief is a Markdown
+section. Rich Text is retired: a `create_section` with `type: "rich-text"` is refused, and
+`pnpm prototype:upgrade` converts an older file's Rich Text sections to Markdown.
 
 In the browser, **Edit** opens source, **Preview** renders the draft, and **Save** commits one
 config write. **Cancel** and an unchanged Save write nothing. Reload retains saved source;
@@ -302,11 +303,11 @@ descendants are omitted. Listed items keep their owning breadcrumb, cause, casca
 metadata. The query works while the optional Archive page is disabled.
 
 Since Slice 29 section entries are **content-only**: removed Progress, Timeline, Recent Activity
-and Sub-Projects views, blank Notes (including one created with no `config`, which stores `{}`),
+and Sub-Projects views, blank Markdown (including one created with no `config`, which stores `{}`),
 and empty containers after their tasks are moved through `update_task` are not listed. Each listed section
 carries `recovery` — `owned-content` (with `ownedData`; `contentCount`, every row still in the
 container; and `separateRestoreCount`, the row restores still needed after the section's own),
-`config` (Notes prose) or `unknown` (a type or config the prototype cannot read as empty) — beside
+`config` (Markdown prose) or `unknown` (a type or config the prototype cannot read as empty) — beside
 `cascadeCount`, exactly the rows that `restore_section` brings back. A listed archived container
 with a `separateRestoreCount` above zero holds rows archived on
 their own: call `restore_section` first, then `restore_task` / `restore_reflection` for each row

@@ -29,7 +29,10 @@ do not filter either projection.
 combined section/shortcut order. A position beyond the current end is clamped to the end, and
 omitting it appends. Both tools keep their declared `projects.write` permission and call the
 matching domain service, which commits the insert and renumbering together. The contract tests
-exercise each tool at a specified position under exactly that grant.
+exercise each tool at a specified position under exactly that grant. `create_section`'s
+description teaches `markdown` with a source config and says Rich Text is retired: a `rich-text`
+create is refused by `SectionService.add` with the same `DomainRuleError` HTTP and the browser get
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
 
 ## Write receipts and the history tools
 

@@ -88,6 +88,7 @@ unknown-tool response.
 
 ## Decisions that shape this system
 
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — `create_section` names `markdown` and says a `rich-text` create is refused.
 - [The nested project kind is called a workstream in user and agent prose](../../decisions/2026-09-workstream-user-terminology.md) — descriptions teach the unchanged `subproject` identifier through the same noun the browser uses.
 - [MCP history conflicts explain their repair in words](../../decisions/2026-09-mcp-history-conflict-guidance.md) — the shared formatter serves text-only agents without changing typed browser feedback.
 

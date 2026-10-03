@@ -2,8 +2,8 @@
 
 `@cwm/prototype-data` is everything that makes a workspace state one command away (§16,
 §17, §76): the six deterministic seed builders, the three personas, the fixture agent
-tokens, the CLI that writes a seed into `.prototype/data.json`, and the three explicit converters
-that carry a version-2, version-3 or version-4 data file forward to version 5. It is prototype-only (§71) and
+tokens, the CLI that writes a seed into `.prototype/data.json`, and the four explicit converters
+that carry a version-2 to version-5 data file forward to version 6. It is prototype-only (§71) and
 nothing in it survives into the MVP.
 
 **Code:** `packages/prototype-data/src` · **Committed snapshots:** `prototype/seeds/*.json`
@@ -20,7 +20,7 @@ nothing in it survives into the MVP.
 - Hold §51's bearer tokens (`prototype-user-a-readwrite`, `-readonly`, `-revoked`) as
   fixtures beside the seeds, not as contract fields.
 - `pnpm prototype:seed <name>` / `pnpm prototype:reset`: write a seed atomically over the
-  data file, refused with `data_file_in_use:` while a host or another writer owns it. `pnpm prototype:upgrade <file>`: sniff the version, convert v2 → v3 → v4 → v5 (or start at v3/v4), validate, back up, write.
+  data file, refused with `data_file_in_use:` while a host or another writer owns it. `pnpm prototype:upgrade <file>`: sniff the version, convert v2 → v3 → v4 → v5 → v6 (or start at v3–v6), validate, back up, write.
 
 ## Not responsible for
 

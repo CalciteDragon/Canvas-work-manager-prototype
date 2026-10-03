@@ -10,7 +10,7 @@ the displayed project's controls remain the only browser Undo and Redo surface.
 that serves both project routes, the project navigation column with its page toggles,
 the header rendered once per project with its Undo and Redo, the page renderers — a section canvas for Home and
 for a subproject's work page, and the Todos, Archive and Reflections projections for a
-root — the section registry and its eight section types, Home shortcuts, and the shared
+root — the section registry and its seven section types, Home shortcuts, and the shared
 archive list. It is the largest feature and where most of the product learning happens.
 
 **Code:** `apps/web/src/app/features/projects` and its `history/`, `pages/`, `sections/`,
@@ -18,8 +18,9 @@ archive list. It is the largest feature and where most of the product learning h
 the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
 [web](../overview.md)
 
-Markdown renders and edits source through a deferred body and presentational source editor.
-Rich Text remains available until Stage C2 converts stored content and history.
+Markdown renders and edits source through a deferred body and presentational source editor, and
+is the first type in the picker. Rich Text is retired: schema version 6 converted every Rich Text
+section to Markdown, and the registry no longer holds it.
 
 ## Responsibilities
 
@@ -49,7 +50,7 @@ Rich Text remains available until Stage C2 converts stored content and history.
   one-gesture removal (live rows cascade with their owner), plus canonical navigation to
   `#section-<id>`. Every canvas write reports its receipt to the header's history; the canvas
   holds no receipt.
-- `SECTION_REGISTRY` and the section types: Rich Text, Markdown, Task List, Sub-Projects,
+- `SECTION_REGISTRY` and the section types: Markdown, Task List, Sub-Projects,
   Progress, Reflections, Timeline, Recent Activity — each its own folder inside
   `ProjectSectionFrame`.
 - The three root pages: `TodosPage`, `ArchivePage`, `ReflectionsPage`, each with its

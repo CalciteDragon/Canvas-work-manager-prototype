@@ -51,7 +51,7 @@ is derived from it ([ownership](../../decisions/2026-09-sections-own-their-data.
 registered type declares a capability, which `registry.spec.ts` enforces. An undeclared type
 is *unknown*, never disposable. The capability is a declaration, not a verdict — the domain
 combines it with the content that actually remains. Config recovery declares a non-empty
-`proseKey`: `text` for Rich Text and `markdown` for Markdown. Recovery and history labels need
+`proseKey`: `markdown` for Markdown, the only config-recovery type. Recovery and history labels need
 that name, and the registry checks it against the folder's default config; contracts own no
 config schema ([Markdown decision](../../decisions/2026-10-markdown-source-and-rendering.md)).
 
@@ -126,9 +126,14 @@ announcement of the activity record that was just written, not a parallel type.
 **Versioning without a migration runner.** `SCHEMA_VERSION` went 1 → 2 (rows name their
 section) with a reset, and 2 → 3 (kinds and pages) with one bounded converter because a
 real file was by then worth keeping. Version 4 introduced operation histories; version 5 requires
-captured Activity identity. Three bounded, named steps are chained by the CLI without becoming a
-general migration framework
-([decision](../../decisions/2026-09-schema-version-5-conversion.md)).
+captured Activity identity; version 6 converts Rich Text to Markdown and retires it. Four bounded,
+named steps are chained by the CLI without becoming a general migration framework
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
+
+**A retired type is a named exception, not a closed set.** `RETIRED_SECTION_TYPES` lists the one
+type nothing may create or store any more, so the domain and the store refuse it with the same
+list while `type` stays open for new types
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
 
 ## Consequences
 
@@ -142,6 +147,8 @@ general migration framework
 ## Decisions that shape this system
 
 - [Markdown stores source and declares its prose key](../../decisions/2026-10-markdown-source-and-rendering.md) — capability metadata names the source key while its shape stays in the section folder.
+
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — `SCHEMA_VERSION = 6`, `RETIRED_SECTION_TYPES`, no Rich Text capability.
 
 - [Actionable Archive and archived-project recovery](../../decisions/2026-09-actionable-archive-and-archived-projects.md) — parsed read results distinguish current structural readiness from meaningful section content.
 
@@ -163,7 +170,7 @@ general migration framework
 - [Schema version 4 converted explicitly and froze the v3 → v4 step](../../decisions/2026-09-schema-version-4-conversion.md) — retained as the intermediate step before v5
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md) — typed row payloads and `{ task|reflection, operation }` results
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md) — required captured context
-- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the frozen v4 intermediate and final validating step
+- [Schema version 5 converts Activity identity explicitly](../../decisions/2026-09-schema-version-5-conversion.md) — the v4 → v5 step, now itself a frozen intermediate before v6
 - [Undo and Redo advertise their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md) — the shared static/family declaration
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — compatible removal disposition, exact-owner repeat receipt, typed repair steps
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md) — `section-restore-history.ts`, `shortcut-history.ts`, `shortcut-write-result.ts` and the fourth operation family

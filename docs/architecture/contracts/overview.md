@@ -17,13 +17,14 @@ and project payloads under one per-actor, per-project cursor. Creation captures 
 canonical page as `project.add`; its directional results report removal or same-id recreation.
 The public section-removal input is a strict empty object: transports need only the section id,
 and new removal actions cascade live owned rows. The stored version-1 payload still includes its
-applied policy so historical reassign actions remain executable without changing schema version 5.
+applied policy so historical reassign actions remain executable.
 Section, row, placement, page and project writes return `{ section|task|reflection|shortcut|page|project, operation }` (with
 `operation: null` for a normalized no-op), and a shortcut removal names ids instead; the receipt names the history,
 action and revision while captured fields, structural effects and optional implicit containers
 stay server-side. Public history shapes live apart from stored actions so browser consumers do not
 pull in inverse payloads. Activity carries durable captured identity; project absence is anchored
-separately by its creation lifecycle and retained undone history action. `SCHEMA_VERSION` stays 5.
+separately by its creation lifecycle and retained undone history action. `SCHEMA_VERSION` is 6: Rich Text is retired — `RETIRED_SECTION_TYPES` names it
+and nothing may create or store it.
 
 **Code:** `packages/contracts/src` · **Tests:** `packages/contracts/src/*.test.ts`
 (vitest) · **Package:** `@cwm/contracts` · **Depends on:** `zod` only
@@ -35,7 +36,7 @@ separately by its creation lifecycle and retained undone history action. `SCHEMA
 - Define the write inputs separately from the entities: inputs carry only what a caller
   may set; ids and timestamps come from the domain (§45). In updates `null` clears and
   `undefined` leaves alone.
-- Own `SCHEMA_VERSION` (currently `5`) and `PrototypeDocumentSchema`, so a stale
+- Own `SCHEMA_VERSION` (currently `6`) and `PrototypeDocumentSchema`, so a stale
   `.prototype/data.json` fails at load rather than mid-session.
 - Own the small pure functions that several layers need to agree on: `nameOf` for a
   section's display name, `SECTION_CAPABILITIES` (and the derived `SECTION_OWNERSHIP` /

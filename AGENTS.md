@@ -46,7 +46,7 @@ decisions and the roadmap — as a browsable site with search and rendered Merma
   CSS custom properties — [web](docs/architecture/web/overview.md)
 - **Host:** `apps/prototype-host` — Node/TypeScript on `127.0.0.1:4310`. Fake API + MCP
   server + fake auth + mock AI — [prototype-host](docs/architecture/prototype-host/overview.md)
-- **Persistence:** one file, `.prototype/data.json`, schema version 5. No SQLite, no
+- **Persistence:** one file, `.prototype/data.json`, schema version 6. No SQLite, no
   Postgres (§14, §80) — [repositories](docs/architecture/repositories/overview.md)
 - **Contracts:** Zod schemas in `packages/contracts`, shared by UI, API, MCP tools, tests
   and seeds (§11) — [contracts](docs/architecture/contracts/overview.md)
