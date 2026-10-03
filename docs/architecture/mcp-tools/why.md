@@ -114,6 +114,7 @@ unknown-tool response.
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md) — `set_project_page_enabled`'s envelope and the fifth family in both history tools' map
 - [Disposable removal and immediate canvas Undo](../../decisions/2026-09-disposable-removal-and-immediate-undo.md) — safe deletion and exact-actor recovery after a lost response
 - [The project header offers Undo and Redo of the displayed project's history](../../decisions/2026-09-project-header-history-controls.md) — each summary entry carries its own `blockedBy`
+- [A Markdown section's config is validated on every write](../../decisions/2026-10-section-config-validated-on-write.md) — `create_section`/`update_section` relay the domain's refusal of a malformed Markdown config.
 
 ## Spec sections
 

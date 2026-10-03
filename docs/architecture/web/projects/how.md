@@ -176,11 +176,10 @@ The frame supplies a stable `saveConfig(id, config): Promise<boolean>` callback 
 pass a false-returning no-op. The body mounts a fresh `MarkdownSourceEditor` for each Edit;
 Save replaces the whole config after an awaited result, while Cancel and unchanged Save write
 nothing. A failed Save keeps the draft, and pending protects it from further edits or dismissal.
-A live source update keeps the draft and announces replacement; unreadable config blocks Save.
-When an unreadable config still holds a string `markdown` beside other keys — converted Rich Text
-`{ text, ...extras }` — `readMarkdownConfig` returns it and the body renders that prose read-only
-(`[data-markdown-unreadable-prose]`) above the guidance note, so prose that was visible stays
-visible ([decision](../../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
+A live source update keeps the draft and announces replacement; unreadable config blocks Save
+and shows only the guidance note. `MarkdownConfigSchema` comes from contracts, where the domain
+enforces it on every write, so only a hand edit can store an unreadable config
+([decision](../../../decisions/2026-10-section-config-validated-on-write.md)).
 Successful Save and Cancel restore focus to Edit. Preview renders only the local draft.
 
 ## Key symbols

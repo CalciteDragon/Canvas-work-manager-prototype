@@ -640,8 +640,9 @@ frozen at their literal output versions
 Rich Text: every Rich Text section — live, archived, and every `section.add`/`section.remove`
 snapshot and `section.update` config edit history keeps — becomes Markdown whose source is the old
 prose escaped by one fixed, reversible rule, so it renders as the same prose and never as structure.
-Whitespace-only prose is stored raw; a config with extra keys keeps them and shows its prose
-read-only; an edit to a section no record holds is left as recorded. The version 4 → 5 step is now
+Whitespace-only prose is stored raw. *Amended in Slice 64:* only a config Markdown takes is written,
+so extra keys are dropped and a config with no string `text` becomes empty; the drops are counted
+([decision](docs/decisions/2026-10-section-config-validated-on-write.md)). An edit to a section no record holds is left as recorded. The version 4 → 5 step is now
 frozen at literal 5 as well, and only the last step validates. Re-running the upgrade on a version-6
 file that still holds Rich Text converts it; a clean file is a byte-identical no-op
 ([decision](docs/decisions/2026-10-schema-version-6-markdown-conversion.md)).
@@ -1610,6 +1611,11 @@ now touches its folder, one registry line and one capability line. A type nothin
 stale or hand-edited `type` — has *unknown* recovery, never "nothing to recover"
 ([why](docs/decisions/2026-09-content-oriented-archive-policy.md)).
 
+*Amended in Slice 64:* a type that owns config also declares its schema in contracts
+(`SECTION_CONFIG_SCHEMAS`), and `SectionService` refuses any other config on create and update for
+every caller. Only Markdown declares one; a type without one stays opaque
+([decision](docs/decisions/2026-10-section-config-validated-on-write.md)).
+
 ---
 
 # 30. Initial Section Types
@@ -1646,8 +1652,9 @@ Seven types are registered today: Markdown, Task List, Sub-Projects, Progress, R
 Timeline and Recent Activity. Markdown stores exact source in `config.markdown`;
 its deferred body offers Edit, Source/Preview and explicit Save/Cancel. Unchanged Save and
 Cancel write nothing, refusal keeps the draft, and live updates retain it with a replacement
-notice. Unreadable config cannot be overwritten here; prose it still holds under `markdown` is
-shown read-only above the guidance note. *Amended in Slice 63:* Rich Text is retired — converted to
+notice. Unreadable config cannot be overwritten here and shows only the guidance note. *Amended in Slice
+64:* every write refuses a Markdown config other than `{}` or exactly `{ markdown }`, so only a hand
+edit can store one. *Amended in Slice 63:* Rich Text is retired — converted to
 Markdown at schema version 6, refused on create through every surface, and refused on load
 ([decision](docs/decisions/2026-10-schema-version-6-markdown-conversion.md)). The type stays an open
 string; retired types are the narrow exception.

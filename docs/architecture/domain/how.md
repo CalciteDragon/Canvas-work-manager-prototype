@@ -53,6 +53,13 @@ version 6 keep their Rich Text wording. The domain reads no Markdown or HTML syn
 browser, HTTP and MCP get the same refusal and it confirms nothing about the project
 ([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
 
+`add` and `update` also refuse a config that does not fit its type (`sectionConfigRefusal` from
+contracts). Today only Markdown is checked, and it takes `{}` or exactly `{ markdown }`. `add`
+checks right after the retired-type refusal. `update` checks after the not-found, archived-section
+and archived-project refusals, whenever a config is sent, including one equal to what is stored.
+Undo, Redo, Restore and Duplicate reproduce existing state and are not checked
+([decision](../../decisions/2026-10-section-config-validated-on-write.md)).
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |

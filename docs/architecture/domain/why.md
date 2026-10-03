@@ -260,4 +260,7 @@ recovery. A prose-only history update uses that same key and a small noun table:
 say `Edited Markdown`, while labels stored before version 6 keep their Rich Text wording. Version 6
 converted Rich Text to Markdown and retired it; `SectionService.add` refuses a retired type itself,
 so every transport gets one answer
-([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)). It refuses a
+malformed Markdown config on the same terms, because agents write sections too and a refusal naming
+the key beats a section no one can edit
+([decision](../../decisions/2026-10-section-config-validated-on-write.md)).

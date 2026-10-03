@@ -67,3 +67,10 @@ now says its empty fallback is not evidence of emptiness. Section folders still 
 
 
 **Amended, 2026-10-01 — Slice 62 partial checkpoint.** SECTION_CAPABILITIES now declares proseKey exactly for config recovery (text for Rich Text, markdown for Markdown). This names the recovery/history-relevant key without owning its schema or validating configs in domain; whole-config replacement remains.
+
+**Amended, 2026-10-02 — Slice 64.** The rejected option "Type each section's config in
+`packages/contracts`" is now adopted for one type, by user decision: Markdown's shape is
+`MarkdownConfigSchema` in contracts, and `SectionService` refuses any other Markdown config on write
+([decision](2026-10-section-config-validated-on-write.md)). A type that owns config declares its
+schema in `SECTION_CONFIG_SCHEMAS`. A type that declares none stays opaque, and whole-config
+replacement is unchanged.

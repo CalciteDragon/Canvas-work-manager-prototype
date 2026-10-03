@@ -45,3 +45,8 @@ session; section.updated keeps it. A mid-session read-only change also blocks Sa
 keeps the draft available to copy or Cancel.
 
 **Amended, 2026-10-02 — Slice 63 delivers C2.** Rich Text content and history are converted to Markdown at schema version 6 and Rich Text is retired; see [Schema version 6 converts Rich Text to Markdown and retires it](2026-10-schema-version-6-markdown-conversion.md). Converted prose is escaped source, so the shell placeholder strips backslash escapes and the space, tab and CR references before the body renders, and an unreadable config that still holds a `markdown` string renders it read-only above the guidance note.
+
+**Amended, 2026-10-02 — Slice 64.** The unreadable state no longer carries or renders prose beside
+an extra key. Every write refuses such a config and the converter drops extras, so only a hand edit
+reaches it, and it shows the guidance note alone
+([decision](2026-10-section-config-validated-on-write.md)). Save stays blocked.

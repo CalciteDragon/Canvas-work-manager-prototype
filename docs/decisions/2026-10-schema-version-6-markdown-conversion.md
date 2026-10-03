@@ -85,3 +85,19 @@ over real files through the CLI subprocess.
 
 A real file holds a refusal case this entry treats as hand-edit-only, or the collapsed-whitespace
 loss is felt in real use (the remedy would be a rendering change, never a re-conversion).
+
+**Amended, 2026-10-02 — Slice 64 (user).** No legacy data beside the prose was worth keeping, so the
+converter now writes only a config Markdown takes:
+
+- a string `text` becomes `{ markdown: encoded }` and every other key is dropped;
+- anything without a string `text` (a non-string `text`, a lone `markdown`, a non-object) becomes
+  `{}`;
+- a `markdown` key beside `text` is dropped rather than refused.
+
+`unreadableConfigs` became `discardedConfigs`. It counts every location, sections and history
+alike, that lost something, and the CLI reports it. "Every config keeps its Archive recovery
+verdict" now holds for clean sources only. A malformed source takes its clean config's verdict, so
+an archived Rich Text section with no string `text` converts to an empty archived section that
+Archive no longer lists. This is accepted, and it is among the discarded configs the CLI reports,
+not identified separately. An edit that changed only extras converts to equal sides and still
+undoes and redoes. See [Markdown config validated on write](2026-10-section-config-validated-on-write.md).

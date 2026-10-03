@@ -52,15 +52,19 @@ registered type declares a capability, which `registry.spec.ts` enforces. An und
 is *unknown*, never disposable. The capability is a declaration, not a verdict — the domain
 combines it with the content that actually remains. Config recovery declares a non-empty
 `proseKey`: `markdown` for Markdown, the only config-recovery type. Recovery and history labels need
-that name, and the registry checks it against the folder's default config; contracts own no
-config schema ([Markdown decision](../../decisions/2026-10-markdown-source-and-rendering.md)).
+that name, and the registry checks it against the folder's default config
+([Markdown decision](../../decisions/2026-10-markdown-source-and-rendering.md)).
 
 **Section names are derived, with an optional stored override.** `nameOf` over the
 `type` string plus a one-entry display-name table; `title` is optional
 ([decision](../../decisions/2026-09-a-section-has-a-name.md)).
 
-**Section config is an opaque object replaced whole.** Only the section's own folder
-parses it ([decision](../../decisions/2026-08-section-config-ownership.md)).
+**Section config is an object replaced whole, opaque unless its type declares a schema.** Only
+Markdown declares one, because agents write it: `SECTION_CONFIG_SCHEMAS` lets the domain refuse a
+malformed config for every caller rather than store a section no one can edit. Other types' configs
+stay opaque to everything but their own folder
+([ownership](../../decisions/2026-08-section-config-ownership.md),
+[validation](../../decisions/2026-10-section-config-validated-on-write.md)).
 
 **Edit Undo records a field footprint, not a whole snapshot.** Title, config, collapse and span
 are the only explicit settings fields; config is still one structural replacement. A move stores
@@ -147,6 +151,8 @@ list while `type` stays open for new types
 ## Decisions that shape this system
 
 - [Markdown stores source and declares its prose key](../../decisions/2026-10-markdown-source-and-rendering.md) — capability metadata names the source key while its shape stays in the section folder.
+
+- [A Markdown section's config is validated on every write](../../decisions/2026-10-section-config-validated-on-write.md) — `MarkdownConfigSchema`, `SECTION_CONFIG_SCHEMAS`, `sectionConfigRefusal`.
 
 - [Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md) — `SCHEMA_VERSION = 6`, `RETIRED_SECTION_TYPES`, no Rich Text capability.
 

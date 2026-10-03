@@ -32,7 +32,10 @@ matching domain service, which commits the insert and renumbering together. The 
 exercise each tool at a specified position under exactly that grant. `create_section`'s
 description teaches `markdown` with a source config and says Rich Text is retired: a `rich-text`
 create is refused by `SectionService.add` with the same `DomainRuleError` HTTP and the browser get
-([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
+([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)). `create_section` and
+`update_section` also say a Markdown config is exactly `{ markdown }` or empty. `SectionService`
+refuses any other with a `DomainRuleError` that names the offending key, and the tools only relay it
+([decision](../../decisions/2026-10-section-config-validated-on-write.md)).
 
 ## Write receipts and the history tools
 

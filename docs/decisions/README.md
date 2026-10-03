@@ -17,7 +17,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 
 ## Whole prototype
 
-[Markdown source and rendering](2026-10-markdown-source-and-rendering.md) — source ownership, safe rendering and explicit authoring; amended after the approved bundle remedy and for the C2 conversion.
+[Markdown source and rendering](2026-10-markdown-source-and-rendering.md) — source ownership, safe rendering and explicit authoring; amended after the approved bundle remedy, for the C2 conversion, and in Slice 64 (unreadable config shows no prose).
 
 | Entry | Settled | Status |
 |---|---|---|
@@ -32,7 +32,8 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Persona contract fields](2026-08-persona-contract-fields.md) | `id`/`workspaceId` spelling and the preference shape | current |
 | [Project statuses, milestone statuses, task priorities](2026-08-status-and-priority-value-sets.md) | The starting value sets, flagged as guesses (§83) | current |
 | [A date-only task due date is stored at UTC end-of-day](2026-08-task-date-only-due-time.md) | How a date-only due date becomes an instant | current |
-| [A section config is an object at rest, replaced whole on write](2026-08-section-config-ownership.md) | Config keys belong to the section definition; no partial writes | amended; recovery inspection landed in Slice 29; Slice 62 declares proseKey |
+| [A section config is an object at rest, replaced whole on write](2026-08-section-config-ownership.md) | Config keys belong to the section definition; no partial writes | amended; recovery inspection landed in Slice 29; Slice 62 declares proseKey; Slice 64 puts Markdown's schema in contracts |
+| [A Markdown section's config is validated on every write](2026-10-section-config-validated-on-write.md) | `{}` or exactly `{ markdown }`, refused in `SectionService` for every caller; other types stay open | current (Slice 64) |
 | [What an `Identity` is, and where it comes from](2026-08-identity-contract-and-me-route.md) | The `Identity` contract and `GET /api/me` | current |
 | [What `ActivityEvent.summary` is for, and what it is not](2026-08-activity-summary-ownership.md) | `summary` is a log line the domain writes; the UI composes its own | amended; Slice 36 adds captured historical context |
 | [Activity captures target identity so an audit line outlives its row](2026-09-historical-activity-identity.md) | Required event context survives creation Undo without row tombstones | amended; Slice 42 adds the project lifecycle anchor |
@@ -116,7 +117,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Where §51's bearer tokens live](2026-08-agent-tokens-are-fixtures-not-records.md) | Tokens are fixtures beside the seeds, not a contract field | current |
 | [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](2026-09-schema-version-4-conversion.md) | Frozen v2 → v3 and v3 → v4 steps; only v3 receipts retire | amended; Slice 36 chains version 5 |
 | [Schema version 5 backfills durable Activity identity without changing history](2026-09-schema-version-5-conversion.md) | Validated v4 → v5 Activity-context backfill preserves operation history | amended; Slice 63 freezes the step at version 5 |
-| [Schema version 6 converts Rich Text to Markdown and retires it](2026-10-schema-version-6-markdown-conversion.md) | Escape-everything v5 → v6 conversion of sections and history; Rich Text refused on create and load | current (Slice 63) |
+| [Schema version 6 converts Rich Text to Markdown and retires it](2026-10-schema-version-6-markdown-conversion.md) | Escape-everything v5 → v6 conversion of sections and history; Rich Text refused on create and load | amended; Slice 64 drops extras |
 
 ## Prototype host
 

@@ -1,4 +1,4 @@
-import { AgentPermissionSchema, OperationHistorySummarySchema, TaskWriteResultSchema, type AgentPermission } from '@cwm/contracts';
+import { AgentPermissionSchema, OperationHistorySummarySchema, SectionAddResultSchema, TaskWriteResultSchema, type AgentPermission } from '@cwm/contracts';
 import { PermissionDeniedError } from '@cwm/domain';
 import { requiredPermissions, toolPermission } from './tool';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -600,7 +600,7 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
   it('refuses a Markdown config with a key Markdown does not take, on create and update, writing nothing (Slice 64)', async () => {
     const harness = buildHarness();
     const writer = agent(['projects.write']);
-    const { section } = await harness.registry.call('create_section', { projectId: PROJECT, type: 'markdown', config: { markdown: '# Notes' } }, writer);
+    const { section } = SectionAddResultSchema.parse(await harness.registry.call('create_section', { projectId: PROJECT, type: 'markdown', config: { markdown: '# Notes' } }, writer));
     const before = harness.store.snapshot();
     const refusal = expect.objectContaining({ name: 'DomainRuleError', message: expect.stringMatching(/does not take "summary"/) });
 

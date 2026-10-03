@@ -345,7 +345,7 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
   it('a v5 file with Rich Text history converts to v6 once, survives restarts, and Undoes into Markdown', async () => {
     const file = await tempCopy('history-v5-rich-text.json');
     expect((await upgrade(file.path)).stdout).toMatch(
-      /from schema version 5 to 6\. Every Undo and Redo action was preserved\. 8 Rich Text sections and 11 history records became Markdown.* 2 converted sections hold content .* 1 edit to a section no record holds was left as recorded\./,
+      /from schema version 5 to 6\. Every Undo and Redo action was preserved\. 8 Rich Text sections and 11 history records became Markdown.* 4 converted configs held something besides prose; it was dropped\. 1 edit to a section no record holds was left as recorded\./,
     );
     const once = await readFile(file.path, 'utf8');
     expect(once).not.toContain('"rich-text"');

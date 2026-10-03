@@ -88,6 +88,12 @@ parse and can be stepped.
 the list is the narrow exception the domain's `add` and the store's integrity check both consult
 through `isRetiredSectionType`.
 
+`SECTION_CONFIG_SCHEMAS` holds the config shape of each type that owns one. Today that is only
+Markdown, whose `MarkdownConfigSchema` is strict `{ markdown: string }`. `sectionConfigRefusal`
+returns the sentence `SectionService` refuses with, or `undefined`. An empty config always passes;
+a type with no schema, registered or not, is never checked
+([decision](../../decisions/2026-10-section-config-validated-on-write.md)).
+
 ## Key symbols
 
 | Symbol | Kind | Role | Reference |
@@ -101,6 +107,8 @@ through `isRetiredSectionType`.
 | `SECTION_CAPABILITIES` | const | The one per-type declaration: owned rows, recovery capability (`owned-content`, `config`, `none`), and the prose key for `config` | [API](../../api/miscellaneous/variables.html#SECTION_CAPABILITIES) |
 | `SectionCapabilitySchema` | const | Owns rows exactly for `owned-content`; declares a non-empty `proseKey` exactly for `config` | [API](../../api/miscellaneous/variables.html#SectionCapabilitySchema) |
 | `RETIRED_SECTION_TYPES`, `isRetiredSectionType` | const, function | Types that may no longer be created or stored (`rich-text`); exact own-match only | [API](../../api/miscellaneous/variables.html#RETIRED_SECTION_TYPES) |
+| `MarkdownConfigSchema`, `SECTION_CONFIG_SCHEMAS` | const | Markdown's strict config shape, and the per-type map of the shapes the domain enforces on write | [API](../../api/miscellaneous/variables.html#SECTION_CONFIG_SCHEMAS) |
+| `sectionConfigRefusal` | function | Why a config cannot be written to a type, as a sentence naming the keys; `undefined` for `{}`, a fitting config or an undeclared type | [API](../../api/miscellaneous/variables.html#sectionConfigRefusal) |
 | `sectionCapabilityOf` | function | Own-property lookup; `undefined` means unknown, never disposable | [API](../../api/miscellaneous/variables.html#sectionCapabilityOf) |
 | `SECTION_OWNERSHIP` | const | Container type → owned row kind, derived from the capabilities; absence makes a type a view | [API](../../api/miscellaneous/variables.html#SECTION_OWNERSHIP) |
 | `ownedKindOf` | function | Lookup over that map | [API](../../api/miscellaneous/variables.html#ownedKindOf) |
@@ -172,7 +180,9 @@ pnpm --filter @cwm/contracts lint   # tsc --noEmit
 - **Adding a section type:** one line in the web registry and one entry in
   `SECTION_CAPABILITIES` declaring its owned rows (if any), recovery capability, and `proseKey`
   exactly when recovery is `config` — `registry.spec.ts` fails without it and checks that a config
-  type's default has its declared key. Config shapes stay in the section's folder. If its display name is not derivable from its `type`, one
+  type's default has its declared key. A type that owns config also declares its schema in
+  `SECTION_CONFIG_SCHEMAS`, so the domain refuses any other; `registry.spec.ts` checks that every
+  default passes. A type that reads no config declares none. If its display name is not derivable from its `type`, one
   entry in `SECTION_DISPLAY_NAMES` — `registry.spec.ts` fails at the moment a type incurs
   that cost.
 - **Adding a derived read model:** its own file, exported from `index.ts`, with the rule

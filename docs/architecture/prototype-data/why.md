@@ -62,9 +62,12 @@ list; escaping only what is significant in context is hard to prove complete. So
 breaks as hard or paragraph breaks — noisier source, but nothing in old prose can become structure,
 and `decodeLegacyProse` inverts it exactly. Rendering loses only collapsed whitespace runs and blank
 lines; the source keeps every byte. Config lives in exactly four stored places, walked by name, and
-an edit to a section no record holds any more is left as recorded rather than refused. Seeds now
-write hand-authored Markdown
-([version 6](../../decisions/2026-10-schema-version-6-markdown-conversion.md)).
+an edit to a section no record holds any more is left as recorded rather than refused. Nothing
+legacy beside the prose was worth keeping, so every converted config is one Markdown takes: extras
+are dropped and counted rather than left as content no one can edit. Seeds now write hand-authored
+Markdown, and a test holds every seeded config to its type's schema
+([version 6](../../decisions/2026-10-schema-version-6-markdown-conversion.md),
+[validation](../../decisions/2026-10-section-config-validated-on-write.md)).
 
 **Paths resolve from where the command was run.** `pnpm --filter` runs a script with the
 package as its cwd, so the CLIs resolve a path argument against `INIT_CWD` — a trap

@@ -22,16 +22,19 @@
    `upgradeMarkdownSections` then converts every Rich Text section — live, archived, and in the
    `section.add`/`section.remove` snapshots and the `before`/`after` of a `section.update` config
    edit — to Markdown, storing the prose through `encodeLegacyProse` so nothing in it can become
-   structure, and validates the version-6 result. It refuses conflicting types for one section id,
-   a `markdown` key in a Rich Text config, a Rich Text created container, and an encoding that does
-   not round-trip; an edit to a section no record holds any more is left as recorded and counted
+   structure, and validates the version-6 result. It writes only a config Markdown takes: extras are
+   dropped, and a config with no string `text` becomes `{}`, counted per location as
+   `discardedConfigs` ([decision](../../decisions/2026-10-section-config-validated-on-write.md)). It
+   refuses conflicting types for one section id, a Rich Text created container, and an encoding
+   that does not round-trip; an edit to a section no record holds any more is left as recorded and counted
    ([decision](../../decisions/2026-10-schema-version-6-markdown-conversion.md)). Only then is the
    original written beside the file as `.backup-<timestamp>.json` and the new document written
    through a temp file. A version-4 file runs the Activity and Markdown steps; a version-5 file runs just the Markdown
    step; a version-6 file re-runs it, so a clean one is a byte-identical no-op and a hand-edited one
    still holding Rich Text is converted. The message names the version converted from and, when
    non-zero, how many version-3 Undo receipts were dropped, Activity events backfilled, Rich Text
-   sections and history records converted, unreadable configs kept and orphaned edits left.
+   sections and history records converted, configs that lost something besides prose, and orphaned
+   edits left.
 4. Tests: `seeds.test.ts` parses every builder's output with `PrototypeDocumentSchema`,
    and compares it byte-for-byte to `prototype/seeds/<name>.json` serialised with LF;
    `upgrade-project-pages.test.ts` covers the frozen v2 step alone;
