@@ -114,14 +114,14 @@ it('markdown shortcut is read-only', async () => {
   expect(await fixture.componentInstance.contentInputs().onConfigChange({ markdown: 'ignored' })).toBe(false);
 });
 
-it('a shortcut to converted Rich Text that kept an extra key shows its prose read-only with guidance (Slice 63)', async () => {
+it('a shortcut to a Markdown section holding an extra key shows only the guidance (Slice 64)', async () => {
   TestBed.configureTestingModule({ providers: [provideRouter([])] });
   const value = shortcut();
   const fixture = render(shortcut({ source: { ...value.source, type: 'markdown', config: { markdown: 'Autumn planting only\\.', extra: 'kept' } } }));
   for (const block of await fixture.getDeferBlocks()) await block.render(DeferBlockState.Complete);
   await fixture.whenStable();
   fixture.detectChanges();
-  expect(query(fixture, '[data-markdown-unreadable-prose]')?.textContent).toContain('Autumn planting only.');
+  expect(fixture.nativeElement.textContent).not.toContain('Autumn planting only');
   expect(query(fixture, '[data-markdown-unreadable]')).not.toBeNull();
   expect(query(fixture, '[data-markdown-edit]')).toBeNull();
   expect(query(fixture, 'app-markdown-source-editor')).toBeNull();

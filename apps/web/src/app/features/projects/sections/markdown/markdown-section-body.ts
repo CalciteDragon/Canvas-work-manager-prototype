@@ -28,11 +28,6 @@ export class MarkdownSectionBody {
     const content = this.content();
     return content.state === 'ok' ? content.markdown : '';
   });
-  /** Prose kept in an unreadable config, shown read-only so nothing visible is lost (Slice 63). */
-  readonly unreadableProse = computed(() => {
-    const content = this.content();
-    return content.state === 'unreadable' ? content.markdown : undefined;
-  });
   readonly name = computed(() => nameOf(this.section()));
   readonly canEdit = computed(() => !this.readOnly() && this.content().state !== 'unreadable');
   readonly changedElsewhere = computed(() => this.editing() && !this.pending() && this.canEdit() && this.source() !== this.base());

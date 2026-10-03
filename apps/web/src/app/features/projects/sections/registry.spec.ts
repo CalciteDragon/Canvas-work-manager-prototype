@@ -1,4 +1,4 @@
-import { SECTION_CAPABILITIES, displayNameOf, sectionCapabilityOf, sectionKindOf } from '@cwm/contracts';
+import { SECTION_CAPABILITIES, displayNameOf, sectionCapabilityOf, sectionConfigRefusal, sectionKindOf, type SectionConfig } from '@cwm/contracts';
 import { describe, expect, it } from 'vitest';
 import { SECTION_REGISTRY, definitionFor } from './registry';
 
@@ -19,6 +19,12 @@ describe('SECTION_REGISTRY (§29)', () => {
       expect(definition.icon.length).toBeGreaterThan(0);
       expect(typeof definition.component).toBe('function');
       expect(typeof definition.createDefaultConfig()).toBe('object');
+    }
+  });
+
+  it('creates a default config every type takes, so a new section is never refused (Slice 64)', () => {
+    for (const definition of SECTION_REGISTRY) {
+      expect(sectionConfigRefusal(definition.type, definition.createDefaultConfig() as SectionConfig), definition.type).toBeUndefined();
     }
   });
 
