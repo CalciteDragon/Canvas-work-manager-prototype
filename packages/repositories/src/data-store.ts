@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   canonicalPageKindFor,
   isCanonicalPageKind,
+  isRetiredSectionType,
   operationProjectOf,
   ownedKindOf,
   pageAcceptsSectionType,
@@ -84,6 +85,19 @@ const assertCanPersistDataStore = (store: DataStore): void => {
 
 const fail = (message: string): never => {
   throw new DocumentIntegrityError(message);
+};
+
+/**
+ * A retired section type (Slice 63) in a record that can recreate a section. Schema version 6
+ * converted every one, so a document still holding one was hand-edited or written by an old build,
+ * and the upgrade command converts it (docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
+ */
+const assertNotRetired = (section: { id: string; type: string }, where: string): void => {
+  if (!isRetiredSectionType(section.type)) return;
+  fail(
+    `${where} holds section "${section.id}" of retired section type "${section.type}". ` +
+      'Run "pnpm prototype:upgrade <path>" to convert it.',
+  );
 };
 
 const uniqueMap = <T extends { id: string }>(collection: string, values: T[]): Map<string, T> => {
@@ -243,6 +257,7 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
   }
 
   for (const section of document.sections) {
+    assertNotRetired(section, `section "${section.id}"`);
     projectFor('section', section.id, section.projectId);
     const page = pages.get(section.pageId) ?? fail(`section "${section.id}" has missing page "${section.pageId}"`);
     if (page.projectId !== section.projectId) fail(`section "${section.id}" has a page from another project`);
@@ -655,6 +670,15 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
       } else {
         fail(`absent project "${projectId}" requires a retained undone project.add action`);
       }
+    }
+
+    // Every snapshot that Undo or Redo can recreate a section from. A `section.update` is not one:
+    // it only writes onto a section that already exists, so it never brings a type back.
+    if (action.operation.type === 'section.add' || action.operation.type === 'section.remove') {
+      assertNotRetired(action.operation.section, `operation action "${action.id}"`);
+    }
+    if ((action.operation.type === 'task.add' || action.operation.type === 'reflection.add') && action.operation.container !== undefined) {
+      assertNotRetired(action.operation.container.section, `operation action "${action.id}"`);
     }
 
     if (action.operation.type === 'section.remove' && action.operation.disposition === 'retained') {

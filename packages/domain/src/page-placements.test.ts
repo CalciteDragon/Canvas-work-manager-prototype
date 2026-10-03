@@ -10,7 +10,7 @@ const section = (id: string, position: number, pageId = 'page-home'): PagePlacem
     id,
     projectId: 'project-1',
     pageId,
-    type: 'rich-text',
+    type: 'markdown',
     position,
     columnSpan: 12,
     collapsed: false,

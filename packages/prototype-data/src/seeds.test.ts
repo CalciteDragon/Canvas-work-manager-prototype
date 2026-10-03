@@ -65,6 +65,10 @@ describe('seed registry and validation', () => {
     expect(snapshot).toBe(serialized(buildSeed(seedName)));
   });
 
+  it.each(SEED_NAMES)('%s seeds no retired Rich Text section (Slice 63)', (seedName) => {
+    expect(serialized(buildSeed(seedName))).not.toContain('rich-text');
+  });
+
   it.each(SEED_NAMES)('includes all isolated personas in %s', (seedName) => {
     const document = buildSeed(seedName);
     expect(document.users.map(({ name }) => name)).toEqual(['Demo User', 'Alex', 'Sam']);
@@ -129,7 +133,7 @@ describe('seed scenarios', () => {
         .filter(({ projectId }) => projectId === launch?.id)
         .sort((left, right) => left.position - right.position)
         .map(({ type }) => type),
-    ).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline']);
+    ).toEqual(['markdown', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline']);
 
     const launchTasks = document.tasks.filter(({ projectId }) => projectId === launch?.id);
     expect(launchTasks.some(({ estimate }) => estimate !== undefined && estimate > 0)).toBe(true);
@@ -179,7 +183,7 @@ describe('seed scenarios', () => {
           projectId === renovation?.id && pageId === `page-${renovation?.id}` && archivedAt === undefined)
         .sort((left, right) => left.position - right.position)
         .map(({ type }) => type),
-    ).toEqual(['rich-text', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
+    ).toEqual(['markdown', 'task-list', 'sub-projects', 'progress', 'reflections', 'timeline', 'recent-activity']);
     expect(
       document.tasks.some(
         ({ projectId, startAt, dueAt }) =>
@@ -323,15 +327,15 @@ describe('seeded project canvases (§30)', () => {
   };
 
   it.each(['personal-workspace', 'busy-week', 'nested-projects', 'overdue-chaos', 'agent-heavy'] as const)(
-    '%s gives every seeded canvas a rich-text brief above its task list',
+    '%s gives every seeded canvas a Markdown brief above its task list',
     (seedName) => {
       const document = buildSeed(seedName);
 
       expect(document.sections.length).toBeGreaterThan(0);
       for (const sections of sectionsByPage(document).values()) {
-        if (sections.some(({ type }) => type === 'rich-text')) {
+        if (sections.some(({ type }) => type === 'markdown')) {
           expect(sections.slice(0, 2).map((section) => [section.type, section.position])).toEqual([
-            ['rich-text', 0],
+            ['markdown', 0],
             ['task-list', 1],
           ]);
         }
@@ -489,7 +493,7 @@ describe('seeded owner kinds and pages', () => {
       ['reflections', true],
     ]);
     expect(document.sections.filter(({ pageId, archivedAt }) => pageId === home.id && archivedAt === undefined).map(({ type }) => type)).toEqual([
-      'rich-text',
+      'markdown',
       'task-list',
       'sub-projects',
       'progress',
@@ -498,7 +502,7 @@ describe('seeded owner kinds and pages', () => {
       'recent-activity',
     ]);
     expect(document.sections.filter(({ pageId }) => pageId === kitchenWork.id).map(({ type }) => type)).toEqual([
-      'rich-text',
+      'markdown',
       'task-list',
       'sub-projects',
       'progress',

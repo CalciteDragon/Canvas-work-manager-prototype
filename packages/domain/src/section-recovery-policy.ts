@@ -91,8 +91,11 @@ const separateRestores = (sectionId: ProjectSection['id'], rows: readonly Archiv
 
 /**
  * Inspects only the recovery-relevant keys; the section folder keeps its editor schema
- * (`rich-text-config.ts` or `markdown-config.ts`). The capability declares only the key name.
- * JavaScript `trim`, with no Markdown or HTML parsing: both editors store plain source.
+ * (`markdown-config.ts`). The capability declares only the key name. JavaScript `trim`, with no
+ * Markdown or HTML parsing: the editor stores plain source. Since Slice 63 Markdown is the only
+ * prose type — retired Rich Text declares no capability, so it reads as `unknown` — and converted
+ * Rich Text keeps its verdict, because whitespace-only prose was stored raw rather than encoded
+ * (docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
  */
 const proseRecovery = (config: ProjectSection['config'], proseKey: string): SectionRecoveryDecision => {
   const keys = Object.keys(config);

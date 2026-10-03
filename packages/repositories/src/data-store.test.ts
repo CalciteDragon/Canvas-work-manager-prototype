@@ -459,19 +459,19 @@ describe('row ownership integrity', () => {
 
   it('rejects a row held by a section of the wrong kind', () => {
     // Without this clause the rule is a foreign-key check, not the ownership invariant: a
-    // `rich-text` section renders nothing it owns, so a task it holds is a task nothing
+    // `markdown` section renders nothing it owns, so a task it holds is a task nothing
     // renders.
     const document = validDocument();
     document.sections.push(
       PrototypeDocumentSchema.shape.sections.element.parse({
         ...document.sections[0],
         id: 'section-notes',
-        type: 'rich-text',
+        type: 'markdown',
         position: 2,
       }),
     );
     document.tasks[0]!.sectionId = 'section-notes' as never;
-    expect(() => new InMemoryDataStore(document)).toThrow(/is held by a rich-text section/);
+    expect(() => new InMemoryDataStore(document)).toThrow(/is held by a markdown section/);
 
     const swapped = validDocument();
     // The reflections container does not hold tasks, and the task list does not hold
@@ -1924,6 +1924,80 @@ describe('operation history integrity', () => {
     // The owning root decides which history may hold it, exactly as for a section action.
     const foreign = action({ id: 'operation-page-foreign', operation: { version: 1, type: 'page.add', page: storedPage('project-2') } });
     expect(() => new InMemoryDataStore(withHistory([history()], [foreign]))).toThrow(/names a project outside its history/);
+  });
+
+  /**
+   * Schema version 6 retired Rich Text (docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
+   * Every record that can recreate a section — the live list and the add, remove and created
+   * container snapshots — must therefore name a type this build can still create, so converted
+   * history can only ever bring back Markdown. The message names the remedy.
+   */
+  describe('retired section types', () => {
+    const upgrade = /retired section type "rich-text".*pnpm prototype:upgrade/;
+    const snapshot = action().operation as unknown as { section: Record<string, unknown> };
+    const retired = { ...snapshot.section, type: 'rich-text', config: { text: 'Old prose' } };
+
+    it('in the live sections', () => {
+      const document = withHistory([]);
+      document.sections.push({ ...document.sections[0]!, id: 'section-notes' as never, type: 'rich-text', position: 2, config: { text: 'Old prose' } });
+      expect(() => new InMemoryDataStore(document)).toThrow(upgrade);
+    });
+
+    it('in a section.add snapshot', () => {
+      const added = action({ operation: { ...action().operation, section: retired } });
+      expect(() => new InMemoryDataStore(withHistory([history()], [added]))).toThrow(upgrade);
+    });
+
+    it('in a section.remove snapshot', () => {
+      const removed = action({
+        operation: {
+          version: 1,
+          type: 'section.remove',
+          section: retired,
+          placement: { pageId: 'page-gone', index: 0 },
+          appliedPolicy: 'none',
+          rows: [],
+          disposition: 'deleted',
+          postSectionArchivedAt: at,
+          archiveGeneration: 1,
+        },
+      });
+      expect(() => new InMemoryDataStore(withHistory([history()], [removed]))).toThrow(upgrade);
+    });
+
+    it('in a created container snapshot', () => {
+      const container = { ...snapshot.section, id: 'section-made', type: 'rich-text' };
+      const created = action({
+        state: 'undone',
+        operation: {
+          version: 1,
+          type: 'task.add',
+          task: { id: 'task-made', projectId: 'project-1', sectionId: 'section-made', title: 'Made', status: 'todo', priority: 'medium', createdAt: at, updatedAt: at },
+          container: { section: container, placement: { pageId: 'page-gone', index: 0 } },
+        },
+      });
+      expect(() => new InMemoryDataStore(withHistory([history({ cursor: 0 })], [created]))).toThrow(upgrade);
+      // The same action with a real container type loads, so the refusal is the type and nothing else.
+      const valid = action({ ...created, operation: { ...created.operation, container: { section: { ...container, type: 'task-list' }, placement: { pageId: 'page-gone', index: 0 } } } });
+      expect(() => new InMemoryDataStore(withHistory([history({ cursor: 0 })], [valid]))).not.toThrow();
+    });
+
+    it('still loads unknown open types, and an orphaned edit that holds legacy prose', () => {
+      const document = withHistory([history()], [
+        action({
+          operation: {
+            version: 1,
+            type: 'section.update',
+            sectionId: 'section-gone',
+            projectId: 'project-1',
+            pageId: 'page-1',
+            changes: [{ field: 'config', before: { text: 'a' }, after: { text: 'b' } }],
+          },
+        }),
+      ]);
+      document.sections.push({ ...document.sections[0]!, id: 'section-open' as never, type: 'a-type-nobody-registered', position: 2 });
+      expect(() => new InMemoryDataStore(document)).not.toThrow();
+    });
   });
 
   it('rejects a retained removal action whose captured archive generation is ahead of its section', () => {

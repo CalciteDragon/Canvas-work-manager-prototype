@@ -644,7 +644,7 @@ describe('project history review regressions (Slice 39)', () => {
     expect((await refusalOf(step(h, rename.operation!))).details).toMatchObject({ reason: 'history_blocked', blockingProjectId: MINE });
 
     const h2 = buildHarness();
-    const notes = await h2.sectionWriteService.add(h2.actor, MINE, { type: 'rich-text' });
+    const notes = await h2.sectionWriteService.add(h2.actor, MINE, { type: 'markdown' });
     await h2.projectService.archive(someoneElse, MINE);
     expect((await refusalOf(step(h2, notes.operation))).details).toMatchObject({ reason: 'history_blocked', blockingProjectId: MINE });
   });
@@ -667,7 +667,7 @@ describe('a reparent reversal refuses a Home shortcut it would carry across root
     const h = buildHarness();
     const other = await createRoot(h, 'Other root');
     const child = await createChild(h, MINE, 'Kitchen');
-    const source = await h.sectionWriteService.add(someoneElse, child.id, { type: 'rich-text', title: 'Kitchen notes' });
+    const source = await h.sectionWriteService.add(someoneElse, child.id, { type: 'markdown', title: 'Kitchen notes' });
     const moved = await h.projectWriteService.update(h.actor, child.id, { parentProjectId: other.id });
     // Once the kitchen is under the other root, its Home may place a shortcut to the kitchen's section.
     const home = (await h.pages.list({ projectId: other.id })).find(({ kind }) => kind === 'home')!;
@@ -693,7 +693,7 @@ describe('a reparent is not refused for a shortcut it does not carry', () => {
     const other = await createRoot(h, 'Other root');
     const staying = await createChild(h, MINE, 'Staying');
     const mover = await createChild(h, MINE, 'Mover');
-    const source = await h.sectionWriteService.add(someoneElse, staying.id, { type: 'rich-text', title: 'Stays here' });
+    const source = await h.sectionWriteService.add(someoneElse, staying.id, { type: 'markdown', title: 'Stays here' });
     const home = (await h.pages.list({ projectId: MINE })).find(({ kind }) => kind === 'home')!;
     await h.sectionShortcutWriteService.create(someoneElse, MINE, { pageId: home.id, sourceSectionId: source.section.id });
 

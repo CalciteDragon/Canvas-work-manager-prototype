@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it } from 'vitest';
 import { upgradeActivityIdentity } from './upgrade-activity-identity';
+import { upgradeMarkdownSections } from './upgrade-markdown-sections';
 import { upgradeOperationHistory } from './upgrade-operation-history';
 
 /**
@@ -70,11 +71,15 @@ const BUSINESS_COLLECTIONS = [
 
 /**
  * Since Slice 36 this step is **frozen at version 4** and returns opaque JSON: the current schema
- * is 5, so `validateDocumentIntegrity` no longer describes its output. The chain's guarantee moved
- * to `upgradeActivityIdentity`, which validates before the CLI writes a byte, and these tests
- * follow it — they assert the version-4 shape here, and load only after the v5 step has run.
+ * has moved on, so `validateDocumentIntegrity` no longer describes its output. The chain's guarantee
+ * lives in its last step — since Slice 63 `upgradeMarkdownSections` — which validates before the CLI
+ * writes a byte, and these tests follow it: they assert the version-4 shape here, and load only after
+ * the rest of the chain has run.
  */
 const asRow = (document: unknown): Row => document as Row;
+
+/** The rest of the chain the CLI drives after this step: 4 → 5 → 6, validated at the end. */
+const finishChain = (document: unknown) => upgradeMarkdownSections(upgradeActivityIdentity(document).document).document;
 
 describe('version 3 → version 4', () => {
   it('converts a version-3 file written before Undo records, preserving every business collection', async () => {
@@ -96,8 +101,8 @@ describe('version 3 → version 4', () => {
     expect(document['sections']).toEqual((input['sections'] as Row[]).map((section) => ({ ...section, archiveGeneration: 0 })));
     expect(document['operationHistories']).toEqual([]);
     expect(document['operationActions']).toEqual([]);
-    // Loadable only once the version-5 step has run, which is the chain the CLI drives.
-    expect(() => new InMemoryDataStore(upgradeActivityIdentity(document).document)).not.toThrow();
+    // Loadable only once the rest of the chain has run, which is what the CLI drives.
+    expect(() => new InMemoryDataStore(finishChain(document))).not.toThrow();
   });
 
   it('retires legacy receipts — reassign records, consumed and outstanding ones — with the reset count', async () => {
@@ -120,11 +125,11 @@ describe('version 3 → version 4', () => {
     expect(upgradeOperationHistory(structuredClone(once))).toEqual({ document: once, changed: false, retiredReceipts: 0 });
   });
 
-  it('a broken input is caught by the version-5 step, before anything is written', async () => {
+  it('a broken input is caught by the chain’s last step, before anything is written', async () => {
     const broken = await v3();
     (broken['sections'] as Row[])[0]!['projectId'] = 'project-gone';
 
-    expect(() => upgradeActivityIdentity(upgradeOperationHistory(broken).document)).toThrow();
+    expect(() => finishChain(upgradeOperationHistory(broken).document)).toThrow();
   });
 
   it('refuses a version it does not read', async () => {

@@ -91,7 +91,7 @@ describe('ProjectArchiveService (§31)', () => {
 
   it('reveals independently archived sections and subprojects only after their ancestor returns', async () => {
     const { harness, archive } = buildArchive();
-    const section = await harness.sectionService.add(harness.actor, KITCHEN, { type: 'rich-text', config: { text: 'Kitchen notes' } });
+    const section = await harness.sectionService.add(harness.actor, KITCHEN, { type: 'markdown', config: { markdown: 'Kitchen notes' } });
     await harness.sectionService.remove(harness.actor, section.id);
     await harness.projectService.archive(harness.actor, 'project-cabinets' as never);
     await harness.projectService.archive(harness.actor, KITCHEN);
@@ -190,16 +190,16 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
 
   it('lists meaningful prose with config metadata, and unknown content conservatively', async () => {
     const { harness, archive } = buildArchive();
-    const empty = await harness.sectionService.add(harness.actor, ROOT, { type: 'rich-text', config: { text: ' \n\t ' } });
-    const unconfigured = await harness.sectionService.add(harness.actor, ROOT, { type: 'rich-text' });
-    const malformed = await harness.sectionService.add(harness.actor, ROOT, { type: 'rich-text', config: { text: 7 } });
+    const empty = await harness.sectionService.add(harness.actor, ROOT, { type: 'markdown', config: { markdown: ' \n\t ' } });
+    const unconfigured = await harness.sectionService.add(harness.actor, ROOT, { type: 'markdown' });
+    const malformed = await harness.sectionService.add(harness.actor, ROOT, { type: 'markdown', config: { markdown: 7 } });
     const unknown = await harness.sectionService.add(harness.actor, ROOT, { type: 'calendar', config: { view: 'month' } });
     for (const { id } of [empty, unconfigured, malformed, unknown]) await harness.sectionService.remove(harness.actor, id);
 
     const { items } = await archive.derive(harness.actor, ROOT);
 
     expect(sectionItem(items, 'section-project-renovation-archived-notes')).toMatchObject({
-      section: { config: { text: 'Old attic notes' } },
+      section: { config: { markdown: 'Old attic notes' } },
       recovery: { kind: 'config' },
       origin: {
         pageId: ROOT_HOME,
@@ -212,7 +212,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
     expect(sectionItem(items, 'section-project-renovation-archived-notes')?.cascadeCount).toBeUndefined();
     expect(sectionItem(items, empty.id)).toBeUndefined();
     expect(sectionItem(items, unconfigured.id)).toBeUndefined();
-    expect(sectionItem(items, malformed.id)).toMatchObject({ recovery: { kind: 'unknown' }, section: { config: { text: 7 } } });
+    expect(sectionItem(items, malformed.id)).toMatchObject({ recovery: { kind: 'unknown' }, section: { config: { markdown: 7 } } });
     expect(sectionItem(items, unknown.id)).toMatchObject({ recovery: { kind: 'unknown' }, section: { config: { view: 'month' } } });
     expect(items.every((item) => item.kind !== 'section' || item.recovery !== undefined)).toBe(true);
     // The sort is untouched: owner, then kind, then id — rebuilt independently, shuffled first.
@@ -405,7 +405,7 @@ describe('ProjectArchiveService content projection (Refactor §14 Archive column
       kind: 'root',
       name: 'Sibling',
     });
-    const notes = await harness.sectionService.add(harness.actor, sibling.id, { type: 'rich-text', config: { text: 'Elsewhere' } });
+    const notes = await harness.sectionService.add(harness.actor, sibling.id, { type: 'markdown', config: { markdown: 'Elsewhere' } });
     await harness.sectionService.remove(harness.actor, notes.id);
 
     expect((await archive.derive(harness.actor, ROOT)).items.map(keyOf)).not.toContain(`section:${notes.id}`);

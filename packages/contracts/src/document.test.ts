@@ -18,8 +18,8 @@ const document = {
 };
 
 describe('PrototypeDocumentSchema', () => {
-  it('is at version 5 — every activity event carries its target’s captured identity', () => {
-    expect(SCHEMA_VERSION).toBe(5);
+  it('is at version 6 — Rich Text sections are retired into Markdown', () => {
+    expect(SCHEMA_VERSION).toBe(6);
   });
 
   it('accepts the §14 document, with empty history collections when a hand-written file omits them', () => {

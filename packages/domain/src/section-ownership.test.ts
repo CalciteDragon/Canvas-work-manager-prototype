@@ -351,7 +351,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
     ['Timeline', 'timeline', {}],
     ['Recent Activity', 'recent-activity', {}],
     ['Sub-Projects', 'sub-projects', {}],
-    ['blank Rich Text', 'rich-text', { text: ' \n\t ' }],
+    ['blank Markdown', 'markdown', { markdown: ' \n\t ' }],
   ])('hard-deletes disposable %s and preserves its exact receipt snapshot', async (_, type, config) => {
     const harness = buildHarness();
     const section = await harness.sectionService.add(harness.actor, MINE, { type, config });
@@ -401,7 +401,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
 
   it('retains meaningful prose and cascaded rows for Archive recovery', async () => {
     const harness = buildHarness();
-    const prose = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Keep this' } });
+    const prose = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', config: { markdown: 'Keep this' } });
     await harness.sectionService.remove(harness.actor, prose.id);
     const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Recover me' });
     await harness.sectionService.remove(harness.actor, task.sectionId);
@@ -417,7 +417,7 @@ describe('SectionService.remove follows ownership, and only ownership', () => {
 
   it('reports archiveListed: true for content Archive will actually list', async () => {
     const harness = buildHarness();
-    const prose = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Keep this' } });
+    const prose = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', config: { markdown: 'Keep this' } });
     const task = await harness.taskService.create(harness.actor, { projectId: MINE, title: 'Recover me' });
 
     expect((await harness.sectionService.remove(harness.actor, prose.id)).archiveListed).toBe(true);
@@ -453,7 +453,7 @@ const recorded = (harness: ReturnType<typeof buildHarness>) => {
 
   it('captures a view with its config and placement, and no rows', async () => {
     const harness = buildHarness();
-    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Prose' } });
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', config: { markdown: 'Prose' } });
     const progress = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', title: 'Burn-up', columnSpan: 6 });
     const timeline = await harness.sectionService.add(harness.actor, MINE, { type: 'timeline' });
     await harness.sectionService.update(harness.actor, progress.id, { collapsed: true, config: { milestoneIds: ['m-1'] } });

@@ -210,12 +210,12 @@ const activityEvent = (
 });
 
 /**
- * The canvas every seeded project gets: a Rich Text brief above its Task List (§30's first
- * two section types). Positions are dense *within a project* — the canvas orders by
+ * The canvas every seeded project gets: a Markdown brief above its Task List (§30's prose and
+ * task sections). Positions are dense *within a project* — the canvas orders by
  * `position`, and a gap or a repeat has no meaning any renderer could use.
  */
 const projectCanvas = (projectId: string, brief: string) => [
-  section(`section-${projectId}-brief`, projectId, 'rich-text', 0, { text: brief }),
+  section(`section-${projectId}-brief`, projectId, 'markdown', 0, { markdown: brief }),
   section(tasksSectionId(projectId), projectId, 'task-list', 1),
 ];
 
@@ -510,7 +510,7 @@ const nestedProjects = (): PrototypeDocument => {
     sections: [
       ...sliceTenCanvas(renovation.id, 'Whole-house plan. Kitchen first, garden in the spring.'),
       section(`section-${renovation.id}-recent-activity`, renovation.id, 'recent-activity', 6),
-      section(`section-${renovation.id}-archived-notes`, renovation.id, 'rich-text', 7, { text: 'Old attic notes' }, {
+      section(`section-${renovation.id}-archived-notes`, renovation.id, 'markdown', 7, { markdown: 'Old attic notes' }, {
         archivedAt: '2026-08-20T16:00:00.000Z',
       }),
       ...sliceTenCanvas(kitchen.id, 'Appliances and finishes before cabinets are ordered.'),

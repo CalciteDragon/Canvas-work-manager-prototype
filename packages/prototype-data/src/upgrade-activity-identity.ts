@@ -1,5 +1,3 @@
-import { SCHEMA_VERSION, type PrototypeDocument } from '@cwm/contracts';
-import { validateDocumentIntegrity } from '@cwm/repositories';
 
 /**
  * The version-4 → version-5 converter (§14, §57; Slice 36).
@@ -28,16 +26,23 @@ import { validateDocumentIntegrity } from '@cwm/repositories';
  * hand-editable JSON, not a signed audit trail; the rule is "never invent", not "prove".
  *
  * Like the two steps before it this is a converter, not a migration runner: one version to one
- * version, called explicitly by `upgrade-cli.ts`, registered nowhere (§71). It validates the final
- * document, which is the whole chain's guarantee — the two steps before it return opaque JSON.
+ * version, called explicitly by `upgrade-cli.ts`, registered nowhere (§71).
+ *
+ * **Frozen at its version-5 output** (Slice 63). It writes the literal version 5 and returns opaque
+ * JSON without validating it, exactly as the two steps before it do: validation belongs to the last
+ * step of the chain, `upgradeMarkdownSections`, because a version-5 document is no longer one this
+ * build loads (docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
  */
 
 /** The version this converter reads. */
 const SOURCE_VERSION = 4;
+/** The version it writes — a literal, so the contracts moving on cannot retarget it. */
+const TARGET_VERSION = 5;
 
 export interface UpgradeActivityIdentityResult {
-  document: PrototypeDocument;
-  /** False when the input was already at version 5 — the no-op case. */
+  /** Opaque version-5 JSON, for the next step to read. */
+  document: unknown;
+  /** False when the input was already at version 5 or later — the pass-through case. */
   changed: boolean;
   /** How many events gained a captured identity. */
   backfilledEvents: number;
@@ -202,18 +207,14 @@ export const captureActivityIdentities = (source: Row): { activityEvents: Row[];
 export const upgradeActivityIdentity = (input: unknown): UpgradeActivityIdentityResult => {
   const source = asDocument(input);
 
-  // Already converted: validated rather than trusted, so a corrupt v5 file is still caught, and
-  // nothing is written for it.
-  if (source.schemaVersion === SCHEMA_VERSION) {
-    return { document: validateDocumentIntegrity(source), changed: false, backfilledEvents: 0 };
-  }
+  // Already converted: passed through untouched for the next step, which validates.
+  if (source.schemaVersion >= TARGET_VERSION) return { document: source, changed: false, backfilledEvents: 0 };
   if (source.schemaVersion !== SOURCE_VERSION) {
     throw new RangeError(
-      `cannot convert schema version ${source.schemaVersion}: this converter reads version ${SOURCE_VERSION} and writes version ${SCHEMA_VERSION}`,
+      `cannot convert schema version ${source.schemaVersion}: this converter reads version ${SOURCE_VERSION} and writes version ${TARGET_VERSION}`,
     );
   }
 
   const { activityEvents, backfilled } = captureActivityIdentities(source);
-  const converted = { ...source, schemaVersion: SCHEMA_VERSION, activityEvents };
-  return { document: validateDocumentIntegrity(converted), changed: true, backfilledEvents: backfilled };
+  return { document: { ...source, schemaVersion: TARGET_VERSION, activityEvents }, changed: true, backfilledEvents: backfilled };
 };

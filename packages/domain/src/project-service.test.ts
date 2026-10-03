@@ -488,7 +488,7 @@ describe('ProjectService.update refuses a reparent that would carry a Home short
     return { harness, other, child, grandchild, staying, home };
   };
   const place = async (harness: ReturnType<typeof buildHarness>, projectId: ProjectId, pageId: ProjectPageId) => {
-    const { section } = await harness.sectionWriteService.add(harness.actor, projectId, { type: 'rich-text', title: 'Notes' });
+    const { section } = await harness.sectionWriteService.add(harness.actor, projectId, { type: 'markdown', title: 'Notes' });
     return (await harness.sectionShortcutWriteService.create(harness.actor, MINE, { pageId, sourceSectionId: section.id })).shortcut;
   };
   const written = (harness: ReturnType<typeof buildHarness>) => {

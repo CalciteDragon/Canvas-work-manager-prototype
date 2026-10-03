@@ -195,13 +195,13 @@ const assertUndo = async (client, title, dataFile) => {
 
   const editable = await client.callTool({
     name: 'create_section',
-    arguments: { projectId: PROJECT, type: 'rich-text', title: `Original ${title}`, config: { text: 'Before' } },
+    arguments: { projectId: PROJECT, type: 'markdown', title: `Original ${title}`, config: { markdown: 'Before' } },
   });
   check(editable.isError !== true && typeof editable.structuredContent?.section?.id === 'string', `${title} creates an editable section`);
   const editableId = editable.structuredContent.section.id;
   const changed = await client.callTool({
     name: 'update_section',
-    arguments: { sectionId: editableId, title: `Changed ${title}`, config: { text: 'After' }, collapsed: true },
+    arguments: { sectionId: editableId, title: `Changed ${title}`, config: { markdown: 'After' }, collapsed: true },
   });
   check(changed.isError !== true && receiptOf(changed)?.operation === 'section.update', `${title} update_section returns one update receipt`);
   const noOp = await client.callTool({ name: 'update_section', arguments: { sectionId: editableId, title: `Changed ${title}` } });
@@ -330,7 +330,7 @@ const assertRestoreAndShortcuts = async (client, title) => {
   // Prose with content is retained by removal, so there is a tombstone to restore.
   const prose = await client.callTool({
     name: 'create_section',
-    arguments: { projectId: PROJECT, type: 'rich-text', title: `Restorable ${title}`, config: { text: 'Worth keeping' } },
+    arguments: { projectId: PROJECT, type: 'markdown', title: `Restorable ${title}`, config: { markdown: 'Worth keeping' } },
   });
   const proseId = prose.structuredContent.section.id;
   const removedProse = await client.callTool({ name: 'remove_section', arguments: { sectionId: proseId } });
@@ -793,7 +793,7 @@ const assertRowAndLayoutHistory = async (client, title, dataFile) => {
 const assertArchiveOutlivesExpiry = async (client, title, dataFile, access) => {
   const prose = await client.callTool({
     name: 'create_section',
-    arguments: { projectId: PROJECT, type: 'rich-text', title: `Expiring ${title}`, config: { text: 'Still worth keeping' } },
+    arguments: { projectId: PROJECT, type: 'markdown', title: `Expiring ${title}`, config: { markdown: 'Still worth keeping' } },
   });
   const proseId = prose.structuredContent.section.id;
   const removal = receiptOf(await client.callTool({ name: 'remove_section', arguments: { sectionId: proseId } }));

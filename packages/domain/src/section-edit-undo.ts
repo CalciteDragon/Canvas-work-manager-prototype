@@ -55,7 +55,7 @@ export const captureSectionMove = (input: Omit<SectionMoveUndoOperation, 'versio
 export const captureSectionUpdate = (input: Omit<SectionUpdateUndoOperation, 'version' | 'type'>): SectionUpdateUndoOperation =>
   SectionUpdateUndoOperationSchema.parse({ version: 1, type: 'section.update', ...input });
 
-const PROSE_NOUN: Record<string, string> = { markdown: 'Markdown', text: 'prose' };
+const PROSE_NOUN: Record<string, string> = { markdown: 'Markdown' };
 
 /** Names a newly recorded section update from its exact footprint and declared prose key; older labels stay stored as written. */
 export const sectionUpdateLabel = (

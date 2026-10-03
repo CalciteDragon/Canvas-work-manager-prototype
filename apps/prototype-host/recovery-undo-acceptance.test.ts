@@ -151,18 +151,18 @@ const legacyReceipts = (document: Record<string, unknown[]>) => {
 };
 
 describe('recovery, conversion and history over persisted files (Slices 33, 35)', () => {
-  it('v2 and v3 files convert through the real CLI to version 5 and reopen with content and references intact', async () => {
+  it('v2 and v3 files convert through the real CLI to version 6 and reopen with content and references intact', async () => {
     // ---- version 2, through the real CLI and the frozen version-3 intermediate.
     const v2 = await tempCopy('nested-projects-v2.json', (document) => document['sections']!.push(legacyTombstone(false)));
     const { stdout } = await upgrade(v2.path);
-    expect(stdout).toMatch(/Converted .* from schema version 2 to 5\. Undo and Redo history starts empty\./);
+    expect(stdout).toMatch(/Converted .* from schema version 2 to 6\. Undo and Redo history starts empty\. 3 Rich Text sections and 0 history records became Markdown/);
     const backups = (await readdir(v2.directory)).filter((name) => name.startsWith('data.json.backup-'));
     expect(backups).toHaveLength(1);
     expect(await readFile(join(v2.directory, backups[0]!), 'utf8')).toBe(v2.source);
 
     const original = JSON.parse(v2.source) as PrototypeDocument;
     const converted = await reopen(v2.path);
-    expect(converted.document().schemaVersion).toBe(5);
+    expect(converted.document().schemaVersion).toBe(6);
     expectReferentialIntegrity(converted.document());
     expect(converted.document().users).toEqual(original.users);
     expect(converted.document().milestones).toEqual(original.milestones);
@@ -182,7 +182,7 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
     await transitionOf(converted.api, DEMO, removed.operation);
     const afterUndo = await reopen(v2.path);
     expectReferentialIntegrity(await onDisk(v2.path));
-    expect(afterUndo.document().sections.find(({ id }) => id === brief)).toMatchObject({ position: 0, archiveGeneration: 1, config: { text: 'Whole-house plan. Kitchen first, garden in the spring.' } });
+    expect(afterUndo.document().sections.find(({ id }) => id === brief)).toMatchObject({ position: 0, archiveGeneration: 1, config: { markdown: 'Whole\\-house plan\\. Kitchen first\\, garden in the spring\\.' } });
     expect(afterUndo.document().sections.find(({ id }) => id === brief)?.archivedAt).toBeUndefined();
     expect(afterUndo.document().operationActions).toEqual([expect.objectContaining({ id: removed.operation.actionId, state: 'undone' })]);
 
@@ -191,9 +191,9 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
       document['sections']!.push(legacyTombstone(true));
       legacyReceipts(document);
     });
-    expect((await upgrade(v3.path)).stdout).toMatch(/from schema version 3 to 5\. 2 Undo receipts from version 3 were retired\./);
+    expect((await upgrade(v3.path)).stdout).toMatch(/from schema version 3 to 6\. 2 Undo receipts from version 3 were retired\./);
     expect((await readdir(v3.directory)).filter((name) => name.includes('backup'))).toHaveLength(1);
-    expect((await upgrade(v3.path)).stdout).toMatch(/already at schema version 5\. Nothing was written/);
+    expect((await upgrade(v3.path)).stdout).toMatch(/already at schema version 6\. Nothing was written/);
     expect((await readdir(v3.directory)).filter((name) => name.includes('backup'))).toHaveLength(1);
 
     const loaded = await reopen(v3.path);
@@ -238,7 +238,7 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
     const beforeOrder = homeOrder(host.document());
     const beforeProgress = host.document().sections.find(({ id }) => id === 'section-project-renovation-progress')!;
 
-    const added = await host.api.sections.add(DEMO, ROOT, { type: 'rich-text', title: 'Scratch' });
+    const added = await host.api.sections.add(DEMO, ROOT, { type: 'markdown', title: 'Scratch' });
     const updated = await host.api.sections.update(DEMO, 'section-project-renovation-progress' as SectionId, { title: 'Burn-up' });
     const moved = await host.api.sections.move(DEMO, 'section-project-renovation-timeline' as SectionId, 0);
     const removed = await host.api.sections.remove(DEMO, activity);
@@ -294,13 +294,13 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
 
     const proseRemoval = await host.api.sections.remove(DEMO, prose);
     const containerRemoval = await host.api.sections.remove(DEMO, container);
-    const theirs = await host.api.sections.add(ALEX, 'project-alex-private' as never, { type: 'rich-text', title: 'Alex scratch' });
+    const theirs = await host.api.sections.add(ALEX, 'project-alex-private' as never, { type: 'markdown', title: 'Alex scratch' });
     const theirAction = host.document().operationActions.find(({ id }) => id === theirs.operation.actionId);
 
     // All four families in the renovation root's history, well past the 50-action limit.
     const receipts: OperationReceipt[] = [proseRemoval.operation];
     for (let index = 0; index < 50; index += 1) {
-      receipts.push((await host.api.sections.add(DEMO, ROOT, { type: 'rich-text', title: `Scratch ${index}` })).operation);
+      receipts.push((await host.api.sections.add(DEMO, ROOT, { type: 'markdown', title: `Scratch ${index}` })).operation);
     }
     for (const id of ['section-project-renovation-progress', 'section-project-renovation-timeline']) {
       receipts.push((await host.api.sections.update(DEMO, id as SectionId, { collapsed: true })).operation!);
@@ -335,9 +335,52 @@ describe('recovery, conversion and history over persisted files (Slices 33, 35)'
 
     const final = await reopen(file.path);
     expectReferentialIntegrity(final.document());
-    expect(final.document().sections.find(({ id }) => id === prose)).toMatchObject({ archiveGeneration: 1, config: { text: 'Whole-house plan. Kitchen first, garden in the spring.' } });
+    expect(final.document().sections.find(({ id }) => id === prose)).toMatchObject({ archiveGeneration: 1, config: { markdown: 'Whole\\-house plan\\. Kitchen first\\, garden in the spring\\.' } });
     expect(final.document().sections.find(({ id }) => id === prose)?.archivedAt).toBeUndefined();
     expect(final.document().sections.find(({ id }) => id === container)?.archivedAt).toBeUndefined();
     for (const id of cascaded) expect(final.document().tasks.find((task) => task.id === id)?.archivedAt).toBeUndefined();
+  });
+
+  /** Slice 63 (acceptance items 2 and 3): Rich Text to Markdown, through the real CLI and restarts. */
+  it('a v5 file with Rich Text history converts to v6 once, survives restarts, and Undoes into Markdown', async () => {
+    const file = await tempCopy('history-v5-rich-text.json');
+    expect((await upgrade(file.path)).stdout).toMatch(
+      /from schema version 5 to 6\. Every Undo and Redo action was preserved\. 8 Rich Text sections and 11 history records became Markdown.* 2 converted sections hold content .* 1 edit to a section no record holds was left as recorded\./,
+    );
+    const once = await readFile(file.path, 'utf8');
+    expect(once).not.toContain('"rich-text"');
+    expect((await upgrade(file.path)).stdout).toMatch(/already at schema version 6\. Nothing was written/);
+    expect(await readFile(file.path, 'utf8')).toBe(once);
+
+    const host = await reopen(file.path);
+    expectReferentialIntegrity(host.document());
+    const kitchen = 'section-project-kitchen-brief' as SectionId;
+    const edit = host.document().operationActions.find(({ operation }) => operation.type === 'section.update' && operation.sectionId === kitchen)!;
+    const labels = host.document().operationActions.map(({ id, label }) => [id, label]);
+    await step(host.api, DEMO, 'undo', 'project-kitchen' as never);
+
+    const undone = await reopen(file.path);
+    const change = edit.operation.type === 'section.update' ? edit.operation.changes[0]! : undefined;
+    expect(undone.document().sections.find(({ id }) => id === kitchen)).toMatchObject({
+      type: 'markdown', config: { markdown: 'Appliances and finishes before cabinets are ordered\\.' },
+    });
+    expect(change?.before).toEqual({ markdown: 'Appliances and finishes before cabinets are ordered\\.' });
+    await step(undone.api, DEMO, 'redo', 'project-kitchen' as never);
+    // Snapshot-only: the undone add Redoes into a Markdown section with its own id.
+    await step(undone.api, DEMO, 'redo');
+    const redone = await reopen(file.path);
+    expect(redone.document().sections.find(({ id }) => id === 'section-7')).toMatchObject({ type: 'markdown', config: { markdown: '\\# Looks like a heading\\\n1\\. x' } });
+    expect(redone.document().sections.find(({ id }) => id === kitchen)?.config).toEqual(change?.after);
+    expect(redone.document().operationActions.map(({ id, label }) => [id, label])).toEqual(labels);
+  });
+
+  it('a hand-edited v6 file holding Rich Text refuses to load, naming the upgrade, which then converts it', async () => {
+    const file = await tempCopy('history-v5-rich-text.json', (document) => {
+      (document as unknown as { schemaVersion: number }).schemaVersion = 6;
+    });
+    await expect(reopen(file.path)).rejects.toThrow(/retired section type "rich-text".*pnpm prototype:upgrade/);
+
+    expect((await upgrade(file.path)).stdout).toMatch(/already at schema version 6 but still held retired sections\..* 8 Rich Text sections/);
+    expectReferentialIntegrity((await reopen(file.path)).document());
   });
 });

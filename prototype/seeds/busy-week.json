@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "users": [
     {
       "id": "user-demo",
@@ -250,12 +250,12 @@
       "id": "section-project-launch-brief",
       "projectId": "project-launch",
       "pageId": "page-project-launch",
-      "type": "rich-text",
+      "type": "markdown",
       "position": 0,
       "columnSpan": 12,
       "collapsed": false,
       "config": {
-        "text": "Launch week. Copy is signed off; QA and analytics are the risk."
+        "markdown": "Launch week. Copy is signed off; QA and analytics are the risk."
       },
       "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
@@ -330,12 +330,12 @@
       "id": "section-project-home-brief",
       "projectId": "project-home",
       "pageId": "page-project-home",
-      "type": "rich-text",
+      "type": "markdown",
       "position": 0,
       "columnSpan": 12,
       "collapsed": false,
       "config": {
-        "text": "Small household jobs. Nothing here is urgent."
+        "markdown": "Small household jobs. Nothing here is urgent."
       },
       "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
@@ -358,12 +358,12 @@
       "id": "section-project-course-brief",
       "projectId": "project-course",
       "pageId": "page-project-course",
-      "type": "rich-text",
+      "type": "markdown",
       "position": 0,
       "columnSpan": 12,
       "collapsed": false,
       "config": {
-        "text": "Two modules left before the end of the month."
+        "markdown": "Two modules left before the end of the month."
       },
       "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",

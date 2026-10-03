@@ -220,11 +220,14 @@ describe('ActivityQuerySchema', () => {
 
 describe('the §31 section write inputs', () => {
   it('creates with a registry type alone, leaving the rest to the service', () => {
+    expect(CreateSectionInputSchema.parse({ type: 'markdown' })).toEqual({ type: 'markdown' });
+    // The type stays open (§30): a retired type parses here and is refused by the domain, so every
+    // caller — browser, HTTP and MCP — gets the same error.
     expect(CreateSectionInputSchema.parse({ type: 'rich-text' })).toEqual({ type: 'rich-text' });
   });
 
   it('accepts an optional non-negative integer position on section and shortcut creates', () => {
-    expect(CreateSectionInputSchema.parse({ type: 'rich-text', position: 0 }).position).toBe(0);
+    expect(CreateSectionInputSchema.parse({ type: 'markdown', position: 0 }).position).toBe(0);
     expect(
       CreateSectionShortcutInputSchema.parse({
         pageId: 'page-home',
@@ -234,7 +237,7 @@ describe('the §31 section write inputs', () => {
     ).toBe(0);
 
     for (const position of [-1, 1.5]) {
-      expect(CreateSectionInputSchema.safeParse({ type: 'rich-text', position }).success).toBe(false);
+      expect(CreateSectionInputSchema.safeParse({ type: 'markdown', position }).success).toBe(false);
       expect(
         CreateSectionShortcutInputSchema.safeParse({
           pageId: 'page-home',
@@ -247,7 +250,7 @@ describe('the §31 section write inputs', () => {
 
   it('rejects an empty type and a column span outside the §27 presets', () => {
     expect(CreateSectionInputSchema.safeParse({ type: '' }).success).toBe(false);
-    expect(CreateSectionInputSchema.safeParse({ type: 'rich-text', columnSpan: 7 }).success).toBe(false);
+    expect(CreateSectionInputSchema.safeParse({ type: 'markdown', columnSpan: 7 }).success).toBe(false);
   });
 
   it('clears a frame title override with null and leaves it alone when absent', () => {

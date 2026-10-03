@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   PrototypeDocumentSchema,
+  SCHEMA_VERSION,
   type LiveEvent,
   type OperationReceipt,
   type ProjectId,
@@ -153,7 +154,7 @@ describe('optional-page history over a persisted file (Slice 38)', () => {
     await step(host, disabled.operation!, 'undo', root);
 
     const stored = await onDisk(path);
-    expect(stored.schemaVersion).toBe(5);
+    expect(stored.schemaVersion).toBe(SCHEMA_VERSION);
     expect(stored.operationActions.map(({ operation, state }) => [operation.type, state])).toEqual([
       ['project.add', 'applied'],
       ['page.add', 'applied'],

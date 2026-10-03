@@ -9,11 +9,11 @@
  *
  * Like its version-2 sibling it reads its input as plain data — a hand-written version-3 schema
  * would duplicate a contracts shape (§11) — and, **since Slice 36, it no longer validates its
- * output**: `validateDocumentIntegrity` checks the *current* schema, which is now version 5, and a
- * version-4 document no longer matches it. The literal `4` below is deliberate for the same
- * reason: this step's contract is "read 3, write 4" forever, and reading `SCHEMA_VERSION` would
- * silently retarget it at every future bump. `upgradeActivityIdentity` validates the final
- * document before the CLI writes a byte, which is where this step's guarantee now lives.
+ * output**: `validateDocumentIntegrity` checks the *current* schema, and a version-4 document no
+ * longer matches it. The literal `4` below is deliberate for the same reason: this step's contract
+ * is "read 3, write 4" forever, and reading `SCHEMA_VERSION` would silently retarget it at every
+ * future bump. The chain's last step — since Slice 63 `upgradeMarkdownSections` — validates the
+ * final document before the CLI writes a byte, which is where this step's guarantee now lives.
  *
  * See docs/decisions/2026-09-schema-version-4-conversion.md and
  * docs/decisions/2026-09-schema-version-5-conversion.md.

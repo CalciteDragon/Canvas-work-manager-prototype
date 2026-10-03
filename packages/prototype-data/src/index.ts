@@ -6,6 +6,8 @@ export * from './seeds';
 export { upgradeProjectPages, V3_SCHEMA_VERSION } from './upgrade-project-pages';
 export { upgradeOperationHistory } from './upgrade-operation-history';
 export { captureActivityIdentities, upgradeActivityIdentity } from './upgrade-activity-identity';
+export { upgradeMarkdownSections } from './upgrade-markdown-sections';
+export { decodeLegacyProse, encodeLegacyProse } from './legacy-prose';
 export { upgradeDataFile, upgradeDataFileOwned } from './upgrade-cli';
 
 /**

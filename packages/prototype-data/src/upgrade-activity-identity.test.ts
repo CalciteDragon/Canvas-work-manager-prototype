@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { SCHEMA_VERSION } from '@cwm/contracts';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { upgradeActivityIdentity } from './upgrade-activity-identity';
+import { upgradeMarkdownSections } from './upgrade-markdown-sections';
 
 /**
  * **Version 4 → version 5.** The corpus is a committed version-4 document holding a real activity
@@ -11,10 +11,27 @@ import { upgradeActivityIdentity } from './upgrade-activity-identity';
  * has when Slice 36 lands (docs/decisions/2026-09-schema-version-5-conversion.md).
  *
  * Two properties matter above all: **nothing of the history is lost**, and **nothing is invented**.
+ *
+ * Since Slice 63 the step is **frozen at version 5**: it writes the literal 5, returns opaque JSON
+ * and never validates. These tests read its output as plain data, and load it only after the
+ * chain's last step, `upgradeMarkdownSections`, has run — exactly what the CLI drives.
  */
 const fixturePath = fileURLToPath(new URL('../test/fixtures/history-v4.json', import.meta.url));
 
 type Row = Record<string, unknown>;
+
+/** The step's opaque output, read as the version-5 shape it writes. */
+interface Version5 {
+  schemaVersion: number;
+  activityEvents: { entityType: string; entityId: string; projectId?: string; context: { targetKind: string; targetId: string; targetLabel: string; projectId?: string; rootProjectId?: string } }[];
+  operationHistories: { cursor: number; orderHighWaterMark: number; revision: number }[];
+  operationActions: { state: string; expiresAt: string }[];
+}
+
+const upgrade = (input: unknown) => {
+  const result = upgradeActivityIdentity(input);
+  return { ...result, document: result.document as Version5 };
+};
 
 let source: Row;
 beforeAll(async () => {
@@ -29,22 +46,24 @@ describe('upgradeActivityIdentity', () => {
     expect(input['schemaVersion']).toBe(4);
     expect((input['activityEvents'] as Row[]).every((event) => event['context'] === undefined)).toBe(true);
 
-    const { document, changed, backfilledEvents } = upgradeActivityIdentity(input);
+    const { document, changed, backfilledEvents } = upgrade(input);
 
     expect(changed).toBe(true);
     expect(backfilledEvents).toBe((input['activityEvents'] as Row[]).length);
-    expect(document.schemaVersion).toBe(SCHEMA_VERSION);
+    // A frozen literal, not `SCHEMA_VERSION`: this step's contract is "read 4, write 5" forever.
+    expect(document.schemaVersion).toBe(5);
     for (const event of document.activityEvents) {
       expect(event.context.targetKind).toBe(event.entityType);
       expect(event.context.targetId).toBe(event.entityId);
       expect(event.context.projectId).toBe(event.projectId);
       expect(event.context.targetLabel.length).toBeGreaterThan(0);
     }
-    expect(() => new InMemoryDataStore(document)).not.toThrow();
+    // Loadable once the chain's last step has run.
+    expect(() => new InMemoryDataStore(upgradeMarkdownSections(document).document)).not.toThrow();
   });
 
   it('omits project and root for an agent-connection event, which belongs to no project', () => {
-    const { document } = upgradeActivityIdentity(v4());
+    const { document } = upgrade(v4());
     const connection = document.activityEvents.find((event) => event.entityType === 'agent_connection');
 
     expect(connection?.context.projectId).toBeUndefined();
@@ -78,7 +97,7 @@ describe('upgradeActivityIdentity', () => {
       });
     }
 
-    const { document } = upgradeActivityIdentity(input);
+    const { document } = upgrade(input);
     const nested = document.activityEvents.find((event) => event.projectId === childId);
 
     expect(nested?.context.rootProjectId).toBe(root['id']);
@@ -87,7 +106,7 @@ describe('upgradeActivityIdentity', () => {
   it('preserves every operation history and action — applied, undone, ids, orders and counters', () => {
     const input = v4();
 
-    const { document } = upgradeActivityIdentity(input);
+    const { document } = upgrade(input);
 
     expect(document.operationHistories).toEqual(input['operationHistories']);
     expect(document.operationActions).toEqual(input['operationActions']);
@@ -110,18 +129,18 @@ describe('upgradeActivityIdentity', () => {
     }
   });
 
-  it('is a no-op on a version-5 document, and still validates it', () => {
+  it('passes a version-5 or later document through untouched, and never validates', () => {
     const once = upgradeActivityIdentity(v4()).document;
 
-    expect(upgradeActivityIdentity(structuredClone(once))).toEqual({
-      document: once,
-      changed: false,
-      backfilledEvents: 0,
-    });
-    // A corrupt version-5 file is caught rather than trusted.
-    const corrupt = structuredClone(once) as unknown as Row;
-    (corrupt['tasks'] as Row[])[0]!['projectId'] = 'project-gone';
-    expect(() => upgradeActivityIdentity(corrupt)).toThrow();
+    expect(upgradeActivityIdentity(structuredClone(once))).toEqual({ document: once, changed: false, backfilledEvents: 0 });
+    expect(upgradeActivityIdentity({ schemaVersion: 6 }).changed).toBe(false);
+    // Judging a document is the last step's job: a version-5 output still carrying Rich Text —
+    // which this build no longer loads — and a corrupt one both come back without throwing.
+    const output = structuredClone(once) as Row;
+    expect(JSON.stringify(output)).toContain('"rich-text"');
+    (output['tasks'] as Row[])[0]!['projectId'] = 'project-gone';
+    expect(() => upgradeActivityIdentity(output)).not.toThrow();
+    expect(() => upgradeMarkdownSections(output)).toThrow();
   });
 
   it('refuses a version it does not read, and input that is not a document', () => {
@@ -187,7 +206,7 @@ describe('upgradeActivityIdentity', () => {
     event['entityId'] = reflection['id'];
     event['projectId'] = reflection['projectId'];
 
-    const { document } = upgradeActivityIdentity(input);
+    const { document } = upgrade(input);
     const converted = document.activityEvents.find((candidate) => candidate.entityId === reflection['id'])!;
 
     expect(converted.context.targetLabel).toBe('Untitled reflection');

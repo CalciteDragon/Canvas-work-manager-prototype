@@ -148,7 +148,7 @@ const CASES: Record<string, ToolCase> = {
     prepare: async (harness) => {
       const writer = agent(['projects.write', 'tasks.write']);
       await harness.services.sections.remove(writer, VIEW_SECTION);
-      const notes = await harness.services.sections.add(writer, PROJECT, { type: 'rich-text', config: { text: 'Keep me' } });
+      const notes = await harness.services.sections.add(writer, PROJECT, { type: 'markdown', config: { markdown: 'Keep me' } });
       await harness.services.sections.remove(writer, notes.section.id);
       const markdown = await harness.services.sections.add(writer, PROJECT, { type: 'markdown', config: { markdown: MARKDOWN_SOURCE } });
       await harness.services.sections.remove(writer, markdown.section.id);
@@ -159,7 +159,7 @@ const CASES: Record<string, ToolCase> = {
       expect(result.root.id).toBe(PROJECT);
       const sections = result.items.filter((item: { kind: string }) => item.kind === 'section');
       expect(sections.map((item: { section: { id: string } }) => item.section.id)).not.toContain(VIEW_SECTION);
-      expect(sections).toContainEqual(expect.objectContaining({ section: expect.objectContaining({ type: 'rich-text' }), recovery: { kind: 'config' } }));
+      expect(sections).toContainEqual(expect.objectContaining({ section: expect.objectContaining({ type: 'markdown', config: { markdown: 'Keep me' } }), recovery: { kind: 'config' } }));
       expect(sections).toContainEqual(expect.objectContaining({
         section: expect.objectContaining({ type: 'markdown', config: { markdown: MARKDOWN_SOURCE } }),
         recovery: { kind: 'config' },
@@ -273,7 +273,7 @@ const CASES: Record<string, ToolCase> = {
     input: { projectId: PROJECT },
     verify: async (result, harness) => {
       expect(result.map((section: { type: string }) => section.type)).toEqual([
-        'rich-text',
+        'markdown',
         'task-list',
         'recent-activity',
       ]);
@@ -578,6 +578,21 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
       name: 'ZodError',
       issues: [expect.objectContaining({ code: 'unrecognized_keys', keys: ['policy'] })],
     }));
+
+    expect(harness.store.snapshot()).toEqual(before);
+  });
+
+  it('refuses a retired Rich Text create through the domain, writing nothing (Slice 63)', async () => {
+    const harness = buildHarness();
+    const before = harness.store.snapshot();
+
+    await expect(
+      harness.registry.call('create_section', { projectId: PROJECT, type: 'rich-text', config: { text: 'Old' } }, agent(['projects.write'])),
+    ).rejects.toThrow(expect.objectContaining({ name: 'DomainRuleError', message: expect.stringMatching(/retired.*Markdown/) }));
+    // The grant is still checked first: a reader is refused for permission, not for the type.
+    await expect(
+      harness.registry.call('create_section', { projectId: PROJECT, type: 'rich-text' }, agent(['projects.read'])),
+    ).rejects.toThrow(PermissionDeniedError);
 
     expect(harness.store.snapshot()).toEqual(before);
   });

@@ -6,6 +6,8 @@ import {
   SectionIdSchema,
   SectionAlreadyRemovedDetailsSchema,
   containerTypeFor,
+  displayNameOf,
+  isRetiredSectionType,
   nameOf,
   normaliseSectionTitle,
   ownedKindOf,
@@ -215,6 +217,14 @@ export class SectionService {
   async add(actor: ActorContext, projectId: ProjectId, input: CreateSectionInput): Promise<SectionAddResult> {
     assertValidActor(actor);
     assertPermitted(actor, 'projects.write');
+    // Input validation, ahead of any lookup so it confirms nothing about the project. The type
+    // stays open (§30); retired types are the narrow exception, refused here so every caller —
+    // browser, HTTP and MCP — gets the same answer (docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
+    if (isRetiredSectionType(input.type)) {
+      throw new DomainRuleError(
+        `${displayNameOf(input.type)} sections are retired and can no longer be created; add a Markdown section instead.`,
+      );
+    }
 
     return this.dependencies.unitOfWork.run(async () => {
       const created = await this.addWithin(actor, projectId, input, { announce: true });

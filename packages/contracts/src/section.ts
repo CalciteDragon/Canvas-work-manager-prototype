@@ -70,22 +70,33 @@ export type SectionCapability = z.infer<typeof SectionCapabilitySchema>;
  * fails when a registered type has no entry — so a new type has to declare its recovery.
  * Keyed by the same open `type` strings the registry uses.
  *
- * `rich-text` keeps prose in `config.text`, and `markdown` in `config.markdown`, rather than
- * through rows. `proseKey` declares that key's name, never its shape; their section folders
- * own the schemas. Neither has rows to cascade, and archiving keeps the source — config rides along on the record,
- * so restoring returns the prose intact. That survival is why a view can be worth archiving
- * too, and why removal asks this table rather than `kind` before it decides.
+ * `markdown` keeps prose in `config.markdown` rather than through rows. `proseKey` declares that
+ * key's name, never its shape; the section folder owns the schema. It has no rows to cascade, and
+ * archiving keeps the source — config rides along on the record, so restoring returns the prose
+ * intact. That survival is why a view can be worth archiving too, and why removal asks this table
+ * rather than `kind` before it decides.
  */
 export const SECTION_CAPABILITIES: Readonly<Record<string, SectionCapability>> = {
   'task-list': { ownedData: 'tasks', recovery: 'owned-content' },
   reflections: { ownedData: 'reflections', recovery: 'owned-content' },
-  'rich-text': { recovery: 'config', proseKey: 'text' },
   markdown: { recovery: 'config', proseKey: 'markdown' },
   'sub-projects': { recovery: 'none' },
   progress: { recovery: 'none' },
   timeline: { recovery: 'none' },
   'recent-activity': { recovery: 'none' },
 };
+
+/**
+ * **Section types that may no longer be created or stored** (Slice 63). Rich Text became Markdown
+ * at schema version 6: every stored Rich Text section and every history copy of one was converted
+ * by `pnpm prototype:upgrade`, so the domain refuses a new one and the store refuses a document that
+ * still holds one (docs/decisions/2026-10-schema-version-6-markdown-conversion.md). The type stays
+ * an open string (§30); this list is the narrow exception, not a closed set of the types allowed.
+ */
+export const RETIRED_SECTION_TYPES: readonly string[] = ['rich-text'];
+
+/** Whether `type` is retired — exact match only, never for an inherited `Object` key. */
+export const isRetiredSectionType = (type: string): boolean => RETIRED_SECTION_TYPES.includes(type);
 
 // `Object.hasOwn`, not `in`: `'toString' in SECTION_CAPABILITIES` is true, and a section type
 // that happens to name an `Object.prototype` member must not read as a registered type.

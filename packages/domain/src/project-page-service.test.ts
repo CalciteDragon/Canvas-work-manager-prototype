@@ -139,7 +139,7 @@ describe('ProjectPageService.setEnabled (§26, §31)', () => {
   it('records against the root, never against a descendant project', async () => {
     const harness = buildHarness();
     const subproject = await subprojectOf(harness);
-    await harness.sectionWriteService.add(harness.actor, subproject.id, { type: 'rich-text' });
+    await harness.sectionWriteService.add(harness.actor, subproject.id, { type: 'markdown' });
 
     const created = await harness.projectPageService.setEnabled(harness.actor, MINE, { kind: 'archive', enabled: true });
 

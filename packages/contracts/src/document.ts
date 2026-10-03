@@ -17,18 +17,20 @@ import { OperationActionSchema, OperationHistorySchema } from './operation-histo
  * sub-projects and gives every project pages that own its sections. 4 replaces version 3's
  * single-use Undo records with per-actor operation histories and gives every section an
  * `archiveGeneration`. 5 makes every activity event carry the captured identity of its target, so
- * an audit line survives the Undo that deletes the row it describes. Bump it whenever a change
+ * an audit line survives the Undo that deletes the row it describes. 6 retires the Rich Text section:
+ * every Rich Text section and every history copy of one becomes Markdown. Bump it whenever a change
  * would make an existing file wrong — a mismatch is fatal rather than silently coerced, so a stale
  * file fails at load instead of halfway through a session.
  *
- * There is still no migration *runner* or registry. `pnpm prototype:upgrade` runs three explicit
- * converters in a fixed order — version 2 → 3 (`upgradeProjectPages`, frozen at its version-3
- * output), version 3 → 4 (`upgradeOperationHistory`, now frozen at its version-4 output) and
- * version 4 → 5 (`upgradeActivityIdentity`) — and validates the version-5 result before writing a
- * byte (docs/decisions/2026-09-schema-version-4-conversion.md,
- * docs/decisions/2026-09-schema-version-5-conversion.md).
+ * There is still no migration *runner* or registry. `pnpm prototype:upgrade` runs four explicit
+ * converters in a fixed order — version 2 → 3 (`upgradeProjectPages`), version 3 → 4
+ * (`upgradeOperationHistory`) and version 4 → 5 (`upgradeActivityIdentity`), each frozen at its own
+ * output, and version 5 → 6 (`upgradeMarkdownSections`) — and validates the version-6 result before
+ * writing a byte (docs/decisions/2026-09-schema-version-4-conversion.md,
+ * docs/decisions/2026-09-schema-version-5-conversion.md,
+ * docs/decisions/2026-10-schema-version-6-markdown-conversion.md).
  */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /**
  * §14's document. Not strict: an unknown top-level key in a hand-edited file is stripped

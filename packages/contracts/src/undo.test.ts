@@ -92,7 +92,7 @@ const reassignOperation = {
 const addOperation = {
   version: 1,
   type: 'section.add',
-  section: section('rich-text', { title: undefined, config: { text: 'Draft' } }),
+  section: section('markdown', { title: undefined, config: { markdown: 'Draft' } }),
   placement: { pageId: 'page-a', previous: { kind: 'section', id: 'section-0' }, index: 1 },
 };
 

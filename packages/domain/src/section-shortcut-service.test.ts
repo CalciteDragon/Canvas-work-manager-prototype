@@ -32,7 +32,7 @@ const homeOrder = async (harness: ReturnType<typeof buildHarness>, pageId: Proje
 const setupPlacedHome = async () => {
   const state = await setupNestedSource();
   const section = await state.harness.sectionService.add(state.harness.actor, MINE, {
-    type: 'rich-text',
+    type: 'markdown',
     pageId: state.home.id,
   });
   const shortcut = await state.harness.sectionShortcutService.create(state.harness.actor, MINE, {
@@ -74,7 +74,7 @@ describe('SectionShortcutService', () => {
 
   it('orders sections and shortcuts together and renumbers both kinds on every move', async () => {
     const { harness, source, home } = await setupNestedSource();
-    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', pageId: home.id });
     const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, {
       pageId: home.id,
       sourceSectionId: source.id,
@@ -97,7 +97,7 @@ describe('SectionShortcutService', () => {
 
   it('creates a shortcut at a position among sections in the combined order', async () => {
     const { harness, source, home } = await setupNestedSource();
-    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', pageId: home.id });
     const second = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', pageId: home.id });
     const eventsBefore = harness.store.snapshot().activityEvents.length;
 
@@ -119,7 +119,7 @@ describe('SectionShortcutService', () => {
 
   it('shifts sections for a positioned shortcut without changing their updatedAt', async () => {
     const { harness, source, home } = await setupNestedSource();
-    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    const first = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', pageId: home.id });
     harness.clock.setNow(new Date('2026-12-01T09:00:00.000Z'));
 
     await harness.sectionShortcutService.create(harness.actor, MINE, {
@@ -159,7 +159,7 @@ describe('SectionShortcutService', () => {
     });
     const otherHome = (await harness.pages.list({ projectId: otherRoot.id, kind: 'home' }))[0]!;
     const foreignSource = await harness.sectionService.add(harness.actor, otherRoot.id, {
-      type: 'rich-text',
+      type: 'markdown',
       pageId: otherHome.id,
     });
     const before = await homeOrder(harness, home.id);
@@ -286,7 +286,7 @@ describe('SectionShortcutService', () => {
     expect((await writes.update(harness.actor, id, { collapsed: false })).operation?.label).toBe('Expanded the Task List shortcut');
     expect((await writes.update(harness.actor, id, { columnSpan: 6 })).operation?.label).toBe('Resized the Task List shortcut');
     expect((await writes.update(harness.actor, id, { columnSpan: 12, collapsed: true })).operation?.label).toBe('Updated the Task List shortcut');
-    await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', pageId: home.id });
+    await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', pageId: home.id });
     expect((await writes.move(harness.actor, id, 1)).operation?.label).toBe('Moved the Task List shortcut');
     expect((await writes.remove(harness.actor, id)).operation.label).toBe('Removed the Task List shortcut');
     const summaries = (await harness.activity.list(harness.actor)).map((event) => event.summary);

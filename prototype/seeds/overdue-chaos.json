@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "users": [
     {
       "id": "user-demo",
@@ -204,12 +204,12 @@
       "id": "section-project-client-migration-brief",
       "projectId": "project-client-migration",
       "pageId": "page-project-client-migration",
-      "type": "rich-text",
+      "type": "markdown",
       "position": 0,
       "columnSpan": 12,
       "collapsed": false,
       "config": {
-        "text": "Behind on every milestone. Triage before adding anything new."
+        "markdown": "Behind on every milestone. Triage before adding anything new."
       },
       "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",
@@ -232,12 +232,12 @@
       "id": "section-project-admin-brief",
       "projectId": "project-admin",
       "pageId": "page-project-admin",
-      "type": "rich-text",
+      "type": "markdown",
       "position": 0,
       "columnSpan": 12,
       "collapsed": false,
       "config": {
-        "text": "The pile of things that have no other home."
+        "markdown": "The pile of things that have no other home."
       },
       "archiveGeneration": 0,
       "createdAt": "2026-08-01T16:00:00.000Z",

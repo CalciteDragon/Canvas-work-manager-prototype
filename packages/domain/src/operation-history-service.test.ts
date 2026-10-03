@@ -1,5 +1,6 @@
 import {
   PrototypeDocumentSchema,
+  SCHEMA_VERSION,
   type ActivityEvent,
   type LiveEvent,
   type OperationHistoryTransitionResult,
@@ -136,7 +137,7 @@ describe('OperationHistoryService — the Stage A gate', () => {
 
   it('same-field A → B → Undo B → Undo A → Redo A → Redo B returns every intermediate state', async () => {
     const harness = buildHarness();
-    const notes = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'Start' });
+    const notes = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', title: 'Start' });
     const a = (await harness.sectionWriteService.update(harness.actor, notes.section.id, { title: 'A' })).operation!;
     const b = (await harness.sectionWriteService.update(harness.actor, notes.section.id, { title: 'B' })).operation!;
     const title = async () => (await harness.sections.find(notes.section.id))?.title;
@@ -375,7 +376,7 @@ describe('OperationHistoryService — project creation history', () => {
   // creation Undo succeeds once that write is undone.
   it.each([
     ['a section', async (harness: Harness, projectId: ProjectId) =>
-      (await harness.sectionWriteService.add(harness.actor, projectId, { type: 'rich-text', title: 'Notes' })).operation!],
+      (await harness.sectionWriteService.add(harness.actor, projectId, { type: 'markdown', title: 'Notes' })).operation!],
     ['a task through a new container', async (harness: Harness, projectId: ProjectId) =>
       (await harness.taskWriteService.create(harness.actor, { projectId, title: 'First task' })).operation!],
     ['an enabled Todos page', async (harness: Harness, projectId: ProjectId) =>
@@ -424,7 +425,7 @@ describe('OperationHistoryService — project creation history', () => {
 describe('OperationHistoryService — branch invalidation', () => {
   it('a new write clears the redo branch from storage, and the stack below still undoes', async () => {
     const harness = buildHarness();
-    const notes = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'Start' });
+    const notes = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', title: 'Start' });
     const a = (await harness.sectionWriteService.update(harness.actor, notes.section.id, { title: 'A' })).operation!;
     const b = (await harness.sectionWriteService.update(harness.actor, notes.section.id, { title: 'B' })).operation!;
     await harness.undo(harness.actor, b);
@@ -440,7 +441,7 @@ describe('OperationHistoryService — branch invalidation', () => {
 
   it('a no-op write, a refused transition and a failed write each leave redo untouched', async () => {
     const harness = buildHarness();
-    const notes = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'Start' });
+    const notes = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', title: 'Start' });
     const a = (await harness.sectionWriteService.update(harness.actor, notes.section.id, { title: 'A' })).operation!;
     await harness.undo(harness.actor, a);
     const redo = async () => (await harness.operationHistoryService.summary(harness.actor, MINE)).redo?.actionId;
@@ -464,7 +465,7 @@ describe('OperationHistoryService — every family in both directions', () => {
   it('add, move, update and remove each Undo and Redo to the exact prior and next state', async () => {
     const harness = buildHarness();
     const first = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'progress', title: 'First' });
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'Added', config: { text: 'Prose' } });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', title: 'Added', config: { markdown: 'Prose' } });
     const moved = await harness.sectionWriteService.move(harness.actor, added.section.id, 0);
     const updated = await harness.sectionWriteService.update(harness.actor, added.section.id, { columnSpan: 6, title: 'Renamed' });
     const removed = await harness.sectionWriteService.remove(harness.actor, added.section.id);
@@ -572,8 +573,8 @@ const homeWithShortcut = async (harness: Harness) => {
   const kitchen = await harness.projectService.create(harness.actor, {
     workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Kitchen',
   });
-  const source = await harness.sectionService.add(harness.actor, kitchen.id, { type: 'rich-text' });
-  const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Prose' } });
+  const source = await harness.sectionService.add(harness.actor, kitchen.id, { type: 'markdown' });
+  const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', config: { markdown: 'Prose' } });
   const progress = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', title: 'Burn-up', columnSpan: 6 });
   await harness.sectionService.update(harness.actor, progress.id, { collapsed: true, config: { milestoneIds: ['m-1'] } });
   const shortcut = await harness.sectionShortcutService.create(harness.actor, MINE, {
@@ -687,7 +688,7 @@ describe('OperationHistoryService — optional pages in a mixed stack (Slice 38)
 describe('OperationHistoryService — removal Undo placement', () => {
   it('recreates a deleted disposable view from its snapshot in its old placement', async () => {
     const harness = buildHarness();
-    const before = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', config: { text: 'Keep' } });
+    const before = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', config: { markdown: 'Keep' } });
     const progress = await harness.sectionService.add(harness.actor, MINE, {
       type: 'progress', title: 'Burn-up', columnSpan: 6, config: { milestoneIds: ['m-1'] },
     });
@@ -735,7 +736,7 @@ describe('OperationHistoryService — removal Undo placement', () => {
     const harness = buildHarness();
     const { notes, progress, shortcut } = await homeWithShortcut(harness);
     const { operation } = await harness.sectionService.remove(harness.actor, progress.id);
-    const inserted = await harness.sectionService.add(someoneElse, MINE, { type: 'rich-text', position: 0 });
+    const inserted = await harness.sectionService.add(someoneElse, MINE, { type: 'markdown', position: 0 });
     const before = await harness.sectionShortcutService.list(harness.actor, MINE);
     harness.clock.setNow(new Date(LATER));
 
@@ -862,14 +863,14 @@ describe('OperationHistoryService — removal Undo rows', () => {
     expect(() => new InMemoryDataStore(harness.store.snapshot())).not.toThrow();
   });
 
-  it('reopens schema-v5 applied and undone reassign actions before Undo and Redo', async () => {
+  it('reopens current-schema applied and undone reassign actions before Undo and Redo', async () => {
     const harness = buildHarness();
     const legacy = await legacyReassigned(harness);
     expect(legacy.operation).toBeDefined();
 
-    const appliedV5 = PrototypeDocumentSchema.parse(harness.store.snapshot());
-    expect(appliedV5.schemaVersion).toBe(5);
-    const reopenedApplied = buildHarness(appliedV5, { ids: new PrototypeIdGenerator() });
+    const appliedDocument = PrototypeDocumentSchema.parse(harness.store.snapshot());
+    expect(appliedDocument.schemaVersion).toBe(SCHEMA_VERSION);
+    const reopenedApplied = buildHarness(appliedDocument, { ids: new PrototypeIdGenerator() });
     await reopenedApplied.taskService.update(someoneElsesRows, legacy.live.id, { title: 'Renamed', status: 'in_progress' });
     const result = await reopenedApplied.undo(harness.actor, legacy.operation);
 
@@ -882,9 +883,9 @@ describe('OperationHistoryService — removal Undo rows', () => {
     expect(await reopenedApplied.tasks.find(legacy.filed.id)).toMatchObject({ sectionId: legacy.live.sectionId, archivedAt: SEED_NOW });
     expect((await reopenedApplied.tasks.find(legacy.own.id))?.sectionId).toBe(legacy.target.id);
 
-    const undoneV5 = PrototypeDocumentSchema.parse(reopenedApplied.store.snapshot());
-    expect(undoneV5.schemaVersion).toBe(5);
-    const reopenedUndone = buildHarness(undoneV5, { ids: new PrototypeIdGenerator() });
+    const undoneDocument = PrototypeDocumentSchema.parse(reopenedApplied.store.snapshot());
+    expect(undoneDocument.schemaVersion).toBe(SCHEMA_VERSION);
+    const reopenedUndone = buildHarness(undoneDocument, { ids: new PrototypeIdGenerator() });
     await reopenedUndone.redo(harness.actor, legacy.operation);
     expect(await reopenedUndone.tasks.find(legacy.live.id)).toMatchObject({ sectionId: legacy.target.id, title: 'Renamed' });
     expect(await reopenedUndone.tasks.find(legacy.filed.id)).toMatchObject({ sectionId: legacy.target.id, archivedAt: SEED_NOW });
@@ -915,7 +916,7 @@ describe('OperationHistoryService — conflicts and retirement', () => {
     const harness = buildHarness();
     const other = await harness.sectionService.add(harness.actor, MINE, { type: 'progress', title: 'Other' });
     const edited = (await harness.sectionWriteService.update(harness.actor, other.id, { collapsed: true })).operation!;
-    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', title: 'Notes', config: { text: 'Prose' } });
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', title: 'Notes', config: { markdown: 'Prose' } });
     const { operation } = await harness.sectionService.remove(harness.actor, notes.id);
     await harness.sectionService.restoreSection(someoneElse, notes.id);
     const before = state(harness);
@@ -954,7 +955,7 @@ describe('OperationHistoryService — conflicts and retirement', () => {
     ['with the clock set backwards', -60_000],
   ])('two removals of one retained section %s cannot cross-reverse', async (_, shift) => {
     const harness = buildHarness();
-    const notes = await harness.sectionService.add(someoneElse, MINE, { type: 'rich-text', title: 'Notes', config: { text: 'Prose' } });
+    const notes = await harness.sectionService.add(someoneElse, MINE, { type: 'markdown', title: 'Notes', config: { markdown: 'Prose' } });
     const { operation: mine } = await harness.sectionService.remove(harness.actor, notes.id);
     await harness.sectionService.restoreSection(someoneElse, notes.id);
     harness.clock.setNow(new Date(Date.parse(SEED_NOW) + shift));
@@ -1037,7 +1038,7 @@ describe('OperationHistoryService — conflicts and retirement', () => {
 describe('OperationHistoryService — archived projects', () => {
   it('an archived project blocks a transition, the summary says so, and reactivation unblocks it', async () => {
     const harness = buildHarness();
-    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text' });
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown' });
     const { operation } = await harness.sectionService.remove(harness.actor, notes.id);
     await harness.projectService.update(someoneElse, MINE, { status: 'archived' });
     const before = state(harness);
@@ -1060,7 +1061,7 @@ describe('OperationHistoryService — archived projects', () => {
     const kitchen = await harness.projectService.create(harness.actor, {
       workspaceId: harness.actor.workspaceId, kind: 'subproject', parentProjectId: MINE, name: 'Kitchen',
     });
-    const notes = await harness.sectionService.add(harness.actor, kitchen.id, { type: 'rich-text' });
+    const notes = await harness.sectionService.add(harness.actor, kitchen.id, { type: 'markdown' });
     const { operation } = await harness.sectionService.remove(harness.actor, notes.id);
     await harness.projectService.archive(someoneElse, kitchen.id);
     await harness.projectService.archive(someoneElse, MINE);
@@ -1102,7 +1103,7 @@ describe('OperationHistoryService — per-step blockers in the summary (Slice 41
 
   it('an ordinary step under an archived subject is blocked by it, as is the project-level blocker', async () => {
     const harness = buildHarness();
-    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text' });
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown' });
     await harness.sectionService.remove(harness.actor, notes.id);
     await harness.projectService.update(someoneElse, MINE, { status: 'archived' });
 
@@ -1164,7 +1165,7 @@ describe('OperationHistoryService — per-step blockers in the summary (Slice 41
 
 describe('OperationHistoryService — scope and grants', () => {
   const removedNotes = async (harness: Harness, actor: ActorContext = harness.actor) => {
-    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text' });
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown' });
     return (await harness.sectionService.remove(actor, notes.id)).operation;
   };
 
@@ -1234,7 +1235,7 @@ describe('OperationHistoryService — scope and grants', () => {
 
   it('never confuses a foreign workspace’s history for its own', async () => {
     const harness = buildHarness();
-    const theirs = await harness.sectionService.add(harness.other, THEIRS, { type: 'rich-text' });
+    const theirs = await harness.sectionService.add(harness.other, THEIRS, { type: 'markdown' });
     const { operation } = await harness.sectionService.remove(harness.other, theirs.id);
 
     await expect(harness.undo(harness.actor, operation)).rejects.toBeInstanceOf(EntityNotFoundError);
@@ -1244,7 +1245,7 @@ describe('OperationHistoryService — scope and grants', () => {
 
 describe('OperationHistoryService — revision, order, expiry and atomicity', () => {
   const removedNotes = async (harness: Harness) => {
-    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'rich-text', title: 'Kickoff', config: { text: 'Keep this prose' } });
+    const notes = await harness.sectionService.add(harness.actor, MINE, { type: 'markdown', title: 'Kickoff', config: { markdown: 'Keep this prose' } });
     return { notes, operation: (await harness.sectionService.remove(harness.actor, notes.id)).operation };
   };
 
@@ -1269,7 +1270,7 @@ describe('OperationHistoryService — revision, order, expiry and atomicity', ()
 
   it('an action that is not the cursor’s next step refuses as history_not_next', async () => {
     const harness = buildHarness();
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'First' });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', title: 'First' });
     const newer = await harness.sectionWriteService.update(harness.actor, added.section.id, { title: 'Second' });
     const before = state(harness);
 
@@ -1386,7 +1387,7 @@ describe('OperationHistoryService — revision, order, expiry and atomicity', ()
         outstandingRemovalFor: (actor, sectionId, section) => real.outstandingRemovalFor(actor, sectionId, section),
       }),
     });
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'Kept' });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', title: 'Kept' });
     await harness.undo(harness.actor, added.operation);
     const before = state(harness);
     fail = true;
@@ -1399,7 +1400,7 @@ describe('OperationHistoryService — revision, order, expiry and atomicity', ()
 
   it('cursor, revision and both entries survive a serialize and reload of the data file', async () => {
     const first = buildHarness();
-    const notes = await first.sectionService.add(first.actor, MINE, { type: 'rich-text', config: { text: 'Prose' } });
+    const notes = await first.sectionService.add(first.actor, MINE, { type: 'markdown', config: { markdown: 'Prose' } });
     const updated = (await first.sectionWriteService.update(first.actor, notes.id, { title: 'Titled' })).operation!;
     const removed = (await first.sectionService.remove(first.actor, notes.id)).operation;
     await first.undo(first.actor, removed);
@@ -1472,8 +1473,8 @@ describe('OperationHistoryService — revision, order, expiry and atomicity', ()
   it('keeps the generation floor when a pruned removal leaves only its later Restore behind', async () => {
     const harness = buildHarness();
     const theirs = agentActorFor(0, ['projects.write']);
-    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'rich-text', title: 'Notes' });
-    const configured = await harness.sectionWriteService.update(harness.actor, added.section.id, { config: { text: 'Worth keeping' } });
+    const added = await harness.sectionWriteService.add(harness.actor, MINE, { type: 'markdown', title: 'Notes' });
+    const configured = await harness.sectionWriteService.update(harness.actor, added.section.id, { config: { markdown: 'Worth keeping' } });
 
     await harness.sectionWriteService.remove(theirs, added.section.id);
     await harness.sectionWriteService.restoreSection(theirs, added.section.id);

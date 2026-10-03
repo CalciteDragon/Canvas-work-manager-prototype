@@ -74,7 +74,7 @@ describe('page capabilities', () => {
   });
 
   it('lets a full canvas hold every registered type, including one registered later', () => {
-    for (const type of ['rich-text', 'task-list', 'progress', 'reflections', 'a-type-nobody-has-written-yet']) {
+    for (const type of ['markdown', 'task-list', 'progress', 'reflections', 'a-type-nobody-has-written-yet']) {
       expect(pageAcceptsSectionType('home', type)).toBe(true);
       expect(pageAcceptsSectionType('work', type)).toBe(true);
     }

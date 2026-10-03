@@ -544,7 +544,7 @@ describe('identity route', () => {
 });
 
 describe('section routes', () => {
-  const newSection = async (routes: RouteTable, body: unknown = { type: 'rich-text' }, projectId = MINE) =>
+  const newSection = async (routes: RouteTable, body: unknown = { type: 'markdown' }, projectId = MINE) =>
     SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${projectId}/sections`, { body })).body).section;
 
   it('a markdown section round-trips its source over HTTP', async () => {
@@ -570,6 +570,21 @@ describe('section routes', () => {
       .toEqual({ markdown: source });
   });
 
+  it('refuses a new Rich Text section with the rule envelope, writing nothing (Slice 63)', async () => {
+    const routes = buildRoutes();
+
+    for (const projectId of [MINE, THEIRS]) {
+      const refused = await call(routes, 'POST', `/api/projects/${projectId}/sections`, {
+        body: { type: 'rich-text', config: { text: 'Old habits' } },
+      });
+      // Input validation before any lookup, so a foreign project is not confirmed either way.
+      expect(refused.status).toBe(409);
+      expect(refused.body).toMatchObject({ error: 'rule_violation', message: expect.stringMatching(/retired.*Markdown/) });
+    }
+    expect((await call(routes, 'GET', `/api/projects/${MINE}/sections`)).body).toEqual([]);
+    expect((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'markdown', config: { markdown: 'New' } } })).status).toBe(201);
+  });
+
   it('lists, creates, updates, moves, duplicates and removes a section', async () => {
     const routes = buildRoutes();
 
@@ -577,11 +592,11 @@ describe('section routes', () => {
     expect(empty).toMatchObject({ status: 200, body: [] });
 
     const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, {
-      body: { type: 'rich-text', config: { text: 'Kickoff' } },
+      body: { type: 'markdown', config: { markdown: 'Kickoff' } },
     });
     expect(created.status).toBe(201);
     const section = SectionAddResultSchema.parse(created.body).section;
-    expect(section).toMatchObject({ projectId: MINE, type: 'rich-text', position: 0, config: { text: 'Kickoff' } });
+    expect(section).toMatchObject({ projectId: MINE, type: 'markdown', position: 0, config: { markdown: 'Kickoff' } });
 
     const collapsed = await call(routes, 'PATCH', `/api/sections/${section.id}`, { body: { collapsed: true } });
     expect(SectionWriteResultSchema.parse(collapsed.body).section.collapsed).toBe(true);
@@ -595,7 +610,7 @@ describe('section routes', () => {
     const copy = SectionAddResultSchema.parse(duplicated.body);
     // Duplication is an add, so it answers the same envelope with the same kind of receipt, and
     // the copy sits directly below its original with a detached config and no rows.
-    expect(copy.section).toMatchObject({ type: 'rich-text', position: 2, config: { text: 'Kickoff' } });
+    expect(copy.section).toMatchObject({ type: 'markdown', position: 2, config: { markdown: 'Kickoff' } });
     expect(copy.section.id).not.toBe(section.id);
     expect(copy.operation.operation).toBe('section.add');
 
@@ -607,7 +622,7 @@ describe('section routes', () => {
 
   it('answers the project’s sections in position order', async () => {
     const routes = buildRoutes();
-    const first = await newSection(routes, { type: 'rich-text' });
+    const first = await newSection(routes, { type: 'markdown' });
     await newSection(routes, { type: 'task-list' });
     await call(routes, 'POST', `/api/sections/${first.id}/move`, { body: { position: 1 } });
 
@@ -615,7 +630,7 @@ describe('section routes', () => {
 
     expect(ProjectSectionSchema.array().parse(result.body).map((item) => item.type)).toEqual([
       'task-list',
-      'rich-text',
+      'markdown',
     ]);
   });
 
@@ -647,7 +662,7 @@ describe('section routes', () => {
 
     expect((await call(routes, 'GET', `/api/projects/${THEIRS}/sections`)).status).toBe(404);
     expect(
-      (await call(routes, 'POST', `/api/projects/${THEIRS}/sections`, { body: { type: 'rich-text' } })).status,
+      (await call(routes, 'POST', `/api/projects/${THEIRS}/sections`, { body: { type: 'markdown' } })).status,
     ).toBe(404);
   });
 
@@ -702,7 +717,7 @@ describe('section routes', () => {
 
   it('answers archived sections only when the query string asks, parsing the boolean', async () => {
     const routes = buildRoutes();
-    const section = await newSection(routes, { type: 'rich-text', config: { text: 'Keep this in Archive' } });
+    const section = await newSection(routes, { type: 'markdown', config: { markdown: 'Keep this in Archive' } });
     await call(routes, 'DELETE', `/api/sections/${section.id}`);
 
     const live = await call(routes, 'GET', `/api/projects/${MINE}/sections`);
@@ -731,7 +746,7 @@ describe('section routes', () => {
     const section = await newSection(routes);
 
     expect(
-      (await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', columnSpan: 7 } }))
+      (await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'markdown', columnSpan: 7 } }))
         .status,
     ).toBe(400);
     expect((await call(routes, 'PATCH', `/api/sections/${section.id}`, { body: { config: null } })).status).toBe(400);
@@ -1325,8 +1340,8 @@ describe('Archive projection route (§31, §32, §54)', () => {
     const add = async (body: unknown) =>
       SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body })).body).section;
     const progress = await add({ type: 'progress' });
-    const notes = await add({ type: 'rich-text', config: { text: 'Measure twice' } });
-    const blank = await add({ type: 'rich-text', config: { text: '   ' } });
+    const notes = await add({ type: 'markdown', config: { markdown: 'Measure twice' } });
+    const blank = await add({ type: 'markdown', config: { markdown: '   ' } });
     for (const { id } of [progress, notes, blank]) {
       expect((await call(routes, 'DELETE', `/api/sections/${id}`)).status).toBe(200);
     }
@@ -1336,7 +1351,7 @@ describe('Archive projection route (§31, §32, §54)', () => {
 
     const sections = result.items.filter((item) => item.kind === 'section');
     expect(sections.map((item) => item.section.id)).toEqual([notes.id]);
-    expect(sections[0]).toMatchObject({ recovery: { kind: 'config' }, section: { config: { text: 'Measure twice' } } });
+    expect(sections[0]).toMatchObject({ recovery: { kind: 'config' }, section: { config: { markdown: 'Measure twice' } } });
     // A read: no projection writes and no activity.
     expect(((await call(routes, 'GET', '/api/activity')).body as unknown[]).length).toBe(eventsBefore);
   });
@@ -1452,7 +1467,7 @@ describe('section receipts and operation history routes (Slices 30, 35)', () => 
   };
 
   const removeNotes = async (routes: RouteTable) => {
-    const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', config: { text: 'Kept' } } });
+    const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'markdown', config: { markdown: 'Kept' } } });
     const section = SectionAddResultSchema.parse(created.body).section;
     const removed = await call(routes, 'DELETE', `/api/sections/${section.id}`);
     return { section, removed, result: SectionRemovalResultSchema.parse(removed.body) };
@@ -1530,7 +1545,7 @@ describe('section receipts and operation history routes (Slices 30, 35)', () => 
 
   it('the sequential A → B → Undo → Undo → Redo → Redo chain, observed through the summary route', async () => {
     const { routes } = withStore();
-    const created = SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', title: 'Start' } })).body);
+    const created = SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'markdown', title: 'Start' } })).body);
     const write = async (title: string) =>
       SectionWriteResultSchema.parse((await call(routes, 'PATCH', `/api/sections/${created.section.id}`, { body: { title } })).body).operation!;
     const a = await write('A');
@@ -1559,7 +1574,7 @@ describe('section receipts and operation history routes (Slices 30, 35)', () => 
 
   it('branch invalidation over the wire: a new write discards redo; a no-op and a refusal leave it', async () => {
     const { routes } = withStore();
-    const created = SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'rich-text', title: 'Start' } })).body);
+    const created = SectionAddResultSchema.parse((await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'markdown', title: 'Start' } })).body);
     const patch = (body: object) => call(routes, 'PATCH', `/api/sections/${created.section.id}`, { body });
     const a = SectionWriteResultSchema.parse((await patch({ title: 'A' })).body).operation!;
     await transition(routes, a, 'undo', a.revision);
@@ -1693,7 +1708,7 @@ describe('section receipts and operation history routes (Slices 30, 35)', () => 
       // Prose with content, so the removal retains a tombstone there is something to restore.
       const created = await call(routes, 'POST', `/api/projects/${AGENT_PROJECT}/sections`, {
         token: READWRITE,
-        body: { type: 'rich-text', config: { text: 'Kept' } },
+        body: { type: 'markdown', config: { markdown: 'Kept' } },
       });
       const section = SectionAddResultSchema.parse(created.body).section;
       const { operation } = SectionRemovalResultSchema.parse(

@@ -15,8 +15,9 @@
  * hand-written version-2 or version-3 schema would be a second definition of every entity (§11)
  * describing shapes nothing writes any more. The output is therefore **not** validated here —
  * `validateDocumentIntegrity` checks the *current* schema, which a version-3 document no longer
- * matches — and the version-3 → version-4 step validates the final document before the CLI writes
- * a byte, which is where the guarantee this step used to give now lives.
+ * matches — and the chain's last step (since Slice 63, version 5 → version 6) validates the final
+ * document before the CLI writes a byte, which is where the guarantee this step used to give now
+ * lives.
  */
 
 /** What version 2 called a project. Only the fields the conversion reads are named. */

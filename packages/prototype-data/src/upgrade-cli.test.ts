@@ -5,14 +5,43 @@ import { fileURLToPath } from 'node:url';
 import { SCHEMA_VERSION } from '@cwm/contracts';
 import { acquireDataFileOwnership, InMemoryDataStore } from '@cwm/repositories';
 import { describe, expect, it, vi } from 'vitest';
+import { decodeLegacyProse } from './legacy-prose';
 import { buildSeed } from './seeds';
-import { type UpgradeFileOperations, upgradeDataFile, upgradeDataFileOwned, upgradeMessage } from './upgrade-cli';
+import { type UpgradeDataFileResult, type UpgradeFileOperations, upgradeDataFile, upgradeDataFileOwned, upgradeMessage } from './upgrade-cli';
 
 const fixture = (name: string) => fileURLToPath(new URL(`../test/fixtures/${name}`, import.meta.url));
 const v2FixturePath = fixture('nested-projects-v2.json');
 const v3FixturePath = fixture('nested-projects-v3.json');
+const v4FixturePath = fixture('history-v4.json');
+const v5FixturePath = fixture('history-v5-rich-text.json');
 
 type Row = Record<string, unknown>;
+
+const UNCHANGED = {
+  changed: false,
+  fromVersion: SCHEMA_VERSION,
+  retiredReceipts: 0,
+  backfilledEvents: 0,
+  convertedSections: 0,
+  convertedPayloads: 0,
+  unreadableConfigs: 0,
+  unreachableUpdates: 0,
+};
+
+/** A changed result with no counts but the ones a message test is about. */
+const result = (fields: Partial<UpgradeDataFileResult>): UpgradeDataFileResult => ({ ...UNCHANGED, changed: true, ...fields });
+
+/** Every Rich Text section of the input arrives as Markdown whose source decodes to its prose. */
+const expectProseConverted = (input: Row, converted: Row): void => {
+  const before = (input['sections'] as Row[]).filter((section) => section['type'] === 'rich-text');
+  expect(before.length).toBeGreaterThan(0);
+  for (const section of before) {
+    const after = (converted['sections'] as Row[]).find((candidate) => candidate['id'] === section['id'])!;
+    expect(after['type'], String(section['id'])).toBe('markdown');
+    expect(decodeLegacyProse((after['config'] as Row)['markdown'] as string)).toBe((section['config'] as Row)['text']);
+  }
+  expect(JSON.stringify(converted)).not.toContain('"rich-text"');
+};
 
 /** In-memory files that record every write in order: "backed up first" is the property under test. */
 const operations = (source: string): UpgradeFileOperations & { written: Map<string, string>; order: string[] } => {
@@ -38,12 +67,12 @@ const NOW = new Date('2026-09-16T12:00:00.000Z');
 const BACKUP = 'data.json.backup-2026-09-16T12-00-00-000Z.json';
 
 describe('upgradeDataFile — the chained conversion', () => {
-  it('the v2 fixture converts through the two frozen intermediates to v5, backing the original up first', async () => {
+  it('the v2 fixture converts through the three frozen intermediates to v6, backing the original up first', async () => {
     const source = await readFile(v2FixturePath, 'utf8');
     const fileOperations = operations(source);
 
     const result = await upgradeDataFile('data.json', { fileOperations, now: NOW });
-    expect(result).toMatchObject({ changed: true, fromVersion: 2, retiredReceipts: 0 });
+    expect(result).toMatchObject({ changed: true, fromVersion: 2, retiredReceipts: 0, convertedSections: 3, convertedPayloads: 0 });
     // The committed v2 corpus predates the activity feed, so there is nothing to backfill here;
     // the v3 and v4 cases below are where the captured identity is proved.
     expect(result.backfilledEvents).toBe(0);
@@ -56,6 +85,7 @@ describe('upgradeDataFile — the chained conversion', () => {
     expect(() => new InMemoryDataStore(converted)).not.toThrow();
     const input = JSON.parse(source) as Record<string, Row[]>;
     expect(converted['tasks']).toEqual(input['tasks']);
+    expectProseConverted(input, converted);
     // Activity events keep everything they said and gain exactly `context`.
     expect((converted['activityEvents'] as Row[]).map(({ context, ...rest }) => rest)).toEqual(
       (input['activityEvents'] ?? []).map((event) => ({ ...event, projectId: event['projectId'] })),
@@ -71,15 +101,12 @@ describe('upgradeDataFile — the chained conversion', () => {
       changed: true,
       fromVersion: 3,
       retiredReceipts: 2,
+      convertedSections: 4,
     });
+    expectProseConverted(input, JSON.parse(first.written.get('data.json')!) as Row);
 
     const second = operations(first.written.get('data.json')!);
-    await expect(upgradeDataFile('data.json', { fileOperations: second })).resolves.toEqual({
-      changed: false,
-      fromVersion: SCHEMA_VERSION,
-      retiredReceipts: 0,
-      backfilledEvents: 0,
-    });
+    await expect(upgradeDataFile('data.json', { fileOperations: second })).resolves.toEqual(UNCHANGED);
     expect(second.writeFile).not.toHaveBeenCalled();
     expect(second.rename).not.toHaveBeenCalled();
   });
@@ -158,17 +185,80 @@ describe('upgradeDataFile — the chained conversion', () => {
     expect(() => new InMemoryDataStore(converted)).not.toThrow();
   });
 
-  it('a repeat run on a v5 file writes nothing', async () => {
-    const fileOperations = operations(`${JSON.stringify(buildSeed('nested-projects'), null, 2)}\n`);
+  it('the committed v4 fixture arrives at v6 with its history and its Rich Text as Markdown', async () => {
+    const source = await readFile(v4FixturePath, 'utf8');
+    const fileOperations = operations(source);
 
-    await expect(upgradeDataFile('data.json', { fileOperations })).resolves.toEqual({
-      changed: false,
-      fromVersion: SCHEMA_VERSION,
+    const result = await upgradeDataFile('data.json', { fileOperations, now: NOW });
+
+    expect(result).toMatchObject({ changed: true, fromVersion: 4, convertedSections: 2 });
+    const input = JSON.parse(source) as Row;
+    const converted = JSON.parse(fileOperations.written.get('data.json')!) as Row;
+    expect(converted['operationActions']).toEqual(input['operationActions']);
+    expectProseConverted(input, converted);
+    expect(() => new InMemoryDataStore(converted)).not.toThrow();
+  });
+
+  it('the v5 fixture converts its sections and history, and reports every count', async () => {
+    const source = await readFile(v5FixturePath, 'utf8');
+    const fileOperations = operations(source);
+
+    await expect(upgradeDataFile('data.json', { fileOperations, now: NOW })).resolves.toEqual({
+      changed: true,
+      fromVersion: 5,
       retiredReceipts: 0,
       backfilledEvents: 0,
+      convertedSections: 8,
+      convertedPayloads: 11,
+      unreadableConfigs: 2,
+      unreachableUpdates: 1,
     });
+    expect(fileOperations.order).toEqual([`write ${BACKUP}`, 'write data.json.tmp', 'rename data.json.tmp -> data.json']);
+    expect(fileOperations.written.get(BACKUP)).toBe(source);
+    expect(() => new InMemoryDataStore(JSON.parse(fileOperations.written.get('data.json')!))).not.toThrow();
+  });
+
+  it('a clean v6 file writes nothing', async () => {
+    const fileOperations = operations(`${JSON.stringify(buildSeed('nested-projects'), null, 2)}\n`);
+
+    await expect(upgradeDataFile('data.json', { fileOperations })).resolves.toEqual(UNCHANGED);
 
     expect(fileOperations.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('a v6 file still holding Rich Text is converted and backed up — the remedy integrity names', async () => {
+    const source = `${JSON.stringify({ ...JSON.parse(await readFile(v5FixturePath, 'utf8')), schemaVersion: 6 }, null, 2)}\n`;
+    const fileOperations = operations(source);
+
+    await expect(upgradeDataFile('data.json', { fileOperations, now: NOW })).resolves.toMatchObject({
+      changed: true, fromVersion: 6, convertedSections: 8,
+    });
+    expect(fileOperations.written.get(BACKUP)).toBe(source);
+    expect(() => new InMemoryDataStore(JSON.parse(fileOperations.written.get('data.json')!))).not.toThrow();
+  });
+
+  it.each([
+    ['v2', v2FixturePath],
+    ['v3', v3FixturePath],
+    ['v4', v4FixturePath],
+    ['v5', v5FixturePath],
+  ])('a %s file upgraded on disk reopens, and a repeat upgrade leaves it byte-identical', async (_, fixturePath) => {
+    const directory = await mkdtemp(join(tmpdir(), 'cwm-upgrade-repeat-'));
+    try {
+      const path = join(directory, 'data.json');
+      await writeFile(path, await readFile(fixturePath, 'utf8'));
+      await expect(upgradeDataFile(path, { now: NOW })).resolves.toMatchObject({ changed: true });
+      const once = await readFile(path, 'utf8');
+      expect(() => new InMemoryDataStore(JSON.parse(once))).not.toThrow();
+      const listing = await readdir(directory);
+
+      await expect(upgradeDataFile(path, { now: new Date('2026-09-17T12:00:00.000Z') })).resolves.toEqual(UNCHANGED);
+
+      expect(await readFile(path, 'utf8')).toBe(once);
+      expect(await readdir(directory)).toEqual(listing);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   /**
@@ -178,12 +268,25 @@ describe('upgradeDataFile — the chained conversion', () => {
   it.each([
     ['a v2 file', v2FixturePath],
     ['a v3 file', v3FixturePath],
+    ['a v5 file', v5FixturePath],
   ])('a failed conversion of %s writes nothing at all', async (_, path) => {
     const broken = JSON.parse(await readFile(path, 'utf8')) as Record<string, Row[]>;
     broken['sections']![0]!['projectId'] = 'project-gone';
     const fileOperations = operations(JSON.stringify(broken));
 
     await expect(upgradeDataFile('data.json', { fileOperations })).rejects.toThrow();
+
+    expect(fileOperations.writeFile).not.toHaveBeenCalled();
+    expect(fileOperations.rename).not.toHaveBeenCalled();
+  });
+
+  it('a refused Markdown conversion writes no backup and no temp file', async () => {
+    const refused = JSON.parse(await readFile(v5FixturePath, 'utf8')) as Record<string, Row[]>;
+    const section = refused['sections']!.find((candidate) => candidate['type'] === 'rich-text')!;
+    section['config'] = { text: 'prose', markdown: 'collides' };
+    const fileOperations = operations(JSON.stringify(refused));
+
+    await expect(upgradeDataFile('data.json', { fileOperations })).rejects.toThrow(/markdown/);
 
     expect(fileOperations.writeFile).not.toHaveBeenCalled();
     expect(fileOperations.rename).not.toHaveBeenCalled();
@@ -208,20 +311,34 @@ describe('upgradeDataFile — the chained conversion', () => {
   });
 
   it('says which version it converted from, and no longer claims version-4 history starts empty', () => {
-    expect(upgradeMessage('data.json', { changed: true, fromVersion: 3, retiredReceipts: 2, backfilledEvents: 4 })).toBe(
-      'Converted "data.json" from schema version 3 to 5. 2 Undo receipts from version 3 were retired. 4 activity events gained the captured identity of their target. The original is beside it as a .backup-*.json file.\n',
+    expect(upgradeMessage('data.json', result({ fromVersion: 3, retiredReceipts: 2, backfilledEvents: 4 }))).toBe(
+      'Converted "data.json" from schema version 3 to 6. 2 Undo receipts from version 3 were retired. 4 activity events gained the captured identity of their target. The original is beside it as a .backup-*.json file.\n',
     );
-    expect(
-      upgradeMessage('data.json', { changed: true, fromVersion: 2, retiredReceipts: 0, backfilledEvents: 0 }),
-    ).toContain('Undo and Redo history starts empty.');
+    expect(upgradeMessage('data.json', result({ fromVersion: 2 }))).toContain('Undo and Redo history starts empty.');
     // From version 4 the history is preserved, so the reset sentence would be a lie.
-    const fromFour = upgradeMessage('data.json', { changed: true, fromVersion: 4, retiredReceipts: 0, backfilledEvents: 1 });
+    const fromFour = upgradeMessage('data.json', result({ fromVersion: 4, backfilledEvents: 1 }));
     expect(fromFour).toContain('Every Undo and Redo action was preserved.');
     expect(fromFour).toContain('1 activity event gained the captured identity of its target.');
     expect(fromFour).not.toContain('starts empty');
+    expect(upgradeMessage('data.json', UNCHANGED)).toBe('"data.json" is already at schema version 6. Nothing was written.\n');
+  });
+
+  it('reports every Markdown count, in the singular and the plural', () => {
     expect(
-      upgradeMessage('data.json', { changed: false, fromVersion: 5, retiredReceipts: 0, backfilledEvents: 0 }),
-    ).toBe('"data.json" is already at schema version 5. Nothing was written.\n');
+      upgradeMessage('data.json', result({ fromVersion: 5, convertedSections: 8, convertedPayloads: 11, unreadableConfigs: 2, unreachableUpdates: 3 })),
+    ).toBe(
+      'Converted "data.json" from schema version 5 to 6. Every Undo and Redo action was preserved. ' +
+        '8 Rich Text sections and 11 history records became Markdown, with the prose escaped so it reads as it did. ' +
+        '2 converted sections hold content Markdown cannot edit; it is shown read-only with guidance. ' +
+        '3 edits to sections no record holds were left as recorded. ' +
+        'The original is beside it as a .backup-*.json file.\n',
+    );
+    const one = upgradeMessage('data.json', result({ fromVersion: 6, convertedSections: 1, convertedPayloads: 1, unreadableConfigs: 1, unreachableUpdates: 1 }));
+    expect(one).toMatch(/^Converted "data\.json", which was already at schema version 6 but still held retired sections\. /);
+    expect(one).toContain('1 Rich Text section and 1 history record became Markdown');
+    expect(one).toContain('1 converted section holds content');
+    expect(one).toContain('1 edit to a section no record holds was left as recorded.');
+    expect(upgradeMessage('data.json', result({ fromVersion: 5 }))).not.toContain('Markdown');
   });
 });
 

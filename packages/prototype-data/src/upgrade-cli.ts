@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { SCHEMA_VERSION } from '@cwm/contracts';
 import { acquireDataFileOwnership } from '@cwm/repositories';
 import { upgradeActivityIdentity } from './upgrade-activity-identity';
+import { upgradeMarkdownSections } from './upgrade-markdown-sections';
 import { upgradeOperationHistory } from './upgrade-operation-history';
 import { upgradeProjectPages } from './upgrade-project-pages';
 
@@ -13,15 +14,18 @@ import { upgradeProjectPages } from './upgrade-project-pages';
  * starting the host, because a conversion that ran itself is a conversion nobody chose.
  *
  * It sniffs the version first and then runs the named steps in order — version 2 → 3
- * (`upgradeProjectPages`, frozen), version 3 → 4 (`upgradeOperationHistory`, frozen) and version
- * 4 → 5 (`upgradeActivityIdentity`). The sniff comes first because the frozen steps refuse
- * anything newer than the version they read, so the "already current" answer cannot be delegated
- * to them. The chain is explicit: a file at 2 runs 2 → 3 → 4 → 5, a file at 3 runs 3 → 4 → 5, a
- * file at 4 runs 4 → 5, and a file already at 5 is validated and nothing is written. Only the last
- * step validates, and it does so before a byte is written, which is what keeps a broken conversion
- * from destroying the file it exists to preserve.
- * See docs/decisions/2026-09-schema-version-4-conversion.md and
- * docs/decisions/2026-09-schema-version-5-conversion.md.
+ * (`upgradeProjectPages`), version 3 → 4 (`upgradeOperationHistory`), version 4 → 5
+ * (`upgradeActivityIdentity`), each frozen at its own output, and version 5 → 6
+ * (`upgradeMarkdownSections`). The sniff comes first because the version-2 step refuses anything
+ * newer than the version it reads, so the "already current" answer cannot be delegated to it. The
+ * chain is explicit: a file at 2 runs 2 → 3 → 4 → 5 → 6, a file at 5 runs 5 → 6, and a file
+ * already at 6 runs the last step's idempotent conversion — a clean file is validated and nothing
+ * is written; a hand-edited one still holding Rich Text is converted. Only the last step
+ * validates, and it does so before a byte is written, which is what keeps a broken conversion from
+ * destroying the file it exists to preserve.
+ * See docs/decisions/2026-09-schema-version-4-conversion.md,
+ * docs/decisions/2026-09-schema-version-5-conversion.md and
+ * docs/decisions/2026-10-schema-version-6-markdown-conversion.md.
  */
 
 /** Injected so the failure paths — and there are three — are testable without a disk. */
@@ -45,7 +49,27 @@ export interface UpgradeDataFileResult {
   retiredReceipts: number;
   /** Activity events that gained a captured target identity (version 5). */
   backfilledEvents: number;
+  /** Rich Text sections, live or archived, that became Markdown (version 6). */
+  convertedSections: number;
+  /** History records whose Rich Text snapshot or prose edit became Markdown (version 6). */
+  convertedPayloads: number;
+  /** Converted sections whose content Markdown cannot read, shown read-only with guidance. */
+  unreadableConfigs: number;
+  /** Prose edits to a section no record holds any more, left as they were recorded. */
+  unreachableUpdates: number;
 }
+
+const UNCHANGED = {
+  changed: false,
+  retiredReceipts: 0,
+  backfilledEvents: 0,
+  convertedSections: 0,
+  convertedPayloads: 0,
+  unreadableConfigs: 0,
+  unreachableUpdates: 0,
+} as const;
+
+const plural = (count: number, one: string, many: string): string => `${count} ${count === 1 ? one : many}`;
 
 const nodeFileOperations: UpgradeFileOperations = { readFile, writeFile, rename };
 
@@ -75,9 +99,9 @@ export const upgradeDataFile = async (
   }
 
   const fromVersion = versionOf(parsed);
-  if (![2, 3, 4, SCHEMA_VERSION].includes(fromVersion)) {
+  if (![2, 3, 4, 5, SCHEMA_VERSION].includes(fromVersion)) {
     throw new RangeError(
-      `cannot convert schema version ${fromVersion}: this build reads versions 2, 3 and 4 and writes version ${SCHEMA_VERSION}`,
+      `cannot convert schema version ${fromVersion}: this build reads versions 2 to ${SCHEMA_VERSION} and writes version ${SCHEMA_VERSION}`,
     );
   }
 
@@ -86,9 +110,10 @@ export const upgradeDataFile = async (
   // would have destroyed the file it exists to preserve.
   const version3 = fromVersion === 2 ? upgradeProjectPages(parsed).document : parsed;
   const history = upgradeOperationHistory(version3);
-  const { document, changed, backfilledEvents } = upgradeActivityIdentity(history.document);
+  const identity = upgradeActivityIdentity(history.document);
+  const { document, changed, ...markdown } = upgradeMarkdownSections(identity.document);
+  if (!changed) return { ...UNCHANGED, fromVersion };
   const retiredReceipts = history.changed ? history.retiredReceipts : 0;
-  if (!changed && !history.changed) return { changed: false, fromVersion, retiredReceipts: 0, backfilledEvents: 0 };
 
   // The original, kept verbatim, before the target is touched. Not a rollback mechanism —
   // just the copy someone will be glad of.
@@ -98,7 +123,7 @@ export const upgradeDataFile = async (
   const temporaryPath = `${path}.tmp`;
   await fileOperations.writeFile(temporaryPath, `${JSON.stringify(document, null, 2)}\n`, 'utf8');
   await fileOperations.rename(temporaryPath, path);
-  return { changed: true, fromVersion, retiredReceipts, backfilledEvents };
+  return { changed: true, fromVersion, retiredReceipts, backfilledEvents: identity.backfilledEvents, ...markdown };
 };
 
 /**
@@ -126,7 +151,11 @@ export const upgradeDataFileOwned = async (
  */
 export const upgradeMessage = (path: string, result: UpgradeDataFileResult): string => {
   if (!result.changed) return `"${path}" is already at schema version ${SCHEMA_VERSION}. Nothing was written.\n`;
-  const sentences = [`Converted "${path}" from schema version ${result.fromVersion} to ${SCHEMA_VERSION}.`];
+  const sentences = [
+    result.fromVersion === SCHEMA_VERSION
+      ? `Converted "${path}", which was already at schema version ${SCHEMA_VERSION} but still held retired sections.`
+      : `Converted "${path}" from schema version ${result.fromVersion} to ${SCHEMA_VERSION}.`,
+  ];
   if (result.retiredReceipts > 0) {
     const one = result.retiredReceipts === 1;
     sentences.push(
@@ -141,6 +170,21 @@ export const upgradeMessage = (path: string, result: UpgradeDataFileResult): str
     const one = result.backfilledEvents === 1;
     sentences.push(
       `${result.backfilledEvents} activity event${one ? '' : 's'} gained the captured identity of ${one ? 'its' : 'their'} target.`,
+    );
+  }
+  if (result.convertedSections > 0 || result.convertedPayloads > 0) {
+    sentences.push(
+      `${plural(result.convertedSections, 'Rich Text section', 'Rich Text sections')} and ${plural(result.convertedPayloads, 'history record', 'history records')} became Markdown, with the prose escaped so it reads as it did.`,
+    );
+  }
+  if (result.unreadableConfigs > 0) {
+    sentences.push(
+      `${plural(result.unreadableConfigs, 'converted section holds', 'converted sections hold')} content Markdown cannot edit; it is shown read-only with guidance.`,
+    );
+  }
+  if (result.unreachableUpdates > 0) {
+    sentences.push(
+      `${plural(result.unreachableUpdates, 'edit to a section no record holds was', 'edits to sections no record holds were')} left as recorded.`,
     );
   }
   sentences.push('The original is beside it as a .backup-*.json file.');
