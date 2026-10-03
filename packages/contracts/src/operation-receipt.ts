@@ -14,7 +14,7 @@ import { OperationActionIdSchema, OperationHistoryIdSchema } from './ids';
  * The operation kinds a history action can hold, as receipts and summaries name them.
  *
  * Four section kinds from Slice 35, eight row kinds from Slice 36, from Slice 37 the durable
- * `section.restore` plus the four Home shortcut placement kinds, and from Slice 38 the two
+ * `section.restore` plus the four shortcut placement kinds, and from Slice 38 the two
  * optional-page toggles — `page.add` for the enable that creates the record, `page.update` for
  * every later change of its boolean — from Slice 39 the three existing-project writes, and from
  * Slice 42 `project.add`:

@@ -190,7 +190,7 @@ export const CreateSectionShortcutInputSchema = z.strictObject({
   pageId: ProjectPageIdSchema,
   sourceSectionId: SectionIdSchema,
   columnSpan: SectionColumnSpanSchema.optional(),
-  /** §27: insert into Home's combined section/shortcut order; absent, append. */
+  /** §27: insert into the canonical page's combined section/shortcut order; absent, append. */
   position: PositionSchema.optional(),
 });
 export type CreateSectionShortcutInput = z.infer<typeof CreateSectionShortcutInputSchema>;

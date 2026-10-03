@@ -49,7 +49,7 @@ export interface WorkManagerServices {
   shortcuts: SectionShortcutService;
   dashboard: DashboardService;
   workspace: WorkspaceService;
-  /** Per-actor, per-project Undo and Redo over the section, Home shortcut, optional-page, existing-project, task and reflection operations that record history. */
+  /** Per-actor, per-project Undo and Redo over the section, shortcut, optional-page, existing-project, task and reflection operations that record history. */
   history: OperationHistoryService;
 }
 

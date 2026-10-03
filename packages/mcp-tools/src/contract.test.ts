@@ -10,6 +10,7 @@ import {
   PROJECT,
   SEEDED_SHORTCUT,
   SHORTCUT_DESTINATION_PAGE,
+  SHORTCUT_SOURCE_PAGE,
   SHORTCUT_SOURCE_PROJECT,
   SHORTCUT_SOURCE_SECTION,
   TASK_CONTAINER,
@@ -490,6 +491,61 @@ describe('agent-facing workstream vocabulary (§26, §54)', () => {
       const prose = tool.name === 'list_sections' ? tool.description.replaceAll('sub-projects', '') : tool.description;
       expect(prose).not.toMatch(/sub-project|units? of work/i);
     }
+  });
+});
+
+describe('shortcuts on a workstream Work canvas over MCP (Slice 65)', () => {
+  const WORK_PAGE = SHORTCUT_SOURCE_PAGE;
+  const minimal = () => agent(['projects.read', 'projects.write']);
+
+  it('adds, lists, removes and undoes on a workstream with only projects.read and projects.write', async () => {
+    const { registry } = buildHarness();
+    const added = (await registry.call(
+      'add_section_shortcut',
+      { projectId: SHORTCUT_SOURCE_PROJECT, pageId: WORK_PAGE, sourceSectionId: CONTENT_SECTION },
+      minimal(),
+    )) as { shortcut: { id: string; pageId: string }; operation: { historyId: string; actionId: string; revision: number } };
+    expect(added.shortcut.pageId).toBe(WORK_PAGE);
+
+    const listed = (await registry.call('list_section_shortcuts', { projectId: SHORTCUT_SOURCE_PROJECT }, minimal())) as { id: string }[];
+    expect(listed.map(({ id }) => id)).toEqual([added.shortcut.id]);
+
+    const undone = (await registry.call(
+      'undo_operation',
+      { historyId: added.operation.historyId, actionId: added.operation.actionId, expectedRevision: added.operation.revision },
+      minimal(),
+    )) as { result: { operation: string; outcome: string } };
+    expect(undone.result).toMatchObject({ operation: 'shortcut.add', outcome: 'removed' });
+
+    const again = (await registry.call(
+      'add_section_shortcut',
+      { projectId: SHORTCUT_SOURCE_PROJECT, pageId: WORK_PAGE, sourceSectionId: CONTENT_SECTION },
+      minimal(),
+    )) as { shortcut: { id: string } };
+    await expect(registry.call('remove_section_shortcut', { shortcutId: again.shortcut.id }, minimal())).resolves.toMatchObject({
+      projectId: SHORTCUT_SOURCE_PROJECT,
+      pageId: WORK_PAGE,
+    });
+    expect(await registry.call('list_section_shortcuts', { projectId: SHORTCUT_SOURCE_PROJECT }, minimal())).toEqual([]);
+  });
+
+  it('refuses add_section_shortcut on a workstream with projects.read alone, writing nothing', async () => {
+    const { registry, store } = buildHarness();
+    const before = store.snapshot();
+
+    await expect(
+      registry.call('add_section_shortcut', { projectId: SHORTCUT_SOURCE_PROJECT, pageId: WORK_PAGE, sourceSectionId: CONTENT_SECTION }, agent(['projects.read'])),
+    ).rejects.toBeInstanceOf(PermissionDeniedError);
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it('no longer describes shortcuts as Home-only', () => {
+    const { registry } = buildHarness();
+    for (const name of ['list_section_shortcuts', 'add_section_shortcut', 'remove_section_shortcut', 'undo_operation']) {
+      const description = registry.list().find((tool) => tool.name === name)!.description;
+      expect(description).not.toMatch(/root project’s Home page|destination Home page|Home shortcut/);
+    }
+    expect(registry.list().find((tool) => tool.name === 'add_section_shortcut')!.description).toContain('Work canvas');
   });
 });
 

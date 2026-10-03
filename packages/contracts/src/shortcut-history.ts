@@ -5,17 +5,18 @@ import { SectionColumnSpanSchema } from './section';
 import { SectionShortcutSchema } from './section-shortcut';
 
 /**
- * **The four Home shortcut operation payloads** (Slice 37, main §§27, 31): the captured footprint
+ * **The four shortcut operation payloads** (Slice 37, main §§27, 31): the captured footprint
  * of one committed placement write, held by an operation-history action.
  *
  * A shortcut owns **only a placement** (docs/decisions/2026-09-a-shortcut-resolves-identity-not-content.md):
- * where a canonical section is shown on a root's Home page and how that frame looks. So every payload
+ * where a canonical section is shown on a canonical page — a root's Home or a workstream's Work
+ * canvas — and how that frame looks. So every payload
  * here captures the placement record and nothing of the source — no config, no rows, not even the
  * source's title. Undoing an added shortcut deletes a reference; it never touches the section the
  * reference names, and a later edit to that section is therefore not a conflict.
  *
  * Each payload also names its **destination** project explicitly. The placement itself knows only
- * its `pageId`, but the action belongs to the Home project's history — never the source
+ * its `pageId`, but the action belongs to the destination project's history — never the source
  * sub-project's — and `operationProjectOf` has to answer that without a repository read.
  */
 

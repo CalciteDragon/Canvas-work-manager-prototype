@@ -241,7 +241,7 @@ export const operationProjectOf = (operation: UndoOperation): string => {
     case 'project.add':
       return operation.project.id;
     // Every remaining member names its own project, including a shortcut, whose `projectId` is
-    // the **destination** Home project rather than the source sub-project the placement points at,
+    // the **destination** project (a root for Home, a workstream for Work) rather than the source,
     // and a project write, whose `projectId` is the subject itself — never its root, so a reparent
     // that changes the root never moves the action between histories.
     default:

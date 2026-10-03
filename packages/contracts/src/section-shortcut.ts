@@ -7,7 +7,8 @@ import { ProjectSectionSchema, SectionColumnSpanSchema } from './section';
 /**
  * §27's shortcut placement: a **reference**, not a copy.
  *
- * A root's Home may show a section that canonically lives elsewhere in the same root tree —
+ * A project's canonical page — a root's Home or, since Slice 65, a workstream's Work canvas — may
+ * show a section that canonically lives elsewhere in the same root tree —
  * another of its pages, or any sub-project at any depth. The placement stores where it sits
  * and how it looks; the source stores everything else. No rows are copied and the source's
  * `config` is not duplicated, so there is still exactly one owner of the data.
@@ -20,14 +21,14 @@ import { ProjectSectionSchema, SectionColumnSpanSchema } from './section';
 export const SectionShortcutSchema = z.object({
   id: SectionShortcutIdSchema,
 
-  /** The page the placement sits on. Home, in every case 25.4 will allow. */
+  /** The page the placement sits on: its project's canonical page, a root's Home or a workstream's Work (§27). */
   pageId: ProjectPageIdSchema,
 
   /** The canonical section whose content is rendered. Never another shortcut (§27). */
   sourceSectionId: SectionIdSchema,
 
   /**
-   * Layout is the placement's own, which is the point: Home orders its sections and its
+   * Layout is the placement's own, which is the point: the canvas orders its sections and its
    * shortcuts together, and collapsing a placement does not collapse the source.
    */
   position: PositionSchema,
