@@ -8,13 +8,14 @@
  * already deleted section; Slice 35 moves Undo onto the operation-history routes and adds Redo,
  * the sequential A → B chain and branch invalidation over the wire. Slice 37 adds the three
  * operations that had no history until then: section duplication, Archive Restore, and the four
- * Home shortcut placement writes — each reversed and replayed over HTTP. Slice 38 adds the
+ * shortcut placement writes — each reversed and replayed over HTTP. Slice 38 adds the
  * optional-page toggle: a first enable undone to an absent record and redone to the same page id,
  * the boolean reversed both ways, and the exact state read back from the file after a restart.
  * Slice 42 adds project creation Undo/Redo, creator-only absent-project history across a host
  * restart, and the still-valid Activity/document after that history expires.
  * Slice 44 checks the workspace archived-project query and parent-first Archive projection
  * with exact created ids, explicit project status, and the optional Archive page disabled.
+ * Slice 65 places a shortcut on a created workstream's Work canvas and undoes it in that history.
  *
  * Runs against a temporary data file via CWM_DATA_FILE, never the developer's own
  * workspace: an acceptance check that mutates the file you were about to demo is worse
@@ -360,6 +361,22 @@ try {
   check(
     back.length === 1 && back[0].id === shortcutId && back[0].collapsed === true,
     'with the same id and the presentation the last committed update left',
+  );
+
+  // Slice 65: the Kitchen workstream's Work canvas takes a shortcut to a Home section, recorded
+  // in Kitchen's own history, and Undo there removes it.
+  const kitchenWork = (await request('GET', `/api/projects/${child.id}/pages`)).body.find(({ kind }) => kind === 'work').id;
+  const onWork = await request('POST', `/api/projects/${child.id}/shortcuts`, { pageId: kitchenWork, sourceSectionId: HOME });
+  check(
+    onWork.status === 201 && onWork.body.shortcut.pageId === kitchenWork && onWork.body.operation.operation === 'shortcut.add',
+    'a workstream Work canvas takes a shortcut to a Home section',
+  );
+  const kitchenSummary = (await request('GET', `/api/projects/${child.id}/history`)).body;
+  check(kitchenSummary.historyId === onWork.body.operation.historyId, 'the placement is recorded in the workstream’s history');
+  check((await step(onWork.body.operation, 'undo', kitchenSummary.revision)).status === 200, 'Undo on the workstream removes it');
+  check(
+    (await request('GET', `/api/projects/${child.id}/shortcuts`)).body.length === 0,
+    'and the Work canvas holds no placement afterwards',
   );
 
   // Slice 38: the optional-page toggle, on a root created here so its first enable is a first

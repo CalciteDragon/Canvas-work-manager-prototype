@@ -36,7 +36,8 @@ const modernClient = (name) =>
 // both transports, Slice 38 with the optional-page toggle: a first enable undone to an
 // absent record, redone under the same id, and the boolean reversed both ways, and Slice 39 with
 // existing-project writes: a rename, a cross-root reparent, an archive undone while archived and a
-// reactivation, each through its own project's history; Slice 42 adds project creation Undo/Redo.
+// reactivation, each through its own project's history; Slice 42 adds project creation Undo/Redo;
+// Slice 65 adds a workstream Work-canvas shortcut and a forward move refused for splitting one.
 const assertClient = async (client, title, dataFile, foreign, access) => {
   check(client.getProtocolEra() === 'modern', `${title} negotiated 2026-07-28`);
   const listed = await client.listTools();
@@ -419,6 +420,30 @@ const assertRestoreAndShortcuts = async (client, title) => {
     undoneAdd.isError !== true && (await placements()).length === 0,
     `${title} Undo steps back through the removal and then the add`,
   );
+
+  // Slice 65: the workstream's own Work canvas takes a shortcut to an ancestor's Home section,
+  // recorded and undone in the workstream's history — read off list_project_pages, not guessed.
+  const childPages = JSON.parse((await client.callTool({ name: 'list_project_pages', arguments: { projectId: childId } })).content[0].text);
+  const workPageId = childPages.find(({ kind }) => kind === 'work')?.id;
+  check(typeof workPageId === 'string', `${title} list_project_pages names the workstream's Work page`);
+  const onWork = await client.callTool({
+    name: 'add_section_shortcut',
+    arguments: { projectId: childId, pageId: workPageId, sourceSectionId: 'section-project-work-manager-brief' },
+  });
+  check(
+    onWork.isError !== true && onWork.structuredContent.shortcut.pageId === workPageId && receiptOf(onWork)?.operation === 'shortcut.add',
+    `${title} add_section_shortcut places an ancestor section on a workstream's Work canvas`,
+  );
+  const workPlacements = async () =>
+    JSON.parse((await client.callTool({ name: 'list_section_shortcuts', arguments: { projectId: childId } })).content[0].text);
+  check((await workPlacements()).some(({ id }) => id === onWork.structuredContent.shortcut.id), `${title} list_section_shortcuts lists it without a pageId`);
+  const childHistory = (await client.callTool({ name: 'get_operation_history', arguments: { projectId: childId } })).structuredContent;
+  check(childHistory.historyId === receiptOf(onWork).historyId, `${title} the Work placement is in the workstream's own history`);
+  const undoneWork = await client.callTool({
+    name: 'undo_operation',
+    arguments: { historyId: receiptOf(onWork).historyId, actionId: receiptOf(onWork).actionId, expectedRevision: childHistory.revision },
+  });
+  check(undoneWork.isError !== true && (await workPlacements()).length === 0, `${title} undo_operation removes the Work placement`);
 };
 
 /**
@@ -665,6 +690,26 @@ const assertProjectHistory = async (client, foreign, title, dataFile, access) =>
   check((await step(restoreReceipt, 'redo')).isError !== true, `${title} and redoes it while the sub-project is archived`);
   await access.setPermissions('agent-claude', ['projects.read', 'projects.write', 'tasks.read', 'tasks.write', 'reflections.read', 'reflections.write', 'workspace.read']);
   check((await projectOf(child)).status === 'on_hold', `${title} the sub-project ends reactivated`);
+
+  // Slice 65: a placement on the mover's Work canvas whose source is on its current root's Home
+  // splits across roots on a move, so the forward move is refused naming it until it is removed.
+  // A forward move rather than Undo: Undo would first meet the agent's own placement add.
+  const anchor = await client.callTool({ name: 'create_section', arguments: { projectId: second, type: 'markdown', title: 'Anchor' } });
+  const moverWork = JSON.parse((await client.callTool({ name: 'list_project_pages', arguments: { projectId: child } })).content[0].text)
+    .find(({ kind }) => kind === 'work').id;
+  const pinned = await client.callTool({
+    name: 'add_section_shortcut',
+    arguments: { projectId: child, pageId: moverWork, sourceSectionId: anchor.structuredContent.section.id },
+  });
+  check(pinned.isError !== true, `${title} the mover's Work canvas places a section from its current root's Home`);
+  const pinnedId = pinned.structuredContent.shortcut.id;
+  const beforeSplit = await businessState(dataFile);
+  const split = await client.callTool({ name: 'update_project', arguments: { projectId: child, parentProjectId: first } });
+  check(split.isError === true && textOf(split).includes(pinnedId), `${title} a move that would split the placement is refused, naming it`);
+  check((await businessState(dataFile)) === beforeSplit && (await projectOf(child)).parentProjectId === second, `${title} and writes nothing`);
+  check((await client.callTool({ name: 'remove_section_shortcut', arguments: { shortcutId: pinnedId } })).isError !== true, `${title} the placement is removed`);
+  const retried = await client.callTool({ name: 'update_project', arguments: { projectId: child, parentProjectId: first } });
+  check(retried.isError !== true && (await projectOf(child)).parentProjectId === first, `${title} and the retried move succeeds`);
 };
 
 /**
