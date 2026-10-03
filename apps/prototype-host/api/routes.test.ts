@@ -887,6 +887,72 @@ describe('shortcut routes (§27, §68)', () => {
   });
 });
 
+describe('shortcut routes on a workstream Work canvas (Slice 65; §27, §61)', () => {
+  const nestedRoutes = () => buildRoutes(true, buildSeed('nested-projects'));
+  const kitchenWork = 'page-project-kitchen';
+  const gardenBrief = 'section-project-garden-brief';
+  const createOtherRoot = async (routes: ReturnType<typeof nestedRoutes>) => {
+    const renovation = ProjectSchema.parse((await call(routes, 'GET', '/api/projects/project-renovation')).body);
+    return projectFromCreate(
+      (await call(routes, 'POST', '/api/projects', { body: { workspaceId: renovation.workspaceId, kind: 'root', name: 'Other root' } })).body,
+    );
+  };
+
+  it('creates on Kitchen Work in Kitchen history, and lists it with no pageId', async () => {
+    const routes = nestedRoutes();
+
+    const created = await call(routes, 'POST', '/api/projects/project-kitchen/shortcuts', {
+      body: { pageId: kitchenWork, sourceSectionId: gardenBrief },
+    });
+
+    expect(created.status).toBe(201);
+    const { shortcut, operation } = SectionShortcutAddResultSchema.parse(created.body);
+    expect(shortcut).toMatchObject({ pageId: kitchenWork, sourceProjectId: 'project-garden' });
+    expect((await call(routes, 'GET', '/api/projects/project-kitchen/history')).body).toMatchObject({
+      historyId: operation.historyId,
+      undo: { actionId: operation.actionId },
+    });
+    const listed = ResolvedSectionShortcutSchema.array().parse((await call(routes, 'GET', '/api/projects/project-kitchen/shortcuts')).body);
+    expect(listed.map(({ id }) => id)).toEqual([shortcut.id]);
+  });
+
+  it('answers 404 for a cross-root source and 409 for an optional page', async () => {
+    const routes = nestedRoutes();
+    const other = await createOtherRoot(routes);
+    const otherSection = (await call(routes, 'POST', `/api/projects/${other.id}/sections`, { body: { type: 'markdown' } })).body as {
+      section: { id: string };
+    };
+
+    expect(
+      (await call(routes, 'POST', '/api/projects/project-kitchen/shortcuts', {
+        body: { pageId: kitchenWork, sourceSectionId: otherSection.section.id },
+      })).status,
+    ).toBe(404);
+    expect(
+      await call(routes, 'POST', '/api/projects/project-renovation/shortcuts', {
+        body: { pageId: 'page-project-renovation-reflections', sourceSectionId: gardenBrief },
+      }),
+    ).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
+  });
+
+  it('answers 409 naming the Work placement when its workstream would leave the root', async () => {
+    const routes = nestedRoutes();
+    const other = await createOtherRoot(routes);
+    const created = SectionShortcutAddResultSchema.parse(
+      (await call(routes, 'POST', '/api/projects/project-cabinets/shortcuts', {
+        body: { pageId: 'page-project-cabinets', sourceSectionId: gardenBrief },
+      })).body,
+    );
+    const before = await call(routes, 'GET', '/api/projects/project-cabinets');
+
+    const refused = await call(routes, 'PATCH', '/api/projects/project-cabinets', { body: { parentProjectId: other.id } });
+
+    expect(refused).toMatchObject({ status: 409, body: { error: 'rule_violation' } });
+    expect(JSON.stringify(refused.body)).toContain(created.shortcut.id);
+    expect(await call(routes, 'GET', '/api/projects/project-cabinets')).toEqual(before);
+  });
+});
+
 describe('dashboard route', () => {
   it('answers the derived §24 dashboard for the calling persona', async () => {
     const routes = buildRoutes();
