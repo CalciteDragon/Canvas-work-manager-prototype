@@ -10,7 +10,7 @@ Restore writes retain their own current-state validation. See
 Contracts have no runtime of their own; they are parsed at boundaries.
 
 1. **Host load** — `loadPersistence` parses `.prototype/data.json` with
-   `PrototypeDocumentSchema`; the literal `schemaVersion: 5` is part of the schema, so a
+   `PrototypeDocumentSchema`; the literal `SCHEMA_VERSION` (currently 6) is part of the schema, so a
    stale file fails here with a message rather than mid-session.
 2. **Every unit of work** — the repositories validate the whole document again at commit
    (`validateDocumentIntegrity`, in [repositories](../repositories/how.md)), so a rule the

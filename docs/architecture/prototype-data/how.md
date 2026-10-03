@@ -70,6 +70,8 @@
   against; the entity types the builders construct.
 - [repositories](../repositories/overview.md) — the seed CLI writes through the same
   store the host uses.
+- `markdown-it`, test only: `legacy-prose.test.ts` renders encoded prose with the web
+  renderer's options. No source file imports it.
 
 **Depended on by**
 

@@ -44,11 +44,13 @@ const MARKDOWN = 'markdown';
 
 type Row = Record<string, unknown>;
 
+/** Seams for the conversion; production callers pass none. */
 export interface ConvertMarkdownSectionsOptions {
   /** The encoder seam, so the round-trip refusal is testable. */
   encode?: (text: string) => string;
 }
 
+/** The converted collections and what the walk did, before any version logic or validation. */
 export interface MarkdownSectionsConversion {
   sections: Row[];
   operationActions: Row[];
@@ -62,6 +64,7 @@ export interface MarkdownSectionsConversion {
   unreachableUpdates: number;
 }
 
+/** The validated version-6 document and the conversion counts the CLI reports. */
 export interface UpgradeMarkdownSectionsResult extends Omit<MarkdownSectionsConversion, 'sections' | 'operationActions'> {
   document: PrototypeDocument;
   /** False when nothing was rewritten — a clean version-6 file. Orphans alone never set it. */
@@ -211,6 +214,11 @@ export const convertMarkdownSections = (source: Row, options: ConvertMarkdownSec
   };
 };
 
+/**
+ * Version 5 → 6, and the idempotent re-run on 6: converts every Rich Text section and history copy
+ * to Markdown, then validates the final document. Throws `RangeError` for any other version and
+ * `TypeError` for a refused conversion; see the module comment for the rules.
+ */
 export const upgradeMarkdownSections = (input: unknown, options: ConvertMarkdownSectionsOptions = {}): UpgradeMarkdownSectionsResult => {
   const source = asDocument(input);
   if (source.schemaVersion !== SOURCE_VERSION && source.schemaVersion !== TARGET_VERSION) {

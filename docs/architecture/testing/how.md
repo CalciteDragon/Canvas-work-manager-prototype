@@ -122,7 +122,7 @@ paths are in [what](what.md).
 
 - Every system, by construction. Test-only dependencies: `vitest`, `@playwright/test`,
   `@modelcontextprotocol/client`, `storybook`, `@storybook/angular-vite`,
-  `@storybook/addon-themes`, `jsdom`.
+  `@storybook/addon-themes`, `jsdom`, and `markdown-it` in prototype-data (only `legacy-prose.test.ts`'s render proof).
 - [prototype-data](../prototype-data/overview.md) — seeds for every suite and script.
 - [prototype-runtime](../prototype-host/prototype-runtime/overview.md) — `/prototype/seed`
   for the e2e specs.
