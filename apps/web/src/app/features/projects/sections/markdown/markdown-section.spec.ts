@@ -44,6 +44,10 @@ describe('MarkdownSection lazy shell', () => {
     expect(fixture.nativeElement.querySelector('.markdown-placeholder')?.textContent)
       .toBe('  Keep this light. 50% *done*\t\nnext\r\n\\ &amp; &#33;');
   });
+  it('the placeholder keeps a reference the person typed, which the conversion escaped', () => {
+    const { fixture } = render({ markdown: 'write \\&\\#32\\; for a space' });
+    expect(fixture.nativeElement.querySelector('.markdown-placeholder')?.textContent).toBe('write &#32; for a space');
+  });
   it('empty and unreadable configs have an empty placeholder', () => {
     const { fixture } = render({ text: 'keep this' });
     expect(fixture.nativeElement.querySelector('.markdown-placeholder')?.textContent).toBe('');

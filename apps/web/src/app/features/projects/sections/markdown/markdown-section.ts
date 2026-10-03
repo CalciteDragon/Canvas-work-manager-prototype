@@ -13,9 +13,9 @@ import { readMarkdownConfig } from './markdown-config';
  * decoder. Any other entity or syntax stays visible for the brief placeholder moment.
  */
 export const placeholderTextOf = (source: string): string =>
-  source
-    .replace(/\\([!-/:-@[-`{-~\n])/g, '$1')
-    .replace(/&#(32|9|13);/g, (_reference, code: string) => String.fromCharCode(Number(code)));
+  // One pass, so an escaped `\&\#32\;` — a reference the person typed — stays literal text.
+  source.replace(/\\([!-/:-@[-`{-~\n])|&#(32|9|13);/g, (_match, escaped: string | undefined, code: string | undefined) =>
+    escaped ?? String.fromCharCode(Number(code)));
 
 /** Eager section shell; source rendering and editing are deferred into one lazy body. */
 @Component({
