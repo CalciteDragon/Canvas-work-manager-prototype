@@ -22,7 +22,7 @@ import { SectionShortcutSchema } from './section-shortcut';
 
 const shortcutSubject = {
   shortcutId: SectionShortcutIdSchema,
-  /** The destination root project whose history owns this action — never the source's. */
+  /** The destination project (a root for Home, a workstream for Work) whose history owns this action — never the source's. */
   projectId: ProjectIdSchema,
   pageId: ProjectPageIdSchema,
 };
@@ -44,7 +44,7 @@ const assertNoSelfNeighbour = (
 
 const placementShape = {
   version: z.literal(1),
-  /** The destination root project whose history owns this action. */
+  /** The destination project (a root for Home, a workstream for Work) whose history owns this action. */
   projectId: ProjectIdSchema,
   /** The canonical placement record, complete, so Redo recreates it with the same id. */
   shortcut: SectionShortcutSchema,

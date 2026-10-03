@@ -75,6 +75,11 @@ a current read, so a race is verified against the canonical write refusal too.
     archived container; the acceptance script's clock-driven Archive Restore after a removal's
     history expired runs on Streamable HTTP. `mcp/stdio.test.ts` independently proves the stdio
     expiry, Restore and same-file restart through an SDK client with an injected test clock.
+    Slice 65 adds a shortcut on a created workstream's Work canvas, recorded and undone in that
+    workstream's history, to `acceptance`; `mcp-acceptance` places an ancestor section on a
+    workstream's Work canvas (page id read with `list_project_pages`), lists and undoes it, and
+    proves a forward cross-root `update_project` is refused naming a placement it would split, then
+    succeeds once the placement is removed — on both transports.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) first takes the scratch file's owner
    record and copies the current empty seed over it — refused with `data_file_in_use:` if a
    leftover e2e host still owns `.prototype/e2e-data.json`, reclaimed if a hard-killed one left a

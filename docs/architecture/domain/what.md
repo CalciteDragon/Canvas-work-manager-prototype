@@ -124,7 +124,7 @@ sequenceDiagram
 | Task capture, revert and reapply | `src/task-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including subtree and implicit-container effects |
 | Reflection capture, revert and reapply | `src/reflection-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including historical subjects and implicit containers |
 | `snapshotPlacement`, `resolveRestoreIndex`, `findHighestWriteBlocker` | `src/page-placements.ts`, `src/project-visibility.ts` | Neighbour snapshot and restore index; the highest archived project blocking a write |
-| `SectionShortcutService` | `src/section-shortcut-service.ts` | Home placements; identity and availability, never content; records each placement write in the destination project |
+| `SectionShortcutService` | `src/section-shortcut-service.ts` | Placements on a canonical page (Home or Work); identity and availability, never content; records each placement write in the destination project |
 | `TaskService` | `src/task-service.ts` | Create, update, complete, archive (cascading to subtasks), restore, move within a project |
 | `ReflectionService` | `src/reflection-service.ts` | Write, edit, archive, restore; optional subject |
 | `AgentConnectionService` | `src/agent-connection-service.ts` | Permissions and revocation — user actors only; throttled `lastUsedAt` |

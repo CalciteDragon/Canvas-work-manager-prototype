@@ -76,7 +76,8 @@ live section: Archive Restore still needs no receipt to invoke and still never e
 recording it only means the same connection can take it back. `add_section_shortcut` returns
 `{ shortcut, operation }` and `remove_section_shortcut` returns
 `{ shortcutId, projectId, pageId, operation }` — there is no placement left to return — and both
-record into the **destination** root project's history, never the source's. Section duplication and
+record into the **destination** project's history — the root for Home, the workstream for Work —
+never the source's. Section duplication and
 shortcut resize, collapse and move have no tool of their own; they stay HTTP-and-domain operations,
 so the registry holds thirty-eight tools, including the workspace-scoped
 `list_archived_projects` read under `projects.read`.

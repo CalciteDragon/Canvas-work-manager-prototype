@@ -238,6 +238,9 @@ test('a workstream Work canvas takes, resizes, reorders, collapses, undoes and r
   await redoFromHeader(page, 'Moved the Markdown shortcut');
   await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(0);
 
+  // Every placement write so far — add, resize, reorder, collapse, Undo, Redo — left the source alone.
+  expect((await api.get<ProjectSection[]>('/api/projects/project-garden/sections')).find(({ id }) => id === gardenBrief)).toEqual(briefBefore);
+
   // Open source, edit the Garden brief, come back and see the edit on Kitchen's canvas.
   await frame.locator('[data-shortcut-open-source]').click();
   await expect(page).toHaveURL(/\/projects\/project-garden/);

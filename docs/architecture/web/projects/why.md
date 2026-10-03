@@ -79,7 +79,7 @@ header decides availability from **each entry's own** `blockedBy`, never the pro
 an archived project could not undo its own archive
 ([decision](../../../decisions/2026-09-project-header-history-controls.md)).
 
-**Ownership is read from `historyId`, not guessed at the write site.** A task list inside a Home
+**Ownership is read from `historyId`, not guessed at the write site.** A task list inside a
 shortcut writes a row its source sub-project owns, and a restore from root Archive can record in a
 descendant; so a writer reports the response's own project only for wording, and the store compares
 the receipt's history with the one it holds — re-reading when it cannot tell — before saying a step

@@ -1678,9 +1678,11 @@ describe('ProjectPageStore and live updates (§62)', () => {
 
       live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
       await settleLive();
+      // After the reload, a same-root sibling frame must still reach the canvas: the root survived.
+      const revisionAfterReload = store.projectDataRevision();
       live.emit({ type: 'task.updated', entityType: 'task', entityId: 'task-garden-plan', projectId: SIBLING, rootProjectId: ROOT });
       await settleLive();
-      expect(store.projectDataRevision()).toBeGreaterThan(1);
+      expect(store.projectDataRevision()).toBe(revisionAfterReload + 1);
       expect(gateway.shortcuts.list).toHaveBeenLastCalledWith(WORKSTREAM, { pageId: WORK_PAGE });
     });
   });

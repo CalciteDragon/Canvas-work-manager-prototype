@@ -107,7 +107,8 @@ export class ProjectPageStore {
   private readonly pendingTasks = inject(PendingTasks);
   /**
    * The header's history hears about every canvas write (Slice 41). Shortcut writes record in the
-   * destination root — this canvas's project — so their reports name it.
+   * destination project — this canvas's project, the root on Home and the workstream on Work — so
+   * their reports name it.
    */
   private readonly reporter = inject(OPERATION_HISTORY_REPORTER);
 
@@ -856,7 +857,7 @@ export class ProjectPageStore {
       : { ...state, refreshFailed: true });
   }
 
-  /** A shortcut write records in the destination root: this canvas's project. */
+  /** A shortcut write records in the destination project: this canvas's project (root on Home, workstream on Work). */
   private reportedShortcutWrite<T extends { operation: OperationWriteReport['receipt'] }>(write: () => Promise<T>): Promise<T> {
     const projectId = this.requestedProjectId;
     return reportedWrite(this.reporter, write, ({ operation }) => ({ projectId: projectId!, receipt: operation }));

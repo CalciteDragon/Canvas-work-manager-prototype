@@ -75,7 +75,8 @@ flowchart LR
 `project → page → section → row` does not branch (§27): every section names a page,
 every task and reflection names a section, and a subproject's single `work` page is a
 record like any other so that no reader needs an "unless" clause. Shortcuts are
-placements on a root's Home that reference a section elsewhere in the same tree.
+placements on a project's canonical page — a root's Home or a workstream's Work canvas — that
+reference a section elsewhere in the same tree.
 
 ## Inventory
 
@@ -85,7 +86,7 @@ placements on a root's Home that reference a section elsewhere in the same tree.
 | `ProjectSchema`, `isRootProject` | `src/project.ts` | Discriminated union on `kind`; status and `progressFormula` |
 | `ProjectPageSchema`, `NAVIGABLE_PAGE_KINDS` | `src/project-page.ts` | Four root kinds plus `work`; which are tabs |
 | `ProjectSectionSchema`, `SECTION_CAPABILITIES`, `SECTION_CONFIG_SCHEMAS`, `MarkdownConfigSchema`, `sectionConfigRefusal`, `RETIRED_SECTION_TYPES`, `isRetiredSectionType`, `SECTION_OWNERSHIP`, `ownedKindOf`, `nameOf` | `src/section.ts` | Sections, per-type capabilities with the declared prose key for config recovery, the retired types, the container/view split, display names, grid presets |
-| `SectionShortcutSchema` | `src/section-shortcut.ts` | Home placements referencing a source section |
+| `SectionShortcutSchema` | `src/section-shortcut.ts` | Placements on a canonical page (Home or Work) referencing a source section |
 | `TaskSchema` | `src/task.ts` | §33's task; `archivedAt`, `archivedWithSectionId`, `archivedWithTaskId` |
 | `ReflectionSchema` | `src/reflection.ts` | Body, optional title/prompt, optional subject, archive markers |
 | `ActivityEventSchema`, `ActivityActionSchema` | `src/activity.ts` | Actor-attributed events; open `entity.verb` action |
