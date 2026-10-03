@@ -15,6 +15,10 @@ export type SectionColumnSpan = z.infer<typeof SectionColumnSpanSchema>;
  * bare `z.unknown()` let storage hold `[]`, `"text"` or `null` — values no input schema
  * can produce or edit — and made "absent" and "explicitly undefined" the same thing.
  * See docs/decisions/2026-08-section-config-ownership.md.
+ *
+ * The storage shape stays opaque; a type that owns config declares its write shape in
+ * `SECTION_CONFIG_SCHEMAS`, which `SectionService` enforces (Slice 64,
+ * docs/decisions/2026-10-section-config-validated-on-write.md).
  */
 export const SectionConfigSchema = z.record(z.string(), z.unknown());
 export type SectionConfig = z.infer<typeof SectionConfigSchema>;
