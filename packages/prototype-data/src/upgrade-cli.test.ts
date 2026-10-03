@@ -24,7 +24,7 @@ const UNCHANGED = {
   backfilledEvents: 0,
   convertedSections: 0,
   convertedPayloads: 0,
-  unreadableConfigs: 0,
+  discardedConfigs: 0,
   unreachableUpdates: 0,
 };
 
@@ -210,7 +210,7 @@ describe('upgradeDataFile — the chained conversion', () => {
       backfilledEvents: 0,
       convertedSections: 8,
       convertedPayloads: 11,
-      unreadableConfigs: 2,
+      discardedConfigs: 4,
       unreachableUpdates: 1,
     });
     expect(fileOperations.order).toEqual([`write ${BACKUP}`, 'write data.json.tmp', 'rename data.json.tmp -> data.json']);
@@ -282,11 +282,13 @@ describe('upgradeDataFile — the chained conversion', () => {
 
   it('a refused Markdown conversion writes no backup and no temp file', async () => {
     const refused = JSON.parse(await readFile(v5FixturePath, 'utf8')) as Record<string, Row[]>;
-    const section = refused['sections']!.find((candidate) => candidate['type'] === 'rich-text')!;
-    section['config'] = { text: 'prose', markdown: 'collides' };
+    refused['operationActions']!.push({
+      id: 'action-container',
+      operation: { type: 'reflection.add', container: { section: { id: 'section-odd', type: 'rich-text', config: {} } } },
+    });
     const fileOperations = operations(JSON.stringify(refused));
 
-    await expect(upgradeDataFile('data.json', { fileOperations })).rejects.toThrow(/markdown/);
+    await expect(upgradeDataFile('data.json', { fileOperations })).rejects.toThrow(/action-container.*container/);
 
     expect(fileOperations.writeFile).not.toHaveBeenCalled();
     expect(fileOperations.rename).not.toHaveBeenCalled();
@@ -325,18 +327,18 @@ describe('upgradeDataFile — the chained conversion', () => {
 
   it('reports every Markdown count, in the singular and the plural', () => {
     expect(
-      upgradeMessage('data.json', result({ fromVersion: 5, convertedSections: 8, convertedPayloads: 11, unreadableConfigs: 2, unreachableUpdates: 3 })),
+      upgradeMessage('data.json', result({ fromVersion: 5, convertedSections: 8, convertedPayloads: 11, discardedConfigs: 2, unreachableUpdates: 3 })),
     ).toBe(
       'Converted "data.json" from schema version 5 to 6. Every Undo and Redo action was preserved. ' +
         '8 Rich Text sections and 11 history records became Markdown, with the prose escaped so it reads as it did. ' +
-        '2 converted sections hold content Markdown cannot edit; it is kept, and any prose in it is shown read-only with guidance. ' +
+        '2 converted configs held something besides prose; it was dropped. ' +
         '3 edits to sections no record holds were left as recorded. ' +
         'The original is beside it as a .backup-*.json file.\n',
     );
-    const one = upgradeMessage('data.json', result({ fromVersion: 6, convertedSections: 1, convertedPayloads: 1, unreadableConfigs: 1, unreachableUpdates: 1 }));
+    const one = upgradeMessage('data.json', result({ fromVersion: 6, convertedSections: 1, convertedPayloads: 1, discardedConfigs: 1, unreachableUpdates: 1 }));
     expect(one).toMatch(/^Converted "data\.json", which was already at schema version 6 but still held retired sections\. /);
     expect(one).toContain('1 Rich Text section and 1 history record became Markdown');
-    expect(one).toContain('1 converted section holds content');
+    expect(one).toContain('1 converted config held something besides prose; it was dropped.');
     expect(one).toContain('1 edit to a section no record holds was left as recorded.');
     expect(upgradeMessage('data.json', result({ fromVersion: 5 }))).not.toContain('Markdown');
   });

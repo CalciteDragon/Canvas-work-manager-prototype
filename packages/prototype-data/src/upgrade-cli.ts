@@ -53,8 +53,8 @@ export interface UpgradeDataFileResult {
   convertedSections: number;
   /** History records whose Rich Text snapshot or prose edit became Markdown (version 6). */
   convertedPayloads: number;
-  /** Converted sections whose content Markdown cannot read: kept, any prose shown read-only with guidance. */
-  unreadableConfigs: number;
+  /** Converted configs, sections and history alike, that held something besides prose, which was dropped (version 6). */
+  discardedConfigs: number;
   /** Prose edits to a section no record holds any more, left as they were recorded. */
   unreachableUpdates: number;
 }
@@ -65,7 +65,7 @@ const UNCHANGED = {
   backfilledEvents: 0,
   convertedSections: 0,
   convertedPayloads: 0,
-  unreadableConfigs: 0,
+  discardedConfigs: 0,
   unreachableUpdates: 0,
 } as const;
 
@@ -177,9 +177,9 @@ export const upgradeMessage = (path: string, result: UpgradeDataFileResult): str
       `${plural(result.convertedSections, 'Rich Text section', 'Rich Text sections')} and ${plural(result.convertedPayloads, 'history record', 'history records')} became Markdown, with the prose escaped so it reads as it did.`,
     );
   }
-  if (result.unreadableConfigs > 0) {
+  if (result.discardedConfigs > 0) {
     sentences.push(
-      `${plural(result.unreadableConfigs, 'converted section holds', 'converted sections hold')} content Markdown cannot edit; it is kept, and any prose in it is shown read-only with guidance.`,
+      `${plural(result.discardedConfigs, 'converted config', 'converted configs')} held something besides prose; it was dropped.`,
     );
   }
   if (result.unreachableUpdates > 0) {

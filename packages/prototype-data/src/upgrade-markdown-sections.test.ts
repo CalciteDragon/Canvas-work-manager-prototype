@@ -182,20 +182,82 @@ describe('upgradeMarkdownSections', () => {
   });
 
   it('applies each row of the conversion table', () => {
-    const { document, unreadableConfigs } = upgradeMarkdownSections(v5());
+    const input = v5();
+    // Every Rich Text location whose config is more than the plain rename: a key beside `text`, or
+    // no string `text` at all. The fixture holds the extra-key garden brief and the numeric Cabinets.
+    const discarded = proseLocations(input).filter(({ type, config }) => {
+      if (type !== 'rich-text') return false;
+      const keys = Object.keys(config as Row);
+      return keys.length > 0 && !(keys.length === 1 && typeof (config as Row)['text'] === 'string');
+    });
+
+    const { document, discardedConfigs } = upgradeMarkdownSections(input);
     const converted = document as unknown as Row;
     const configOf = (title: string) => sectionsOf(converted).find((section) => section['title'] === title)!['config'];
 
-    // Whitespace-only text is stored raw; `{}` stays `{}`; a non-string `text` is left alone.
+    // Whitespace-only text is stored raw; `{}` stays `{}`; a non-string `text` empties (Slice 64).
     expect(configOf('Blank')).toEqual({ markdown: '  \t' });
     expect(configOf('Empty')).toEqual({});
-    expect(configOf('Numeric')).toEqual({ text: 5 });
-    // `{ text, ...extras }` encodes the prose and keeps every other key.
+    expect(configOf('Numeric')).toEqual({});
+    // `{ text, ...extras }` encodes the prose and drops every other key (Slice 64).
     expect(sectionOf(converted, 'section-project-garden-brief')['config']).toEqual({
       markdown: 'Autumn planting only\\.\\\nStructural work waits for next year\\.',
-      extra: 'kept',
     });
-    expect(unreadableConfigs).toBe(2);
+    expect(discarded.length).toBeGreaterThanOrEqual(2);
+    expect(discardedConfigs).toBe(discarded.length);
+  });
+
+  it('writes only a config Markdown takes, in every converted location (Slice 64)', () => {
+    const input = v5();
+    const { document } = upgradeMarkdownSections(input);
+    const before = proseLocations(input);
+    const after = proseLocations(document as unknown as Row);
+
+    const checked = before.flatMap(({ type }, index) => (type === 'rich-text' ? [after[index]!] : []));
+    expect(checked.length).toBeGreaterThan(15);
+    for (const { path, config } of checked) {
+      const keys = Object.keys(config as Row);
+      const clean = keys.length === 0 || (keys.length === 1 && typeof (config as Row)['markdown'] === 'string');
+      expect(clean, `${path}: ${JSON.stringify(config)}`).toBe(true);
+    }
+  });
+
+  describe('drops what Markdown does not take (Slice 64)', () => {
+    const one = (config: unknown, extra: Row = {}) => {
+      const document = { schemaVersion: 5, sections: [{ id: 'section-x', type: 'rich-text', config, ...extra }], operationActions: [] };
+      const result = convertMarkdownSections(document);
+      return { config: result.sections[0]!['config'], discarded: result.discardedConfigs };
+    };
+
+    it('converts a config that already holds a markdown key, rather than refusing it', () => {
+      expect(one({ text: 'a', markdown: 'b' })).toEqual({ config: { markdown: 'a' }, discarded: 1 });
+    });
+
+    it('empties a config with no string text — a lone markdown key, a non-string text, a non-object', () => {
+      expect(one({ markdown: 'x' })).toEqual({ config: {}, discarded: 1 });
+      expect(one({ text: 5 }, { archivedAt: '2026-09-01T00:00:00.000Z' })).toEqual({ config: {}, discarded: 1 });
+      expect(one('prose')).toEqual({ config: {}, discarded: 1 });
+    });
+
+    it('counts nothing for the plain rename or an empty config', () => {
+      expect(one({ text: 'a' })).toEqual({ config: { markdown: 'a' }, discarded: 0 });
+      expect(one({})).toEqual({ config: {}, discarded: 0 });
+    });
+
+    it('converts an edit that only changed extras into one whose sides are equal, counting both', () => {
+      const document = {
+        schemaVersion: 5,
+        sections: [{ id: 'section-x', type: 'rich-text', config: { text: 'a' } }],
+        operationActions: [
+          { id: 'a1', operation: { type: 'section.update', sectionId: 'section-x', changes: [{ field: 'config', before: { text: 'a', x: 1 }, after: { text: 'a', x: 2 } }] } },
+        ],
+      };
+
+      const result = convertMarkdownSections(document);
+
+      expect(operationOf(result.operationActions[0]!)['changes']).toEqual([{ field: 'config', before: { markdown: 'a' }, after: { markdown: 'a' } }]);
+      expect(result.discardedConfigs).toBe(2);
+    });
   });
 
   it('leaves the orphaned update unconverted and counts it', () => {
@@ -233,13 +295,6 @@ describe('upgradeMarkdownSections', () => {
       expect(() => upgradeMarkdownSections(input)).toThrow(/section "section-1".*(markdown|rich-text).*(markdown|rich-text)/);
     });
 
-    it('when a Rich Text config already holds a markdown key', () => {
-      const input = v5();
-      sectionOf(input, 'section-project-kitchen-brief')['config'] = { text: 'a', markdown: 'b' };
-
-      expect(() => upgradeMarkdownSections(input)).toThrow(/sections\/section-project-kitchen-brief.*markdown/);
-    });
-
     it('when a created container is Rich Text', () => {
       const input = v5();
       actionsOf(input).push({
@@ -266,7 +321,7 @@ describe('upgradeMarkdownSections', () => {
       const again = upgradeMarkdownSections(structuredClone(once));
 
       expect(again).toEqual({
-        document: once, changed: false, convertedSections: 0, convertedPayloads: 0, unreadableConfigs: 0, unreachableUpdates: 1,
+        document: once, changed: false, convertedSections: 0, convertedPayloads: 0, discardedConfigs: 0, unreachableUpdates: 1,
       });
     });
 

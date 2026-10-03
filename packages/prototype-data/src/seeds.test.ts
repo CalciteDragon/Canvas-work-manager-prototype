@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PrototypeDocumentSchema, ownedKindOf, type PrototypeDocument } from '@cwm/contracts';
+import { PrototypeDocumentSchema, ownedKindOf, sectionConfigRefusal, type PrototypeDocument } from '@cwm/contracts';
 import { InMemoryDataStore } from '@cwm/repositories';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PERSONAS } from './personas';
@@ -67,6 +67,12 @@ describe('seed registry and validation', () => {
 
   it.each(SEED_NAMES)('%s seeds no retired Rich Text section (Slice 63)', (seedName) => {
     expect(serialized(buildSeed(seedName))).not.toContain('rich-text');
+  });
+
+  it.each(SEED_NAMES)('%s seeds only section configs their type takes (Slice 64)', (seedName) => {
+    for (const section of buildSeed(seedName).sections) {
+      expect(sectionConfigRefusal(section.type, section.config), section.id).toBeUndefined();
+    }
   });
 
   it.each(SEED_NAMES)('includes all isolated personas in %s', (seedName) => {

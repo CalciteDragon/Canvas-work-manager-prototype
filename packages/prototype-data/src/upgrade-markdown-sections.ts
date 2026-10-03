@@ -20,11 +20,11 @@ import { decodeLegacyProse, encodeLegacyProse } from './legacy-prose';
  * update whose section appears nowhere is an orphan nothing can apply again (both Undo and Redo
  * report it missing), so it is left as it is and counted rather than refused.
  *
- * **What a config becomes.** `{ text }` → `{ markdown: encoded }`; `{}` stays `{}`; `{ text, ...extras }`
- * keeps its extras beside the encoded prose; anything else (a non-string `text`, no `text`) keeps
- * its config under the new type, where Markdown reads it as unreadable and says so. A config that
- * already holds a `markdown` key is refused: it would collide with encoded prose. Every encoding is
- * proven to decode back to its prose before anything is returned.
+ * **What a config becomes.** Only a config Markdown takes (Slice 64): a string `text` becomes
+ * `{ markdown: encoded }` and every other key is dropped; anything without a string `text` becomes
+ * `{}`. Nothing legacy beside the prose was worth keeping, so no converted section is left holding
+ * keys Markdown cannot edit; the drops are counted. Every encoding is proven to decode back to its
+ * prose before anything is returned.
  *
  * **What it preserves.** Everything else: ids, titles, positions, archive state, history ids,
  * orders, states, labels, cursors, revisions and Activity.
@@ -58,8 +58,11 @@ export interface MarkdownSectionsConversion {
   convertedSections: number;
   /** History payloads whose snapshot or config change was rewritten. */
   convertedPayloads: number;
-  /** Converted sections whose config Markdown cannot read: kept as stored, any prose shown with guidance. */
-  unreadableConfigs: number;
+  /**
+   * Converted configs, in any location — sections and history alike — that lost something beyond
+   * the rename: a key beside `text`, or a config with no string `text`, which becomes empty.
+   */
+  discardedConfigs: number;
   /** `section.update` actions whose section no source records, left as they are. */
   unreachableUpdates: number;
 }
@@ -128,15 +131,17 @@ export const convertMarkdownSections = (source: Row, options: ConvertMarkdownSec
     }
   }
 
-  /** One rule for every location; `readable` is whether Markdown can read the result. */
-  const convertConfig = (config: unknown, where: string): { config: unknown; readable: boolean } => {
-    if (!isRow(config)) return { config, readable: false };
-    if (Object.hasOwn(config, MARKDOWN)) {
-      throw new TypeError(`cannot convert ${where}: its ${RICH_TEXT} config already holds a "${MARKDOWN}" key`);
-    }
-    if (Object.keys(config).length === 0) return { config, readable: true };
-    const { text, ...extras } = config;
-    if (typeof text !== 'string') return { config, readable: false };
+  let discardedConfigs = 0;
+  /**
+   * One rule for every location, writing only a config Markdown takes: the encoded prose, or empty.
+   * `discarded` is whether anything else was dropped — a key beside `text`, or a config with no
+   * string `text` at all (Slice 64).
+   */
+  const convertConfig = (config: unknown, where: string): Row => {
+    const keys = isRow(config) ? Object.keys(config) : [];
+    const text = isRow(config) ? config['text'] : undefined;
+    if (!isRow(config) || keys.length > (typeof text === 'string' ? 1 : 0)) discardedConfigs += 1;
+    if (typeof text !== 'string') return {};
     const markdown = encode(text);
     let decoded: string | undefined;
     try {
@@ -145,21 +150,18 @@ export const convertMarkdownSections = (source: Row, options: ConvertMarkdownSec
       decoded = undefined;
     }
     if (decoded !== text) throw new TypeError(`cannot convert ${where}: its encoded prose does not preserve the original`);
-    return { config: { markdown, ...extras }, readable: Object.keys(extras).length === 0 };
+    return { markdown };
   };
 
   const convertSnapshot = (snapshot: Row, where: string): Row =>
-    ({ ...snapshot, type: MARKDOWN, config: convertConfig(snapshot['config'], where).config });
+    ({ ...snapshot, type: MARKDOWN, config: convertConfig(snapshot['config'], where) });
 
   let convertedSections = 0;
-  let unreadableConfigs = 0;
   const convertedSectionRows = sections.map((section) => {
     if (section['type'] !== RICH_TEXT) return section;
     const where = `sections/${String(section['id'])}`;
-    const { config, readable } = convertConfig(section['config'], where);
     convertedSections += 1;
-    if (!readable) unreadableConfigs += 1;
-    return { ...section, type: MARKDOWN, config };
+    return { ...section, type: MARKDOWN, config: convertConfig(section['config'], where) };
   });
 
   let convertedPayloads = 0;
@@ -194,8 +196,8 @@ export const convertMarkdownSections = (source: Row, options: ConvertMarkdownSec
             isRow(change) && change['field'] === 'config'
               ? {
                   ...change,
-                  before: convertConfig(change['before'], `${where}/changes/${index}/before`).config,
-                  after: convertConfig(change['after'], `${where}/changes/${index}/after`).config,
+                  before: convertConfig(change['before'], `${where}/changes/${index}/before`),
+                  after: convertConfig(change['after'], `${where}/changes/${index}/after`),
                 }
               : change),
         },
@@ -209,7 +211,7 @@ export const convertMarkdownSections = (source: Row, options: ConvertMarkdownSec
     operationActions: convertedActions,
     convertedSections,
     convertedPayloads,
-    unreadableConfigs,
+    discardedConfigs,
     unreachableUpdates,
   };
 };
