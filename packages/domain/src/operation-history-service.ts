@@ -499,7 +499,7 @@ const activityTargetFor = (operation: UndoOperation): {
     case 'section.update':
     case 'section.restore':
     // A placement's event names the destination project, never the source sub-project: the
-    // change is to that root's Home canvas, and the source was not written at all.
+    // change is to that project's canonical canvas, and the source was not written at all.
     case 'shortcut.add':
     case 'shortcut.update':
     case 'shortcut.move':

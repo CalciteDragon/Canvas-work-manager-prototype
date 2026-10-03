@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PROJECT_RECORD_EVENT_TYPES, type OperationHistoryDirection, type OperationReceipt, type Project, type ProjectAddOperation, type ProjectId } from '@cwm/contracts';
+import { PROJECT_RECORD_EVENT_TYPES, type OperationHistoryDirection, type OperationReceipt, type Project, type ProjectAddOperation, type ProjectId, type ProjectPageId, type SectionId, type SectionShortcutId } from '@cwm/contracts';
+import { buildSeed } from '@cwm/prototype-data';
 import { agentActorFor, buildHarness, MINE } from '../test/test-support';
 import type { ActorContext } from './actor';
 import { DomainRuleError, PermissionDeniedError } from './errors';
@@ -662,7 +663,7 @@ describe('project history review regressions (Slice 39)', () => {
   });
 });
 
-describe('a reparent reversal refuses a Home shortcut it would carry across roots', () => {
+describe('a reparent reversal refuses a shortcut it would carry across roots', () => {
   it('names the shortcut and writes nothing, then succeeds once it is removed', async () => {
     const h = buildHarness();
     const other = await createRoot(h, 'Other root');
@@ -755,5 +756,75 @@ describe('saved layout and progress options (Slice 45 closure evidence; §§29, 
     expect(state(h)).toEqual(settled);
     await step(h, agentWrite.operation!, 'undo', agent);
     expect(await project(h, MINE)).toMatchObject({ projectLayoutMode: 'grid' });
+  });
+});
+
+/**
+ * Slice 65: the destination end of a Work canvas placement counts for a reparent's Undo and Redo
+ * exactly as it does for the forward write, through the one shared helper.
+ */
+describe('a reparent reversal refuses a Work canvas placement it would split across roots (Slice 65)', () => {
+  const CABINETS = 'project-cabinets' as ProjectId;
+  const CABINETS_WORK = 'page-project-cabinets' as ProjectPageId;
+  const GARDEN_BRIEF = 'section-project-garden-brief' as SectionId;
+  const nested = () => buildHarness(buildSeed('nested-projects'));
+
+  it('refuses Undo while another actor places a new-root section on the moved workstream, then succeeds after its removal', async () => {
+    const h = nested();
+    const other = await createRoot(h, 'Other root');
+    const moved = await h.projectWriteService.update(h.actor, CABINETS, { parentProjectId: other.id });
+    const source = await h.sectionWriteService.add(someoneElse, other.id, { type: 'markdown', title: 'Other notes' });
+    const shortcut = await h.sectionShortcutWriteService.create(someoneElse, CABINETS, { pageId: CABINETS_WORK, sourceSectionId: source.section.id });
+    const before = state(h);
+
+    const refusal = await refusalOf(step(h, moved.operation!));
+    expect(refusal.details).toMatchObject({
+      reason: 'history_conflict',
+      conflicts: [{ entityType: 'shortcut', id: shortcut.shortcut.id, problem: 'shortcut-reference', nextStep: 'remove-reference-and-retry' }],
+    });
+    expect(state(h)).toEqual(before);
+
+    await h.sectionShortcutWriteService.remove(someoneElse, shortcut.shortcut.id);
+    await step(h, moved.operation!);
+    expect((await project(h, CABINETS)).parentProjectId).toBe('project-kitchen');
+  });
+
+  it('refuses Redo after another actor places a same-root source on the workstream it would move away', async () => {
+    const h = nested();
+    const other = await createRoot(h, 'Other root');
+    const moved = await h.projectWriteService.update(h.actor, CABINETS, { parentProjectId: other.id });
+    await step(h, moved.operation!);
+    const shortcut = await h.sectionShortcutWriteService.create(someoneElse, CABINETS, { pageId: CABINETS_WORK, sourceSectionId: GARDEN_BRIEF });
+    const before = state(h);
+
+    const refusal = await refusalOf(step(h, moved.operation!, 'redo'));
+    expect(refusal.details).toMatchObject({
+      reason: 'history_conflict',
+      conflicts: [{ entityType: 'shortcut', id: shortcut.shortcut.id, problem: 'shortcut-reference' }],
+    });
+    expect(state(h)).toEqual(before);
+  });
+
+  it('refuses a creation Undo while the created Work canvas holds a real placement', async () => {
+    const h = nested();
+    const write = await h.projectWriteService.create(h.actor, {
+      workspaceId: h.actor.workspaceId, kind: 'subproject', parentProjectId: 'project-renovation' as ProjectId, name: 'Porch',
+    });
+    const action = await h.operationActions.find(write.operation!.actionId);
+    if (action?.operation.type !== 'project.add') throw new Error('create should record project.add');
+    const work = action.operation.page;
+    await h.shortcuts.insert({
+      id: 'shortcut-porch-brief' as SectionShortcutId, pageId: work.id, sourceSectionId: GARDEN_BRIEF,
+      position: 0, columnSpan: 12, collapsed: false, createdAt: work.createdAt, updatedAt: work.createdAt,
+    });
+
+    const refusal = await preflightProjectAddUndo(projectAddRepositories(h), action.operation, write.operation!.historyId).then(
+      () => { throw new Error('expected an executor refusal'); },
+      (error: unknown) => error,
+    );
+    expect((refusal as OperationExecutionRefused).problem).toMatchObject({
+      kind: 'conflict',
+      conflicts: [expect.objectContaining({ entityType: 'shortcut', id: 'shortcut-porch-brief', problem: 'new-dependent' })],
+    });
   });
 });

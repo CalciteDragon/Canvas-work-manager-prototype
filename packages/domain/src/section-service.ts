@@ -72,7 +72,7 @@ export interface ResolvedContainer {
 
 export interface SectionServiceDependencies {
   sections: SectionRepository;
-  /** §27: section writes share one dense order with Home shortcut placements. */
+  /** §27: section writes share one dense order with the shortcut placements on a canonical page. */
   shortcuts: SectionShortcutRepository;
   projects: ProjectRepository;
   /** §27: a section belongs to a page, so adding one has to resolve or check that page. */
@@ -616,7 +616,7 @@ export class SectionService {
    *
    * Archive inclusion and deletion safety are separate checks. `sectionRecoveryOf` keeps
    * meaningful or uncertain content recoverable; a second canonical-reference check keeps rows
-   * and Home shortcuts from dangling. Old tombstones are never purged by this operation.
+   * and shortcuts from dangling. Old tombstones are never purged by this operation.
    *
    * Deliberately **not** idempotent: a repeated removal is still a refusal, but the exact actor
    * may recover its removal receipt while that removal is still their applied, unexpired action and

@@ -35,8 +35,8 @@ export interface ProjectServiceDependencies {
    */
   pages: ProjectPageRepository;
   /**
-   * Read, never written, to refuse a reparent that would carry a Home shortcut's source out of its
-   * root (§27) — the check `project-history.ts` shares with a reparent's Undo and Redo. Repositories
+   * Read, never written, to refuse a reparent that would split a shortcut's canvas and source across
+   * roots (§27) — the check `project-history.ts` shares with a reparent's Undo and Redo. Repositories
    * for the same reason `pages` is one: a placement service here would be a new edge for a read.
    */
   sections: SectionRepository;
@@ -303,16 +303,16 @@ export class ProjectService {
   }
 
   /**
-   * A move to another root must not take a section an old-root Home shortcut places: that
-   * placement would cross root trees, which commit-time integrity rejects as a defect rather than
-   * a refusal. Naming each placement lets the caller remove it and retry (§§26, 27, 61).
+   * A move to another root must not split a shortcut — its canvas on one side, its source on the
+   * other: that placement would cross root trees, which commit-time integrity rejects as a defect
+   * rather than a refusal. Naming each placement lets the caller remove it and retry (§§26, 27, 61).
    */
   private async assertNoShortcutCarriedAcrossRoots(subject: Project, parentId: ProjectId): Promise<void> {
     const carried = await shortcutsCarriedAcrossRoots(this.dependencies, subject, parentId);
     if (carried.length === 0) return;
     const named = carried.map(({ id }) => `"${id}"`).join(', ');
     throw new DomainRuleError(
-      `project "${subject.id}" cannot move to another root while Home shortcut ${named} on its current root places a section from it; remove that placement first`,
+      `project "${subject.id}" cannot move to another root while shortcut ${named} would cross root trees; remove that placement first`,
     );
   }
 

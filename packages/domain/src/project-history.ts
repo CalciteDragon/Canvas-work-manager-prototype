@@ -51,7 +51,7 @@ import { OperationExecutionRefused, directionWord, refuseOnConflicts } from './o
  * captured business state, not something to regenerate from the transition's clock.
  *
  * The dependency type holds the project repository — the only one written — plus pages, sections
- * and placements, read to refuse a move that would carry a Home shortcut's source out of its root.
+ * and placements, read to refuse a move that would split a shortcut's two ends across roots.
  * No task or reflection repository appears, so a reviewer can see from the signature that a
  * project transition cannot reach a row.
  */
@@ -445,14 +445,16 @@ const rootOf = async (repositories: ProjectHistoryRepositories, projectId: Proje
 };
 
 /**
- * The Home shortcuts moving `subject` under `destinationParentId` would carry across root trees.
+ * The shortcuts moving `subject` under `destinationParentId` would carry across root trees.
  *
- * A move to another root carries every section in the subject's subtree with it, so a Home
- * shortcut on the **old** root that places one of them would cross root trees — a state
- * commit-time integrity rejects. Both the forward write (`ProjectService.update`) and a reparent's
- * Undo or Redo refuse on a non-empty answer, typed, before any write: the placement has to go
- * first. A move within one root, a placement already on the destination root and a broken or
- * cyclic chain (refused elsewhere as not found) all answer empty.
+ * A move to another root carries the subject's whole subtree — its sections and its Work canvases
+ * — with it. Since Slice 65 a placement's destination can be a workstream's Work canvas as well as
+ * a root's Home, so either end may be inside: a placement with **exactly one** end in the subtree
+ * would cross root trees, a state commit-time integrity rejects. Both the forward write
+ * (`ProjectService.update`) and a reparent's Undo or Redo refuse on a non-empty answer, typed,
+ * before any write: the placement has to go first. A move within one root, a placement with both
+ * ends inside or both outside, and a broken or cyclic chain (refused elsewhere as not found) all
+ * answer empty.
  */
 export const shortcutsCarriedAcrossRoots = async (
   repositories: ProjectHistoryRepositories,
@@ -474,10 +476,14 @@ export const shortcutsCarriedAcrossRoots = async (
   }
   const carried: SectionShortcut[] = [];
   for (const shortcut of await repositories.shortcuts.list()) {
-    // A placement's destination is its Home page's root; one already on the new root stays legal.
-    if ((await repositories.pages.find(shortcut.pageId))?.projectId === to) continue;
-    const source = await repositories.sections.find(shortcut.sourceSectionId);
-    if (source !== null && subtree.has(source.projectId)) carried.push(shortcut);
+    // Integrity keeps every stored placement same-root, so a cross-root move breaks exactly the
+    // ones it splits: both ends inside travel together, both outside stay together.
+    const [page, source] = await Promise.all([
+      repositories.pages.find(shortcut.pageId),
+      repositories.sections.find(shortcut.sourceSectionId),
+    ]);
+    if (page === null || source === null) continue;
+    if (subtree.has(page.projectId) !== subtree.has(source.projectId)) carried.push(shortcut);
   }
   return carried;
 };
