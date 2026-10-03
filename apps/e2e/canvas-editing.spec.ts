@@ -181,6 +181,85 @@ test('markdown shortcut renders read-only', async ({ page }) => {
   await expect(frame.locator('[data-markdown-edit]')).toHaveCount(0);
 });
 
+/**
+ * Slice 65: a workstream's Work canvas takes a shortcut the way a root's Home does, and the action
+ * is the workstream's — its header, its history, never the root's or the source's.
+ */
+test('a workstream Work canvas takes, resizes, reorders, collapses, undoes and removes a shortcut', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  const work = await pageId(KITCHEN, 'work');
+  const gardenBrief = 'section-project-garden-brief';
+  const briefBefore = (await api.get<ProjectSection[]>('/api/projects/project-garden/sections')).find(({ id }) => id === gardenBrief)!;
+  const actionLabels = async (projectId: string): Promise<string[]> => {
+    const summary = await api.get<{ undo: { label: string } | null; redo: { label: string } | null }>(`/api/projects/${projectId}/history`);
+    return [summary.undo?.label, summary.redo?.label].filter((label): label is string => label !== undefined);
+  };
+  await page.goto(`/projects/${KITCHEN}`);
+
+  // Add at a chosen insertion point: before Kitchen's Task List, the second placement.
+  await page.locator(`app-insertion-point[data-insertion-point="before"][data-before-id="section-${KITCHEN}-tasks"] [data-insertion-point-button]`).click();
+  await page.locator('[data-create-shortcut-mode]').click();
+  const option = page.locator('[data-shortcut-source-option]').filter({ hasText: 'Home renovation / Garden' }).filter({ hasText: 'Markdown' }).first();
+  await expect(option).toContainText('Home renovation / Garden');
+  const created = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith(`/api/projects/${KITCHEN}/shortcuts`));
+  await option.locator('[data-shortcut-add]').click();
+  const shortcutId = ((await (await created).json()) as { shortcut: { id: string } }).shortcut.id;
+  await expect(page.locator('[data-section-create-dialog]')).toHaveCount(0);
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Added the Markdown shortcut');
+  await expect(page.getByText(/recorded in .* history/)).toHaveCount(0);
+  expect(await actionLabels(KITCHEN)).toContain('Added the Markdown shortcut');
+  expect(await actionLabels(HOME_RENOVATION)).not.toContain('Added the Markdown shortcut');
+  expect(await actionLabels('project-garden')).not.toContain('Added the Markdown shortcut');
+  await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(1);
+
+  const frame = page.locator(`[data-shortcut-item][data-shortcut-id="${shortcutId}"]`);
+  await expect(frame.locator('[data-shortcut-source]')).toContainText('Home renovation / Garden');
+  await expect(frame).toContainText('Autumn planting only');
+  await expect(frame.locator('[data-markdown-edit]')).toHaveCount(0);
+
+  // Resize by keyboard, then reorder by keyboard, then collapse.
+  const resizeHandle = frame.locator('app-section-resize-handle[data-edge="end"] [data-resize-handle]');
+  await resizeHandle.press('ArrowLeft');
+  await resizeHandle.press('Enter');
+  await expect.poll(async () => (await orderOf(KITCHEN, work)).find(({ id }) => id === shortcutId)?.columnSpan).toBe(8);
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Resized the Markdown shortcut');
+  const handle = frame.locator('[data-shortcut-drag-handle]');
+  await handle.press('ArrowUp');
+  await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(0);
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Moved the Markdown shortcut');
+  await frame.locator('[data-shortcut-collapse]').click();
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Collapsed the Markdown shortcut');
+
+  // Header Undo and Redo on Kitchen, one step at a time.
+  await undoFromHeader(page, 'Collapsed the Markdown shortcut');
+  await undoFromHeader(page, 'Moved the Markdown shortcut');
+  await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(1);
+  await redoFromHeader(page, 'Moved the Markdown shortcut');
+  await expect.poll(async () => (await orderOf(KITCHEN, work)).findIndex(({ id }) => id === shortcutId)).toBe(0);
+
+  // Open source, edit the Garden brief, come back and see the edit on Kitchen's canvas.
+  await frame.locator('[data-shortcut-open-source]').click();
+  await expect(page).toHaveURL(/\/projects\/project-garden/);
+  const source = page.locator(`[data-section-item][data-section-id="${gardenBrief}"]`);
+  await source.locator('[data-markdown-edit]').click();
+  await source.locator('[data-markdown-source]').fill('Autumn planting, edited from its own canvas.');
+  await source.locator('[data-markdown-save]').click();
+  await expect(source.locator('[data-markdown-source]')).toHaveCount(0);
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`/projects/${KITCHEN}`));
+  await expect(frame).toContainText('Autumn planting, edited from its own canvas.');
+
+  // Remove; the source is exactly what its own edit left, and the placement never wrote it.
+  const briefEdited = (await api.get<ProjectSection[]>('/api/projects/project-garden/sections')).find(({ id }) => id === gardenBrief)!;
+  expect(briefEdited.config).not.toEqual(briefBefore.config);
+  await frame.locator('[data-shortcut-remove]').click();
+  await expect(frame).toHaveCount(0);
+  await expect(historyControl(page, 'undo')).toHaveAttribute('aria-label', 'Undo: Removed the Markdown shortcut');
+  expect((await orderOf(KITCHEN, work)).some(({ id }) => id === shortcutId)).toBe(false);
+  expect((await api.get<ProjectSection[]>('/api/projects/project-garden/sections')).find(({ id }) => id === gardenBrief)).toEqual(briefEdited);
+});
+
 test('the navigation column follows the viewport and keeps long and narrow navigation reachable', async ({ page }) => {
   await seed('empty');
   await setClock(PINNED_NOW);

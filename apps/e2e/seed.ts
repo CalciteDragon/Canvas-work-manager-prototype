@@ -114,7 +114,8 @@ export const addSection = async (projectId: string, input: CreateSectionInput): 
   (await api.post<SectionAddResult>(`/api/projects/${projectId}/sections`, input)).section;
 
 /**
- * Place a shortcut on a root's Home page, unwrapping the `{ shortcut, operation }` envelope the
+ * Place a shortcut on a project's canonical page — a root's Home or a workstream's Work canvas —
+ * unwrapping the `{ shortcut, operation }` envelope the
  * write has answered since Slice 37. Journeys about placement care about the placement.
  */
 export const addShortcut = async (
