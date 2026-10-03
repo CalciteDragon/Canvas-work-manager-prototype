@@ -289,11 +289,10 @@ export const validateDocumentIntegrity = (input: unknown): PrototypeDocument => 
       fail(`section shortcut "${shortcut.id}" has missing page "${shortcut.pageId}"`);
     const destination = projects.get(page.projectId) ??
       fail(`page "${page.id}" has missing project "${page.projectId}"`);
-    if (page.kind !== 'home') {
-      fail(`section shortcut "${shortcut.id}" must be placed on a Home page`);
-    }
-    if (destination.kind !== 'root') {
-      fail(`section shortcut "${shortcut.id}" must be placed on a root project's Home`);
+    // A root's Home or a workstream's Work canvas (Slice 65), never an optional page: the
+    // canonical page is the one canvas every project has and every placement hangs from.
+    if (page.kind !== canonicalPageKindFor(destination.kind)) {
+      fail(`section shortcut "${shortcut.id}" must be placed on its project's canonical page`);
     }
 
     const source = sections.get(shortcut.sourceSectionId) ??

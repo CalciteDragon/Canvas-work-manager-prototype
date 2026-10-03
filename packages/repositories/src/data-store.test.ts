@@ -1550,7 +1550,45 @@ describe('page ownership integrity', () => {
       }),
     );
     nonHome.sectionShortcuts[0]!.pageId = 'page-reflections' as never;
-    expect(() => new InMemoryDataStore(nonHome)).toThrow(/must be placed on a Home page/);
+    expect(() => new InMemoryDataStore(nonHome)).toThrow(/must be placed on its project's canonical page/);
+  });
+
+  it('accepts a same-root shortcut on a workstream Work canvas and rejects a cross-root one (Slice 65)', () => {
+    const work = subprojectDocument();
+    work.sectionShortcuts.push(
+      PrototypeDocumentSchema.shape.sectionShortcuts.element.parse({
+        id: 'shortcut-on-work',
+        pageId: 'page-child',
+        sourceSectionId: 'section-1',
+        position: 0,
+        columnSpan: 12,
+        collapsed: false,
+        createdAt: at,
+        updatedAt: at,
+      }),
+    );
+    expect(() => new InMemoryDataStore(work)).not.toThrow();
+
+    const crossRoot = structuredClone(work);
+    crossRoot.projects.push(
+      PrototypeDocumentSchema.shape.projects.element.parse({
+        ...crossRoot.projects[0],
+        id: 'project-other-root',
+        name: 'Other root',
+      }),
+    );
+    crossRoot.projectPages.push(page({ id: 'page-other-home', projectId: 'project-other-root', kind: 'home' }));
+    crossRoot.sections.push(
+      PrototypeDocumentSchema.shape.sections.element.parse({
+        ...crossRoot.sections[0],
+        id: 'section-other-root',
+        projectId: 'project-other-root',
+        pageId: 'page-other-home',
+        position: 0,
+      }),
+    );
+    crossRoot.sectionShortcuts[0]!.sourceSectionId = 'section-other-root' as never;
+    expect(() => new InMemoryDataStore(crossRoot)).toThrow(/crosses root project trees/);
   });
 });
 
