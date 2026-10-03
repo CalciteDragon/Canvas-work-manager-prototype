@@ -1,4 +1,4 @@
-<!-- plan id="63" status="active" summary="Preserve current and historical prose through schema v6, regenerate seeds and retire Rich Text" -->
+<!-- completed-record id="63" closed="2026-10-03" summary="Rich Text converted to Markdown at schema v6 with history intact; Rich Text retired on create and load" -->
 # Slice 63 — Rich Text to Markdown conversion and retirement (Slice 59 Stage C2)
 
 ## Goal
@@ -601,3 +601,84 @@ Changes made:
 - the open question lists `CreatedContainer` Redo as a recreation path.
 
 The plan is cleared for implementation.
+
+**Implementation review** (three independent reviewers against `630e4ba..HEAD`, Step 4):
+- *Correctness* fuzzed 200,000 strings through the encoder and markdown-it and 200,000 sources through
+  the decoder, with no failure. One real bug: the placeholder stripped escapes and then decoded
+  references, turning a typed `&#32;` into a space. Fixed with a single-pass replace and a test.
+- *Spec and acceptance* found every test-plan and acceptance item satisfied and accepted the
+  deviations below. Low items fixed: the deep-equal method could not see a changed non-Rich-Text
+  config (a new test asserts every other location, the orphan included, is untouched); the decode
+  test skipped `section.update` values (now included, six of them); the CLI overstated what a
+  `{ text: 5 }` section shows (now "kept, and any prose in it is shown"); acceptance 6 had no
+  shortcut-level test (added to `shortcut-frame.spec.ts`).
+- *Boundaries and living docs* found every boundary intact and all lints green. Fixed: a stale
+  `schemaVersion: 5` literal in `contracts/how.md`, missing doc comments on the converter's exports,
+  and `markdown-it` unlisted as a test-only dependency.
+
+## Outcome
+
+**Deliverables.** Schema version 6 exists and every supported file reaches it.
+[`legacy-prose.ts`](../../../packages/prototype-data/src/legacy-prose.ts) escapes old textarea prose by
+one fixed rule with an exact inverse, proven by a hostile round-trip table and a markdown-it render
+proof (paragraph, text and break tokens only).
+[`upgradeMarkdownSections`](../../../packages/prototype-data/src/upgrade-markdown-sections.ts) converts
+live and archived sections, `section.add`/`section.remove` snapshots and `section.update` config edits;
+leaves and counts orphaned edits; refuses type conflicts, `markdown`-key collisions, Rich Text
+containers and any encoding that fails to round-trip; and re-runs idempotently on v6. The v4 → v5
+step is frozen at literal 5, and `pnpm prototype:upgrade` chains 2 → 6 and reports four counts.
+Rich Text is retired: `RETIRED_SECTION_TYPES` in contracts, a `DomainRuleError` from
+`SectionService.add` on every surface (after the grant check, before any lookup), store integrity
+refusing it in sections and every recreating snapshot, no web registration (Markdown is first of
+seven), Markdown seed briefs. Markdown's unreadable state shows prose it still holds read-only, and
+the placeholder no longer flashes escapes. The frozen fixture
+[`history-v5-rich-text.json`](../../../packages/prototype-data/test/fixtures/history-v5-rich-text.json)
+was produced once by the real domain (provenance beside it).
+
+Verified: 3,056 offline tests (`pnpm test`), 104/104 browser journeys, the four host acceptance
+scripts, `pnpm lint` and `docs:check`, Storybook build, and an initial bundle of about 1,028 kB under
+the unchanged 1,050,000-byte ceiling. Actual use converted the developer's `.prototype/data.json`
+(2 sections, 4 history records, backup kept; a repeat run wrote nothing): `"test\naaa"` renders on two
+lines, its converted edit Undoes and Redoes under the stored "Edited prose" label (clock set back with
+the dev panel because the real history had expired), and Archive Restore returns it intact. A scratch
+copy of the converted fixture on nested-projects showed Markdown-looking legacy prose rendering
+literally, and the unreadable Garden brief readable on its page and through a read-only Home
+shortcut, at 375 px in dark and light with no horizontal scroll.
+
+**Deliberate choices.** All recorded in
+[Schema version 6 converts Rich Text to Markdown and retires it](../../decisions/2026-10-schema-version-6-markdown-conversion.md):
+escape everything rather than context-sensitive escaping (user), the new type's name for untitled
+sections (user), whitespace-only prose stored raw for recovery parity, orphans left rather than
+refused, refusal in the domain rather than the input schema (§30 keeps the type open), and the
+accepted rendering losses (collapsed whitespace, NUL). Amendments note C2 on the Markdown, schema-v5,
+history-label and Archive-policy decisions.
+
+**Deviations from the plan.**
+- Recovery parity and converted-history Undo/Redo are proven in
+  [`markdown-conversion.test.ts`](../../../packages/domain/src/markdown-conversion.test.ts) in the domain,
+  not in prototype-data, which cannot depend on the domain without a cycle. The host acceptance test
+  repeats the history proof over real files through the CLI subprocess.
+- `convertMarkdownSections` is exported (not from the package index) so the container-typing case can
+  be tested on a partial document — the same pattern as `captureActivityIdentities`.
+- `placeholderTextOf` also strips a backslash before a line break, or converted multi-line prose
+  would flash a trailing `\`.
+- A v6 re-run opens its message with "…already at schema version 6 but still held retired sections"
+  rather than "from 6 to 6".
+- No plain-JSON edits were needed for the fixture's malformed configs: the domain wrote all of them.
+- Two existing tests that asserted literal schema 5 now assert `SCHEMA_VERSION`; they test the current
+  stored version, not a frozen step.
+
+**Deferred.** Nothing from this slice's scope. The friction below is for a later slice if it recurs.
+
+**Open questions.**
+- Editing converted prose shows its escapes (`test\`, `\.`, `\,`) — the accepted cost of escaping
+  everything, but visible noise a person did not type
+  ([`note-2026-10-02-002`](../../../.prototype/notes.json)). A one-time "clean up escapes" action on
+  Edit is a candidate if it bothers real use.
+- The unreadable note gives no next step for someone who wants to edit that content (`note-2026-10-02-003`).
+- Slice 62's Preview-label friction remains open, as planned.
+
+**Documentation updated.** The decision entry, four dated amendments and the index; the spec's §14,
+§29–31 and folder tree; `docs/architecture/` contracts, domain, repositories, prototype-data,
+mcp-tools, testing, web/projects and the root files; `docs/guides/mcp-setup.md` and
+`first-milestone-walkthrough.md`; `README.md`; `AGENTS.md` (schema version 6); the fixture README.

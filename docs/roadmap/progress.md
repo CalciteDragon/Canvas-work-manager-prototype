@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 63 | Slice 63 — Rich Text to Markdown conversion and retirement (Slice 59 Stage C2) | Preserve current and historical prose through schema v6, regenerate seeds and retire Rich Text | [63-rich-text-to-markdown-conversion.md](active/63-rich-text-to-markdown-conversion.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -101,4 +99,5 @@ verification follow-ups rather than feature slices.
 | 60 | Slice 60 — Workstream vocabulary and project-column controls (Slice 59 Stage A) | 2026-09-30 | Workstream vocabulary, root-name page settings and explicit-parent Work creation delivered with reviewed desktop, touch, live and MCP evidence | [60-workstream-navigation-controls.md](completed/60-workstream-navigation-controls.md) |
 | 61 | Slice 61 — Reversible task checkbox and click selection (Slice 59 Stage B) | 2026-10-01 | Task checkboxes complete and reopen in Task Lists and Todos; titles select, drawer titles edit, and keyboard focus survives toggles and closing | [61-task-reopen-and-selection.md](completed/61-task-reopen-and-selection.md) |
 | 62 | Slice 62 — Markdown section, safe renderer and source editor (Slice 59 Stage C1) | 2026-10-02 | Safe Markdown authoring beside Rich Text; deferred panel controls keep the initial bundle at 1,032,388 bytes; all 104 browser tests pass | [62-markdown-section.md](completed/62-markdown-section.md) |
+| 63 | Slice 63 — Rich Text to Markdown conversion and retirement (Slice 59 Stage C2) | 2026-10-03 | Rich Text converted to Markdown at schema v6 with history intact; Rich Text retired on create and load | [63-rich-text-to-markdown-conversion.md](completed/63-rich-text-to-markdown-conversion.md) |
 <!-- roadmap:end -->

@@ -74,8 +74,12 @@ recorded. Stage C (Markdown) is split in two:
 rendering beside Rich Text. Independent review findings are resolved; 2,913 offline tests, all
 104 browser tests and actual browser/HTTP MCP use passed. The approved panel-control deferral
 keeps the initial bundle at 1,032,388 bytes under the unchanged ceiling.
-[Slice 63](active/63-rich-text-to-markdown-conversion.md) (C2) is active: it converts stored Rich Text and
-history to schema v6 and retires the old type.
+[Slice 63](completed/63-rich-text-to-markdown-conversion.md) completed C2: every Rich Text section and
+history copy converted to Markdown at schema v6 by an exactly reversible escape-everything rule,
+with Undo/Redo, labels and Archive recovery intact, and Rich Text refused on create and load.
+Independent review findings are resolved; 3,056 offline tests, all 104 browser tests and the four
+host acceptance scripts passed, the developer's data file was converted in real use, and the
+initial bundle is about 1,028 kB under the unchanged ceiling. Stage C is complete.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed
