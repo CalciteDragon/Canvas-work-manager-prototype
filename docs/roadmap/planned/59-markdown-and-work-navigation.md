@@ -187,6 +187,11 @@ history must recreate only Markdown. Check build budget before closing C.
 
 ### D — Shortcuts on Work canvases
 
+**Stage D is planned as [Slice 65](../active/65-work-canvas-shortcuts.md)** (active, 2026-10-02).
+Its plan resolves this stage's open question: a shortcut is a canonical section reference on the
+workstream's Work canvas, with sources at any depth of the same root. It also widens the reparent
+rule to refuse any placement with exactly one end in the moving subtree.
+
 Read §§27, 30–32, 54, 61–63 and contracts, domain, repositories, mcp-tools and web/projects.
 Generalize destination eligibility to root Home or its owner's canonical Work page; omitted
 page resolves that owner's canonical page. Source checks compare the roots of **both** owners,

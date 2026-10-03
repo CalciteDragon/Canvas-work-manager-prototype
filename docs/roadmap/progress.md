@@ -13,7 +13,9 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
+| Slice | Title | Summary | Plan |
+|---|---|---|---|
+| 65 | Slice 65 — Shortcuts on Work canvases (Slice 59 Stage D) | Section shortcuts placed on a workstream's Work canvas from same-root sources, with destination-owned history and both-end reparent safety | [65-work-canvas-shortcuts.md](active/65-work-canvas-shortcuts.md) |
 
 ### Planned
 
