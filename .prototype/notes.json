@@ -1017,6 +1017,22 @@
       "projectId": "project-kitchen",
       "slice": 62,
       "note": "Markdown real use at 375 px and narrow Grid: Preview keeps the same button label when showing rendered output. I had to use its pressed state to infer that clicking Preview again returns to Source; a Source label or separate tabs may make that return easier to discover. Save, Archive Restore and the live MCP changed-elsewhere notice preserved exact source and my draft."
+    },
+    {
+      "id": "note-2026-10-02-002",
+      "createdAt": "2026-10-03T00:15:46.278Z",
+      "route": "/projects/project-d9458024",
+      "projectId": "project-d9458024",
+      "slice": 63,
+      "note": "Converted Rich Text real use: the upgraded data.json renders \"test\" and \"aaa\" on two lines, and its converted prose edit Undoes and Redoes with the stored \"Edited prose in the a section\" label (clock set back with the dev panel, since the real history had expired). Archive Restore returns it intact. Opening Edit shows the escaped source — \"test\\\" then \"aaa\" — so a trailing backslash, and in punctuated prose every \"\\.\" and \"\\,\", is visible while editing. Accepted by the escape-everything decision, but a person editing old notes will see noise they did not type."
+    },
+    {
+      "id": "note-2026-10-02-003",
+      "createdAt": "2026-10-03T00:15:46.278Z",
+      "route": "/projects/project-renovation",
+      "projectId": "project-renovation",
+      "slice": 63,
+      "note": "Converted v5 fixture on nested-projects at 375 px, dark and light: Markdown-looking legacy prose (# heading, 1. list, | table |, <b>, &amp;) renders literally with its line breaks and no structure, and nothing scrolls sideways. The read-only shortcut to the Garden brief that kept an extra key shows its prose above the \"isn't Markdown source\" note with no Edit — readable, though the note gives no next step for someone who wants to edit it."
     }
   ]
 }
