@@ -1,4 +1,4 @@
-<!-- plan id="64" status="active" summary="Each section type's config shape lives in contracts; the domain refuses a config that does not match it, and the v6 converter writes only clean Markdown configs" -->
+<!-- completed-record id="64" closed="2026-10-03" summary="Markdown config is exactly { markdown } or empty, refused otherwise on every write; the v6 converter drops extras" -->
 # Slice 64 — Section configs validated by type
 
 ## Goal
@@ -204,14 +204,62 @@ and the CLI says how many lost keys. The web no longer has a prose-beside-extras
 
 ## Outcome
 
-**Deliverables** —
+**Deliverables** — A Markdown section can be written only with `{}` or exactly `{ markdown: string }`.
+[`MarkdownConfigSchema`, `SECTION_CONFIG_SCHEMAS` and `sectionConfigRefusal`](../../../packages/contracts/src/section.ts)
+define the shape once. [`SectionService`](../../../packages/domain/src/section-service.ts) refuses
+anything else on `add` and `update` with a `DomainRuleError` that names the offending key, so MCP,
+HTTP (409 `rule_violation`) and the browser all get the same answer.
 
-**Deliberate choices** —
+The [v5 → v6 converter](../../../packages/prototype-data/src/upgrade-markdown-sections.ts) writes only
+those two shapes. It drops extras, empties a config with no string `text`, and reports
+`discardedConfigs` per location through the CLI. The web Markdown section's unreadable state shows
+only its guidance note.
+
+Run live against a scratch copy of `nested-projects` (never the user's data file):
+
+- MCP `create_section` and `update_section` refused an extra key and a non-string `markdown` with
+  that sentence, and accepted the exact config.
+- The agent-made section rendered with Edit in the browser, and a browser edit stored exactly
+  `{ markdown }`.
+
+Every suite in `pnpm test` passed (contracts 364, repositories 196, web 967, prototype-data 249,
+domain 831, mcp-tools 177, host 290), and `pnpm lint` and `pnpm docs:check` are green.
+
+**Deliberate choices** — The decisions below are recorded in
+[the decision](../../decisions/2026-10-section-config-validated-on-write.md).
+
+- **Markdown only.** The user chose this: the six other types read no config.
+- **Enforced in the domain, not typed in the input schema.** This keeps §30's open type string.
+- **Every incoming Markdown config is checked**, even an identical re-send of a stored bad one.
+- **Undo, Redo, Restore and Duplicate stay unchecked.** They reproduce existing state; a test pins
+  Duplicate's behaviour.
+- **The converter drops instead of keeping.** The user chose this: nothing legacy was worth saving.
+  An archived malformed section may therefore convert to empty and unlisted. This is accepted and
+  counted among the discarded configs.
 
 **Deviations from the plan** —
 
-**Deferred** —
+- `apps/prototype-host/recovery-undo-acceptance.test.ts` asserted the old CLI sentence. The plan's
+  file list missed it, and the full suite caught it.
+- Review added three small fixes: the `SectionConfigSchema` doc comment, a note on the
+  [Slice 59 umbrella](../planned/59-markdown-and-work-navigation.md) whose C2 guidance this
+  supersedes, and softer "only a hand edit" wording. Undo and Redo can still replay pre-Slice-64
+  history.
+- The e2e spec was edited (`tone` dropped) but `pnpm e2e` was not run.
 
-**Open questions** —
+**Deferred** — Nothing from this slice. A store-level refusal or a cleanup of malformed Markdown
+configs waits until a real file holds one. A schema for any other type waits until that type reads
+config.
+
+**Open questions** — `note-2026-10-02-002` remains open: clicking Edit on converted prose shows its
+escapes.
 
 **Documentation updated** —
+
+- **Decisions:** the new entry and its index row; dated amendments to the 2026-08 config-ownership,
+  Markdown-source and schema-v6 decisions.
+- **Spec:** §14, §29 and §30.
+- **Architecture:** contracts how/what/why, domain how/why, mcp-tools how/why, prototype-data
+  how/why, web/projects how/why.
+- **Roadmap:** the Slice 59 umbrella note.
+- **Friction:** `.prototype/notes.json` (`note-2026-10-02-004`).

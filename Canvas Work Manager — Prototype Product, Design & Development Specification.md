@@ -1654,7 +1654,7 @@ its deferred body offers Edit, Source/Preview and explicit Save/Cancel. Unchange
 Cancel write nothing, refusal keeps the draft, and live updates retain it with a replacement
 notice. Unreadable config cannot be overwritten here and shows only the guidance note. *Amended in Slice
 64:* every write refuses a Markdown config other than `{}` or exactly `{ markdown }`, so only a hand
-edit can store one. *Amended in Slice 63:* Rich Text is retired — converted to
+edit, or history replaying state recorded before it, can store one. *Amended in Slice 63:* Rich Text is retired — converted to
 Markdown at schema version 6, refused on create through every surface, and refused on load
 ([decision](docs/decisions/2026-10-schema-version-6-markdown-conversion.md)). The type stays an open
 string; retired types are the narrow exception.

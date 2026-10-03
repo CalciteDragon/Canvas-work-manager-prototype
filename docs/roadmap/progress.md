@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 64 | Slice 64 — Section configs validated by type | Each section type's config shape lives in contracts; the domain refuses a config that does not match it, and the v6 converter writes only clean Markdown configs | [64-section-config-validation.md](active/64-section-config-validation.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -102,4 +100,5 @@ verification follow-ups rather than feature slices.
 | 61 | Slice 61 — Reversible task checkbox and click selection (Slice 59 Stage B) | 2026-10-01 | Task checkboxes complete and reopen in Task Lists and Todos; titles select, drawer titles edit, and keyboard focus survives toggles and closing | [61-task-reopen-and-selection.md](completed/61-task-reopen-and-selection.md) |
 | 62 | Slice 62 — Markdown section, safe renderer and source editor (Slice 59 Stage C1) | 2026-10-02 | Safe Markdown authoring beside Rich Text; deferred panel controls keep the initial bundle at 1,032,388 bytes; all 104 browser tests pass | [62-markdown-section.md](completed/62-markdown-section.md) |
 | 63 | Slice 63 — Rich Text to Markdown conversion and retirement (Slice 59 Stage C2) | 2026-10-03 | Rich Text converted to Markdown at schema v6 with history intact; Rich Text retired on create and load | [63-rich-text-to-markdown-conversion.md](completed/63-rich-text-to-markdown-conversion.md) |
+| 64 | Slice 64 — Section configs validated by type | 2026-10-03 | Markdown config is exactly { markdown } or empty, refused otherwise on every write; the v6 converter drops extras | [64-section-config-validation.md](completed/64-section-config-validation.md) |
 <!-- roadmap:end -->

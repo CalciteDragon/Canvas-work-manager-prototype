@@ -11,8 +11,8 @@ export const createMarkdownConfig = (): MarkdownConfig => ({ markdown: '' });
 export const markdownDefaultConfig = () => SectionConfigSchema.parse(createMarkdownConfig());
 /**
  * Distinguish absent content from unreadable content without changing stored data. No write can
- * store anything but `{}` or `{ markdown }`, so unreadable config comes only from a hand edit and
- * is shown as unreadable, nothing more.
+ * store anything but `{}` or `{ markdown }`, so unreadable config comes only from a hand edit or
+ * from history replaying state recorded before Slice 64, and is shown as unreadable, nothing more.
  */
 export const readMarkdownConfig = (config: unknown):
   { state: 'empty' } | { state: 'ok'; markdown: string } | { state: 'unreadable' } => {

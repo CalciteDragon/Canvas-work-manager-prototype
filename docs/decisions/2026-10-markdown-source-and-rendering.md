@@ -48,5 +48,5 @@ keeps the draft available to copy or Cancel.
 
 **Amended, 2026-10-02 — Slice 64.** The unreadable state no longer carries or renders prose beside
 an extra key. Every write refuses such a config and the converter drops extras, so only a hand edit
-reaches it, and it shows the guidance note alone
+or history replaying pre-Slice-64 state reaches it, and it shows the guidance note alone
 ([decision](2026-10-section-config-validated-on-write.md)). Save stays blocked.

@@ -178,7 +178,8 @@ Save replaces the whole config after an awaited result, while Cancel and unchang
 nothing. A failed Save keeps the draft, and pending protects it from further edits or dismissal.
 A live source update keeps the draft and announces replacement; unreadable config blocks Save
 and shows only the guidance note. `MarkdownConfigSchema` comes from contracts, where the domain
-enforces it on every write, so only a hand edit can store an unreadable config
+enforces it on every write, so only a hand edit, or Undo/Redo replaying state recorded before Slice 64,
+can store an unreadable config
 ([decision](../../../decisions/2026-10-section-config-validated-on-write.md)).
 Successful Save and Cancel restore focus to Edit. Preview renders only the local draft.
 
