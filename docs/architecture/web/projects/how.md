@@ -67,13 +67,20 @@ The cue holds no receipt and cannot promise the next Undo step.
 3. `ProjectCanvas` provides `ProjectPageStore`, which loads the page's sections and
    shortcut placements as one combined order, renders each section inside
    `ProjectSectionFrame` with the registry's content component, and each shortcut inside
-   `ShortcutFrame`. Container sections provide their own row stores.
+   `ShortcutFrame`. Container sections provide their own row stores. The shell sets
+   `shortcutsAllowed` for the rendered project's canonical page — a root's Home or, since
+   Slice 65, a workstream's Work canvas — and passes the tree's root as the `rootProjectId`
+   renderer input, which the canvas hands to `ProjectPageStore.load`. Every renderer declares
+   `rootProjectId` because `NgComponentOutlet` sets every key; the derived pages ignore it. The
+   store's shortcut live filter compares a frame's `rootProjectId` with that root, not with the
+   canvas's project — on a Work canvas the two differ, and comparing the project silently missed
+   every same-root change ([why](../../../decisions/2026-10-work-canvas-shortcut-destinations.md)).
 4. Canvas controls are available without a mode: grip drag and keyboard movement reorder
    placements, inline title edits report write results to the frame, resize handles snap
    to supported widths, and insertion points open `SectionCreateDialog`. The canvas keeps
    a placement ID as the insertion anchor and resolves its current position at submit;
    `ProjectPageStore.orderComplete` withholds insertion points and blocks move writes
-   when Home's combined section/shortcut order could not be fully read. Writes go through
+   when a canonical page's combined section/shortcut order could not be fully read. Writes go through
    the gateway behind the store's in-flight guards. One remove action sends only the section id;
    the domain cascades live owned rows and the canvas has no policy dialog. Every canvas write — section add, move,
    update and removal, and every shortcut placement write — runs through `reportedWrite`, which
@@ -94,7 +101,7 @@ The cue holds no receipt and cannot promise the next Undo step.
    eager route graph under the 1050 kB initial-bundle error ceiling.
 5. **Undo and Redo** (Slice 41). The shell provides `ProjectHistoryStore` and binds
    `OPERATION_HISTORY_REPORTER` to it in `providers` (not `viewProviders`), so the page store, a
-   task list inside a Home shortcut and the Todos, Archive and Reflections stores mounted through
+   task list inside a shortcut and the Todos, Archive and Reflections stores mounted through
    `NgComponentOutlet` all report to it; `project-workspace-shell.spec.ts` asserts that binding,
    because the core token's inert default would hide a wiring mistake. The shell calls
    `load(projectId)` from its project effect; Home ↔ other root pages cross route shapes and
@@ -204,7 +211,7 @@ Successful Save and Cancel restore focus to Edit. Preview renders only the local
 | `SECTION_REGISTRY`, `SectionDefinition` | const / interface | §29 | [API](../../../api/miscellaneous/variables.html#SECTION_REGISTRY) |
 | `SectionContentComponent`, `SectionContentInputs` | interfaces | Content contract | [API](../../../api/interfaces/SectionContentComponent.html) |
 | `ProjectSectionFrame` | component | §31's chrome | [API](../../../api/components/ProjectSectionFrame.html) |
-| `SectionCreateDialog` | component | Section and Home shortcut creation; owns pending/error state | [API](../../../api/components/SectionCreateDialog.html) |
+| `SectionCreateDialog` | component | Section and shortcut creation; owns pending/error state | [API](../../../api/components/SectionCreateDialog.html) |
 | `InsertionPoint`, `SectionResizeHandle` | components | Canvas insertion and resize controls; their marks come from the shared `Icon` | [API](../../../api/components/InsertionPoint.html) |
 | `gridInsertionGaps` | function | Sparse grid gaps that can fit a supported width | [API](../../../api/miscellaneous/variables.html#gridInsertionGaps) |
 | `CanvasWriteResult` | type | Success or displayed canvas-write failure | [API](../../../api/miscellaneous/typealiases.html#CanvasWriteResult) |
@@ -216,7 +223,7 @@ Successful Save and Cancel restore focus to Edit. Preview renders only the local
 | `TodosPage`, `ArchivePage`, `ReflectionsPage` | components | Root pages | [API](../../../api/components/TodosPage.html) |
 | `TodosPageStore`, `ArchivePageStore`, `ReflectionsPageStore` | injectables | Their stores | [API](../../../api/injectables/TodosPageStore.html) |
 | `ArchivedRegion` | component | Presentational archive list; labels domain-supplied recovery metadata, two-step guidance and the placement Restore actually produces | [API](../../../api/components/ArchivedRegion.html) |
-| `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | components / injectable | Home shortcuts | [API](../../../api/components/ShortcutFrame.html) |
+| `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | components / injectable | Shortcuts on Home and Work canvases | [API](../../../api/components/ShortcutFrame.html) |
 
 ## Dependencies
 

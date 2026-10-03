@@ -139,8 +139,8 @@ deliberate ([why](../decisions/2026-09-a-section-has-a-name.md)).
 ### Insert a section at a chosen position
 
 `create_section` accepts an optional zero-based `position` in the destination page's combined
-placement order. On a root Home page, that order includes both sections and shortcuts; on other
-section-bearing pages it includes the sections there. Omit `position` to append, or give a value
+placement order. On a canonical page — a root's Home or a workstream's Work canvas — that order
+includes both sections and shortcuts; on other section-bearing pages it includes the sections there. Omit `position` to append, or give a value
 beyond the current end to insert at the end. For example, `position: 0` inserts before the first
 placement. The insertion and renumbering happen as one `projects.write` operation.
 
@@ -181,7 +181,7 @@ Use the returned `section.id` in `update_section`:
 
 Config is replaced whole, so supply the complete `{ markdown: source }` object. Both write
 results and `list_sections` return the exact source in `config.markdown`, never generated HTML.
-Home and work canvases accept Markdown; a Home shortcut renders its source read-only.
+Home and work canvases accept Markdown; a shortcut renders its source read-only.
 The picker has seven types, with Markdown first, and every seeded project's brief is a Markdown
 section. Rich Text is retired: a `create_section` with `type: "rich-text"` is refused, and
 `pnpm prototype:upgrade` converts an older file's Rich Text sections to Markdown.
@@ -344,7 +344,7 @@ never undo someone else's change, and nobody can undo yours.
   `historyId` is `null` until the connection's first undoable write in that project.
 - `undo_operation` and `redo_operation` (input `{ historyId, actionId, expectedRevision }`) run
   exactly that action, which must be the next one in that direction. They require only the stored
-  action family's grant: `projects.write` for a section, a Home shortcut placement, an optional
+  action family's grant: `projects.write` for a section, a shortcut placement, an optional
   page or a project's creation, update, archive or reactivation, `tasks.write` for a task,
   `reflections.write` for a reflection. Discovery publishes
   that mapping under `_meta["local.canvas-work-manager/requiredPermissionsByOperationFamily"]`.
@@ -418,20 +418,25 @@ breadcrumb when the caller has the declared read grants. A subject can therefore
 after its work is reopened or archived. The separate completed-work picker is a page/API read,
 not another MCP tool, and the journal does not require the Reflections tab to be enabled.
 
-### Home shortcuts
+### Shortcuts
 
-Slice 25.4 adds three placement tools:
+Slice 25.4 adds three placement tools. A shortcut sits on a project's **canonical page**: a root's
+Home or, since Slice 65, a workstream's Work canvas. A root's optional pages never take one.
 
-- `list_section_shortcuts` (`projects.read`) lists Home placements with source project, page,
-  section and breadcrumb identity, plus availability; it returns no task or reflection rows.
+- `list_section_shortcuts` (`projects.read`) lists a canonical page's placements with source
+  project, page, section and breadcrumb identity, plus availability; it returns no task or
+  reflection rows. `pageId` is optional and defaults to the project's canonical page.
 - `add_section_shortcut` (`projects.write`) places a read-only reference to a source section in
-  the same root tree. It accepts the same optional zero-based `position` in Home's combined
-  section/shortcut order; omission appends. It answers `{ shortcut, operation }`.
+  the same root tree — the root's pages or any workstream at any depth, ancestors and siblings
+  included, but never the destination page itself. It accepts the same optional zero-based
+  `position` in the canvas's combined section/shortcut order; omission appends. It answers
+  `{ shortcut, operation }`. Read a workstream's Work page id with `list_project_pages`.
 - `remove_section_shortcut` (`projects.write`) deletes only the placement; the source section and
   its rows remain. It answers `{ shortcutId, projectId, pageId, operation }` — there is no
   placement left to return.
 
-Both record in the **destination** root project's history, never the source's, and their Undo and
+Both record in the **destination** project's history — the root for Home, the workstream for Work
+— never the source's, and their Undo and
 Redo write the placement only: the source section, its configuration and its rows are never
 written, so an edit to the source is not a conflict for a placement action. Putting a placement back
 does check the source against §27's rules — same root tree, not the destination page itself — so a
@@ -441,6 +446,10 @@ archived or hidden — it returns as the unavailable placeholder rather than una
 
 The source content still uses its own grant. For example, discovering a Task List shortcut does
 not grant `tasks.read`; call `list_tasks` with that permission to read the source rows.
+
+A move to another root (`update_project` with a new `parentProjectId`, or its Undo or Redo) is
+refused while any placement has exactly one end — its canvas or its source — inside the moving
+workstream's subtree. The refusal names each placement; remove it and retry.
 
 Once a root has more than one canvas, **where a write lands** stops being a single answer, so
 say it:
@@ -459,7 +468,7 @@ whole project, grouped by page.
 
 For the multi-page showcase, seed `nested-projects` and open the root Home or a nested work canvas
 in the browser. Over Streamable HTTP, use the same fake Claude token to create/update/complete a
-nested task, add and remove a Home shortcut, attach a subject-linked reflection, archive and restore
+nested task, add and remove a shortcut on Home or a Work canvas, attach a subject-linked reflection, archive and restore
 the task, and toggle an optional page. The open browser surface receives each committed write through
 the host event stream; verify each result with its canonical read rather than treating a projection as
 another copy of the row. Page toggles likewise appear only after the host has persisted the setting and

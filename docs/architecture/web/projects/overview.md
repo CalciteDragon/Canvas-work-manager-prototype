@@ -10,7 +10,7 @@ the displayed project's controls remain the only browser Undo and Redo surface.
 that serves both project routes, the project navigation column with its page toggles,
 the header rendered once per project with its Undo and Redo, the page renderers — a section canvas for Home and
 for a subproject's work page, and the Todos, Archive and Reflections projections for a
-root — the section registry and its seven section types, Home shortcuts, and the shared
+root — the section registry and its seven section types, shortcuts on Home and Work canvases, and the shared
 archive list. It is the largest feature and where most of the product learning happens.
 
 **Code:** `apps/web/src/app/features/projects` and its `history/`, `pages/`, `sections/`,
@@ -58,7 +58,7 @@ section to Markdown, and the registry no longer holds it.
   Todos and Archive link descendant owners to their header controls. After a committed
   Delete, Todos keeps a polite recovery status outside the chronology, with root Archive
   access and the task owner's header guidance.
-- Home shortcuts: `ShortcutFrame` (read-only source content), `ShortcutPicker`,
+- Shortcuts on a canonical page (Home or a workstream's Work): `ShortcutFrame` (read-only source content), `ShortcutPicker`,
   `ShortcutStore`.
 - `SectionRecoveryNotice`: the canvas's recovery the header cannot offer — Open Archive after a
   removal Archive lists, Retry remove after an uncertain removal, Retry refresh after a committed

@@ -65,7 +65,8 @@ flowchart LR
   S --> PW["ProjectPage (work)"]
   P --> Sec[ProjectSection]
   PW --> Sec
-  P --> SC["SectionShortcut (Home only)"]
+  P --> SC["SectionShortcut (Home or Work: the canonical page)"]
+  PW --> SC
   Sec -- "container types" --> T[Task]
   Sec -- "container types" --> Rf[Reflection]
   T --> T

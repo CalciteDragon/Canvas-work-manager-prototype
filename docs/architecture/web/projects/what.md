@@ -97,7 +97,7 @@ sequenceDiagram
 | `ProjectCanvas` | `project-canvas.ts` | One page's canvas: contextual insertion, drag-drop, snapped resize, explicit edit receipts, one-gesture cascade removal and arrival at `#section-<id>` |
 | `ProjectPageStore`, `CanvasWriteResult`, `SectionRecoveryNoticeState` | `project-page-store.ts` | Sections and placements of one page; positioned creation, ID-only removal/retry, write reporting and recovery-notice state |
 | `SectionRecoveryNotice` | `section-recovery-notice.ts` | Archive for a removal the server listed there, explicit retry after an uncertain removal, read-only refresh retry; no Undo |
-| `SectionCreateDialog` | `section-create-dialog.ts` | Section or Home shortcut creation at the selected canvas position |
+| `SectionCreateDialog` | `section-create-dialog.ts` | Section or shortcut creation at the selected canvas position |
 | `InsertionPoint`, `SectionResizeHandle`, `gridInsertionGaps`, `moveDirectionFor` | `canvas-chrome/` | Insertion overlays, snapped resize, sparse-grid gap targets and grip move keys |
 | `TodosPage`, `TodosPageStore` | `pages/todos-page*.ts` | §34's chronology with task complete/reopen checkboxes, one-way workstream Complete, serialized writes and Delete, canonical content links, descendant owner-history links and committed Delete recovery status |
 | `ArchivePage`, `ArchivePageStore`, `ArchivedRegion` | `pages/archive-page*.ts`, `archived-region/` | §31's ready-only root projection, owner-first recovery copy, restores and descendant owner-history links |
@@ -106,4 +106,4 @@ sequenceDiagram
 | `SectionContentComponent`, `SectionContentInputs` | `sections/section-contract.ts` | What every content component receives |
 | `ProjectSectionFrame` | `sections/section-frame/` | §31's always-available drag, collapse, inline title, optional inspector and remove controls |
 | Seven section types | `sections/{markdown,tasks,sub-projects,progress,reflections,timeline,activity}/` | Content components and their stores |
-| `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's Home shortcuts |
+| `ShortcutFrame`, `ShortcutPicker`, `ShortcutStore` | `shortcuts/` | §27's shortcuts, on Home or a workstream's Work canvas |

@@ -193,6 +193,7 @@ Newest first. The full list with status is in the [decision index](../../decisio
 - [Undoing a first enable deletes the page it created; undoing a toggle moves one boolean](../../decisions/2026-09-optional-page-operation-history.md)
 - [Project creation belongs to the created project's history and can be recovered at its URL](../../decisions/2026-09-project-creation-history.md)
 - [A recorded Restore is a new action, and a shortcut action owns only its placement](../../decisions/2026-09-section-restore-and-shortcut-history.md)
+- [A workstream's Work canvas takes shortcuts the way a root's Home does](../../decisions/2026-10-work-canvas-shortcut-destinations.md) — canonical-page destinations, both-root source scope, destination-owned history and the one-end-inside reparent rule
 - [Task and reflection writes join operation history](../../decisions/2026-09-row-operation-history.md)
 - [Activity identity survives removal of its task or reflection](../../decisions/2026-09-historical-activity-identity.md)
 - [Undo and Redo require their stored operation family's grant](../../decisions/2026-09-operation-family-permissions.md)

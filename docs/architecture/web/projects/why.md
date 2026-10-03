@@ -182,6 +182,7 @@ Undo action or imply the row is the next action
 - [Container sections own their rows](../../../decisions/2026-09-sections-own-their-data.md)
 - [A shortcut resolves source identity, not source content](../../../decisions/2026-09-a-shortcut-resolves-identity-not-content.md)
 - [Home orders sections and shortcuts together](../../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)
+- [A workstream's Work canvas takes shortcuts the way a root's Home does](../../../decisions/2026-10-work-canvas-shortcut-destinations.md)
 - [What the Todos page decides for itself](../../../decisions/2026-09-todos-chronology-and-canonical-navigation.md)
 - [Root Archive recovery guidance](../../../decisions/2026-09-root-archive-recovery-guidance.md)
 - [Content-oriented Archive policy](../../../decisions/2026-09-content-oriented-archive-policy.md)

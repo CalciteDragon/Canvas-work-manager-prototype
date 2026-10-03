@@ -110,7 +110,7 @@ sequenceDiagram
 | `archivedAncestry` | `src/project-visibility.ts` | Archiving reaches down without cascading |
 | `Instant` | `src/instants.ts` | Lossless ordering of ISO instants as text |
 | `calendar.ts`, `task-windows.ts`, `page-placements.ts` | `src/` | UTC date arithmetic; the open/overdue/upcoming questions; the combined section+shortcut order |
-| `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard, no reparent that carries an old-root Home shortcut's source to another root; `create` records `project.add` in the created project's history and, like `update`/`archive`, answers `{ project, operation }` |
+| `ProjectService` | `src/project-service.ts` | Kinds, nesting, status, archive with children-first, reactivation guard, no reparent to another root that would split a shortcut's canvas and source; `create` records `project.add` in the created project's history and, like `update`/`archive`, answers `{ project, operation }` |
 | `ProjectPageService` | `src/project-page-service.ts` | A project's pages; enable/disable a root's optional three, recording one action per changed toggle |
 | `SectionService` | `src/section-service.ts` | Add, rename, move, resize, collapse, settle and remove by content/reference policy, Archive Restore; container resolution |
 | `OperationRecorder`, `RepositoryOperationRecorder`, `OPERATION_ACTION_LIFETIME_MS` | `src/operation-recorder.ts` | Records into the exact actor's per-project history; 24-hour lifetime; recovers an outstanding removal receipt |
@@ -118,7 +118,7 @@ sequenceDiagram
 | `OperationHistoryService` | `src/operation-history-service.ts` | Caller-scoped summary and one transition per call, with typed refusals and retirement |
 | Execution seam | `src/operation-execution.ts` | `OperationExecutionRefused`, the permanent flag, `generationFloor` |
 | Section capture, revert and reapply | `src/section-removal-undo.ts`, `src/section-edit-undo.ts`, `src/section-restore-history.ts`, `src/owned-rows.ts` | Package-internal section footprints, applied-state conflict collection and both directions |
-| Placement capture, revert and reapply | `src/shortcut-history.ts` | The four Home shortcut inverses, over a repository type with no row access in it |
+| Placement capture, revert and reapply | `src/shortcut-history.ts` | The four shortcut inverses on a canonical page (Home or Work), over a repository type with no row access in it |
 | Page capture, revert and reapply | `src/page-history.ts` | The two optional-page inverses: exact removal of a created page after a section/placement preflight, and the boolean written back |
 | Project capture, revert and reapply | `src/project-history.ts` | `project.add` captures project plus canonical page and preflights deletion/recreation; Redo preserves ids and `createdAt` while stamping `updatedAt` at the new write time; existing-project writes capture changed fields under the forward hierarchy and archive rules, with `mayRunWhileSubjectArchived` |
 | Task capture, revert and reapply | `src/task-history.ts` | Add/update/archive/restore footprints and preflighted row executors, including subtree and implicit-container effects |

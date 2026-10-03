@@ -18,7 +18,7 @@ before returning a root's archived items. Each canonical Restore validates again
    `LivePublication` to the `LiveEventPublisher` — held by the store until commit.
 4. On commit the store validates the whole document and persists it; on any throw the
    provisional state is discarded and the caller sees one of the three errors.
-5. A supported section, task, reflection, Home shortcut, optional-page or project write applies its normalized change, records one typed
+5. A supported section, task, reflection, shortcut, optional-page or project write applies its normalized change, records one typed
    action through `OperationRecorder.record`, and returns a receipt from the same unit; automatic
    container resolution joins the row action instead of recording a separate section action. The recorder finds or creates the actor's history
    for the subject's project, appends the action (discarding the redo branch), prunes by expiry and
@@ -84,7 +84,7 @@ Undo, Redo, Restore and Duplicate reproduce existing state and are not checked
 | `captureTaskAdd`, `revertTaskAdd`, `reapplyTaskAdd` | functions | Representative task capture and both-direction row executors; update/archive/restore follow the same seam | [API](../../api/miscellaneous/variables.html#captureTaskAdd) |
 | `captureReflectionAdd`, `revertReflectionAdd`, `reapplyReflectionAdd` | functions | Representative reflection capture and both-direction row executors | [API](../../api/miscellaneous/variables.html#captureReflectionAdd) |
 | `nextOperationAction`, `recordOperationAction`, `transitionOperationHistory`, `retireOperationAction`, `pruneOperationHistory` | functions | The pure cursor state machine | [API](../../api/miscellaneous/variables.html#nextOperationAction) |
-| `SectionShortcutService` | class | Home shortcut placements | [API](../../api/classes/SectionShortcutService.html) |
+| `SectionShortcutService` | class | Shortcut placements on a canonical page (Home or Work) | [API](../../api/classes/SectionShortcutService.html) |
 | `TaskService` | class | Task lifecycle | [API](../../api/classes/TaskService.html) |
 | `ReflectionService` | class | Reflection lifecycle | [API](../../api/classes/ReflectionService.html) |
 | `AgentConnectionService` | class | Permissions, revocation, `lastUsedAt` | [API](../../api/classes/AgentConnectionService.html) |
@@ -176,8 +176,10 @@ Undo, Redo, Restore and Duplicate reproduce existing state and are not checked
   re-runs `ProjectService.update`'s rules for the resulting change: a destination parent in the
   workspace, not beneath the subject and with no archived ancestry (`archive-state-changed` names the
   archived one); no live child when the direction archives (`new-dependent`); no manual formula
-  without its value; and, for a move to another root, no old-root Home shortcut placing a section in
-  the subject's subtree (`shortcut-reference`) — commit-time integrity would reject it otherwise.
+  without its value; and, for a move to another root, no placement with exactly one end — its
+  canvas or its source — in the subject's subtree (`shortcut-reference`): since Slice 65 a
+  workstream's Work canvas can hold placements, so both ends count, and a placement with both ends
+  inside travels with the subtree. Commit-time integrity would reject a split one otherwise.
   `ProjectHistoryRepositories` therefore also reads pages, sections and placements, and writes only
   projects. That last check is one exported function, `shortcutsCarriedAcrossRoots`, which
   `ProjectService.update` runs too: after the parent is known usable and before `commit` (afterwards
@@ -214,7 +216,7 @@ Undo, Redo, Restore and Duplicate reproduce existing state and are not checked
   use `TaskService.update` and have their own receipts. `section-removal-undo.ts` retains the
   reassign branch solely for historical actions already stored with that policy. After settlement,
   `sectionRecoveryOf` decides whether
-  content must remain recoverable. Canonical task/reflection references and Home shortcut sources
+  content must remain recoverable. Canonical task/reflection references and shortcut sources
   independently prevent deletion. New disposable sections with no such reference are deleted;
   historical tombstones are never purged. Archive projects retained content only and never
   decides deletion eligibility by itself. For `config` recovery it reads the capability's

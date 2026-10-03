@@ -31,7 +31,7 @@ set. Rejected: `Entity.partial()` as the update input — it would let a caller 
 **Section and shortcut creation carry an optional insertion position.** Both write inputs use
 the shared `PositionSchema`, so a browser request and an MCP call can ask for the same place
 without a transport-specific field or a second move operation. The existing combined canvas
-order for sections and Home shortcuts remains the ordering base
+order for sections and shortcuts on a canonical page remains the ordering base
 ([decision](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md)); the
 optional insertion behavior follows the approved direct-editing direction
 ([decision](../../decisions/2026-09-direct-canvas-editing-direction.md)), with the create-position
@@ -167,6 +167,7 @@ list while `type` stays open for new types
 - [Container sections own their rows; view sections own nothing](../../decisions/2026-09-sections-own-their-data.md) — `sectionId`, `SECTION_OWNERSHIP`
 - [A section has a name, and the default is derived rather than stored](../../decisions/2026-09-a-section-has-a-name.md) — `nameOf`, `title`
 - [Home orders sections and shortcuts together](../../decisions/2026-09-home-orders-sections-and-shortcuts-together.md) — one combined index space for sections and shortcuts
+- [A workstream's Work canvas takes shortcuts the way a root's Home does](../../decisions/2026-10-work-canvas-shortcut-destinations.md) — `SectionShortcut.pageId` names a canonical page, Home or Work; no schema change
 - [Direct canvas editing is the next development direction](../../decisions/2026-09-direct-canvas-editing-direction.md) — accepted contextual insertion
 - [A root project is a workspace with pages; a subproject is a unit of work](../../decisions/2026-09-project-workspaces-and-subproject-work-units.md) — `kind`, `ProjectPage`, schema v3
 - [A section removal commits one scoped, expiring Undo record](../../decisions/2026-09-section-removal-undo-records.md) — `undo.ts` removal payload (records became history actions in Slice 35)

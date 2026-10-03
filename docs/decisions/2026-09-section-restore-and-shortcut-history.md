@@ -98,3 +98,8 @@ authorized recovery route rather than an unreachable Redo.
 repository `find`, never through the source-scope checks, so a removal whose source is archived or
 hidden is still allowed and labelled; an unreadable source falls back to "a shortcut". Activity
 summaries are unchanged. Shortcut steps are now offered in the project header ([decision](2026-09-project-header-history-controls.md)).
+
+**Amended, 2026-10-03 — Slice 65.** "Destination-owned" now covers a workstream's Work canvas as
+well as a root's Home. A Work placement's actions are in the workstream's history, never the
+root's or the source's. The executors accept the destination project's canonical page and compare
+the roots of both ends. See [Work canvas shortcut destinations](2026-10-work-canvas-shortcut-destinations.md).

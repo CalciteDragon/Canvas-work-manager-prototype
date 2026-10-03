@@ -12,7 +12,7 @@ records with their receipts and refusals, and the `data.json` document itself. A
 schemas, the seeds and every test import from here; there is no second definition of any
 of these shapes anywhere in the repository.
 
-Operation history holds strict version-1 section, task, reflection, Home shortcut, optional-page
+Operation history holds strict version-1 section, task, reflection, shortcut, optional-page
 and project payloads under one per-actor, per-project cursor. Creation captures the project and its
 canonical page as `project.add`; its directional results report removal or same-id recreation.
 The public section-removal input is a strict empty object: transports need only the section id,

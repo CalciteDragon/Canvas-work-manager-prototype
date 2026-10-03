@@ -46,3 +46,9 @@ removal from the move itself yet.
 
 A move UI exists and people hit this refusal; that is the time to consider offering the placement
 removal inline, as one confirmed action.
+
+**Amended, 2026-10-03 — Slice 65.** A placement can now sit on a workstream's Work canvas, so either
+end can be inside the moving subtree. The rule is now "refuse each placement with exactly one end in
+the subtree". A Work placement whose source stays behind is refused, and one with both ends inside
+moves with the subtree. The message no longer says "Home shortcut". See
+[Work canvas shortcut destinations](2026-10-work-canvas-shortcut-destinations.md).

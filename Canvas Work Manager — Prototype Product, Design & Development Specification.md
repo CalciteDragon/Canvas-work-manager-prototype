@@ -1157,12 +1157,13 @@ More
 
 **Section creation belongs to the canvas, not the project header.** Contextual insertion points
 open one creation dialog at the selected location; they do not use a Quick Add header or controls
-row. Root Home's dialog also offers **Add shortcut**. The project **More** menu keeps the
+row. A canonical canvas's dialog — a root's Home or a workstream's Work canvas (*Slice 65*) — also
+offers **Add shortcut**. The project **More** menu keeps the
 project-level actions, including **Open archive** when the Archive page is disabled
 ([why](docs/decisions/2026-09-canvas-chrome-is-revealed-not-moded.md)).
 
 *Landed in Slice 27.* The former Quick Add and Edit Layout controls are removed; the canvas
-owns section and Home shortcut creation at the point where each will appear.
+owns section and shortcut creation at the point where each will appear.
 
 The header itself is rendered **once per project** — at the top of the workspace track, beside
 §23's full-height navigation column and above whichever page is showing. It describes the
@@ -1457,7 +1458,7 @@ moving a row into a container there — while everything already there
 stays readable, editable, reorderable, removable and restorable. Undo is never behind a toggle
 ([why](docs/decisions/2026-09-a-disabled-page-hides-navigation-not-data.md)).*
 
-*Landed in Slice 27.* Section and Home shortcut creation may include an optional `position`.
+*Landed in Slice 27.* Section and shortcut creation may include an optional `position`.
 The domain inserts at that point and densely renumbers the page's combined section/shortcut
 order in the same operation. The canvas remembers an insertion anchor by placement ID and
 resolves its current position when the dialog is submitted; a missing anchor is reported instead
@@ -1496,21 +1497,24 @@ so Undo/Redo removes and restores the row and container together with stable ids
 
 ## Shortcuts on Home
 
-A root's Home may show a section that canonically lives somewhere else in the same root tree —
-another of its pages, or any subproject at any depth. This is a **placement**: a stored
+A project's **canonical page** — a root's Home or, since Slice 65, a workstream's Work canvas — may
+show a section that canonically lives somewhere else in the same root tree: another of the root's
+pages, or any subproject at any depth, ancestors and siblings included. A root's optional pages
+(Reflections, Projects, Todos, Archive) never hold shortcuts. This is a **placement**: a stored
 reference to a source section ID plus its own position, span and collapse state. No rows are
 copied and the source's configuration is not duplicated; there is exactly one owner of the
 data, and it is the source.
 
-Home holds one combined ordering of its own sections and its shortcut placements — a shortcut
+The canvas holds one combined ordering of its own sections and its shortcut placements — a shortcut
 sits in the canvas like anything else.
 
 Rules the model enforces rather than the UI suggesting:
 
 - source and destination are in the same root tree, and the same workspace — and they stay so:
-  moving a sub-project to another root is refused while a Home shortcut on its current root places a
-  section from anywhere in its subtree, naming each placement to remove first (*Slice 40*,
-  [why](docs/decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md))
+  moving a sub-project to another root is refused while any placement has exactly one end — its
+  canvas or its source — inside the moving subtree, naming each placement to remove first
+  (*Slice 40*, [why](docs/decisions/2026-09-forward-reparent-refuses-cross-root-shortcut.md);
+  *amended in Slice 65*, which added the canvas end, [why](docs/decisions/2026-10-work-canvas-shortcut-destinations.md))
 - no shortcut to a shortcut, and no shortcut to itself
 - removing a placement never archives the source
 - an archived source shows an unavailable placeholder — not its content — and restoring the
@@ -1544,6 +1548,12 @@ content is mounted read-only with an **Open source** link. Placement writes requ
 Home and project-write rules; archived source sections show `source_archived`, while a source
 project or ancestor archived beneath it shows `source_hidden`. A disabled source page remains a
 valid source because disabling hides navigation, not data.*
+
+*Amended in Slice 65.* A workstream's Work canvas is a destination with exactly Home's rules: same
+root and workspace, never its own page, any depth. Its placement writes are recorded in the
+**workstream's** history — the destination project's, never the root's or the source's. Undo and
+Redo of a reparent apply the same one-end-inside rule as the forward move. There is no new tool or
+grant ([why](docs/decisions/2026-10-work-canvas-shortcut-destinations.md)).
 
 *The integrated 25.8 showcase put all seven registered section kinds and four shortcut placements
 on root Home, used a Reflections-page source and a nested work source, and observed source updates
@@ -1662,7 +1672,7 @@ string; retired types are the narrow exception.
 | Page | Sections |
 |---|---|
 | Home (root) | all registered types, plus shortcut placements (§27) |
-| Work canvas (subproject) | all registered types |
+| Work canvas (subproject) | all registered types, plus shortcut placements (§27, *Slice 65*) |
 | Reflections | its own reflections container, and the journal feed |
 | Todos | none — derived (§34) |
 | Archive | none — derived (§31) |
@@ -1678,7 +1688,7 @@ capability out of `SECTION_OWNERSHIP` (derived from `SECTION_CAPABILITIES` since
 later needs no entry. `SectionService` refuses on the way in and `validateDocumentIntegrity`
 refuses at load, because a hand-edited `data.json` (§14) must fail then rather than at whichever
 request first renders it. Slice 25.4 adds the Home-only shortcut placement beside the registered
-types. Slice 25.5 registers the Todos renderer — a derived list that holds no sections, so nothing
+types; Slice 65 extends it to a workstream's Work canvas. Slice 25.5 registers the Todos renderer — a derived list that holds no sections, so nothing
 about this table changes for it. Slice 25.6 adds the Archive renderer and Slice 25.7 adds the
 Reflections renderer; both remain derived/page-owned surfaces as shown above.*
 
@@ -1773,7 +1783,7 @@ whose only config is its declared string prose key that trims to something (an e
 empty (listed conservatively as unknown content). Removed Progress, Timeline, Recent Activity and
 Sub-Projects views — and a container with no remaining rows, or blank prose — are deleted
 when no canonical row or shortcut references them. Historical tombstones remain unlisted;
-shortcut-backed disposable sections keep an internal tombstone, leaving Home's source
+shortcut-backed disposable sections keep an internal tombstone, leaving the shortcut's source
 unavailable placeholder intact. Only currently restorable archived sub-projects, tasks and
 reflections are listed. Each section entry carries the domain's recovery metadata: the total
 rows still in the container, apart from the exact count that restores with it and the number of
@@ -1797,7 +1807,7 @@ still restores the rows it moved. Redo re-removes exactly what the removal remov
 recorded state. The history is **bidirectional and per exact actor**: a person or agent connection
 steps only its own stack, only the next action in either direction, for 24 hours per action and 50
 actions per history. A transition requires the stored action family's one write grant —
-`projects.write` for a section, a Home shortcut placement, an optional page or an existing
+`projects.write` for a section, a shortcut placement, an optional page or an existing
 project's own write, `tasks.write` for a
 task, `reflections.write` for a reflection; a new write discards what was waiting to be redone. A
 transition refuses rather than overwrite a later change (a moved row, a new subtask under a moved
@@ -1929,7 +1939,7 @@ tombstone; section content is preserved by refusing while any remains
 # 32. Section Editing
 
 Canvas organization uses contextual controls rather than a separate layout-editing mode.
-Sections and Home shortcut placements share the page's ordered layout. Their drag handles,
+Sections and shortcut placements share the page's ordered layout. Their drag handles,
 collapse controls, rename affordance, resize handles and removal controls are reserved in the
 frame but revealed on hover or keyboard focus. Controls remain visible on hoverless or coarse-
 pointer devices. Revealing them does not shift content, and the overlays are inert while a drag
@@ -1941,8 +1951,9 @@ opportunity in the existing ordered layout, not a reserved cell. Selecting one o
 creation dialog at that location. The dialog provides section types permitted on the current
 page, a name field, Create and Cancel; a blank name uses the type's default. Cancel or Escape
 creates nothing, and a pending submission cannot create duplicates. A failed write preserves
-the entered values and displays an error. Root Home additionally offers the eligible-source
-picker for **Add shortcut**; subproject work canvases do not. A shortcut's source remains
+the entered values and displays an error. A canonical canvas — a root's Home or a workstream's
+Work canvas — additionally offers the eligible-source picker for **Add shortcut**; a root's optional
+pages do not (*amended in Slice 65*, which reversed "subproject work canvases do not"). A shortcut's source remains
 read-only and is edited through **Open source** (§27).
 
 Widths snap to the supported 4, 6, 8 or 12 column spans in Flow and Grid. Dragging previews the
@@ -1980,7 +1991,8 @@ read-only; removing the placement does not archive its source.*
 
 *Landed in Slice 27.* Root Home's contextual creation dialog adds eligible shortcuts at the
 selected position; the shortcut frame exposes remove in place. Neither action is gated by an
-editing mode, and subproject work canvases do not offer shortcut creation.
+editing mode, and subproject work canvases do not offer shortcut creation. *Reversed in Slice 65:*
+a workstream's Work canvas offers the same dialog, picker and frame ([why](docs/decisions/2026-10-work-canvas-shortcut-destinations.md)).
 
 Angular CDK should be used for reorderable drag/drop interactions rather than implementing pointer sorting from scratch.
 
@@ -2856,7 +2868,10 @@ being enabled. Since Slice 29 its section entries are the recoverable-content pr
 with `recovery` metadata (`owned-content` with `contentCount` and `separateRestoreCount`, `config`, or `unknown`) beside the
 exact `cascadeCount`; the tool's shape is otherwise unchanged. Slice 25.4 adds `list_section_shortcuts` under `projects.read` and
 `add_section_shortcut` / `remove_section_shortcut` under `projects.write`; the list returns
-placement and source identity only, never source rows. Canonical archive/restore tools remain
+placement and source identity only, never source rows. *Amended in Slice 65:* the three tools and
+`undo_operation` describe a destination as a project's canonical page — a root's Home or a
+workstream's Work canvas — recorded in that destination project's history. There is no new tool
+and no grant change. Canonical archive/restore tools remain
 the same operations used by the UI: `archive_project` / `restore_project`, `remove_section` /
 `restore_section`, `archive_task` / `restore_task`, and `archive_reflection` /
 `restore_reflection`. Project restoration requires an explicit non-archived status. Slice 25.7
@@ -3333,6 +3348,11 @@ and any normalized no-op or repeated-removal refusal emits no frame.*
 one frame apiece, and so does each of their transitions. Placement frames target the **destination
 project**, which is what makes an open Home canvas — in this tab and in another — re-read both its
 combined order and its shortcuts' source identity after a transition it did not make itself.*
+
+*Extended in Slice 65:* HTTP routes are unchanged. A workstream's Work canvas refreshes its
+shortcuts the way Home does: on a live frame anywhere in its project's root tree, matched by the
+frame's `rootProjectId` and not by the canvas's own project, and on reconnect
+([why](docs/decisions/2026-10-work-canvas-shortcut-destinations.md)).*
 
 *Extended in Slice 38:* each optional-page toggle that changes something, and each of its Undo
 and Redo steps, publishes one frame targeted at the page's **root project**; a no-op toggle

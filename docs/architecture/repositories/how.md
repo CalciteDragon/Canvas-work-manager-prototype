@@ -114,7 +114,10 @@ flowchart TB
   unchanged and still has no rows, cascade markers or shortcuts; `reapplySectionRemoval` only when
   Redo replays a removal that deleted the section. Shortcut placements, pruned or discarded
   history actions are the other deletions. The integrity checks still reject dangling row and
-  shortcut references.
+  shortcut references. A placement must also sit on its destination project's canonical page — a
+  root's Home or, since Slice 65, a workstream's Work canvas ("must be placed on its project's
+  canonical page") — with its source in the same workspace and root tree, comparing the roots of
+  both ends ("crosses root project trees").
 - **Project deletion is limited to creation Undo.** `ProjectRepository.remove` is used only by
   `revertProjectAdd`, after preflight proves the captured project and canonical page are unchanged
   and no page, section, row, child, reflection subject, shortcut or other actor's history refers to
