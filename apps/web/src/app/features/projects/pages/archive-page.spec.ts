@@ -87,6 +87,7 @@ const render = async (answer: ProjectArchiveResult = archive) => {
   fixture.componentRef.setInput('projectLayoutMode', 'flow');
   fixture.componentRef.setInput('restoreBlocked', false);
   fixture.componentRef.setInput('shortcutsAllowed', false);
+  fixture.componentRef.setInput('rootProjectId', PROJECT);
   fixture.componentRef.setInput('onProjectDataChange', dataChanged);
   fixture.componentRef.setInput('onProjectHierarchyChange', hierarchyChanged);
   fixture.detectChanges();

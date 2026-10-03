@@ -18,7 +18,7 @@ import {
 import { DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
-import type { ProjectId, ProjectPageKind } from '@cwm/contracts';
+import { canonicalPageKindFor, type ProjectId, type ProjectPageKind } from '@cwm/contracts';
 import { OPERATION_HISTORY_REPORTER } from '../../core/history/operation-history-reporter';
 import { archivedHereFeedback, createdSubjectOf } from './history/history-feedback';
 import { ProjectHistoryControls } from './history/project-history-controls';
@@ -228,7 +228,10 @@ export class ProjectWorkspaceShell {
       // paints optimistically, so the loaded status alone would enable Restore during a
       // reactivation that has not landed.
       restoreBlocked: project.status === 'archived' || this.store.projectWritePending(),
-      shortcutsAllowed: project.kind === 'root' && rendered.kind === 'home',
+      // The canonical page — Home for a root, the Work canvas for a workstream (Slice 65).
+      shortcutsAllowed: rendered.kind === canonicalPageKindFor(project.kind),
+      // `root()` falls back to the project itself, so this is never null once a project is.
+      rootProjectId: this.store.root()?.id ?? project.id,
       onProjectDataChange: this.onProjectDataChange,
       onProjectHierarchyChange: this.onProjectHierarchyChange,
       onOpenArchive: this.onOpenArchive,

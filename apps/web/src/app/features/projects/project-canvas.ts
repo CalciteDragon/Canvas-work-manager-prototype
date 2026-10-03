@@ -74,6 +74,8 @@ export class ProjectCanvas {
   readonly pageId = input.required<ProjectPageId>();
   readonly projectLayoutMode = input.required<ProjectLayoutMode>();
   readonly shortcutsAllowed = input.required<boolean>();
+  /** The project tree's root, for the store's live filter (Slice 65). */
+  readonly rootProjectId = input.required<ProjectId>();
   readonly restoreBlocked = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});
   readonly onProjectHierarchyChange = input<() => void>(() => {});
@@ -167,9 +169,11 @@ export class ProjectCanvas {
       const projectId = this.projectId();
       const pageId = this.pageId();
       const shortcutsAllowed = this.shortcutsAllowed();
+      // Tracked: a cross-root move changes a workstream's root, and its canvas reloads for it.
+      const rootProjectId = this.rootProjectId();
       this.createDialogOpen.set(false);
       this.pendingInsertion.set(null);
-      untracked(() => void this.store.load(projectId, pageId, shortcutsAllowed));
+      untracked(() => void this.store.load(projectId, pageId, shortcutsAllowed, rootProjectId));
     });
     this.watchNavigationTarget();
   }

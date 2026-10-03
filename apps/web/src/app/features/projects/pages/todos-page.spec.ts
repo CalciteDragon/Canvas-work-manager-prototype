@@ -159,6 +159,7 @@ const render = async (options: RenderOptions = {}) => {
   fixture.componentRef.setInput('pageId', 'page-todos' as ProjectPageId);
   fixture.componentRef.setInput('projectLayoutMode', 'flow');
   fixture.componentRef.setInput('shortcutsAllowed', false);
+  fixture.componentRef.setInput('rootProjectId', ROOT);
   fixture.componentRef.setInput('restoreBlocked', options.restoreBlocked ?? false);
   fixture.componentRef.setInput('onProjectDataChange', dataChanged);
   fixture.componentRef.setInput('onProjectHierarchyChange', hierarchyChanged);

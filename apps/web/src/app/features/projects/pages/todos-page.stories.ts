@@ -133,6 +133,7 @@ const meta: Meta<TodosPage> = {
     pageId: 'page-renovation-todos' as ProjectPageId,
     projectLayoutMode: 'flow',
     shortcutsAllowed: false,
+    rootProjectId: ROOT,
     restoreBlocked: false,
     onProjectDataChange: () => undefined,
     onProjectHierarchyChange: () => undefined,

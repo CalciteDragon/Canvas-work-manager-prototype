@@ -9,6 +9,7 @@ import {
   ResolvedSectionShortcutSchema,
   TaskSchema,
   type Project,
+  type ProjectId,
   type ProjectSection,
   type SectionWriteResult,
   type ResolvedSectionShortcut,
@@ -122,6 +123,7 @@ const render = async (
     project?: Project;
     pageId?: string;
     shortcutsAllowed?: boolean;
+    rootProjectId?: ProjectId;
     restoreBlocked?: boolean;
     sections?: ProjectSection[];
     shortcuts?: ResolvedSectionShortcut[];
@@ -173,6 +175,7 @@ const render = async (
   // The shell owns the project record; the canvas is handed only what it renders with.
   fixture.componentRef.setInput('projectLayoutMode', renderedProject.projectLayoutMode);
   fixture.componentRef.setInput('shortcutsAllowed', options.shortcutsAllowed ?? false);
+  fixture.componentRef.setInput('rootProjectId', options.rootProjectId ?? renderedProject.id);
   fixture.componentRef.setInput('restoreBlocked', options.restoreBlocked ?? false);
   fixture.detectChanges();
   // A gated read is deliberately still in flight, so waiting for stability here would hang:
@@ -213,8 +216,15 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
       fixture.componentRef.setInput('pageId', 'page-next');
       fixture.detectChanges();
       await fixture.whenStable();
-      expect(load).toHaveBeenLastCalledWith('project-a', 'page-next', false);
+      expect(load).toHaveBeenLastCalledWith('project-a', 'page-next', false, 'project-a');
       expect(load).toHaveBeenCalledTimes(2);
+
+      // A cross-root move changes a workstream's root; its canvas reloads under the new one (Slice 65).
+      fixture.componentRef.setInput('rootProjectId', 'project-other-root');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(load).toHaveBeenLastCalledWith('project-a', 'page-next', false, 'project-other-root');
+      expect(load).toHaveBeenCalledTimes(3);
     } finally {
       load.mockRestore();
     }
@@ -368,6 +378,60 @@ describe('ProjectCanvas (§27, §31, §32)', () => {
     fixture.detectChanges();
     const creates = gateway.calls.filter(({ method }) => method === 'sections.create');
     expect((creates.at(-1)?.argument as { input: { position: number } }).input.position).toBe(1);
+  });
+
+  describe('on a workstream Work page (Slice 65)', () => {
+    const workstream = () => project({ kind: 'subproject', parentProjectId: 'project-root' });
+    const WORK_PAGE = 'page-project-a-work' as ProjectSection['pageId'];
+    const onWork = (id: string, type: string, position: number) => section(id, type, position, { pageId: WORK_PAGE });
+
+    it('offers a shortcut at an insertion anchor that survives a refresh, onto the Work page', async () => {
+      const { fixture, gateway } = await render({
+        project: workstream(),
+        pageId: WORK_PAGE,
+        rootProjectId: 'project-root' as ProjectId,
+        shortcutsAllowed: true,
+        shortcutSources: [shortcutSource],
+        sections: [onWork('section-text', 'markdown', 0), onWork('section-tasks', 'task-list', 1)],
+      });
+      fixture.nativeElement.querySelector(
+        'app-insertion-point[data-insertion-point="before"][data-before-id="section-tasks"] button',
+      ).click();
+      fixture.detectChanges();
+      query(fixture, '[data-create-shortcut-mode]')!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      gateway.options.sections = [
+        onWork('section-new', 'progress', 0),
+        onWork('section-text', 'markdown', 1),
+        onWork('section-tasks', 'task-list', 2),
+      ];
+      await fixture.componentInstance.store.load('project-a' as Project['id'], WORK_PAGE, true, 'project-root' as ProjectId);
+      fixture.detectChanges();
+      query(fixture, '[data-shortcut-add]')!.click();
+      await fixture.whenStable();
+
+      expect(gateway.argumentTo('shortcuts.create')).toMatchObject({
+        projectId: 'project-a',
+        input: { pageId: WORK_PAGE, sourceSectionId: 'section-source', position: 2 },
+      });
+    });
+
+    it('blocks insertion and moves while its combined order is incomplete', async () => {
+      const { fixture } = await render({
+        project: workstream(),
+        pageId: WORK_PAGE,
+        rootProjectId: 'project-root' as ProjectId,
+        shortcutsAllowed: true,
+        sections: [onWork('section-text', 'markdown', 0)],
+        failOn: { 'shortcuts.list': new GatewayError('unreachable', 0, 'shortcut placements unavailable') },
+      });
+
+      expect(query(fixture, '[data-placement-order-incomplete]')).not.toBeNull();
+      expect(queryAll(fixture, 'app-insertion-point')).toHaveLength(0);
+      expect(query(fixture, '[data-section-drag-handle]')?.getAttribute('aria-disabled')).toBe('true');
+    });
   });
 
   it('keeps the dialog open and reports when its remembered anchor disappeared', async () => {

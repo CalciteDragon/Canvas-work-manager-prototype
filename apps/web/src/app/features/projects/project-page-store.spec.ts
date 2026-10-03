@@ -1623,6 +1623,68 @@ describe('ProjectPageStore and live updates (§62)', () => {
     expect(withShortcut.store.projectDataRevision()).toBe(1);
   });
 
+  describe('on a workstream Work canvas (Slice 65)', () => {
+    const WORKSTREAM = 'project-kitchen' as ProjectId;
+    const WORK_PAGE = 'page-project-kitchen' as ProjectPageId;
+    const ROOT = 'project-renovation' as ProjectId;
+    const SIBLING = 'project-garden' as ProjectId;
+
+    const loadWork = async () => {
+      const state = setup({ shortcuts: [shortcut('shortcut-a', 0)] });
+      await state.store.load(WORKSTREAM, WORK_PAGE, true, ROOT);
+      return state;
+    };
+
+    it('re-reads its shortcuts for a same-root section frame and ignores another root', async () => {
+      const { gateway, live } = await loadWork();
+      const shortcutReads = calls(gateway.shortcuts.list);
+
+      live.emit({ type: 'project.section_updated', entityType: 'project', entityId: SIBLING, projectId: SIBLING, rootProjectId: 'project-other' as ProjectId });
+      await settleLive();
+      expect(calls(gateway.shortcuts.list)).toBe(shortcutReads);
+
+      live.emit({ type: 'project.section_updated', entityType: 'project', entityId: SIBLING, projectId: SIBLING, rootProjectId: ROOT });
+      await settleLive();
+      expect(calls(gateway.shortcuts.list)).toBe(shortcutReads + 1);
+      expect(gateway.shortcuts.list).toHaveBeenLastCalledWith(WORKSTREAM, { pageId: WORK_PAGE });
+    });
+
+    it('re-reads its shortcuts when the source workstream is archived', async () => {
+      const { gateway, live } = await loadWork();
+      const shortcutReads = calls(gateway.shortcuts.list);
+
+      live.emit({ type: 'project.archived', entityType: 'project', entityId: SIBLING, projectId: SIBLING, rootProjectId: ROOT });
+      await settleLive();
+
+      expect(calls(gateway.shortcuts.list)).toBe(shortcutReads + 1);
+    });
+
+    it('bumps the data revision for a task in a same-root sibling', async () => {
+      const { store, live } = await loadWork();
+
+      live.emit({ type: 'task.updated', entityType: 'task', entityId: 'task-garden-plan', projectId: SIBLING, rootProjectId: ROOT });
+      await settleLive();
+
+      expect(store.projectDataRevision()).toBe(1);
+    });
+
+    it('re-reads its shortcuts on reconnect and on a prototype reload, keeping the root', async () => {
+      const { store, gateway, live } = await loadWork();
+      const shortcutReads = calls(gateway.shortcuts.list);
+
+      live.emitConnected();
+      await settleLive();
+      expect(calls(gateway.shortcuts.list)).toBe(shortcutReads + 1);
+
+      live.emit({ type: 'prototype.reloaded', entityId: 'seed' });
+      await settleLive();
+      live.emit({ type: 'task.updated', entityType: 'task', entityId: 'task-garden-plan', projectId: SIBLING, rootProjectId: ROOT });
+      await settleLive();
+      expect(store.projectDataRevision()).toBeGreaterThan(1);
+      expect(gateway.shortcuts.list).toHaveBeenLastCalledWith(WORKSTREAM, { pageId: WORK_PAGE });
+    });
+  });
+
   it('re-reads placements, not the section list, for a project frame elsewhere in the root tree', async () => {
     const { store, gateway, live } = setup({ shortcuts: [shortcut('shortcut-a', 0)] });
     await store.load(PROJECT, PAGE);

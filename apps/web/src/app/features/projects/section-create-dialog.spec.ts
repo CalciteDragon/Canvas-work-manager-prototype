@@ -112,8 +112,8 @@ describe('SectionCreateDialog (§27)', () => {
     await root.whenStable();
 
     TestBed.resetTestingModule();
-    const work = render({ shortcutsAllowed: false });
-    expect(query(work, '[data-create-shortcut-mode]')).toBeNull();
+    const optional = render({ shortcutsAllowed: false });
+    expect(query(optional, '[data-create-shortcut-mode]')).toBeNull();
   });
 
   it('keeps shortcut mode open and blocks back, cancel and Escape while a create is pending', async () => {

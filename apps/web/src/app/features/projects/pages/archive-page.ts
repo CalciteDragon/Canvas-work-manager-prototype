@@ -24,6 +24,8 @@ export class ArchivePage implements ProjectPageRenderer {
   readonly projectLayoutMode = input.required<ProjectLayoutMode>();
   readonly restoreBlocked = input.required<boolean>();
   readonly shortcutsAllowed = input.required<boolean>();
+  /** Declared because the shell sets every renderer input; this page has no shortcuts to refresh. */
+  readonly rootProjectId = input<ProjectId | null>(null);
   readonly onProjectDataChange = input.required<() => void>();
   readonly onProjectHierarchyChange = input.required<() => void>();
   readonly onOpenArchive = input<() => void>(() => {});

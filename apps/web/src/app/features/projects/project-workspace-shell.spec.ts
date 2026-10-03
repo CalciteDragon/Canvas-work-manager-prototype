@@ -354,16 +354,23 @@ describe('ProjectWorkspaceShell — §23’s two columns and §68’s routes', (
     expect(queryAll(harness, '[data-section-canvas]')).toHaveLength(1);
   });
 
-  it('passes the shortcut capability only to a root Home renderer', async () => {
-    const root = await open('/projects/project-renovation/pages/home');
-    const rootShell = root.harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell))
-      .componentInstance as ProjectWorkspaceShell;
-    expect(rootShell.rendererInputs()?.shortcutsAllowed).toBe(true);
+  it('passes the shortcut capability and the root id to a canonical page renderer only (Slice 65)', async () => {
+    const shellOf = (opened: Awaited<ReturnType<typeof open>>) =>
+      opened.harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell)).componentInstance as ProjectWorkspaceShell;
 
-    const subproject = await open('/projects/project-kitchen');
-    const subprojectShell = subproject.harness.fixture.debugElement.query(By.directive(ProjectWorkspaceShell))
-      .componentInstance as ProjectWorkspaceShell;
-    expect(subprojectShell.rendererInputs()?.shortcutsAllowed).toBe(false);
+    const root = shellOf(await open('/projects/project-renovation/pages/home'));
+    expect(root.rendererInputs()).toMatchObject({ shortcutsAllowed: true, rootProjectId: 'project-renovation' });
+
+    const workstream = shellOf(await open('/projects/project-kitchen'));
+    expect(workstream.rendererInputs()).toMatchObject({ shortcutsAllowed: true, rootProjectId: 'project-renovation' });
+
+    const reflections = shellOf(await open('/projects/project-renovation/pages/reflections', {
+      pages: [
+        page('page-renovation-home', 'project-renovation', 'home'),
+        page('page-renovation-reflections', 'project-renovation', 'reflections'),
+      ],
+    }));
+    expect(reflections.rendererInputs()).toMatchObject({ shortcutsAllowed: false, rootProjectId: 'project-renovation' });
   });
 
   // `pages.list(rootId)` never returns a sub-project's `work` record, so a canvas read off the

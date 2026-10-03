@@ -572,7 +572,7 @@ export class FakeWorkManagerGateway implements WorkManagerGateway {
       this.answer(
         'shortcuts.sources',
         { projectId, ...query },
-        // The query page is the destination Home page, while each source carries its own
+        // The query page is the destination canonical page, while each source carries its own
         // canonical page. The fixture is already scoped to the destination project tree, so
         // filtering it by the source page would silently erase every valid picker option.
         this.options.shortcutSources ?? [],

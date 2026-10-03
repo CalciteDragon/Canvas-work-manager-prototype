@@ -112,6 +112,7 @@ const render = async (options: { withSection?: boolean; onData?: () => void; com
   fixture.componentRef.setInput('projectLayoutMode', 'flow');
   fixture.componentRef.setInput('restoreBlocked', false);
   fixture.componentRef.setInput('shortcutsAllowed', false);
+  fixture.componentRef.setInput('rootProjectId', PROJECT);
   fixture.componentRef.setInput('onProjectDataChange', onData);
   fixture.componentRef.setInput('onProjectHierarchyChange', onHierarchy);
   fixture.detectChanges();

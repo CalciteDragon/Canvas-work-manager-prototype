@@ -5,7 +5,7 @@ import type { OperationReceipt, ProjectId } from '@cwm/contracts';
  * One committed browser write, as the header's history needs to hear about it (Slice 41, §31).
  *
  * `projectId` and `projectName` come from the write's **response** — the task's, section's or
- * page's `projectId`, the updated project, the destination root of a shortcut — never from the page
+ * page's `projectId`, the updated project, the destination project of a shortcut — never from the page
  * the writer sits on. They only word cross-owner feedback ("recorded in Kitchen's history") and its
  * link; which history the write joined is decided by `receipt.historyId`, never by this guess.
  */

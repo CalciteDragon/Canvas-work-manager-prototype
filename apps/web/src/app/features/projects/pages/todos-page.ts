@@ -56,10 +56,12 @@ export class TodosPage {
   readonly projectId = input.required<ProjectId>();
   /** The Todos page record. Nothing here reads it: the chronology is scoped by the root (§34). */
   readonly pageId = input.required<ProjectPageId>();
-  /** §28's canvas modes do not apply to a list; declared because the shell binds all seven. */
+  /** §28's canvas modes do not apply to a list; declared because the shell binds every input. */
   readonly projectLayoutMode = input<ProjectLayoutMode>('flow');
-  /** Shortcut placement is a Home-only capability (§27), and Todos holds no sections at all. */
+  /** Shortcut placement belongs to canonical pages (§27), and Todos holds no sections at all. */
   readonly shortcutsAllowed = input<boolean>(false);
+  /** Declared because the shell sets every renderer input; this page has no shortcuts to refresh. */
+  readonly rootProjectId = input<ProjectId | null>(null);
   /** The shell's write freeze. */
   readonly restoreBlocked = input<boolean>(false);
   readonly onProjectDataChange = input<() => void>(() => {});

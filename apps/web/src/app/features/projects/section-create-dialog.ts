@@ -13,7 +13,7 @@ import type { ProjectId, ProjectPageId, ShortcutSource } from '@cwm/contracts';
 import type { SectionDefinition } from './sections/registry';
 import { ShortcutPicker } from './shortcuts/shortcut-picker';
 
-/** One popup for a positioned section or Home shortcut create. */
+/** One popup for a positioned section or shortcut create, on a canonical page (§27). */
 @Component({
   selector: 'app-section-create-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
