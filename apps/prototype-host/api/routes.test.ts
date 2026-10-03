@@ -552,12 +552,12 @@ describe('section routes', () => {
     const original = '# Kickoff\n\nKeep **Markdown** as source.\n';
     const source = '# Plan\n\n- One\n- Two\n\n[docs](https://example.com)\n\n```ts\nconst answer = 42;\n```\n\n<script>window.__x=1</script>\n';
     const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, {
-      body: { type: 'markdown', config: { markdown: original, extra: 'replaced whole' } },
+      body: { type: 'markdown', config: { markdown: original } },
     });
     expect(created.status).toBe(201);
     const section = SectionAddResultSchema.parse(created.body).section;
     expect(section.type).toBe('markdown');
-    expect(section.config).toEqual({ markdown: original, extra: 'replaced whole' });
+    expect(section.config).toEqual({ markdown: original });
 
     const updated = await call(routes, 'PATCH', `/api/sections/${section.id}`, {
       body: { config: { markdown: source } },
@@ -568,6 +568,21 @@ describe('section routes', () => {
     expect(read.status).toBe(200);
     expect(ProjectSectionSchema.array().parse(read.body).find(({ id }) => id === section.id)?.config)
       .toEqual({ markdown: source });
+  });
+
+  it('refuses a Markdown config with a key Markdown does not take, on POST and PATCH, writing nothing (Slice 64)', async () => {
+    const routes = buildRoutes();
+    const refusal = { error: 'rule_violation', message: expect.stringMatching(/does not take "extra"/) };
+
+    const created = await call(routes, 'POST', `/api/projects/${MINE}/sections`, { body: { type: 'markdown', config: { markdown: 'x', extra: 1 } } });
+    expect(created).toMatchObject({ status: 409, body: refusal });
+    expect((await call(routes, 'GET', `/api/projects/${MINE}/sections`)).body).toEqual([]);
+
+    const section = await newSection(routes, { type: 'markdown', config: { markdown: 'Kept' } });
+    const patched = await call(routes, 'PATCH', `/api/sections/${section.id}`, { body: { config: { markdown: 'x', extra: 1 } } });
+    expect(patched).toMatchObject({ status: 409, body: refusal });
+    expect(ProjectSectionSchema.array().parse((await call(routes, 'GET', `/api/projects/${MINE}/sections`)).body)[0]?.config)
+      .toEqual({ markdown: 'Kept' });
   });
 
   it('refuses a new Rich Text section with the rule envelope, writing nothing (Slice 63)', async () => {

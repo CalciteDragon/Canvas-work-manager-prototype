@@ -310,7 +310,7 @@ const CASES: Record<string, ToolCase> = {
     mutates: true,
     prepare: async (harness) => {
       await harness.services.sections.add(agent(['projects.write']), PROJECT, {
-        type: 'markdown', config: { markdown: 'Old source', extra: 'replaced whole' },
+        type: 'markdown', config: { markdown: 'Old source' },
       });
     },
     verify: async (result, harness) => {
@@ -593,6 +593,23 @@ describe('every §54 tool, on its success and permission-denied paths', () => {
     await expect(
       harness.registry.call('create_section', { projectId: PROJECT, type: 'rich-text' }, agent(['projects.read'])),
     ).rejects.toThrow(PermissionDeniedError);
+
+    expect(harness.store.snapshot()).toEqual(before);
+  });
+
+  it('refuses a Markdown config with a key Markdown does not take, on create and update, writing nothing (Slice 64)', async () => {
+    const harness = buildHarness();
+    const writer = agent(['projects.write']);
+    const { section } = await harness.registry.call('create_section', { projectId: PROJECT, type: 'markdown', config: { markdown: '# Notes' } }, writer);
+    const before = harness.store.snapshot();
+    const refusal = expect.objectContaining({ name: 'DomainRuleError', message: expect.stringMatching(/does not take "summary"/) });
+
+    await expect(
+      harness.registry.call('create_section', { projectId: PROJECT, type: 'markdown', config: { markdown: 'x', summary: 'y' } }, writer),
+    ).rejects.toThrow(refusal);
+    await expect(
+      harness.registry.call('update_section', { sectionId: section.id, config: { markdown: 'x', summary: 'y' } }, writer),
+    ).rejects.toThrow(refusal);
 
     expect(harness.store.snapshot()).toEqual(before);
   });

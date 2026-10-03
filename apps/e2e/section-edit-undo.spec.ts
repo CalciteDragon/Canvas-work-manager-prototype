@@ -57,11 +57,11 @@ test('HTTP and MCP section edits return typed receipts and restore only their ow
     type: 'markdown',
     title: 'Original title',
     columnSpan: 12,
-    config: { markdown: 'Original prose', tone: 'calm' },
+    config: { markdown: 'Original prose' },
   });
   const updated = await api.patch<SectionWriteResult>(`/api/sections/${editable.id}`, {
     title: 'Edited title',
-    config: { markdown: 'Edited prose', tone: 'loud' },
+    config: { markdown: 'Edited prose' },
     collapsed: true,
     columnSpan: 8,
   });
