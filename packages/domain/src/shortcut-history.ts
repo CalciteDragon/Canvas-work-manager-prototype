@@ -1,4 +1,5 @@
 import {
+  canonicalPageKindFor,
   nameOf,
   SectionShortcutSchema,
   ShortcutAddOperationSchema,
@@ -36,7 +37,8 @@ import { directionWord, isPlacementOf, refuseOnConflicts } from './operation-exe
 import { listPlacements, renumberPlacements, resolveRestoreIndex, type PagePlacement } from './page-placements';
 
 /**
- * **Capture, Undo and Redo for the four Home shortcut placements** (Slice 37, §§27, 31).
+ * **Capture, Undo and Redo for the four shortcut placement writes** (Slice 37, §§27, 31), on a
+ * root's Home or — since Slice 65 — a workstream's Work canvas, in the destination's history.
  *
  * A shortcut owns a placement and nothing else, and that is the whole shape of this module: every
  * inverse here writes `sectionShortcuts` and the combined page order, and **never** the source
@@ -173,13 +175,20 @@ const refuse = (
     (conflict) => conflict.entityType === 'shortcut' && conflict.id === subjectIdOf(operation) && conflict.problem === 'already-exists',
   );
 
-/** The destination Home page an action names, which must still be that project's Home page. */
+/**
+ * The destination page an action names, which must still be that project's canonical page — a
+ * root's Home or, since Slice 65, a workstream's Work canvas.
+ */
 const destinationOf = async (
   repositories: ShortcutHistoryRepositories,
   operation: ShortcutOperation,
 ): Promise<ProjectPage | null> => {
-  const page = await repositories.pages.find(pageIdOf(operation));
-  if (page === null || page.projectId !== operation.projectId || page.kind !== 'home') return null;
+  const [page, project] = await Promise.all([
+    repositories.pages.find(pageIdOf(operation)),
+    repositories.projects.find(operation.projectId),
+  ]);
+  if (page === null || project === null || page.projectId !== project.id) return null;
+  if (page.kind !== canonicalPageKindFor(project.kind)) return null;
   return page;
 };
 
@@ -218,7 +227,12 @@ const sourceConflicts = async (
   if (sourceProject.workspaceId !== destinationProject.workspaceId) {
     return [makeConflict('section', sourceId, 'page-changed', nameOf(source))];
   }
-  if ((await rootProjectOf(repositories.projects, sourceProject)) !== operation.projectId) {
+  // Roots of **both** ends: a Work canvas's project is not its own root.
+  const [sourceRoot, destinationRoot] = await Promise.all([
+    rootProjectOf(repositories.projects, sourceProject),
+    rootProjectOf(repositories.projects, destinationProject),
+  ]);
+  if (sourceRoot !== destinationRoot) {
     return [makeConflict('section', sourceId, 'page-changed', nameOf(source))];
   }
   // §27 and document integrity: a page never holds a shortcut to a section it owns.

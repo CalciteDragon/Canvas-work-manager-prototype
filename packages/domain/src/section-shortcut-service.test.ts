@@ -1,4 +1,5 @@
-import type { ProjectPageId } from '@cwm/contracts';
+import type { ProjectId, ProjectPageId, SectionId, SectionShortcutId } from '@cwm/contracts';
+import { buildSeed } from '@cwm/prototype-data';
 import { describe, expect, it } from 'vitest';
 import { DomainRuleError, EntityNotFoundError, PermissionDeniedError } from './errors';
 import { agentActorFor, buildHarness, MINE, THEIRS } from '../test/test-support';
@@ -309,5 +310,152 @@ describe('SectionShortcutService', () => {
     await hidden.harness.projectService.update(hidden.harness.actor, hidden.child.id, { status: 'archived' });
     await expect(hidden.harness.sectionShortcutWriteService.remove(hidden.harness.actor, second.shortcut.id))
       .resolves.toMatchObject({ operation: { label: 'Removed the Task List shortcut' } });
+  });
+});
+
+/**
+ * Slice 65: a workstream's Work canvas is a destination exactly as a root's Home is — same root,
+ * same workspace, never its own page — with the action in the **workstream's** history.
+ */
+describe('SectionShortcutService on a workstream Work canvas (Slice 65)', () => {
+  const RENOVATION = 'project-renovation' as ProjectId;
+  const KITCHEN = 'project-kitchen' as ProjectId;
+  const GARDEN = 'project-garden' as ProjectId;
+  const CABINETS = 'project-cabinets' as ProjectId;
+  const LEGACY_CHILD = 'project-legacy-child' as ProjectId;
+  const KITCHEN_WORK = 'page-project-kitchen' as ProjectPageId;
+  const CABINETS_WORK = 'page-project-cabinets' as ProjectPageId;
+  const LEGACY_CHILD_WORK = 'page-project-legacy-child' as ProjectPageId;
+  const GARDEN_BRIEF = 'section-project-garden-brief' as SectionId;
+  const RENOVATION_BRIEF = 'section-project-renovation-brief' as SectionId;
+
+  type Harness = ReturnType<typeof buildHarness>;
+  const nested = () => buildHarness(buildSeed('nested-projects'));
+
+  const actionIdsIn = async (harness: Harness, projectId: ProjectId) => {
+    const histories = await harness.operationHistories.list({ projectId });
+    return (await Promise.all(histories.map(({ id }) => harness.operationActions.list({ historyId: id })))).flat().map(({ id }) => id);
+  };
+
+  it('places a sibling section on the Work canvas and records it in the workstream history only', async () => {
+    const harness = nested();
+
+    const { shortcut, operation } = await harness.sectionShortcutWriteService.create(harness.actor, KITCHEN, {
+      pageId: KITCHEN_WORK,
+      sourceSectionId: GARDEN_BRIEF,
+      position: 1,
+    });
+
+    expect(shortcut).toMatchObject({
+      pageId: KITCHEN_WORK,
+      position: 1,
+      sourceProjectId: GARDEN,
+      breadcrumb: ['Home renovation', 'Garden'],
+      availability: 'available',
+    });
+    expect((await harness.operationHistories.find(operation.historyId))?.projectId).toBe(KITCHEN);
+    expect(await actionIdsIn(harness, KITCHEN)).toContain(operation.actionId);
+    for (const elsewhere of [RENOVATION, GARDEN]) {
+      expect(await actionIdsIn(harness, elsewhere)).not.toContain(operation.actionId);
+    }
+  });
+
+  it('lists the Work page placements when no pageId is given', async () => {
+    const harness = nested();
+    const created = await harness.sectionShortcutService.create(harness.actor, KITCHEN, {
+      pageId: KITCHEN_WORK,
+      sourceSectionId: GARDEN_BRIEF,
+    });
+
+    expect(await harness.sectionShortcutService.list(harness.actor, KITCHEN)).toEqual([created]);
+  });
+
+  it('offers the root pages, a disabled page, siblings and descendants as sources, never its own page or hidden work', async () => {
+    const harness = nested();
+    await harness.projectPageService.setEnabled(harness.actor, RENOVATION, { kind: 'reflections', enabled: false });
+    const cabinets = await harness.sectionService.add(harness.actor, CABINETS, { type: 'markdown' });
+    // Legacy is archived and owns no sections, so the hidden source is inserted the way a stored one exists.
+    const hidden = { ...cabinets, id: 'section-legacy-hidden' as SectionId, projectId: LEGACY_CHILD, pageId: LEGACY_CHILD_WORK };
+    await harness.sections.insert(hidden);
+
+    const sources = (await harness.sectionShortcutService.listSources(harness.actor, KITCHEN, { pageId: KITCHEN_WORK })).map(
+      ({ sourceSectionId }) => sourceSectionId,
+    );
+
+    expect(sources).toEqual(
+      expect.arrayContaining([RENOVATION_BRIEF, 'section-project-renovation-reflections-page', GARDEN_BRIEF, cabinets.id]),
+    );
+    const kitchenOwn = (await harness.sections.list({ pageId: KITCHEN_WORK })).map(({ id }) => id);
+    expect(kitchenOwn.length).toBeGreaterThan(0);
+    for (const excluded of [...kitchenOwn, hidden.id]) expect(sources).not.toContain(excluded);
+  });
+
+  it('refuses another root, another workspace and an optional page, writing nothing', async () => {
+    const harness = nested();
+    const otherRoot = await harness.projectService.create(harness.actor, {
+      workspaceId: harness.actor.workspaceId,
+      kind: 'root',
+      name: 'Other root',
+    });
+    const otherRootSource = await harness.sectionService.add(harness.actor, otherRoot.id, { type: 'markdown' });
+    const foreignSource = await harness.sectionService.add(harness.other, 'project-alex-private' as ProjectId, { type: 'markdown' });
+    const before = harness.store.snapshot();
+
+    for (const sourceSectionId of [otherRootSource.id, foreignSource.id]) {
+      await expect(
+        harness.sectionShortcutService.create(harness.actor, KITCHEN, { pageId: KITCHEN_WORK, sourceSectionId }),
+      ).rejects.toBeInstanceOf(EntityNotFoundError);
+    }
+    await expect(
+      harness.sectionShortcutService.create(harness.actor, RENOVATION, {
+        pageId: 'page-project-renovation-reflections' as ProjectPageId,
+        sourceSectionId: GARDEN_BRIEF,
+      }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+
+    const after = harness.store.snapshot();
+    expect(after.sectionShortcuts).toEqual(before.sectionShortcuts);
+    expect(after.activityEvents).toEqual(before.activityEvents);
+    expect(after.operationActions).toEqual(before.operationActions);
+    expect(after.operationHistories).toEqual(before.operationHistories);
+  });
+
+  it('freezes a placement on an archived workstream, or one under an archived ancestor, except for removal', async () => {
+    const harness = nested();
+    const placed = await harness.sectionShortcutService.create(harness.actor, CABINETS, {
+      pageId: CABINETS_WORK,
+      sourceSectionId: GARDEN_BRIEF,
+    });
+    await harness.sectionService.add(harness.actor, CABINETS, { type: 'markdown' });
+    await harness.projectService.update(harness.actor, CABINETS, { status: 'archived' });
+
+    await expect(
+      harness.sectionShortcutService.create(harness.actor, CABINETS, { pageId: CABINETS_WORK, sourceSectionId: RENOVATION_BRIEF }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.update(harness.actor, placed.id, { collapsed: true })).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.move(harness.actor, placed.id, 1)).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.remove(harness.actor, placed.id)).resolves.toBeUndefined();
+
+    // Legacy is archived and frozen, so its child's placement is inserted the way a stored one exists.
+    const stored = { ...(await harness.shortcuts.list())[0]!, id: 'shortcut-legacy-child' as SectionShortcutId, pageId: LEGACY_CHILD_WORK, sourceSectionId: GARDEN_BRIEF, position: 0 };
+    await harness.shortcuts.insert(stored);
+    await expect(
+      harness.sectionShortcutService.create(harness.actor, LEGACY_CHILD, { pageId: LEGACY_CHILD_WORK, sourceSectionId: RENOVATION_BRIEF }),
+    ).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.update(harness.actor, stored.id, { columnSpan: 6 })).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.move(harness.actor, stored.id, 0)).rejects.toBeInstanceOf(DomainRuleError);
+    await expect(harness.sectionShortcutService.remove(harness.actor, stored.id)).resolves.toBeUndefined();
+  });
+
+  it('lets projects.write create on a Work canvas and refuses projects.read alone', async () => {
+    const harness = nested();
+    const input = { pageId: KITCHEN_WORK, sourceSectionId: GARDEN_BRIEF };
+
+    await expect(
+      harness.sectionShortcutService.create(agentActorFor(0, ['projects.read']), KITCHEN, input),
+    ).rejects.toBeInstanceOf(PermissionDeniedError);
+    await expect(
+      harness.sectionShortcutService.create(agentActorFor(0, ['projects.read', 'projects.write']), KITCHEN, input),
+    ).resolves.toMatchObject({ pageId: KITCHEN_WORK });
   });
 });
