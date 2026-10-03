@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import type { ProjectId, ProjectSection, SectionId, UserId, WorkspaceId } from '@cwm/contracts';
+import { sectionConfigRefusal, type ProjectId, type ProjectSection, type SectionId, type UserId, type WorkspaceId } from '@cwm/contracts';
 import { decodeLegacyProse, upgradeMarkdownSections } from '@cwm/prototype-data';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { buildHarness } from '../test/test-support';
@@ -76,16 +76,39 @@ const richTextConfigs = (document: Row, converted: Row): { path: string; before:
   return pairs;
 };
 
+/** A Rich Text config the old rule read as exactly prose: empty, or a lone string `text`. */
+const isClean = (config: Row): boolean => {
+  const keys = Object.keys(config);
+  return keys.length === 0 || (keys.length === 1 && typeof config['text'] === 'string');
+};
+
 describe('converted Rich Text keeps its Archive recovery verdict', () => {
-  it('for every config the fixture stores, live, snapshot and edit alike', () => {
+  it('for every clean config the fixture stores, and every result is a config Markdown takes (Slice 64)', () => {
     const converted = upgradeMarkdownSections(structuredClone(source)).document as unknown as Row;
     const pairs = richTextConfigs(source, converted);
 
     expect(pairs.length).toBeGreaterThan(15);
+    expect(pairs.filter(({ before }) => !isClean(before)).length).toBeGreaterThan(0);
     for (const { path, before, after } of pairs) {
+      expect(sectionConfigRefusal('markdown', after), path).toBeUndefined();
+      if (!isClean(before)) continue;
       const verdict = sectionRecoveryOf({ id: 'section-x' as SectionId, type: 'markdown', config: after }, none);
       expect(verdict, path).toEqual(richTextVerdict(before));
     }
+  });
+
+  it('an archived config with no string text becomes empty, which Archive no longer lists; prose beside extras is recoverable prose (Slice 64)', () => {
+    const verdictFor = (config: Row) => {
+      const document = structuredClone(source);
+      const archived = (document['sections'] as Row[]).find((candidate) => candidate['id'] === 'section-project-renovation-archived-notes')!;
+      expect(archived).toMatchObject({ type: 'rich-text', archivedAt: expect.any(String) });
+      archived['config'] = config;
+      const converted = upgradeMarkdownSections(document).document.sections.find(({ id }) => id === archived['id'])!;
+      return { config: converted.config, verdict: sectionRecoveryOf(converted, none) };
+    };
+
+    expect(verdictFor({ text: 5 })).toEqual({ config: {}, verdict: { include: false } });
+    expect(verdictFor({ text: 'Attic', extra: 1 })).toMatchObject({ config: { markdown: 'Attic' }, verdict: { include: true, recovery: { kind: 'config' } } });
   });
 
   it.each([
@@ -130,6 +153,28 @@ describe('converted history Undoes and Redoes into Markdown', () => {
 
     await harness.step(A, 'project-kitchen' as ProjectId, 'redo');
     expect(await live(harness, 'section-project-kitchen-brief')).toMatchObject({ type: 'markdown', config: change['after'] });
+  });
+
+  it('an edit that only changed extras converts to equal sides, and still Undoes and Redoes (Slice 64)', async () => {
+    // The fixture has no such edit, so the kitchen brief's is rewritten into one before conversion.
+    const document = structuredClone(source);
+    const kitchen = (document['sections'] as Row[]).find((candidate) => candidate['id'] === 'section-project-kitchen-brief')!;
+    kitchen['config'] = { text: 'Same prose', x: 2 };
+    const edit = (document['operationActions'] as Row[]).find((action) => {
+      const operation = action['operation'] as Row;
+      return operation['type'] === 'section.update' && operation['sectionId'] === 'section-project-kitchen-brief';
+    })!;
+    ((edit['operation'] as Row)['changes'] as Row[])[0] = { field: 'config', before: { text: 'Same prose', x: 1 }, after: { text: 'Same prose', x: 2 } };
+    let next = 0;
+    const harness = buildHarness(upgradeMarkdownSections(document).document, { ids: { next: (prefix) => `${prefix}-converted-${(next += 1)}` } });
+
+    await harness.step(A, 'project-kitchen' as ProjectId, 'undo');
+    expect(await live(harness, 'section-project-kitchen-brief')).toMatchObject({ config: { markdown: 'Same prose' } });
+    expect((await harness.operationActions.find(edit['id'] as never))?.state).toBe('undone');
+
+    await harness.step(A, 'project-kitchen' as ProjectId, 'redo');
+    expect(await live(harness, 'section-project-kitchen-brief')).toMatchObject({ config: { markdown: 'Same prose' } });
+    expect((await harness.operationActions.find(edit['id'] as never))?.state).toBe('applied');
   });
 
   it('a snapshot-only section.add is redone as Markdown with the same id and converted config', async () => {
