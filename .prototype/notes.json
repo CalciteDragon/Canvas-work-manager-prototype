@@ -1041,6 +1041,22 @@
       "projectId": "project-renovation",
       "slice": 64,
       "note": "Answers note-2026-10-02-003 by removing its cause. On a scratch copy of nested-projects, an MCP agent creating or updating a Markdown section with an extra key or a non-string markdown is refused, and the message names the key (\"takes only \\\"markdown\\\", or nothing; it does not take \\\"summary\\\"\"). The exact config saves. The agent-made section renders with Edit in the browser, and a browser edit stores exactly { markdown }. The converter now drops extras, so the read-only prose-with-no-next-step state is gone; only a hand edit can reach the plain unreadable note."
+    },
+    {
+      "id": "note-2026-10-03-001",
+      "createdAt": "2026-10-03T07:36:27.058Z",
+      "route": "/projects/project-kitchen",
+      "projectId": "project-kitchen",
+      "slice": 65,
+      "note": "Slice 65 real use on a scratch nested-projects copy. Kitchen's Work canvas took a shortcut to Garden's brief at a chosen insertion point. The header offered 'Undo: Added the Markdown shortcut' on Kitchen with no cross-owner notice, and an API edit of the brief appeared live on Kitchen's canvas. Friction: Garden's brief has no title, so the shortcut frame and the label both read only 'Markdown'. It sits directly under Kitchen's own untitled 'Markdown' brief, and the two are told apart only by the small breadcrumb line. Untitled sources make shortcut names ambiguous wherever a canvas has a section of the same type."
+    },
+    {
+      "id": "note-2026-10-03-002",
+      "createdAt": "2026-10-03T07:36:27.110Z",
+      "route": "/mcp",
+      "projectId": "project-cabinets",
+      "slice": 65,
+      "note": "Slice 65 real use through HTTP MCP. An agent placed Garden's brief on Cabinets' Work canvas, and update_project moving Cabinets to a new root was refused with 'shortcut \"shortcut-…\" would cross root trees; remove that placement first'. Undo of the add then made the move succeed. Friction: the refusal names only the placement id, not which canvas holds it or which section it points at. With Work destinations the placement can be on the mover's own canvas or elsewhere in the tree, so an agent has to list shortcuts project by project to find it. Naming the destination project and source section in the message would make the repair one step."
     }
   ]
 }
