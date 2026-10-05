@@ -13,9 +13,7 @@ verification follow-ups rather than feature slices.
 <!-- roadmap:begin -->
 ### Active
 
-| Slice | Title | Summary | Plan |
-|---|---|---|---|
-| 65 | Slice 65 — Shortcuts on Work canvases (Slice 59 Stage D) | Section shortcuts placed on a workstream's Work canvas from same-root sources, with destination-owned history and both-end reparent safety | [65-work-canvas-shortcuts.md](active/65-work-canvas-shortcuts.md) |
+_Nothing is active. Start one with `node scripts/roadmap.mjs start docs/roadmap/planned/<file>`._
 
 ### Planned
 
@@ -103,4 +101,5 @@ verification follow-ups rather than feature slices.
 | 62 | Slice 62 — Markdown section, safe renderer and source editor (Slice 59 Stage C1) | 2026-10-02 | Safe Markdown authoring beside Rich Text; deferred panel controls keep the initial bundle at 1,032,388 bytes; all 104 browser tests pass | [62-markdown-section.md](completed/62-markdown-section.md) |
 | 63 | Slice 63 — Rich Text to Markdown conversion and retirement (Slice 59 Stage C2) | 2026-10-03 | Rich Text converted to Markdown at schema v6 with history intact; Rich Text retired on create and load | [63-rich-text-to-markdown-conversion.md](completed/63-rich-text-to-markdown-conversion.md) |
 | 64 | Slice 64 — Section configs validated by type | 2026-10-03 | Markdown config is exactly { markdown } or empty, refused otherwise on every write; the v6 converter drops extras | [64-section-config-validation.md](completed/64-section-config-validation.md) |
+| 65 | Slice 65 — Shortcuts on Work canvases (Slice 59 Stage D) | 2026-10-05 | Workstream Work canvases take same-root shortcuts in their own history; a cross-root move refuses any placement with exactly one end inside | [65-work-canvas-shortcuts.md](completed/65-work-canvas-shortcuts.md) |
 <!-- roadmap:end -->

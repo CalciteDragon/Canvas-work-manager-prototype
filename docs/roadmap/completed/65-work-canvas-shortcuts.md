@@ -1,4 +1,4 @@
-<!-- plan id="65" status="active" summary="Section shortcuts placed on a workstream's Work canvas from same-root sources, with destination-owned history and both-end reparent safety" -->
+<!-- completed-record id="65" closed="2026-10-05" summary="Workstream Work canvases take same-root shortcuts in their own history; a cross-root move refuses any placement with exactly one end inside" -->
 # Slice 65 — Shortcuts on Work canvases (Slice 59 Stage D)
 
 ## Goal
@@ -375,3 +375,83 @@ and the fault is noted in the commit.
     is refused, instead of an Undo that would remove the agent's own placement first.
 - **Review round 4 (2026-10-02):** The reviewer confirmed both round-3 fixes against the code. No
   substantive findings remain, and the plan is ready to implement.
+
+## Outcome
+
+**Deliverables** — A workstream's Work canvas now holds section shortcuts the way a root's Home does.
+
+- **Domain.** [`SectionShortcutService`](../../../packages/domain/src/section-shortcut-service.ts)
+  accepts only the owner's canonical page, resolves an omitted list `pageId` to it, and compares the
+  roots of both ends.
+- **History executors.** [`shortcut-history.ts`](../../../packages/domain/src/shortcut-history.ts)
+  makes the same two changes, so Undo and Redo of all four placement writes run on Work. Each
+  action is in the workstream's history.
+- **Reparent rule.** [`shortcutsCarriedAcrossRoots`](../../../packages/domain/src/project-history.ts)
+  refuses each placement with exactly one end in the moving subtree, for the forward move and for a
+  reparent's Undo and Redo.
+- **Integrity.** [`validateDocumentIntegrity`](../../../packages/repositories/src/data-store.ts)
+  accepts a placement only on its project's canonical page.
+- **Web.** The shell gates shortcuts on the canonical page and passes a new `rootProjectId`
+  renderer input through `ProjectCanvas` to `ProjectPageStore.load`. The store's live filter is
+  keyed on that root. The dialog, picker and frame are unchanged.
+- **MCP.** The shortcut and undo tools describe the new destinations. There is no new tool, grant
+  or schema change.
+
+**Deliberate choices**
+
+- **Destinations and sources.** Destinations are canonical pages only, and sources follow Home's
+  rule at any depth, descendants included (Q2).
+- **History and the reparent rule.** History belongs to the destination project. The reparent
+  check is "exactly one end inside", which is complete because integrity keeps every stored
+  placement same-root.
+- **Reload on a root change.** A change of `rootProjectId` reloads the canvas. The correctness
+  reviewer noted this shows a brief loading state when the viewed workstream moves roots, where a
+  quiet filter update would not. The plan chose the reload because a cross-root move changes which
+  sources are in-tree, and a full read gives one consistent answer; the move is API/MCP-only.
+- **Store default.** `ProjectPageStore.load`'s root defaults to the project, which is right for
+  Home and kept the existing specs unchanged.
+
+All of these are recorded in
+[Work canvas shortcut destinations](../../decisions/2026-10-work-canvas-shortcut-destinations.md).
+
+**Deviations from the plan**
+
+- **S-src is a pin.** The service could create Work placements before the reparent change landed,
+  so the S-src forward-move test passed at once: the source end was already counted.
+- **The creation-Undo preflight is a pin.** It was shown sensitive by temporarily dropping its
+  shortcut conflict, then reverted.
+- **Fails-first evidence.** The HTTP tests were confirmed red against the pre-slice domain by
+  checking out the old files temporarily.
+- **Testing docs.** `docs/architecture/testing/` was missing from the change list; the docs review
+  caught it and it was updated.
+- **`prototype-host/api/`.** It was listed but needed no change, since routes and statuses are
+  unchanged.
+
+**Deferred** — Retiring the Sub-Projects section, and any seed placements on Work canvases, belong
+to Stage E. Evidence at 375 px and in both themes is Stage F. A web reparent control is still out
+of scope.
+
+**Open questions** — Real use recorded two friction notes for a later UX pass:
+
+- A shortcut to an untitled source reads only "Markdown", which is ambiguous beside a canvas's own
+  untitled Markdown.
+- The split-move refusal names only the placement id, not its canvas or source.
+
+**Documentation updated**
+
+- **Decisions.** A new decision entry and dated amendments to four existing ones, indexed.
+- **Spec.** §26, §27, §30, §32, §54 and §62.
+- **Guides.** `mcp-setup.md` and `first-milestone-walkthrough.md`.
+- **Architecture.** contracts, domain, repositories, mcp-tools, web/projects, web/tasks,
+  prototype-host/mcp-transport and testing.
+- **Roadmap.** The Slice 59 umbrella's Stage D note and `goals.md`.
+
+**Verification**
+
+- **Offline suite.** `pnpm test` passed: 3,111 offline tests.
+- **Lint and build.** `pnpm lint` (with `docs:check`) and `pnpm build` passed.
+- **Browser.** The targeted e2e journey passed. A full e2e run during development passed all 104
+  other browser tests.
+- **Acceptance.** `acceptance` and `mcp-acceptance` passed on both transports.
+- **Real use.** The flow was used for real in the browser and once through HTTP MCP, on a scratch
+  copy of `nested-projects`.

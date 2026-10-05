@@ -58,8 +58,8 @@ The user requested a new branch and an
 [umbrella implementation plan in Slice 59](planned/59-markdown-and-work-navigation.md):
 Markdown source/rendering in place of Rich Text, task checkbox reopening and click selection,
 project-name page-settings gear, Work creation plus, clearer nested-work terminology and
-section shortcuts on work canvases, replacing the Sub-Projects section view. Stages A, B and C1 are delivered;
-the remaining work is planned. The umbrella orders six bounded stages and
+section shortcuts on work canvases, replacing the Sub-Projects section view. Stages A–D are delivered;
+Stages E and F remain planned. The umbrella orders six bounded stages and
 records proposed defaults, explicit migration/history work and integrated acceptance.
 [Slice 60](completed/60-workstream-navigation-controls.md) completed Stage A: the
 **workstream** vocabulary, the page-settings gear beside the root name and the Work plus with an
@@ -80,6 +80,11 @@ with Undo/Redo, labels and Archive recovery intact, and Rich Text refused on cre
 Independent review findings are resolved; 3,056 offline tests, all 104 browser tests and the four
 host acceptance scripts passed, the developer's data file was converted in real use, and the
 initial bundle is about 1,028 kB under the unchanged ceiling. Stage C is complete.
+[Slice 65](completed/65-work-canvas-shortcuts.md) completed Stage D: a workstream's Work canvas takes
+same-root shortcuts recorded in its own history, and a cross-root move refuses any placement with
+exactly one end in the moving subtree. Independent review findings are resolved; 3,111 offline
+tests, the targeted browser journey and both acceptance scripts passed, with real browser and HTTP
+MCP use recorded. Stage E (retiring the Sub-Projects section) is next.
 
 **2026-09-30 roadmap close-out.** [Slice 46](completed/46-slice-34-closeout-follow-up.md) and the
 [Slice 34 umbrella](completed/34-undo-redo-and-archive.md) are complete. Slices 47–58 closed
