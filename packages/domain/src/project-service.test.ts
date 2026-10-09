@@ -580,7 +580,10 @@ describe('ProjectService.update applies the one-end-inside rule to Work canvas p
     const message = await messageOf(harness.projectWriteService.update(harness.actor, CABINETS, { parentProjectId: other.id }));
     expect(message).toContain(shortcut.id);
     expect(message).not.toMatch(/shortcut-renovation/);
-    expect(harness.store.snapshot().projects).toEqual(before.projects);
+    // Slice 68: the refusal says where the placement sits and what it places, so it can be removed in one step.
+    expect(message).toContain('on the Work page of "Cabinets", placing "Markdown" from "Garden"');
+    expect(message).toContain('remove it from that page, then retry');
+    expect(harness.store.snapshot()).toEqual(before);
 
     // Within the root nothing crosses, whichever end moves.
     expect((await harness.projectWriteService.update(harness.actor, CABINETS, { parentProjectId: GARDEN })).project.parentProjectId).toBe(GARDEN);
@@ -593,6 +596,53 @@ describe('ProjectService.update applies the one-end-inside rule to Work canvas p
     const message = await messageOf(harness.projectWriteService.update(harness.actor, CABINETS, { parentProjectId: other.id }));
     expect(message).toContain(shortcut.id);
     expect(message).not.toMatch(/shortcut-renovation/);
+    expect(message).toContain('on the Work page of "Garden", placing "Hinges" from "Cabinets"');
+  });
+
+  /** Slice 68: the seeded placements, described from the seed's own names. */
+  const renovationHome = async (harness: ReturnType<typeof buildHarness>) =>
+    (await harness.pages.list({ projectId: 'project-renovation' as ProjectId })).find(({ kind }) => kind === 'home')!;
+  const SEEDED = ['shortcut-renovation-kitchen-tasks', 'shortcut-renovation-kitchen-reflections'];
+
+  it('describes both seeded Home placements when Kitchen moves, with the plural repair', async () => {
+    const { harness, other } = await setUp();
+
+    const message = await messageOf(harness.projectWriteService.update(harness.actor, KITCHEN, { parentProjectId: other.id }));
+
+    expect(message).toMatch(/^project "project-kitchen" cannot move to another root: shortcuts /);
+    expect(message).toContain(`"${SEEDED[0]}" (on the Home page of "Home renovation", placing "Task List" from "Kitchen")`);
+    expect(message).toContain(`"${SEEDED[1]}" (on the Home page of "Home renovation", placing "Reflections" from "Kitchen")`);
+    expect(message).toContain('remove each from its page, then retry');
+  });
+
+  it('names all five carried placements, describes the first three, and writes nothing', async () => {
+    const { harness, other } = await setUp();
+    const home = await renovationHome(harness);
+    const added: string[] = [];
+    for (const title of ['Tiles', 'Lighting', 'Plumbing']) {
+      const { section } = await harness.sectionWriteService.add(harness.actor, KITCHEN, { type: 'markdown', title });
+      added.push((await harness.sectionShortcutWriteService.create(harness.actor, 'project-renovation' as ProjectId, { pageId: home.id, sourceSectionId: section.id })).shortcut.id);
+    }
+    const before = harness.store.snapshot();
+
+    const message = await messageOf(harness.projectWriteService.update(harness.actor, KITCHEN, { parentProjectId: other.id }));
+
+    for (const id of [...SEEDED, ...added]) expect(message).toContain(`"${id}"`);
+    expect(message).toContain(`"${added[0]}" (on the Home page of "Home renovation", placing "Tiles" from "Kitchen")`);
+    expect(message).not.toContain('placing "Lighting"');
+    expect(message).not.toContain('placing "Plumbing"');
+    expect(message).toContain(`and "${added[1]}", "${added[2]}" would cross root trees`);
+    expect(harness.store.snapshot()).toEqual(before);
+  });
+
+  it('gives a projects.write-only actor the same described refusal (the accepted disclosure)', async () => {
+    const { harness, other } = await setUp();
+    await placeOn(harness, CABINETS, GARDEN_BRIEF);
+    const writer = agentActorFor(0, ['projects.write']);
+
+    const message = await messageOf(harness.projectWriteService.update(writer, CABINETS, { parentProjectId: other.id }));
+
+    expect(message).toContain('on the Work page of "Cabinets", placing "Markdown" from "Garden"');
   });
 
   it('S-both: moves a workstream whose Work places a descendant section, and the placement stays valid', async () => {

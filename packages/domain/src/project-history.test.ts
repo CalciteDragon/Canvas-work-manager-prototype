@@ -5,7 +5,14 @@ import { agentActorFor, buildHarness, MINE } from '../test/test-support';
 import type { ActorContext } from './actor';
 import { DomainRuleError, PermissionDeniedError } from './errors';
 import { OperationExecutionRefused } from './operation-execution';
-import { preflightProjectAddUndo, reapplyProjectAdd, type ProjectAddHistoryRepositories } from './project-history';
+import {
+  carriedShortcutsSentence,
+  preflightProjectAddUndo,
+  reapplyProjectAdd,
+  shortcutsCarriedAcrossRoots,
+  type CarriedShortcut,
+  type ProjectAddHistoryRepositories,
+} from './project-history';
 
 type Harness = ReturnType<typeof buildHarness>;
 
@@ -674,12 +681,16 @@ describe('a reparent reversal refuses a shortcut it would carry across roots', (
     const home = (await h.pages.list({ projectId: other.id })).find(({ kind }) => kind === 'home')!;
     const shortcut = await h.sectionShortcutWriteService.create(someoneElse, other.id, { pageId: home.id, sourceSectionId: source.section.id });
     const before = state(h);
+    const sentence = carriedShortcutsSentence(await shortcutsCarriedAcrossRoots(h, await project(h, child.id), MINE))!;
 
     const refusal = await refusalOf(step(h, moved.operation!));
-    expect(refusal.details).toMatchObject({
+    expect(refusal.details).toEqual(expect.objectContaining({
       reason: 'history_conflict',
       conflicts: [{ entityType: 'shortcut', id: shortcut.shortcut.id, problem: 'shortcut-reference', nextStep: 'remove-reference-and-retry' }],
-    });
+    }));
+    // Slice 68: the same sentence the forward refusal uses, after this path's own opener.
+    expect(sentence).toContain('on the Home page of "Other root", placing "Kitchen notes" from "Kitchen"');
+    expect(refusal.message).toContain(`Undo of the update on "Kitchen" was refused: ${sentence}`);
     expect(state(h)).toEqual(before);
 
     await h.sectionShortcutWriteService.remove(someoneElse, shortcut.shortcut.id);
@@ -776,12 +787,15 @@ describe('a reparent reversal refuses a Work canvas placement it would split acr
     const source = await h.sectionWriteService.add(someoneElse, other.id, { type: 'markdown', title: 'Other notes' });
     const shortcut = await h.sectionShortcutWriteService.create(someoneElse, CABINETS, { pageId: CABINETS_WORK, sourceSectionId: source.section.id });
     const before = state(h);
+    const sentence = carriedShortcutsSentence(await shortcutsCarriedAcrossRoots(h, await project(h, CABINETS), 'project-kitchen' as ProjectId))!;
 
     const refusal = await refusalOf(step(h, moved.operation!));
-    expect(refusal.details).toMatchObject({
+    expect(refusal.details).toEqual(expect.objectContaining({
       reason: 'history_conflict',
       conflicts: [{ entityType: 'shortcut', id: shortcut.shortcut.id, problem: 'shortcut-reference', nextStep: 'remove-reference-and-retry' }],
-    });
+    }));
+    expect(sentence).toContain('on the Work page of "Cabinets", placing "Other notes" from "Other root"');
+    expect(refusal.message).toContain(`Undo of the update on "Cabinets" was refused: ${sentence}`);
     expect(state(h)).toEqual(before);
 
     await h.sectionShortcutWriteService.remove(someoneElse, shortcut.shortcut.id);
@@ -796,12 +810,43 @@ describe('a reparent reversal refuses a Work canvas placement it would split acr
     await step(h, moved.operation!);
     const shortcut = await h.sectionShortcutWriteService.create(someoneElse, CABINETS, { pageId: CABINETS_WORK, sourceSectionId: GARDEN_BRIEF });
     const before = state(h);
+    const sentence = carriedShortcutsSentence(await shortcutsCarriedAcrossRoots(h, await project(h, CABINETS), other.id))!;
 
     const refusal = await refusalOf(step(h, moved.operation!, 'redo'));
-    expect(refusal.details).toMatchObject({
+    expect(refusal.details).toEqual(expect.objectContaining({
       reason: 'history_conflict',
-      conflicts: [{ entityType: 'shortcut', id: shortcut.shortcut.id, problem: 'shortcut-reference' }],
+      conflicts: [{ entityType: 'shortcut', id: shortcut.shortcut.id, problem: 'shortcut-reference', nextStep: 'remove-reference-and-retry' }],
+    }));
+    expect(sentence).toContain('on the Work page of "Cabinets", placing "Markdown" from "Garden"');
+    expect(refusal.message).toContain(`Redo of the update on "Cabinets" was refused: ${sentence}`);
+    expect(state(h)).toEqual(before);
+  });
+
+  it('Slice 68: a Redo with a live child and a split placement names both, in text and payload', async () => {
+    const h = nested();
+    const other = await createRoot(h, 'Other root');
+    // Cabinets has no children, so one update can archive it and move it: recorded as project.archive.
+    const archived = await h.projectWriteService.update(h.actor, CABINETS, { status: 'archived', parentProjectId: other.id });
+    await step(h, archived.operation!);
+    // Someone else's writes, so the actor's Redo branch survives (operation-recorder discards it on the actor's own write).
+    const child = await h.projectService.create(someoneElse, {
+      workspaceId: h.actor.workspaceId, kind: 'subproject', parentProjectId: CABINETS, name: 'Doors',
     });
+    const shortcut = await h.sectionShortcutWriteService.create(someoneElse, CABINETS, { pageId: CABINETS_WORK, sourceSectionId: GARDEN_BRIEF });
+    const before = state(h);
+    const sentence = carriedShortcutsSentence(await shortcutsCarriedAcrossRoots(h, await project(h, CABINETS), other.id))!;
+
+    const refusal = await refusalOf(step(h, archived.operation!, 'redo'));
+
+    expect(refusal.details).toEqual(expect.objectContaining({
+      reason: 'history_conflict',
+      conflicts: [
+        { entityType: 'shortcut', id: shortcut.shortcut.id, problem: 'shortcut-reference', nextStep: 'remove-reference-and-retry' },
+        expect.objectContaining({ entityType: 'project', id: child.id, problem: 'new-dependent' }),
+      ],
+    }));
+    expect(refusal.message).toContain(`Redo of the archive on "Cabinets" was refused: ${sentence}; new-dependent: project "Doors" [${child.id}]`);
+    expect(refusal.message).not.toContain('shortcut-reference:');
     expect(state(h)).toEqual(before);
   });
 
@@ -826,5 +871,53 @@ describe('a reparent reversal refuses a Work canvas placement it would split acr
       kind: 'conflict',
       conflicts: [expect.objectContaining({ entityType: 'shortcut', id: 'shortcut-porch-brief', problem: 'new-dependent' })],
     });
+  });
+});
+
+/** Slice 68: the one sentence both refusal paths use for carried placements, as a pure function. */
+describe('carriedShortcutsSentence', () => {
+  const document = buildSeed('nested-projects');
+  const byId = <T extends { id: string }>(rows: readonly T[], id: string): T => rows.find((row) => row.id === id)!;
+  const cabinets = byId(document.projects, 'project-cabinets');
+  const garden = byId(document.projects, 'project-garden');
+  const cabinetsWork = byId(document.projectPages, 'page-project-cabinets');
+  const brief = byId(document.sections, 'section-project-garden-brief');
+  const entry = (id: string, overrides: Partial<CarriedShortcut> = {}): CarriedShortcut => ({
+    shortcut: { ...document.sectionShortcuts[0]!, id: id as SectionShortcutId },
+    page: cabinetsWork,
+    pageProject: cabinets,
+    source: brief,
+    sourceProject: garden,
+    ...overrides,
+  });
+
+  it('names nothing for an empty list', () => {
+    expect(carriedShortcutsSentence([])).toBeUndefined();
+  });
+
+  it("describes one placement's page, destination, source name and source owner, with the singular repair", () => {
+    expect(carriedShortcutsSentence([entry('shortcut-x')])).toBe(
+      'shortcut "shortcut-x" (on the Work page of "Cabinets", placing "Markdown" from "Garden") would cross root trees; remove it from that page, then retry',
+    );
+  });
+
+  it('describes two placements with the plural repair', () => {
+    expect(carriedShortcutsSentence([entry('a'), entry('b')])).toBe(
+      'shortcuts "a" (on the Work page of "Cabinets", placing "Markdown" from "Garden") and "b" (on the Work page of "Cabinets", placing "Markdown" from "Garden") would cross root trees; remove each from its page, then retry',
+    );
+  });
+
+  it('names all five ids, describes the first three, and uses the plural repair', () => {
+    const sentence = carriedShortcutsSentence(['a', 'b', 'c', 'd', 'e'].map((id) => entry(id)))!;
+    const described = ' (on the Work page of "Cabinets", placing "Markdown" from "Garden")';
+    expect(sentence).toBe(
+      `shortcuts "a"${described}, "b"${described}, "c"${described}, and "d", "e" would cross root trees; remove each from its page, then retry`,
+    );
+  });
+
+  it('falls back to the project id when a project is unknown, and still names the placement', () => {
+    expect(carriedShortcutsSentence([entry('shortcut-x', { pageProject: undefined, sourceProject: undefined })])).toBe(
+      'shortcut "shortcut-x" (on the Work page of [project-cabinets], placing "Markdown" from [project-garden]) would cross root trees; remove it from that page, then retry',
+    );
   });
 });

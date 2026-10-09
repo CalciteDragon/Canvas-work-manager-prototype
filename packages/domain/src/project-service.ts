@@ -19,7 +19,14 @@ import type { Clock } from './clock';
 import { DomainRuleError, EntityNotFoundError } from './errors';
 import type { IdGenerator } from './ids';
 import type { OperationRecorder } from './operation-recorder';
-import { captureProjectAdd, captureProjectWrite, projectAddLabel, projectWriteLabel, shortcutsCarriedAcrossRoots } from './project-history';
+import {
+  captureProjectAdd,
+  captureProjectWrite,
+  carriedShortcutsSentence,
+  projectAddLabel,
+  projectWriteLabel,
+  shortcutsCarriedAcrossRoots,
+} from './project-history';
 import { archivedAncestry } from './project-visibility';
 
 /**
@@ -303,15 +310,14 @@ export class ProjectService {
   /**
    * A move to another root must not split a shortcut — its canvas on one side, its source on the
    * other: that placement would cross root trees, which commit-time integrity rejects as a defect
-   * rather than a refusal. Naming each placement lets the caller remove it and retry (§§26, 27, 61).
+   * rather than a refusal. Naming each placement, with the page it sits on and the section it
+   * places, lets the caller remove it in one step and retry (§§26, 27, 61). The sentence is the one
+   * a reparent's Undo or Redo uses, from `carriedShortcutsSentence` (Slice 68).
    */
   private async assertNoShortcutCarriedAcrossRoots(subject: Project, parentId: ProjectId): Promise<void> {
-    const carried = await shortcutsCarriedAcrossRoots(this.dependencies, subject, parentId);
-    if (carried.length === 0) return;
-    const named = carried.map(({ id }) => `"${id}"`).join(', ');
-    throw new DomainRuleError(
-      `project "${subject.id}" cannot move to another root while shortcut ${named} would cross root trees; remove that placement first`,
-    );
+    const sentence = carriedShortcutsSentence(await shortcutsCarriedAcrossRoots(this.dependencies, subject, parentId));
+    if (sentence === undefined) return;
+    throw new DomainRuleError(`project "${subject.id}" cannot move to another root: ${sentence}`);
   }
 
   /** An implicit cascade would archive work the caller never named (§58 flags archive). */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { UndoConflict, UndoConflictNextStep } from '@cwm/contracts';
-import { OperationExecutionRefused, refuseOnConflicts } from './operation-execution';
+import { OperationExecutionRefused, conflictListText, refuseOnConflicts } from './operation-execution';
 
 const conflict = (nextStep: UndoConflictNextStep, problem: UndoConflict['problem'] = 'moved', id = 'task-1'): UndoConflict => ({
   entityType: 'task', id, ...(problem === 'missing' ? {} : { title: 'Named task' }), problem, nextStep,
@@ -61,5 +61,11 @@ describe('plain-language operation conflict text', () => {
     expect(error.message).toContain('and 1 more');
     expect(error.message).not.toContain('then retry');
     expect(error.problem).toEqual({ kind: 'conflict', conflicts: items, permanent: true });
+  });
+
+  it('renders its message as sentence(conflictListText(...)) for a six-item list', () => {
+    const items = Array.from({ length: 6 }, (_, index) => conflict('move-back-and-retry', 'moved', `task-${index + 1}`));
+    expect(refusal(items).message).toBe(`Could not apply: ${conflictListText(items, false)}`);
+    expect(refusal(items, (item) => item.id === 'task-6').message).toBe(`Could not apply: ${conflictListText(items, true)}`);
   });
 });
