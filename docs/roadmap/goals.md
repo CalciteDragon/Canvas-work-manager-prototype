@@ -106,7 +106,8 @@ would implement and the scope guards it inherits.
 
 **Next.** On 2026-10-09 the user promoted two Slice 65 friction notes to candidates, which come
 next now that the Markdown and work navigation direction is done:
-- [Slice 68 — cross-root move refusal names each placement](planned/68-cross-root-refusal-names-placements.md)
+- [Slice 68 — cross-root move refusal names each placement](active/68-cross-root-refusal-names-placements.md),
+  active since 2026-10-09 with its plan reviewed in three rounds
   (`note-2026-10-03-002`);
 - [Slice 69 — distinguishable names for untitled shortcut sources](planned/69-distinguishable-shortcut-names.md)
   (`note-2026-10-03-001`).
@@ -293,7 +294,7 @@ Known friction not yet promoted to a slice, carried in `.prototype/notes.json`:
   use must decide whether richer rows are needed (`note-2026-10-09-001`).
 - Shortcut ambiguity and placement-only move refusals have been promoted to
   [Slice 69](planned/69-distinguishable-shortcut-names.md) (`note-2026-10-03-001`) and
-  [Slice 68](planned/68-cross-root-refusal-names-placements.md) (`note-2026-10-03-002`).
+  [Slice 68](active/68-cross-root-refusal-names-placements.md) (`note-2026-10-03-002`).
 - §46's failure-rate injection applies to reads as well as writes (`note-2026-09-06-009`).
 - Storybook is limited to a handful of story sets; the Design Lab's *primitive* panels are
   the evidence for a shared component library that has not been extracted.
