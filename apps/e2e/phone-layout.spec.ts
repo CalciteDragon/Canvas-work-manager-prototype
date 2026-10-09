@@ -4,8 +4,9 @@
  * resize. Everything here is what jsdom cannot show — a real focus trap, `inert` actually
  * blocking the workspace, container-query stacking, horizontal overflow and `matchMedia`.
  */
-import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { addSection, api, createRoot, seed, setClock } from './seed';
+import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
+import type { ProjectSection } from '@cwm/contracts';
+import { addSection, api, createRoot, seed, setClock, setLayout } from './seed';
 
 const PHONE = { viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true } as const;
 const THEMES = ['dark', 'light'] as const;
@@ -73,12 +74,81 @@ const expectNoHorizontalOverflow = async (page: Page, label: string) => {
   expect(widths.track, `${label}: project main track`).toBeLessThanOrEqual(1);
 };
 
+/** A long fenced line scrolls within its code block rather than widening the canvas. */
+const expectScrollableCode = async (pre: Locator) => {
+  await expect(pre).toBeVisible();
+  expect(await pre.evaluate((element) => getComputedStyle(element).overflowX)).toMatch(/^(auto|scroll)$/);
+  expect(await pre.evaluate((element) => {
+    element.scrollLeft = 40;
+    return element.scrollLeft;
+  })).toBeGreaterThan(0);
+};
+
 test.beforeEach(async () => {
   await seed('nested-projects');
   await setClock('2026-09-01T12:00:00.000Z');
 });
 
 for (const theme of THEMES) {
+  test(`${theme}: Markdown stays contained and editable on a phone and in a narrow Grid`, async ({ browser }) => {
+    const root = await createRoot('Markdown containment');
+    const source = `# Phone plan\n\n- One\n- Two\n\n[docs](https://example.com)\n\n\`\`\`ts\n${'x'.repeat(200)}\n\`\`\`\n`;
+    const section = await addSection(root.id, {
+      type: 'markdown', title: 'Narrow Markdown', columnSpan: 4, config: { markdown: source },
+    });
+    const phone = await phoneContext(browser, theme);
+    const desktop = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: theme });
+    try {
+      const page = await phone.newPage();
+      await page.goto(`/projects/${root.id}`);
+      await useTheme(page, theme);
+      const frame = page.locator(`[data-section-item][data-section-id="${section.id}"] [data-section-frame]`);
+      await expect(frame.locator('h3')).toHaveText('Phone plan');
+      await expect(frame.locator('ul li')).toHaveCount(2);
+      await expect(frame.locator('pre code')).toHaveText('x'.repeat(200));
+      await expect(frame.locator('a')).toHaveAttribute('rel', /\bnoopener\b/);
+      await expectScrollableCode(frame.locator('pre'));
+      await expectNoHorizontalOverflow(page, 'Markdown');
+
+      const editedSource = `${source}\nSaved by touch.\n`;
+      await frame.locator('[data-markdown-edit]').tap();
+      await frame.locator('[data-markdown-source]').fill(editedSource);
+      await frame.locator('[data-markdown-save]').tap();
+      await expect(frame.locator('[data-markdown-source]')).toHaveCount(0);
+      expect((await api.get<ProjectSection[]>(`/api/projects/${root.id}/sections`))
+        .find(({ id }) => id === section.id)?.config).toEqual({ markdown: editedSource });
+
+      await setLayout(root.id, 'grid');
+      const gridPage = await desktop.newPage();
+      await gridPage.goto(`/projects/${root.id}`);
+      await expect(gridPage.locator('[data-identity-name]')).toHaveText('Demo User');
+      if (await gridPage.locator('html').getAttribute('data-theme') !== theme) {
+        await gridPage.locator('[data-theme-toggle]').click();
+      }
+      await expect(gridPage.locator('html')).toHaveAttribute('data-theme', theme);
+      const grid = gridPage.locator('[data-section-canvas]');
+      const item = grid.locator(`[data-section-item][data-section-id="${section.id}"]`);
+      await expect(item.locator('pre code')).toHaveText('x'.repeat(200));
+      const gap = await grid.evaluate((element) => Number.parseFloat(getComputedStyle(element).columnGap));
+      const width = await grid.evaluate((element) => element.clientWidth);
+      const itemWidth = await item.evaluate((element) => element.getBoundingClientRect().width);
+      expect(Math.abs(itemWidth - (4 * (width - 11 * gap) / 12 + 3 * gap)), 'Grid applies span 4').toBeLessThanOrEqual(1);
+      await expectScrollableCode(item.locator('pre'));
+      const gridFrame = item.locator('[data-section-frame]');
+      expect(await gridFrame.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(itemWidth + 1);
+      // Sparse-grid insertion overlays intentionally extend the item's scroll box into the gap.
+      // The frame must fit its item, while content and page scroll boxes remain contained.
+      for (const [label, locator] of [
+        ['frame', gridFrame], ['grid', grid], ['document', gridPage.locator('html')],
+      ] as const) {
+        expect(await locator.evaluate((element) => element.scrollWidth - element.clientWidth), label).toBeLessThanOrEqual(1);
+      }
+    } finally {
+      await phone.close();
+      await desktop.close();
+    }
+  });
+
   test(`${theme}: the drawer opens by tap, Enter and Space, traps focus, and closes by Escape, backdrop and Close`, async ({ browser }) => {
     const context = await phoneContext(browser, theme);
     const page = await context.newPage();

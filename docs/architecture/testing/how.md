@@ -79,7 +79,9 @@ a current read, so a race is verified against the canonical write refusal too.
     workstream's history, to `acceptance`; `mcp-acceptance` places an ancestor section on a
     workstream's Work canvas (page id read with `list_project_pages`), lists and undoes it, and
     proves a forward cross-root `update_project` is refused naming a placement it would split, then
-    succeeds once the placement is removed — on both transports.
+    succeeds once the placement is removed — on both transports. Slice 67 reads updated and Undone
+    Markdown source back through `list_sections` and disk, and reopens a descendant task with
+    owner-history isolation and exact `completedAt` Undo/Redo on both transports.
 5. `pnpm e2e` (dev servers stopped, Chromium installed once) first takes the scratch file's owner
    record and copies the current empty seed over it — refused with `data_file_in_use:` if a
    leftover e2e host still owns `.prototype/e2e-data.json`, reclaimed if a hard-killed one left a
@@ -98,7 +100,9 @@ a current read, so a race is verified against the canonical write refusal too.
    journeys that clicked the notice's Undo now go through `history-controls.ts`.
    `work-navigation.spec.ts` checks gear and plus behavior in both themes, live parent loss,
    create refusal, archived-root blocking and a second tab's Work/Todos refresh. The touch
-   path and dialog containment are in `phone-layout.spec.ts`.
+   path and dialog containment are in `phone-layout.spec.ts`. Slice 67 adds the literal six-type
+   picker in `canvas-editing.spec.ts` and Markdown rendering, exact touch source save, code scrolling
+   and containment at 375 px and desktop span-4 Grid in both themes.
    Slice 42's `project-creation-history.spec.ts` creates from the sidebar and Work plus,
    Undoes and Redoes the same ids, reloads the creator's recovery route, and confirms another actor
    sees *Project unavailable*. A nested-project journey checks the root Work tree, Todos, Archive

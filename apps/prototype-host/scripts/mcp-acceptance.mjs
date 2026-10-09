@@ -38,6 +38,7 @@ const modernClient = (name) =>
 // existing-project writes: a rename, a cross-root reparent, an archive undone while archived and a
 // reactivation, each through its own project's history; Slice 42 adds project creation Undo/Redo;
 // Slice 65 adds a workstream Work-canvas shortcut and a forward move refused for splitting one.
+// Slice 67 reads Markdown source back and reopens a done task through its workstream's history.
 const assertClient = async (client, title, dataFile, foreign, access) => {
   check(client.getProtocolEra() === 'modern', `${title} negotiated 2026-07-28`);
   const listed = await client.listTools();
@@ -89,6 +90,7 @@ const assertClient = async (client, title, dataFile, foreign, access) => {
   const foreignPageReceipt = await assertPageHistory(client, foreign, title, dataFile, access);
   await assertProjectHistory(client, foreign, title, dataFile, access);
   await assertRowAndLayoutHistory(client, title, dataFile);
+  await assertTaskReopen(client, title, dataFile);
   await assertRecoveryAndGrants(client, foreign, title, dataFile, access);
   // After the block above revoked the second connection, which is what makes this a revocation.
   await assertRevokedPageReceipt(foreign, foreignPageReceipt, title, dataFile);
@@ -206,11 +208,20 @@ const assertUndo = async (client, title, dataFile) => {
   });
   check(editable.isError !== true && typeof editable.structuredContent?.section?.id === 'string', `${title} creates an editable section`);
   const editableId = editable.structuredContent.section.id;
+  const markdownIs = async (expected) => {
+    const listed = await client.callTool({ name: 'list_sections', arguments: { projectId: PROJECT } });
+    const section = JSON.parse(listed.content[0].text).find(({ id }) => id === editableId);
+    const stored = JSON.parse(await readFile(dataFile, 'utf8')).sections.find(({ id }) => id === editableId);
+    return listed.isError !== true &&
+      JSON.stringify(section?.config) === JSON.stringify({ markdown: expected }) &&
+      JSON.stringify(stored?.config) === JSON.stringify({ markdown: expected });
+  };
   const changed = await client.callTool({
     name: 'update_section',
     arguments: { sectionId: editableId, title: `Changed ${title}`, config: { markdown: 'After' }, collapsed: true },
   });
   check(changed.isError !== true && receiptOf(changed)?.operation === 'section.update', `${title} update_section returns one update receipt`);
+  check(await markdownIs('After'), `${title} list_sections and the file read back the updated Markdown source`);
   const noOp = await client.callTool({ name: 'update_section', arguments: { sectionId: editableId, title: `Changed ${title}` } });
   check(noOp.isError !== true && noOp.structuredContent?.operation === null, `${title} an unchanged update returns operation: null`);
   const undoneUpdate = await stepReceipt(client, receiptOf(changed));
@@ -220,6 +231,7 @@ const assertUndo = async (client, title, dataFile) => {
       undoneUpdate.structuredContent?.result?.section?.title === `Original ${title}`,
     `${title} Undo restores only the edited fields`,
   );
+  check(await markdownIs('Before'), `${title} list_sections and the file read back the restored source after Undo`);
 
   // Slice 35's gate over this transport: two writes to the same field, then both undone and redone in order.
   const titleOf = async () => {
@@ -995,6 +1007,56 @@ const assertRecoveryAndGrants = async (client, foreign, title, dataFile, access)
     JSON.parse(await readFile(dataFile, 'utf8')).sections.some(({ id }) => id === foreignReceipt.structuredContent.section.id),
     `${title} the revoked connection's section is still there — nothing was lost`,
   );
+};
+
+/** Slice 67's descendant-owned reopen and exact timestamp reversal over both real transports. */
+const assertTaskReopen = async (client, title, dataFile) => {
+  const document = async () => JSON.parse(await readFile(dataFile, 'utf8'));
+  const taskOf = async (id) => (await document()).tasks.find((task) => task.id === id);
+  const step = async (receipt, direction = 'undo') => {
+    const history = (await document()).operationHistories.find(({ id }) => id === receipt.historyId);
+    return client.callTool({
+      name: `${direction}_operation`,
+      arguments: { historyId: receipt.historyId, actionId: receipt.actionId, expectedRevision: history.revision },
+    });
+  };
+  const root = await client.callTool({ name: 'create_project', arguments: { kind: 'root', name: `Reopen root ${title}` } });
+  check(root.isError !== true, `${title} creates the reopen root`);
+  const rootId = projectIdOf(root);
+  const child = await client.callTool({ name: 'create_project', arguments: {
+    kind: 'subproject', parentProjectId: rootId, name: `Reopen workstream ${title}`,
+  } });
+  check(child.isError !== true, `${title} creates the reopen workstream`);
+  const childId = projectIdOf(child);
+  const added = await client.callTool({ name: 'create_task', arguments: { projectId: childId, title: 'Reopen through MCP' } });
+  check(added.isError !== true, `${title} creates the reopen task in its default container`);
+  const taskId = added.structuredContent.task.id;
+  const completed = await client.callTool({ name: 'complete_task', arguments: { taskId } });
+  const storedCompletion = await taskOf(taskId);
+  const completedAt = storedCompletion?.completedAt;
+  check(completed.isError !== true && storedCompletion?.status === 'done' && typeof completedAt === 'string', `${title} completes the reopen task and captures completedAt`);
+  const reopened = await client.callTool({ name: 'update_task', arguments: { taskId, status: 'todo' } });
+  const storedReopen = await taskOf(taskId);
+  check(
+    reopened.isError !== true && reopened.structuredContent?.task?.status === 'todo' &&
+      reopened.structuredContent?.task?.completedAt === undefined && storedReopen?.status === 'todo' &&
+      storedReopen?.completedAt === undefined,
+    `${title} update_task reopens a done task to todo and clears completedAt`,
+  );
+  const receipt = receiptOf(reopened);
+  const childHistory = await client.callTool({ name: 'get_operation_history', arguments: { projectId: childId } });
+  const rootHistory = await client.callTool({ name: 'get_operation_history', arguments: { projectId: rootId } });
+  check(
+    childHistory.isError !== true && rootHistory.isError !== true && typeof receipt?.historyId === 'string' &&
+      receipt.historyId === childHistory.structuredContent?.historyId && receipt.historyId !== rootHistory.structuredContent?.historyId,
+    `${title} the reopen is recorded in the workstream's own history`,
+  );
+  const undone = await step(receipt);
+  const storedUndo = await taskOf(taskId);
+  check(undone.isError !== true && storedUndo?.status === 'done' && storedUndo?.completedAt === completedAt, `${title} Undo reopen restores done with the captured completedAt`);
+  const redone = await step(receipt, 'redo');
+  const storedRedo = await taskOf(taskId);
+  check(redone.isError !== true && storedRedo?.status === 'todo' && storedRedo?.completedAt === undefined, `${title} Redo reopen clears it again`);
 };
 
 const httpAccess = (baseUrl) => {

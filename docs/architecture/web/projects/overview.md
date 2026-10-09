@@ -19,8 +19,9 @@ the canvas, navigation, frame, pages, shortcuts and archive list · **Parent:**
 [web](../overview.md)
 
 Markdown renders and edits source through a deferred body and presentational source editor, and
-is the first type in the picker. Rich Text is retired: schema version 6 converted every Rich Text
-section to Markdown, and the registry no longer holds it.
+is the first type in the picker. Rich Text is retired and absent from the registry. Live and
+recreating history copies are refused on load with reset or reseed guidance; the historical
+schema-version-6 converter was removed in Slice 66.
 
 ## Responsibilities
 

@@ -70,7 +70,8 @@ instead. The domain, not this transport, enforces the selected grant
   finds it in the file over both transports with a real client — the slice's *done when*,
   runnable at any time. Later slices extended it; [testing / how](../../testing/how.md) lists
   what it now covers, including Slice 35's A → B → Undo → Undo → Redo → Redo chain over both
-  transports and a fresh connection seeing only its own history.
+  transports and a fresh connection seeing only its own history, and Slice 67's exact Markdown
+  source read-back and descendant task reopen with timestamp Undo/Redo.
 - A stdio agent's write does not appear in the browser; the guide says so and says why.
 - The tool list is public and unfiltered by grant; the metadata tells a client what each
   tool needs before it calls.

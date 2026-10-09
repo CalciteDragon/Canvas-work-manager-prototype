@@ -120,7 +120,7 @@ corrects part of it. *extended* — later entries add rules on top without contr
 | [Where §51's bearer tokens live](2026-08-agent-tokens-are-fixtures-not-records.md) | Tokens are fixtures beside the seeds, not a contract field | current |
 | [Schema version 4 converts explicitly, retires version-3 receipts, and chains two named steps](2026-09-schema-version-4-conversion.md) | Frozen v2 → v3 and v3 → v4 steps; only v3 receipts retire | amended; Slice 66 |
 | [Schema version 5 backfills durable Activity identity without changing history](2026-09-schema-version-5-conversion.md) | Validated v4 → v5 Activity-context backfill preserves operation history | amended; Slice 66 |
-| [Schema version 6 converts Rich Text to Markdown and retires it](2026-10-schema-version-6-markdown-conversion.md) | Escape-everything v5 → v6 conversion of sections and history; Rich Text refused on create and load | amended; Slice 66 |
+| [Schema version 6 converts Rich Text to Markdown and retires it](2026-10-schema-version-6-markdown-conversion.md) | Historical escape-everything v5 → v6 cutover; converter removed in Slice 66, Rich Text still refused on create and load | historical / amended; Slice 66 |
 
 ## Prototype host
 

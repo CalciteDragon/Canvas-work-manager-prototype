@@ -163,7 +163,7 @@ Undo action or imply the row is the next action
 - [The Sub-Projects section is retired; Work is the hierarchy surface](../../../decisions/2026-10-retiring-the-sub-projects-section.md)
 
 - [Markdown source and rendering](../../../decisions/2026-10-markdown-source-and-rendering.md) — source ownership, safe lazy rendering and explicit draft handling.
-- [Schema version 6 converts Rich Text to Markdown and retires it](../../../decisions/2026-10-schema-version-6-markdown-conversion.md) — the registry drops Rich Text, and the placeholder hides the escapes.
+- [Schema version 6 converts Rich Text to Markdown and retires it](../../../decisions/2026-10-schema-version-6-markdown-conversion.md) — historical cutover; the registry omits Rich Text and Slice 66 removed the converter. Unreadable local files require reset or reseed.
 - [A Markdown section's config is validated on every write](../../../decisions/2026-10-section-config-validated-on-write.md) — the schema comes from contracts; unreadable config shows only the guidance note.
 
 - [Task Delete names its existing recovery routes](../../../decisions/2026-09-task-delete-recovery-feedback.md) — Todos names the owner and points to the existing header and root Archive.

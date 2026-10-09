@@ -91,6 +91,17 @@ const expectOnlyCanvasChrome = async (page: Page): Promise<void> => {
   }
 };
 
+test('section picker offers exactly the six current types', async ({ page }) => {
+  await seed('nested-projects');
+  await setClock(PINNED_NOW);
+  await page.goto(`/projects/${HOME_RENOVATION}`);
+  await page.locator('app-insertion-point[data-insertion-point="end"] button').click();
+  await expect(page.locator('[data-create-section-type]')).toBeVisible();
+  expect(await page.locator('[data-create-section-type] option').evaluateAll((options) =>
+    options.map((option) => (option as HTMLOptionElement).value),
+  )).toEqual(['markdown', 'task-list', 'progress', 'reflections', 'timeline', 'recent-activity']);
+});
+
 test('markdown section saves source, renders safely and undoes', async ({ page }) => {
   await seed('empty');
   await setClock(PINNED_NOW);
